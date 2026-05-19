@@ -4,14 +4,54 @@ Buckle is the Belte programming language compiler.
 
 - [Options Summary](#options-summary)
 - [Running Programs](#running-programs)
+- [Build Scripts](#build-scripts)
 - [Building to a .NET DLL](#building-to-a-net-dll)
 - [Debugging a Program](#debugging-a-program)
 
 ## Options Summary
 
+Arguments passed that are not associated with options will be interpreted as paths. Files will be treated as source
+files based on their file extension. Directories will treat all files within them (recursively) as source files based
+on their file extensions.
+
 ### *-h*, *--help*
 
 Displays a brief options summary.
+
+### *new*
+
+Creates a starter build script. Optionally accepts a namespace name as the next argument. Only the
+[*--type*](#--typeconsolegraphics-default-console) and [*--debug*](#--debug) options can be specified in addition.
+
+The generated build script will be placed at `Build.blt` in the working directory, and an entry point will be created
+at `src/Program.blt`. Both locations must be unoccupied.
+
+### *build*
+
+Instead of using normal options, a build script can be used to drive the compilation. The build script is found
+automatically by searching the working directory for a file named `Build.blt`. When using this option, only
+[*--time*](#--time), [*--info*](#--info), and [*--debug*](#--debug) options can be specified in addition. All other
+arguments must be defined in the build script itself.
+
+Optionally, the build script can be specified manually by passing it's path as an argument immediately following
+*build*.
+
+For relevant build modes, arguments can be passed with the [*--*](#---arg) option.
+
+> [Build script info](Build.md)
+
+### *run*
+
+Performs the same actions as [*build*](#build) but then immediately runs the output if applicable. If the build mode
+does not produce a runnable output, this command fails. For build modes that execute immediately anyways
+(Executing, Evaluating, etc.), this command performs identically to *build*.
+
+Arguments can be passed with the [*--*](#---arg) option.
+
+### *--clearcache*
+
+Build scripts are cached to reduce compilation overhead. The cache will automatically manage its size, but it can be
+completely deleted with this option (it will regenerate as needed).
 
 ### *-i* (Default)
 
@@ -28,12 +68,12 @@ The Repl is purely a command-line tool. If the *-r* or *--repl* option is passed
 
 For more information specifically on the Repl, see the [Repl help doc](Repl.md).
 
-### *--type=*[console|graphics|...] (Default *console*)
+### *--type=*\[console|graphics|...] (Default *console*)
 
 Specifies the project type.
 
-|||
-|-|-|
+| | |
+| - | - |
 | `console` (Default) | An application that interfaces purely with the console. |
 | `graphics` | An application that creates a window. |
 | `dll` | Builds into a dynamically linked library. |
@@ -56,7 +96,7 @@ method of running the program is always evaluation.
 
 The program is run in a virtual environment. The Repl uses this mode.
 
-Note that [some features have restricted](Current/Overview.md#11-endpoint-specific-features) when using this option.
+Note that [some features have restricted](Current/Overview.md#12-endpoint-specific-features) when using this option.
 
 ### *--execute*
 
@@ -66,18 +106,33 @@ method of running the program is always execution.
 The program is emitted to a dynamic assembly and ran, offering better performance than *--evaluate* at the cost of
 slightly longer compile time.
 
-Note that [some features have restricted](Current/Overview.md#11-endpoint-specific-features) when using this option.
+Note that [some features have restricted](Current/Overview.md#12-endpoint-specific-features) when using this option.
 
 ### *-t*, *--transpile*
 
 Instead of producing an executable, the program is transpiled into C# source code after initial compilation.
 
-This option uses the same [feature set as *--dotnet*](Current/Overview.md#11-endpoint-specific-features) with the
+This option uses the same [feature set as *--dotnet*](Current/Overview.md#12-endpoint-specific-features) with the
 additional restriction of disallowing inline IL.
 
 ### *-o \<filename>*
 
 Specifies the output file. You cannot specify this option in junction with *-i*, *--evaluate*, or *--execute*.
+
+### *-x \[blt|belte|none] file...*, *--lang \[blt|belte|none] file...*
+
+Specifies a language association for the following files instead of inferring association from file extension.
+Currently, the only language association option is `blt` or `belte` which both mean Belte source files (this reflects
+the default inferred file extensions). The option lasts for the rest of the command-line arguments or until it is
+changes. Using `none` will reset to inferring file types from extensions.
+
+### *--flat \<path>*
+
+Specifies an input file or directory, but in the case of a directory does not search recursively for input files.
+
+### *-- arg...*
+
+All arguments after *--* will be passed to the program if evaluating or executing, otherwise they are ignored.
 
 ### *-m:\<count>*
 
@@ -90,7 +145,7 @@ The compiler stores all diagnostics of any severity. However, diagnostics are on
 is greater than or equal to the given severity level. The default is *warning*.
 
 | Severity | Description |
-|-|-|
+| - | - |
 | *all* | Everything is shown. |
 | *debug* | Verbose information is shown. Used for debugging purposes. |
 | *info* | Any information hidden by default. |
@@ -107,15 +162,19 @@ warning level. The default level is *1*.
 
 > [List of which warnings are included on each level](WarningLevels.md)
 
-### *--wignore=<*[BU|RE|CL]*\<code>,...>*
+### *--wignore=<*\[BU|RE|CL]*\<code>,...>*
 
 Suppresses specified warnings. Warnings should be comma delimited. Warnings should be specified using their codes.
 
-### *--winclude=<*[BU|RE|CL]*\<code>,...>*
+### *--winclude=<*\[BU|RE|CL]*\<code>,...>*
 
 Specifically avoids suppressing specific warnings, even if the [severity level](#--severityseverity-default-warning) or
 [warning level](#--warnlevelwarning-level-default-1) would suggest to do so. Warnings should be comma delimited.
 Warnings should be specified using their codes.
+
+### *--dumpmachine*
+
+Displays host machine information. The message will be in the form `Host: [target]`. For example, `Host: win-x64`.
 
 ### *--version*
 
@@ -145,25 +204,29 @@ Specifies the module name used when .NET integration is enabled. Defaults to the
 without the file extension, or *a* is no output file was specified. This option is purely used for debugging purposes
 and should not need to be used. This option is only valid in junction with the *-d*/*--dotnet* option.
 
-### *--ref=\<file>*, *--reference=\<file>*
+### *--ref\[,flat,copy]=\<path>*, *--reference\[,flat,copy]=\<path>*
 
 Adds a reference when .NET integration is enabled. This reference is a path to a DLL that will be added to the program
 and can then be referenced from within the program. This option is only valid in junction with the *-d*/*--dotnet*
-option.
+option. If the specified path is a directory, all files ending in `.dll` inside of that directory (recursively) will be
+added as references.
+
+Optionally, `,flat` can be appended to specify that directories should not be searched recursively. `,copy` can be
+appended to specify that the references libraries should be copied to the output directory.
 
 ### *--debug*
 
 Emits a .NET PDB file containing debugging symbols. Only emits the file if the *-d*/*--dotnet* option was specified.
 
-### *-l0*, *-l1*, *-l2*
+### *-l0*, *-l1*, *-lall*
 
 Automatically includes certain library references. Each level includes all of the libraries from previous levels.
 
 | l# | Libraries |
-|-|-|
+| - | - |
 | `l0` | `System.Runtime.dll`, `System.IO.dll`, `System.Console.dll`, `System.Runtime.InteropServices.dll` |
 | `l1` | `Diagnostics.dll`, `Compiler.dll`, `Shared.dll`, `System.Collections.dll`, `System.Collections.Immutable.dll` |
-| `l2` | All .NET SDK libraries |
+| `lall` | All .NET SDK libraries |
 
 ### *--time*
 
@@ -213,9 +276,42 @@ buckle Program.blt
 
 *Result (via stdout)*
 
-```
+```txt
 Hello, world!
 ```
+
+## Build Scripts
+
+Instead of passing compilation options directly, a build script can be used. To generate a starter build script, the
+[`new`](#new) command can be used. It accepts an optional project name and project type.
+
+Some examples:
+
+```bash
+buckle new
+buckle new MyProject
+buckle new --type=dll
+```
+
+This command will create a `Build.blt` script in the working directory, and an entry point at `src/Program.blt`.
+
+From there, you can use the [`build`](#build) command:
+
+```bash
+buckle build
+```
+
+This will compile the project and place it into `bin/<project name>.exe`.
+
+To see a hello world program, run the following commands in an empty directory:
+
+```bash
+buckle new
+buckle build
+./bin/project.exe
+```
+
+> [Read more about customizing build scripts](Build.md)
 
 ## Building to a .NET DLL
 

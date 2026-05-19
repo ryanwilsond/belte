@@ -22,7 +22,7 @@ something is true.
 
 #if SOME_CONSTANT
 
-...
+// ...
 
 #endif
 ```

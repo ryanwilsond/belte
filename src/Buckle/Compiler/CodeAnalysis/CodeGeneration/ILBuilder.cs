@@ -46,6 +46,8 @@ internal abstract class ILBuilder {
 
     internal abstract void EmitWithSymbolToken(OpCode opCode, MethodSymbol type);
 
+    internal abstract void EmitUnreachableException();
+
     internal abstract void BeginTry();
 
     internal abstract void BeginCatch();
@@ -77,6 +79,8 @@ internal abstract class ILBuilder {
     internal abstract void EmitBranch(OpCode opCode, object label, OpCode revOpCode = OpCode.Nop);
 
     internal abstract void EmitLoadArgument(int slot);
+
+    internal abstract void EmitLoadArgument0();
 
     internal abstract void EmitLoadArgumentAddr(int slot);
 

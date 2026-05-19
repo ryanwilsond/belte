@@ -53,7 +53,7 @@ internal abstract class SourceParameterSymbol : SourceParameterSymbolBase {
         ScopedKind scope) {
         var name = identifier.text;
 
-        if (syntax.defaultValue is null && scope == ScopedKind.None)
+        if (syntax.defaultValue is null && scope == ScopedKind.None && syntax.attributeLists.Count == 0)
             return new SourceSimpleParameterSymbol(owner, parameterType, ordinal, refKind, name, syntax);
 
         return new SourceComplexParameterSymbol(

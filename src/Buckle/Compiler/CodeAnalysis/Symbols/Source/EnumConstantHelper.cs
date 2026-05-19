@@ -6,6 +6,7 @@ internal static class EnumConstantHelper {
     internal static EnumOverflowKind OffsetValue(
         ConstantValue constantValue,
         uint offset,
+        bool isFlagsEnum,
         out ConstantValue offsetValue) {
         offsetValue = null;
 
@@ -15,8 +16,17 @@ internal static class EnumConstantHelper {
                     var previous = (long)(sbyte)constantValue.value;
                     overflowKind = CheckOverflow(sbyte.MaxValue, previous, offset);
 
-                    if (overflowKind == EnumOverflowKind.NoOverflow)
-                        offsetValue = new ConstantValue((sbyte)(previous + offset), SpecialType.Int8);
+                    if (overflowKind == EnumOverflowKind.NoOverflow) {
+                        if (isFlagsEnum && previous == 0) {
+                            previous = 1;
+                            offset--;
+                        }
+
+                        if (isFlagsEnum && (previous & (previous - 1)) == 0)
+                            offsetValue = new ConstantValue((sbyte)(previous << (int)offset), SpecialType.Int8);
+                        else
+                            offsetValue = new ConstantValue((sbyte)(previous + offset), SpecialType.Int8);
+                    }
                 }
 
                 break;
@@ -24,8 +34,17 @@ internal static class EnumConstantHelper {
                     var previous = (ulong)(byte)constantValue.value;
                     overflowKind = CheckOverflow(byte.MaxValue, previous, offset);
 
-                    if (overflowKind == EnumOverflowKind.NoOverflow)
-                        offsetValue = new ConstantValue((byte)(previous + offset), SpecialType.UInt8);
+                    if (overflowKind == EnumOverflowKind.NoOverflow) {
+                        if (isFlagsEnum && previous == 0) {
+                            previous = 1;
+                            offset--;
+                        }
+
+                        if (isFlagsEnum && (previous & (previous - 1)) == 0)
+                            offsetValue = new ConstantValue((byte)(previous << (int)offset), SpecialType.UInt8);
+                        else
+                            offsetValue = new ConstantValue((byte)(previous + offset), SpecialType.UInt8);
+                    }
                 }
 
                 break;
@@ -33,8 +52,17 @@ internal static class EnumConstantHelper {
                     var previous = (long)(short)constantValue.value;
                     overflowKind = CheckOverflow(short.MaxValue, previous, offset);
 
-                    if (overflowKind == EnumOverflowKind.NoOverflow)
-                        offsetValue = new ConstantValue((short)(previous + offset), SpecialType.Int16);
+                    if (overflowKind == EnumOverflowKind.NoOverflow) {
+                        if (isFlagsEnum && previous == 0) {
+                            previous = 1;
+                            offset--;
+                        }
+
+                        if (isFlagsEnum && (previous & (previous - 1)) == 0)
+                            offsetValue = new ConstantValue((short)(previous << (int)offset), SpecialType.Int16);
+                        else
+                            offsetValue = new ConstantValue((short)(previous + offset), SpecialType.Int16);
+                    }
                 }
 
                 break;
@@ -42,8 +70,17 @@ internal static class EnumConstantHelper {
                     var previous = (ulong)(ushort)constantValue.value;
                     overflowKind = CheckOverflow(ushort.MaxValue, previous, offset);
 
-                    if (overflowKind == EnumOverflowKind.NoOverflow)
-                        offsetValue = new ConstantValue((ushort)(previous + offset), SpecialType.UInt16);
+                    if (overflowKind == EnumOverflowKind.NoOverflow) {
+                        if (isFlagsEnum && previous == 0) {
+                            previous = 1;
+                            offset--;
+                        }
+
+                        if (isFlagsEnum && (previous & (previous - 1)) == 0)
+                            offsetValue = new ConstantValue((ushort)(previous << (int)offset), SpecialType.UInt16);
+                        else
+                            offsetValue = new ConstantValue((ushort)(previous + offset), SpecialType.UInt16);
+                    }
                 }
 
                 break;
@@ -51,8 +88,17 @@ internal static class EnumConstantHelper {
                     var previous = (long)(int)constantValue.value;
                     overflowKind = CheckOverflow(int.MaxValue, previous, offset);
 
-                    if (overflowKind == EnumOverflowKind.NoOverflow)
-                        offsetValue = new ConstantValue((int)(previous + offset), SpecialType.Int32);
+                    if (overflowKind == EnumOverflowKind.NoOverflow) {
+                        if (isFlagsEnum && previous == 0) {
+                            previous = 1;
+                            offset--;
+                        }
+
+                        if (isFlagsEnum && (previous & (previous - 1)) == 0)
+                            offsetValue = new ConstantValue((int)(previous << (int)offset), SpecialType.Int32);
+                        else
+                            offsetValue = new ConstantValue((int)(previous + offset), SpecialType.Int32);
+                    }
                 }
 
                 break;
@@ -60,8 +106,17 @@ internal static class EnumConstantHelper {
                     var previous = (ulong)(uint)constantValue.value;
                     overflowKind = CheckOverflow(uint.MaxValue, previous, offset);
 
-                    if (overflowKind == EnumOverflowKind.NoOverflow)
-                        offsetValue = new ConstantValue((uint)(previous + offset), SpecialType.UInt32);
+                    if (overflowKind == EnumOverflowKind.NoOverflow) {
+                        if (isFlagsEnum && previous == 0) {
+                            previous = 1;
+                            offset--;
+                        }
+
+                        if (isFlagsEnum && (previous & (previous - 1)) == 0)
+                            offsetValue = new ConstantValue((uint)(previous << (int)offset), SpecialType.UInt32);
+                        else
+                            offsetValue = new ConstantValue((uint)(previous + offset), SpecialType.UInt32);
+                    }
                 }
 
                 break;
@@ -70,8 +125,17 @@ internal static class EnumConstantHelper {
                     var previous = (long)constantValue.value;
                     overflowKind = CheckOverflow(long.MaxValue, previous, offset);
 
-                    if (overflowKind == EnumOverflowKind.NoOverflow)
-                        offsetValue = new ConstantValue((long)(previous + offset), SpecialType.Int64);
+                    if (overflowKind == EnumOverflowKind.NoOverflow) {
+                        if (isFlagsEnum && previous == 0) {
+                            previous = 1;
+                            offset--;
+                        }
+
+                        if (isFlagsEnum && (previous & (previous - 1)) == 0)
+                            offsetValue = new ConstantValue((long)(previous << (int)offset), SpecialType.Int64);
+                        else
+                            offsetValue = new ConstantValue((long)(previous + offset), SpecialType.Int64);
+                    }
                 }
 
                 break;
@@ -79,8 +143,17 @@ internal static class EnumConstantHelper {
                     var previous = (ulong)constantValue.value;
                     overflowKind = CheckOverflow(ulong.MaxValue, previous, offset);
 
-                    if (overflowKind == EnumOverflowKind.NoOverflow)
-                        offsetValue = new ConstantValue((ulong)(previous + offset), SpecialType.UInt64);
+                    if (overflowKind == EnumOverflowKind.NoOverflow) {
+                        if (isFlagsEnum && previous == 0) {
+                            previous = 1;
+                            offset--;
+                        }
+
+                        if (isFlagsEnum && (previous & (previous - 1)) == 0)
+                            offsetValue = new ConstantValue((ulong)(previous << (int)offset), SpecialType.UInt64);
+                        else
+                            offsetValue = new ConstantValue((ulong)(previous + offset), SpecialType.UInt64);
+                    }
                 }
 
                 break;
@@ -88,8 +161,17 @@ internal static class EnumConstantHelper {
                     var previous = (ulong)(char)constantValue.value;
                     overflowKind = CheckOverflow(ulong.MaxValue, previous, offset);
 
-                    if (overflowKind == EnumOverflowKind.NoOverflow)
-                        offsetValue = new ConstantValue((ulong)(previous + offset), SpecialType.Char);
+                    if (overflowKind == EnumOverflowKind.NoOverflow) {
+                        if (isFlagsEnum && previous == 0) {
+                            previous = 1;
+                            offset--;
+                        }
+
+                        if (isFlagsEnum && (previous & (previous - 1)) == 0)
+                            offsetValue = new ConstantValue((char)(previous << (int)offset), SpecialType.Char);
+                        else
+                            offsetValue = new ConstantValue((char)(previous + offset), SpecialType.Char);
+                    }
                 }
 
                 break;

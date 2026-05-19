@@ -170,6 +170,9 @@ public sealed class DisplayText {
             case BoundKind.ContinueStatement:
                 DisplayContinueStatement(text);
                 break;
+            case BoundKind.UnreachableStatement:
+                DisplayUnreachableStatement(text);
+                break;
             case BoundKind.WithStatement:
                 DisplayWithStatement(text, (BoundWithStatement)node);
                 break;
@@ -244,6 +247,9 @@ public sealed class DisplayText {
                 break;
             case BoundKind.ObjectCreationExpression:
                 DisplayObjectCreationExpression(text, (BoundObjectCreationExpression)node);
+                break;
+            case BoundKind.UnconvertedObjectCreationExpression:
+                DisplayUnconvertedObjectCreationExpression(text, (BoundUnconvertedObjectCreationExpression)node);
                 break;
             case BoundKind.ArrayCreationExpression:
                 DisplayArrayCreationExpression(text, (BoundArrayCreationExpression)node);
@@ -527,6 +533,11 @@ public sealed class DisplayText {
 
     private static void DisplayContinueStatement(DisplayText text) {
         text.Write(CreateKeyword(SyntaxKind.ContinueKeyword));
+        text.WriteLine();
+    }
+
+    private static void DisplayUnreachableStatement(DisplayText text) {
+        text.Write(CreateKeyword(SyntaxKind.UnreachableKeyword));
         text.WriteLine();
     }
 
@@ -862,8 +873,7 @@ public sealed class DisplayText {
     private static void DisplayDeferStatement(DisplayText text, BoundDeferStatement node) {
         text.Write(CreateKeyword(SyntaxKind.DeferKeyword));
         text.Write(CreateSpace());
-        DisplayNode(text, node.expression);
-        text.WriteLine();
+        DisplayNode(text, node.statement);
     }
 
     private static void DisplayFieldAccessExpression(
@@ -872,6 +882,8 @@ public sealed class DisplayText {
         bool conditional = false) {
         if (node.receiver is not null)
             DisplayNode(text, node.receiver);
+        else
+            SymbolDisplay.AppendToDisplayText(text, node.field.containingType, SymbolDisplayFormat.QualifiedNameFormat);
 
         text.Write(CreatePunctuation(conditional ? SyntaxKind.QuestionPeriodToken : SyntaxKind.PeriodToken));
         text.Write(CreateIdentifier(node.field.name));
@@ -993,6 +1005,12 @@ public sealed class DisplayText {
         text.Write(CreateIdentifier("Func"));
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
         text.Write(CreatePunctuation(SyntaxKind.AmpersandToken));
+
+        if (node.receiver is not null) {
+            DisplayNode(node.receiver);
+            text.Write(CreatePunctuation(SyntaxKind.PercentToken));
+        }
+
         SymbolDisplay.AppendToDisplayText(text, node.targetMethod, SymbolDisplayFormat.QualifiedNameFormat);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
@@ -1107,6 +1125,14 @@ public sealed class DisplayText {
 
     private static void DisplayUnconvertedNullptrExpression(DisplayText text, BoundUnconvertedNullptrExpression _) {
         text.Write(CreateKeyword(SyntaxKind.NullptrKeyword));
+    }
+
+    private static void DisplayUnconvertedObjectCreationExpression(
+        DisplayText text,
+        BoundUnconvertedObjectCreationExpression node) {
+        text.Write(CreateKeyword(SyntaxKind.NewKeyword));
+        text.Write(CreateSpace());
+        DisplayArguments(text, node.arguments);
     }
 
     private static void DisplayInitializerList(DisplayText text, BoundInitializerList node) {
@@ -1283,7 +1309,11 @@ public sealed class DisplayText {
     }
 
     private static void DisplayFieldSlotExpression(DisplayText text, BoundFieldSlotExpression node) {
-        DisplayNode(text, node.receiver);
+        if (node.receiver is not null)
+            DisplayNode(text, node.receiver);
+        else
+            SymbolDisplay.AppendToDisplayText(text, node.field.containingType, SymbolDisplayFormat.QualifiedNameFormat);
+
         text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
         text.Write(CreateIdentifier(node.field.name));
     }

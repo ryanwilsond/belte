@@ -16,11 +16,14 @@ internal abstract class FieldSymbolWithModifiers : FieldSymbol, IAttributeTarget
 
     internal sealed override bool HasComplete(CompletionParts part) => _state.HasComplete(part);
 
-    internal sealed override bool isStatic => (_modifiers & DeclarationModifiers.Static) != 0;
+    internal sealed override bool isStatic
+        => ((_modifiers & DeclarationModifiers.Static) != 0) ||
+            (containingType.IsFileScoped() && containingType.isStatic);
 
     internal override bool isFixedSizeBuffer => false;
 
-    internal sealed override Accessibility declaredAccessibility => ModifierHelpers.EffectiveAccessibility(_modifiers);
+    internal sealed override Accessibility declaredAccessibility
+        => ModifierHelpers.EffectiveAccessibility(_modifiers, containingType.IsFileScoped());
 
     private protected abstract DeclarationModifiers _modifiers { get; }
 

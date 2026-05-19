@@ -94,6 +94,10 @@ public sealed partial class SyntaxTriviaList : IReadOnlyList<SyntaxTrivia> {
         throw new InvalidOperationException();
     }
 
+    public Reversed Reverse() {
+        return new Reversed(this);
+    }
+
     public bool Any() {
         return node is not null;
     }

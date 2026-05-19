@@ -23,8 +23,9 @@ internal class SharedExpander : BoundTreeExpander {
 
     private protected override MethodSymbol _container { get; set; }
 
-    internal BoundStatement Expand(BoundStatement statement) {
-        return Simplify(statement.syntax, ExpandStatement(statement));
+    internal BoundBlockStatement Expand(BoundBlockStatement statement) {
+        _localNames.AddRange(statement.locals.Select(l => l.name));
+        return (BoundBlockStatement)Simplify(statement.syntax, ExpandStatement(statement));
     }
 
     private protected override List<BoundStatement> ExpandExpression(
@@ -108,11 +109,11 @@ internal class SharedExpander : BoundTreeExpander {
 
             finallyBody = [
                 GotoIf(syntax, breakLabel, IsNull(syntax, Local(syntax, local))),
-                new BoundExpressionStatement(syntax, call),
+                Statement(syntax, call),
                 Label(syntax, breakLabel)
             ];
         } else {
-            finallyBody = [new BoundExpressionStatement(syntax, call)];
+            finallyBody = [Statement(syntax, call)];
         }
 
         return new BoundTryStatement(syntax,
@@ -132,11 +133,12 @@ internal class SharedExpander : BoundTreeExpander {
         break:
 
         */
-        var statements = ExpandExpression(statement.expression, out var replacement);
+        var statements = ExpandExpression(statement.expression, out var replacement, UseKind.None);
 
         if (statements.Count == 0 && statement.expression == replacement)
             return [statement];
 
+        // TODO Could this instead be moved into conditional access operator detecting UseKind.None?
         if (replacement is BoundConditionalOperator c && c.trueExpression.type.IsVoidType())
             return RewriteVoidTernaryCall(c);
 
@@ -156,7 +158,7 @@ internal class SharedExpander : BoundTreeExpander {
 
         var statements = new List<BoundStatement> {
             GotoIfNot(syntax, breakLabel, conditional.condition),
-            new BoundExpressionStatement(syntax, conditional.trueExpression),
+            Statement(syntax, conditional.trueExpression),
             Label(syntax, breakLabel)
         };
 
@@ -178,7 +180,7 @@ internal class SharedExpander : BoundTreeExpander {
     private protected override List<BoundStatement> ExpandCascadeListExpression(
         BoundCascadeListExpression expression,
         out BoundExpression replacement,
-        UseKind useKind) {
+        UseKind _) {
         var syntax = expression.syntax;
         var statements = ExpandExpression(expression.receiver, out var newReceiver, UseKind.Writable);
         var tempLocal = GenerateTempLocal(expression.Type());
@@ -200,7 +202,7 @@ internal class SharedExpander : BoundTreeExpander {
                         var condAccess = (BoundConditionalAccessExpression)cascade;
 
                         statements.AddRange(
-                            ExpandStatement(new BoundExpressionStatement(syntax,
+                            ExpandStatement(Statement(syntax,
                                 condAccess.Update(
                                     Local(syntax, tempLocal),
                                     condAccess.accessExpression,
@@ -217,7 +219,7 @@ internal class SharedExpander : BoundTreeExpander {
                         statements.AddRange(ExpandArgumentList(call.arguments, out var arguments));
 
                         statements.Add(
-                            new BoundExpressionStatement(syntax,
+                            Statement(syntax,
                                 call.Update(
                                     replacementReceiver,
                                     call.method,
@@ -240,7 +242,7 @@ internal class SharedExpander : BoundTreeExpander {
                             : (BoundFieldAccessExpression)assignment.left;
 
                         statements.AddRange(
-                            ExpandStatement(new BoundExpressionStatement(syntax,
+                            ExpandStatement(Statement(syntax,
                                 assignment.Update(
                                     MakeReplacementReceiver(syntax, isConditional, tempLocal, leftAccess),
                                     assignment.right,
@@ -266,7 +268,7 @@ internal class SharedExpander : BoundTreeExpander {
                             : (BoundFieldAccessExpression)assignment.left;
 
                         statements.AddRange(
-                            ExpandStatement(new BoundExpressionStatement(syntax,
+                            ExpandStatement(Statement(syntax,
                                 assignment.Update(
                                     MakeReplacementReceiver(syntax, isConditional, tempLocal, leftAccess),
                                     assignment.right,
@@ -286,7 +288,7 @@ internal class SharedExpander : BoundTreeExpander {
                             : (BoundFieldAccessExpression)assignment.left;
 
                         statements.AddRange(
-                            ExpandStatement(new BoundExpressionStatement(syntax,
+                            ExpandStatement(Statement(syntax,
                                 assignment.Update(
                                     MakeReplacementReceiver(syntax, isConditional, tempLocal, leftAccess),
                                     assignment.right,
@@ -330,7 +332,7 @@ internal class SharedExpander : BoundTreeExpander {
     private protected override List<BoundStatement> ExpandInterpolatedStringExpression(
         BoundInterpolatedStringExpression expression,
         out BoundExpression replacement,
-        UseKind useKind) {
+        UseKind _) {
         var syntax = expression.syntax;
         var stringType = CorLibrary.GetSpecialType(SpecialType.String);
         var nullableStringType = CorLibrary.GetNullableType(SpecialType.String);
@@ -447,7 +449,7 @@ internal class SharedExpander : BoundTreeExpander {
                 ), out right, UseKind.Value));
             }
 
-            statements.Add(new BoundExpressionStatement(syntax, Assignment(syntax,
+            statements.Add(Statement(syntax, Assignment(syntax,
                 replacement,
                 Binary(syntax,
                     replacement,
@@ -517,7 +519,7 @@ internal class SharedExpander : BoundTreeExpander {
     private protected override List<BoundStatement> ExpandWithExpression(
         BoundWithExpression expression,
         out BoundExpression replacement,
-        UseKind useKind) {
+        UseKind _) {
         /*
 
         with (<assignments>) <body>
@@ -589,10 +591,7 @@ internal class SharedExpander : BoundTreeExpander {
         for (var i = temps.Length - 1; i >= 0; i--) {
             var (left, isRef) = lefts[i];
             var temp = temps[i];
-
-            statements.Add(
-                new BoundExpressionStatement(syntax, Assignment(syntax, left, Local(syntax, temp), isRef, temp.type))
-            );
+            statements.Add(Statement(syntax, Assignment(syntax, left, Local(syntax, temp), isRef, temp.type)));
         }
 
         return statements;
@@ -628,7 +627,7 @@ internal class SharedExpander : BoundTreeExpander {
                     );
 
                     var statements = ExpandExpression(newAssignment, out var replacement);
-                    statements.Add(new BoundExpressionStatement(syntax, replacement));
+                    statements.Add(Statement(syntax, replacement));
                     return statements;
                 }
             case BoundKind.CompoundAssignmentOperator: {
@@ -648,7 +647,7 @@ internal class SharedExpander : BoundTreeExpander {
                     );
 
                     var statements = ExpandExpression(newAssignment, out var replacement);
-                    statements.Add(new BoundExpressionStatement(syntax, replacement));
+                    statements.Add(Statement(syntax, replacement));
                     return statements;
                 }
             case BoundKind.NullCoalescingAssignmentOperator: {
@@ -662,7 +661,7 @@ internal class SharedExpander : BoundTreeExpander {
                     );
 
                     var statements = ExpandExpression(newAssignment, out var replacement);
-                    statements.Add(new BoundExpressionStatement(syntax, replacement));
+                    statements.Add(Statement(syntax, replacement));
                     return statements;
                 }
             default:

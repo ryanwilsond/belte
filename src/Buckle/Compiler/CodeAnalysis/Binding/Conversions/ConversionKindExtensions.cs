@@ -19,6 +19,8 @@ internal static class ConversionKindExtensions {
             case ConversionKind.ImplicitEnum:
             case ConversionKind.MethodGroup:
             case ConversionKind.AnyBoxing:
+            case ConversionKind.ObjectCreation:
+            case ConversionKind.ConditionalExpression:
                 return true;
             default:
                 return false;

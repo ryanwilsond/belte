@@ -31,8 +31,26 @@ public static class Math {
 
     public static decimal? Clamp(decimal? value, decimal? min, decimal? max);
     public static decimal! Clamp(decimal! value, decimal! min, decimal! max);
+    public static float32? Clamp(float32? value, float32? min, float32? max);
+    public static float32! Clamp(float32! value, float32! min, float32! max);
     public static int? Clamp(int? value, int? min, int? max);
     public static int! Clamp(int! value, int! min, int! max);
+    public static uint64? Clamp(uint64? value, uint64? min, uint64? max);
+    public static uint64! Clamp(uint64! value, uint64! min, uint64! max);
+    public static int32? Clamp(int32? value, int32? min, int32? max);
+    public static int32! Clamp(int32! value, int32! min, int32! max);
+    public static uint32? Clamp(uint32? value, uint32? min, uint32? max);
+    public static uint32! Clamp(uint32! value, uint32! min, uint32! max);
+    public static int16? Clamp(int16? value, int16? min, int16? max);
+    public static int16! Clamp(int16! value, int16! min, int16! max);
+    public static uint16? Clamp(uint16? value, uint16? min, uint16? max);
+    public static uint16! Clamp(uint16! value, uint16! min, uint16! max);
+    public static int8? Clamp(int8? value, int8? min, int8? max);
+    public static int8! Clamp(int8! value, int8! min, int8! max);
+    public static uint8? Clamp(uint8? value, uint8? min, uint8? max);
+    public static uint8! Clamp(uint8! value, uint8! min, uint8! max);
+    public static char? Clamp(char? value, char? min, char? max);
+    public static char! Clamp(char! value, char! min, char! max);
 
     public static decimal? Cos(decimal? d);
     public static decimal! Cos(decimal! d);
@@ -56,13 +74,29 @@ public static class Math {
 
     public static decimal? Max(decimal? val1, decimal? val2);
     public static decimal! Max(decimal! val1, decimal! val2);
+    public static float32? Max(float32? val1, float32? val2);
+    public static float32! Max(float32! val1, float32! val2);
     public static int? Max(int? val1, int? val2);
     public static int! Max(int! val1, int! val2);
+    public static uint64? Max(uint64? val1, uint64? val2);
+    public static uint64! Max(uint64! val1, uint64! val2);
+    public static int32? Max(int32? val1, int32? val2);
+    public static int32! Max(int32! val1, int32! val2);
+    public static uint32? Max(uint32? val1, uint32? val2);
+    public static uint32! Max(uint32! val1, uint32! val2);
 
     public static decimal? Min(decimal? val1, decimal? val2);
     public static decimal! Min(decimal! val1, decimal! val2);
+    public static float32? Min(float32? val1, float32? val2);
+    public static float32! Min(float32! val1, float32! val2);
     public static int? Min(int? val1, int? val2);
     public static int! Min(int! val1, int! val2);
+    public static uint64? Min(uint64? val1, uint64? val2);
+    public static uint64! Min(uint64! val1, uint64! val2);
+    public static int32? Min(int32? val1, int32? val2);
+    public static int32! Min(int32! val1, int32! val2);
+    public static uint32? Min(uint32? val1, uint32? val2);
+    public static uint32! Min(uint32! val1, uint32! val2);
 
     public static decimal? Pow(decimal? x, decimal? y);
     public static decimal! Pow(decimal! x, decimal! y);

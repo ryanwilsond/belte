@@ -168,6 +168,34 @@ internal static class ConstantFolding {
                     SpecialType.Float64 => new ConstantValue(Math.Pow((double)leftValue, (double)rightValue), specialType),
                     _ => throw ExceptionUtilities.UnexpectedValue(specialType),
                 };
+            case BinaryOperatorKind.Min:
+                return normalizedType switch {
+                    SpecialType.Int8 => new ConstantValue(Math.Min((sbyte)leftValue, (sbyte)rightValue), specialType),
+                    SpecialType.Int16 => new ConstantValue(Math.Min((short)leftValue, (short)rightValue), specialType),
+                    SpecialType.Int32 => new ConstantValue(Math.Min((int)leftValue, (int)rightValue), specialType),
+                    SpecialType.Int64 => new ConstantValue(Math.Min((long)leftValue, (long)rightValue), specialType),
+                    SpecialType.UInt8 => new ConstantValue(Math.Min((byte)leftValue, (byte)rightValue), specialType),
+                    SpecialType.UInt16 => new ConstantValue(Math.Min((ushort)leftValue, (ushort)rightValue), specialType),
+                    SpecialType.UInt32 => new ConstantValue(Math.Min((uint)leftValue, (uint)rightValue), specialType),
+                    SpecialType.UInt64 => new ConstantValue(Math.Min((ulong)leftValue, (ulong)rightValue), specialType),
+                    SpecialType.Float32 => new ConstantValue(Math.Min((float)leftValue, (float)rightValue), specialType),
+                    SpecialType.Float64 => new ConstantValue(Math.Min((double)leftValue, (double)rightValue), specialType),
+                    _ => throw ExceptionUtilities.UnexpectedValue(specialType),
+                };
+            case BinaryOperatorKind.Max:
+                return normalizedType switch {
+                    SpecialType.Int8 => new ConstantValue(Math.Max((sbyte)leftValue, (sbyte)rightValue), specialType),
+                    SpecialType.Int16 => new ConstantValue(Math.Max((short)leftValue, (short)rightValue), specialType),
+                    SpecialType.Int32 => new ConstantValue(Math.Max((int)leftValue, (int)rightValue), specialType),
+                    SpecialType.Int64 => new ConstantValue(Math.Max((long)leftValue, (long)rightValue), specialType),
+                    SpecialType.UInt8 => new ConstantValue(Math.Max((byte)leftValue, (byte)rightValue), specialType),
+                    SpecialType.UInt16 => new ConstantValue(Math.Max((ushort)leftValue, (ushort)rightValue), specialType),
+                    SpecialType.UInt32 => new ConstantValue(Math.Max((uint)leftValue, (uint)rightValue), specialType),
+                    SpecialType.UInt64 => new ConstantValue(Math.Max((ulong)leftValue, (ulong)rightValue), specialType),
+                    SpecialType.Float32 => new ConstantValue(Math.Max((float)leftValue, (float)rightValue), specialType),
+                    SpecialType.Float64 => new ConstantValue(Math.Max((double)leftValue, (double)rightValue), specialType),
+                    _ => throw ExceptionUtilities.UnexpectedValue(specialType),
+                };
             case BinaryOperatorKind.ConditionalAnd:
                 return new ConstantValue((bool)leftValue && (bool)rightValue, specialType);
             case BinaryOperatorKind.ConditionalOr:
@@ -364,7 +392,6 @@ internal static class ConstantFolding {
 
     internal static ConstantValue FoldIs(ConstantValue left, ConstantValue right, bool isNot) {
         // TODO Should be able to expand this to cover some `is object` or `is primitive` expressions too
-
         if (ConstantValue.IsNull(left) && ConstantValue.IsNull(right))
             return new ConstantValue(!isNot, SpecialType.Bool);
 
@@ -462,19 +489,13 @@ internal static class ConstantFolding {
         ConstantValue center,
         ConstantValue right,
         TypeSymbol type) {
-        var specialType = type.specialType;
+        var specialType = type?.specialType;
 
-        if (ConstantValue.IsNotNull(left) &&
-            (bool)left.value &&
-            center is not null) {
-            return new ConstantValue(center.value, specialType);
-        }
+        if (ConstantValue.IsNotNull(left) && (bool)left.value && center is not null)
+            return new ConstantValue(center.value, specialType ?? center.specialType);
 
-        if (ConstantValue.IsNotNull(left) &&
-            !(bool)left.value &&
-            right is not null) {
-            return new ConstantValue(right.value, specialType);
-        }
+        if (ConstantValue.IsNotNull(left) && !(bool)left.value && right is not null)
+            return new ConstantValue(right.value, specialType ?? right.specialType);
 
         return null;
     }
@@ -564,5 +585,47 @@ internal static class ConstantFolding {
         var specialType = type.specialType;
 
         return new ConstantValue(item.value, specialType);
+    }
+
+    internal static ConstantValue FoldClamp(
+        BoundExpression left,
+        BoundExpression lower,
+        BoundExpression upper,
+        TypeSymbol type) {
+        var leftConstant = left.constantValue;
+        var lowerConstant = lower.constantValue;
+        var upperConstant = upper.constantValue;
+
+        if (leftConstant is null || lowerConstant is null || upperConstant is null)
+            return null;
+
+        if (ConstantValue.IsNull(leftConstant) &&
+            ConstantValue.IsNull(lowerConstant) &&
+            ConstantValue.IsNull(upperConstant)) {
+            return ConstantValue.Null;
+        }
+
+        if (ConstantValue.IsNull(leftConstant) ||
+            ConstantValue.IsNull(lowerConstant) ||
+            ConstantValue.IsNull(upperConstant)) {
+            return null;
+        }
+
+        var specialType = CodeGenerator.NormalizeNumericType(type.StrippedType().specialType);
+
+        return specialType switch {
+            SpecialType.Int8 => new ConstantValue(Math.Clamp((sbyte)leftConstant.value, (sbyte)lowerConstant.value, (sbyte)upperConstant.value), specialType),
+            SpecialType.Int16 => new ConstantValue(Math.Clamp((short)leftConstant.value, (short)lowerConstant.value, (short)upperConstant.value), specialType),
+            SpecialType.Int32 => new ConstantValue(Math.Clamp((int)leftConstant.value, (int)lowerConstant.value, (int)upperConstant.value), specialType),
+            SpecialType.Int64 => new ConstantValue(Math.Clamp((long)leftConstant.value, (long)lowerConstant.value, (long)upperConstant.value), specialType),
+            SpecialType.UInt8 => new ConstantValue(Math.Clamp((byte)leftConstant.value, (byte)lowerConstant.value, (byte)upperConstant.value), specialType),
+            SpecialType.UInt16 => new ConstantValue(Math.Clamp((ushort)leftConstant.value, (ushort)lowerConstant.value, (ushort)upperConstant.value), specialType),
+            SpecialType.UInt32 => new ConstantValue(Math.Clamp((uint)leftConstant.value, (uint)lowerConstant.value, (uint)upperConstant.value), specialType),
+            SpecialType.UInt64 => new ConstantValue(Math.Clamp((ulong)leftConstant.value, (ulong)lowerConstant.value, (ulong)upperConstant.value), specialType),
+            SpecialType.Float32 => new ConstantValue(Math.Clamp((float)leftConstant.value, (float)lowerConstant.value, (float)upperConstant.value), specialType),
+            SpecialType.Float64 => new ConstantValue(Math.Clamp((double)leftConstant.value, (double)lowerConstant.value, (double)upperConstant.value), specialType),
+            SpecialType.Char => new ConstantValue(Math.Clamp((char)leftConstant.value, (char)lowerConstant.value, (char)upperConstant.value), specialType),
+            _ => throw ExceptionUtilities.UnexpectedValue(specialType),
+        };
     }
 }

@@ -7,6 +7,7 @@ internal static class SyntaxKindExtensions {
     internal static DeclarationKind ToDeclarationKind(this SyntaxKind syntaxKind) {
         switch (syntaxKind) {
             case SyntaxKind.ClassDeclaration:
+            case SyntaxKind.FileScopedClassDeclaration:
                 return DeclarationKind.Class;
             case SyntaxKind.StructDeclaration:
             case SyntaxKind.UnionDeclaration:

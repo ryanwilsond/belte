@@ -19,6 +19,8 @@ public abstract class BelteSyntaxNode : SyntaxNode {
 
     internal new BelteSyntaxNode parent => (BelteSyntaxNode)base.parent;
 
+    internal new BelteSyntaxNode parentOrStructuredTriviaParent => (BelteSyntaxNode)base.parentOrStructuredTriviaParent;
+
     internal abstract TResult Accept<TResult>(SyntaxVisitor<TResult> visitor);
 
     internal abstract void Accept(SyntaxVisitor visitor);

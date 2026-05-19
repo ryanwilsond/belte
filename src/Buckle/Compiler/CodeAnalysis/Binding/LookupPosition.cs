@@ -63,6 +63,9 @@ internal static class LookupPosition {
     }
 
     internal static bool IsInTypeDeclaration(int position, TypeDeclarationSyntax node) {
+        if (node is FileScopedClassDeclarationSyntax)
+            return position >= node.span.start;
+
         return IsBeforeToken(position, node, node.closeBrace);
     }
 

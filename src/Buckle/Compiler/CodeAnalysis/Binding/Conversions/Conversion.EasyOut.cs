@@ -21,7 +21,7 @@ internal readonly partial struct Conversion {
             CastKindMap = new byte[,] {
                 // Casting Y to X:
                 //          any  str  bool chr  int  dec  type i08  i16  i32  i64  u08  u16  u32  u64  f32  f64  obj wnbl  any? str?bool? chr? int? dec? type?i08? i16? i32? i64? u08? u16? u32? u64? f32? f64? obj?wnbl?
-                /*  any */{ IDN, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, NON, UNB, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NON, NUL },
+                /*  any */{ IDN, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, IDN, UNB, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL },
                 /*  str */{ BOX, IDN, XPL, NON, XPL, XPL, NON, XPL, XPL, XPL, XPL, XPL, XPL, XPL, XPL, XPL, XPL, NON, NON, NUL, NUL, NUL, NON, NUL, NUL, NON, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NON, NON },
                 /* bool */{ BOX, XPL, IDN, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, IPL, NUL, XNL, NUL, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NUL },
                 /*  chr */{ BOX, IPL, NON, IDN, NUM, NUM, NON, XNM, XNM, NUM, NUM, XNM, NUM, NUM, NUM, NUM, NUM, NON, NON, NUL, NUL, NON, NUL, NUL, NUL, NON, XNL, XNL, NUL, NUL, XNL, NUL, NUL, NUL, NUL, NUL, NON, NON },
@@ -38,9 +38,9 @@ internal readonly partial struct Conversion {
                 /*  u64 */{ BOX, XPL, NON, XNM, XNM, NUM, NON, XNM, XNM, XNM, XNM, XNM, XNM, XNM, IDN, NUM, NUM, NON, NON, NUL, NUL, NON, XNL, XNL, NUL, NON, XNL, XNL, XNL, XNL, XNL, XNL, XNL, NUL, NUL, NUL, NON, NON },
                 /*  f32 */{ BOX, XPL, NON, XNM, XNM, NUM, NON, XNM, XNM, XNM, XNM, XNM, XNM, XNM, XNM, IDN, NUM, NON, NON, NUL, NUL, NON, XNL, XNL, NUL, NON, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, NUL, NUL, NON, NON },
                 /*  f64 */{ BOX, XPL, NON, XNM, XNM, IDN, NON, XNM, XNM, XNM, XNM, XNM, XNM, XNM, XNM, XNM, IDN, NON, NON, NUL, NUL, NON, XNL, XNL, NUL, NON, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, NUL, NON, NON },
-                /*  obj */{ NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, IDN, NON, NON, NON, NON, NON, NON, NON, NON, NUL, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON },
+                /*  obj */{ IDN, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, IDN, NON, NUL, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NUL, NON },
                 /* wnbl */{ BOX, NON, IPL, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, IDN, NUL, NON, NUL, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NUL },
-                /* any? */{ XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, NON, XNL, IDN, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, NON, UNB },
+                /* any? */{ XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, IDN, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, UNB, NUL, UNB },
                 /* str? */{ XNL, XNL, XNL, NON, XNL, XNL, NON, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, NON, NON, NUL, IDN, NUL, NON, NUL, NUL, NON, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NUL, NON, NON },
                 /*bool? */{ XNL, XNL, XNL, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, XNL, NUL, XNL, IDN, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NUL },
                 /* chr? */{ XNL, XNL, NON, XNL, XNL, XNL, NON, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, NON, NON, NUL, NUL, NON, IDN, NUL, NUL, NON, XNL, XNL, NUL, NUL, XNL, NUL, NUL, NUL, NUL, NUL, NON, NON },
@@ -57,7 +57,7 @@ internal readonly partial struct Conversion {
                 /* u64? */{ XNL, XNL, NON, XNL, XNL, XNL, NON, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, NON, NON, NUL, NUL, NON, XNL, XNL, NUL, NON, XNL, XNL, XNL, XNL, XNL, XNL, XNL, IDN, NUL, NUL, NON, NON },
                 /* f32? */{ XNL, XNL, NON, XNL, XNL, XNL, NON, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, NON, NON, NUL, NUL, NON, XNL, XNL, NUL, NON, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, IDN, NUL, NON, NON },
                 /* f64? */{ XNL, XNL, NON, XNL, XNL, XNL, NON, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, NON, NON, NUL, NUL, NON, XNL, XNL, NUL, NON, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, XNL, IDN, NON, NON },
-                /* obj? */{ NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, XNL, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, IDN, NON },
+                /* obj? */{ XNL, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, XNL, NON, NUL, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, IDN, NON },
                 /*wnbl? */{ XNL, NON, XNL, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, XNL, NUL, NON, NUL, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, NON, IDN }
             };
         }

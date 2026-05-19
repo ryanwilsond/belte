@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Diagnostics;
 
 namespace Buckle;
@@ -116,4 +117,9 @@ public class CompilerState {
     /// Disables most of the Standard Library.
     /// </summary>
     public bool noStdLib;
+
+    /// <summary>
+    /// Specific diagnostic related options on a per-task basis
+    /// </summary>
+    public Dictionary<string, (DiagnosticSeverity, int, DiagnosticInfo[], DiagnosticInfo[])> taskDiagnosticOptions;
 }

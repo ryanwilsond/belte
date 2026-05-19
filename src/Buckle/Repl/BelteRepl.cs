@@ -1062,14 +1062,15 @@ public sealed partial class BelteRepl : Repl {
 
         var wrote = false;
 
-        for (var i = 0; i < 3; i++) {
+        for (var i = 1; i < 4; i++) {
             try {
                 File.WriteAllLines(path, subset);
                 wrote = true;
                 break;
             } catch (IOException) {
                 // In case file is being used by another process, retry
-                Thread.Sleep(100);
+                if (i < 3)
+                    Thread.Sleep(i * 10);
             }
         }
 

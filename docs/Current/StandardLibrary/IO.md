@@ -14,7 +14,7 @@ The Belte public interface for the Directory class can be found
 ## 5.6.1 File Methods
 
 | Signature | Description |
-|-|-|
+| - | - |
 | `void AppendLines(string!, List<string!>!)` | Appends lines to an existing file at the given path string. |
 | `void AppendText(string!, string!)` | Appends a string to an existing file at the given path string. |
 | `void Create(string!)` | Creates a file at the given path string if it doesn't already exist. |
@@ -28,7 +28,7 @@ The Belte public interface for the Directory class can be found
 ## 5.6.2 Directory Methods
 
 | Signature | Description |
-|-|-|
+| - | - |
 | `void Create(string!)` | Creates a directory at the given path string if it doesn't already exist. |
 | `void Delete(string!)` | Deletes the directory at the given path string if it exists. |
 | `bool! Exists(string!)` | Returns `true` if the directory at the given path string exists. |

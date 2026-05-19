@@ -19,15 +19,16 @@ internal enum BinderFlags : uint {
     ObjectInitializerMember = 1 << 8,
     ConstContext = 1 << 9,
     InWithBody = 1 << 10,
+    InDeferBody = 1 << 11,
 
-    InCatchBlock = 1 << 11,
-    InFinallyBlock = 1 << 12,
-    InTryBlockOfTryCatch = 1 << 13,
-    InNestedFinallyBlock = 1 << 14,
+    InCatchBlock = 1 << 12,
+    InFinallyBlock = 1 << 13,
+    InTryBlockOfTryCatch = 1 << 14,
+    InNestedFinallyBlock = 1 << 15,
 
-    InContextualAttributeBinder = 1 << 15,
-    AttributeArgument = 1 << 16,
-    EarlyAttributeBinding = 1 << 17,
+    InContextualAttributeBinder = 1 << 16,
+    AttributeArgument = 1 << 17,
+    EarlyAttributeBinding = 1 << 18,
 
     AllClearedAtExecutableCodeBoundary = InCatchBlock | InFinallyBlock | InTryBlockOfTryCatch | InNestedFinallyBlock,
 }

@@ -211,7 +211,8 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
     private DeclarationModifiers MakeModifiers(SyntaxTokenList modifiers, BelteDiagnosticQueue diagnostics) {
         var allowedModifiers = DeclarationModifiers.Const |
                                DeclarationModifiers.ConstExpr |
-                               DeclarationModifiers.LowLevel;
+                               DeclarationModifiers.LowLevel |
+                               DeclarationModifiers.Static;
 
         var result = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
             modifiers,

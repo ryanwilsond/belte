@@ -30,6 +30,13 @@ internal static class TypeSymbolExtensions {
         return type?.originalDefinition.specialType == SpecialType.Nullable;
     }
 
+    internal static bool IsFileScoped(this TypeSymbol type) {
+        if (type is SourceMemberContainerTypeSymbol source && source.isFileScoped)
+            return true;
+
+        return false;
+    }
+
     internal static bool IsValidEnumType(this TypeSymbol type) {
         var underlyingType = type.GetEnumUnderlyingType()?.StrippedType();
         return underlyingType is not null && underlyingType.specialType.IsValidEnumUnderlyingType();

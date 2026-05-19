@@ -263,7 +263,10 @@ internal partial class SourceNamespaceSymbol {
                             }
                         } else if (imported is NamedTypeSymbol t && !t.IsStructType()) {
                             if (usingDirective.staticKeyword is null) {
-                                diagnostics.Push(Error.BadUsingNamespace(usingDirective.namespaceOrType.location, imported));
+                                diagnostics.Push(Error.BadUsingNamespace(
+                                    usingDirective.namespaceOrType.location,
+                                    imported.StrippedTypeOrSelf()
+                                ));
                             } else {
                                 var importedType = (NamedTypeSymbol)imported;
 

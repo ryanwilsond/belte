@@ -335,6 +335,10 @@ public sealed partial class Compilation {
         return new Compilation(assemblyName, options, previous, _syntax, _referenceManager, namespaceSymbol);
     }
 
+    public bool ContainsSyntaxTree(SyntaxTree syntaxTree) {
+        return syntaxTree is not null && _syntax.state.rootNamespaces.ContainsKey(syntaxTree);
+    }
+
     internal void Evaluate(
         EvaluatorContext context,
         ValueWrapper<bool> abort,
@@ -835,9 +839,11 @@ public sealed partial class Compilation {
         if (entryPoint is not null && !entryPoint.isStatic) {
             var containingConstructors = entryPoint.containingType.instanceConstructors;
 
-            if (containingConstructors.Length != 1 ||
-                containingConstructors[0] is not SynthesizedInstanceConstructorSymbol) {
-                diagnostics.Push(Error.EntryConstructor(entryPoint.containingType.location));
+            if (containingConstructors.Length > 0) {
+                if (containingConstructors.Length > 1 ||
+                    containingConstructors[0] is not SynthesizedInstanceConstructorSymbol) {
+                    diagnostics.Push(Error.EntryConstructor(entryPoint.containingType.location));
+                }
             }
         }
 
@@ -1003,10 +1009,12 @@ public sealed partial class Compilation {
             }
         }
 
-        if (includeDeclaration) {
+        if (includeDeclaration)
             assembly.ForceComplete(null);
+
+        // ? We include these on parse to collect early #handle diagnostics
+        if (includeDeclaration || includeParse)
             builder.PushRange(declarationDiagnostics);
-        }
 
         if (includeMethods) {
             EnsureBoundProgramAndMethodDiagnostics();

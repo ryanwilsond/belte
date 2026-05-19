@@ -25,7 +25,7 @@ internal sealed partial class Executor : ModuleBuilder {
     public static GraphicsHandler GraphicsHandler;
     public static object Program;
 
-    private static readonly ConcurrentDictionary<string, Assembly> AssemblyCache = [];
+    private static readonly Dictionary<string, Assembly> AssemblyCache = [];
 
     private const string DynamicAssemblyName = "DynamicBoundTreeAssembly";
 
@@ -69,9 +69,10 @@ internal sealed partial class Executor : ModuleBuilder {
     private readonly Dictionary<TypeSymbol, TypeBuilder> _types = [];
     private readonly Dictionary<NamedTypeSymbol, Type> _bakedTypes = [];
     private readonly ConcurrentDictionary<TypeSymbol, EnumBuilder> _workingEnums = [];
+    private readonly ConcurrentDictionary<TypeSymbol, TypeBuilder> _workingNestedEnums = [];
     private readonly ConcurrentDictionary<TypeSymbol, Type> _enums = [];
     private readonly ConcurrentDictionary<MethodSymbol, MethodInfo> _methods = [];
-    private readonly ConcurrentDictionary<MethodSymbol, GenericTypeParameterBuilder[]> _methodTypeParameters = [];
+    private readonly ConcurrentDictionary<MethodSymbol, Type[]> _methodTypeParameters = [];
     private readonly ConcurrentDictionary<MethodSymbol, ConstructorInfo> _constructors = [];
     private readonly ConcurrentDictionary<MethodSymbol, BoundBlockStatement> _methodBodies = [];
     private readonly ConcurrentDictionary<ConstructorBuilder, (MethodSymbol, BoundBlockStatement)> _constructorBodies = [];
@@ -122,6 +123,12 @@ internal sealed partial class Executor : ModuleBuilder {
         if (entryPoint is null)
             return null;
 
+        if (_graphicsEnabled && _graphicsInitialized &&
+            !(entryPoint.returnsVoid || entryPoint.returnType.specialType == SpecialType.Int32)) {
+            _diagnostics.Push(Error.IncompatibleEntryPointReturn(entryPoint.location, entryPoint));
+            return null;
+        }
+
         _programNamedType = entryPoint.containingType;
         graphicsHandlerField = typeof(Executor).GetField("GraphicsHandler", BindingFlags.Public | BindingFlags.Static);
 
@@ -149,8 +156,8 @@ internal sealed partial class Executor : ModuleBuilder {
             var updateMethod = _programType.GetMethod(
                 _program.updatePoint.name,
                 _programNamedType.isStatic
-                    ? BindingFlags.Public | BindingFlags.Static
-                    : BindingFlags.Public | BindingFlags.Instance
+                    ? BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static
+                    : BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance
             );
 
             var updateAction = (Action<double>)Delegate.CreateDelegate(typeof(Action<double>), Program, updateMethod);
@@ -195,10 +202,24 @@ internal sealed partial class Executor : ModuleBuilder {
         object result;
 
         if (_graphicsEnabled && _graphicsInitialized) {
-            var mainAction = (Action)Delegate.CreateDelegate(typeof(Action), Program, mainMethod);
-            GraphicsHandler.SetExecuteMain(mainAction);
+            if (_program.entryPoint.parameterCount == 0 && _program.entryPoint.returnsVoid) {
+                var mainAction = (Action)Delegate.CreateDelegate(typeof(Action), Program, mainMethod);
+                GraphicsHandler.SetExecuteMain(mainAction);
+            } else if (_program.entryPoint.parameterCount == 0) {
+                var mainAction = (Func<int>)Delegate.CreateDelegate(typeof(Func<int>), Program, mainMethod);
+                GraphicsHandler.SetExecuteMain(mainAction);
+            } else if (_program.entryPoint.parameterCount == 1 && _program.entryPoint.returnsVoid) {
+                var mainAction = (Action<string[]>)Delegate.CreateDelegate(typeof(Action<string[]>), Program, mainMethod);
+                GraphicsHandler.SetExecuteMain(mainAction, _arguments);
+            } else if (_program.entryPoint.parameterCount == 1) {
+                var mainAction = (Func<string[], int>)Delegate.CreateDelegate(typeof(Func<string[], int>), Program, mainMethod);
+                GraphicsHandler.SetExecuteMain(mainAction, _arguments);
+            } else {
+                throw ExceptionUtilities.Unreachable();
+            }
+
             GraphicsHandler.Run();
-            result = null;
+            result = GraphicsHandler.GetMainReturnOrNull();
         } else {
             result = mainMethod.Invoke(Program, _program.entryPoint.parameterCount == 0 ? null : [_arguments]);
         }
@@ -253,7 +274,11 @@ internal sealed partial class Executor : ModuleBuilder {
 
             if (type is ArrayTypeSymbol array) {
                 var elementType = GetType(array.elementType);
-                return elementType.MakeArrayType(array.rank);
+
+                if (array.rank == 1)
+                    return elementType.MakeArrayType();
+                else
+                    return elementType.MakeArrayType(array.rank);
             }
 
             if (type is PointerTypeSymbol pointer) {
@@ -270,15 +295,21 @@ internal sealed partial class Executor : ModuleBuilder {
             if (type.specialType != SpecialType.None && _specialTypes.TryGetValue(type.specialType, out var value))
                 return value;
 
-            if (type.IsEnumType() && type.originalDefinition is not PENamedTypeSymbol)
+            if (type.IsEnumType() && type.originalDefinition is not PENamedTypeSymbol) {
+                if (_workingNestedEnums.TryGetValue(type.originalDefinition, out var found))
+                    return found;
+
                 return _enums[type.originalDefinition];
+            }
 
             if (type is TemplateParameterSymbol t) {
                 if (t.templateParameterKind == TemplateParameterKind.Method) {
-                    var containingMethodTypeParameters = _methodTypeParameters[
-                        (MethodSymbol)type.containingSymbol.originalDefinition
-                    ];
+                    var key = (MethodSymbol)type.containingSymbol.originalDefinition;
 
+                    if (!_methodTypeParameters.ContainsKey(key))
+                        TryGetPEMethodTypeParameters(key);
+
+                    var containingMethodTypeParameters = _methodTypeParameters[key];
                     return containingMethodTypeParameters[t.ordinal];
                 }
 
@@ -345,6 +376,13 @@ internal sealed partial class Executor : ModuleBuilder {
         }
     }
 
+    private void TryGetPEMethodTypeParameters(MethodSymbol method) {
+        var info = GetMethod(method);
+
+        if (info.IsGenericMethod)
+            _methodTypeParameters.Add(method, info.GetGenericArguments());
+    }
+
     private Type GetFuncType(FunctionMethodSymbol signature) {
         if (signature.returnsVoid && signature.parameterCount == 0) {
             return Type.GetType($"System.Action", throwOnError: true);
@@ -389,7 +427,8 @@ internal sealed partial class Executor : ModuleBuilder {
                 throw;
             }
 
-            AssemblyCache.Add(metadata.location, assembly);
+            lock (AssemblyCache)
+                AssemblyCache.TryAdd(metadata.location, assembly);
         }
 
         var stack = new Stack<PENamedTypeSymbol>();
@@ -457,8 +496,51 @@ internal sealed partial class Executor : ModuleBuilder {
             if (IsEmitType(containingType) || containingType.GenericTypeArguments.Any(IsEmitType))
                 containingType = ResolveType((PENamedTypeSymbol)m.containingType);
 
-            var paramTypes = m.GetParameterTypes().Select(p => GetType(p.type)).ToArray();
-            value = containingType.GetMethod(m.name, BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance, paramTypes);
+            var targetParams = m.GetParameters();
+            var candidates = containingType.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static | BindingFlags.Instance);
+
+            foreach (var candidate in candidates) {
+                if (candidate.Name != method.name)
+                    continue;
+
+                var candParams = candidate.GetParameters();
+
+                if (candParams.Length != targetParams.Length)
+                    continue;
+
+                var allMatch = true;
+
+                for (var i = 0; i < candParams.Length; i++) {
+                    var candP = candParams[i];
+                    var p = targetParams[i];
+
+                    if (candP.Name != p.name) {
+                        allMatch = false;
+                        break;
+                    }
+
+                    if (m.templateParameters.Any(t => p.type.ContainsTemplateParameter(t)))
+                        continue;
+
+                    var pType = GetType(p.type, p.refKind != RefKind.None);
+
+                    if (pType != candP.ParameterType) {
+                        allMatch = false;
+                        break;
+                    }
+                }
+
+                if (allMatch) {
+                    value = candidate;
+                    break;
+                }
+            }
+
+            if (value is null)
+                // ! Technically reachable in complicated overload cases
+                // TODO not sure what to do there without implementing a full overload resolution system
+                throw ExceptionUtilities.Unreachable();
+
             found = true;
         }
 
@@ -713,7 +795,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
             foreach (var member in type.GetMembers()) {
                 if (member is FieldSymbol f) {
-                    if (f.type is NamedTypeSymbol nt &&
+                    if (!f.isConstExpr && !f.isStatic && f.type is NamedTypeSymbol nt &&
                         nt.IsStructType() &&
                         _types.ContainsKey(nt.originalDefinition)) {
 
@@ -871,19 +953,35 @@ internal sealed partial class Executor : ModuleBuilder {
         }
 
         void AddNestedType(NamedTypeSymbol nestedType, string[] workingParams) {
-            var nestedBuilder = typeBuilder.DefineNestedType(
-                GetTypeName(nestedType, true),
-                GetTypeAttributes(nestedType, true),
-                GetBaseType(nestedType)
-            );
+            if (nestedType.IsEnumType()) {
+                var nestedBuilder = typeBuilder.DefineNestedType(
+                    GetTypeName(nestedType, true),
+                    GetTypeAttributes(nestedType, true) & TypeAttributes.VisibilityMask,
+                    GetBaseType(nestedType)
+                );
 
-            workingParams = workingParams.Concat(nestedType.templateParameters.Select(t => t.name)).ToArray();
+                if (nestedType.enumFlagsAttribute) {
+                    var flagsCtor = typeof(FlagsAttribute).GetConstructor(Type.EmptyTypes);
+                    var flagsAttr = new CustomAttributeBuilder(flagsCtor, []);
+                    nestedBuilder.SetCustomAttribute(flagsAttr);
+                }
 
-            if (workingParams.Length > 0)
-                nestedBuilder.DefineGenericParameters(workingParams);
+                _workingNestedEnums.TryAdd(nestedType, nestedBuilder);
+            } else {
+                var nestedBuilder = typeBuilder.DefineNestedType(
+                    GetTypeName(nestedType, true),
+                    GetTypeAttributes(nestedType, true),
+                    GetBaseType(nestedType)
+                );
 
-            CreateNestedTypes(nestedType, nestedBuilder, workingParams);
-            _types.Add(nestedType.originalDefinition, nestedBuilder);
+                workingParams = workingParams.Concat(nestedType.templateParameters.Select(t => t.name)).ToArray();
+
+                if (workingParams.Length > 0)
+                    nestedBuilder.DefineGenericParameters(workingParams);
+
+                CreateNestedTypes(nestedType, nestedBuilder, workingParams);
+                _types.Add(nestedType.originalDefinition, nestedBuilder);
+            }
         }
     }
 
@@ -983,14 +1081,49 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private void CreateMemberDefinitions(NamedTypeSymbol type) {
-        if (type.IsEnumType())
+        if (type.IsEnumType()) {
+            if (_workingNestedEnums.TryGetValue(type.originalDefinition, out var nestedBuilder)) {
+                var underlyingType = GetType(type.enumUnderlyingType);
+                nestedBuilder.DefineField(
+                    "value__",
+                    underlyingType,
+                    FieldAttributes.Public | FieldAttributes.SpecialName | FieldAttributes.RTSpecialName
+                );
+
+                foreach (var member in type.GetMembers()) {
+                    if (member is not FieldSymbol f)
+                        continue;
+
+                    var fieldBuilder = nestedBuilder.DefineField(
+                        f.name,
+                        underlyingType,
+                        FieldAttributes.Public | FieldAttributes.Static | FieldAttributes.Literal
+                    );
+
+                    fieldBuilder.SetConstant(f.constantValue);
+                }
+
+                var finalEnum = nestedBuilder.CreateType();
+                _enums.Add(type, finalEnum);
+
+                foreach (var member in type.GetMembers()) {
+                    if (member is not FieldSymbol f)
+                        continue;
+
+                    _fields.Add(f, finalEnum.GetField(f.name));
+                }
+            }
+
             return;
+        }
 
         var typeBuilder = _types[type.originalDefinition];
         var isAnonymousUnion = type is AnonymousUnionType;
         var seenGroupIds = new HashSet<int>();
 
-        foreach (var member in type.GetMembers()) {
+        var members = type.GetMembers();
+
+        foreach (var member in members) {
             if (member is FieldSymbol f) {
                 if (!isAnonymousUnion && f.isAnonymousUnionMember) {
                     if (seenGroupIds.Add(f.unionGroupId))
@@ -1487,8 +1620,26 @@ internal sealed partial class Executor : ModuleBuilder {
             { "File_WriteText_SS", typeof(File).GetMethod("WriteAllText", Flags, [typeof(string), typeof(string)]) },
             { "Math_Clamp_D?D?D?", typeof(Belte.Runtime.Math).GetMethod("Clamp", Flags, [typeof(double?), typeof(double?), typeof(double?)]) },
             { "Math_Clamp_DDD", typeof(Math).GetMethod("Clamp", Flags, [typeof(double), typeof(double), typeof(double)]) },
+            { "Math_Clamp_F4?F4?F4?", typeof(Belte.Runtime.Math).GetMethod("Clamp", Flags, [typeof(float?), typeof(float?), typeof(float?)]) },
+            { "Math_Clamp_F4F4F4", typeof(Math).GetMethod("Clamp", Flags, [typeof(float), typeof(float), typeof(float)]) },
             { "Math_Clamp_I?I?I?", typeof(Belte.Runtime.Math).GetMethod("Clamp", Flags, [typeof(long?), typeof(long?), typeof(long?)]) },
             { "Math_Clamp_III", typeof(Math).GetMethod("Clamp", Flags, [typeof(long), typeof(long), typeof(long)]) },
+            { "Math_Clamp_U8?U8?U8?", typeof(Belte.Runtime.Math).GetMethod("Clamp", Flags, [typeof(ulong?), typeof(ulong?), typeof(ulong?)]) },
+            { "Math_Clamp_U8U8U8", typeof(Math).GetMethod("Clamp", Flags, [typeof(ulong), typeof(ulong), typeof(ulong)]) },
+            { "Math_Clamp_I4?I4?I4?", typeof(Belte.Runtime.Math).GetMethod("Clamp", Flags, [typeof(int?), typeof(int?), typeof(int?)]) },
+            { "Math_Clamp_I4I4I4", typeof(Math).GetMethod("Clamp", Flags, [typeof(int), typeof(int), typeof(int)]) },
+            { "Math_Clamp_U4?U4?U4?", typeof(Belte.Runtime.Math).GetMethod("Clamp", Flags, [typeof(uint?), typeof(uint?), typeof(uint?)]) },
+            { "Math_Clamp_U4U4U4", typeof(Math).GetMethod("Clamp", Flags, [typeof(uint), typeof(uint), typeof(uint)]) },
+            { "Math_Clamp_I2?I2?I2?", typeof(Belte.Runtime.Math).GetMethod("Clamp", Flags, [typeof(short?), typeof(short?), typeof(short?)]) },
+            { "Math_Clamp_I2I2I2", typeof(Math).GetMethod("Clamp", Flags, [typeof(short), typeof(short), typeof(short)]) },
+            { "Math_Clamp_U2?U2?U2?", typeof(Belte.Runtime.Math).GetMethod("Clamp", Flags, [typeof(ushort?), typeof(ushort?), typeof(ushort?)]) },
+            { "Math_Clamp_U2U2U2", typeof(Math).GetMethod("Clamp", Flags, [typeof(ushort), typeof(ushort), typeof(ushort)]) },
+            { "Math_Clamp_I1?I1?I1?", typeof(Belte.Runtime.Math).GetMethod("Clamp", Flags, [typeof(sbyte?), typeof(sbyte?), typeof(sbyte?)]) },
+            { "Math_Clamp_I1I1I1", typeof(Math).GetMethod("Clamp", Flags, [typeof(sbyte), typeof(sbyte), typeof(sbyte)]) },
+            { "Math_Clamp_U1?U1?U1?", typeof(Belte.Runtime.Math).GetMethod("Clamp", Flags, [typeof(byte?), typeof(byte?), typeof(byte?)]) },
+            { "Math_Clamp_U1U1U1", typeof(Math).GetMethod("Clamp", Flags, [typeof(byte), typeof(byte), typeof(byte)]) },
+            { "Math_Clamp_C?C?C?", typeof(Belte.Runtime.Math).GetMethod("Clamp", Flags, [typeof(char?), typeof(char?), typeof(char?)]) },
+            { "Math_Clamp_CCC", typeof(Belte.Runtime.Math).GetMethod("Clamp", Flags, [typeof(char), typeof(char), typeof(char)]) },
             { "Math_Lerp_D?D?D?", typeof(Belte.Runtime.Math).GetMethod("Lerp", Flags, [typeof(double?), typeof(double?), typeof(double?)]) },
             { "Math_Lerp_DDD", typeof(Belte.Runtime.Math).GetMethod("Lerp", Flags, [typeof(double), typeof(double), typeof(double)]) },
             { "Math_Cos_D", typeof(Math).GetMethod("Cos", Flags, [typeof(double)]) },
@@ -1521,12 +1672,28 @@ internal sealed partial class Executor : ModuleBuilder {
             { "Math_Pow_I?I?", typeof(Belte.Runtime.Math).GetMethod("Pow", Flags, [typeof(long?), typeof(long?)]) },
             { "Math_Max_D?D?", typeof(Belte.Runtime.Math).GetMethod("Max", Flags, [typeof(double?), typeof(double?)]) },
             { "Math_Max_DD", typeof(Math).GetMethod("Max", Flags, [typeof(double), typeof(double)]) },
+            { "Math_Max_F4?F4?", typeof(Belte.Runtime.Math).GetMethod("Max", Flags, [typeof(float?), typeof(float?)]) },
+            { "Math_Max_F4F4", typeof(Math).GetMethod("Max", Flags, [typeof(float), typeof(float)]) },
             { "Math_Max_I?I?", typeof(Belte.Runtime.Math).GetMethod("Max", Flags, [typeof(long?), typeof(long?)]) },
             { "Math_Max_II", typeof(Math).GetMethod("Max", Flags, [typeof(long), typeof(long)]) },
+            { "Math_Max_I4?I4?", typeof(Belte.Runtime.Math).GetMethod("Max", Flags, [typeof(int?), typeof(int?)]) },
+            { "Math_Max_I4I4", typeof(Math).GetMethod("Max", Flags, [typeof(int), typeof(int)]) },
+            { "Math_Max_U8?U8?", typeof(Belte.Runtime.Math).GetMethod("Max", Flags, [typeof(ulong?), typeof(ulong?)]) },
+            { "Math_Max_U8U8", typeof(Math).GetMethod("Max", Flags, [typeof(ulong), typeof(ulong)]) },
+            { "Math_Max_U4?U4?", typeof(Belte.Runtime.Math).GetMethod("Max", Flags, [typeof(uint?), typeof(uint?)]) },
+            { "Math_Max_U4U4", typeof(Math).GetMethod("Max", Flags, [typeof(uint), typeof(uint)]) },
             { "Math_Min_D?D?", typeof(Belte.Runtime.Math).GetMethod("Min", Flags, [typeof(double?), typeof(double?)]) },
             { "Math_Min_DD", typeof(Math).GetMethod("Min", Flags, [typeof(double), typeof(double)]) },
+            { "Math_Min_F4?F4?", typeof(Belte.Runtime.Math).GetMethod("Min", Flags, [typeof(float?), typeof(float?)]) },
+            { "Math_Min_F4F4", typeof(Math).GetMethod("Min", Flags, [typeof(float), typeof(float)]) },
             { "Math_Min_I?I?", typeof(Belte.Runtime.Math).GetMethod("Min", Flags, [typeof(long?), typeof(long?)]) },
             { "Math_Min_II", typeof(Math).GetMethod("Min", Flags, [typeof(long), typeof(long)]) },
+            { "Math_Min_I4?I4?", typeof(Belte.Runtime.Math).GetMethod("Min", Flags, [typeof(int?), typeof(int?)]) },
+            { "Math_Min_I4I4", typeof(Math).GetMethod("Min", Flags, [typeof(int), typeof(int)]) },
+            { "Math_Min_U8?U8?", typeof(Belte.Runtime.Math).GetMethod("Min", Flags, [typeof(ulong?), typeof(ulong?)]) },
+            { "Math_Min_U8U8", typeof(Math).GetMethod("Min", Flags, [typeof(ulong), typeof(ulong)]) },
+            { "Math_Min_U4?U4?", typeof(Belte.Runtime.Math).GetMethod("Min", Flags, [typeof(uint?), typeof(uint?)]) },
+            { "Math_Min_U4U4", typeof(Math).GetMethod("Min", Flags, [typeof(uint), typeof(uint)]) },
             { "Math_Abs_D?", typeof(Belte.Runtime.Math).GetMethod("Abs", Flags, [typeof(double?)]) },
             { "Math_Abs_D", typeof(Math).GetMethod("Abs", Flags, [typeof(double)]) },
             { "Math_Abs_I?", typeof(Belte.Runtime.Math).GetMethod("Abs", Flags, [typeof(long?)]) },
@@ -1575,11 +1742,32 @@ internal sealed partial class Executor : ModuleBuilder {
             { "String_Char_I", typeof(Belte.Runtime.Utilities).GetMethod("Char", Flags, [typeof(long)]) },
             { "String_Split_SS", typeof(Belte.Runtime.Utilities).GetMethod("Split", Flags, [typeof(string), typeof(string)]) },
             { "String_Length_S", typeof(Belte.Runtime.Utilities).GetMethod("StringLength", Flags, [typeof(string)]) },
+            { "String_IndexOf_SC", typeof(Belte.Runtime.Utilities).GetMethod("StringIndexOf", Flags, [typeof(string), typeof(char)]) },
             { "String_IsNullOrWhiteSpace_S?", typeof(string).GetMethod("IsNullOrWhiteSpace", Flags, [typeof(string)]) },
             { "String_IsNullOrWhiteSpace_C?", typeof(Belte.Runtime.Utilities).GetMethod("IsNullOrWhiteSpace", Flags, [typeof(char?)]) },
             { "String_IsDigit_C?", typeof(Belte.Runtime.Utilities).GetMethod("IsDigit", Flags, [typeof(char?)]) },
             { "String_Substring_SI?I?", typeof(Belte.Runtime.Utilities).GetMethod("Substring", Flags, [typeof(string), typeof(long?), typeof(long?)]) },
+            { "String_PadLeft_SCI", typeof(Belte.Runtime.Utilities).GetMethod("StringPadLeft", Flags, [typeof(string), typeof(char), typeof(long)]) },
+            { "String_PadRight_SCI", typeof(Belte.Runtime.Utilities).GetMethod("StringPadRight", Flags, [typeof(string), typeof(char), typeof(long)]) },
+            { "String_Replace_SSS", typeof(Belte.Runtime.Utilities).GetMethod("StringReplace", Flags, [typeof(string), typeof(string), typeof(string)]) },
+            { "String_Trim_S", typeof(Belte.Runtime.Utilities).GetMethod("StringTrim", Flags, [typeof(string)]) },
+            { "String_Trim_S[", typeof(Belte.Runtime.Utilities).GetMethod("StringTrim", Flags, [typeof(string), typeof(char[])]) },
+            { "String_TrimStart_S", typeof(Belte.Runtime.Utilities).GetMethod("StringTrimStart", Flags, [typeof(string)]) },
+            { "String_TrimStart_S[", typeof(Belte.Runtime.Utilities).GetMethod("StringTrimStart", Flags, [typeof(string), typeof(char[])]) },
+            { "String_TrimEnd_S", typeof(Belte.Runtime.Utilities).GetMethod("StringTrimEnd", Flags, [typeof(string)]) },
+            { "String_TrimEnd_S[", typeof(Belte.Runtime.Utilities).GetMethod("StringTrimEnd", Flags, [typeof(string), typeof(char[])]) },
             { "Int_Parse_S?", typeof(Belte.Runtime.Utilities).GetMethod("IntParse", Flags, [typeof(string)]) },
+            { "Int_ToString_IS", typeof(Belte.Runtime.Utilities).GetMethod("IntToString", Flags, [typeof(long), typeof(string)]) },
+            { "Decimal_IsNaN_F4", typeof(float).GetMethod("IsNaN", Flags, [typeof(float)]) },
+            { "Decimal_IsPosInfinity_F4", typeof(float).GetMethod("IsPositiveInfinity", Flags, [typeof(float)]) },
+            { "Decimal_IsNegInfinity_F4", typeof(float).GetMethod("IsNegativeInfinity", Flags, [typeof(float)]) },
+            { "Decimal_IsInfinity_F4", typeof(float).GetMethod("IsInfinity", Flags, [typeof(float)]) },
+            { "Decimal_IsNaN_F8", typeof(double).GetMethod("IsNaN", Flags, [typeof(double)]) },
+            { "Decimal_IsPosInfinity_F8", typeof(double).GetMethod("IsPositiveInfinity", Flags, [typeof(double)]) },
+            { "Decimal_IsNegInfinity_F8", typeof(double).GetMethod("IsNegativeInfinity", Flags, [typeof(double)]) },
+            { "Decimal_IsInfinity_F8", typeof(double).GetMethod("IsInfinity", Flags, [typeof(double)]) },
+            { "Decimal_Parse_S?", typeof(Belte.Runtime.Utilities).GetMethod("DecimalParse", Flags, [typeof(string)]) },
+            { "Decimal_ToString_DS", typeof(Belte.Runtime.Utilities).GetMethod("DecimalToString", Flags, [typeof(double), typeof(string)]) },
             { "Object<>_ToString", typeof(object).GetMethod("ToString", InstFlags, Type.EmptyTypes) },
             { "Object<>_Equals_O?", typeof(object).GetMethod("Equals", InstFlags, [typeof(object)]) },
             { "Object<>_GetHashCode", typeof(object).GetMethod("GetHashCode", InstFlags, Type.EmptyTypes) },

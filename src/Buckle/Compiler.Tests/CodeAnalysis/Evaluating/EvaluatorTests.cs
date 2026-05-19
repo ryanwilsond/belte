@@ -72,6 +72,11 @@ public sealed class EvaluatorTests {
     [InlineData("return 2 ** 4;", 16)]
     [InlineData("return 4.1 ** 2;", 16.81)]
     [InlineData("return 4.1 ** 2.1;", 19.35735875876448)]
+    [InlineData("return 3 \\/ 10;", 10)]
+    [InlineData("return 3 /\\ 10;", 3)]
+    [InlineData("return 4 >< [1, 10];", 4)]
+    [InlineData("return 20 >< [1, 10];", 10)]
+    [InlineData("return -5 >< [1, 10];", 1)]
     [InlineData("return 1 & 3;", 1)]
     [InlineData("return 1 & 0;", 0)]
     [InlineData("return false & false;", false)]
@@ -149,6 +154,7 @@ public sealed class EvaluatorTests {
     [InlineData("return \"string\" is string;", true)]
     [InlineData("return null is string;", false)]
     [InlineData("return null is Object;", false)]
+    [InlineData("return 3 is Object;", true)]
     [InlineData("return null isnt null;", false)]
     [InlineData("return 3 isnt null;", true)]
     [InlineData("return 5 % 2;", 1)]
@@ -164,12 +170,33 @@ public sealed class EvaluatorTests {
     [InlineData("int a = 5; return a / 60.0;", 0.08333333333333333)]
     [InlineData("int[] a; return a is int[];", false)]
     [InlineData("int[] a = { 1 }; return a is int[];", true)]
+    [InlineData("return 2 + 3 * 4;", 14)]
+    [InlineData("return (2 + 3) * 4;", 20)]
+    [InlineData("return 16 / 4 / 2;", 2)]
+    [InlineData("return 2 ** 3 ** 2;", 512)]
+    [InlineData("return -2 ** 2;", -4)]
+    [InlineData("return (-2) ** 2;", 4)]
+    [InlineData("return true || false && false;", true)]
+    [InlineData("return (true || false) && false;", false)]
+    [InlineData("return 1 << 2 + 1;", 8)]
+    [InlineData("return (1 << 2) + 1;", 5)]
+    [InlineData("int a = 0; false && (++a > 0); return a;", 0)]
+    [InlineData("int a = 0; true || (++a > 0); return a;", 0)]
+    [InlineData("int a = 0; true && (++a > 0); return a;", 1)]
+    [InlineData("int a = 0; false || (++a > 0); return a;", 1)]
+    [InlineData("int? a = null; int? b = null; return a ?? b ?? 5;", 5)]
+    [InlineData("int? a = 3; int? b = 4; return a ?? b ?? 5;", 3)]
+    [InlineData("int? a = null; int? b = 4; return a ?? b ?? 5;", 4)]
     // Compound assignments
     [InlineData("var? a = 1; a += (2 + 3); return a;", 6)]
     [InlineData("var? a = 1; a -= (2 + 3); return a;", -4)]
     [InlineData("var? a = 1; a *= (2 + 3); return a;", 5)]
     [InlineData("var? a = 1; a /= (2 + 3); return a;", 0)]
     [InlineData("var? a = 2; a **= 2; return a;", 4)]
+    [InlineData("var? a = 2; a /\\= 10; return a;", 2)]
+    [InlineData("var? a = 2; a \\/= 10; return a;", 10)]
+    [InlineData("var? a = 2; a ><= [1, 10]; return a;", 2)]
+    [InlineData("var? a = 20; a ><= [1, 10]; return a;", 10)]
     [InlineData("var? a = true; a &= (false); return a;", false)]
     [InlineData("var? a = 1; a &= 3; return a;", 1)]
     [InlineData("var? a = 1; a &= 0; return a;", 0)]
@@ -194,11 +221,16 @@ public sealed class EvaluatorTests {
     [InlineData("var? a = 3; a += null; return a;", null)]
     [InlineData("int? a = 3; a += null; return a is null;", true)]
     [InlineData("int? a = 3; a += null; return a isnt null;", false)]
+    [InlineData("int i = 0; int[] a = {1, 2, 3}; a[i++] += 5; return i;", 1)]
+    [InlineData("int i = 0; int[] a = {1, 2, 3}; a[i++] += 5; return a[0];", 6)]
+    [InlineData("int i = 0; int[] a = {1, 2, 3}; a[i++] *= 5; return a[0];", 5)]
     // Ternary expressions
     [InlineData("return true ? 3 : 5;", 3)]
     [InlineData("return false ? \"asdf\" : \"asdf2\";", "asdf2")]
     [InlineData("int? a = 3; int? b = a > 2 ? 5 : 3; return b;", 5)]
     [InlineData("int? a = 3; int? b = a > 2 && false ? a + 5 : a + 3; return b;", 6)]
+    [InlineData("return true ? false ? 1 : 2 : 3;", 2)]
+    [InlineData("return false ? 1 : true ? 2 : 3;", 2)]
     // Assignment expressions
     [InlineData("int? a = 10; return a;", 10)]
     [InlineData("int? a = 10; return a * a;", 100)]
@@ -262,6 +294,10 @@ public sealed class EvaluatorTests {
     [InlineData("int? a = 4; int? b = --a; return b;", 3)]
     [InlineData("decimal? a = 3.6; ++a; return a;", 4.6)]
     [InlineData("decimal? a = 3.6; --a; return a;", 2.6)]
+    [InlineData("int a = 1; return a++ + a++;", 3)]
+    [InlineData("int a = 1; return ++a + ++a;", 5)]
+    [InlineData("int a = 1; return a++ + ++a;", 4)]
+    [InlineData("int a = 1; return ++a + a++;", 4)]
     // Parenthesized expressions
     [InlineData("int? a = (3 + 4) * 2; return a;", 14)]
     [InlineData("int? a = 3 + (4 * 2); return a;", 11)]
@@ -312,6 +348,12 @@ public sealed class EvaluatorTests {
     [InlineData("int? x = 4; int? y = 3; ref int? z = ref x; z = ref y; z++; return x;", 4)]
     [InlineData("lowlevel { int?[] a = {1, 2, 3}; a[0] = 6; return a[0]; }", 6)]
     [InlineData("int? M() { ref int? F(ref int? a) { return ref a; } int? b = 3; F(ref b) = 6; return b; } return M();", 6)]
+    [InlineData(@"
+        int a = 3;
+        ref int b = ref a;
+        ref int c = ref b;
+        c = 10;
+        return a;", 10)]
     // Cascade list expression
     [InlineData("class A { public int? f = 0; } var a = new A()..f=1.0..f=5; return a.f;", 5)]
     [InlineData("class A { public int? f = 0; public void M() { f++; } } var a = new A()..M()..M(); return a.f;", 2)]
@@ -336,8 +378,28 @@ public sealed class EvaluatorTests {
         c[0] = new A();
         int? i = 0;
         var f = c[i].f;
-        return f;
-        ", 1)]
+        return f;", 1)]
+    [InlineData(@"
+        lowlevel {
+            int[] a = {1, 2, 3};
+            int[] b = a;
+            b[0] = 10;
+            return a[0];
+        }", 10)]
+    [InlineData(@"
+        lowlevel {
+            int[][] a = { { 1 }, { 2 } };
+            int[] b = a[0];
+            b[0] = 9;
+            return a[0][0];
+        }", 9)]
+    [InlineData(@"
+        class A {
+            public int[] values = {1,2,3};
+        }
+        var a = new A();
+        a.values[1]++;
+        return a.values[1];", 3)]
     // Member access expressions
     [InlineData("class A { public int? num; } A myVar = new A(); myVar.num = 3; return myVar.num + 1;", 4)]
     [InlineData("class A { public int? num; } class B { public A a; } B myVar = new B(); myVar.a = new A(); myVar.a.num = 3; return myVar.a.num + 1;", 4)]
@@ -347,6 +409,8 @@ public sealed class EvaluatorTests {
     [InlineData("class A { public int? num; } A myVar = new A(); myVar.num = 7; int? a = myVar?.num; return a;", 7)]
     [InlineData("class A { public static int? a = 3; } return A.a;", 3)]
     [InlineData("class A { public static int? a = 3; static constructor() { a = 10; } } return A.a;", 10)]
+    [InlineData("class A { public static int[] a = new int[10]; static constructor() { a[0] = 10; } } return A.a[0];", 10)]
+    [InlineData("class A { public static int[] a = new int[10]; static constructor() { a[0] = 10; } } return A.a[1];", 0)]
     [InlineData("class A { public static int? a = 3; } A.a = 20; return A.a;", 20)]
     [InlineData("struct A { public int a; } var a = new A(); return a.a;", 0)]
     [InlineData("struct A { public int? a; } var a = new A(); return a.a;", null)]
@@ -363,7 +427,9 @@ public sealed class EvaluatorTests {
     [InlineData("class A { public constexpr int? a; } return A.a;", null)]
     [InlineData("class A { public static int? B() { return 0; } } return A.B();", 0)]
     [InlineData("class A { public static int? B(int a) { return a + 3; } } return A.B(4);", 7)]
+    [InlineData("struct A { public static A a = default; int f; } return A.a.f;", 0)]
     // Structs
+    [InlineData("struct A { } var a = new A(); return a is Object;", true)]
     [InlineData("struct A { public int! a; } var a = new A(); a.a = 4; var b = a; b.a = 10; return a.a;", 4)]
     [InlineData("union A { int32 a; int16 b; } var a = new A(); a.a = 5; return a.b;", 5)]
     [InlineData("union A { int32 a; int16 b; } var a = new A(); a.b = 5; return a.a;", 5)]
@@ -371,6 +437,71 @@ public sealed class EvaluatorTests {
     [InlineData("struct A { int8 a; union { int8 b; int8 c; } } var a = new A(); a.b = 5; return a.c;", 5)]
     [InlineData("struct A { int8 a; union { int8 b; int8 c; } } var a = new A(); a.a = 5; return a.a;", 5)]
     [InlineData("struct A { int8 a; union { int8 b; int8 c; } } var a = new A(); a.a = 5; return a.b;", 0)]
+    [InlineData("struct A { int a; constructor() { a = 3; } } var a = new A(); return a.a;", 3)]
+    [InlineData("struct A { int a; void SetA(int a) { this.a = a; } } var a = new A(); a.SetA(10); return a.a;", 10)]
+    [InlineData("struct A { static int x = 3; } return A.x;", 3)]
+    [InlineData("struct A { constexpr int x = 3; } return A.x;", 3)]
+    [InlineData(@"
+        struct A {
+            int a;
+            int Mut() {
+                a++;
+                return a;
+            }
+        }
+        A GetA() {
+            return new A();
+        }
+        var a = GetA().Mut();
+        return a;", 1)]
+    [InlineData(@"
+        struct A { public int x; }
+        var a = new A();
+        a.x = 3;
+        var b = a;
+        b.x = 10;
+        return b.x;", 10)]
+    [InlineData(@"
+        struct A { public int x; }
+        class B { public A a; }
+        var b = new B();
+        b.a.x = 4;
+        return b.a.x;", 4)]
+    [InlineData(@"
+        struct A {
+            public int x;
+            public constructor(int x) {
+                this = new A()..x=x;
+            }
+        }
+        var a = new A(10);
+        return a.x;", 10)]
+    [InlineData(@"
+        struct A {
+            public int x;
+            public constructor(int a) {
+                this = new A();
+                x++;
+            }
+        }
+        var a = new A(10);
+        return a.x;", 1)]
+    // Enums
+    [InlineData("enum A { q, w, e, r, t } return A.t;", 4)]
+    [InlineData("enum flags A { q, w, e, r, t } return A.t;", 16)]
+    [InlineData("enum A { q, w, e, r, t } A a = .t; return (int)a;", 4)]
+    [InlineData("enum flags A { q, w, e, r, t } A a = .t; return a.w;", false)]
+    [InlineData("enum flags A { q, w, e, r, t } A a = .t; return a.t;", true)]
+    [InlineData("enum flags A { q, w, e, r, t, public bool Test() { return this.t; } } A a = .t; return a.Test();", true)]
+    [InlineData("enum flags A { q, w, e, r, t, public bool Test() { return this.t; } } A a = A.t | A.r; return a.Test();", true)]
+    [InlineData("enum flags A { q, w, e, r, t, public bool Test() { return this.t; } } A a = A.r; return a.Test();", false)]
+    [InlineData("enum flags A { q, w, e, r, t, public static bool Test() { return true; } } return A.Test();", true)]
+    [InlineData("class C { public A a; public enum A { q, w } } C c = new C(); c.a = C.A.q; return c.a == .q;", true)]
+    [InlineData("class C { public A a; public enum A { q, w } } C c = new C(); c.a = C.A.w; return c.a == .q;", false)]
+    [InlineData(@"
+        enum flags A { q, w, e, r }
+        A a = A.q | A.e;
+        return a.q && a.e && !a.w;", true)]
     // If statements
     [InlineData("int? a = 0; if (a == 0) { a = 10; } return a;", 10)]
     [InlineData("int? a = 0; if (a == 4) { a = 10; } return a;", 0)]
@@ -389,12 +520,39 @@ public sealed class EvaluatorTests {
     [InlineData("int a = 0; int[] b = { 1, 1, 1 }; return with (b[a++] = 5) b[a - 1];", 5)]
     [InlineData("int a = 0; int[] b = { 1, 1, 1 }; int c = with (b[a++] = 5) b[a - 1]; return a;", 1)]
     [InlineData("int a = 0; int[] b = { 1, 1, 1 }; int c = with (b[a++] = 5) b[a - 1]; return b[0];", 1)]
+    [InlineData("int a = 1; return with (a = 2) with (a = 3) a;", 3)]
+    // Compile-time expressions
+    [InlineData("int a = $3; return a;", 3)]
+    [InlineData("constexpr int? a = 3; int b = $a?; return b;", 3)]
+    [InlineData("int? F(int a, int b) { return a \\/ b; } const int? a = $F(3, 4); return a;", 4)]
+    [InlineData("int F(int a, int b) { return a \\/ b; } const int a = $(F(3, 4) + 10); return a;", 14)]
     // Local function statements
     [InlineData("int? A() { int? B() { return 2; } return B() + 1; } return A();", 3)]
     [InlineData("int? A() { int? B() { int? A() { return 2; } return A() + 1; } return B() + 1; } return A();", 4)]
     [InlineData("int? A() { int? a = 1; int? B(int? b) { return a + b; } return B(4); } return A();", 5)]
     [InlineData("int? A() { int? a = 5; int? B(int? b) { return a + b; } return B(1); } return A();", 6)]
     [InlineData("int? A() { int? a = 5; void B() { a = 6; } B(); return a; } return A();", 6)]
+    [InlineData(@"int a = 3; int F() { return a; } a = 6; return F();", 6)]
+    [InlineData(@"int a = 0; void Inc() { a++; } Inc(); Inc(); return a;", 2)]
+    [InlineData(@"int a = 3; int F() { return a; } int() g = F; a = 7; return g();", 7)]
+    [InlineData(@"
+        int F() {
+            int a = 3;
+            int B() {
+                a++;
+                return a;
+            }
+            B();
+            return a;
+        }
+        return F();", 4)]
+    [InlineData(@"
+        int Fact(int n) {
+            if (n <= 1)
+                return 1;
+            return n * Fact(n - 1);
+        }
+        return Fact(5);", 120)]
     // Block statements and return statements
     [InlineData("{ int? a = 3; return a; }", 3)]
     [InlineData("int? a = 5; { a = 3; return a; }", 3)]
@@ -405,11 +563,35 @@ public sealed class EvaluatorTests {
     [InlineData("class A { public int? a; public constructor(int? b) { a = b; } } var myVar = new A(6); return myVar.a;", 6)]
     [InlineData("class A { public int? a; public constructor(int? b) { a = b; } public constructor(int? b, int? c) { a = b + c; } } var myVar = new A(6); return myVar.a;", 6)]
     [InlineData("class A { public int? a; public constructor(int? b) { a = b; } public constructor(int? b, int? c) { a = b + c; } } var myVar = new A(6, 1); return myVar.a;", 7)]
+    [InlineData(@"
+        class A {
+            public static int a = Init();
+            public static int Init() { return 5; }
+        }
+        return A.a;", 5)]
     // For statements
     [InlineData("int? result = 1; for (int? i = 0; i <= 10; i++) { result += result; } return result;", 2048)]
     [InlineData("int? result = 0; for (int? i = 0; i < 5; i++) { result++; } return result;", 5)]
     [InlineData("int? result; for (int? i = 0; i <= 10; i++) { result = i; } return result;", 10)]
     [InlineData("int? result = 1; for (int? i = 10; i > 0; i--) { result += i; } return result;", 56)]
+    [InlineData(@"
+        int sum = 0;
+        for (int i = 0; i < 3; i++) {
+            for (int j = 0; j < 3; j++) {
+                if (j == 1)
+                    continue;
+                sum++;
+            }
+        }
+        return sum;", 6)]
+    [InlineData(@"
+        int sum = 0;
+        for (int i = 0; i < 10; i++) {
+            if (i == 5)
+                break;
+            sum += i;
+        }
+        return sum;", 10)]
     // While statements
     [InlineData("int? i = 0; int? result = 1; while (i <= 10) { result += result; i++; } return result;", 2048)]
     [InlineData("int? i = 0; int? result = 0; while (i < 5) { result++; i++; } return result;", 5)]
@@ -432,7 +614,9 @@ public sealed class EvaluatorTests {
     [InlineData("var? cond = true; int? res = 3; while (true) { if (cond) break; else continue; res = 4; } return res;", 3)]
     // Libraries
     [InlineData("class A { } var a = new A(); return a.ToString();", "A")]
+    [InlineData("struct A { } var a = new A(); return a.ToString();", "A")]
     [InlineData("class A { public override string? ToString() { return \"a\"; } } var a = new A(); return a.ToString();", "a")]
+    [InlineData("struct A { public override string? ToString() { return \"a\"; } } var a = new A(); return a.ToString();", "a")]
     [InlineData("any[] a = {1, 2, 3}; return LowLevel.Length<any[]>(a);", 3)]
     // TypeOf expressions
     [InlineData("lowlevel { type a = typeof(int[]); }", null)]
@@ -454,6 +638,22 @@ public sealed class EvaluatorTests {
     [InlineData("return typeof(int32) == typeof(int64);", false)]
     [InlineData("return typeof(decimal) == typeof(float64);", true)]
     [InlineData("return typeof(float32) == typeof(float64);", false)]
+    // SizeOf expressions
+    [InlineData("return sizeof(int8);", 1)]
+    [InlineData("return sizeof(int16);", 2)]
+    [InlineData("return sizeof(int32);", 4)]
+    [InlineData("return sizeof(int64);", 8)]
+    [InlineData("return sizeof(uint8);", 1)]
+    [InlineData("return sizeof(uint16);", 2)]
+    [InlineData("return sizeof(uint32);", 4)]
+    [InlineData("return sizeof(uint64);", 8)]
+    [InlineData("return sizeof(int);", 8)]
+    [InlineData("return sizeof(char);", 2)]
+    [InlineData("return sizeof(float32);", 4)]
+    [InlineData("return sizeof(float64);", 8)]
+    [InlineData("return sizeof(decimal);", 8)]
+    [InlineData("return sizeof(bool);", 1)]
+    [InlineData("return sizeof(winbool);", 4)]
     // Operators
     [InlineData(@"
         class A {
@@ -488,6 +688,55 @@ public sealed class EvaluatorTests {
 
         A a = 3;
         return a.a;", 3)]
+    [InlineData(@"
+        class A {
+            public int x;
+            public constructor(int x) { this.x = x; }
+            public static A operator+(A a, A b) {
+                return new A(a.x + b.x);
+            }
+        }
+        var a = new A(1);
+        var b = new A(2);
+        return (a + b).x;", 3)]
+    [InlineData(@"
+        struct A {
+            int x;
+            constructor(int x) { this.x = x; }
+            static A operator+(A a, A b) {
+                a.x += b.x;
+                return a;
+            }
+        }
+        var a = new A(1);
+        var b = new A(2);
+        return (a + b).x;", 3)]
+    [InlineData(@"
+        struct A {
+            int x;
+            constructor(int x) { this.x = x; }
+            static A operator+(A a, A b) {
+                a.x += b.x;
+                return a;
+            }
+        }
+        var a = new A(1);
+        var b = new A(2);
+        var c = a + b;
+        return c.x;", 3)]
+    [InlineData(@"
+        struct A {
+            int x;
+            constructor(int x) { this.x = x; }
+            static A operator+(A a, A b) {
+                a.x += b.x;
+                return a;
+            }
+        }
+        var a = new A(1);
+        var b = new A(2);
+        var c = a + b;
+        return a.x;", 1)]
     // Overrides
     [InlineData(@"
         class A {
@@ -502,11 +751,47 @@ public sealed class EvaluatorTests {
         var b = new B();
         return b.T();", "B")]
     [InlineData("lowlevel class A { public int?[] b = { 1, 2, 3 }; } var a = new A(); ref var r = ref a.b; r[0]++; return a.b[0];", 2)]
+    [InlineData(@"
+        class A {
+            public virtual int F() { return 1; }
+        }
+        class B extends A {
+            public override int F() { return 2; }
+        }
+        A a = new B();
+        return a.F();", 2)]
+    [InlineData(@"
+        class A {
+            public virtual int F() { return 1; }
+        }
+        class B extends A {
+        }
+        A a = new B();
+        return a.F();", 1)]
     // Try statements
+    [InlineData("try { return; } finally { }", null)]
     [InlineData("try { int? x = 0; int? a = 56/x; return a; } catch { return 3; }", 3)]
     [InlineData("try { int? a = 56/1; return a; } catch { return 3; }", 56)]
     [InlineData("int? a = 3; try { int? x = 0; int? b = 56/x; a += b; return a; } catch { a += 3; return a; } finally { a++; }", 6)]
     [InlineData("int? a = 3; try { int? b = 56/1; a += b; return a; } catch { a += 3; return a; } finally { a++; }", 59)]
+    [InlineData(@"
+        int a = 0;
+        try {
+            a = 1;
+            return a;
+        }
+        finally {
+            a = 2;
+        }", 1)]
+    [InlineData(@"
+        int a = 0;
+        try {
+            a = 1;
+        }
+        finally {
+            a = 2;
+        }
+        return a;", 2)]
     // Defer statements
     [InlineData("int a = 3; defer a = 6; return a;", 3)]
     [InlineData(@"
@@ -533,128 +818,419 @@ public sealed class EvaluatorTests {
             }
         }
         return A.M();", 9)]
+    [InlineData(@"
+        int a = 0;
+        defer a = 1;
+        defer a = 2;
+        return a;", 0)]
     // Switch statements
     [InlineData("var? a = 3; int? b = 1; switch (a) { case 3: b = 5; } return b;", 5)]
     [InlineData("var? a = 3; int? b = 1; switch (a) { case 4: b = 5; } return b;", 1)]
     [InlineData("var? a = 3; int? b = 1; switch (a) { case 3: goto case 5; case 5: goto default; default: b = 6; } return b;", 6)]
     [InlineData("var? a = 3; int? b = 1; switch (a) { case 1: case 2: case 3: case 4: b = 6; } return b;", 6)]
+    [InlineData(@"
+        int a = 2;
+        int b = 0;
+        switch (a) {
+            case 1:
+                b = 1;
+                break;
+            case 2:
+                b = 2;
+                break;
+            default:
+                b = 3;
+                break;
+        }
+        return b;", 2)]
     // String interpolation
     [InlineData("var? a = 3; return f\"a is {a}\";", "a is 3")]
     [InlineData("int? a = null; return f\"a is {a}\";", "a is ")]
     [InlineData("return f\"a is {null}\";", "a is ")]
     [InlineData("List<int> a = null; return f\"a is {a}\";", "a is ")]
     [InlineData("class A { public override string ToString() { return \"text\"; } } A a = new A(); return f\"a is {a}\";", "a is text")]
+    [InlineData("return f\"{1}{2}{3}\";", "123")]
+    [InlineData("return f\"{true} {false}\";", "True False")]
     // Templates
-    // TODO Is it worth testing non-type templates even though only the Evaluator supports them?
-    // [InlineData("class A<int a, int b> { public static int Test() { return a + b; } } return A<2,3>.Test();", 5)]
-    // [InlineData("int Test<int a, int b>() { return a + b; } return Test<2, 3>();", 5)]
-    // [InlineData("string Test<string a>() { return a; } return Test<\"test\">();", "test")]
-    // [InlineData("lowlevel int[] Test<int[] a>() { return a; } lowlevel { return Test<{1, 2, 3}>()[1]; }", 2)]
-    // [InlineData("lowlevel { int[] Test<int[] a>() { return a; } return Test<{1, 2, 3}>()[1]; }", 2)]
     [InlineData("class A<type t> { public t a; } var a = new A<string>(); a.a = \"test\"; return a.a;", "test")]
     [InlineData("class A<type t> { public t a; } lowlevel { var a = new A<int?[]>(); a.a = new int?[] {1, 2, 3}; return a.a[1]; }", 2)]
     [InlineData("class A<type t> { }; var a = new A<A<int?>>();", null)]
     [InlineData("T Test<type T>(T a) { return a; } return Test<int?>(3);", 3)]
     [InlineData("T Test<type T>() { return default; } return Test<int?>();", null)]
     [InlineData("T Test<type T>() { return default; } return Test<int>();", 0)]
+    [InlineData("class A<type T> { } return typeof(A<int>) == typeof(A<int>);", true)]
+    [InlineData("class A<type T> { } return typeof(A<int>) == typeof(A<bool>);", false)]
     // Misc for coverage
     [InlineData("using H = int?; H myVar = 3; return myVar;", 3)]
-    [InlineData("enum A { q, w, e, r, t } return A.t;", 4)]
-    [InlineData("enum flags A { q, w, e, r, t } return A.t;", 8)]
-    [InlineData("enum A { q, w, e, r, t } A a = .t; return (int)a;", 4)]
+    [InlineData("class A<type T>;", null)]
     [InlineData("class P { int? a = 3; public int? M(int? a) { return a; } } var myP = new P(); return myP.M(4);", 4)]
     [InlineData("class P { public int? M(int? a, int? b) { return a + b; } public int? M(int? a) { return a; } } var myP = new P(); return myP.M(4, 5);", 9)]
     [InlineData("class P { public static T M<type T>() { T a = default; return a; } } return P.M<int?>();", null)]
-    // TODO these crash
-    // [InlineData("class P { public static T M<type T>(T b) { T a = b; L(); return a; void L() { a = null; } } } return P.M<int>(3);", null)]
-    // [InlineData("class P { public static T M<type T>(T b) { T a = b; L<bool>(); return a; void L<type T2>() { a = null; } } } return P.M<int>();", null)]
     [InlineData("static class P { [DllImport(\"kernel32.dll\")]static extern int64* GetModuleHandle(string? lpModuleName); } return null;", null)]
     [InlineData("static class P { [DllImport(\"msvcrt.dll\", CallingConvention: CallingConvention.Cdecl)]static extern void* memcpy(void* dest, void* src, uint64 count); } return null;", null)]
+    // TODO
+    // [InlineData(@"
+    //     class P {
+    //         public static T M<type T>(T b) {
+    //             T a = b;
+    //             L();
+    //             return a;
+    //             void L() { a = default; }
+    //         }
+    //     }
+    //     return P.M<int>(3);", 0)]
+    // [InlineData(@"
+    //     class P {
+    //         public static T M<type T>(T b) {
+    //             T a = b;
+    //             L<bool>();
+    //             return a;
+    //             void L<type T2>() { a = default; }
+    //         }
+    //     }
+    //     return P.M<int>(3);", 0)]
     [InlineData(@"
-    struct A { B b; }
-    struct B { int a; }
+        var? a = true;
+        var? b = false;
+        var? c = a && b;
+        var temp0 = c?;
+        return temp0;
+    ", false)]
+    [InlineData(@"
+        struct A { B b; }
+        struct B { int a; }
 
-    var c = new A();
-    c.b.a = 4;
-    return c.b.a;
-    ", 4)]
+        var c = new A();
+        c.b.a = 4;
+        return c.b.a;
+        ", 4)]
     // Compound nullability operators
     [InlineData(@"
-    class A {
-        public int! Length() { return 4; }
-    }
+        class A {
+            public int! Length() { return 4; }
+        }
 
-    A a = new A();
-    int! b = a?.Length()?;
-    return b;
-    ", 4)]
+        A a = new A();
+        int! b = a?.Length()?;
+        return b;
+        ", 4)]
     [InlineData(@"
-    class A {
-        public int! Length() { return 4; }
-    }
+        class A {
+            public int! Length() { return 4; }
+        }
 
-    A a = null;
-    int! b = a?.Length()?;
-    return b;
-    ", 0)]
+        A a = null;
+        int! b = a?.Length()?;
+        return b;
+        ", 0)]
     [InlineData(@"
-    class A {
-        public int? a;
-    }
+        class A {
+            public int? a;
+        }
 
-    A a = new A();
-    a?.a = 3;
-    return a?.a;
-    ", 3)]
+        A a = new A();
+        a?.a = 3;
+        return a?.a;
+        ", 3)]
     [InlineData(@"
-    class A {
-        public int? a;
-        public A b;
-    }
+        class A {
+            public int? a;
+            public A b;
+        }
 
-    A a = new A();
-    a?.b?.a = 3;
-    return a?.b?.a;
-    ", null)]
+        A a = new A();
+        a?.b?.a = 3;
+        return a?.b?.a;
+        ", null)]
     [InlineData(@"
-    class A {
-        public int? a;
-        public void M() { a = 5; }
-    }
+        class A {
+            public int? a;
+            public void M() { a = 5; }
+        }
 
-    A a = new A()?..M();
-    return a.a;
-    ", 5)]
+        A a = new A()?..M();
+        return a.a;
+        ", 5)]
     [InlineData(@"
-    class A {
-        public int? a;
-        public void M() { a = 5; }
-    }
+        class A {
+            public int? a;
+            public void M() { a = 5; }
+        }
 
-    A a = null;
-    var b = a?..M();
-    return b?.a;
-    ", null)]
+        A a = null;
+        var b = a?..M();
+        return b?.a;
+        ", null)]
     [InlineData(@"
-    class A {
-        public int? a;
-        public A b;
-    }
+        class A {
+            public int? a;
+            public A b;
+        }
 
-    var a = new A()?..b = (new A()..a = 4);
-    return a.b.a;
-    ", 4)]
+        var a = new A()?..b = (new A()..a = 4);
+        return a.b.a;
+        ", 4)]
     [InlineData(@"
-    int?[][] a = null;
-    a?[0]?[0] = 5;
-    return a?[0]?[0];
-    ", null)]
+        int?[][] a = null;
+        a?[0]?[0] = 5;
+        return a?[0]?[0];
+        ", null)]
     [InlineData(@"
-    int?[][] a = { { 1 } };
-    a?[0]?[0] = 5;
-    return a?[0]?[0];
-    ", 5)]
+        int?[][] a = { { 1 } };
+        a?[0]?[0] = 5;
+        return a?[0]?[0];
+        ", 5)]
+    [InlineData(@"
+        class A {
+            public A b;
+            public int c;
+        }
+        var a = new A();
+        a.b = new A();
+        a.b.c = 5;
+        return a?.b?.c;", 5)]
+    [InlineData(@"
+        class A {
+            public A b;
+            public int c;
+        }
+        var a = new A();
+        return a?.b?.c;", null)]
+    // Larger combinatorial tests
+    [InlineData(@"
+        class Counter {
+            public int value;
+
+            public constructor(int start) {
+                value = start;
+            }
+
+            public virtual int Next() {
+                return value++;
+            }
+        }
+
+        class DoubleCounter extends Counter {
+            public constructor(int start) : base(start) { }
+
+            public override int Next() {
+                return base.Next() * 2;
+            }
+        }
+
+        Counter c = new DoubleCounter(3);
+        int sum = 0;
+
+        for (int i = 0; i < 3; i++)
+            sum += c.Next();
+
+        return sum;", 24)]
+    [InlineData(@"
+        class Node {
+            public int value;
+            public Node next;
+        }
+
+        Node a = new Node();
+        Node b = new Node();
+        Node c = new Node();
+
+        a.value = 1;
+        b.value = 2;
+        c.value = 3;
+
+        a.next = b;
+        b.next = c;
+
+        int sum = 0;
+        Node current = a;
+
+        while (current isnt null) {
+            sum += current.value;
+            current = current.next;
+        }
+
+        return sum;", 6)]
+    // TODO
+    // [InlineData(@"
+    //     class Box<type T> {
+    //         public T value;
+
+    //         public constructor(T value) {
+    //             this.value = value;
+    //         }
+
+    //         public T Map(T(T) mapper) {
+    //             return mapper(value);
+    //         }
+    //     }
+
+    //     int AddOne(int x) {
+    //         return x + 1;
+    //     }
+
+    //     var b = new Box<int>(4);
+    //     return b.Map(AddOne);", 5)]
+    [InlineData(@"
+        struct Point {
+            public int x;
+            public int y;
+        }
+
+        class Holder {
+            public Point point;
+        }
+
+        var h = new Holder();
+        h.point.x = 3;
+        h.point.y = 4;
+
+        Point p = h.point;
+        p.x = 10;
+
+        return h.point.x + p.x;", 13)]
+    [InlineData(@"
+        class A {
+            public int value;
+
+            public void Increment() {
+                value++;
+            }
+        }
+
+        A a = new A();
+
+        with (a.value = 5) try {
+            a.Increment();
+            defer a.value *= 2;
+        }
+
+        return a.value;", 0)]
+    [InlineData(@"
+        enum flags Permissions {
+            Read,
+            Write,
+            Execute
+        }
+
+        class User {
+            public Permissions permissions;
+
+            public bool CanWrite() {
+                return permissions.Write;
+            }
+        }
+
+        var u = new User();
+        u.permissions = Permissions.Read | Permissions.Write;
+
+        if (u.CanWrite())
+            return 1;
+
+        return 0;", 1)]
+    [InlineData(@"
+        class Calculator {
+            public virtual int Eval(int a, int b) {
+                return a + b;
+            }
+        }
+
+        class AdvancedCalculator extends Calculator {
+            public override int Eval(int a, int b) {
+                return a * b;
+            }
+        }
+
+        int Compute(Calculator c, int x, int y) {
+            return c.Eval(x, y);
+        }
+
+        Calculator calc = new AdvancedCalculator();
+        return Compute(calc, 3, 4);", 12)]
+    [InlineData(@"
+        class Buffer {
+            public int[] data = {1, 2, 3, 4};
+
+            public ref int Item(int index) {
+                return ref data[index];
+            }
+        }
+
+        var b = new Buffer();
+        ref int x = ref b.Item(1);
+
+        x *= 5;
+
+        return b.data[1];", 10)]
+    [InlineData(@"
+        class A {
+            public int value;
+
+            public constructor(int value) {
+                this.value = value;
+            }
+
+            public static implicit operator A(int value) {
+                return new A(value);
+            }
+
+            public static A operator+(A a, A b) {
+                return new A(a.value + b.value);
+            }
+        }
+
+        A a = 3;
+        A b = 4;
+        A c = a + b;
+
+        return c.value;", 7)]
+    [InlineData(@"
+        class State {
+            public int value;
+        }
+
+        int Run() {
+            State s = new State();
+
+            void Add(int amount) {
+                s.value += amount;
+            }
+
+            for (int i = 1; i <= 3; i++)
+                Add(i);
+
+            return s.value;
+        }
+
+        return Run();", 6)]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue, evaluator: true, executor: true);
+    }
+
+    [Theory]
+    // Non-Type Templates
+    [InlineData("class A<int a, int b> { public static int Test() { return a + b; } } return A<2,3>.Test();", 5)]
+    [InlineData("int Test<int a, int b>() { return a + b; } return Test<2, 3>();", 5)]
+    [InlineData("string Test<string a>() { return a; } return Test<\"test\">();", "test")]
+    // Runtime Defined SizeOf
+    [InlineData("struct A { int32 a; bool b; } return sizeof(A);", 8)]
+    [InlineData("class A { int32 a; bool b; } return sizeof(A);", 8)]
+    [InlineData("struct A { int32 a; bool b; } return sizeof(A?);", 16)]
+    [InlineData("return sizeof(int?);", 16)]
+    [InlineData("return sizeof(bool?);", 2)]
+    [InlineData("return sizeof(intptr);", 8)]
+    [InlineData("return sizeof(uintptr);", 8)]
+    [InlineData("return sizeof(void*);", 8)]
+    [InlineData("return sizeof(int32*);", 8)]
+    [InlineData("union A { int32 a; bool b; } return sizeof(A);", 4)]
+    [InlineData("struct A { int32 a; union { int32 b; bool c; } } return sizeof(A);", 8)]
+    [InlineData("struct A { int32 a; bool b; } struct B { A a; bool b; } return sizeof(B);", 16)]
+    [InlineData("struct A { int16 a; int16 b; int32 c; } return sizeof(A);", 8)]
+    [InlineData("struct A { int16 a; int8 b; } union B { int8 a; A b; } return sizeof(B);", 4)]
+    [InlineData("struct A { int8 b; } return sizeof(A);", 1)]
+    [InlineData("union A { int8 b; } return sizeof(A);", 1)]
+    [InlineData("struct A { } return sizeof(A);", 1)]
+    public void EvaluatorOnly_Computes_CorrectValues(string text, object? expectedValue) {
+        AssertValue(text, expectedValue, evaluator: true, executor: false);
     }
 }

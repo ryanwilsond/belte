@@ -86,7 +86,8 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
         TypeCompilationState state,
         List<Analysis> previousAnalyses,
         BelteDiagnosticQueue diagnostics,
-        HashSet<DataContainerSymbol> assignLocals) {
+        HashSet<DataContainerSymbol> assignLocals,
+        ref MethodSymbol entryPoint) {
         var analysis = Analysis.Analyze(loweredBody, method, methodOrdinal, state);
         var rewriter = new LocalFunctionRewriter(
             analysis,
@@ -102,6 +103,13 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
 
         rewriter.SynthesizeClosureEnvironments();
         rewriter.SynthesizeClosureMethods();
+
+        if (entryPoint is LocalFunctionSymbol) {
+            ImmutableArray<BoundExpression> _1 = [];
+            ImmutableArray<RefKind> _2 = [];
+
+            rewriter.RemapLocalFunction(null, entryPoint, out _, out entryPoint, ref _1, ref _2);
+        }
 
         var body = rewriter.AddStatementsIfNeeded((BoundBlockStatement)rewriter.Visit(loweredBody));
 
@@ -321,7 +329,7 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
                 ref argRefKinds
             );
 
-            return node.Update(remappedMethod, constrainedToTypeOpt: node.constrainedToTypeOpt, node.type);
+            return node.Update(remappedMethod, constrainedToType: node.constrainedToType, node.type);
         }
 
         return base.VisitFunctionPointerLoad(node);
@@ -341,7 +349,7 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
                 ref argRefKinds
             );
 
-            return node.Update(remappedMethod, node.type);
+            return node.Update(receiver, remappedMethod, node.type);
         }
 
         return base.VisitFunctionLoad(node);

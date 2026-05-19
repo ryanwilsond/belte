@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax.InternalSyntax;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Syntax;
@@ -18,11 +19,11 @@ public static class SyntaxFacts {
     /// <returns>Precedence, or 0 if <paramref name="type" /> is not a binary operator.</returns>
     public static int GetBinaryPrecedence(this SyntaxKind type) {
         switch (type) {
+            case SyntaxKind.AsteriskAsteriskToken:
+                return 18;
             case SyntaxKind.IsKeyword:
             case SyntaxKind.IsntKeyword:
             case SyntaxKind.AsKeyword:
-                return 15;
-            case SyntaxKind.AsteriskAsteriskToken:
                 return 14;
             case SyntaxKind.AsteriskToken:
             case SyntaxKind.SlashToken:
@@ -39,6 +40,8 @@ public static class SyntaxFacts {
             case SyntaxKind.GreaterThanToken:
             case SyntaxKind.LessThanEqualsToken:
             case SyntaxKind.GreaterThanEqualsToken:
+            case SyntaxKind.SlashBackslashToken:
+            case SyntaxKind.BackslashSlashToken:
                 return 10;
             case SyntaxKind.EqualsEqualsToken:
             case SyntaxKind.ExclamationEqualsToken:
@@ -84,10 +87,10 @@ public static class SyntaxFacts {
             case SyntaxKind.ExclamationExclamationToken:
             case SyntaxKind.NewKeyword:
                 return 19;
-            // ! Precedence 17 must remain unused (it is used to correctly parse cascade lists)
+            // ! Precedence 16 must remain unused (it is used to correctly parse cascade lists)
             case SyntaxKind.PeriodPeriodToken:
             case SyntaxKind.QuestionPeriodPeriodToken:
-                return 16;
+                return 15;
             default:
                 return 0;
         }
@@ -110,7 +113,7 @@ public static class SyntaxFacts {
             case SyntaxKind.AsteriskToken:
             case SyntaxKind.DollarToken:
             case SyntaxKind.DollarQuestionToken:
-                return 18;
+                return 17;
             default:
                 return 0;
         }
@@ -124,6 +127,8 @@ public static class SyntaxFacts {
     public static int GetTernaryPrecedence(this SyntaxKind type) {
         switch (type) {
             case SyntaxKind.QuestionToken:
+            case SyntaxKind.GreaterThanLessThanToken:
+            case SyntaxKind.GreaterThanLessThanEqualsToken:
                 return 2;
             default:
                 return 0;
@@ -144,6 +149,15 @@ public static class SyntaxFacts {
             SyntaxKind.QuestionToken => SyntaxKind.ColonToken,
             _ => throw ExceptionUtilities.UnexpectedValue(type),
         };
+    }
+
+    internal static Associativity GetOperatorAssociativity(this SyntaxKind kind) {
+        switch (kind) {
+            case SyntaxKind.AsteriskAsteriskToken:
+                return Associativity.Right;
+            default:
+                return Associativity.Left;
+        }
     }
 
     /// <summary>
@@ -225,12 +239,16 @@ public static class SyntaxFacts {
             "with" => SyntaxKind.WithKeyword,
             "destructor" => SyntaxKind.DestructorKeyword,
             "defer" => SyntaxKind.DeferKeyword,
+            "unreachable" => SyntaxKind.UnreachableKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
 
     internal static bool IsContextualKeyword(SyntaxKind kind) {
         switch (kind) {
+            case SyntaxKind.DefineKeyword:
+            case SyntaxKind.ElifKeyword:
+            case SyntaxKind.EndifKeyword:
             case SyntaxKind.ExplicitKeyword:
             case SyntaxKind.FlagsKeyword:
             case SyntaxKind.HandleKeyword:
@@ -238,6 +256,7 @@ public static class SyntaxFacts {
             case SyntaxKind.NotnullKeyword:
             case SyntaxKind.NoVerifyKeyword:
             case SyntaxKind.PrimitiveKeyword:
+            case SyntaxKind.UndefKeyword:
                 return true;
             default:
                 return false;
@@ -314,6 +333,12 @@ public static class SyntaxFacts {
             SyntaxKind.DollarToken => "$",
             SyntaxKind.DollarQuestionToken => "$?",
             SyntaxKind.EqualsGreaterThanToken => "=>",
+            SyntaxKind.SlashBackslashToken => "/\\",
+            SyntaxKind.SlashBackslashEqualsToken => "/\\=",
+            SyntaxKind.BackslashSlashToken => "\\/",
+            SyntaxKind.BackslashSlashEqualsToken => "\\/=",
+            SyntaxKind.GreaterThanLessThanToken => "><",
+            SyntaxKind.GreaterThanLessThanEqualsToken => "><=",
             SyntaxKind.TrueKeyword => "true",
             SyntaxKind.FalseKeyword => "false",
             SyntaxKind.NullKeyword => "null",
@@ -386,6 +411,7 @@ public static class SyntaxFacts {
             SyntaxKind.WithKeyword => "with",
             SyntaxKind.DestructorKeyword => "destructor",
             SyntaxKind.DeferKeyword => "defer",
+            SyntaxKind.UnreachableKeyword => "unreachable",
             _ => null,
         };
     }
@@ -417,11 +443,12 @@ public static class SyntaxFacts {
             SyntaxKind.AsteriskAsteriskEqualsToken => SyntaxKind.AsteriskAsteriskToken,
             SyntaxKind.LessThanLessThanEqualsToken => SyntaxKind.LessThanLessThanToken,
             SyntaxKind.GreaterThanGreaterThanEqualsToken => SyntaxKind.GreaterThanGreaterThanToken,
-            SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken
-                => SyntaxKind.GreaterThanGreaterThanGreaterThanToken,
+            SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken => SyntaxKind.GreaterThanGreaterThanGreaterThanToken,
             SyntaxKind.PercentEqualsToken => SyntaxKind.PercentToken,
             SyntaxKind.QuestionQuestionEqualsToken => SyntaxKind.QuestionQuestionToken,
             SyntaxKind.QuestionExclamationEqualsToken => SyntaxKind.QuestionExclamationToken,
+            SyntaxKind.SlashBackslashEqualsToken => SyntaxKind.SlashBackslashToken,
+            SyntaxKind.BackslashSlashEqualsToken => SyntaxKind.BackslashSlashToken,
             _ => throw ExceptionUtilities.UnexpectedValue(type)
         };
     }
@@ -443,11 +470,12 @@ public static class SyntaxFacts {
             SyntaxKind.AsteriskAsteriskToken => SyntaxKind.AsteriskAsteriskEqualsToken,
             SyntaxKind.LessThanLessThanToken => SyntaxKind.LessThanLessThanEqualsToken,
             SyntaxKind.GreaterThanGreaterThanToken => SyntaxKind.GreaterThanGreaterThanEqualsToken,
-            SyntaxKind.GreaterThanGreaterThanGreaterThanToken
-                => SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken,
+            SyntaxKind.GreaterThanGreaterThanGreaterThanToken => SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken,
             SyntaxKind.PercentToken => SyntaxKind.PercentEqualsToken,
             SyntaxKind.QuestionQuestionToken => SyntaxKind.QuestionQuestionEqualsToken,
             SyntaxKind.QuestionExclamationToken => SyntaxKind.QuestionExclamationEqualsToken,
+            SyntaxKind.SlashBackslashToken => SyntaxKind.SlashBackslashEqualsToken,
+            SyntaxKind.BackslashSlashToken => SyntaxKind.BackslashSlashEqualsToken,
             _ => throw ExceptionUtilities.UnexpectedValue(type)
         };
     }
@@ -494,6 +522,8 @@ public static class SyntaxFacts {
             SyntaxKind.GreaterThanToken => true,
             SyntaxKind.LessThanEqualsToken => true,
             SyntaxKind.GreaterThanEqualsToken => true,
+            SyntaxKind.SlashBackslashToken => true,
+            SyntaxKind.BackslashSlashToken => true,
             _ => false,
         };
     }
@@ -572,6 +602,8 @@ public static class SyntaxFacts {
             SyntaxKind.GreaterThanToken => WellKnownMemberNames.GreaterThanOperatorName,
             SyntaxKind.LessThanEqualsToken => WellKnownMemberNames.LessThanOrEqualOperatorName,
             SyntaxKind.GreaterThanEqualsToken => WellKnownMemberNames.GreaterThanOrEqualOperatorName,
+            SyntaxKind.SlashBackslashToken => WellKnownMemberNames.SlashBackslashOperatorName,
+            SyntaxKind.BackslashSlashToken => WellKnownMemberNames.BackslashSlashOperatorName,
             _ => null,
         };
     }
@@ -603,6 +635,8 @@ public static class SyntaxFacts {
             WellKnownMemberNames.GreaterThanOperatorName => SyntaxKind.GreaterThanToken,
             WellKnownMemberNames.LessThanOrEqualOperatorName => SyntaxKind.LessThanEqualsToken,
             WellKnownMemberNames.GreaterThanOrEqualOperatorName => SyntaxKind.GreaterThanEqualsToken,
+            WellKnownMemberNames.SlashBackslashOperatorName => SyntaxKind.SlashBackslashToken,
+            WellKnownMemberNames.BackslashSlashOperatorName => SyntaxKind.BackslashSlashToken,
             _ => SyntaxKind.None,
         };
     }
@@ -639,6 +673,8 @@ public static class SyntaxFacts {
             WellKnownMemberNames.GreaterThanOperatorName => 2,
             WellKnownMemberNames.LessThanOrEqualOperatorName => 2,
             WellKnownMemberNames.GreaterThanOrEqualOperatorName => 2,
+            WellKnownMemberNames.SlashBackslashOperatorName => 2,
+            WellKnownMemberNames.BackslashSlashOperatorName => 2,
             _ => 0,
         };
     }
@@ -777,5 +813,18 @@ public static class SyntaxFacts {
 
     private static bool IsBeforeToken(int position, SyntaxToken firstExcluded) {
         return firstExcluded.kind == SyntaxKind.None || position < firstExcluded.span.start;
+    }
+
+    internal static bool IsNamedArgumentName(SyntaxNode node) {
+        // TODO Sufficient?
+        if (node.kind != SyntaxKind.IdentifierName)
+            return false;
+
+        var parent1 = node.parent;
+
+        if (parent1 is null || parent1.kind != SyntaxKind.Argument)
+            return false;
+
+        return true;
     }
 }

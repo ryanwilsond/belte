@@ -31,6 +31,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
     internal static Conversion ImplicitEnum => new Conversion(ConversionKind.ImplicitEnum);
     internal static Conversion ExplicitEnum => new Conversion(ConversionKind.ExplicitEnum);
     internal static Conversion AnyUnboxing => new Conversion(ConversionKind.AnyUnboxing);
+    internal static Conversion ObjectCreation => new Conversion(ConversionKind.ObjectCreation);
     internal static Conversion ImplicitNullableWithIdentityUnderlying
         => new Conversion(ConversionKind.ImplicitNullable, IdentityUnderlying);
     internal static Conversion ExplicitNullableWithIdentityUnderlying
@@ -170,6 +171,10 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         }
 
         return current;
+    }
+
+    internal static Conversion MakeConditionalExpression(ImmutableArray<Conversion> innerConversions) {
+        return new Conversion(ConversionKind.ConditionalExpression, innerConversions);
     }
 
     /// <summary>

@@ -84,6 +84,7 @@ internal sealed partial class ControlFlowGraphBuilder {
                     case BoundKind.ReturnStatement:
                         Connect(current, _end);
                         break;
+                    case BoundKind.UnreachableStatement:
                     case BoundKind.ExpressionStatement when
                         ((BoundExpressionStatement)statement).expression is BoundThrowExpression:
                         AddThrowEdges(current);

@@ -17,6 +17,9 @@
     - [3.2.2.7](#3227-xy) `x..y`
     - [3.2.2.8](#3228-xy) `x?..y`
     - [3.2.2.9](#3229-x) `x!!`
+    - [3.2.2.10](#32210-x--y) `x /\ y`
+    - [3.2.2.11](#32211-x--y) `x \/ y`
+    - [3.2.2.12](#32212-x--y-z) `x >< [y, z]`
   - [3.2.3](#323-isisntas-operators) Is/Isnt/As Operators
 - [3.3](#33-variables-and-constants) Variables and Constants
   - [3.3.1](#331-implicit-typing) Implicit Typing
@@ -32,7 +35,7 @@
 Apart from classes, there are many primitive types. The most common ones include:
 
 | Name | Identifier | Values |
-|-|-|-|
+| - | - | - |
 | Integer | `int` | Integers from -2,147,483,647 to 2,147,483,647 |
 | Decimal | `decimal` | Numbers approximately from ±5.0 × 10<sup>−324</sup> to ±1.7 × 10<sup>308</sup> |
 | Boolean | `bool` | `true` or `false` |
@@ -57,7 +60,7 @@ To convert from one data type to another, a cast can be used. If a cast is impli
 no special syntax. If a cast is explicit, it must use a special syntax (e.g. `(int)"123"`).
 
 | From | To | Cast Type | Notes |
-|-|-|-|-|
+| - | - | - | - |
 | Integer | Decimal | Implicit | |
 | Integer | String | Explicit | |
 | Integer | Bool | None | |
@@ -74,7 +77,7 @@ no special syntax. If a cast is explicit, it must use a special syntax (e.g. `(i
 In addition, nullability affects casting:
 
 | From | To | Cast Type | Notes |
-|-|-|-|-|
+| - | - | - | - |
 | type | type! | Explicit | Can throw |
 | type! | type | Implicit | |
 
@@ -150,16 +153,16 @@ Operators are used to interact with data. Each operator takes in one or more ope
 strict order of precedence:
 
 | Operators | Category |
-|-|-|
-| a\[i\], a?\[i\], f(x), x.y, x?.y, x->y, x++, x--, x!, x!!, x?, new, typeof, nameof, sizeof | Primary |
+| - | - |
+| a\[i\], a?\[i\], f(x), x.y, x?.y, x->y, x++, x--, x!, x!!, new, typeof, nameof, sizeof | Primary |
+| x ** y | Power |
 | +x, -x, !x, ~x, ++x, --x, (T)x, &x, *x | Unary |
 | x..y, x?..y | Cascade |
 | is, isnt, as | Type-Testing |
-| x ** y | Power |
 | x * y, x / y, x % y | Multiplicative |
 | x + y, x - y | Additive |
 | x << y, x >> y, x >>> y | Shift |
-| x < y, x > y, x <= y, x >= y | Relational |
+| x < y, x > y, x <= y, x >= y, x /\ y, x \/ y | Relational |
 | x == y, x != y | Equality |
 | x & y | Bitwise Logical AND |
 | x ^ y | Bitwise Logical XOR |
@@ -167,7 +170,10 @@ strict order of precedence:
 | x && y | Conditional AND |
 | x \|\| y | Conditional OR |
 | x ?? y, x ?! y | Null-Coalescing |
-| c ? t : f | Tertiary Conditional |
+| c ? t : f, x >< \[y, z] | Tertiary Conditional and Clamp |
+
+Note that all binary operators are left-associative except for the power operator. For example `2 + 3 + 4` will parse as
+`(2 + 3) + 4` while `2 ** 3 ** 4` will parse as `2 ** (3 ** 4)`.
 
 ### 3.2.2 Uncommon Operators
 
@@ -246,6 +252,18 @@ non-nullable context with null.
 
 This operator is intended to be used when certain the operand is not null and thus the overhead of checking again is
 unnecessary.
+
+#### 3.2.2.10 `x /\ y`
+
+`x /\ y` is equivalent to `Math.Min(x, y)`.
+
+#### 3.2.2.11 `x \/ y`
+
+`x \/ y` is equivalent to `Math.Max(x, y)`.
+
+#### 3.2.2.12 `x >< [y, z]`
+
+`x >< [y, z]` is equivalent to `Math.Clamp(x, y, z)`.
 
 ### 3.2.3 Is/Isnt/As Operators
 
@@ -395,8 +413,19 @@ int b = a[1]; // 2
 a[2] = 6;
 ```
 
-Note that this functionality will eventually be moved to be exclusive to low-level contexts, and be replaced with more
-powerful collection types.
+An initializer list expression can be used to implicitly create an array in
+contexts where it is not being used as an initializer such as in the examples
+above.
+
+The array creation can also be made explicit in these scenarios. The following
+are equivalent:
+
+```belte
+F({1, 2, 3});
+F(new int[] {1, 2, 3});
+
+void F(int[] arr) { /* ... */}
+```
 
 ## 3.7 Compile-Time Expressions
 

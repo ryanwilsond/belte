@@ -120,4 +120,13 @@ internal static class SyntaxNodeExtensions {
         refKind = RefKind.Ref;
         return expression;
     }
+
+    internal static SyntaxNode ModifyingRefTypeOrSelf(this SyntaxNode syntax) {
+        var parentNode = syntax.parent;
+
+        if (parentNode is ReferenceTypeSyntax refType && refType.type == syntax)
+            syntax = refType;
+
+        return syntax;
+    }
 }

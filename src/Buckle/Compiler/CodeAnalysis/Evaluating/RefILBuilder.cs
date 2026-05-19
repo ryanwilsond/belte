@@ -65,13 +65,16 @@ internal sealed class RefILBuilder : ILBuilder {
     internal override void DefineInitialHiddenSequencePoint() { }
 
     internal override void BeginTry() {
-        if (!_needsEpilogue && !_method.returnsVoid) {
+        if (!_needsEpilogue) {
             _needsEpilogue = true;
             _epilogue = new object();
-            _returnLocal = ((RefVariableDefinition)AllocateSlot(
-                _method.returnType,
-                _method.returnsByRef ? LocalSlotConstraints.ByRef : LocalSlotConstraints.None
-            )).localBuilder;
+
+            if (!_method.returnsVoid) {
+                _returnLocal = ((RefVariableDefinition)AllocateSlot(
+                    _method.returnType,
+                    _method.returnsByRef ? LocalSlotConstraints.ByRef : LocalSlotConstraints.None
+                )).localBuilder;
+            }
         }
 
         _iLGenerator.BeginExceptionBlock();
@@ -116,6 +119,11 @@ internal sealed class RefILBuilder : ILBuilder {
 
             EmitBranch(CodeGeneration.OpCode.Leave, _epilogue);
         }
+    }
+
+    internal override void EmitUnreachableException() {
+        if (_logger is not null) Log(OpCodes.Newobj, Executor.MethodInfoCache.UnreachableException_ctor);
+        _iLGenerator.Emit(OpCodes.Newobj, Executor.MethodInfoCache.UnreachableException_ctor);
     }
 
     internal override void FreeTemp(VariableDefinition temp) {
@@ -187,6 +195,10 @@ internal sealed class RefILBuilder : ILBuilder {
 
     internal override void Emit(CodeGeneration.OpCode opCode, string value) {
         Emit(ConvertToRef(opCode), value);
+    }
+
+    internal override void EmitLoadArgument0() {
+        Emit(OpCodes.Ldarg_0);
     }
 
     internal override void EmitLoadArgument(int slot) {

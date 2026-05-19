@@ -23,43 +23,52 @@ namespace Buckle.CodeAnalysis.Lowering;
 internal sealed class Lowerer : BoundTreeRewriter {
     private readonly SharedExpander _expander;
     private readonly bool _transpiling;
+    private readonly MethodCompiler _methodCompiler;
+    private readonly MethodSymbol _method;
 
     private List<BoundDeferStatement> _deferStatements = [];
     private bool _sawCompileTimeExpression;
 
-    private Lowerer(MethodSymbol container, BelteDiagnosticQueue diagnostics, bool transpiling) {
+    private Lowerer(
+        MethodCompiler methodCompiler,
+        MethodSymbol container,
+        BelteDiagnosticQueue diagnostics,
+        bool transpiling) {
+        _methodCompiler = methodCompiler;
         _expander = transpiling ? new SharedExpander(container, diagnostics) : new Expander(container, diagnostics);
         _transpiling = transpiling;
+        _method = container;
     }
 
     internal static BoundBlockStatement Lower(
+        MethodCompiler methodCompiler,
         OptimizationLevel optimizationLevel,
         MethodSymbol method,
-        BoundStatement statement,
+        BoundBlockStatement statement,
         BelteDiagnosticQueue diagnostics,
         bool transpiling,
         out bool sawCompileTimeExpression) {
-        var lowerer = new Lowerer(method, diagnostics, transpiling);
+        var lowerer = new Lowerer(methodCompiler, method, diagnostics, transpiling);
         var optimize = optimizationLevel == OptimizationLevel.Release && !transpiling;
 
         var rewrittenStatement = statement;
 
         if (optimize)
-            rewrittenStatement = Optimizer.Optimize(rewrittenStatement);
+            rewrittenStatement = (BoundBlockStatement)Optimizer.Optimize(rewrittenStatement);
 
         if (transpiling) {
             rewrittenStatement = SharedFlowLowerer.Lower(method, rewrittenStatement, diagnostics);
             rewrittenStatement = lowerer._expander.Expand(rewrittenStatement);
-            rewrittenStatement = (BoundStatement)lowerer.Visit(rewrittenStatement);
+            rewrittenStatement = (BoundBlockStatement)lowerer.Visit(rewrittenStatement);
         } else {
             rewrittenStatement = FlowLowerer.Lower(method, rewrittenStatement, diagnostics);
             rewrittenStatement = lowerer._expander.Expand(rewrittenStatement);
-            rewrittenStatement = (BoundStatement)lowerer.Visit(rewrittenStatement);
-            rewrittenStatement = Flatten(method, (BoundBlockStatement)rewrittenStatement);
+            rewrittenStatement = (BoundBlockStatement)lowerer.Visit(rewrittenStatement);
+            rewrittenStatement = Flatten(method, rewrittenStatement);
         }
 
         if (optimize)
-            rewrittenStatement = Optimizer.Optimize(rewrittenStatement);
+            rewrittenStatement = (BoundBlockStatement)Optimizer.Optimize(rewrittenStatement);
 
         sawCompileTimeExpression = lowerer._sawCompileTimeExpression;
 
@@ -120,11 +129,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         for (var i = _deferStatements.Count - 1; i >= 0; i--) {
             var defer = _deferStatements[i];
-
-            if (defer.expression is BoundConditionalOperator c && c.trueExpression.type.IsVoidType())
-                finallyBlock.AddRange(_expander.RewriteVoidTernaryCall(c));
-            else
-                finallyBlock.Add(new BoundExpressionStatement(defer.syntax, defer.expression));
+            finallyBlock.Add(defer.statement);
         }
 
         return new BoundBlockStatement(
@@ -144,6 +149,92 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var visited = (BoundDeferStatement)base.VisitDeferStatement(node);
         _deferStatements.Add(visited);
         return Nop();
+    }
+
+    internal override BoundNode VisitBinaryOperator(BoundBinaryOperator node) {
+        /*
+
+        TODO Is there any case where these cases aren't caught by constant folding?
+
+        <left> <op> <right>
+
+        ----> (float64)0.0 / (float64)0.0
+
+        Float64.NaN
+
+        ----> (float64)>0 / (float64)0.0
+
+        Float64.PositiveInfinity
+
+        ----> (float64)<0 / (float64)0.0
+
+        Float64.NegativeInfinity
+
+        ----> (float32)0.0 / (float32)0.0
+
+        Float32.NaN
+
+        ----> (float32)>0 / (float32)0.0
+
+        Float32.PositiveInfinity
+
+        ----> (float32)<0 / (float32)0.0
+
+        Float32.NegativeInfinity
+
+        */
+        var left = node.left.constantValue;
+        var right = node.right.constantValue;
+
+        if (left?.value is null || right?.value is null)
+            return base.VisitBinaryOperator(node);
+        if (node.operatorKind == BinaryOperatorKind.Float64Division) {
+            if ((double)right.value == 0) {
+                if ((double)left.value == 0) {
+                    var constant = ((FieldSymbol)StandardLibrary.Float64.GetMembers("NaN")[0]).constantValue;
+                    return Literal(node.syntax, constant, node.type);
+                } else if ((double)left.value > 0) {
+                    var constant = ((FieldSymbol)StandardLibrary.Float64.GetMembers("PositiveInfinity")[0]).constantValue;
+                    return Literal(node.syntax, constant, node.type);
+                } else if ((double)left.value < 0) {
+                    var constant = ((FieldSymbol)StandardLibrary.Float64.GetMembers("NegativeInfinity")[0]).constantValue;
+                    return Literal(node.syntax, constant, node.type);
+                }
+            }
+        } else if (node.operatorKind == BinaryOperatorKind.Float32Division) {
+            if ((float)right.value == 0) {
+                if ((float)left.value == 0) {
+                    var constant = ((FieldSymbol)StandardLibrary.Float32.GetMembers("NaN")[0]).constantValue;
+                    return Literal(node.syntax, constant, node.type);
+                } else if ((float)left.value > 0) {
+                    var constant = ((FieldSymbol)StandardLibrary.Float32.GetMembers("PositiveInfinity")[0]).constantValue;
+                    return Literal(node.syntax, constant, node.type);
+                } else if ((float)left.value < 0) {
+                    var constant = ((FieldSymbol)StandardLibrary.Float32.GetMembers("NegativeInfinity")[0]).constantValue;
+                    return Literal(node.syntax, constant, node.type);
+                }
+            }
+        }
+
+        return base.VisitBinaryOperator(node);
+    }
+
+    internal override BoundNode VisitClampOperator(BoundClampOperator node) {
+        /*
+
+        <left> >< [<lower>, <upper>]
+
+        ---->
+
+        Math.Clamp(<left>, <lower>, <upper>)
+
+        */
+        var specialType = CodeGenerator.NormalizeNumericType(node.type.StrippedType().specialType);
+
+        return Visit(Call(node.syntax,
+            StandardLibrary.GetClampMethod(node.type.IsNullableType(), specialType),
+            [node.left, node.lower, node.upper]
+        ));
     }
 
     internal override BoundNode VisitAssignmentOperator(BoundAssignmentOperator expression) {
@@ -188,6 +279,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         <receiver>.<Union>.<field>
 
+        ----> <receiver> is of enum
+
+        (<receiver> & <field>) != 0
+
         */
         var syntax = node.syntax;
         var field = node.field;
@@ -215,6 +310,26 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         if (field.isFixedSizeBuffer)
             return Visit(new BoundAddressOfOperator(syntax, result, true, node.type));
+
+        if (field.isStatic && field.containingType.IsEnumType()) {
+            var enumUnderlyingType = field.containingType.enumUnderlyingType;
+
+            return Visit(Binary(syntax,
+                Binary(syntax,
+                    result.receiver,
+                    BinaryOperatorKind.And | Binder.RelationalOperatorType(enumUnderlyingType),
+                    Literal(syntax, result.field.constantValue, enumUnderlyingType),
+                    enumUnderlyingType
+                ),
+                BinaryOperatorKind.Equal | Binder.RelationalOperatorType(enumUnderlyingType),
+                Literal(
+                    syntax,
+                    result.field.constantValue,
+                    enumUnderlyingType
+                ),
+                CorLibrary.GetSpecialType(SpecialType.Bool)
+            ));
+        }
 
         return result;
     }
@@ -757,10 +872,92 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (node.conversion.kind == ConversionKind.ImplicitNullToPointer)
             return node;
 
+        if (node.conversion.kind == ConversionKind.ObjectCreation)
+            return Visit(node.operand);
+
+        if (node.conversion.kind == ConversionKind.ConditionalExpression)
+            return Visit(node.operand);
+
         return base.VisitCastExpression(node);
     }
 
+    internal override BoundNode VisitThisExpression(BoundThisExpression node) {
+        if (node.type.IsEnumType()) {
+            var parameter = _methodCompiler.GetEnumMethod(_method.containingType, _method).parameters[0];
+            return Parameter(node.syntax, parameter);
+        }
+
+        return base.VisitThisExpression(node);
+    }
+
+    internal override BoundNode VisitObjectCreationExpression(BoundObjectCreationExpression node) {
+        /*
+
+        new <type>(<args>)
+
+        ----> <type> is struct and uses the default parameterless constructor
+
+        default(<type>)
+
+        */
+        var type = node.type;
+
+        if (type.IsStructType() && node.constructor is SynthesizedInstanceConstructorSymbol)
+            return new BoundDefaultExpression(node.syntax, null, null, type);
+
+        return base.VisitObjectCreationExpression(node);
+    }
+
     internal override BoundNode VisitCallExpression(BoundCallExpression expression) {
+        /*
+
+        <receiver>.<method>(<args>)
+
+        ----> <receiver> is of enum type
+
+        <method>(<receiver>,<args>)
+
+        */
+        var method = expression.method;
+
+        if (method.containingType?.IsEnumType() == true) {
+            var newArguments = ArrayBuilder<BoundExpression>.GetInstance();
+            var newArgumentRefKinds = ArrayBuilder<RefKind>.GetInstance();
+
+            if (!method.isStatic) {
+                var thisArgument = (BoundExpression)Visit(expression.receiver);
+
+                if (thisArgument.type.IsNullableType()) {
+                    thisArgument = (BoundExpression)Visit(
+                        Value(thisArgument.syntax, thisArgument, thisArgument.StrippedType())
+                    );
+                }
+
+                newArguments.Add(thisArgument);
+                newArgumentRefKinds.Add(RefKind.None);
+            }
+
+            for (var i = 0; i < expression.arguments.Length; i++) {
+                newArguments.Add((BoundExpression)Visit(expression.arguments[i]));
+                newArgumentRefKinds.Add(expression.argumentRefKinds[i]);
+            }
+
+            var newMethod = _methodCompiler.GetEnumMethod(method.containingType, method);
+
+            return base.VisitCallExpression(
+                new BoundCallExpression(
+                    expression.syntax,
+                    null,
+                    newMethod,
+                    newArguments.ToImmutableAndFree(),
+                    newArgumentRefKinds.ToImmutableAndFree(),
+                    expression.defaultArguments, // TODO We don't use this but if we decide to it needs to be updated
+                    expression.resultKind,
+                    expression.type
+                )
+            );
+        }
+
         ArrayBuilder<BoundExpression> builder = null;
 
         for (var i = 0; i < expression.arguments.Length; i++) {
@@ -784,7 +981,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return base.VisitCallExpression(
             expression.Update(
                 expression.receiver,
-                expression.method,
+                method,
                 arguments,
                 expression.argumentRefKinds,
                 expression.defaultArguments,

@@ -131,7 +131,7 @@ internal abstract partial class ArrayTypeSymbol : TypeSymbol {
     }
 
     internal ArrayTypeSymbol WithElementType(TypeWithAnnotations elementTypeWithAnnotations) {
-        return elementTypeWithAnnotations.IsSameAs(elementTypeWithAnnotations)
+        return this.elementTypeWithAnnotations.IsSameAs(elementTypeWithAnnotations)
             ? this
             : WithElementTypeCore(elementTypeWithAnnotations);
     }

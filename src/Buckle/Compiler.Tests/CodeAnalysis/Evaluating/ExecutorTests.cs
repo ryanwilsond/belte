@@ -10,8 +10,8 @@ namespace Buckle.Tests.CodeAnalysis.Evaluating;
 public sealed class ExecutorTests {
     [Theory]
     [InlineData(@"
-        int Func1(int a, int b) { return a + b; }
-        int Func2(int a, int b) { return a - b; }
+        static int Func1(int a, int b) { return a + b; }
+        static int Func2(int a, int b) { return a - b; }
 
         int Eval(int(int, int)* delegate) {
             return delegate(4, 5);
@@ -20,8 +20,8 @@ public sealed class ExecutorTests {
         return Eval(&Func1);
     ", 9)]
     [InlineData(@"
-        int Func1(int a, int b) { return a + b; }
-        int Func2(int a, int b) { return a - b; }
+        static int Func1(int a, int b) { return a + b; }
+        static int Func2(int a, int b) { return a - b; }
 
         int Eval(int(int, int)* delegate) {
             return delegate(4, 5);

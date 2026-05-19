@@ -16,4 +16,16 @@ internal static class BoundNodeExtensions {
 
         return false;
     }
+
+    internal static bool IsDefaultValue(this BoundExpression node) {
+        if (node.kind == BoundKind.DefaultExpression || node.kind == BoundKind.DefaultLiteral)
+            return true;
+
+        var constValue = node.constantValue;
+
+        if (constValue is not null)
+            return constValue == LiteralUtilities.TryGetDefaultValue(node.type);
+
+        return false;
+    }
 }

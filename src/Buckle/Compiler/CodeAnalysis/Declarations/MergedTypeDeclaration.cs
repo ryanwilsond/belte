@@ -129,6 +129,7 @@ internal sealed class MergedTypeDeclaration : MergedNamespaceOrTypeDeclaration {
             var typeDecl = syntaxRef.node;
             var attributesSyntaxList = typeDecl.kind switch {
                 SyntaxKind.ClassDeclaration or
+                SyntaxKind.FileScopedClassDeclaration or
                 SyntaxKind.StructDeclaration or
                 SyntaxKind.UnionDeclaration => ((TypeDeclarationSyntax)typeDecl).attributeLists,
                 _ => throw ExceptionUtilities.UnexpectedValue(typeDecl.kind),

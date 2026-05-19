@@ -20,7 +20,7 @@ internal sealed class SourceUserDefinedOperatorSymbol : SourceUserDefinedOperato
             syntax.operatorToken.location,
             syntax,
             syntax.returnType.GetRefKind(),
-            MakeDeclarationModifiers(syntax, syntax.operatorToken.location, diagnostics),
+            MakeDeclarationModifiers(containingType, syntax, syntax.operatorToken.location, diagnostics),
             syntax.body is not null,
             diagnostics
         ) {

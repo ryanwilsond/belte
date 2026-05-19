@@ -7,6 +7,7 @@
 - #### Buckle Docs
 
   - [Using Buckle](Buckle.md)
+  - [Writing Build Scripts](Build.md)
   - [Using the Repl](Repl.md)
   - [Building Buckle](Building.md)
 
@@ -17,17 +18,18 @@
 - #### Belte Language Docs in Its Current State
 
   - [1](Current/Overview.md) Overview
-    - [1.1](Current/Overview.md#11-endpoint-specific-features) Endpoint Specific Features
-    - [1.2](Current/Overview.md#12-keywords) Keywords
-      - [1.2.1](Current/Overview.md#121-non-contextual-keywords) Non-Contextual Keywords
-      - [1.2.2](Current/Overview.md#122-contextual-keywords) Contextual Keywords
-    - [1.3](Current/Overview.md#13-nullability-and-types) Nullability and Types
-      - [1.3.1](Current/Overview.md#131-normal-types) Normal Types
-      - [1.3.2](Current/Overview.md#132-pointers-and-function-pointers) Pointers and Function Pointers
-      - [1.3.3](Current/Overview.md#133-initializers) Initializers
-      - [1.3.4](Current/Overview.md#134-fields) Fields
-      - [1.3.5](Current/Overview.md#135-implicit-typing) Implicit Typing
-      - [1.3.6](Current/Overview.md#136-null-flow-analysis) Null-Flow Analysis
+    - [1.1](Current/Overview.md#11-conventions) Conventions
+    - [1.2](Current/Overview.md#12-endpoint-specific-features) Endpoint Specific Features
+    - [1.3](Current/Overview.md#13-keywords) Keywords
+      - [1.3.1](Current/Overview.md#131-non-contextual-keywords) Non-Contextual Keywords
+      - [1.3.2](Current/Overview.md#132-contextual-keywords) Contextual Keywords
+    - [1.4](Current/Overview.md#14-nullability-and-types) Nullability and Types
+      - [1.4.1](Current/Overview.md#141-normal-types) Normal Types
+      - [1.4.2](Current/Overview.md#142-pointers-and-function-pointers) Pointers and Function Pointers
+      - [1.4.3](Current/Overview.md#143-initializers) Initializers
+      - [1.4.4](Current/Overview.md#144-fields) Fields
+      - [1.4.5](Current/Overview.md#145-implicit-typing) Implicit Typing
+      - [1.4.6](Current/Overview.md#146-null-flow-analysis) Null-Flow Analysis
   - [2](Current/ControlFlow.md) Control Flow
     - [2.1](Current/ControlFlow.md#21-functions) Functions
       - [2.1.1](Current/ControlFlow.md#211-nested-functions) Nested Functions
@@ -53,12 +55,15 @@
         - [2.4.4.2](Current/ControlFlow.md#2442-array-collections) Array Collections
         - [2.4.4.3](Current/ControlFlow.md#2443-indexed-collections) Indexed Collections
         - [2.4.4.4](Current/ControlFlow.md#2444-enumerated-collections) Enumerated Collections
+      - [2.4.5](Current/ControlFlow.md#245-break) Break
+      - [2.4.6](Current/ControlFlow.md#246-continue) Continue
     - [2.5](Current/ControlFlow.md#25-switch) Switch
     - [2.6](Current/ControlFlow.md#26-exceptions-and-handling) Exceptions and Handling
       - [2.6.1](Current/ControlFlow.md#261-trycatchfinally) Try/Catch/Finally
     - [2.7](Current/ControlFlow.md#27-with-expressions-and-statements) With Expressions and Statements
     - [2.8](Current/ControlFlow.md#28-defer-statements) Defer Statements
     - [2.9](Current/ControlFlow.md#29-using-statements) Using Statements
+    - [2.10](Current/ControlFlow.md#210-unreachable-statements) Unreachable Statements
   - [3](Current/Data.md) Data
     - [3.1](Current/Data.md#31-data-types) Data Types
       - [3.1.1](Current/Data.md#311-casts) Casts
@@ -77,6 +82,9 @@
         - [3.2.2.7](Current/Data.md#3227-xy) `x..y`
         - [3.2.2.8](Current/Data.md#3228-xy) `x?..y`
         - [3.2.2.9](Current/Data.md#3229-x) `x!!`
+        - [3.2.2.10](Current/Data.md#32210-x--y) `x /\ y`
+        - [3.2.2.11](Current/Data.md#32211-x--y) `x \/ y`
+        - [3.2.2.12](Current/Data.md#32212-x--y-z) `x >< [y, z]`
       - [3.2.3](Current/Data.md#323-isisntas-operators) Is/Isnt/As Operators
     - [3.3](Current/Data.md#33-variables-and-constants) Variables and Constants
       - [3.3.1](Current/Data.md#331-implicit-typing) Implicit Typing
@@ -112,6 +120,8 @@
       - [4.6.1](Current/ClassesAndObjects.md#461-flags) Flags
       - [4.6.2](Current/ClassesAndObjects.md#462-implicit-enum-fields) Implicit Enum Fields
       - [4.6.3](Current/ClassesAndObjects.md#463-experimental-underlying-types) Experimental Underlying Types
+      - [4.6.4](Current/ClassesAndObjects.md#464-bit-testing) Bit Testing
+      - [4.6.5](Current/ClassesAndObjects.md#465-methods) Methods
     - [4.7](Current/ClassesAndObjects.md#47-namespaces) Namespaces
     - [4.8](Current/ClassesAndObjects.md#48-using-directives) Using Directives
       - [4.8.1](Current/ClassesAndObjects.md#481-aliasing) Aliasing
@@ -133,11 +143,11 @@
       - [5.7.2](Current/StandardLibrary/Dictionary.md) Dictionary
     - [5.8](Current/StandardLibrary/LowLevel.md) LowLevel
     - [5.9](Current/StandardLibrary/Int.md) Int
+    - [5.10](Current/StandardLibrary/Decimal.md) Decimal, Float64, and Float32
   - [6](Current/LowLevelFeatures.md) Low-Level Features
     - [6.1](Current/LowLevelFeatures.md#61-low-level-contexts) Low-Level Contexts
-    - [6.2](Current/LowLevelFeatures.md#62-structures) Structures
+    - [6.2](Current/LowLevelFeatures.md#62-structs) Structs
     - [6.3](Current/LowLevelFeatures.md#63-arrays) Arrays
-      - [6.3.1](Current/LowLevelFeatures.md#631-initializer-lists) Initializer Lists
     - [6.4](Current/LowLevelFeatures.md#64-numerics) Numerics
     - [6.5](Current/LowLevelFeatures.md#65-pointers) Pointers
       - [6.5.1](Current/LowLevelFeatures.md#651-creating-and-dereferencing-pointers) Creating and Dereferencing Pointers

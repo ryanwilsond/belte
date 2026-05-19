@@ -10,7 +10,7 @@ The Belte public interface for the Graphics class can be found
 ## 9.1.1 Methods
 
 | Signature | Description |
-|-|-|
+| - | - |
 | `void Initialize(string!, int!, int!, bool!)` | Creates a window with a title, dimensions, and flag determining if point clamp is enabled or not. |
 | `void LockFramerate(int!)` | Locks `Update` framerate to an fps. |
 | `Texture LoadTexture(string!)` | Loads a texture from an image path. |

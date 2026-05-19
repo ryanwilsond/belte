@@ -263,6 +263,8 @@ internal sealed partial class OverloadResolution {
             Logical,
             Logical,
             Logical,
+            Arithmetic,
+            Arithmetic,
             Arithmetic
         ];
 

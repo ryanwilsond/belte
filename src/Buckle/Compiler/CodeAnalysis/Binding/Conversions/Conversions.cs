@@ -289,8 +289,12 @@ internal sealed partial class Conversions {
                 return GetImplicitEnumFieldExpressionConversion(fieldAccess, target);
             case BoundMethodGroup methodGroup:
                 return GetMethodGroupConversion(methodGroup, target);
-            case BoundDefaultLiteral literal:
+            case BoundDefaultLiteral:
                 return Conversion.DefaultLiteral;
+            case BoundUnconvertedObjectCreationExpression:
+                return Conversion.ObjectCreation;
+            case BoundUnconvertedConditionalOperator conditionalOperator:
+                return GetConditionalExpressionConversion(conditionalOperator, target);
         }
 
         if (sourceExpression.IsLiteralNull()) {
@@ -896,6 +900,10 @@ internal sealed partial class Conversions {
     private static bool IsEncompassingImplicitConversionKind(ConversionKind kind) {
         switch (kind) {
             case ConversionKind.None:
+            case ConversionKind.MethodGroup:
+            case ConversionKind.ConditionalExpression:
+            case ConversionKind.ImplicitEnum:
+            case ConversionKind.ExplicitEnum:
             case ConversionKind.ImplicitUserDefined:
             case ConversionKind.ExplicitUserDefined:
             case ConversionKind.ExplicitNullable:
@@ -919,6 +927,28 @@ internal sealed partial class Conversions {
             default:
                 throw ExceptionUtilities.UnexpectedValue(kind);
         }
+    }
+
+    private Conversion GetConditionalExpressionConversion(
+        BoundUnconvertedConditionalOperator source,
+        TypeSymbol destination) {
+        var trueConversion = ClassifyImplicitConversionFromExpression(
+            source.trueExpression,
+            destination
+        );
+
+        if (!trueConversion.exists)
+            return Conversion.None;
+
+        var falseConversion = ClassifyImplicitConversionFromExpression(
+            source.falseExpression,
+            destination
+        );
+
+        if (!falseConversion.exists)
+            return Conversion.None;
+
+        return Conversion.MakeConditionalExpression([trueConversion, falseConversion]);
     }
 
     private TypeSymbol MostEncompassedType<T>(

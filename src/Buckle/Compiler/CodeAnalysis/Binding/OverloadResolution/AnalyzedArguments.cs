@@ -13,7 +13,7 @@ internal sealed class AnalyzedArguments {
     internal readonly ArrayBuilder<bool> hasErrors;
     internal readonly ArrayBuilder<SyntaxNode> syntaxes;
     internal readonly ArrayBuilder<TypeSymbol> types;
-    internal readonly ArrayBuilder<(string Name, TextLocation Location)?> names;
+    internal readonly ArrayBuilder<(string name, TextLocation location)?> names;
     internal readonly ArrayBuilder<RefKind> refKinds;
 
     internal AnalyzedArguments() {
@@ -58,7 +58,7 @@ internal sealed class AnalyzedArguments {
             return null;
 
         var nameAndLocation = names[i];
-        return nameAndLocation?.Name;
+        return nameAndLocation?.name;
     }
 
     internal ImmutableArray<string> GetNames() {
@@ -99,19 +99,19 @@ internal sealed class AnalyzedArguments {
         ImmutableArray<bool> hasErrors,
         ImmutableArray<SyntaxNode> syntaxes,
         ImmutableArray<TypeSymbol> types,
-        ImmutableArray<RefKind> argumentRefKindsOpt,
-        ImmutableArray<(string, TextLocation)?> argumentNamesOpt) {
+        ImmutableArray<RefKind> argumentRefKinds,
+        ImmutableArray<(string, TextLocation)?> argumentNames) {
         var instance = GetInstance();
         instance.arguments.AddRange(arguments);
         instance.hasErrors.AddRange(hasErrors);
         instance.syntaxes.AddRange(syntaxes);
         instance.types.AddRange(types);
 
-        if (!argumentRefKindsOpt.IsDefault)
-            instance.refKinds.AddRange(argumentRefKindsOpt);
+        if (!argumentRefKinds.IsDefault)
+            instance.refKinds.AddRange(argumentRefKinds);
 
-        if (!argumentNamesOpt.IsDefault)
-            instance.names.AddRange(argumentNamesOpt);
+        if (!argumentNames.IsDefault)
+            instance.names.AddRange(argumentNames);
 
         return instance;
     }

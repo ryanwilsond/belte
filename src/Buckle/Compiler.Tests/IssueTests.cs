@@ -209,7 +209,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            binary operator '+=' is not defined for operands of types 'int' and 'bool!'
+            binary operator '+=' is not defined for operands of types 'int?' and 'bool!'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -263,7 +263,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            there is no argument given that corresponds to the required parameter 'a' of 'myFunc(int)'
+            there is no argument given that corresponds to the required parameter 'a' of 'myFunc(int?)'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -336,7 +336,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int!' to 'bool'
+            cannot convert from type 'int!' to 'bool?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -350,7 +350,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int!' to 'bool'
+            cannot convert from type 'int!' to 'bool?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -364,7 +364,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int!' to 'bool'
+            cannot convert from type 'int!' to 'bool?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -377,7 +377,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int' to 'bool'
+            cannot convert from type 'int?' to 'bool?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -468,7 +468,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'bool!' to 'int'
+            cannot convert from type 'bool!' to 'int?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -588,7 +588,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            argument 1: cannot convert from type 'bool!' to 'int'
+            argument 1: cannot convert from type 'bool!' to 'int?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1064,6 +1064,59 @@ public sealed class IssueTests {
             M(.B);
             void M(A a) { }
             enum A { B }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_BinaryExpression_DoesNotParseAsTemplate() {
+        var text = @"
+            var ch = '0';
+            var b = ((ch < 'A' || ch > 'Z') && (ch < 'a' || ch > 'z'));
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_BinaryExpression_DoesNotParseAsTemplate2() {
+        var text = @"
+            struct A { int f; }
+            var a = new A();
+            var b = new A();
+            var c = b.f < 0 || a.f > b.f;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_BinaryExpression_DoesNotParseAsTemplate3() {
+        var text = @"
+            struct A { int f; }
+            var a = new A();
+            var c = (a.f < 21 && a.f > -7);
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_ConditionalOperator_GetsTargetTyped() {
+        var text = @"
+            int? M() {
+                var cond = true;
+                return cond ? 3 : null;
+            }
         ";
 
         var diagnostics = @"";

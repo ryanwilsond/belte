@@ -271,14 +271,23 @@ internal sealed partial class BinderFactory {
 
             var nodeUsage = NodeUsage.Normal;
 
-            if (node.openBrace != default &&
-                node.closeBrace != default &&
-                LookupPosition.IsBetweenTokens(_position, node.openBrace, node.closeBrace)) {
-                nodeUsage = NodeUsage.NamedTypeBodyOrTemplateParameters;
-            } else if (LookupPosition.IsInTemplateParameterList(_position, node)) {
-                nodeUsage = NodeUsage.NamedTypeBodyOrTemplateParameters;
-            } else if (LookupPosition.IsBetweenTokens(_position, node.keyword, node.openBrace)) {
-                nodeUsage = NodeUsage.NamedTypeBase;
+            if (node is FileScopedClassDeclarationSyntax fileScoped) {
+                if (LookupPosition.IsInTemplateParameterList(_position, fileScoped))
+                    nodeUsage = NodeUsage.NamedTypeBodyOrTemplateParameters;
+                else if (LookupPosition.IsBetweenTokens(_position, fileScoped.keyword, fileScoped.semicolon))
+                    nodeUsage = NodeUsage.NamedTypeBase;
+                else if (_position >= fileScoped.semicolon.span.start)
+                    nodeUsage = NodeUsage.NamedTypeBodyOrTemplateParameters;
+            } else {
+                if (node.openBrace != default &&
+                    node.closeBrace != default &&
+                    LookupPosition.IsBetweenTokens(_position, node.openBrace, node.closeBrace)) {
+                    nodeUsage = NodeUsage.NamedTypeBodyOrTemplateParameters;
+                } else if (LookupPosition.IsInTemplateParameterList(_position, node)) {
+                    nodeUsage = NodeUsage.NamedTypeBodyOrTemplateParameters;
+                } else if (LookupPosition.IsBetweenTokens(_position, node.keyword, node.openBrace)) {
+                    nodeUsage = NodeUsage.NamedTypeBase;
+                }
             }
 
             return VisitTypeDeclarationCore(node, nodeUsage);
@@ -494,6 +503,10 @@ internal sealed partial class BinderFactory {
         }
 
         internal override Binder VisitClassDeclaration(ClassDeclarationSyntax node) {
+            return VisitTypeDeclarationCore(node);
+        }
+
+        internal override Binder VisitFileScopedClassDeclaration(FileScopedClassDeclarationSyntax node) {
             return VisitTypeDeclarationCore(node);
         }
 

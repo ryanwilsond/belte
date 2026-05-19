@@ -6,9 +6,8 @@ Currently, all of these features are enabled everywhere for conciseness.
 This may change.
 
 - [6.1](#61-low-level-contexts) Low-Level Contexts
-- [6.2](#62-structures) Structures
+- [6.2](#62-structs) Structs
 - [6.3](#63-arrays) Arrays
-  - [6.3.1](#631-initializer-lists) Initializer Lists
 - [6.4](#64-numerics) Numerics
 - [6.5](#65-pointers) Pointers
   - [6.5.1](#651-creating-and-dereferencing-pointers) Creating and Dereferencing Pointers
@@ -38,73 +37,29 @@ Low-level contexts are created by applying the `lowlevel` modifier to a type
 declaration, method, or block.
 
 ```belte
-lowlevel class A { ... }
-lowlevel struct A { ... }
-lowlevel void M() { ... }
-lowlevel { ... }
+lowlevel class A { /* ... */ }
+lowlevel struct A { /* ... */ }
+lowlevel void M() { /* ... */ }
+lowlevel { /* ... */ }
 ```
 
 The low-level context extends from the declaration to all statements inside. In
 other words, if a method is marked `lowlevel`, the parameter list of that method
 can use low-level exclusive features.
 
-## 6.2 Structures
+## 6.2 Structs
 
-Structures are custom data types that pass by value and use the stack, unlike
-classes which are heap-allocated.
+> [Main struct docs](ClassesAndObjects.md#49-structs)
 
-Structures only allow field declarations with no initializers. Fields within
-structures cannot be constants or references.
-
-```belte
-struct MyStruct {
-  int a;
-  string b;
-}
-```
-
-Creating a new instance of a structure uses the same `new` keyword as classes,
-but the constructor cannot be overridden and always takes no arguments:
-
-```belte
-var myInstance = new MyStruct();
-```
-
-Because of this, all fields must manually be written to after structure
-creation:
-
-```belte
-myInstance.a = 3;
-myInstance.b = "Hello";
-```
+Structs may be restricted to [lowlevel contexts](#61-low-level-contexts) in the
+future.
 
 ## 6.3 Arrays
 
-Whenever possible, a [List](StandardLibrary/List.md) should be used in place of
-C-style arrays.
+> [Main array docs](Data.md#36-arrays)
 
-```belte
-int![]! v = { 1, 2, 3 };
-int![]! v = { 1, 2, 3 };
-```
-
-Arrays are heap allocated and have no members. To sort or get the length of the
-array,
-[`LowLevel.Length<T>(T!)` and `LowLevel.Sort<T>(T!)` can be used](StandardLibrary/LowLevel.md).
-
-Arrays are runtime checked, meaning trying to access an index outside the bounds
-of the array will throw an exception.
-
-### 6.3.1 Initializer Lists
-
-~~It is also important to note outside of low-level contexts, an initializer list will create a
-[List](StandardLibrary/List.md), while inside of a low-level context, it will create an array.~~
-
-Currently, initializer lists always create arrays.
-
-```belte
-int[] v = { 1, 2, 3 };
-```
+Initializer lists may create a [List](StandardLibrary/List.md) outside of
+[lowlevel contexts](#61-low-level-contexts) in the future.
 
 ## 6.4 Numerics
 
@@ -160,13 +115,13 @@ Pointers support any level of indirection:
 int! myInt = 3;
 int* ptr1 = &myInt;
 int** ptr2 = &ptr1;
-...
+// ...
 ```
 
 Pointers can be freely cast to reinterpret them:
 
 ```belte
-void* ptr = ...;
+void* ptr = /* ... */;
 
 int* myIntPtr = (int*)ptr;
 int myInt = *myIntPtr;
@@ -182,7 +137,7 @@ MyClass* ptr2 = (MyClass*)ptr;
 (*ptr2).Method(); // Undefined behavior
 
 class MyClass {
-  public void Method() { ... }
+  public void Method() { /* ... */ }
 }
 ```
 
@@ -209,7 +164,7 @@ do the arithmetic, then cast it back.
 For example:
 
 ```belte
-void* myPtr = ...;
+void* myPtr = /* ... */;
 // Offset the pointer by 8 bytes
 myPtr = (void*)((int64)myPtr + 8);
 ```
@@ -218,14 +173,14 @@ Indexing an operator will automatically offset the pointer and then dereference
 it:
 
 ```belte
-char* myPtr = ...;
+char* myPtr = /* ... */;
 char! myChar = myPtr[10];
 ```
 
 The above example is equivalent to:
 
 ```belte
-char* myPtr = ...;
+char* myPtr = /* ... */;
 char! myChar = *((char*)((int64)myPtr + 10 * sizeof(char!)));
 ```
 
@@ -241,10 +196,12 @@ can then be called like a normal method:
 var myPtr = &MyMethod;
 var myInt = myPtr(); // myInt = 4
 
-int32 MyMethod() {
+static int32 MyMethod() {
   return 4;
 }
 ```
+
+Non-static local functions cannot have their address taken with a function pointer.
 
 When not using `var`, the explicit function pointer type can be written as
 `returnType(argTypes...)*`:
@@ -252,7 +209,7 @@ When not using `var`, the explicit function pointer type can be written as
 ```belte
 int32(bool, string)* myPtr = &MyMethod;
 
-int32 MyMethod(bool arg1, string arg2) { ... }
+static int32 MyMethod(bool arg1, string arg2) { /* ... */ }
 ```
 
 Function pointers are treated the same as normal pointers in that they can be
@@ -262,7 +219,7 @@ mark it as such with a `~`.
 Consider this example of calling the first function of a vtable:
 
 ```belte
-void** vtable = ...;
+void** vtable = /* ... */;
 
 ((void()*~)vtable[0])();
 ```
@@ -270,7 +227,7 @@ void** vtable = ...;
 For clarity, the function pointer set to a temporary:
 
 ```belte
-void** vtable = ...;
+void** vtable = /* ... */;
 
 var MyFunction = (void()*~)vtable[0];
 MyFunction();
@@ -343,7 +300,7 @@ be indexed:
 var myStruct = new MyStruct();
 myStruct.field[0] = 5;
 myStruct.field[1] = 10;
-...
+// ...
 
 struct MyStruct {
   int32 field[32];
@@ -374,7 +331,7 @@ The following table shows all types with a known size at compile time. All other
 types compute their size at runtime.
 
 | Type | Size |
-|-|-|
+| - | - |
 | `bool!` | 1 |
 | `int8` | 1 |
 | `uint8` | 1 |
@@ -403,7 +360,7 @@ in a pointer to the start of the memory.
 int32* ptr = stackalloc int32[10];
 ptr[0] = 5;
 ptr[1] = 10;
-...
+// ...
 ```
 
 ### 6.10.1 Stackalloc Locals
@@ -533,9 +490,9 @@ message. The second argument gives an interface to interact with the compilation
 adding symbols or collecting general information.
 
 The required parameter types of the handle come from a shipped `Compiler.dll` that lives alongside the actual compiler
-program. This library is not referenced by default so a
-[`--ref=<path>` argument](../Buckle.md#--reffile---referencefile) must be used. Some parts of the compiler rely on
-other libraries that also would require referencing to use, such as `Diagnostics.dll` and `CommandLine.dll`.
+program. This library is not referenced by default so either [`-l1`](../Buckle.md#-l0--l1--lall) or a
+[`--ref=<path>`](../Buckle.md#--refflatcopypath---referenceflatcopypath) option must be used. Some parts of the compiler
+rely on other libraries that also would require referencing to use, such as `Diagnostics.dll` and `CommandLine.dll`.
 
 Basic example:
 
@@ -561,14 +518,14 @@ public static class HandleClass {
 ```
 
 The handler is run during compilation using the Executor regardless of the target endpoint, so keep in mind
-[feature availability](Overview.md#11-endpoint-specific-features).
+[feature availability](Overview.md#12-endpoint-specific-features).
 
 ### 6.13.1 Messages
 
 The following is a current list of all messages types, any extra data they might include, and when they are triggered.
 
 | MessageKind | Description |
-|-|-|
+| - | - |
 | `Parsed` | Triggered whenever a parsed syntax tree is added to the compilation. |
 | `Bound` | Triggered after method bodies have finished compiling into the abstract syntax tree. |
 | `BeforeEmit` | Can never happen more than once. Triggers immediately before the compiler targets an endpoint. |

@@ -24,12 +24,15 @@
     - [2.4.4.2](#2442-array-collections) Array Collections
     - [2.4.4.3](#2443-indexed-collections) Indexed Collections
     - [2.4.4.4](#2444-enumerated-collections) Enumerated Collections
+  - [2.4.5](#245-break) Break
+  - [2.4.6](#246-continue) Continue
 - [2.5](#25-switch) Switch
 - [2.6](#26-exceptions-and-handling) Exceptions and Handling
   - [2.6.1](#261-trycatchfinally) Try/Catch/Finally
 - [2.7](#27-with-expressions-and-statements) With Expressions and Statements
 - [2.8](#28-defer-statements) Defer Statements
 - [2.9](#29-using-statements) Using Statements
+- [2.10](#210-unreachable-statements) Unreachable Statements
 
 ## 2.1 Functions
 
@@ -63,6 +66,8 @@ void TopLevelFunction(int param) {
   PrintLine(NestedFunction());
 }
 ```
+
+Nested functions marked `static` cannot access locals of the enclosing scope.
 
 ### 2.1.2 Overloads
 
@@ -192,27 +197,27 @@ only allowed if only one file in the compilation contains these top-level statem
 A function named `Main` is treated as the entry point if it is declared otherwise. To support command-line arguments,
 the `Main` function can optionally take in arguments to retrieve them (similar to C).
 
-Valid `Main` signatures:
+**Valid** `Main` signatures:
 
 ```belte
 void Main();
-int Main();
-void Main(string![]! args);
-int Main(string![]! args);
+int32 Main();
+void Main(string[]! args);
+int32 Main(string[]! args);
 ```
 
 Where `args` is an array of command-line arguments.
 
 Note that to be recognized as a valid `Main`, the function identifier must be exactly `Main` (case sensitive), and
-the parameter must have the exact type, but the parameter name can be anything:
+the parameter must have the exact type, but the parameter name can be anything.
 
 **Invalid** `Main` signatures:
 
-```bete
+```belte
 void main(); // Name does not match casing
 string Main(); // Cannot return 'string'
-void Main(int! argc, string![]! argv); // Must have 0 or 1 parameters
-int Main(string a); // Invalid parameter type, must be 'string![]!'
+void Main(int argc, string[]! argv); // Must have 0 or 1 parameters
+int32 Main(string a); // Invalid parameter type, must be 'string[]!'
 ```
 
 ### 2.2.2 Program and Update
@@ -250,7 +255,7 @@ public class Program {
     myField++;
   }
 
-  public void Update(decimal! deltaTime) {
+  public void Update(decimal deltaTime) {
     Console.PrintLine(myField);
   }
 }
@@ -320,9 +325,9 @@ For example:
 int? a = null;
 
 if ((a > 4)?) {
-  ...
+  // ...
 } else {
-  ...
+  // ...
 }
 ```
 
@@ -387,31 +392,16 @@ do {
 
 ### 2.4.3 For Loops
 
-A more complex form of a `while` loop is a `for` loop which is the same allows for a count to be help each loop or to
-loop a specific number of times:
+A `for` loop contains a local declaration, condition, and iterator expression that executes once after each loop in the
+form `for (<declaration> <condition>; <expression>) <body>`.
+
+For example, a loop that displays the numbers 0 through 9 inclusive.
 
 ```belte
-for (int i=0; i<10; i++) {
+for (int i = 0; i < 10; i++) {
   Console.PrintLine(i);
 }
 ```
-
-Output:
-
-```txt
-0
-1
-2
-3
-4
-5
-6
-7
-8
-9
-```
-
-For loops take the format of `for (<iterator>; <condition>; <expression>) { <body> }` as seen above.
 
 ### 2.4.4 For Each Loops
 
@@ -626,14 +616,14 @@ Switch statements can be used when comparing an expression to a set of known val
 by a label. Switch statements can switch over primitive integral types and strings.
 
 ```belte
-int a = ...
+int a = /* ... */;
 
 switch (a) {
   case 1:
     Console.PrintLine("a was 1");
   case 2:
     Console.PrintLine("a was 2");
-  ...
+  // ...
 }
 ```
 
@@ -641,30 +631,30 @@ To share code across multiple cases, empty case labels can be stacked. Additiona
 catch any values not covered by the cases:
 
 ```belte
-switch (...) {
+switch (/* ... */) {
   case 1:
   case 2:
   case 3:
-    ...
+    // ...
   default:
-    ...
+    // ...
 }
 ```
 
 Cases do not fall through, but you can use gotos to move around the case labels:
 
 ```belte
-switch (...) {
+switch (/* ... */) {
   case 1:
-    ...
+    // ...
     goto default;
   case 2:
-    ...
+    // ...
     goto case 3;
   case 3:
-    ...
+    // ...
   default:
-    ...
+    // ...
 }
 ```
 
@@ -684,7 +674,7 @@ A try block can be used to prevent the program the crashes if an exception is th
 
 ```belte
 try {
-  ...
+  // ...
 } catch {
   Console.PrintLine("exception thrown");
 }
@@ -697,7 +687,7 @@ A finally body can be used to ensure a piece of code always runs:
 
 ```belte
 try {
-  ...
+  // ...
 } finally {
   Console.PrintLine("done");
 }
@@ -717,6 +707,16 @@ int Func() {
 ```
 
 In this example, `Func` will return `3`, but the finally body will execute before exiting the function.
+
+A finally block cannot return:
+
+```belte
+try {
+  // ...
+} finally {
+  return; // Invalid
+}
+```
 
 A try block must contain one catch body, one finally body, or both.
 
@@ -766,7 +766,7 @@ Using a single `with` where possible is preferred as the compiler can optimize i
 
 ## 2.8 Defer Statements
 
-`defer` statements defer the execution of an expression to the end of the current block, regardless of how the block
+`defer` statements defer the execution of a statement to the end of the current block, regardless of how the block
 exits.
 
 For example:
@@ -806,7 +806,7 @@ Defer statements can be used for resource cleanup:
 var a = GetSomeResource();
 defer a.Dispose();
 
-...
+// ...
 ```
 
 Defer statements are useful when the block can return in multiple places. Instead of writing cleanup code multiple
@@ -888,6 +888,22 @@ first block
 second block
 ```
 
+Because defer statements can defer most statements, blocks can be deferred:
+
+```belte
+defer {
+  SomeFunc1();
+  SomeFunc2();
+  // ...
+}
+```
+
+Similar to [finally blocks](#261-trycatchfinally), defer statements cannot return.
+
+```belte
+defer return; // Invalid
+```
+
 ## 2.9 Using Statements
 
 Similar to defer statements, using statements imply certain execution on block exit. For using statements, this is the
@@ -901,7 +917,7 @@ using (var a = new A()) {
 Console.PrintLine("outside using");
 
 class A {
-  public void Dispose() { ... }
+  public void Dispose() { /* ... */ }
 }
 ```
 
@@ -919,7 +935,7 @@ try {
 Console.PrintLine("outside using");
 
 class A {
-  public void Dispose() { ... }
+  public void Dispose() { /* ... */ }
 }
 ```
 
@@ -947,3 +963,21 @@ try {
   a?.Dispose();
 }
 ```
+
+## 2.10 Unreachable Statements
+
+An `unreachable;` statement can be used as a shorthand for throwing an unreachable code exception.
+
+For example, in the case of an non-exhaustive switch:
+
+```belte
+switch (/* ... */) {
+  // ...
+}
+
+unreachable;
+```
+
+This can be used when the compiler cannot prove a method always returns and errs.
+
+Note that because this turns into a [`throw`](#261-trycatchfinally), it will be caught by enclosing catch blocks.

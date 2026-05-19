@@ -12,7 +12,7 @@ namespace Buckle.Libraries;
 internal sealed class CorLibrary {
     private static readonly CorLibrary Instance = new CorLibrary();
 
-    private const int TotalSpecialTypes = 30;
+    private const int TotalSpecialTypes = 31;
     private const int TotalSpecialTypesIncludingGraphicsTypes = TotalSpecialTypes + 6;
     private const int TotalWellKnownMembers = 4;
 
@@ -169,8 +169,11 @@ internal sealed class CorLibrary {
     }
 
     private void RegisterNonPrimitiveCorTypes() {
+        var valueType = new PrimitiveTypeSymbol("ValueType", SpecialType.ValueType);
+        RegisterSpecialType(valueType);
+
         RegisterSpecialType(new PrimitiveTypeSymbol("Array", SpecialType.Array));
-        RegisterSpecialType(new PrimitiveTypeSymbol("Enum", SpecialType.Enum));
+        RegisterSpecialType(new PrimitiveTypeSymbol("Enum", SpecialType.Enum, baseType: valueType));
         RegisterSpecialType(new PrimitiveTypeSymbol("TypedReference", SpecialType.TypedReference));
 
         RegisterSpecialType(new SynthesizedSimpleNamedTypeSymbol(
@@ -392,6 +395,8 @@ internal sealed class CorLibrary {
                 [OperatorFacts.GetSignature(BinaryOperatorKind.BoolConditionalOr)], //or
                 [], //xor
                 [], //power
+                [], //min
+                [], //max
             };
 
             var nonConditionalOperators = new ImmutableArray<BinaryOperatorSignature>[] {
@@ -646,6 +651,34 @@ internal sealed class CorLibrary {
                     (int)BinaryOperatorKind.LiftedUInt64Power,
                     (int)BinaryOperatorKind.LiftedFloat32Power,
                     (int)BinaryOperatorKind.LiftedFloat64Power,
+                ]),
+                GetSignaturesFromBinaryOperatorKinds([
+                    (int)BinaryOperatorKind.Int32Min,
+                    (int)BinaryOperatorKind.Int64Min,
+                    (int)BinaryOperatorKind.UInt32Min,
+                    (int)BinaryOperatorKind.UInt64Min,
+                    (int)BinaryOperatorKind.Float32Min,
+                    (int)BinaryOperatorKind.Float64Min,
+                    (int)BinaryOperatorKind.LiftedInt32Min,
+                    (int)BinaryOperatorKind.LiftedInt64Min,
+                    (int)BinaryOperatorKind.LiftedUInt32Min,
+                    (int)BinaryOperatorKind.LiftedUInt64Min,
+                    (int)BinaryOperatorKind.LiftedFloat32Min,
+                    (int)BinaryOperatorKind.LiftedFloat64Min,
+                ]),
+                GetSignaturesFromBinaryOperatorKinds([
+                    (int)BinaryOperatorKind.Int32Max,
+                    (int)BinaryOperatorKind.Int64Max,
+                    (int)BinaryOperatorKind.UInt32Max,
+                    (int)BinaryOperatorKind.UInt64Max,
+                    (int)BinaryOperatorKind.Float32Max,
+                    (int)BinaryOperatorKind.Float64Max,
+                    (int)BinaryOperatorKind.LiftedInt32Max,
+                    (int)BinaryOperatorKind.LiftedInt64Max,
+                    (int)BinaryOperatorKind.LiftedUInt32Max,
+                    (int)BinaryOperatorKind.LiftedUInt64Max,
+                    (int)BinaryOperatorKind.LiftedFloat32Max,
+                    (int)BinaryOperatorKind.LiftedFloat64Max,
                 ]),
             };
 

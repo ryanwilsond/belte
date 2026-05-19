@@ -16,19 +16,19 @@ public static class SymbolDisplay {
     /// </summary>
     /// <param name="symbol"><see cref="Symbol" /> to convert to rich text.</param>
     /// <returns>New <see cref="DisplayText" /> representing the <see cref="Symbol" />.</returns>
-    internal static DisplayText ToDisplayText(Symbol symbol, SymbolDisplayFormat format = null) {
+    internal static DisplayText ToDisplayText(ISymbol symbol, SymbolDisplayFormat format = null) {
         var text = new DisplayText();
         AppendToDisplayText(text, symbol, format);
         return text;
     }
 
     internal static ImmutableArray<DisplayTextSegment> ToDisplaySegments(
-        Symbol symbol,
+        ISymbol symbol,
         SymbolDisplayFormat format = null) {
         return ToDisplayText(symbol, format).segments.ToImmutableArray();
     }
 
-    internal static string ToDisplayString(Symbol symbol, SymbolDisplayFormat format = null) {
+    internal static string ToDisplayString(ISymbol symbol, SymbolDisplayFormat format = null) {
         return ToDisplayText(symbol, format).ToString();
     }
 
@@ -78,26 +78,32 @@ public static class SymbolDisplay {
             case SymbolKind.Assembly:
                 DisplayAssembly(text, (AssemblySymbol)symbol);
                 break;
+            case SymbolKind.Preprocessing:
+                DisplayPreprocessingSymbol(text, (PreprocessingSymbol)symbol);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(symbol.kind);
         }
     }
 
-    public static void DisplayType(DisplayText text, ITypeSymbol type, SymbolDisplayFormat format = null) {
+    public static void DisplayType(
+        DisplayText text,
+        ITypeSymbol type,
+        SymbolDisplayFormat format = null,
+        bool outerMostType = true) {
         format ??= SymbolDisplayFormat.ErrorMessageFormat;
         var stripped = ((TypeSymbol)type).StrippedType();
 
-        if (type is ArrayTypeSymbol ||
-            ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0 &&
-                stripped is ArrayTypeSymbol)) {
-
+        if (type is ArrayTypeSymbol) {
             var array = (ArrayTypeSymbol)stripped;
             DisplayType(text, array.elementType, format);
             text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
             text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
 
-            if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0)
+            if (outerMostType &&
+                (format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0) {
                 text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));
+            }
         } else if (type.specialType == SpecialType.Void) {
             text.Write(CreateKeyword("void"));
         } else if (type is NamedTypeSymbol namedType) {
@@ -108,8 +114,9 @@ public static class SymbolDisplay {
                 if (underlyingType is NamedTypeSymbol namedUnderlying)
                     DisplayTypeCore(text, namedUnderlying, format);
                 else
-                    DisplayType(text, underlyingType, format);
+                    DisplayType(text, underlyingType, format, outerMostType: false);
 
+                text.Write(CreatePunctuation(SyntaxKind.QuestionToken));
                 return;
             }
 
@@ -297,6 +304,10 @@ public static class SymbolDisplay {
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
+    }
+
+    private static void DisplayPreprocessingSymbol(DisplayText text, PreprocessingSymbol symbol) {
+        text.Write(CreateIdentifier(symbol.name));
     }
 
     private static void DisplayLabel(DisplayText text, LabelSymbol label, SymbolDisplayFormat _) {

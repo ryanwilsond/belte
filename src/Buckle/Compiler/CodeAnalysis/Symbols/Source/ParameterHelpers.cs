@@ -28,6 +28,9 @@ internal static class ParameterHelpers {
             parameterCreationFunc: (Symbol owner, TypeWithAnnotations parameterType,
                                     ParameterSyntax syntax, RefKind refKind,
                                     int ordinal, bool addRefConstModifier, ScopedKind scope) => {
+                                        if (parameterType.IsVoidType())
+                                            diagnostics.Push(Error.VoidUsedAsType(syntax.type.location));
+
                                         return SourceParameterSymbol.Create(
                                                 owner,
                                                 parameterType,
@@ -56,11 +59,8 @@ internal static class ParameterHelpers {
             parameterCreationFunc: (FunctionPointerMethodSymbol owner, TypeWithAnnotations parameterType,
                                     FunctionPointerParameterSyntax syntax, RefKind refKind, int ordinal,
                                     bool addRefReadOnlyModifier, ScopedKind scope) => {
-                                        if (parameterType.IsVoidType()) {
-                                            // TODO
-                                            // diagnostics.Push(Error.)
-                                            // diagnostics.Add(ErrorCode.ERR_NoVoidParameter, syntax.Type.Location);
-                                        }
+                                        if (parameterType.IsVoidType())
+                                            diagnostics.Push(Error.VoidUsedAsType(syntax.type.location));
 
                                         return new FunctionPointerParameterSymbol(
                                             parameterType,
@@ -89,11 +89,8 @@ internal static class ParameterHelpers {
             parameterCreationFunc: (FunctionMethodSymbol owner, TypeWithAnnotations parameterType,
                                     FunctionPointerParameterSyntax syntax, RefKind refKind, int ordinal,
                                     bool addRefReadOnlyModifier, ScopedKind scope) => {
-                                        if (parameterType.IsVoidType()) {
-                                            // TODO
-                                            // diagnostics.Push(Error.)
-                                            // diagnostics.Add(ErrorCode.ERR_NoVoidParameter, syntax.Type.Location);
-                                        }
+                                        if (parameterType.IsVoidType())
+                                            diagnostics.Push(Error.VoidUsedAsType(syntax.type.location));
 
                                         return new FunctionParameterSymbol(
                                             parameterType,

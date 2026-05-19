@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
+using System.Threading;
 using System.Threading.Tasks;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
@@ -39,10 +40,11 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private readonly ConcurrentDictionary<MethodSymbol, MethodDefinition> _methods = [];
     private readonly ConcurrentDictionary<MethodDefinition, (MethodSymbol, BoundBlockStatement)> _methodBodies = [];
     private readonly ConcurrentDictionary<FieldSymbol, FieldDefinition> _fields = [];
-    private readonly ConcurrentDictionary<MethodSymbol, GenericParameter[]> _methodTypeParameters = [];
+    private readonly ConcurrentDictionary<MethodSymbol, TypeReference[]> _methodTypeParameters = [];
     private readonly string _belteDllName;
     private readonly string _tfm;
     private readonly string _version;
+    private readonly Lock _resolveLock = new();
 
     private Dictionary<string, MethodReference> _stlMap;
 
@@ -83,10 +85,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             _belteDllName = Path.Join(AppContext.BaseDirectory, "Belte.Runtime.dll");
 
         if (string.IsNullOrEmpty(objectDll))
-            objectDll = Path.Combine(refPackPath, "System.Runtime.dll");
+            objectDll = Path.Join(refPackPath, "System.Runtime.dll");
 
         if (string.IsNullOrEmpty(consoleDll))
-            consoleDll = Path.Combine(refPackPath, "System.Console.dll");
+            consoleDll = Path.Join(refPackPath, "System.Console.dll");
 
         _assemblies = [
             AssemblyDefinition.ReadAssembly(objectDll),
@@ -194,7 +196,11 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         if (!_program.compilation.options.enableOutput)
             return;
 
-        EmitRuntimeConfig(outputPath);
+        var isDll = _program.compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
+
+        if (!isDll)
+            EmitRuntimeConfig(outputPath);
+
         var dllPath = Path.ChangeExtension(outputPath, ".dll");
 
         if (debugMode) {
@@ -213,7 +219,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             _assemblyDefinition.Write(dllPath);
         }
 
-        EmitAppHost(Path.ChangeExtension(outputPath, ".exe"), dllPath);
+        if (!isDll)
+            EmitAppHost(Path.ChangeExtension(outputPath, ".exe"), dllPath);
     }
 
     private void EmitRuntimeConfig(string outputPath) {
@@ -314,7 +321,11 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
             if (type is ArrayTypeSymbol array) {
                 var elementType = GetType(array.elementType);
-                return elementType.MakeArrayType(array.rank);
+
+                if (array.rank == 1)
+                    return elementType.MakeArrayType();
+                else
+                    return elementType.MakeArrayType(array.rank);
             }
 
             if (type is PointerTypeSymbol pointer) {
@@ -333,10 +344,12 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
             if (type is TemplateParameterSymbol t) {
                 if (t.templateParameterKind == TemplateParameterKind.Method) {
-                    var containingMethodTypeParameters = _methodTypeParameters[
-                        (MethodSymbol)type.containingSymbol.originalDefinition
-                    ];
+                    var key = (MethodSymbol)type.containingSymbol.originalDefinition;
 
+                    if (!_methodTypeParameters.ContainsKey(key))
+                        TryGetPEMethodTypeParameters(key);
+
+                    var containingMethodTypeParameters = _methodTypeParameters[key];
                     return containingMethodTypeParameters[t.ordinal];
                 }
 
@@ -379,7 +392,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 foreach (var generic in allTypeArgs)
                     typeReference.GenericArguments.Add(generic);
 
-                _assemblyDefinition.MainModule.ImportReference(typeReference.Resolve());
+                _assemblyDefinition.MainModule.ImportReference(Resolve(typeReference));
                 return typeReference;
             }
 
@@ -398,10 +411,27 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
     }
 
+    private TypeDefinition Resolve(TypeReference reference) {
+        lock (_resolveLock)
+            return reference.Resolve();
+    }
+
+    private MethodDefinition Resolve(MethodReference reference) {
+        lock (_resolveLock)
+            return reference.Resolve();
+    }
+
+    private void TryGetPEMethodTypeParameters(MethodSymbol method) {
+        var reference = GetMethod(method);
+
+        if (reference is GenericInstanceMethod g)
+            _methodTypeParameters.Add(method, g.GenericArguments.ToArray());
+    }
+
     private TypeReference GetFuncType(FunctionMethodSymbol signature) {
         if (signature.returnsVoid && signature.parameterCount == 0) {
             var typeRef = ResolveType(null, "System.Action");
-            _assemblyDefinition.MainModule.ImportReference(typeRef.Resolve());
+            _assemblyDefinition.MainModule.ImportReference(Resolve(typeRef));
             return typeRef;
         } else if (signature.returnsVoid) {
             var typeRef = ResolveType(null, $"System.Action`{signature.parameterCount}");
@@ -410,7 +440,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             foreach (var p in signature.GetParameterTypes())
                 genericRef.GenericArguments.Add(GetType(p.type));
 
-            _assemblyDefinition.MainModule.ImportReference(genericRef.Resolve());
+            _assemblyDefinition.MainModule.ImportReference(Resolve(genericRef));
             return genericRef;
         } else {
             var typeRef = ResolveType(null, $"System.Func`{signature.parameterCount + 1}");
@@ -421,7 +451,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
             genericRef.GenericArguments.Add(GetType(signature.returnType));
 
-            _assemblyDefinition.MainModule.ImportReference(genericRef.Resolve());
+            _assemblyDefinition.MainModule.ImportReference(Resolve(genericRef));
             return genericRef;
         }
     }
@@ -434,8 +464,11 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             value = ResolveMethod(
                 (PENamedTypeSymbol)m.containingType,
                 m.metadataName,
-                m.GetParameterTypes().Select(p => GetType(p.type).ToString()).ToArray()
+                m.GetParameterTypes()
+                    .Select(p => p.type.ContainsTemplateParameter() ? null : GetType(p.type).ToString())
+                    .ToArray()
             );
+
             found = true;
         }
 
@@ -466,9 +499,12 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             var constructedType = GetType(method.containingType);
 
             if (method.arity > 0) {
-                var generic = new GenericInstanceMethod(value) {
-                    DeclaringType = constructedType
-                };
+                var def = _assemblyDefinition.MainModule.ImportReference(Resolve(value));
+                var generic = new GenericInstanceMethod(def);
+                // TODO Not necessary?
+                // {
+                //     DeclaringType = constructedType
+                // };
 
                 foreach (var p in method.templateArguments.Select(t => GetType(t.type.type)).ToArray())
                     generic.GenericArguments.Add(p);
@@ -608,7 +644,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     internal FieldReference GetField(FieldSymbol field) {
         if (field.originalDefinition is PEFieldSymbol f) {
             var peType = GetType(field.containingType);
-            var peField = peType.Resolve().Fields.Single(e => e.Name == f.name);
+            var peField = Resolve(peType).Fields.Single(e => e.Name == f.name);
 
             return new FieldReference(
                 peField.Name,
@@ -817,7 +853,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         _types.Add(type.originalDefinition, typeDefinition);
 
-        CreateNestedTypes(type, typeDefinition, workingParams);
+        // ? CreateNestedTypes calls CreateNestedTypes directly
+        if (!isNested)
+            CreateNestedTypes(type, typeDefinition, workingParams);
 
         return typeDefinition;
     }
@@ -1500,12 +1538,12 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         var topType = stack.Pop();
         var displayName = topType.ToDisplayString(SymbolDisplayFormat.NetNamespaceQualifiedNameFormat);
         var currentFoundType = ResolveType(null, displayName);
-        _assemblyDefinition.MainModule.ImportReference(currentFoundType.Resolve());
+        _assemblyDefinition.MainModule.ImportReference(Resolve(currentFoundType));
 
         while (stack.Count > 0) {
             var nestedType = stack.Pop();
-            currentFoundType = currentFoundType.Resolve().NestedTypes.First(t => t.Name == nestedType.name);
-            _assemblyDefinition.MainModule.ImportReference(currentFoundType.Resolve());
+            currentFoundType = Resolve(currentFoundType).NestedTypes.First(t => t.Name == nestedType.name);
+            _assemblyDefinition.MainModule.ImportReference(Resolve(currentFoundType));
         }
 
         return currentFoundType;
@@ -1544,7 +1582,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private MethodReference ResolveMethod(PENamedTypeSymbol type, string methodName, string[] parameterTypeNames) {
         var foundType = ResolveType(type);
 
-        if (TryResolveMethodCore([foundType.Resolve()], methodName, parameterTypeNames, out var methodRef1))
+        if (TryResolveMethodCore([Resolve(foundType)], methodName, parameterTypeNames, out var methodRef1))
             return methodRef1;
 
         throw new BelteInternalException($"Required method not found: {foundType.Name} {methodName} {parameterTypeNames.Length}");
@@ -1593,6 +1631,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             var allParametersMatch = true;
 
             for (var i = 0; i < parameterTypeNames.Length; i++) {
+                // ? We treat null as we don't want to check this one (used for unresolved type arguments)
+                if (parameterTypeNames[i] is null)
+                    continue;
+
                 if (method.Parameters[i].ParameterType.FullName != parameterTypeNames[i]) {
                     allParametersMatch = false;
                     break;
@@ -1711,6 +1753,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         NetMethodReference.Type_GetTypeFromHandle = ResolveMethod("System.Type", "GetTypeFromHandle", ["System.RuntimeTypeHandle"]);
         NetMethodReference.NullReferenceException_ctor = ResolveMethod("System.NullReferenceException", ".ctor", []);
         NetMethodReference.NullConditionException_ctor = ResolveMethod("Belte.Runtime.NullConditionException", ".ctor", []);
+        NetMethodReference.UnreachableException_ctor = ResolveMethod("System.Diagnostics.UnreachableException", ".ctor", []);
         NetMethodReference.LowLevel_Sort = ResolveMethod("Belte.Runtime.Utilities", "Sort", ["T"]);
         NetMethodReference.LowLevel_Length = ResolveMethod("Belte.Runtime.Utilities", "Length", ["T"]);
         NetMethodReference.AssertNull = ResolveMethod("Belte.Runtime.Utilities", "AssertNull", ["T"]);
@@ -1782,11 +1825,32 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 { "String_Char_I", ResolveMethod("Belte.Runtime.Utilities", "Char", ["System.Int64"]) },
                 { "String_Split_SS", ResolveMethod("Belte.Runtime.Utilities", "Split", ["System.String", "System.String"]) },
                 { "String_Length_S", ResolveMethod("Belte.Runtime.Utilities", "StringLength", ["System.String"]) },
+                { "String_IndexOf_SC", ResolveMethod("Belte.Runtime.Utilities", "StringIndexOf", ["System.String", "System.Char"]) },
                 { "String_IsNullOrWhiteSpace_S?", ResolveMethod("System.String", "IsNullOrWhiteSpace", ["System.String"]) },
                 { "String_IsNullOrWhiteSpace_C?", ResolveMethod("Belte.Runtime.Utilities", "IsNullOrWhiteSpace", ["System.Nullable`1<System.Char>"]) },
                 { "String_IsDigit_C?", ResolveMethod("Belte.Runtime.Utilities", "IsDigit", ["System.Nullable`1<System.Char>"]) },
                 { "String_Substring_SI?I?", ResolveMethod("Belte.Runtime.Utilities", "Substring", ["System.String", "System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
+                { "String_PadLeft_SCI", ResolveMethod("Belte.Runtime.Utilities", "StringPadLeft", ["System.String", "System.Char", "System.Int64"]) },
+                { "String_PadRight_SCI", ResolveMethod("Belte.Runtime.Utilities", "StringPadRight", ["System.String", "System.Char", "System.Int64"]) },
+                { "String_Replace_SSS", ResolveMethod("Belte.Runtime.Utilities", "StringReplace", ["System.String", "System.String", "System.String"]) },
+                { "String_Trim_S", ResolveMethod("Belte.Runtime.Utilities", "StringTrim", ["System.String"]) },
+                { "String_Trim_S[", ResolveMethod("Belte.Runtime.Utilities", "StringTrim", ["System.String", "System.Char[]"]) },
+                { "String_TrimStart_S", ResolveMethod("Belte.Runtime.Utilities", "StringTrimStart", ["System.String"]) },
+                { "String_TrimStart_S[", ResolveMethod("Belte.Runtime.Utilities", "StringTrimStart", ["System.String", "System.Char[]"]) },
+                { "String_TrimEnd_S", ResolveMethod("Belte.Runtime.Utilities", "StringTrimEnd", ["System.String"]) },
+                { "String_TrimEnd_S[", ResolveMethod("Belte.Runtime.Utilities", "StringTrimEnd", ["System.String", "System.Char[]"]) },
                 { "Int_Parse_S?", ResolveMethod("Belte.Runtime.Utilities", "IntParse", ["System.String"]) },
+                { "Int_ToString_IS", ResolveMethod("Belte.Runtime.Utilities", "IntToString", ["System.Int64", "System.String"]) },
+                { "Decimal_IsNaN_F4", ResolveMethod("System.Single", "IsNaN", ["System.Single"]) },
+                { "Decimal_IsPosInfinity_F4", ResolveMethod("System.Single", "IsPositiveInfinity", ["System.Single"]) },
+                { "Decimal_IsNegInfinity_F4", ResolveMethod("System.Single", "IsNegativeInfinity", ["System.Single"]) },
+                { "Decimal_IsInfinity_F4", ResolveMethod("System.Single", "IsInfinity", ["System.Single"]) },
+                { "Decimal_IsNaN_F8", ResolveMethod("System.Double", "IsNaN", ["System.Double"]) },
+                { "Decimal_IsPosInfinity_F8", ResolveMethod("System.Double", "IsPositiveInfinity", ["System.Double"]) },
+                { "Decimal_IsNegInfinity_F8", ResolveMethod("System.Double", "IsNegativeInfinity", ["System.Double"]) },
+                { "Decimal_IsInfinity_F8", ResolveMethod("System.Double", "IsInfinity", ["System.Double"]) },
+                { "Decimal_Parse_S?", ResolveMethod("Belte.Runtime.Utilities", "DecimalParse", ["System.String"]) },
+                { "Decimal_ToString_DS", ResolveMethod("Belte.Runtime.Utilities", "DecimalToString", ["System.Double", "System.String"]) },
                 { "LowLevel_GetHashCode_O", ResolveMethod("Belte.Runtime.Utilities", "GetHashCode", ["System.Object"]) },
                 { "LowLevel_GetTypeName_O", ResolveMethod("Belte.Runtime.Utilities", "GetTypeName", ["System.Object"]) },
                 { "LowLevel_ThrowNullConditionException", ResolveMethod("Belte.Runtime.ThrowHelper", "ThrowNullConditionException", []) },
@@ -1822,8 +1886,26 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 { "Math_Ceiling_D", ResolveMethod("System.Math", "Ceiling", ["System.Double"]) },
                 { "Math_Clamp_D?D?D?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
                 { "Math_Clamp_DDD", ResolveMethod("System.Math", "Clamp", ["System.Double","System.Double", "System.Double"]) },
+                { "Math_Clamp_F4?F4?F4?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Single>", "System.Nullable`1<System.Single>", "System.Nullable`1<System.Single>"]) },
+                { "Math_Clamp_F4F4F4", ResolveMethod("System.Math", "Clamp", ["System.Single","System.Single", "System.Single"]) },
                 { "Math_Clamp_I?I?I?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
                 { "Math_Clamp_III", ResolveMethod("System.Math", "Clamp", ["System.Int64","System.Int64", "System.Int64"]) },
+                { "Math_Clamp_U8?U8?U8?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.UInt64>", "System.Nullable`1<System.UInt64>", "System.Nullable`1<System.UInt64>"]) },
+                { "Math_Clamp_U8U8U8", ResolveMethod("System.Math", "Clamp", ["System.UInt64","System.UInt64", "System.UInt64"]) },
+                { "Math_Clamp_I4?I4?I4?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Int32>", "System.Nullable`1<System.Int32>", "System.Nullable`1<System.Int32>"]) },
+                { "Math_Clamp_I4I4I4", ResolveMethod("System.Math", "Clamp", ["System.Int32","System.Int32", "System.Int32"]) },
+                { "Math_Clamp_U4?U4?U4?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.UInt32>", "System.Nullable`1<System.UInt32>", "System.Nullable`1<System.UInt32>"]) },
+                { "Math_Clamp_U4U4U4", ResolveMethod("System.Math", "Clamp", ["System.UInt32","System.UInt32", "System.UInt32"]) },
+                { "Math_Clamp_I2?I2?I2?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Int16>", "System.Nullable`1<System.Int16>", "System.Nullable`1<System.Int16>"]) },
+                { "Math_Clamp_I2I2I2", ResolveMethod("System.Math", "Clamp", ["System.Int16","System.Int16", "System.Int16"]) },
+                { "Math_Clamp_U2?U2?U2?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.UInt16>", "System.Nullable`1<System.UInt16>", "System.Nullable`1<System.UInt16>"]) },
+                { "Math_Clamp_U2U2U2", ResolveMethod("System.Math", "Clamp", ["System.UInt16","System.UInt16", "System.UInt16"]) },
+                { "Math_Clamp_I1?I1?I1?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.SByte>", "System.Nullable`1<System.SByte>", "System.Nullable`1<System.SByte>"]) },
+                { "Math_Clamp_I1I1I1", ResolveMethod("System.Math", "Clamp", ["System.SByte","System.SByte", "System.SByte"]) },
+                { "Math_Clamp_U1?U1?U1?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Byte>", "System.Nullable`1<System.Byte>", "System.Nullable`1<System.Byte>"]) },
+                { "Math_Clamp_U1U1U1", ResolveMethod("System.Math", "Clamp", ["System.Byte","System.Byte", "System.Byte"]) },
+                { "Math_Clamp_C?C?C?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Char>", "System.Nullable`1<System.Char>", "System.Nullable`1<System.Char>"]) },
+                { "Math_Clamp_CCC", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Char","System.Char", "System.Char"]) },
                 { "Math_Cos_D?", ResolveMethod("Belte.Runtime.Math", "Cos", ["System.Nullable`1<System.Double>"]) },
                 { "Math_Cos_D", ResolveMethod("System.Math", "Cos", ["System.Double"]) },
                 { "Math_Cosh_D?", ResolveMethod("Belte.Runtime.Math", "Cosh", ["System.Nullable`1<System.Double>"]) },
@@ -1840,12 +1922,28 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 { "Math_Log_D", ResolveMethod("System.Math", "Log", ["System.Double"]) },
                 { "Math_Max_D?D?", ResolveMethod("Belte.Runtime.Math", "Max", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
                 { "Math_Max_DD", ResolveMethod("System.Math", "Max", ["System.Double", "System.Double"]) },
+                { "Math_Max_F4?F4?", ResolveMethod("Belte.Runtime.Math", "Max", ["System.Nullable`1<System.Single>", "System.Nullable`1<System.Single>"]) },
+                { "Math_Max_F4F4", ResolveMethod("System.Math", "Max", ["System.Single", "System.Single"]) },
                 { "Math_Max_I?I?", ResolveMethod("Belte.Runtime.Math", "Max", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
                 { "Math_Max_II", ResolveMethod("System.Math", "Max", ["System.Int64", "System.Int64"]) },
+                { "Math_Max_I4?I4?", ResolveMethod("Belte.Runtime.Math", "Max", ["System.Nullable`1<System.Int32>", "System.Nullable`1<System.Int32>"]) },
+                { "Math_Max_I4I4", ResolveMethod("System.Math", "Max", ["System.Int32", "System.Int32"]) },
+                { "Math_Max_U8?U8?", ResolveMethod("Belte.Runtime.Math", "Max", ["System.Nullable`1<System.UInt64>", "System.Nullable`1<System.UInt64>"]) },
+                { "Math_Max_U8U8", ResolveMethod("System.Math", "Max", ["System.UInt64", "System.UInt64"]) },
+                { "Math_Max_U4?U4?", ResolveMethod("Belte.Runtime.Math", "Max", ["System.Nullable`1<System.UInt32>", "System.Nullable`1<System.UInt32>"]) },
+                { "Math_Max_U4U4", ResolveMethod("System.Math", "Max", ["System.UInt32", "System.UInt32"]) },
                 { "Math_Min_D?D?", ResolveMethod("Belte.Runtime.Math", "Min", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
                 { "Math_Min_DD", ResolveMethod("System.Math", "Min", ["System.Double", "System.Double"]) },
+                { "Math_Min_F4?F4?", ResolveMethod("Belte.Runtime.Math", "Min", ["System.Nullable`1<System.Single>", "System.Nullable`1<System.Single>"]) },
+                { "Math_Min_F4F4", ResolveMethod("System.Math", "Min", ["System.Single", "System.Single"]) },
                 { "Math_Min_I?I?", ResolveMethod("Belte.Runtime.Math", "Min", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
                 { "Math_Min_II", ResolveMethod("System.Math", "Min", ["System.Int64", "System.Int64"]) },
+                { "Math_Min_I4?I4?", ResolveMethod("Belte.Runtime.Math", "Min", ["System.Nullable`1<System.Int32>", "System.Nullable`1<System.Int32>"]) },
+                { "Math_Min_I4I4", ResolveMethod("System.Math", "Min", ["System.Int32", "System.Int32"]) },
+                { "Math_Min_U8?U8?", ResolveMethod("Belte.Runtime.Math", "Min", ["System.Nullable`1<System.UInt64>", "System.Nullable`1<System.UInt64>"]) },
+                { "Math_Min_U8U8", ResolveMethod("System.Math", "Min", ["System.UInt64", "System.UInt64"]) },
+                { "Math_Min_U4?U4?", ResolveMethod("Belte.Runtime.Math", "Min", ["System.Nullable`1<System.UInt32>", "System.Nullable`1<System.UInt32>"]) },
+                { "Math_Min_U4U4", ResolveMethod("System.Math", "Min", ["System.UInt32", "System.UInt32"]) },
                 { "Math_Pow_DD", ResolveMethod("System.Math", "Pow", ["System.Double", "System.Double"]) },
                 { "Math_Pow_D?D?", ResolveMethod("Belte.Runtime.Math", "Pow", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
                 { "Math_Pow_II", ResolveMethod("Belte.Runtime.Math", "Pow", ["System.Int64", "System.Int64"]) },
