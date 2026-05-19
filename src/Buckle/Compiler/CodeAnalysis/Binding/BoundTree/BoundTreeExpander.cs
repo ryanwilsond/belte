@@ -534,6 +534,18 @@ internal abstract partial class BoundTreeExpander {
         BoundCompileTimeExpression expression,
         out BoundExpression replacement,
         UseKind useKind) {
+        var statements = ExpandExpression(expression.expression, out var newExpression);
+
+        if (statements.Count != 0 || expression.expression != newExpression) {
+            replacement = expression.Update(
+                newExpression,
+                expression.conditional,
+                expression.type
+            );
+
+            return statements;
+        }
+
         replacement = expression;
         return [];
     }

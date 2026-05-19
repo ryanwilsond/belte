@@ -521,6 +521,11 @@ public sealed class EvaluatorTests {
     [InlineData("int a = 0; int[] b = { 1, 1, 1 }; int c = with (b[a++] = 5) b[a - 1]; return a;", 1)]
     [InlineData("int a = 0; int[] b = { 1, 1, 1 }; int c = with (b[a++] = 5) b[a - 1]; return b[0];", 1)]
     [InlineData("int a = 1; return with (a = 2) with (a = 3) a;", 3)]
+    // Compile-time expressions
+    [InlineData("int a = $3; return a;", 3)]
+    [InlineData("constexpr int? a = 3; int b = $a?; return b;", 3)]
+    [InlineData("int? F(int a, int b) { return a \\/ b; } const int? a = $F(3, 4); return a;", 4)]
+    [InlineData("int F(int a, int b) { return a \\/ b; } const int a = $(F(3, 4) + 10); return a;", 14)]
     // Local function statements
     [InlineData("int? A() { int? B() { return 2; } return B() + 1; } return A();", 3)]
     [InlineData("int? A() { int? B() { int? A() { return 2; } return A() + 1; } return B() + 1; } return A();", 4)]
@@ -884,6 +889,13 @@ public sealed class EvaluatorTests {
     //         }
     //     }
     //     return P.M<int>(3);", 0)]
+    [InlineData(@"
+        var? a = true;
+        var? b = false;
+        var? c = a && b;
+        var temp0 = c?;
+        return temp0;
+    ", false)]
     [InlineData(@"
         struct A { B b; }
         struct B { int a; }

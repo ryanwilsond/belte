@@ -15,19 +15,23 @@ internal partial class SharedFlowLowerer : BoundTreeRewriter {
 
     private protected readonly BelteDiagnosticQueue _diagnostics;
 
-    private protected SharedFlowLowerer(MethodSymbol method, BelteDiagnosticQueue diagnostics) {
+    private protected SharedFlowLowerer(
+        MethodSymbol method,
+        BoundBlockStatement body,
+        BelteDiagnosticQueue diagnostics) {
         _container = method;
         _diagnostics = diagnostics;
+        _localNames.AddRange(body.locals.Select(l => l.name));
     }
 
     private protected MethodSymbol _container { get; set; }
 
-    internal static BoundStatement Lower(
+    internal static BoundBlockStatement Lower(
         MethodSymbol method,
-        BoundStatement statement,
+        BoundBlockStatement statement,
         BelteDiagnosticQueue diagnostics) {
-        var lowerer = new SharedFlowLowerer(method, diagnostics);
-        return (BoundStatement)lowerer.Visit(statement);
+        var lowerer = new SharedFlowLowerer(method, statement, diagnostics);
+        return (BoundBlockStatement)lowerer.Visit(statement);
     }
 
     internal override BoundNode VisitForEachStatement(BoundForEachStatement node) {

@@ -23,8 +23,9 @@ internal class SharedExpander : BoundTreeExpander {
 
     private protected override MethodSymbol _container { get; set; }
 
-    internal BoundStatement Expand(BoundStatement statement) {
-        return Simplify(statement.syntax, ExpandStatement(statement));
+    internal BoundBlockStatement Expand(BoundBlockStatement statement) {
+        _localNames.AddRange(statement.locals.Select(l => l.name));
+        return (BoundBlockStatement)Simplify(statement.syntax, ExpandStatement(statement));
     }
 
     private protected override List<BoundStatement> ExpandExpression(

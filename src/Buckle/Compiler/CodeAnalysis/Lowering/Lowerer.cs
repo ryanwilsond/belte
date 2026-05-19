@@ -44,7 +44,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         MethodCompiler methodCompiler,
         OptimizationLevel optimizationLevel,
         MethodSymbol method,
-        BoundStatement statement,
+        BoundBlockStatement statement,
         BelteDiagnosticQueue diagnostics,
         bool transpiling,
         out bool sawCompileTimeExpression) {
@@ -54,21 +54,21 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var rewrittenStatement = statement;
 
         if (optimize)
-            rewrittenStatement = Optimizer.Optimize(rewrittenStatement);
+            rewrittenStatement = (BoundBlockStatement)Optimizer.Optimize(rewrittenStatement);
 
         if (transpiling) {
             rewrittenStatement = SharedFlowLowerer.Lower(method, rewrittenStatement, diagnostics);
             rewrittenStatement = lowerer._expander.Expand(rewrittenStatement);
-            rewrittenStatement = (BoundStatement)lowerer.Visit(rewrittenStatement);
+            rewrittenStatement = (BoundBlockStatement)lowerer.Visit(rewrittenStatement);
         } else {
             rewrittenStatement = FlowLowerer.Lower(method, rewrittenStatement, diagnostics);
             rewrittenStatement = lowerer._expander.Expand(rewrittenStatement);
-            rewrittenStatement = (BoundStatement)lowerer.Visit(rewrittenStatement);
-            rewrittenStatement = Flatten(method, (BoundBlockStatement)rewrittenStatement);
+            rewrittenStatement = (BoundBlockStatement)lowerer.Visit(rewrittenStatement);
+            rewrittenStatement = Flatten(method, rewrittenStatement);
         }
 
         if (optimize)
-            rewrittenStatement = Optimizer.Optimize(rewrittenStatement);
+            rewrittenStatement = (BoundBlockStatement)Optimizer.Optimize(rewrittenStatement);
 
         sawCompileTimeExpression = lowerer._sawCompileTimeExpression;
 

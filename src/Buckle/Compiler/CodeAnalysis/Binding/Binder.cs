@@ -12435,42 +12435,27 @@ symIsHidden:;
 
                     declarationType = new TypeWithAnnotations(CreateErrorType("var"));
                     hasErrors = true;
+                } else if (declarationType.type.IsPointerOrFunctionPointer() && isNullable) {
+                    diagnostics.Push(Error.CannotAnnotatePointer(typeSyntax.location));
                 } else {
-                    if (!initializerType.IsNullableType() && ((!localSymbol.isConstExpr &&
-                        !localSymbol.isConst && !isNonNullable) || isNullable)) {
-                        if (!initializer.type.IsStructType() && initializer.type.typeKind != TypeKind.FunctionPointer &&
-                            initializer.type.typeKind != TypeKind.Pointer &&
-                            ((!initializer.type.specialType.IsPrimitiveType() ||
-                            initializer.type.specialType is SpecialType.Array or SpecialType.Any) || isNullable) &&
-                            (initializer.kind == BoundKind.ObjectCreationExpression ||
-                            initializer.constantValue is not null)) {
-                            declarationType = declarationType.SetIsAnnotated();
-                            initializer = GenerateConversionForAssignment(
-                                declarationType.type,
-                                initializer,
-                                diagnostics
-                            );
-                            // } else if (initializer.type.IsStructType() && isNullable) {
-                            //     diagnostics.Push(Error.CannotAnnotateStruct(typeSyntax.location));
-                        } else if (initializer.type.IsPointerOrFunctionPointer() && isNullable) {
-                            diagnostics.Push(Error.CannotAnnotatePointer(typeSyntax.location));
-                        }
-                    } else {
-                        if (isNonNullable && declarationType.IsNullableType()) {
-                            declarationType = new TypeWithAnnotations(declarationType.nullableUnderlyingTypeOrSelf);
-                            initializer = GenerateConversionForAssignment(
-                                declarationType.type,
-                                initializer,
-                                diagnostics
-                            );
-                        } else if (isNullable && !declarationType.IsNullableType()) {
-                            declarationType = declarationType.SetIsAnnotated();
-                            initializer = GenerateConversionForAssignment(
-                                declarationType.type,
-                                initializer,
-                                diagnostics
-                            );
-                        }
+                    var shouldImplicitlyLift = initializer.type.IsVerifierReference() &&
+                        initializer.kind is BoundKind.ObjectCreationExpression or BoundKind.ArrayCreationExpression &&
+                        !isNonNullable;
+
+                    if (isNonNullable && declarationType.IsNullableType()) {
+                        declarationType = new TypeWithAnnotations(declarationType.nullableUnderlyingTypeOrSelf);
+                        initializer = GenerateConversionForAssignment(
+                            declarationType.type,
+                            initializer,
+                            diagnostics
+                        );
+                    } else if ((isNullable && !declarationType.IsNullableType()) || shouldImplicitlyLift) {
+                        declarationType = declarationType.SetIsAnnotated();
+                        initializer = GenerateConversionForAssignment(
+                            declarationType.type,
+                            initializer,
+                            diagnostics
+                        );
                     }
                 }
 

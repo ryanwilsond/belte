@@ -11,14 +11,15 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// Runs before general lowering to simplify the number of nodes they have to cover.
 /// </summary>
 internal sealed partial class FlowLowerer : SharedFlowLowerer {
-    private FlowLowerer(MethodSymbol method, BelteDiagnosticQueue diagnostics) : base(method, diagnostics) { }
+    private FlowLowerer(MethodSymbol method, BoundBlockStatement body, BelteDiagnosticQueue diagnostics)
+        : base(method, body, diagnostics) { }
 
-    internal new static BoundStatement Lower(
+    internal new static BoundBlockStatement Lower(
         MethodSymbol method,
-        BoundStatement statement,
+        BoundBlockStatement statement,
         BelteDiagnosticQueue diagnostics) {
-        var lowerer = new FlowLowerer(method, diagnostics);
-        return (BoundStatement)lowerer.Visit(statement);
+        var lowerer = new FlowLowerer(method, statement, diagnostics);
+        return (BoundBlockStatement)lowerer.Visit(statement);
     }
 
     internal override BoundNode VisitIfStatement(BoundIfStatement statement) {
