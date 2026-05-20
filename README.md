@@ -8,6 +8,8 @@
 Belte is a programming language heavily inspired by C# that aims to improve low-level ergonomics and implement
 aggressive design by contract principles into types. Currently, the focus is implementing the basic language constructs.
 
+Differences from C# can be [read about in the docs](docs/Current/Overview.md#15-differences-from-c).
+
 ___
 
 ### Using the Buckle Compiler

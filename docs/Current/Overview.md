@@ -19,6 +19,7 @@ Currently, the Belte compiler, Buckle, supports interpretation and building to a
   - [1.4.4](#144-fields) Fields
   - [1.4.5](#145-implicit-typing) Implicit Typing
   - [1.4.6](#146-null-flow-analysis) Null-Flow Analysis
+- [1.5](#15-differences-from-c) Differences from C#
 
 ## 1.1 Conventions
 
@@ -97,11 +98,12 @@ These keywords are reserved names and cannot be used as identifiers.
 - [const](Data.md#33-variables-and-constants) (locals)
 - [const](ClassesAndObjects.md#434-const) (methods)
 - [constexpr](ClassesAndObjects.md#433-static--constexpr)
-- [constructor](ClassesAndObjects.md#44-constructors)
+- [constructor](ClassesAndObjects.md#44-constructors--destructors)
 - [continue](ControlFlow.md#246-continue)
 - [default](Data.md#314-default-literal) (literal)
 - [default](ControlFlow.md#25-switch) (switch label)
 - [defer](ControlFlow.md#28-defer-statements)
+- [destructor](ClassesAndObjects.md#44-constructors--destructors)
 - [do](ControlFlow.md#242-do-while-loops)
 - [else](ControlFlow.md#23-conditionals)
 - [enum](ClassesAndObjects.md#46-enums)
@@ -144,7 +146,7 @@ These keywords are reserved names and cannot be used as identifiers.
 - [stackalloc](LowLevelFeatures.md#610-stackalloc-operator)
 - [static](ClassesAndObjects.md#433-static--constexpr) (modifier)
 - [static](ClassesAndObjects.md#48-using-directives) (using directive)
-- [struct](LowLevelFeatures.md#62-structures)
+- [struct](ClassesAndObjects.md#49-structs)
 - [switch](ControlFlow.md#25-switch)
 - [this](ClassesAndObjects.md#411-declaring-and-using-classes)
 - [throw](ControlFlow.md#26-exceptions-and-handling)
@@ -322,7 +324,7 @@ MyClass! a = new MyClass();
 var! a = new MyClass();
 ```
 
-## 1.4.4 Fields
+### 1.4.4 Fields
 
 Unlike locals, non-nullable fields do not require an initializer and instead are set to a default value. Struct fields
 cannot have initializers at all. The default value of numeric types is `0`, for booleans `false`, and an empty string
@@ -346,7 +348,7 @@ struct MyStruct {
 }
 ```
 
-## 1.4.5 Implicit Typing
+### 1.4.5 Implicit Typing
 
 `var`, `const`, and `constexpr` can be used when defining a local indicating that their type should be inferred. The
 inferred type is usually the exact type of the initializer. The following are identical:
@@ -381,7 +383,7 @@ compile-time constant that will be substituted at compile time. For classes, a `
 read but not written to, and only methods marked `const` can be called. Class-types cannot use the `constexpr` modifier
 because they are not compile-time constants.
 
-## 1.4.6 Null-Flow Analysis
+### 1.4.6 Null-Flow Analysis
 
 Belte does not currently perform automatic null-flow analysis. Instead, explicit null checks and control flow should be
 used.
@@ -432,3 +434,63 @@ if (a) {
 ```
 
 In this example, if `a` is null, a runtime exception is thrown at the if condition.
+
+## 1.5 Differences from C\#
+
+Belte is similar enough to C# so that the differences are more notable than the similarities. The following is a list of
+most of the differences to make it more clear where the language is unique with links to relevant doc sections:
+
+- [Enforced non-nullable reference types](#14-nullability-and-types)
+- [Extremely flexible meta-programming](LowLevelFeatures.md#613-compiler-handle)
+- [Compile-time expressions](Data.md#37-compile-time-expressions)
+- [Optional build scripts instead of project files](../Build.md)
+- No interfaces
+- No properties
+- No extension methods (yet)
+- [`defer` statements](ControlFlow.md#28-defer-statements)
+- [`with` expressions and statements](ControlFlow.md#27-with-expressions-and-statements)
+- [Duck-typed `using` statements](ControlFlow.md#29-using-statements)
+- [File-scoped classes](ClassesAndObjects.md#411-declaring-and-using-classes)
+- Primitive types (e.g. `int`) don't have members
+- [`constructor` and `destructor` keywords](ClassesAndObjects.md#44-constructors--destructors)
+- Types are not reserved names (including primitives)
+- [`unreachable` statements](ControlFlow.md#210-unreachable-statements)
+- [`const` locals and fields with reference types](Data.md#33-variables-and-constants)
+- [`const` methods](ClassesAndObjects.md#434-const)
+- [`constexpr` locals and fields](ClassesAndObjects.md#433-static--constexpr)
+- [First-class `flags` enums](ClassesAndObjects.md#461-flags)
+- [`extends` keyword for base lists](ClassesAndObjects.md#412-inheritance)
+- [Different generic/template constraints include expression constraints](ClassesAndObjects.md#451-constraint-clauses)
+- [Duck-typed `for` "each" loops with index support](ControlFlow.md#244-for-each-loops)
+- [Inline-IL blocks](LowLevelFeatures.md#611-inline-il)
+- [`isnt` instead of `is not`](Data.md#32-operators)
+- [`lowlevel` contexts](LowLevelFeatures.md#61-low-level-contexts)
+- [C++-style `nullptr` literal](LowLevelFeatures.md#651-creating-and-dereferencing-pointers)
+- [`out` parameters don't require assignment](ControlFlow.md#216-ref-arguments)
+- [GC `pinned` locals](LowLevelFeatures.md#612-pinned-locals)
+- No `internal`/`private protected`/`protected internal` accessibilities (yet)
+- [Switch cases don't require `break` statements](ControlFlow.md#25-switch)
+- No catch filter blocks (yet)
+- [Conditionals accept expressions of type `bool?` instead of `bool`](ControlFlow.md#231-null-conditions)
+- [Null-binding contracts](ControlFlow.md#232-null-binding-contracts)
+- Pointers and other low-level features don't require `unsafe` contexts
+- [More concise function and function pointer type syntax](Data.md#313-function-type)
+- [More concise unmanaged function pointer type syntax](LowLevelFeatures.md#66-function-pointers)
+- [More concise calling convention syntax](LowLevelFeatures.md#661-calling-conventions)
+- [Fixed fields don't require a `fixed` keyword](LowLevelFeatures.md#68-fixed-size-buffers)
+- [C-style stackalloc syntax](LowLevelFeatures.md#6101-stackalloc-locals)
+- [Explicitly-named sized numerics (e.g. `uint16`)](LowLevelFeatures.md#64-numerics)
+- [`winbool` type instead of marshalling `bool` as 4-bytes in `extern`s](LowLevelFeatures.md#671-winbool)
+- `bool` marshals as 1 byte in `extern`s
+- [String interpolation uses `f""` instead of `$""`](Data.md#312-string-interpolation)
+- [More expressive implicit typing allowing with `var`, `const`, and `constexpr` and nullable annotations](Data.md#331-implicit-typing)
+- [Argument coercion with `implicit` keyword](ControlFlow.md#217-argument-coercion)
+- [More operators (`x!`, `x!!`, `x?`, `x /\ y`, `x \/ y`, `x >< [y, z]`, `x ?! y`, `x..y`, `x?..y`)](Data.md#322-uncommon-operators)
+- Structs cannot have field initializers
+- [Enums can have methods](ClassesAndObjects.md#465-methods)
+- [Implicit enum fields](ClassesAndObjects.md#462-implicit-enum-fields)
+- [More concise enum bit testing](ClassesAndObjects.md#464-bit-testing)
+- [C-style `union`s and anonymous unions](ClassesAndObjects.md#491-unions)
+- [Experimental: Non-numeric enum underlying types](ClassesAndObjects.md#463-experimental-underlying-types)
+- [Experimental: Non-type generics/templates](ClassesAndObjects.md#45-templates)
+- Experimental: Integrated graphics support with `Update()` point

@@ -330,6 +330,17 @@ Examples:
 ```belte
 var a = 3; // Same as 'int a = 3;'
 const b = 3; // Same as 'const int b = 3;'
+constexpr c = 3; // Same as `constexpr int c = 3;`
+```
+
+Implicit typing supports normal nullable annotations:
+
+```belte
+var? a = 3; // Same as `int? a = 3;`
+```
+
+```belte
+var! a = new MyClass(); // Same as `MyClass! a = new MyClass();`
 ```
 
 ## 3.4 Attributes and Modifiers

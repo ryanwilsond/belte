@@ -30,6 +30,7 @@
       - [1.4.4](Current/Overview.md#144-fields) Fields
       - [1.4.5](Current/Overview.md#145-implicit-typing) Implicit Typing
       - [1.4.6](Current/Overview.md#146-null-flow-analysis) Null-Flow Analysis
+    - [1.5](Current/Overview.md#15-differences-from-c) **Differences from C#**
   - [2](Current/ControlFlow.md) Control Flow
     - [2.1](Current/ControlFlow.md#21-functions) Functions
       - [2.1.1](Current/ControlFlow.md#211-nested-functions) Nested Functions
@@ -111,7 +112,7 @@
       - [4.3.3](Current/ClassesAndObjects.md#433-static--constexpr) Static & ConstExpr
       - [4.3.4](Current/ClassesAndObjects.md#434-const) Const
       - [4.3.5](Current/ClassesAndObjects.md#435-sealed--abstract) Sealed & Abstract
-    - [4.4](Current/ClassesAndObjects.md#44-constructors) Constructors
+    - [4.4](Current/ClassesAndObjects.md#44-constructors--destructors) Constructors & Destructors
     - [4.5](Current/ClassesAndObjects.md#45-templates) Templates
       - [4.5.1](Current/ClassesAndObjects.md#451-constraint-clauses) Constraint Clauses
         - [4.5.1.1](Current/ClassesAndObjects.md#4511-expression-constraints) Expression Constraints

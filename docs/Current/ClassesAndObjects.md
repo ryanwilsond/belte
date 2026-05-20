@@ -16,7 +16,7 @@
   - [4.3.3](#433-static--constexpr) Static & ConstExpr
   - [4.3.4](#434-const) Const
   - [4.3.5](#435-sealed--abstract) Sealed & Abstract
-- [4.4](#44-constructors) Constructors
+- [4.4](#44-constructors--destructors) Constructors & Destructors
 - [4.5](#45-templates) Templates
   - [4.5.1](#451-constraint-clauses) Constraint Clauses
     - [4.5.1.1](#4511-expression-constraints) Expression Constraints
@@ -361,7 +361,7 @@ Classes can be marked as `abstract` to indicate that they must be derived.
 abstract class A { }
 ```
 
-## 4.4 Constructors
+## 4.4 Constructors & Destructors
 
 When creating an object, values can be passed to modify the creation process. By default, no values are passed:
 
@@ -384,6 +384,17 @@ class MyClass {
 }
 
 new MyClass(4);
+```
+
+Destructors run when the garbage collector cleans up the memory used by an object. One can be defined per class to run
+some code right before the garbage collector does this:
+
+```belte
+class MyClass {
+  destructor() {
+    // Cleanup ...
+  }
+}
 ```
 
 ## 4.5 Templates
