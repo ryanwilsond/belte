@@ -2171,6 +2171,27 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_ClampMustBeNumeric, location, message);
     }
 
+    internal static BelteDiagnostic CannotBitCastFromNullable(TextLocation location, TypeSymbol type) {
+        var message = $"cannot bit cast operand of nullable type '{type.ToNullOrString()}'";
+        return CreateError(DiagnosticCode.ERR_CannotBitCastFromNullable, location, message);
+    }
+
+    internal static BelteDiagnostic CannotBitCastToNullable(TextLocation location, TypeSymbol type) {
+        var message = $"cannot bit cast to nullable type '{type}'";
+        return CreateError(DiagnosticCode.ERR_CannotBitCastToNullable, location, message);
+    }
+
+    internal static BelteDiagnostic UnknownBitCastSize(TextLocation location, TypeSymbol type, TypeSymbol tFrom, TypeSymbol tTo, BoundExpression operand) {
+        var message = $"cannot bit cast with '{type}' as it's size is not known at compile time; consider using 'LowLevel.BitCast<type TFrom, type TTo>(TFrom)' instead";
+        var suggestion = $"LowLevel.BitCast<{tFrom}, {tTo}>({operand})";
+        return CreateError(DiagnosticCode.ERR_UnknownBitCastSize, location, message, suggestion);
+    }
+
+    internal static BelteDiagnostic DifferentSizesInBitCast(TextLocation location, TypeSymbol tFrom, TypeSymbol tTo) {
+        var message = $"cannot bit cast from '{tFrom}' to '{tTo}' because they don't have the same size";
+        return CreateError(DiagnosticCode.ERR_DifferentSizesInBitCast, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

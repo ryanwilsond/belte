@@ -558,6 +558,25 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return base.VisitIndexerAccessExpression(node);
     }
 
+    internal override BoundNode VisitBitCastExpression(BoundBitCastExpression node) {
+        /*
+
+        (<type>&)<operand>
+
+        ---->
+
+        LowLevel.BitCast< <operand.type>, <type> >(<operand>)
+
+        */
+        var fromType = node.fromType;
+        var toType = node.type;
+        // TODO Consider caching, though realistically this isn't a common node
+        var method = ((MethodSymbol)StandardLibrary.LowLevel.GetMembers("BitCast")[0])
+            .Construct([new TypeOrConstant(fromType), new TypeOrConstant(toType)]);
+
+        return Visit(Call(node.syntax, method, node.operand));
+    }
+
     internal override BoundNode VisitPointerIndexAccessExpression(BoundPointerIndexAccessExpression node) {
         /*
 

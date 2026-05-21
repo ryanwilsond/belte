@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Runtime.CompilerServices;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Text;
@@ -627,5 +628,144 @@ internal static class ConstantFolding {
             SpecialType.Char => new ConstantValue(Math.Clamp((char)leftConstant.value, (char)lowerConstant.value, (char)upperConstant.value), specialType),
             _ => throw ExceptionUtilities.UnexpectedValue(specialType),
         };
+    }
+
+    internal static ConstantValue FoldBitCast(BoundExpression operand, TypeSymbol type) {
+        var constant = operand.constantValue;
+
+        if (constant is null)
+            return null;
+
+        var sourceType = constant.specialType;
+        var value = constant.value;
+        object result = null;
+
+        switch (type.specialType) {
+            case SpecialType.Bool:
+                result = sourceType switch {
+                    SpecialType.Int8 => Unsafe.BitCast<sbyte, bool>((sbyte)value),
+                    SpecialType.UInt8 => Unsafe.BitCast<byte, bool>((byte)value),
+                    SpecialType.Bool => value,
+                    _ => null
+                };
+
+                break;
+            case SpecialType.Int8:
+                result = sourceType switch {
+                    SpecialType.Int8 => value,
+                    SpecialType.UInt8 => Unsafe.BitCast<byte, sbyte>((byte)value),
+                    SpecialType.Bool => Unsafe.BitCast<bool, sbyte>((bool)value),
+                    _ => null
+                };
+
+                break;
+            case SpecialType.Int16:
+                result = sourceType switch {
+                    SpecialType.Int16 => value,
+                    SpecialType.UInt16 => Unsafe.BitCast<ushort, short>((ushort)value),
+                    SpecialType.Char => Unsafe.BitCast<char, short>((char)value),
+                    _ => null
+                };
+
+                break;
+            case SpecialType.WinBool:
+            case SpecialType.Int32:
+                result = sourceType switch {
+                    SpecialType.WinBool => value,
+                    SpecialType.Int32 => value,
+                    SpecialType.UInt32 => Unsafe.BitCast<uint, int>((uint)value),
+                    SpecialType.Float32 => Unsafe.BitCast<float, int>((float)value),
+                    _ => null
+                };
+
+                break;
+            case SpecialType.Int:
+            case SpecialType.Int64:
+                result = sourceType switch {
+                    SpecialType.Int => value,
+                    SpecialType.Int64 => value,
+                    SpecialType.UInt64 => Unsafe.BitCast<ulong, long>((ulong)value),
+                    SpecialType.Float64 => Unsafe.BitCast<double, long>((double)value),
+                    SpecialType.Decimal => Unsafe.BitCast<double, long>((double)value),
+                    _ => null
+                };
+
+                break;
+            case SpecialType.UInt8:
+                result = sourceType switch {
+                    SpecialType.Int8 => Unsafe.BitCast<sbyte, byte>((sbyte)value),
+                    SpecialType.UInt8 => value,
+                    SpecialType.Bool => Unsafe.BitCast<bool, byte>((bool)value),
+                    _ => null
+                };
+
+                break;
+            case SpecialType.UInt16:
+                result = sourceType switch {
+                    SpecialType.Int16 => Unsafe.BitCast<short, ushort>((short)value),
+                    SpecialType.UInt16 => value,
+                    SpecialType.Char => Unsafe.BitCast<char, ushort>((char)value),
+                    _ => null
+                };
+
+                break;
+            case SpecialType.UInt32:
+                result = sourceType switch {
+                    SpecialType.WinBool => Unsafe.BitCast<int, uint>((int)value),
+                    SpecialType.Int32 => Unsafe.BitCast<int, uint>((int)value),
+                    SpecialType.UInt32 => value,
+                    SpecialType.Float32 => Unsafe.BitCast<float, uint>((float)value),
+                    _ => null
+                };
+
+                break;
+            case SpecialType.UInt64:
+                result = sourceType switch {
+                    SpecialType.Int => Unsafe.BitCast<long, ulong>((long)value),
+                    SpecialType.Int64 => Unsafe.BitCast<long, ulong>((long)value),
+                    SpecialType.UInt64 => value,
+                    SpecialType.Float64 => Unsafe.BitCast<double, ulong>((double)value),
+                    SpecialType.Decimal => Unsafe.BitCast<double, ulong>((double)value),
+                    _ => null
+                };
+
+                break;
+            case SpecialType.Decimal:
+            case SpecialType.Float64:
+                result = sourceType switch {
+                    SpecialType.Int => Unsafe.BitCast<long, double>((long)value),
+                    SpecialType.Int64 => Unsafe.BitCast<long, double>((long)value),
+                    SpecialType.UInt64 => Unsafe.BitCast<ulong, double>((ulong)value),
+                    SpecialType.Float64 => value,
+                    SpecialType.Decimal => value,
+                    _ => null
+                };
+
+                break;
+            case SpecialType.Float32:
+                result = sourceType switch {
+                    SpecialType.WinBool => Unsafe.BitCast<int, float>((int)value),
+                    SpecialType.Int32 => Unsafe.BitCast<int, float>((int)value),
+                    SpecialType.UInt32 => Unsafe.BitCast<uint, float>((uint)value),
+                    SpecialType.Float32 => value,
+                    _ => null
+                };
+
+                break;
+            case SpecialType.Char:
+                result = sourceType switch {
+                    SpecialType.Int16 => Unsafe.BitCast<short, char>((short)value),
+                    SpecialType.UInt16 => Unsafe.BitCast<ushort, char>((ushort)value),
+                    SpecialType.Char => value,
+                    _ => null
+                };
+
+                break;
+        }
+
+        if (result is null)
+            return null;
+
+        return new ConstantValue(result, type.specialType);
     }
 }

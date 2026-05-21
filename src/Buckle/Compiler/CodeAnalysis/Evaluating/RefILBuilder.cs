@@ -301,6 +301,10 @@ internal sealed class RefILBuilder : ILBuilder {
         EmitWithSymbolToken(OpCodes.Call, _module.GetSizeOf(elementType));
     }
 
+    internal override void EmitBitCast(TypeSymbol tFrom, TypeSymbol tTo) {
+        EmitWithSymbolToken(OpCodes.Call, _module.GetBitCast(tFrom, tTo));
+    }
+
     internal override void EmitStringConcat2() {
         EmitWithSymbolToken(OpCodes.Call, Executor.MethodInfoCache.String_Concat_SS);
     }

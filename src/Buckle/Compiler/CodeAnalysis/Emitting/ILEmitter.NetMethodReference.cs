@@ -59,5 +59,7 @@ internal sealed partial class ILEmitter {
         internal static MethodReference LowLevel_Sort;
         internal static MethodReference LowLevel_Length;
         internal static MethodReference AssertNull;
+        internal static MethodReference Marshal_SizeOf;
+        internal static MethodReference Unsafe_BitCast;
     }
 }

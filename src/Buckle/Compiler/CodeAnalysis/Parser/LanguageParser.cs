@@ -2509,16 +2509,18 @@ done:
     private ExpressionSyntax ParseCastOrParenthesizedExpression() {
         var resetPoint = GetResetPoint();
 
-        if (ScanCast()) {
+        if (ScanCast(out var isBitCast)) {
             Reset(resetPoint);
-            return ParseCastExpression();
+            return isBitCast ? ParseBitCastExpression() : ParseCastExpression();
         }
 
         Reset(resetPoint);
         return ParseParenthesizedExpression();
     }
 
-    private bool ScanCast() {
+    private bool ScanCast(out bool isBitCast) {
+        isBitCast = false;
+
         if (currentToken.kind != SyntaxKind.OpenParenToken)
             return false;
 
@@ -2528,6 +2530,11 @@ done:
 
         if (type == ScanTypeFlags.NotType)
             return false;
+
+        if (currentToken.kind == SyntaxKind.AmpersandToken) {
+            isBitCast = true;
+            EatToken();
+        }
 
         if (currentToken.kind != SyntaxKind.CloseParenToken)
             return false;
@@ -2665,6 +2672,15 @@ done:
         var expression = ParseOperatorExpression(SyntaxKind.DollarToken.GetUnaryPrecedence());
 
         return SyntaxFactory.CastExpression(openParenthesis, type, closeParenthesis, expression);
+    }
+
+    private ExpressionSyntax ParseBitCastExpression() {
+        var openParenthesis = Match(SyntaxKind.OpenParenToken);
+        var type = ParseType(false, false);
+        var ampersand = Match(SyntaxKind.AmpersandToken);
+        var closeParenthesis = Match(SyntaxKind.CloseParenToken);
+        var expression = ParseOperatorExpression(SyntaxKind.DollarToken.GetUnaryPrecedence());
+        return SyntaxFactory.BitCastExpression(openParenthesis, type, ampersand, closeParenthesis, expression);
     }
 
     private ExpressionSyntax ParseReferenceExpression() {

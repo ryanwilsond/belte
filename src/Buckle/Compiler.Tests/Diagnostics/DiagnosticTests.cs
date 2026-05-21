@@ -5578,4 +5578,62 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0443_CannotBitCastFromNullable() {
+        var text = @"
+            int? a = 3;
+            decimal b = (decimal&)[a];
+        ";
+
+        var diagnostics = @"
+            cannot bit cast operand of nullable type 'int?'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0444_CannotBitCastToNullable() {
+        var text = @"
+            int a = 3;
+            decimal? b = ([decimal?]&)a;
+        ";
+
+        var diagnostics = @"
+           cannot bit cast to nullable type 'decimal?'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0445_UnknownBitCastSize() {
+        var text = @"
+            A! a = new ();
+            decimal b = [(decimal&)a];
+
+            class A { }
+        ";
+
+        var diagnostics = @"
+           cannot bit cast with 'A!' as it's size is not known at compile time; consider using 'LowLevel.BitCast<type TFrom, type TTo>(TFrom)' instead
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0446_DifferentSizesInBitCast() {
+        var text = @"
+            int32 a = 3;
+            int64 b = [(int64&)a];
+        ";
+
+        var diagnostics = @"
+           cannot bit cast from 'int32!' to 'int64!' because they don't have the same size
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

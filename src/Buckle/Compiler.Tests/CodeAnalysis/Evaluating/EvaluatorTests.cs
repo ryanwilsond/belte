@@ -342,6 +342,7 @@ public sealed class EvaluatorTests {
     [InlineData("lowlevel { any[] a = {1, 3.5, true, \"test\"}; return a[1]; }", 3.5)]
     [InlineData("lowlevel { any[] a = {1, 3.5, true, \"test\"}; return a[2]; }", true)]
     [InlineData("lowlevel { any[] a = {1, 3.5, true, \"test\"}; return a[3]; }", "test")]
+    [InlineData("constexpr float32 a = 3.33; return (int32&)a;", 1079320248)]
     // Reference expressions
     [InlineData("int? x = 4; ref int? y = ref x; x++; return y;", 5)]
     [InlineData("int? x = 4; ref int? y = ref x; y++; return x;", 5)]

@@ -357,7 +357,7 @@ public class {name} {{
         compiler.state = ToCompilerState(diagnostics, builder, out var pendingReferenceCopies);
         state = compiler.state;
         state.arguments = arguments;
-        state.debugMode = debugMode;
+        state.debugMode |= debugMode;
 
         err = ResolveDiagnostics(diagnostics, processName, state);
 

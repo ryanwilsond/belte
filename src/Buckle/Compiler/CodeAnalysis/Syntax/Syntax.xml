@@ -1300,6 +1300,20 @@
     </Field>
     <Field Name="expression" Type="ExpressionSyntax"/>
   </Node>
+  <Node Name="BitCastExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="BitCastExpression"/>
+    <Field Name="openParenthesis" Type="SyntaxToken" Optional="true">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="type" Type="TypeSyntax"/>
+    <Field Name="ampersand" Type="SyntaxToken">
+      <Kind Name="AmpersandToken"/>
+    </Field>
+    <Field Name="closeParenthesis" Type="SyntaxToken" Optional="true">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+    <Field Name="expression" Type="ExpressionSyntax"/>
+  </Node>
   <Node Name="ObjectCreationExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="ObjectCreationExpression"/>
     <Field Name="newKeyword" Type="SyntaxToken">

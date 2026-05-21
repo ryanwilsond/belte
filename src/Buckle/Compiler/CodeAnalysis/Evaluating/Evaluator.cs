@@ -3002,6 +3002,16 @@ internal sealed class Evaluator {
                     }
 
                     break;
+                default:
+                    if (mapKey.StartsWith("LowLevel_BitCast_")) {
+                        var argument = EvaluateExpression(arguments[0], true, abort);
+                        var toType = method.templateArguments[1].type.type;
+                        argument.kind = ValueKindExtensions.FromSpecialType(toType.specialType, ValueKind.Ref);
+                        result = argument;
+                        return true;
+                    }
+
+                    break;
             }
 
             var function = StandardLibrary.EvaluatorMap[mapKey];

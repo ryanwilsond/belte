@@ -713,8 +713,16 @@ internal sealed partial class Executor : ModuleBuilder {
 
     internal MethodInfo GetSizeOf(TypeSymbol elementType) {
         var generic = GetType(elementType);
-        var length = typeof(System.Runtime.InteropServices.Marshal).GetMethod("SizeOf", Type.EmptyTypes);
-        var closedMethod = length.MakeGenericMethod(generic);
+        var sizeOf = typeof(System.Runtime.InteropServices.Marshal).GetMethod("SizeOf", Type.EmptyTypes);
+        var closedMethod = sizeOf.MakeGenericMethod(generic);
+        return closedMethod;
+    }
+
+    internal MethodInfo GetBitCast(TypeSymbol tFrom, TypeSymbol tTo) {
+        var generic1 = GetType(tFrom);
+        var generic2 = GetType(tTo);
+        var bitCast = typeof(System.Runtime.CompilerServices.Unsafe).GetMethod("BitCast", [generic1]);
+        var closedMethod = bitCast.MakeGenericMethod(generic1, generic2);
         return closedMethod;
     }
 

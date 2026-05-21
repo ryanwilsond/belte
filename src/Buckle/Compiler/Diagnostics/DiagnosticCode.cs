@@ -451,6 +451,10 @@ public enum DiagnosticCode : ushort {
     ERR_NonPublicParameterlessStructConstructor = 440,
     ERR_UnionMustHaveField = 441,
     ERR_ClampMustBeNumeric = 442,
+    ERR_CannotBitCastFromNullable = 443,
+    ERR_CannotBitCastToNullable = 444,
+    ERR_UnknownBitCastSize = 445,
+    ERR_DifferentSizesInBitCast = 446,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

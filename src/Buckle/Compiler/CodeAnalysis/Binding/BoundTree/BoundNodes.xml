@@ -168,6 +168,11 @@
     <Field Name="conversion" Type="Conversion"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
+  <Node Name="BoundBitCastExpression" Base="BoundExpression">
+    <Field Name="operand" Type="BoundExpression"/>
+    <Field Name="fromType" Type="TypeSymbol?"/>
+    <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
+  </Node>
   <Node Name="BoundCompoundAssignmentOperator" Base="BoundExpression">
     <Field Name="left" Type="BoundExpression"/>
     <Field Name="right" Type="BoundExpression"/>

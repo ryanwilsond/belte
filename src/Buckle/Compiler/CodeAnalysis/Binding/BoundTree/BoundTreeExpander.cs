@@ -414,6 +414,7 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.WithExpression => ExpandWithExpression((BoundWithExpression)expression, out replacement, useKind),
             BoundKind.UnconvertedObjectCreationExpression => ExpandUnconvertedObjectCreationExpression((BoundUnconvertedObjectCreationExpression)expression, out replacement, useKind),
             BoundKind.ClampOperator => ExpandClampOperator((BoundClampOperator)expression, out replacement, useKind),
+            BoundKind.BitCastExpression => ExpandBitCastExpression((BoundBitCastExpression)expression, out replacement, useKind),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
     }
@@ -1056,6 +1057,27 @@ internal abstract partial class BoundTreeExpander {
             replacement = expression.Update(
                 newOperand,
                 expression.conversion,
+                expression.constantValue,
+                expression.type
+            );
+
+            return statements;
+        }
+
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandBitCastExpression(
+        BoundBitCastExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        var statements = ExpandExpression(expression.operand, out var newOperand);
+
+        if (statements.Count != 0 || expression.operand != newOperand) {
+            replacement = expression.Update(
+                newOperand,
+                expression.fromType,
                 expression.constantValue,
                 expression.type
             );

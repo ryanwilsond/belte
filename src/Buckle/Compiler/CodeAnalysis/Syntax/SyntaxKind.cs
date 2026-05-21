@@ -186,6 +186,7 @@ public enum SyntaxKind : ushort {
     // Expressions
     ParenthesizedExpression,
     CastExpression,
+    BitCastExpression,
     ThisExpression,
     BaseExpression,
     ThrowExpression,

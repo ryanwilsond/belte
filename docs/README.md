@@ -150,6 +150,7 @@
     - [6.2](Current/LowLevelFeatures.md#62-structs) Structs
     - [6.3](Current/LowLevelFeatures.md#63-arrays) Arrays
     - [6.4](Current/LowLevelFeatures.md#64-numerics) Numerics
+      - [6.4.1](Current/LowLevelFeatures.md#641-bit-casts) Bit Casts
     - [6.5](Current/LowLevelFeatures.md#65-pointers) Pointers
       - [6.5.1](Current/LowLevelFeatures.md#651-creating-and-dereferencing-pointers) Creating and Dereferencing Pointers
       - [6.5.2](Current/LowLevelFeatures.md#652-pointer-arithmetic) Pointer Arithmetic

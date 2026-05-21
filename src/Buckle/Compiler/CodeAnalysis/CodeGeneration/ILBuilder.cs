@@ -96,6 +96,8 @@ internal abstract class ILBuilder {
 
     internal abstract void EmitSizeOf(TypeSymbol elementType);
 
+    internal abstract void EmitBitCast(TypeSymbol tFrom, TypeSymbol tTo);
+
     internal abstract void EmitStringConcat2();
 
     internal abstract void EmitStringEquality();

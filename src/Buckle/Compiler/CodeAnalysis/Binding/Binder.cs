@@ -3114,6 +3114,8 @@ internal partial class Binder {
                 return BindSizeOfExpression((SizeOfExpressionSyntax)node, diagnostics);
             case SyntaxKind.CastExpression:
                 return BindCastExpression((CastExpressionSyntax)node, diagnostics);
+            case SyntaxKind.BitCastExpression:
+                return BindBitCastExpression((BitCastExpressionSyntax)node, diagnostics);
             case SyntaxKind.InitializerListExpression:
                 return BindUnexpectedArrayInitializer((InitializerListExpressionSyntax)node, diagnostics, true);
             case SyntaxKind.InitializerDictionaryExpression:
@@ -4068,6 +4070,113 @@ internal partial class Binder {
                 ExpressionSyntax expression => @this.BindValue(expression, diagnostics, BindValueKind.RValue),
                 _ => throw ExceptionUtilities.UnexpectedValue(syntax.kind)
             };
+        }
+    }
+
+    private BoundExpression BindBitCastExpression(BitCastExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var operand = BindToNaturalType(BindValue(node.expression, diagnostics, BindValueKind.RValue), diagnostics);
+        var targetTypeWithAnnotations = BindType(node.type, diagnostics);
+        var targetType = targetTypeWithAnnotations.type;
+
+        if (operand.type is not null && operand.type.specialType.IsNumeric()) {
+            if (CanReduceOperand(operand, targetType, out var reducedType)) {
+                // TODO Is there a real concern of losing data here?
+                if (LiteralUtilities.TrySpecialCastCore(
+                    operand.constantValue.value,
+                    operand.constantValue.specialType,
+                    reducedType.specialType,
+                    out var newValue)) {
+                    operand = BoundFactory.Literal(operand.syntax, newValue, reducedType);
+                }
+            }
+        }
+
+        var hasErrors = operand.hasAnyErrors;
+
+        if (!hasErrors && (operand.type is null || operand.type.IsNullableType())) {
+            diagnostics.Push(Error.CannotBitCastFromNullable(node.expression.location, operand.type));
+            hasErrors = true;
+        } else if (!hasErrors && targetType.IsNullableType()) {
+            diagnostics.Push(Error.CannotBitCastToNullable(node.type.location, targetType));
+            hasErrors = true;
+        } else if (!hasErrors) {
+            var fromTypeSize = operand.type.specialType.SizeInBytes();
+            var toTypeSize = targetType.specialType.SizeInBytes();
+
+            if (fromTypeSize == 0) {
+                diagnostics.Push(Error.UnknownBitCastSize(
+                    node.location,
+                    operand.type,
+                    operand.type,
+                    targetType,
+                    operand
+                ));
+
+                hasErrors = true;
+            }
+
+            if (toTypeSize == 0) {
+                diagnostics.Push(Error.UnknownBitCastSize(
+                    node.location,
+                    targetType,
+                    operand.type,
+                    targetType,
+                    operand
+                ));
+
+                hasErrors = true;
+            }
+
+            if (!hasErrors && fromTypeSize != toTypeSize) {
+                diagnostics.Push(Error.DifferentSizesInBitCast(node.location, operand.type, targetType));
+                hasErrors = true;
+            }
+        }
+
+        var constantValue = hasErrors ? null : ConstantFolding.FoldBitCast(operand, targetType);
+        return new BoundBitCastExpression(node, operand, operand.type, constantValue, targetType);
+
+        static bool CanReduceOperand(BoundExpression operand, TypeSymbol target, out TypeSymbol reducedType) {
+            reducedType = null;
+
+            if (!ShouldTryToReduce(operand, target.specialType))
+                return false;
+
+            var targetSize = target.specialType.SizeInBytes();
+            var operandSpecialType = operand.type.specialType;
+
+            if (targetSize == 0)
+                return false;
+
+            if (operandSpecialType.IsIntegral()) {
+                var isUnsigned = operandSpecialType.IsUnsigned();
+
+                switch (targetSize) {
+                    case 1:
+                        reducedType = CorLibrary.GetSpecialType(isUnsigned ? SpecialType.UInt8 : SpecialType.Int8);
+                        return true;
+                    case 2:
+                        reducedType = CorLibrary.GetSpecialType(isUnsigned ? SpecialType.UInt16 : SpecialType.Int16);
+                        return true;
+                    case 4:
+                        reducedType = CorLibrary.GetSpecialType(isUnsigned ? SpecialType.UInt32 : SpecialType.Int32);
+                        return true;
+                    case 8:
+                        reducedType = CorLibrary.GetSpecialType(isUnsigned ? SpecialType.UInt64 : SpecialType.Int64);
+                        return true;
+                }
+            } else if (operandSpecialType.IsFloatingPoint()) {
+                switch (targetSize) {
+                    case 4:
+                        reducedType = CorLibrary.GetSpecialType(SpecialType.Float32);
+                        return true;
+                    case 8:
+                        reducedType = CorLibrary.GetSpecialType(SpecialType.Float64);
+                        return true;
+                }
+            }
+
+            return false;
         }
     }
 
@@ -12625,12 +12734,7 @@ symIsHidden:;
 
     internal static BoundExpression ReduceNumericIfApplicable(TypeSymbol declarationType, BoundExpression expression) {
         var declarationSpecialType = declarationType.StrippedType().specialType;
-
-        var shouldTryToReduce =
-            (expression.kind == BoundKind.LiteralExpression || expression.constantValue is not null) &&
-            expression.type is not null &&
-            expression.type.specialType.IsNumeric() &&
-            declarationSpecialType.IsNumeric();
+        var shouldTryToReduce = ShouldTryToReduce(expression, declarationSpecialType);
 
         if (shouldTryToReduce) {
             var literalValue = LiteralUtilities.ReduceNumeric(
@@ -12645,6 +12749,13 @@ symIsHidden:;
         }
 
         return expression;
+    }
+
+    private static bool ShouldTryToReduce(BoundExpression expression, SpecialType declarationSpecialType) {
+        return (expression.kind == BoundKind.LiteralExpression || expression.constantValue is not null) &&
+            expression.type is not null &&
+            expression.type.specialType.IsNumeric() &&
+            declarationSpecialType.IsNumeric();
     }
 
     internal BoundExpression BindInferredVariableInitializer(

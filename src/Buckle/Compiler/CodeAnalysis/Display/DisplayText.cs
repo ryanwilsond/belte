@@ -242,6 +242,9 @@ public sealed class DisplayText {
             case BoundKind.CastExpression:
                 DisplayCastExpression(text, (BoundCastExpression)node);
                 break;
+            case BoundKind.BitCastExpression:
+                DisplayBitCastExpression(text, (BoundBitCastExpression)node);
+                break;
             case BoundKind.TypeOfExpression:
                 DisplayTypeOfExpression(text, (BoundTypeOfExpression)node);
                 break;
@@ -1083,6 +1086,14 @@ public sealed class DisplayText {
     private static void DisplayCastExpression(DisplayText text, BoundCastExpression node) {
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
         SymbolDisplay.DisplayType(text, node.Type());
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+        DisplayNode(text, node.operand);
+    }
+
+    private static void DisplayBitCastExpression(DisplayText text, BoundBitCastExpression node) {
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        SymbolDisplay.DisplayType(text, node.Type());
+        text.Write(CreatePunctuation(SyntaxKind.AmpersandToken));
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
         DisplayNode(text, node.operand);
     }

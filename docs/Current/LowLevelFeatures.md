@@ -9,6 +9,7 @@ This may change.
 - [6.2](#62-structs) Structs
 - [6.3](#63-arrays) Arrays
 - [6.4](#64-numerics) Numerics
+  - [6.4.1](#641-bit-casts) Bit Casts
 - [6.5](#65-pointers) Pointers
   - [6.5.1](#651-creating-and-dereferencing-pointers) Creating and Dereferencing Pointers
   - [6.5.2](#652-pointer-arithmetic) Pointer Arithmetic
@@ -85,6 +86,30 @@ Unless knowing the specific size of the integer is required, use the normal
 The actual implementation size of `int` and `decimal` are not to be relied on as
 they can change, though currently `int` is equivalent to `int64` and `decimal`
 is equivalent to `float64`.
+
+### 6.4.1 Bit Casts
+
+A bit cast copies the operand bit-for-bit into a new type. For example:
+
+```belte
+int32 myInt = 3;
+float32 myFloat = (float32&)myInt;
+```
+
+Where `myFloat` is now `0b11` under the hood representing the float value
+`4E-45`. This operation copies the bits instead of doing C-style pointer punning
+so the operand does not have to have a location:
+
+```belte
+float32 myFloat = (float32&)30;
+```
+
+The same can be done using `LowLevel.BitCast<type TFrom, type TTo>(TFrom)`:
+
+```belte
+int32 myInt = 3;
+float32 myFloat = LowLevel.BitCast<int32, float32>(myInt);
+```
 
 ## 6.5 Pointers
 

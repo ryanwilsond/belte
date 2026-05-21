@@ -456,7 +456,8 @@ internal static class StandardLibrary {
         var lengthT = new SynthesizedTemplateParameterSymbol(
             null,
             new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type)),
-            0
+            0,
+            "T"
         );
 
         var length = new SynthesizedTemplateMethodSymbol(
@@ -472,7 +473,8 @@ internal static class StandardLibrary {
         var sortT = new SynthesizedTemplateParameterSymbol(
             null,
             new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type)),
-            0
+            0,
+            "T"
         );
 
         var sort = new SynthesizedTemplateMethodSymbol(
@@ -488,7 +490,8 @@ internal static class StandardLibrary {
         var sizeOfT = new SynthesizedTemplateParameterSymbol(
             null,
             new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type)),
-            0
+            0,
+            "T"
         );
 
         var sizeOf = new SynthesizedTemplateMethodSymbol(
@@ -497,6 +500,30 @@ internal static class StandardLibrary {
             new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Int32)),
             [sizeOfT],
             [],
+            MethodKind.Ordinary,
+            CodeAnalysis.DeclarationModifiers.Static
+        );
+
+        var bitCastTFrom = new SynthesizedTemplateParameterSymbol(
+            null,
+            new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type)),
+            0,
+            "TFrom"
+        );
+
+        var bitCastTTo = new SynthesizedTemplateParameterSymbol(
+            null,
+            new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type)),
+            0,
+            "TTo"
+        );
+
+        var bitCast = new SynthesizedTemplateMethodSymbol(
+            "BitCast",
+            null,
+            new TypeWithAnnotations(bitCastTTo),
+            [bitCastTFrom, bitCastTTo],
+            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(bitCastTFrom), 0, RefKind.None, "value")],
             MethodKind.Ordinary,
             CodeAnalysis.DeclarationModifiers.Static
         );
@@ -628,6 +655,7 @@ internal static class StandardLibrary {
             length,
             sort,
             sizeOf,
+            bitCast,
             StaticMethod("ThrowNullConditionException", SpecialType.Void),
             createLPCSTR,
             createLPCSTR_UTF,

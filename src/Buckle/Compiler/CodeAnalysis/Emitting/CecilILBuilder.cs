@@ -437,7 +437,11 @@ internal sealed partial class CecilILBuilder : ILBuilder {
     }
 
     internal override void EmitSizeOf(TypeSymbol elementType) {
-        throw new NotImplementedException();
+        iLProcessor.Emit(OpCodes.Call, _module.GetSizeOf(elementType));
+    }
+
+    internal override void EmitBitCast(TypeSymbol tFrom, TypeSymbol tTo) {
+        iLProcessor.Emit(OpCodes.Call, _module.GetBitCast(tFrom, tTo));
     }
 
     internal override void EmitStringConcat2() {

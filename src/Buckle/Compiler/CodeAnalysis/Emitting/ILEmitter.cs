@@ -22,6 +22,8 @@ using Shared;
 namespace Buckle.CodeAnalysis.Emitting;
 
 internal sealed partial class ILEmitter : ModuleBuilder {
+    internal readonly static Lock GlobalCecilLock = new();
+
     private readonly MethodReference _belteCompilerGeneratedAttributeCtor;
     private readonly TypeReference _belteCompilerGeneratedAttribute;
 
@@ -44,7 +46,6 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private readonly string _belteDllName;
     private readonly string _tfm;
     private readonly string _version;
-    private readonly Lock _resolveLock = new();
 
     private Dictionary<string, MethodReference> _stlMap;
 
@@ -302,7 +303,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             return typeRef;
 
         if (import)
-            return _assemblyDefinition.MainModule.ImportReference(typeRef);
+            return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeRef);
 
         return typeRef;
 
@@ -392,7 +393,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 foreach (var generic in allTypeArgs)
                     typeReference.GenericArguments.Add(generic);
 
-                _assemblyDefinition.MainModule.ImportReference(Resolve(typeReference));
+                _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(typeReference));
                 return typeReference;
             }
 
@@ -412,12 +413,12 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     private TypeDefinition Resolve(TypeReference reference) {
-        lock (_resolveLock)
+        lock (GlobalCecilLock)
             return reference.Resolve();
     }
 
     private MethodDefinition Resolve(MethodReference reference) {
-        lock (_resolveLock)
+        lock (GlobalCecilLock)
             return reference.Resolve();
     }
 
@@ -431,7 +432,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private TypeReference GetFuncType(FunctionMethodSymbol signature) {
         if (signature.returnsVoid && signature.parameterCount == 0) {
             var typeRef = ResolveType(null, "System.Action");
-            _assemblyDefinition.MainModule.ImportReference(Resolve(typeRef));
+            _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(typeRef));
             return typeRef;
         } else if (signature.returnsVoid) {
             var typeRef = ResolveType(null, $"System.Action`{signature.parameterCount}");
@@ -440,7 +441,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             foreach (var p in signature.GetParameterTypes())
                 genericRef.GenericArguments.Add(GetType(p.type));
 
-            _assemblyDefinition.MainModule.ImportReference(Resolve(genericRef));
+            _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(genericRef));
             return genericRef;
         } else {
             var typeRef = ResolveType(null, $"System.Func`{signature.parameterCount + 1}");
@@ -451,7 +452,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
             genericRef.GenericArguments.Add(GetType(signature.returnType));
 
-            _assemblyDefinition.MainModule.ImportReference(Resolve(genericRef));
+            _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(genericRef));
             return genericRef;
         }
     }
@@ -487,7 +488,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             foreach (var p in invoke.Parameters)
                 genericInvoke.Parameters.Add(new Mono.Cecil.ParameterDefinition(p.ParameterType));
 
-            return _assemblyDefinition.MainModule.ImportReference(genericInvoke);
+            return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(genericInvoke);
         }
 
         if (!found && _methods.TryGetValue(method.originalDefinition, out var val)) {
@@ -499,7 +500,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             var constructedType = GetType(method.containingType);
 
             if (method.arity > 0) {
-                var def = _assemblyDefinition.MainModule.ImportReference(Resolve(value));
+                var def = _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(value));
                 var generic = new GenericInstanceMethod(def);
                 // TODO Not necessary?
                 // {
@@ -541,7 +542,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         var ctorDef = NetMethodReference.Nullable_ctor;
 
-        var ctorRef = _assemblyDefinition.MainModule.ImportReference(ctorDef);
+        var ctorRef = _assemblyDefinition.MainModule.ImportReferenceThreadSafe(ctorDef);
         var genericCtor = new MethodReference(ctorRef.Name, ctorRef.ReturnType, typeReference) {
             HasThis = ctorRef.HasThis,
             ExplicitThis = ctorRef.ExplicitThis,
@@ -551,7 +552,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         foreach (var p in ctorRef.Parameters)
             genericCtor.Parameters.Add(new Mono.Cecil.ParameterDefinition(p.ParameterType));
 
-        return _assemblyDefinition.MainModule.ImportReference(genericCtor);
+        return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(genericCtor);
     }
 
     internal MethodReference GetFuncCtor(FunctionMethodSymbol signature) {
@@ -566,7 +567,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         foreach (var p in ctorRef.Parameters)
             genericCtor.Parameters.Add(new Mono.Cecil.ParameterDefinition(p.ParameterType));
 
-        return _assemblyDefinition.MainModule.ImportReference(genericCtor);
+        return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(genericCtor);
     }
 
     internal MethodReference GetNullableValue(TypeSymbol genericType) {
@@ -575,14 +576,14 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         typeReference.GenericArguments.Add(genericArgumentType);
 
         var getValueDef = NetMethodReference.Nullable_Value;
-        var getValueRef = _assemblyDefinition.MainModule.ImportReference(getValueDef);
+        var getValueRef = _assemblyDefinition.MainModule.ImportReferenceThreadSafe(getValueDef);
         var genericGetValue = new MethodReference(getValueRef.Name, getValueRef.ReturnType, typeReference) {
             HasThis = getValueRef.HasThis,
             ExplicitThis = getValueRef.ExplicitThis,
             CallingConvention = getValueRef.CallingConvention,
         };
 
-        return _assemblyDefinition.MainModule.ImportReference(genericGetValue);
+        return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(genericGetValue);
     }
 
     internal MethodReference GetNullableValueOrDefault(TypeSymbol genericType) {
@@ -591,14 +592,14 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         typeReference.GenericArguments.Add(genericArgumentType);
 
         var getValueDef = NetMethodReference.Nullable_GetValueOrDefault;
-        var getValueRef = _assemblyDefinition.MainModule.ImportReference(getValueDef);
+        var getValueRef = _assemblyDefinition.MainModule.ImportReferenceThreadSafe(getValueDef);
         var genericGetValue = new MethodReference(getValueRef.Name, getValueRef.ReturnType, typeReference) {
             HasThis = getValueRef.HasThis,
             ExplicitThis = getValueRef.ExplicitThis,
             CallingConvention = getValueRef.CallingConvention,
         };
 
-        return _assemblyDefinition.MainModule.ImportReference(genericGetValue);
+        return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(genericGetValue);
     }
 
     internal MethodReference GetSort(TypeSymbol elementType) {
@@ -607,7 +608,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         var sortRef = new GenericInstanceMethod(NetMethodReference.LowLevel_Sort);
         sortRef.GenericArguments.Add(genericArgumentType);
 
-        return _assemblyDefinition.MainModule.ImportReference(sortRef);
+        return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(sortRef);
     }
 
     internal MethodReference GetLength(TypeSymbol elementType) {
@@ -616,7 +617,27 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         var lengthRef = new GenericInstanceMethod(NetMethodReference.LowLevel_Length);
         lengthRef.GenericArguments.Add(genericArgumentType);
 
-        return _assemblyDefinition.MainModule.ImportReference(lengthRef);
+        return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(lengthRef);
+    }
+
+    internal MethodReference GetSizeOf(TypeSymbol elementType) {
+        var genericArgumentType = GetType(elementType);
+
+        var sizeOfRef = new GenericInstanceMethod(NetMethodReference.Marshal_SizeOf);
+        sizeOfRef.GenericArguments.Add(genericArgumentType);
+
+        return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(sizeOfRef);
+    }
+
+    internal MethodReference GetBitCast(TypeSymbol tFrom, TypeSymbol tTo) {
+        var genericArgumentType1 = GetType(tFrom);
+        var genericArgumentType2 = GetType(tTo);
+
+        var bitCastRef = new GenericInstanceMethod(NetMethodReference.Unsafe_BitCast);
+        bitCastRef.GenericArguments.Add(genericArgumentType1);
+        bitCastRef.GenericArguments.Add(genericArgumentType2);
+
+        return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(bitCastRef);
     }
 
     internal MethodReference GetNullableHasValue(TypeSymbol genericType) {
@@ -625,20 +646,20 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         typeReference.GenericArguments.Add(genericArgumentType);
 
         var getValueDef = NetMethodReference.Nullable_HasValue;
-        var getValueRef = _assemblyDefinition.MainModule.ImportReference(getValueDef);
+        var getValueRef = _assemblyDefinition.MainModule.ImportReferenceThreadSafe(getValueDef);
         var genericGetValue = new MethodReference(getValueRef.Name, getValueRef.ReturnType, typeReference) {
             HasThis = getValueRef.HasThis,
             ExplicitThis = getValueRef.ExplicitThis,
             CallingConvention = getValueRef.CallingConvention,
         };
 
-        return _assemblyDefinition.MainModule.ImportReference(genericGetValue);
+        return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(genericGetValue);
     }
 
     internal MethodReference GetNullAssert(TypeSymbol genericType) {
         var genericMethod = new GenericInstanceMethod(NetMethodReference.AssertNull);
         genericMethod.GenericArguments.Add(GetType(genericType));
-        return _assemblyDefinition.MainModule.ImportReference(genericMethod);
+        return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(genericMethod);
     }
 
     internal FieldReference GetField(FieldSymbol field) {
@@ -648,7 +669,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
             return new FieldReference(
                 peField.Name,
-                _assemblyDefinition.MainModule.ImportReference(peField.FieldType, peType),
+                _assemblyDefinition.MainModule.ImportReferenceThreadSafe(peField.FieldType, peType),
                 peType
             );
         } else {
@@ -657,7 +678,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
             return new FieldReference(
                 fieldRef.Name,
-                _assemblyDefinition.MainModule.ImportReference(fieldRef.FieldType),
+                _assemblyDefinition.MainModule.ImportReferenceThreadSafe(fieldRef.FieldType),
                 constructedType
             );
         }
@@ -707,7 +728,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         cctorILProcessor.Emit(OpCodes.Ret);
 
         _globalsClass.Methods.Insert(0, cctor);
-        _assemblyDefinition.MainModule.Types.Add(_globalsClass);
+
+        lock (GlobalCecilLock)
+            _assemblyDefinition.MainModule.Types.Add(_globalsClass);
     }
 
     private void CreateTypeDefinitionAndBases(NamedTypeSymbol type) {
@@ -729,7 +752,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 continue;
 
             var typeDefinition = CreateNamedTypeDefinition(baseType);
-            _assemblyDefinition.MainModule.Types.Add(typeDefinition);
+
+            lock (GlobalCecilLock)
+                _assemblyDefinition.MainModule.Types.Add(typeDefinition);
         }
     }
 
@@ -834,7 +859,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         );
 
         if (type.enumFlagsAttribute) {
-            var flagsCtor = _assemblyDefinition.MainModule.ImportReference(
+            var flagsCtor = _assemblyDefinition.MainModule.ImportReferenceThreadSafe(
                 typeof(FlagsAttribute).GetConstructor(Type.EmptyTypes)
             );
 
@@ -1128,11 +1153,11 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         if (unmanagedAttribute is not null && unmanagedAttribute != UnmanagedCallersOnlyAttributeData.Uninitialized) {
             var unmanagedAttr = _assemblyDefinition.MainModule
-                .ImportReference(typeof(System.Runtime.InteropServices.UnmanagedCallersOnlyAttribute));
+                .ImportReferenceThreadSafe(typeof(System.Runtime.InteropServices.UnmanagedCallersOnlyAttribute));
             var callConvCdecl = _assemblyDefinition.MainModule
-                .ImportReference(typeof(System.Runtime.CompilerServices.CallConvCdecl));
+                .ImportReferenceThreadSafe(typeof(System.Runtime.CompilerServices.CallConvCdecl));
 
-            var attrCtor = _assemblyDefinition.MainModule.ImportReference(
+            var attrCtor = _assemblyDefinition.MainModule.ImportReferenceThreadSafe(
                 typeof(System.Runtime.InteropServices.UnmanagedCallersOnlyAttribute)
                     .GetConstructor(Type.EmptyTypes)
             );
@@ -1140,9 +1165,11 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             var attr = new CustomAttribute(attrCtor);
 
             var typeArray = new CustomAttributeArgument(
-                _assemblyDefinition.MainModule.ImportReference(typeof(Type[])),
+                _assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(Type[])),
                 new CustomAttributeArgument[] {
-                new CustomAttributeArgument(_assemblyDefinition.MainModule.ImportReference(typeof(Type)), callConvCdecl)
+                new CustomAttributeArgument(
+                    _assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(Type)),
+                    callConvCdecl)
                 }
             );
 
@@ -1207,8 +1234,11 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         SetCustomAttributes(method, methodDefinition);
 
         _methods.Add(method, methodDefinition);
-        containingType.Methods.Add(methodDefinition);
-        _assemblyDefinition.MainModule.ModuleReferences.Add(moduleReference);
+
+        lock (GlobalCecilLock) {
+            containingType.Methods.Add(methodDefinition);
+            _assemblyDefinition.MainModule.ModuleReferences.Add(moduleReference);
+        }
 
         return methodDefinition;
 
@@ -1496,33 +1526,35 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         amBuilder.Finish();
 
-        var moduleType = _assemblyDefinition.MainModule.Types.First(t => t.Name == "<Module>");
+        lock (GlobalCecilLock) {
+            var moduleType = _assemblyDefinition.MainModule.Types.First(t => t.Name == "<Module>");
 
-        if (moduleType.Methods.Any(m => m.Name == ".cctor")) {
-            var moduleCCtor = moduleType.Methods.First(m => m.Name == ".cctor");
-            var il = moduleCCtor.Body.GetILProcessor();
-            var finalRet = moduleCCtor.Body.Instructions.Last(i => i.OpCode == OpCodes.Ret);
+            if (moduleType.Methods.Any(m => m.Name == ".cctor")) {
+                var moduleCCtor = moduleType.Methods.First(m => m.Name == ".cctor");
+                var il = moduleCCtor.Body.GetILProcessor();
+                var finalRet = moduleCCtor.Body.Instructions.Last(i => i.OpCode == OpCodes.Ret);
 
-            il.InsertBefore(finalRet, il.Create(OpCodes.Call, _init));
-        } else {
-            var cctor = new MethodDefinition(
-                ".cctor",
-                MethodAttributes.Private |
-                MethodAttributes.Static |
-                MethodAttributes.SpecialName |
-                MethodAttributes.RTSpecialName,
-                _specialTypes[SpecialType.Void]
-            );
+                il.InsertBefore(finalRet, il.Create(OpCodes.Call, _init));
+            } else {
+                var cctor = new MethodDefinition(
+                    ".cctor",
+                    MethodAttributes.Private |
+                    MethodAttributes.Static |
+                    MethodAttributes.SpecialName |
+                    MethodAttributes.RTSpecialName,
+                    _specialTypes[SpecialType.Void]
+                );
 
-            moduleType.Methods.Add(cctor);
+                moduleType.Methods.Add(cctor);
 
-            var mBuilder = new CecilILBuilder(null, this, cctor);
-            var mIL = mBuilder.iLProcessor;
+                var mBuilder = new CecilILBuilder(null, this, cctor);
+                var mIL = mBuilder.iLProcessor;
 
-            mIL.Emit(OpCodes.Call, _init);
-            mIL.Emit(OpCodes.Ret);
+                mIL.Emit(OpCodes.Call, _init);
+                mIL.Emit(OpCodes.Ret);
 
-            mBuilder.Finish();
+                mBuilder.Finish();
+            }
         }
     }
 
@@ -1538,12 +1570,12 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         var topType = stack.Pop();
         var displayName = topType.ToDisplayString(SymbolDisplayFormat.NetNamespaceQualifiedNameFormat);
         var currentFoundType = ResolveType(null, displayName);
-        _assemblyDefinition.MainModule.ImportReference(Resolve(currentFoundType));
+        _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(currentFoundType));
 
         while (stack.Count > 0) {
             var nestedType = stack.Pop();
             currentFoundType = Resolve(currentFoundType).NestedTypes.First(t => t.Name == nestedType.name);
-            _assemblyDefinition.MainModule.ImportReference(Resolve(currentFoundType));
+            _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(currentFoundType));
         }
 
         return currentFoundType;
@@ -1569,7 +1601,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         // TODO Do we actually care about ambiguity
         if (foundTypes.Count >= 1) {
-            return _assemblyDefinition.MainModule.ImportReference(foundTypes[0]);
+            return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(foundTypes[0]);
         } else if (foundTypes.Count == 0) {
             throw new BelteInternalException($"Required type not found: {name} ({metadataName})");
         } else {
@@ -1644,7 +1676,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             if (!allParametersMatch)
                 continue;
 
-            methodDefinition = _assemblyDefinition.MainModule.ImportReference(method);
+            methodDefinition = _assemblyDefinition.MainModule.ImportReferenceThreadSafe(method);
             return true;
         }
 
@@ -1757,6 +1789,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         NetMethodReference.LowLevel_Sort = ResolveMethod("Belte.Runtime.Utilities", "Sort", ["T"]);
         NetMethodReference.LowLevel_Length = ResolveMethod("Belte.Runtime.Utilities", "Length", ["T"]);
         NetMethodReference.AssertNull = ResolveMethod("Belte.Runtime.Utilities", "AssertNull", ["T"]);
+        NetMethodReference.Marshal_SizeOf = ResolveMethod("System.Runtime.InteropServices.Marshal", "SizeOf", []);
+        NetMethodReference.Unsafe_BitCast = ResolveMethod("System.Runtime.CompilerServices.Unsafe", "BitCast", ["TFrom"]);
     }
 
     private void GenerateSTLMap() {

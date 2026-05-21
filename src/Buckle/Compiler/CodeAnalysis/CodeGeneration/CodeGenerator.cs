@@ -1681,6 +1681,16 @@ oneMoreTime:
                         _builder.EmitWithSymbolToken(OpCode.Sizeof, method.templateArguments[0].type.type);
 
                     return;
+                case "BitCast": {
+                        EmitArguments(arguments, method.parameters, expression.argumentRefKinds);
+                        _builder.EmitBitCast(
+                            method.templateArguments[0].type.type,
+                            method.templateArguments[1].type.type
+                        );
+                        EmitCallCleanup(method, useKind);
+                    }
+
+                    return;
             }
         }
 
