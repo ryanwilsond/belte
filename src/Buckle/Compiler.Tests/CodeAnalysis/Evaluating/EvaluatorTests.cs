@@ -533,9 +533,11 @@ public sealed class EvaluatorTests {
     [InlineData("int? A() { int? a = 1; int? B(int? b) { return a + b; } return B(4); } return A();", 5)]
     [InlineData("int? A() { int? a = 5; int? B(int? b) { return a + b; } return B(1); } return A();", 6)]
     [InlineData("int? A() { int? a = 5; void B() { a = 6; } B(); return a; } return A();", 6)]
-    [InlineData(@"int a = 3; int F() { return a; } a = 6; return F();", 6)]
-    [InlineData(@"int a = 0; void Inc() { a++; } Inc(); Inc(); return a;", 2)]
-    [InlineData(@"int a = 3; int F() { return a; } int() g = F; a = 7; return g();", 7)]
+    [InlineData("void A(bool b, out int a = 3) { if (b) a = 10; } A(false, out var a); return a;", 3)]
+    [InlineData("void A(bool b, out int a = 3) { if (b) a = 10; } A(true, out var a); return a;", 10)]
+    [InlineData("int a = 3; int F() { return a; } a = 6; return F();", 6)]
+    [InlineData("int a = 0; void Inc() { a++; } Inc(); Inc(); return a;", 2)]
+    [InlineData("int a = 3; int F() { return a; } int() g = F; a = 7; return g();", 7)]
     [InlineData(@"
         int F() {
             int a = 3;

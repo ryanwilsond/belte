@@ -874,7 +874,12 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
         _currentBodyTemplateMap = synthesizedMethod.templateMap;
 
         if (node.body is BoundBlockStatement block) {
+            var outInitializers = InitializerRewriter.RewriteOutParameters(synthesizedMethod);
             var body = AddStatementsIfNeeded((BoundBlockStatement)VisitBlockStatement(block));
+
+            if (outInitializers is not null)
+                body = new BoundBlockStatement(body.syntax, [outInitializers, body], [], []);
+
             body = Lowerer.Flatten(synthesizedMethod, body);
 
             if (!ControlFlowGraph.AllPathsReturn(body))

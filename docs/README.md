@@ -39,6 +39,7 @@
       - [2.1.4](Current/ControlFlow.md#214-named-arguments) Named Arguments
       - [2.1.5](Current/ControlFlow.md#215-template-arguments) Template Arguments
       - [2.1.6](Current/ControlFlow.md#216-ref-arguments) Ref Arguments
+        - [2.1.6.1](Current/ControlFlow.md#2161-out-arguments) Out Arguments
       - [2.1.7](Current/ControlFlow.md#217-argument-coercion) Argument Coercion
     - [2.2](Current/ControlFlow.md#22-entry-point) Entry Point
       - [2.2.1](Current/ControlFlow.md#221-main) Main

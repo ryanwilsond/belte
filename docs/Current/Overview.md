@@ -492,6 +492,7 @@ most of the differences to make it more clear where the language is unique with 
 - [More concise enum bit testing](ClassesAndObjects.md#464-bit-testing)
 - [C-style `union`s and anonymous unions](ClassesAndObjects.md#491-unions)
 - [First-class bit casting](LowLevelFeatures.md#641-bit-casts)
+- [`out` parameters can have a default value](ControlFlow.md#2161-out-arguments)
 - [Experimental: Non-numeric enum underlying types](ClassesAndObjects.md#463-experimental-underlying-types)
 - [Experimental: Non-type generics/templates](ClassesAndObjects.md#45-templates)
 - Experimental: Integrated graphics support with `Update()` point

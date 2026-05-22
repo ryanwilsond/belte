@@ -117,7 +117,7 @@ internal static class ParameterHelpers {
         var conversion = binder.conversions.ClassifyImplicitConversionFromExpression(defaultExpression, parameterType);
         var refKind = GetModifiers(parameterSyntax.modifiers, out var refnessKeyword);
 
-        if (refKind is RefKind.Ref or RefKind.Out) {
+        if (refKind is RefKind.Ref) {
             diagnostics.Push(Error.RefDefaultValue(refnessKeyword.location));
             hasErrors = true;
         } else if (!defaultExpression.hasAnyErrors && !IsValidDefaultValue(defaultExpression)) {

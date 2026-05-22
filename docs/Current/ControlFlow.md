@@ -7,6 +7,7 @@
   - [2.1.4](#214-named-arguments) Named Arguments
   - [2.1.5](#215-template-arguments) Template Arguments
   - [2.1.6](#216-ref-arguments) Ref Arguments
+    - [2.1.6.1](#2161-out-arguments) Out Arguments
   - [2.1.7](#217-argument-coercion) Argument Coercion
 - [2.2](#22-entry-point) Entry Point
   - [2.2.1](#221-main) Main
@@ -128,8 +129,21 @@ for templates and template constraint clauses are as follows:
 
 ### 2.1.6 Ref Arguments
 
-Like locals and fields, parameters can use the `ref` keyword. In addition to this, parameters can also use the `out`
-keyword to specify an out parameter that acts like a reference but exclusively assigns to the reference.
+Like locals and fields, parameters can use the `ref` keyword.
+
+```belte
+int a = 3;
+Func(ref a);
+Console.PrintLine(a); // 10
+
+void Func(ref int param) {
+  param = 10;
+}
+```
+
+#### 2.1.6.1 Out Arguments
+
+`out` parameters are a special kind of `ref` parameter where they do not read in the argument value.
 
 ```belte
 int a = 0;
@@ -167,6 +181,21 @@ int Func(out int a) {
 Out parameters do not require assignment and will assign a default value in cases where they aren't assigned to within
 the scope of the function. Because of this, types without a default value (non-nullable classes and arrays) cannot be
 used as the type for an out parameter.
+
+Out parameters can be given a default value. The following are equivalent:
+
+```belte
+void Func(out int a = 3) {
+  // ...
+}
+```
+
+```belte
+void Func(out int a) {
+  a = 3;
+  // ...
+}
+```
 
 ### 2.1.7 Argument Coercion
 

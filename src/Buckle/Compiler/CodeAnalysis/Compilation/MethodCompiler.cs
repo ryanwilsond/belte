@@ -485,12 +485,15 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             );
         }
 
+        var outInitializers = InitializerRewriter.RewriteOutParameters(method);
+
         var body = BindMethodBody(
             method,
             state,
             currentDiagnostics,
             includeInitializers,
             analyzedInitializers,
+            outInitializers,
             ref _entryPoint,
             out var importChain
         );
@@ -598,6 +601,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             diagnostics,
             includeInitializers: false,
             initializersBody: null,
+            outInitializersBody: null,
             entryPoint: ref _1,
             importChain: out _
         );
@@ -609,6 +613,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         BelteDiagnosticQueue diagnostics,
         bool includeInitializers,
         BoundBlockStatement initializersBody,
+        BoundBlockStatement outInitializersBody,
         ref MethodSymbol entryPoint,
         out ImportChain importChain) {
         BoundBlockStatement body = null;
@@ -661,6 +666,9 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
 
                         builder.Add(constructor.initializer);
 
+                        if (outInitializersBody is not null)
+                            builder.Add(outInitializersBody);
+
                         if (body is not null)
                             builder.Add(body);
 
@@ -699,6 +707,9 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
 
         if (constructorInitializer is not null)
             builder.Add(constructorInitializer);
+
+        if (outInitializersBody is not null)
+            builder.Add(outInitializersBody);
 
         if (method == entryPoint && method is SynthesizedEntryPoint synth && body.localFunctions.Length > 0) {
             var candidateLocals = ArrayBuilder<MethodSymbol>.GetInstance();

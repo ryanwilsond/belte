@@ -55,6 +55,10 @@ internal abstract class ParameterSymbol : Symbol, IParameterSymbol {
 
     internal bool hasExplicitDefaultValue => isOptional && explicitDefaultConstantValue is not null;
 
+    internal bool hasOutDefaultValue => outDefaultValue is not null;
+
+    internal abstract ConstantValue outDefaultValue { get; }
+
     internal bool isOptional => refKind == RefKind.None && isMetadataOptional;
 
     internal TypeSymbol type => typeWithAnnotations.type;

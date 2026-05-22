@@ -39,6 +39,8 @@ internal abstract class SynthesizedParameterSymbolBase : ParameterSymbol {
 
     internal override ConstantValue explicitDefaultConstantValue => null;
 
+    internal override ConstantValue outDefaultValue => null;
+
     internal sealed override ScopedKind effectiveScope { get; }
 
     internal override bool isImplicitlyDeclared => true;
