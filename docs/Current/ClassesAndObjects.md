@@ -215,7 +215,7 @@ Methods are similar to functions. They are declared as such:
 ```belte
 class MyClass {
   public void MyMethod(int param1) {
-    // Body
+    // ...
   }
 }
 ```
@@ -236,7 +236,7 @@ Operators are similar to methods. They are declared as such:
 ```belte
 class MyClass {
   public static MyClass operator+(MyClass left, MyClass right) {
-    // Body
+    // ...
   }
 }
 ```
@@ -260,7 +260,7 @@ Implicit cast from `A` to `int`:
 ```belte
 class MyClass {
   public static implicit operator int(A a) {
-    // Body
+    // ...
   }
 }
 ```
@@ -270,7 +270,7 @@ Explicit cast from `int` to `A`:
 ```belte
 class MyClass {
   public static explicit operator A(int a) {
-    // Body
+    // ...
   }
 }
 ```

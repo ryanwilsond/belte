@@ -37,18 +37,21 @@
 
 ## 2.1 Functions
 
-Belte supports top-level and nested functions with support for overloads and default parameters.
-
 Function syntax is the same as in many C-style languages with the format
-`<return type> <name>(<parameters,...>) { <body> }`
+`<return type> <name>(<parameters,...>) { <body> }` where the body is a list of statements.
 
 ```belte
 void MyFunction() {
-  // Body statements
+  var myNum = MyOtherFunction(true);
+  Console.PrintLine(f"Number is {myNum}");
 }
 
 int MyOtherFunction(bool firstParam, string secondParam = "Default Value") {
-  // Body statements
+  if (firstParam) {
+    return String.Length(secondParam);
+  } else {
+    return 0;
+  }
 }
 ```
 

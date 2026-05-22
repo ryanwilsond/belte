@@ -32,22 +32,48 @@
 
 ## 3.1 Data Types
 
-Apart from classes, there are many primitive types. The most common ones include:
+The following is a list of built-in types with links to further information:
 
-| Name | Identifier | Values |
+| Name | Example | Value | More Info |
+| - | - | - | - |
+| Integer | `int` | Whole number | |
+| Decimal | `decimal` | Number with a decimal point | |
+| Boolean | `bool` | `true` or `false` | |
+| String | `string` | Span of characters | |
+| Character | `char` | Single unicode character | |
+| Type | `type` | Represents another type (e.g. `typeof(int)`) | |
+| Any | `any` | Anything | |
+| Function | `void()` | Managed function | [Section 3.1.3](#313-function-type) |
+| Object | `Object` | Anything, class base type | [Section 4.1](ClassesAndObjects.md#41-classes) |
+| Array | `int[]` | Collection of items | [Section 3.6](#36-arrays) |
+| WINBOOL | `winbool` | Boolean that marshals as 4 bytes for interop | [Section 6.7.1](LowLevelFeatures.md#671-winbool) |
+| Signed-Byte | `int8` | | [Section 6.4](LowLevelFeatures.md#64-numerics) |
+| Signed-Short | `int16` | | [Section 6.4](LowLevelFeatures.md#64-numerics) |
+| Signed-Int | `int32` | | [Section 6.4](LowLevelFeatures.md#64-numerics) |
+| Signed-Long | `int64` | | [Section 6.4](LowLevelFeatures.md#64-numerics) |
+| Byte | `uint8` | | [Section 6.4](LowLevelFeatures.md#64-numerics) |
+| Unsigned-Short | `uint16` | | [Section 6.4](LowLevelFeatures.md#64-numerics) |
+| Unsigned-Int | `uint32` | | [Section 6.4](LowLevelFeatures.md#64-numerics) |
+| Unsigned-Long | `uint64` | | [Section 6.4](LowLevelFeatures.md#64-numerics) |
+| Single Precision Float | `float32` | | [Section 6.4](LowLevelFeatures.md#64-numerics) |
+| Double Precision Float | `float64` | | [Section 6.4](LowLevelFeatures.md#64-numerics) |
+| Pointer | `int*` | Memory location of a piece of data | [Section 6.5](LowLevelFeatures.md#65-pointers) |
+| Function Pointer | `void()*` | Memory location of a function | [Section 6.6](LowLevelFeatures.md#66-function-pointers) |
+| Integer Pointer | `intptr` | Used for .NET interop | |
+| Unsigned Integer Pointer | `uintptr` | Used for .NET interop | |
+
+Most primitive types are non-nullable by default, which can be [read about here](Overview.md#14-nullability-and-types).
+
+Additionally, there are user-defined types:
+
+| Name | Description | More Info |
 | - | - | - |
-| Integer | `int` | Integers from -2,147,483,647 to 2,147,483,647 |
-| Decimal | `decimal` | Numbers approximately from ±5.0 × 10<sup>−324</sup> to ±1.7 × 10<sup>308</sup> |
-| Boolean | `bool` | `true` or `false` |
-| String | `string` | Spans of characters, no length limit |
-| Any | `any` | Any integer, decimal, boolean, or string value |
-| Type | `type` | Represents a type |
+| Class | Heap-allocated complex type | [Section 4.1](ClassesAndObjects.md#41-classes) |
+| Enum | Definition of constants | [Section 4.6](ClassesAndObjects.md#46-enums) |
+| Struct | Stack-allocated complex type | [Section 4.9](ClassesAndObjects.md#49-structs) |
+| Union | Special struct | [Section 4.9.1](ClassesAndObjects.md#491-unions) |
 
-Each of these can be set to `null` to represent they do not have a known value if they are nullable. Reference types
-(classes) are nullable by default unless suffixed with `!`. Value types (primitives, pointers, structs) are non-nullable
-by default unless suffixed with `?`. Pointers and function pointers are always non-nullable.
-
-Apart from these, many types exist for specific contexts:
+Additional information:
 
 - See also [arrays and initializer lists](LowLevelFeatures.md#63-arrays).
 - See also [initializer dictionaries](StandardLibrary/Dictionary.md#5724-initializer-dictionaries).
@@ -56,30 +82,78 @@ Apart from these, many types exist for specific contexts:
 
 ### 3.1.1 Casts
 
-To convert from one data type to another, a cast can be used. If a cast is implicit, it can happen automatically with
-no special syntax. If a cast is explicit, it must use a special syntax (e.g. `(int)"123"`).
+To convert from one data type to another, a cast can be used. If a cast is implicit, it can happen automatically. If a
+cast is explicit, it requires a cast expression (e.g. `(int)"123"`).
 
-| From | To | Cast Type | Notes |
-| - | - | - | - |
-| Integer | Decimal | Implicit | |
-| Integer | String | Explicit | |
-| Integer | Bool | None | |
-| Decimal | Integer | Explicit | Truncates |
-| Decimal | Boolean | None | |
-| Decimal | String | Explicit | |
-| Boolean | Integer | None | |
-| Boolean | Decimal | None | |
-| Boolean | String | Explicit | |
-| String | Integer | Explicit | Can throw |
-| String | Decimal | Explicit | Can throw |
-| String | Boolean | Explicit | Can throw |
+The general rule is that lossless casts are implicit, lossy casts are explicit. For example, converting from an `int32`
+to an `int64` is implicit because the entire range of values that `int32` can represent, `int64` can also represent:
 
-In addition, nullability affects casting:
+```belte
+int32 a = 10;
+int64 b = a;
+```
 
-| From | To | Cast Type | Notes |
-| - | - | - | - |
-| type | type! | Explicit | Can throw |
-| type! | type | Implicit | |
+Going from `int64` to `int32` is lossy because `int64` can represent numbers higher and lower than `int32`, so an
+explicit cast is needed:
+
+```belte
+int64 a = 10;
+int32 b = (int32)a;
+```
+
+**Numeric explicit casts do not throw if the value is out of range and instead slice.**
+
+Nullability also affects casting in the same way. Casting from a non-nullable value to a nullable one is implicit, while
+the reverse is explicit. For example converting from `int32!` to `int32?`:
+
+```belte
+int32 a = 10;
+int32? b = a;
+```
+
+Going from `int32?` to `int32!` is explicit and will throw if the value is null. When the underlying types are the same,
+a nullable assert operator (`!`) can be used instead of a cast:
+
+```belte
+int32? a = 10;
+int32 b = (int32)a;
+int32 c = a!;
+```
+
+```belte
+int32? a = null;
+int32 b = (int32)a; // throws
+int32 c = a!; // throws
+```
+
+Any type can be cast to an any implicit and from an any explicitly:
+
+```belte
+int32 a = 10;
+any b = a;
+int32 c = (int32)b;
+```
+
+Class-types can implicit "upcast" to their base types and explicitly "downcast" to derived types:
+
+```belte
+B myB = new B();
+A myA = myB;
+B myBAgain = (B)myA;
+
+class A { }
+
+class B extends A { }
+```
+
+Classes can also use the [`is`, `isnt`, and `as` operators](Data.md#323-isisntas-operators) to perform safer up/down
+casts.
+
+Additional information:
+
+- See also [pointer casts](LowLevelFeatures.md#651-creating-and-dereferencing-pointers)
+- See also [user-defined casts](ClassesAndObjects.md#4232-casts).
+- See also [bit casts](LowLevelFeatures.md#641-bit-casts)
 
 ### 3.1.2 String Interpolation
 
@@ -237,8 +311,8 @@ Notice that even if `Obj.M()` returns a value, it is ignored.
 
 #### 3.2.2.8 `x?..y`
 
-`x?..y` is a conditional [cascade expression](#3227-xy). The field assignment or call expression `y` is only performed
-if `x` is not null.
+`x?..y` is a conditional cascade expression. The field assignment or call expression `y` is only performed if `x` is not
+null.
 
 #### 3.2.2.9 `x!!`
 

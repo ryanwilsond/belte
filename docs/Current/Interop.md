@@ -11,7 +11,7 @@
 
 .NET DLLs can be referenced in a limited manor. References only work if the imported metadata can be represented in
 native Belte. For example, referencing a C# property from a DLL will not work as Belte does not currently have
-properties. (Though for many features, [workarounds exist](#82-feature-workarounds).)
+properties. (Though for properties in particular, [workarounds exist](#82-feature-workarounds).)
 
 Because of this limitation, the safest way to interact with imported references is through static methods defined in the
 DLL.
