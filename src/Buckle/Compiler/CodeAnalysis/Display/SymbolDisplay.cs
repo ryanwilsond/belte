@@ -184,7 +184,7 @@ public static class SymbolDisplay {
             if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeAccessibility) != 0)
                 DisplayAccessibility(text, namedType);
 
-            if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeModifiers) != 0)
+            if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeTypeModifiers) != 0)
                 DisplayModifiers(text, namedType);
         }
 
@@ -319,10 +319,11 @@ public static class SymbolDisplay {
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeAccessibility) != 0)
             DisplayAccessibility(text, field);
 
-        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeModifiers) != 0) {
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeTypeModifiers) != 0)
             DisplayModifiers(text, field);
+
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeModifiers) != 0)
             DisplayConstExprRef(text, field.isConst, field.isConstExpr, field.refKind);
-        }
 
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeType) != 0) {
             DisplayType(text, field.type, format);
@@ -342,7 +343,15 @@ public static class SymbolDisplay {
             DisplayConstExprRef(text, false, false, parameter.refKind);
 
         if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeType) != 0) {
-            DisplayType(text, parameter.type, format);
+            DisplayType(
+                text,
+                parameter.type,
+                format.WithOptions(
+                    format.memberOptions & ~(SymbolDisplayMemberOptions.IncludeTypeModifiers &
+                                             SymbolDisplayMemberOptions.IncludeAccessibility)
+                )
+            );
+
             needSpace = true;
         }
 
@@ -432,7 +441,7 @@ public static class SymbolDisplay {
             DisplayConstExprRef(text, dataContainer.isConst, dataContainer.isConstExpr, dataContainer.refKind);
 
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeType) != 0) {
-            DisplayType(text, dataContainer.type, format);
+            DisplayType(text, dataContainer.type, SymbolDisplayFormat.ObjectCreationFormat);
             text.Write(CreateSpace());
         }
 
@@ -485,7 +494,7 @@ public static class SymbolDisplay {
                 DisplayTemplateParameter(
                     text,
                     templateParameter,
-                    format.WithOptions(SymbolDisplayMiscellaneousOptions.SimplifyNullable)
+                    format.AddOptions(SymbolDisplayMiscellaneousOptions.SimplifyNullable)
                 );
             }
 
@@ -516,18 +525,28 @@ public static class SymbolDisplay {
     }
 
     private static void DisplayMethod(DisplayText text, MethodSymbol method, SymbolDisplayFormat format) {
-        DisplayAttributes(text, method.GetAttributes());
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeAttributes) != 0)
+            DisplayAttributes(text, method.GetAttributes());
 
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeAccessibility) != 0)
             DisplayAccessibility(text, method);
 
-        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeModifiers) != 0) {
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeTypeModifiers) != 0)
             DisplayModifiers(text, method);
+
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeModifiers) != 0)
             DisplayConstExprRef(text, method.isEffectivelyConst, false, method.refKind);
-        }
 
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeType) != 0) {
-            DisplayType(text, method.returnType, format);
+            DisplayType(
+                text,
+                method.returnType,
+                format.WithOptions(
+                    format.memberOptions & ~(SymbolDisplayMemberOptions.IncludeTypeModifiers &
+                                             SymbolDisplayMemberOptions.IncludeAccessibility)
+                )
+            );
+
             text.Write(CreateSpace());
         }
 

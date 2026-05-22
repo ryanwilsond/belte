@@ -1021,7 +1021,7 @@ public sealed class DisplayText {
     private static void DisplayFunctionPointerCallExpression(
         DisplayText text,
         BoundFunctionPointerCallExpression node) {
-        SymbolDisplay.AppendToDisplayText(text, node.functionPointer.signature, SymbolDisplayFormat.QualifiedNameFormat);
+        DisplayNode(text, node.invokedExpression);
         DisplayArguments(text, node.arguments);
     }
 
@@ -1033,7 +1033,7 @@ public sealed class DisplayText {
     private static void DisplaySizeOfOperator(DisplayText text, BoundSizeOfOperator node) {
         text.Write(CreateKeyword(SyntaxKind.SizeOfKeyword));
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
-        SymbolDisplay.AppendToDisplayText(text, node.sourceType.type);
+        SymbolDisplay.AppendToDisplayText(text, node.sourceType.type, SymbolDisplayFormat.ObjectCreationFormat);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
 
@@ -1047,7 +1047,7 @@ public sealed class DisplayText {
     private static void DisplayStackAllocExpression(DisplayText text, BoundStackAllocExpressionBase node) {
         text.Write(CreateKeyword(SyntaxKind.StackAllocKeyword));
         text.Write(CreateSpace());
-        SymbolDisplay.AppendToDisplayText(text, node.elementType);
+        SymbolDisplay.AppendToDisplayText(text, node.elementType, SymbolDisplayFormat.ObjectCreationFormat);
         text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
         DisplayNode(text, node.count);
         text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
@@ -1085,14 +1085,14 @@ public sealed class DisplayText {
 
     private static void DisplayCastExpression(DisplayText text, BoundCastExpression node) {
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
-        SymbolDisplay.DisplayType(text, node.Type());
+        SymbolDisplay.DisplayType(text, node.Type(), SymbolDisplayFormat.ObjectCreationFormat);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
         DisplayNode(text, node.operand);
     }
 
     private static void DisplayBitCastExpression(DisplayText text, BoundBitCastExpression node) {
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
-        SymbolDisplay.DisplayType(text, node.Type());
+        SymbolDisplay.DisplayType(text, node.Type(), SymbolDisplayFormat.ObjectCreationFormat);
         text.Write(CreatePunctuation(SyntaxKind.AmpersandToken));
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
         DisplayNode(text, node.operand);

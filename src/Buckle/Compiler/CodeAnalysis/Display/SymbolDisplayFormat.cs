@@ -111,13 +111,23 @@ public sealed class SymbolDisplayFormat {
 
     internal SymbolDisplayMiscellaneousOptions miscellaneousOptions { get; }
 
-    internal SymbolDisplayFormat WithOptions(SymbolDisplayMiscellaneousOptions options) {
+    internal SymbolDisplayFormat AddOptions(SymbolDisplayMiscellaneousOptions options) {
         return new SymbolDisplayFormat(
             qualificationStyle,
             templateOptions,
             memberOptions,
             parameterOptions,
             miscellaneousOptions | options
+        );
+    }
+
+    internal SymbolDisplayFormat WithOptions(SymbolDisplayMemberOptions options) {
+        return new SymbolDisplayFormat(
+            qualificationStyle,
+            templateOptions,
+            options,
+            parameterOptions,
+            miscellaneousOptions
         );
     }
 }
