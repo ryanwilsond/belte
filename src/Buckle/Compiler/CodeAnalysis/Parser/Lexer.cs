@@ -595,6 +595,16 @@ internal sealed partial class Lexer : IDisposable {
                     break;
 
                 goto default;
+            case 'c':
+                if (TryReadCString())
+                    break;
+
+                goto default;
+            case 'w':
+                if (TryReadCWString())
+                    break;
+
+                goto default;
             case '0':
             case '1':
             case '2':
@@ -677,6 +687,30 @@ internal sealed partial class Lexer : IDisposable {
         }
 
         _kind = SyntaxKind.MultiLineCommentTrivia;
+    }
+
+    private bool TryReadCString() {
+        if (Peek(1) == '"') {
+            ReadCOrCWString(isWide: false);
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool TryReadCWString() {
+        if (Peek(1) == '"') {
+            ReadCOrCWString(isWide: true);
+            return true;
+        }
+
+        return false;
+    }
+
+    private void ReadCOrCWString(bool isWide) {
+        _position++;
+        ReadStringLiteral(false);
+        _kind = isWide ? SyntaxKind.CWStringLiteralToken : SyntaxKind.CStringLiteralToken;
     }
 
     private void ReadStringLiteral(bool isCharacter) {

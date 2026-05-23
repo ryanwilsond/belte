@@ -170,6 +170,7 @@
     - [6.13](Current/LowLevelFeatures.md#613-compiler-handle) Compiler Handle
       - [6.13.1](Current/LowLevelFeatures.md#6131-messages) Messages
       - [6.13.2](Current/LowLevelFeatures.md#6132-ordering) Ordering
+    - [6.14](Current/LowLevelFeatures.md#614-c-strings) C-Strings
   - [7](Current/Preprocessor.md) Preprocessor Directives
     - [7.1](Current/Preprocessor.md#71-defineundef) Define/Undef
     - [7.2](Current/Preprocessor.md#72-control) Control

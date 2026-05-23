@@ -361,6 +361,7 @@ internal abstract partial class BoundTreeExpander {
 
         return expression.kind switch {
             BoundKind.LiteralExpression => ExpandLiteralExpression((BoundLiteralExpression)expression, out replacement, useKind),
+            BoundKind.CStringLiteral => ExpandCStringLiteral((BoundCStringLiteral)expression, out replacement, useKind),
             BoundKind.DefaultExpression => ExpandDefaultExpression((BoundDefaultExpression)expression, out replacement, useKind),
             BoundKind.InitializerList => ExpandInitializerList((BoundInitializerList)expression, out replacement, useKind),
             BoundKind.InitializerDictionary => ExpandInitializerDictionary((BoundInitializerDictionary)expression, out replacement, useKind),
@@ -415,6 +416,7 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.UnconvertedObjectCreationExpression => ExpandUnconvertedObjectCreationExpression((BoundUnconvertedObjectCreationExpression)expression, out replacement, useKind),
             BoundKind.ClampOperator => ExpandClampOperator((BoundClampOperator)expression, out replacement, useKind),
             BoundKind.BitCastExpression => ExpandBitCastExpression((BoundBitCastExpression)expression, out replacement, useKind),
+            BoundKind.DiscardExpression => ExpandDiscardExpression((BoundDiscardExpression)expression, out replacement, useKind),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
     }
@@ -827,6 +829,14 @@ internal abstract partial class BoundTreeExpander {
         return [];
     }
 
+    private protected virtual List<BoundStatement> ExpandCStringLiteral(
+        BoundCStringLiteral expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        replacement = expression;
+        return [];
+    }
+
     private protected virtual List<BoundStatement> ExpandDefaultExpression(
         BoundDefaultExpression expression,
         out BoundExpression replacement,
@@ -1064,6 +1074,14 @@ internal abstract partial class BoundTreeExpander {
             return statements;
         }
 
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandDiscardExpression(
+        BoundDiscardExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
         replacement = expression;
         return [];
     }

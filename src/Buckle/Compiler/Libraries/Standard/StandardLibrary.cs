@@ -31,6 +31,7 @@ internal static class StandardLibrary {
     private static SynthesizedFinishedNamedTypeSymbol _lazyFloat32;
     private static SynthesizedFinishedNamedTypeSymbol _lazyCallingConvention;
     private static Dictionary<string, Func<object, object, object, object>> _lazyEvaluatorMap;
+    private static Dictionary<STLWellKnownMembers, MethodSymbol> _lazyWellKnownMembers;
 
     internal static SynthesizedFinishedNamedTypeSymbol LowLevel {
         get {
@@ -255,6 +256,26 @@ internal static class StandardLibrary {
             yield return UInt16;
             yield return UInt8;
         }
+    }
+
+    internal static MethodSymbol GetWellKnownMember(STLWellKnownMembers wellknownMember) {
+        if (_lazyWellKnownMembers is null)
+            Interlocked.CompareExchange(ref _lazyWellKnownMembers, GenerateWellKnownMembers(), null);
+
+        return _lazyWellKnownMembers[wellknownMember];
+    }
+
+    private static Dictionary<STLWellKnownMembers, MethodSymbol> GenerateWellKnownMembers() {
+        return new Dictionary<STLWellKnownMembers, MethodSymbol>() {
+            { STLWellKnownMembers.LowLevel_ThrowNullConditionException, (MethodSymbol)LowLevel.GetMembers("ThrowNullConditionException")[0] },
+            { STLWellKnownMembers.LowLevel_BitCast, (MethodSymbol)LowLevel.GetMembers("BitCast")[0] },
+            { STLWellKnownMembers.LowLevel_CreateLPCSTR, (MethodSymbol)LowLevel.GetMembers("CreateLPCSTR")[0] },
+            { STLWellKnownMembers.LowLevel_FreeLPCSTR, (MethodSymbol)LowLevel.GetMembers("FreeLPCSTR")[0] },
+            { STLWellKnownMembers.LowLevel_CreateLPCWSTR, (MethodSymbol)LowLevel.GetMembers("CreateLPCWSTR")[0] },
+            { STLWellKnownMembers.LowLevel_FreeLPCWSTR, (MethodSymbol)LowLevel.GetMembers("FreeLPCWSTR")[0] },
+            { STLWellKnownMembers.LowLevel_Length, (MethodSymbol)LowLevel.GetMembers("Length")[0] },
+            { STLWellKnownMembers.String_Length, (MethodSymbol)String.GetMembers("Length")[0] },
+        };
     }
 
     internal static MethodSymbol GetPowerMethod(bool isLifted, bool isInt) {

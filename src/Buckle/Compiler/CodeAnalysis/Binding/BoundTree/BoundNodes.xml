@@ -252,6 +252,14 @@
   <Node Name="BoundLiteralExpression" Base="BoundExpression">
     <Field Name="constantValue" Type="ConstantValue" PropertyOverrides="true"/>
   </Node>
+  <Node Name="BoundCStringLiteral" Base="BoundExpression">
+    <Field Name="isWide" Type="bool"/>
+    <Field Name="literal" Type="ConstantValue"/>
+  </Node>
+  <Node Name="BoundDiscardExpression" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol?" Override="true"/>
+    <Field Name="isInferred" Type="bool"/>
+  </Node>
   <Node Name="BoundDefaultLiteral" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
   </Node>

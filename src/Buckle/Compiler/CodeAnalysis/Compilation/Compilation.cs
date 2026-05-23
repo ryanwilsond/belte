@@ -1121,18 +1121,6 @@ public sealed partial class Compilation {
                 CompilationExtensions.EmitTree(type, displayText, program, compact: true);
         }
 
-        foreach (var types in program.nestedTypes.Values) {
-            foreach (var type in types) {
-                if (type.IsFromCompilation(this))
-                    CompilationExtensions.EmitTree(type, displayText, program, compact: true);
-            }
-        }
-
-        foreach (var type in program.fixedImplementationTypes.Values) {
-            if (type.IsFromCompilation(this))
-                CompilationExtensions.EmitTree(type, displayText, program, compact: true);
-        }
-
         foreach (var pair in program.methodBodies) {
             if (pair.Key.IsFromCompilation(this))
                 CompilationExtensions.EmitTree(pair.Key, displayText, program);

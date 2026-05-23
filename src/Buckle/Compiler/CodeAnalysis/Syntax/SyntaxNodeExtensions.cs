@@ -95,6 +95,36 @@ internal static class SyntaxNodeExtensions {
         stack.Free();
     }
 
+    internal static BelteSyntaxNode GetContainingDeconstruction(this ExpressionSyntax expr) {
+        var kind = expr.kind;
+
+        if (kind != SyntaxKind.DeclarationExpression && kind != SyntaxKind.IdentifierName)
+            return null;
+
+        while (true) {
+            var parent = expr.parent;
+
+            if (parent is null)
+                return null;
+
+            switch (parent.kind) {
+                case SyntaxKind.AssignmentExpression:
+                    if (((AssignmentExpressionSyntax)parent).left == expr)
+                        return parent;
+
+                    return null;
+                // TODO Support this?
+                // case SyntaxKind.ForEachVariableStatement:
+                //     if ((object)((ForEachVariableStatementSyntax)parent).Variable == expr) {
+                //         return parent;
+                //     }
+                //     return null;
+                default:
+                    return null;
+            }
+        }
+    }
+
     internal static TypeSyntax SkipRef(this TypeSyntax syntax, out RefKind refKind) {
         if (syntax.kind == SyntaxKind.ReferenceType) {
             var refType = (ReferenceTypeSyntax)syntax;

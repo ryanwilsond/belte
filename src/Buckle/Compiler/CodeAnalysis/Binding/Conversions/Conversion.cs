@@ -262,6 +262,9 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
             }
         }
 
+        if (source.specialType == SpecialType.Void && target.specialType == SpecialType.Void)
+            return Identity;
+
         // Handle most primitive conversions
         if (source.typeKind == TypeKind.Primitive && target.typeKind == TypeKind.Primitive)
             return new Conversion(EasyOut.Classify(source, target));

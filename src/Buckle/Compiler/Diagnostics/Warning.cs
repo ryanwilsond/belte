@@ -170,6 +170,12 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_ExitingControlFlowInWith, location, message);
     }
 
+    internal static BelteDiagnostic IgnoringReturnValue(TextLocation location, MethodSymbol method) {
+        var message = $"ignoring return value of method '{method}'; consider using a discard assignment if this is intended";
+        var suggestion = "_ = %";
+        return CreateWarning(DiagnosticCode.WRN_IgnoringReturnValue, location, message, suggestion);
+    }
+
     private static BelteDiagnostic CreateWarning(DiagnosticCode code, TextLocation location, string message) {
         return CreateWarning(code, location, message, []);
     }

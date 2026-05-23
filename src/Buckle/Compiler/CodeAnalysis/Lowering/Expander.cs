@@ -347,6 +347,17 @@ internal sealed class Expander : SharedExpander {
                 ));
 
                 replacementExpressions.Add(expression);
+            } else if (expression.kind == BoundKind.DiscardExpression) {
+                var syntax = expression.syntax;
+                var type = expression.type;
+                var temp = GenerateTempLocal(type);
+
+                statements.Add(LocalDeclaration(syntax,
+                    temp,
+                    new BoundDefaultExpression(syntax, null, LiteralUtilities.TryGetDefaultValue(type), type)
+                ));
+
+                replacementExpressions.Add(Local(syntax, temp));
             } else {
                 statements.AddRange(ExpandExpression(expression, out var newExpression));
                 replacementExpressions.Add(newExpression);

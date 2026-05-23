@@ -5678,4 +5678,45 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Warning_BU0447_IgnoringReturnValue() {
+        var text = @"
+            int F() { return 0; }
+            [F()];
+        ";
+
+        var diagnostics = @"
+           ignoring return value of method 'F()'; consider using a discard assignment if this is intended
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0448_VoidAssignment() {
+        var text = @"
+            void F() {}
+            [_] = F();
+        ";
+
+        var diagnostics = @"
+           a value of type 'void' may not be assigned
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0449_DiscardTypeInferenceFailed() {
+        var text = @"
+            [_] = null;
+        ";
+
+        var diagnostics = @"
+           cannot infer the type of implicitly-typed discard
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

@@ -392,6 +392,8 @@ internal sealed class Evaluator {
                                 out returned
                             );
                         } finally {
+                            _insideTry = previousInsideTry;
+
                             if (node.finallyBody is not null) {
                                 var previousHasValue = _hasValue;
                                 var previousLastValue = _lastValue;
@@ -406,8 +408,6 @@ internal sealed class Evaluator {
                                 _hasValue = previousHasValue;
                                 _lastValue = previousLastValue;
                             }
-
-                            _insideTry = previousInsideTry;
                         }
 
                         index++;
@@ -3002,6 +3002,17 @@ internal sealed class Evaluator {
                     }
 
                     break;
+                case "LowLevel_CreateLPCSTR_S":
+                case "LowLevel_CreateLPCSTR_UTF_S":
+                case "LowLevel_CreateLPCWSTR_S":
+                case "LowLevel_FreeLPCSTR_U*":
+                case "LowLevel_FreeLPCWSTR_C*":
+                case "LowLevel_ReadLPCSTR_U*":
+                case "LowLevel_ReadLPCWSTR_C*":
+                case "LowLevel_GetGCPtr_O":
+                case "LowLevel_FreeGCHandle_V*":
+                case "LowLevel_GetObject_V*":
+                    throw new BelteEvaluatorException($"The method '{method}' is not supported in the Evaluator.", location);
                 default:
                     if (mapKey.StartsWith("LowLevel_BitCast_")) {
                         var argument = EvaluateExpression(arguments[0], true, abort);

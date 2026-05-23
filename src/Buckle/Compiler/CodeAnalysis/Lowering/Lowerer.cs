@@ -25,6 +25,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
     private readonly bool _transpiling;
     private readonly MethodCompiler _methodCompiler;
     private readonly MethodSymbol _method;
+    private readonly BelteDiagnosticQueue _diagnostics;
 
     private List<BoundDeferStatement> _deferStatements = [];
     private bool _sawCompileTimeExpression;
@@ -35,6 +36,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         BelteDiagnosticQueue diagnostics,
         bool transpiling) {
         _methodCompiler = methodCompiler;
+        _diagnostics = diagnostics;
         _expander = transpiling ? new SharedExpander(container, diagnostics) : new Expander(container, diagnostics);
         _transpiling = transpiling;
         _method = container;
@@ -72,7 +74,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         sawCompileTimeExpression = lowerer._sawCompileTimeExpression;
 
-        return (BoundBlockStatement)rewrittenStatement;
+        return rewrittenStatement;
     }
 
     internal override BoundNode Visit(BoundNode node) {
@@ -149,6 +151,17 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var visited = (BoundDeferStatement)base.VisitDeferStatement(node);
         _deferStatements.Add(visited);
         return Nop();
+    }
+
+    internal override BoundNode VisitExpressionStatement(BoundExpressionStatement node) {
+        if (node.expression is BoundCallExpression call && !call.method.returnsVoid) {
+            _diagnostics.Push(Warning.IgnoringReturnValue(call.syntax.location, call.method));
+        } else if (node.expression is BoundFunctionPointerCallExpression pCall &&
+            !pCall.functionPointer.signature.returnsVoid) {
+            _diagnostics.Push(Warning.IgnoringReturnValue(pCall.syntax.location, pCall.functionPointer.signature));
+        }
+
+        return base.VisitExpressionStatement(node);
     }
 
     internal override BoundNode VisitBinaryOperator(BoundBinaryOperator node) {
@@ -246,6 +259,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         <left> = new Nullable(<right>)
 
+        ----> <left> is discard
+
+        <right>
+
         */
         if (expression.left.Type().IsNullableType() &&
             !expression.right.Type().IsNullableType() &&
@@ -262,6 +279,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 )
             );
         }
+
+        if (expression.left.kind == BoundKind.DiscardExpression && !_transpiling)
+            return Visit(expression.right);
 
         return base.VisitAssignmentOperator(expression);
     }
@@ -570,8 +590,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         */
         var fromType = node.fromType;
         var toType = node.type;
-        // TODO Consider caching, though realistically this isn't a common node
-        var method = ((MethodSymbol)StandardLibrary.LowLevel.GetMembers("BitCast")[0])
+        var method = StandardLibrary.GetWellKnownMember(STLWellKnownMembers.LowLevel_BitCast)
             .Construct([new TypeOrConstant(fromType), new TypeOrConstant(toType)]);
 
         return Visit(Call(node.syntax, method, node.operand));
@@ -1110,7 +1129,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (ConstantValue.IsNull(expression.constantValue)) {
             return Call(
                 syntax,
-                (MethodSymbol)StandardLibrary.LowLevel.GetMembers("ThrowNullConditionException")[0],
+                StandardLibrary.GetWellKnownMember(STLWellKnownMembers.LowLevel_ThrowNullConditionException),
                 []
             );
         }

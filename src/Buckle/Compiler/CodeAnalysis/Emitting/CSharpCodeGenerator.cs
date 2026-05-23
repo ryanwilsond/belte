@@ -311,6 +311,7 @@ internal sealed class CSharpCodeGenerator {
 
         return expression.kind switch {
             BoundKind.DefaultExpression => EmitDefaultExpression((BoundDefaultExpression)expression),
+            BoundKind.DiscardExpression => EmitDiscardExpression((BoundDiscardExpression)expression),
             BoundKind.InitializerList => EmitInitializerList((BoundInitializerList)expression),
             BoundKind.DataContainerExpression => EmitDataContainerExpression((BoundDataContainerExpression)expression),
             BoundKind.StackSlotExpression => EmitStackSlotExpression((BoundStackSlotExpression)expression),
@@ -364,6 +365,10 @@ internal sealed class CSharpCodeGenerator {
 
     private string EmitDefaultExpression(BoundDefaultExpression _) {
         return "default";
+    }
+
+    private string EmitDiscardExpression(BoundDiscardExpression _) {
+        return "_";
     }
 
     private string EmitInitializerList(BoundInitializerList node) {

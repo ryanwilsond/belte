@@ -66,8 +66,7 @@ public static class Program {
         addr.sin_family = AF_INET;
         addr.sin_port = htons(PORT);
 
-        uint8* ip = LowLevel.CreateLPCSTR("127.0.0.1");
-        addr.sin_addr.s_addr = inet_addr(ip);
+        addr.sin_addr.s_addr = inet_addr(c"127.0.0.1");
 
         if (bind(server, &addr, sizeof(sockaddr_in)) != 0) {
             Console.PrintLine("bind failed");
@@ -82,7 +81,7 @@ public static class Program {
 
         Console.PrintLine("Listening on 127.0.0.1:" + ((string)PORT) + "...");
 
-        string! response =
+        constexpr string! response =
             "HTTP/1.1 200 OK\r\n" +
             "Content-Type: text/plain; charset=utf-8\r\n" +
             "Content-Length: 13\r\n" +
@@ -90,7 +89,10 @@ public static class Program {
             "\r\n" +
             "Hello, world!";
 
+        const int32 length = $(int32)String.Length(response);
+
         uint8* msg = LowLevel.CreateLPCSTR(response);
+        defer LowLevel.FreeLPCSTR(msg);
 
         // Can loop this block to continually send message on refresh
         {
@@ -98,28 +100,19 @@ public static class Program {
 
             if (client < 0) {
                 Console.PrintLine("accept failed");
-                Cleanup();
                 return;
             }
 
             var buffer = new Buffer();
             if (recv(client, buffer.buffer, 1024, 0) <= 0) {
                 closesocket(client);
-                Cleanup();
                 return;
             }
 
-            send(client, msg, (int32)String.Length(response), 0);
+            send(client, msg, length, 0);
             closesocket(client);
 
             Console.PrintLine("Sent message");
-        }
-
-        Cleanup();
-
-        void Cleanup() {
-            LowLevel.FreeLPCSTR(msg);
-            LowLevel.FreeLPCSTR(ip);
         }
     }
 }

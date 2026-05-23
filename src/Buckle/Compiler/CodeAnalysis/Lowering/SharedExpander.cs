@@ -55,6 +55,66 @@ internal class SharedExpander : BoundTreeExpander {
         return base.ExpandLocalDeclarationStatement(statement);
     }
 
+    private protected override List<BoundStatement> ExpandCStringLiteral(
+        BoundCStringLiteral node,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        /*
+
+        <literal>
+
+        ----> is wide
+
+        temp = LowLevel.CreateLPCWSTR(<literal>)
+        defer LowLevel.FreeLPCWSTR(temp)
+        temp
+
+        ---->
+
+        temp = LowLevel.CreateLPCSTR(<literal>)
+        defer LowLevel.FreeLPCSTR(temp)
+        temp
+
+        */
+        var syntax = node.syntax;
+        var isWide = node.isWide;
+        var allocMethod = StandardLibrary.GetWellKnownMember(
+            isWide ? STLWellKnownMembers.LowLevel_CreateLPCWSTR : STLWellKnownMembers.LowLevel_CreateLPCSTR
+        );
+        var freeMethod = StandardLibrary.GetWellKnownMember(
+            isWide ? STLWellKnownMembers.LowLevel_FreeLPCWSTR : STLWellKnownMembers.LowLevel_FreeLPCSTR
+        );
+
+        var statements = new List<BoundStatement>();
+        var temp = GenerateTempLocal(node.type);
+
+        statements.Add(
+            LocalDeclaration(syntax, temp,
+                Call(syntax,
+                    allocMethod,
+                    new BoundLiteralExpression(
+                        syntax,
+                        node.literal,
+                        CorLibrary.GetSpecialType(node.literal.specialType)
+                    )
+                )
+            )
+        );
+
+        statements.AddRange(ExpandDeferStatement(
+            new BoundDeferStatement(syntax,
+                Statement(syntax, Call(syntax,
+                    freeMethod,
+                    Local(syntax, temp)
+                ))
+            )
+        ));
+
+        replacement = Local(syntax, temp);
+
+        return statements;
+    }
+
     private protected override List<BoundStatement> ExpandUsingStatement(BoundUsingStatement statement) {
         /*
 

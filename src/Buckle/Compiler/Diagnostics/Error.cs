@@ -2192,6 +2192,16 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_DifferentSizesInBitCast, location, message);
     }
 
+    internal static BelteDiagnostic VoidAssignment(TextLocation location) {
+        var message = $"a value of type 'void' may not be assigned";
+        return CreateError(DiagnosticCode.ERR_VoidAssignment, location, message);
+    }
+
+    internal static BelteDiagnostic DiscardTypeInferenceFailed(TextLocation location) {
+        var message = $"cannot infer the type of implicitly-typed discard";
+        return CreateError(DiagnosticCode.ERR_DiscardTypeInferenceFailed, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

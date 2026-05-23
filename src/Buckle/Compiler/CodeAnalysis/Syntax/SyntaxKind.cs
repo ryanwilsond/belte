@@ -87,6 +87,8 @@ public enum SyntaxKind : ushort {
     IdentifierToken,
     NumericLiteralToken,
     StringLiteralToken,
+    CStringLiteralToken,
+    CWStringLiteralToken,
     CharacterLiteralToken,
     InterpolatedStringLiteralToken,
 

@@ -455,6 +455,9 @@ public enum DiagnosticCode : ushort {
     ERR_CannotBitCastToNullable = 444,
     ERR_UnknownBitCastSize = 445,
     ERR_DifferentSizesInBitCast = 446,
+    WRN_IgnoringReturnValue = 447,
+    ERR_VoidAssignment = 448,
+    ERR_DiscardTypeInferenceFailed = 449,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

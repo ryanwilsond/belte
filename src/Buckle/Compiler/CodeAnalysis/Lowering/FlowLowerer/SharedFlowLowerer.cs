@@ -101,12 +101,12 @@ internal partial class SharedFlowLowerer : BoundTreeRewriter {
 
         var lengthOrIterInit = isEnumerator ? null : isArray
             ? Call(syntax,
-                ((MethodSymbol)StandardLibrary.LowLevel.GetMembers("Length").Single())
+                StandardLibrary.GetWellKnownMember(STLWellKnownMembers.LowLevel_Length)
                     .Construct([new TypeOrConstant(node.expression.type)]),
                 Local(syntax, temp))
             : isString
                 ? Call(syntax,
-                    (MethodSymbol)StandardLibrary.String.GetMembers("Length").Single(),
+                    StandardLibrary.GetWellKnownMember(STLWellKnownMembers.String_Length),
                     Local(syntax, temp))
                 : lengthOps.Any()
                     ? Call(syntax, (MethodSymbol)lengthOps[0], Local(syntax, temp))

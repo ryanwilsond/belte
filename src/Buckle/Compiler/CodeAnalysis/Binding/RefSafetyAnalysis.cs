@@ -338,6 +338,8 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                     break;
 
                 return GetRefEscape(assignment.left, scopeOfTheContainingExpression);
+            case BoundKind.DiscardExpression:
+                break;
         }
 
         return scopeOfTheContainingExpression;
@@ -482,6 +484,8 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                 break;
             case BoundKind.ThrowExpression:
                 return true;
+            case BoundKind.DiscardExpression:
+                break;
         }
 
         diagnostics.Push(GetStandardRValueRefEscapeError(node.location, escapeTo));
@@ -661,6 +665,8 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
             case BoundKind.InitializerList:
                 var colExpr = (BoundInitializerList)expression;
                 return GetValEscape(colExpr.items, scopeOfTheContainingExpression);
+            case BoundKind.DiscardExpression:
+                return CallingMethodScope;
             case BoundKind.AsOperator:
             case BoundKind.ConditionalAccessExpression:
             case BoundKind.ArrayAccessExpression:
@@ -986,6 +992,8 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                 return false;
             case BoundKind.DefaultLiteral:
             case BoundKind.DefaultExpression:
+                return true;
+            case BoundKind.DiscardExpression:
                 return true;
             default:
                 diagnostics.Push(Error.InternalError(node.location));

@@ -55,6 +55,27 @@ int MyOtherFunction(bool firstParam, string secondParam = "Default Value") {
 }
 ```
 
+With [aggressive compiler warnings enabled](../Buckle.md#--warnlevelwarning-level-default-1), the compiler will warn
+if a function return value is ignored such as in the following:
+
+```belte
+MyFunction();
+
+int MyFunction() {
+  return 3;
+}
+```
+
+In this case, a discard assignment can be used to show that ignoring the return value was intentional:
+
+```belte
+_ = MyFunction();
+
+int MyFunction() {
+  return 3;
+}
+```
+
 ### 2.1.1 Nested Functions
 
 Nested functions use the same syntax and can access symbols from the enclosing scope as such:
@@ -196,6 +217,16 @@ void Func(out int a = 3) {
 ```belte
 void Func(out int a) {
   a = 3;
+  // ...
+}
+```
+
+If the result of the out argument is not needed, a discard expression can be used:
+
+```belte
+Func(out _);
+
+void Func(out int a) {
   // ...
 }
 ```

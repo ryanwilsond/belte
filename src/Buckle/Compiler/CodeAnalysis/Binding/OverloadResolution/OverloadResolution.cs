@@ -1736,7 +1736,8 @@ internal sealed partial class OverloadResolution {
 
         var nodeKind = node.kind;
 
-        if (nodeKind == BoundKind.OutVariablePendingInference) {
+        if (nodeKind == BoundKind.OutVariablePendingInference ||
+            (nodeKind == BoundKind.DiscardExpression && !node.HasExpressionType())) {
             okToDowngradeToNeither = false;
             return BetterResult.Neither;
         }
@@ -2320,8 +2321,10 @@ internal sealed partial class OverloadResolution {
 
         var argType = argument.Type();
 
-        if (argument.kind == BoundKind.OutVariablePendingInference)
+        if (argument.kind == BoundKind.OutVariablePendingInference ||
+            (argument.kind == BoundKind.DiscardExpression && argType is null)) {
             return Conversion.Identity;
+        }
 
         if (argRefKind == RefKind.None) {
             argument = Binder.ReduceNumericIfApplicable(parameterType, argument);

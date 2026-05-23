@@ -28,6 +28,7 @@ This may change.
 - [6.13](#613-compiler-handle) Compiler Handle
   - [6.13.1](#6131-messages) Messages
   - [6.13.2](#6132-ordering) Ordering
+- [6.14](#614-c-strings) C-Strings
 
 Additionally, the
 [Standard Library contains a class named LowLevel that provides various helper methods](StandardLibrary/LowLevel.md).
@@ -575,3 +576,34 @@ If multiple handlers have the same priority (such as the default 0), they will r
 themselves, but will still order correctly relative to higher/lower priority handlers.
 
 The priority number must fit within an `int32` literal.
+
+## 6.14 C-Strings
+
+LPCSTRs and LPCWSTRs can be creating using `LowLevel.CreateLPCSTR(string)` and `LowLevel.CreateLPCWSTR(string)`
+respectively. Alternatively, c-string literals can be used. C-strings are allocated on the heap so they should be freed.
+Using a c-string literal will automatically free the string at the end of the block where the literal was created. To
+manage the freeing of the strings more explicitly, the aforementioned helper methods should be used instead.
+
+The following are equivalent:
+
+```belte
+uint8* a = c"test";
+```
+
+```belte
+uint8* temp = LowLevel.CreateLPCSTR("test");
+defer LowLevel.FreeLPCSTR(temp);
+uint8* a = temp;
+```
+
+Similarly for wide strings:
+
+```belte
+char* a = w"test";
+```
+
+```belte
+char* temp = LowLevel.CreateLPCWSTR("test");
+defer LowLevel.FreeLPCWSTR(temp);
+char* a = temp;
+```

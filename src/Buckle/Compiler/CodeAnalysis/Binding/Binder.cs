@@ -2236,6 +2236,8 @@ internal partial class Binder {
                     return expression;
 
                 break;
+            case BoundKind.DiscardExpression:
+                return expression;
         }
 
         var hasResolutionErrors = false;
@@ -5130,16 +5132,40 @@ internal partial class Binder {
 
             members.Free();
         } else {
-            expression = ErrorExpression(node);
+            expression = null;
 
-            if (lookupResult.error is not null)
-                diagnostics.Push(BelteDiagnostic.AddLocation(lookupResult.error, node.location));
-            else
-                diagnostics.Push(Error.UndefinedSymbol(node.location, name));
+            if (node is IdentifierNameSyntax identifier) {
+                if (FallBackOnDiscard(identifier))
+                    expression = new BoundDiscardExpression(node, isInferred: true, type: null);
+            }
+
+            if (expression is null) {
+                expression = ErrorExpression(node);
+
+                if (lookupResult.error is not null)
+                    diagnostics.Push(BelteDiagnostic.AddLocation(lookupResult.error, node.location));
+                else
+                    diagnostics.Push(Error.UndefinedSymbol(node.location, name));
+            }
         }
 
         lookupResult.Free();
         return expression;
+    }
+
+    private static bool FallBackOnDiscard(IdentifierNameSyntax node) {
+        if (node.identifier.text != "_")
+            return false;
+
+        var containingDeconstruction = node.GetContainingDeconstruction();
+        var isDiscard = containingDeconstruction is not null || IsOutVarDiscardIdentifier(node);
+        return isDiscard;
+    }
+
+    private static bool IsOutVarDiscardIdentifier(SimpleNameSyntax node) {
+        var parent = node.parent;
+        return parent?.kind == SyntaxKind.Argument &&
+            ((ArgumentSyntax)parent).refKindKeyword?.kind == SyntaxKind.OutKeyword;
     }
 
     private bool ReportSimpleProgramLocalReferencedOutsideOfTopLevelStatement(
@@ -7123,6 +7149,9 @@ internal partial class Binder {
             } else if (argument.kind == BoundKind.OutVariablePendingInference) {
                 coercedArgument = ((OutVariablePendingInference)argument)
                     .SetInferredTypeWithAnnotations(parameterTypeWithAnnotations, diagnostics);
+            } else if (argument.kind == BoundKind.DiscardExpression && !argument.HasExpressionType()) {
+                coercedArgument = ((BoundDiscardExpression)argument)
+                    .SetInferredTypeWithAnnotations(parameterTypeWithAnnotations);
             } else if (argument.NeedsToBeConverted()) {
                 coercedArgument = BindToNaturalType(argument, diagnostics);
             }
@@ -7473,16 +7502,26 @@ internal partial class Binder {
                     newArguments[i] = BindToTypeForErrorRecovery(argument);
                     break;
                 case BoundKind.OutVariablePendingInference:
+                case BoundKind.DiscardExpression:
                     if (argument.HasExpressionType())
                         break;
 
                     var candidateType = GetCorrespondingParameterTypeLocal(i);
 
-                    if (candidateType is null) {
-                        newArguments[i] = ((OutVariablePendingInference)argument).FailInference(this, null);
+                    if (argument.kind == BoundKind.OutVariablePendingInference) {
+                        if (candidateType is null) {
+                            newArguments[i] = ((OutVariablePendingInference)argument).FailInference(this, null);
+                        } else {
+                            newArguments[i] = ((OutVariablePendingInference)argument)
+                                .SetInferredTypeWithAnnotations(new TypeWithAnnotations(candidateType), null);
+                        }
                     } else {
-                        newArguments[i] = ((OutVariablePendingInference)argument)
-                            .SetInferredTypeWithAnnotations(new TypeWithAnnotations(candidateType), null);
+                        if (candidateType is null) {
+                            newArguments[i] = ((BoundDiscardExpression)argument).FailInference(this, null);
+                        } else {
+                            newArguments[i] = ((BoundDiscardExpression)argument)
+                                .SetInferredTypeWithAnnotations(new TypeWithAnnotations(candidateType));
+                        }
                     }
 
                     break;
@@ -7930,6 +7969,21 @@ internal partial class Binder {
 
         var specialType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(value);
         var constantValue = new ConstantValue(value, specialType);
+
+        if (node.token.kind == SyntaxKind.CStringLiteralToken) {
+            var pointerType = new PointerTypeSymbol(
+                new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.UInt8))
+            );
+
+            return new BoundCStringLiteral(node, isWide: false, constantValue, pointerType);
+        } else if (node.token.kind == SyntaxKind.CWStringLiteralToken) {
+            var pointerType = new PointerTypeSymbol(
+                new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Char))
+            );
+
+            return new BoundCStringLiteral(node, isWide: true, constantValue, pointerType);
+        }
+
         var type = CorLibrary.GetSpecialType(specialType);
         return new BoundLiteralExpression(node, constantValue, type);
     }
@@ -9724,8 +9778,29 @@ internal partial class Binder {
         var op1 = CheckValue(left, lhsKind, diagnostics);
         var rhsKind = isRef ? GetRequiredRHSValueKindForRefAssignment(op1) : BindValueKind.RValue;
         var op2 = BindPossibleArrayInitializer(rhsExpr, op1.Type(), rhsKind, diagnostics);
-        op2 = ReduceNumericIfApplicable(op1.Type(), op2);
+
+        if (op1.kind == BoundKind.DiscardExpression) {
+            op2 = BindToNaturalType(op2, diagnostics);
+            op1 = InferTypeForDiscardAssignment((BoundDiscardExpression)op1, op2, diagnostics);
+        } else {
+            op2 = ReduceNumericIfApplicable(op1.Type(), op2);
+        }
+
         return BindAssignment(node, op1, op2, isRef, diagnostics);
+    }
+
+    private BoundExpression InferTypeForDiscardAssignment(
+        BoundDiscardExpression op1,
+        BoundExpression op2,
+        BelteDiagnosticQueue diagnostics) {
+        var inferredType = op2.type;
+        if (inferredType is null)
+            return op1.FailInference(this, diagnostics);
+
+        if (inferredType.IsVoidType())
+            diagnostics.Push(Error.VoidAssignment(op1.syntax.location));
+
+        return op1.SetInferredTypeWithAnnotations(new TypeWithAnnotations(inferredType));
     }
 
     private BoundExpression BindNullCoalescingCompoundAssignment(

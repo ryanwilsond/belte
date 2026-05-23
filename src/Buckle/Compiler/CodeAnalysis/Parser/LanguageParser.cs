@@ -2172,6 +2172,10 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseNumericLiteral();
             case SyntaxKind.StringLiteralToken:
                 return ParseStringLiteral();
+            case SyntaxKind.CStringLiteralToken:
+                return ParseCStringLiteral();
+            case SyntaxKind.CWStringLiteralToken:
+                return ParseCWStringLiteral();
             case SyntaxKind.InterpolatedStringLiteralToken:
                 return ParseInterpolatedStringLiteral();
             case SyntaxKind.InterpolatedStringStartToken:
@@ -3104,6 +3108,16 @@ done:
 
     private ExpressionSyntax ParseStringLiteral() {
         var stringToken = Match(SyntaxKind.StringLiteralToken);
+        return SyntaxFactory.Literal(stringToken);
+    }
+
+    private ExpressionSyntax ParseCStringLiteral() {
+        var stringToken = Match(SyntaxKind.CStringLiteralToken);
+        return SyntaxFactory.Literal(stringToken);
+    }
+
+    private ExpressionSyntax ParseCWStringLiteral() {
+        var stringToken = Match(SyntaxKind.CWStringLiteralToken);
         return SyntaxFactory.Literal(stringToken);
     }
 
