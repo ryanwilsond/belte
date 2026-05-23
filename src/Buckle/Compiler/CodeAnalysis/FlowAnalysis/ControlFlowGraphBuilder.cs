@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.Libraries;
 using Buckle.Utilities;
 
@@ -50,7 +51,7 @@ internal sealed partial class ControlFlowGraphBuilder {
             // TODO We just skip looking at switches right now which is WRONG
             // TODO We need to pretty much rewrite CFG from the ground up to account for Switches and Try/Catch/Finally
             // (and definite assignment for out parameters if we choose to allow types without defaults)
-            if (current.statements[0].syntax?.kind == Syntax.SyntaxKind.SwitchSection) {
+            if (current.statements[0].syntax?.kind == SyntaxKind.SwitchSection) {
                 Connect(current, next);
                 continue;
             }
@@ -89,9 +90,14 @@ internal sealed partial class ControlFlowGraphBuilder {
                         ((BoundExpressionStatement)statement).expression is BoundThrowExpression:
                         AddThrowEdges(current);
                         break;
+                    case BoundKind.SwitchDispatch:
+                        if (isLastStatement)
+                            Connect(current, next);
+
+                        Connect(current, _blockFromLabel[((BoundSwitchDispatch)statement).defaultLabel]);
+                        break;
                     case BoundKind.NopStatement:
                     case BoundKind.ExpressionStatement:
-                    case BoundKind.SwitchDispatch:
                     case BoundKind.InlineILStatement:
                     case BoundKind.LocalDeclarationStatement:
                     case BoundKind.LabelStatement:

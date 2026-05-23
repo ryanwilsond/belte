@@ -1229,13 +1229,13 @@ internal sealed class Expander : SharedExpander {
         var type = expression.Type();
         var operandType = operand.Type();
 
+        if (expression.conversion.kind == ConversionKind.ImplicitNullToPointer)
+            return StabilizeIfNecessary(syntax, useKind, [], expression, out replacement);
+
         if (operandType?.Equals(type, TypeCompareKind.ConsiderEverything) ?? false)
             return ExpandExpression(operand, out replacement, useKind);
 
         if (expression.conversion.underlyingConversions == default) {
-            if (expression.conversion.kind is ConversionKind.ImplicitNullToPointer)
-                return StabilizeIfNecessary(syntax, useKind, [], expression, out replacement);
-
             var statements = base.ExpandCastExpression(expression, out replacement, UseKind.Value);
             return StabilizeIfNecessary(syntax, useKind, statements, replacement, out replacement);
         }

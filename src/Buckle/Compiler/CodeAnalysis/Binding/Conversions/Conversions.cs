@@ -284,7 +284,7 @@ internal sealed partial class Conversions {
                 // we won't be able to
                 return listExpressionConversion;
             case BoundUnconvertedNullptrExpression nullptr:
-                return GetImplicitNullptrExpressionConversion(nullptr, target); ;
+                return GetImplicitNullptrExpressionConversion(nullptr, target);
             case BoundUnconvertedImplicitEnumFieldExpression fieldAccess:
                 return GetImplicitEnumFieldExpressionConversion(fieldAccess, target);
             case BoundMethodGroup methodGroup:

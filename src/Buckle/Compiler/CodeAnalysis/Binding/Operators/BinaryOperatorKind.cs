@@ -29,6 +29,7 @@ internal enum BinaryOperatorKind : int {
     Enum = UnaryOperatorKind.Enum,
     EnumAndUnderlying = UnaryOperatorKind._EnumAndUnderlying,
     UnderlyingAndEnum = UnaryOperatorKind._UnderlyingAndEnum,
+    Pointer = UnaryOperatorKind.Pointer,
 
     OpMask = UnaryOperatorKind.OpMask,
 

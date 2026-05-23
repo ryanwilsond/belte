@@ -15,6 +15,7 @@ internal static class ConversionKindExtensions {
             case ConversionKind.ImplicitReference:
             case ConversionKind.ImplicitUserDefined:
             case ConversionKind.ImplicitPointerToVoid:
+            case ConversionKind.ImplicitNullToPointer:
             case ConversionKind.ImplicitNumeric:
             case ConversionKind.ImplicitEnum:
             case ConversionKind.MethodGroup:

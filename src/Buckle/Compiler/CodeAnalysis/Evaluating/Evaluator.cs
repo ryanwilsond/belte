@@ -2348,6 +2348,9 @@ internal sealed class Evaluator {
                 );
 
                 break;
+            case BinaryOperatorKind.Pointer:
+                left.@bool = left.ptr == right.ptr;
+                break;
         }
 
         left.kind = ValueKind.Bool;

@@ -29,6 +29,7 @@ internal enum UnaryOperatorKind : int {
     Enum = 0x00000013,
     _EnumAndUnderlying = 0x00000014,
     _UnderlyingAndEnum = 0x00000015,
+    Pointer = 0x00000016,
 
     OpMask = 0x0000FF00,
 

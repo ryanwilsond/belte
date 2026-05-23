@@ -26,8 +26,8 @@ Text scoreOne;
 Text scoreTwo;
 Text info;
 
-bool! aiOn = true;
-bool! previousEnter = false;
+bool aiOn = true;
+bool previousEnter = false;
 
 void Main() {
     // When building a graphics project, many additional types are added to the global namespace
@@ -64,7 +64,7 @@ void Main() {
     var scoreOnePosition = new Vec2(leftOffset, 40);
     scoreOne = Graphics.LoadText("0", "samples/Pong/Assets/arial.ttf", scoreOnePosition, 60, 0, 255, 255, 255);
 
-    var rightOffset = Settings.ScreenWidth - (Settings.ScreenWidth / 4);
+    var rightOffset = Settings.ScreenWidth - Settings.ScreenWidth / 4;
     var scoreTwoPosition = new Vec2(rightOffset, 40);
     // `Graphics.LoadText` renders a string using a given font, position, font size, angle, and color values
     scoreTwo = Graphics.LoadText("0", "samples/Pong/Assets/arial.ttf", scoreTwoPosition, 60, 0, 255, 255, 255);
@@ -81,18 +81,18 @@ void Main() {
 }
 
 // `Update` is a special method that the program runs every frame after `Main` finishes
-void Update(decimal! deltaTime) {
+void Update(decimal deltaTime) {
     Graphics.Fill(0, 0, 0);
 
     if (Graphics.GetKey("W")) {
         var newY = lPaddleTargetPosition.y - Settings.PaddleSpeed * deltaTime;
-        newY = Math.Clamp(newY, 0 + lPaddle.dst.h / 2, Settings.ScreenHeight - lPaddle.dst.h / 2);
+        newY ><= [0 + lPaddle.dst.h / 2, Settings.ScreenHeight - lPaddle.dst.h / 2];
         lPaddleTargetPosition.y = newY;
     }
 
     if (Graphics.GetKey("S")) {
         var newY = lPaddleTargetPosition.y + Settings.PaddleSpeed * deltaTime;
-        newY = Math.Clamp(newY, 0 + lPaddle.dst.h / 2, Settings.ScreenHeight - lPaddle.dst.h / 2);
+        newY ><= [0 + lPaddle.dst.h / 2, Settings.ScreenHeight - lPaddle.dst.h / 2];
         lPaddleTargetPosition.y = newY;
     }
 
@@ -103,27 +103,27 @@ void Update(decimal! deltaTime) {
     lPaddle.SetPosition(lPaddle.position.x, lerpedYl);
 
     if (aiOn) {
-        if (rPaddle.position.y! < ball.position.y!) {
+        if (rPaddle.position.y < ball.position.y) {
             var newY = rPaddleTargetPosition.y + Settings.PaddleSpeed * deltaTime;
-            newY = Math.Clamp(newY, 0 + rPaddle.dst.h / 2, Settings.ScreenHeight - rPaddle.dst.h / 2);
+            newY ><= [0 + rPaddle.dst.h / 2, Settings.ScreenHeight - rPaddle.dst.h / 2];
             rPaddleTargetPosition.y = newY;
         }
 
-        if (rPaddle.position.y! > ball.position.y!) {
+        if (rPaddle.position.y > ball.position.y) {
             var newY = rPaddleTargetPosition.y - Settings.PaddleSpeed * deltaTime;
-            newY = Math.Clamp(newY, 0 + rPaddle.dst.h / 2, Settings.ScreenHeight - rPaddle.dst.h / 2);
+            newY ><= [0 + rPaddle.dst.h / 2, Settings.ScreenHeight - rPaddle.dst.h / 2];
             rPaddleTargetPosition.y = newY;
         }
     } else {
         if (Graphics.GetKey("Up")) {
             var newY = rPaddleTargetPosition.y - Settings.PaddleSpeed * deltaTime;
-            newY = Math.Clamp(newY, 0 + rPaddle.dst.h / 2, Settings.ScreenHeight - rPaddle.dst.h / 2);
+            newY ><= [0 + rPaddle.dst.h / 2, Settings.ScreenHeight - rPaddle.dst.h / 2];
             rPaddleTargetPosition.y = newY;
         }
 
         if (Graphics.GetKey("Down")) {
             var newY = rPaddleTargetPosition.y + Settings.PaddleSpeed * deltaTime;
-            newY = Math.Clamp(newY, 0 + rPaddle.dst.h / 2, Settings.ScreenHeight - rPaddle.dst.h / 2);
+            newY ><= [0 + rPaddle.dst.h / 2, Settings.ScreenHeight - rPaddle.dst.h / 2];
             rPaddleTargetPosition.y = newY;
         }
     }
@@ -165,7 +165,7 @@ private void HandleBallBounce() {
     var topEdge = ballY - scaleY / 2;
     var bottomEdge = ballY + scaleY / 2;
 
-    if (topEdge! <= 0 || bottomEdge! >= Settings.ScreenHeight) {
+    if (topEdge <= 0 || bottomEdge! >= Settings.ScreenHeight) {
         var vX = ballVelocity.x;
         var vY = ballVelocity.y;
         vY *= -1;
@@ -173,7 +173,7 @@ private void HandleBallBounce() {
         return;
     }
 
-    if (ballX! < 0) {
+    if (ballX < 0) {
         var ballPos = centerOfScreen.Copy();
         ballPos.x -= ball.dst.w;
         ballPos.y -= ball.dst.h;
@@ -183,7 +183,7 @@ private void HandleBallBounce() {
         scoreTwo.text = (string!)(((int)scoreTwo.text) + 1);
     }
 
-    if (ballX! > Settings.ScreenWidth) {
+    if (ballX > Settings.ScreenWidth) {
         var ballPos = centerOfScreen.Copy();
         ballPos.x -= ball.dst.w;
         ballPos.y -= ball.dst.h;
@@ -218,7 +218,7 @@ private void HandleBallBounce() {
     }
 }
 
-private static bool! Colliding(Rect a, Rect b) {
+private static bool Colliding(Rect a, Rect b) {
     var collisionX = a.x + a.w >= b.x && b.x + b.w >= a.x;
     var collisionY = a.y + a.h >= b.y && b.y + b.h >= a.y;
     return collisionX && collisionY;

@@ -5006,7 +5006,7 @@ internal partial class Binder {
                 if (expression.kind == BoundKind.AssignmentOperator) {
                     var assignment = (BoundAssignmentOperator)expression;
 
-                    if (assignment.right.constantValue.specialType == SpecialType.Bool)
+                    if (assignment.right.constantValue?.specialType == SpecialType.Bool)
                         diagnostics.Push(Warning.IncorrectBooleanAssignment(assignment.syntax.location));
                 }
             }
@@ -13142,6 +13142,9 @@ symIsHidden:;
                     return false;
 
                 return true;
+            case BoundKind.ClampOperator:
+                var clampOperator = (BoundClampOperator)expression;
+                return !clampOperator.isAssignment;
             default:
                 return true;
         }
