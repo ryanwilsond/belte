@@ -1083,16 +1083,16 @@ oneMoreTime:
 
         _builder.BeginTry();
 
-        EmitBlock((BoundBlockStatement)statement.body);
+        EmitBlock(statement.body);
 
         if (hasCatch) {
             _builder.BeginCatch();
-            EmitBlock((BoundBlockStatement)statement.catchBody);
+            EmitBlock(statement.catchBody);
         }
 
         if (hasFinally) {
             _builder.BeginFinally();
-            EmitBlock((BoundBlockStatement)statement.finallyBody);
+            EmitBlock(statement.finallyBody);
         }
 
         _builder.EndTry(hasFinally);

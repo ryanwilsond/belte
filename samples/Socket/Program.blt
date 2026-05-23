@@ -105,12 +105,12 @@ public static class Program {
 
             var buffer = new Buffer();
             if (recv(client, buffer.buffer, 1024, 0) <= 0) {
-                closesocket(client);
+                _ = closesocket(client);
                 return;
             }
 
-            send(client, msg, length, 0);
-            closesocket(client);
+            _ = send(client, msg, length, 0);
+            _ = closesocket(client);
 
             Console.PrintLine("Sent message");
         }

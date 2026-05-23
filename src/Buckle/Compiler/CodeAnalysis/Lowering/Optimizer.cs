@@ -29,16 +29,27 @@ internal sealed class Optimizer : BoundTreeRewriter {
         for (var i = 0; i < builder.Count; i++) {
             var statement = builder[i];
 
-            // TODO CFG not updated for switches
-            if (InSwitch(statement.syntax))
-                continue;
+again:
+            if (!reachableStatements.Contains(statement)) {
+                if (statement is BoundSequencePoint seqPoint) {
+                    statement = seqPoint.statement;
 
-            // TODO This only works on surface level and breaks on nested trys
-            // TODO Will have to rewrite the CFG builder from scratch fix trys later
-            if (!reachableStatements.Contains(statement) && statement.kind is not BoundKind.TryStatement and not
-                BoundKind.SequencePoint and not BoundKind.SequencePointWithLocation) {
-                var statementToRemove = statement;
-                PotentiallyReportDeadCode(statementToRemove);
+                    if (statement is null)
+                        continue;
+
+                    goto again;
+                }
+
+                if (statement is BoundSequencePointWithLocation seqPointWithLocation) {
+                    statement = seqPointWithLocation.statement;
+
+                    if (statement is null)
+                        continue;
+
+                    goto again;
+                }
+
+                PotentiallyReportDeadCode(statement);
                 builder.RemoveAt(i);
                 i--;
             }
@@ -52,22 +63,42 @@ internal sealed class Optimizer : BoundTreeRewriter {
             if (syntax.kind == SyntaxKind.LocalFunctionStatement)
                 return;
 
-            if (node.kind is BoundKind.GotoStatement or BoundKind.LabelStatement)
+            if (node.kind == BoundKind.LabelStatement)
                 return;
 
-            // if (seenScopes.Add(syntax.parent))
-            //     diagnostics.Push(Warning.UnreachableCode(syntax.location));
-        }
+            // TODO This would be cleaner to instead have a isCompilerGenerated property on all bound nodes
+            if (node.kind == BoundKind.GotoStatement && !IsUserDeclaredGoto(node.syntax))
+                return;
 
-        bool InSwitch(SyntaxNode node) {
-            while (node is not null) {
-                if (node.kind == SyntaxKind.SwitchSection)
-                    return true;
+            if (node.kind == BoundKind.ReturnStatement && !IsUserDeclaredReturn(node.syntax))
+                return;
 
-                node = node.parent;
+            if (node.kind == BoundKind.ExpressionStatement &&
+                node.syntax.kind is SyntaxKind.WithStatement or SyntaxKind.WithExpression) {
+                return;
             }
 
-            return false;
+            if (seenScopes.Add(syntax.parent))
+                diagnostics.Push(Warning.UnreachableCode(syntax.location));
+        }
+
+        bool IsUserDeclaredGoto(SyntaxNode syntax) {
+            switch (syntax.kind) {
+                case SyntaxKind.ContinueStatement:
+                case SyntaxKind.BreakStatement:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        bool IsUserDeclaredReturn(SyntaxNode syntax) {
+            switch (syntax.kind) {
+                case SyntaxKind.ReturnStatement:
+                    return true;
+                default:
+                    return false;
+            }
         }
     }
 

@@ -119,14 +119,14 @@ public static class Program {
             return;
         }
 
-        ShowWindow(hWnd, SW_SHOW);
-        UpdateWindow(hWnd);
+        _ = ShowWindow(hWnd, SW_SHOW);
+        _ = UpdateWindow(hWnd);
 
         MSG msg = new ();
 
         while (GetMessage(&msg, nullptr, 0, 0) != 0) {
-            TranslateMessage(&msg);
-            DispatchMessage(&msg);
+            _ = TranslateMessage(&msg);
+            _ = DispatchMessage(&msg);
         }
 
         LowLevel.FreeLPCSTR(wc.lpszClassName);

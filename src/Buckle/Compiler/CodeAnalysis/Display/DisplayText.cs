@@ -637,20 +637,20 @@ public sealed class DisplayText {
     private static void DisplayTryStatement(DisplayText text, BoundTryStatement node) {
         text.Write(CreateKeyword(SyntaxKind.TryKeyword));
         text.Write(CreateSpace());
-        DisplayBlockStatement(text, (BoundBlockStatement)node.body, false);
+        DisplayBlockStatement(text, node.body, false);
 
         if (node.catchBody is not null) {
             text.Write(CreateSpace());
             text.Write(CreateKeyword(SyntaxKind.CatchKeyword));
             text.Write(CreateSpace());
-            DisplayBlockStatement(text, (BoundBlockStatement)node.catchBody, false);
+            DisplayBlockStatement(text, node.catchBody, false);
         }
 
         if (node.finallyBody is not null) {
             text.Write(CreateSpace());
             text.Write(CreateKeyword(SyntaxKind.FinallyKeyword));
             text.Write(CreateSpace());
-            DisplayBlockStatement(text, (BoundBlockStatement)node.finallyBody, false);
+            DisplayBlockStatement(text, node.finallyBody, false);
         }
 
         text.WriteLine();

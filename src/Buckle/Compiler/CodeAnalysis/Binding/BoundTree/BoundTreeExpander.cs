@@ -327,12 +327,12 @@ internal abstract partial class BoundTreeExpander {
         return [
             new BoundTryStatement(
                 syntax,
-                Simplify(syntax, ExpandStatement(statement.body)) as BoundBlockStatement,
+                Simplify(syntax, ExpandBlockStatement(statement.body)) as BoundBlockStatement,
                 statement.catchBody is not null ?
-                    Simplify(syntax, ExpandStatement(statement.catchBody)) as BoundBlockStatement
+                    Simplify(syntax, ExpandBlockStatement(statement.catchBody)) as BoundBlockStatement
                     : null,
                 statement.finallyBody is not null ?
-                    Simplify(syntax, ExpandStatement(statement.finallyBody)) as BoundBlockStatement
+                    Simplify(syntax, ExpandBlockStatement(statement.finallyBody)) as BoundBlockStatement
                     : null
             )
         ];

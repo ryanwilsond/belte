@@ -1056,9 +1056,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 var hasFinally = tryStatement.finallyBody is not null;
 
                 statementsBuilder.Add(tryStatement.Update(
-                    FlattenBlock(method, (BoundBlockStatement)tryStatement.body, false),
-                    hasCatch ? FlattenBlock(method, (BoundBlockStatement)tryStatement.catchBody, false) : null,
-                    hasFinally ? FlattenBlock(method, (BoundBlockStatement)tryStatement.finallyBody, false) : null
+                    FlattenBlock(method, tryStatement.body, false),
+                    hasCatch ? FlattenBlock(method, tryStatement.catchBody, false) : null,
+                    hasFinally ? FlattenBlock(method, tryStatement.finallyBody, false) : null
                 ));
             } else {
                 statementsBuilder.Add(current);

@@ -71,7 +71,7 @@ internal sealed partial class LocalFunctionRewriter {
         internal override BoundNode VisitTryStatement(BoundTryStatement node) {
             // TODO This is probably wrong, doesn't seem to account for locals inside the catch and finally bodies
             var oldScope = _currentScope;
-            PushOrReuseScope(node, ((BoundBlockStatement)node.body).locals);
+            PushOrReuseScope(node, node.body.locals);
             var result = base.VisitTryStatement(node);
             PopScope(oldScope);
             return result;

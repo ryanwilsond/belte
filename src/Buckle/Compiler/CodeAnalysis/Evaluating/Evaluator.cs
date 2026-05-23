@@ -375,22 +375,12 @@ internal sealed class Evaluator {
                         _insideTry = true;
 
                         try {
-                            _lastValue = EvaluateStatement(
-                                method,
-                                (BoundBlockStatement)node.body,
-                                abort,
-                                out returned
-                            );
+                            _lastValue = EvaluateStatement(method, node.body, abort, out returned);
                         } catch (BelteException) {
                             if (node.catchBody is null)
                                 throw;
 
-                            _lastValue = EvaluateStatement(
-                                method,
-                                (BoundBlockStatement)node.catchBody,
-                                abort,
-                                out returned
-                            );
+                            _lastValue = EvaluateStatement(method, node.catchBody, abort, out returned);
                         } finally {
                             _insideTry = previousInsideTry;
 
@@ -398,12 +388,7 @@ internal sealed class Evaluator {
                                 var previousHasValue = _hasValue;
                                 var previousLastValue = _lastValue;
 
-                                EvaluateStatement(
-                                    method,
-                                    (BoundBlockStatement)node.finallyBody,
-                                    abort,
-                                    out returned
-                                );
+                                EvaluateStatement(method, node.finallyBody, abort, out returned);
 
                                 _hasValue = previousHasValue;
                                 _lastValue = previousLastValue;

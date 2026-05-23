@@ -880,7 +880,9 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
             if (outInitializers is not null)
                 body = new BoundBlockStatement(body.syntax, [outInitializers, body], [], []);
 
+            // The main lowering passes happen while the local function body is still present in the enclosing method
             body = Lowerer.Flatten(synthesizedMethod, body);
+            body = Optimizer.RemoveDeadCode(body, _diagnostics);
 
             if (!ControlFlowGraph.AllPathsReturn(body))
                 _diagnostics.Push(Error.NotAllPathsReturn(node.symbol.location));

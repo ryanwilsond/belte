@@ -1002,61 +1002,60 @@ public sealed class IssueTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Bring these back when CFG issues are fixed
-    // [Fact]
-    // public void Evaluator_ElseStatement_Reports_NotReachableCode_Warning() {
-    //     var text = @"
-    //         int test() {
-    //             if (true)
-    //                 return 1;
-    //             else
-    //                 [return 0;]
-    //         }
-    //     ";
+    [Fact]
+    public void Evaluator_ElseStatement_Reports_NotReachableCode_Warning() {
+        var text = @"
+            int test() {
+                if (true)
+                    return 1;
+                else
+                    [return 0;]
+            }
+        ";
 
-    //     var diagnostics = @"
-    //         unreachable code
-    //     ";
+        var diagnostics = @"
+            unreachable code
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer, true);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
 
-    // [Fact]
-    // public void Evaluator_WhileStatement_Reports_NotReachableCode_Warning() {
-    //     var text = @"
-    //         void test() {
-    //             while (false) {
-    //                 [continue;]
-    //             }
-    //         }
-    //     ";
+    [Fact]
+    public void Evaluator_WhileStatement_Reports_NotReachableCode_Warning() {
+        var text = @"
+            void test() {
+                while (false) {
+                    [continue;]
+                }
+            }
+        ";
 
-    //     var diagnostics = @"
-    //         unreachable code
-    //     ";
+        var diagnostics = @"
+            unreachable code
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer, true);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
 
-    // [Fact]
-    // public void Evaluator_IfStatement_Reports_NotReachableCode_Warning() {
-    //     var text = @"
-    //         void test() {
-    //             const int x = 4 * 3;
-    //             if (x > 12) {
-    //                 [Console.PrintLine(""x"");]
-    //             } else {
-    //                 Console.PrintLine(""x"");
-    //             }
-    //         }
-    //     ";
+    [Fact]
+    public void Evaluator_IfStatement_Reports_NotReachableCode_Warning() {
+        var text = @"
+            void test() {
+                constexpr int x = 4 * 3;
+                if (x > 12) {
+                    [Console.PrintLine(""x"");]
+                } else {
+                    Console.PrintLine(""x"");
+                }
+            }
+        ";
 
-    //     var diagnostics = @"
-    //         unreachable code
-    //     ";
+        var diagnostics = @"
+            unreachable code
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer, true);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
 
     [Fact]
     public void Evaluator_Enum_ArgumentAllowsImplicitField() {

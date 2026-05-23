@@ -81,8 +81,8 @@ void Main() {
         Console.SetCursorPosition(0, 0);
     }
 
-    Console.SetCursorVisibility(true);
-    Console.Clear();
+    // Console.SetCursorVisibility(true);
+    // Console.Clear();
 }
 
 void R(int mul, int shift, ref int x, ref int y) {
