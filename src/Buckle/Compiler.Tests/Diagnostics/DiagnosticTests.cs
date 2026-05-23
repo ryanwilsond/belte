@@ -208,6 +208,20 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
+    public void Reports_Error_BU0015_BadArgumentName2() {
+        var text = @"
+            void(int) F;
+            F([a]: 3);
+        ";
+
+        var diagnostics = @"
+            the best overload for 'F' does not have a parameter named 'a'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
     public void Reports_Error_BU0016_MainAndGlobals() {
         var text = @"
             int? a = 3;
@@ -2690,6 +2704,34 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             there is no argument given that corresponds to the required parameter 'b' of 'F(int?, int?)'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0195_NoCorrespondingArgument2() {
+        var text = @"
+            void(int a) F;
+            [F]();
+        ";
+
+        var diagnostics = @"
+            there is no argument given that corresponds to the required parameter 'a' of 'void(int!)'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0195_NoCorrespondingArgument3() {
+        var text = @"
+            void(int) F;
+            [F]();
+        ";
+
+        var diagnostics = @"
+            there is no argument given that corresponds to the required parameter 'p1' of 'void(int!)'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

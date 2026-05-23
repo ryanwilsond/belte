@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
@@ -36,7 +37,7 @@ internal static class ParameterHelpers {
                                                 parameterType,
                                                 syntax,
                                                 refKind,
-                                                syntax.identifier,
+                                                syntax.identifier.text,
                                                 ordinal,
                                                 scope
                                             );
@@ -48,6 +49,8 @@ internal static class ParameterHelpers {
         FunctionPointerMethodSymbol owner,
         SeparatedSyntaxList<FunctionPointerParameterSyntax> parametersList,
         BelteDiagnosticQueue diagnostics) {
+        var names = parametersList.Select(p => p.identifier?.text);
+
         return MakeParameters(
             binder,
             owner,
@@ -65,6 +68,7 @@ internal static class ParameterHelpers {
                                         return new FunctionPointerParameterSymbol(
                                             parameterType,
                                             refKind,
+                                            syntax.identifier?.text ?? MakeDefaultName(ordinal, names),
                                             ordinal,
                                             owner
                                         );
@@ -73,11 +77,24 @@ internal static class ParameterHelpers {
         );
     }
 
+    private static string MakeDefaultName(int ordinal, System.Collections.Generic.IEnumerable<string> names) {
+        string name;
+        var num = ordinal;
+
+        do {
+            name = $"p{++num}";
+        } while (names.Contains(name));
+
+        return name;
+    }
+
     internal static ImmutableArray<FunctionParameterSymbol> MakeFunctionParameters(
         Binder binder,
         FunctionMethodSymbol owner,
         SeparatedSyntaxList<FunctionPointerParameterSyntax> parametersList,
         BelteDiagnosticQueue diagnostics) {
+        var names = parametersList.Select(p => p.identifier?.text);
+
         return MakeParameters(
             binder,
             owner,
@@ -95,6 +112,7 @@ internal static class ParameterHelpers {
                                         return new FunctionParameterSymbol(
                                             parameterType,
                                             refKind,
+                                            syntax.identifier?.text ?? MakeDefaultName(ordinal, names),
                                             ordinal,
                                             owner
                                         );

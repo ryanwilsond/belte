@@ -34,13 +34,14 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private readonly BoundProgram _program;
     private readonly ImmutableArray<NamedTypeSymbol> _topLevelTypes;
     private readonly ImmutableArray<NamedTypeSymbol> _linearNestedTypes;
+    private readonly ImmutableArray<(MethodSymbol, BoundBlockStatement)> _methodBodies;
     private readonly bool _isDll;
     private readonly bool _debugMode;
 
     private readonly Dictionary<SpecialType, TypeReference> _specialTypes = [];
     private readonly Dictionary<TypeSymbol, TypeDefinition> _types = [];
     private readonly ConcurrentDictionary<MethodSymbol, MethodDefinition> _methods = [];
-    private readonly ConcurrentDictionary<MethodDefinition, (MethodSymbol, BoundBlockStatement)> _methodBodies = [];
+    private readonly ConcurrentDictionary<MethodDefinition, (MethodSymbol, BoundBlockStatement)> _methodBodyMap = [];
     private readonly ConcurrentDictionary<FieldSymbol, FieldDefinition> _fields = [];
     private readonly ConcurrentDictionary<MethodSymbol, TypeReference[]> _methodTypeParameters = [];
     private readonly string _belteDllName;
@@ -142,6 +143,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             linearBuilder.AddRange(set.Value);
 
         _linearNestedTypes = linearBuilder.ToImmutable();
+        _methodBodies = program.GetAllMethodBodies();
 
         _belteCompilerGeneratedAttributeCtor = _assemblyDefinition.MainModule.ImportReference(
             typeof(BelteCompilerGeneratedAttribute).GetConstructor(Type.EmptyTypes)
@@ -242,7 +244,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     private string EmitToString(bool programOnly) {
-        EmitInternal();
+        EmitInternal(programOnly);
 
         var stringWriter = new StringWriter();
 
@@ -758,11 +760,11 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
     }
 
-    private void EmitInternal() {
+    private void EmitInternal(bool programOnly = false) {
         foreach (var type in _topLevelTypes)
             CreateTypeDefinitionAndBases(type);
 
-        if (_program.compilation.options.concurrentBuild) {
+        if (_program.compilation.options.concurrentBuild && !programOnly) {
             var maxParallels = _program.compilation.options.maxCoreCount;
             var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = maxParallels };
 
@@ -774,14 +776,20 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
             Parallel.ForEach(_methods, parallelOptions, method => EmitMethod(method.Value));
         } else {
-            foreach (var type in _topLevelTypes)
-                CreateMemberDefinitions(type);
+            foreach (var type in _topLevelTypes) {
+                if (!programOnly || type.IsFromCompilation(_program.compilation))
+                    CreateMemberDefinitions(type);
+            }
 
-            foreach (var type in _linearNestedTypes)
-                CreateMemberDefinitions(type);
+            foreach (var type in _linearNestedTypes) {
+                if (!programOnly || type.IsFromCompilation(_program.compilation))
+                    CreateMemberDefinitions(type);
+            }
 
-            foreach (var method in _methods)
-                EmitMethod(method.Value);
+            foreach (var method in _methods) {
+                if (!programOnly || method.Key.IsFromCompilation(_program.compilation))
+                    EmitMethod(method.Value);
+            }
         }
 
         var entryPoint = _program.entryPoint;
@@ -1010,7 +1018,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
 
         // Checking program map for methods to make sure synthesized ones are included (such as closure methods)
-        foreach (var pair in _program.GetAllMethodBodies()) {
+        foreach (var pair in _methodBodies) {
             if (pair.Item1.containingType.Equals(type)) {
                 CreateMethodDefinition(pair.Item1, pair.Item2, typeDefinition);
 
@@ -1136,7 +1144,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         _methods.Add(method, methodDefinition);
 
         if (body is not null)
-            _methodBodies.Add(methodDefinition, (method, body));
+            _methodBodyMap.Add(methodDefinition, (method, body));
 
         containingType.Methods.Add(methodDefinition);
 
@@ -1333,7 +1341,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         if (methodDefinition.IsAbstract || (methodDefinition.Attributes & MethodAttributes.PInvokeImpl) != 0)
             return;
 
-        var (method, body) = _methodBodies[methodDefinition];
+        var (method, body) = _methodBodyMap[methodDefinition];
         var ilBuilder = new CecilILBuilder(method, this, methodDefinition);
         var codeGen = new CodeGenerator(this, method, body, ilBuilder, _debugMode);
 

@@ -18,12 +18,12 @@ public sealed class EvaluatorContext : IDisposable {
     internal ValueWrapper<bool> createWindow = true;
     internal EvaluatorValue[] globalSlots;
 
-    private Dictionary<string, (DataContainerSymbol, int)> _globals;
+    private Dictionary<DataContainerSymbol, int> _globals;
     private Dictionary<NamedTypeSymbol, int> _staticTypes;
     private int _bumpPointer;
 
     public EvaluatorContext(CompilationOptions options) {
-        _globals = new Dictionary<string, (DataContainerSymbol, int)>(32);
+        _globals = new Dictionary<DataContainerSymbol, int>(32);
         _staticTypes = new Dictionary<NamedTypeSymbol, int>(16);
         globalSlots = new EvaluatorValue[48];
         heap = new Heap();
@@ -52,7 +52,7 @@ public sealed class EvaluatorContext : IDisposable {
     }
 
     public Dictionary<ISymbol, EvaluatorValue> GetTrackedGlobalObjects() {
-        return _globals.Values.ToDictionary(pair => (ISymbol)pair.Item1, pair => globalSlots[pair.Item2]);
+        return _globals.ToDictionary(pair => (ISymbol)pair.Key, pair => globalSlots[pair.Value]);
     }
 
     public void Reset() {
@@ -61,41 +61,42 @@ public sealed class EvaluatorContext : IDisposable {
             graphicsHandler.Exit();
         }
 
-        _globals = new Dictionary<string, (DataContainerSymbol, int)>(32);
+        _globals = new Dictionary<DataContainerSymbol, int>(32);
+        _staticTypes = new Dictionary<NamedTypeSymbol, int>(32);
         globalSlots = new EvaluatorValue[32];
         heap.FreeAll();
     }
 
     internal bool TryGetGlobal(DataContainerSymbol symbol, out EvaluatorValue value) {
-        var succeeded = _globals.TryGetValue(symbol.name, out var pair);
-        value = globalSlots[pair.Item2];
+        var succeeded = _globals.TryGetValue(symbol, out var slot);
+        value = globalSlots[slot];
         return succeeded;
     }
 
     internal int GetSlotOfGlobal(DataContainerSymbol symbol) {
-        return _globals[symbol.name].Item2;
+        return _globals[symbol];
     }
 
     internal int GetSlotOfGlobalOrAllocate(DataContainerSymbol symbol) {
-        if (_globals.TryGetValue(symbol.name, out var value))
-            return value.Item2;
+        if (_globals.TryGetValue(symbol, out var slot))
+            return slot;
 
         var index = _bumpPointer++;
         EnsureCapacity(_bumpPointer);
-        _globals.Add(symbol.name, (symbol, index));
+        _globals.Add(symbol, index);
 
         return index;
     }
 
     internal void AddOrUpdateGlobal(DataContainerSymbol symbol, EvaluatorValue value) {
-        if (_globals.TryGetValue(symbol.name, out var pair)) {
-            globalSlots[pair.Item2] = value;
-            _globals[symbol.name] = (symbol, pair.Item2);
+        if (_globals.TryGetValue(symbol, out var slot)) {
+            globalSlots[slot] = value;
+            _globals[symbol] = slot;
         } else {
             var index = _bumpPointer++;
             EnsureCapacity(_bumpPointer);
             globalSlots[index] = value;
-            _globals.Add(symbol.name, (symbol, index));
+            _globals.Add(symbol, index);
         }
     }
 

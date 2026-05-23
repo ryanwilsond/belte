@@ -6469,7 +6469,7 @@ internal partial class Binder {
         var underlyingExpression = boundExpression is BoundConditionalAccessExpression c
             ? c.accessExpression
             : boundExpression;
-        var name = underlyingExpression.kind == BoundKind.MethodGroup ? GetName(node.expression) : null;
+        var name = GetName(node.expression);
         BindArgumentsAndNames(node.argumentList, diagnostics, analyzedArguments);
 
         var call = BindCallExpression(

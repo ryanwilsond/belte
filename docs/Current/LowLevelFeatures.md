@@ -255,6 +255,15 @@ var MyFunction = (void()*~)vtable[0];
 MyFunction();
 ```
 
+Parameter names are optional in function pointers types and default to `p1`,
+`p2`, etc. based on parameter ordinal:
+
+```belte
+int(int a, int)* myFunc; // Signature is: int(int a, int p2)*
+```
+
+This is to allow [named arguments](ControlFlow.md#214-named-arguments) when calling the function.
+
 ### 6.6.1 Calling Conventions
 
 The default unmanaged calling convention is WinAPI/STDCall (they are the same). Specifying a calling convention can be

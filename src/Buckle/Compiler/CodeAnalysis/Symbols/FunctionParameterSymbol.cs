@@ -11,13 +11,17 @@ internal sealed class FunctionParameterSymbol : ParameterSymbol {
     public FunctionParameterSymbol(
         TypeWithAnnotations typeWithAnnotations,
         RefKind refKind,
+        string name,
         int ordinal,
         FunctionMethodSymbol containingSymbol) {
         this.typeWithAnnotations = typeWithAnnotations;
         this.refKind = refKind;
         this.ordinal = ordinal;
         _containingSymbol = containingSymbol;
+        this.name = name ?? "";
     }
+
+    public override string name { get; }
 
     internal override TypeWithAnnotations typeWithAnnotations { get; }
 

@@ -918,8 +918,8 @@ public sealed partial class BelteRepl : Repl {
         else if (signature.StartsWith("global."))
             signature = signature.Substring(7);
 
-        // Prefer tracked symbols first
-        foreach (var symbolAndValue in state.context.GetTrackedGlobalObjects()) {
+        // Prefer tracked symbols first (reverse to prefer latest)
+        foreach (var symbolAndValue in state.context.GetTrackedGlobalObjects().Reverse()) {
             var local = symbolAndValue.Key;
 
             if (local.name == signature) {

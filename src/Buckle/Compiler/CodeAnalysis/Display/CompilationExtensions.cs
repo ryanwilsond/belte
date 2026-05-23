@@ -69,19 +69,23 @@ public static class CompilationExtensions {
         }
     }
 
-    internal static void EmitTree(ISymbol symbol, DisplayText text, BoundProgram program) {
+    internal static void EmitTree(
+        ISymbol symbol,
+        DisplayText text,
+        BoundProgram program,
+        bool compact = false) {
         switch (symbol.kind) {
             case SymbolKind.Namespace: {
                     var ns = (NamespaceSymbol)symbol;
                     SymbolDisplay.AppendToDisplayText(text, symbol, SymbolDisplayFormat.Everything);
-                    WriteMembers(ns);
+                    WriteMembers(ns, compact);
                 }
 
                 break;
             case SymbolKind.NamedType: {
                     var type = (NamedTypeSymbol)symbol;
                     SymbolDisplay.AppendToDisplayText(text, symbol, SymbolDisplayFormat.Everything);
-                    WriteMembers(type);
+                    WriteMembers(type, compact);
                 }
 
                 break;
@@ -105,7 +109,7 @@ public static class CompilationExtensions {
                     var type = field.type.StrippedType();
 
                     if (type is NamedTypeSymbol s && s is not PrimitiveTypeSymbol)
-                        WriteMembers(s);
+                        WriteMembers(s, compact);
                     else
                         text.WriteLine();
                 }
@@ -117,7 +121,7 @@ public static class CompilationExtensions {
                     var type = local.type.StrippedType();
 
                     if (type is NamedTypeSymbol s && s is not PrimitiveTypeSymbol)
-                        WriteMembers(s);
+                        WriteMembers(s, compact);
                     else
                         text.WriteLine();
                 }
@@ -127,7 +131,7 @@ public static class CompilationExtensions {
                 throw ExceptionUtilities.UnexpectedValue(symbol.kind);
         }
 
-        void WriteMembers(NamespaceOrTypeSymbol typeOrNamespace) {
+        void WriteMembers(NamespaceOrTypeSymbol typeOrNamespace, bool compact = false) {
             var members = typeOrNamespace.GetMembers();
 
             text.Write(CreateSpace());
@@ -137,17 +141,39 @@ public static class CompilationExtensions {
 
             if (typeOrNamespace is SourceNamedTypeSymbol n && n.typeKind == TypeKind.Enum) {
                 text.WriteLine();
-                SymbolDisplay.AppendToDisplayText(text, n.enumValueField, SymbolDisplayFormat.BoundDisplayFormat);
-                text.WriteLine();
+                SymbolDisplay.AppendToDisplayText(
+                    text,
+                    n.enumValueField,
+                    SymbolDisplayFormat.CompactBoundDisplayFormat
+                );
+
+                if (!compact)
+                    text.WriteLine();
             }
 
             foreach (var member in members) {
+                if (compact && member.kind == SymbolKind.Method)
+                    continue;
+
                 text.WriteLine();
-                SymbolDisplay.AppendToDisplayText(text, member, SymbolDisplayFormat.BoundDisplayFormat);
-                text.WriteLine();
+                SymbolDisplay.AppendToDisplayText(text, member, SymbolDisplayFormat.CompactBoundDisplayFormat);
+
+                if (member is FieldSymbol f && f.hasConstantValue) {
+                    text.Write(CreateSpace());
+                    text.Write(CreatePunctuation(SyntaxKind.EqualsToken));
+                    text.Write(CreateSpace());
+                    DisplayText.DisplayConstant(text, f.constantValue);
+                }
+
+                if (!compact)
+                    text.WriteLine();
             }
 
             text.indent--;
+
+            if (compact)
+                text.WriteLine();
+
             text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
             text.WriteLine();
         }

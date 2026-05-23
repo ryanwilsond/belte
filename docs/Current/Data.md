@@ -190,6 +190,14 @@ int Add(int a, int b) {
 }
 ```
 
+Parameter names are optional in function types and default to `p1`, `p2`, etc. based on parameter ordinal:
+
+```belte
+int(int a, int) myFunc; // Signature is: int(int a, int p2)
+```
+
+This is to allow [named arguments](ControlFlow.md#214-named-arguments) when calling the function.
+
 Function types cannot include pointer types in the return value or parameter list. For cases where you need this
 functionality, use function pointers instead.
 

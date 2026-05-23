@@ -149,6 +149,12 @@ public static class SymbolDisplay {
                     DisplayConstExprRef(text, false, false, param.refKind);
 
                 DisplayType(text, param.type, format);
+
+                if (param.name != string.Empty &&
+                    (format.parameterOptions & SymbolDisplayParameterOptions.IncludeName) != 0) {
+                    text.Write(CreateSpace());
+                    text.Write(CreateIdentifier(param.name));
+                }
             }
 
             text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
@@ -173,6 +179,12 @@ public static class SymbolDisplay {
                     DisplayConstExprRef(text, false, false, param.refKind);
 
                 DisplayType(text, param.type, format);
+
+                if (param.name != string.Empty &&
+                    (format.parameterOptions & SymbolDisplayParameterOptions.IncludeName) != 0) {
+                    text.Write(CreateSpace());
+                    text.Write(CreateIdentifier(param.name));
+                }
             }
 
             text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
@@ -326,7 +338,7 @@ public static class SymbolDisplay {
             DisplayConstExprRef(text, field.isConst, field.isConstExpr, field.refKind);
 
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeType) != 0) {
-            DisplayType(text, field.type, format);
+            DisplayType(text, field.type, ToMemberTypeFormat(format));
             text.Write(CreateSpace());
         }
 
@@ -343,15 +355,7 @@ public static class SymbolDisplay {
             DisplayConstExprRef(text, false, false, parameter.refKind);
 
         if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeType) != 0) {
-            DisplayType(
-                text,
-                parameter.type,
-                format.WithOptions(
-                    format.memberOptions & ~(SymbolDisplayMemberOptions.IncludeTypeModifiers &
-                                             SymbolDisplayMemberOptions.IncludeAccessibility)
-                )
-            );
-
+            DisplayType(text, parameter.type, ToMemberTypeFormat(format));
             needSpace = true;
         }
 
@@ -373,6 +377,11 @@ public static class SymbolDisplay {
 
             DisplayText.DisplayConstant(text, parameter.explicitDefaultConstantValue);
         }
+    }
+
+    private static SymbolDisplayFormat ToMemberTypeFormat(SymbolDisplayFormat format) {
+        return format.WithOptions(format.memberOptions & ~(SymbolDisplayMemberOptions.IncludeTypeModifiers |
+                                                           SymbolDisplayMemberOptions.IncludeAccessibility));
     }
 
     private static void DisplayTemplateParameter(
@@ -441,7 +450,7 @@ public static class SymbolDisplay {
             DisplayConstExprRef(text, dataContainer.isConst, dataContainer.isConstExpr, dataContainer.refKind);
 
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeType) != 0) {
-            DisplayType(text, dataContainer.type, SymbolDisplayFormat.ObjectCreationFormat);
+            DisplayType(text, dataContainer.type, ToMemberTypeFormat(format));
             text.Write(CreateSpace());
         }
 
@@ -538,22 +547,17 @@ public static class SymbolDisplay {
             DisplayConstExprRef(text, method.isEffectivelyConst, false, method.refKind);
 
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeType) != 0) {
-            DisplayType(
-                text,
-                method.returnType,
-                format.WithOptions(
-                    format.memberOptions & ~(SymbolDisplayMemberOptions.IncludeTypeModifiers &
-                                             SymbolDisplayMemberOptions.IncludeAccessibility)
-                )
-            );
-
+            DisplayType(text, method.returnType, ToMemberTypeFormat(format));
             text.Write(CreateSpace());
         }
 
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeContainingType) != 0)
             DisplayContainedNames(text, method, format);
 
-        text.Write(CreateIdentifier(method.name));
+        if (method is FunctionMethodSymbol or FunctionPointerMethodSymbol)
+            DisplayType(text, method.returnType, ToMemberTypeFormat(format));
+        else
+            text.Write(CreateIdentifier(method.name));
 
         DisplayTemplateParameters(text, method.templateParameters, format);
 

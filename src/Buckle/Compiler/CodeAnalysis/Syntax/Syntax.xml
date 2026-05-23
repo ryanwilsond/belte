@@ -117,6 +117,9 @@
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
     <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
     <Field Name="type" Type="TypeSyntax" Override="true"/>
+    <Field Name="identifier" Type="SyntaxToken" Optional="true">
+      <Kind Name="IdentifierToken"/>
+    </Field>
   </Node>
   <Node Name="TemplateArgumentListSyntax" Base="SyntaxNode">
     <Kind Name="TemplateArgumentList"/>

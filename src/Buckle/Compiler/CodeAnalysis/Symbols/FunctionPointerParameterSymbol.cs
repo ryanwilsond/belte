@@ -11,13 +11,17 @@ internal sealed class FunctionPointerParameterSymbol : ParameterSymbol {
     public FunctionPointerParameterSymbol(
         TypeWithAnnotations typeWithAnnotations,
         RefKind refKind,
+        string name,
         int ordinal,
         FunctionPointerMethodSymbol containingSymbol) {
         this.typeWithAnnotations = typeWithAnnotations;
         this.refKind = refKind;
         this.ordinal = ordinal;
         _containingSymbol = containingSymbol;
+        this.name = name ?? "";
     }
+
+    public override string name { get; }
 
     internal override TypeWithAnnotations typeWithAnnotations { get; }
 

@@ -32,6 +32,7 @@ internal sealed partial class Executor : ModuleBuilder {
     private readonly BoundProgram _program;
     private readonly ImmutableArray<NamedTypeSymbol> _topLevelTypes;
     private readonly ImmutableArray<NamedTypeSymbol> _linearNestedTypes;
+    private readonly ImmutableDictionary<MethodSymbol, BoundBlockStatement> _methodBodies;
 
     private readonly Dictionary<SpecialType, Type> _specialTypes = new Dictionary<SpecialType, Type>{
         { SpecialType.Object, typeof(object) },
@@ -74,7 +75,6 @@ internal sealed partial class Executor : ModuleBuilder {
     private readonly ConcurrentDictionary<MethodSymbol, MethodInfo> _methods = [];
     private readonly ConcurrentDictionary<MethodSymbol, Type[]> _methodTypeParameters = [];
     private readonly ConcurrentDictionary<MethodSymbol, ConstructorInfo> _constructors = [];
-    private readonly ConcurrentDictionary<MethodSymbol, BoundBlockStatement> _methodBodies = [];
     private readonly ConcurrentDictionary<ConstructorBuilder, (MethodSymbol, BoundBlockStatement)> _constructorBodies = [];
     private readonly ConcurrentDictionary<FieldSymbol, FieldInfo> _fields = [];
 
@@ -112,6 +112,7 @@ internal sealed partial class Executor : ModuleBuilder {
             linearBuilder.AddRange(set.Value);
 
         _linearNestedTypes = linearBuilder.ToImmutable();
+        _methodBodies = program.GetAllMethodBodies().ToImmutableDictionary(pair => pair.Item1, pair => pair.Item2);
     }
 
     internal object Execute(bool verbose, bool logTime, string verbosePath, bool noArtifacts) {
@@ -1166,9 +1167,9 @@ internal sealed partial class Executor : ModuleBuilder {
             }
         }
 
-        foreach (var pair in _program.GetAllMethodBodies()) {
-            if (pair.Item1.containingType.originalDefinition.Equals(type))
-                CreateMethodDefinition(pair.Item1, pair.Item2, typeBuilder);
+        foreach (var pair in _methodBodies) {
+            if (pair.Key.containingType.originalDefinition.Equals(type))
+                CreateMethodDefinition(pair.Key, pair.Value, typeBuilder);
         }
     }
 
@@ -1319,9 +1320,6 @@ internal sealed partial class Executor : ModuleBuilder {
         SetCustomAttributes(method, methodBuilder);
 
         _methods.Add(method, methodBuilder);
-
-        if (body is not null)
-            _methodBodies.Add(method, body);
 
         if (method.methodKind == MethodKind.Destructor) {
             var baseFinalize = GetMethod(MethodCompiler.GetBaseTypeFinalizeMethod(method));

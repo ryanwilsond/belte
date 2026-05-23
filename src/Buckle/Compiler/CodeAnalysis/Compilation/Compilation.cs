@@ -504,7 +504,7 @@ public sealed partial class Compilation {
             return null;
 
         if (buildMode == BuildMode.CSharpTranspile) {
-            return CSharpEmitter.EmitToString(program, false, diagnostics);
+            return CSharpEmitter.EmitToString(program, programOnly, diagnostics);
         } else if (buildMode == BuildMode.Dotnet) {
             return ILEmitter.EmitToString(
                 program,
@@ -1115,6 +1115,23 @@ public sealed partial class Compilation {
         Console.WriteLine($"Dumping bound program to \"{boundProgramPath}\"");
 
         var displayText = new DisplayText();
+
+        foreach (var type in program.types) {
+            if (type.IsFromCompilation(this))
+                CompilationExtensions.EmitTree(type, displayText, program, compact: true);
+        }
+
+        foreach (var types in program.nestedTypes.Values) {
+            foreach (var type in types) {
+                if (type.IsFromCompilation(this))
+                    CompilationExtensions.EmitTree(type, displayText, program, compact: true);
+            }
+        }
+
+        foreach (var type in program.fixedImplementationTypes.Values) {
+            if (type.IsFromCompilation(this))
+                CompilationExtensions.EmitTree(type, displayText, program, compact: true);
+        }
 
         foreach (var pair in program.methodBodies) {
             if (pair.Key.IsFromCompilation(this))

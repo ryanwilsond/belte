@@ -26,6 +26,14 @@ public sealed class SymbolDisplayFormat {
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.None
     );
 
+    public static readonly SymbolDisplayFormat CompactBoundDisplayFormat = new SymbolDisplayFormat(
+        qualificationStyle: SymbolDisplayQualificationStyle.IncludeContainingTypes,
+        templateOptions: SymbolDisplayTemplateOptions.Everything,
+        memberOptions: SymbolDisplayMemberOptions.Everything & ~SymbolDisplayMemberOptions.IncludeContainingType,
+        parameterOptions: SymbolDisplayParameterOptions.Everything,
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.None
+    );
+
     public static readonly SymbolDisplayFormat QualifiedNameFormat = new SymbolDisplayFormat(
         qualificationStyle: SymbolDisplayQualificationStyle.IncludeContainingTypes,
         templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,

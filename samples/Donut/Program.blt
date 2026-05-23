@@ -59,7 +59,7 @@ void Main() {
 
                 if (22 > y && y > 0 && x > 0 && 80 > x && zz < z[o]) {
                     z[o] = zz;
-                    b[o] = ".,-~:;=!*#$@"[Math.Max(N, 0)];
+                    b[o] = ".,-~:;=!*#$@"[N \/ 0];
                 }
 
                 R(5, 8, ref cI, ref sI);

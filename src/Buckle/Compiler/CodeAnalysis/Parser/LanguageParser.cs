@@ -1020,8 +1020,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var attributes = ParseAttributeLists();
         var modifiers = ParseParameterModifiers();
         var type = ParseType(false);
+        var identifier = currentToken.kind == SyntaxKind.IdentifierToken ? EatToken() : null;
 
-        return SyntaxFactory.FunctionPointerParameter(attributes, modifiers, type);
+        return SyntaxFactory.FunctionPointerParameter(attributes, modifiers, type, identifier);
     }
 
     private SyntaxList<MemberDeclarationSyntax> ParseFieldList() {
