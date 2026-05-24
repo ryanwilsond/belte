@@ -43,6 +43,8 @@ public sealed class BuildManager {
                 warningLevel = 1,
                 includeWarnings = [],
                 excludeWarnings = [],
+                includeWarningsAsErrors = [],
+                excludeWarningsAsErrors = [],
             },
             finishStage = CompilerStage.Finished,
             outputFilename = outputFilename,

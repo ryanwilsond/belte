@@ -115,11 +115,14 @@ public sealed class Builder {
             _currentDiagnosticOptions.werrincludes.AddRange(codes);
     }
 
-    public void IncludeWarningsAsErrors() {
-        if (_diagnosticFlagMode == DiagnosticFlagMode.Global)
+    public void IncludeWarningsAsErrors(int warningLevel = 2) {
+        if (_diagnosticFlagMode == DiagnosticFlagMode.Global) {
             _globalDiagnosticOptions.warningsAsErrors = true;
-        else
+            _globalDiagnosticOptions.wErrorLevel = warningLevel;
+        } else {
             _currentDiagnosticOptions.warningsAsErrors = true;
+            _currentDiagnosticOptions.warningLevel = warningLevel;
+        }
     }
 
     public void SetWarningLevel(int level) {

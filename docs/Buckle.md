@@ -172,9 +172,10 @@ Specifically avoids suppressing specific warnings, even if the [severity level](
 [warning level](#--warnlevelwarning-level-default-1) would suggest to do so. Warnings should be comma delimited.
 Warnings should be specified using their codes.
 
-### *--werror*
+### *--werror=\<warning level>*
 
-Treats all warnings as if they were errors (i.e. build will fail on warnings).
+Treats all warnings of the given warning level and lower as if they were errors (i.e. build will fail on those
+warnings). If no warning level is provided, it defaults to 2.
 
 ### *--werrignore=<*\[BU|RE|CL]*\<code>,...>*
 

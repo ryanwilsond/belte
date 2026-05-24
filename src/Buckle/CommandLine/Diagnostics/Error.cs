@@ -86,6 +86,11 @@ internal static class Error {
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingWarningLevel), message);
     }
 
+    internal static Diagnostic MissingWarningLevelAfterWError(string arg) {
+        var message = $"missing warning level after '{arg}' (usage: '--werror=<warning level>')";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingWarningLevelAfterWError), message);
+    }
+
     internal static Diagnostic InvalidWarningLevel(string warningLevel) {
         var message = $"invalid warning level '{warningLevel}'; warning level must be a number between 0 and 3";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidWarningLevel), message);

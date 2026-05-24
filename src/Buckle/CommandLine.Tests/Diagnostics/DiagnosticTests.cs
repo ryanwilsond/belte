@@ -501,4 +501,15 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(args, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_CL0047_MissingWarningLevelAfterWError() {
+        var args = new string[] { "--werror=" };
+
+        var diagnostics = @"
+            missing warning level after '--werror=' (usage: '--werror=<warning level>')
+        ";
+
+        AssertDiagnostics(args, diagnostics, _writer);
+    }
 }

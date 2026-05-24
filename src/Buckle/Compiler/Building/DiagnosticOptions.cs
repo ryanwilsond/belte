@@ -14,6 +14,8 @@ public class DiagnosticOptions {
 
     public bool warningsAsErrors = false;
 
+    public int wErrorLevel = 2;
+
     public List<string> werrincludes = [];
 
     public List<string> werrexcludes = [];
@@ -25,6 +27,7 @@ public class DiagnosticOptions {
             wincludes = new List<string>(wincludes),
             wexcludes = new List<string>(wexcludes),
             warningsAsErrors = warningsAsErrors,
+            wErrorLevel = wErrorLevel,
             werrincludes = new List<string>(werrincludes),
             werrexcludes = new List<string>(werrexcludes),
         };

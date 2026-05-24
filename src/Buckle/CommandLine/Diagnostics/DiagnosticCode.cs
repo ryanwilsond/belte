@@ -55,4 +55,5 @@ public enum DiagnosticCode : ushort {
     ERR_UnableToRun = 44,
     ERR_MissingWErrIgnoreCode = 45,
     ERR_MissingWErrIncludeCode = 46,
+    ERR_MissingWarningLevelAfterWError = 47,
 }

@@ -584,6 +584,11 @@ public class {name} {{
 
     private static TaskDiagnosticOptions TranslateDiagnosticOptions(
         DiagnosticQueue<Diagnostic> diagnostics, DiagnosticOptions diagnosticOptions) {
+        var excludeWarningsAsErrors = ParseAndVerifyWarningCodes(diagnosticOptions.werrexcludes.ToArray(), diagnostics);
+
+        if (diagnosticOptions.warningsAsErrors)
+            AddDefaultExcludeWarningsAsErrors(excludeWarningsAsErrors, diagnosticOptions.wErrorLevel);
+
         return new TaskDiagnosticOptions() {
             severity = diagnosticOptions.severity,
             warningLevel = diagnosticOptions.warningLevel,
@@ -594,8 +599,8 @@ public class {name} {{
             warningsAsErrors = diagnosticOptions.warningsAsErrors,
             includeWarningsAsErrors = ParseAndVerifyWarningCodes(diagnosticOptions.werrincludes.ToArray(), diagnostics)
                 .ToArray(),
-            excludeWarningsAsErrors = ParseAndVerifyWarningCodes(diagnosticOptions.werrexcludes.ToArray(), diagnostics)
-                .ToArray()
+            excludeWarningsAsErrors = excludeWarningsAsErrors
+                .ToArray(),
         };
     }
 
@@ -1046,6 +1051,9 @@ public class {name} {{
         Console.WriteLine($"Warning reporting level: {state.diagnosticOptions.warningLevel}");
         Console.WriteLine($"Included warnings: {string.Join(", ", state.diagnosticOptions.includeWarnings.AsEnumerable())}");
         Console.WriteLine($"Excluded warnings: {string.Join(", ", state.diagnosticOptions.excludeWarnings.AsEnumerable())}");
+        Console.WriteLine($"Warnings as errors: {state.diagnosticOptions.warningsAsErrors}");
+        Console.WriteLine($"Included warnings as errors: {string.Join(", ", state.diagnosticOptions.includeWarningsAsErrors.AsEnumerable())}");
+        Console.WriteLine($"Excluded warnings as errors: {string.Join(", ", state.diagnosticOptions.excludeWarningsAsErrors.AsEnumerable())}");
         Console.WriteLine();
         Console.WriteLine($"Project type: {Enum.GetName(state.projectType)}");
         Console.WriteLine($"Build mode: {Enum.GetName(state.buildMode)}");
@@ -1193,6 +1201,7 @@ public class {name} {{
         var specifyModule = false;
         var specifyBuildMode = false;
         var specifyWarningLevel = false;
+        var wErrorLevel = 2;
 
         var l = -1;
         var sae = false;
@@ -1320,9 +1329,6 @@ public class {name} {{
                 case "--nostdlib":
                     state.noStdLib = true;
                     break;
-                case "--werror":
-                    state.diagnosticOptions.warningsAsErrors = true;
-                    break;
                 default:
                     diagnosticsCL.Push(Belte.Diagnostics.Error.UnrecognizedOption(arg));
                     break;
@@ -1412,6 +1418,23 @@ public class {name} {{
                 } else {
                     diagnostics.Push(Belte.Diagnostics.Error.InvalidWarningLevel(warningString));
                 }
+            } else if (arg.StartsWith("--werror")) {
+                state.diagnosticOptions.warningsAsErrors = true;
+
+                if (arg == "--werror")
+                    continue;
+
+                if (arg == "--werror=" || !arg.StartsWith("--werror=")) {
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingWarningLevelAfterWError(arg));
+                    continue;
+                }
+
+                var warningString = arg.Substring(9);
+
+                if (int.TryParse(warningString, out var warningLevel) && 0 <= warningLevel && warningLevel <= 3)
+                    wErrorLevel = warningLevel;
+                else
+                    diagnostics.Push(Belte.Diagnostics.Error.InvalidWarningLevel(warningString));
             } else if (arg.StartsWith("--wignore")) {
                 if (arg == "--wignore" || arg == "--wignore=" || !arg.StartsWith("--wignore=")) {
                     diagnostics.Push(Belte.Diagnostics.Error.MissingWIgnoreCode(arg));
@@ -1550,6 +1573,10 @@ public class {name} {{
         state.arguments = arguments;
         state.diagnosticOptions.includeWarnings = includeWarnings.ToArray();
         state.diagnosticOptions.excludeWarnings = excludeWarnings.ToArray();
+
+        if (state.diagnosticOptions.warningsAsErrors)
+            AddDefaultExcludeWarningsAsErrors(excludeWarningsAsErrors, wErrorLevel);
+
         state.diagnosticOptions.includeWarningsAsErrors = includeWarningsAsErrors.ToArray();
         state.diagnosticOptions.excludeWarningsAsErrors = excludeWarningsAsErrors.ToArray();
 
@@ -1633,6 +1660,17 @@ public class {name} {{
         ResolveOutputFileNames(state.tasks, state.finishStage, specifyOut ? state.outputFilename : null);
 
         return state;
+    }
+
+    private static void AddDefaultExcludeWarningsAsErrors(
+        List<DiagnosticInfo> excludeWarningsAsErrors,
+        int wErrorLevel) {
+        if (wErrorLevel < 3)
+            excludeWarningsAsErrors.AddRange(WarningLevel3);
+        if (wErrorLevel < 2)
+            excludeWarningsAsErrors.AddRange(WarningLevel2);
+        if (wErrorLevel < 1)
+            excludeWarningsAsErrors.AddRange(WarningLevel1);
     }
 
     private static List<DiagnosticInfo> ParseAndVerifyWarningCodes(
