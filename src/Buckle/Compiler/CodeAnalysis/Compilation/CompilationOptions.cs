@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.Utilities;
 
@@ -15,7 +16,9 @@ public struct CompilationOptions {
         int maxCoreCount = 1,
         OptimizationLevel optimizationLevel = OptimizationLevel.Release,
         string entryName = null,
-        bool noStdLib = false) {
+        bool noStdLib = false,
+        TaskDiagnosticOptions globalDiagnosticOptions = null,
+        Dictionary<string, TaskDiagnosticOptions> localDiagnosticOptions = null) {
         topLevelBinderFlags = BinderFlags.None;
         this.buildMode = buildMode;
         this.outputKind = outputKind;
@@ -29,6 +32,8 @@ public struct CompilationOptions {
         this.optimizationLevel = optimizationLevel;
         this.entryName = entryName;
         this.noStdLib = noStdLib;
+        this.globalDiagnosticOptions = globalDiagnosticOptions;
+        this.localDiagnosticOptions = localDiagnosticOptions;
     }
 
     /// <summary>
@@ -85,4 +90,8 @@ public struct CompilationOptions {
     internal string entryName { get; }
 
     internal bool noStdLib { get; }
+
+    internal TaskDiagnosticOptions globalDiagnosticOptions { get; }
+
+    internal Dictionary<string, TaskDiagnosticOptions> localDiagnosticOptions { get; }
 }

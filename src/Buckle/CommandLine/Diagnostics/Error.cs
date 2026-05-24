@@ -101,6 +101,16 @@ internal static class Error {
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingWIncludeCode), message);
     }
 
+    internal static Diagnostic MissingWErrIgnoreCode(string arg) {
+        var message = $"missing warning code after '{arg}' (usage: '--werrignore=<[BU|RE|CL]<code>,...>')";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingWErrIgnoreCode), message);
+    }
+
+    internal static Diagnostic MissingWErrIncludeCode(string arg) {
+        var message = $"missing warning code after '{arg}' (usage: '--werrinclude=<[BU|RE|CL]<code>,...>')";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingWErrIncludeCode), message);
+    }
+
     internal static Diagnostic CodeIsNotWarning(string code) {
         var message = $"'{code}' is not the code of a warning";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_CodeIsNotWarning), message);

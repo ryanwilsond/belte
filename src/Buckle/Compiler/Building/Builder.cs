@@ -101,6 +101,27 @@ public sealed class Builder {
             _currentDiagnosticOptions.wincludes.AddRange(codes);
     }
 
+    public void ExcludeWarningsAsErrors(string[] codes) {
+        if (_diagnosticFlagMode == DiagnosticFlagMode.Global)
+            _globalDiagnosticOptions.werrexcludes.AddRange(codes);
+        else
+            _currentDiagnosticOptions.werrexcludes.AddRange(codes);
+    }
+
+    public void IncludeWarningsAsErrors(string[] codes) {
+        if (_diagnosticFlagMode == DiagnosticFlagMode.Global)
+            _globalDiagnosticOptions.werrincludes.AddRange(codes);
+        else
+            _currentDiagnosticOptions.werrincludes.AddRange(codes);
+    }
+
+    public void IncludeWarningsAsErrors() {
+        if (_diagnosticFlagMode == DiagnosticFlagMode.Global)
+            _globalDiagnosticOptions.warningsAsErrors = true;
+        else
+            _currentDiagnosticOptions.warningsAsErrors = true;
+    }
+
     public void SetWarningLevel(int level) {
         if (_diagnosticFlagMode == DiagnosticFlagMode.Global)
             _globalDiagnosticOptions.warningLevel = level;

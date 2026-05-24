@@ -172,6 +172,18 @@ Specifically avoids suppressing specific warnings, even if the [severity level](
 [warning level](#--warnlevelwarning-level-default-1) would suggest to do so. Warnings should be comma delimited.
 Warnings should be specified using their codes.
 
+### *--werror*
+
+Treats all warnings as if they were errors (i.e. build will fail on warnings).
+
+### *--werrignore=<*\[BU|RE|CL]*\<code>,...>*
+
+When used in junction with *--werror*, avoids promoting certain warnings to errors.
+
+### *--werrinclude=<*\[BU|RE|CL]*\<code>,...>*
+
+When used without *--werror*, promotes certain warnings to errors.
+
 ### *--dumpmachine*
 
 Displays host machine information. The message will be in the form `Host: [target]`. For example, `Host: win-x64`.

@@ -479,4 +479,26 @@ public sealed class DiagnosticTests {
 
     // ! Error_CL0044_UnableToRun
     // ? Not sure what causes a failed process start consistently
+
+    [Fact]
+    public void Reports_Error_CL0045_MissingWErrIgnoreCode() {
+        var args = new string[] { "--werrignore" };
+
+        var diagnostics = @"
+            missing warning code after '--werrignore' (usage: '--werrignore=<[BU|RE|CL]<code>,...>')
+        ";
+
+        AssertDiagnostics(args, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_CL0046_MissingWErrIncludeCode() {
+        var args = new string[] { "--werrinclude" };
+
+        var diagnostics = @"
+            missing warning code after '--werrinclude' (usage: '--werrinclude=<[BU|RE|CL]<code>,...>')
+        ";
+
+        AssertDiagnostics(args, diagnostics, _writer);
+    }
 }

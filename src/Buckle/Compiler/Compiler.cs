@@ -38,7 +38,9 @@ public sealed class Compiler {
         state.maxCores,
         state.debugMode ? OptimizationLevel.Debug : OptimizationLevel.Release,
         state.entryName,
-        state.noStdLib
+        state.noStdLib,
+        state.diagnosticOptions,
+        state.taskDiagnosticOptions
     );
 
     /// <summary>
@@ -189,7 +191,9 @@ public sealed class Compiler {
             _options.maxCoreCount,
             _options.optimizationLevel,
             _options.entryName,
-            _options.noStdLib
+            _options.noStdLib,
+            _options.globalDiagnosticOptions,
+            _options.localDiagnosticOptions
         );
 
         if (buildMode is BuildMode.Evaluate or BuildMode.Execute) {
@@ -203,7 +207,8 @@ public sealed class Compiler {
             var syntaxTrees = CreateSyntaxTrees(CompilerStage.Finished);
             var compilation = Compilation.Create(state.moduleName, options, corLibrary, syntaxTrees);
 
-            var parseDiagnostics = compilation.GetParseDiagnostics();
+            var parseDiagnostics = compilation.GetParseDiagnostics()
+                .ApplyTransformations(state.diagnosticOptions, state.taskDiagnosticOptions);
 
             if (parseDiagnostics.AnyErrors()) {
                 diagnostics.PushRange(parseDiagnostics);
@@ -255,7 +260,8 @@ public sealed class Compiler {
 
             var compilation = Compilation.CreateScript(state.moduleName, options, syntaxTree, corLibrary);
 
-            var parseDiagnostics = compilation.GetParseDiagnostics();
+            var parseDiagnostics = compilation.GetParseDiagnostics()
+                .ApplyTransformations(state.diagnosticOptions, state.taskDiagnosticOptions);
 
             if (parseDiagnostics.AnyErrors()) {
                 diagnostics.PushRange(compilation.GetParseDiagnostics());
@@ -288,7 +294,8 @@ public sealed class Compiler {
         var syntaxTrees = CreateSyntaxTrees(CompilerStage.Compiled);
         var compilation = Compilation.Create(state.moduleName, _options, corLibrary, syntaxTrees);
 
-        var parseDiagnostics = compilation.GetParseDiagnostics();
+        var parseDiagnostics = compilation.GetParseDiagnostics()
+            .ApplyTransformations(state.diagnosticOptions, state.taskDiagnosticOptions);
 
         if (parseDiagnostics.AnyErrors()) {
             diagnostics.PushRange(parseDiagnostics);

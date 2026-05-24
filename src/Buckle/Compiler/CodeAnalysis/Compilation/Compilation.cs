@@ -348,7 +348,8 @@ public sealed partial class Compilation {
         string verbosePath = null,
         bool noArtifacts = false) {
         var timer = logTime ? Stopwatch.StartNew() : null;
-        var diagnostics = GetDiagnostics();
+        var diagnostics = GetDiagnostics()
+            .ApplyTransformations(options.globalDiagnosticOptions, options.localDiagnosticOptions);
         var program = boundProgram;
 
         Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
@@ -419,7 +420,8 @@ public sealed partial class Compilation {
         }
 
         var timer = logTime ? Stopwatch.StartNew() : null;
-        var diagnostics = GetDiagnostics();
+        var diagnostics = GetDiagnostics()
+            .ApplyTransformations(options.globalDiagnosticOptions, options.localDiagnosticOptions);
         var program = boundProgram;
 
         Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
@@ -461,7 +463,8 @@ public sealed partial class Compilation {
         bool noArtifacts,
         out object result) {
         var timer = logTime ? Stopwatch.StartNew() : null;
-        var diagnostics = GetDiagnostics();
+        var diagnostics = GetDiagnostics()
+            .ApplyTransformations(options.globalDiagnosticOptions, options.localDiagnosticOptions);
         var program = boundProgram;
 
         Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
@@ -497,7 +500,8 @@ public sealed partial class Compilation {
         BuildMode? alternateBuildMode = null,
         bool programOnly = false) {
         var buildMode = alternateBuildMode ?? options.buildMode;
-        diagnostics = GetDiagnostics();
+        diagnostics = GetDiagnostics()
+            .ApplyTransformations(options.globalDiagnosticOptions, options.localDiagnosticOptions);
         var program = boundProgram;
 
         if (diagnostics.AnyErrors())

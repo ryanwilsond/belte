@@ -291,6 +291,31 @@ void Build(Builder builder) {
 In the above example, `src1` and `src3` will both have a diagnostic reporting severity of errors or higher as they were
 both added as inputs while in global diagnostic flag mode. `src2` will have a reporting severity of info or higher.
 
+### Warnings as Errors
+
+To treat all warnings as errors, `Builder.IncludeWarningsAsErrors()` can be used. After that, specific warnings can be
+excluded from this promotion by using `Builder.ExcludeWarningsAsErrors(codes)`:
+
+```belte
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.IncludeWarningsAsErrors();
+  builder.ExcludeWarningsAsErrors({ "BU0447" });
+}
+```
+
+Alternatively, `Builder.IncludeWarningsAsErrors(codes)` can be used to instead default to treating warnings normally,
+but promote a specific list of warnings to errors:
+
+```belte
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.IncludeWarningsAsErrors({ "BU0252", "BU0253", "BU0272" });
+}
+```
+
 ## Logging
 
 To enable verbose logging, `Builder.SetVerboseMode(mode)` can be used.

@@ -53,4 +53,6 @@ public enum DiagnosticCode : ushort {
     ERR_CannotCreateNew = 42,
     ERR_CannotRunBuildMode = 43,
     ERR_UnableToRun = 44,
+    ERR_MissingWErrIgnoreCode = 45,
+    ERR_MissingWErrIncludeCode = 46,
 }

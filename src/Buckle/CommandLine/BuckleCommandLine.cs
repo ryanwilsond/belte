@@ -201,8 +201,10 @@ public static partial class BuckleCommandLine {
 
         // We don't compile anything but we still need diagnostic reporting rules
         var state = new CompilerState {
-            warningLevel = 1,
-            severity = DiagnosticSeverity.Warning,
+            diagnosticOptions = new TaskDiagnosticOptions() {
+                warningLevel = 1,
+                severity = DiagnosticSeverity.Warning,
+            },
             time = false,
         };
 
@@ -301,8 +303,10 @@ public class {name} {{
         var buildState = DecodeBuildOptions(args, out var diagnostics, out var arguments, out var debugMode);
         state = new CompilerState {
             noOut = false,
-            warningLevel = 1,
-            severity = DiagnosticSeverity.Warning,
+            diagnosticOptions = new TaskDiagnosticOptions() {
+                warningLevel = 1,
+                severity = DiagnosticSeverity.Warning,
+            },
             verboseMode = buildState.showInfo,
             reducedVerboseMode = buildState.showInfo,
             time = buildState.showTime,
@@ -529,13 +533,8 @@ public class {name} {{
         var moduleName = Path.GetFileNameWithoutExtension(outputFilename);
 
         var tasks = new List<FileState>();
-        var taskDiagnosticOptions =
-            new Dictionary<string, (DiagnosticSeverity, int, DiagnosticInfo[], DiagnosticInfo[])>();
-
-        var includeWarnings = ParseAndVerifyWarningCodes(builder.diagnosticOptions.wincludes.ToArray(), diagnostics)
-            .ToArray();
-        var excludeWarnings = ParseAndVerifyWarningCodes(builder.diagnosticOptions.wexcludes.ToArray(), diagnostics)
-            .ToArray();
+        var taskDiagnosticOptions = new Dictionary<string, TaskDiagnosticOptions>();
+        var globalDiagnosticOptions = TranslateDiagnosticOptions(diagnostics, builder.diagnosticOptions);
 
         foreach (var (input, options, diagnosticOptions) in builder.inputs) {
             var sourceTasks = ResolveInputFileOrDir(
@@ -547,22 +546,7 @@ public class {name} {{
             );
 
             if (diagnosticOptions != builder.diagnosticOptions) {
-                var localIncludeWarnings = ParseAndVerifyWarningCodes(
-                    diagnosticOptions.wincludes.ToArray(),
-                    diagnostics
-                ).ToArray();
-
-                var localExcludeWarnings = ParseAndVerifyWarningCodes(
-                    diagnosticOptions.wexcludes.ToArray(),
-                    diagnostics
-                ).ToArray();
-
-                var localDiagnosticOptions = (
-                    diagnosticOptions.severity,
-                    diagnosticOptions.warningLevel,
-                    localIncludeWarnings,
-                    localExcludeWarnings
-                );
+                var localDiagnosticOptions = TranslateDiagnosticOptions(diagnostics, diagnosticOptions);
 
                 foreach (var task in sourceTasks)
                     taskDiagnosticOptions.Add(task.inputFileName, localDiagnosticOptions);
@@ -579,10 +563,7 @@ public class {name} {{
             moduleName = moduleName,
             references = references.ToArray(),
             debugMode = builder.debugBuild,
-            severity = builder.diagnosticOptions.severity,
-            warningLevel = builder.diagnosticOptions.warningLevel,
-            includeWarnings = includeWarnings,
-            excludeWarnings = excludeWarnings,
+            diagnosticOptions = globalDiagnosticOptions,
             finishStage = CompilerStage.Finished,
             outputFilename = outputFilename,
             tasks = tasks.ToArray(),
@@ -598,6 +579,23 @@ public class {name} {{
             entryName = builder.entryName,
             noStdLib = !builder.includeStdLib,
             taskDiagnosticOptions = taskDiagnosticOptions
+        };
+    }
+
+    private static TaskDiagnosticOptions TranslateDiagnosticOptions(
+        DiagnosticQueue<Diagnostic> diagnostics, DiagnosticOptions diagnosticOptions) {
+        return new TaskDiagnosticOptions() {
+            severity = diagnosticOptions.severity,
+            warningLevel = diagnosticOptions.warningLevel,
+            includeWarnings = ParseAndVerifyWarningCodes(diagnosticOptions.wincludes.ToArray(), diagnostics)
+                .ToArray(),
+            excludeWarnings = ParseAndVerifyWarningCodes(diagnosticOptions.wexcludes.ToArray(), diagnostics)
+                .ToArray(),
+            warningsAsErrors = diagnosticOptions.warningsAsErrors,
+            includeWarningsAsErrors = ParseAndVerifyWarningCodes(diagnosticOptions.werrincludes.ToArray(), diagnostics)
+                .ToArray(),
+            excludeWarningsAsErrors = ParseAndVerifyWarningCodes(diagnosticOptions.werrexcludes.ToArray(), diagnostics)
+                .ToArray()
         };
     }
 
@@ -854,7 +852,7 @@ public class {name} {{
             Console.ResetColor();
 
         var info = diagnostic.info;
-        var diagnosticOptions = (state.severity, state.warningLevel, state.includeWarnings, state.excludeWarnings);
+        var diagnosticOptions = state.diagnosticOptions;
 
         if (state.taskDiagnosticOptions is not null &&
             diagnostic is BelteDiagnostic diagnosticWithLocation &&
@@ -1044,10 +1042,10 @@ public class {name} {{
 
     private static void LogCompilerState(CompilerState state, string[] pendingReferenceCopies) {
         Console.WriteLine();
-        Console.WriteLine($"Diagnostic reporting level: {Enum.GetName(state.severity)}");
-        Console.WriteLine($"Warning reporting level: {state.warningLevel}");
-        Console.WriteLine($"Included warnings: {string.Join(", ", state.includeWarnings.AsEnumerable())}");
-        Console.WriteLine($"Excluded warnings: {string.Join(", ", state.excludeWarnings.AsEnumerable())}");
+        Console.WriteLine($"Diagnostic reporting level: {Enum.GetName(state.diagnosticOptions.severity)}");
+        Console.WriteLine($"Warning reporting level: {state.diagnosticOptions.warningLevel}");
+        Console.WriteLine($"Included warnings: {string.Join(", ", state.diagnosticOptions.includeWarnings.AsEnumerable())}");
+        Console.WriteLine($"Excluded warnings: {string.Join(", ", state.diagnosticOptions.excludeWarnings.AsEnumerable())}");
         Console.WriteLine();
         Console.WriteLine($"Project type: {Enum.GetName(state.projectType)}");
         Console.WriteLine($"Build mode: {Enum.GetName(state.buildMode)}");
@@ -1187,6 +1185,8 @@ public class {name} {{
         var arguments = Array.Empty<string>();
         var includeWarnings = new List<DiagnosticInfo>();
         var excludeWarnings = new List<DiagnosticInfo>();
+        var includeWarningsAsErrors = new List<DiagnosticInfo>();
+        var excludeWarningsAsErrors = new List<DiagnosticInfo>();
 
         var specifyStage = false;
         var specifyOut = false;
@@ -1215,8 +1215,11 @@ public class {name} {{
         state.outputFilename = "a.exe";
         state.moduleName = "a";
         state.noOut = false;
-        state.warningLevel = 1;
-        state.severity = DiagnosticSeverity.Warning;
+        state.diagnosticOptions = new TaskDiagnosticOptions() {
+            warningLevel = 1,
+            severity = DiagnosticSeverity.Warning,
+            warningsAsErrors = false,
+        };
         state.projectType = OutputKind.ConsoleApplication;
         state.verboseMode = false;
         state.reducedVerboseMode = false;
@@ -1317,6 +1320,9 @@ public class {name} {{
                 case "--nostdlib":
                     state.noStdLib = true;
                     break;
+                case "--werror":
+                    state.diagnosticOptions.warningsAsErrors = true;
+                    break;
                 default:
                     diagnosticsCL.Push(Belte.Diagnostics.Error.UnrecognizedOption(arg));
                     break;
@@ -1389,7 +1395,7 @@ public class {name} {{
                 var severityString = arg.Substring(11);
 
                 if (Enum.TryParse<DiagnosticSeverity>(severityString, true, out var severityLevel))
-                    state.severity = severityLevel;
+                    state.diagnosticOptions.severity = severityLevel;
                 else
                     diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedSeverity(severityString));
             } else if (arg.StartsWith("--warnlevel")) {
@@ -1402,7 +1408,7 @@ public class {name} {{
 
                 if (int.TryParse(warningString, out var warningLevel) && 0 <= warningLevel && warningLevel <= 3) {
                     specifyWarningLevel = true;
-                    state.warningLevel = warningLevel;
+                    state.diagnosticOptions.warningLevel = warningLevel;
                 } else {
                     diagnostics.Push(Belte.Diagnostics.Error.InvalidWarningLevel(warningString));
                 }
@@ -1420,6 +1426,20 @@ public class {name} {{
                 }
 
                 includeWarnings.AddRange(ParseAndVerifyWarningCodes(arg.Substring(11), diagnosticsCL));
+            } else if (arg.StartsWith("--werrignore")) {
+                if (arg == "--werrignore" || arg == "--werrignore=" || !arg.StartsWith("--werrignore=")) {
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingWErrIgnoreCode(arg));
+                    continue;
+                }
+
+                excludeWarningsAsErrors.AddRange(ParseAndVerifyWarningCodes(arg.Substring(13), diagnosticsCL));
+            } else if (arg.StartsWith("--werrinclude")) {
+                if (arg == "--werrinclude" || arg == "--werrinclude=" || !arg.StartsWith("--werrinclude=")) {
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingWErrIncludeCode(arg));
+                    continue;
+                }
+
+                includeWarningsAsErrors.AddRange(ParseAndVerifyWarningCodes(arg.Substring(14), diagnosticsCL));
             } else if (arg.StartsWith("--type")) {
                 if (arg == "--type" || arg == "--type=" || !arg.StartsWith("--type=")) {
                     diagnostics.Push(Belte.Diagnostics.Error.MissingType(arg));
@@ -1528,8 +1548,10 @@ public class {name} {{
         state.tasks = tasks.ToArray();
         state.references = references.ToArray();
         state.arguments = arguments;
-        state.includeWarnings = includeWarnings.ToArray();
-        state.excludeWarnings = excludeWarnings.ToArray();
+        state.diagnosticOptions.includeWarnings = includeWarnings.ToArray();
+        state.diagnosticOptions.excludeWarnings = excludeWarnings.ToArray();
+        state.diagnosticOptions.includeWarningsAsErrors = includeWarningsAsErrors.ToArray();
+        state.diagnosticOptions.excludeWarningsAsErrors = excludeWarningsAsErrors.ToArray();
 
         if (state.projectType == OutputKind.DynamicallyLinkedLibrary || state.buildMode == BuildMode.Dotnet) {
             if (!specifyBuildMode)
@@ -1544,7 +1566,7 @@ public class {name} {{
 
         if (!specifyWarningLevel &&
             state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute) {
-            state.warningLevel = 0;
+            state.diagnosticOptions.warningLevel = 0;
         }
 
         if (!specifyOut && state.buildMode == BuildMode.CSharpTranspile)
@@ -1595,8 +1617,8 @@ public class {name} {{
         state.outputFilename = state.outputFilename.Trim();
 
         if (state.verboseMode) {
-            state.severity = DiagnosticSeverity.All;
-            state.warningLevel = Math.Max(2, state.warningLevel);
+            state.diagnosticOptions.severity = DiagnosticSeverity.All;
+            state.diagnosticOptions.warningLevel = Math.Max(2, state.diagnosticOptions.warningLevel);
             state.time = true;
         }
 
