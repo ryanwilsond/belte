@@ -324,7 +324,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                         receiverIsSubjectToCloning: ThreeState.Unknown,
                         methodSymbol.parameters,
                         ptrInvocation.arguments,
-                        ptrInvocation.argumentRefKindsOpt,
+                        ptrInvocation.argumentRefKinds,
                         argsToParamsOpt: default,
                         scopeOfTheContainingExpression,
                         isRefEscape: true
@@ -338,6 +338,8 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                     break;
 
                 return GetRefEscape(assignment.left, scopeOfTheContainingExpression);
+            case BoundKind.DiscardExpression:
+                break;
         }
 
         return scopeOfTheContainingExpression;
@@ -423,7 +425,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                     receiverIsSubjectToCloning: ThreeState.False,
                     signature.parameters,
                     functionPointerInvocation.arguments,
-                    functionPointerInvocation.argumentRefKindsOpt,
+                    functionPointerInvocation.argumentRefKinds,
                     argsToParamsOpt: default,
                     checkingReceiver,
                     escapeFrom,
@@ -482,6 +484,8 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                 break;
             case BoundKind.ThrowExpression:
                 return true;
+            case BoundKind.DiscardExpression:
+                break;
         }
 
         diagnostics.Push(GetStandardRValueRefEscapeError(node.location, escapeTo));
@@ -546,7 +550,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                     receiverIsSubjectToCloning: ThreeState.Unknown,
                     ptrSymbol.parameters,
                     ptrInvocation.arguments,
-                    ptrInvocation.argumentRefKindsOpt,
+                    ptrInvocation.argumentRefKinds,
                     argsToParamsOpt: default,
                     scopeOfTheContainingExpression,
                     isRefEscape: false
@@ -661,6 +665,8 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
             case BoundKind.InitializerList:
                 var colExpr = (BoundInitializerList)expression;
                 return GetValEscape(colExpr.items, scopeOfTheContainingExpression);
+            case BoundKind.DiscardExpression:
+                return CallingMethodScope;
             case BoundKind.AsOperator:
             case BoundKind.ConditionalAccessExpression:
             case BoundKind.ArrayAccessExpression:
@@ -751,6 +757,24 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                 }
 
                 return true;
+            case BoundKind.UnconvertedConditionalOperator: {
+                    var conditional = (BoundUnconvertedConditionalOperator)expression;
+                    return CheckValEscape(
+                        conditional.trueExpression.syntax,
+                        conditional.trueExpression,
+                        escapeFrom,
+                        escapeTo,
+                        checkingReceiver: false,
+                        diagnostics: diagnostics
+                    ) && CheckValEscape(
+                        conditional.falseExpression.syntax,
+                        conditional.falseExpression,
+                        escapeFrom,
+                        escapeTo,
+                        checkingReceiver: false,
+                        diagnostics: diagnostics
+                    );
+                }
             case BoundKind.InitializerList:
                 var colExpr = (BoundInitializerList)expression;
                 return CheckValEscape(colExpr.items, escapeFrom, escapeTo, diagnostics);
@@ -788,7 +812,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                     receiverIsSubjectToCloning: ThreeState.Unknown,
                     ptrSymbol.parameters,
                     ptrInvocation.arguments,
-                    ptrInvocation.argumentRefKindsOpt,
+                    ptrInvocation.argumentRefKinds,
                     argsToParamsOpt: default,
                     checkingReceiver,
                     escapeFrom,
@@ -968,6 +992,8 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                 return false;
             case BoundKind.DefaultLiteral:
             case BoundKind.DefaultExpression:
+                return true;
+            case BoundKind.DiscardExpression:
                 return true;
             default:
                 diagnostics.Push(Error.InternalError(node.location));

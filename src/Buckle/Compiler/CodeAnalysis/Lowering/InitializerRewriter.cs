@@ -29,6 +29,26 @@ internal static class InitializerRewriter {
         }
     }
 
+    internal static BoundBlockStatement RewriteOutParameters(MethodSymbol method) {
+        ArrayBuilder<BoundStatement> builder = null;
+
+        foreach (var parameter in method.parameters) {
+            if (parameter.hasOutDefaultValue) {
+                builder ??= ArrayBuilder<BoundStatement>.GetInstance();
+                builder.Add(RewriteOutParameterInitializer(parameter));
+            }
+        }
+
+        if (builder is null)
+            return null;
+
+        var syntax = (method is SourceMemberMethodSymbol sourceMethod)
+            ? sourceMethod.syntaxNode
+            : method.GetNonNullSyntaxNode();
+
+        return new BoundBlockStatement(syntax, builder.ToImmutableAndFree(), [], []);
+    }
+
     private static BoundExpressionStatement RewriteFieldInitializer(BoundFieldEqualsValue fieldInitializer) {
         var field = fieldInitializer.field;
         var syntax = fieldInitializer.syntax;
@@ -48,6 +68,33 @@ internal static class InitializerRewriter {
                 fieldInitializer.value,
                 field.refKind != RefKind.None,
                 field.type
+            )
+        );
+
+        return boundStatement;
+    }
+
+    private static BoundExpressionStatement RewriteOutParameterInitializer(ParameterSymbol parameter) {
+        var syntax = parameter.GetNonNullSyntaxNode();
+        var type = parameter.type;
+
+        var boundStatement = new BoundExpressionStatement(
+            syntax,
+            new BoundAssignmentOperator(
+                syntax,
+                new BoundParameterExpression(
+                    syntax,
+                    parameter,
+                    null,
+                    type
+                ),
+                new BoundLiteralExpression(
+                    syntax,
+                    parameter.outDefaultValue,
+                    type
+                ),
+                false,
+                type
             )
         );
 

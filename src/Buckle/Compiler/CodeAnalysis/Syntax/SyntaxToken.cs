@@ -162,6 +162,16 @@ public sealed class SyntaxToken {
         return SyntaxNavigator.Instance.GetNextToken(this, includeZeroWidth, includeSkipped);
     }
 
+    public SyntaxToken GetPreviousToken(
+        bool includeZeroWidth = false,
+        bool includeSkipped = false,
+        bool includeDirectives = false) {
+        if (node is null)
+            return default;
+
+        return SyntaxNavigator.Instance.GetPreviousToken(this, includeZeroWidth, includeSkipped, includeDirectives);
+    }
+
     public override string ToString() {
         return node is not null ? node.ToString() : "";
     }

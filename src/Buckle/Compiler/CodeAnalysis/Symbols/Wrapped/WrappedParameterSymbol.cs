@@ -26,6 +26,8 @@ internal abstract class WrappedParameterSymbol : ParameterSymbol {
     internal sealed override ConstantValue explicitDefaultConstantValue
         => underlyingParameter.explicitDefaultConstantValue;
 
+    internal sealed override ConstantValue outDefaultValue => underlyingParameter.outDefaultValue;
+
     internal sealed override ScopedKind effectiveScope => underlyingParameter.effectiveScope;
 
     internal override TypeWithAnnotations typeWithAnnotations => underlyingParameter.typeWithAnnotations;

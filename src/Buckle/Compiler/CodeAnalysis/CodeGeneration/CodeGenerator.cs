@@ -170,9 +170,10 @@ internal sealed partial class CodeGenerator {
                     if (!HasHome(expression, addressKind))
                         goto default;
 
-                    _builder.EmitLoadArgument(0);
+                    _builder.EmitLoadArgument0();
                 } else {
-                    _builder.EmitLoadArgumentAddr(0);
+                    throw ExceptionUtilities.Unreachable();
+                    // _builder.EmitLoadArgumentAddr0();
                 }
 
                 break;
@@ -237,7 +238,7 @@ internal sealed partial class CodeGenerator {
         }
 
         var method = ptrInvocation.functionPointer.signature;
-        EmitArguments(ptrInvocation.arguments, method.parameters, ptrInvocation.argumentRefKindsOpt);
+        EmitArguments(ptrInvocation.arguments, method.parameters, ptrInvocation.argumentRefKinds);
 
         if (temp is not null) {
             _builder.EmitLocalLoad(temp);
@@ -372,10 +373,17 @@ internal sealed partial class CodeGenerator {
             if (local.refKind == RefKind.None)
                 throw ExceptionUtilities.UnexpectedValue(local.refKind);
         } else {
-            _builder.EmitLocalAddress(local);
+            EmitLocalAddress(local);
         }
 
         return null;
+    }
+
+    internal void EmitLocalAddress(DataContainerSymbol local) {
+        if (local.isRef)
+            _builder.EmitLocalLoad(local);
+        else
+            _builder.EmitLocalAddress(local);
     }
 
     private VariableDefinition EmitParameterAddress(BoundParameterExpression parameter, AddressKind addressKind) {
@@ -571,7 +579,7 @@ internal sealed partial class CodeGenerator {
                     if (IsValueType(underlyingType)) {
                         EmitConstantValue(new ConstantValue(value, underlyingDiscriminator), underlyingType);
                         _builder.EmitNewobjNullable(underlyingType);
-                    } else if (underlyingType.specialType == SpecialType.Any) {
+                    } else if (underlyingType.specialType is SpecialType.Any or SpecialType.Object) {
                         goto case SpecialType.Any;
                     } else {
                         var inferredType = InferType(value);
@@ -580,6 +588,7 @@ internal sealed partial class CodeGenerator {
                 }
 
                 break;
+            case SpecialType.Object:
             case SpecialType.Any: {
                     // TODO Ensure constantValue is never lying to us
                     var inferredType = constant.specialType == SpecialType.None
@@ -693,6 +702,9 @@ internal sealed partial class CodeGenerator {
                 break;
             case BoundKind.ReturnStatement:
                 EmitReturnStatement((BoundReturnStatement)statement);
+                break;
+            case BoundKind.UnreachableStatement:
+                EmitUnreachableStatement();
                 break;
             case BoundKind.TryStatement:
                 EmitTryStatement((BoundTryStatement)statement);
@@ -1060,22 +1072,27 @@ oneMoreTime:
         _builder.EmitReturn();
     }
 
+    private void EmitUnreachableStatement() {
+        _builder.EmitUnreachableException();
+        _builder.Emit(OpCode.Throw);
+    }
+
     private void EmitTryStatement(BoundTryStatement statement) {
         var hasCatch = statement.catchBody is not null;
         var hasFinally = statement.finallyBody is not null;
 
         _builder.BeginTry();
 
-        EmitBlock((BoundBlockStatement)statement.body);
+        EmitBlock(statement.body);
 
         if (hasCatch) {
             _builder.BeginCatch();
-            EmitBlock((BoundBlockStatement)statement.catchBody);
+            EmitBlock(statement.catchBody);
         }
 
         if (hasFinally) {
             _builder.BeginFinally();
-            EmitBlock((BoundBlockStatement)statement.finallyBody);
+            EmitBlock(statement.finallyBody);
         }
 
         _builder.EndTry(hasFinally);
@@ -1372,11 +1389,10 @@ oneMoreTime:
     private void EmitFunctionPointerLoad(BoundFunctionPointerLoad load, bool used) {
         if (used) {
             if ((load.targetMethod.isAbstract || load.targetMethod.isVirtual) && load.targetMethod.isStatic) {
-                if (load.constrainedToTypeOpt is not { typeKind: TypeKind.TemplateParameter }) {
+                if (load.constrainedToType is not { typeKind: TypeKind.TemplateParameter })
                     throw ExceptionUtilities.Unreachable();
-                }
 
-                _builder.EmitWithSymbolToken(OpCode.Constrained, load.constrainedToTypeOpt);
+                _builder.EmitWithSymbolToken(OpCode.Constrained, load.constrainedToType);
             }
 
             _builder.EmitWithSymbolToken(OpCode.Ldftn, load.targetMethod);
@@ -1385,7 +1401,25 @@ oneMoreTime:
 
     private void EmitFunctionLoad(BoundFunctionLoad load, bool used) {
         if (used) {
-            _builder.Emit(OpCode.Ldnull);
+            var method = load.targetMethod;
+            var receiver = load.receiver;
+
+            if (method.isStatic) {
+                _builder.Emit(OpCode.Ldnull);
+
+                if (method.isAbstract || method.isVirtual) {
+                    if (receiver is not BoundTypeExpression { type.typeKind: TypeKind.TemplateParameter })
+                        throw ExceptionUtilities.Unreachable();
+
+                    _builder.EmitWithSymbolToken(OpCode.Constrained, receiver.type);
+                }
+            } else {
+                EmitExpression(load.receiver, true);
+
+                if (!receiver.type.IsVerifierReference())
+                    EmitBox(receiver.type);
+            }
+
             _builder.EmitWithSymbolToken(OpCode.Ldftn, load.targetMethod);
             _builder.EmitNewobjFunc(load.type.StrippedType() as FunctionTypeSymbol);
         }
@@ -1645,6 +1679,16 @@ oneMoreTime:
                 case "SizeOf":
                     if (useKind != UseKind.Unused)
                         _builder.EmitWithSymbolToken(OpCode.Sizeof, method.templateArguments[0].type.type);
+
+                    return;
+                case "BitCast": {
+                        EmitArguments(arguments, method.parameters, expression.argumentRefKinds);
+                        _builder.EmitBitCast(
+                            method.templateArguments[0].type.type,
+                            method.templateArguments[1].type.type
+                        );
+                        EmitCallCleanup(method, useKind);
+                    }
 
                     return;
             }
@@ -3064,11 +3108,10 @@ oneMoreTime:
                 _builder.Emit(OpCode.Stind_R8);
                 break;
             default:
-                if (type.IsVerifierReference()) {
+                if (type.IsVerifierReference())
                     _builder.Emit(OpCode.Stind_Ref);
-                } else {
+                else
                     _builder.EmitWithSymbolToken(OpCode.Stobj, type);
-                }
 
                 break;
         }
@@ -3266,6 +3309,11 @@ oneMoreTime:
                 return false;
         }
 
+        if (right.IsDefaultValue()) {
+            InPlaceInit(left, used);
+            return true;
+        }
+
         if (right is BoundObjectCreationExpression objCreation) {
             if (PartialCtorResultCannotEscape(left)) {
                 var ctor = objCreation.constructor;
@@ -3289,6 +3337,15 @@ oneMoreTime:
         }
 
         return false;
+    }
+
+    private void InPlaceInit(BoundExpression target, bool used) {
+        var temp = EmitAddress(target, AddressKind.Writeable);
+
+        _builder.EmitWithSymbolToken(OpCode.Initobj, target.type);
+
+        if (used)
+            EmitExpression(target, used);
     }
 
     private bool TryInPlaceCtorCall(BoundExpression target, BoundObjectCreationExpression objCreation, bool used) {

@@ -10,6 +10,6 @@ The Belte public interface for the String class can be found
 ## 5.5.1 Methods
 
 | Signature | Description |
-|-|-|
+| - | - |
 | `int! Now()` | Returns the milliseconds of the current date time. |
 | `void Sleep(int!)` | Sleeps a certain number of milliseconds. |

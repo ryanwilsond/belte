@@ -102,7 +102,9 @@ internal sealed class TypeWithAnnotations {
         else if (position < transforms.Length)
             transformFlag = transforms[position++];
         else
-            return false;
+            // TODO Always annotate?
+            // return false;
+            transformFlag = defaultTransformFlag;
 
         if (!oldTypeSymbol.ApplyNullableTransforms(
             defaultTransformFlag,
@@ -136,8 +138,10 @@ internal sealed class TypeWithAnnotations {
 
                 break;
             default:
-                result = this;
-                return false;
+                result = ShouldLift(result.type) ? result.SetIsAnnotated() : result;
+                break;
+                // result = this;
+                // return false;
         }
 
         return true;

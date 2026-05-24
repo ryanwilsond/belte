@@ -105,6 +105,7 @@ internal sealed partial class OverloadResolution {
                 var operators = ArrayBuilder<BinaryOperatorSignature>.GetInstance();
                 CorLibrary.GetAllBuiltInBinaryOperators(kind, operators);
                 GetEnumOperations(kind, left, right, operators);
+                GetPointerOperations(kind, left, right, operators);
                 CandidateOperators(operators, left, right, result.results);
                 operators.Free();
             }
@@ -333,6 +334,77 @@ internal sealed partial class OverloadResolution {
             case BinaryOperatorKind.Xor:
                 operators.Add(new BinaryOperatorSignature(kind | BinaryOperatorKind.Enum, enumType, enumType, enumType));
                 operators.Add(new BinaryOperatorSignature(kind | BinaryOperatorKind.Lifted | BinaryOperatorKind.Enum, nullableEnum, nullableEnum, nullableEnum));
+                break;
+        }
+    }
+
+    private void GetPointerOperations(
+        BinaryOperatorKind kind,
+        BoundExpression left,
+        BoundExpression right,
+        ArrayBuilder<BinaryOperatorSignature> results) {
+        var leftType = left.type as PointerTypeSymbol;
+        var rightType = right.type as PointerTypeSymbol;
+
+        if (leftType is not null)
+            GetPointerArithmeticOperators(kind, leftType, results);
+
+        if (rightType is not null && (leftType is null || !Conversions.HasIdentityConversion(rightType, leftType)))
+            GetPointerArithmeticOperators(kind, rightType, results);
+
+        if (leftType is not null || rightType is not null ||
+            left.type is FunctionPointerTypeSymbol || right.type is FunctionPointerTypeSymbol) {
+            GetPointerComparisonOperators(kind, results);
+        }
+    }
+
+    private void GetPointerArithmeticOperators(
+        BinaryOperatorKind kind,
+        PointerTypeSymbol pointerType,
+        ArrayBuilder<BinaryOperatorSignature> operators) {
+        // TODO Do we want these?
+        // switch (kind) {
+        //     case BinaryOperatorKind.Addition:
+        //         operators.Add(new BinaryOperatorSignature(BinaryOperatorKind.PointerAndIntAddition, pointerType, CorLibrary.GetSpecialType(SpecialType.Int32), pointerType));
+        //         operators.Add(new BinaryOperatorSignature(BinaryOperatorKind.PointerAndUIntAddition, pointerType, CorLibrary.GetSpecialType(SpecialType.UInt32), pointerType));
+        //         operators.Add(new BinaryOperatorSignature(BinaryOperatorKind.PointerAndLongAddition, pointerType, CorLibrary.GetSpecialType(SpecialType.Int64), pointerType));
+        //         operators.Add(new BinaryOperatorSignature(BinaryOperatorKind.PointerAndULongAddition, pointerType, CorLibrary.GetSpecialType(SpecialType.UInt64), pointerType));
+        //         operators.Add(new BinaryOperatorSignature(BinaryOperatorKind.IntAndPointerAddition, CorLibrary.GetSpecialType(SpecialType.Int32), pointerType, pointerType));
+        //         operators.Add(new BinaryOperatorSignature(BinaryOperatorKind.UIntAndPointerAddition, CorLibrary.GetSpecialType(SpecialType.UInt32), pointerType, pointerType));
+        //         operators.Add(new BinaryOperatorSignature(BinaryOperatorKind.LongAndPointerAddition, CorLibrary.GetSpecialType(SpecialType.Int64), pointerType, pointerType));
+        //         operators.Add(new BinaryOperatorSignature(BinaryOperatorKind.ULongAndPointerAddition, CorLibrary.GetSpecialType(SpecialType.UInt64), pointerType, pointerType));
+        //         break;
+        //     case BinaryOperatorKind.Subtraction:
+        //         operators.Add(new BinaryOperatorSignature(BinaryOperatorKind.PointerAndIntSubtraction, pointerType, CorLibrary.GetSpecialType(SpecialType.Int32), pointerType));
+        //         operators.Add(new BinaryOperatorSignature(BinaryOperatorKind.PointerAndUIntSubtraction, pointerType, CorLibrary.GetSpecialType(SpecialType.UInt32), pointerType));
+        //         operators.Add(new BinaryOperatorSignature(BinaryOperatorKind.PointerAndLongSubtraction, pointerType, CorLibrary.GetSpecialType(SpecialType.Int64), pointerType));
+        //         operators.Add(new BinaryOperatorSignature(BinaryOperatorKind.PointerAndULongSubtraction, pointerType, CorLibrary.GetSpecialType(SpecialType.UInt64), pointerType));
+        //         operators.Add(new BinaryOperatorSignature(BinaryOperatorKind.PointerSubtraction, pointerType, pointerType, CorLibrary.GetSpecialType(SpecialType.Int64)));
+        //         break;
+        // }
+    }
+
+    private void GetPointerComparisonOperators(
+        BinaryOperatorKind kind,
+        ArrayBuilder<BinaryOperatorSignature> operators) {
+        switch (kind) {
+            case BinaryOperatorKind.Equal:
+            case BinaryOperatorKind.NotEqual:
+            case BinaryOperatorKind.GreaterThan:
+            case BinaryOperatorKind.LessThan:
+            case BinaryOperatorKind.GreaterThanOrEqual:
+            case BinaryOperatorKind.LessThanOrEqual:
+                var voidPointerType = new PointerTypeSymbol(
+                    new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void))
+                );
+
+                operators.Add(new BinaryOperatorSignature(
+                    kind | BinaryOperatorKind.Pointer,
+                    voidPointerType,
+                    voidPointerType,
+                    CorLibrary.GetSpecialType(SpecialType.Bool)
+                ));
+
                 break;
         }
     }
@@ -1736,7 +1808,8 @@ internal sealed partial class OverloadResolution {
 
         var nodeKind = node.kind;
 
-        if (nodeKind == BoundKind.OutVariablePendingInference) {
+        if (nodeKind == BoundKind.OutVariablePendingInference ||
+            (nodeKind == BoundKind.DiscardExpression && !node.HasExpressionType())) {
             okToDowngradeToNeither = false;
             return BetterResult.Neither;
         }
@@ -2320,8 +2393,10 @@ internal sealed partial class OverloadResolution {
 
         var argType = argument.Type();
 
-        if (argument.kind == BoundKind.OutVariablePendingInference)
+        if (argument.kind == BoundKind.OutVariablePendingInference ||
+            (argument.kind == BoundKind.DiscardExpression && argType is null)) {
             return Conversion.Identity;
+        }
 
         if (argRefKind == RefKind.None) {
             argument = Binder.ReduceNumericIfApplicable(parameterType, argument);
@@ -2583,7 +2658,7 @@ internal sealed partial class OverloadResolution {
 
             return argumentPosition;
         } else {
-            var name = arguments.names[argumentPosition].GetValueOrDefault().Name;
+            var name = arguments.names[argumentPosition].GetValueOrDefault().name;
 
             for (var p = 0; p < memberParameters.Length; p++) {
                 if (memberParameters[p].name == name) {

@@ -22,6 +22,7 @@ internal sealed partial class Executor {
         internal static MethodInfo String_Equality_SS = typeof(string).GetMethod("op_Equality", DefaultFlags, [typeof(string), typeof(string)]);
         internal static MethodInfo String_get_Chars_I = typeof(string).GetMethod("get_Chars", InstFlags, [typeof(int)]);
         internal static ConstructorInfo NullConditionException_ctor = typeof(NullConditionException).GetConstructor(Type.EmptyTypes);
+        internal static ConstructorInfo UnreachableException_ctor = typeof(System.Diagnostics.UnreachableException).GetConstructor(Type.EmptyTypes);
         internal static MethodInfo Type_GetTypeFromHandle = typeof(Type).GetMethod("GetTypeFromHandle", DefaultFlags, [typeof(RuntimeTypeHandle)]);
     }
 }

@@ -12,13 +12,14 @@ The Belte public interface for the LowLevel class can be found
 ## 5.8.1 Methods
 
 | Signature | Description |
-|-|-|
+| - | - |
 | `int! GetHashCode(Object!)` | Equivalent to calling `Object.GetHashCode()`. |
 | `string! GetTypeName(Object!)` | Equivalent to calling `Object.GetTypeName()`. |
 | `type! GetType(any!)` | Gets the type of the passed value. |
 | `int! Length<type T>(T!)` | Gets the length of the given array, or 0 if not passed an array. |
 | `void Sort<type T>(T!)` | Sorts the given array, or does nothing if not passed an array. |
 | `int32 SizeOf<type T>()` | Gets the size of the template argument type in number of bytes. (Using the [`sizeof` operator](../LowLevelFeatures.md#69-sizeof-operator) is preferred.) |
+| `TTo BitCast<type TFrom, type TTo>(TFrom)` | Bit casts the given value into a new type. |
 | `uint8* CreateLPCSTR(string!)` | Creates a raw `uint8` (representing ascii characters) array with the content of the passed string and returns a pointer to the first element. |
 | `uint8* CreateLPCSTR_UTF(string!)` | Creates a raw `uint8` (representing utf-8 characters) array with the content of the passed string and returns a pointer to the first element. |
 | `char* CreateLPCWSTR(string!)` | Creates a raw `char!` (representing unicode characters) array with the content of the passed string and returns a pointer to the first element. |
@@ -29,6 +30,7 @@ The Belte public interface for the LowLevel class can be found
 | `void* GetGCPtr(Object!)` | Creates a garbage collector handle for the given object and returns a pointer to that handle.* |
 | `void FreeGCHandle(void*)` | Frees the given garbage collector handle.* |
 | `Object! GetObject(void*)` | Gets the object associated with the given garbage collector handle.* |
+| `void ThrowNullConditionException()` | Throws `new NullConditionException()`. |
 
 *Note that while you can get the address of `this`, it is safer to use
 `GetGCPtr` and `GetObject` as they will stay accurate even if the garbage

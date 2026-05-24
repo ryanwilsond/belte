@@ -16,7 +16,7 @@ The Dictionary template has two template parameters. The first corresponds to
 the key type, the second corresponds to the value type.
 
 | Signature | Description |
-|-|-|
+| - | - |
 | `new Dictionary<type TKey, type TValue>()` | Creates an empty dictionary. |
 | `Dictionary<type TKey, type TValue>(int!)` | Creates an empty dictionary with a starting capacity. |
 | `new Dictionary<type TKey, type TValue>(EqualityComparer<TKey>)` | Creates an empty dictionary with a custom equality comparer. |
@@ -34,7 +34,7 @@ new Dictionary<int, string>();
 ## 5.7.2.2 Methods
 
 | Signature | Description |
-|-|-|
+| - | - |
 | `void Add(TKey, TValue)` | Adds a key value pair. |
 | `void Clear()` | Removes all elements. |
 | `const bool! ContainsKey(TKey)` | If the dictionary contains the given key. |
@@ -45,7 +45,7 @@ new Dictionary<int, string>();
 ## 5.7.2.3 Operators
 
 | Signature | Description |
-|-|-|
+| - | - |
 | `static ref TValue operator[](Dictionary<TKey, TValue>, TKey)` | Gets the value associated with the given key. |
 | `static Enumerator<KeyValuePair<TKey, TValue>>! operator iter(Dictionary<TKey, TValue>)` | Used in [iterating for loops](../ControlFlow.md#2444-enumerated-collections). |
 

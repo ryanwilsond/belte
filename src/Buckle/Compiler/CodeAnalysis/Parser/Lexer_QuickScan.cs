@@ -221,7 +221,7 @@ internal sealed partial class Lexer {
         (byte)CharFlags.Complex,  // `
         (byte)CharFlags.Letter,   // a
         (byte)CharFlags.Letter,   // b
-        (byte)CharFlags.Letter,   // c
+        (byte)CharFlags.Complex,   // c
         (byte)CharFlags.Letter,   // d
         (byte)CharFlags.Letter,   // e
         (byte)CharFlags.Complex,  // f
@@ -241,7 +241,7 @@ internal sealed partial class Lexer {
         (byte)CharFlags.Letter,   // t
         (byte)CharFlags.Letter,   // u
         (byte)CharFlags.Letter,   // v
-        (byte)CharFlags.Letter,   // w
+        (byte)CharFlags.Complex,   // w
         (byte)CharFlags.Letter,   // x
         (byte)CharFlags.Letter,   // y
         (byte)CharFlags.Letter,   // z

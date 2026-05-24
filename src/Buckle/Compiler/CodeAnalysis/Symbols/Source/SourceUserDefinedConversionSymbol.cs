@@ -20,7 +20,7 @@ internal sealed class SourceUserDefinedConversionSymbol : SourceUserDefinedOpera
             syntax.type.location,
             syntax,
             RefKind.None,
-            MakeDeclarationModifiers(syntax, syntax.operatorKeyword.location, diagnostics),
+            MakeDeclarationModifiers(containingType, syntax, syntax.operatorKeyword.location, diagnostics),
             hasAnyBody: syntax.body is not null,
             diagnostics) { }
 

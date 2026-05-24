@@ -13,4 +13,6 @@ internal sealed class SynthesizedLabelSymbol : LabelSymbol {
     internal override SyntaxReference syntaxReference => null;
 
     internal override TextLocation location => null;
+
+    internal override bool isImplicitlyDeclared => true;
 }

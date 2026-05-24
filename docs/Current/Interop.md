@@ -11,12 +11,14 @@
 
 .NET DLLs can be referenced in a limited manor. References only work if the imported metadata can be represented in
 native Belte. For example, referencing a C# property from a DLL will not work as Belte does not currently have
-properties. (Though for many features, [workarounds exist](#82-feature-workarounds).)
+properties. (Though for properties in particular, [workarounds exist](#82-feature-workarounds).)
 
 Because of this limitation, the safest way to interact with imported references is through static methods defined in the
 DLL.
 
-To specify a reference, the [`--ref=<file>` command-line argument](../Buckle.md#--reffile---referencefile) can be used.
+To specify a reference, the
+[`--ref=<file>`](../Buckle.md#--refflatcopypath---referenceflatcopypath) command-line argument can be used. Also note
+that a few libraries can be added automatically by using [`-l#`](../Buckle.md#-l0--l1--lall) options.
 
 For example:
 

@@ -167,7 +167,12 @@ public static class LibraryHelpers {
             if (type is FunctionTypeSymbol)
                 return "Fn";
 
-            return char.ToUpper(type.name[0]).ToString();
+            var chr = char.ToUpper(type.name[0]);
+
+            if (type.specialType.IsLowLevelNumeric())
+                return chr + type.specialType.SizeInBytes().ToString();
+
+            return chr.ToString();
         }
     }
 
@@ -201,10 +206,10 @@ public static class LibraryHelpers {
         foreach (var member in members) {
             switch (member) {
                 case MethodSymbol method:
-                    builder.Add(new SynthesizedFinishedMethodSymbol(method, namedType, null));
+                    builder.Add(new SynthesizedFinishedMethodSymbol(method, namedType, default));
                     break;
                 case NamedTypeSymbol type:
-                    builder.Add(new SynthesizedFinishedNamedTypeSymbol(type, namedType, null));
+                    builder.Add(new SynthesizedFinishedNamedTypeSymbol(type, namedType, default));
                     break;
                 case FieldSymbol field:
                     builder.Add(new SynthesizedFieldSymbol(

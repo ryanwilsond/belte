@@ -357,6 +357,10 @@ internal sealed partial class Lexer : IDisposable {
                 _position++;
                 _kind = SyntaxKind.OpenParenToken;
                 break;
+            case '!':
+                _position++;
+                _kind = SyntaxKind.ExclamationToken;
+                break;
             case '0':
             case '1':
             case '2':
@@ -485,19 +489,43 @@ internal sealed partial class Lexer : IDisposable {
                 break;
             case '/':
                 _position++;
-                if (AdvanceIfMatches('=')) _kind = SyntaxKind.SlashEqualsToken;
-                else _kind = SyntaxKind.SlashToken;
+                if (AdvanceIfMatches('=')) {
+                    _kind = SyntaxKind.SlashEqualsToken;
+                } else if (AdvanceIfMatches('\\')) {
+                    if (AdvanceIfMatches('='))
+                        _kind = SyntaxKind.SlashBackslashEqualsToken;
+                    else
+                        _kind = SyntaxKind.SlashBackslashToken;
+                } else {
+                    _kind = SyntaxKind.SlashToken;
+                }
+
+                break;
+            case '\\':
+                _position++;
+
+                if (AdvanceIfMatches('/')) {
+                    if (AdvanceIfMatches('='))
+                        _kind = SyntaxKind.BackslashSlashEqualsToken;
+                    else
+                        _kind = SyntaxKind.BackslashSlashToken;
+                } else {
+                    _position--;
+                    goto default;
+                }
+
                 break;
             case '*':
                 _position++;
+                _kind = SyntaxKind.AsteriskToken;
 
-                if (AdvanceIfMatches('*')) {
-                    if (AdvanceIfMatches('=')) _kind = SyntaxKind.AsteriskAsteriskEqualsToken;
-                    else _kind = SyntaxKind.AsteriskAsteriskToken;
-                } else if (AdvanceIfMatches('=')) {
+                if (AdvanceIfMatches('=')) {
                     _kind = SyntaxKind.AsteriskEqualsToken;
-                } else {
-                    _kind = SyntaxKind.AsteriskToken;
+                } else if (AdvanceIfMatches('*')) {
+                    if (AdvanceIfMatches('='))
+                        _kind = SyntaxKind.AsteriskAsteriskEqualsToken;
+                    else
+                        _position--;
                 }
 
                 break;
@@ -564,6 +592,16 @@ internal sealed partial class Lexer : IDisposable {
                 break;
             case 'f':
                 if (TryReadInterpolatedString())
+                    break;
+
+                goto default;
+            case 'c':
+                if (TryReadCString())
+                    break;
+
+                goto default;
+            case 'w':
+                if (TryReadCWString())
                     break;
 
                 goto default;
@@ -649,6 +687,30 @@ internal sealed partial class Lexer : IDisposable {
         }
 
         _kind = SyntaxKind.MultiLineCommentTrivia;
+    }
+
+    private bool TryReadCString() {
+        if (Peek(1) == '"') {
+            ReadCOrCWString(isWide: false);
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool TryReadCWString() {
+        if (Peek(1) == '"') {
+            ReadCOrCWString(isWide: true);
+            return true;
+        }
+
+        return false;
+    }
+
+    private void ReadCOrCWString(bool isWide) {
+        _position++;
+        ReadStringLiteral(false);
+        _kind = isWide ? SyntaxKind.CWStringLiteralToken : SyntaxKind.CStringLiteralToken;
     }
 
     private void ReadStringLiteral(bool isCharacter) {
@@ -1125,6 +1187,45 @@ internal sealed partial class Lexer : IDisposable {
                     break;
             }
         }
+    }
+
+    internal SyntaxToken LexEndOfDirectiveWithOptionalPreprocessingMessage() {
+        var leading = LexOptionalPreprocessingMessage() is { } message
+            ? SyntaxFactory.Trivia(SyntaxKind.PreprocessingMessageTrivia, message, null)
+            : null;
+
+        return LexEndOfDirectiveAfterOptionalPreprocessingMessage(leading);
+    }
+
+    private SyntaxToken LexEndOfDirectiveAfterOptionalPreprocessingMessage(SyntaxTrivia leading) {
+        var directiveTriviaCache = _directiveTriviaCache;
+        directiveTriviaCache?.Clear();
+        _directiveTriviaCache = null;
+
+        ReadDirectiveTrailingTrivia(includeEndOfLine: true, ref directiveTriviaCache);
+        var trailing = directiveTriviaCache?.ToListNode();
+        _directiveTriviaCache = directiveTriviaCache;
+
+        var endOfDirective = SyntaxFactory.Token(SyntaxKind.EndOfDirectiveToken, string.Empty, null, leading, trailing);
+
+        return endOfDirective;
+    }
+
+    private string LexOptionalPreprocessingMessage() {
+        PooledStringBuilder builder = null;
+
+        while (true) {
+            var ch = _current;
+
+            if (ch is '\n' or '\r' or '\0')
+                break;
+
+            builder ??= PooledStringBuilder.GetInstance();
+            builder.Builder.Append(ch);
+            _position++;
+        }
+
+        return builder?.ToStringAndFree();
     }
 
     private BelteSyntaxNode ReadDirective(

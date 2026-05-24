@@ -10,7 +10,9 @@ internal sealed partial class FlowLowerer {
         private abstract partial class ValueDispatchNode {
             internal sealed class SwitchDispatch : ValueDispatchNode {
                 internal readonly ImmutableArray<(ConstantValue value, LabelSymbol label)> cases;
+
                 internal readonly LabelSymbol otherwise;
+
                 internal SwitchDispatch(
                     SyntaxNode syntax,
                     ImmutableArray<(ConstantValue value, LabelSymbol label)> dispatches,

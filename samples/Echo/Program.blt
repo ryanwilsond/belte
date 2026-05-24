@@ -11,16 +11,14 @@
 
 */
 
-public static class Program {
-    public static void Main(string![]! args) {
-        var argc = LowLevel.Length<string![]>(args);
-        Console.PrintLine("Number of arguments: " + (string)argc);
+void Main(string[]! args) {
+    var argc = LowLevel.Length<string[]>(args);
+    Console.PrintLine(f"Number of arguments: {argc}");
 
-        if (argc > 0) {
-            Console.PrintLine("Arguments:");
+    if (argc > 0) {
+        Console.PrintLine("Arguments:");
 
-            for (arg in args)
-                Console.PrintLine(f"\t{arg}");
-        }
+        for (arg in args)
+            Console.PrintLine(f"\t{arg}");
     }
 }

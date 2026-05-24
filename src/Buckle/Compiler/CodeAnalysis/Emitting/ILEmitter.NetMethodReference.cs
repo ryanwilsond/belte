@@ -53,10 +53,13 @@ internal sealed partial class ILEmitter {
         internal static MethodReference Type_GetTypeFromHandle;
         internal static MethodReference NullReferenceException_ctor;
         internal static MethodReference NullConditionException_ctor;
+        internal static MethodReference UnreachableException_ctor;
         internal static MethodReference Math_Pow_Nullable;
         internal static MethodReference Math_Pow;
         internal static MethodReference LowLevel_Sort;
         internal static MethodReference LowLevel_Length;
         internal static MethodReference AssertNull;
+        internal static MethodReference Marshal_SizeOf;
+        internal static MethodReference Unsafe_BitCast;
     }
 }

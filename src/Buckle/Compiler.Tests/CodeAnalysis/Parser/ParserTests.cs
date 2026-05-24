@@ -102,8 +102,11 @@ public sealed class ParserTests {
     }
 
     private static bool AmbiguousOperator(SyntaxKind op1kind, SyntaxKind op2kind) {
-        if (op1kind == SyntaxKind.LessThanToken && op2kind == SyntaxKind.GreaterThanToken)
-            return true;
+        if (op1kind == SyntaxKind.LessThanToken && op2kind == SyntaxKind.GreaterThanToken) return true;
+        if (op1kind == SyntaxKind.AsteriskAsteriskToken && op2kind == SyntaxKind.AsteriskAsteriskToken) return true;
+        if (op1kind == SyntaxKind.AsKeyword && op2kind == SyntaxKind.AsteriskAsteriskToken) return true;
+        if (op1kind == SyntaxKind.IsKeyword && op2kind == SyntaxKind.AsteriskAsteriskToken) return true;
+        if (op1kind == SyntaxKind.IsntKeyword && op2kind == SyntaxKind.AsteriskAsteriskToken) return true;
 
         return false;
     }

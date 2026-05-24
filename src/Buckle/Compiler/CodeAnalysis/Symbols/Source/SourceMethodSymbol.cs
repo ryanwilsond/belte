@@ -143,6 +143,7 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
                 => (BelteSyntaxNode)entryPoint.returnTypeSyntax,
             LocalFunctionStatementSyntax localFunction => localFunction.body,
             ClassDeclarationSyntax classDeclaration => classDeclaration,
+            FileScopedClassDeclarationSyntax classDeclaration => classDeclaration,
             _ => null,
         };
     }

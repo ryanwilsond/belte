@@ -16,8 +16,9 @@ internal static class NullableTypeDecoder {
             out var nullableTransformFlags)) {
             var value = nullableContext.GetNullableContextValue();
 
-            if (value is null)
-                return metadataType;
+            // TODO Do we actually care about nullable annotations at all
+            // if (value is null)
+            //     return metadataType;
 
             defaultTransformFlag = value.GetValueOrDefault();
         }
@@ -32,8 +33,9 @@ internal static class NullableTypeDecoder {
         TypeWithAnnotations metadataType,
         byte defaultTransformFlag,
         ImmutableArray<byte> nullableTransformFlags) {
-        if (nullableTransformFlags.IsDefault && defaultTransformFlag == 0)
-            return metadataType;
+        // TODO Do we actually care about nullable annotations at all
+        // if (nullableTransformFlags.IsDefault && defaultTransformFlag == 0)
+        //     return metadataType;
 
         var position = 0;
 

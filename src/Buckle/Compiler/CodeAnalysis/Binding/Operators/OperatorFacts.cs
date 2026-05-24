@@ -7,10 +7,15 @@ namespace Buckle.CodeAnalysis.Binding;
 
 internal static class OperatorFacts {
     internal static bool NoUserDefinedOperators(TypeSymbol type) {
-        return type.typeKind switch {
-            TypeKind.Class or TypeKind.TemplateParameter => false,
-            _ => true,
-        };
+        switch (type.typeKind) {
+            case TypeKind.Class:
+            case TypeKind.Struct:
+            case TypeKind.Enum:
+            case TypeKind.TemplateParameter:
+                return false;
+            default:
+                return true;
+        }
     }
 
     internal static bool IsValidObjectEquality(
@@ -86,6 +91,8 @@ internal static class OperatorFacts {
             BinaryOperatorKind.Subtraction => WellKnownMemberNames.SubtractionOperatorName,
             BinaryOperatorKind.Xor => WellKnownMemberNames.BitwiseExclusiveOrOperatorName,
             BinaryOperatorKind.Power => WellKnownMemberNames.PowerOperatorName,
+            BinaryOperatorKind.Min => WellKnownMemberNames.SlashBackslashOperatorName,
+            BinaryOperatorKind.Max => WellKnownMemberNames.BackslashSlashOperatorName,
             _ => throw ExceptionUtilities.UnexpectedValue(kind & BinaryOperatorKind.OpMask),
         };
     }
@@ -115,6 +122,8 @@ internal static class OperatorFacts {
             case BinaryOperatorKind.And:
             case BinaryOperatorKind.Or:
             case BinaryOperatorKind.Xor:
+            case BinaryOperatorKind.Min:
+            case BinaryOperatorKind.Max:
                 return new BinaryOperatorSignature(kind, left, left, left);
             case BinaryOperatorKind.Addition:
                 return new BinaryOperatorSignature(kind, left, TypeFromKind(kind), TypeFromKind(kind));

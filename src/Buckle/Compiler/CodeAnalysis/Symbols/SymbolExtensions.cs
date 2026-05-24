@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -61,5 +62,22 @@ internal static class SymbolExtensions {
         }
 
         return 0;
+    }
+
+    internal static ImmutableArray<ISymbol> GetPublicSymbols(this ImmutableArray<Symbol> symbols) {
+        return GetPublicSymbols<ISymbol, Symbol>(symbols);
+    }
+
+    private static ImmutableArray<TISymbol> GetPublicSymbols<TISymbol, TSymbol>(this ImmutableArray<TSymbol> symbols)
+        where TISymbol : class, ISymbol where TSymbol : TISymbol {
+        if (symbols.IsDefault)
+            return default;
+
+        return symbols.SelectAsArray(p => p.GetPublicSymbol<TISymbol, TSymbol>());
+    }
+
+    private static TISymbol GetPublicSymbol<TISymbol, TSymbol>(this TSymbol symbol)
+        where TISymbol : class, ISymbol where TSymbol : TISymbol {
+        return symbol;
     }
 }

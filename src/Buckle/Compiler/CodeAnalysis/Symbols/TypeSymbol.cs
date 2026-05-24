@@ -141,6 +141,9 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
             return true;
         }
 
+        if (IsEnumType())
+            return this.GetEnumUnderlyingType().HasDefaultValue();
+
         return false;
     }
 
@@ -245,12 +248,11 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
                 return GetNextDeclaredBase((NamedTypeSymbol)this, basesBeingResolved, ref visited);
             case TypeKind.Array:
             case TypeKind.Enum:
+            case TypeKind.Primitive:
             case TypeKind.Pointer:
             case TypeKind.FunctionPointer:
             case TypeKind.Function:
                 return baseType;
-            case TypeKind.Primitive:
-                return null;
             default:
                 throw ExceptionUtilities.UnexpectedValue(typeKind);
         }
@@ -336,7 +338,7 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
             case TypeKind.Error:
                 return CorLibrary.GetSpecialType(SpecialType.Object);
             case TypeKind.Struct:
-                return null;
+                return CorLibrary.GetSpecialType(SpecialType.ValueType);
             default:
                 throw ExceptionUtilities.UnexpectedValue(type.typeKind);
         }

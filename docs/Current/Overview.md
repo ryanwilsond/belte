@@ -7,19 +7,56 @@ Currently, the Belte compiler, Buckle, supports interpretation and building to a
 
 > [Using the compiler CLI](../Buckle.md)
 
-- [1.1](#11-endpoint-specific-features) Endpoint Specific Features
-- [1.2](#12-keywords) Keywords
-  - [1.2.1](#121-non-contextual-keywords) Non-Contextual Keywords
-  - [1.2.2](#122-contextual-keywords) Contextual Keywords
-- [1.3](#13-nullability-and-types) Nullability and Types
-  - [1.3.1](#131-normal-types) Normal Types
-  - [1.3.2](#132-pointers-and-function-pointers) Pointers and Function Pointers
-  - [1.3.3](#133-initializers) Initializers
-  - [1.3.4](#134-fields) Fields
-  - [1.3.5](#135-implicit-typing) Implicit Typing
-  - [1.3.6](#136-null-flow-analysis) Null-Flow Analysis
+- [1.1](#11-conventions) Conventions
+- [1.2](#12-endpoint-specific-features) Endpoint Specific Features
+- [1.3](#13-keywords) Keywords
+  - [1.3.1](#131-non-contextual-keywords) Non-Contextual Keywords
+  - [1.3.2](#132-contextual-keywords) Contextual Keywords
+- [1.4](#14-nullability-and-types) Nullability and Types
+  - [1.4.1](#141-normal-types) Normal Types
+  - [1.4.2](#142-pointers-and-function-pointers) Pointers and Function Pointers
+  - [1.4.3](#143-initializers) Initializers
+  - [1.4.4](#144-fields) Fields
+  - [1.4.5](#145-implicit-typing) Implicit Typing
+  - [1.4.6](#146-null-flow-analysis) Null-Flow Analysis
+- [1.5](#15-differences-from-c) Differences from C#
 
-## 1.1 Endpoint Specific Features
+## 1.1 Conventions
+
+`// ...` and `/* ... */` in code samples refer to an arbitrary statement or expression or continuation of a pattern.
+
+For example, if a code sample showed:
+
+```belte
+int a = /* ... */;
+```
+
+The usage of `/* ... */` is meant to imply the actual expression used does not matter for the sake of demonstrating the
+feature being discussed.
+
+Similarly, if a code sample showed:
+
+```belte
+void Func() {
+  // ...
+}
+```
+
+The usage of `// ...` is meant to imply the body of the function `Func` does not matter for the sake of the feature
+being discussed.
+
+Note that these shortcuts do not necessarily ensure correctness and are used for brevity. For example:
+
+```belte
+int Func() {
+  // ...
+}
+```
+
+In this example, `Func` in this state is invalid because it fails to return even though the function signature has a
+return type of `int`. In this case the `// ...` implies an arbitrary valid return.
+
+## 1.2 Endpoint Specific Features
 
 Some features are not supported across all endpoints for various reasons.
 
@@ -27,11 +64,11 @@ The following list describes all of the features where full parity is not curren
 implemented.
 
 - Evaluator: the internal interpreter endpoint. Used for the [REPL](../Repl.md), `--evaluate` builds, and [compile-time expressions](Data.md#37-compile-time-expressions).
-- Executor: the default endpoint which relies the compiler infrastructure.
-- IL Emitter: the endpoint for emitting to an executable which relies on .NET.
+- Executor: the endpoint for emitting to an in-memory delegate to execute immediately. This is the default endpoint and is used for `--execute` builds and [compile-time handles](LowLevelFeatures.md#613-compiler-handle).
+- IL Emitter: the endpoint for emitting to an executable which relies on .NET. Used for `--dotnet` builds and [build scripts](../Build.md).
 
 | Feature | Evaluator | Executor | IL Emitter | Explanation |
-|-|-|-|-|-|
+| - | - | - | - | - |
 | `--type=graphics` projects | ✓ | ✓ | ✕ | Standalone graphics DLL under development |
 | Non-type templates | ✓ | ✕ | ✕ | Not supported by the .NET runtime |
 | Non-integral enums | ✓ | ✕ | ✕ | Not supported by the .NET runtime |
@@ -41,40 +78,40 @@ implemented.
 | Inline IL | ✕ | ✓ | ✓ | Incompatible with the Evaluator |
 | .NET DLL references | ✕ | ✓ | ✓ | Incompatible with the Evaluator |
 
-## 1.2 Keywords
+## 1.3 Keywords
 
 The following lists all keywords used in the language. No type names (e.g. `int`) are reserved.
 
 Some keywords have multiple meanings depending on context. Those keywords will be disambiguated in the lists below.
 
-### 1.2.1 Non-Contextual Keywords
+### 1.3.1 Non-Contextual Keywords
 
 These keywords are reserved names and cannot be used as identifiers.
 
-- [abstract](ClassesAndObjects.md#432-static--constexpr)
+- [abstract](ClassesAndObjects.md#433-static--constexpr)
 - [as](Data.md#32-operators)
 - [base](ClassesAndObjects.md#413-base-access)
 - [break](ControlFlow.md#245-break)
 - [case](ControlFlow.md#25-switch)
+- [catch](ControlFlow.md#261-trycatchfinally)
 - [class](ClassesAndObjects.md#41-classes)
-- [constexpr](ClassesAndObjects.md#433-static--constexpr)
 - [const](Data.md#33-variables-and-constants) (locals)
 - [const](ClassesAndObjects.md#434-const) (methods)
-- [constructor](ClassesAndObjects.md#44-constructors)
+- [constexpr](ClassesAndObjects.md#433-static--constexpr)
+- [constructor](ClassesAndObjects.md#44-constructors--destructors)
 - [continue](ControlFlow.md#246-continue)
 - [default](Data.md#314-default-literal) (literal)
 - [default](ControlFlow.md#25-switch) (switch label)
 - [defer](ControlFlow.md#28-defer-statements)
-- [define](Preprocessor.md#71-defineundef)
+- [destructor](ClassesAndObjects.md#44-constructors--destructors)
 - [do](ControlFlow.md#242-do-while-loops)
-- [elif](Preprocessor.md#72-control)
 - [else](ControlFlow.md#23-conditionals)
-- [endif](Preprocessor.md#72-control)
 - [enum](ClassesAndObjects.md#46-enums)
 - [extends](ClassesAndObjects.md#412-inheritance) (inheritance)
 - [extends](ClassesAndObjects.md#4512-special-constraints) (template constraints)
 - [extern](LowLevelFeatures.md#67-extern-methods)
 - [false](Data.md#31-data-types)
+- [finally](ControlFlow.md#261-trycatchfinally)
 - [for](ControlFlow.md#243-for-loops) (for loop)
 - [for](ControlFlow.md#244-for-each-loops) (for each loop)
 - [global](ClassesAndObjects.md#483-global-using-directive) (global using)
@@ -109,13 +146,14 @@ These keywords are reserved names and cannot be used as identifiers.
 - [stackalloc](LowLevelFeatures.md#610-stackalloc-operator)
 - [static](ClassesAndObjects.md#433-static--constexpr) (modifier)
 - [static](ClassesAndObjects.md#48-using-directives) (using directive)
-- [struct](LowLevelFeatures.md#62-structures)
+- [struct](ClassesAndObjects.md#49-structs)
 - [switch](ControlFlow.md#25-switch)
 - [this](ClassesAndObjects.md#411-declaring-and-using-classes)
-- [throw](ControlFlow.md#26-exceptions)
+- [throw](ControlFlow.md#26-exceptions-and-handling)
 - [true](Data.md#31-data-types)
+- [try](ControlFlow.md#261-trycatchfinally)
 - [typeof](Data.md#32-operators)
-- [undef](Preprocessor.md#71-defineundef)
+- [unreachable](ControlFlow.md#210-unreachable-statements)
 - [using](ClassesAndObjects.md#48-using-directives) (using directive)
 - [using](ControlFlow.md#29-using-statements) (using statement)
 - [virtual](ClassesAndObjects.md#432-overriding-modifiers)
@@ -123,16 +161,13 @@ These keywords are reserved names and cannot be used as identifiers.
 - [while](ControlFlow.md#241-while-loops)
 - [with](ControlFlow.md#27-with-expressions-and-statements)
 
-The following keywords are reserved names but are not yet used:
-
-- catch
-- finally
-- try
-
-### 1.2.2 Contextual Keywords
+### 1.3.2 Contextual Keywords
 
 These keywords only act as keywords inside specific contexts. As such they can be used as identifiers in most places.
 
+- [define](Preprocessor.md#71-defineundef)
+- [elif](Preprocessor.md#72-control)
+- [endif](Preprocessor.md#72-control)
 - [explicit](ClassesAndObjects.md#4232-casts)
 - [flags](ClassesAndObjects.md#461-flags)
 - [handle](LowLevelFeatures.md#613-compiler-handle)
@@ -141,8 +176,9 @@ These keywords only act as keywords inside specific contexts. As such they can b
 - [notnull](ClassesAndObjects.md#4512-special-constraints)
 - [noverify](LowLevelFeatures.md#6111-verification)
 - [primitive](ClassesAndObjects.md#4512-special-constraints)
+- [undef](Preprocessor.md#71-defineundef)
 
-## 1.3 Nullability and Types
+## 1.4 Nullability and Types
 
 Nullability is treated in a non-standard way in Belte. As such, a close read of the following section is recommended,
 which is a consolidation of important nullability semantics found in the rest of the documentation.
@@ -157,7 +193,7 @@ To summarize:
 
 A type is "nullable" when it permits `null`.
 
-### 1.3.1 Normal Types
+### 1.4.1 Normal Types
 
 Classes are reference types meaning they are heap allocated, garbage collected, and not copied when passed.
 
@@ -224,7 +260,7 @@ MyClass? a = new MyClass();
 
 Redundant annotations are encouraged in source docs for clarity.
 
-### 1.3.2 Pointers and Function Pointers
+### 1.4.2 Pointers and Function Pointers
 
 Nullability in pointers is not covered with the type system, but rather with the `nullptr` keyword. A `nullptr` under
 the hood is just a 0-valued pointer. The following are equivalent:
@@ -245,7 +281,7 @@ void(int?)* ptr; // OK
 void(int?)*? ptr; // Invalid
 ```
 
-### 1.3.3 Initializers
+### 1.4.3 Initializers
 
 Local initializers are required for non-nullable types. For nullable types, initializers are optional and a local
 without one will be set to null. The following are identical:
@@ -288,7 +324,7 @@ MyClass! a = new MyClass();
 var! a = new MyClass();
 ```
 
-## 1.3.4 Fields
+### 1.4.4 Fields
 
 Unlike locals, non-nullable fields do not require an initializer and instead are set to a default value. Struct fields
 cannot have initializers at all. The default value of numeric types is `0`, for booleans `false`, and an empty string
@@ -312,7 +348,7 @@ struct MyStruct {
 }
 ```
 
-## 1.3.5 Implicit Typing
+### 1.4.5 Implicit Typing
 
 `var`, `const`, and `constexpr` can be used when defining a local indicating that their type should be inferred. The
 inferred type is usually the exact type of the initializer. The following are identical:
@@ -328,7 +364,7 @@ Nullability persists when inferring a type. The following are identical:
 int? a = Func();
 var a = Func();
 
-int? Func() { ... }
+int? Func() { /* ... */ }
 ```
 
 `var` means a normal local declaration. `const` and `constexpr` infer the type of a local with the respective modifiers.
@@ -347,7 +383,7 @@ compile-time constant that will be substituted at compile time. For classes, a `
 read but not written to, and only methods marked `const` can be called. Class-types cannot use the `constexpr` modifier
 because they are not compile-time constants.
 
-## 1.3.6 Null-Flow Analysis
+### 1.4.6 Null-Flow Analysis
 
 Belte does not currently perform automatic null-flow analysis. Instead, explicit null checks and control flow should be
 used.
@@ -367,7 +403,7 @@ To conditionally execute code if a value is not null, a
 int? a = Func();
 
 if (a -> b!) {
-  ...
+  // ...
 }
 ```
 
@@ -380,9 +416,9 @@ To use a type's default value in the case of null, the [`?` operator](Data.md#32
 bool? a = Func();
 
 if (a?) {
-  ...
+  // ...
 } else {
-  ...
+  // ...
 }
 ```
 
@@ -393,8 +429,71 @@ constructs can be nullable. If the condition is null at runtime, an exception is
 bool? a = Func();
 
 if (a) {
-  ...
+  // ...
 }
 ```
 
 In this example, if `a` is null, a runtime exception is thrown at the if condition.
+
+## 1.5 Differences from C\#
+
+Belte is similar enough to C# so that the differences are more notable than the similarities. The following is a list of
+most of the differences to make it more clear where the language is unique with links to relevant doc sections:
+
+- [Enforced non-nullable reference types](#14-nullability-and-types)
+- [Extremely flexible meta-programming](LowLevelFeatures.md#613-compiler-handle)
+- [Compile-time expressions](Data.md#37-compile-time-expressions)
+- [Optional build scripts instead of project files](../Build.md)
+- No interfaces
+- No properties
+- No extension methods (yet)
+- [`defer` statements](ControlFlow.md#28-defer-statements)
+- [`with` expressions and statements](ControlFlow.md#27-with-expressions-and-statements)
+- [Duck-typed `using` statements](ControlFlow.md#29-using-statements)
+- [File-scoped classes](ClassesAndObjects.md#411-declaring-and-using-classes)
+- Primitive types (e.g. `int`) don't have members
+- [`constructor` and `destructor` keywords](ClassesAndObjects.md#44-constructors--destructors)
+- Types are not reserved names (including primitives)
+- [`unreachable` statements](ControlFlow.md#210-unreachable-statements)
+- [`const` locals and fields with reference types](Data.md#33-variables-and-constants)
+- [`const` methods](ClassesAndObjects.md#434-const)
+- [`constexpr` locals and fields](ClassesAndObjects.md#433-static--constexpr)
+- [First-class `flags` enums](ClassesAndObjects.md#461-flags)
+- [`extends` keyword for base lists](ClassesAndObjects.md#412-inheritance)
+- [Different generic/template constraints include expression constraints](ClassesAndObjects.md#451-constraint-clauses)
+- [Duck-typed `for` "each" loops with index support](ControlFlow.md#244-for-each-loops)
+- [Inline-IL blocks](LowLevelFeatures.md#611-inline-il)
+- [`isnt` instead of `is not`](Data.md#32-operators)
+- [`lowlevel` contexts](LowLevelFeatures.md#61-low-level-contexts)
+- [C++-style `nullptr` literal](LowLevelFeatures.md#651-creating-and-dereferencing-pointers)
+- [`out` parameters don't require assignment](ControlFlow.md#216-ref-arguments)
+- [GC `pinned` locals](LowLevelFeatures.md#612-pinned-locals)
+- No `internal`/`private protected`/`protected internal` accessibilities (yet)
+- [Switch cases don't require `break` statements](ControlFlow.md#25-switch)
+- No catch filter blocks (yet)
+- [Conditionals accept expressions of type `bool?` instead of `bool`](ControlFlow.md#231-null-conditions)
+- [Null-binding contracts](ControlFlow.md#232-null-binding-contracts)
+- Pointers and other low-level features don't require `unsafe` contexts
+- [More concise function and function pointer type syntax](Data.md#313-function-type)
+- [More concise unmanaged function pointer type syntax](LowLevelFeatures.md#66-function-pointers)
+- [More concise calling convention syntax](LowLevelFeatures.md#661-calling-conventions)
+- [Fixed fields don't require a `fixed` keyword](LowLevelFeatures.md#68-fixed-size-buffers)
+- [C-style stackalloc syntax](LowLevelFeatures.md#6101-stackalloc-locals)
+- [Explicitly-named sized numerics (e.g. `uint16`)](LowLevelFeatures.md#64-numerics)
+- [`winbool` type instead of marshalling `bool` as 4-bytes in `extern`s](LowLevelFeatures.md#671-winbool)
+- `bool` marshals as 1 byte in `extern`s
+- [String interpolation uses `f""` instead of `$""`](Data.md#312-string-interpolation)
+- [More expressive implicit typing allowing with `var`, `const`, and `constexpr` and nullable annotations](Data.md#331-implicit-typing)
+- [Argument coercion with `implicit` keyword](ControlFlow.md#217-argument-coercion)
+- [More operators (`x!`, `x!!`, `x?`, `x /\ y`, `x \/ y`, `x >< [y, z]`, `x ?! y`, `x..y`, `x?..y`)](Data.md#322-uncommon-operators)
+- Structs cannot have field initializers
+- [Enums can have methods](ClassesAndObjects.md#465-methods)
+- [Implicit enum fields](ClassesAndObjects.md#462-implicit-enum-fields)
+- [More concise enum bit testing](ClassesAndObjects.md#464-bit-testing)
+- [C-style `union`s and anonymous unions](ClassesAndObjects.md#491-unions)
+- [First-class bit casting](LowLevelFeatures.md#641-bit-casts)
+- [`out` parameters can have a default value](ControlFlow.md#2161-out-arguments)
+- [C-string literals](LowLevelFeatures.md#614-c-strings)
+- [Experimental: Non-numeric enum underlying types](ClassesAndObjects.md#463-experimental-underlying-types)
+- [Experimental: Non-type generics/templates](ClassesAndObjects.md#45-templates)
+- Experimental: Integrated graphics support with `Update()` point

@@ -10,6 +10,8 @@ public static class LowLevel {
 
     public static int32 SizeOf<type T>();
 
+    public static TTo! BitCast<type TFrom, type TTo>(TFrom! value);
+
     public static uint8* CreateLPCSTR(string! str);
 
     public static uint8* CreateLPCSTR_UTF(string! str);
@@ -29,4 +31,6 @@ public static class LowLevel {
     public static void FreeGCHandle(void* ptr);
 
     public static Object! GetObject(void* ptr);
+
+    public static void ThrowNullConditionException();
 }

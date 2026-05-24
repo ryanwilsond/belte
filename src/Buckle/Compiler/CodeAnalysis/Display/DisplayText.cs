@@ -170,6 +170,9 @@ public sealed class DisplayText {
             case BoundKind.ContinueStatement:
                 DisplayContinueStatement(text);
                 break;
+            case BoundKind.UnreachableStatement:
+                DisplayUnreachableStatement(text);
+                break;
             case BoundKind.WithStatement:
                 DisplayWithStatement(text, (BoundWithStatement)node);
                 break;
@@ -239,11 +242,17 @@ public sealed class DisplayText {
             case BoundKind.CastExpression:
                 DisplayCastExpression(text, (BoundCastExpression)node);
                 break;
+            case BoundKind.BitCastExpression:
+                DisplayBitCastExpression(text, (BoundBitCastExpression)node);
+                break;
             case BoundKind.TypeOfExpression:
                 DisplayTypeOfExpression(text, (BoundTypeOfExpression)node);
                 break;
             case BoundKind.ObjectCreationExpression:
                 DisplayObjectCreationExpression(text, (BoundObjectCreationExpression)node);
+                break;
+            case BoundKind.UnconvertedObjectCreationExpression:
+                DisplayUnconvertedObjectCreationExpression(text, (BoundUnconvertedObjectCreationExpression)node);
                 break;
             case BoundKind.ArrayCreationExpression:
                 DisplayArrayCreationExpression(text, (BoundArrayCreationExpression)node);
@@ -345,11 +354,17 @@ public sealed class DisplayText {
             case BoundKind.DefaultExpression:
                 DisplayDefaultExpression(text, (BoundDefaultExpression)node);
                 break;
+            case BoundKind.CStringLiteral:
+                DisplayCStringLiteral(text, (BoundCStringLiteral)node);
+                break;
             case BoundKind.IsPatternExpression:
                 DisplayIsPatternExpression(text, (BoundIsPatternExpression)node);
                 break;
             case BoundKind.WithExpression:
                 DisplayWithExpression(text, (BoundWithExpression)node);
+                break;
+            case BoundKind.DiscardExpression:
+                DisplayDiscardExpression(text);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
@@ -403,71 +418,77 @@ public sealed class DisplayText {
         var specialType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(value);
 
         if (specialType == SpecialType.String)
-            DisplayStringLiteral(value.ToString(), false);
+            DisplayStringLiteral(text, value.ToString(), false, true);
         else if (specialType == SpecialType.Char)
-            DisplayStringLiteral(value.ToString(), true);
+            DisplayStringLiteral(text, value.ToString(), true, true);
         else
             text.Write(CreateLiteral(value.ToString().ToLower()));
+    }
 
-        void DisplayStringLiteral(string value, bool isCharacter) {
-            var stringBuilder = new StringBuilder(isCharacter ? "'" : "\"");
+    private static void DisplayStringLiteral(DisplayText text, string value, bool isCharacter, bool includeQuotes) {
+        var stringBuilder = includeQuotes ? new StringBuilder(isCharacter ? "'" : "\"") : new StringBuilder();
 
-            foreach (var c in value) {
-                switch (c) {
-                    case '\a':
-                        text.Write(CreateString(stringBuilder.ToString()));
-                        stringBuilder.Clear();
-                        text.Write(CreateEscape("\\a"));
-                        break;
-                    case '\b':
-                        text.Write(CreateString(stringBuilder.ToString()));
-                        stringBuilder.Clear();
-                        text.Write(CreateEscape("\\b"));
-                        break;
-                    case '\f':
-                        text.Write(CreateString(stringBuilder.ToString()));
-                        stringBuilder.Clear();
-                        text.Write(CreateEscape("\\f"));
-                        break;
-                    case '\n':
-                        text.Write(CreateString(stringBuilder.ToString()));
-                        stringBuilder.Clear();
-                        text.Write(CreateEscape("\\n"));
-                        break;
-                    case '\r':
-                        text.Write(CreateString(stringBuilder.ToString()));
-                        stringBuilder.Clear();
-                        text.Write(CreateEscape("\\r"));
-                        break;
-                    case '\t':
-                        text.Write(CreateString(stringBuilder.ToString()));
-                        stringBuilder.Clear();
-                        text.Write(CreateEscape("\\t"));
-                        break;
-                    case '\v':
-                        text.Write(CreateString(stringBuilder.ToString()));
-                        stringBuilder.Clear();
-                        text.Write(CreateEscape("\\v"));
-                        break;
-                    case '\"':
-                        text.Write(CreateString(stringBuilder.ToString()));
-                        stringBuilder.Clear();
-                        text.Write(CreateEscape("\\\""));
-                        break;
-                    case '\\':
-                        text.Write(CreateString(stringBuilder.ToString()));
-                        stringBuilder.Clear();
-                        text.Write(CreateEscape("\\\\"));
-                        break;
-                    default:
-                        stringBuilder.Append(c);
-                        break;
-                }
+        foreach (var c in value) {
+            switch (c) {
+                case '\a':
+                    text.Write(CreateString(stringBuilder.ToString()));
+                    stringBuilder.Clear();
+                    text.Write(CreateEscape("\\a"));
+                    break;
+                case '\b':
+                    text.Write(CreateString(stringBuilder.ToString()));
+                    stringBuilder.Clear();
+                    text.Write(CreateEscape("\\b"));
+                    break;
+                case '\f':
+                    text.Write(CreateString(stringBuilder.ToString()));
+                    stringBuilder.Clear();
+                    text.Write(CreateEscape("\\f"));
+                    break;
+                case '\n':
+                    text.Write(CreateString(stringBuilder.ToString()));
+                    stringBuilder.Clear();
+                    text.Write(CreateEscape("\\n"));
+                    break;
+                case '\r':
+                    text.Write(CreateString(stringBuilder.ToString()));
+                    stringBuilder.Clear();
+                    text.Write(CreateEscape("\\r"));
+                    break;
+                case '\t':
+                    text.Write(CreateString(stringBuilder.ToString()));
+                    stringBuilder.Clear();
+                    text.Write(CreateEscape("\\t"));
+                    break;
+                case '\v':
+                    text.Write(CreateString(stringBuilder.ToString()));
+                    stringBuilder.Clear();
+                    text.Write(CreateEscape("\\v"));
+                    break;
+                case '\"':
+                    text.Write(CreateString(stringBuilder.ToString()));
+                    stringBuilder.Clear();
+                    text.Write(CreateEscape("\\\""));
+                    break;
+                case '\\':
+                    text.Write(CreateString(stringBuilder.ToString()));
+                    stringBuilder.Clear();
+                    text.Write(CreateEscape("\\\\"));
+                    break;
+                default:
+                    stringBuilder.Append(c);
+                    break;
             }
-
-            stringBuilder.Append(isCharacter ? '\'' : '"');
-            text.Write(CreateString(stringBuilder.ToString()));
         }
+
+        if (includeQuotes)
+            stringBuilder.Append(isCharacter ? '\'' : '"');
+
+        text.Write(CreateString(stringBuilder.ToString()));
+    }
+
+    private static void DisplayDiscardExpression(DisplayText text) {
+        text.Write(CreateIdentifier("_"));
     }
 
     private static void DisplayTypeExpression(DisplayText text, BoundTypeExpression node) {
@@ -495,19 +516,33 @@ public sealed class DisplayText {
     }
 
     private static void DisplayInterpolatedStringExpression(DisplayText text, BoundInterpolatedStringExpression node) {
+        text.Write(CreateString("f\""));
+
         foreach (var expression in node.contents) {
             if (expression.constantValue?.specialType == SpecialType.String) {
-                DisplayNode(expression);
+                DisplayStringLiteral(
+                    text,
+                    (string)expression.constantValue.value,
+                    isCharacter: false,
+                    includeQuotes: false
+                );
             } else {
                 text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
-                DisplayNode(expression);
+                DisplayNode(text, expression);
                 text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
             }
         }
+
+        text.Write(CreateString("\""));
     }
 
     private static void DisplayDefaultExpression(DisplayText text, BoundDefaultExpression _) {
         text.Write(CreateKeyword(SyntaxKind.DefaultKeyword));
+    }
+
+    private static void DisplayCStringLiteral(DisplayText text, BoundCStringLiteral node) {
+        text.Write(CreateString(node.isWide ? "w" : "c"));
+        DisplayConstant(text, node.literal);
     }
 
     private static void DisplayMethodGroup(DisplayText text, BoundMethodGroup node) {
@@ -527,6 +562,11 @@ public sealed class DisplayText {
 
     private static void DisplayContinueStatement(DisplayText text) {
         text.Write(CreateKeyword(SyntaxKind.ContinueKeyword));
+        text.WriteLine();
+    }
+
+    private static void DisplayUnreachableStatement(DisplayText text) {
+        text.Write(CreateKeyword(SyntaxKind.UnreachableKeyword));
         text.WriteLine();
     }
 
@@ -597,20 +637,20 @@ public sealed class DisplayText {
     private static void DisplayTryStatement(DisplayText text, BoundTryStatement node) {
         text.Write(CreateKeyword(SyntaxKind.TryKeyword));
         text.Write(CreateSpace());
-        DisplayBlockStatement(text, (BoundBlockStatement)node.body, false);
+        DisplayBlockStatement(text, node.body, false);
 
         if (node.catchBody is not null) {
             text.Write(CreateSpace());
             text.Write(CreateKeyword(SyntaxKind.CatchKeyword));
             text.Write(CreateSpace());
-            DisplayBlockStatement(text, (BoundBlockStatement)node.catchBody, false);
+            DisplayBlockStatement(text, node.catchBody, false);
         }
 
         if (node.finallyBody is not null) {
             text.Write(CreateSpace());
             text.Write(CreateKeyword(SyntaxKind.FinallyKeyword));
             text.Write(CreateSpace());
-            DisplayBlockStatement(text, (BoundBlockStatement)node.finallyBody, false);
+            DisplayBlockStatement(text, node.finallyBody, false);
         }
 
         text.WriteLine();
@@ -754,7 +794,7 @@ public sealed class DisplayText {
         text.Write(CreateSpace());
         text.Write(CreateKeyword(SyntaxKind.InKeyword));
         text.Write(CreateSpace());
-        DisplayNode(node.expression);
+        DisplayNode(text, node.expression);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
         text.Write(CreateSpace());
         text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
@@ -862,8 +902,7 @@ public sealed class DisplayText {
     private static void DisplayDeferStatement(DisplayText text, BoundDeferStatement node) {
         text.Write(CreateKeyword(SyntaxKind.DeferKeyword));
         text.Write(CreateSpace());
-        DisplayNode(text, node.expression);
-        text.WriteLine();
+        DisplayNode(text, node.statement);
     }
 
     private static void DisplayFieldAccessExpression(
@@ -872,6 +911,8 @@ public sealed class DisplayText {
         bool conditional = false) {
         if (node.receiver is not null)
             DisplayNode(text, node.receiver);
+        else
+            SymbolDisplay.AppendToDisplayText(text, node.field.containingType, SymbolDisplayFormat.QualifiedNameFormat);
 
         text.Write(CreatePunctuation(conditional ? SyntaxKind.QuestionPeriodToken : SyntaxKind.PeriodToken));
         text.Write(CreateIdentifier(node.field.name));
@@ -993,6 +1034,12 @@ public sealed class DisplayText {
         text.Write(CreateIdentifier("Func"));
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
         text.Write(CreatePunctuation(SyntaxKind.AmpersandToken));
+
+        if (node.receiver is not null) {
+            DisplayNode(text, node.receiver);
+            text.Write(CreatePunctuation(SyntaxKind.PercentToken));
+        }
+
         SymbolDisplay.AppendToDisplayText(text, node.targetMethod, SymbolDisplayFormat.QualifiedNameFormat);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
@@ -1000,7 +1047,7 @@ public sealed class DisplayText {
     private static void DisplayFunctionPointerCallExpression(
         DisplayText text,
         BoundFunctionPointerCallExpression node) {
-        SymbolDisplay.AppendToDisplayText(text, node.functionPointer.signature, SymbolDisplayFormat.QualifiedNameFormat);
+        DisplayNode(text, node.invokedExpression);
         DisplayArguments(text, node.arguments);
     }
 
@@ -1012,7 +1059,7 @@ public sealed class DisplayText {
     private static void DisplaySizeOfOperator(DisplayText text, BoundSizeOfOperator node) {
         text.Write(CreateKeyword(SyntaxKind.SizeOfKeyword));
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
-        SymbolDisplay.AppendToDisplayText(text, node.sourceType.type);
+        SymbolDisplay.AppendToDisplayText(text, node.sourceType.type, SymbolDisplayFormat.ObjectCreationFormat);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
 
@@ -1026,7 +1073,7 @@ public sealed class DisplayText {
     private static void DisplayStackAllocExpression(DisplayText text, BoundStackAllocExpressionBase node) {
         text.Write(CreateKeyword(SyntaxKind.StackAllocKeyword));
         text.Write(CreateSpace());
-        SymbolDisplay.AppendToDisplayText(text, node.elementType);
+        SymbolDisplay.AppendToDisplayText(text, node.elementType, SymbolDisplayFormat.ObjectCreationFormat);
         text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
         DisplayNode(text, node.count);
         text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
@@ -1064,7 +1111,15 @@ public sealed class DisplayText {
 
     private static void DisplayCastExpression(DisplayText text, BoundCastExpression node) {
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
-        SymbolDisplay.DisplayType(text, node.Type());
+        SymbolDisplay.DisplayType(text, node.Type(), SymbolDisplayFormat.ObjectCreationFormat);
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+        DisplayNode(text, node.operand);
+    }
+
+    private static void DisplayBitCastExpression(DisplayText text, BoundBitCastExpression node) {
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        SymbolDisplay.DisplayType(text, node.Type(), SymbolDisplayFormat.ObjectCreationFormat);
+        text.Write(CreatePunctuation(SyntaxKind.AmpersandToken));
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
         DisplayNode(text, node.operand);
     }
@@ -1107,6 +1162,14 @@ public sealed class DisplayText {
 
     private static void DisplayUnconvertedNullptrExpression(DisplayText text, BoundUnconvertedNullptrExpression _) {
         text.Write(CreateKeyword(SyntaxKind.NullptrKeyword));
+    }
+
+    private static void DisplayUnconvertedObjectCreationExpression(
+        DisplayText text,
+        BoundUnconvertedObjectCreationExpression node) {
+        text.Write(CreateKeyword(SyntaxKind.NewKeyword));
+        text.Write(CreateSpace());
+        DisplayArguments(text, node.arguments);
     }
 
     private static void DisplayInitializerList(DisplayText text, BoundInitializerList node) {
@@ -1283,7 +1346,11 @@ public sealed class DisplayText {
     }
 
     private static void DisplayFieldSlotExpression(DisplayText text, BoundFieldSlotExpression node) {
-        DisplayNode(text, node.receiver);
+        if (node.receiver is not null)
+            DisplayNode(text, node.receiver);
+        else
+            SymbolDisplay.AppendToDisplayText(text, node.field.containingType, SymbolDisplayFormat.QualifiedNameFormat);
+
         text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
         text.Write(CreateIdentifier(node.field.name));
     }

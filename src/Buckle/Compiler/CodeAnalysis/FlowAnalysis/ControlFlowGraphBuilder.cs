@@ -47,14 +47,6 @@ internal sealed partial class ControlFlowGraphBuilder {
             var current = blocks[i];
             var next = i == blocks.Count - 1 ? _end : blocks[i + 1];
 
-            // TODO We just skip looking at switches right now which is WRONG
-            // TODO We need to pretty much rewrite CFG from the ground up to account for Switches and Try/Catch/Finally
-            // (and definite assignment for out parameters if we choose to allow types without defaults)
-            if (current.statements[0].syntax?.kind == Syntax.SyntaxKind.SwitchSection) {
-                Connect(current, next);
-                continue;
-            }
-
             foreach (var statement in current.statements) {
                 var isLastStatement = statement == current.statements.Last();
 
@@ -84,13 +76,21 @@ internal sealed partial class ControlFlowGraphBuilder {
                     case BoundKind.ReturnStatement:
                         Connect(current, _end);
                         break;
+                    case BoundKind.UnreachableStatement:
                     case BoundKind.ExpressionStatement when
                         ((BoundExpressionStatement)statement).expression is BoundThrowExpression:
                         AddThrowEdges(current);
                         break;
+                    case BoundKind.SwitchDispatch:
+                        var switchDispatch = (BoundSwitchDispatch)statement;
+
+                        foreach (var (_, label) in switchDispatch.cases)
+                            Connect(current, _blockFromLabel[label]);
+
+                        Connect(current, _blockFromLabel[switchDispatch.defaultLabel]);
+                        break;
                     case BoundKind.NopStatement:
                     case BoundKind.ExpressionStatement:
-                    case BoundKind.SwitchDispatch:
                     case BoundKind.InlineILStatement:
                     case BoundKind.LocalDeclarationStatement:
                     case BoundKind.LabelStatement:

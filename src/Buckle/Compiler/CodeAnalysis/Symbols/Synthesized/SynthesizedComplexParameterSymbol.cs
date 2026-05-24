@@ -25,6 +25,8 @@ internal sealed class SynthesizedComplexParameterSymbol : SynthesizedParameterSy
     internal override ConstantValue explicitDefaultConstantValue
         => _baseParameter?.explicitDefaultConstantValue ?? _defaultValue;
 
+    internal override ConstantValue outDefaultValue => _baseParameter?.outDefaultValue;
+
     internal override ImmutableArray<AttributeData> GetAttributes() {
         return _baseParameter?.GetAttributes() ?? [];
     }

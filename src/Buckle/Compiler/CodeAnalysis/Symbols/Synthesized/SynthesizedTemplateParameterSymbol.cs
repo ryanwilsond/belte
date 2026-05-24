@@ -6,11 +6,18 @@ using Buckle.Libraries;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class SynthesizedTemplateParameterSymbol : TemplateParameterSymbol {
-    internal SynthesizedTemplateParameterSymbol(Symbol container, TypeWithAnnotations underlyingType, int ordinal) {
+    internal SynthesizedTemplateParameterSymbol(
+        Symbol container,
+        TypeWithAnnotations underlyingType,
+        int ordinal,
+        string name = "") {
         this.underlyingType = underlyingType;
         this.ordinal = ordinal;
         containingSymbol = container;
+        this.name = name;
     }
+
+    public override string name { get; }
 
     internal override TypeWithAnnotations underlyingType { get; }
 

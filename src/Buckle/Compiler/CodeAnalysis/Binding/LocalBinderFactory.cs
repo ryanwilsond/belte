@@ -141,6 +141,10 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
         VisitTypeDeclaration(node);
     }
 
+    internal override void VisitFileScopedClassDeclaration(FileScopedClassDeclarationSyntax node) {
+        VisitTypeDeclaration(node);
+    }
+
     private void VisitTypeDeclaration(TypeDeclarationSyntax node) { }
 
     internal override void VisitOperatorDeclaration(OperatorDeclarationSyntax node) {
@@ -343,6 +347,12 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
         }
 
         VisitPossibleEmbeddedStatement(node.body, enclosing);
+    }
+
+    internal override void VisitDeferStatement(DeferStatementSyntax node) {
+        var enclosing = _enclosing.WithAdditionalFlags(BinderFlags.InDeferBody);
+        AddToMap(node, enclosing);
+        VisitPossibleEmbeddedStatement(node.statement, enclosing);
     }
 
     internal override void VisitWhileStatement(WhileStatementSyntax node) {

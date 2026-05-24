@@ -918,8 +918,8 @@ public sealed partial class BelteRepl : Repl {
         else if (signature.StartsWith("global."))
             signature = signature.Substring(7);
 
-        // Prefer tracked symbols first
-        foreach (var symbolAndValue in state.context.GetTrackedGlobalObjects()) {
+        // Prefer tracked symbols first (reverse to prefer latest)
+        foreach (var symbolAndValue in state.context.GetTrackedGlobalObjects().Reverse()) {
             var local = symbolAndValue.Key;
 
             if (local.name == signature) {
@@ -1062,14 +1062,15 @@ public sealed partial class BelteRepl : Repl {
 
         var wrote = false;
 
-        for (var i = 0; i < 3; i++) {
+        for (var i = 1; i < 4; i++) {
             try {
                 File.WriteAllLines(path, subset);
                 wrote = true;
                 break;
             } catch (IOException) {
                 // In case file is being used by another process, retry
-                Thread.Sleep(100);
+                if (i < 3)
+                    Thread.Sleep(i * 10);
             }
         }
 

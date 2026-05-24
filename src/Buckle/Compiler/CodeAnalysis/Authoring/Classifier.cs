@@ -103,6 +103,8 @@ public static class Classifier {
             SyntaxKind.NullptrKeyword;
         var isIdentifier = kind == SyntaxKind.IdentifierToken;
         var isString = kind is SyntaxKind.StringLiteralToken or
+                               SyntaxKind.CStringLiteralToken or
+                               SyntaxKind.CWStringLiteralToken or
                                SyntaxKind.CharacterLiteralToken or
                                SyntaxKind.InterpolatedStringLiteralToken or
                                SyntaxKind.InterpolatedStringStartToken or

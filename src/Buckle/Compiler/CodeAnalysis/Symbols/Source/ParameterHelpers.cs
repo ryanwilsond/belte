@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
@@ -28,12 +29,15 @@ internal static class ParameterHelpers {
             parameterCreationFunc: (Symbol owner, TypeWithAnnotations parameterType,
                                     ParameterSyntax syntax, RefKind refKind,
                                     int ordinal, bool addRefConstModifier, ScopedKind scope) => {
+                                        if (parameterType.IsVoidType())
+                                            diagnostics.Push(Error.VoidUsedAsType(syntax.type.location));
+
                                         return SourceParameterSymbol.Create(
                                                 owner,
                                                 parameterType,
                                                 syntax,
                                                 refKind,
-                                                syntax.identifier,
+                                                syntax.identifier.text,
                                                 ordinal,
                                                 scope
                                             );
@@ -45,6 +49,8 @@ internal static class ParameterHelpers {
         FunctionPointerMethodSymbol owner,
         SeparatedSyntaxList<FunctionPointerParameterSyntax> parametersList,
         BelteDiagnosticQueue diagnostics) {
+        var names = parametersList.Select(p => p.identifier?.text);
+
         return MakeParameters(
             binder,
             owner,
@@ -56,15 +62,13 @@ internal static class ParameterHelpers {
             parameterCreationFunc: (FunctionPointerMethodSymbol owner, TypeWithAnnotations parameterType,
                                     FunctionPointerParameterSyntax syntax, RefKind refKind, int ordinal,
                                     bool addRefReadOnlyModifier, ScopedKind scope) => {
-                                        if (parameterType.IsVoidType()) {
-                                            // TODO
-                                            // diagnostics.Push(Error.)
-                                            // diagnostics.Add(ErrorCode.ERR_NoVoidParameter, syntax.Type.Location);
-                                        }
+                                        if (parameterType.IsVoidType())
+                                            diagnostics.Push(Error.VoidUsedAsType(syntax.type.location));
 
                                         return new FunctionPointerParameterSymbol(
                                             parameterType,
                                             refKind,
+                                            syntax.identifier?.text ?? MakeDefaultName(ordinal, names),
                                             ordinal,
                                             owner
                                         );
@@ -73,11 +77,24 @@ internal static class ParameterHelpers {
         );
     }
 
+    private static string MakeDefaultName(int ordinal, System.Collections.Generic.IEnumerable<string> names) {
+        string name;
+        var num = ordinal;
+
+        do {
+            name = $"p{++num}";
+        } while (names.Contains(name));
+
+        return name;
+    }
+
     internal static ImmutableArray<FunctionParameterSymbol> MakeFunctionParameters(
         Binder binder,
         FunctionMethodSymbol owner,
         SeparatedSyntaxList<FunctionPointerParameterSyntax> parametersList,
         BelteDiagnosticQueue diagnostics) {
+        var names = parametersList.Select(p => p.identifier?.text);
+
         return MakeParameters(
             binder,
             owner,
@@ -89,15 +106,13 @@ internal static class ParameterHelpers {
             parameterCreationFunc: (FunctionMethodSymbol owner, TypeWithAnnotations parameterType,
                                     FunctionPointerParameterSyntax syntax, RefKind refKind, int ordinal,
                                     bool addRefReadOnlyModifier, ScopedKind scope) => {
-                                        if (parameterType.IsVoidType()) {
-                                            // TODO
-                                            // diagnostics.Push(Error.)
-                                            // diagnostics.Add(ErrorCode.ERR_NoVoidParameter, syntax.Type.Location);
-                                        }
+                                        if (parameterType.IsVoidType())
+                                            diagnostics.Push(Error.VoidUsedAsType(syntax.type.location));
 
                                         return new FunctionParameterSymbol(
                                             parameterType,
                                             refKind,
+                                            syntax.identifier?.text ?? MakeDefaultName(ordinal, names),
                                             ordinal,
                                             owner
                                         );
@@ -120,7 +135,7 @@ internal static class ParameterHelpers {
         var conversion = binder.conversions.ClassifyImplicitConversionFromExpression(defaultExpression, parameterType);
         var refKind = GetModifiers(parameterSyntax.modifiers, out var refnessKeyword);
 
-        if (refKind is RefKind.Ref or RefKind.Out) {
+        if (refKind is RefKind.Ref) {
             diagnostics.Push(Error.RefDefaultValue(refnessKeyword.location));
             hasErrors = true;
         } else if (!defaultExpression.hasAnyErrors && !IsValidDefaultValue(defaultExpression)) {

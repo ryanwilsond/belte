@@ -28,4 +28,6 @@ internal enum ConversionKind : byte {
     AnyUnboxing,
     ListExpression,
     MethodGroup,
+    ObjectCreation,
+    ConditionalExpression,
 }

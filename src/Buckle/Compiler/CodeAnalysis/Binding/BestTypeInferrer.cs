@@ -22,7 +22,7 @@ internal static class BestTypeInferrer {
                     return type1;
                 }
 
-                if (conversionsWithoutNullability.ClassifyImplicitConversionFromExpression(expression1, type1).exists)
+                if (conversionsWithoutNullability.ClassifyImplicitConversionFromExpression(expression2, type1).exists)
                     candidateTypes.Add(type1);
             }
 

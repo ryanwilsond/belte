@@ -135,7 +135,14 @@ public static partial class DiagnosticFormatter {
 
         var prefix = text.ToString(prefixSpan);
         var focus = text.ToString(span);
+        var focusLength = span.length;
         var suffix = text.ToString(suffixSpan);
+
+        if (focus.Contains(Environment.NewLine)) {
+            focus = focus.Split(Environment.NewLine)[0];
+            focusLength = focus.Length;
+            suffix = "";
+        }
 
         displayParts.Add($" {prefix}", initialColor);
         displayParts.Add(focus, highlightColor);
@@ -144,8 +151,8 @@ public static partial class DiagnosticFormatter {
         var markerPrefix = " " + MyRegex().Replace(prefix, " ");
         var marker = "^";
 
-        if (span.length > 0 && column != lineText.Length)
-            marker += new string('~', span.length - 1);
+        if (focusLength > 0 && column != lineText.Length)
+            marker += new string('~', focusLength - 1);
 
         displayParts.Add($"{markerPrefix}{marker}\n", highlightColor);
 

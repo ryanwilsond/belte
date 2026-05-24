@@ -74,6 +74,7 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.SwitchDispatch => ExpandSwitchDispatch((BoundSwitchDispatch)statement),
             BoundKind.WithStatement => ExpandWithStatement((BoundWithStatement)statement),
             BoundKind.UsingStatement => ExpandUsingStatement((BoundUsingStatement)statement),
+            BoundKind.UnreachableStatement => ExpandUnreachableStatement((BoundUnreachableStatement)statement),
             _ => throw ExceptionUtilities.UnexpectedValue(statement.kind),
         };
     }
@@ -251,7 +252,7 @@ internal abstract partial class BoundTreeExpander {
     }
 
     private protected virtual List<BoundStatement> ExpandExpressionStatement(BoundExpressionStatement statement) {
-        var statements = ExpandExpression(statement.expression, out var replacement);
+        var statements = ExpandExpression(statement.expression, out var replacement, UseKind.None);
 
         if (statements.Count != 0 || statement.expression != replacement) {
             if (replacement is not null)
@@ -264,14 +265,9 @@ internal abstract partial class BoundTreeExpander {
     }
 
     private protected virtual List<BoundStatement> ExpandDeferStatement(BoundDeferStatement statement) {
-        var statements = ExpandExpression(statement.expression, out var replacement);
-
-        if (statements.Count != 0 || statement.expression != replacement) {
-            statements.Add(statement.Update(replacement));
-            return statements;
-        }
-
-        return [statement];
+        return [
+            statement.Update(Simplify(statement.syntax, ExpandStatement(statement.statement)))
+        ];
     }
 
     private protected virtual List<BoundStatement> ExpandLabelStatement(BoundLabelStatement statement) {
@@ -331,12 +327,12 @@ internal abstract partial class BoundTreeExpander {
         return [
             new BoundTryStatement(
                 syntax,
-                Simplify(syntax, ExpandStatement(statement.body)) as BoundBlockStatement,
+                Simplify(syntax, ExpandBlockStatement(statement.body)) as BoundBlockStatement,
                 statement.catchBody is not null ?
-                    Simplify(syntax, ExpandStatement(statement.catchBody)) as BoundBlockStatement
+                    Simplify(syntax, ExpandBlockStatement(statement.catchBody)) as BoundBlockStatement
                     : null,
                 statement.finallyBody is not null ?
-                    Simplify(syntax, ExpandStatement(statement.finallyBody)) as BoundBlockStatement
+                    Simplify(syntax, ExpandBlockStatement(statement.finallyBody)) as BoundBlockStatement
                     : null
             )
         ];
@@ -347,6 +343,10 @@ internal abstract partial class BoundTreeExpander {
     }
 
     private protected virtual List<BoundStatement> ExpandContinueStatement(BoundContinueStatement statement) {
+        return [statement];
+    }
+
+    private protected virtual List<BoundStatement> ExpandUnreachableStatement(BoundUnreachableStatement statement) {
         return [statement];
     }
 
@@ -361,6 +361,7 @@ internal abstract partial class BoundTreeExpander {
 
         return expression.kind switch {
             BoundKind.LiteralExpression => ExpandLiteralExpression((BoundLiteralExpression)expression, out replacement, useKind),
+            BoundKind.CStringLiteral => ExpandCStringLiteral((BoundCStringLiteral)expression, out replacement, useKind),
             BoundKind.DefaultExpression => ExpandDefaultExpression((BoundDefaultExpression)expression, out replacement, useKind),
             BoundKind.InitializerList => ExpandInitializerList((BoundInitializerList)expression, out replacement, useKind),
             BoundKind.InitializerDictionary => ExpandInitializerDictionary((BoundInitializerDictionary)expression, out replacement, useKind),
@@ -412,6 +413,10 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.FunctionLoad => ExpandFunctionLoad((BoundFunctionLoad)expression, out replacement, useKind),
             BoundKind.IsPatternExpression => ExpandIsPatternExpression((BoundIsPatternExpression)expression, out replacement, useKind),
             BoundKind.WithExpression => ExpandWithExpression((BoundWithExpression)expression, out replacement, useKind),
+            BoundKind.UnconvertedObjectCreationExpression => ExpandUnconvertedObjectCreationExpression((BoundUnconvertedObjectCreationExpression)expression, out replacement, useKind),
+            BoundKind.ClampOperator => ExpandClampOperator((BoundClampOperator)expression, out replacement, useKind),
+            BoundKind.BitCastExpression => ExpandBitCastExpression((BoundBitCastExpression)expression, out replacement, useKind),
+            BoundKind.DiscardExpression => ExpandDiscardExpression((BoundDiscardExpression)expression, out replacement, useKind),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
     }
@@ -532,12 +537,32 @@ internal abstract partial class BoundTreeExpander {
         BoundCompileTimeExpression expression,
         out BoundExpression replacement,
         UseKind useKind) {
+        var statements = ExpandExpression(expression.expression, out var newExpression);
+
+        if (statements.Count != 0 || expression.expression != newExpression) {
+            replacement = expression.Update(
+                newExpression,
+                expression.conditional,
+                expression.type
+            );
+
+            return statements;
+        }
+
         replacement = expression;
         return [];
     }
 
     private protected virtual List<BoundStatement> ExpandUnconvertedNullptrExpression(
         BoundUnconvertedNullptrExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandUnconvertedObjectCreationExpression(
+        BoundUnconvertedObjectCreationExpression expression,
         out BoundExpression replacement,
         UseKind useKind) {
         replacement = expression;
@@ -569,7 +594,7 @@ internal abstract partial class BoundTreeExpander {
         replacement = expression.Update(
             newInvokedExpression,
             newArguments,
-            expression.argumentRefKindsOpt,
+            expression.argumentRefKinds,
             expression.resultKind,
             expression.type
         );
@@ -798,6 +823,14 @@ internal abstract partial class BoundTreeExpander {
 
     private protected virtual List<BoundStatement> ExpandLiteralExpression(
         BoundLiteralExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandCStringLiteral(
+        BoundCStringLiteral expression,
         out BoundExpression replacement,
         UseKind useKind) {
         replacement = expression;
@@ -1045,6 +1078,35 @@ internal abstract partial class BoundTreeExpander {
         return [];
     }
 
+    private protected virtual List<BoundStatement> ExpandDiscardExpression(
+        BoundDiscardExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandBitCastExpression(
+        BoundBitCastExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        var statements = ExpandExpression(expression.operand, out var newOperand);
+
+        if (statements.Count != 0 || expression.operand != newOperand) {
+            replacement = expression.Update(
+                newOperand,
+                expression.fromType,
+                expression.constantValue,
+                expression.type
+            );
+
+            return statements;
+        }
+
+        replacement = expression;
+        return [];
+    }
+
     private protected virtual List<BoundStatement> ExpandArrayAccessExpression(
         BoundArrayAccessExpression expression,
         out BoundExpression replacement,
@@ -1176,6 +1238,32 @@ internal abstract partial class BoundTreeExpander {
         return [];
     }
 
+    private protected virtual List<BoundStatement> ExpandClampOperator(
+        BoundClampOperator expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        var statements = ExpandExpression(expression.left, out var newLeft);
+        statements.AddRange(ExpandExpression(expression.lower, out var newLower));
+        statements.AddRange(ExpandExpression(expression.upper, out var newUpper));
+
+        if (statements.Count != 0 || expression.left != newLeft ||
+            expression.lower != newLower || expression.upper != newUpper) {
+            replacement = expression.Update(
+                newLeft,
+                expression.isAssignment,
+                newLower,
+                newUpper,
+                expression.constantValue,
+                expression.type
+            );
+
+            return statements;
+        }
+
+        replacement = expression;
+        return [];
+    }
+
     private protected virtual List<BoundStatement> ExpandObjectCreationExpression(
         BoundObjectCreationExpression expression,
         out BoundExpression replacement,
@@ -1217,7 +1305,9 @@ internal abstract partial class BoundTreeExpander {
             // Structs are special case because they have limited expansion ability (they are non-nullable)
             // And because they are passed by value so in something like `a.b.c = x`, we can't hoist anything
             var isTrueStructReceiver = expression.receiver.Type().IsStructType() &&
-                !(expression.receiver is BoundCallExpression c && c.receiver.StrippedType().IsStructType());
+                !(expression.receiver is BoundCallExpression c &&
+                    c.receiver is not null &&
+                    c.receiver.StrippedType().IsStructType());
 
             var statements = ExpandExpression(
                 expression.receiver,

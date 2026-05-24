@@ -16,7 +16,7 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis;
 
-internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, object> {
+internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationState, object> {
     private readonly Compilation _compilation;
     private readonly bool _emitting;
     private readonly BelteDiagnosticQueue _diagnostics;
@@ -25,7 +25,9 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
     private readonly MultiDictionary<NamedTypeSymbol, NamedTypeSymbol> _synthesizedNestedTypes;
     private readonly ArrayBuilder<NamedTypeSymbol> _types;
     private readonly ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder _typeLayouts;
+    private readonly Dictionary<NamedTypeSymbol, SynthesizedEnumMethodContainer> _enumMethodContainerTypes;
     private readonly Predicate<Symbol> _filter;
+    private readonly bool _collectSymbols;
 
     private ConcurrentQueue<Action> _workQueue;
     private ManualResetEventSlim _signal;
@@ -46,8 +48,10 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         MethodSymbol entryPoint,
         MethodSymbol updatePoint,
         ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder typeLayouts,
+        Dictionary<NamedTypeSymbol, SynthesizedEnumMethodContainer> enumMethodContainerTypes,
         Predicate<Symbol> filter,
-        bool emitting) {
+        bool emitting,
+        bool collectSymbols) {
         _compilation = compilation;
         _diagnostics = diagnostics;
         _entryPoint = entryPoint;
@@ -59,13 +63,16 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         _methodLayouts = [];
         _typeLayouts = typeLayouts;
         _synthesizedNestedTypes = [];
+        _collectSymbols = collectSymbols;
+        _enumMethodContainerTypes = enumMethodContainerTypes;
     }
 
     internal static BoundProgram CompileMethodBodies(
         Compilation compilation,
         BelteDiagnosticQueue diagnostics,
         Predicate<Symbol> filter,
-        bool skipEntryPoint = false) {
+        bool skipEntryPoint = false,
+        bool collectSymbols = false) {
         var emittingToDll = compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
         var transpiling = compilation.options.buildMode == BuildMode.CSharpTranspile;
 
@@ -76,11 +83,29 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         // Unfortunately we have to do this even if we don't use it
         // We have to allow any future programs to use layouts from this one
         EvaluatorTypeLayoutVisitor.CreateTypeLayouts(typeLayouts, globalNamespace);
-        var previousLayouts = compilation?.previous?.boundProgram?.typeLayouts;
+        var previousProgram = compilation?.previous?.boundProgram;
+        var previousLayouts = previousProgram?.typeLayouts;
 
         if (previousLayouts is not null) {
             foreach (var layout in previousLayouts)
                 typeLayouts.TryAdd(layout.Key, layout.Value);
+        }
+
+        // TODO If this gets expensive we can store it in the bound program directly instead of recalculating
+        // Figured that this usually will be really small
+        var enumMethodContainerTypes = new Dictionary<NamedTypeSymbol, SynthesizedEnumMethodContainer>();
+
+        if (previousProgram is not null) {
+            var current = previousProgram;
+
+            do {
+                foreach (var type in current.types) {
+                    if (type is SynthesizedEnumMethodContainer enumContainer)
+                        enumMethodContainerTypes.Add(enumContainer.enumType, enumContainer);
+                }
+
+                current = current.previous;
+            } while (current is not null);
         }
 
         var entryPoint = (emittingToDll || skipEntryPoint) ? null : GetEntryPoint(compilation, diagnostics);
@@ -97,8 +122,10 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             entryPoint,
             updatePoint,
             typeLayouts,
+            enumMethodContainerTypes,
             filter,
-            !transpiling
+            !transpiling,
+            collectSymbols
         );
 
         if (compilation.options.concurrentBuild) {
@@ -355,6 +382,14 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
                     if (f.isFixedSizeBuffer)
                         SetFixedImplementationType(f as SourceMemberFieldSymbol);
 
+                    if (_collectSymbols) {
+                        f.type.VisitType(
+                            SymbolCollector.VisitTypePredicate,
+                            new SymbolCollectorArgument() { compiler = this, visited = [] },
+                            true
+                        );
+                    }
+
                     break;
             }
         }
@@ -400,12 +435,30 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         }
     }
 
+    internal MethodSymbol GetEnumMethod(NamedTypeSymbol enumType, MethodSymbol originalMethod) {
+        if (_enumMethodContainerTypes.TryGetValue(enumType, out var container))
+            return container.methodMap[originalMethod];
+
+        var synthesizedContainer = new SynthesizedEnumMethodContainer(enumType, enumType.containingNamespace);
+
+        lock (_enumMethodContainerTypes)
+            _enumMethodContainerTypes.TryAdd(enumType, synthesizedContainer);
+
+        lock (_types)
+            _types.Add(synthesizedContainer);
+
+        return synthesizedContainer.methodMap[originalMethod];
+    }
+
     private void CompileMethod(
         MethodSymbol method,
         int methodOrdinal,
         ref Binder.ProcessedFieldInitializers processedInitializers,
         TypeCompilationState state) {
         if (method.isAbstract || method.originalDefinition is PEMethodSymbol)
+            return;
+
+        if (_methodBodies.ContainsKey(method))
             return;
 
         var oldImportChain = state.currentImportChain;
@@ -432,12 +485,15 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             );
         }
 
+        var outInitializers = InitializerRewriter.RewriteOutParameters(method);
+
         var body = BindMethodBody(
             method,
             state,
             currentDiagnostics,
             includeInitializers,
             analyzedInitializers,
+            outInitializers,
             ref _entryPoint,
             out var importChain
         );
@@ -459,8 +515,12 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             _compilation.previousAnalyses,
             currentDiagnostics,
             !_emitting,
+            ref _entryPoint,
             out var sawCompileTimeExpression
         );
+
+        if (method.methodKind == MethodKind.Ordinary && method.containingType.IsEnumType())
+            method = GetEnumMethod(method.containingType, method);
 
         _sawCompileTimeExpression |= sawCompileTimeExpression;
 
@@ -481,12 +541,15 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             }
         }
 
+        if (_collectSymbols)
+            SymbolCollector.Collect(this, loweredBody);
+
         _diagnostics.PushRangeAndFree(currentDiagnostics);
         state.currentImportChain = oldImportChain;
-        _methodBodies.Add(method, loweredBody);
+        _methodBodies.TryAdd(method, loweredBody);
     }
 
-    private static BoundBlockStatement LowerBody(
+    private BoundBlockStatement LowerBody(
         MethodSymbol method,
         int methodOrdinal,
         BoundBlockStatement body,
@@ -494,8 +557,10 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         List<LocalFunctionRewriter.Analysis> previousAnalyses,
         BelteDiagnosticQueue currentDiagnostics,
         bool transpiling,
+        ref MethodSymbol entryPoint,
         out bool sawCompileTimeExpression) {
         var loweredBody = Lowerer.Lower(
+            this,
             state.compilation.options.optimizationLevel,
             method,
             body,
@@ -514,7 +579,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
                 state,
                 previousAnalyses,
                 currentDiagnostics,
-                null // TODO When do we want to use this?
+                null, // TODO When do we want to use this?
+                ref entryPoint
             );
 
             loweredBody = Optimizer.RemoveDeadCode(loweredBody, currentDiagnostics);
@@ -535,6 +601,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
             diagnostics,
             includeInitializers: false,
             initializersBody: null,
+            outInitializersBody: null,
             entryPoint: ref _1,
             importChain: out _
         );
@@ -546,6 +613,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         BelteDiagnosticQueue diagnostics,
         bool includeInitializers,
         BoundBlockStatement initializersBody,
+        BoundBlockStatement outInitializersBody,
         ref MethodSymbol entryPoint,
         out ImportChain importChain) {
         BoundBlockStatement body = null;
@@ -584,8 +652,7 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
                 case BoundConstructorMethodBody constructor:
                     body = constructor.body;
 
-                    if (sourceMethod.methodKind == MethodKind.Constructor &&
-                        constructor.initializer is BoundExpressionStatement expressionStatement) {
+                    if (constructor.initializer is BoundExpressionStatement expressionStatement) {
                         ReportConstructorInitializerCycles(
                             method,
                             expressionStatement.expression,
@@ -599,13 +666,21 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
 
                         builder.Add(constructor.initializer);
 
+                        if (outInitializersBody is not null)
+                            builder.Add(outInitializersBody);
+
                         if (body is not null)
                             builder.Add(body);
 
                         body = new BoundBlockStatement(syntax, builder.ToImmutableAndFree(), constructor.locals, []);
+                        return body;
                     }
 
-                    return body;
+                    // TODO Roslyn returns here even in the static constructor case
+                    // But for the life of me I can't figure out where the static initializers are added so i'm just
+                    // going to break here instead
+                    // return body;
+                    break;
                 case BoundNonConstructorMethodBody nonConstructor:
                     body = nonConstructor.body;
                     break;
@@ -633,6 +708,9 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
         if (constructorInitializer is not null)
             builder.Add(constructorInitializer);
 
+        if (outInitializersBody is not null)
+            builder.Add(outInitializersBody);
+
         if (method == entryPoint && method is SynthesizedEntryPoint synth && body.localFunctions.Length > 0) {
             var candidateLocals = ArrayBuilder<MethodSymbol>.GetInstance();
 
@@ -654,18 +732,8 @@ internal sealed class MethodCompiler : SymbolVisitor<TypeCompilationState, objec
                     false
                 );
 
-                if (newEntryPoint is not null && !bodyHasLogic) {
-                    body = new BoundBlockStatement(
-                        syntax,
-                        [
-                            ..body.statements,
-                            BoundFactory.Statement(syntax, BoundFactory.Call(syntax, newEntryPoint)),
-                            new BoundReturnStatement(syntax, RefKind.None, null),
-                        ],
-                        [],
-                        []
-                    );
-                }
+                if (newEntryPoint is not null && !bodyHasLogic)
+                    entryPoint = newEntryPoint;
             }
         }
 

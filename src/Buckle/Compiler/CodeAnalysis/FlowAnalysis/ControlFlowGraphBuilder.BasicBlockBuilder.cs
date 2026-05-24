@@ -32,9 +32,11 @@ again:
                         StartBlock();
                         _statements.Add(node);
                         break;
+                    case BoundKind.SwitchDispatch:
                     case BoundKind.GotoStatement:
                     case BoundKind.ConditionalGotoStatement:
                     case BoundKind.ReturnStatement:
+                    case BoundKind.UnreachableStatement:
                     case BoundKind.ExpressionStatement
                         when (node as BoundExpressionStatement).expression is BoundThrowExpression:
                         _statements.Add(node);
@@ -42,7 +44,6 @@ again:
                         break;
                     case BoundKind.NopStatement:
                     case BoundKind.ExpressionStatement:
-                    case BoundKind.SwitchDispatch:
                     case BoundKind.InlineILStatement:
                     case BoundKind.LocalDeclarationStatement:
                     case BoundKind.LocalFunctionStatement:
@@ -51,14 +52,24 @@ again:
                     case BoundKind.TryStatement:
                         BuildTryRegion((BoundTryStatement)node);
                         break;
-                    case BoundKind.SequencePoint:
-                        var inner = ((BoundSequencePoint)node).statement;
+                    case BoundKind.SequencePoint: {
+                            var inner = ((BoundSequencePoint)node).statement;
 
-                        if (inner is null)
-                            break;
+                            if (inner is null)
+                                break;
 
-                        node = inner;
-                        goto again;
+                            node = inner;
+                            goto again;
+                        }
+                    case BoundKind.SequencePointWithLocation: {
+                            var inner = ((BoundSequencePointWithLocation)node).statement;
+
+                            if (inner is null)
+                                break;
+
+                            node = inner;
+                            goto again;
+                        }
                     default:
                         throw ExceptionUtilities.UnexpectedValue(node.kind);
                 }
@@ -70,7 +81,9 @@ again:
 
             var tryStartBlock = _currentBlock;
 
-            VisitBlock((BoundBlockStatement)node.body);
+            // We add the entire try for unreachable code detection later
+            _statements.Add(node);
+            VisitBlock(node.body);
 
             StartBlock();
 
@@ -80,13 +93,13 @@ again:
 
             if (node.catchBody is not null) {
                 tryRegion.catchBlock = _currentBlock;
-                VisitBlock((BoundBlockStatement)node.catchBody);
+                VisitBlock(node.catchBody);
                 StartBlock();
             }
 
             if (node.finallyBody is not null) {
                 tryRegion.finallyBlock = _currentBlock;
-                VisitBlock((BoundBlockStatement)node.finallyBody);
+                VisitBlock(node.finallyBody);
                 StartBlock();
             }
 

@@ -7,7 +7,7 @@
 ## Samples List
 
 | Directory | Command to Run | Description |
-|-|-|-|
+| - | - | - |
 | [samples/HelloWorld](HelloWorld/Program.blt) | `buckle samples/HelloWorld` | Hello, world! program. |
 | [samples/Echo](Echo/Program.blt) | `buckle samples/Echo -- arg1 arg2` | Echo program that prints command-line arguments. |
 | [samples/GuessingGame](GuessingGame/Program.blt) | `buckle samples/GuessingGame` | Random number guessing game. |

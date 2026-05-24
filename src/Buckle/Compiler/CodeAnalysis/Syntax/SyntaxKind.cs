@@ -74,6 +74,12 @@ public enum SyntaxKind : ushort {
     QuestionPeriodPeriodToken,
     QuestionExclamationToken,
     QuestionExclamationEqualsToken,
+    SlashBackslashToken,
+    SlashBackslashEqualsToken,
+    BackslashSlashToken,
+    BackslashSlashEqualsToken,
+    GreaterThanLessThanToken,
+    GreaterThanLessThanEqualsToken,
     EqualsGreaterThanToken,
 
     // Tokens with text
@@ -81,6 +87,8 @@ public enum SyntaxKind : ushort {
     IdentifierToken,
     NumericLiteralToken,
     StringLiteralToken,
+    CStringLiteralToken,
+    CWStringLiteralToken,
     CharacterLiteralToken,
     InterpolatedStringLiteralToken,
 
@@ -156,6 +164,7 @@ public enum SyntaxKind : ushort {
     UnionKeyword,
     WithKeyword,
     DeferKeyword,
+    UnreachableKeyword,
     HandleKeyword,
 
     // Trivia
@@ -172,11 +181,14 @@ public enum SyntaxKind : ushort {
     DefineDirectiveTrivia,
     UndefDirectiveTrivia,
     DisabledTextTrivia,
+    ShebangDirectiveTrivia,
+    PreprocessingMessageTrivia,
     HandleDirectiveTrivia,
 
     // Expressions
     ParenthesizedExpression,
     CastExpression,
+    BitCastExpression,
     ThisExpression,
     BaseExpression,
     ThrowExpression,
@@ -192,6 +204,7 @@ public enum SyntaxKind : ushort {
     PostfixExpression,
     AssignmentExpression,
     IsPatternExpression,
+    ClampExpression,
     DeclarationPattern,
 
     // Primary expressions
@@ -221,8 +234,8 @@ public enum SyntaxKind : ushort {
     BlockStatement,
     InlineILStatement,
     ExpressionStatement,
-    DeferStatement,
     UsingStatement,
+    WithStatement,
     LocalDeclarationStatement,
     LocalFunctionStatement,
 
@@ -238,7 +251,8 @@ public enum SyntaxKind : ushort {
     TryStatement,
     SwitchStatement,
     GotoStatement,
-    WithStatement,
+    DeferStatement,
+    UnreachableStatement,
     NullBindingStatement,
 
     // Statement Parts
@@ -263,6 +277,7 @@ public enum SyntaxKind : ushort {
     EqualsValueClause,
     StructDeclaration,
     ClassDeclaration,
+    FileScopedClassDeclaration,
     UnionDeclaration,
     EnumDeclaration,
     EnumMemberDeclaration,

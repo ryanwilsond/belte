@@ -31,6 +31,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
     internal static Conversion ImplicitEnum => new Conversion(ConversionKind.ImplicitEnum);
     internal static Conversion ExplicitEnum => new Conversion(ConversionKind.ExplicitEnum);
     internal static Conversion AnyUnboxing => new Conversion(ConversionKind.AnyUnboxing);
+    internal static Conversion ObjectCreation => new Conversion(ConversionKind.ObjectCreation);
     internal static Conversion ImplicitNullableWithIdentityUnderlying
         => new Conversion(ConversionKind.ImplicitNullable, IdentityUnderlying);
     internal static Conversion ExplicitNullableWithIdentityUnderlying
@@ -172,6 +173,10 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         return current;
     }
 
+    internal static Conversion MakeConditionalExpression(ImmutableArray<Conversion> innerConversions) {
+        return new Conversion(ConversionKind.ConditionalExpression, innerConversions);
+    }
+
     /// <summary>
     /// Classify what type of <see cref="Conversion" /> is required to go from one type to the other.
     /// </summary>
@@ -256,6 +261,9 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
                     return ExplicitNumeric;
             }
         }
+
+        if (source.specialType == SpecialType.Void && target.specialType == SpecialType.Void)
+            return Identity;
 
         // Handle most primitive conversions
         if (source.typeKind == TypeKind.Primitive && target.typeKind == TypeKind.Primitive)

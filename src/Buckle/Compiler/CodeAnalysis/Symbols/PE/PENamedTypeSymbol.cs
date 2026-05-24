@@ -255,13 +255,13 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
             var access = Accessibility.Private;
 
             access = (_flags & TypeAttributes.VisibilityMask) switch {
-                TypeAttributes.NestedAssembly => Accessibility.Private,// access = Accessibility.Internal;
-                TypeAttributes.NestedFamORAssem => Accessibility.Private,// access = Accessibility.ProtectedOrInternal;
-                TypeAttributes.NestedFamANDAssem => Accessibility.Private,// access = Accessibility.ProtectedAndInternal;
+                TypeAttributes.NestedAssembly => Accessibility.Public,// access = Accessibility.Internal;
+                TypeAttributes.NestedFamORAssem => Accessibility.Public,// access = Accessibility.ProtectedOrInternal;
+                TypeAttributes.NestedFamANDAssem => Accessibility.Public,// access = Accessibility.ProtectedAndInternal;
                 TypeAttributes.NestedPrivate => Accessibility.Private,
                 TypeAttributes.Public or TypeAttributes.NestedPublic => Accessibility.Public,
                 TypeAttributes.NestedFamily => Accessibility.Protected,
-                TypeAttributes.NotPublic => Accessibility.Private,// access = Accessibility.Internal;
+                TypeAttributes.NotPublic => Accessibility.Public,// access = Accessibility.Internal;
                 _ => throw ExceptionUtilities.UnexpectedValue(_flags & TypeAttributes.VisibilityMask),
             };
 

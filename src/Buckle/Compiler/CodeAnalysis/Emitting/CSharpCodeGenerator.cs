@@ -23,6 +23,7 @@ internal sealed class CSharpCodeGenerator {
     private readonly BoundBlockStatement _body;
     private readonly bool _debugMode;
     private readonly IndentedTextWriter _writer;
+    private readonly HashSet<DataContainerSymbol> _seenLocals = [];
 
     private static readonly Dictionary<SpecialType, string> ConvertMethods = new Dictionary<SpecialType, string>{
         { SpecialType.Bool, "global::System.Convert.ToBoolean" },
@@ -125,6 +126,9 @@ internal sealed class CSharpCodeGenerator {
                 break;
             case BoundKind.ContinueStatement:
                 EmitContinueStatement((BoundContinueStatement)statement);
+                break;
+            case BoundKind.UnreachableStatement:
+                EmitUnreachableException();
                 break;
             case BoundKind.LocalFunctionStatement:
                 EmitLocalFunctionStatement((BoundLocalFunctionStatement)statement);
@@ -255,6 +259,10 @@ internal sealed class CSharpCodeGenerator {
         _writer.WriteLine("continue;");
     }
 
+    private void EmitUnreachableException() {
+        _writer.WriteLine("throw new System.Diagnostics.UnreachableException();");
+    }
+
     private void EmitLocalFunctionStatement(BoundLocalFunctionStatement node) {
         var method = node.symbol;
         using var curly = new CurlyIndenter(_writer, $"{_module.GetMethodAttributes(method, includeAccessibility: false)}{_module.GetMethodSignature(method)}");
@@ -303,8 +311,10 @@ internal sealed class CSharpCodeGenerator {
 
         return expression.kind switch {
             BoundKind.DefaultExpression => EmitDefaultExpression((BoundDefaultExpression)expression),
+            BoundKind.DiscardExpression => EmitDiscardExpression((BoundDiscardExpression)expression),
             BoundKind.InitializerList => EmitInitializerList((BoundInitializerList)expression),
             BoundKind.DataContainerExpression => EmitDataContainerExpression((BoundDataContainerExpression)expression),
+            BoundKind.StackSlotExpression => EmitStackSlotExpression((BoundStackSlotExpression)expression),
             BoundKind.AssignmentOperator => EmitAssignmentOperator((BoundAssignmentOperator)expression),
             BoundKind.UnaryOperator => EmitUnaryOperator((BoundUnaryOperator)expression),
             BoundKind.IncrementOperator => EmitIncrementOperator((BoundIncrementOperator)expression),
@@ -329,6 +339,7 @@ internal sealed class CSharpCodeGenerator {
             BoundKind.ObjectCreationExpression => EmitObjectCreationExpression((BoundObjectCreationExpression)expression),
             BoundKind.ArrayCreationExpression => EmitArrayCreationExpression((BoundArrayCreationExpression)expression),
             BoundKind.FieldAccessExpression => EmitFieldAccessExpression((BoundFieldAccessExpression)expression),
+            BoundKind.FieldSlotExpression => EmitFieldSlotExpression((BoundFieldSlotExpression)expression),
             BoundKind.ConditionalAccessExpression => EmitConditionalAccessExpression((BoundConditionalAccessExpression)expression),
             BoundKind.ThisExpression => EmitThisExpression((BoundThisExpression)expression),
             BoundKind.BaseExpression => EmitBaseExpression((BoundBaseExpression)expression),
@@ -356,6 +367,10 @@ internal sealed class CSharpCodeGenerator {
         return "default";
     }
 
+    private string EmitDiscardExpression(BoundDiscardExpression _) {
+        return "_";
+    }
+
     private string EmitInitializerList(BoundInitializerList node) {
         return $"{{ {string.Join(", ", node.items.Select(i => EmitExpression(i)))} }}";
     }
@@ -364,11 +379,35 @@ internal sealed class CSharpCodeGenerator {
         return _module.GetSafeName(node.dataContainer.name);
     }
 
+    private string EmitStackSlotExpression(BoundStackSlotExpression node) {
+        return _module.GetSafeName(node.symbol.name);
+    }
+
     private string EmitAssignmentOperator(BoundAssignmentOperator node) {
+        if (EmitLocalDeclarationIfApplicable(node, out var value))
+            return value;
+
         if (node.isRef)
             return $"{EmitExpression(node.left)} = ref {EmitExpression(node.right)}";
         else
             return $"{EmitExpression(node.left)} = {EmitExpression(node.right)}";
+    }
+
+    private bool EmitLocalDeclarationIfApplicable(BoundAssignmentOperator expression, out string value) {
+        if (expression.left is BoundStackSlotExpression or BoundDataContainerExpression) {
+            var local = expression.left is BoundStackSlotExpression stackSlot
+                ? stackSlot.symbol as DataContainerSymbol
+                : ((BoundDataContainerExpression)expression.left).dataContainer;
+
+            if (local is not null && _seenLocals.Add(local)) {
+                var initializer = expression.isRef ? $"ref {EmitExpression(expression.right)}" : EmitExpression(expression.right);
+                value = $"{_module.GetType(local.type, local.isRef)} {_module.GetSafeName(local.name)} = {initializer}";
+                return true;
+            }
+        }
+
+        value = null;
+        return false;
     }
 
     private string EmitUnaryOperator(BoundUnaryOperator node) {
@@ -571,10 +610,18 @@ internal sealed class CSharpCodeGenerator {
     }
 
     private string EmitFieldAccessExpression(BoundFieldAccessExpression node) {
-        if (node.receiver is null)
-            return $"{_module.GetType(node.field.containingType)}.{_module.GetSafeName(node.field.name)}";
+        return EmitFieldCore(node.receiver, node.field);
+    }
 
-        return $"{EmitExpression(node.receiver)}.{_module.GetSafeName(node.field.name)}";
+    private string EmitFieldSlotExpression(BoundFieldSlotExpression node) {
+        return EmitFieldCore(node.receiver, node.field);
+    }
+
+    private string EmitFieldCore(BoundExpression receiver, FieldSymbol field) {
+        if (receiver is null)
+            return $"{_module.GetType(field.containingType)}.{_module.GetSafeName(field.name)}";
+
+        return $"{EmitExpression(receiver)}.{_module.GetSafeName(field.name)}";
     }
 
     private string EmitConditionalAccessExpression(BoundConditionalAccessExpression node) {
@@ -630,7 +677,7 @@ internal sealed class CSharpCodeGenerator {
 
     private string EmitFunctionPointerCallExpression(BoundFunctionPointerCallExpression node) {
         var method = _module.GetSafeName(node.functionPointer.name);
-        var arguments = EmitArguments(node.arguments, node.argumentRefKindsOpt);
+        var arguments = EmitArguments(node.arguments, node.argumentRefKinds);
         return $"{method}({arguments})";
     }
 

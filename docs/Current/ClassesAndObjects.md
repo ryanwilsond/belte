@@ -16,7 +16,7 @@
   - [4.3.3](#433-static--constexpr) Static & ConstExpr
   - [4.3.4](#434-const) Const
   - [4.3.5](#435-sealed--abstract) Sealed & Abstract
-- [4.4](#44-constructors) Constructors
+- [4.4](#44-constructors--destructors) Constructors & Destructors
 - [4.5](#45-templates) Templates
   - [4.5.1](#451-constraint-clauses) Constraint Clauses
     - [4.5.1.1](#4511-expression-constraints) Expression Constraints
@@ -25,6 +25,8 @@
   - [4.6.1](#461-flags) Flags
   - [4.6.2](#462-implicit-enum-fields) Implicit Enum Fields
   - [4.6.3](#463-experimental-underlying-types) Experimental Underlying Types
+  - [4.6.4](#464-bit-testing) Bit Testing
+  - [4.6.5](#465-methods) Methods
 - [4.7](#47-namespaces) Namespaces
 - [4.8](#48-using-directives) Using Directives
   - [4.8.1](#481-aliasing) Aliasing
@@ -65,6 +67,42 @@ class MyClass {
   }
 }
 ```
+
+When the target type of the object creation is clear from context, the type can be omitted. Alternatively, implicit
+typing can be used. The follow are all equivalent:
+
+```belte
+MyClass a = new MyClass();
+MyClass a = new ();
+var a = new MyClass();
+```
+
+Similar to namespaces, a class can be file scoped so that all members following the declaration are members of the
+class:
+
+```belte
+class MyClass;
+
+int a;
+
+int GetA() {
+  return this.a
+}
+```
+
+Unlike normal classes, members will default to being public instead of private if no accessibility modifier is
+specified. Additionally, members inside of a static file-scoped class will also be static even if the static modifier is
+not specified:
+
+```belte
+static class Program;
+
+void Main(string[]! args) {
+  // ...
+}
+```
+
+In the above example, `Main` is public and static and is a valid entry point.
 
 ### 4.1.2 Inheritance
 
@@ -177,7 +215,7 @@ Methods are similar to functions. They are declared as such:
 ```belte
 class MyClass {
   public void MyMethod(int param1) {
-    // Body
+    // ...
   }
 }
 ```
@@ -198,7 +236,7 @@ Operators are similar to methods. They are declared as such:
 ```belte
 class MyClass {
   public static MyClass operator+(MyClass left, MyClass right) {
-    // Body
+    // ...
   }
 }
 ```
@@ -206,7 +244,7 @@ class MyClass {
 Operator overloading is used to allow custom classes to use syntactical operators. The overloadable operators are:
 
 | Operators | Notes |
-|-|-|
+| - | - |
 | `+x`, `-x`, `!x`, `~x`, `++`, `--`, `x[]` | |
 | `x + y`, `x - y`, `x * y`, `x / y`, `x % y`, `x & y`, `x \| y`, `x ^ y`, `x << y`, `x >> y`, `x >>> y` | |
 | `x == y`, `x != y`, `x < y`, `x > y`, `x <= y`, `x >= y` | Must be overloaded in the following pairs: `==` and `!=`, `<` and `>`, `<=` and `>=` |
@@ -222,7 +260,7 @@ Implicit cast from `A` to `int`:
 ```belte
 class MyClass {
   public static implicit operator int(A a) {
-    // Body
+    // ...
   }
 }
 ```
@@ -232,7 +270,7 @@ Explicit cast from `int` to `A`:
 ```belte
 class MyClass {
   public static explicit operator A(int a) {
-    // Body
+    // ...
   }
 }
 ```
@@ -323,7 +361,7 @@ Classes can be marked as `abstract` to indicate that they must be derived.
 abstract class A { }
 ```
 
-## 4.4 Constructors
+## 4.4 Constructors & Destructors
 
 When creating an object, values can be passed to modify the creation process. By default, no values are passed:
 
@@ -346,6 +384,17 @@ class MyClass {
 }
 
 new MyClass(4);
+```
+
+Destructors run when the garbage collector cleans up the memory used by an object. One can be defined per class to run
+some code right before the garbage collector does this:
+
+```belte
+class MyClass {
+  destructor() {
+    // Cleanup ...
+  }
+}
 ```
 
 ## 4.5 Templates
@@ -412,7 +461,7 @@ These expressions are enforced at compile-time, and as such they must be computa
 at compile time, the set of allowed expressions is limited:
 
 | Expression | Additional Restrictions |
-|-|-|
+| - | - |
 | Unary | |
 | Binary | |
 | Ternary | |
@@ -428,7 +477,7 @@ Given the class definition:
 
 ```belte
 class Int<int min, int max> where { min <= max; } {
-  ...
+  // ...
 }
 ```
 
@@ -461,7 +510,7 @@ but explicit values can be specified. The underlying integral type defaults to `
 enum MyEnum extends uint8 {
   Field1,
   Field2,
-  ...
+  // ...
 }
 ```
 
@@ -471,7 +520,7 @@ Where `Field1` equals 0 and `Field2` equals 1. Explicitly declaring field values
 enum MyEnum {
   Field1 = 300,
   Field2 = 400,
-  ...
+  // ...
 }
 ```
 
@@ -482,7 +531,7 @@ MyEnum myLocal = MyEnum.Field1;
 
 enum MyEnum {
   Field1,
-  ...
+  // ...
 }
 ```
 
@@ -513,8 +562,8 @@ enum flags MyEnum {
 ```
 
 Beyond documentation, the `flags` keyword also changes the default value behavior of enum fields. Instead of
-incrementally counting up from 0, enum fields will count up in powers of 2 (0, 1, 2, 4, 8, etc.) so that when the fields
-are combined their bits do not conflict. You can still give fields explicit values like normal.
+incrementally counting up from 0, enum fields will count up in powers of 2 starting at 1 (1, 2, 4, 8, etc.) so that when
+the fields are combined their bits do not conflict. You can still give fields explicit values like normal.
 
 Additionally, flags enums string cast will display each field component of the value. For example:
 
@@ -524,20 +573,38 @@ var myString = (string)myLocal;
 // myString = "Field1, Field2"
 
 enum flags MyEnum {
-  None,
   Field1,
   Field2,
 }
 ```
 
+If a default flag at 0 is created the fields will still count up by powers of 2:
+
+```belte
+enum flags MyEnum {
+  None = 0,
+  Field1, // 1
+  Field2, // 2
+  Field3, // 4
+}
+```
+
 ### 4.6.2 Implicit Enum Fields
 
-In target typed expressions, an implicit enum field expression can be used which
-omits the enum type name. The following are equivalent:
+In target typed expressions, an implicit enum field expression can be used which omits the enum type name. The following
+are equivalent:
 
 ```belte
 var myLocal = MyEnum.Field1;
 MyEnum myLocal = .Field1;
+```
+
+Any target typed expression context supports this shorthand, which also includes method arguments:
+
+```belte
+Func(.Field1);
+
+void Func(MyEnum param) { /* ... */ }
 ```
 
 ### 4.6.3 Experimental Underlying Types
@@ -552,6 +619,84 @@ enum MyEnum extends string {
 
 This feature is experimental and may be removed.
 
+### 4.6.4 Bit Testing
+
+The traditional way to test for the presence of a enum field is to use a bit test:
+
+```belte
+var f = F.B;
+
+if ((f & F.B) != 0) { /* ... */ }
+
+enum flags F {
+  None,
+  A,
+  B,
+  C
+}
+```
+
+To simplify this, enum fields can be qualified with an instance receiver in which case the bit test will be performed
+implicitly:
+
+```belte
+var f = F.B;
+
+if (f.B) { /* ... */ }
+```
+
+### 4.6.5 Methods
+
+Enums don't contain methods in metadata, but methods can be written inside of an enum for convenience.
+
+A static method is treated the same as an ordinary static method where it is qualified with the enum name. A non-static
+method is called off of a receiver that is of the enclosing enum type. Inside of a non-static enum method, `this` refers
+to an instance of the enum (that is, the value type).
+
+For example:
+
+```belte
+var f = F.B;
+return f.IsAOrB(); // true
+
+enum flags F {
+  None,
+  A,
+  B,
+  C,
+
+  public bool IsAOrB() {
+    return this == .A || this == .B;
+  }
+}
+```
+
+Note that by using the [bit testing shorthand](#464-bit-testing) the method `IsAOrB` could also be written:
+
+```belte
+public bool IsAOrB() {
+  return this.A || this.B;
+}
+```
+
+Methods inside of an enum can inter-splice the enum fields, but note that any preceding fields must include a trailing
+comma for the method to be parsed correctly:
+
+```belte
+enum E {
+  public static void M1() { }
+
+  A,
+  B,
+
+  public static void M2() { }
+
+  C,
+
+  public static void M3() { }
+}
+```
+
 ## 4.7 Namespaces
 
 Namespaces can optionally be defined in a source file to organize types. Namespace names allow periods.
@@ -559,10 +704,10 @@ Namespaces can optionally be defined in a source file to organize types. Namespa
 ```belte
 namespace MyNamespace {
   class A {
-    ...
+    // ...
   }
 
-  ...
+  // ...
 }
 ```
 
@@ -573,7 +718,7 @@ used per file if they are file scoped:
 namespace MyNamespace;
 
 class A {
-  ...
+  // ...
 }
 ```
 
@@ -612,7 +757,7 @@ Using directives can be tied to the source file or to a namespace:
 
 ```belte
 namespace A {
-  using ...;
+  using /* ... */;
 }
 ```
 
@@ -697,6 +842,49 @@ struct A {
 ```
 
 Because struct fields cannot have explicit initializers, structs can only contain fields of types with a default value.
+
+Accessibility modifiers can still be used in structs to make members private:
+
+```belte
+struct A {
+  private int a;
+}
+```
+
+Similar to classes, structs can contain members such as constructors and methods or other nested types:
+
+```belte
+struct A {
+  int a;
+
+  public constructor() {
+    a = 3;
+  }
+}
+```
+
+Note that any parameterless struct constructors must be made public, but this is the default accessibility modifier so
+the following is also correct:
+
+```belte
+struct A {
+  int a;
+
+  constructor() {
+    a = 3;
+  }
+}
+```
+
+While normal fields cannot contain initializers, static or constexpr fields still can:
+
+```belte
+struct A {
+  static const int f1 = 3; // OK
+  constexpr int f2 = 10; // OK
+  int f3 = 3; // Invalid
+}
+```
 
 ### 4.9.1 Unions
 

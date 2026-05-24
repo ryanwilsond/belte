@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Linq;
 using Buckle.CodeAnalysis.Lowering;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -108,5 +109,22 @@ internal static class GeneratedNames {
 
     internal static string MakeSynthedLocalName(TypeWithAnnotations type, int ordinal) {
         return type.type.name + "_l" + ordinal;
+    }
+
+    internal static string MakeEnumMethodContainerName(NamespaceSymbol container, string enumName) {
+        var name = enumName + "Extensions";
+        var memberNames = container.GetMembers().Select(m => m.name);
+
+        if (!memberNames.Contains(name))
+            return name;
+
+        var counter = 1;
+        string uniqueName;
+
+        do {
+            uniqueName = $"name{counter++}";
+        } while (memberNames.Contains(name));
+
+        return uniqueName;
     }
 }

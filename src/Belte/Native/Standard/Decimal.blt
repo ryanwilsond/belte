@@ -1,0 +1,38 @@
+
+public static class Decimal {
+    public static bool! IsNaN(float32! num);
+    public static bool! IsNaN(float64! num);
+
+    public static bool! IsPosInfinity(float32! num);
+    public static bool! IsPosInfinity(float64! num);
+
+    public static bool! IsNegInfinity(float32! num);
+    public static bool! IsNegInfinity(float64! num);
+
+    public static bool! IsInfinity(float32! num);
+    public static bool! IsInfinity(float64! num);
+
+    public static decimal? Parse(string? text);
+
+    public static string? ToString(decimal! num, string! format);
+}
+
+public static class Float64 {
+    public constexpr float64 MinValue = -1.7976931348623157E+308;
+    public constexpr float64 MaxValue = 1.7976931348623157E+308;
+
+    public constexpr float64 Epsilon = 4.9406564584124654E-324;
+    public constexpr float64 NegativeInfinity = (float64)-1.0 / (float64)(0.0);
+    public constexpr float64 PositiveInfinity = (float64)1.0 / (float64)(0.0);
+    public constexpr float64 NaN = (float64)0.0 / (float64)0.0;
+}
+
+public static class Float32 {
+    public constexpr float32 MinValue = -3.40282346638528859e+38;
+    public constexpr float32 MaxValue = 3.40282346638528859e+38;
+
+    public constexpr float32 Epsilon = 1.4e-45;
+    public constexpr float32 NegativeInfinity = (float32)-1.0 / (float32)(0.0);
+    public constexpr float32 PositiveInfinity = (float32)1.0 / (float32)(0.0);
+    public constexpr float32 NaN = (float32)0.0 / (float32)0.0;
+}

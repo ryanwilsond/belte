@@ -25,9 +25,11 @@ internal partial class GraphicsHandler : Game {
     private bool _usePointClamp;
     private UpdateHandler _updateHandler;
     private Action<double> _executeHandler;
-    private Action _executeMain;
+    private object _executeMain;
     private SpriteBatch _spriteBatch;
     private int _actionCount;
+    private string[] _arguments;
+    private object _mainReturn;
 
     internal bool shouldRun;
 
@@ -59,6 +61,24 @@ internal partial class GraphicsHandler : Game {
 
     internal void SetExecuteMain(Action executeMain) {
         _executeMain = executeMain;
+    }
+
+    internal void SetExecuteMain(Func<int> executeMain) {
+        _executeMain = executeMain;
+    }
+
+    internal void SetExecuteMain(Action<string[]> executeMain, string[] args) {
+        _executeMain = executeMain;
+        _arguments = args;
+    }
+
+    internal void SetExecuteMain(Func<string[], int> executeMain, string[] args) {
+        _executeMain = executeMain;
+        _arguments = args;
+    }
+
+    internal object GetMainReturnOrNull() {
+        return _mainReturn;
     }
 
     internal void SetUpdateHandler(UpdateHandler updateHandler) {
@@ -208,8 +228,22 @@ internal partial class GraphicsHandler : Game {
     }
 
     protected override void Initialize() {
-        if (_executeMain is not null)
-            _executeMain();
+        if (_executeMain is not null) {
+            switch (_executeMain) {
+                case Action main1:
+                    main1();
+                    break;
+                case Func<int> main2:
+                    _mainReturn = main2();
+                    break;
+                case Action<string[]> main3:
+                    main3(_arguments);
+                    break;
+                case Func<string[], int> main4:
+                    _mainReturn = main4(_arguments);
+                    break;
+            }
+        }
 
         _graphics.IsFullScreen = false;
         _graphics.PreferredBackBufferWidth = Width;

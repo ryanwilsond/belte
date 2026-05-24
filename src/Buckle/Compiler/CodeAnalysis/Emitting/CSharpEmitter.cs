@@ -18,7 +18,7 @@ namespace Buckle.CodeAnalysis.Emitting;
 /// <summary>
 /// Emits a bound program into a C# source.
 /// </summary>
-internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, bool> {
+internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> {
     private static readonly string IndentString = "    ";
 
     private readonly BelteDiagnosticQueue _diagnostics;
@@ -26,33 +26,7 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, bool> {
     private readonly bool _debugMode;
     private readonly ImmutableDictionary<MethodSymbol, BoundBlockStatement> _methodBodies;
 
-    private readonly Dictionary<SpecialType, string> _specialTypes = new Dictionary<SpecialType, string>{
-        { SpecialType.Object, "global::System.Object" },
-        { SpecialType.Any, "global::System.Object" },
-        { SpecialType.Bool, "global::System.Boolean" },
-        { SpecialType.WinBool, "global::System.Int32" },
-        { SpecialType.Int, "global::System.Int64" },
-        { SpecialType.Int8, "global::System.SByte" },
-        { SpecialType.Int16, "global::System.Int16" },
-        { SpecialType.Int32, "global::System.Int32" },
-        { SpecialType.Int64, "global::System.Int64" },
-        { SpecialType.UInt8, "global::System.Byte" },
-        { SpecialType.UInt16, "global::System.UInt16" },
-        { SpecialType.UInt32, "global::System.UInt32" },
-        { SpecialType.UInt64, "global::System.UIn64" },
-        { SpecialType.Decimal, "global::System.Double" },
-        { SpecialType.Float32, "global::System.Single" },
-        { SpecialType.Float64, "global::System.Double" },
-        { SpecialType.IntPtr, "nint" },
-        { SpecialType.UIntPtr, "nuint" },
-        { SpecialType.Nullable, "global::System.Nullable" },
-        { SpecialType.Char, "global::System.Char" },
-        { SpecialType.Void, "void" },
-        { SpecialType.Type, "global::System.Type" },
-        { SpecialType.String, "global::System.String" },
-        { SpecialType.Exception, "global::System.Exception" },
-    };
-
+    private Dictionary<SpecialType, string> _specialTypes;
     private Dictionary<string, string> _stlMap;
     private string _lazyRandomField;
 
@@ -63,7 +37,6 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, bool> {
         _program = program;
         _debugMode = debugMode;
         _diagnostics = diagnostics;
-
         _methodBodies = _program.GetAllMethodBodies().ToImmutableDictionary(x => x.Item1, x => x.Item2);
     }
 
@@ -111,10 +84,11 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, bool> {
     }
 
     private string EmitToString(bool programOnly) {
-        return EmitInternal(programOnly);
+        return EmitInternal(!programOnly);
     }
 
     private string EmitInternal(bool includePreviousCompilations = true) {
+        GenerateSpecialTypesMap(_program.GetAllTypes());
         GenerateSTLMap();
 
         var stringWriter = new StringWriter();
@@ -361,7 +335,10 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, bool> {
     }
 
     private string GetBaseList(NamedTypeSymbol type) {
-        return type.IsStructType() ? "" : $" : {GetType(type.baseType)}";
+        if (type.IsStructType() || type.baseType.specialType == SpecialType.Object)
+            return "";
+
+        return $" : {GetType(type.baseType)}";
     }
 
     internal string GetType(TypeSymbol type, bool byRef = false) {
@@ -380,7 +357,7 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, bool> {
                 if (!CodeGenerator.IsValueType(underlyingType))
                     return genericArgumentType;
 
-                return $"global::System.Nullable<{genericArgumentType}>";
+                return $"{_specialTypes[SpecialType.Nullable]}<{genericArgumentType}>";
             }
 
             if (type is ArrayTypeSymbol array) {
@@ -463,42 +440,49 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, bool> {
         }
     }
 
-    internal override bool VisitNamespace(NamespaceSymbol symbol, IndentedTextWriter argument) {
+    internal override object VisitNamespace(NamespaceSymbol symbol, IndentedTextWriter argument) {
         using var curly = new CurlyIndenter(argument, $"namespace {GetSafeName(symbol.name)}");
 
         foreach (var member in symbol.GetMembers())
             member.Accept(this, argument);
 
-        return false;
+        return null;
     }
 
-    internal override bool VisitNamedType(NamedTypeSymbol symbol, IndentedTextWriter argument) {
+    internal override object VisitNamedType(NamedTypeSymbol symbol, IndentedTextWriter argument) {
         if (symbol.specialType is SpecialType.Object or SpecialType.Exception)
-            return false;
+            return null;
 
         if (symbol is PENamedTypeSymbol or SynthesizedFinishedNamedTypeSymbol)
-            return false;
+            return null;
 
         using var curly = new CurlyIndenter(
             argument,
             $"{GetTypeAttributes(symbol)} {GetTypeSignature(symbol)}{GetBaseList(symbol)}"
         );
 
-        foreach (var member in symbol.GetMembers())
-            member.Accept(this, argument);
+        foreach (var member in symbol.GetMembers()) {
+            if (member.kind != SymbolKind.Method)
+                member.Accept(this, argument);
+        }
+
+        foreach (var pair in _methodBodies) {
+            if (pair.Key.containingType.Equals(symbol))
+                pair.Key.Accept(this, argument);
+        }
 
         return false;
     }
 
-    internal override bool VisitField(FieldSymbol symbol, IndentedTextWriter argument) {
+    internal override object VisitField(FieldSymbol symbol, IndentedTextWriter argument) {
         argument.WriteLine($"{GetFieldAttributes(symbol)}{GetFieldSignature(symbol)};");
-        return false;
+        return null;
     }
 
-    internal override bool VisitMethod(MethodSymbol symbol, IndentedTextWriter argument) {
+    internal override object VisitMethod(MethodSymbol symbol, IndentedTextWriter argument) {
         if (symbol.isAbstract || symbol.isExtern) {
             argument.WriteLine($"{GetMethodAttributes(symbol)}{GetMethodSignature(symbol)};");
-            return false;
+            return null;
         }
 
         var body = _methodBodies[symbol];
@@ -510,7 +494,7 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, bool> {
 
         generator.Generate();
 
-        return false;
+        return null;
     }
 
     private void GenerateSTLMap() {
@@ -645,5 +629,101 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, bool> {
             { "Object<>_Equals_O?", "global::object.Equals" },
             { "Object<>_GetHashCode", "global::object.GetHashCode" },
         };
+    }
+
+    private void GenerateSpecialTypesMap(ImmutableArray<TypeSymbol> types) {
+        _specialTypes = new Dictionary<SpecialType, string>{
+            { SpecialType.Object, "global::System.Object" },
+            { SpecialType.Any, "global::System.Object" },
+            { SpecialType.Bool, "global::System.Boolean" },
+            { SpecialType.WinBool, "global::System.Int32" },
+            { SpecialType.Int, "global::System.Int64" },
+            { SpecialType.Int8, "global::System.SByte" },
+            { SpecialType.Int16, "global::System.Int16" },
+            { SpecialType.Int32, "global::System.Int32" },
+            { SpecialType.Int64, "global::System.Int64" },
+            { SpecialType.UInt8, "global::System.Byte" },
+            { SpecialType.UInt16, "global::System.UInt16" },
+            { SpecialType.UInt32, "global::System.UInt32" },
+            { SpecialType.UInt64, "global::System.UIn64" },
+            { SpecialType.Decimal, "global::System.Double" },
+            { SpecialType.Float32, "global::System.Single" },
+            { SpecialType.Float64, "global::System.Double" },
+            { SpecialType.IntPtr, "nint" },
+            { SpecialType.UIntPtr, "nuint" },
+            { SpecialType.Nullable, "global::System.Nullable" },
+            { SpecialType.Char, "global::System.Char" },
+            { SpecialType.Void, "void" },
+            { SpecialType.Type, "global::System.Type" },
+            { SpecialType.String, "global::System.String" },
+            { SpecialType.Exception, "global::System.Exception" },
+        };
+
+        // This is just for readability
+        // TODO This could be speed up by instead iterating everything once and keeping a list of flags saying if each type
+        // was found, then doing a single dictionary write pass at the end
+        // BUT we only run this once and its already fast so it doesn't really matter
+
+        if (NoNameConflicts("object")) {
+            _specialTypes[SpecialType.Object] = "object";
+            _specialTypes[SpecialType.Any] = "object";
+        }
+
+        if (NoNameConflicts("bool"))
+            _specialTypes[SpecialType.Bool] = "bool";
+
+        if (NoNameConflicts("int")) {
+            _specialTypes[SpecialType.WinBool] = "int";
+            _specialTypes[SpecialType.Int32] = "int";
+        }
+
+        if (NoNameConflicts("long")) {
+            _specialTypes[SpecialType.Int] = "long";
+            _specialTypes[SpecialType.Int64] = "long";
+        }
+
+        if (NoNameConflicts("sbyte"))
+            _specialTypes[SpecialType.Int8] = "sbyte";
+
+        if (NoNameConflicts("short"))
+            _specialTypes[SpecialType.Int16] = "short";
+
+        if (NoNameConflicts("byte"))
+            _specialTypes[SpecialType.UInt8] = "byte";
+
+        if (NoNameConflicts("ushort"))
+            _specialTypes[SpecialType.UInt16] = "ushort";
+
+        if (NoNameConflicts("uint"))
+            _specialTypes[SpecialType.UInt32] = "uint";
+
+        if (NoNameConflicts("ulong"))
+            _specialTypes[SpecialType.UInt64] = "ulong";
+
+        if (NoNameConflicts("double")) {
+            _specialTypes[SpecialType.Decimal] = "double";
+            _specialTypes[SpecialType.Float64] = "double";
+        }
+
+        if (NoNameConflicts("float"))
+            _specialTypes[SpecialType.Float32] = "float";
+
+        if (NoNameConflicts("Nullable"))
+            _specialTypes[SpecialType.Nullable] = "Nullable";
+
+        if (NoNameConflicts("char"))
+            _specialTypes[SpecialType.Char] = "char";
+
+        if (NoNameConflicts("string"))
+            _specialTypes[SpecialType.String] = "string";
+
+        bool NoNameConflicts(string typeName) {
+            foreach (var type in types) {
+                if (type.name == typeName)
+                    return false;
+            }
+
+            return true;
+        }
     }
 }

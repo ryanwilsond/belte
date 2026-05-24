@@ -209,7 +209,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            binary operator '+=' is not defined for operands of types 'int' and 'bool!'
+            binary operator '+=' is not defined for operands of types 'int?' and 'bool!'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -263,7 +263,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            there is no argument given that corresponds to the required parameter 'a' of 'myFunc(int)'
+            there is no argument given that corresponds to the required parameter 'a' of 'myFunc(int?)'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -336,7 +336,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int!' to 'bool'
+            cannot convert from type 'int!' to 'bool?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -350,7 +350,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int!' to 'bool'
+            cannot convert from type 'int!' to 'bool?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -364,7 +364,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int!' to 'bool'
+            cannot convert from type 'int!' to 'bool?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -377,7 +377,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int' to 'bool'
+            cannot convert from type 'int?' to 'bool?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -468,7 +468,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'bool!' to 'int'
+            cannot convert from type 'bool!' to 'int?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -588,7 +588,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            argument 1: cannot convert from type 'bool!' to 'int'
+            argument 1: cannot convert from type 'bool!' to 'int?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1002,61 +1002,60 @@ public sealed class IssueTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Bring these back when CFG issues are fixed
-    // [Fact]
-    // public void Evaluator_ElseStatement_Reports_NotReachableCode_Warning() {
-    //     var text = @"
-    //         int test() {
-    //             if (true)
-    //                 return 1;
-    //             else
-    //                 [return 0;]
-    //         }
-    //     ";
+    [Fact]
+    public void Evaluator_ElseStatement_Reports_NotReachableCode_Warning() {
+        var text = @"
+            int test() {
+                if (true)
+                    return 1;
+                else
+                    [return 0;]
+            }
+        ";
 
-    //     var diagnostics = @"
-    //         unreachable code
-    //     ";
+        var diagnostics = @"
+            unreachable code
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer, true);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
 
-    // [Fact]
-    // public void Evaluator_WhileStatement_Reports_NotReachableCode_Warning() {
-    //     var text = @"
-    //         void test() {
-    //             while (false) {
-    //                 [continue;]
-    //             }
-    //         }
-    //     ";
+    [Fact]
+    public void Evaluator_WhileStatement_Reports_NotReachableCode_Warning() {
+        var text = @"
+            void test() {
+                while (false) {
+                    [continue;]
+                }
+            }
+        ";
 
-    //     var diagnostics = @"
-    //         unreachable code
-    //     ";
+        var diagnostics = @"
+            unreachable code
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer, true);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
 
-    // [Fact]
-    // public void Evaluator_IfStatement_Reports_NotReachableCode_Warning() {
-    //     var text = @"
-    //         void test() {
-    //             const int x = 4 * 3;
-    //             if (x > 12) {
-    //                 [Console.PrintLine(""x"");]
-    //             } else {
-    //                 Console.PrintLine(""x"");
-    //             }
-    //         }
-    //     ";
+    [Fact]
+    public void Evaluator_IfStatement_Reports_NotReachableCode_Warning() {
+        var text = @"
+            void test() {
+                constexpr int x = 4 * 3;
+                if (x > 12) {
+                    [Console.PrintLine(""x"");]
+                } else {
+                    Console.PrintLine(""x"");
+                }
+            }
+        ";
 
-    //     var diagnostics = @"
-    //         unreachable code
-    //     ";
+        var diagnostics = @"
+            unreachable code
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer, true);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
 
     [Fact]
     public void Evaluator_Enum_ArgumentAllowsImplicitField() {
@@ -1064,6 +1063,59 @@ public sealed class IssueTests {
             M(.B);
             void M(A a) { }
             enum A { B }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_BinaryExpression_DoesNotParseAsTemplate() {
+        var text = @"
+            var ch = '0';
+            var b = ((ch < 'A' || ch > 'Z') && (ch < 'a' || ch > 'z'));
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_BinaryExpression_DoesNotParseAsTemplate2() {
+        var text = @"
+            struct A { int f; }
+            var a = new A();
+            var b = new A();
+            var c = b.f < 0 || a.f > b.f;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_BinaryExpression_DoesNotParseAsTemplate3() {
+        var text = @"
+            struct A { int f; }
+            var a = new A();
+            var c = (a.f < 21 && a.f > -7);
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_ConditionalOperator_GetsTargetTyped() {
+        var text = @"
+            int? M() {
+                var cond = true;
+                return cond ? 3 : null;
+            }
         ";
 
         var diagnostics = @"";

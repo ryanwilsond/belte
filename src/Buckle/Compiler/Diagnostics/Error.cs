@@ -188,9 +188,9 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_InvalidExpressionStatement, location, message);
     }
 
-    internal static BelteDiagnostic InvalidDeferStatement(TextLocation location) {
-        var message = "only assignment, call, throw, and increment expressions can be deferred";
-        return CreateError(DiagnosticCode.ERR_InvalidDeferStatement, location, message);
+    internal static BelteDiagnostic CannotReturnFromDefer(TextLocation location) {
+        var message = "control cannot leave the body of a defer statement";
+        return CreateError(DiagnosticCode.ERR_CannotReturnFromDefer, location, message);
     }
 
     internal static BelteDiagnostic InvalidBreakOrContinue(TextLocation location) {
@@ -258,9 +258,9 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_ReferenceToConstant, location, message);
     }
 
-    internal static BelteDiagnostic VoidVariable(TextLocation location) {
+    internal static BelteDiagnostic VoidUsedAsType(TextLocation location) {
         var message = "cannot use void as a type";
-        return CreateError(DiagnosticCode.ERR_VoidVariable, location, message);
+        return CreateError(DiagnosticCode.ERR_VoidUsedAsType, location, message);
     }
 
     internal static Diagnostic ExpectedToken(string name) {
@@ -411,9 +411,9 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_InstanceRequired, location, message);
     }
 
-    internal static Diagnostic CannotInitializeInStructs() {
+    internal static BelteDiagnostic CannotInitializeInStructs(TextLocation location) {
         var message = "cannot initialize fields in structure definitions";
-        return CreateError(DiagnosticCode.ERR_CannotInitializeInStructs, message);
+        return CreateError(DiagnosticCode.ERR_CannotInitializeInStructs, location, message);
     }
 
     internal static BelteDiagnostic MultipleMains(TextLocation location) {
@@ -668,33 +668,38 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic InconsistentAccessibilityField(TextLocation location, TypeSymbol type, FieldSymbol field) {
-        var message = $"inconsistent accessibility: type '{type}' is less accessible than field '{field}'";
+        var message = $"inconsistent accessibility: type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is less accessible than field '{field}'";
         return CreateError(DiagnosticCode.ERR_InconsistentAccessibilityField, location, message);
     }
 
     internal static BelteDiagnostic InconsistentAccessibilityOperatorReturn(TextLocation location, TypeSymbol type, MethodSymbol method) {
-        var message = $"inconsistent accessibility: return type '{type}' is less accessible than operator '{method}'";
+        var message = $"inconsistent accessibility: return type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is less accessible than operator '{method}'";
         return CreateError(DiagnosticCode.ERR_InconsistentAccessibilityOperatorReturn, location, message);
     }
 
     internal static BelteDiagnostic InconsistentAccessibilityReturn(TextLocation location, TypeSymbol type, MethodSymbol method) {
-        var message = $"inconsistent accessibility: return type '{type}' is less accessible than method '{method}'";
+        var message = $"inconsistent accessibility: return type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is less accessible than method '{method}'";
         return CreateError(DiagnosticCode.ERR_InconsistentAccessibilityReturn, location, message);
     }
 
     internal static BelteDiagnostic InconsistentAccessibilityOperatorParameter(TextLocation location, TypeSymbol type, MethodSymbol method) {
-        var message = $"inconsistent accessibility: parameter type '{type}' is less accessible than operator '{method}'";
+        var message = $"inconsistent accessibility: parameter type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is less accessible than operator '{method}'";
         return CreateError(DiagnosticCode.ERR_InconsistentAccessibilityOperatorParameter, location, message);
     }
 
     internal static BelteDiagnostic InconsistentAccessibilityParameter(TextLocation location, TypeSymbol type, MethodSymbol method) {
-        var message = $"inconsistent accessibility: parameter type '{type}' is less accessible than method '{method}'";
+        var message = $"inconsistent accessibility: parameter type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is less accessible than method '{method}'";
         return CreateError(DiagnosticCode.ERR_InconsistentAccessibilityParameter, location, message);
     }
 
     internal static Diagnostic NoSuitableEntryPoint() {
         var message = $"no suitable entry point found";
         return CreateError(DiagnosticCode.ERR_NoSuitableEntryPoint, message);
+    }
+
+    internal static Diagnostic NoBuildMethod() {
+        var message = $"no suitable build method found";
+        return CreateError(DiagnosticCode.ERR_NoBuildMethod, message);
     }
 
     internal static BelteDiagnostic ArrayOfStaticType(TextLocation location, TypeSymbol type) {
@@ -846,6 +851,12 @@ internal static class Error {
         var message = $"there is no target type for the implicit enum field";
         return CreateError(DiagnosticCode.ERR_EnumFieldNoTargetType, location, message);
     }
+
+    internal static BelteDiagnostic ObjectCreationNoTargetType(TextLocation location) {
+        var message = $"there is no target type for the implicit object creation";
+        return CreateError(DiagnosticCode.ERR_ObjectCreationNoTargetType, location, message);
+    }
+
     internal static BelteDiagnostic InstanceRequiredInFieldInitializer(TextLocation location, Symbol symbol) {
         var message = $"a field initializer cannot reference non-static member '{symbol}'";
         return CreateError(DiagnosticCode.ERR_InstanceRequiredInFieldInitializer, location, message);
@@ -1494,7 +1505,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic BadUsingNamespace(TextLocation location, Symbol symbol) {
-        var message = $"a 'using' directive can only be applied to namespaces; '{symbol}' is a type not a namespace; consider a 'using static' directive instead";
+        var message = $"a 'using' directive can only be applied to namespaces; '{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is a type not a namespace; consider a 'using static' directive instead";
         return CreateError(DiagnosticCode.ERR_BadUsingNamespace, location, message);
     }
 
@@ -1519,7 +1530,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic IncompatibleEntryPointReturn(TextLocation location, Symbol symbol) {
-        var message = $"entry point '{symbol}' must return `void` or `int32!` to maintain compatibility with .NET";
+        var message = $"entry point '{symbol}' must return `void` or `int32!`";
         return CreateError(DiagnosticCode.ERR_IncompatibleEntryPointReturn, location, message);
     }
 
@@ -1559,7 +1570,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic DottedTypeNamesNotFound(TextLocation location, string text, NamespaceOrTypeSymbol symbol) {
-        var message = $"the type name '{text}' does not exist in the type '{symbol}'";
+        var message = $"the type name '{text}' does not exist in the type '{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
         return CreateError(DiagnosticCode.ERR_DottedTypeNamesNotFound, location, message);
     }
 
@@ -1928,6 +1939,16 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_FileScopedNamespaceNotFirstMember, location, message);
     }
 
+    internal static BelteDiagnostic FileScopedClassNotFirstMember(TextLocation location) {
+        var message = $"file-scoped class must precede all other members in a namespace or type";
+        return CreateError(DiagnosticCode.ERR_FileScopedClassNotFirstMember, location, message);
+    }
+
+    internal static BelteDiagnostic FileScopedClassWithinNonFileScoped(TextLocation location) {
+        var message = $"file-scoped class cannot be contained within a non-file-scoped namespace or non-file-scoped class";
+        return CreateError(DiagnosticCode.ERR_FileScopedClassWithinNonFileScoped, location, message);
+    }
+
     internal static BelteDiagnostic EntryConstructor(TextLocation location) {
         var message = $"entry point type cannot define instance constructors";
         return CreateError(DiagnosticCode.ERR_EntryConstructor, location, message);
@@ -1974,7 +1995,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic NullErasureOnTypeWithNoDefault(TextLocation location, TypeSymbol type) {
-        var message = $"cannot apply a null erasure operator to an expression with type '{type}' because it has no default value";
+        var message = $"cannot apply a null erasure operator to an expression with type '{type}' because it has no non-null default value";
         return CreateError(DiagnosticCode.ERR_NullErasureOnTypeWithNoDefault, location, message);
     }
 
@@ -2106,8 +2127,79 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic UsingWithoutDispose(TextLocation location, TypeSymbol type) {
-        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': type used in a using statement must define a public parameterless method named 'Dispose'";
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': type used in a using statement must define a public parameterless instance method named 'Dispose'";
         return CreateError(DiagnosticCode.ERR_UsingWithoutDispose, location, message);
+    }
+
+    internal static BelteDiagnostic ObjectCreationIllegalTargetType(TextLocation location, TypeSymbol type) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.ObjectCreationFormat)}' is not a valid type for object creation";
+        return CreateError(DiagnosticCode.ERR_ObjectCreationIllegalTargetType, location, message);
+    }
+
+    internal static Diagnostic ShebangNotOnFirstLine() {
+        var message = $"'#!' must be the first characters on the first line of the file";
+        return CreateError(DiagnosticCode.ERR_ShebangNotOnFirstLine, message);
+    }
+
+    internal static BelteDiagnostic AmbiguousTernary(TextLocation location, TypeSymbol type1, TypeSymbol type2) {
+        var message = $"the type of conditional expression cannot be determined because '{type1.ToNullOrString()}' and '{type2.ToNullOrString()}' implicitly convert to one another";
+        return CreateError(DiagnosticCode.ERR_AmbiguousTernary, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidTernary(TextLocation location, TypeSymbol type1, TypeSymbol type2) {
+        var message = $"the type of conditional expression cannot be determined because there is no implicit conversion between '{type1.ToNullOrString()}' and '{type2.ToNullOrString()}'";
+        return CreateError(DiagnosticCode.ERR_InvalidTernary, location, message);
+    }
+
+    internal static BelteDiagnostic CannotTakeFunctionPointerOfNonStatic(TextLocation location, MethodSymbol method) {
+        var message = $"cannot create a function pointer to '{method}' because it is not a static method";
+        return CreateError(DiagnosticCode.ERR_CannotTakeFunctionPointerOfNonStatic, location, message);
+    }
+
+    internal static BelteDiagnostic NonPublicParameterlessStructConstructor(TextLocation location) {
+        var message = $"parameterless struct constructors must be 'public'";
+        return CreateError(DiagnosticCode.ERR_NonPublicParameterlessStructConstructor, location, message);
+    }
+
+    internal static BelteDiagnostic UnionMustHaveField(TextLocation location) {
+        var message = $"unions must contain at least 1 non-static field";
+        return CreateError(DiagnosticCode.ERR_UnionMustHaveField, location, message);
+    }
+
+    internal static BelteDiagnostic ClampMustBeNumeric(TextLocation location, TypeSymbol type) {
+        var message = $"cannot clamp on type '{type}'; can only clamp on numeric primitives";
+        return CreateError(DiagnosticCode.ERR_ClampMustBeNumeric, location, message);
+    }
+
+    internal static BelteDiagnostic CannotBitCastFromNullable(TextLocation location, TypeSymbol type) {
+        var message = $"cannot bit cast operand of nullable type '{type.ToNullOrString()}'";
+        return CreateError(DiagnosticCode.ERR_CannotBitCastFromNullable, location, message);
+    }
+
+    internal static BelteDiagnostic CannotBitCastToNullable(TextLocation location, TypeSymbol type) {
+        var message = $"cannot bit cast to nullable type '{type}'";
+        return CreateError(DiagnosticCode.ERR_CannotBitCastToNullable, location, message);
+    }
+
+    internal static BelteDiagnostic UnknownBitCastSize(TextLocation location, TypeSymbol type, TypeSymbol tFrom, TypeSymbol tTo, BoundExpression operand) {
+        var message = $"cannot bit cast with '{type}' as it's size is not known at compile time; consider using 'LowLevel.BitCast<type TFrom, type TTo>(TFrom)' instead";
+        var suggestion = $"LowLevel.BitCast<{tFrom}, {tTo}>({operand})";
+        return CreateError(DiagnosticCode.ERR_UnknownBitCastSize, location, message, suggestion);
+    }
+
+    internal static BelteDiagnostic DifferentSizesInBitCast(TextLocation location, TypeSymbol tFrom, TypeSymbol tTo) {
+        var message = $"cannot bit cast from '{tFrom}' to '{tTo}' because they don't have the same size";
+        return CreateError(DiagnosticCode.ERR_DifferentSizesInBitCast, location, message);
+    }
+
+    internal static BelteDiagnostic VoidAssignment(TextLocation location) {
+        var message = $"a value of type 'void' may not be assigned";
+        return CreateError(DiagnosticCode.ERR_VoidAssignment, location, message);
+    }
+
+    internal static BelteDiagnostic DiscardTypeInferenceFailed(TextLocation location) {
+        var message = $"cannot infer the type of implicitly-typed discard";
+        return CreateError(DiagnosticCode.ERR_DiscardTypeInferenceFailed, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

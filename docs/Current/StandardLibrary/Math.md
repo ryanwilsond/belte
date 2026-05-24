@@ -11,7 +11,7 @@ The Belte public interface for the Math class can be found
 ## 5.2.1 Fields
 
 | Signature | Description |
-|-|-|
+| - | - |
 | `decimal! E` | Euler's number (e). |
 | `decimal! PI` | The mathematical constant PI (π). |
 
@@ -21,7 +21,7 @@ Many of the methods have multiple overloads for integer/decimal
 nullable/non-nullable values. Only one overload for each method will be listed.
 
 | Name | Description |
-|-|-|
+| - | - |
 | `decimal Abs(decimal)` | Absolute value. |
 | `decimal Acos(decimal)` | Arccosine. |
 | `decimal Acosh(decimal)` | Inverse hyperbolic cosine. |

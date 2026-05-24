@@ -1,20 +1,15 @@
 # README for Developers
 
-To view future plans, docs, etc:
-
 GitHub Repository: [github.com/ryanwilsond/belte](https://github.com/ryanwilsond/belte)
 
 Docs/Pages: [ryanwilsond.github.io/belte](https://ryanwilsond.github.io/belte/)
-
-Trello: [trello.com/belteindustries](https://trello.com/belteindustries)
-
-More onboarding resources and documentation exist on a per-request basis for
-developers or for those who want to contribute.
 
 ## Tools Needed for Building
 
 - [GNU Make](https://gnuwin32.sourceforge.net/packages/make.htm)
 - [.NET SDK 10.0 and .NET Runtime 10.0](https://dotnet.microsoft.com/en-us/download/dotnet/10.0)
+
+Note the [global.json](global.json) specifies a specific .NET version.
 
 Visual Studio Code is strongly recommended, but not required.
 
@@ -27,7 +22,8 @@ If you have ever ran this command before, you shouldn't need to run it again.
 
 ### Publishing Buckle
 
-Run `$ make release` to publish the project for Windows machines.
+Run `$ make releasemf` or `$ make release` to publish the project for Windows
+machines either multi-file or single-file respectively.
 
 The final executable is put into `.\bin\release\buckle.exe`.
 
@@ -49,8 +45,9 @@ All debug files are put into `.\bin\debug\` and the final executable is put into
 Run `$ make generate` to generate source files.
 
 This is only required when changes are made to the source generators themselves,
-or the files the source generators use (currently only
-[Syntax.xml](src/Buckle/Compiler/CodeAnalysis/Syntax/Syntax.xml)).
+or the files the source generators use
+([Syntax.xml](src/Buckle/Compiler/CodeAnalysis/Syntax/Syntax.xml) and
+[BoundNodes.xml](src/Buckle/Compiler/CodeAnalysis/Binding/BoundTree/BoundNodes.xml)).
 
 ### Testing
 
@@ -67,7 +64,3 @@ this command.
 ### Formatting
 
 Run `$ make format` to format all projects.
-
-This command is only run when cutting a release, meaning
-developers/contributors should never call this unless they are the ones
-cutting a new release.

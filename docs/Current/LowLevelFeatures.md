@@ -6,10 +6,10 @@ Currently, all of these features are enabled everywhere for conciseness.
 This may change.
 
 - [6.1](#61-low-level-contexts) Low-Level Contexts
-- [6.2](#62-structures) Structures
+- [6.2](#62-structs) Structs
 - [6.3](#63-arrays) Arrays
-  - [6.3.1](#631-initializer-lists) Initializer Lists
 - [6.4](#64-numerics) Numerics
+  - [6.4.1](#641-bit-casts) Bit Casts
 - [6.5](#65-pointers) Pointers
   - [6.5.1](#651-creating-and-dereferencing-pointers) Creating and Dereferencing Pointers
   - [6.5.2](#652-pointer-arithmetic) Pointer Arithmetic
@@ -28,6 +28,7 @@ This may change.
 - [6.13](#613-compiler-handle) Compiler Handle
   - [6.13.1](#6131-messages) Messages
   - [6.13.2](#6132-ordering) Ordering
+- [6.14](#614-c-strings) C-Strings
 
 Additionally, the
 [Standard Library contains a class named LowLevel that provides various helper methods](StandardLibrary/LowLevel.md).
@@ -38,73 +39,29 @@ Low-level contexts are created by applying the `lowlevel` modifier to a type
 declaration, method, or block.
 
 ```belte
-lowlevel class A { ... }
-lowlevel struct A { ... }
-lowlevel void M() { ... }
-lowlevel { ... }
+lowlevel class A { /* ... */ }
+lowlevel struct A { /* ... */ }
+lowlevel void M() { /* ... */ }
+lowlevel { /* ... */ }
 ```
 
 The low-level context extends from the declaration to all statements inside. In
 other words, if a method is marked `lowlevel`, the parameter list of that method
 can use low-level exclusive features.
 
-## 6.2 Structures
+## 6.2 Structs
 
-Structures are custom data types that pass by value and use the stack, unlike
-classes which are heap-allocated.
+> [Main struct docs](ClassesAndObjects.md#49-structs)
 
-Structures only allow field declarations with no initializers. Fields within
-structures cannot be constants or references.
-
-```belte
-struct MyStruct {
-  int a;
-  string b;
-}
-```
-
-Creating a new instance of a structure uses the same `new` keyword as classes,
-but the constructor cannot be overridden and always takes no arguments:
-
-```belte
-var myInstance = new MyStruct();
-```
-
-Because of this, all fields must manually be written to after structure
-creation:
-
-```belte
-myInstance.a = 3;
-myInstance.b = "Hello";
-```
+Structs may be restricted to [lowlevel contexts](#61-low-level-contexts) in the
+future.
 
 ## 6.3 Arrays
 
-Whenever possible, a [List](StandardLibrary/List.md) should be used in place of
-C-style arrays.
+> [Main array docs](Data.md#36-arrays)
 
-```belte
-int![]! v = { 1, 2, 3 };
-int![]! v = { 1, 2, 3 };
-```
-
-Arrays are heap allocated and have no members. To sort or get the length of the
-array,
-[`LowLevel.Length<T>(T!)` and `LowLevel.Sort<T>(T!)` can be used](StandardLibrary/LowLevel.md).
-
-Arrays are runtime checked, meaning trying to access an index outside the bounds
-of the array will throw an exception.
-
-### 6.3.1 Initializer Lists
-
-~~It is also important to note outside of low-level contexts, an initializer list will create a
-[List](StandardLibrary/List.md), while inside of a low-level context, it will create an array.~~
-
-Currently, initializer lists always create arrays.
-
-```belte
-int[] v = { 1, 2, 3 };
-```
+Initializer lists may create a [List](StandardLibrary/List.md) outside of
+[lowlevel contexts](#61-low-level-contexts) in the future.
 
 ## 6.4 Numerics
 
@@ -112,17 +69,14 @@ To allow for better interop, several numeric types can be used to specify
 specific sizes. These being `int8`, `uint8`, `int16`, `uint16`, `int32`,
 `uint32`, `int64`, `uint64`, `float32`, `float64`.
 
-Most arithmetic upcasts to `int` and `decimal`, so casting is required in cases
+Most arithmetic upcasts to `int32` or `int64`, so casting is required in cases
 such as:
 
 ```belte
-int32 myInt1 = 5;
-int32 myInt2 = 27;
-int32 myInt3 = (int32)(myInt1 | myInt2);
+int16 myInt1 = 5;
+int16 myInt2 = 27;
+int16 myInt3 = (int16)(myInt1 | myInt2);
 ```
-
-The only case where arithmetic does not cast to `int` or `decimal` is in the
-case of `uint64` which cannot fit inside `int`.
 
 Unless knowing the specific size of the integer is required, use the normal
 `int` and `decimal` types, which (eventually) will support specifying ranges.
@@ -130,6 +84,30 @@ Unless knowing the specific size of the integer is required, use the normal
 The actual implementation size of `int` and `decimal` are not to be relied on as
 they can change, though currently `int` is equivalent to `int64` and `decimal`
 is equivalent to `float64`.
+
+### 6.4.1 Bit Casts
+
+A bit cast copies the operand bit-for-bit into a new type. For example:
+
+```belte
+int32 myInt = 3;
+float32 myFloat = (float32&)myInt;
+```
+
+Where `myFloat` is now `0b11` under the hood representing the float value
+`4E-45`. This operation copies the bits instead of doing C-style pointer punning
+so the operand does not have to have a location:
+
+```belte
+float32 myFloat = (float32&)30;
+```
+
+The same can be done using `LowLevel.BitCast<type TFrom, type TTo>(TFrom)`:
+
+```belte
+int32 myInt = 3;
+float32 myFloat = LowLevel.BitCast<int32, float32>(myInt);
+```
 
 ## 6.5 Pointers
 
@@ -160,13 +138,13 @@ Pointers support any level of indirection:
 int! myInt = 3;
 int* ptr1 = &myInt;
 int** ptr2 = &ptr1;
-...
+// ...
 ```
 
 Pointers can be freely cast to reinterpret them:
 
 ```belte
-void* ptr = ...;
+void* ptr = /* ... */;
 
 int* myIntPtr = (int*)ptr;
 int myInt = *myIntPtr;
@@ -182,7 +160,7 @@ MyClass* ptr2 = (MyClass*)ptr;
 (*ptr2).Method(); // Undefined behavior
 
 class MyClass {
-  public void Method() { ... }
+  public void Method() { /* ... */ }
 }
 ```
 
@@ -209,7 +187,7 @@ do the arithmetic, then cast it back.
 For example:
 
 ```belte
-void* myPtr = ...;
+void* myPtr = /* ... */;
 // Offset the pointer by 8 bytes
 myPtr = (void*)((int64)myPtr + 8);
 ```
@@ -218,14 +196,14 @@ Indexing an operator will automatically offset the pointer and then dereference
 it:
 
 ```belte
-char* myPtr = ...;
+char* myPtr = /* ... */;
 char! myChar = myPtr[10];
 ```
 
 The above example is equivalent to:
 
 ```belte
-char* myPtr = ...;
+char* myPtr = /* ... */;
 char! myChar = *((char*)((int64)myPtr + 10 * sizeof(char!)));
 ```
 
@@ -241,10 +219,12 @@ can then be called like a normal method:
 var myPtr = &MyMethod;
 var myInt = myPtr(); // myInt = 4
 
-int32 MyMethod() {
+static int32 MyMethod() {
   return 4;
 }
 ```
+
+Non-static local functions cannot have their address taken with a function pointer.
 
 When not using `var`, the explicit function pointer type can be written as
 `returnType(argTypes...)*`:
@@ -252,7 +232,7 @@ When not using `var`, the explicit function pointer type can be written as
 ```belte
 int32(bool, string)* myPtr = &MyMethod;
 
-int32 MyMethod(bool arg1, string arg2) { ... }
+static int32 MyMethod(bool arg1, string arg2) { /* ... */ }
 ```
 
 Function pointers are treated the same as normal pointers in that they can be
@@ -262,7 +242,7 @@ mark it as such with a `~`.
 Consider this example of calling the first function of a vtable:
 
 ```belte
-void** vtable = ...;
+void** vtable = /* ... */;
 
 ((void()*~)vtable[0])();
 ```
@@ -270,11 +250,20 @@ void** vtable = ...;
 For clarity, the function pointer set to a temporary:
 
 ```belte
-void** vtable = ...;
+void** vtable = /* ... */;
 
 var MyFunction = (void()*~)vtable[0];
 MyFunction();
 ```
+
+Parameter names are optional in function pointers types and default to `p1`,
+`p2`, etc. based on parameter ordinal:
+
+```belte
+int(int a, int)* myFunc; // Signature is: int(int a, int p2)*
+```
+
+This is to allow [named arguments](ControlFlow.md#214-named-arguments) when calling the function.
 
 ### 6.6.1 Calling Conventions
 
@@ -343,7 +332,7 @@ be indexed:
 var myStruct = new MyStruct();
 myStruct.field[0] = 5;
 myStruct.field[1] = 10;
-...
+// ...
 
 struct MyStruct {
   int32 field[32];
@@ -374,7 +363,7 @@ The following table shows all types with a known size at compile time. All other
 types compute their size at runtime.
 
 | Type | Size |
-|-|-|
+| - | - |
 | `bool!` | 1 |
 | `int8` | 1 |
 | `uint8` | 1 |
@@ -403,7 +392,7 @@ in a pointer to the start of the memory.
 int32* ptr = stackalloc int32[10];
 ptr[0] = 5;
 ptr[1] = 10;
-...
+// ...
 ```
 
 ### 6.10.1 Stackalloc Locals
@@ -533,9 +522,9 @@ message. The second argument gives an interface to interact with the compilation
 adding symbols or collecting general information.
 
 The required parameter types of the handle come from a shipped `Compiler.dll` that lives alongside the actual compiler
-program. This library is not referenced by default so a
-[`--ref=<path>` argument](../Buckle.md#--reffile---referencefile) must be used. Some parts of the compiler rely on
-other libraries that also would require referencing to use, such as `Diagnostics.dll` and `CommandLine.dll`.
+program. This library is not referenced by default so either [`-l1`](../Buckle.md#-l0--l1--lall) or a
+[`--ref=<path>`](../Buckle.md#--refflatcopypath---referenceflatcopypath) option must be used. Some parts of the compiler
+rely on other libraries that also would require referencing to use, such as `Diagnostics.dll` and `CommandLine.dll`.
 
 Basic example:
 
@@ -561,14 +550,14 @@ public static class HandleClass {
 ```
 
 The handler is run during compilation using the Executor regardless of the target endpoint, so keep in mind
-[feature availability](Overview.md#11-endpoint-specific-features).
+[feature availability](Overview.md#12-endpoint-specific-features).
 
 ### 6.13.1 Messages
 
 The following is a current list of all messages types, any extra data they might include, and when they are triggered.
 
 | MessageKind | Description |
-|-|-|
+| - | - |
 | `Parsed` | Triggered whenever a parsed syntax tree is added to the compilation. |
 | `Bound` | Triggered after method bodies have finished compiling into the abstract syntax tree. |
 | `BeforeEmit` | Can never happen more than once. Triggers immediately before the compiler targets an endpoint. |
@@ -587,3 +576,34 @@ If multiple handlers have the same priority (such as the default 0), they will r
 themselves, but will still order correctly relative to higher/lower priority handlers.
 
 The priority number must fit within an `int32` literal.
+
+## 6.14 C-Strings
+
+LPCSTRs and LPCWSTRs can be creating using `LowLevel.CreateLPCSTR(string)` and `LowLevel.CreateLPCWSTR(string)`
+respectively. Alternatively, c-string literals can be used. C-strings are allocated on the heap so they should be freed.
+Using a c-string literal will automatically free the string at the end of the block where the literal was created. To
+manage the freeing of the strings more explicitly, the aforementioned helper methods should be used instead.
+
+The following are equivalent:
+
+```belte
+uint8* a = c"test";
+```
+
+```belte
+uint8* temp = LowLevel.CreateLPCSTR("test");
+defer LowLevel.FreeLPCSTR(temp);
+uint8* a = temp;
+```
+
+Similarly for wide strings:
+
+```belte
+char* a = w"test";
+```
+
+```belte
+char* temp = LowLevel.CreateLPCWSTR("test");
+defer LowLevel.FreeLPCWSTR(temp);
+char* a = temp;
+```
