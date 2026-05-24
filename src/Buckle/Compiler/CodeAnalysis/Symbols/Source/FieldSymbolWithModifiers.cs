@@ -10,6 +10,8 @@ internal abstract class FieldSymbolWithModifiers : FieldSymbol, IAttributeTarget
 
     public sealed override bool isConst => (_modifiers & DeclarationModifiers.Const) != 0;
 
+    public sealed override bool isFinal => (_modifiers & DeclarationModifiers.Final) != 0;
+
     public sealed override bool isConstExpr => (_modifiers & DeclarationModifiers.ConstExpr) != 0;
 
     internal abstract TextLocation errorLocation { get; }

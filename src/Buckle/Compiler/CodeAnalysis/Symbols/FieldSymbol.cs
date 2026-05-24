@@ -12,6 +12,8 @@ internal abstract class FieldSymbol : Symbol, IFieldSymbol {
 
     public abstract bool isConst { get; }
 
+    public abstract bool isFinal { get; }
+
     public abstract bool isConstExpr { get; }
 
     public abstract RefKind refKind { get; }

@@ -856,6 +856,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             SyntaxKind.ExternKeyword => DeclarationModifiers.Extern,
             SyntaxKind.PinnedKeyword => DeclarationModifiers.Pinned,
             SyntaxKind.OutKeyword => DeclarationModifiers.Out,
+            SyntaxKind.FinalKeyword => DeclarationModifiers.Final,
             _ => DeclarationModifiers.None,
         };
     }
@@ -869,6 +870,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             if (modifier is DeclarationModifiers.None or
                             DeclarationModifiers.Ref or
                             DeclarationModifiers.ConstRef or
+                            DeclarationModifiers.FinalRef or
                             DeclarationModifiers.Out) {
                 break;
             }
@@ -1238,8 +1240,10 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 Reset(resetPoint);
                 var returnType = ParseType();
                 return ParseLocalFunctionDeclaration(attributeLists, modifiers, returnType);
-            } else if ((type.kind != SyntaxKind.EmptyName || modifiers?.Any(SyntaxKind.ConstKeyword) == true ||
-                modifiers?.Any(SyntaxKind.ConstexprKeyword) == true) && PeekIsPostTypeLocalDeclaration()) {
+            } else if ((type.kind != SyntaxKind.EmptyName ||
+                modifiers?.Any(SyntaxKind.ConstKeyword) == true ||
+                modifiers?.Any(SyntaxKind.ConstexprKeyword) == true ||
+                modifiers?.Any(SyntaxKind.FinalKeyword) == true) && PeekIsPostTypeLocalDeclaration()) {
                 consumedAttributeLists = true;
                 consumedModifiers = true;
                 return ParseLocalDeclarationStatement(attributeLists, modifiers, type);
@@ -2339,7 +2343,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         if (currentToken.kind == SyntaxKind.RefKeyword) {
             EatToken();
 
-            if (currentToken.kind == SyntaxKind.ConstKeyword)
+            if (currentToken.kind is SyntaxKind.ConstKeyword or SyntaxKind.FinalKeyword)
                 EatToken();
         }
 
@@ -3306,7 +3310,7 @@ done:
 
                 return SyntaxFactory.ReferenceType(
                     refKeyword,
-                    currentToken.kind == SyntaxKind.ConstKeyword ? EatToken() : null,
+                    currentToken.kind is SyntaxKind.ConstKeyword or SyntaxKind.FinalKeyword ? EatToken() : null,
                     ParseTypeCore(allowArraySize, allowNoFollowUp, allowFunctionType, allowPointerTypes)
                 );
             } else {

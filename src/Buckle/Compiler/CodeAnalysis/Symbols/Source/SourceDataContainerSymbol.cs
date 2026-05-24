@@ -297,6 +297,7 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
         out bool isPinned) {
         var allowedModifiers = DeclarationModifiers.Const |
                                DeclarationModifiers.ConstExpr |
+                               DeclarationModifiers.Final |
                                DeclarationModifiers.Pinned;
 
         var result = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
@@ -310,12 +311,15 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
 
         isPinned = (result & DeclarationModifiers.Pinned) != 0;
         var isConst = (result & DeclarationModifiers.Const) != 0;
+        var isFinal = (result & DeclarationModifiers.Final) != 0;
         var isConstExpr = (result & DeclarationModifiers.ConstExpr) != 0;
         var declarationKind = isConstExpr
             ? DataContainerDeclarationKind.ConstantExpression
             : (isConst
                 ? DataContainerDeclarationKind.Constant
-                : DataContainerDeclarationKind.Variable);
+                : (isFinal
+                    ? DataContainerDeclarationKind.Final
+                    : DataContainerDeclarationKind.Variable));
 
         if (hasErrors)
             return declarationKind;

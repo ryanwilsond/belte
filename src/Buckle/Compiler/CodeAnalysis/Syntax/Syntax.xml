@@ -471,9 +471,7 @@
     <Field Name="refKeyword" Type="SyntaxToken">
       <Kind Name="RefKeyword"/>
     </Field>
-    <Field Name="constKeyword" Type="SyntaxToken" Optional="true">
-      <Kind Name="ConstKeyword"/>
-    </Field>
+    <Field Name="constOrFinalKeyword" Type="SyntaxToken" Optional="true"/>
     <Field Name="type" Type="TypeSyntax"/>
   </Node>
   <!-- Declarations -->

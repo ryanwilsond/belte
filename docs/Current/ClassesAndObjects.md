@@ -287,6 +287,10 @@ int a = new A();
 
 ## 4.3 Modifiers
 
+Fields can be marked `const`, `final`, and `constexpr` which shares the same meaning as when those modifiers are applied
+to locals, which can be [read about here](Data.md#331-modifiers). Fields can also be references which can be
+[read about here](Data.md#35-references).
+
 ### 4.3.1 Accessibility Modifiers
 
 Public indicates that the member can be

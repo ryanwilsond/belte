@@ -128,7 +128,12 @@ internal static class SyntaxNodeExtensions {
     internal static TypeSyntax SkipRef(this TypeSyntax syntax, out RefKind refKind) {
         if (syntax.kind == SyntaxKind.ReferenceType) {
             var refType = (ReferenceTypeSyntax)syntax;
-            refKind = refType.constKeyword is not null ? RefKind.RefConst : RefKind.Ref;
+            refKind = refType.constOrFinalKeyword is null
+                ? RefKind.Ref
+                : refType.constOrFinalKeyword.kind == SyntaxKind.ConstKeyword
+                    ? RefKind.RefConst
+                    : RefKind.RefFinal;
+
             return refType.type;
         }
 

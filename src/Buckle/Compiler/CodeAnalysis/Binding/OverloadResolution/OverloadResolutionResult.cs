@@ -390,8 +390,8 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
             else
                 diagnostics.Push(Error.CannotConvertArgument(sourceLocation, argument.type, parameter.type, arg + 1));
         } else if (refArg != refParameter &&
-              !(refParameter == RefKind.RefConst && refArg is RefKind.None or RefKind.Ref)) {
-            if (refParameter is RefKind.None or RefKind.RefConst)
+              !(refParameter is RefKind.RefConst or RefKind.RefFinal && refArg is RefKind.None or RefKind.Ref)) {
+            if (refParameter is RefKind.None or RefKind.RefConst or RefKind.RefFinal)
                 diagnostics.Push(Error.ArgumentExtraRef(sourceLocation, "ref", arg + 1));
             else
                 diagnostics.Push(Error.ArgumentWrongRef(sourceLocation, "ref", arg + 1));

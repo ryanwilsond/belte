@@ -5,8 +5,9 @@ internal enum DataContainerDeclarationKind : byte {
     None,
     Variable,
     Constant,
+    Final,
     ConstantExpression,
     ForEachLocal,
     NullBindingLocal,
-    UsingLocal,
+    ScopedLocal,
 }

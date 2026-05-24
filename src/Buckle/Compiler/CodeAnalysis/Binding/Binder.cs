@@ -1835,7 +1835,7 @@ internal partial class Binder {
                 return false;
             }
         } else {
-            valueKind = variableRefKind == RefKind.RefConst
+            valueKind = variableRefKind is RefKind.RefConst or RefKind.RefFinal
                 ? BindValueKind.RefConst
                 : BindValueKind.RefOrOut;
 
@@ -2096,12 +2096,12 @@ internal partial class Binder {
                 var local = ((BoundDataContainerExpression)expression).dataContainer;
 
                 return !((CodeGenerator.IsStackLocal(local, stackLocals) && local.refKind == RefKind.None) ||
-                    (!IsAnyReadOnly(addressKind) && local.refKind == RefKind.RefConst));
+                    (!IsAnyReadOnly(addressKind) && local.refKind is RefKind.RefConst or RefKind.RefFinal));
             case BoundKind.CallExpression:
                 var methodRefKind = ((BoundCallExpression)expression).method.refKind;
 
                 return methodRefKind == RefKind.Ref ||
-                    (IsAnyReadOnly(addressKind) && methodRefKind == RefKind.RefConst);
+                    (IsAnyReadOnly(addressKind) && methodRefKind is RefKind.RefConst or RefKind.RefFinal);
             case BoundKind.FieldAccessExpression:
                 return FieldAccessHasHome(
                     (BoundFieldAccessExpression)expression,
@@ -2117,7 +2117,8 @@ internal partial class Binder {
 
                 var lhsRefKind = assignment.left.GetRefKind();
                 return lhsRefKind == RefKind.Ref ||
-                    (IsAnyReadOnly(addressKind) && lhsRefKind is RefKind.RefConst or RefKind.RefConstParameter);
+                    (IsAnyReadOnly(addressKind) && lhsRefKind is RefKind.RefConst or RefKind.RefConstParameter or
+                                                                 RefKind.RefFinal or RefKind.RefFinalParameter);
             case BoundKind.ConditionalOperator:
                 var conditional = (BoundConditionalOperator)expression;
 
@@ -2152,7 +2153,7 @@ internal partial class Binder {
         //     return false;
         // }
 
-        if (field.refKind == RefKind.RefConst)
+        if (field.refKind is RefKind.RefConst or RefKind.RefFinal)
             return false;
 
         if (!field.isConst)
@@ -2543,7 +2544,8 @@ internal partial class Binder {
                 return CheckArrayAccessValueKind(
                     node,
                     valueKind,
-                    ((BoundArrayAccessExpression)expression).index,
+                    (BoundArrayAccessExpression)expression,
+                    checkingReceiver,
                     diagnostics
                 );
             case BoundKind.ValuePlaceholder:
@@ -2577,17 +2579,18 @@ internal partial class Binder {
         return Error.AssignmentConstantLocalCause(node.location, name, text);
     }
 
-    private static bool CheckArrayAccessValueKind(
+    private bool CheckArrayAccessValueKind(
         SyntaxNode node,
         BindValueKind valueKind,
-        BoundExpression index,
+        BoundArrayAccessExpression arrayAccess,
+        bool checkingReceiver,
         BelteDiagnosticQueue diagnostics) {
         if (RequiresRefAssignableVariable(valueKind)) {
             diagnostics.Push(Error.RefLocalOrParameterExpected(node.location));
             return false;
         }
 
-        return true;
+        return CheckIsValidReceiverForVariable(node, arrayAccess.receiver, valueKind, diagnostics);
     }
 
     private static BelteDiagnostic GetMethodGroupLValueError(
@@ -2637,10 +2640,12 @@ internal partial class Binder {
         var localSymbol = local.dataContainer;
 
         if (RequiresAssignableVariable(valueKind)) {
-            if (localSymbol.refKind == RefKind.RefConst ||
+            if (localSymbol.refKind is RefKind.RefConst or RefKind.RefFinal ||
                 (localSymbol.refKind == RefKind.None && !localSymbol.isWritableVariable)) {
-                diagnostics.Push(GetStandardLValueError(valueKind, node.location));
-                return false;
+                if (!checkingReceiver || (!localSymbol.isFinal && localSymbol.refKind != RefKind.RefFinal)) {
+                    diagnostics.Push(GetStandardLValueError(valueKind, node.location));
+                    return false;
+                }
             }
         } else if (RequiresRefAssignableVariable(valueKind)) {
             if (localSymbol.refKind == RefKind.None) {
@@ -2774,6 +2779,7 @@ internal partial class Binder {
                 case RefKind.Ref:
                     return true;
                 case RefKind.RefConst:
+                case RefKind.RefFinal:
                     ReportConstantError(fieldSymbol, node, valueKind, checkingReceiver, diagnostics);
                     return false;
                 default:
@@ -2799,6 +2805,7 @@ internal partial class Binder {
                     return false;
                 case RefKind.Ref:
                 case RefKind.RefConst:
+                case RefKind.RefFinal:
                     return CheckIsValidReceiverForVariable(
                         node,
                         fieldAccess.receiver,
@@ -2816,6 +2823,7 @@ internal partial class Binder {
                     break;
                 case RefKind.Ref:
                 case RefKind.RefConst:
+                case RefKind.RefFinal:
                     return true;
                 default:
                     throw ExceptionUtilities.UnexpectedValue(fieldSymbol.refKind);
@@ -7073,7 +7081,8 @@ internal partial class Binder {
                 // Warn for `ref`/`in` or None/`ref readonly` mismatch.
                 if (argRefKind == RefKind.Ref) {
                 } else if (argRefKind == RefKind.None &&
-                    GetCorrespondingParameter(in result, parameters, arg).refKind == RefKind.RefConst &&
+                    GetCorrespondingParameter(in result, parameters, arg)
+                        .refKind is RefKind.RefConst or RefKind.RefFinal &&
                     argument.isExpression) {
                     var syntax = analyzedArguments.syntaxes[arg];
 

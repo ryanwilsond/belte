@@ -40,6 +40,8 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
 
     public bool returnsByRefConst => refKind == RefKind.RefConst;
 
+    public bool returnsByRefFinal => refKind == RefKind.RefFinal;
+
     public bool returnTypeIsNullable => returnTypeWithAnnotations.isNullable;
 
     internal abstract TypeWithAnnotations returnTypeWithAnnotations { get; }

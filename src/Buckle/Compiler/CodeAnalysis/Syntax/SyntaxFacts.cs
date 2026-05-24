@@ -241,6 +241,7 @@ public static class SyntaxFacts {
             "finalizer" => SyntaxKind.FinalizerKeyword,
             "defer" => SyntaxKind.DeferKeyword,
             "scoped" => SyntaxKind.ScopedKeyword,
+            "final" => SyntaxKind.FinalKeyword,
             "unreachable" => SyntaxKind.UnreachableKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
@@ -415,6 +416,7 @@ public static class SyntaxFacts {
             SyntaxKind.FinalizerKeyword => "finalizer",
             SyntaxKind.DeferKeyword => "defer",
             SyntaxKind.ScopedKeyword => "scoped",
+            SyntaxKind.FinalKeyword => "final",
             SyntaxKind.UnreachableKeyword => "unreachable",
             _ => null,
         };

@@ -88,9 +88,10 @@
         - [3.2.2.11](Current/Data.md#32211-x--y) `x \/ y`
         - [3.2.2.12](Current/Data.md#32212-x--y-z) `x >< [y, z]`
       - [3.2.3](Current/Data.md#323-isisntas-operators) Is/Isnt/As Operators
-    - [3.3](Current/Data.md#33-variables-and-constants) Variables and Constants
-      - [3.3.1](Current/Data.md#331-implicit-typing) Implicit Typing
-    - [3.4](Current/Data.md#34-attributes-and-modifiers) Attributes and Modifiers
+    - [3.3](Current/Data.md#33-data-containers) Data Containers
+      - [3.3.1](Current/Data.md#331-modifiers) Modifiers
+      - [3.3.1](Current/Data.md#332-implicit-typing) Implicit Typing
+    - [3.4](Current/Data.md#34-annotations) Annotations
     - [3.5](Current/Data.md#35-references) References
     - [3.6](Current/Data.md#36-arrays) Arrays
     - [3.7](Current/Data.md#37-compile-time-expressions) Compile-Time Expressions

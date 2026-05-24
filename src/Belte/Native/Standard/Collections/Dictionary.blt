@@ -254,7 +254,7 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
 
         public override bool! MoveNext() {
             while ((uint32)_index < (uint32)_dictionary._count) {
-                ref Entry reference = ref _dictionary._entries[_index++];
+                ref const Entry reference = ref _dictionary._entries[_index++];
 
                 if (reference.next >= -1) {
                     _current = new KeyValuePair<TKey, TValue>()

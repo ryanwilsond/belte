@@ -9,6 +9,8 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
 
     public bool isConst => declarationKind == DataContainerDeclarationKind.Constant;
 
+    public bool isFinal => declarationKind == DataContainerDeclarationKind.Final;
+
     public bool isConstExpr => declarationKind == DataContainerDeclarationKind.ConstantExpression;
 
     public bool isNullable => typeWithAnnotations.isNullable;
@@ -71,12 +73,11 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
         get {
             switch (declarationKind) {
                 case DataContainerDeclarationKind.Constant:
+                case DataContainerDeclarationKind.Final:
                 case DataContainerDeclarationKind.ConstantExpression:
-                    // TODO Assignment doesn't really make sense but we allow it because assigning to fields does make sense
-                    // TODO We should probably differentiate between local assignment and local modification
-                    // case DataContainerDeclarationKind.ForEachLocal:
-                    // case DataContainerDeclarationKind.NullBindingLocal:
-                    // case DataContainerDeclarationKind.UsingLocal:
+                case DataContainerDeclarationKind.ForEachLocal:
+                case DataContainerDeclarationKind.NullBindingLocal:
+                case DataContainerDeclarationKind.ScopedLocal:
                     return false;
                 default:
                     return true;

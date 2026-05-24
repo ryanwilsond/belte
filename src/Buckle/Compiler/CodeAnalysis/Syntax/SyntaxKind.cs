@@ -167,6 +167,7 @@ public enum SyntaxKind : ushort {
     DeferKeyword,
     UnreachableKeyword,
     ScopedKeyword,
+    FinalKeyword,
     HandleKeyword,
 
     // Trivia

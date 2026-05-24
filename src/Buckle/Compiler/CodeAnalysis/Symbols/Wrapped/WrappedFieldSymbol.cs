@@ -13,6 +13,8 @@ internal abstract class WrappedFieldSymbol : FieldSymbol {
 
     public override bool isConst => underlyingField.isConst;
 
+    public override bool isFinal => underlyingField.isFinal;
+
     public override bool isConstExpr => underlyingField.isConstExpr;
 
     public override RefKind refKind => underlyingField.refKind;

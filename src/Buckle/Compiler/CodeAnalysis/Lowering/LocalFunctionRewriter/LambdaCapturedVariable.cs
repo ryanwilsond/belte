@@ -16,6 +16,7 @@ internal sealed class LambdaCapturedVariable : SynthesizedFieldSymbolBase {
                fieldName,
                isPublic: true,
                isConst: false,
+               isFinal: false,
                isStatic: false,
                isConstExpr: false) {
         _type = type;

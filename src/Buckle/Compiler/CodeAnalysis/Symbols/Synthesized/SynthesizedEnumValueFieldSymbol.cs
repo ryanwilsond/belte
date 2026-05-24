@@ -8,6 +8,7 @@ internal sealed class SynthesizedEnumValueFieldSymbol : SynthesizedFieldSymbolBa
             WellKnownMemberNames.EnumBackingFieldName,
             isPublic: true,
             isConst: false,
+            isFinal: false,
             isConstExpr: false,
             isStatic: false) { }
 

@@ -146,7 +146,7 @@ public static class SymbolDisplay {
                     text.Write(CreatePunctuation(", "));
 
                 if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeModifiers) != 0)
-                    DisplayConstExprRef(text, false, false, param.refKind);
+                    DisplayConstExprRef(text, false, false, false, param.refKind);
 
                 DisplayType(text, param.type, format);
 
@@ -176,7 +176,7 @@ public static class SymbolDisplay {
                     text.Write(CreatePunctuation(", "));
 
                 if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeModifiers) != 0)
-                    DisplayConstExprRef(text, false, false, param.refKind);
+                    DisplayConstExprRef(text, false, false, false, param.refKind);
 
                 DisplayType(text, param.type, format);
 
@@ -335,7 +335,7 @@ public static class SymbolDisplay {
             DisplayModifiers(text, field);
 
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeModifiers) != 0)
-            DisplayConstExprRef(text, field.isConst, field.isConstExpr, field.refKind);
+            DisplayConstExprRef(text, field.isConst, field.isFinal, field.isConstExpr, field.refKind);
 
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeType) != 0) {
             DisplayType(text, field.type, ToMemberTypeFormat(format));
@@ -352,7 +352,7 @@ public static class SymbolDisplay {
         var needSpace = false;
 
         if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeModifiers) != 0)
-            DisplayConstExprRef(text, false, false, parameter.refKind);
+            DisplayConstExprRef(text, false, false, false, parameter.refKind);
 
         if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeType) != 0) {
             DisplayType(text, parameter.type, ToMemberTypeFormat(format));
@@ -446,8 +446,15 @@ public static class SymbolDisplay {
         DisplayText text,
         DataContainerSymbol dataContainer,
         SymbolDisplayFormat format) {
-        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeModifiers) != 0)
-            DisplayConstExprRef(text, dataContainer.isConst, dataContainer.isConstExpr, dataContainer.refKind);
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeModifiers) != 0) {
+            DisplayConstExprRef(
+                text,
+                dataContainer.isConst,
+                dataContainer.isFinal,
+                dataContainer.isConstExpr,
+                dataContainer.refKind
+            );
+        }
 
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeType) != 0) {
             DisplayType(text, dataContainer.type, ToMemberTypeFormat(format));
@@ -544,7 +551,7 @@ public static class SymbolDisplay {
             DisplayModifiers(text, method);
 
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeModifiers) != 0)
-            DisplayConstExprRef(text, method.isEffectivelyConst, false, method.refKind);
+            DisplayConstExprRef(text, method.isEffectivelyConst, false, false, method.refKind);
 
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeType) != 0) {
             DisplayType(text, method.returnType, ToMemberTypeFormat(format));
@@ -663,9 +670,19 @@ public static class SymbolDisplay {
         }
     }
 
-    private static void DisplayConstExprRef(DisplayText text, bool isConst, bool isConstExpr, RefKind refKind) {
+    private static void DisplayConstExprRef(
+        DisplayText text,
+        bool isConst,
+        bool isFinal,
+        bool isConstExpr,
+        RefKind refKind) {
         if (isConst) {
             text.Write(CreateKeyword(SyntaxKind.ConstKeyword));
+            text.Write(CreateSpace());
+        }
+
+        if (isFinal) {
+            text.Write(CreateKeyword(SyntaxKind.FinalKeyword));
             text.Write(CreateSpace());
         }
 
@@ -681,6 +698,11 @@ public static class SymbolDisplay {
 
         if (refKind == RefKind.RefConst) {
             text.Write(CreateKeyword(SyntaxKind.ConstKeyword));
+            text.Write(CreateSpace());
+        }
+
+        if (refKind == RefKind.RefFinal) {
+            text.Write(CreateKeyword(SyntaxKind.FinalKeyword));
             text.Write(CreateSpace());
         }
     }

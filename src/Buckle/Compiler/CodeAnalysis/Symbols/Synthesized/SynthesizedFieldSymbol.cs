@@ -11,11 +11,12 @@ internal sealed class SynthesizedFieldSymbol : SynthesizedFieldSymbolBase {
         string name,
         bool isPublic,
         bool isConst,
+        bool isFinal,
         bool isConstExpr,
         bool isStatic,
         bool hasConstantValue = false,
         object constantValue = null)
-        : base(containingType, name, isPublic, isConst, isConstExpr, isStatic) {
+        : base(containingType, name, isPublic, isConst, isFinal, isConstExpr, isStatic) {
         _type = new TypeWithAnnotations(type);
         this.hasConstantValue = hasConstantValue;
         this.constantValue = constantValue;

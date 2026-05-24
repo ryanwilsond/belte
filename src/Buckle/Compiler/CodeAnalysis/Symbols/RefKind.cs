@@ -7,4 +7,6 @@ public enum RefKind : byte {
     Out,
     RefConst,
     RefConstParameter,
+    RefFinal,
+    RefFinalParameter,
 }

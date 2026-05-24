@@ -46,6 +46,7 @@ internal abstract class SourceMemberFieldSymbol : SourceFieldSymbolWithSyntaxRef
         var allowedModifiers =
             DeclarationModifiers.AccessibilityMask |
             DeclarationModifiers.Const |
+            DeclarationModifiers.Final |
             DeclarationModifiers.ConstExpr |
             DeclarationModifiers.New |
             DeclarationModifiers.LowLevel |

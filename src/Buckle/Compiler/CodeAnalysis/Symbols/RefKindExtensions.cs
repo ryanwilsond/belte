@@ -8,6 +8,7 @@ internal static class RefKindExtensions {
             RefKind.Ref => "ref",
             RefKind.Out => "out",
             RefKind.RefConstParameter => "ref const",
+            RefKind.RefFinalParameter => "ref final",
             _ => throw ExceptionUtilities.UnexpectedValue(kind),
         };
     }
@@ -18,6 +19,7 @@ internal static class RefKindExtensions {
                 return true;
             case RefKind.None:
             case RefKind.RefConstParameter:
+            case RefKind.RefFinalParameter:
                 return false;
             default:
                 throw ExceptionUtilities.UnexpectedValue(refKind);

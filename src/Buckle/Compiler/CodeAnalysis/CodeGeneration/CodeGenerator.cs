@@ -199,7 +199,7 @@ internal sealed partial class CodeGenerator {
                 var funcPtrRefKind = funcPtrInvocation.functionPointer.signature.refKind;
 
                 if (funcPtrRefKind == RefKind.Ref ||
-                    (IsAnyReadOnly(addressKind) && funcPtrRefKind == RefKind.RefConst)) {
+                    (IsAnyReadOnly(addressKind) && funcPtrRefKind is RefKind.RefConst or RefKind.RefFinal)) {
                     EmitCalli(funcPtrInvocation, UseKind.UsedAsAddress);
                     break;
                 }
@@ -267,7 +267,7 @@ internal sealed partial class CodeGenerator {
     internal static bool UseCallResultAsAddress(BoundCallExpression call, AddressKind addressKind) {
         var methodRefKind = call.method.refKind;
         return methodRefKind == RefKind.Ref ||
-               (IsAnyReadOnly(addressKind) && methodRefKind == RefKind.RefConst);
+               (IsAnyReadOnly(addressKind) && methodRefKind is RefKind.RefConst or RefKind.RefFinal);
     }
 
     private void EmitConditionalOperatorAddress(BoundConditionalOperator expression, AddressKind addressKind) {
@@ -1065,7 +1065,9 @@ oneMoreTime:
         } else {
             EmitAddress(
                 expression,
-                _method.refKind == RefKind.RefConst ? AddressKind.ReadOnlyStrict : AddressKind.Writeable
+                _method.refKind is RefKind.RefConst or RefKind.RefFinal
+                    ? AddressKind.ReadOnlyStrict
+                    : AddressKind.Writeable
             );
         }
 
@@ -2912,7 +2914,8 @@ oneMoreTime:
 
             var temp = EmitAddress(
                 assignmentOperator.right,
-                lhs.GetRefKind() is RefKind.RefConst or RefKind.RefConstParameter
+                lhs.GetRefKind() is RefKind.RefConst or RefKind.RefConstParameter or
+                                    RefKind.RefFinal or RefKind.RefFinalParameter
                     ? AddressKind.ReadOnlyStrict
                     : AddressKind.Writeable
             );

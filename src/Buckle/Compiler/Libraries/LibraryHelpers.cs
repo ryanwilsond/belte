@@ -181,7 +181,18 @@ public static class LibraryHelpers {
     }
 
     internal static SynthesizedFieldSymbol ConstExprField(string name, SpecialOrKnownType type, object constantValue) {
-        return new SynthesizedFieldSymbol(null, type.knownType, name, true, false, true, true, true, constantValue);
+        return new SynthesizedFieldSymbol(
+            null,
+            type.knownType,
+            name,
+            isPublic: true,
+            isConst: false,
+            isFinal: false,
+            isConstExpr: true,
+            isStatic: true,
+            hasConstantValue: true,
+            constantValue
+        );
     }
 
     internal static SynthesizedFinishedNamedTypeSymbol StaticClass(string name, ImmutableArray<Symbol> members) {
@@ -218,6 +229,7 @@ public static class LibraryHelpers {
                         field.name,
                         field.declaredAccessibility == Accessibility.Public,
                         field.isConst,
+                        field.isFinal,
                         field.isConstExpr,
                         field.isStatic,
                         field.hasConstantValue,

@@ -951,7 +951,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         int nRefParametersRequired;
 
         if (method.returnType.IsRefLikeOrAllowsRefLikeType() ||
-            (method.refKind is RefKind.Ref or RefKind.RefConst)) {
+            (method.refKind is RefKind.Ref or RefKind.RefConst or RefKind.RefFinal)) {
             nRefParametersRequired = 1;
         } else if (parameters.Any(p => (p.refKind is RefKind.Ref) && p.type.IsRefLikeOrAllowsRefLikeType())) {
             nRefParametersRequired = 2;
@@ -1791,6 +1791,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                     result,
                     GeneratedNames.MakeAnonymousUnionFieldName(result.name),
                     true,
+                    false,
                     false,
                     false,
                     false
