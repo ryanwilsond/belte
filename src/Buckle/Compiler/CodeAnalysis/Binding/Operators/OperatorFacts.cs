@@ -7,10 +7,15 @@ namespace Buckle.CodeAnalysis.Binding;
 
 internal static class OperatorFacts {
     internal static bool NoUserDefinedOperators(TypeSymbol type) {
-        return type.typeKind switch {
-            TypeKind.Class or TypeKind.TemplateParameter => false,
-            _ => true,
-        };
+        switch (type.typeKind) {
+            case TypeKind.Class:
+            case TypeKind.Struct:
+            case TypeKind.Enum:
+            case TypeKind.TemplateParameter:
+                return false;
+            default:
+                return true;
+        }
     }
 
     internal static bool IsValidObjectEquality(
@@ -86,6 +91,8 @@ internal static class OperatorFacts {
             BinaryOperatorKind.Subtraction => WellKnownMemberNames.SubtractionOperatorName,
             BinaryOperatorKind.Xor => WellKnownMemberNames.BitwiseExclusiveOrOperatorName,
             BinaryOperatorKind.Power => WellKnownMemberNames.PowerOperatorName,
+            BinaryOperatorKind.Min => WellKnownMemberNames.SlashBackslashOperatorName,
+            BinaryOperatorKind.Max => WellKnownMemberNames.BackslashSlashOperatorName,
             _ => throw ExceptionUtilities.UnexpectedValue(kind & BinaryOperatorKind.OpMask),
         };
     }
@@ -115,6 +122,8 @@ internal static class OperatorFacts {
             case BinaryOperatorKind.And:
             case BinaryOperatorKind.Or:
             case BinaryOperatorKind.Xor:
+            case BinaryOperatorKind.Min:
+            case BinaryOperatorKind.Max:
                 return new BinaryOperatorSignature(kind, left, left, left);
             case BinaryOperatorKind.Addition:
                 return new BinaryOperatorSignature(kind, left, TypeFromKind(kind), TypeFromKind(kind));
@@ -148,9 +157,15 @@ internal static class OperatorFacts {
 
     internal static UnaryOperatorSignature GetSignature(UnaryOperatorKind kind) {
         var opType = kind.OperandTypes() switch {
+            UnaryOperatorKind.Int8 => CorLibrary.GetSpecialType(SpecialType.Int8),
+            UnaryOperatorKind.Int16 => CorLibrary.GetSpecialType(SpecialType.Int16),
+            UnaryOperatorKind.Int32 => CorLibrary.GetSpecialType(SpecialType.Int32),
+            UnaryOperatorKind.UInt8 => CorLibrary.GetSpecialType(SpecialType.UInt8),
+            UnaryOperatorKind.UInt16 => CorLibrary.GetSpecialType(SpecialType.UInt16),
+            UnaryOperatorKind.UInt32 => CorLibrary.GetSpecialType(SpecialType.UInt32),
             // UnaryOperatorKind.Int => CorLibrary.GetSpecialType(SpecialType.Int64),
-            UnaryOperatorKind.Int => CorLibrary.GetSpecialType(SpecialType.Int),
-            UnaryOperatorKind.UInt => CorLibrary.GetSpecialType(SpecialType.UInt64),
+            UnaryOperatorKind.Int64 => CorLibrary.GetSpecialType(SpecialType.Int),
+            UnaryOperatorKind.UInt64 => CorLibrary.GetSpecialType(SpecialType.UInt64),
             UnaryOperatorKind.Char => CorLibrary.GetSpecialType(SpecialType.Char),
             UnaryOperatorKind.Float32 => CorLibrary.GetSpecialType(SpecialType.Float32),
             // UnaryOperatorKind.Float64 => CorLibrary.GetSpecialType(SpecialType.Float64),
@@ -167,9 +182,15 @@ internal static class OperatorFacts {
 
     internal static TypeSymbol TypeFromKind(BinaryOperatorKind kind) {
         var type = kind.OperandTypes() switch {
+            BinaryOperatorKind.Int8 => CorLibrary.GetSpecialType(SpecialType.Int8),
+            BinaryOperatorKind.Int16 => CorLibrary.GetSpecialType(SpecialType.Int16),
+            BinaryOperatorKind.Int32 => CorLibrary.GetSpecialType(SpecialType.Int32),
+            BinaryOperatorKind.UInt8 => CorLibrary.GetSpecialType(SpecialType.UInt8),
+            BinaryOperatorKind.UInt16 => CorLibrary.GetSpecialType(SpecialType.UInt16),
+            BinaryOperatorKind.UInt32 => CorLibrary.GetSpecialType(SpecialType.UInt32),
             // BinaryOperatorKind.Int => CorLibrary.GetSpecialType(SpecialType.Int64),
-            BinaryOperatorKind.Int => CorLibrary.GetSpecialType(SpecialType.Int),
-            BinaryOperatorKind.UInt => CorLibrary.GetSpecialType(SpecialType.UInt64),
+            BinaryOperatorKind.Int64 => CorLibrary.GetSpecialType(SpecialType.Int),
+            BinaryOperatorKind.UInt64 => CorLibrary.GetSpecialType(SpecialType.UInt64),
             BinaryOperatorKind.Float32 => CorLibrary.GetSpecialType(SpecialType.Float32),
             // BinaryOperatorKind.Float64 => CorLibrary.GetSpecialType(SpecialType.Float64),
             BinaryOperatorKind.Float64 => CorLibrary.GetSpecialType(SpecialType.Decimal),

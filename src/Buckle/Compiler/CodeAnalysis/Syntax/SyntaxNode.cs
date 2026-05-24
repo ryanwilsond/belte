@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
 using System.Threading;
@@ -117,6 +118,12 @@ public abstract partial class SyntaxNode {
     public bool isList => green.isList;
 
     public bool isFabricated => green.isFabricated;
+
+    public bool containsDirectives => green.containsDirectives;
+
+    public bool isStructuredTrivia => green.isStructuredTrivia;
+
+    internal SyntaxNode parentOrStructuredTriviaParent => GetParent(this, ascendOutOfTrivia: true);
 
     /// <summary>
     /// The underlying basic node information.
@@ -382,6 +389,24 @@ public abstract partial class SyntaxNode {
         }
 
         return null;
+    }
+
+    internal IEnumerable<SyntaxNode> AncestorsAndSelf(bool ascendOutOfTrivia = true) {
+        for (var node = this; node is not null; node = GetParent(node, ascendOutOfTrivia))
+            yield return node;
+    }
+
+    public bool IsPartOfStructuredTrivia() {
+        for (var node = this; node is not null; node = node.parent) {
+            if (node.isStructuredTrivia)
+                return true;
+        }
+
+        return false;
+    }
+
+    internal IList<DirectiveTriviaSyntax> GetDirectives(Func<DirectiveTriviaSyntax, bool> filter = null) {
+        return ((SyntaxNodeOrToken)this).GetDirectives(filter);
     }
 
     private static SyntaxNode GetParent(SyntaxNode node, bool ascendOutOfTrivia) {

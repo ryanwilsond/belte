@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -10,10 +11,13 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
-    internal PrimitiveTypeSymbol(string name, SpecialType specialType, int arity = 0) {
+    private NamedTypeSymbol _lazyBaseType;
+
+    internal PrimitiveTypeSymbol(string name, SpecialType specialType, int arity = 0, NamedTypeSymbol baseType = null) {
         this.name = name;
         this.specialType = specialType;
         this.arity = arity;
+        _lazyBaseType = baseType;
         templateParameters = ConstructTemplateParameters();
     }
 
@@ -49,7 +53,14 @@ internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
 
     internal override bool isRefLikeType => false;
 
-    internal override NamedTypeSymbol baseType => null;
+    internal override NamedTypeSymbol baseType {
+        get {
+            if (_lazyBaseType is null)
+                Interlocked.CompareExchange(ref _lazyBaseType, CorLibrary.GetSpecialType(SpecialType.Object), null);
+
+            return _lazyBaseType;
+        }
+    }
 
     internal override SyntaxReference syntaxReference => throw new InvalidOperationException();
 

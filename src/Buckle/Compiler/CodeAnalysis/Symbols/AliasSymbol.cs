@@ -6,7 +6,7 @@ using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal abstract class AliasSymbol : Symbol {
+internal abstract class AliasSymbol : Symbol, IAliasSymbol {
     private readonly ImmutableArray<TextLocation> _locations;
 
     private protected AliasSymbol(
@@ -100,4 +100,6 @@ internal abstract class AliasSymbol : Symbol {
     }
 
     internal abstract override bool requiresCompletion { get; }
+
+    INamespaceOrTypeSymbol IAliasSymbol.target => target;
 }

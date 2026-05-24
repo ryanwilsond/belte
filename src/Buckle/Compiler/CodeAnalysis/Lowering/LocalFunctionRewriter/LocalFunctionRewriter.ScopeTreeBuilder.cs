@@ -71,7 +71,7 @@ internal sealed partial class LocalFunctionRewriter {
         internal override BoundNode VisitTryStatement(BoundTryStatement node) {
             // TODO This is probably wrong, doesn't seem to account for locals inside the catch and finally bodies
             var oldScope = _currentScope;
-            PushOrReuseScope(node, ((BoundBlockStatement)node.body).locals);
+            PushOrReuseScope(node, node.body.locals);
             var result = base.VisitTryStatement(node);
             PopScope(oldScope);
             return result;
@@ -125,7 +125,7 @@ internal sealed partial class LocalFunctionRewriter {
 
         internal override BoundNode VisitLabelStatement(BoundLabelStatement node) {
             _labelsInScope.Peek().Add(node.label);
-            _scopesAfterLabel.Add(node.label, ArrayBuilder<Scope>.GetInstance());
+            _scopesAfterLabel.TryAdd(node.label, ArrayBuilder<Scope>.GetInstance());
             return base.VisitLabelStatement(node);
         }
 
@@ -176,7 +176,11 @@ internal sealed partial class LocalFunctionRewriter {
             if (_currentFunction is null)
                 return;
 
-            if (symbol is DataContainerSymbol local && (local.isConstExpr || local.isGlobal))
+            // Optimization: In the case of script evaluator globals we can skip capturing because they're always accessible
+            var canSkipCapturing = symbol is DataContainerSymbol local &&
+                (local.isConstExpr || (local.isGlobal && _options.isScript && _options.buildMode.Evaluating()));
+
+            if (canSkipCapturing)
                 return;
 
             if (symbol is MethodSymbol method && _currentFunction.originalMethodSymbol == method)
@@ -186,7 +190,7 @@ internal sealed partial class LocalFunctionRewriter {
                 var scope = _currentScope;
                 var function = _currentFunction;
 
-                while (function != null && symbol.containingSymbol != function.originalMethodSymbol) {
+                while (function is not null && symbol.containingSymbol != function.originalMethodSymbol) {
                     function.capturedVariables.Add(symbol);
 
                     while (scope.containingFunction == function)

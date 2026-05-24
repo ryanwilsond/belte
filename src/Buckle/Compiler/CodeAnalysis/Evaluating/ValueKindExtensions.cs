@@ -19,6 +19,7 @@ internal static class ValueKindExtensions {
             SpecialType.Float64 => ValueKind.Float64,
             SpecialType.Decimal => ValueKind.Float64,
             SpecialType.Bool => ValueKind.Bool,
+            SpecialType.WinBool => ValueKind.Int32,
             SpecialType.String => ValueKind.String,
             SpecialType.Char => ValueKind.Char,
             _ => def ?? throw ExceptionUtilities.UnexpectedValue(specialType),

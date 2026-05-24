@@ -9,7 +9,7 @@ using static Buckle.CodeAnalysis.Binding.BoundFactory;
 namespace Buckle.CodeAnalysis.Lowering;
 
 /// <summary>
-/// Optimizes BoundExpressions and BoundStatements.
+/// Optimizes BoundExpressions and BoundStatements. Can be run multiple times.
 /// </summary>
 internal sealed class Optimizer : BoundTreeRewriter {
     private Optimizer() { }
@@ -29,12 +29,27 @@ internal sealed class Optimizer : BoundTreeRewriter {
         for (var i = 0; i < builder.Count; i++) {
             var statement = builder[i];
 
-            // TODO This only works on surface level and breaks on nested trys
-            // TODO Will have to rewrite the CFG builder from scratch fix trys later
-            if (!reachableStatements.Contains(statement) && statement.kind is not BoundKind.TryStatement and not
-                BoundKind.SequencePoint and not BoundKind.SequencePointWithLocation) {
-                var statementToRemove = statement;
-                PotentiallyReportDeadCode(statementToRemove);
+again:
+            if (!reachableStatements.Contains(statement)) {
+                if (statement is BoundSequencePoint seqPoint) {
+                    statement = seqPoint.statement;
+
+                    if (statement is null)
+                        continue;
+
+                    goto again;
+                }
+
+                if (statement is BoundSequencePointWithLocation seqPointWithLocation) {
+                    statement = seqPointWithLocation.statement;
+
+                    if (statement is null)
+                        continue;
+
+                    goto again;
+                }
+
+                PotentiallyReportDeadCode(statement);
                 builder.RemoveAt(i);
                 i--;
             }
@@ -48,13 +63,42 @@ internal sealed class Optimizer : BoundTreeRewriter {
             if (syntax.kind == SyntaxKind.LocalFunctionStatement)
                 return;
 
-            // TODO Eventually replace this with a proper FlowAnalysisPass on BoundNode.WasCompilerGenerated
-            if (node.kind is BoundKind.GotoStatement or BoundKind.LabelStatement)
+            if (node.kind == BoundKind.LabelStatement)
                 return;
 
-            // TODO CFG is broken so these warnings are not being triggered correctly
-            // if (seenScopes.Add(syntax.parent))
-            //     diagnostics.Push(Warning.UnreachableCode(syntax.location));
+            // TODO This would be cleaner to instead have a isCompilerGenerated property on all bound nodes
+            if (node.kind == BoundKind.GotoStatement && !IsUserDeclaredGoto(node.syntax))
+                return;
+
+            if (node.kind == BoundKind.ReturnStatement && !IsUserDeclaredReturn(node.syntax))
+                return;
+
+            if (node.kind == BoundKind.ExpressionStatement &&
+                node.syntax.kind is SyntaxKind.WithStatement or SyntaxKind.WithExpression) {
+                return;
+            }
+
+            if (seenScopes.Add(syntax.parent))
+                diagnostics.Push(Warning.UnreachableCode(syntax.location));
+        }
+
+        bool IsUserDeclaredGoto(SyntaxNode syntax) {
+            switch (syntax.kind) {
+                case SyntaxKind.ContinueStatement:
+                case SyntaxKind.BreakStatement:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        bool IsUserDeclaredReturn(SyntaxNode syntax) {
+            switch (syntax.kind) {
+                case SyntaxKind.ReturnStatement:
+                    return true;
+                default:
+                    return false;
+            }
         }
     }
 

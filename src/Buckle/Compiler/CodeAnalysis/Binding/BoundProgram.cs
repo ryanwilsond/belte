@@ -134,6 +134,27 @@ internal sealed partial class BoundProgram {
         return builder.ToImmutableAndFree();
     }
 
+    internal ImmutableArray<NamedTypeSymbol> GetTypesToEmit(params SpecialType[] typesToInclude) {
+        var types = GetAllTypes();
+        var length = types.Length;
+        var builder = ArrayBuilder<NamedTypeSymbol>.GetInstance(length);
+
+        for (var i = 0; i < length; i++) {
+            var t = types[i];
+
+            if (t.kind == SymbolKind.NamedType &&
+                t.containingSymbol.kind == SymbolKind.Namespace &&
+                (t.specialType is SpecialType.None or SpecialType.List or
+                                  SpecialType.Dictionary or SpecialType.Enumerator ||
+                 System.MemoryExtensions.Contains(typesToInclude, t.specialType)) &&
+                t.originalDefinition is not PENamedTypeSymbol) {
+                builder.Add((NamedTypeSymbol)t);
+            }
+        }
+
+        return builder.ToImmutableAndFree();
+    }
+
     private bool MethodBodyLookupUsingOriginals(MethodSymbol method, out BoundBlockStatement body) {
         var current = this;
 

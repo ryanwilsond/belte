@@ -9,6 +9,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol, IAttributeTargetSymbol {
     private readonly bool _hasDefaultValue;
     private CustomAttributesBag<AttributeData> _lazyAttributesBag;
+    private ConstantValue _lazyOutDefaultValue;
 
     private protected ConstantValue _lazyDefaultSyntaxValue;
 
@@ -48,6 +49,15 @@ internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol
         get {
             var syntax = (ParameterSyntax)syntaxReference.node;
             return (syntax is not null) ? syntax.attributeLists : default;
+        }
+    }
+
+    internal override ConstantValue outDefaultValue {
+        get {
+            if (!_state.HasComplete(CompletionParts.EndDefaultSyntaxValue))
+                _ = explicitDefaultConstantValue;
+
+            return _lazyOutDefaultValue;
         }
     }
 
@@ -147,6 +157,11 @@ internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol
                     Binder.ConversionForAssignmentFlags.DefaultParameter
                 );
             }
+        }
+
+        if (refKind == RefKind.Out) {
+            Interlocked.CompareExchange(ref _lazyOutDefaultValue, convertedExpression.constantValue, null);
+            return null;
         }
 
         return convertedExpression.constantValue;

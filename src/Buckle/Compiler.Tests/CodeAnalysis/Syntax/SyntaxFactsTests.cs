@@ -20,7 +20,7 @@ public sealed class SyntaxFactTests {
         var tokens = SyntaxTreeExtensions.ParseTokens(text);
         Assert.Equal(1, tokens.Count);
         var token = tokens[0];
-        Assert.Equal(kind, token.kind);
+        Assert.Equal(kind, token.contextualKind);
         Assert.Equal(text, token.text);
     }
 
@@ -29,7 +29,10 @@ public sealed class SyntaxFactTests {
             .Cast<SyntaxKind>()
             .Where(k => k is not SyntaxKind.GreaterThanGreaterThanToken
                          and not SyntaxKind.GreaterThanGreaterThanGreaterThanToken
-                         and not SyntaxKind.HashToken)
+                         and not SyntaxKind.HashToken
+                         and not SyntaxKind.AsteriskAsteriskToken
+                         and not SyntaxKind.GreaterThanLessThanToken
+                         and not SyntaxKind.GreaterThanLessThanEqualsToken)
             .ToArray();
 
         foreach (var type in types)

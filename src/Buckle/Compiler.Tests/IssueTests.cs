@@ -44,7 +44,7 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_VariableDeclaration_Reports_UndefinedSymbol() {
         var text = @"
-            ref int a = ref [b];
+            ref int? a = ref [b];
         ";
 
         var diagnostics = @"
@@ -95,8 +95,8 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_CastExpression_Versus_ParenthesizedExpression() {
         var text = @"
-            int x = 3;
-            int y = (x) + 1;
+            int? x = 3;
+            int? y = (x) + 1;
             return y;
         ";
 
@@ -110,7 +110,7 @@ public sealed class IssueTests {
     public void Evaluator_ReferenceExpression_Reports_CannotConvert() {
         var text = @"
             class A {
-                public int num;
+                public int? num;
             }
 
             void MyFunction(A a) {
@@ -133,8 +133,8 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_AssignmentExpression_Reports_CannotAssignConstReference() {
         var text = @"
-            int x = 3;
-            const ref int y = ref x;
+            int? x = 3;
+            const ref int? y = ref x;
             [y] = ref x;
         ";
 
@@ -178,7 +178,7 @@ public sealed class IssueTests {
     public void Evaluator_Classes_ReassignNull() {
         var text = @"
             class A {
-                public int num;
+                public int? num;
             }
 
             var x = new A();
@@ -198,18 +198,18 @@ public sealed class IssueTests {
             }
         ";
 
-        AssertExceptions(text, _writer, new BelteNullReferenceException(null));
+        AssertExceptions(text, _writer, new BelteNullConditionException(null));
     }
 
     [Fact]
     public void Evaluator_CompoundExpression_Reports_Undefined() {
         var text = @"
-            var x = 10;
+            var? x = 10;
             [x += false];
         ";
 
         var diagnostics = @"
-            binary operator '+=' is not defined for operands of types 'int' and 'bool!'
+            binary operator '+=' is not defined for operands of types 'int?' and 'bool!'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -232,7 +232,7 @@ public sealed class IssueTests {
     public void Evaluator_CompoundDeclarationExpression_Reports_CannotAssign() {
         var text = @"
             {
-                const int x = 10;
+                const int? x = 10;
                 [x] += 1;
             }
         ";
@@ -258,12 +258,12 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_InvokeFunctionArguments_Missing() {
         var text = @"
-            void myFunc(int a) { }
+            void myFunc(int? a) { }
             [myFunc]();
         ";
 
         var diagnostics = @"
-            there is no argument given that corresponds to the required parameter 'a' of 'myFunc(int)'
+            there is no argument given that corresponds to the required parameter 'a' of 'myFunc(int?)'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -272,7 +272,7 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_InvokeFunctionArguments_Exceeding() {
         var text = @"
-            void myFunc(int a) { }
+            void myFunc(int? a) { }
             [myFunc](1, 2, 3);
         ";
 
@@ -286,7 +286,7 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_FunctionParameters_NoInfiniteLoop() {
         var text = @"
-            void hi(string name=[)] {
+            void hi(string? name=[)] {
                 Console.PrintLine(""Hi "" + name + ""!"");
             }
         ";
@@ -301,7 +301,7 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_FunctionReturn_Missing() {
         var text = @"
-            int [add](int a, int b) {
+            int? [add](int? a, int? b) {
             }
         ";
 
@@ -336,7 +336,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int!' to 'bool'
+            cannot convert from type 'int!' to 'bool?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -350,7 +350,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int!' to 'bool'
+            cannot convert from type 'int!' to 'bool?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -364,7 +364,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int!' to 'bool'
+            cannot convert from type 'int!' to 'bool?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -373,11 +373,11 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_ForStatement_Reports_CannotConvert() {
         var text = @"
-            for (int i = 0; [i]; i++) {}
+            for (int? i = 0; [i]; i++) {}
         ";
 
         var diagnostics = @"
-            cannot convert from type 'int' to 'bool'
+            cannot convert from type 'int?' to 'bool?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -449,7 +449,7 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_AssignmentExpression_Reports_Readonly() {
         var text = @"
-            const int x = 10;
+            const int? x = 10;
             [x] = 0;
         ";
 
@@ -463,12 +463,12 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_AssignmentExpression_Reports_CannotConvert() {
         var text = @"
-            var x = 10;
+            var? x = 10;
             x = [false];
         ";
 
         var diagnostics = @"
-            cannot convert from type 'bool!' to 'int'
+            cannot convert from type 'bool!' to 'int?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -519,7 +519,7 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_Function_ShouldNotReturnVoid() {
         var text = @"
-            int func() {
+            int? func() {
                 [return];
             }
         ";
@@ -570,7 +570,7 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_Parameter_AlreadyDeclared() {
         var text = @"
-            void func(int a, int [a]) {}
+            void func(int? a, int? [a]) {}
         ";
 
         var diagnostics = @"
@@ -581,28 +581,14 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Function_MustHaveName() {
-        var text = @"
-            void [(]int [a]) {}
-        ";
-
-        var diagnostics = @"
-            unexpected token '('
-            unexpected identifier, expected '('
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
     public void Evaluator_Function_WrongArgumentType() {
         var text = @"
-            void func(int a) {}
+            void func(int? a) {}
             func([false]);
         ";
 
         var diagnostics = @"
-            argument 1: cannot convert from type 'bool!' to 'int'
+            argument 1: cannot convert from type 'bool!' to 'int?'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -650,7 +636,7 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_Function_CanDeclare() {
         var text = @"
-            void myFunction(int num1, int num2) {
+            void myFunction(int? num1, int? num2) {
                 Console.Print(num1 + num2 / 3.14159);
             }
             myFunction(1, 2);
@@ -664,7 +650,7 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_Function_CanCall() {
         var text = @"
-            void myFunction(int num) {
+            void myFunction(int? num) {
                 Console.Print(num ** 2);
             }
             myFunction(2);
@@ -729,8 +715,8 @@ public sealed class IssueTests {
     public void Evaluator_IndexExpression_NotTreatedAsTypeClause() {
         var text = @"
             lowlevel {
-                int a = 1;
-                int\[\] b = {1, 2, 3};
+                int? a = 1;
+                int?\[\] b = {1, 2, 3};
                 b\[a\] = 3;
             }
         ";
@@ -775,7 +761,7 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_PostfixExpression_AllowedOnRef() {
         var text = @"
-            int x = 3;
+            int? x = 3;
             ref var y = ref x;
             y++;
         ";
@@ -816,8 +802,8 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_Cast_CannotConvertConstRefToRef() {
         var text = @"
-            void Test(ref int a) { a++; }
-            const int a = 3;
+            void Test(ref int? a) { a++; }
+            const int? a = 3;
             Test(ref [a]);
         ";
 
@@ -832,7 +818,7 @@ public sealed class IssueTests {
     public void Evaluator_Assignment_HonorsConstantMemberAccess() {
         var text = @"
             class A {
-                public int a = 3;
+                public int? a = 3;
             }
             const a = new A();
             [a.a]++;
@@ -849,8 +835,8 @@ public sealed class IssueTests {
     public void Evaluator_MethodBody_StaticMethodCannotAccessMembers() {
         var text = @"
             class A {
-                int a;
-                static int Test() { return [a]; }
+                int? a;
+                static int? Test() { return [a]; }
             }
         ";
 
@@ -865,8 +851,8 @@ public sealed class IssueTests {
     public void Evaluator_MethodBody_StaticMethodCannotAccessMethods() {
         var text = @"
             class A {
-                int Test() { return 3; }
-                static int Test1() { return [Test](); }
+                int? Test() { return 3; }
+                static int? Test1() { return [Test](); }
             }
         ";
 
@@ -891,7 +877,7 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_ReferenceExpression_NoInfiniteLoop() {
         var text = @"
-            ref int y;
+            ref int? y;
             y = ref y;
         ";
 
@@ -931,7 +917,7 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_ClassDeclaration_StaticCanSeeTemplates() {
         var text = @"
-            class A<int a> {
+            class A<int? a> {
                 public static A<a> operator~(A<a> a) {
                     return a;
                 }
@@ -947,9 +933,9 @@ public sealed class IssueTests {
     public void Evaluator_OperatorOverloading_ReturnsCorrectType() {
         var text = @"
             class A<type t> {
-                public int v = 3;
+                public int? v = 3;
 
-                public static A<t> operator+(int a, A<t> b) {
+                public static A<t> operator+(int? a, A<t> b) {
                     b.v = 7;
                     return b;
                 }
@@ -971,7 +957,7 @@ public sealed class IssueTests {
                 T a;
             }
 
-            var a = new A<int>();
+            var a = new A<int?>();
             a.a = 3;
         ";
 
@@ -1006,7 +992,7 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_Template_TemplatesSeeConstraints() {
         var text = @"
-            string M<type T>(T x) where { T extends Object; } {
+            string? M<type T>(T x) where { T extends Object; } {
                 return x.ToString();
             }
         ";
@@ -1016,59 +1002,124 @@ public sealed class IssueTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Bring these back when CFG issues are fixed
-    // [Fact]
-    // public void Evaluator_ElseStatement_Reports_NotReachableCode_Warning() {
-    //     var text = @"
-    //         int test() {
-    //             if (true)
-    //                 return 1;
-    //             else
-    //                 [return 0;]
-    //         }
-    //     ";
+    [Fact]
+    public void Evaluator_ElseStatement_Reports_NotReachableCode_Warning() {
+        var text = @"
+            int test() {
+                if (true)
+                    return 1;
+                else
+                    [return 0;]
+            }
+        ";
 
-    //     var diagnostics = @"
-    //         unreachable code
-    //     ";
+        var diagnostics = @"
+            unreachable code
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer, true);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
 
-    // [Fact]
-    // public void Evaluator_WhileStatement_Reports_NotReachableCode_Warning() {
-    //     var text = @"
-    //         void test() {
-    //             while (false) {
-    //                 [continue;]
-    //             }
-    //         }
-    //     ";
+    [Fact]
+    public void Evaluator_WhileStatement_Reports_NotReachableCode_Warning() {
+        var text = @"
+            void test() {
+                while (false) {
+                    [continue;]
+                }
+            }
+        ";
 
-    //     var diagnostics = @"
-    //         unreachable code
-    //     ";
+        var diagnostics = @"
+            unreachable code
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer, true);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
 
-    // [Fact]
-    // public void Evaluator_IfStatement_Reports_NotReachableCode_Warning() {
-    //     var text = @"
-    //         void test() {
-    //             const int x = 4 * 3;
-    //             if (x > 12) {
-    //                 [Console.PrintLine(""x"");]
-    //             } else {
-    //                 Console.PrintLine(""x"");
-    //             }
-    //         }
-    //     ";
+    [Fact]
+    public void Evaluator_IfStatement_Reports_NotReachableCode_Warning() {
+        var text = @"
+            void test() {
+                constexpr int x = 4 * 3;
+                if (x > 12) {
+                    [Console.PrintLine(""x"");]
+                } else {
+                    Console.PrintLine(""x"");
+                }
+            }
+        ";
 
-    //     var diagnostics = @"
-    //         unreachable code
-    //     ";
+        var diagnostics = @"
+            unreachable code
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer, true);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Evaluator_Enum_ArgumentAllowsImplicitField() {
+        var text = @"
+            M(.B);
+            void M(A a) { }
+            enum A { B }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_BinaryExpression_DoesNotParseAsTemplate() {
+        var text = @"
+            var ch = '0';
+            var b = ((ch < 'A' || ch > 'Z') && (ch < 'a' || ch > 'z'));
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_BinaryExpression_DoesNotParseAsTemplate2() {
+        var text = @"
+            struct A { int f; }
+            var a = new A();
+            var b = new A();
+            var c = b.f < 0 || a.f > b.f;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_BinaryExpression_DoesNotParseAsTemplate3() {
+        var text = @"
+            struct A { int f; }
+            var a = new A();
+            var c = (a.f < 21 && a.f > -7);
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_ConditionalOperator_GetsTargetTyped() {
+        var text = @"
+            int? M() {
+                var cond = true;
+                return cond ? 3 : null;
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

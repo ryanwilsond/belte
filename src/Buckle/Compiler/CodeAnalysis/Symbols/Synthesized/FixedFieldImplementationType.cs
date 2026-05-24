@@ -39,6 +39,10 @@ internal sealed class FixedFieldImplementationType : SynthesizedContainer {
     internal override IEnumerable<string> memberNames
         => SpecializedCollections.SingletonEnumerable(FixedElementFieldName);
 
+    internal override Accessibility declaredAccessibility => Accessibility.Public;
+
+    internal override NamedTypeSymbol baseType => null;
+
     internal override ImmutableArray<Symbol> GetMembers() {
         return [_constructor, _internalField];
     }
@@ -49,8 +53,4 @@ internal sealed class FixedFieldImplementationType : SynthesizedContainer {
             (name == FixedElementFieldName) ? [_internalField] :
             [];
     }
-
-    internal override Accessibility declaredAccessibility => Accessibility.Public;
-
-    internal override NamedTypeSymbol baseType => null;
 }

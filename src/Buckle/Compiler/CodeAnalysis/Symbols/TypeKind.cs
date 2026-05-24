@@ -15,4 +15,5 @@ public enum TypeKind : byte {
     Error,
     Pointer,
     FunctionPointer,
+    Function,
 }

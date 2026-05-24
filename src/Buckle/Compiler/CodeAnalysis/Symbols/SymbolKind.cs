@@ -11,6 +11,7 @@ public enum SymbolKind : byte {
     ErrorType,
     PointerType,
     FunctionPointerType,
+    FunctionType,
     Method,
     Parameter,
     TemplateParameter,
@@ -20,4 +21,5 @@ public enum SymbolKind : byte {
     Alias,
     Assembly,
     Module,
+    Preprocessing,
 }

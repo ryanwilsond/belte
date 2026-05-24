@@ -1,0 +1,24 @@
+
+public abstract class Enumerator<type T> {
+    public abstract bool! MoveNext();
+
+    public abstract T Current();
+
+    public virtual void Reset() {
+        throw new InvalidOperationException();
+    }
+
+    public T[] ToArray() {
+        return ToList().ToArray();
+    }
+
+    public List<T> ToList() {
+        Reset();
+        var builder = new List<T>();
+
+        while (MoveNext())
+            builder.Append(Current());
+
+        return builder;
+    }
+}

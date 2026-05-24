@@ -2,9 +2,9 @@
 public class Exception {
     public constructor() : this("Exception thrown") { }
 
-    public constructor(string message) {
+    public constructor(string? message) {
         this.message = message;
     }
 
-    public string message;
+    public string? message;
 }

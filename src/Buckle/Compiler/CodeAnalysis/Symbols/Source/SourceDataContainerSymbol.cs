@@ -97,6 +97,7 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
                     typeSyntax,
                     BelteDiagnosticQueue.Discarded,
                     out var result,
+                    out _,
                     out _
                 );
 
@@ -143,6 +144,31 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
             initializerBinder ?? scopeBinder
         );
     }
+    internal static SourceDataContainerSymbol MakeDeconstructionLocal(
+        Symbol containingSymbol,
+        Binder scopeBinder,
+        Binder nodeBinder,
+        TypeSyntax closestTypeSyntax,
+        SyntaxToken identifierToken,
+        DataContainerDeclarationKind kind,
+        SyntaxNode deconstruction) {
+        return closestTypeSyntax is null || closestTypeSyntax.SkipRef(out _).isImplicitlyTyped
+            ? new DeconstructionLocalSymbol(
+                containingSymbol,
+                scopeBinder,
+                nodeBinder,
+                closestTypeSyntax,
+                identifierToken,
+                kind,
+                deconstruction)
+            : new SourceDataContainerSymbol(
+                containingSymbol,
+                scopeBinder,
+                allowRefKind: false,
+                closestTypeSyntax,
+                identifierToken,
+                SyntaxTokenList.Empty);
+    }
 
     internal sealed override ImmutableArray<AttributeData> GetAttributes() {
         return GetAttributesBag().attributes;
@@ -163,7 +189,7 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
     }
 
     private OneOrMany<SyntaxList<AttributeListSyntax>> GetAttributeDeclarations() {
-        return OneOrMany.Create(((LocalDeclarationStatementSyntax)GetDeclarationSyntax().parent).attributeLists);
+        return OneOrMany.Create((GetDeclarationSyntax().parent as LocalDeclarationStatementSyntax)?.attributeLists);
     }
 
     internal sealed override SyntaxNode GetDeclarationSyntax() {
@@ -228,18 +254,21 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
 
         bool isImplicitlyTyped;
         bool isNonNullable;
+        bool isNullable;
         TypeWithAnnotations declarationType;
 
         if (_typeSyntax is null) {
             isImplicitlyTyped = true;
             isNonNullable = false;
+            isNullable = false;
             declarationType = default;
         } else {
             declarationType = scopeBinder.BindTypeOrImplicitType(
                 _typeSyntax.SkipRef(out _),
                 diagnostics,
                 out isImplicitlyTyped,
-                out isNonNullable
+                out isNonNullable,
+                out isNullable
             );
         }
 
@@ -249,6 +278,9 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
             if (inferredType.hasType && !inferredType.IsVoidType()) {
                 if (isNonNullable && inferredType.IsNullableType())
                     inferredType = new TypeWithAnnotations(inferredType.nullableUnderlyingTypeOrSelf);
+
+                if (isNullable && !inferredType.IsNullableType())
+                    inferredType = inferredType.SetIsAnnotated();
 
                 declarationType = inferredType;
             } else {

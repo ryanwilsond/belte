@@ -1,11 +1,11 @@
 
 public class FRect {
-    public decimal x;
-    public decimal y;
-    public decimal w;
-    public decimal h;
+    public decimal? x;
+    public decimal? y;
+    public decimal? w;
+    public decimal? h;
 
-    public constructor(decimal x, decimal y, decimal w, decimal h) {
+    public constructor(decimal? x, decimal? y, decimal? w, decimal? h) {
         this.x = x;
         this.y = y;
         this.w = w;

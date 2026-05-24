@@ -58,6 +58,8 @@ public sealed class SyntaxToken {
     /// </summary>
     public int position { get; }
 
+    internal int endPosition => node is not null ? position + node.fullWidth : 0;
+
     /// <summary>
     /// The slot index of this token in relation to the parent.
     /// </summary>
@@ -158,6 +160,16 @@ public sealed class SyntaxToken {
             return default;
 
         return SyntaxNavigator.Instance.GetNextToken(this, includeZeroWidth, includeSkipped);
+    }
+
+    public SyntaxToken GetPreviousToken(
+        bool includeZeroWidth = false,
+        bool includeSkipped = false,
+        bool includeDirectives = false) {
+        if (node is null)
+            return default;
+
+        return SyntaxNavigator.Instance.GetPreviousToken(this, includeZeroWidth, includeSkipped, includeDirectives);
     }
 
     public override string ToString() {

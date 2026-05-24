@@ -11,11 +11,15 @@ internal enum SymbolDisplayMemberOptions : byte {
     IncludeParameters = 1 << 3,
     IncludeContainingType = 1 << 4,
     IncludeConstantValue = 1 << 5,
+    IncludeAttributes = 1 << 6,
+    IncludeTypeModifiers = 1 << 7,
 
     Everything = IncludeType
         | IncludeModifiers
         | IncludeAccessibility
         | IncludeParameters
         | IncludeContainingType
-        | IncludeConstantValue,
+        | IncludeConstantValue
+        | IncludeAttributes
+        | IncludeTypeModifiers
 }

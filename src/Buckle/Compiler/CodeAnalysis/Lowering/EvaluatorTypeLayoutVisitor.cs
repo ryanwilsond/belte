@@ -1,26 +1,30 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
 internal sealed class EvaluatorTypeLayoutVisitor : SymbolVisitor {
-    private readonly Dictionary<NamedTypeSymbol, EvaluatorSlotManager> _typeLayouts;
+    private readonly ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder _typeLayouts;
+    private readonly HashSet<NamedTypeSymbol> _visited;
 
-    private EvaluatorTypeLayoutVisitor() {
-        _typeLayouts = [];
+    private EvaluatorTypeLayoutVisitor(ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder typeLayouts) {
+        _typeLayouts = typeLayouts;
+        _visited = [];
     }
 
-    internal static Dictionary<NamedTypeSymbol, EvaluatorSlotManager> CreateTypeLayouts(
+    internal static void CreateTypeLayouts(
+        ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder typeLayouts,
         NamespaceSymbol globalNamespace) {
-        var typeVisitor = new EvaluatorTypeLayoutVisitor();
+        var typeVisitor = new EvaluatorTypeLayoutVisitor(typeLayouts);
         typeVisitor.Visit(globalNamespace);
-        return typeVisitor._typeLayouts;
     }
 
-    internal static Dictionary<NamedTypeSymbol, EvaluatorSlotManager> CreateTypeLayouts(NamedTypeSymbol type) {
-        var typeVisitor = new EvaluatorTypeLayoutVisitor();
+    internal static void CreateTypeLayouts(
+        ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder typeLayouts,
+        NamedTypeSymbol type) {
+        var typeVisitor = new EvaluatorTypeLayoutVisitor(typeLayouts);
         typeVisitor.Visit(type);
-        return typeVisitor._typeLayouts;
     }
 
     internal override void VisitNamespace(NamespaceSymbol symbol) {
@@ -29,6 +33,9 @@ internal sealed class EvaluatorTypeLayoutVisitor : SymbolVisitor {
     }
 
     internal override void VisitNamedType(NamedTypeSymbol symbol) {
+        if (!_visited.Add(symbol))
+            return;
+
         var typeLayout = new EvaluatorSlotManager(symbol);
         var current = symbol;
         var types = new Stack<NamedTypeSymbol>();
@@ -54,19 +61,57 @@ internal sealed class EvaluatorTypeLayoutVisitor : SymbolVisitor {
                 }
             }
 
+            var slot = typeLayout.currentSlot;
+            var isUnionStruct = current.isUnionStruct;
+            var isAnonymousUnion = symbol is AnonymousUnionType;
+            var seenGroupIds = new HashSet<int>();
+
             foreach (var member in current.GetMembers()) {
                 switch (member) {
                     case FieldSymbol field:
-                        typeLayout.DeclareLocal(
-                            field.type,
-                            field,
-                            field.name,
-                            SynthesizedLocalKind.UserDefined,
-                            (field.refKind != RefKind.None)
-                                ? CodeGeneration.LocalSlotConstraints.ByRef
-                                : CodeGeneration.LocalSlotConstraints.None,
-                            false
-                        );
+                        if (!isAnonymousUnion && field.isAnonymousUnionMember) {
+                            if (seenGroupIds.Add(field.unionGroupId)) {
+                                var namedType = (SourceNamedTypeSymbol)symbol;
+                                var union = namedType.anonymousUnionTypes[field];
+                                var unionField = namedType.anonymousUnionFields[union];
+
+                                typeLayout.DeclareLocalWithSlot(
+                                    union,
+                                    unionField,
+                                    unionField.name,
+                                    SynthesizedLocalKind.UserDefined,
+                                    (field.refKind != RefKind.None)
+                                        ? CodeGeneration.LocalSlotConstraints.ByRef
+                                        : CodeGeneration.LocalSlotConstraints.None,
+                                    slot++
+                                );
+
+                                union.Accept(this);
+                            }
+                        } else if (isUnionStruct) {
+                            typeLayout.DeclareLocalWithSlot(
+                                field.type,
+                                field,
+                                field.name,
+                                SynthesizedLocalKind.UserDefined,
+                                (field.refKind != RefKind.None)
+                                    ? CodeGeneration.LocalSlotConstraints.ByRef
+                                    : CodeGeneration.LocalSlotConstraints.None,
+                                slot
+                            );
+                        } else {
+                            typeLayout.DeclareLocalWithSlot(
+                                field.type,
+                                field,
+                                field.name,
+                                SynthesizedLocalKind.UserDefined,
+                                (field.refKind != RefKind.None)
+                                    ? CodeGeneration.LocalSlotConstraints.ByRef
+                                    : CodeGeneration.LocalSlotConstraints.None,
+                                slot++
+                            );
+                        }
+
                         break;
                     case NamedTypeSymbol namedTypeSymbol:
                         namedTypeSymbol.Accept(this);
@@ -75,6 +120,7 @@ internal sealed class EvaluatorTypeLayoutVisitor : SymbolVisitor {
             }
         }
 
+        // We don't care if this fails
         _typeLayouts.TryAdd(symbol, typeLayout);
     }
 }

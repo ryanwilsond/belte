@@ -10,6 +10,7 @@ internal sealed partial class LanguageParser {
         NonTemplateTypeOrExpression,
         AliasQualifiedName,
         NonNullableType,
+        NullableType,
         PointerOrMultiplication,
     }
 }

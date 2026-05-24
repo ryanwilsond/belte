@@ -58,8 +58,11 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     private DeclaredMembersAndInitializers _lazyDeclaredMembersAndInitializers = DeclaredMembersAndInitializers.UninitializedSentinel;
     private MembersAndInitializers _lazyMembersAndInitializers;
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> _lazyMembersDictionary;
+    private Dictionary<FieldSymbol, AnonymousUnionType> _lazyAnonymousUnionTypes;
+    private Dictionary<AnonymousUnionType, FieldSymbol> _lazyAnonymousUnionFields;
     private ImmutableArray<Symbol> _lazyMembersFlattened;
     private ThreeState _lazyAnyMemberHasAttributes;
+    private int _lazyKnownCircularStruct;
 
     private bool _fieldDefinitionsNoted;
 
@@ -95,6 +98,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         _state.NotePartComplete(CompletionParts.TemplateArguments);
 
         enumFlagsAttribute = syntaxReference.node is EnumDeclarationSyntax e && e.flagsKeyword is not null;
+
+        isFileScoped = declaration.syntaxReferences[0].node.kind == SyntaxKind.FileScopedClassDeclaration;
     }
 
     public override string name => _declaration.name;
@@ -115,7 +120,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
     internal sealed override bool requiresCompletion => true;
 
-    internal sealed override Accessibility declaredAccessibility => ModifierHelpers.EffectiveAccessibility(_modifiers);
+    internal sealed override Accessibility declaredAccessibility
+        => ModifierHelpers.EffectiveAccessibility(_modifiers, isFileScoped);
 
     internal sealed override NamedTypeSymbol constructedFrom => this;
 
@@ -144,11 +150,45 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         }
     }
 
+    internal override bool isImplicitClass => _declaration.declarations[0].kind == DeclarationKind.ImplicitClass;
+
+    internal override bool isImplicitlyDeclared => isImplicitClass;
+
+    internal MergedTypeDeclaration mergedDeclaration => _declaration;
+
     internal ImmutableArray<ImmutableArray<FieldInitializer>> instanceInitializers
         => GetMembersAndInitializers().instanceInitializers;
 
     internal ImmutableArray<ImmutableArray<FieldInitializer>> staticInitializers
         => GetMembersAndInitializers().staticInitializers;
+
+    internal Dictionary<FieldSymbol, AnonymousUnionType> anonymousUnionTypes => _lazyAnonymousUnionTypes;
+
+    internal Dictionary<AnonymousUnionType, FieldSymbol> anonymousUnionFields => _lazyAnonymousUnionFields;
+
+    internal bool isFileScoped { get; }
+
+    internal override bool knownCircularStruct {
+        get {
+            if (_lazyKnownCircularStruct == (int)ThreeState.Unknown) {
+                if (typeKind != TypeKind.Struct) {
+                    Interlocked.CompareExchange(ref _lazyKnownCircularStruct, (int)ThreeState.False, (int)ThreeState.Unknown);
+                } else {
+                    var diagnostics = BelteDiagnosticQueue.GetInstance();
+                    var value = (int)CheckStructCircularity(diagnostics).ToThreeState();
+
+                    if (Interlocked.CompareExchange(ref _lazyKnownCircularStruct, value, (int)ThreeState.Unknown) ==
+                        (int)ThreeState.Unknown) {
+                        AddDeclarationDiagnostics(diagnostics);
+                    }
+
+                    diagnostics.Free();
+                }
+            }
+
+            return _lazyKnownCircularStruct == (int)ThreeState.True;
+        }
+    }
 
     internal sealed override ImmutableArray<Symbol> GetMembers() {
         if (!_lazyMembersFlattened.IsDefault)
@@ -362,8 +402,29 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         CheckMemberNameConflicts(diagnostics);
         CheckSpecialMemberErrors(diagnostics);
         CheckTemplateParameterNameConflicts(diagnostics);
+
+        _ = knownCircularStruct;
+
         CheckForProtectedInStaticClass(diagnostics);
         CheckForUnmatchedOperators(diagnostics);
+        CheckUnionIsNonEmpty(diagnostics);
+    }
+
+    private void CheckUnionIsNonEmpty(BelteDiagnosticQueue diagnostics) {
+        if (!isUnionStruct)
+            return;
+
+        var hasNonStaticField = false;
+
+        foreach (var m in GetMembers()) {
+            if (m is FieldSymbol f && !f.isStatic) {
+                hasNonStaticField = true;
+                break;
+            }
+        }
+
+        if (!hasNonStaticField)
+            diagnostics.Push(Error.UnionMustHaveField(location));
     }
 
     private void CheckForUnmatchedOperators(BelteDiagnosticQueue diagnostics) {
@@ -383,6 +444,12 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             diagnostics,
             WellKnownMemberNames.LessThanOrEqualOperatorName,
             WellKnownMemberNames.GreaterThanOrEqualOperatorName
+        );
+
+        CheckForUnmatchedOperator(
+            diagnostics,
+            WellKnownMemberNames.SlashBackslashOperatorName,
+            WellKnownMemberNames.BackslashSlashOperatorName
         );
 
         CheckForEqualityAndGetHashCode(diagnostics);
@@ -490,6 +557,17 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                             var isNew = sourceMethod.isNew;
                             CheckNonOverrideMember(method, isNew, method.overriddenOrHiddenMembers, diagnostics);
                         }
+                    } else if (method.methodKind == MethodKind.Destructor) {
+                        // TODO Do we care about this error
+                        // MethodSymbol overridden = method.GetFirstRuntimeOverriddenMethodIgnoringNewSlot(out _);
+
+                        // // NOTE: Dev11 doesn't expose symbols, so it can treat destructors as override and let them go through the normal
+                        // // checks.  Roslyn can't, since the language says they are not virtual/override and that's what we need to expose
+                        // // in the symbol model.  Having said that, Dev11 doesn't seem to produce override errors other than this one
+                        // // (see SymbolPreparer::prepareOperator).
+                        // if ((object)overridden != null && overridden.IsMetadataFinal) {
+                        //     diagnostics.Add(ErrorCode.ERR_CantOverrideSealed, method.GetFirstLocation(), method, overridden);
+                        // }
                     }
 
                     break;
@@ -1078,7 +1156,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         foreach (var valuesByName in GetMembersByName().Values) {
             foreach (var member in valuesByName) {
                 if (member.declaredAccessibility.HasProtected()) {
-                    diagnostics.Push(Error.ProtectedInStatic(member.location, member));
+                    if (member.kind != SymbolKind.Method || ((MethodSymbol)member).methodKind != MethodKind.Destructor)
+                        diagnostics.Push(Error.ProtectedInStatic(member.location, member));
                 }
             }
         }
@@ -1189,6 +1268,19 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             diagnostics.Push(Error.MemberAlreadyExists(method1.location, this, method1.name));
     }
 
+    private static void CheckForStructDefaultConstructors(
+        ArrayBuilder<Symbol> members,
+        BelteDiagnosticQueue diagnostics) {
+        foreach (var s in members) {
+            if (s is MethodSymbol m) {
+                if (m.methodKind == MethodKind.Constructor && m.parameterCount == 0) {
+                    if (m.declaredAccessibility != Accessibility.Public)
+                        diagnostics.Push(Error.NonPublicParameterlessStructConstructor(m.location));
+                }
+            }
+        }
+    }
+
     private void CheckMemberNamesDistinctFromType(BelteDiagnosticQueue diagnostics) {
         foreach (var member in GetMembersAndInitializers().nonTypeMembers)
             CheckMemberNameDistinctFromType(member, diagnostics);
@@ -1232,7 +1324,6 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     private void NoteFieldDefinitions() {
         var membersAndInitializers = GetMembersAndInitializers();
 
-        // TODO This is thread protection, but is this code ever called from multiple places?
         lock (membersAndInitializers) {
             if (!_fieldDefinitionsNoted) {
                 // TODO Implement this to support unused fields warnings
@@ -1390,7 +1481,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 case TypeKind.Struct:
                     // TODO, but pretty sure we just do nothing here, same for enum
                     // CheckForStructBadInitializers(builder, diagnostics);
-                    // CheckForStructDefaultConstructors(builder.nonTypeMembers, isEnum: false, diagnostics: diagnostics);
+                    CheckForStructDefaultConstructors(builder.nonTypeMembers, diagnostics);
                     break;
                 default:
                     break;
@@ -1416,13 +1507,21 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
         switch (syntax.kind) {
             case SyntaxKind.EnumDeclaration:
-                AddEnumMembers(builder, (EnumDeclarationSyntax)syntax, diagnostics);
+                var enumDeclaration = (EnumDeclarationSyntax)syntax;
+                AddEnumMembers(builder, enumDeclaration, diagnostics);
+                AddNonTypeMembers(builder, enumDeclaration.members, diagnostics);
                 break;
             case SyntaxKind.CompilationUnit:
                 AddNonTypeMembers(builder, ((CompilationUnitSyntax)syntax).members, diagnostics);
                 break;
+            case SyntaxKind.NamespaceDeclaration:
+            case SyntaxKind.FileScopedNamespaceDeclaration:
+                AddNonTypeMembers(builder, ((BaseNamespaceDeclarationSyntax)syntax).members, diagnostics);
+                break;
             case SyntaxKind.ClassDeclaration:
+            case SyntaxKind.FileScopedClassDeclaration:
             case SyntaxKind.StructDeclaration:
+            case SyntaxKind.UnionDeclaration:
                 var typeDeclaration = (TypeDeclarationSyntax)syntax;
                 NoteTypeParameters(typeDeclaration, builder);
                 AddNonTypeMembers(builder, typeDeclaration.members, diagnostics);
@@ -1455,18 +1554,22 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
         var otherSymbolOffset = 0;
 
-        foreach (var member in syntax.enumMembers) {
+        foreach (var member in syntax.members) {
+            if (member is not EnumMemberDeclarationSyntax enumMember)
+                break;
+
             SourceEnumConstantSymbol symbol;
-            var valueOpt = member.equalsValue;
+            var valueOpt = enumMember.equalsValue;
 
             if (valueOpt is not null) {
-                symbol = SourceEnumConstantSymbol.CreateExplicitValuedConstant(this, member, diagnostics);
+                symbol = SourceEnumConstantSymbol.CreateExplicitValuedConstant(this, enumMember, diagnostics);
             } else {
                 symbol = SourceEnumConstantSymbol.CreateImplicitValuedConstant(
                     this,
-                    member,
+                    enumMember,
                     otherSymbol,
                     otherSymbolOffset,
+                    enumFlagsAttribute,
                     diagnostics
                 );
             }
@@ -1477,15 +1580,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 otherSymbol = symbol;
                 otherSymbolOffset = 1;
             } else {
-                otherSymbolOffset = Next(otherSymbolOffset);
+                otherSymbolOffset++;
             }
-        }
-
-        int Next(int offset) {
-            if (enumFlagsAttribute && (offset & (offset - 1)) == 0)
-                return offset << 1;
-
-            return offset + 1;
         }
     }
 
@@ -1506,40 +1602,39 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             var reportMisplacedGlobalCode = !m.containsDiagnostics;
 
             switch (m.kind) {
-                case SyntaxKind.FieldDeclaration: {
-                        var fieldSyntax = (FieldDeclarationSyntax)m;
+                case SyntaxKind.UnionDeclaration: {
+                        var unionSyntax = (UnionDeclarationSyntax)m;
 
-                        var modifiers = SourceMemberFieldSymbol.MakeModifiers(
-                            this,
-                            fieldSyntax.declaration.identifier,
-                            fieldSyntax.modifiers,
-                            diagnostics,
-                            out var modifierErrors
-                        );
+                        if (unionSyntax.identifier is not null)
+                            break;
 
-                        var declaration = fieldSyntax.declaration;
-                        var fieldSymbol = declaration.argumentList is null
-                            ? new SourceMemberFieldSymbolFromDeclarator(
-                                this,
-                                declaration,
-                                modifiers,
-                                modifierErrors,
-                                diagnostics)
-                            : new SourceFixedFieldSymbol(this, declaration, modifiers, modifierErrors, diagnostics);
-
-                        builder.nonTypeMembers.Add(fieldSymbol);
-
-                        if (declaration.initializer is not null) {
-                            if (fieldSymbol.isStatic)
-                                AddInitializer(ref staticInitializers, fieldSymbol, declaration.initializer);
-                            else
-                                AddInitializer(ref instanceInitializers, fieldSymbol, declaration.initializer);
+                        if (unionSyntax.members.Count == 0) {
+                            diagnostics.Push(Error.UnionMustHaveField(unionSyntax.keyword.location));
+                            break;
                         }
+
+                        var unionMembers = ArrayBuilder<SourceMemberFieldSymbol>.GetInstance();
+
+                        foreach (var u in unionSyntax.members) {
+                            unionMembers.Add(AddFieldMember(
+                                (FieldDeclarationSyntax)u,
+                                reportMisplacedGlobalCode && !u.containsDiagnostics
+                            ));
+                        }
+
+                        SetAnonymousUnionType(unionMembers.ToImmutableAndFree());
                     }
 
                     break;
+                case SyntaxKind.FieldDeclaration:
+                    AddFieldMember((FieldDeclarationSyntax)m, reportMisplacedGlobalCode);
+                    break;
                 case SyntaxKind.MethodDeclaration: {
                         var methodSyntax = (MethodDeclarationSyntax)m;
+
+                        if (isImplicitClass && reportMisplacedGlobalCode)
+                            diagnostics.Push(Error.NamespaceUnexpected(methodSyntax.identifier.location));
+
                         var method = SourceOrdinaryMethodSymbol.CreateMethodSymbol(
                             this,
                             methodSyntax,
@@ -1552,6 +1647,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 case SyntaxKind.ConstructorDeclaration: {
                         var constructorSyntax = (ConstructorDeclarationSyntax)m;
 
+                        if (isImplicitClass && reportMisplacedGlobalCode)
+                            diagnostics.Push(Error.NamespaceUnexpected(constructorSyntax.constructorKeyword.location));
+
                         var constructor = SourceConstructorSymbol.CreateConstructorSymbol(
                             this,
                             constructorSyntax,
@@ -1561,8 +1659,21 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         builder.nonTypeMembers.Add(constructor);
                     }
                     break;
+                case SyntaxKind.DestructorDeclaration: {
+                        var destructorSyntax = (DestructorDeclarationSyntax)m;
+
+                        if (isImplicitClass && reportMisplacedGlobalCode)
+                            diagnostics.Push(Error.NamespaceUnexpected(destructorSyntax.destructorKeyword.location));
+
+                        var destructor = new SourceDestructorSymbol(this, destructorSyntax, diagnostics);
+                        builder.nonTypeMembers.Add(destructor);
+                    }
+                    break;
                 case SyntaxKind.OperatorDeclaration: {
                         var operatorSyntax = (OperatorDeclarationSyntax)m;
+
+                        if (isImplicitClass && reportMisplacedGlobalCode)
+                            diagnostics.Push(Error.NamespaceUnexpected(operatorSyntax.operatorKeyword.location));
 
                         var method = SourceUserDefinedOperatorSymbol.CreateUserDefinedOperatorSymbol(
                             this,
@@ -1575,6 +1686,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                     break;
                 case SyntaxKind.ConversionDeclaration: {
                         var conversionSyntax = (ConversionDeclarationSyntax)m;
+
+                        if (isImplicitClass && reportMisplacedGlobalCode)
+                            diagnostics.Push(Error.NamespaceUnexpected(conversionSyntax.operatorKeyword.location));
 
                         var method = SourceUserDefinedConversionSymbol.CreateUserDefinedConversionSymbol(
                             this,
@@ -1592,6 +1706,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                     if (reportMisplacedGlobalCode &&
                         !SyntaxFacts.IsSimpleProgramTopLevelStatement((GlobalStatementSyntax)m)) {
                         // TODO Report misplaced global code? (Think the MethodCompiler handles this actually...)
+                        // diagnostics.Push(Error.NamespaceUnexpected(globalStatement.location));
                     }
 
                     break;
@@ -1602,6 +1717,76 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
         AddInitializers(builder.instanceInitializers, instanceInitializers);
         AddInitializers(builder.staticInitializers, staticInitializers);
+
+        SourceMemberFieldSymbol AddFieldMember(FieldDeclarationSyntax fieldSyntax, bool reportMisplacedGlobalCode) {
+            if (isImplicitClass && reportMisplacedGlobalCode)
+                diagnostics.Push(Error.NamespaceUnexpected(fieldSyntax.declaration.identifier.location));
+
+            var modifiers = SourceMemberFieldSymbol.MakeModifiers(
+                this,
+                fieldSyntax.declaration.identifier,
+                fieldSyntax.modifiers,
+                diagnostics,
+                out var modifierErrors
+            );
+
+            var declaration = fieldSyntax.declaration;
+            var fieldSymbol = declaration.argumentList is null
+                ? new SourceMemberFieldSymbolFromDeclarator(
+                    this,
+                    declaration,
+                    modifiers,
+                    modifierErrors,
+                    diagnostics)
+                : new SourceFixedFieldSymbol(this, declaration, modifiers, modifierErrors, diagnostics);
+
+            builder.nonTypeMembers.Add(fieldSymbol);
+
+            if (declaration.initializer is not null) {
+                if (fieldSymbol.isStatic)
+                    AddInitializer(ref staticInitializers, fieldSymbol, declaration.initializer);
+                else
+                    AddInitializer(ref instanceInitializers, fieldSymbol, declaration.initializer);
+            }
+
+            return fieldSymbol;
+        }
+
+        void SetAnonymousUnionType(ImmutableArray<SourceMemberFieldSymbol> fields) {
+            if (_lazyAnonymousUnionTypes is null)
+                Interlocked.CompareExchange(ref _lazyAnonymousUnionTypes, [], null);
+
+            AnonymousUnionType result;
+
+            lock (_lazyAnonymousUnionTypes) {
+                if (!_lazyAnonymousUnionTypes.TryGetValue(fields[0], out result)) {
+                    result = new AnonymousUnionType(this, fields);
+
+                    foreach (var field in fields)
+                        _lazyAnonymousUnionTypes.Add(field, result);
+                }
+            }
+
+            if (_lazyAnonymousUnionFields is null)
+                Interlocked.CompareExchange(ref _lazyAnonymousUnionFields, [], null);
+
+            lock (_lazyAnonymousUnionFields) {
+                if (_lazyAnonymousUnionFields.TryGetValue(result, out _))
+                    return;
+
+                var field = new SynthesizedFieldSymbol(
+                    this,
+                    result,
+                    GeneratedNames.MakeAnonymousUnionFieldName(result.name),
+                    true,
+                    false,
+                    false,
+                    false
+                );
+
+                _lazyAnonymousUnionFields.Add(result, field);
+            }
+        }
     }
 
     private static void AddInitializer(
@@ -1673,11 +1858,17 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 break;
         }
 
-        if (!hasStaticConstructor)
+        if (!hasStaticConstructor && HasNonConstExprInitializer(declaredMembersAndInitializers.staticInitializers))
             builder.AddNonTypeMember(new SynthesizedStaticConstructor(this), declaredMembersAndInitializers);
 
-        if (!hasConstructor && !isStatic)
+        if ((!hasParameterlessConstructor && IsStructType()) || (!hasConstructor && !isStatic))
             builder.AddNonTypeMember(new SynthesizedInstanceConstructorSymbol(this), declaredMembersAndInitializers);
+
+        static bool HasNonConstExprInitializer(ImmutableArray<ImmutableArray<FieldInitializer>> initializers) {
+            return initializers.Any(
+                static siblings => siblings.Any(static initializer => !initializer.field.isConstExpr)
+            );
+        }
     }
 
     private DeclarationModifiers MakeModifiers(BelteDiagnosticQueue diagnostics) {
@@ -1793,7 +1984,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         return SpecialType.None;
     }
 
-    private static Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> ToNameKeyedDictionary(
+    internal static Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> ToNameKeyedDictionary(
         ImmutableArray<Symbol> symbols) {
         if (symbols is [var symbol]) {
             return new Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>>(
@@ -1964,6 +2155,86 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         }
 
         throw ExceptionUtilities.Unreachable();
+    }
+
+    private bool CheckStructCircularity(BelteDiagnosticQueue diagnostics) {
+        CheckFiniteFlatteningGraph(diagnostics);
+        return HasStructCircularity(diagnostics);
+    }
+
+    private bool HasStructCircularity(BelteDiagnosticQueue diagnostics) {
+        foreach (var valuesByName in GetMembersByName().Values) {
+            foreach (var member in valuesByName) {
+                if (member.kind != SymbolKind.Field)
+                    continue;
+
+                var field = (FieldSymbol)member;
+
+                if (field.isStatic)
+                    continue;
+
+                var type = field.NonPointerType();
+
+                if ((type is not null) &&
+                    (type.typeKind == TypeKind.Struct) &&
+                    BaseTypeAnalysis.StructDependsOn((NamedTypeSymbol)type, this)) {
+                    diagnostics.Push(Error.StructLayoutCycle(field.location, field, type));
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
+    private void CheckFiniteFlatteningGraph(BelteDiagnosticQueue diagnostics) {
+        if (AllTemplateArgumentsCount() == 0)
+            return;
+
+        var instanceMap = new Dictionary<NamedTypeSymbol, NamedTypeSymbol>(ReferenceEqualityComparer.Instance) {
+            { this, this }
+        };
+
+        foreach (var m in GetMembersUnordered()) {
+            if (m is not FieldSymbol f || !f.isStatic || f.type.typeKind != TypeKind.Struct)
+                continue;
+
+            var type = (NamedTypeSymbol)f.type;
+
+            if (InfiniteFlatteningGraph(this, type, instanceMap)) {
+                diagnostics.Push(Error.StructLayoutCycle(f.location, f, type));
+                return;
+            }
+        }
+    }
+
+    private static bool InfiniteFlatteningGraph(SourceMemberContainerTypeSymbol top, NamedTypeSymbol t, Dictionary<NamedTypeSymbol, NamedTypeSymbol> instanceMap) {
+        if (!t.ContainsTemplateParameter())
+            return false;
+
+        var tOriginal = t.originalDefinition;
+
+        if (instanceMap.TryGetValue(tOriginal, out var oldInstance)) {
+            return (!Equals(oldInstance, t, TypeCompareKind.IgnoreNullability)) && ReferenceEquals(tOriginal, top);
+        } else {
+            instanceMap.Add(tOriginal, t);
+
+            try {
+                foreach (var m in t.GetMembersUnordered()) {
+                    if (m is not FieldSymbol f || !f.isStatic || f.type.typeKind != TypeKind.Struct)
+                        continue;
+
+                    var type = (NamedTypeSymbol)f.type;
+
+                    if (InfiniteFlatteningGraph(top, type, instanceMap))
+                        return true;
+                }
+
+                return false;
+            } finally {
+                instanceMap.Remove(tOriginal);
+            }
+        }
     }
 
 

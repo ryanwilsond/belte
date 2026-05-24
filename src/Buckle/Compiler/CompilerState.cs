@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Diagnostics;
 
 namespace Buckle;
@@ -83,6 +84,11 @@ public class CompilerState {
     public bool verboseMode;
 
     /// <summary>
+    /// Same as "verbose" mode without creating file artifacts.
+    /// </summary>
+    public bool reducedVerboseMode;
+
+    /// <summary>
     /// The path to dump verbose output files.
     /// </summary>
     public string verbosePath;
@@ -91,4 +97,29 @@ public class CompilerState {
     /// Whether or not the compiler will log timing data about each stage of compilation.
     /// </summary>
     public bool time;
+
+    /// <summary>
+    /// Whether or not the compiler will use multiple CPU cores.
+    /// </summary>
+    public bool concurrentBuild;
+
+    /// <summary>
+    /// Maximum number of CPU cores to use for concurrent builds.
+    /// </summary>
+    public int maxCores;
+
+    /// <summary>
+    /// A type to search for the entry point in.
+    /// </summary>
+    public string entryName;
+
+    /// <summary>
+    /// Disables most of the Standard Library.
+    /// </summary>
+    public bool noStdLib;
+
+    /// <summary>
+    /// Specific diagnostic related options on a per-task basis
+    /// </summary>
+    public Dictionary<string, (DiagnosticSeverity, int, DiagnosticInfo[], DiagnosticInfo[])> taskDiagnosticOptions;
 }

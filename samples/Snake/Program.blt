@@ -9,11 +9,11 @@
 */
 
 class Program {
-    string! direction;
-    string! pendingDirection;
-    decimal! snakeTimer;
-    int! scoreCounter = 0;
-    int! highScoreCounter = 21;
+    string direction = "";
+    string pendingDirection = "";
+    decimal snakeTimer;
+    int scoreCounter = 0;
+    int highScoreCounter = 21;
 
     Text score;
     Text highScore;
@@ -26,12 +26,12 @@ class Program {
     Food food;
     Rect banner;
 
-    bool! previousW;
-    bool! previousA;
-    bool! previousS;
-    bool! previousD;
+    bool previousW;
+    bool previousA;
+    bool previousS;
+    bool previousD;
 
-    bool! gameOver;
+    bool gameOver;
 
     private void Main() {
         Graphics.Initialize("Snake", Settings.GameWidth, Settings.GameHeight + 80);
@@ -73,7 +73,7 @@ class Program {
         scoreCounter = 0;
     }
 
-    private void Update(decimal! deltaTime) {
+    private void Update(decimal deltaTime) {
         Graphics.Fill(0, 0, 0);
 
         if (gameOver) {
@@ -150,7 +150,7 @@ class Program {
             GameOver();
     }
 
-    private bool! CheckCollisions() {
+    private bool CheckCollisions() {
         var x = snake.coords[0].x;
         var y = snake.coords[0].y;
 

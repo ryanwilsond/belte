@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -99,9 +100,16 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
             case SyntaxKind.LocalFunctionStatement:
             case SyntaxKind.ExpressionStatement:
             case SyntaxKind.IfStatement:
+            case SyntaxKind.NullBindingStatement:
             case SyntaxKind.ReturnStatement:
+            case SyntaxKind.WithStatement:
                 embeddedScopeDesignator = statement;
                 return new EmbeddedStatementBinder(enclosing, statement);
+            case SyntaxKind.SwitchStatement:
+                var switchStatement = (SwitchStatementSyntax)statement;
+                embeddedScopeDesignator = switchStatement.expression;
+                return new ExpressionVariableBinder(switchStatement.expression, enclosing);
+
             default:
                 embeddedScopeDesignator = null;
                 return enclosing;
@@ -130,6 +138,10 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
     }
 
     internal override void VisitClassDeclaration(ClassDeclarationSyntax node) {
+        VisitTypeDeclaration(node);
+    }
+
+    internal override void VisitFileScopedClassDeclaration(FileScopedClassDeclarationSyntax node) {
         VisitTypeDeclaration(node);
     }
 
@@ -175,6 +187,18 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
             nested = null;
             return false;
         }
+    }
+
+    internal override void VisitUsingStatement(UsingStatementSyntax node) {
+        var usingBinder = new UsingStatementBinder(_enclosing, node);
+        AddToMap(node, usingBinder);
+
+        var declarationSyntax = node.declaration;
+
+        VisitRankSpecifiers(declarationSyntax.type, usingBinder);
+        Visit(declarationSyntax, usingBinder);
+
+        VisitPossibleEmbeddedStatement(node.statement, usingBinder);
     }
 
     internal override void VisitSwitchStatement(SwitchStatementSyntax node) {
@@ -302,11 +326,33 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
     }
 
     internal override void VisitBlockStatement(BlockStatementSyntax node) {
-        var blockBinder = new BlockBinder(_enclosing, node);
+        var blockBinder = node.modifiers?.Any(t => t.kind == SyntaxKind.LowlevelKeyword) == true
+            ? new BlockBinder(_enclosing, node, BinderFlags.LowLevelContext)
+            : new BlockBinder(_enclosing, node);
+
         AddToMap(node, blockBinder);
 
         foreach (var statement in node.statements)
             Visit(statement, blockBinder);
+    }
+
+    internal override void VisitWithStatement(WithStatementSyntax node) {
+        Binder enclosing;
+
+        if (node.tryKeyword is null) {
+            enclosing = _enclosing.WithAdditionalFlags(BinderFlags.InWithBody);
+            AddToMap(node, enclosing);
+        } else {
+            enclosing = _enclosing;
+        }
+
+        VisitPossibleEmbeddedStatement(node.body, enclosing);
+    }
+
+    internal override void VisitDeferStatement(DeferStatementSyntax node) {
+        var enclosing = _enclosing.WithAdditionalFlags(BinderFlags.InDeferBody);
+        AddToMap(node, enclosing);
+        VisitPossibleEmbeddedStatement(node.statement, enclosing);
     }
 
     internal override void VisitWhileStatement(WhileStatementSyntax node) {
@@ -350,11 +396,58 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
         VisitPossibleEmbeddedStatement(node.body, binder);
     }
 
+    internal override void VisitForEachStatement(ForEachStatementSyntax node) {
+        var patternBinder = new ExpressionVariableBinder(node.expression, _enclosing);
+
+        AddToMap(node.expression, patternBinder);
+        Visit(node.expression, patternBinder);
+
+        var binder = new ForEachLoopBinder(patternBinder, node);
+        AddToMap(node, binder);
+
+        // TODO Do we care about recovery here
+        // if (node is ForEachStatementSyntax forEachVariable && !forEachVariable.variable.IsDeconstructionLeft()) {
+        //     // We will bind this expression for error recovery, anything could be there
+        //     Visit(forEachVariable.Variable, binder);
+        // }
+
+        VisitPossibleEmbeddedStatement(node.body, binder);
+    }
+
+    internal override void VisitNullBindingStatement(NullBindingStatementSyntax node) {
+        var enclosing = _enclosing;
+
+        while (true) {
+            var patternBinder = new ExpressionVariableBinder(node.expression, enclosing);
+
+            AddToMap(node.expression, patternBinder);
+            Visit(node.expression, patternBinder);
+
+            enclosing = new NullBindingBinder(patternBinder, node);
+            AddToMap(node, enclosing);
+
+            VisitPossibleEmbeddedStatement(node.then, enclosing);
+
+            if (node.elseClause is null)
+                break;
+
+            var elseStatementSyntax = node.elseClause.body;
+
+            if (elseStatementSyntax is NullBindingStatementSyntax nullBindingStatementSyntax) {
+                node = nullBindingStatementSyntax;
+                enclosing = GetBinderForPossibleEmbeddedStatement(node, enclosing);
+            } else {
+                VisitPossibleEmbeddedStatement(elseStatementSyntax, enclosing);
+                break;
+            }
+        }
+    }
+
     internal override void VisitIfStatement(IfStatementSyntax node) {
         var enclosing = _enclosing;
 
         while (true) {
-            Visit(node.condition, enclosing);
+            Visit(node.expression, enclosing);
             VisitPossibleEmbeddedStatement(node.then, enclosing);
 
             if (node.elseClause is null)

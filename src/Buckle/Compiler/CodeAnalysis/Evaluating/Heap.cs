@@ -118,6 +118,7 @@ internal class Heap {
             return;
 #endif
 
+        // TODO Call destructors?
         _data[index] = null;
         _freedIndices.Push(index);
     }

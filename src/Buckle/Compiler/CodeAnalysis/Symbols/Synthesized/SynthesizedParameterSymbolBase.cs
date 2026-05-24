@@ -35,7 +35,11 @@ internal abstract class SynthesizedParameterSymbolBase : ParameterSymbol {
 
     internal override bool isMetadataOptional => explicitDefaultConstantValue is not null;
 
+    internal sealed override bool isMetadataOut => refKind == RefKind.Out;
+
     internal override ConstantValue explicitDefaultConstantValue => null;
+
+    internal override ConstantValue outDefaultValue => null;
 
     internal sealed override ScopedKind effectiveScope { get; }
 

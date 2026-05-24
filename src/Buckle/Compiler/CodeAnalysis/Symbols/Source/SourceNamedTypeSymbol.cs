@@ -150,6 +150,9 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
         }
     }
 
+    internal override bool isUnionStruct => typeKind == TypeKind.Struct &&
+        _declaration.declarations[0].syntaxReference.node.kind == SyntaxKind.UnionDeclaration;
+
     internal bool isSimpleProgram => _declaration.declarations.Any(static d => d.isSimpleProgram);
 
     internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {
@@ -230,6 +233,8 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
             switch (decl.syntaxReference.node.kind) {
                 case SyntaxKind.ClassDeclaration:
                     return ((ClassDeclarationSyntax)decl.syntaxReference.node).baseType;
+                case SyntaxKind.FileScopedClassDeclaration:
+                    return ((FileScopedClassDeclarationSyntax)decl.syntaxReference.node).baseType;
                 case SyntaxKind.EnumDeclaration:
                     return ((EnumDeclarationSyntax)decl.syntaxReference.node).baseType;
                 default:
@@ -255,7 +260,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
                     declaredBase = CorLibrary.GetSpecialType(SpecialType.Object);
                     break;
                 case TypeKind.Struct:
-                    declaredBase = null;
+                    declaredBase = CorLibrary.GetSpecialType(SpecialType.ValueType);
                     break;
                 default:
                     throw ExceptionUtilities.UnexpectedValue(typeKind);
@@ -598,7 +603,9 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
         out TemplateParameterListSyntax templateParameterList) {
         switch (node.kind) {
             case SyntaxKind.ClassDeclaration:
+            case SyntaxKind.FileScopedClassDeclaration:
             case SyntaxKind.StructDeclaration:
+            case SyntaxKind.UnionDeclaration:
                 var typeDeclaration = (TypeDeclarationSyntax)node;
                 templateParameterList = typeDeclaration.templateParameterList;
                 return typeDeclaration.constraintClauseList?.constraintClauses;

@@ -136,9 +136,9 @@ internal static class ModifierHelpers {
         };
     }
 
-    internal static Accessibility EffectiveAccessibility(DeclarationModifiers modifiers) {
+    internal static Accessibility EffectiveAccessibility(DeclarationModifiers modifiers, bool defaultToPublic = false) {
         return (modifiers & DeclarationModifiers.AccessibilityMask) switch {
-            DeclarationModifiers.None => Accessibility.NotApplicable,
+            DeclarationModifiers.None => defaultToPublic ? Accessibility.Public : Accessibility.NotApplicable,
             DeclarationModifiers.Private => Accessibility.Private,
             DeclarationModifiers.Protected => Accessibility.Protected,
             DeclarationModifiers.Public => Accessibility.Public,

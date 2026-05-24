@@ -12,7 +12,13 @@ internal class InContainerBinder : Binder {
 
     internal NamespaceOrTypeSymbol container { get; }
 
-    internal override Symbol containingMember => container;
+    internal override Symbol containingMember {
+        get {
+            return (container is MergedNamespaceSymbol merged)
+                ? merged.GetConstituentForCompilation(compilation)
+                : container;
+        }
+    }
 
     internal override bool IsAccessibleHelper(
         Symbol symbol,

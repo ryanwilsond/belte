@@ -23,8 +23,8 @@ internal partial class Binder {
             if (second.kind != first.kind)
                 return (int)first.kind - (int)second.kind;
 
-            var aLocationsCount = second.syntaxReference.location is null ? 0 : 1;
-            var bLocationsCount = first.syntaxReference.location is null ? 0 : 1;
+            var aLocationsCount = second.syntaxReference?.location is null ? 0 : 1;
+            var bLocationsCount = first.syntaxReference?.location is null ? 0 : 1;
 
             if (aLocationsCount != bLocationsCount)
                 return aLocationsCount - bLocationsCount;

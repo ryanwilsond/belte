@@ -2,86 +2,142 @@
 
 Buckle is the Belte programming language compiler.
 
-Currently there are no releases of Belte, so to use the compiler you will have to clone the
-[GitHub repository](https://github.com/ryanwilsond/belte) and build it locally. Instructions on how to do so can be seen
-[here](./Building.md).
-
 - [Options Summary](#options-summary)
 - [Running Programs](#running-programs)
+- [Build Scripts](#build-scripts)
 - [Building to a .NET DLL](#building-to-a-net-dll)
 - [Debugging a Program](#debugging-a-program)
-- [Building with .NET](#building-with-net)
 
 ## Options Summary
 
+Arguments passed that are not associated with options will be interpreted as paths. Files will be treated as source
+files based on their file extension. Directories will treat all files within them (recursively) as source files based
+on their file extensions.
+
 ### *-h*, *--help*
 
-Displays a brief options summary. Does not display any info on use cases or examples of using the compiler.
+Displays a brief options summary.
+
+### *new*
+
+Creates a starter build script. Optionally accepts a namespace name as the next argument. Only the
+[*--type*](#--typeconsolegraphics-default-console) and [*--debug*](#--debug) options can be specified in addition.
+
+The generated build script will be placed at `Build.blt` in the working directory, and an entry point will be created
+at `src/Program.blt`. Both locations must be unoccupied.
+
+### *build*
+
+Instead of using normal options, a build script can be used to drive the compilation. The build script is found
+automatically by searching the working directory for a file named `Build.blt`. When using this option, only
+[*--time*](#--time), [*--info*](#--info), and [*--debug*](#--debug) options can be specified in addition. All other
+arguments must be defined in the build script itself.
+
+Optionally, the build script can be specified manually by passing it's path as an argument immediately following
+*build*.
+
+For relevant build modes, arguments can be passed with the [*--*](#---arg) option.
+
+> [Build script info](Build.md)
+
+### *run*
+
+Performs the same actions as [*build*](#build) but then immediately runs the output if applicable. If the build mode
+does not produce a runnable output, this command fails. For build modes that execute immediately anyways
+(Executing, Evaluating, etc.), this command performs identically to *build*.
+
+Arguments can be passed with the [*--*](#---arg) option.
+
+### *--clearcache*
+
+Build scripts are cached to reduce compilation overhead. The cache will automatically manage its size, but it can be
+completely deleted with this option (it will regenerate as needed).
 
 ### *-i* (Default)
 
-Performs all compilation steps before assembling and linking, and instead of assembling and linking to an executable,
-the program is run immediately. There are three different methods in which the program can be run, and the compiler
-automatically picks the most optimal method based on the size of the input.
+Instead of producing an executable, the program is run immediately after being compiled. This is the default behavior
+when no build options are specified. There are two different methods in which the program can be run, and the compiler
+gets to pick which method to use.
 
-If the input is short to medium in length, the code is compiled and then ran using the evaluator. The runtime
-performance is better than interpreting, but still not as fast as traditional compilation because the code is not sent
-to an independent executable before running. However, unlike interpreting, the compiler compiles the entire input before
-evaluating. This causes the error checking is equivalent to if you were to compile to an executable. Because the
-compiler is ran before evaluating, there is a pause before the program starts executing unlike interpreting.
-
-If the input is long, the code is compiled down to IL code, and then into an executable. This executable is wrapped and
-ran immediately. The runtime performance is the same as traditional compilation, though there will be a pause before
-the program executes. This pause is the longest of the three methods.
+Currently, the compiler will always choose *--execute*.
 
 ### *-r*, *--repl*
 
-Invokes the Repl, a Read-Eval-Print Loop where the user can enter short code snippets and get the result in realtime.
+Invokes the Repl, a Read-Eval-Print Loop where the user can enter short code snippets and get the result immediately.
 The Repl is purely a command-line tool. If the *-r* or *--repl* option is passed, **all** other arguments are ignored.
 
-For more information specifically on the Repl, see the [Repl help doc](.\Repl.md).
+For more information specifically on the Repl, see the [Repl help doc](Repl.md).
 
-### *--type=*[console|graphics|...] (Default *console*)
+### *--type=*\[console|graphics|...] (Default *console*)
 
 Specifies the project type.
 
-|||
-|-|-|
+| | |
+| - | - |
 | `console` (Default) | An application that interfaces purely with the console. |
 | `graphics` | An application that creates a window. |
 | `dll` | Builds into a dynamically linked library. |
 
+### *--entry=\<name>*
+
+Specifies a type name to search for the entry point (and update point) symbols in. The type can be namespace qualified
+but cannot be nested.
+
+### *--nostdlib*
+
+Disables compiling with the higher-level Standard Library (collections, IO, etc.). Certain parts of the Standard Library
+are still compiled with where removing them would break core language functionality (such as primitive type
+definitions).
+
 ### *--evaluate*
 
-Performs all compilation steps before assembling and linking, and instead of assembling and linking to an executable,
-the program is run immediately. However, unlike the *-i* option, the method of running the program is always evaluation.
+Instead of producing an executable, the program is run immediately after being compiled. Unlike the *-i* option, the
+method of running the program is always evaluation.
 
-The evaluators runtime performance is better than interpreting, but still not as fast as traditional compilation because
-the code is not sent to an independent executable before running. However, unlike interpreting, the compiler compiles
-the entire input before evaluating. This causes the error checking is equivalent to if you were to compile to an
-executable. Because the compiler is ran before evaluating, there is a pause before the program starts executing unlike
-interpreting.
+The program is run in a virtual environment. The Repl uses this mode.
+
+Note that [some features have restricted](Current/Overview.md#12-endpoint-specific-features) when using this option.
 
 ### *--execute*
 
-Performs all compilation steps before assembling and linking, and instead of assembling and linking to an executable,
-the program is run immediately. However, unlike the *-i* option, the method of running the program is always execution.
+Instead of producing an executable, the program is run immediately after being compiled. Unlike the *-i* option, the
+method of running the program is always execution.
 
-The code is compiled down to IL code, and then into an executable. This executable is wrapped and ran immediately. The
-runtime performance is the same as traditional compilation, though there will be a pause before the program executes.
-This pause is the longest of the three methods of running the program.
+The program is emitted to a dynamic assembly and ran, offering better performance than *--evaluate* at the cost of
+slightly longer compile time.
+
+Note that [some features have restricted](Current/Overview.md#12-endpoint-specific-features) when using this option.
 
 ### *-t*, *--transpile*
 
-The code is compiled without assembling or linking. Instead, the code is transpiled into C# source code. All language
-features are supported with this option.
+Instead of producing an executable, the program is transpiled into C# source code after initial compilation.
+
+This option uses the same [feature set as *--dotnet*](Current/Overview.md#12-endpoint-specific-features) with the
+additional restriction of disallowing inline IL.
 
 ### *-o \<filename>*
 
-Specifies the output path or filename. This option is only valid when using the compiler on a single input, or if the
-all compilation phases are completed. You cannot specify this option in junction with *-p*, *-s*, and *-c* when multiple
-files are inputted. You cannot also never specify this option in junction with *-i*, *--script*, *--evaluate*,
-*--execute*, *-t*, or *--transpile*.
+Specifies the output file. You cannot specify this option in junction with *-i*, *--evaluate*, or *--execute*.
+
+### *-x \[blt|belte|none] file...*, *--lang \[blt|belte|none] file...*
+
+Specifies a language association for the following files instead of inferring association from file extension.
+Currently, the only language association option is `blt` or `belte` which both mean Belte source files (this reflects
+the default inferred file extensions). The option lasts for the rest of the command-line arguments or until it is
+changes. Using `none` will reset to inferring file types from extensions.
+
+### *--flat \<path>*
+
+Specifies an input file or directory, but in the case of a directory does not search recursively for input files.
+
+### *-- arg...*
+
+All arguments after *--* will be passed to the program if evaluating or executing, otherwise they are ignored.
+
+### *-m:\<count>*
+
+Specifies the maximum number of CPU cores to use. Without this option the compilation will be concurrent and use
+most cores if possible. Specifying a count of 1 will disable concurrent building.
 
 ### *--severity=\<severity>* (Default *warning*)
 
@@ -89,7 +145,7 @@ The compiler stores all diagnostics of any severity. However, diagnostics are on
 is greater than or equal to the given severity level. The default is *warning*.
 
 | Severity | Description |
-|-|-|
+| - | - |
 | *all* | Everything is shown. |
 | *debug* | Verbose information is shown. Used for debugging purposes. |
 | *info* | Any information hidden by default. |
@@ -104,64 +160,73 @@ warning level, warnings are suppressed even if the [severity level](#--severitys
 should be logged/displayed. Warnings are logged/displayed if their warning level is less than or equal to the passed
 warning level. The default level is *1*.
 
-A list of what warnings are included on each level can be found [here](./WarningLevels.md).
+> [List of which warnings are included on each level](WarningLevels.md)
 
-### *--wignore=<*[BU|RE|CL]*\<code>,...>*
+### *--wignore=<*\[BU|RE|CL]*\<code>,...>*
 
-Suppresses specified warnings. Warnings should be comma delimited. Warnings should be specified using their codes, a
-list of which can be found [here](./DiagnosticCodes.md).
+Suppresses specified warnings. Warnings should be comma delimited. Warnings should be specified using their codes.
 
-### *--winclude=<*[BU|RE|CL]*\<code>,...>*
+### *--winclude=<*\[BU|RE|CL]*\<code>,...>*
 
 Specifically avoids suppressing specific warnings, even if the [severity level](#--severityseverity-default-warning) or
-[warning level](#--warnlevelwarning-level-default-1) would suggest to do so. Warnings should be comma delimited. Warnings
-should be specified using their codes, a list of which can be found [here](./DiagnosticCodes.md).
+[warning level](#--warnlevelwarning-level-default-1) would suggest to do so. Warnings should be comma delimited.
+Warnings should be specified using their codes.
+
+### *--dumpmachine*
+
+Displays host machine information. The message will be in the form `Host: [target]`. For example, `Host: win-x64`.
 
 ### *--version*
 
 Displays the compiler version information. The message will be in the form `Version: Buckle [version]`. The compiler
-version will be in the form `MAJOR.MINOR.PATCH`, following [semantic versioning 2.0.0](https://semver.org/).
-
-### *--dumpmachine*
-
-Displays the compiler's target system. The only applies to compiling traditionally into an executable. If invoking the
-Repl, transpiling, interpreting, or using .NET integration, the compiler is portable/cross-platform.
+version will be in the form `MAJOR.MINOR.PATCH`.
 
 ### *--noout*
 
-Runs the compiler normally, but prevents any file IO to occur. This option does not stop the compiler from printing to
-the standard output however.
+Performs a dry run of the compiler. Prevents any file IO to occur. The compiler still displays normal information.
 
-This option is mainly used for debugging the functionality of the compiler without having to worry about produced files.
+If compiling in a mode where the program would immediately run, the program is not run.
 
 ### *--clearsubmissions*
 
-Deletes REPL submissions. If used with *-r*, the submissions are deleted before the REPL evaluates them.
+Deletes Repl submissions. If used with *-r*, the submissions are deleted before the Repl evaluates them.
 
 ### *-d*, *--dotnet*
 
-Compile with .NET integration. All language features are enabled with this option. The output will be a .NET DLL that
-can be used in a .NET project. For more information on using this option, read the
-[Building with Dotnet](#building-with-net) section.
+Compile with .NET integration. The output will be a .NET DLL that can be used in a .NET project or ran depending on the
+[project type](#--typeconsolegraphics-default-console).
 
-Because this specifies an endpoint, the *-p*, *-s*, *-c*, *-i*, *--script*, *--evaluate*, *--execute*, *-t*, and
-*--transpile* options are not valid in junction with this option.
+Note that [some features have restricted](Current/Overview.md#11-endpoint-specific-features) when using this option.
 
 ### *--modulename=\<name>*
 
 Specifies the module name used when .NET integration is enabled. Defaults to the name of the specified output file
 without the file extension, or *a* is no output file was specified. This option is purely used for debugging purposes
-and should not need to be used. This option is only valid in junction with the *-d* or *--dotnet* options.
+and should not need to be used. This option is only valid in junction with the *-d*/*--dotnet* option.
 
-### *--ref=\<file>*, *--reference=\<file>*
+### *--ref\[,flat,copy]=\<path>*, *--reference\[,flat,copy]=\<path>*
 
 Adds a reference when .NET integration is enabled. This reference is a path to a DLL that will be added to the program
-and can then be referenced from within the program. This option is only valid in junction with the *-d* or *--dotnet*
-options.
+and can then be referenced from within the program. This option is only valid in junction with the *-d*/*--dotnet*
+option. If the specified path is a directory, all files ending in `.dll` inside of that directory (recursively) will be
+added as references.
+
+Optionally, `,flat` can be appended to specify that directories should not be searched recursively. `,copy` can be
+appended to specify that the references libraries should be copied to the output directory.
 
 ### *--debug*
 
-Emits a .NET PDB file containing debugging symbols. Only emits the file if the *-d* option was specified.
+Emits a .NET PDB file containing debugging symbols. Only emits the file if the *-d*/*--dotnet* option was specified.
+
+### *-l0*, *-l1*, *-lall*
+
+Automatically includes certain library references. Each level includes all of the libraries from previous levels.
+
+| l# | Libraries |
+| - | - |
+| `l0` | `System.Runtime.dll`, `System.IO.dll`, `System.Console.dll`, `System.Runtime.InteropServices.dll` |
+| `l1` | `Diagnostics.dll`, `Compiler.dll`, `Shared.dll`, `System.Collections.dll`, `System.Collections.Immutable.dll` |
+| `lall` | All .NET SDK libraries |
 
 ### *--time*
 
@@ -174,13 +239,22 @@ etc. The user of the compiler does **not** need to know this information to prop
 typically used for debugging.
 
 The *--noout* option overrides *--verbose*, meaning that no information will be logged if both options are used. The
-*--verbose* option will automatically set the diagnostic reporting [severity level](#severityseverity-default-warning)
-to *all*, the [warning level](#--warnlevelwarning-level-default-1) to max, and will also display
-[timing information](#--time).
+*--verbose* option will automatically set the diagnostic reporting [severity level](#--severityseverity-default-warning)
+to *all*, the [warning level](#--warnlevelwarning-level-default-1) to 2 (unless explicitly set higher), and will also
+display [timing information](#--time).
 
-### *--verbose-path=\<path>*
+### *--vpath=\<path>*
 
-Specifies the path the *--verbose* mode will dump files. Defaults to the path Buckle was called on.
+Specifies the path the *--verbose* mode will dump files. Defaults to the working directory.
+
+### *--info*
+
+Displays *--verbose* information without producing file artifacts.
+
+### *--sae*
+
+If specified, the user will be prompted for any input after argument parsing but before any compilation, and then
+prompted again after compilation is finished. This allows attaching processes to the compiler before any work is done.
 
 ## Running Programs
 
@@ -202,14 +276,47 @@ buckle Program.blt
 
 *Result (via stdout)*
 
-```
+```txt
 Hello, world!
 ```
 
+## Build Scripts
+
+Instead of passing compilation options directly, a build script can be used. To generate a starter build script, the
+[`new`](#new) command can be used. It accepts an optional project name and project type.
+
+Some examples:
+
+```bash
+buckle new
+buckle new MyProject
+buckle new --type=dll
+```
+
+This command will create a `Build.blt` script in the working directory, and an entry point at `src/Program.blt`.
+
+From there, you can use the [`build`](#build) command:
+
+```bash
+buckle build
+```
+
+This will compile the project and place it into `bin/<project name>.exe`.
+
+To see a hello world program, run the following commands in an empty directory:
+
+```bash
+buckle new
+buckle build
+./bin/project.exe
+```
+
+> [Read more about customizing build scripts](Build.md)
+
 ## Building to a .NET DLL
 
-Both the `-d` and `--type=dll` options output a .NET dll. The former outputs a dll alongside a runtime config file so
-that the dll is ready to run by using `dotnet <path/to/dll>`.
+Both the `-d` and `--type=dll` options output a .NET dll. The former outputs a dll alongside a runtime config file and
+an app host executable so that the program is ready to run by using `<path/to/dll>.exe`.
 
 The `--type=dll` option outputs a dll that can be referenced by other applications, but is not a runnable application
 itself. There is no entry point.
@@ -220,50 +327,3 @@ When [building to a .NET DLL](#building-to-a-net-dll) with the `--debug` flag, a
 assembly.
 
 [Here is a sample that you can debug in VSCode](https://github.com/ryanwilsond/belte/tree/staging/samples/Debug/README.md).
-
-## Building with .NET
-
-A `Directory.Build.props` file with the following contents is necessary to tell dotnet how to find Belte source files:
-
-```xml
-<Project>
-  <PropertyGroup>
-    <DefaultLanguageSourceExtension>.blt</DefaultLanguageSourceExtension>
-  </PropertyGroup>
-</Project>
-```
-
-You will also need a `Directory.Build.targets` file to tell dotnet how to invoke Buckle:
-
-```xml
-<Project>
-
-  <Target Name="CreateManifestResourceNames" />
-
-  <Target Name="CoreCompile" DependsOnTargets="$(CoreCompileDependsOn)">
-    <ItemGroup>
-      <ReferencePath Remove="@(ReferencePath)" />
-    </ItemGroup>
-
-    <PropertyGroup>
-      <BuckleCompilerArgs>@(Compile->'&quot;%(Identity)&quot;', ' ')</BuckleCompilerArgs>
-      <BuckleCompilerArgs>$(BuckleCompilerArgs) -o &quot;@(IntermediateAssembly)&quot;</BuckleCompilerArgs>
-      <BuckleCompilerArgs>$(BuckleCompilerArgs) @(ReferencePath->'--ref=&quot;%(Identity)&quot;', ' ')</BuckleCompilerArgs>
-    </PropertyGroup>
-    <Exec Command="dotnet run --project &quot;$(MSBuildThisFileDirectory)\..\src\Buckle\CommandLine\CommandLine.csproj&quot; -- -d $(BuckleCompilerArgs)" WorkingDirectory="$(MSBuildProjectDirectory)" />
-  </Target>
-
-</Project>
-```
-
-Each project will need an *msproj* file (e.g. *MyProject.msproj*) containing the following:
-
-```xml
-<Project Sdk="Microsoft.NET.Sdk"></Project>
-```
-
-Then you can use a debugger to build and run the project, or run the project via the command line:
-
-```bash
-dotnet run --project path/to/MyProject.msproj
-```

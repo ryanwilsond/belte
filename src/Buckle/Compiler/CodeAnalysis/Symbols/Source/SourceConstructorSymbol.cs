@@ -15,6 +15,7 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
             containingType,
             syntax,
             MakeModifiersAndFlags(
+                containingType,
                 syntax,
                 methodKind,
                 syntax.constructorInitializer?.thisOrBaseKeyword?.kind == SyntaxKind.ThisKeyword,
@@ -64,6 +65,7 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
     }
 
     private static (DeclarationModifiers, Flags) MakeModifiersAndFlags(
+        NamedTypeSymbol containingType,
         ConstructorDeclarationSyntax syntax,
         MethodKind methodKind,
         bool hasThisInitializer,
@@ -71,7 +73,7 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
         out bool modifierErrors) {
         var hasAnyBody = syntax.body is not null;
 
-        var declarationModifiers = MakeModifiers(syntax, methodKind, diagnostics, out modifierErrors);
+        var declarationModifiers = MakeModifiers(containingType, syntax, methodKind, diagnostics, out modifierErrors);
 
         var flags = new Flags(
             methodKind,
@@ -87,13 +89,16 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
     }
 
     private static DeclarationModifiers MakeModifiers(
+        NamedTypeSymbol containingType,
         ConstructorDeclarationSyntax syntax,
         MethodKind methodKind,
         BelteDiagnosticQueue diagnostics,
         out bool modifierErrors) {
         var defaultAccess = (methodKind == MethodKind.StaticConstructor)
             ? DeclarationModifiers.None
-            : DeclarationModifiers.Private;
+            : (containingType.IsStructType() || containingType.IsFileScoped())
+                ? DeclarationModifiers.Public
+                : DeclarationModifiers.Private;
 
         var allowedModifiers = DeclarationModifiers.AccessibilityMask | DeclarationModifiers.Static;
 

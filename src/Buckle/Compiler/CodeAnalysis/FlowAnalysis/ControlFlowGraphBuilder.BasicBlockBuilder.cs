@@ -25,17 +25,21 @@ internal sealed partial class ControlFlowGraphBuilder {
 
         private void VisitBlock(BoundBlockStatement block) {
             foreach (var statement in block.statements) {
-                switch (statement.kind) {
+                var node = statement;
+again:
+                switch (node.kind) {
                     case BoundKind.LabelStatement:
                         StartBlock();
-                        _statements.Add(statement);
+                        _statements.Add(node);
                         break;
+                    case BoundKind.SwitchDispatch:
                     case BoundKind.GotoStatement:
                     case BoundKind.ConditionalGotoStatement:
                     case BoundKind.ReturnStatement:
+                    case BoundKind.UnreachableStatement:
                     case BoundKind.ExpressionStatement
-                        when (statement as BoundExpressionStatement).expression is BoundThrowExpression:
-                        _statements.Add(statement);
+                        when (node as BoundExpressionStatement).expression is BoundThrowExpression:
+                        _statements.Add(node);
                         StartBlock();
                         break;
                     case BoundKind.NopStatement:
@@ -43,18 +47,31 @@ internal sealed partial class ControlFlowGraphBuilder {
                     case BoundKind.InlineILStatement:
                     case BoundKind.LocalDeclarationStatement:
                     case BoundKind.LocalFunctionStatement:
-                        _statements.Add(statement);
+                        _statements.Add(node);
                         break;
                     case BoundKind.TryStatement:
-                        BuildTryRegion((BoundTryStatement)statement);
+                        BuildTryRegion((BoundTryStatement)node);
                         break;
-                    case BoundKind.SequencePoint:
-                        if (((BoundSequencePoint)statement).statement is null)
-                            break;
+                    case BoundKind.SequencePoint: {
+                            var inner = ((BoundSequencePoint)node).statement;
 
-                        goto default;
+                            if (inner is null)
+                                break;
+
+                            node = inner;
+                            goto again;
+                        }
+                    case BoundKind.SequencePointWithLocation: {
+                            var inner = ((BoundSequencePointWithLocation)node).statement;
+
+                            if (inner is null)
+                                break;
+
+                            node = inner;
+                            goto again;
+                        }
                     default:
-                        throw ExceptionUtilities.UnexpectedValue(statement.kind);
+                        throw ExceptionUtilities.UnexpectedValue(node.kind);
                 }
             }
         }
@@ -64,7 +81,9 @@ internal sealed partial class ControlFlowGraphBuilder {
 
             var tryStartBlock = _currentBlock;
 
-            VisitBlock((BoundBlockStatement)node.body);
+            // We add the entire try for unreachable code detection later
+            _statements.Add(node);
+            VisitBlock(node.body);
 
             StartBlock();
 
@@ -74,13 +93,13 @@ internal sealed partial class ControlFlowGraphBuilder {
 
             if (node.catchBody is not null) {
                 tryRegion.catchBlock = _currentBlock;
-                VisitBlock((BoundBlockStatement)node.catchBody);
+                VisitBlock(node.catchBody);
                 StartBlock();
             }
 
             if (node.finallyBody is not null) {
                 tryRegion.finallyBlock = _currentBlock;
-                VisitBlock((BoundBlockStatement)node.finallyBody);
+                VisitBlock(node.finallyBody);
                 StartBlock();
             }
 

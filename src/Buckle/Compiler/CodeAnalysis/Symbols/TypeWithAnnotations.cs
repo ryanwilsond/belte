@@ -1,8 +1,8 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
-using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Display;
 using Buckle.Libraries;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -14,6 +14,11 @@ internal sealed class TypeWithAnnotations {
     internal TypeWithAnnotations(TypeSymbol underlyingType, bool isNullable) {
         type = underlyingType;
         this.isNullable = isNullable;
+
+#if DEBUG
+        if (underlyingType is not null && underlyingType.IsNullableType() != isNullable)
+            throw ExceptionUtilities.UnexpectedValue(isNullable);
+#endif
     }
 
     internal TypeWithAnnotations(TypeSymbol underlyingType) {
@@ -90,14 +95,16 @@ internal sealed class TypeWithAnnotations {
         var oldTypeSymbol = type;
         byte transformFlag;
 
-        if (CodeGenerator.IsValueType(oldTypeSymbol))
-            transformFlag = NullableContextExtensions.ObliviousAttributeValue;
-        else if (transforms.IsDefault)
+        // if (CodeGenerator.IsValueType(oldTypeSymbol))
+        //     transformFlag = NullableContextExtensions.ObliviousAttributeValue;
+        if (transforms.IsDefault)
             transformFlag = defaultTransformFlag;
         else if (position < transforms.Length)
             transformFlag = transforms[position++];
         else
-            return false;
+            // TODO Always annotate?
+            // return false;
+            transformFlag = defaultTransformFlag;
 
         if (!oldTypeSymbol.ApplyNullableTransforms(
             defaultTransformFlag,
@@ -117,17 +124,31 @@ internal sealed class TypeWithAnnotations {
 
         switch (transformFlag) {
             case NullableContextExtensions.AnnotatedAttributeValue:
-                result = result.isNullable ? result : result.SetIsAnnotated();
+                result = result.isNullable
+                    ? result
+                    : ShouldLift(result.type)
+                        ? result.SetIsAnnotated()
+                        : result;
+
                 break;
             case NullableContextExtensions.NotAnnotatedAttributeValue:
-                result = new TypeWithAnnotations(result.nullableUnderlyingTypeOrSelf);
+                result = ShouldLift(result.type)
+                    ? result.SetIsAnnotated()
+                    : new TypeWithAnnotations(result.nullableUnderlyingTypeOrSelf);
+
                 break;
             default:
-                result = this;
-                return false;
+                result = ShouldLift(result.type) ? result.SetIsAnnotated() : result;
+                break;
+                // result = this;
+                // return false;
         }
 
         return true;
+
+        static bool ShouldLift(TypeSymbol type) {
+            return type.typeKind is TypeKind.Class or TypeKind.Array or TypeKind.TemplateParameter;
+        }
     }
 
     public string ToDisplayString(SymbolDisplayFormat format = null) {

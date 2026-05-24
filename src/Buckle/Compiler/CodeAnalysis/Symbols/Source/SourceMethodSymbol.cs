@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Runtime.InteropServices;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
 
@@ -13,6 +14,7 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
 
     private protected SourceMethodSymbol(SyntaxReference syntaxReference) {
         this.syntaxReference = syntaxReference;
+        coerceArguments = ExtractImplicitKeyword() is not null;
     }
 
     internal sealed override bool hidesBaseMethodsByName => false;
@@ -30,6 +32,8 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
     internal virtual Binder outerBinder => null;
 
     internal virtual Binder withTemplateParametersBinder => null;
+
+    internal override bool coerceArguments { get; }
 
     internal BelteSyntaxNode syntaxNode => (BelteSyntaxNode)syntaxReference.node;
 
@@ -139,6 +143,7 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
                 => (BelteSyntaxNode)entryPoint.returnTypeSyntax,
             LocalFunctionStatementSyntax localFunction => localFunction.body,
             ClassDeclarationSyntax classDeclaration => classDeclaration,
+            FileScopedClassDeclarationSyntax classDeclaration => classDeclaration,
             _ => null,
         };
     }
@@ -146,6 +151,27 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
     internal override DllImportData? GetDllImportData() {
         var data = GetDecodedWellKnownAttributeData();
         return data?.dllImportPlatformInvokeData;
+    }
+
+    internal sealed override UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete) {
+        if (syntaxReference is null)
+            return null;
+
+        if (forceComplete)
+            _ = GetAttributes();
+
+        var lazyAttributesBag = _lazyAttributesBag;
+
+        // TODO What is the purpose of this second check
+        if (lazyAttributesBag is null/* || !lazyAttributesBag.isEarlyDecodedWellKnownAttributeDataComputed*/)
+            return UnmanagedCallersOnlyAttributeData.Uninitialized;
+
+        if (lazyAttributesBag.isDecodedWellKnownAttributeDataComputed) {
+            var lateData = (MethodWellKnownAttributeData)lazyAttributesBag.decodedWellKnownAttributeData;
+            return lateData?.unmanagedCallersOnlyAttributeData;
+        }
+
+        return null;
     }
 
     private protected override void DecodeWellKnownAttributeImpl(
@@ -173,6 +199,165 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
 
         if (attribute.IsTargetAttribute(AttributeDescription.DllImportAttribute))
             DecodeDllImportAttribute(ref arguments);
+        else if (attribute.IsTargetAttribute(AttributeDescription.UnmanagedAttribute))
+            DecodeUnmanagedAttribute(ref arguments);
+    }
+
+    private void DecodeUnmanagedAttribute(
+        ref DecodeWellKnownAttributeArguments<AttributeSyntax, AttributeData, AttributeLocation> arguments) {
+        var diagnostics = arguments.diagnostics;
+
+        arguments.GetOrCreateData<MethodWellKnownAttributeData>().unmanagedCallersOnlyAttributeData =
+            DecodeUnmanagedAttributeData(
+                this,
+                arguments.attribute,
+                arguments.attributeSyntax.location,
+                diagnostics
+            );
+
+        var reportedError = CheckAndReportValidUnmanagedCallersOnlyTarget(arguments.attributeSyntax.name, diagnostics);
+        var returnTypeSyntax = ExtractReturnTypeSyntax();
+
+        if (ReferenceEquals(returnTypeSyntax, SyntaxTree.Dummy.GetRoot()))
+            return;
+
+        CheckAndReportManagedTypes(returnType, refKind, returnTypeSyntax, isParam: false, diagnostics);
+
+        foreach (var param in parameters) {
+            CheckAndReportManagedTypes(
+                param.type,
+                param.refKind,
+                param.GetNonNullSyntaxNode(),
+                isParam: true,
+                diagnostics
+            );
+        }
+
+        static void CheckAndReportManagedTypes(
+            TypeSymbol type,
+            RefKind refKind,
+            SyntaxNode syntax,
+            bool isParam,
+            BelteDiagnosticQueue diagnostics) {
+            if (refKind != RefKind.None) {
+                // TODO error
+                // diagnostics.Add(ErrorCode.ERR_CannotUseRefInUnmanagedCallersOnly, syntax.location);
+            }
+
+            // TODO error
+            // switch (type.managedKindNoUseSiteDiagnostics) {
+            //     case ManagedKind.Unmanaged:
+            //     case ManagedKind.UnmanagedWithGenerics:
+            //         // Note that this will let through some things that are technically unmanaged, but not
+            //         // actually blittable. However, we don't have a formal concept of blittable in C#
+            //         // itself, so checking for purely unmanaged types is the best we can do here.
+            //         return;
+
+            //     case ManagedKind.Managed:
+            //         // Cannot use '{0}' as a {1} type on a method attributed with 'UnmanagedCallersOnly.
+            //         diagnostics.Add(ErrorCode.ERR_CannotUseManagedTypeInUnmanagedCallersOnly, syntax.Location, type, (isParam ? MessageID.IDS_Parameter : MessageID.IDS_Return).Localize());
+            //         return;
+
+            //     default:
+            //         throw ExceptionUtilities.UnexpectedValue(type.ManagedKindNoUseSiteDiagnostics);
+            // }
+        }
+
+        static UnmanagedCallersOnlyAttributeData DecodeUnmanagedAttributeData(
+            SourceMethodSymbol @this,
+            AttributeData attribute,
+            TextLocation location,
+            BelteDiagnosticQueue diagnostics) {
+            ImmutableHashSet<CallingConvention> callingConventionTypes = null;
+
+            if (attribute._commonNamedArguments is { IsDefaultOrEmpty: false } namedArgs) {
+                var callingConvention = CallingConvention.Default;
+
+                foreach (var namedArg in attribute._commonNamedArguments) {
+                    switch (namedArg.Key) {
+                        case "CallingConvention":
+                            callingConvention = namedArg.Value.value switch {
+                                1 => CallingConvention.Winapi,
+                                2 => CallingConvention.Cdecl,
+                                _ => CallingConvention.Winapi,
+                            };
+
+                            break;
+                    }
+                }
+
+                callingConventionTypes = [callingConvention];
+
+                // TODO .NET UnmanagedCallersOnly args
+                // var systemType = CorLibrary.GetSpecialType(SpecialType.Type);
+
+                // foreach (var (key, value) in attribute._commonNamedArguments) {
+                //     bool isField = attribute.attributeClass.GetMembers(key).Any(
+                //         static (m, systemType) => m is FieldSymbol { Type: ArrayTypeSymbol { ElementType: NamedTypeSymbol elementType } } && elementType.Equals(systemType, TypeCompareKind.ConsiderEverything),
+                //         systemType);
+
+                //     var namedArgumentDecoded = TryDecodeUnmanagedCallersOnlyCallConvsField(key, value, isField, location, diagnostics);
+
+                //     if (namedArgumentDecoded.IsCallConvs) {
+                //         callingConventionTypes = namedArgumentDecoded.CallConvs;
+                //     }
+                // }
+            } else {
+                callingConventionTypes = [CallingConvention.Cdecl];
+            }
+
+            return UnmanagedCallersOnlyAttributeData.Create(callingConventionTypes);
+        }
+    }
+
+    internal SyntaxNode ExtractReturnTypeSyntax() {
+        if (this is SynthesizedEntryPoint synthesized)
+            return synthesized.returnTypeSyntax;
+
+        var node = syntaxReference.node;
+
+        if (node is MethodDeclarationSyntax methodDeclaration)
+            return methodDeclaration.returnType;
+        else if (node is LocalFunctionStatementSyntax statement)
+            return statement.returnType;
+
+        return SyntaxTree.Dummy.GetRoot();
+    }
+
+    internal SyntaxToken ExtractImplicitKeyword() {
+        var node = syntaxReference.node;
+
+        if (node is BaseMethodDeclarationSyntax methodDeclaration)
+            return methodDeclaration.implicitKeyword;
+        else if (node is LocalFunctionStatementSyntax statement)
+            return statement.implicitKeyword;
+
+        return null;
+    }
+
+    internal bool CheckAndReportValidUnmanagedCallersOnlyTarget(SyntaxNode node, BelteDiagnosticQueue diagnostics) {
+        if (!isStatic || isAbstract || isVirtual || methodKind is not (MethodKind.Ordinary or MethodKind.LocalFunction)) {
+            diagnostics?.Push(Error.UnmanagedRequiresStatic(node.location));
+            return true;
+        }
+
+        if (IsTemplateMethod(this) || containingType.isTemplateType) {
+            diagnostics?.Push(Error.UnmanagedCannotBeTemplate(node.location));
+            return true;
+        }
+
+        return false;
+
+        static bool IsTemplateMethod(MethodSymbol method) {
+            do {
+                if (method.isTemplateMethod)
+                    return true;
+
+                method = method.containingSymbol as MethodSymbol;
+            } while (method is not null);
+
+            return false;
+        }
     }
 
     private void DecodeDllImportAttribute(
@@ -261,8 +446,8 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
                 case "CallingConvention":
                     // invalid values will be ignored
                     callingConvention = namedArg.Value.value switch {
-                        1 => CallingConvention.Winapi,
-                        2 => CallingConvention.Cdecl,
+                        1U => CallingConvention.Winapi,
+                        2U => CallingConvention.Cdecl,
                         _ => CallingConvention.Winapi,
                     };
                     // callingConvention = namedArg.Value.DecodeValue<CallingConvention>(SpecialType.UInt32);

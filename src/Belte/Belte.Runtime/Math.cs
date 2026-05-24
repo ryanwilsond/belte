@@ -17,11 +17,78 @@ public static class Math {
         return System.Math.Clamp(a.Value, b.Value, c.Value);
     }
 
+    public static float? Clamp(float? a, float? b, float? c) {
+        if (a is null || b is null || c is null)
+            return null;
+
+        return System.Math.Clamp(a.Value, b.Value, c.Value);
+    }
+
     public static long? Clamp(long? a, long? b, long? c) {
         if (a is null || b is null || c is null)
             return null;
 
         return System.Math.Clamp(a.Value, b.Value, c.Value);
+    }
+
+    public static ulong? Clamp(ulong? a, ulong? b, ulong? c) {
+        if (a is null || b is null || c is null)
+            return null;
+
+        return System.Math.Clamp(a.Value, b.Value, c.Value);
+    }
+
+    public static int? Clamp(int? a, int? b, int? c) {
+        if (a is null || b is null || c is null)
+            return null;
+
+        return System.Math.Clamp(a.Value, b.Value, c.Value);
+    }
+
+    public static uint? Clamp(uint? a, uint? b, uint? c) {
+        if (a is null || b is null || c is null)
+            return null;
+
+        return System.Math.Clamp(a.Value, b.Value, c.Value);
+    }
+
+    public static short? Clamp(short? a, short? b, short? c) {
+        if (a is null || b is null || c is null)
+            return null;
+
+        return System.Math.Clamp(a.Value, b.Value, c.Value);
+    }
+
+    public static ushort? Clamp(ushort? a, ushort? b, ushort? c) {
+        if (a is null || b is null || c is null)
+            return null;
+
+        return System.Math.Clamp(a.Value, b.Value, c.Value);
+    }
+
+    public static sbyte? Clamp(sbyte? a, sbyte? b, sbyte? c) {
+        if (a is null || b is null || c is null)
+            return null;
+
+        return System.Math.Clamp(a.Value, b.Value, c.Value);
+    }
+
+    public static byte? Clamp(byte? a, byte? b, byte? c) {
+        if (a is null || b is null || c is null)
+            return null;
+
+        return System.Math.Clamp(a.Value, b.Value, c.Value);
+    }
+
+    public static char? Clamp(char? a, char? b, char? c) {
+        if (a is null || b is null || c is null)
+            return null;
+
+        return (char?)System.Math.Clamp(a.Value, b.Value, c.Value);
+    }
+
+    public static char Clamp(char a, char b, char c) {
+        return (char)System.Math.Clamp(a, b, c);
     }
 
     public static double? Acos(double? a) {
@@ -154,7 +221,35 @@ public static class Math {
         return System.Math.Min(a.Value, b.Value);
     }
 
+    public static float? Min(float? a, float? b) {
+        if (a is null || b is null)
+            return null;
+
+        return System.Math.Min(a.Value, b.Value);
+    }
+
     public static long? Min(long? a, long? b) {
+        if (a is null || b is null)
+            return null;
+
+        return System.Math.Min(a.Value, b.Value);
+    }
+
+    public static ulong? Min(ulong? a, ulong? b) {
+        if (a is null || b is null)
+            return null;
+
+        return System.Math.Min(a.Value, b.Value);
+    }
+
+    public static int? Min(int? a, int? b) {
+        if (a is null || b is null)
+            return null;
+
+        return System.Math.Min(a.Value, b.Value);
+    }
+
+    public static uint? Min(uint? a, uint? b) {
         if (a is null || b is null)
             return null;
 
@@ -168,7 +263,35 @@ public static class Math {
         return System.Math.Max(a.Value, b.Value);
     }
 
+    public static float? Max(float? a, float? b) {
+        if (a is null || b is null)
+            return null;
+
+        return System.Math.Max(a.Value, b.Value);
+    }
+
     public static long? Max(long? a, long? b) {
+        if (a is null || b is null)
+            return null;
+
+        return System.Math.Max(a.Value, b.Value);
+    }
+
+    public static ulong? Max(ulong? a, ulong? b) {
+        if (a is null || b is null)
+            return null;
+
+        return System.Math.Max(a.Value, b.Value);
+    }
+
+    public static int? Max(int? a, int? b) {
+        if (a is null || b is null)
+            return null;
+
+        return System.Math.Max(a.Value, b.Value);
+    }
+
+    public static uint? Max(uint? a, uint? b) {
         if (a is null || b is null)
             return null;
 

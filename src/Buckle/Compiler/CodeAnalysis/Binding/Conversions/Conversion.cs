@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -11,6 +12,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
     internal static Conversion None => new Conversion(ConversionKind.None);
     internal static Conversion Identity => new Conversion(ConversionKind.Identity);
     internal static Conversion Implicit => new Conversion(ConversionKind.Implicit);
+    internal static Conversion DefaultLiteral => new Conversion(ConversionKind.DefaultLiteral);
     internal static Conversion ImplicitConstant => new Conversion(ConversionKind.ImplicitConstant);
     internal static Conversion ImplicitNullable => new Conversion(ConversionKind.ImplicitNullable);
     internal static Conversion ImplicitReference => new Conversion(ConversionKind.ImplicitReference);
@@ -29,6 +31,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
     internal static Conversion ImplicitEnum => new Conversion(ConversionKind.ImplicitEnum);
     internal static Conversion ExplicitEnum => new Conversion(ConversionKind.ExplicitEnum);
     internal static Conversion AnyUnboxing => new Conversion(ConversionKind.AnyUnboxing);
+    internal static Conversion ObjectCreation => new Conversion(ConversionKind.ObjectCreation);
     internal static Conversion ImplicitNullableWithIdentityUnderlying
         => new Conversion(ConversionKind.ImplicitNullable, IdentityUnderlying);
     internal static Conversion ExplicitNullableWithIdentityUnderlying
@@ -64,6 +67,14 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
                 conversionResult: conversionResult,
                 conversionMethod: null
             );
+    }
+
+    internal Conversion(ConversionKind kind, MethodSymbol conversionMethod) {
+        this.kind = kind;
+        _uncommonData = new MethodUncommonData(
+            conversionResult: default,
+            conversionMethod: conversionMethod
+        );
     }
 
     private Conversion(ConversionKind kind, UncommonData uncommonData = null) {
@@ -162,6 +173,10 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         return current;
     }
 
+    internal static Conversion MakeConditionalExpression(ImmutableArray<Conversion> innerConversions) {
+        return new Conversion(ConversionKind.ConditionalExpression, innerConversions);
+    }
+
     /// <summary>
     /// Classify what type of <see cref="Conversion" /> is required to go from one type to the other.
     /// </summary>
@@ -180,8 +195,10 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         if (target.IsNullableType()) {
             var underlyingConversion = Classify(source.StrippedType(), target.StrippedType());
 
-            if (underlyingConversion.isIdentity && !source.IsEnumType() && !target.IsEnumType())
+            if (underlyingConversion.isIdentity && !source.IsEnumType() &&
+                !target.IsEnumType() && !source.IsVerifierValue()) {
                 return underlyingConversion;
+            }
 
             if (underlyingConversion.exists)
                 return new Conversion(ConversionKind.ImplicitNullable, [underlyingConversion]);
@@ -228,6 +245,26 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
             return None;
         }
 
+        // TODO Could move this to easy out
+        if (source.specialType is SpecialType.IntPtr or SpecialType.UIntPtr ||
+            target.specialType is SpecialType.IntPtr or SpecialType.UIntPtr) {
+            if (source.specialType == target.specialType)
+                return Identity;
+
+            if (source.specialType is SpecialType.IntPtr or SpecialType.UIntPtr) {
+                if (target.specialType.IsNumeric() || target.specialType is SpecialType.IntPtr or SpecialType.UIntPtr)
+                    return ExplicitNumeric;
+            }
+
+            if (target.specialType is SpecialType.IntPtr or SpecialType.UIntPtr) {
+                if (source.specialType.IsNumeric() || source.specialType is SpecialType.IntPtr or SpecialType.UIntPtr)
+                    return ExplicitNumeric;
+            }
+        }
+
+        if (source.specialType == SpecialType.Void && target.specialType == SpecialType.Void)
+            return Identity;
+
         // Handle most primitive conversions
         if (source.typeKind == TypeKind.Primitive && target.typeKind == TypeKind.Primitive)
             return new Conversion(EasyOut.Classify(source, target));
@@ -241,7 +278,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         if (source.specialType == SpecialType.Any && target.specialType == SpecialType.Array)
             return Explicit;
 
-        if (source.Equals(target))
+        if (source.Equals(target, TypeCompareKind.ConsiderEverything))
             return Identity;
 
         if (source.IsPointerOrFunctionPointer() && target.IsPointerOrFunctionPointer()) {
@@ -251,13 +288,13 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
             return ExplicitPointerToPointer;
         }
 
-        if (source.specialType.IsNumeric() && target.typeKind == TypeKind.Pointer) {
-            if (source.specialType is not SpecialType.Float32 and not SpecialType.Float64 and not SpecialType.Decimal)
+        if (source.specialType.IsNumeric() && target.IsPointerOrFunctionPointer()) {
+            if (!source.specialType.IsFloatingPoint())
                 return ExplicitIntegerToPointer;
         }
 
-        if (target.specialType.IsNumeric() && source.typeKind == TypeKind.Pointer) {
-            if (target.specialType is not SpecialType.Float32 and not SpecialType.Float64 and not SpecialType.Decimal)
+        if (target.specialType.IsNumeric() && source.IsPointerOrFunctionPointer()) {
+            if (!target.specialType.IsFloatingPoint())
                 return ExplicitPointerToInteger;
         }
 

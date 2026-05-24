@@ -27,4 +27,7 @@ internal enum ConversionKind : byte {
     ExplicitNumeric,
     AnyUnboxing,
     ListExpression,
+    MethodGroup,
+    ObjectCreation,
+    ConditionalExpression,
 }

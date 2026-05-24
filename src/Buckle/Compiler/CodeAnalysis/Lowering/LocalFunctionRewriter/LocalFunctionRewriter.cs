@@ -86,7 +86,8 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
         TypeCompilationState state,
         List<Analysis> previousAnalyses,
         BelteDiagnosticQueue diagnostics,
-        HashSet<DataContainerSymbol> assignLocals) {
+        HashSet<DataContainerSymbol> assignLocals,
+        ref MethodSymbol entryPoint) {
         var analysis = Analysis.Analyze(loweredBody, method, methodOrdinal, state);
         var rewriter = new LocalFunctionRewriter(
             analysis,
@@ -102,6 +103,13 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
 
         rewriter.SynthesizeClosureEnvironments();
         rewriter.SynthesizeClosureMethods();
+
+        if (entryPoint is LocalFunctionSymbol) {
+            ImmutableArray<BoundExpression> _1 = [];
+            ImmutableArray<RefKind> _2 = [];
+
+            rewriter.RemapLocalFunction(null, entryPoint, out _, out entryPoint, ref _1, ref _2);
+        }
 
         var body = rewriter.AddStatementsIfNeeded((BoundBlockStatement)rewriter.Visit(loweredBody));
 
@@ -127,10 +135,8 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
 
                 _compilationState.AddSynthesizedType(_containingType, frame);
 
-                var typeLayouts = EvaluatorTypeLayoutVisitor.CreateTypeLayouts(frame);
-
-                foreach (var typeLayout in typeLayouts)
-                    _compilationState.typeLayouts.Add(typeLayout.Key, typeLayout.Value);
+                lock (_compilationState.typeLayouts)
+                    EvaluatorTypeLayoutVisitor.CreateTypeLayouts(_compilationState.typeLayouts, frame);
 
                 if (frame.constructor is not null) {
                     AddSynthesizedMethod(
@@ -323,10 +329,30 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
                 ref argRefKinds
             );
 
-            return node.Update(remappedMethod, constrainedToTypeOpt: node.constrainedToTypeOpt, node.type);
+            return node.Update(remappedMethod, constrainedToType: node.constrainedToType, node.type);
         }
 
         return base.VisitFunctionPointerLoad(node);
+    }
+
+    internal override BoundNode VisitFunctionLoad(BoundFunctionLoad node) {
+        if (node.targetMethod.methodKind == MethodKind.LocalFunction) {
+            ImmutableArray<BoundExpression> arguments = default;
+            ImmutableArray<RefKind> argRefKinds = default;
+
+            RemapLocalFunction(
+                node.syntax,
+                node.targetMethod,
+                out var receiver,
+                out var remappedMethod,
+                ref arguments,
+                ref argRefKinds
+            );
+
+            return node.Update(receiver, remappedMethod, node.type);
+        }
+
+        return base.VisitFunctionLoad(node);
     }
 
     internal override BoundNode VisitBaseExpression(BoundBaseExpression node) {
@@ -848,8 +874,15 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
         _currentBodyTemplateMap = synthesizedMethod.templateMap;
 
         if (node.body is BoundBlockStatement block) {
+            var outInitializers = InitializerRewriter.RewriteOutParameters(synthesizedMethod);
             var body = AddStatementsIfNeeded((BoundBlockStatement)VisitBlockStatement(block));
+
+            if (outInitializers is not null)
+                body = new BoundBlockStatement(body.syntax, [outInitializers, body], [], []);
+
+            // The main lowering passes happen while the local function body is still present in the enclosing method
             body = Lowerer.Flatten(synthesizedMethod, body);
+            body = Optimizer.RemoveDeadCode(body, _diagnostics);
 
             if (!ControlFlowGraph.AllPathsReturn(body))
                 _diagnostics.Push(Error.NotAllPathsReturn(node.symbol.location));

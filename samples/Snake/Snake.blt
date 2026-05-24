@@ -2,8 +2,8 @@
 class Snake {
     private Sprite _sprite;
 
-    public Vec2[] coords;
-    public int! bodySize;
+    public const Vec2[] coords;
+    public int bodySize;
 
     public constructor() {
         bodySize = Settings.BodyParts;
@@ -32,7 +32,7 @@ class Snake {
         }
     }
 
-    public void AddBodySegment(decimal x, decimal y) {
+    public void AddBodySegment(decimal? x, decimal? y) {
         coords[bodySize++] = new Vec2(x, y);
     }
 }

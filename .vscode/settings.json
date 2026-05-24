@@ -6,6 +6,7 @@
         // "*/**/bin": true,
         "**/obj": true,
         "**/.vs": true,
+        "**/*.lscache": true,
     },
     "editor.rulers": [
         80,

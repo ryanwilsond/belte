@@ -18,6 +18,8 @@ internal sealed class SourceSimpleParameterSymbol : SourceParameterSymbol {
 
     internal override ConstantValue explicitDefaultConstantValue => null;
 
+    internal override ConstantValue outDefaultValue => null;
+
     internal override bool isMetadataOptional => false;
 
     internal override bool hasDefaultArgumentSyntax => false;

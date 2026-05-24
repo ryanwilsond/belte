@@ -48,7 +48,7 @@ public partial class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
         var cleanedDiagnostics = new BelteDiagnosticQueue();
         var specialDiagnostics = GetInstance();
 
-        var diagnosticList = diagnostics.ToList<BelteDiagnostic>();
+        var diagnosticList = diagnostics.ToArray().ToList();
 
         for (var i = 0; i < diagnosticList.Count; i++) {
             var diagnostic = diagnosticList[i];

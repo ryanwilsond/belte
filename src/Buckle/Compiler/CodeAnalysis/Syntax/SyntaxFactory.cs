@@ -75,6 +75,67 @@ public static partial class SyntaxFactory {
         return ReferenceType(Token(SyntaxKind.RefKeyword), IdentifierName(name));
     }
 
+    public static ExpressionSyntax GetStandaloneExpression(ExpressionSyntax expression) {
+        return GetStandaloneNode(expression) as ExpressionSyntax ?? expression;
+    }
+
+    internal static BelteSyntaxNode GetStandaloneNode(BelteSyntaxNode node) {
+        if (node is null || !(node is ExpressionSyntax))
+            return node;
+
+        switch (node.kind) {
+            case SyntaxKind.IdentifierName:
+            case SyntaxKind.TemplateName:
+            case SyntaxKind.ArrayType:
+            case SyntaxKind.NullableType:
+            case SyntaxKind.NonNullableType:
+                break;
+            default:
+                return node;
+        }
+
+        var parent = node.parent;
+
+        if (parent is null)
+            return node;
+
+        switch (parent.kind) {
+            case SyntaxKind.QualifiedName:
+                if (((QualifiedNameSyntax)parent).right == node)
+                    return parent;
+
+                break;
+            case SyntaxKind.AliasQualifiedName:
+                if (((AliasQualifiedNameSyntax)parent).name == node)
+                    return parent;
+
+                break;
+            case SyntaxKind.MemberAccessExpression:
+                if (((MemberAccessExpressionSyntax)parent).name == node)
+                    return parent;
+
+                break;
+            case SyntaxKind.ArrayCreationExpression:
+                if (((ArrayCreationExpressionSyntax)parent).type == node)
+                    return parent;
+
+                break;
+            case SyntaxKind.ObjectCreationExpression:
+                if (node.kind == SyntaxKind.NullableType && ((ObjectCreationExpressionSyntax)parent).type == node)
+                    return parent;
+
+                break;
+            case SyntaxKind.StackAllocExpression:
+                if (((StackAllocExpressionSyntax)parent).type == node)
+                    return parent;
+
+                break;
+                // TODO ArgumentSyntax?
+        }
+
+        return node;
+    }
+
     /// <summary>
     /// Creates an empty <see cref="TemplateParameterListSyntax" />.
     /// </summary>
@@ -148,22 +209,6 @@ public static partial class SyntaxFactory {
             Token(SyntaxKind.CloseBraceToken),
             statements[0],
             statements[0].position
-        );
-    }
-
-    internal static MethodDeclarationSyntax MethodWithParent(BlockStatementSyntax body) {
-        return MethodDeclaration(
-            List<AttributeListSyntax>(),
-            SyntaxTokenList.Empty,
-            IdentifierName(""),
-            Identifier(""),
-            TemplateParameterList(),
-            ParameterList(),
-            ConstraintClauseList(),
-            body,
-            Token(SyntaxKind.SemicolonToken),
-            body.statements[0],
-            body.statements[0].position
         );
     }
 

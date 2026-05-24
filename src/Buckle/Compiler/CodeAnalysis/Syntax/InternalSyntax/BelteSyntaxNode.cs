@@ -1,3 +1,6 @@
+using System;
+using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using Diagnostics;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
@@ -6,6 +9,8 @@ namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 /// Represents a <see cref="GreenNode" /> that is part of the language syntax.
 /// </summary>
 internal abstract class BelteSyntaxNode : GreenNode {
+    private static readonly ConditionalWeakTable<SyntaxNode, Dictionary<Syntax.SyntaxTrivia, WeakReference<SyntaxNode>>> StructuresTable = [];
+
     /// <summary>
     /// Creates a new <see cref="BelteSyntaxNode" />.
     /// </summary>
@@ -73,5 +78,32 @@ internal abstract class BelteSyntaxNode : GreenNode {
             return ApplyDirectives(listOrNode, stack);
 
         return ((BelteSyntaxNode)listOrNode).ApplyDirectives(stack);
+    }
+
+    internal override SyntaxNode GetStructure(Syntax.SyntaxTrivia trivia) {
+        if (trivia.hasStructure) {
+            var parent = trivia.token.parent;
+
+            if (parent is not null) {
+                SyntaxNode structure;
+                var structsInParent = StructuresTable.GetOrCreateValue(parent);
+
+                lock (structsInParent) {
+                    if (!structsInParent.TryGetValue(trivia, out var weakStructure)) {
+                        structure = Syntax.StructuredTriviaSyntax.Create(trivia);
+                        structsInParent.Add(trivia, new WeakReference<SyntaxNode>(structure));
+                    } else if (!weakStructure.TryGetTarget(out structure)) {
+                        structure = Syntax.StructuredTriviaSyntax.Create(trivia);
+                        weakStructure.SetTarget(structure);
+                    }
+                }
+
+                return structure;
+            } else {
+                return Syntax.StructuredTriviaSyntax.Create(trivia);
+            }
+        }
+
+        return null;
     }
 }

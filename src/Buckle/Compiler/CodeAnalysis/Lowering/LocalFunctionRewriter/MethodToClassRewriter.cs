@@ -110,7 +110,19 @@ internal abstract partial class MethodToClassRewriter : BoundTreeRewriterWithSta
     }
 
     internal override BoundNode VisitFunctionPointerLoad(BoundFunctionPointerLoad node) {
-        return node.Update(VisitMethodSymbol(node.targetMethod), VisitType(node.constrainedToTypeOpt), VisitType(node.type));
+        return node.Update(
+            VisitMethodSymbol(node.targetMethod),
+            VisitType(node.constrainedToType),
+            VisitType(node.type)
+        );
+    }
+
+    internal override BoundNode VisitFunctionLoad(BoundFunctionLoad node) {
+        return node.Update(
+            (BoundExpression)Visit(node.receiver),
+            VisitMethodSymbol(node.targetMethod),
+            VisitType(node.type)
+        );
     }
 
     internal override BoundNode VisitWhileStatement(BoundWhileStatement node) {
@@ -368,6 +380,9 @@ internal abstract partial class MethodToClassRewriter : BoundTreeRewriterWithSta
     private protected MethodSymbol VisitMethodSymbol(MethodSymbol method) {
         if (method is null)
             return null;
+
+        if (method is FunctionMethodSymbol)
+            return method;
 
         // if (method.containingType.IsAnonymousType) {
         //     //  Method of an anonymous type

@@ -77,9 +77,8 @@ internal partial class BoundDecisionDag {
             }
 
             bool? KnownResult(BoundDagTest choice) {
-                if (!choice.input.isOriginalInput) {
+                if (!choice.input.isOriginalInput)
                     return null;
-                }
 
                 switch (choice) {
                     case BoundDagExplicitNullTest d:
@@ -87,7 +86,9 @@ internal partial class BoundDecisionDag {
                     case BoundDagNonNullTest d:
                         return !ConstantValue.IsNull(inputConstant);
                     case BoundDagValueTest d:
-                        return d.value == inputConstant;
+                        return d.value.value.Equals(inputConstant.value);
+                    case BoundDagTypeTest d:
+                        return ConstantValue.IsNull(inputConstant) ? (bool?)false : null;
                     default:
                         throw ExceptionUtilities.UnexpectedValue(choice);
                 }

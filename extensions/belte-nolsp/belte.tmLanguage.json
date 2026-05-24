@@ -29,11 +29,11 @@
             "patterns": [
                 {
                     "name": "keyword.control.belte",
-                    "match": "\\b(if|else|while|for|return|break|continue|do|try|catch|finally|throw|switch|goto|default|case)\\b"
+                    "match": "\\b(if|else|while|for|return|break|continue|do|try|catch|finally|throw|switch|goto|default|case|with|defer|unreachable)\\b"
                 },
                 {
                     "name": "keyword.other.belte",
-                    "match": "\\b(this|base|var|ref|new|operator|lowlevel|implicit|explicit|nameof|typeof|sizeof|stackalloc|primitive|notnull|is|as|global|il|noverify)\\b"
+                    "match": "\\b(this|base|var|ref|new|operator|lowlevel|implicit|explicit|nameof|typeof|sizeof|stackalloc|primitive|notnull|is|isnt|as|global|il|noverify|out|union)\\b"
                 },
                 {
                     "name": "keyword.operator.arithmetic.belte",
@@ -91,11 +91,11 @@
             "patterns": [
                 {
                     "name": "storage.type.built-in.belte",
-                    "match": "\\b(int|decimal|string|void|bool|type|char|any|int8|uint8|int16|uint16|int32|uint32|int64|uint64|float32|float64|intptr|uintptr)\\b"
+                    "match": "\\b(int|decimal|string|void|bool|type|char|any|int8|uint8|int16|uint16|int32|uint32|int64|uint64|float32|float64|intptr|uintptr|winbool)\\b"
                 },
                 {
                     "name": "storage.type.class.belte",
-                    "match": "\\b(class|struct|constructor|extends|where|namespace|using|enum|flags)\\b"
+                    "match": "\\b(class|struct|constructor|extends|where|namespace|using|enum|flags|destructor)\\b"
                 },
                 {
                     "name": "storage.type.number.belte",
@@ -143,19 +143,31 @@
                 },
                 {
                     "name": "entity.name.class.belte",
-                    "match": "\\b((?<=class\\s+)|(?<=\\:\\s*))([a-zA-Z_]+\\w*)\\b"
+                    "match": "\\b((?<=class\\s+)|(?<=extends\\s*))([a-zA-Z_]+\\w*)\\b"
+                },
+                {
+                    "name": "entity.name.struct.belte",
+                    "match": "\\b((?<=struct\\s+)|(?<=extends\\s*))([a-zA-Z_]+\\w*)\\b"
+                },
+                {
+                    "name": "entity.name.enum.belte",
+                    "match": "\\b((?<=enum\\s+(?:flags\\s+)?)|(?<=extends\\s*))(?!flags\\b)([a-zA-Z_]\\w*)\\b"
+                },
+                {
+                    "name": "entity.name.namespace.belte",
+                    "match": "(?<=\\bnamespace\\b[\\s\\S]*?)\\b((?<=namespace\\s+)|(?<=\\.\\s*))([a-zA-Z_]\\w*)\\b"
                 },
                 {
                     "name": "entity.name.operator.belte",
-                    "match": "\\b(?<=operator)((\\=)|(\\=\\=)|(\\<\\=)|(\\>\\=)|(\\<)|(\\>)|(\\!\\=)|(\\[\\])|(\\*\\*)|(\\+)|(\\-)|(\\*)|(\\/)|(\\%)|(\\^)|(\\&)|(\\|)|(\\~)|(\\!)|(\\+\\=)|(\\-\\=)|(\\*\\=)|(\\*\\*\\=)|(\\/\\=)|(\\%\\=)|(\\^\\=)|(\\&\\=)|(\\|\\=)|(\\<\\<)|(\\>\\>)|(\\>\\>\\>)|(\\<\\<\\=)|(\\>\\>\\=)|(\\&\\&)|(\\|\\|)|is|isnt|(\\+\\+)|(\\-\\-)|(\\(\\)))(?=\\()"
+                    "match": "\\b(?<=operator)((\\=)|(\\=\\=)|(\\<\\=)|(\\>\\=)|(\\<)|(\\>)|(\\!\\=)|(\\[\\])|(\\*\\*)|(\\+)|(\\-)|(\\*)|(\\/)|(\\%)|(\\^)|(\\&)|(\\|)|(\\~)|(\\!)|(\\+\\=)|(\\-\\=)|(\\*\\=)|(\\*\\*\\=)|(\\/\\=)|(\\%\\=)|(\\^\\=)|(\\&\\=)|(\\|\\=)|(\\<\\<)|(\\>\\>)|(\\>\\>\\>)|(\\<\\<\\=)|(\\>\\>\\=)|(\\&\\&)|(\\|\\|)|(\\+\\+)|(\\-\\-)|(\\(\\)))(?=\\()"
                 },
                 {
                     "name": "entity.name.type.belte",
-                    "match": "\\b([a-zA-Z_]+\\w*)\\s*((?=\\s+[a-zA-Z_]+\\w*)|(?=\\[\\]\\s+[a-zA-Z_]+\\w*))\\b"
+                    "match": "(?<!\\S)\\b([a-zA-Z_]+\\w*)\\s*((?=\\s+[a-zA-Z_]+\\w*)|(?=\\[\\]\\s+[a-zA-Z_]+\\w*))\\b"
                 },
                 {
                     "name": "entity.name.type.parameter.belte",
-                    "match": "\\b(?<=\\()\\s*([a-zA-Z_]+\\w*)\\s+(?=[a-zA-Z_]+\\w*)\\b"
+                    "match": "\\b(?<=\\()\\s*([a-zA-Z_]+\\w*)\\s+((?=[a-zA-Z_]+\\w*)(?!(is|isnt|as)))\\b"
                 },
                 {
                     "name": "entity.name.type.specifier.belte",
@@ -197,6 +209,10 @@
                 {
                     "name": "comment.line.double-slash.documentation",
                     "match": "///.*"
+                },
+                {
+                    "name": "comment.shebang",
+                    "match": "#!.*"
                 }
             ]
         }

@@ -6,7 +6,7 @@ namespace Buckle.CodeAnalysis.Display;
 /// <summary>
 /// A single piece of text with a single <see cref="Classification" /> associated with it.
 /// </summary>
-public sealed class DisplayTextSegment {
+public struct DisplayTextSegment {
     private DisplayTextSegment(string text, Classification classification) {
         this.text = text;
         this.classification = classification;

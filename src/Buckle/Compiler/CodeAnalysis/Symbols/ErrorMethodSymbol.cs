@@ -85,4 +85,8 @@ internal sealed class ErrorMethodSymbol : MethodSymbol {
     internal override DllImportData GetDllImportData() {
         return null;
     }
+
+    internal sealed override UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete) {
+        return null;
+    }
 }

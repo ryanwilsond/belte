@@ -90,8 +90,10 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
 
     internal override bool hasNotNullConstraint {
         get {
-            return (_flags & (GenericParameterAttributes.NotNullableValueTypeConstraint |
-                GenericParameterAttributes.ReferenceTypeConstraint)) == 0;
+            return false;
+            // TODO We don't have a direct equivalent to this:
+            // return (_flags & (GenericParameterAttributes.NotNullableValueTypeConstraint |
+            //     GenericParameterAttributes.ReferenceTypeConstraint)) == 0;
         }
     }
 

@@ -44,6 +44,24 @@ internal sealed class SyntaxNavigator {
         return GetNextToken(current, GetPredicateFunction(includeZeroWidth), GetStepIntoFunction(includeSkipped));
     }
 
+    internal SyntaxToken GetPreviousToken(SyntaxToken current, Func<SyntaxToken, bool> predicate, Func<SyntaxTrivia, bool> stepInto) {
+        return GetPreviousToken(current, predicate, stepInto is not null, stepInto);
+    }
+
+    internal SyntaxToken GetPreviousToken(
+        SyntaxToken current,
+        bool includeZeroWidth,
+        bool includeSkipped,
+        bool includeDirectives) {
+        return GetPreviousToken(
+            current,
+            GetPredicateFunction(includeZeroWidth),
+            // TODO Directives
+            // GetStepIntoFunction(includeSkipped, includeDirectives)
+            GetStepIntoFunction(includeSkipped)
+        );
+    }
+
     internal SyntaxToken GetNextToken(
         SyntaxToken current,
         Func<SyntaxToken, bool> predicate,
@@ -191,6 +209,134 @@ internal sealed class SyntaxNavigator {
             stack.Clear();
             ChildReversedEnumeratorStackPool.Free(stack);
         }
+    }
+
+    internal SyntaxToken GetPreviousToken(
+        SyntaxToken current,
+        Func<SyntaxToken, bool> predicate,
+        bool searchInsideCurrentTokenLeadingTrivia,
+        Func<SyntaxTrivia, bool> stepInto) {
+        if (current.parent is not null) {
+            if (searchInsideCurrentTokenLeadingTrivia) {
+                var lastToken = GetLastToken(current.leadingTrivia, predicate, stepInto!);
+
+                if (lastToken.kind != SyntaxKind.None)
+                    return lastToken;
+            }
+
+            var returnPrevious = false;
+
+            foreach (var child in current.parent.ChildNodesAndTokens().Reverse()) {
+                if (returnPrevious) {
+                    if (child.isToken) {
+                        var token = GetLastToken(child.AsToken(), predicate, stepInto);
+
+                        if (token.kind != SyntaxKind.None)
+                            return token;
+                    } else {
+                        var token = GetLastToken(child.AsNode(), predicate, stepInto);
+
+                        if (token.kind != SyntaxKind.None)
+                            return token;
+                    }
+                } else if (child.isToken && child.AsToken() == current) {
+                    returnPrevious = true;
+                }
+            }
+
+            return GetPreviousToken(current.parent, predicate, stepInto);
+        }
+
+        return default;
+    }
+
+    internal SyntaxToken GetPreviousToken(
+        SyntaxNode node,
+        Func<SyntaxToken, bool> predicate,
+        Func<SyntaxTrivia, bool> stepInto) {
+        while (node.parent is not null) {
+            var returnPrevious = false;
+
+            foreach (var child in node.parent.ChildNodesAndTokens().Reverse()) {
+                if (returnPrevious) {
+                    if (child.isToken) {
+                        var token = GetLastToken(child.AsToken(), predicate, stepInto);
+
+                        if (token.kind != SyntaxKind.None)
+                            return token;
+                    } else {
+                        var token = GetLastToken(child.AsNode(), predicate, stepInto);
+
+                        if (token.kind != SyntaxKind.None)
+                            return token;
+                    }
+                } else if (child.isNode && child.AsNode() == node) {
+                    returnPrevious = true;
+                }
+            }
+
+            node = node.parent;
+        }
+
+        if (node is StructuredTriviaSyntax s)
+            return GetPreviousToken(s.parentTrivia, predicate, stepInto);
+
+        return default;
+    }
+
+    internal SyntaxToken GetPreviousToken(
+        SyntaxTrivia current,
+        Func<SyntaxToken, bool> predicate,
+        Func<SyntaxTrivia, bool> stepInto) {
+        var returnPrevious = false;
+
+        var token = GetPreviousToken(current, current.token.trailingTrivia, predicate, stepInto, ref returnPrevious);
+
+        if (token.kind != SyntaxKind.None)
+            return token;
+
+        if (returnPrevious && Matches(predicate, current.token))
+            return current.token;
+
+        token = GetPreviousToken(current, current.token.leadingTrivia, predicate, stepInto, ref returnPrevious);
+
+        if (token.kind != SyntaxKind.None)
+            return token;
+
+        return GetPreviousToken(current.token, predicate, false, stepInto);
+    }
+
+    private SyntaxToken GetPreviousToken(
+        SyntaxTrivia current,
+        SyntaxTriviaList list,
+        Func<SyntaxToken, bool> predicate,
+        Func<SyntaxTrivia, bool>? stepInto,
+        ref bool returnPrevious) {
+        foreach (var trivia in list.Reverse()) {
+            if (returnPrevious) {
+                if (TryGetLastTokenForStructuredTrivia(trivia, predicate, stepInto, out var token))
+                    return token;
+            } else if (trivia == current) {
+                returnPrevious = true;
+            }
+        }
+
+        return default;
+    }
+
+    private bool TryGetLastTokenForStructuredTrivia(
+        SyntaxTrivia trivia,
+        Func<SyntaxToken, bool> predicate,
+        Func<SyntaxTrivia, bool>? stepInto,
+        out SyntaxToken token) {
+        token = default;
+
+        if (!trivia.TryGetStructure(out var structure) || stepInto is null || !stepInto(trivia))
+            return false;
+
+        token = GetLastToken(structure, predicate, stepInto);
+
+        return token.kind != SyntaxKind.None;
     }
 
     private SyntaxToken GetFirstToken(

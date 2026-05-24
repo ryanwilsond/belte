@@ -33,7 +33,7 @@ class Food {
         );
     }
 
-    private bool! InSnake(Snake snake, int x, int y) {
+    private bool InSnake(Snake snake, int x, int y) {
         for (var i = 0; i < snake.bodySize; i++) {
             if (x == snake.coords[i].x && y == snake.coords[i].y)
                 return true;

@@ -12,6 +12,10 @@ public static class Utilities {
         return o.GetType().Name;
     }
 
+    public static Type AnyGetType(object o) {
+        return o.GetType();
+    }
+
     public static T AssertNull<T>(T value) {
         if (value is null)
             throw new NullReferenceException();
@@ -37,6 +41,54 @@ public static class Utilities {
         return str.Length;
     }
 
+    public static long StringIndexOf(string str, char chr) {
+        return str.IndexOf(chr);
+    }
+
+    public static string StringPadLeft(string str, char chr, long width) {
+        return str.PadLeft((int)width, chr);
+    }
+
+    public static string StringPadRight(string str, char chr, long width) {
+        return str.PadRight((int)width, chr);
+    }
+
+    public static string StringReplace(string str, string search, string replacement) {
+        return str.Replace(search, replacement);
+    }
+
+    public static string StringTrim(string str) {
+        return str.Trim();
+    }
+
+    public static string StringTrim(string str, char[] trimChars) {
+        return str.Trim(trimChars);
+    }
+
+    public static string StringTrimStart(string str) {
+        return str.TrimStart();
+    }
+
+    public static string StringTrimStart(string str, char[] trimChars) {
+        return str.TrimStart(trimChars);
+    }
+
+    public static string StringTrimEnd(string str) {
+        return str.TrimEnd();
+    }
+
+    public static string StringTrimEnd(string str, char[] trimChars) {
+        return str.TrimEnd(trimChars);
+    }
+
+    public static void CreateDirectory(string path) {
+        System.IO.Directory.CreateDirectory(path);
+    }
+
+    public static void DeleteDirectory(string path) {
+        System.IO.Directory.Delete(path, recursive: true);
+    }
+
     public static long TimeNow() {
         return DateTime.Now.Ticks / TimeSpan.TicksPerMillisecond;
     }
@@ -53,12 +105,66 @@ public static class Utilities {
         return ((char)ascii).ToString();
     }
 
+    public static bool IsDigit(char? chr) {
+        return chr.HasValue && char.IsDigit(chr.Value);
+    }
+
+    public static string Substring(string text, long? start, long? length) {
+        if (text is null)
+            return null;
+
+        if (length is null)
+            return text.Substring(start.HasValue ? unchecked((int)start.Value) : 0);
+
+        return text.Substring(start.HasValue ? unchecked((int)start.Value) : 0, unchecked((int)length.Value));
+    }
+
+    public static bool IsNullOrWhiteSpace(char? chr) {
+        return !chr.HasValue || char.IsWhiteSpace(chr.Value);
+    }
+
+    public static long? IntParse(string text) {
+        if (text is null)
+            return null;
+
+        if (long.TryParse(text, out var result))
+            return result;
+
+        return null;
+    }
+
+    public static double? DecimalParse(string text) {
+        if (text is null)
+            return null;
+
+        if (double.TryParse(text, out var result))
+            return result;
+
+        return null;
+    }
+
+    public static string IntToString(long num, string format) {
+        return num.ToString(format);
+    }
+
+    public static string DecimalToString(double num, string format) {
+        return num.ToString(format);
+    }
+
     public static string[] Split(string text, string separator) {
         return text.Split(separator);
     }
 
     public unsafe static byte* CreateLPCSTR(string str) {
         return (byte*)System.Runtime.InteropServices.Marshal.StringToHGlobalAnsi(str);
+    }
+
+    public unsafe static byte* CreateLPCSTR_UTF(string str) {
+        var utf8 = System.Text.Encoding.UTF8.GetBytes(str);
+        var ptr = (byte*)System.Runtime.InteropServices.Marshal.AllocHGlobal(utf8.Length + 1);
+        System.Runtime.InteropServices.Marshal.Copy(utf8, 0, (nint)ptr, utf8.Length);
+        ptr[utf8.Length] = 0;
+        return ptr;
     }
 
     public unsafe static char* CreateLPCWSTR(string str) {

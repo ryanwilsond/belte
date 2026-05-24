@@ -26,6 +26,11 @@ public struct ShowDialogs {
     public bool clearSubmissions;
 
     /// <summary>
+    /// Display cleared cache information dialog.
+    /// </summary>
+    public bool clearCache;
+
+    /// <summary>
     /// Display error help.
     /// </summary>
     public string error;

@@ -46,6 +46,8 @@ internal abstract class ILBuilder {
 
     internal abstract void EmitWithSymbolToken(OpCode opCode, MethodSymbol type);
 
+    internal abstract void EmitUnreachableException();
+
     internal abstract void BeginTry();
 
     internal abstract void BeginCatch();
@@ -56,7 +58,11 @@ internal abstract class ILBuilder {
 
     internal abstract void EmitReturn();
 
+    internal abstract void EmitSwitch(object[] labels);
+
     internal abstract void EmitCalli(FunctionPointerTypeSymbol type);
+
+    internal abstract void EmitNewobjFunc(FunctionTypeSymbol type);
 
     internal abstract void EmitLocalAddress(DataContainerSymbol local);
 
@@ -74,6 +80,8 @@ internal abstract class ILBuilder {
 
     internal abstract void EmitLoadArgument(int slot);
 
+    internal abstract void EmitLoadArgument0();
+
     internal abstract void EmitLoadArgumentAddr(int slot);
 
     internal abstract void EmitStoreArgument(int slot);
@@ -87,6 +95,8 @@ internal abstract class ILBuilder {
     internal abstract void EmitLength(TypeSymbol elementType);
 
     internal abstract void EmitSizeOf(TypeSymbol elementType);
+
+    internal abstract void EmitBitCast(TypeSymbol tFrom, TypeSymbol tTo);
 
     internal abstract void EmitStringConcat2();
 

@@ -11,11 +11,12 @@ internal sealed class StringTextWriter : SourceTextWriter {
     /// <summary>
     /// Creates a new <see cref="StringTextWriter" /> with a starting capacity.
     /// </summary>
-    internal StringTextWriter(int capacity) {
+    internal StringTextWriter(int capacity, Encoding encoding) {
         _builder = new StringBuilder(capacity);
+        Encoding = encoding;
     }
 
-    public override Encoding Encoding => Encoding.UTF8;
+    public override Encoding Encoding { get; }
 
     public override void Write(char value) {
         _builder.Append(value);
@@ -30,6 +31,6 @@ internal sealed class StringTextWriter : SourceTextWriter {
     }
 
     internal override SourceText ToSourceText() {
-        return new StringText(null, _builder.ToString());
+        return new StringText(null, Encoding, _builder.ToString());
     }
 }

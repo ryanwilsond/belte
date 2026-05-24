@@ -78,6 +78,10 @@ internal sealed class SynthesizedStaticConstructor : MethodSymbol {
         return null;
     }
 
+    internal sealed override UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete) {
+        return null;
+    }
+
     internal override bool IsMetadataVirtual(bool forceComplete = false) {
         return false;
     }

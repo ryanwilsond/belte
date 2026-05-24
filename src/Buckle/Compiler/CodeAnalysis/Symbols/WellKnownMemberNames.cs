@@ -32,11 +32,17 @@ internal static class WellKnownMemberNames {
     internal const string GreaterThanOperatorName = "op_GreaterThan";
     internal const string LessThanOrEqualOperatorName = "op_LessThanOrEqual";
     internal const string GreaterThanOrEqualOperatorName = "op_GreaterThanOrEqual";
+    internal const string SlashBackslashOperatorName = "op_Min";
+    internal const string BackslashSlashOperatorName = "op_Max";
     internal const string ImplicitConversionName = "op_Implicit";
     internal const string ExplicitConversionName = "op_Explicit";
+    internal const string LengthOperatorName = "op_Length";
+    internal const string IterOperatorName = "op_Iter";
     internal const string EntryPointMethodName = "Main";
     internal const string UpdatePointMethodName = "Update";
     internal const string TopLevelStatementsEntryPointTypeName = "<Program>";
     internal const string EnumBackingFieldName = "value__";
+    internal const string DestructorName = "Finalize";
+    internal const string Dispose = "Dispose";
     internal new const string ToString = "ToString";
 }

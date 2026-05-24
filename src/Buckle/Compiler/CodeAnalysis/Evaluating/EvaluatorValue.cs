@@ -116,6 +116,7 @@ public struct EvaluatorValue {
             SpecialType.Int => new EvaluatorValue() { kind = ValueKind.Int64, int64 = Convert.ToInt64(value) },
             SpecialType.Decimal => new EvaluatorValue() { kind = ValueKind.Float64, @double = Convert.ToDouble(value) },
             SpecialType.Bool => new EvaluatorValue() { kind = ValueKind.Bool, @bool = Convert.ToBoolean(value) },
+            SpecialType.WinBool => new EvaluatorValue() { kind = ValueKind.Int32, int32 = Convert.ToInt32(value) },
             SpecialType.String => new EvaluatorValue() { kind = ValueKind.String, @string = Convert.ToString(value) },
             SpecialType.Char => new EvaluatorValue() { kind = ValueKind.Char, @char = Convert.ToChar(value) },
             SpecialType.None => Null,
@@ -203,6 +204,13 @@ public struct EvaluatorValue {
                     return FormatObject(heapObject.type, heapObject.fields, context);
                 }
             case ValueKind.MethodGroup: {
+                    if (value.data is MethodSymbol) {
+                        return SymbolDisplay.ToDisplayString(
+                            value.data as MethodSymbol,
+                            SymbolDisplayFormat.BoundDisplayFormat
+                        );
+                    }
+
                     return DisplayText.DisplayNode(value.methodGroup).ToString();
                 }
             default:

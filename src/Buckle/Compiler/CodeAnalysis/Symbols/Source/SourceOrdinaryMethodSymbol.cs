@@ -17,7 +17,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             containingType,
             name,
             syntax,
-            MakeModifiersAndFlags(syntax, methodKind, diagnostics, out var hasExplicitAccessModifier)) {
+            MakeModifiersAndFlags(containingType, syntax, methodKind, diagnostics, out var hasExplicitAccessModifier)) {
         // TODO Eventually will want to have Symbol.CompilationAllowsUnsafe()
         // CheckLowlevelModifier(_modifiers, diagnostics);
         this.hasExplicitAccessModifier = hasExplicitAccessModifier;
@@ -93,11 +93,12 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
     }
 
     private static (DeclarationModifiers, Flags) MakeModifiersAndFlags(
+        NamedTypeSymbol containingType,
         MethodDeclarationSyntax syntax,
         MethodKind methodKind,
         BelteDiagnosticQueue diagnostics,
         out bool hasExplicitAccessMod) {
-        (var declarationModifiers, hasExplicitAccessMod) = MakeModifiers(syntax, diagnostics);
+        (var declarationModifiers, hasExplicitAccessMod) = MakeModifiers(containingType, syntax, diagnostics);
 
         var flags = new Flags(
             methodKind,
@@ -113,6 +114,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
     }
 
     private static (DeclarationModifiers mods, bool hasExplicitAccessMod) MakeModifiers(
+        NamedTypeSymbol containingType,
         MethodDeclarationSyntax syntax,
         BelteDiagnosticQueue diagnostics) {
         var defaultAccess = DeclarationModifiers.Private;
@@ -130,7 +132,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             | DeclarationModifiers.Override;
 
         bool hasExplicitAccessMod;
-        var mods = MakeDeclarationModifiers(syntax, allowedModifiers, diagnostics);
+        var mods = MakeDeclarationModifiers(containingType, syntax, allowedModifiers, diagnostics);
 
         if ((mods & DeclarationModifiers.AccessibilityMask) == 0) {
             hasExplicitAccessMod = false;
@@ -143,12 +145,15 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
     }
 
     private static DeclarationModifiers MakeDeclarationModifiers(
+        NamedTypeSymbol containingType,
         MethodDeclarationSyntax syntax,
         DeclarationModifiers allowedModifiers,
         BelteDiagnosticQueue diagnostics) {
         return ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
             syntax.modifiers,
-            DeclarationModifiers.None,
+            (containingType.IsStructType() || containingType.IsFileScoped())
+                ? DeclarationModifiers.Public
+                : DeclarationModifiers.None,
             allowedModifiers,
             syntax.identifier.location,
             diagnostics,

@@ -32,7 +32,7 @@ internal sealed partial class ControlFlowGraphBuilder {
                 _blockFromStatement.Add(statement, block);
 
                 if (statement is BoundLabelStatement labelStatement)
-                    _blockFromLabel.Add(labelStatement.label, block);
+                    _blockFromLabel.TryAdd(labelStatement.label, block);
             }
         }
 
@@ -76,9 +76,18 @@ internal sealed partial class ControlFlowGraphBuilder {
                     case BoundKind.ReturnStatement:
                         Connect(current, _end);
                         break;
+                    case BoundKind.UnreachableStatement:
                     case BoundKind.ExpressionStatement when
                         ((BoundExpressionStatement)statement).expression is BoundThrowExpression:
                         AddThrowEdges(current);
+                        break;
+                    case BoundKind.SwitchDispatch:
+                        var switchDispatch = (BoundSwitchDispatch)statement;
+
+                        foreach (var (_, label) in switchDispatch.cases)
+                            Connect(current, _blockFromLabel[label]);
+
+                        Connect(current, _blockFromLabel[switchDispatch.defaultLabel]);
                         break;
                     case BoundKind.NopStatement:
                     case BoundKind.ExpressionStatement:

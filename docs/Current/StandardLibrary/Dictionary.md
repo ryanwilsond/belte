@@ -2,7 +2,8 @@
 
 A Dictionary template is an ordered hashmap implementation.
 
-The Belte public interface for the Dictionary template can be found [here](../../../src/Belte/Native/Standard/Collections/Dictionary.blt).
+The Belte public interface for the Dictionary template can be found
+[on the Belte GitHub repository](https://github.com/ryanwilsond/belte/blob/main/src/Belte/Native/Standard/Collections/Dictionary.blt).
 
 - [5.7.2.1](#5721-constructors) Constructors
 - [5.7.2.2](#5722-methods) Methods
@@ -15,9 +16,9 @@ The Dictionary template has two template parameters. The first corresponds to
 the key type, the second corresponds to the value type.
 
 | Signature | Description |
-|-|-|
+| - | - |
 | `new Dictionary<type TKey, type TValue>()` | Creates an empty dictionary. |
-| `Dictionary<type TKey, type TValue>(int!) | Creates an empty dictionary with a starting capacity. |
+| `Dictionary<type TKey, type TValue>(int!)` | Creates an empty dictionary with a starting capacity. |
 | `new Dictionary<type TKey, type TValue>(EqualityComparer<TKey>)` | Creates an empty dictionary with a custom equality comparer. |
 | `new Dictionary<type TKey, type TValue>(int!, EqualityComparer<TKey>)` | Creates an empty dictionary with a starting capacity and a custom equality comparer. |
 | `new Dictionary<type TKey, type TValue>(Dictionary<TKey, TValue>)` | Copies the given dictionary. |
@@ -33,19 +34,20 @@ new Dictionary<int, string>();
 ## 5.7.2.2 Methods
 
 | Signature | Description |
-|-|-|
+| - | - |
 | `void Add(TKey, TValue)` | Adds a key value pair. |
 | `void Clear()` | Removes all elements. |
-| `bool! ContainsKey(TKey)` | If the dictionary contains the given key. |
-| `bool! ContainsValue(TValue)` | If the dictionary contains the given value. |
-| `int! Length()` | The number of elements. |
+| `const bool! ContainsKey(TKey)` | If the dictionary contains the given key. |
+| `const bool! ContainsValue(TValue)` | If the dictionary contains the given value. |
+| `const int! Length()` | The number of elements. |
 | `bool Remove(TKey)` | Removes the pair with the given key. Returns true if succeeded, or false if the key was not present. |
 
 ## 5.7.2.3 Operators
 
 | Signature | Description |
-|-|-|
+| - | - |
 | `static ref TValue operator[](Dictionary<TKey, TValue>, TKey)` | Gets the value associated with the given key. |
+| `static Enumerator<KeyValuePair<TKey, TValue>>! operator iter(Dictionary<TKey, TValue>)` | Used in [iterating for loops](../ControlFlow.md#2444-enumerated-collections). |
 
 For example, to set and get a value from a dictionary:
 

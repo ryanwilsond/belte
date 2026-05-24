@@ -75,9 +75,9 @@ internal sealed partial class PEFieldSymbol : FieldSymbol {
         get {
             // TODO We have limited ways to represent full .NET accessibility
             var access = (_flags & FieldAttributes.FieldAccessMask) switch {
-                FieldAttributes.Assembly => Accessibility.Private,// access = Accessibility.Internal;
-                FieldAttributes.FamORAssem => Accessibility.Private,// access = Accessibility.ProtectedOrInternal;
-                FieldAttributes.FamANDAssem => Accessibility.Private,// access = Accessibility.ProtectedAndInternal;
+                FieldAttributes.Assembly => Accessibility.Public,// access = Accessibility.Internal;
+                FieldAttributes.FamORAssem => Accessibility.Public,// access = Accessibility.ProtectedOrInternal;
+                FieldAttributes.FamANDAssem => Accessibility.Public,// access = Accessibility.ProtectedAndInternal;
                 FieldAttributes.Private or FieldAttributes.PrivateScope => Accessibility.Private,
                 FieldAttributes.Public => Accessibility.Public,
                 FieldAttributes.Family => Accessibility.Protected,

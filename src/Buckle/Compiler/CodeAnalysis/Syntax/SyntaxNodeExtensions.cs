@@ -42,6 +42,10 @@ internal static class SyntaxNodeExtensions {
                     var nullableTypeSyntax = (NonNullableTypeSyntax)type;
                     stack.Push(nullableTypeSyntax.type);
                     break;
+                case SyntaxKind.NullableType:
+                    var underlyingTypeSyntax = (NullableTypeSyntax)type;
+                    stack.Push(underlyingTypeSyntax.type);
+                    break;
                 case SyntaxKind.PointerType:
                     var pointerTypeSyntax = (PointerTypeSyntax)type;
                     stack.Push(pointerTypeSyntax.elementType);
@@ -55,6 +59,15 @@ internal static class SyntaxNodeExtensions {
 
                     for (var i = functionPointerTypeSyntax.parameterList.parameters.Count - 1; i >= 0; i--) {
                         var paramType = functionPointerTypeSyntax.parameterList.parameters[i].type;
+                        stack.Push(paramType);
+                    }
+
+                    break;
+                case SyntaxKind.FunctionType:
+                    var functionTypeSyntax = (FunctionTypeSyntax)type;
+
+                    for (var i = functionTypeSyntax.parameterList.parameters.Count - 1; i >= 0; i--) {
+                        var paramType = functionTypeSyntax.parameterList.parameters[i].type;
                         stack.Push(paramType);
                     }
 
@@ -82,6 +95,36 @@ internal static class SyntaxNodeExtensions {
         stack.Free();
     }
 
+    internal static BelteSyntaxNode GetContainingDeconstruction(this ExpressionSyntax expr) {
+        var kind = expr.kind;
+
+        if (kind != SyntaxKind.DeclarationExpression && kind != SyntaxKind.IdentifierName)
+            return null;
+
+        while (true) {
+            var parent = expr.parent;
+
+            if (parent is null)
+                return null;
+
+            switch (parent.kind) {
+                case SyntaxKind.AssignmentExpression:
+                    if (((AssignmentExpressionSyntax)parent).left == expr)
+                        return parent;
+
+                    return null;
+                // TODO Support this?
+                // case SyntaxKind.ForEachVariableStatement:
+                //     if ((object)((ForEachVariableStatementSyntax)parent).Variable == expr) {
+                //         return parent;
+                //     }
+                //     return null;
+                default:
+                    return null;
+            }
+        }
+    }
+
     internal static TypeSyntax SkipRef(this TypeSyntax syntax, out RefKind refKind) {
         if (syntax.kind == SyntaxKind.ReferenceType) {
             var refType = (ReferenceTypeSyntax)syntax;
@@ -106,5 +149,14 @@ internal static class SyntaxNodeExtensions {
 
         refKind = RefKind.Ref;
         return expression;
+    }
+
+    internal static SyntaxNode ModifyingRefTypeOrSelf(this SyntaxNode syntax) {
+        var parentNode = syntax.parent;
+
+        if (parentNode is ReferenceTypeSyntax refType && refType.type == syntax)
+            syntax = refType;
+
+        return syntax;
     }
 }

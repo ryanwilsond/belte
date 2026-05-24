@@ -43,6 +43,8 @@ internal abstract class ParameterSymbol : Symbol, IParameterSymbol {
 
     internal abstract bool isMetadataOptional { get; }
 
+    internal abstract bool isMetadataOut { get; }
+
     internal abstract bool hasUnscopedRefAttribute { get; }
 
     internal abstract ScopedKind effectiveScope { get; }
@@ -52,6 +54,10 @@ internal abstract class ParameterSymbol : Symbol, IParameterSymbol {
     internal virtual bool isThis => false;
 
     internal bool hasExplicitDefaultValue => isOptional && explicitDefaultConstantValue is not null;
+
+    internal bool hasOutDefaultValue => outDefaultValue is not null;
+
+    internal abstract ConstantValue outDefaultValue { get; }
 
     internal bool isOptional => refKind == RefKind.None && isMetadataOptional;
 

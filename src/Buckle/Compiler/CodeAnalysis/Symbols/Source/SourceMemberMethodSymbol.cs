@@ -59,7 +59,8 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol, I
 
     internal override NamedTypeSymbol containingType { get; }
 
-    internal override Accessibility declaredAccessibility => ModifierHelpers.EffectiveAccessibility(_modifiers);
+    internal override Accessibility declaredAccessibility
+        => ModifierHelpers.EffectiveAccessibility(_modifiers, containingType.IsFileScoped());
 
     internal sealed override bool isSealed => (_modifiers & DeclarationModifiers.Sealed) != 0;
 
@@ -69,7 +70,9 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol, I
 
     internal sealed override bool isVirtual => (_modifiers & DeclarationModifiers.Virtual) != 0;
 
-    internal sealed override bool isStatic => (_modifiers & DeclarationModifiers.Static) != 0;
+    internal sealed override bool isStatic
+        => ((_modifiers & DeclarationModifiers.Static) != 0) ||
+            (containingType.IsFileScoped() && containingType.isStatic);
 
     internal sealed override bool isExtern => (_modifiers & DeclarationModifiers.Extern) != 0;
 
@@ -200,11 +203,11 @@ done:
         if (!IsNoMoreVisibleThan(underlyingReturnType)) {
             if (methodKind is MethodKind.Operator or MethodKind.Conversion) {
                 diagnostics.Push(
-                    Error.InconsistentAccessibilityOperatorReturn(location, underlyingReturnType, this)
+                    Error.InconsistentAccessibilityOperatorReturn(location, underlyingReturnType.StrippedType(), this)
                 );
             } else {
                 diagnostics.Push(
-                    Error.InconsistentAccessibilityReturn(location, underlyingReturnType, this)
+                    Error.InconsistentAccessibilityReturn(location, underlyingReturnType.StrippedType(), this)
                 );
             }
         }
@@ -213,11 +216,11 @@ done:
             if (!parameter.typeWithAnnotations.nullableUnderlyingTypeOrSelf.IsAtLeastAsVisibleAs(this)) {
                 if (methodKind is MethodKind.Operator or MethodKind.Conversion) {
                     diagnostics.Push(
-                        Error.InconsistentAccessibilityOperatorParameter(location, parameter.type, this)
+                        Error.InconsistentAccessibilityOperatorParameter(location, parameter.type.StrippedType(), this)
                     );
                 } else {
                     diagnostics.Push(
-                        Error.InconsistentAccessibilityParameter(location, parameter.type, this)
+                        Error.InconsistentAccessibilityParameter(location, parameter.type.StrippedType(), this)
                     );
                 }
             }

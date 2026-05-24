@@ -85,6 +85,19 @@ public class SyntaxTrivia {
     /// <returns></returns>
     public TextLocation location => new TextLocation(syntaxTree.text, span, syntaxTree);
 
+    internal bool isDirective => green?.isDirective ?? false;
+
+    internal bool hasStructure => green?.isStructuredTrivia ?? false;
+
+    internal SyntaxNode GetStructure() {
+        return hasStructure ? green.GetStructure(this) : null;
+    }
+
+    internal bool TryGetStructure(out SyntaxNode structure) {
+        structure = GetStructure();
+        return structure is not null;
+    }
+
     private string GetDebuggerDisplay() {
         return GetType().Name + " " + kind + " " + ToString();
     }

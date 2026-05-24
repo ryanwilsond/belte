@@ -72,8 +72,8 @@ internal sealed class ControlFlowGraph {
             if (lastStatement is null)
                 return false;
 
-            var lastStatementIsThrow = lastStatement is BoundExpressionStatement es &&
-                es.expression is BoundThrowExpression;
+            var lastStatementIsThrow = lastStatement.kind == BoundKind.UnreachableStatement ||
+                (lastStatement is BoundExpressionStatement es && es.expression is BoundThrowExpression);
 
             if (lastStatement.kind != BoundKind.ReturnStatement && !lastStatementIsThrow)
                 return false;

@@ -39,6 +39,8 @@ internal abstract class SourceParameterSymbol : SourceParameterSymbolBase {
 
     internal abstract bool hasDefaultArgumentSyntax { get; }
 
+    internal override bool isMetadataOut => refKind == RefKind.Out;
+
     internal abstract SyntaxList<AttributeListSyntax> attributeDeclarationList { get; }
 
     internal static SourceParameterSymbol Create(
@@ -46,12 +48,10 @@ internal abstract class SourceParameterSymbol : SourceParameterSymbolBase {
         TypeWithAnnotations parameterType,
         ParameterSyntax syntax,
         RefKind refKind,
-        SyntaxToken identifier,
+        string name,
         int ordinal,
         ScopedKind scope) {
-        var name = identifier.text;
-
-        if (syntax.defaultValue is null && scope == ScopedKind.None)
+        if (syntax.defaultValue is null && scope == ScopedKind.None && syntax.attributeLists.Count == 0)
             return new SourceSimpleParameterSymbol(owner, parameterType, ordinal, refKind, name, syntax);
 
         return new SourceComplexParameterSymbol(

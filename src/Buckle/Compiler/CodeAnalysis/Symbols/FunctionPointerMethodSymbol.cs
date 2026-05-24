@@ -33,6 +33,7 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
                 paramsBuilder.Add(new FunctionPointerParameterSymbol(
                     substitutedType.type,
                     originalParam.refKind,
+                    originalParam.name,
                     originalParam.ordinal,
                     containingSymbol: this
                 ));
@@ -71,9 +72,10 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
                     // var paramRefCustomMods = CSharpCustomModifier.Convert(param.RefCustomModifiers);
                     // var paramType = TypeWithAnnotations.Create(param.Type, customModifiers: CSharpCustomModifier.Convert(param.CustomModifiers));
                     var paramType = new TypeWithAnnotations(param.type);
+                    // TODO Out
                     // var paramRefKind = getRefKind(param, /*paramRefCustomMods, */RefKind.In, RefKind.Out, requiresLocationAllowed: true);
                     var paramRefKind = param.isByRef ? RefKind.Ref : RefKind.None;
-                    paramsBuilder.Add(new FunctionPointerParameterSymbol(paramType, paramRefKind, i, parent/*, paramRefCustomMods*/));
+                    paramsBuilder.Add(new FunctionPointerParameterSymbol(paramType, paramRefKind, null, i, parent/*, paramRefCustomMods*/));
                 }
 
                 return paramsBuilder.ToImmutableAndFree();
@@ -104,13 +106,41 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
         this.refKind = refKind;
         returnTypeWithAnnotations = returnType;
 
+        var unmanagedCallingConvention = CallingConvention.Unspecified;
+
+        if (syntax.callingConvention is not null) {
+            switch (syntax.callingConvention.text.ToLower()) {
+                case "cdecl":
+                    unmanagedCallingConvention = CallingConvention.Cdecl;
+                    break;
+                case "winapi":
+                    unmanagedCallingConvention = CallingConvention.Winapi;
+                    break;
+                case "fastcall":
+                    unmanagedCallingConvention = CallingConvention.FastCall;
+                    break;
+                case "stdcall":
+                    unmanagedCallingConvention = CallingConvention.StdCall;
+                    break;
+                case "thiscall":
+                    unmanagedCallingConvention = CallingConvention.ThisCall;
+                    break;
+                default:
+                    diagnostics.Push(
+                        Error.UnknownCallingConvention(syntax.callingConvention.location, syntax.callingConvention.text)
+                    );
+                    break;
+            }
+        }
+
+        this.unmanagedCallingConvention = unmanagedCallingConvention;
         _parameters = syntax.parameterList.parameters.Count > 0
-            ? ParameterHelpers.MakeFunctionPointerParameters(
-                typeBinder,
-                this,
-                syntax.parameterList.parameters,
-                diagnostics)
-            : [];
+                    ? ParameterHelpers.MakeFunctionPointerParameters(
+                        typeBinder,
+                        this,
+                        syntax.parameterList.parameters,
+                        diagnostics)
+                    : [];
     }
 
     private FunctionPointerMethodSymbol(
@@ -122,10 +152,11 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
         this.refKind = refKind;
         this.callingConvention = callingConvention;
         this.returnTypeWithAnnotations = returnTypeWithAnnotations;
+        unmanagedCallingConvention = CallingConvention.Unspecified;
 
         _parameters = parameterTypes.ZipAsArray(parameterRefKinds, this,
             (type, refKind, i, arg) => {
-                return new FunctionPointerParameterSymbol(type, refKind, i, arg);
+                return new FunctionPointerParameterSymbol(type, refKind, null, i, arg);
             }
         );
     }
@@ -277,6 +308,8 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
                 ((int)FunctionPointerTypeSymbol.GetRefKindForHashCode(refKind)).GetHashCode()));
     }
 
+    internal CallingConvention unmanagedCallingConvention { get; }
+
     internal override CallingConvention callingConvention { get; }
 
     internal bool isManaged => callingConvention != CallingConvention.Unmanaged;
@@ -336,6 +369,10 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
 
     internal override DllImportData GetDllImportData() {
         throw ExceptionUtilities.Unreachable();
+    }
+
+    internal sealed override UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete) {
+        return null;
     }
 
     internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {

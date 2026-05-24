@@ -15,6 +15,11 @@ internal static class Error {
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingFilenameO), message);
     }
 
+    internal static Diagnostic MissingFileAssociation(string arg) {
+        var message = $"missing file association after '{arg}'";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingFileAssociation), message);
+    }
+
     internal static Diagnostic MultipleExplains() {
         var message = "cannot specify '--explain' more than once";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MultipleExplains), message);
@@ -31,7 +36,7 @@ internal static class Error {
     }
 
     internal static Diagnostic MissingReference(string arg) {
-        var message = $"missing name after '{arg}' (usage: '--ref=<name>')";
+        var message = $"missing name after '{arg}' (usage: '--ref[,flat,copy]=<path>')";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingReference), message);
     }
 
@@ -53,6 +58,11 @@ internal static class Error {
     internal static Diagnostic UnrecognizedOption(string arg) {
         var message = $"unrecognized command line option '{arg}'; see 'buckle --help'";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnrecognizedOption), message);
+    }
+
+    internal static Diagnostic UnrecognizedFileAssociation(string association) {
+        var message = $"unrecognized file association '{association}'";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnrecognizedFileAssociation), message);
     }
 
     internal static Diagnostic NoSuchFileOrDirectory(string name) {
@@ -77,7 +87,7 @@ internal static class Error {
     }
 
     internal static Diagnostic InvalidWarningLevel(string warningLevel) {
-        var message = $"invalid warning level '{warningLevel}'; warning level must be a number between 0 and 2";
+        var message = $"invalid warning level '{warningLevel}'; warning level must be a number between 0 and 3";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidWarningLevel), message);
     }
 
@@ -107,8 +117,43 @@ internal static class Error {
     }
 
     internal static Diagnostic MissingVerbosePath(string arg) {
-        var message = $"missing path after '{arg}' (usage: '--verbose-path=<path>')";
+        var message = $"missing path after '{arg}' (usage: '--vpath=<path>')";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingVerbosePath), message);
+    }
+
+    internal static Diagnostic MissingMaxCoreCount(string arg) {
+        var message = $"missing core count after '{arg}' (usage: '-m:<count>')";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingMaxCoreCount), message);
+    }
+
+    internal static Diagnostic InvalidMaxCoreCount(string arg) {
+        var message = $"'{arg}' is not a valid core count; core count must be a positive integer";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidMaxCoreCount), message);
+    }
+
+    internal static Diagnostic MissingEntryName(string arg) {
+        var message = $"missing type name after '{arg}' (usage: '--entry=<name>')";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingEntryName), message);
+    }
+
+    internal static Diagnostic MissingPathFlat() {
+        var message = $"missing path after '--flat' (usage: '--flat <path>')";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingPathFlat), message);
+    }
+
+    internal static Diagnostic CannotCreateNew(string arg) {
+        var message = $"'{arg}': cannot create new project because location is occupied";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_CannotCreateNew), message);
+    }
+
+    internal static Diagnostic CannotRunBuildMode() {
+        var message = $"unable to run project; project does not have a runnable build mode";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_CannotRunBuildMode), message);
+    }
+
+    internal static Diagnostic UnableToRun(string msg) {
+        var message = $"failed to start process: {msg}";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnableToRun), message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

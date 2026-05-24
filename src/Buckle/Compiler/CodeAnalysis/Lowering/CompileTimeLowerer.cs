@@ -34,24 +34,26 @@ internal sealed class CompileTimeLowerer : BoundTreeExpander {
 
     private protected override MethodSymbol _container { get; set; }
 
-    internal static BoundStatement Lower(
+    internal static BoundBlockStatement Lower(
         MethodSymbol method,
-        BoundStatement statement,
+        BoundBlockStatement statement,
         BelteDiagnosticQueue diagnostics,
         BoundProgram program,
         EvaluatorContext context,
         Compilation compilation) {
         var lowerer = new CompileTimeLowerer(method, program, context, diagnostics, compilation);
+        lowerer._localNames.AddRange(statement.locals.Select(l => l.name));
         return lowerer.Expand(statement);
     }
 
-    private BoundStatement Expand(BoundStatement statement) {
-        return Simplify(statement.syntax, ExpandStatement(statement));
+    private BoundBlockStatement Expand(BoundBlockStatement statement) {
+        return (BoundBlockStatement)Simplify(statement.syntax, ExpandStatement(statement));
     }
 
     private protected override List<BoundStatement> ExpandCompileTimeExpression(
         BoundCompileTimeExpression node,
-        out BoundExpression replacement) {
+        out BoundExpression replacement,
+        UseKind _) {
         try {
             var methodLayout = _program.methodLayouts[_container.originalDefinition];
             var result = _evaluator.EvaluateExpression(node.expression, methodLayout, out var hasValue);

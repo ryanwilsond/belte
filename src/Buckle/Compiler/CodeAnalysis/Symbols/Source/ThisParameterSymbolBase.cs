@@ -13,9 +13,13 @@ internal abstract class ThisParameterSymbolBase : ParameterSymbol {
 
     internal sealed override ConstantValue explicitDefaultConstantValue => null;
 
+    internal override ConstantValue outDefaultValue => null;
+
     internal sealed override bool isMetadataOptional => false;
 
     internal sealed override bool isThis => true;
 
     internal sealed override bool isImplicitlyDeclared => true;
+
+    internal sealed override bool isMetadataOut => false;
 }

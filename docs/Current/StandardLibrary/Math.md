@@ -2,7 +2,8 @@
 
 The Math class provides an interface for common math values and functions.
 
-The Belte public interface for the Math class can be found [here](../../../src/Belte/Native/Standard/Math.blt).
+The Belte public interface for the Math class can be found
+[on the Belte GitHub repository](https://github.com/ryanwilsond/belte/blob/main/src/Belte/Native/Standard/Math.blt).
 
 - [5.2.1](#521-fields) Fields
 - [5.2.1](#522-methods) Methods
@@ -10,7 +11,7 @@ The Belte public interface for the Math class can be found [here](../../../src/B
 ## 5.2.1 Fields
 
 | Signature | Description |
-|-|-|
+| - | - |
 | `decimal! E` | Euler's number (e). |
 | `decimal! PI` | The mathematical constant PI (π). |
 
@@ -20,7 +21,7 @@ Many of the methods have multiple overloads for integer/decimal
 nullable/non-nullable values. Only one overload for each method will be listed.
 
 | Name | Description |
-|-|-|
+| - | - |
 | `decimal Abs(decimal)` | Absolute value. |
 | `decimal Acos(decimal)` | Arccosine. |
 | `decimal Acosh(decimal)` | Inverse hyperbolic cosine. |

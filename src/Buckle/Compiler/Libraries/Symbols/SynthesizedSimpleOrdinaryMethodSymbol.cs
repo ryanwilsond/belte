@@ -82,4 +82,8 @@ internal sealed class SynthesizedSimpleOrdinaryMethodSymbol : MethodSymbol {
     internal override DllImportData GetDllImportData() {
         return null;
     }
+
+    internal override UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete) {
+        return null;
+    }
 }

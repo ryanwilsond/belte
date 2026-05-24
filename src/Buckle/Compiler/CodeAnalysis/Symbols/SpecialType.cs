@@ -12,6 +12,7 @@ public enum SpecialType : byte {
     Any,
     String,
     Bool,
+    WinBool,
     Char,
     Int,
     Decimal,
@@ -43,4 +44,5 @@ public enum SpecialType : byte {
     Sound,
     ValueType,
     TypedReference,
+    Enumerator,
 }

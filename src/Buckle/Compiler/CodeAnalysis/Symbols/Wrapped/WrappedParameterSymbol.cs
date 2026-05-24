@@ -26,6 +26,8 @@ internal abstract class WrappedParameterSymbol : ParameterSymbol {
     internal sealed override ConstantValue explicitDefaultConstantValue
         => underlyingParameter.explicitDefaultConstantValue;
 
+    internal sealed override ConstantValue outDefaultValue => underlyingParameter.outDefaultValue;
+
     internal sealed override ScopedKind effectiveScope => underlyingParameter.effectiveScope;
 
     internal override TypeWithAnnotations typeWithAnnotations => underlyingParameter.typeWithAnnotations;
@@ -35,6 +37,8 @@ internal abstract class WrappedParameterSymbol : ParameterSymbol {
     internal override bool isImplicitlyDeclared => underlyingParameter.isImplicitlyDeclared;
 
     internal sealed override bool hasUnscopedRefAttribute => underlyingParameter.hasUnscopedRefAttribute;
+
+    internal sealed override bool isMetadataOut => underlyingParameter.isMetadataOut;
 
     internal override ImmutableArray<AttributeData> GetAttributes() {
         return underlyingParameter.GetAttributes();

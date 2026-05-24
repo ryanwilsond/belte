@@ -138,9 +138,9 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
     internal override Accessibility declaredAccessibility {
         get {
             return (object)(flags & MethodAttributes.MemberAccessMask) switch {
-                MethodAttributes.Assembly => Accessibility.Private,// return Accessibility.Internal;
-                MethodAttributes.FamORAssem => Accessibility.Private,// return Accessibility.ProtectedOrInternal;
-                MethodAttributes.FamANDAssem => Accessibility.Private,// return Accessibility.ProtectedAndInternal;
+                MethodAttributes.Assembly => Accessibility.Public,// return Accessibility.Internal;
+                MethodAttributes.FamORAssem => Accessibility.Public,// return Accessibility.ProtectedOrInternal;
+                MethodAttributes.FamANDAssem => Accessibility.Public,// return Accessibility.ProtectedAndInternal;
                 MethodAttributes.Private or MethodAttributes.PrivateScope => Accessibility.Private,
                 MethodAttributes.Public => Accessibility.Public,
                 MethodAttributes.Family => Accessibility.Protected,
@@ -243,6 +243,28 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
     internal override ImmutableArray<AttributeData> GetAttributes() {
         // TODO
         return [];
+    }
+
+    internal override UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete) {
+        // TODO
+        // if (!_packedFlags.isUnmanagedCallersOnlyAttributePopulated) {
+        //     var containingModule = (PEModuleSymbol)_containingModule;
+        //     var unmanagedCallersOnlyData = containingModule.module.TryGetUnmanagedCallersOnlyAttribute(_handle, new MetadataDecoder(containingModule),
+        //         static (name, value, isField) => MethodSymbol.TryDecodeUnmanagedCallersOnlyCallConvsField(name, value, isField, location: null, diagnostics: null));
+
+        //     Debug.Assert(!ReferenceEquals(unmanagedCallersOnlyData, UnmanagedCallersOnlyAttributeData.Uninitialized)
+        //                  && !ReferenceEquals(unmanagedCallersOnlyData, UnmanagedCallersOnlyAttributeData.AttributePresentDataNotBound));
+
+        //     var result = InterlockedOperations.Initialize(ref AccessUncommonFields()._lazyUnmanagedCallersOnlyAttributeData,
+        //                                                   unmanagedCallersOnlyData,
+        //                                                   UnmanagedCallersOnlyAttributeData.Uninitialized);
+
+        //     _packedFlags.SetIsUnmanagedCallersOnlyAttributePopulated();
+        //     return result;
+        // }
+
+        // return _uncommonFields?._lazyUnmanagedCallersOnlyAttributeData;
+        return null;
     }
 
     internal override ImmutableArray<AttributeData> GetReturnTypeAttributes() {
@@ -361,77 +383,90 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
 
     private MethodKind ComputeMethodKind() {
         if (hasSpecialName) {
-            // if (_name.StartsWith(".", StringComparison.Ordinal)) {
-            //     if ((Flags & (MethodAttributes.RTSpecialName | MethodAttributes.Virtual)) == MethodAttributes.RTSpecialName &&
-            //         _name.Equals(this.IsStatic ? WellKnownMemberNames.StaticConstructorName : WellKnownMemberNames.InstanceConstructorName) &&
-            //         this.ReturnsVoid && this.Arity == 0) {
-            //         if (this.IsStatic) {
-            //             if (Parameters.Length == 0) {
-            //                 return MethodKind.StaticConstructor;
-            //             }
-            //         } else {
-            //             return MethodKind.Constructor;
-            //         }
-            //     }
+            if (_name.StartsWith(".", StringComparison.Ordinal)) {
+                if ((flags & (MethodAttributes.RTSpecialName | MethodAttributes.Virtual)) == MethodAttributes.RTSpecialName &&
+                    _name.Equals(isStatic ? WellKnownMemberNames.StaticConstructorName : WellKnownMemberNames.InstanceConstructorName) &&
+                    returnsVoid && arity == 0) {
+                    if (isStatic) {
+                        if (parameters.Length == 0) {
+                            return MethodKind.StaticConstructor;
+                        }
+                    } else {
+                        return MethodKind.Constructor;
+                    }
+                }
 
-            //     return MethodKind.Ordinary;
-            // }
+                return MethodKind.Ordinary;
+            }
 
-            // if (!this.HasRuntimeSpecialName && this.IsStatic && this.DeclaredAccessibility == Accessibility.Public) {
-            //     switch (_name) {
-            //         case WellKnownMemberNames.CheckedAdditionOperatorName:
-            //         case WellKnownMemberNames.AdditionOperatorName:
-            //         case WellKnownMemberNames.BitwiseAndOperatorName:
-            //         case WellKnownMemberNames.BitwiseOrOperatorName:
-            //         case WellKnownMemberNames.CheckedDivisionOperatorName:
-            //         case WellKnownMemberNames.DivisionOperatorName:
-            //         case WellKnownMemberNames.EqualityOperatorName:
-            //         case WellKnownMemberNames.ExclusiveOrOperatorName:
-            //         case WellKnownMemberNames.GreaterThanOperatorName:
-            //         case WellKnownMemberNames.GreaterThanOrEqualOperatorName:
-            //         case WellKnownMemberNames.InequalityOperatorName:
-            //         case WellKnownMemberNames.LeftShiftOperatorName:
-            //         case WellKnownMemberNames.LessThanOperatorName:
-            //         case WellKnownMemberNames.LessThanOrEqualOperatorName:
-            //         case WellKnownMemberNames.ModulusOperatorName:
-            //         case WellKnownMemberNames.CheckedMultiplyOperatorName:
-            //         case WellKnownMemberNames.MultiplyOperatorName:
-            //         case WellKnownMemberNames.RightShiftOperatorName:
-            //         case WellKnownMemberNames.UnsignedRightShiftOperatorName:
-            //         case WellKnownMemberNames.CheckedSubtractionOperatorName:
-            //         case WellKnownMemberNames.SubtractionOperatorName:
-            //             return IsValidUserDefinedOperatorSignature(2) ? MethodKind.UserDefinedOperator : MethodKind.Ordinary;
-            //         case WellKnownMemberNames.CheckedDecrementOperatorName:
-            //         case WellKnownMemberNames.DecrementOperatorName:
-            //         case WellKnownMemberNames.FalseOperatorName:
-            //         case WellKnownMemberNames.CheckedIncrementOperatorName:
-            //         case WellKnownMemberNames.IncrementOperatorName:
-            //         case WellKnownMemberNames.LogicalNotOperatorName:
-            //         case WellKnownMemberNames.OnesComplementOperatorName:
-            //         case WellKnownMemberNames.TrueOperatorName:
-            //         case WellKnownMemberNames.CheckedUnaryNegationOperatorName:
-            //         case WellKnownMemberNames.UnaryNegationOperatorName:
-            //         case WellKnownMemberNames.UnaryPlusOperatorName:
-            //             return IsValidUserDefinedOperatorSignature(1) ? MethodKind.UserDefinedOperator : MethodKind.Ordinary;
-            //         case WellKnownMemberNames.ImplicitConversionName:
-            //         case WellKnownMemberNames.ExplicitConversionName:
-            //         case WellKnownMemberNames.CheckedExplicitConversionName:
-            //             return IsValidUserDefinedOperatorSignature(1) ? MethodKind.Conversion : MethodKind.Ordinary;
+            if (/*!this.hasRuntimeSpecialName && */isStatic && declaredAccessibility == Accessibility.Public) {
+                switch (_name) {
+                    case WellKnownMemberNames.AdditionOperatorName:
+                    case WellKnownMemberNames.BitwiseAndOperatorName:
+                    case WellKnownMemberNames.BitwiseOrOperatorName:
+                    case WellKnownMemberNames.DivideOperatorName:
+                    case WellKnownMemberNames.EqualityOperatorName:
+                    case WellKnownMemberNames.BitwiseExclusiveOrOperatorName:
+                    case WellKnownMemberNames.GreaterThanOperatorName:
+                    case WellKnownMemberNames.GreaterThanOrEqualOperatorName:
+                    case WellKnownMemberNames.InequalityOperatorName:
+                    case WellKnownMemberNames.LeftShiftOperatorName:
+                    case WellKnownMemberNames.LessThanOperatorName:
+                    case WellKnownMemberNames.LessThanOrEqualOperatorName:
+                    case WellKnownMemberNames.ModulusOperatorName:
+                    case WellKnownMemberNames.MultiplyOperatorName:
+                    case WellKnownMemberNames.RightShiftOperatorName:
+                    case WellKnownMemberNames.UnsignedRightShiftOperatorName:
+                    case WellKnownMemberNames.SubtractionOperatorName:
+                        return IsValidUserDefinedOperatorSignature(2) ? MethodKind.Operator : MethodKind.Ordinary;
+                    case WellKnownMemberNames.DecrementOperatorName:
+                    case WellKnownMemberNames.IncrementOperatorName:
+                    case WellKnownMemberNames.LogicalNotOperatorName:
+                    case WellKnownMemberNames.BitwiseNotOperatorName:
+                    case WellKnownMemberNames.UnaryNegationOperatorName:
+                    case WellKnownMemberNames.UnaryPlusOperatorName:
+                        return IsValidUserDefinedOperatorSignature(1) ? MethodKind.Operator : MethodKind.Ordinary;
+                    case WellKnownMemberNames.ImplicitConversionName:
+                    case WellKnownMemberNames.ExplicitConversionName:
+                        return IsValidUserDefinedOperatorSignature(1) ? MethodKind.Conversion : MethodKind.Ordinary;
 
-            //             //case WellKnownMemberNames.ConcatenateOperatorName:
-            //             //case WellKnownMemberNames.ExponentOperatorName:
-            //             //case WellKnownMemberNames.IntegerDivisionOperatorName:
-            //             //case WellKnownMemberNames.LikeOperatorName:
-            //             //// Non-C#-supported overloaded operator
-            //             //return MethodKind.Ordinary;
-            //     }
+                        //case WellKnownMemberNames.ConcatenateOperatorName:
+                        //case WellKnownMemberNames.ExponentOperatorName:
+                        //case WellKnownMemberNames.IntegerDivisionOperatorName:
+                        //case WellKnownMemberNames.LikeOperatorName:
+                        //// Non-C#-supported overloaded operator
+                        // return MethodKind.Ordinary;
+                }
 
-            //     return MethodKind.Ordinary;
-            // }
-            // TODO
+                return MethodKind.Ordinary;
+            }
         }
 
         return MethodKind.Ordinary;
+    }
+
+    private bool IsValidUserDefinedOperatorSignature(int parameterCount) {
+        if (returnsVoid || isTemplateMethod || this.parameterCount != parameterCount)
+            return false;
+
+        if (parameterRefKinds.IsDefault)
+            return true;
+
+        foreach (var kind in parameterRefKinds) {
+            switch (kind) {
+                case RefKind.None:
+                    continue;
+                case RefKind.Ref:
+                case RefKind.Out:
+                case RefKind.RefConst:
+                case RefKind.RefConstParameter:
+                    return false;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(kind);
+            }
+        }
+
+        return true;
     }
 
     private ImmutableArray<TemplateParameterSymbol> EnsureTypeParametersAreLoaded() {

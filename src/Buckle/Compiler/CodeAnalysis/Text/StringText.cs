@@ -1,4 +1,5 @@
 using System.IO;
+using System.Text;
 
 namespace Buckle.CodeAnalysis.Text;
 
@@ -11,10 +12,11 @@ internal sealed class StringText : SourceText {
     /// </summary>
     /// <param name="fileName">File name of the <see cref="StringText" /> (where the text came from).</param>
     /// <param name="text">The contents of the file the <see cref="StringText" /> comes from.</param>
-    internal StringText(string fileName, string source) {
+    internal StringText(string fileName, Encoding encoding, string source) {
         _lines = ParseLines(this, source);
         this.source = source;
         this.fileName = fileName;
+        this.encoding = encoding;
     }
 
     public override int lineCount => _lines.GetValueOrDefault().Length;
@@ -22,6 +24,8 @@ internal sealed class StringText : SourceText {
     public override char this[int index] => source[index];
 
     public override int length => source.Length;
+
+    internal override Encoding encoding { get; }
 
     /// <summary>
     /// The text contents of the source file.

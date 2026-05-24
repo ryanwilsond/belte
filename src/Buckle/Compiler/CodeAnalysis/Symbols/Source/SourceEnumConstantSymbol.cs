@@ -18,15 +18,17 @@ internal abstract partial class SourceEnumConstantSymbol : SourceFieldSymbolWith
         EnumMemberDeclarationSyntax syntax,
         SourceEnumConstantSymbol otherConstant,
         int otherConstantOffset,
+        bool isFlagsEnum,
         BelteDiagnosticQueue diagnostics) {
         if (otherConstant is null) {
-            return new ZeroValuedEnumConstantSymbol(containingEnum, syntax, diagnostics);
+            return new ZeroValuedEnumConstantSymbol(containingEnum, syntax, isFlagsEnum, diagnostics);
         } else {
             return new ImplicitValuedEnumConstantSymbol(
                 containingEnum,
                 syntax,
                 otherConstant,
                 (uint)otherConstantOffset,
+                isFlagsEnum,
                 diagnostics
             );
         }

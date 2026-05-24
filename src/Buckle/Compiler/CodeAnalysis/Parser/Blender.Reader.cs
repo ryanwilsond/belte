@@ -95,7 +95,7 @@ internal sealed partial class Blender {
 
             blendedNode = CreateBlendedNode(
                 currentNodeOrToken.AsNode(),
-                (SyntaxToken)currentNodeOrToken.AsToken().node
+                (SyntaxToken)currentNodeOrToken.AsToken()?.node
             );
 
             return true;

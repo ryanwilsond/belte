@@ -56,7 +56,7 @@ internal class SwitchBinder : LocalScopeBinder {
                 var result = new Dictionary<SyntaxNode, LabelSymbol>();
 
                 foreach (var label in labels) {
-                    var node = ((SourceLabelSymbol)label).identifierNodeOrToken.AsNode();
+                    var node = ((SourceLabelSymbol)label).identifierNodeOrToken?.AsNode();
 
                     if (node is not null)
                         result.TryAdd(node, label);
@@ -169,7 +169,10 @@ internal class SwitchBinder : LocalScopeBinder {
             switch (labelSyntax.kind) {
                 case SyntaxKind.CaseSwitchLabel:
                     var caseLabel = (CaseSwitchLabelSyntax)labelSyntax;
-                    var boundLabelExpression = sectionBinder.BindTypeOrRValue(caseLabel.value, tempDiagnosticBag);
+                    var boundLabelExpression = sectionBinder.BindTypeOrRValueAllowingImplicitEnum(
+                        caseLabel.value,
+                        tempDiagnosticBag
+                    );
 
                     if (boundLabelExpression is not BoundTypeExpression)
                         ConvertCaseExpression(labelSyntax, boundLabelExpression, out boundLabelConstant, tempDiagnosticBag);
@@ -181,14 +184,15 @@ internal class SwitchBinder : LocalScopeBinder {
                     var multiCaseLabel = (MultiCaseSwitchLabelSyntax)labelSyntax;
 
                     foreach (var value in multiCaseLabel.values) {
-                        var boundValue = sectionBinder.BindTypeOrRValue(value, tempDiagnosticBag);
+                        var boundValue = sectionBinder.BindTypeOrRValueAllowingImplicitEnum(value, tempDiagnosticBag);
 
                         if (boundValue is not BoundTypeExpression)
                             ConvertCaseExpression(labelSyntax, boundValue, out boundLabelConstant, tempDiagnosticBag);
 
-                        labels.Add(new SourceLabelSymbol((MethodSymbol)containingMember, labelSyntax, boundLabelConstant));
+                        labels.Add(new SourceLabelSymbol((MethodSymbol)containingMember, null, boundLabelConstant));
                     }
 
+                    labels.Add(new SourceLabelSymbol((MethodSymbol)containingMember, multiCaseLabel));
                     break;
                 default:
                     labels.Add(new SourceLabelSymbol((MethodSymbol)containingMember, labelSyntax, null));
@@ -444,6 +448,19 @@ internal class SwitchBinder : LocalScopeBinder {
             // TODO Using error
 
             boundStatementsBuilder.Add(boundStatement);
+        }
+
+        // ! TODO This is a hack beyond hacks
+        // TODO We need to do proper control flow analysis
+        if (boundStatementsBuilder.Count == 0) {
+            boundStatementsBuilder.Add(new BoundBreakStatement(node, breakLabel));
+        } else {
+            var lastStatement = boundStatementsBuilder[boundStatementsBuilder.Count - 1];
+
+            if (lastStatement.kind is not BoundKind.ReturnStatement and not BoundKind.GotoStatement &&
+                (lastStatement is not BoundExpressionStatement e || e.expression.kind != BoundKind.ThrowExpression)) {
+                boundStatementsBuilder.Add(new BoundBreakStatement(node, breakLabel));
+            }
         }
 
         return new BoundSwitchSection(

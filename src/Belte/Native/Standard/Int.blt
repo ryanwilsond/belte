@@ -1,0 +1,46 @@
+
+public static class Int {
+    public static int? Parse(string? text);
+
+    public static string? ToString(int! num, string! format);
+}
+
+public static class Int64 {
+    public constexpr int64 MinValue = -9223372036854775808;
+    public constexpr int64 MaxValue = 9223372036854775807;
+}
+
+public static class UInt64 {
+    public constexpr uint64 MinValue = 0;
+    public constexpr uint64 MaxValue = 18446744073709551615;
+}
+
+public static class Int32 {
+    public constexpr int32 MinValue = -2147483648;
+    public constexpr int32 MaxValue = 2147483647;
+}
+
+public static class UInt32 {
+    public constexpr uint32 MinValue = 0;
+    public constexpr uint32 MaxValue = 4294967295;
+}
+
+public static class Int16 {
+    public constexpr int16 MinValue = -32768;
+    public constexpr int16 MaxValue = 32767;
+}
+
+public static class UInt16 {
+    public constexpr uint16 MinValue = 0;
+    public constexpr uint16 MaxValue = 65535;
+}
+
+public static class Int8 {
+    public constexpr int8 MinValue = -128;
+    public constexpr int8 MaxValue = 127;
+}
+
+public static class UInt8 {
+    public constexpr uint8 MinValue = 0;
+    public constexpr uint8 MaxValue = 255;
+}

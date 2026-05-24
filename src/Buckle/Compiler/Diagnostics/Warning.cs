@@ -35,7 +35,7 @@ internal static class Warning {
     }
 
     internal static BelteDiagnostic NeverGivenType(TextLocation location, TypeSymbol type) {
-        var message = $"the given expression is never of the provided type ('{type.ToNullOrString()}')";
+        var message = $"the given expression is never of the provided type ('{type.ToNullOrString(SymbolDisplayFormat.QualifiedNameFormat)}')";
         return CreateWarning(DiagnosticCode.WRN_NeverGivenType, location, message);
     }
 
@@ -158,6 +158,22 @@ internal static class Warning {
     internal static BelteDiagnostic NamespaceNameShadowsBelte(TextLocation location, NamespaceSymbol symbol) {
         var message = $"namespace '{symbol}' potentially shadows parts of the Standard Library";
         return CreateWarning(DiagnosticCode.WRN_NamespaceNameShadowsBelte, location, message);
+    }
+
+    internal static BelteDiagnostic UnusedUsingDirective(TextLocation location) {
+        var message = $"using directive is unnecessary";
+        return CreateWarning(DiagnosticCode.WRN_UnusedUsingDirective, location, message);
+    }
+
+    internal static BelteDiagnostic ExitingControlFlowInWith(TextLocation location) {
+        var message = $"exiting the with body early will result in the reversals not taking place; consider using a 'with (...) try'";
+        return CreateWarning(DiagnosticCode.WRN_ExitingControlFlowInWith, location, message);
+    }
+
+    internal static BelteDiagnostic IgnoringReturnValue(TextLocation location, MethodSymbol method) {
+        var message = $"ignoring return value of method '{method}'; consider using a discard assignment if this is intended";
+        var suggestion = "_ = %";
+        return CreateWarning(DiagnosticCode.WRN_IgnoringReturnValue, location, message, suggestion);
     }
 
     private static BelteDiagnostic CreateWarning(DiagnosticCode code, TextLocation location, string message) {

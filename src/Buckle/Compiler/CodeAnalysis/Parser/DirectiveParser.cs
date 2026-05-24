@@ -15,35 +15,44 @@ internal sealed class DirectiveParser : SyntaxParser {
         bool endIsActive,
         bool isAfterFirstTokenInFile,
         bool isAfterNonWhitespaceOnLine) {
-        var position = _lexer.position;
+        var hashPosition = _lexer.position;
         var hash = Match(SyntaxKind.HashToken);
 
         if (isAfterNonWhitespaceOnLine)
             hash = AddDiagnostic(hash, Error.InvalidDirectivePlacement());
 
         BelteSyntaxNode result;
-        switch (currentToken.kind) {
+        switch (currentToken.contextualKind) {
             case SyntaxKind.IfKeyword:
                 result = ParseIfDirective(hash, EatToken(), isActive);
                 break;
             case SyntaxKind.ElifKeyword:
-                result = ParseElifDirective(hash, EatToken(), isActive, endIsActive);
+                result = ParseElifDirective(hash, ConvertToKeyword(EatToken()), isActive, endIsActive);
                 break;
             case SyntaxKind.ElseKeyword:
                 result = ParseElseDirective(hash, EatToken(), isActive, endIsActive);
                 break;
             case SyntaxKind.EndifKeyword:
-                result = ParseEndIfDirective(hash, EatToken(), isActive, endIsActive);
+                result = ParseEndIfDirective(hash, ConvertToKeyword(EatToken()), isActive, endIsActive);
                 break;
             case SyntaxKind.DefineKeyword:
             case SyntaxKind.UndefKeyword:
                 result = ParseDefineOrUndefDirective(
                     hash,
-                    EatToken(),
+                    ConvertToKeyword(EatToken()),
                     isActive,
                     isAfterFirstTokenInFile && !isAfterNonWhitespaceOnLine
                 );
 
+                break;
+            case SyntaxKind.HandleKeyword:
+                result = ParseHandleDirective(hash, ConvertToKeyword(EatToken()), isActive);
+                break;
+            case SyntaxKind.ExclamationToken:
+                if (hashPosition != 0 || hash.trailingTrivia.Count > 0)
+                    hash = AddDiagnostic(hash, Error.ShebangNotOnFirstLine());
+
+                result = ParseShebangDirective(hash, EatToken(), isActive);
                 break;
             default:
                 var identifier = Match(SyntaxKind.IdentifierToken);
@@ -53,6 +62,37 @@ internal sealed class DirectiveParser : SyntaxParser {
         }
 
         return result;
+    }
+
+    private DirectiveTriviaSyntax ParseShebangDirective(SyntaxToken hash, SyntaxToken exclamation, bool isActive) {
+        var eod = _lexer.LexEndOfDirectiveWithOptionalPreprocessingMessage();
+        return SyntaxFactory.ShebangDirectiveTrivia(hash, exclamation, eod, isActive);
+    }
+
+    private DirectiveTriviaSyntax ParseHandleDirective(SyntaxToken hash, SyntaxToken keyword, bool isActive) {
+        SyntaxToken openParen = null;
+        SyntaxToken priority = null;
+        SyntaxToken closeParen = null;
+
+        if (currentToken.kind == SyntaxKind.OpenParenToken) {
+            openParen = EatToken();
+            priority = Match(SyntaxKind.NumericLiteralToken);
+            closeParen = Match(SyntaxKind.CloseParenToken);
+        }
+
+        var identifier = Match(SyntaxKind.IdentifierToken);
+        var eod = ParseEndOfDirective();
+
+        return SyntaxFactory.HandleDirectiveTrivia(
+            hash,
+            keyword,
+            openParen,
+            priority,
+            closeParen,
+            identifier,
+            eod,
+            isActive
+        );
     }
 
     private SyntaxToken ParseEndOfDirective() {

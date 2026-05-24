@@ -67,10 +67,22 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
 
     internal abstract ScopedKind scope { get; }
 
-    internal virtual bool isWritableVariable => declarationKind switch {
-        DataContainerDeclarationKind.Constant or DataContainerDeclarationKind.ConstantExpression => false,
-        _ => true,
-    };
+    internal virtual bool isWritableVariable {
+        get {
+            switch (declarationKind) {
+                case DataContainerDeclarationKind.Constant:
+                case DataContainerDeclarationKind.ConstantExpression:
+                    // TODO Assignment doesn't really make sense but we allow it because assigning to fields does make sense
+                    // TODO We should probably differentiate between local assignment and local modification
+                    // case DataContainerDeclarationKind.ForEachLocal:
+                    // case DataContainerDeclarationKind.NullBindingLocal:
+                    // case DataContainerDeclarationKind.UsingLocal:
+                    return false;
+                default:
+                    return true;
+            }
+        }
+    }
 
     internal virtual SyntaxNode forbiddenZone => null;
 

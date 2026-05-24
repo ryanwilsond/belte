@@ -37,23 +37,37 @@ internal sealed class ExpressionFieldFinder : ExpressionVariableFinder<Symbol> {
         PoolInstance.Free(finder);
     }
 
+    private protected override Symbol MakePatternVariable(
+        TypeSyntax type,
+        DeclarationPatternSyntax node,
+        SyntaxNode nodeToBind) {
+        return GlobalExpressionVariable.Create(
+            _containingType,
+            _modifiers,
+            type,
+            node.identifier.text,
+            node,
+            node.location,
+            _containingField,
+            nodeToBind
+        );
+    }
+
     private protected override Symbol MakeDeclarationExpressionVariable(
-        VariableDeclarationSyntax node,
+        DeclarationExpressionSyntax node,
         SyntaxToken identifier,
-        ArgumentListSyntax argumentListSyntax,
+        BaseArgumentListSyntax argumentListSyntax,
         SyntaxTokenList modifiers,
         SyntaxNode nodeToBind) {
-        // TODO Check if this should be a GlobalExpressionVariable
-        return SourceDataContainerSymbol.MakeLocal(
-            containingSymbol: _containingType,
-            scopeBinder: null,
-            allowRefKind: true,
-            initializer: null,
-            nodeBinder: null,
-            typeSyntax: node.type,
-            identifierToken: identifier,
-            modifiers: modifiers,
-            nodeToBind: nodeToBind
+        return GlobalExpressionVariable.Create(
+            _containingType,
+            _modifiers,
+            node.type,
+            node.identifier.text,
+            node,
+            node.identifier.location,
+            _containingField,
+            nodeToBind
         );
     }
 }

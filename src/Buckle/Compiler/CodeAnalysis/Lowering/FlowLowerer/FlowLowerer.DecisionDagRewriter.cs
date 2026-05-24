@@ -94,8 +94,6 @@ internal sealed partial class FlowLowerer {
                     break;
             }
 
-            // LowerWhenClauses(sortedNodes);
-
             var nodesToLower = sortedNodes.WhereAsArray(n => n.kind != BoundKind.LeafDecisionDagNode);
             var loweredNodes = PooledHashSet<BoundDecisionDagNode>.GetInstance();
 
@@ -136,8 +134,7 @@ internal sealed partial class FlowLowerer {
             int indexOfNode) {
             if (node is BoundTestDecisionDagNode testNode &&
                 testNode.whenTrue is BoundEvaluationDecisionDagNode evaluationNode &&
-                TryLowerTypeTestAndCast(testNode.test, evaluationNode.evaluation, out var sideEffect, out var test)
-                ) {
+                TryLowerTypeTestAndCast(testNode.test, evaluationNode.evaluation, out var sideEffect, out var test)) {
                 var whenTrue = evaluationNode.next;
                 var whenFalse = testNode.whenFalse;
                 var canEliminateEvaluationNode = !_dagNodeLabels.ContainsKey(evaluationNode);
@@ -477,9 +474,8 @@ internal sealed partial class FlowLowerer {
                     }
 
                     break;
-
                 case BoundTestDecisionDagNode testNode: {
-                        var test = base.LowerTest(testNode.test);
+                        var test = LowerTest(testNode.test);
                         GenerateTest(test, testNode.whenTrue, testNode.whenFalse, nextNode);
                     }
 

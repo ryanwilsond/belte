@@ -8,6 +8,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Evaluating;
 
@@ -49,7 +50,7 @@ internal sealed class RefILBuilder : ILBuilder {
             MarkLabel(_epilogue);
 
             if (!_method.returnsVoid) {
-                Log(OpCodes.Ldloc, _returnLocal);
+                if (_logger is not null) Log(OpCodes.Ldloc, _returnLocal);
                 _iLGenerator.Emit(OpCodes.Ldloc, _returnLocal);
             }
 
@@ -67,37 +68,40 @@ internal sealed class RefILBuilder : ILBuilder {
         if (!_needsEpilogue) {
             _needsEpilogue = true;
             _epilogue = new object();
-            _returnLocal = ((RefVariableDefinition)AllocateSlot(
-                _method.returnType,
-                _method.returnsByRef ? LocalSlotConstraints.ByRef : LocalSlotConstraints.None
-            )).localBuilder;
+
+            if (!_method.returnsVoid) {
+                _returnLocal = ((RefVariableDefinition)AllocateSlot(
+                    _method.returnType,
+                    _method.returnsByRef ? LocalSlotConstraints.ByRef : LocalSlotConstraints.None
+                )).localBuilder;
+            }
         }
 
         _iLGenerator.BeginExceptionBlock();
-        _logger.WriteLine("Try {");
+        if (_logger is not null) lock (_logger) _logger.WriteLine("Try {");
         _tryStack.Push(new object());
     }
 
     internal override void BeginCatch() {
         EmitBranch(CodeGeneration.OpCode.Leave, _tryStack.Peek());
         _iLGenerator.BeginCatchBlock(typeof(Exception));
-        _logger.WriteLine("} Catch {");
+        if (_logger is not null) lock (_logger) _logger.WriteLine("} Catch {");
     }
 
     internal override void BeginFinally() {
         EmitBranch(CodeGeneration.OpCode.Leave, _tryStack.Peek());
         _iLGenerator.BeginFinallyBlock();
-        _logger.WriteLine("} Finally {");
+        if (_logger is not null) lock (_logger) _logger.WriteLine("} Finally {");
     }
 
     internal override void EndTry(bool emitEndFinally) {
         if (emitEndFinally) {
-            Log(OpCodes.Endfinally);
+            if (_logger is not null) Log(OpCodes.Endfinally);
             _iLGenerator.Emit(OpCodes.Endfinally);
         }
 
         _iLGenerator.EndExceptionBlock();
-        _logger.WriteLine("} // Try end");
+        if (_logger is not null) lock (_logger) _logger.WriteLine("} // Try end");
         MarkLabel(_tryStack.Pop());
 
         if (_tryStack.Count > 0)
@@ -117,6 +121,11 @@ internal sealed class RefILBuilder : ILBuilder {
         }
     }
 
+    internal override void EmitUnreachableException() {
+        if (_logger is not null) Log(OpCodes.Newobj, Executor.MethodInfoCache.UnreachableException_ctor);
+        _iLGenerator.Emit(OpCodes.Newobj, Executor.MethodInfoCache.UnreachableException_ctor);
+    }
+
     internal override void FreeTemp(VariableDefinition temp) {
         // TODO Reflection does not handle slot freeing, we would need to do this manually by keeping a stack
         // var cLocal = ((RefVariableDefinition)temp).localBuilder;
@@ -128,7 +137,7 @@ internal sealed class RefILBuilder : ILBuilder {
         var paramTypes = type.signature.GetParameterTypes().Select(p => _module.GetType(p.type)).ToArray();
 
         if (managed) {
-            Log(OpCodes.Calli, type.signature);
+            if (_logger is not null) Log(OpCodes.Calli, type.signature);
             _iLGenerator.EmitCalli(
                 OpCodes.Calli,
                 System.Reflection.CallingConventions.Standard,
@@ -137,13 +146,26 @@ internal sealed class RefILBuilder : ILBuilder {
                 null
             );
         } else {
-            Log(OpCodes.Calli, type.signature);
+            if (_logger is not null) Log(OpCodes.Calli, type.signature);
             _iLGenerator.EmitCalli(
                 OpCodes.Calli,
-                System.Runtime.InteropServices.CallingConvention.Winapi,
+                GetUnmanagedCallingConvention(type.signature.unmanagedCallingConvention),
                 returnType,
                 paramTypes
             );
+        }
+
+        System.Runtime.InteropServices.CallingConvention GetUnmanagedCallingConvention(
+            CallingConvention callingConvention) {
+            return callingConvention switch {
+                CallingConvention.Unspecified => System.Runtime.InteropServices.CallingConvention.Winapi,
+                CallingConvention.Winapi => System.Runtime.InteropServices.CallingConvention.Winapi,
+                CallingConvention.StdCall => System.Runtime.InteropServices.CallingConvention.StdCall,
+                CallingConvention.FastCall => System.Runtime.InteropServices.CallingConvention.FastCall,
+                CallingConvention.ThisCall => System.Runtime.InteropServices.CallingConvention.ThisCall,
+                CallingConvention.Cdecl => System.Runtime.InteropServices.CallingConvention.Cdecl,
+                _ => throw ExceptionUtilities.UnexpectedValue(callingConvention)
+            };
         }
     }
 
@@ -173,6 +195,10 @@ internal sealed class RefILBuilder : ILBuilder {
 
     internal override void Emit(CodeGeneration.OpCode opCode, string value) {
         Emit(ConvertToRef(opCode), value);
+    }
+
+    internal override void EmitLoadArgument0() {
+        Emit(OpCodes.Ldarg_0);
     }
 
     internal override void EmitLoadArgument(int slot) {
@@ -275,6 +301,10 @@ internal sealed class RefILBuilder : ILBuilder {
         EmitWithSymbolToken(OpCodes.Call, _module.GetSizeOf(elementType));
     }
 
+    internal override void EmitBitCast(TypeSymbol tFrom, TypeSymbol tTo) {
+        EmitWithSymbolToken(OpCodes.Call, _module.GetBitCast(tFrom, tTo));
+    }
+
     internal override void EmitStringConcat2() {
         EmitWithSymbolToken(OpCodes.Call, Executor.MethodInfoCache.String_Concat_SS);
     }
@@ -289,9 +319,6 @@ internal sealed class RefILBuilder : ILBuilder {
 
     internal override void EmitConvertCall(SpecialType from, SpecialType to) {
         var flags = System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.Static;
-
-        if (from != SpecialType.String && to != SpecialType.String)
-            throw ExceptionUtilities.UnexpectedValue((from, to));
 
         switch (from, to) {
             case (SpecialType.String, SpecialType.Bool):
@@ -378,6 +405,12 @@ internal sealed class RefILBuilder : ILBuilder {
             case (SpecialType.Float64, SpecialType.String):
                 EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToString", flags, [typeof(double)]));
                 break;
+            case (SpecialType.WinBool, SpecialType.Bool):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToBoolean", flags, [typeof(int)]));
+                break;
+            case (SpecialType.Bool, SpecialType.WinBool):
+                EmitWithSymbolToken(OpCodes.Call, typeof(Convert).GetMethod("ToInt32", flags, [typeof(bool)]));
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue((from, to));
         }
@@ -385,6 +418,10 @@ internal sealed class RefILBuilder : ILBuilder {
 
     internal override void EmitNewobjNullable(TypeSymbol generic) {
         EmitWithSymbolToken(OpCodes.Newobj, _module.GetNullableCtor(generic));
+    }
+
+    internal override void EmitNewobjFunc(FunctionTypeSymbol type) {
+        EmitWithSymbolToken(OpCodes.Newobj, _module.GetFuncCtor(type.signature));
     }
 
     internal override void EmitRandomNextInt64() {
@@ -414,9 +451,9 @@ internal sealed class RefILBuilder : ILBuilder {
     }
 
     internal override void EmitThrowNullCondition() {
-        Log(OpCodes.Newobj, Executor.MethodInfoCache.NullConditionException_ctor);
+        if (_logger is not null) Log(OpCodes.Newobj, Executor.MethodInfoCache.NullConditionException_ctor);
         _iLGenerator.Emit(OpCodes.Newobj, Executor.MethodInfoCache.NullConditionException_ctor);
-        Log(OpCodes.Throw);
+        if (_logger is not null) Log(OpCodes.Throw);
         _iLGenerator.Emit(OpCodes.Throw);
     }
 
@@ -437,7 +474,7 @@ internal sealed class RefILBuilder : ILBuilder {
     }
 
     internal override void EmitToString(CodeGeneration.OpCode opCode) {
-        Log(ConvertToRef(opCode), Executor.MethodInfoCache.Object_ToString);
+        if (_logger is not null) Log(ConvertToRef(opCode), Executor.MethodInfoCache.Object_ToString);
         _iLGenerator.Emit(ConvertToRef(opCode), Executor.MethodInfoCache.Object_ToString);
     }
 
@@ -456,7 +493,7 @@ internal sealed class RefILBuilder : ILBuilder {
             ? typeof(IntPtr)
             : _module.GetType(type, (constraints & LocalSlotConstraints.ByRef) != 0);
 
-        LogLocal(typeBuilder);
+        if (_logger is not null) LogLocal(typeBuilder);
         var localBuilder = _iLGenerator.DeclareLocal(typeBuilder, symbol.isPinned);
 
         return _localSlotManager.DeclareLocal(localBuilder, type, symbol, name, kind, constraints, isSlotReusable);
@@ -479,7 +516,7 @@ internal sealed class RefILBuilder : ILBuilder {
         }
 
         var cLabel = ((RefLabelInfo)value).label;
-        LogMark(cLabel);
+        if (_logger is not null) LogMark(cLabel);
         _iLGenerator.MarkLabel(cLabel);
     }
 
@@ -499,6 +536,22 @@ internal sealed class RefILBuilder : ILBuilder {
         EmitWithSymbolToken(cOpCode, ((RefLabelInfo)labelInfo).label);
     }
 
+    internal override void EmitSwitch(object[] labels) {
+        var builder = ArrayBuilder<Label>.GetInstance();
+
+        foreach (var label in labels) {
+            if (!_labels.TryGetValue(label, out var labelInfo)) {
+                labelInfo = new RefLabelInfo(_iLGenerator);
+                _labelCounts.Add(((RefLabelInfo)labelInfo).label);
+                _labels.Add(label, labelInfo);
+            }
+
+            builder.Add(((RefLabelInfo)labelInfo).label);
+        }
+
+        _iLGenerator.Emit(OpCodes.Switch, builder.ToArrayAndFree());
+    }
+
     internal override VariableDefinition AllocateSlot(
         TypeSymbol type,
         LocalSlotConstraints constraints) {
@@ -506,90 +559,94 @@ internal sealed class RefILBuilder : ILBuilder {
             ? typeof(IntPtr)
             : _module.GetType(type, (constraints & LocalSlotConstraints.ByRef) != 0);
 
-        LogLocal(typeBuilder);
+        if (_logger is not null) LogLocal(typeBuilder);
         var localBuilder = _iLGenerator.DeclareLocal(typeBuilder);
 
         return _localSlotManager.AllocateSlot(localBuilder, type, constraints);
     }
 
     private void Log(System.Reflection.Emit.OpCode opCode) {
-        _logger.WriteLine($"\t\tIL{_iLGenerator.ILOffset:X4}: {opCode}");
+        lock (_logger)
+            _logger.WriteLine($"\t\tIL{_iLGenerator.ILOffset:X4}: {opCode}");
     }
 
     private void Log(System.Reflection.Emit.OpCode opCode, object value) {
-        _logger.WriteLine($"\t\tIL{_iLGenerator.ILOffset:X4}: {opCode} {value}");
+        lock (_logger)
+            _logger.WriteLine($"\t\tIL{_iLGenerator.ILOffset:X4}: {opCode} {value}");
     }
 
     private void LogLocal(Type type) {
-        _logger.WriteLine($"\tlocal [{_localCount++}]{type}");
+        lock (_logger)
+            _logger.WriteLine($"\tlocal [{_localCount++}]{type}");
     }
 
     private void LogMark(Label label) {
-        _logger.WriteLine($"\tlabel {_labelCounts.FindIndex(l => l == label)}: IL{_iLGenerator.ILOffset:X4}");
+        lock (_logger)
+            _logger.WriteLine($"\tlabel {_labelCounts.FindIndex(l => l == label)}: IL{_iLGenerator.ILOffset:X4}");
     }
 
     private void Emit(System.Reflection.Emit.OpCode opCode, int value) {
-        Log(opCode, value);
+        if (_logger is not null) Log(opCode, value);
         _iLGenerator.Emit(opCode, value);
     }
 
     private void Emit(System.Reflection.Emit.OpCode opCode, sbyte value) {
-        Log(opCode, value);
+        if (_logger is not null) Log(opCode, value);
         _iLGenerator.Emit(opCode, value);
     }
 
     private void Emit(System.Reflection.Emit.OpCode opCode, long value) {
-        Log(opCode, value);
+        if (_logger is not null) Log(opCode, value);
         _iLGenerator.Emit(opCode, value);
     }
 
     private void Emit(System.Reflection.Emit.OpCode opCode, double value) {
-        Log(opCode, value);
+        if (_logger is not null) Log(opCode, value);
         _iLGenerator.Emit(opCode, value);
     }
 
     private void Emit(System.Reflection.Emit.OpCode opCode, float value) {
-        Log(opCode, value);
+        if (_logger is not null) Log(opCode, value);
         _iLGenerator.Emit(opCode, value);
     }
 
     private void Emit(System.Reflection.Emit.OpCode opCode, string value) {
-        Log(opCode, value);
+        if (_logger is not null) Log(opCode, value);
         _iLGenerator.Emit(opCode, value);
     }
 
     private void Emit(System.Reflection.Emit.OpCode opCode, LocalBuilder builder) {
-        Log(opCode, builder);
+        if (_logger is not null) Log(opCode, builder);
         _iLGenerator.Emit(opCode, builder);
     }
 
     private void Emit(System.Reflection.Emit.OpCode opCode) {
-        Log(opCode);
+        if (_logger is not null) Log(opCode);
         _iLGenerator.Emit(opCode);
     }
 
     private void EmitWithSymbolToken(System.Reflection.Emit.OpCode opCode, Type type) {
-        Log(opCode, type);
+        if (_logger is not null) Log(opCode, type);
         _iLGenerator.Emit(opCode, type);
     }
 
     private void EmitWithSymbolToken(System.Reflection.Emit.OpCode opCode, System.Reflection.FieldInfo field) {
-        Log(opCode, $"{field.DeclaringType.Name}.{field.Name}");
+        if (_logger is not null) Log(opCode, $"{field.DeclaringType.Name}.{field.Name}");
         _iLGenerator.Emit(opCode, field);
     }
 
     private void EmitWithSymbolToken(System.Reflection.Emit.OpCode opCode, System.Reflection.MethodInfo method) {
-        Log(opCode, PrettyPrint(method));
+        if (_logger is not null) Log(opCode, PrettyPrint(method));
         _iLGenerator.Emit(opCode, method);
     }
 
     private void EmitWithSymbolToken(System.Reflection.Emit.OpCode opCode, System.Reflection.ConstructorInfo ctor) {
-        Log(opCode, PrettyPrint(ctor));
+        if (_logger is not null) Log(opCode, PrettyPrint(ctor));
         _iLGenerator.Emit(opCode, ctor);
     }
 
     private void EmitWithSymbolToken(System.Reflection.Emit.OpCode opCode, Label label) {
-        Log(opCode, $"label [{_labelCounts.FindIndex(l => l == label)}]");
+        if (_logger is not null) Log(opCode, $"label [{_labelCounts.FindIndex(l => l == label)}]");
         _iLGenerator.Emit(opCode, label);
     }
 
@@ -623,11 +680,13 @@ internal sealed class RefILBuilder : ILBuilder {
         return opCode switch {
             CodeGeneration.OpCode.Nop => OpCodes.Nop,
             CodeGeneration.OpCode.Br => OpCodes.Br,
+            CodeGeneration.OpCode.Br_S => OpCodes.Br_S,
             CodeGeneration.OpCode.Clt => OpCodes.Clt,
             CodeGeneration.OpCode.Clt_Un => OpCodes.Clt_Un,
             CodeGeneration.OpCode.Cgt => OpCodes.Cgt,
             CodeGeneration.OpCode.Cgt_Un => OpCodes.Cgt_Un,
             CodeGeneration.OpCode.Blt => OpCodes.Blt,
+            CodeGeneration.OpCode.Blt_S => OpCodes.Blt_S,
             CodeGeneration.OpCode.Bge => OpCodes.Bge,
             CodeGeneration.OpCode.Blt_Un => OpCodes.Blt_Un,
             CodeGeneration.OpCode.Bge_Un => OpCodes.Bge_Un,
@@ -640,7 +699,9 @@ internal sealed class RefILBuilder : ILBuilder {
             CodeGeneration.OpCode.Leave_S => OpCodes.Leave_S,
             CodeGeneration.OpCode.Isinst => OpCodes.Isinst,
             CodeGeneration.OpCode.Brtrue => OpCodes.Brtrue,
+            CodeGeneration.OpCode.Brtrue_S => OpCodes.Brtrue_S,
             CodeGeneration.OpCode.Brfalse => OpCodes.Brfalse,
+            CodeGeneration.OpCode.Brfalse_S => OpCodes.Brfalse_S,
             CodeGeneration.OpCode.Ldelema => OpCodes.Ldelema,
             CodeGeneration.OpCode.Ldc_I4 => OpCodes.Ldc_I4,
             CodeGeneration.OpCode.Ldsflda => OpCodes.Ldsflda,
