@@ -5428,15 +5428,15 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0430_UsingWithoutDispose() {
+    public void Reports_Error_BU0430_ScopedWithoutDispose() {
         var text = @"
             {
-                [using int a = 3;]
+                [scoped int a = 3;]
             }
         ";
 
         var diagnostics = @"
-            'int': type used in a using statement must define a destructor
+            'int': type used in a scoped statement must define a destructor
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

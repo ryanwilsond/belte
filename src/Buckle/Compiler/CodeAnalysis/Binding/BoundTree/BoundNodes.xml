@@ -554,10 +554,10 @@
   </Node>
   <Node Name="BoundLocalDeclarationStatement" Base="BoundStatement">
     <Field Name="declaration" Type="BoundDataContainerDeclaration"/>
-    <Field Name="isUsing" Type="bool"/>
+    <Field Name="isScoped" Type="bool"/>
     <Field Name="disposeMethod" Type="MethodSymbol?"/>
   </Node>
-  <Node Name="BoundUsingStatement" Base="BoundStatement">
+  <Node Name="BoundScopedStatement" Base="BoundStatement">
     <Field Name="declaration" Type="BoundLocalDeclarationStatement"/>
     <Field Name="body" Type="BoundStatement"/>
   </Node>

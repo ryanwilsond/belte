@@ -32,7 +32,7 @@
   - [2.6.1](#261-trycatchfinally) Try/Catch/Finally
 - [2.7](#27-with-expressions-and-statements) With Expressions and Statements
 - [2.8](#28-defer-statements) Defer Statements
-- [2.9](#29-using-statements) Using Statements
+- [2.9](#29-scoped-statements) Scoped Statements
 - [2.10](#210-unreachable-statements) Unreachable Statements
 
 ## 2.1 Functions
@@ -967,20 +967,20 @@ Similar to [finally blocks](#261-trycatchfinally), defer statements cannot retur
 defer return; // Invalid
 ```
 
-## 2.9 Using Statements
+## 2.9 Scoped Statements
 
-Similar to defer statements, using statements imply certain execution on block exit. For using statements, this is the
-calling of a public parameter-less method `void Dispose()` on the local attached to the using. For example:
+Similar to defer statements, scoped statements imply certain execution on block exit. For scoped statements, this is the
+calling of a destructor on the local attached to the scoped block. For example:
 
 ```belte
-using (var a = new A()) {
-  Console.PrintLine("using body");
+scoped (var a = new A()) {
+  Console.PrintLine("scoped body");
 }
 
-Console.PrintLine("outside using");
+Console.PrintLine("outside scoped");
 
 class A {
-  public void Dispose() { /* ... */ }
+  destructor() { /* ... */ }
 }
 ```
 
@@ -990,38 +990,38 @@ This is equivalent to:
 var a = new A();
 
 try {
-  Console.PrintLine("using body");
+  Console.PrintLine("scoped body");
 } finally {
   a?.Dispose();
 }
 
-Console.PrintLine("outside using");
+Console.PrintLine("outside scoped");
 
 class A {
-  public void Dispose() { /* ... */ }
+  destructor() { /* ... */ }
 }
 ```
 
-Instead of attaching a body to the using, it can be scoped to the enclosing block. This will result in all statements
-after the using local declaration to be wrapped in the try:
+Instead of attaching a body to the scoped statement, it can be scoped to the enclosing block. This will result in all
+statements after the scoped local declaration to be wrapped in the try:
 
 ```belte
-Console.PrintLine("not captured by using");
+Console.PrintLine("not captured by scoped");
 
-using var a = new A();
+scoped var a = new A();
 
-Console.PrintLine("captured by using");
+Console.PrintLine("captured by scoped");
 ```
 
 This is equivalent to:
 
 ```belte
-Console.PrintLine("not captured by using");
+Console.PrintLine("not captured by scoped");
 
 var a = new A();
 
 try {
-  Console.PrintLine("captured by using");
+  Console.PrintLine("captured by scoped");
 } finally {
   a?.Dispose();
 }
@@ -1029,7 +1029,7 @@ try {
 
 ### 2.9.1 Destructors
 
-The `destructor` keyword can be used instead of the `public void Dispose()` signature:
+The `destructor` keyword is used to create a destructor called by scoped statements:
 
 ```belte
 class A {
@@ -1040,6 +1040,9 @@ class A {
 ```
 
 Using the `destructor` keyword ensures the member is public, has not parameters, and returns void.
+
+Note that the destructor creates a method on the class with the signature `public void Dispose()`, which can be called
+by name. This is why the above examples of scoped statements show a call to `Dispose()`.
 
 ## 2.10 Unreachable Statements
 

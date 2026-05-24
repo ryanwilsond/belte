@@ -438,7 +438,7 @@ public enum DiagnosticCode : ushort {
     ERR_UnmanagedCannotBeTemplate = 427,
     ERR_DestructorInStaticClass = 428,
     ERR_CannotReturnFromDefer = 429,
-    ERR_UsingWithoutDispose = 430,
+    ERR_ScopedWithoutDispose = 430,
     ERR_ObjectCreationNoTargetType = 431,
     ERR_ObjectCreationIllegalTargetType = 432,
     ERR_FileScopedClassNotFirstMember = 433,

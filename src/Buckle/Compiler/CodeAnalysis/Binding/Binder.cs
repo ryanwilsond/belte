@@ -11356,7 +11356,7 @@ symIsHidden:;
             SyntaxKind.ReturnStatement => BindReturnStatement((ReturnStatementSyntax)node, diagnostics),
             SyntaxKind.ExpressionStatement => BindExpressionStatement((ExpressionStatementSyntax)node, diagnostics),
             SyntaxKind.DeferStatement => BindDeferStatement((DeferStatementSyntax)node, diagnostics),
-            SyntaxKind.UsingStatement => BindUsingStatement((UsingStatementSyntax)node, diagnostics),
+            SyntaxKind.ScopedStatement => BindScopedStatement((ScopedStatementSyntax)node, diagnostics),
             SyntaxKind.LocalDeclarationStatement => BindLocalDeclarationStatement((LocalDeclarationStatementSyntax)node, diagnostics),
             SyntaxKind.EmptyStatement => BindEmptyStatement((EmptyStatementSyntax)node, diagnostics),
             SyntaxKind.LocalFunctionStatement => BindLocalFunctionStatement((LocalFunctionStatementSyntax)node, diagnostics),
@@ -12433,13 +12433,13 @@ symIsHidden:;
         }
     }
 
-    private BoundStatement BindUsingStatement(UsingStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+    private BoundStatement BindScopedStatement(ScopedStatementSyntax node, BelteDiagnosticQueue diagnostics) {
         var usingBinder = GetBinder(node);
-        return usingBinder.BindUsingStatementParts(diagnostics, usingBinder);
+        return usingBinder.BindScopedStatementParts(diagnostics, usingBinder);
     }
 
-    internal virtual BoundStatement BindUsingStatementParts(BelteDiagnosticQueue diagnostics, Binder originalBinder) {
-        return next.BindUsingStatementParts(diagnostics, originalBinder);
+    internal virtual BoundStatement BindScopedStatementParts(BelteDiagnosticQueue diagnostics, Binder originalBinder) {
+        return next.BindScopedStatementParts(diagnostics, originalBinder);
     }
 
     private BoundLocalDeclarationStatement BindLocalDeclarationStatement(
@@ -12477,7 +12477,7 @@ symIsHidden:;
             diagnostics,
             true,
             node.modifiers,
-            node.usingKeyword is not null,
+            node.scopedKeyword is not null,
             node
         );
     }
@@ -12494,7 +12494,7 @@ symIsHidden:;
         BelteDiagnosticQueue diagnostics,
         bool includeBoundType,
         SyntaxTokenList modifiers,
-        bool isUsing,
+        bool isScoped,
         BelteSyntaxNode associatedSyntaxNode = null) {
         var dataContainer = LocateDeclaredVariableSymbol(declaration, typeSyntax, modifiers);
 
@@ -12512,7 +12512,7 @@ symIsHidden:;
             alias,
             diagnostics,
             includeBoundType,
-            isUsing,
+            isScoped,
             associatedSyntaxNode
         );
     }
@@ -12559,7 +12559,7 @@ symIsHidden:;
         AliasSymbol alias,
         BelteDiagnosticQueue diagnostics,
         bool includeBoundType,
-        bool isUsing,
+        bool isScoped,
         BelteSyntaxNode associatedSyntaxNode = null) {
         var localDiagnostics = BelteDiagnosticQueue.GetInstance();
         associatedSyntaxNode ??= declaration;
@@ -12766,7 +12766,7 @@ symIsHidden:;
 
         MethodSymbol disposeMethod = null;
 
-        if (isUsing) {
+        if (isScoped) {
             var stripped = declarationType.type.StrippedType();
             var lookupResult = LookupResult.GetInstance();
             LookupMembersInternal(
@@ -12787,7 +12787,7 @@ symIsHidden:;
             }
 
             if (!lookupResult.isMultiViable || disposeMethod is null) {
-                diagnostics.Push(Error.UsingWithoutDispose(
+                diagnostics.Push(Error.ScopedWithoutDispose(
                     associatedSyntaxNode?.location ?? declaration.location,
                     stripped
                 ));
@@ -12801,7 +12801,7 @@ symIsHidden:;
                 localSymbol,
                 hasErrors ? BindToTypeForErrorRecovery(initializer) : initializer
             ),
-            isUsing,
+            isScoped,
             disposeMethod,
             hasErrors | nameConflict
         );

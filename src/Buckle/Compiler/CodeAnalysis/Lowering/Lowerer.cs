@@ -103,13 +103,13 @@ internal sealed class Lowerer : BoundTreeRewriter {
         for (var i = block.statements.Length - 1; i >= 0; i--) {
             var statement = block.statements[i];
 
-            if (statement is BoundLocalDeclarationStatement ld && ld.isUsing) {
+            if (statement is BoundLocalDeclarationStatement ld && ld.isScoped) {
                 var syntax = ld.syntax;
                 var declaration = ld.declaration;
                 var tryBody = builder.Reverse().ToImmutableArray();
                 builder = ArrayBuilder<BoundStatement>.GetInstance();
 
-                builder.Add(_expander.CreateUsingTry(ld.syntax, tryBody, declaration.dataContainer, ld.disposeMethod));
+                builder.Add(_expander.CreateScopedTry(ld.syntax, tryBody, declaration.dataContainer, ld.disposeMethod));
                 builder.Add(new BoundLocalDeclarationStatement(syntax, declaration));
             } else {
                 builder.Add(statement);
@@ -477,7 +477,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
                         CorLibrary.GetOrCreateNullableType(declaration.initializer.Type())
                     )
                 ),
-                statement.isUsing,
+                statement.isScoped,
                 statement.disposeMethod
             ));
         }

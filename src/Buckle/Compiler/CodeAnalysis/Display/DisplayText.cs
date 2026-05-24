@@ -119,6 +119,9 @@ public sealed class DisplayText {
             case BoundKind.DeferStatement:
                 DisplayDeferStatement(text, (BoundDeferStatement)node);
                 break;
+            case BoundKind.ScopedStatement:
+                DisplayScopedStatement(text, (BoundScopedStatement)node);
+                break;
             case BoundKind.LocalDeclarationStatement:
                 DisplayLocalDeclarationStatement(text, (BoundLocalDeclarationStatement)node);
                 break;
@@ -903,6 +906,16 @@ public sealed class DisplayText {
         text.Write(CreateKeyword(SyntaxKind.DeferKeyword));
         text.Write(CreateSpace());
         DisplayNode(text, node.statement);
+    }
+
+    private static void DisplayScopedStatement(DisplayText text, BoundScopedStatement node) {
+        text.Write(CreateKeyword(SyntaxKind.ScopedKeyword));
+        text.Write(CreateSpace());
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        DisplayNode(text, node.declaration);
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+        text.Write(CreateSpace());
+        DisplayNode(text, node.body);
     }
 
     private static void DisplayFieldAccessExpression(

@@ -2131,9 +2131,9 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_FinalizerInStaticClass, location, message);
     }
 
-    internal static BelteDiagnostic UsingWithoutDispose(TextLocation location, TypeSymbol type) {
-        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': type used in a using statement must define a destructor";
-        return CreateError(DiagnosticCode.ERR_UsingWithoutDispose, location, message);
+    internal static BelteDiagnostic ScopedWithoutDispose(TextLocation location, TypeSymbol type) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': type used in a scoped statement must define a destructor";
+        return CreateError(DiagnosticCode.ERR_ScopedWithoutDispose, location, message);
     }
 
     internal static BelteDiagnostic ObjectCreationIllegalTargetType(TextLocation location, TypeSymbol type) {

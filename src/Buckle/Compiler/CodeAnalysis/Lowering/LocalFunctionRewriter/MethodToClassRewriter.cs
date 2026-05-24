@@ -132,12 +132,11 @@ internal abstract partial class MethodToClassRewriter : BoundTreeRewriterWithSta
         return node.Update(newLocals, condition, body, node.breakLabel, node.continueLabel);
     }
 
-    // internal override BoundNode VisitUsingStatement(BoundUsingStatement node) {
-    //     var newLocals = RewriteLocals(node.Locals);
-    //     var declarations = (BoundMultipleLocalDeclarations?)this.Visit(node.DeclarationsOpt);
-    //     var expression = (BoundExpression?)this.Visit(node.ExpressionOpt);
-    //     var body = (BoundStatement)this.Visit(node.Body);
-    //     return node.Update(newLocals, declarations, expression, body, node.AwaitOpt, node.PatternDisposeInfoOpt);
+    // TODO How do we correctly capture this?
+    // internal override BoundNode VisitScopedStatement(BoundScopedStatement node) {
+    //     var declaration = Visit(node.declaration);
+    //     var body = (BoundStatement)Visit(node.body);
+    //     return node.Update(declaration, body);
     // }
 
     internal sealed override TypeSymbol VisitType(TypeSymbol type) {

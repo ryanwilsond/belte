@@ -115,10 +115,10 @@ internal class SharedExpander : BoundTreeExpander {
         return statements;
     }
 
-    private protected override List<BoundStatement> ExpandUsingStatement(BoundUsingStatement statement) {
+    private protected override List<BoundStatement> ExpandScopedStatement(BoundScopedStatement statement) {
         /*
 
-        using (<declaration>)
+        scoped (<declaration>)
             <body>
 
         ---->
@@ -141,12 +141,12 @@ internal class SharedExpander : BoundTreeExpander {
 
         var bodyStatements = ExpandStatement(statement.body);
 
-        statements.Add(CreateUsingTry(syntax, bodyStatements.ToImmutableArray(), symbol, disposeMethod));
+        statements.Add(CreateScopedTry(syntax, bodyStatements.ToImmutableArray(), symbol, disposeMethod));
 
         return statements;
     }
 
-    internal BoundTryStatement CreateUsingTry(
+    internal BoundTryStatement CreateScopedTry(
         SyntaxNode syntax,
         ImmutableArray<BoundStatement> tryBody,
         DataContainerSymbol local,

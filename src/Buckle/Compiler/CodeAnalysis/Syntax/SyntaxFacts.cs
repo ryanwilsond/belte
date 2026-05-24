@@ -240,6 +240,7 @@ public static class SyntaxFacts {
             "destructor" => SyntaxKind.DestructorKeyword,
             "finalizer" => SyntaxKind.FinalizerKeyword,
             "defer" => SyntaxKind.DeferKeyword,
+            "scoped" => SyntaxKind.ScopedKeyword,
             "unreachable" => SyntaxKind.UnreachableKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
@@ -413,6 +414,7 @@ public static class SyntaxFacts {
             SyntaxKind.DestructorKeyword => "destructor",
             SyntaxKind.FinalizerKeyword => "finalizer",
             SyntaxKind.DeferKeyword => "defer",
+            SyntaxKind.ScopedKeyword => "scoped",
             SyntaxKind.UnreachableKeyword => "unreachable",
             _ => null,
         };

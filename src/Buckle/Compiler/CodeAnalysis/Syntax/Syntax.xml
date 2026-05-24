@@ -800,8 +800,8 @@
   <Node Name="LocalDeclarationStatementSyntax" Base="StatementSyntax">
     <Kind Name="LocalDeclarationStatement"/>
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;"/>
-    <Field Name="usingKeyword" Type="SyntaxToken" Optional="true">
-      <Kind Name="UsingKeyword"/>
+    <Field Name="scopedKeyword" Type="SyntaxToken" Optional="true">
+      <Kind Name="ScopedKeyword"/>
     </Field>
     <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;"/>
     <Field Name="declaration" Type="VariableDeclarationSyntax"/>
@@ -809,11 +809,11 @@
       <Kind Name="SemicolonToken"/>
     </Field>
   </Node>
-  <Node Name="UsingStatementSyntax" Base="StatementSyntax">
-    <Kind Name="UsingStatement"/>
+  <Node Name="ScopedStatementSyntax" Base="StatementSyntax">
+    <Kind Name="ScopedStatement"/>
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;"/>
-    <Field Name="usingKeyword" Type="SyntaxToken">
-      <Kind Name="UsingKeyword"/>
+    <Field Name="scopedKeyword" Type="SyntaxToken">
+      <Kind Name="ScopedKeyword"/>
     </Field>
     <Field Name="OpenParenToken" Type="SyntaxToken">
       <Kind Name="OpenParenToken"/>

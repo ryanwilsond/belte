@@ -189,8 +189,8 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
         }
     }
 
-    internal override void VisitUsingStatement(UsingStatementSyntax node) {
-        var usingBinder = new UsingStatementBinder(_enclosing, node);
+    internal override void VisitScopedStatement(ScopedStatementSyntax node) {
+        var usingBinder = new ScopedStatementBinder(_enclosing, node);
         AddToMap(node, usingBinder);
 
         var declarationSyntax = node.declaration;

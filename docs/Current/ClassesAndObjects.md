@@ -813,8 +813,8 @@ struct A {
 }
 ```
 
-Structs always have a single parameter-less constructor that sets every member to it's default value. From there,
-fields can be set.
+Structs always have a parameterless constructor that sets every member to it's default value. From there, fields can be
+set.
 
 ```belte
 var myStruct = new A();

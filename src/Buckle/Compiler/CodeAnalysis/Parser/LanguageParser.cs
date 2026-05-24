@@ -1225,8 +1225,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
         attributeLists ??= ParseAttributeLists();
 
-        if (modifiers is null && currentToken.kind == SyntaxKind.UsingKeyword)
-            return ParseUsingStatementOrLocalDeclaration(attributeLists);
+        if ((modifiers is null || !modifiers.Any()) && currentToken.kind == SyntaxKind.ScopedKeyword)
+            return ParseScopedStatementOrLocalDeclaration(attributeLists);
 
         modifiers ??= ParseModifiers();
         var type = ParseType(allowArraySize: true);
@@ -1251,8 +1251,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return ParseExpressionStatement();
     }
 
-    private StatementSyntax ParseUsingStatementOrLocalDeclaration(SyntaxList<AttributeListSyntax> attributeLists) {
-        var usingKeyword = EatToken();
+    private StatementSyntax ParseScopedStatementOrLocalDeclaration(SyntaxList<AttributeListSyntax> attributeLists) {
+        var scopedKeyword = EatToken();
 
         if (currentToken.kind == SyntaxKind.OpenParenToken) {
             var openParenthesis = EatToken();
@@ -1260,9 +1260,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
             var closeParenthesis = Match(SyntaxKind.CloseParenToken);
             var body = ParseStatement();
 
-            return SyntaxFactory.UsingStatement(
+            return SyntaxFactory.ScopedStatement(
                 attributeLists,
-                usingKeyword,
+                scopedKeyword,
                 openParenthesis,
                 declaration,
                 closeParenthesis,
@@ -1275,7 +1275,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
             return SyntaxFactory.LocalDeclarationStatement(
                 attributeLists,
-                usingKeyword,
+                scopedKeyword,
                 modifiers,
                 declaration,
                 semicolon

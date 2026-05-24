@@ -73,7 +73,7 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.InlineILStatement => ExpandInlineILStatement((BoundInlineILStatement)statement),
             BoundKind.SwitchDispatch => ExpandSwitchDispatch((BoundSwitchDispatch)statement),
             BoundKind.WithStatement => ExpandWithStatement((BoundWithStatement)statement),
-            BoundKind.UsingStatement => ExpandUsingStatement((BoundUsingStatement)statement),
+            BoundKind.ScopedStatement => ExpandScopedStatement((BoundScopedStatement)statement),
             BoundKind.UnreachableStatement => ExpandUnreachableStatement((BoundUnreachableStatement)statement),
             _ => throw ExceptionUtilities.UnexpectedValue(statement.kind),
         };
@@ -179,7 +179,7 @@ internal abstract partial class BoundTreeExpander {
             statements.Add(new BoundLocalDeclarationStatement(
                 syntax,
                 new BoundDataContainerDeclaration(syntax, statement.declaration.dataContainer, replacement),
-                statement.isUsing,
+                statement.isScoped,
                 statement.disposeMethod
             ));
 
@@ -223,12 +223,12 @@ internal abstract partial class BoundTreeExpander {
         return statements;
     }
 
-    private protected virtual List<BoundStatement> ExpandUsingStatement(BoundUsingStatement statement) {
+    private protected virtual List<BoundStatement> ExpandScopedStatement(BoundScopedStatement statement) {
         // ! Inheritors are responsible for expanding the declaration
         var syntax = statement.syntax;
 
         return [
-            new BoundUsingStatement(
+            new BoundScopedStatement(
                 syntax,
                 statement.declaration,
                 Simplify(syntax, ExpandStatement(statement.body))
