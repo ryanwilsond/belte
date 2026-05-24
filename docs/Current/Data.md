@@ -244,11 +244,11 @@ strict order of precedence:
 | x * y, x / y, x % y | Multiplicative |
 | x + y, x - y | Additive |
 | x << y, x >> y, x >>> y | Shift |
-| x < y, x > y, x <= y, x >= y, x /\ y, x \/ y | Relational |
-| x == y, x != y | Equality |
 | x & y | Bitwise Logical AND |
 | x ^ y | Bitwise Logical XOR |
 | x \| y | Bitwise Logical OR |
+| x < y, x > y, x <= y, x >= y, x /\ y, x \/ y | Relational |
+| x == y, x != y | Equality |
 | x && y | Conditional AND |
 | x \|\| y | Conditional OR |
 | x ?? y, x ?! y | Null-Coalescing |

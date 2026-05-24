@@ -36,21 +36,21 @@ public static class SyntaxFacts {
             case SyntaxKind.GreaterThanGreaterThanToken:
             case SyntaxKind.GreaterThanGreaterThanGreaterThanToken:
                 return 11;
+            case SyntaxKind.AmpersandToken:
+                return 10;
+            case SyntaxKind.CaretToken:
+                return 9;
+            case SyntaxKind.PipeToken:
+                return 8;
             case SyntaxKind.LessThanToken:
             case SyntaxKind.GreaterThanToken:
             case SyntaxKind.LessThanEqualsToken:
             case SyntaxKind.GreaterThanEqualsToken:
             case SyntaxKind.SlashBackslashToken:
             case SyntaxKind.BackslashSlashToken:
-                return 10;
+                return 7;
             case SyntaxKind.EqualsEqualsToken:
             case SyntaxKind.ExclamationEqualsToken:
-                return 9;
-            case SyntaxKind.AmpersandToken:
-                return 8;
-            case SyntaxKind.CaretToken:
-                return 7;
-            case SyntaxKind.PipeToken:
                 return 6;
             case SyntaxKind.AmpersandAmpersandToken:
                 return 5;

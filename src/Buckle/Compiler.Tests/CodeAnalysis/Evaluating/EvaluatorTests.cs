@@ -89,6 +89,8 @@ public sealed class EvaluatorTests {
     [InlineData("return false | true;", true)]
     [InlineData("return true | false;", true)]
     [InlineData("return true | true;", true)]
+    [InlineData("return 3 & 1 == 1;", true)]
+    [InlineData("return 3 & 8 == 1;", false)]
     [InlineData("return 1 ^ 0;", 1)]
     [InlineData("return 0 ^ 1;", 1)]
     [InlineData("return 1 ^ 1;", 0)]

@@ -626,7 +626,7 @@ The traditional way to test for the presence of a enum field is to use a bit tes
 ```belte
 var f = F.B;
 
-if ((f & F.B) != 0) { /* ... */ }
+if (f & F.B != 0) { /* ... */ }
 
 enum flags F {
   None,
