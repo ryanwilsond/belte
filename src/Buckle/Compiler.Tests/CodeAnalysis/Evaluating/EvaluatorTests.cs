@@ -828,6 +828,34 @@ public sealed class EvaluatorTests {
         defer a = 1;
         defer a = 2;
         return a;", 0)]
+    // Using statements
+    [InlineData(@"
+        class A {
+            public static int S = 10;
+            public void Dispose() { S++; }
+        }
+        {
+            using (A a = new ()) A.S++;
+            return A.S;
+        }", 12)]
+    [InlineData(@"
+        class A {
+            public static int S = 10;
+            destructor() { S++; }
+        }
+        {
+            using (A a = new ()) A.S++;
+            return A.S;
+        }", 12)]
+    [InlineData(@"
+        class A {
+            public static int S = 10;
+            destructor() { S++; }
+        }
+        {
+            { using A a = new (); }
+            return A.S;
+        }", 11)]
     // Switch statements
     [InlineData("var? a = 3; int? b = 1; switch (a) { case 3: b = 5; } return b;", 5)]
     [InlineData("var? a = 3; int? b = 1; switch (a) { case 4: b = 5; } return b;", 1)]

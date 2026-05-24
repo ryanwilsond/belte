@@ -557,7 +557,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                             var isNew = sourceMethod.isNew;
                             CheckNonOverrideMember(method, isNew, method.overriddenOrHiddenMembers, diagnostics);
                         }
-                    } else if (method.methodKind == MethodKind.Destructor) {
+                    } else if (method.methodKind == MethodKind.Finalizer) {
                         // TODO Do we care about this error
                         // MethodSymbol overridden = method.GetFirstRuntimeOverriddenMethodIgnoringNewSlot(out _);
 
@@ -1156,8 +1156,10 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         foreach (var valuesByName in GetMembersByName().Values) {
             foreach (var member in valuesByName) {
                 if (member.declaredAccessibility.HasProtected()) {
-                    if (member.kind != SymbolKind.Method || ((MethodSymbol)member).methodKind != MethodKind.Destructor)
+                    if (member.kind != SymbolKind.Method ||
+                        ((MethodSymbol)member).methodKind is not MethodKind.Destructor and not MethodKind.Finalizer) {
                         diagnostics.Push(Error.ProtectedInStatic(member.location, member));
+                    }
                 }
             }
         }
@@ -1667,6 +1669,16 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                         var destructor = new SourceDestructorSymbol(this, destructorSyntax, diagnostics);
                         builder.nonTypeMembers.Add(destructor);
+                    }
+                    break;
+                case SyntaxKind.FinalizerDeclaration: {
+                        var finalizerSyntax = (FinalizerDeclarationSyntax)m;
+
+                        if (isImplicitClass && reportMisplacedGlobalCode)
+                            diagnostics.Push(Error.NamespaceUnexpected(finalizerSyntax.finalizerKeyword.location));
+
+                        var finalizer = new SourceFinalizerSymbol(this, finalizerSyntax, diagnostics);
+                        builder.nonTypeMembers.Add(finalizer);
                     }
                     break;
                 case SyntaxKind.OperatorDeclaration: {

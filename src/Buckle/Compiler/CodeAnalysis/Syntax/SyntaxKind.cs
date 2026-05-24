@@ -133,6 +133,7 @@ public enum SyntaxKind : ushort {
     VirtualKeyword,
     OverrideKeyword,
     ConstructorKeyword,
+    FinalizerKeyword,
     DestructorKeyword,
     AsKeyword,
     WhereKeyword,
@@ -286,6 +287,7 @@ public enum SyntaxKind : ushort {
     ConstructorDeclaration,
     ConstructorInitializer,
     DestructorDeclaration,
+    FinalizerDeclaration,
     OperatorDeclaration,
     ConversionDeclaration,
 

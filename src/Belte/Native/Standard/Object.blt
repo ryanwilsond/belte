@@ -2,7 +2,7 @@
 public class Object {
     public constructor() { }
 
-    destructor() { }
+    finalizer() { }
 
     public virtual string? ToString() {
         return LowLevel.GetTypeName(this);

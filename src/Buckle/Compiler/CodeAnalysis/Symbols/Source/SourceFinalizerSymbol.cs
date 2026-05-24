@@ -7,24 +7,24 @@ using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal sealed class SourceDestructorSymbol : SourceMemberMethodSymbol {
+internal sealed class SourceFinalizerSymbol : SourceMemberMethodSymbol {
     private TypeWithAnnotations _lazyReturnType;
 
-    internal SourceDestructorSymbol(
+    internal SourceFinalizerSymbol(
         SourceMemberContainerTypeSymbol containingType,
-        DestructorDeclarationSyntax syntax,
+        FinalizerDeclarationSyntax syntax,
         BelteDiagnosticQueue diagnostics)
         : base(
             containingType,
             new SyntaxReference(syntax),
             MakeModifiersAndFlags(syntax, diagnostics, out _)) {
-        location = syntax.destructorKeyword.location;
+        location = syntax.finalizerKeyword.location;
 
         if (containingType.isStatic)
-            diagnostics.Push(Error.DestructorInStaticClass(location));
+            diagnostics.Push(Error.FinalizerInStaticClass(location));
     }
 
-    public override string name => WellKnownMemberNames.Dispose;
+    public override string name => WellKnownMemberNames.FinalizerName;
 
     internal override bool isMetadataFinal => false;
 
@@ -58,12 +58,12 @@ internal sealed class SourceDestructorSymbol : SourceMemberMethodSymbol {
     }
 
     private static (DeclarationModifiers, Flags) MakeModifiersAndFlags(
-        DestructorDeclarationSyntax syntax,
+        FinalizerDeclarationSyntax syntax,
         BelteDiagnosticQueue diagnostics,
         out bool modifierErrors) {
         var declarationModifiers = MakeModifiers(syntax, syntax.modifiers, diagnostics, out modifierErrors);
         var flags = MakeFlags(
-            MethodKind.Destructor,
+            MethodKind.Finalizer,
             RefKind.None,
             declarationModifiers,
             returnsVoid: true,
@@ -75,8 +75,8 @@ internal sealed class SourceDestructorSymbol : SourceMemberMethodSymbol {
         return (declarationModifiers, flags);
     }
 
-    internal DestructorDeclarationSyntax GetSyntax() {
-        return (DestructorDeclarationSyntax)syntaxReference.node;
+    internal FinalizerDeclarationSyntax GetSyntax() {
+        return (FinalizerDeclarationSyntax)syntaxReference.node;
     }
 
     internal override ExecutableCodeBinder TryGetBodyBinder(
@@ -98,7 +98,7 @@ internal sealed class SourceDestructorSymbol : SourceMemberMethodSymbol {
     }
 
     private static DeclarationModifiers MakeModifiers(
-        DestructorDeclarationSyntax syntax,
+        FinalizerDeclarationSyntax syntax,
         SyntaxTokenList modifiers,
         BelteDiagnosticQueue diagnostics,
         out bool modifierErrors) {
@@ -106,12 +106,12 @@ internal sealed class SourceDestructorSymbol : SourceMemberMethodSymbol {
             modifiers,
             DeclarationModifiers.None,
             0,
-            syntax.destructorKeyword.location,
+            syntax.finalizerKeyword.location,
             diagnostics,
             out modifierErrors
         );
 
-        mods = (mods & ~DeclarationModifiers.AccessibilityMask) | DeclarationModifiers.Public;
+        mods = (mods & ~DeclarationModifiers.AccessibilityMask) | DeclarationModifiers.Protected;
 
         return mods;
     }

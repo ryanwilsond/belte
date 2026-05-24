@@ -692,8 +692,8 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             }
         }
 
-        if (method.methodKind == MethodKind.Destructor && body is not null) {
-            return ConstructDestructorBody(
+        if (method.methodKind == MethodKind.Finalizer && body is not null) {
+            return ConstructFinalizerBody(
                 method,
                 body,
                 state.compilation.options.optimizationLevel == OptimizationLevel.Debug
@@ -786,7 +786,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         return (filter is null) || filter(symbol);
     }
 
-    internal static BoundBlockStatement ConstructDestructorBody(
+    internal static BoundBlockStatement ConstructFinalizerBody(
         MethodSymbol method,
         BoundBlockStatement block,
         bool generateSequencePoint) {
@@ -836,7 +836,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         var baseType = method.containingType.baseType;
 
         while (baseType is not null) {
-            foreach (var member in baseType.GetMembers(WellKnownMemberNames.DestructorName)) {
+            foreach (var member in baseType.GetMembers(WellKnownMemberNames.FinalizerName)) {
                 if (member.kind == SymbolKind.Method) {
                     var baseTypeMethod = (MethodSymbol)member;
                     var accessibility = baseTypeMethod.declaredAccessibility;

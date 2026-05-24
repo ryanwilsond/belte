@@ -1321,7 +1321,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
         _methods.Add(method, methodBuilder);
 
-        if (method.methodKind == MethodKind.Destructor) {
+        if (method.methodKind == MethodKind.Finalizer) {
             var baseFinalize = GetMethod(MethodCompiler.GetBaseTypeFinalizeMethod(method));
             typeBuilder.DefineMethodOverride(methodBuilder, baseFinalize);
         }

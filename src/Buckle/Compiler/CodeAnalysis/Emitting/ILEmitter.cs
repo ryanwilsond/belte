@@ -1148,7 +1148,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         containingType.Methods.Add(methodDefinition);
 
-        if (method.methodKind == MethodKind.Destructor) {
+        if (method.methodKind == MethodKind.Finalizer) {
             var baseFinalize = GetMethod(MethodCompiler.GetBaseTypeFinalizeMethod(method));
             methodDefinition.Overrides.Add(baseFinalize);
         }

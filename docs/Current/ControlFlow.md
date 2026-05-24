@@ -1027,6 +1027,20 @@ try {
 }
 ```
 
+### 2.9.1 Destructors
+
+The `destructor` keyword can be used instead of the `public void Dispose()` signature:
+
+```belte
+class A {
+  destructor() {
+    // ...
+  }
+}
+```
+
+Using the `destructor` keyword ensures the member is public, has not parameters, and returns void.
+
 ## 2.10 Unreachable Statements
 
 An `unreachable;` statement can be used as a shorthand for throwing an unreachable code exception.

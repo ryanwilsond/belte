@@ -5436,7 +5436,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            'int': type used in a using statement must define a public parameterless instance method named 'Dispose'
+            'int': type used in a using statement must define a destructor
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -5713,6 +5713,21 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
            cannot infer the type of implicitly-typed discard
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0450_FinalizerInStaticClass() {
+        var text = @"
+            public static class A {
+                [finalizer]() { }
+            }
+        ";
+
+        var diagnostics = @"
+            static classes cannot contain finalizers
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

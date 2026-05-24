@@ -186,6 +186,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
             if (currentToken.kind == SyntaxKind.DestructorKeyword)
                 return ParseDestructorDeclaration(attributeLists, modifiers);
 
+            if (currentToken.kind == SyntaxKind.FinalizerKeyword)
+                return ParseFinalizerDeclaration(attributeLists, modifiers);
+
             if (currentToken.contextualKind is SyntaxKind.ImplicitKeyword or SyntaxKind.ExplicitKeyword)
                 return ParseConversionDeclaration(attributeLists, modifiers);
         }
@@ -627,6 +630,26 @@ internal sealed partial class LanguageParser : SyntaxParser {
             attributeLists,
             modifiers,
             destructorKeyword,
+            parameterList,
+            body
+        );
+    }
+
+    private FinalizerDeclarationSyntax ParseFinalizerDeclaration(
+        SyntaxList<AttributeListSyntax> attributeLists,
+        SyntaxList<SyntaxToken> modifiers) {
+        var finalizerKeyword = Match(SyntaxKind.FinalizerKeyword, SyntaxKind.OpenParenToken);
+        var parameterList = SyntaxFactory.ParameterList(
+            Match(SyntaxKind.OpenParenToken),
+            default,
+            Match(SyntaxKind.CloseParenToken)
+        );
+        var body = ParseBlockStatement();
+
+        return SyntaxFactory.FinalizerDeclaration(
+            attributeLists,
+            modifiers,
+            finalizerKeyword,
             parameterList,
             body
         );

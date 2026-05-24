@@ -13,10 +13,10 @@
 - [4.3](#43-modifiers) Modifiers
   - [4.3.1](#431-accessibility-modifiers) Accessibility Modifiers
   - [4.3.2](#432-overriding-modifiers) Overriding Modifiers
-  - [4.3.3](#433-static--constexpr) Static & ConstExpr
+  - [4.3.3](#433-static-and-constexpr) Static and ConstExpr
   - [4.3.4](#434-const) Const
-  - [4.3.5](#435-sealed--abstract) Sealed & Abstract
-- [4.4](#44-constructors--destructors) Constructors & Destructors
+  - [4.3.5](#435-sealed-and-abstract) Sealed and Abstract
+- [4.4](#44-constructors-and-finalizers) Constructors and Finalizers
 - [4.5](#45-templates) Templates
   - [4.5.1](#451-constraint-clauses) Constraint Clauses
     - [4.5.1.1](#4511-expression-constraints) Expression Constraints
@@ -122,7 +122,7 @@ class B extends A { }
 
 Members can interact with inheritance through [certain modifiers](#432-overriding-modifiers).
 
-Classes can restrict or necessitate inheritance through the [sealed and abstract modifiers](#435-sealed--abstract).
+Classes can restrict or necessitate inheritance through the [sealed and abstract modifiers](#435-sealed-and-abstract).
 
 ### 4.1.3 Base Access
 
@@ -249,7 +249,7 @@ Operator overloading is used to allow custom classes to use syntactical operator
 | `x + y`, `x - y`, `x * y`, `x / y`, `x % y`, `x & y`, `x \| y`, `x ^ y`, `x << y`, `x >> y`, `x >>> y` | |
 | `x == y`, `x != y`, `x < y`, `x > y`, `x <= y`, `x >= y` | Must be overloaded in the following pairs: `==` and `!=`, `<` and `>`, `<=` and `>=` |
 
-Note that operators must be marked [public](#431-accessibility-modifiers) and [static](#433-static--constexpr).
+Note that operators must be marked [public](#431-accessibility-modifiers) and [static](#433-static-and-constexpr).
 
 #### 4.2.3.2 Casts
 
@@ -320,7 +320,7 @@ implementations, and as such abstract members do not have a definition when decl
 
 Currently, these modifiers only apply to methods.
 
-### 4.3.3 Static & ConstExpr
+### 4.3.3 Static and ConstExpr
 
 Class members are instance members by default, meaning they require an instance to access. With the `static` and
 `constexpr` keywords methods and fields respectively can be accessed without an instance.
@@ -347,7 +347,7 @@ static constructor can be defined for a class that will run the first time a sta
 Methods marked as `const` cannot modify instance data or call instance methods not marked `const`. A `const` local of a
 class type can only read fields and call `const` methods.
 
-### 4.3.5 Sealed & Abstract
+### 4.3.5 Sealed and Abstract
 
 Classes can be marked as `sealed` to indicate that they cannot be derived.
 
@@ -361,7 +361,7 @@ Classes can be marked as `abstract` to indicate that they must be derived.
 abstract class A { }
 ```
 
-## 4.4 Constructors & Destructors
+## 4.4 Constructors and Finalizers
 
 When creating an object, values can be passed to modify the creation process. By default, no values are passed:
 
@@ -386,12 +386,12 @@ class MyClass {
 new MyClass(4);
 ```
 
-Destructors run when the garbage collector cleans up the memory used by an object. One can be defined per class to run
+Finalizers run when the garbage collector cleans up the memory used by an object. One can be defined per class to run
 some code right before the garbage collector does this:
 
 ```belte
 class MyClass {
-  destructor() {
+  finalizer() {
     // Cleanup ...
   }
 }
@@ -569,8 +569,7 @@ Additionally, flags enums string cast will display each field component of the v
 
 ```belte
 var myLocal = MyEnum.Field1 | MyEnum.Field2;
-var myString = (string)myLocal;
-// myString = "Field1, Field2"
+var myString = (string)myLocal; // myString = "Field1, Field2"
 
 enum flags MyEnum {
   Field1,

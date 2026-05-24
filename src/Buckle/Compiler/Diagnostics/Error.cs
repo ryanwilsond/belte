@@ -2126,8 +2126,13 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_DestructorInStaticClass, location, message);
     }
 
+    internal static BelteDiagnostic FinalizerInStaticClass(TextLocation location) {
+        var message = $"static classes cannot contain finalizers";
+        return CreateError(DiagnosticCode.ERR_FinalizerInStaticClass, location, message);
+    }
+
     internal static BelteDiagnostic UsingWithoutDispose(TextLocation location, TypeSymbol type) {
-        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': type used in a using statement must define a public parameterless instance method named 'Dispose'";
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': type used in a using statement must define a destructor";
         return CreateError(DiagnosticCode.ERR_UsingWithoutDispose, location, message);
     }
 

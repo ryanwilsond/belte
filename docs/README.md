@@ -110,10 +110,10 @@
     - [4.3](Current/ClassesAndObjects.md#43-modifiers) Modifiers
       - [4.3.1](Current/ClassesAndObjects.md#431-accessibility-modifiers) Accessibility Modifiers
       - [4.3.2](Current/ClassesAndObjects.md#432-overriding-modifiers) Overriding Modifiers
-      - [4.3.3](Current/ClassesAndObjects.md#433-static--constexpr) Static & ConstExpr
+      - [4.3.3](Current/ClassesAndObjects.md#433-static-and-constexpr) Static and ConstExpr
       - [4.3.4](Current/ClassesAndObjects.md#434-const) Const
-      - [4.3.5](Current/ClassesAndObjects.md#435-sealed--abstract) Sealed & Abstract
-    - [4.4](Current/ClassesAndObjects.md#44-constructors--destructors) Constructors & Destructors
+      - [4.3.5](Current/ClassesAndObjects.md#435-sealed-and-abstract) Sealed and Abstract
+    - [4.4](Current/ClassesAndObjects.md#44-constructors-and-finalizers) Constructors and Finalizers
     - [4.5](Current/ClassesAndObjects.md#45-templates) Templates
       - [4.5.1](Current/ClassesAndObjects.md#451-constraint-clauses) Constraint Clauses
         - [4.5.1.1](Current/ClassesAndObjects.md#4511-expression-constraints) Expression Constraints
