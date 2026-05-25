@@ -459,6 +459,7 @@ public enum DiagnosticCode : ushort {
     ERR_VoidAssignment = 448,
     ERR_DiscardTypeInferenceFailed = 449,
     ERR_FinalizerInStaticClass = 450,
+    ERR_ArgumentWrongRefConst = 451,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

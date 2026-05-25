@@ -2128,14 +2128,7 @@ oneMoreTime:
             return true;
 
         var containingType = method.containingType;
-        // TODO Why are we even here? Struct's can't have methods, but just in case consider checking for this
-        // Overrides in structs of some special types can be called directly.
-        // We can assume that these special types will not be removing overrides.
-        // This pattern can probably be applied to all special types,
-        // but that would introduce a silent change every time a new special type is added,
-        // so we constrain the check to a fixed range of types
-        // return containingType.SpecialType.CanOptimizeBehavior();
-        return true;
+        return containingType.specialType.CanOptimizeBehavior();
     }
 
     private static bool IsSafeToDereferenceReceiverRefAfterEvaluatingArguments(
@@ -2914,8 +2907,7 @@ oneMoreTime:
 
             var temp = EmitAddress(
                 assignmentOperator.right,
-                lhs.GetRefKind() is RefKind.RefConst or RefKind.RefConstParameter or
-                                    RefKind.RefFinal or RefKind.RefFinalParameter
+                lhs.GetRefKind() is RefKind.RefConst or RefKind.RefFinal
                     ? AddressKind.ReadOnlyStrict
                     : AddressKind.Writeable
             );

@@ -50,23 +50,27 @@ internal static class Warning {
     }
 
     internal static BelteDiagnostic RefConstNotVariable(TextLocation location, int arg) {
-        var message = $"argument {arg} should be a variable because it is passed to a 'ref const' parameter";
-        return CreateWarning(DiagnosticCode.WRN_RefConstNotVariable, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"argument {arg} should be a variable because it is passed to a 'ref const' parameter";
+        // return CreateWarning(DiagnosticCode.WRN_RefConstNotVariable, location, message);
     }
 
     internal static BelteDiagnostic ArgExpectedRef(TextLocation location, int arg) {
-        var message = $"argument {arg} should be passed with the 'ref' keyword";
-        return CreateWarning(DiagnosticCode.WRN_ArgExpectedRef, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"argument {arg} should be passed with the 'ref' keyword";
+        // return CreateWarning(DiagnosticCode.WRN_ArgExpectedRef, location, message);
     }
 
     internal static BelteDiagnostic TemplateParameterSameAsOuterMethod(TextLocation location, string name, Symbol symbol) {
-        var message = $"template parameter '{name}' has the same name as the template parameter from outer method '{symbol}'";
-        return CreateWarning(DiagnosticCode.WRN_TemplateParameterSameAsOuterMethod, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"template parameter '{name}' has the same name as the template parameter from outer method '{symbol}'";
+        // return CreateWarning(DiagnosticCode.WRN_TemplateParameterSameAsOuterMethod, location, message);
     }
 
     internal static BelteDiagnostic TemplateParameterSameAsOuter(TextLocation location, string name, Symbol symbol) {
-        var message = $"template parameter '{name}' has the same name as the template parameter from outer type '{symbol}'";
-        return CreateWarning(DiagnosticCode.WRN_TemplateParameterSameAsOuter, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"template parameter '{name}' has the same name as the template parameter from outer type '{symbol}'";
+        // return CreateWarning(DiagnosticCode.WRN_TemplateParameterSameAsOuter, location, message);
     }
 
     internal static BelteDiagnostic DefaultValueNoEffect(TextLocation location, string name) {
@@ -105,38 +109,45 @@ internal static class Warning {
     }
 
     internal static BelteDiagnostic HidingDifferentRefness(TextLocation location, ParameterSymbol parameter, ParameterSymbol hiddenParameter) {
-        var message = $"reference kind modifier of parameter '{parameter}' doesn't match the corresponding parameter '{hiddenParameter}' in hidden member";
-        return CreateWarning(DiagnosticCode.WRN_HidingDifferentRefness, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"reference kind modifier of parameter '{parameter}' doesn't match the corresponding parameter '{hiddenParameter}' in hidden member";
+        // return CreateWarning(DiagnosticCode.WRN_HidingDifferentRefness, location, message);
     }
 
     internal static BelteDiagnostic OverridingDifferentRefness(TextLocation location, ParameterSymbol parameter, ParameterSymbol hiddenParameter) {
-        var message = $"reference kind modifier of parameter '{parameter}' doesn't match the corresponding parameter '{hiddenParameter}' in overridden or implemented member";
-        return CreateWarning(DiagnosticCode.WRN_OverridingDifferentRefness, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"reference kind modifier of parameter '{parameter}' doesn't match the corresponding parameter '{hiddenParameter}' in overridden or implemented member";
+        // return CreateWarning(DiagnosticCode.WRN_OverridingDifferentRefness, location, message);
     }
 
     internal static BelteDiagnostic TopLevelNullabilityMismatchInParameterTypeOnOverride(TextLocation location, Symbol symbol) {
-        var message = $"nullability of type of parameter '{symbol}' doesn't match overridden member";
-        return CreateWarning(DiagnosticCode.WRN_TopLevelNullabilityMismatchInParameterTypeOnOverride, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"nullability of type of parameter '{symbol}' doesn't match overridden member";
+        // return CreateWarning(DiagnosticCode.WRN_TopLevelNullabilityMismatchInParameterTypeOnOverride, location, message);
     }
 
     internal static BelteDiagnostic NullabilityMismatchInParameterTypeOnOverride(TextLocation location, Symbol symbol) {
-        var message = $"nullability of reference types in type of parameter '{symbol}' doesn't match overridden member";
-        return CreateWarning(DiagnosticCode.WRN_NullabilityMismatchInParameterTypeOnOverride, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"nullability of reference types in type of parameter '{symbol}' doesn't match overridden member";
+        // return CreateWarning(DiagnosticCode.WRN_NullabilityMismatchInParameterTypeOnOverride, location, message);
     }
 
     internal static BelteDiagnostic TopLevelNullabilityMismatchInReturnTypeOnOverride(TextLocation location) {
-        var message = $"nullability of return type doesn't match overridden member";
-        return CreateWarning(DiagnosticCode.WRN_TopLevelNullabilityMismatchInReturnTypeOnOverride, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"nullability of return type doesn't match overridden member";
+        // return CreateWarning(DiagnosticCode.WRN_TopLevelNullabilityMismatchInReturnTypeOnOverride, location, message);
     }
 
     internal static BelteDiagnostic NullabilityMismatchInReturnTypeOnOverride(TextLocation location) {
-        var message = $"nullability of reference types in return type doesn't match overridden member";
-        return CreateWarning(DiagnosticCode.WRN_NullabilityMismatchInReturnTypeOnOverride, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"nullability of reference types in return type doesn't match overridden member";
+        // return CreateWarning(DiagnosticCode.WRN_NullabilityMismatchInReturnTypeOnOverride, location, message);
     }
 
     internal static BelteDiagnostic LocalUsingTypeName(TextLocation location, string name) {
-        var message = $"local '{name}' shares a name with a type in this namespace";
-        return CreateWarning(DiagnosticCode.WRN_LocalUsingTypeName, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"local '{name}' shares a name with a type in this namespace";
+        // return CreateWarning(DiagnosticCode.WRN_LocalUsingTypeName, location, message);
     }
 
     internal static BelteDiagnostic ProtectedInSealed(TextLocation location, Symbol symbol) {
@@ -146,8 +157,9 @@ internal static class Warning {
 
     // TODO Implement this warning
     internal static BelteDiagnostic ImpliedReference(TextLocation location) {
-        var message = $"implicit types infer reference types making the 'ref' keyword not necessary in this context";
-        return CreateWarning(DiagnosticCode.WRN_ImpliedReference, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"implicit types infer reference types making the 'ref' keyword not necessary in this context";
+        // return CreateWarning(DiagnosticCode.WRN_ImpliedReference, location, message);
     }
 
     internal static BelteDiagnostic NamespaceNameShadowsBelte(TextLocation location, NamespaceSymbol symbol) {

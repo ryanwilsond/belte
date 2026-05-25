@@ -1844,8 +1844,7 @@ internal sealed class Evaluator {
             var lhs = node.left;
             return EvaluateAddress(
                 node.right,
-                lhs.GetRefKind() is RefKind.RefConst or RefKind.RefConstParameter or
-                                    RefKind.RefFinal or RefKind.RefFinalParameter
+                lhs.GetRefKind() is RefKind.RefConst or RefKind.RefFinal
                     ? AddressKind.ReadOnlyStrict
                     : AddressKind.Writeable,
                 abort

@@ -87,7 +87,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
             var diagnostics = ImmutableArray<BelteDiagnostic>.Empty;
 
             if (!hasNonEmptyGlobalStatement) {
-                // TODO error
+                // TODO error?
                 var queue = BelteDiagnosticQueue.GetInstance();
                 // bag.Add(ErrorCode.ERR_SimpleProgramIsEmpty, ((EmptyStatementSyntax)firstGlobalStatement.Statement).SemicolonToken.GetLocation());
                 diagnostics = queue.ToImmutableAndFree();

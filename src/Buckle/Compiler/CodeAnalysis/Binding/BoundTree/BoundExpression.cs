@@ -22,6 +22,16 @@ internal abstract partial class BoundExpression : BoundNode {
         };
     }
 
+    internal bool IsConst() {
+        return kind switch {
+            BoundKind.DataContainerExpression => ((BoundDataContainerExpression)this).dataContainer.isConst,
+            BoundKind.ParameterExpression => ((BoundParameterExpression)this).parameter.isConst,
+            BoundKind.FieldAccessExpression => ((BoundFieldAccessExpression)this).field.isConst,
+            BoundKind.CallExpression => ((BoundCallExpression)this).method.isEffectivelyConst,
+            _ => false,
+        };
+    }
+
     internal TypeSymbol Type() {
         if (type is null)
             return null;

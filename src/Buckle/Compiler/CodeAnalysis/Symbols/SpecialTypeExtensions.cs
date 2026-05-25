@@ -36,6 +36,10 @@ internal static class SpecialTypeExtensions {
         return IsIntegral(specialType) || specialType == SpecialType.String || specialType == SpecialType.Char;
     }
 
+    internal static bool CanOptimizeBehavior(this SpecialType specialType) {
+        return specialType >= SpecialType.Object && specialType <= SpecialType.ValueType;
+    }
+
     internal static bool IsObjectType(this SpecialType specialType) {
         switch (specialType) {
             case SpecialType.Object:

@@ -149,8 +149,9 @@ internal abstract partial class MissingMetadataTypeSymbol {
                     // var errorInfo = _typeId != (int)SpecialType.None
                     //     ? new CSDiagnosticInfo(ErrorCode.ERR_PredefinedTypeNotFound, MetadataHelpers.BuildQualifiedName(_namespaceName, MetadataName))
                     //     : base.ErrorInfo;
-                    BelteDiagnostic errorInfo = null;
-                    Interlocked.CompareExchange(ref _lazyErrorInfo, errorInfo, null);
+                    throw ExceptionUtilities.Unreachable();
+                    // BelteDiagnostic errorInfo = null;
+                    // Interlocked.CompareExchange(ref _lazyErrorInfo, errorInfo, null);
                 }
 
                 return _lazyErrorInfo;

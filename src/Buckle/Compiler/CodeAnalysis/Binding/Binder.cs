@@ -1843,6 +1843,7 @@ internal partial class Binder {
                 // Error(diagnostics, ErrorCode.ERR_ByReferenceVariableMustBeInitialized, node);
                 // return false
                 // TODO should we error here?
+                // We need to consider if `ref int? y;` creating a temporary is valuable or not
                 return true;
             } else if (expressionRefKind != RefKind.Ref) {
                 diagnostics.Push(Error.InitializeByReferenceWithByValue(node.location));
@@ -2091,7 +2092,7 @@ internal partial class Binder {
                 return true;
             case BoundKind.ParameterExpression:
                 return IsAnyReadOnly(addressKind) ||
-                    ((BoundParameterExpression)expression).parameter.refKind is not RefKind.RefConstParameter;
+                    ((BoundParameterExpression)expression).parameter.refKind is not RefKind.RefConst;
             case BoundKind.DataContainerExpression:
                 var local = ((BoundDataContainerExpression)expression).dataContainer;
 
@@ -2117,8 +2118,7 @@ internal partial class Binder {
 
                 var lhsRefKind = assignment.left.GetRefKind();
                 return lhsRefKind == RefKind.Ref ||
-                    (IsAnyReadOnly(addressKind) && lhsRefKind is RefKind.RefConst or RefKind.RefConstParameter or
-                                                                 RefKind.RefFinal or RefKind.RefFinalParameter);
+                    (IsAnyReadOnly(addressKind) && lhsRefKind is RefKind.RefConst or RefKind.RefFinal);
             case BoundKind.ConditionalOperator:
                 var conditional = (BoundConditionalOperator)expression;
 
@@ -2346,7 +2346,7 @@ internal partial class Binder {
             case BindValueKind.Assignable:
                 return Error.ConstantAssignmentThis(location);
             case BindValueKind.RefOrOut:
-                return Error.RefConstThis(location);
+                return Error.RefConstLocal(location);
             case BindValueKind.AddressOf:
                 return Error.InvalidAddrOp(location);
             case BindValueKind.IncrementDecrement:
@@ -2944,7 +2944,6 @@ internal partial class Binder {
                     enableCallerInfo = true;
                     break;
                 default:
-                    // TODO Reachable?
                     nonNullSyntax = constructor.GetNonNullSyntaxNode();
                     errorLocation = constructor.location;
                     enableCallerInfo = false;
@@ -4677,7 +4676,8 @@ internal partial class Binder {
         if (/*!templateParameter.hasConstructorConstraint &&*/ !templateParameter.isPrimitiveType) {
             // TODO error and first condition, including the `new()` constraint feature
             // diagnostics.Add(ErrorCode.ERR_NoNewTyvar, node.Location, templateParameter);
-            return false;
+            throw ExceptionUtilities.Unreachable();
+            // return false;
         }
 
         return true;
@@ -5317,6 +5317,7 @@ internal partial class Binder {
                         if (IsBadLocalOrParameterCapture(localSymbol, type, localSymbol.refKind)) {
                             isError = true;
                             // TODO is this a reachable error?
+                            throw ExceptionUtilities.Unreachable();
                         }
                     }
 
@@ -5338,6 +5339,7 @@ internal partial class Binder {
                     if (IsBadLocalOrParameterCapture(parameter, parameter.type, parameter.refKind)) {
                         isError = true;
                         // TODO is this a reachable error?
+                        throw ExceptionUtilities.Unreachable();
                     }
 
                     return new BoundParameterExpression(
@@ -5850,7 +5852,6 @@ internal partial class Binder {
                     var error = Error.GlobalSingleTypeNameNotFound(location, whereText);
                     diagnostics.Push(error);
                     return error;
-                    // : diagnostics.Add(ErrorCode.ERR_GlobalSingleTypeNameNotFoundFwd, location, whereText, forwardedToAssembly);
                 } else {
                     object container = qualifier;
 
@@ -5860,7 +5861,6 @@ internal partial class Binder {
                     var error = Error.DottedTypeNamesNotFoundInNamespace(location, whereText, container);
                     diagnostics.Push(error);
                     return error;
-                    // : diagnostics.Add(ErrorCode.ERR_DottedTypeNameNotFoundInNSFwd, location, whereText, container, forwardedToAssembly);
                 }
             }
         }
@@ -6241,13 +6241,13 @@ internal partial class Binder {
         bool hasErrors) {
         var hasError = false;
         var type = fieldSymbol.containingType;
-        var isEnumField = (fieldSymbol.isStatic && type.IsEnumType());
+        var isEnumField = fieldSymbol.isStatic && type.IsEnumType();
 
-        // TODO enum
-        // if (isEnumField && !type.IsValidEnumType()) {
-        //     Error(diagnostics, ErrorCode.ERR_BindToBogus, node, fieldSymbol);
-        //     hasError = true;
-        // }
+        if (isEnumField && !type.IsValidEnumType()) {
+            throw ExceptionUtilities.Unreachable();
+            // Error(diagnostics, ErrorCode.ERR_BindToBogus, node, fieldSymbol);
+            // hasError = true;
+        }
 
         if (!hasError && !isEnumField)
             hasError = CheckInstanceOrStatic(node, receiver, fieldSymbol, ref resultKind, diagnostics);
@@ -7103,6 +7103,7 @@ internal partial class Binder {
                             diagnostics.Push(Warning.ArgExpectedRef(syntax.location, argNumber));
                         } else {
                             // TODO Reachable?
+                            throw ExceptionUtilities.Unreachable();
                             // Argument {0} should be passed with the 'in' keyword
                             // diagnostics.Add(
                             //     ErrorCode.WRN_ArgExpectedIn,
@@ -7285,10 +7286,8 @@ internal partial class Binder {
             ImmutableArray<int> argsToParamsOpt) {
             var parameterType = parameter.type;
 
-            if (flags.Includes(BinderFlags.ParameterDefaultValue)) {
-                // TODO What to replace this with
-                // return new BoundDefaultExpression(syntax, parameterType) { WasCompilerGenerated = true };
-            }
+            if (flags.Includes(BinderFlags.ParameterDefaultValue))
+                return new BoundDefaultExpression(syntax, null, null, parameterType);
 
             var parameterDefaultValue = parameter.explicitDefaultConstantValue;
             var defaultConstantValue = parameterDefaultValue?.value;
@@ -7616,15 +7615,17 @@ internal partial class Binder {
 
             identifier = normal.identifier;
             boundArgument = BindArgumentValue(normal, diagnostics, refKind);
+            refKind = InferBoundArgumentRefKind(boundArgument, refKind);
         } else {
             throw ExceptionUtilities.Unreachable();
         }
 
-        if (compilation.options.isScript && refKind != RefKind.None &&
-            boundArgument is BoundDataContainerExpression d && d.dataContainer.isGlobal) {
-            diagnostics.Push(Error.CannotPassGlobalByRef(argumentSyntax.location));
-            hadError = true;
-        }
+        // TODO Why did we make this restriction?
+        // if (compilation.options.isScript && refKind != RefKind.None &&
+        //     boundArgument is BoundDataContainerExpression d && d.dataContainer.isGlobal) {
+        //     diagnostics.Push(Error.CannotPassGlobalByRef(argumentSyntax.location));
+        //     hadError = true;
+        // }
 
         BindArgumentAndName(
             result,
@@ -7634,6 +7635,22 @@ internal partial class Binder {
             identifier,
             refKind
         );
+
+        static RefKind InferBoundArgumentRefKind(BoundExpression boundArgument, RefKind refKind) {
+            if (refKind is RefKind.None or RefKind.Out)
+                return refKind;
+
+            var argRefKind = boundArgument.GetRefKind();
+            var argIsConst = boundArgument.IsConst();
+
+            if (argRefKind != RefKind.None)
+                return argRefKind;
+
+            if (argIsConst)
+                return RefKind.RefConst;
+
+            return refKind;
+        }
     }
 
     private BoundExpression BindArgumentValue(
@@ -7648,7 +7665,9 @@ internal partial class Binder {
         return BindValue(
             argumentSyntax.expression,
             diagnostics,
-            refKind == RefKind.None ? BindValueKind.RValue : BindValueKind.RefOrOut
+            // We do RefConst here because its always safe to pass a Ref as RefConst
+            // This is so overload resolution infers refkind from ref expressions correctly
+            refKind == RefKind.None ? BindValueKind.RValue : BindValueKind.RefConst
         );
     }
 
@@ -8100,7 +8119,8 @@ internal partial class Binder {
             thisSymbol.containingSymbol != containingMember &&
             thisSymbol.refKind != RefKind.None) {
             // TODO error, confirm this is the right one
-            return Error.CannotUseThis(location);
+            throw ExceptionUtilities.Unreachable();
+            // return Error.CannotUseThis(location);
         }
 
         return null;
@@ -10147,32 +10167,36 @@ internal partial class Binder {
                             );
                         } else {
                             // TODO is this a reachable error?
+                            throw ExceptionUtilities.Unreachable();
                             // ErrorCode.ERR_SameFullNameAggAgg: The type '{1}' exists in both '{0}' and '{2}'
                             // info = new CSDiagnosticInfo(ErrorCode.ERR_SameFullNameAggAgg, originalSymbols,
                             //     new object[] { first.ContainingAssembly, first, second.ContainingAssembly });
 
-                            if (secondBest.isFromAddedModule) {
-                                reportError = false;
-                            }
+                            // if (secondBest.isFromAddedModule) {
+                            //     reportError = false;
+                            // }
                         }
                     } else if (first.kind == SymbolKind.Namespace && second.kind == SymbolKind.NamedType) {
                         // TODO is this a reachable error?
+                        throw ExceptionUtilities.Unreachable();
                         // ErrorCode.ERR_SameFullNameNsAgg: The namespace '{1}' in '{0}' conflicts with the type '{3}' in '{2}'
                         // info = new CSDiagnosticInfo(ErrorCode.ERR_SameFullNameNsAgg, originalSymbols,
                         //     new object[] { GetContainingAssembly(first), first, second.ContainingAssembly, second });
 
                         // Do not report this error if namespace is declared in source and the type is declared in added module,
                         // we already reported declaration error about this name collision.
-                        if (best.isFromSourceModule && secondBest.isFromAddedModule)
-                            reportError = false;
+                        // if (best.isFromSourceModule && secondBest.isFromAddedModule)
+                        //     reportError = false;
                     } else if (first.kind == SymbolKind.NamedType && second.kind == SymbolKind.Namespace) {
                         if (!secondBest.isFromCompilation || secondBest.isFromSourceModule) {
                             // TODO is this a reachable error?
+                            throw ExceptionUtilities.Unreachable();
                             // ErrorCode.ERR_SameFullNameNsAgg: The namespace '{1}' in '{0}' conflicts with the type '{3}' in '{2}'
                             // info = new CSDiagnosticInfo(ErrorCode.ERR_SameFullNameNsAgg, originalSymbols,
                             //     new object[] { GetContainingAssembly(second), second, first.ContainingAssembly, first });
                         } else {
                             // TODO is this a reachable error?
+                            throw ExceptionUtilities.Unreachable();
                             // ErrorCode.ERR_SameFullNameThisAggThisNs: The type '{1}' in '{0}' conflicts with the namespace '{3}' in '{2}'
                             // object arg0;
 
@@ -10242,7 +10266,10 @@ internal partial class Binder {
                     arity);
             } else {
                 var singleResult = symbols[0];
+
                 // TODO check if void can appear hear, would need error
+                if (singleResult is TypeSymbol t && t.IsVoidType())
+                    throw ExceptionUtilities.Unreachable();
 
                 if (singleResult.kind == SymbolKind.ErrorType) {
                     var errorType = (ErrorTypeSymbol)singleResult;
@@ -10373,10 +10400,8 @@ internal partial class Binder {
                 basesBeingResolved
             );
 
-            // TODO imports
-            // if (res.kind == LookupResultKind.Viable) {
-            // MarkImportDirective(alias.UsingDirectiveReference, callerIsSemanticModel);
-            // }
+            if (res.kind == LookupResultKind.Viable)
+                MarkImportDirective(alias.usingDirectiveReference);
 
             result.MergeEqual(res);
         }
@@ -10384,8 +10409,7 @@ internal partial class Binder {
 
     private protected bool IsUsingAlias(ImmutableDictionary<string, AliasAndUsingDirective> usingAliases, string name) {
         if (usingAliases.TryGetValue(name, out var node)) {
-            // TODO Imports
-            // MarkImportDirective(node.UsingDirectiveReference, callerIsSemanticModel);
+            MarkImportDirective(node.usingDirectiveReference);
             return true;
         }
 
@@ -13068,11 +13092,12 @@ symIsHidden:;
         }
 
         if (argument is not null) {
-            if (compilation.options.isScript && refKind != RefKind.None &&
-                argument is BoundDataContainerExpression d && d.dataContainer.isGlobal) {
-                diagnostics.Push(Error.RefReturnGlobal(expressionSyntax.location));
-                hasErrors = true;
-            }
+            // TODO Why was this enforced?
+            // if (compilation.options.isScript && refKind != RefKind.None &&
+            //     argument is BoundDataContainerExpression d && d.dataContainer.isGlobal) {
+            //     diagnostics.Push(Error.RefReturnGlobal(expressionSyntax.location));
+            //     hasErrors = true;
+            // }
 
             hasErrors |= argument.type is not null && argument.type.IsErrorType();
         }
@@ -13477,14 +13502,14 @@ symIsHidden:;
         BelteDiagnosticQueue diagnostics,
         ref bool hasErrors) {
         while (true) {
-            switch (expression.kind) {
-                // TODO default
-                // case SyntaxKind.DefaultLiteralExpression:
-                //     diagnostics.Add(ErrorCode.ERR_DefaultPattern, expression.Location);
-                //     hasErrors = true;
-                //     return expression;
-                case SyntaxKind.ParenthesizedExpression:
-                    expression = ((ParenthesisExpressionSyntax)expression).expression;
+            switch (expression) {
+                case LiteralExpressionSyntax literal when literal.token.kind == SyntaxKind.DefaultKeyword:
+                    throw ExceptionUtilities.Unreachable();
+                // diagnostics.Add(ErrorCode.ERR_DefaultPattern, expression.Location);
+                // hasErrors = true;
+                // return expression;
+                case ParenthesisExpressionSyntax paren:
+                    expression = paren.expression;
                     continue;
                 default:
                     return expression;
@@ -13546,12 +13571,13 @@ symIsHidden:;
                 var strippedInputType = inputType.StrippedType();
 
                 // TODO do we care about this error
-                // if (strippedInputType.kind is not SymbolKind.ErrorType and not SymbolKind.TemplateParameter &&
-                //     strippedInputType.specialType is not SpecialType.Object and not SpecialType.System_ValueType) {
-                //     diagnostics.Add(ErrorCode.ERR_ConstantValueOfTypeExpected, patternExpression.Location, strippedInputType);
-                // } else {
-                diagnostics.Push(Error.ConstantExpected(patternExpression.location));
-                // }
+                if (strippedInputType.kind is not SymbolKind.ErrorType and not SymbolKind.TemplateParameter &&
+                    strippedInputType.specialType is not SpecialType.Object and not SpecialType.ValueType) {
+                    throw ExceptionUtilities.Unreachable();
+                    //     diagnostics.Add(ErrorCode.ERR_ConstantValueOfTypeExpected, patternExpression.Location, strippedInputType);
+                } else {
+                    diagnostics.Push(Error.ConstantExpected(patternExpression.location));
+                }
 
                 hasErrors = true;
             }
@@ -13841,6 +13867,7 @@ symIsHidden:;
 
         if (!reportedErrors) {
             // TODO What is this error
+            throw ExceptionUtilities.Unreachable();
             // Error(diagnostics, ErrorCode.ERR_CollectionExpressionTargetTypeNotConstructible, node.Syntax, targetType);
         }
 

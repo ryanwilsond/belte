@@ -235,14 +235,14 @@ internal static class ParameterHelpers {
                     break;
                 case SyntaxKind.ConstKeyword:
                     if (refKind == RefKind.Ref && refnessKeyword.GetNextToken() == modifier)
-                        refKind = RefKind.RefConstParameter;
+                        refKind = RefKind.RefConst;
                     else
                         isConst = true;
 
                     break;
                 case SyntaxKind.FinalKeyword:
                     if (refKind == RefKind.Ref && refnessKeyword.GetNextToken() == modifier)
-                        refKind = RefKind.RefFinalParameter;
+                        refKind = RefKind.RefFinal;
 
                     break;
             }

@@ -959,7 +959,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             return false;
         }
 
-        var nRefParameters = parameters.Count(p => p.refKind is RefKind.Ref or RefKind.RefConstParameter);
+        var nRefParameters = parameters.Count(p => p.refKind is RefKind.Ref or RefKind.RefConst or RefKind.RefFinal);
 
         if (nRefParameters >= nRefParametersRequired)
             return true;

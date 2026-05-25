@@ -696,12 +696,12 @@ public static class SymbolDisplay {
             text.Write(CreateSpace());
         }
 
-        if (refKind is RefKind.RefConst or RefKind.RefConstParameter) {
+        if (refKind is RefKind.RefConst) {
             text.Write(CreateKeyword(SyntaxKind.ConstKeyword));
             text.Write(CreateSpace());
         }
 
-        if (refKind is RefKind.RefFinal or RefKind.RefFinalParameter) {
+        if (refKind is RefKind.RefFinal) {
             text.Write(CreateKeyword(SyntaxKind.FinalKeyword));
             text.Write(CreateSpace());
         }

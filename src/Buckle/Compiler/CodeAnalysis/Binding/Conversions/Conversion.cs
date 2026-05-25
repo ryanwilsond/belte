@@ -270,8 +270,6 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
             return new Conversion(EasyOut.Classify(source, target));
 
         // Handle conversions with 'any' type that weren't picked up with the EasyOut
-        // ~~We only allow using 'any' with other primitives, so the only type that the EasyOut couldn't pick up was array conversions~~
-        // TODO We changed this to now treat any as a bigger-O Object
         if (target.specialType == SpecialType.Any && source.typeKind != TypeKind.Pointer)
             return Implicit;
 

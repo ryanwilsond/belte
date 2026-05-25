@@ -434,19 +434,6 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_AssignmentExpression_Reports_CannotAssign() {
-        var text = @"
-            [Console.PrintLine] = 10;
-        ";
-
-        var diagnostics = @"
-            cannot assign to 'PrintLine' because it is a method group
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
-
-    [Fact]
     public void Evaluator_AssignmentExpression_Reports_Readonly() {
         var text = @"
             const int? x = 10;
@@ -804,11 +791,11 @@ public sealed class IssueTests {
         var text = @"
             void Test(ref int? a) { a++; }
             const int? a = 3;
-            Test(ref [a]);
+            Test([ref a]);
         ";
 
         var diagnostics = @"
-            ref value must be an assignable variable, field, parameter, or indexer
+            argument 1: cannot pass a reference to a constant to a parameter expecting a reference to a variable
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

@@ -95,7 +95,8 @@ internal sealed class TypeCompilationState {
             if (_constructorInitializers.TryGetValue(next, out next)) {
                 if (method1 == next) {
                     // TODO Initializer recursive cycle error
-                    return;
+                    throw ExceptionUtilities.Unreachable();
+                    // return;
                 }
             } else {
                 _constructorInitializers.Add(method1, method2);

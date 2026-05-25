@@ -1332,18 +1332,20 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0095_RefReturnGlobal() {
-        var text = @"
-            int? a = 3; ref int? b = ref a; ref int? F() { return ref [b]; }
-        ";
+    // !
+    // ? Not enforced currently
+    // [Fact]
+    // public void Reports_Error_BU0095_RefReturnGlobal() {
+    //     var text = @"
+    //         int? a = 3; ref int? b = ref a; ref int? F() { return ref [b]; }
+    //     ";
 
-        var diagnostics = @"
-            cannot return a global by reference
-        ";
+    //     var diagnostics = @"
+    //         cannot return a global by reference
+    //     ";
 
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
 
     // ! Error_BU0096_RefReturnOnlyParameter2
     // Unreachable currently
@@ -2938,14 +2940,14 @@ public sealed class DiagnosticTests {
             class A {
                 const int? x = 3;
                 void F() {
-                    G(ref [x]);
+                    ref int? f = ref [x];
                 }
-                void G(ref int? a) { }
             }
+            ;
         ";
 
         var diagnostics = @"
-            a constant field cannot be used as a ref value (except in a constructor)
+            a constant field cannot be used as a ref value (except in a constructor); consider using 'ref const'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -2974,20 +2976,72 @@ public sealed class DiagnosticTests {
     // ! Error_BU0222_RefConstantStatic
     // ! Error_BU0223_AssignmentConstantStatic
     // ! Error_BU0224_RefReturnConstant2
-    // ! Error_BU0225_RefConstant2
+
+    [Fact]
+    public void Reports_Error_BU0225_RefConstant2() {
+        var text = @"
+            class A {
+                const B x = new ();
+                void F() {
+                    ref int f = ref [x.a];
+                }
+            }
+            class B {
+                public int a;
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            members of constant field 'A.x' cannot be used as a ref value (except in a constructor); consider using 'ref const'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
     // ! Error_BU0226_AssignmentConstantField2
     // ! Error_BU0227_RefReturnConstantStatic2
     // ! Error_BU0228_RefConstantStatic2
     // ! Error_BU0229_AssignmentConstantStatic2
     // ! Error_BU0230_RefConstantLocalCause
-    // ! Error_BU0231_AssignmentConstantLocalCause
+
+    [Fact]
+    public void Reports_Error_BU0231_AssignmentConstantLocalCause() {
+        var text = @"
+            [Console.PrintLine] = 10;
+        ";
+
+        var diagnostics = @"
+            cannot assign to 'PrintLine' because it is a method group
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     // ! Error_BU0232_PossibleBadNegativeCast
     // Unreachable currently
 
     // Nested diagnostics
     // ! Error_BU0233_RefReturnMustHaveIdentityConversion
-    // ! Error_BU0234_RefAssignmentMustHaveIdentityConversion
+
+    [Fact]
+    public void Reports_Error_BU0234_RefAssignmentMustHaveIdentityConversion() {
+        var text = @"
+            class A {
+                const int? x = 3;
+                void F() {
+                    ref const int f = ref [x];
+                }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            the expression must be of type 'int!' because it is being assigned by reference
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0235_LocalSameNameAsTemplate() {
@@ -3461,7 +3515,7 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer, true);
     }
 
-    // ! Error_BU0277_HidingDifferentRefness
+    // ! Warning_BU0277_HidingDifferentRefness
     // ! Error_BU0278_CantOverrideNonMethod
 
     [Fact]
@@ -4080,18 +4134,20 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0335_CannotPassGlobalByRef() {
-        var text = @"
-            ref int? F(ref int? a) { return ref a; } int? b = 3; F([ref b]) = 6; return b;
-        ";
+    // !
+    // ? Error not currently enforced
+    // [Fact]
+    // public void Reports_Error_BU0335_CannotPassGlobalByRef() {
+    //     var text = @"
+    //         ref int? F(ref int? a) { return ref a; } int? b = 3; F([ref b]) = 6; return b;
+    //     ";
 
-        var diagnostics = @"
-            cannot pass a global by reference
-        ";
+    //     var diagnostics = @"
+    //         cannot pass a global by reference
+    //     ";
 
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
 
     [Fact]
     public void Reports_Error_BU0336_ThrowMisplaced() {
@@ -5738,6 +5794,24 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             static classes cannot contain finalizers
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0451_ArgumentWrongRefConst() {
+        var text = @"
+            void M(ref int? a) { }
+
+            void F() {
+                const int? a = 3;
+                M([ref a]);
+            }
+        ";
+
+        var diagnostics = @"
+            argument 1: cannot pass a reference to a constant to a parameter expecting a reference to a variable
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

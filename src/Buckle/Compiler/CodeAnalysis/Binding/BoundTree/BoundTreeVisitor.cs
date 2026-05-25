@@ -70,6 +70,7 @@ internal abstract partial class BoundTreeVisitor {
 
         internal void AddAnError(BelteDiagnosticQueue _) {
             // TODO Might want to add some higher level code that calls AddAnError on all thrown exceptions
+            throw ExceptionUtilities.Unreachable();
             // diagnostics.Add(ErrorCode.ERR_InsufficientStack, GetTooLongOrComplexExpressionErrorLocation(node));
         }
 

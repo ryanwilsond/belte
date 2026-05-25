@@ -1226,10 +1226,8 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                 if (!argRefKindsOpt.IsDefault)
                     refKind = argRefKindsOpt[argIndex];
 
-                if (refKind == RefKind.None &&
-                    parameter?.refKind is RefKind.RefConstParameter) {
+                if (refKind == RefKind.None && parameter?.refKind is RefKind.RefConst)
                     refKind = parameter.refKind;
-                }
 
                 escapeArguments.Add(new EscapeArgument(parameter, argument, refKind));
             }
@@ -1333,8 +1331,9 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
 
             if (parameter is BoundThisExpression) {
                 // TODO Reachable?
+                throw ExceptionUtilities.Unreachable();
                 // Error(diagnostics, ErrorCode.ERR_RefReturnStructThis, node);
-                return false;
+                // return false;
             }
 
             switch ((checkingReceiver, isRefScoped, refSafeToEscape)) {

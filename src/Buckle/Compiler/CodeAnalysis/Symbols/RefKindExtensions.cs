@@ -7,8 +7,8 @@ internal static class RefKindExtensions {
         return kind switch {
             RefKind.Ref => "ref",
             RefKind.Out => "out",
-            RefKind.RefConstParameter => "ref const",
-            RefKind.RefFinalParameter => "ref final",
+            RefKind.RefConst => "ref const",
+            RefKind.RefFinal => "ref final",
             _ => throw ExceptionUtilities.UnexpectedValue(kind),
         };
     }
@@ -18,8 +18,8 @@ internal static class RefKindExtensions {
             case RefKind.Ref:
                 return true;
             case RefKind.None:
-            case RefKind.RefConstParameter:
-            case RefKind.RefFinalParameter:
+            case RefKind.RefConst:
+            case RefKind.RefFinal:
                 return false;
             default:
                 throw ExceptionUtilities.UnexpectedValue(refKind);

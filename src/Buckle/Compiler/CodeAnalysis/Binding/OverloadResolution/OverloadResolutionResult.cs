@@ -393,6 +393,8 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
               !(refParameter is RefKind.RefConst or RefKind.RefFinal && refArg is RefKind.None or RefKind.Ref)) {
             if (refParameter is RefKind.None or RefKind.RefConst or RefKind.RefFinal)
                 diagnostics.Push(Error.ArgumentExtraRef(sourceLocation, "ref", arg + 1));
+            else if (refParameter is RefKind.Ref && refArg is RefKind.RefConst)
+                diagnostics.Push(Error.ArgumentWrongRefConst(sourceLocation, arg + 1));
             else
                 diagnostics.Push(Error.ArgumentWrongRef(sourceLocation, "ref", arg + 1));
         } else {
@@ -400,6 +402,7 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
                 diagnostics.Push(Error.CannotConvertArgument(sourceLocation, argType, parameter.type, arg + 1));
             } else {
                 // TODO Reachable error?
+                throw ExceptionUtilities.Unreachable();
                 // diagnostics.Add(
                 //     ErrorCode.ERR_BadArgType,
                 //     sourceLocation,
