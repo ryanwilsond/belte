@@ -3147,19 +3147,29 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer, true);
     }
 
-    // ! Warning_BU0253_RefConstParameterDefaultValue
-    // ! Error_BU0254_InvalidRefParameter
-    // ! Error_BU0255_RefConstWrongOrder
-
     [Fact]
-    public void Reports_Error_BU0256_ParameterIsStatic() {
+    public void Reports_Error_BU0253_RefFinalWrongOrder() {
         var text = @"
-            static class A { }
-            void F([A] a) { }
+            void F([final] int a) { }
         ";
 
         var diagnostics = @"
-            'A': static types cannot be used as parameters
+            'final' modifier must be specified after 'ref'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0254_InvalidRefParameter
+
+    [Fact]
+    public void Reports_Error_BU0255_RefConstWrongOrder() {
+        var text = @"
+            void F([const] int a) { }
+        ";
+
+        var diagnostics = @"
+            'const' modifier must be specified after 'ref'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

@@ -12,6 +12,7 @@ internal abstract class SourceParameterSymbol : SourceParameterSymbolBase {
         Symbol owner,
         int ordinal,
         RefKind refKind,
+        bool isConst,
         ScopedKind scope,
         string name,
         ParameterSyntax syntax)
@@ -19,6 +20,7 @@ internal abstract class SourceParameterSymbol : SourceParameterSymbolBase {
         this.refKind = refKind;
         effectiveScope = scope;
         this.name = name;
+        this.isConst = isConst;
         syntaxReference = new SyntaxReference(syntax);
         location = syntax.identifier.location;
     }
@@ -41,6 +43,8 @@ internal abstract class SourceParameterSymbol : SourceParameterSymbolBase {
 
     internal override bool isMetadataOut => refKind == RefKind.Out;
 
+    internal override bool isConst { get; }
+
     internal abstract SyntaxList<AttributeListSyntax> attributeDeclarationList { get; }
 
     internal static SourceParameterSymbol Create(
@@ -48,17 +52,19 @@ internal abstract class SourceParameterSymbol : SourceParameterSymbolBase {
         TypeWithAnnotations parameterType,
         ParameterSyntax syntax,
         RefKind refKind,
+        bool isConst,
         string name,
         int ordinal,
         ScopedKind scope) {
         if (syntax.defaultValue is null && scope == ScopedKind.None && syntax.attributeLists.Count == 0)
-            return new SourceSimpleParameterSymbol(owner, parameterType, ordinal, refKind, name, syntax);
+            return new SourceSimpleParameterSymbol(owner, parameterType, ordinal, refKind, isConst, name, syntax);
 
         return new SourceComplexParameterSymbol(
             owner,
             ordinal,
             parameterType,
             refKind,
+            isConst,
             name,
             syntax,
             scope

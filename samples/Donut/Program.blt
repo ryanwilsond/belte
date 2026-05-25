@@ -9,9 +9,9 @@
 */
 
 void Main() {
-    int[]! b = new int[1760];
-    int[]! z = new int[1760];
-    char[]! buffer = new char[1761];
+    final int[]! b = new int[1760];
+    final int[]! z = new int[1760];
+    final char[]! buffer = new char[1761];
 
     int sA = 1024;
     int cA = 0;

@@ -12,7 +12,7 @@
 */
 
 void Main(string[]! args) {
-    var argc = LowLevel.Length<string[]>(args);
+    const argc = LowLevel.Length<string[]>(args);
     Console.PrintLine(f"Number of arguments: {argc}");
 
     if (argc > 0) {

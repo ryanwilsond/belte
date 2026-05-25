@@ -2,7 +2,7 @@
 class Snake {
     private Sprite _sprite;
 
-    public const Vec2[] coords;
+    public final Vec2[] coords;
     public int bodySize;
 
     public constructor() {

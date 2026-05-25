@@ -17,10 +17,11 @@ internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol
         Symbol owner,
         int ordinal,
         RefKind refKind,
+        bool isConst,
         string name,
         ParameterSyntax syntax,
         ScopedKind scope)
-        : base(owner, ordinal, refKind, scope, name, syntax) {
+        : base(owner, ordinal, refKind, isConst, scope, name, syntax) {
         _hasDefaultValue = syntax is not null && syntax.defaultValue is not null;
     }
 

@@ -174,6 +174,8 @@ internal partial class PEParameterSymbol : ParameterSymbol {
 
     internal override bool isMetadataOut => (_flags & ParameterAttributes.Out) != 0;
 
+    internal override bool isConst => false;
+
     internal override ConstantValue outDefaultValue => null;
 
     internal override TypeWithAnnotations typeWithAnnotations => _typeWithAnnotations;

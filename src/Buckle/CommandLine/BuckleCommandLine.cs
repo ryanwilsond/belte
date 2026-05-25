@@ -40,7 +40,6 @@ public static partial class BuckleCommandLine {
         new DiagnosticInfo(0247, "BU"),
         new DiagnosticInfo(0248, "BU"),
         new DiagnosticInfo(0252, "BU"),
-        new DiagnosticInfo(0253, "BU"),
         new DiagnosticInfo(0272, "BU"),
         new DiagnosticInfo(0273, "BU"),
         new DiagnosticInfo(0274, "BU"),

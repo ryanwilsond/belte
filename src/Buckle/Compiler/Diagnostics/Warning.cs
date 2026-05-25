@@ -74,11 +74,6 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_DefaultValueNoEffect, location, message);
     }
 
-    internal static BelteDiagnostic RefConstParameterDefaultValue(TextLocation location, string name) {
-        var message = $"a default value is specified for 'ref const' parameter '{name}', but 'ref const' should be used only for references";
-        return CreateWarning(DiagnosticCode.WRN_RefConstParameterDefaultValue, location, message);
-    }
-
     internal static BelteDiagnostic EqualsWithoutGetHashCode(TextLocation location, Symbol symbol) {
         var message = $"'{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' overrides 'Object.Equals(Object)' but does not override 'Object.GetHashCode()'";
         return CreateWarning(DiagnosticCode.WRN_EqualsWithoutGetHashCode, location, message);

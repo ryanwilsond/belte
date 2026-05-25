@@ -115,6 +115,9 @@ To allow for better interop, C-style pointers and be used. Pointers are always
 non-nullable and can only point to non-nullable types (unless the pointed at
 type is heap allocated).
 
+Note that when possible, [references](Data.md#35-references) should be used
+instead.
+
 ### 6.5.1 Creating and Dereferencing Pointers
 
 To get the address of a local or field, the `&` operator can be used:
@@ -123,6 +126,10 @@ To get the address of a local or field, the `&` operator can be used:
 int! myInt = 3;
 int* ptr = &myInt;
 ```
+
+The address operator cannot be used on locals or fields that are marked as
+[`const`, `final`, or `constexpr`](Data.md#331-modifiers) to ensure they aren't
+reassigned.
 
 To dereference the pointer, the `*` operator can be used:
 

@@ -8,9 +8,10 @@ internal sealed class SourceSimpleParameterSymbol : SourceParameterSymbol {
         TypeWithAnnotations type,
         int ordinal,
         RefKind refKind,
+        bool isConst,
         string name,
         ParameterSyntax syntax)
-        : base(owner, ordinal, refKind, ScopedKind.None, name, syntax) {
+        : base(owner, ordinal, refKind, isConst, ScopedKind.None, name, syntax) {
         typeWithAnnotations = type;
     }
 

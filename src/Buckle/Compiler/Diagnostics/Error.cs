@@ -1146,6 +1146,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_RefConstWrongOrder, location, message);
     }
 
+    internal static BelteDiagnostic RefFinalWrongOrder(TextLocation location) {
+        var message = "'final' modifier must be specified after 'ref'";
+        return CreateError(DiagnosticCode.ERR_RefFinalWrongOrder, location, message);
+    }
+
     internal static BelteDiagnostic ParameterIsStatic(TextLocation location, TypeSymbol type) {
         var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': static types cannot be used as parameters";
         return CreateError(DiagnosticCode.ERR_ParameterIsStatic, location, message);

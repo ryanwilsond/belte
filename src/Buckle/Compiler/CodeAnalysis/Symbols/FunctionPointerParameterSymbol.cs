@@ -11,6 +11,7 @@ internal sealed class FunctionPointerParameterSymbol : ParameterSymbol {
     public FunctionPointerParameterSymbol(
         TypeWithAnnotations typeWithAnnotations,
         RefKind refKind,
+        bool isConst,
         string name,
         int ordinal,
         FunctionPointerMethodSymbol containingSymbol) {
@@ -19,6 +20,7 @@ internal sealed class FunctionPointerParameterSymbol : ParameterSymbol {
         this.ordinal = ordinal;
         _containingSymbol = containingSymbol;
         this.name = name ?? "";
+        this.isConst = isConst;
     }
 
     public override string name { get; }
@@ -28,6 +30,8 @@ internal sealed class FunctionPointerParameterSymbol : ParameterSymbol {
     public override RefKind refKind { get; }
 
     public override int ordinal { get; }
+
+    internal override bool isConst { get; }
 
     internal override Symbol containingSymbol => _containingSymbol;
 
