@@ -314,8 +314,9 @@ internal sealed partial class CecilILBuilder : ILBuilder {
             iLProcessor.Body.ExceptionHandlers.Add(handler);
         }
 
-        if (_tryStack.Count > 0)
-            iLProcessor.Emit(OpCodes.Leave, _tryStack.Peek().leaveTarget);
+        // TODO Turns out this is wrong, but what was this trying to accomplish?
+        // if (_tryStack.Count > 0)
+        //     iLProcessor.Emit(OpCodes.Leave, _tryStack.Peek().leaveTarget);
     }
 
     internal override void EmitReturn() {

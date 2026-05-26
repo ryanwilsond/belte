@@ -797,6 +797,18 @@ public sealed class EvaluatorTests {
             a = 2;
         }
         return a;", 2)]
+    [InlineData(@"
+        int counter = 0;
+
+        try {
+            for (var i = 0; i < 10; i++) {
+                try {
+                    counter++;
+                } finally { }
+            }
+        } finally { }
+
+        return counter;", 10)]
     // Defer statements
     [InlineData("int a = 3; defer a = 6; return a;", 3)]
     [InlineData(@"

@@ -1109,4 +1109,33 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Evaluator_ImplicitTyping_CannotConvert() {
+        var text = @"
+            int? M() {
+                int a = 3;
+                ref const? b = ref [a];
+            }
+        ";
+
+        var diagnostics = @"
+            the expression must be of type 'int?' because it is being assigned by reference
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_Assignment_NoInfiniteLoop() {
+        var text = @"
+            var a = [a];
+        ";
+
+        var diagnostics = @"
+            cannot use local 'a' before it is declared
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

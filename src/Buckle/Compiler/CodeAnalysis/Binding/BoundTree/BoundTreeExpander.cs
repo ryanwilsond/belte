@@ -457,7 +457,14 @@ internal abstract partial class BoundTreeExpander {
             newContents.Add(replacementContent);
         }
 
-        replacement = expression.Update(newContents.ToImmutableAndFree(), expression.constantValue, expression.type);
+        replacement = expression.Update(
+            newContents.ToImmutableAndFree(),
+            expression.isCString,
+            expression.isCWString,
+            expression.constantValue,
+            expression.type
+        );
+
         return statements;
     }
 

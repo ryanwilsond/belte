@@ -1,5 +1,6 @@
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
 
@@ -33,7 +34,9 @@ internal partial class SourceDataContainerSymbol {
 
         internal override SyntaxNode forbiddenZone { get; }
 
-        internal override BelteDiagnostic forbiddenDiagnostic => null;
+        internal override BelteDiagnostic GetForbiddenDiagnostic(TextLocation location) {
+            return null;
+        }
 
         private protected override TypeWithAnnotations InferTypeOfImplicit(BelteDiagnosticQueue diagnostics) {
             switch (_nodeToBind.kind) {

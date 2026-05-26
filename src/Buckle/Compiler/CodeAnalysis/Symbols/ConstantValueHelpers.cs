@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using Buckle.CodeAnalysis.Binding;
-using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
@@ -45,16 +44,15 @@ internal static class ConstantValueHelpers {
                 // TODO implement this error
                 throw ExceptionUtilities.Unreachable();
             } else {
-                var unconvertedBoundValue = boundValue;
+                // var unconvertedBoundValue = boundValue;
                 var constantValue = boundValue.constantValue;
-                var unconvertedConstantValue = unconvertedBoundValue.constantValue;
+                // var unconvertedConstantValue = unconvertedBoundValue.constantValue;
 
-                if (ConstantValue.IsNotNull(unconvertedConstantValue) && typeSymbol.IsVerifierReference()) {
-                    // diagnostics.Add(ErrorCode.ERR_NotNullConstRefField, initValueNode.Location, thisSymbol, typeSymbol);
-                    // TODO Confirm this error should be raised
-                    throw ExceptionUtilities.Unreachable();
-                    // constantValue ??= unconvertedConstantValue;
-                }
+                // TODO Almost certain we don't want this error
+                // if (ConstantValue.IsNotNull(unconvertedConstantValue) && typeSymbol.IsVerifierReference()) {
+                // diagnostics.Add(ErrorCode.ERR_NotNullConstRefField, initValueNode.Location, thisSymbol, typeSymbol);
+                // constantValue ??= unconvertedConstantValue;
+                // }
 
                 if (constantValue is not null)
                     value = constantValue;

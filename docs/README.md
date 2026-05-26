@@ -15,6 +15,10 @@
 
   - [github.com/ryanwilsond/belte/main/samples](https://github.com/ryanwilsond/belte/blob/main/samples).
 
+- #### Future Planned Features
+
+  - [0](Future.md) Future Features Overview
+
 - #### Belte Language Docs in Its Current State
 
   - [1](Current/Overview.md) Overview

@@ -83,13 +83,15 @@ internal sealed class RefILBuilder : ILBuilder {
     }
 
     internal override void BeginCatch() {
-        EmitBranch(CodeGeneration.OpCode.Leave, _tryStack.Peek());
+        // ? Reflection.Emit seems to automatically insert this instruction
+        // EmitBranch(CodeGeneration.OpCode.Leave, _tryStack.Peek());
         _iLGenerator.BeginCatchBlock(typeof(Exception));
         if (_logger is not null) lock (_logger) _logger.WriteLine("} Catch {");
     }
 
     internal override void BeginFinally() {
-        EmitBranch(CodeGeneration.OpCode.Leave, _tryStack.Peek());
+        // ? Reflection.Emit seems to automatically insert this instruction
+        // EmitBranch(CodeGeneration.OpCode.Leave, _tryStack.Peek());
         _iLGenerator.BeginFinallyBlock();
         if (_logger is not null) lock (_logger) _logger.WriteLine("} Finally {");
     }
@@ -97,17 +99,19 @@ internal sealed class RefILBuilder : ILBuilder {
     internal override void EndTry(bool emitEndFinally) {
         if (emitEndFinally) {
             if (_logger is not null) Log(OpCodes.Endfinally);
-            _iLGenerator.Emit(OpCodes.Endfinally);
+            // ? Reflection.Emit seems to automatically insert this instruction
+            // _iLGenerator.Emit(OpCodes.Endfinally);
         }
 
         _iLGenerator.EndExceptionBlock();
         if (_logger is not null) lock (_logger) _logger.WriteLine("} // Try end");
         MarkLabel(_tryStack.Pop());
 
-        if (_tryStack.Count > 0)
-            EmitBranch(CodeGeneration.OpCode.Leave, _tryStack.Peek());
-        else
-            Emit(CodeGeneration.OpCode.Nop);
+        // TODO Turns out this is wrong, but what was this trying to accomplish?
+        // if (_tryStack.Count > 0)
+        //     EmitBranch(CodeGeneration.OpCode.Leave, _tryStack.Peek());
+        // else
+        Emit(CodeGeneration.OpCode.Nop);
     }
 
     internal override void EmitReturn() {

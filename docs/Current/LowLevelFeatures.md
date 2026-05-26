@@ -614,3 +614,11 @@ char* temp = LowLevel.CreateLPCWSTR("test");
 defer LowLevel.FreeLPCWSTR(temp);
 char* a = temp;
 ```
+
+C-strings can be [interpolated](Data.md#312-string-interpolation):
+
+```belte
+int myNum = 10;
+char* a = wf"num is {myNum}";
+uint8* b = cf"num is {myNum}";
+```

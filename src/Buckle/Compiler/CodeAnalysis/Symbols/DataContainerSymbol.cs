@@ -1,5 +1,6 @@
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -87,8 +88,6 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
 
     internal virtual SyntaxNode forbiddenZone => null;
 
-    internal virtual BelteDiagnostic forbiddenDiagnostic => Error.LocalUsedBeforeDeclaration(location, this);
-
     internal TypeSymbol type => typeWithAnnotations.type;
 
     internal bool isGlobal => containingSymbol is SynthesizedEntryPoint;
@@ -103,6 +102,10 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
         SymbolVisitor<TArgument, TResult> visitor,
         TArgument argument) {
         return visitor.VisitDataContainer(this, argument);
+    }
+
+    internal virtual BelteDiagnostic GetForbiddenDiagnostic(TextLocation location) {
+        return Error.LocalUsedBeforeDeclaration(location, this);
     }
 
     internal abstract ConstantValue GetConstantValue(

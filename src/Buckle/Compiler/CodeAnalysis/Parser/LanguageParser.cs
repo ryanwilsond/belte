@@ -3153,7 +3153,7 @@ done:
         var interpolations = SyntaxListBuilder<InterpolatedStringContentSyntax>.Create();
 
         var tempLexer = new Lexer(SourceText.From(originalText), options, allowPreprocessorDirectives: false);
-        var groups = tempLexer.RereadInterpolatedString(out var hasCloseQuote);
+        var groups = tempLexer.RereadInterpolatedString(out var hasCloseQuote, out var isCString);
 
         foreach (var group in groups) {
             if (group.Length == 1 && group[0].kind == SyntaxKind.StringLiteralToken)
@@ -3163,10 +3163,11 @@ done:
         }
 
         var leading = originalToken.GetLeadingTrivia();
+        var startTokenWidth = isCString ? 3 : 2;
         var openQuote = SyntaxFactory.Token(
             SyntaxKind.InterpolatedStringStartToken,
-            2 + (leading?.fullWidth ?? 0),
-            originalText[0..2],
+            startTokenWidth + (leading?.fullWidth ?? 0),
+            originalText[0..startTokenWidth],
             null,
             leading,
             null

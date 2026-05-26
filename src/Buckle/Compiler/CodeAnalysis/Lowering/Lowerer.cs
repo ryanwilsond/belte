@@ -27,7 +27,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
     private readonly MethodSymbol _method;
     private readonly BelteDiagnosticQueue _diagnostics;
 
-    private List<BoundDeferStatement> _deferStatements = [];
     private bool _sawCompileTimeExpression;
 
     private Lowerer(
@@ -93,9 +92,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
     }
 
     internal override BoundNode VisitBlockStatement(BoundBlockStatement node) {
-        var savedDefers = _deferStatements;
-        _deferStatements = [];
-
         var block = (BoundBlockStatement)base.VisitBlockStatement(node);
 
         var builder = ArrayBuilder<BoundStatement>.GetInstance();
@@ -111,46 +107,39 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
                 builder.Add(_expander.CreateScopedTry(ld.syntax, tryBody, declaration.dataContainer, ld.disposeMethod));
                 builder.Add(new BoundLocalDeclarationStatement(syntax, declaration));
+            } else if (statement is BoundDeferStatement firstDefer) {
+                var defers = ArrayBuilder<BoundStatement>.GetInstance();
+
+                for (var j = i; j >= 0; j--, i--) {
+                    var possibleDefer = block.statements[j];
+
+                    if (possibleDefer.kind == BoundKind.DeferStatement) {
+                        defers.Add(possibleDefer);
+                    } else {
+                        i++;
+                        break;
+                    }
+                }
+
+                var syntax = firstDefer.syntax;
+                var tryBody = builder.Reverse().ToImmutableArray();
+                builder = ArrayBuilder<BoundStatement>.GetInstance();
+
+                for (var j = 0; j < defers.Count; j++)
+                    defers[j] = (defers[j] as BoundDeferStatement).statement;
+
+                builder.Add(new BoundTryStatement(
+                    syntax,
+                    new BoundBlockStatement(syntax, tryBody, [], []),
+                    null,
+                    new BoundBlockStatement(syntax, defers.ToImmutableAndFree(), [], [])
+                ));
             } else {
                 builder.Add(statement);
             }
         }
 
-        block = block.Update(builder.Reverse().ToImmutableArray(), block.locals, block.localFunctions);
-
-        if (_deferStatements.Count > 0)
-            block = RewriteDefers(block);
-
-        _deferStatements = savedDefers;
-        return block;
-    }
-
-    private BoundBlockStatement RewriteDefers(BoundBlockStatement block) {
-        var syntax = block.syntax;
-        var finallyBlock = ArrayBuilder<BoundStatement>.GetInstance();
-
-        for (var i = _deferStatements.Count - 1; i >= 0; i--) {
-            var defer = _deferStatements[i];
-            finallyBlock.Add(defer.statement);
-        }
-
-        return new BoundBlockStatement(
-            syntax,
-            [new BoundTryStatement(
-                syntax,
-                block,
-                null,
-                new BoundBlockStatement(syntax, finallyBlock.ToImmutableAndFree(), [], [])
-            )],
-            [],
-            []
-        );
-    }
-
-    internal override BoundNode VisitDeferStatement(BoundDeferStatement node) {
-        var visited = (BoundDeferStatement)base.VisitDeferStatement(node);
-        _deferStatements.Add(visited);
-        return Nop();
+        return block.Update(builder.Reverse().ToImmutableArray(), block.locals, block.localFunctions);
     }
 
     internal override BoundNode VisitExpressionStatement(BoundExpressionStatement node) {

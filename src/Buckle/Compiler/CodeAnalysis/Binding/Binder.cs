@@ -5260,66 +5260,14 @@ internal partial class Binder {
         switch (symbol.kind) {
             case SymbolKind.Local: {
                     var localSymbol = (DataContainerSymbol)symbol;
-                    TypeSymbol type;
+                    var type = BindResultTypeForLocalVariableReference(
+                        node,
+                        localSymbol,
+                        diagnostics,
+                        out var isTypeError
+                    );
 
-                    if (IsUsedBeforeDeclaration(node, localSymbol)) {
-                        FieldSymbol possibleField;
-                        var lookupResult = LookupResult.GetInstance();
-
-                        LookupMembersInType(
-                            lookupResult,
-                            containingType,
-                            localSymbol.name,
-                            arity: 0,
-                            basesBeingResolved: null,
-                            options: LookupOptions.Default,
-                            originalBinder: this,
-                            errorLocation: node.location,
-                            diagnose: false
-                        );
-
-                        possibleField = lookupResult.singleSymbolOrDefault as FieldSymbol;
-                        lookupResult.Free();
-
-                        if (possibleField is not null) {
-                            diagnostics.Push(Error.LocalUsedBeforeDeclarationAndHidesField(
-                                node.location,
-                                localSymbol,
-                                possibleField
-                            ));
-                        } else {
-                            diagnostics.Push(Error.LocalUsedBeforeDeclaration(node.location, localSymbol));
-                        }
-
-                        type = new ExtendedErrorTypeSymbol(
-                            compilation,
-                            "var",
-                            0,
-                            error: null,
-                            variableUsedBeforeDeclaration: true
-                        );
-
-                    } else if (localSymbol is SourceDataContainerSymbol { isImplicitlyTyped: true } &&
-                        localSymbol.forbiddenZone?.Contains(node) == true) {
-                        diagnostics.Push(localSymbol.forbiddenDiagnostic);
-
-                        type = new ExtendedErrorTypeSymbol(
-                            compilation,
-                            "var",
-                            0,
-                            error: null,
-                            variableUsedBeforeDeclaration: true
-                        );
-
-                    } else {
-                        type = localSymbol.type;
-
-                        if (IsBadLocalOrParameterCapture(localSymbol, type, localSymbol.refKind)) {
-                            isError = true;
-                            // TODO is this a reachable error?
-                            throw ExceptionUtilities.Unreachable();
-                        }
-                    }
+                    isError |= isTypeError;
 
                     var constantValue = localSymbol.isConstExpr && !isInsideNameof && !type.IsErrorType()
                         ? localSymbol.GetConstantValue(node, localInProgress, diagnostics)
@@ -5329,7 +5277,7 @@ internal partial class Binder {
                         node,
                         localSymbol,
                         constantValue,
-                        localSymbol.type,
+                        type,
                         isError
                     );
                 }
@@ -5378,18 +5326,6 @@ internal partial class Binder {
                 }
             default:
                 throw ExceptionUtilities.UnexpectedValue(symbol.kind);
-        }
-
-        static bool IsUsedBeforeDeclaration(SimpleNameSyntax node, DataContainerSymbol localSymbol) {
-            if (!localSymbol.hasSourceLocation)
-                return false;
-
-            var declaration = localSymbol.syntaxReference.node;
-
-            if (node.span.start >= declaration.span.start)
-                return false;
-
-            return node.syntaxTree == declaration.syntaxTree;
         }
     }
 
@@ -5530,11 +5466,187 @@ internal partial class Binder {
     }
 
     private BoundExpression BindQualifiedName(QualifiedNameSyntax node, BelteDiagnosticQueue diagnostics) {
-        // TODO Some languages allow "Color Color" member access where the instance name is the same as the type name
-        // In which case we would need a special handler for this "BindLeftOfPotentialColorColorMemberAccess"
-        // however, currently we disallow that naming convention
-        var left = BindExpression(node.left, diagnostics);
+        var left = BindLeftOfPotentialColorColorMemberAccess(node.left, diagnostics);
         return BindMemberAccessWithBoundLeft(node, left, node.right, node.period, false, false, diagnostics);
+    }
+
+    private BoundExpression BindLeftOfPotentialColorColorMemberAccess(
+        ExpressionSyntax left,
+        BelteDiagnosticQueue diagnostics) {
+        if (left is IdentifierNameSyntax identifier)
+            return BindLeftIdentifierOfPotentialColorColorMemberAccess(identifier, diagnostics);
+
+        return BindExpression(left, diagnostics);
+    }
+
+    private BoundExpression BindLeftIdentifierOfPotentialColorColorMemberAccess(
+        IdentifierNameSyntax left,
+        BelteDiagnosticQueue diagnostics) {
+        if (left.isFabricated)
+            return BindAsValue(left, diagnostics);
+
+        var lookupResult = LookupResult.GetInstance();
+        LookupIdentifier(lookupResult, left, called: false);
+
+        var leftSymbol = lookupResult.singleSymbolOrDefault;
+        lookupResult.Free();
+
+        if (leftSymbol is null)
+            return BindAsValue(left, diagnostics);
+
+        TypeSymbol leftType = null;
+
+        switch (leftSymbol.kind) {
+            case SymbolKind.Field:
+                var fieldSymbol = (FieldSymbol)leftSymbol;
+                leftType = fieldSymbol.GetFieldType(fieldsBeingBound).type;
+                leftType = GetAdjustedTypeForEnumMemberReference(fieldSymbol, leftType) ?? leftType;
+                break;
+            case SymbolKind.Local:
+                leftType = BindResultTypeForLocalVariableReference(left, (DataContainerSymbol)leftSymbol, BelteDiagnosticQueue.Discarded, isError: out _);
+                break;
+            case SymbolKind.Parameter:
+                leftType = ((ParameterSymbol)leftSymbol).type;
+                break;
+        }
+
+        if (leftType is null)
+            return BindAsValue(left, diagnostics);
+
+        var leftName = left.identifier.text;
+
+        if (leftType.name == leftName || IsUsingAliasInScope(leftName)) {
+            var boundType = BindNamespaceOrType(left, BelteDiagnosticQueue.Discarded);
+
+            if (TypeSymbol.Equals(boundType.type, leftType, TypeCompareKind.AllIgnoreOptions)) {
+                throw ExceptionUtilities.Unreachable();
+                // return new BoundTypeOrValueExpression(left, this, leftSymbol, leftType);
+            }
+        }
+
+        var boundValue = BindAsValue(left, diagnostics);
+        return boundValue;
+
+        BoundExpression BindAsValue(IdentifierNameSyntax left, BelteDiagnosticQueue diagnostics) {
+            return BindIdentifier(left, called: false, indexed: false, diagnostics: diagnostics);
+        }
+    }
+
+    private TypeSymbol GetAdjustedTypeForEnumMemberReference(FieldSymbol fieldSymbol, TypeSymbol fieldType) {
+        NamedTypeSymbol underlyingType = null;
+
+        if (InEnumMemberInitializer()) {
+            NamedTypeSymbol enumType = null;
+            var type = fieldSymbol.containingType;
+            var isEnumField = fieldSymbol.isStatic && type.IsEnumType();
+
+            if (isEnumField)
+                enumType = type;
+            else if (fieldSymbol.isConst && fieldType.IsEnumType())
+                enumType = (NamedTypeSymbol)fieldType;
+
+            if (enumType is not null)
+                underlyingType = enumType.enumUnderlyingType;
+        }
+
+        return underlyingType;
+    }
+
+    private bool IsUsingAliasInScope(string name) {
+        for (var chain = importChain; chain is not null; chain = chain.parentOpt) {
+            if (IsUsingAlias(chain.imports.usingAliases, name))
+                return true;
+        }
+
+        return false;
+    }
+
+    private TypeSymbol BindResultTypeForLocalVariableReference(
+        SimpleNameSyntax node,
+        DataContainerSymbol localSymbol,
+        BelteDiagnosticQueue diagnostics,
+        out bool isError) {
+        isError = false;
+        TypeSymbol type;
+
+        // TODO Pretty sure this is reported already
+        // if (ReportSimpleProgramLocalReferencedOutsideOfTopLevelStatement(node, localSymbol, diagnostics)) {
+        //     type = new ExtendedErrorTypeSymbol(
+        //         compilation,
+        //         name: "var",
+        //         arity: 0,
+        //         error: null,
+        //         variableUsedBeforeDeclaration: true
+        //     );
+        // } else
+        if (IsUsedBeforeDeclaration(node, localSymbol)) {
+            var lookupResult = LookupResult.GetInstance();
+
+            LookupMembersInType(
+                lookupResult,
+                containingType,
+                localSymbol.name,
+                arity: 0,
+                basesBeingResolved: null,
+                options: LookupOptions.Default,
+                originalBinder: this,
+                errorLocation: node.location,
+                diagnose: false
+            );
+
+            var possibleField = lookupResult.singleSymbolOrDefault as FieldSymbol;
+            lookupResult.Free();
+
+            if (possibleField is not null) {
+                diagnostics.Push(
+                    Error.LocalUsedBeforeDeclarationAndHidesField(node.location, localSymbol, possibleField)
+                );
+            } else {
+                diagnostics.Push(Error.LocalUsedBeforeDeclaration(node.location, localSymbol));
+            }
+
+            type = new ExtendedErrorTypeSymbol(
+                compilation,
+                name: "var",
+                arity: 0,
+                error: null,
+                variableUsedBeforeDeclaration: true
+            );
+        } else if (localSymbol is SourceDataContainerSymbol { isImplicitlyTyped: true } &&
+                localSymbol.forbiddenZone?.Contains(node) == true) {
+            diagnostics.Push(localSymbol.GetForbiddenDiagnostic(node.location));
+
+            type = new ExtendedErrorTypeSymbol(
+                compilation,
+                "var",
+                0,
+                error: null,
+                variableUsedBeforeDeclaration: true
+            );
+
+        } else {
+            type = localSymbol.type;
+
+            if (IsBadLocalOrParameterCapture(localSymbol, type, localSymbol.refKind)) {
+                isError = true;
+                // TODO is this a reachable error?
+                throw ExceptionUtilities.Unreachable();
+            }
+        }
+
+        return type;
+
+        static bool IsUsedBeforeDeclaration(SimpleNameSyntax node, DataContainerSymbol localSymbol) {
+            if (!localSymbol.hasSourceLocation)
+                return false;
+
+            var declaration = localSymbol.GetDeclarationSyntax();
+
+            if (node.span.start >= declaration.span.start)
+                return false;
+
+            return node.syntaxTree == declaration.syntaxTree;
+        }
     }
 
     private BoundExpression BindMemberAccessWithBoundLeft(
@@ -7897,14 +8009,26 @@ internal partial class Binder {
         var stringType = CorLibrary.GetSpecialType(SpecialType.String);
         ConstantValue resultConstant = null;
         var isResultConstant = true;
+        var isCString = expression.stringStart.text.StartsWith('c');
+        var isCWString = expression.stringStart.text.StartsWith('w');
+
+        TypeSymbol type = isCString
+            ? new PointerTypeSymbol(
+                new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.UInt8)))
+            : isCWString
+                ? new PointerTypeSymbol(
+                    new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Char)))
+                : stringType;
 
         if (expression.contents.Count == 0) {
             resultConstant = new ConstantValue(string.Empty, SpecialType.String);
             return new BoundInterpolatedStringExpression(
                 expression,
                 builder.ToImmutableAndFree(),
+                isCString,
+                isCWString,
                 resultConstant,
-                stringType
+                type
             );
         }
 
@@ -7959,8 +8083,10 @@ internal partial class Binder {
         return new BoundInterpolatedStringExpression(
             expression,
             builder.ToImmutableAndFree(),
+            isCString,
+            isCWString,
             resultConstant,
-            stringType
+            type
         );
 
         static ConstantValue FoldStringConcatenation(ConstantValue left, ConstantValue right) {
@@ -12613,6 +12739,10 @@ symIsHidden:;
 
         BoundExpression initializer = null;
 
+        var conversionFlags = localSymbol.refKind != RefKind.None
+            ? ConversionForAssignmentFlags.RefAssignment
+            : ConversionForAssignmentFlags.None;
+
         if (isImplicitlyTyped) {
             alias = null;
 
@@ -12664,14 +12794,16 @@ symIsHidden:;
                         initializer = GenerateConversionForAssignment(
                             declarationType.type,
                             initializer,
-                            diagnostics
+                            diagnostics,
+                            conversionFlags
                         );
                     } else if ((isNullable && !declarationType.IsNullableType()) || shouldImplicitlyLift) {
                         declarationType = declarationType.SetIsAnnotated();
                         initializer = GenerateConversionForAssignment(
                             declarationType.type,
                             initializer,
-                            diagnostics
+                            diagnostics,
+                            conversionFlags
                         );
                     }
                 }
@@ -12726,9 +12858,7 @@ symIsHidden:;
                     declarationType.type,
                     initializer,
                     localDiagnostics,
-                    localSymbol.refKind != RefKind.None
-                        ? ConversionForAssignmentFlags.RefAssignment
-                        : ConversionForAssignmentFlags.None
+                    conversionFlags
                 );
             }
         }

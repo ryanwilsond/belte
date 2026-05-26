@@ -695,12 +695,24 @@ internal sealed partial class Lexer : IDisposable {
             return true;
         }
 
+        if (Peek(1) == 'f' && Peek(2) == '"') {
+            _position++;
+            ReadInterpolatedString();
+            return true;
+        }
+
         return false;
     }
 
     private bool TryReadCWString() {
         if (Peek(1) == '"') {
             ReadCOrCWString(isWide: true);
+            return true;
+        }
+
+        if (Peek(1) == 'f' && Peek(2) == '"') {
+            _position++;
+            ReadInterpolatedString();
             return true;
         }
 
@@ -906,9 +918,16 @@ internal sealed partial class Lexer : IDisposable {
         );
     }
 
-    internal SyntaxToken[][] RereadInterpolatedString(out bool hasCloseQuote) {
+    internal SyntaxToken[][] RereadInterpolatedString(out bool hasCloseQuote, out bool isCString) {
         hasCloseQuote = false;
         var groups = ArrayBuilder<SyntaxToken[]>.GetInstance();
+
+        if (_current == 'c' || _current == 'w') {
+            _position++;
+            isCString = true;
+        } else {
+            isCString = false;
+        }
 
         _position += 2;
         var startPosition = _position;

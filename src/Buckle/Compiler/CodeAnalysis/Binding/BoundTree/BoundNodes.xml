@@ -270,6 +270,8 @@
   </Node>
   <Node Name="BoundInterpolatedStringExpression" Base="BoundExpression">
     <Field Name="contents" Type="ImmutableArray&lt;BoundExpression&gt;"/>
+    <Field Name="isCString" Type="bool"/>
+    <Field Name="isCWString" Type="bool"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
   <Node Name="BoundMethodGroup" Base="BoundExpression">

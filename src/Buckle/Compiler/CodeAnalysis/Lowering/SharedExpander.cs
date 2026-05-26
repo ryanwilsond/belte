@@ -78,6 +78,22 @@ internal class SharedExpander : BoundTreeExpander {
         */
         var syntax = node.syntax;
         var isWide = node.isWide;
+
+        var literal = new BoundLiteralExpression(
+            syntax,
+            node.literal,
+            CorLibrary.GetSpecialType(node.literal.specialType)
+        );
+
+        return CreateCString(syntax, literal, node.type, isWide, out replacement);
+    }
+
+    private List<BoundStatement> CreateCString(
+        SyntaxNode syntax,
+        BoundExpression literal,
+        TypeSymbol type,
+        bool isWide,
+        out BoundExpression replacement) {
         var allocMethod = StandardLibrary.GetWellKnownMember(
             isWide ? STLWellKnownMembers.LowLevel_CreateLPCWSTR : STLWellKnownMembers.LowLevel_CreateLPCSTR
         );
@@ -86,17 +102,13 @@ internal class SharedExpander : BoundTreeExpander {
         );
 
         var statements = new List<BoundStatement>();
-        var temp = GenerateTempLocal(node.type);
+        var temp = GenerateTempLocal(type);
 
         statements.Add(
             LocalDeclaration(syntax, temp,
                 Call(syntax,
                     allocMethod,
-                    new BoundLiteralExpression(
-                        syntax,
-                        node.literal,
-                        CorLibrary.GetSpecialType(node.literal.specialType)
-                    )
+                    literal
                 )
             )
         );
@@ -111,7 +123,6 @@ internal class SharedExpander : BoundTreeExpander {
         ));
 
         replacement = Local(syntax, temp);
-
         return statements;
     }
 
@@ -520,6 +531,12 @@ internal class SharedExpander : BoundTreeExpander {
                 false,
                 stringType
             )));
+        }
+
+        if (expression.isCString || expression.isCWString) {
+            statements.AddRange(
+                CreateCString(syntax, replacement, expression.type, expression.isCWString, out replacement)
+            );
         }
 
         return statements;
