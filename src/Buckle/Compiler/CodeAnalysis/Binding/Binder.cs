@@ -587,6 +587,14 @@ internal partial class Binder {
                     diagnostics.Push(Error.UnexpectedToken(refToken.location, refToken.kind));
                     return BindType(referenceTypeSyntax.type, diagnostics, basesBeingResolved);
                 }
+            case SyntaxKind.TupleType:
+                namespaceOrNonNullableType = new TypeWithAnnotations(BindTupleType(
+                    (TupleTypeSyntax)syntax,
+                    diagnostics,
+                    basesBeingResolved
+                ));
+
+                break;
             case SyntaxKind.PointerType: {
                     var node = (PointerTypeSyntax)syntax;
                     var elementType = BindType(node.elementType, diagnostics, basesBeingResolved);
@@ -713,6 +721,101 @@ internal partial class Binder {
             }
 
             return BindSimpleNamespaceOrTypeOrAliasSymbol(node.name, diagnostics, basesBeingResolved, left);
+        }
+    }
+
+    private TypeSymbol BindTupleType(
+        TupleTypeSyntax syntax,
+        BelteDiagnosticQueue diagnostics,
+        ConsList<TypeSymbol> basesBeingResolved) {
+        var numElements = syntax.elements.Count;
+        var types = ArrayBuilder<TypeWithAnnotations>.GetInstance(numElements);
+        var locations = ArrayBuilder<TextLocation>.GetInstance(numElements);
+        ArrayBuilder<string> elementNames = null;
+
+        var uniqueFieldNames = PooledHashSet<string>.GetInstance();
+
+        for (var i = 0; i < numElements; i++) {
+            var argumentSyntax = syntax.elements[i];
+
+            var argumentType = BindType(argumentSyntax.type, diagnostics, basesBeingResolved);
+            types.Add(argumentType);
+
+            string name = null;
+            var nameToken = argumentSyntax.identifier;
+
+            if (nameToken is not null) {
+                name = nameToken.text;
+                CheckTupleMemberName(name, i, nameToken, diagnostics, uniqueFieldNames);
+                locations.Add(nameToken.location);
+            } else {
+                locations.Add(argumentSyntax.location);
+            }
+
+            CollectTupleFieldMemberName(name, i, numElements, ref elementNames);
+        }
+
+        uniqueFieldNames.Free();
+
+        var typesArray = types.ToImmutableAndFree();
+        var locationsArray = locations.ToImmutableAndFree();
+
+        if (typesArray.Length < 2)
+            throw ExceptionUtilities.UnexpectedValue(typesArray.Length);
+
+        return CreateErrorType("tuple");
+        // return NamedTypeSymbol.CreateTuple(
+        //     syntax.location,
+        //     typesArray,
+        //     locationsArray,
+        //     elementNames is null ? [] : elementNames.ToImmutableAndFree(),
+        //     this.Compilation,
+        //     this.shouldCheckConstraints,
+        //     includeNullability: this.ShouldCheckConstraints && includeNullability,
+        //     errorPositions: default(ImmutableArray<bool>),
+        //     syntax: syntax,
+        //     diagnostics: diagnostics
+        // );
+    }
+
+    private static bool CheckTupleMemberName(
+        string name,
+        int index,
+        SyntaxNodeOrToken syntax,
+        BelteDiagnosticQueue diagnostics,
+        PooledHashSet<string> uniqueFieldNames) {
+        var reserved = NamedTypeSymbol.IsTupleElementNameReserved(name);
+
+        if (reserved == 0) {
+            diagnostics.Push(Error.TupleReservedElementNameAnyPosition(syntax.location, name));
+            return false;
+        } else if (reserved > 0 && reserved != index + 1) {
+            diagnostics.Push(Error.TupleReservedElementName(syntax.location, name, reserved));
+            return false;
+        } else if (!uniqueFieldNames.Add(name)) {
+            diagnostics.Push(Error.TupleDuplicateElementName(syntax.location, name));
+            return false;
+        }
+
+        return true;
+    }
+
+    private static void CollectTupleFieldMemberName(
+        string name,
+        int elementIndex,
+        int tupleSize,
+        ref ArrayBuilder<string> elementNames) {
+        if (elementNames is not null) {
+            elementNames.Add(name);
+        } else {
+            if (name is not null) {
+                elementNames = ArrayBuilder<string>.GetInstance(tupleSize);
+
+                for (int j = 0; j < elementIndex; j++)
+                    elementNames.Add(null);
+
+                elementNames.Add(name);
+            }
         }
     }
 
@@ -4696,6 +4799,9 @@ internal partial class Binder {
 
             if (type.isStatic) {
                 diagnostics.Push(Error.CannotCreateStatic(node.location, type));
+                return MakeErrorExpressionForObjectCreation(node, type, analyzedArguments, node.type, diagnostics);
+            } else if (node.type.kind == SyntaxKind.TupleType) {
+                diagnostics.Push(Error.CannotCreateTuple(node.location, node.argumentList));
                 return MakeErrorExpressionForObjectCreation(node, type, analyzedArguments, node.type, diagnostics);
             }
 
@@ -12874,33 +12980,46 @@ symIsHidden:;
 
             var arguments = declaration.argumentList.arguments;
 
-            if (arguments.Count > 1)
-                diagnostics.Push(Error.BadStackAllocExpression(declaration.argumentList.location));
-
             var elementType = declarationType;
             var type = GetStackAllocType(declaration, elementType, BelteDiagnosticQueue.Discarded, out hasErrors);
 
-            var sizeExpression = ((ArgumentSyntax)arguments[0]).expression;
-
             var intType = CorLibrary.GetSpecialType(SpecialType.Int32);
-            var boundSize = BindValue(sizeExpression, diagnostics, BindValueKind.RValue);
-            boundSize = ReduceNumericIfApplicable(intType, boundSize);
-            boundSize = GenerateConversionForAssignment(intType, boundSize, diagnostics);
 
-            if (boundSize.constantValue is not null && (int)boundSize.constantValue.value < 0) {
-                diagnostics.Push(Error.NegativeStackAllocSize(sizeExpression.location));
-                hasErrors = true;
+            if (arguments.Count != 1)
+                diagnostics.Push(Error.BadStackAllocExpression(declaration.argumentList.location));
+
+            if (arguments.Count == 0) {
+                initializer = new BoundStackAllocExpression(
+                    declaration,
+                    elementType.type,
+                    BoundFactory.Literal(declaration, 1, intType),
+                    type,
+                    hasErrors
+                );
+
+                declarationType = new TypeWithAnnotations(type);
+            } else {
+                var sizeExpression = ((ArgumentSyntax)arguments[0]).expression;
+
+                var boundSize = BindValue(sizeExpression, diagnostics, BindValueKind.RValue);
+                boundSize = ReduceNumericIfApplicable(intType, boundSize);
+                boundSize = GenerateConversionForAssignment(intType, boundSize, diagnostics);
+
+                if (boundSize.constantValue is not null && (int)boundSize.constantValue.value < 0) {
+                    diagnostics.Push(Error.NegativeStackAllocSize(sizeExpression.location));
+                    hasErrors = true;
+                }
+
+                initializer = new BoundStackAllocExpression(
+                    declaration,
+                    elementType.type,
+                    boundSize,
+                    type,
+                    hasErrors
+                );
+
+                declarationType = new TypeWithAnnotations(type);
             }
-
-            initializer = new BoundStackAllocExpression(
-                declaration,
-                elementType.type,
-                boundSize,
-                type,
-                hasErrors
-            );
-
-            declarationType = new TypeWithAnnotations(type);
         }
 
         localSymbol.SetTypeWithAnnotations(declarationType);
@@ -13368,6 +13487,14 @@ symIsHidden:;
             if (statement is GlobalStatementSyntax topLevelStatement) {
                 if (first)
                     first = false;
+
+                if (topLevelStatement.attributeLists?.Count > 0)
+                    diagnostics.Push(Error.InvalidAttributes(topLevelStatement.attributeLists[0].location));
+
+                if (topLevelStatement.modifiers?.Count > 0) {
+                    foreach (var modifier in topLevelStatement.modifiers)
+                        diagnostics.Push(Error.InvalidModifier(modifier.location, SyntaxFacts.GetText(modifier.kind)));
+                }
 
                 var boundStatement = BindStatement(topLevelStatement.statement, diagnostics);
                 boundStatements.Add(boundStatement);

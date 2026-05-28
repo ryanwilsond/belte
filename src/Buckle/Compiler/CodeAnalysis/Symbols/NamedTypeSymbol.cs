@@ -261,6 +261,46 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
         return true;
     }
 
+    internal static int IsTupleElementNameReserved(string name) {
+        // ? Belte doesn't actually care about any of this, but we enforce it anyways for .NET compatibility
+        if (IsElementNameForbidden(name))
+            return 0;
+
+        return MatchesCanonicalTupleElementName(name);
+
+        static bool IsElementNameForbidden(string name) {
+            switch (name) {
+                case "CompareTo":
+                case WellKnownMemberNames.Deconstruct:
+                case "Equals":
+                case "GetHashCode":
+                case "Rest":
+                case "ToString":
+                    return true;
+
+                default:
+                    return false;
+            }
+        }
+    }
+
+    internal static int MatchesCanonicalTupleElementName(string name) {
+        if (name.StartsWith("Item", StringComparison.Ordinal)) {
+            var tail = name.Substring("Item".Length);
+
+            if (int.TryParse(tail, out var number)) {
+                if (number > 0 && string.Equals(name, TupleMemberName(number), StringComparison.Ordinal))
+                    return number;
+            }
+        }
+
+        return -1;
+    }
+
+    internal static string TupleMemberName(int position) {
+        return "Item" + position;
+    }
+
     internal NamedTypeSymbol WithTypeArguments(ImmutableArray<TypeOrConstant> allTypeArguments) {
         var definition = originalDefinition;
         var substitution = new TemplateMap(definition.GetAllTypeParameters(), allTypeArguments);

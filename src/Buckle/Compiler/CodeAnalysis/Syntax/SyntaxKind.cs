@@ -227,6 +227,7 @@ public enum SyntaxKind : ushort {
     InterpolatedStringExpression,
     ParenthesizedLambdaExpression,
     SimpleLambdaExpression,
+    TupleExpression,
     InterpolatedStringText,
     Interpolation,
     InterpolatedStringStartToken,
@@ -306,6 +307,8 @@ public enum SyntaxKind : ushort {
     FunctionPointerType,
     FunctionType,
     ReferenceType,
+    TupleType,
+    TupleElement,
     BaseType,
     NameEquals,
 

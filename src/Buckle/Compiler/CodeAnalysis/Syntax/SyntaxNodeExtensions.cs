@@ -54,6 +54,13 @@ internal static class SyntaxNodeExtensions {
                     var referenceTypeSyntax = (ReferenceTypeSyntax)type;
                     stack.Push(referenceTypeSyntax.type);
                     break;
+                case SyntaxKind.TupleType:
+                    var tupleTypeSyntax = (TupleTypeSyntax)type;
+
+                    for (var i = tupleTypeSyntax.elements.Count - 1; i >= 0; i--)
+                        stack.Push(tupleTypeSyntax.elements[i].type);
+
+                    break;
                 case SyntaxKind.FunctionPointerType:
                     var functionPointerTypeSyntax = (FunctionPointerSyntax)type;
 

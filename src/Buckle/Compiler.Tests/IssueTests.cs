@@ -315,13 +315,28 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_Block_NoInfiniteLoop() {
         var text = @"
-            {
-            [)][]
+            {[]
+            )[]
         ";
 
         var diagnostics = @"
-            expected expression
+            expected token '}'
             expected '}' at end of input
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_Block_MinimalDiagnostics() {
+        var text = @"
+            {[]
+            )
+            }
+        ";
+
+        var diagnostics = @"
+            expected token '}'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1134,6 +1149,53 @@ public sealed class IssueTests {
 
         var diagnostics = @"
             cannot use local 'a' before it is declared
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_IndexExpression_NoCrashOnNoIndex() {
+        var text = @"
+            int\[\] a = { 1 };
+            var b = [a\[\]];
+        ";
+
+        var diagnostics = @"
+            wrong number of indices inside []; expected 1
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_StackallocLocal_NoCrashOnNoIndex() {
+        var text = @"
+            int a[\[\]];
+        ";
+
+        var diagnostics = @"
+            a stackalloc expression or local requires a type with a single array size specifier
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_TypeDeclaration_MissingClosingBraceMinimalDiagnostics() {
+        var text = @"
+            class A {
+                public int M() {
+                    return 3;[]
+
+                public int B() {
+                    return 10;
+                }
+            }
+        ";
+
+        var diagnostics = @"
+            expected token '}'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

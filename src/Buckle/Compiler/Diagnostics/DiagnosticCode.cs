@@ -460,6 +460,12 @@ public enum DiagnosticCode : ushort {
     ERR_DiscardTypeInferenceFailed = 449,
     ERR_FinalizerInStaticClass = 450,
     ERR_ArgumentWrongRefConst = 451,
+    ERR_TupleTooFewElements = 452,
+    ERR_TupleReservedElementNameAnyPosition = 453,
+    ERR_TupleReservedElementName = 454,
+    ERR_TupleDuplicateElementName = 455,
+    ERR_CannotCreateTuple = 456,
+    ERR_InvalidMemberDeclarationToken = 457,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

@@ -5816,4 +5816,84 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0452_TupleTooFewElements() {
+        var text = @"
+            static (int[)] M() {}
+        ";
+
+        var diagnostics = @"
+            tuple must contain at least 2 elements
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0453_TupleReservedElementNameAnyPosition() {
+        var text = @"
+            (int [ToString], bool b) a;
+        ";
+
+        var diagnostics = @"
+            tuple element name 'ToString' is disallowed
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0454_TupleReservedElementName() {
+        var text = @"
+            (int a, bool [Item1]) a;
+        ";
+
+        var diagnostics = @"
+            tuple element name 'Item1' is only allowed at position 1
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0455_TupleDuplicateElementName() {
+        var text = @"
+            (int a, bool [a]) a;
+        ";
+
+        var diagnostics = @"
+            'a': tuple element names must be unique
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0456_CannotCreateTuple() {
+        var text = @"
+            var a = [new (int, bool)(3, true)];
+        ";
+
+        var diagnostics = @"
+            'new' cannot be used with tuple types; use a tuple literal instead
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0457_InvalidMemberDeclarationToken() {
+        var text = @"
+            class A {
+                [+]
+            }
+        ";
+
+        var diagnostics = @"
+            invalid token '+' in a member declaration
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

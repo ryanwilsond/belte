@@ -474,6 +474,23 @@
     <Field Name="constOrFinalKeyword" Type="SyntaxToken" Optional="true"/>
     <Field Name="type" Type="TypeSyntax"/>
   </Node>
+  <Node Name="TupleTypeSyntax" Base="TypeSyntax">
+    <Kind Name="TupleType"/>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="elements" Type="SeparatedSyntaxList&lt;TupleElementSyntax&gt;"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+  </Node>
+  <Node Name="TupleElementSyntax" Base="SyntaxNode">
+    <Kind Name="TupleElement"/>
+    <Field Name="type" Type="TypeSyntax"/>
+    <Field Name="identifier" Type="SyntaxToken" Optional="true">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+  </Node>
   <!-- Declarations -->
   <Node Name="CompilationUnitSyntax" Base="SyntaxNode">
     <Kind Name="CompilationUnit"/>
@@ -813,11 +830,11 @@
     <Field Name="scopedKeyword" Type="SyntaxToken">
       <Kind Name="ScopedKeyword"/>
     </Field>
-    <Field Name="OpenParenToken" Type="SyntaxToken">
+    <Field Name="openParenthesis" Type="SyntaxToken">
       <Kind Name="OpenParenToken"/>
     </Field>
     <Field Name="declaration" Type="VariableDeclarationSyntax"/>
-    <Field Name="CloseParenToken" Type="SyntaxToken">
+    <Field Name="closeParenthesis" Type="SyntaxToken">
       <Kind Name="CloseParenToken"/>
     </Field>
     <Field Name="statement" Type="StatementSyntax"/>
@@ -1380,6 +1397,16 @@
   <Node Name="LiteralExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="LiteralExpression"/>
     <Field Name="token" Type="SyntaxToken"/>
+  </Node>
+  <Node Name="TupleExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="TupleExpression"/>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="arguments" Type="SeparatedSyntaxList&lt;ExpressionSyntax&gt;"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
   </Node>
   <Node Name="InterpolatedStringExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="InterpolatedStringExpression"/>

@@ -363,6 +363,11 @@ public class {name} {{
         state.arguments = arguments;
         state.debugMode |= debugMode;
 
+        if (state.verboseMode && !state.noOut) {
+            ShowMachineDialog();
+            ShowVersionDialog();
+        }
+
         err = ResolveDiagnostics(diagnostics, processName, state);
 
         if (err > 0)

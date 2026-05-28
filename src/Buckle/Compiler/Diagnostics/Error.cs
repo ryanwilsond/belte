@@ -398,11 +398,6 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_InvalidModifier, location, message);
     }
 
-    internal static Diagnostic InvalidModifier(string name) {
-        var message = $"modifier '{name}' is not valid for this item";
-        return CreateError(DiagnosticCode.ERR_InvalidModifier, message);
-    }
-
     internal static BelteDiagnostic NoInstanceRequired(TextLocation location, string name, Symbol symbol) {
         var message = $"member '{name}' cannot be accessed with an instance reference; qualify it with the type name instead";
         var suggestion = $"{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}.{name}";
@@ -422,11 +417,6 @@ internal static class Error {
     internal static BelteDiagnostic MultipleMains(TextLocation location) {
         var message = "cannot have multiple 'Main' entry points";
         return CreateError(DiagnosticCode.ERR_MultipleMains, location, message);
-    }
-
-    internal static Diagnostic InvalidAttributes() {
-        var message = "attributes are not valid in this context";
-        return CreateError(DiagnosticCode.ERR_InvalidAttributes, message);
     }
 
     internal static BelteDiagnostic InvalidAttributes(TextLocation location) {
@@ -2289,6 +2279,37 @@ internal static class Error {
     internal static BelteDiagnostic DiscardTypeInferenceFailed(TextLocation location) {
         var message = $"cannot infer the type of implicitly-typed discard";
         return CreateError(DiagnosticCode.ERR_DiscardTypeInferenceFailed, location, message);
+    }
+
+    internal static Diagnostic TupleTooFewElements() {
+        var message = $"tuple must contain at least 2 elements";
+        return CreateError(DiagnosticCode.ERR_TupleTooFewElements, message);
+    }
+
+    internal static BelteDiagnostic TupleReservedElementNameAnyPosition(TextLocation location, string name) {
+        var message = $"tuple element name '{name}' is disallowed";
+        return CreateError(DiagnosticCode.ERR_TupleReservedElementNameAnyPosition, location, message);
+    }
+
+    internal static BelteDiagnostic TupleReservedElementName(TextLocation location, string name, int position) {
+        var message = $"tuple element name '{name}' is only allowed at position {position}";
+        return CreateError(DiagnosticCode.ERR_TupleReservedElementName, location, message);
+    }
+
+    internal static BelteDiagnostic TupleDuplicateElementName(TextLocation location, string name) {
+        var message = $"'{name}': tuple element names must be unique";
+        return CreateError(DiagnosticCode.ERR_TupleDuplicateElementName, location, message);
+    }
+
+    internal static BelteDiagnostic CannotCreateTuple(TextLocation location, SyntaxNode arguments) {
+        var message = $"'new' cannot be used with tuple types; use a tuple literal instead";
+        var suggestion = arguments.ToString();
+        return CreateError(DiagnosticCode.ERR_CannotCreateTuple, location, message, suggestion);
+    }
+
+    internal static Diagnostic InvalidMemberDeclarationToken(string text) {
+        var message = $"invalid token '{text}' in a member declaration";
+        return CreateError(DiagnosticCode.ERR_InvalidMemberDeclarationToken, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
