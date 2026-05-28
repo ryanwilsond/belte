@@ -13,7 +13,7 @@ internal static partial class ValueSetFactory {
         }
 
         ConstantValue IEquatableValueTC<string>.ToConstantValue(string value) {
-            return new ConstantValue(value, CodeAnalysis.Symbols.SpecialType.String);
+            return new ConstantValue(value, SpecialType.String);
         }
     }
 }

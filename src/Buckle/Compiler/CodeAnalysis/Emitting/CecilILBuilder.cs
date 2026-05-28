@@ -293,7 +293,7 @@ internal sealed partial class CecilILBuilder : ILBuilder {
 
         if (ctx.hasCatch) {
             var handler = new ExceptionHandler(ExceptionHandlerType.Catch) {
-                CatchType = _module.GetType(CorLibrary.GetSpecialType(SpecialType.Exception)),
+                CatchType = _module.GetType(CorLibrary.GetWellKnownType(WellKnownType.Exception)),
                 TryStart = ctx.innerTryStart,
                 TryEnd = ctx.innerTryEnd,
                 HandlerStart = ctx.handlerStart,

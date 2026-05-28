@@ -7,7 +7,8 @@ internal abstract partial class MissingMetadataTypeSymbol : ErrorTypeSymbol {
     private protected readonly int _arity;
     private protected readonly bool _mangleName;
 
-    private MissingMetadataTypeSymbol(string name, int arity, bool mangleName) {
+    private MissingMetadataTypeSymbol(string name, int arity, bool mangleName, TupleExtraData tupleData = null)
+        : base(tupleData) {
         this.name = name;
         this.arity = arity;
         this.mangleName = mangleName && arity > 0;

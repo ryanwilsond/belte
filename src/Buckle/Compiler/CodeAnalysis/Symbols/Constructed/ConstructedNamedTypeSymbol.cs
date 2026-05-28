@@ -7,7 +7,8 @@ internal sealed class ConstructedNamedTypeSymbol : SubstitutedNamedTypeSymbol {
     internal ConstructedNamedTypeSymbol(
         NamedTypeSymbol constructedFrom,
         ImmutableArray<TypeOrConstant> templateArguments,
-        bool isUnboundTemplateType = false)
+        bool isUnboundTemplateType = false,
+        TupleExtraData tupleData = null)
         : base(
             constructedFrom.containingSymbol,
             new TemplateMap(
@@ -17,7 +18,8 @@ internal sealed class ConstructedNamedTypeSymbol : SubstitutedNamedTypeSymbol {
             ),
             constructedFrom.originalDefinition,
             constructedFrom,
-            isUnboundTemplateType) {
+            isUnboundTemplateType,
+            tupleData) {
         this.templateArguments = templateArguments;
         this.constructedFrom = constructedFrom;
     }
@@ -42,5 +44,14 @@ internal sealed class ConstructedNamedTypeSymbol : SubstitutedNamedTypeSymbol {
         }
 
         return true;
+    }
+
+    private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
+        return new ConstructedNamedTypeSymbol(
+            constructedFrom,
+            templateArguments,
+            isUnboundTemplateType,
+            tupleData: newData
+        );
     }
 }

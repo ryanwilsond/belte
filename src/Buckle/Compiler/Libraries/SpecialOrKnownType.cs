@@ -1,3 +1,4 @@
+using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.Libraries;
@@ -10,6 +11,10 @@ internal readonly struct SpecialOrKnownType {
         knownType = CorLibrary.GetSpecialType(specialType);
     }
 
+    private SpecialOrKnownType(WellKnownType wellKnownType) {
+        knownType = CorLibrary.GetWellKnownType(wellKnownType);
+    }
+
     private SpecialOrKnownType(TypeSymbol knownType) {
         this.knownType = knownType;
     }
@@ -20,6 +25,10 @@ internal readonly struct SpecialOrKnownType {
 
     public static implicit operator SpecialOrKnownType(SpecialType specialType) {
         return new SpecialOrKnownType(specialType);
+    }
+
+    public static implicit operator SpecialOrKnownType(WellKnownType wellKnownType) {
+        return new SpecialOrKnownType(wellKnownType);
     }
 
     public static implicit operator SpecialOrKnownType(TypeSymbol knownType) {

@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -26,5 +27,9 @@ internal sealed class PlaceholderTemplateArgumentSymbol : ErrorTypeSymbol {
 
     public override int GetHashCode() {
         return System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this);
+    }
+
+    private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
+        throw ExceptionUtilities.Unreachable();
     }
 }

@@ -10,7 +10,8 @@ internal sealed class UnboundArgumentErrorTypeSymbol : ErrorTypeSymbol {
     internal static readonly ErrorTypeSymbol Instance
         = new UnboundArgumentErrorTypeSymbol("", null /* TODO error */);
 
-    private UnboundArgumentErrorTypeSymbol(string name, BelteDiagnostic error) {
+    private UnboundArgumentErrorTypeSymbol(string name, BelteDiagnostic error, TupleExtraData tupleData = null)
+        : base(tupleData) {
         this.name = name;
         this.error = error;
     }
@@ -48,5 +49,9 @@ internal sealed class UnboundArgumentErrorTypeSymbol : ErrorTypeSymbol {
         return error is null
             ? name.GetHashCode()
             : Hash.Combine(name, error.info.code.Value);
+    }
+
+    private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
+        return new UnboundArgumentErrorTypeSymbol(name, error, newData);
     }
 }

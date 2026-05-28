@@ -12,6 +12,8 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
     internal static readonly ErrorTypeSymbol UnknownResultType = new UnsupportedMetadataTypeSymbol();
 
+    internal ErrorTypeSymbol(TupleExtraData tupleData = null) : base(tupleData) { }
+
     private ImmutableArray<TemplateParameterSymbol> _lazyTemplateParameters;
 
     public override string name => "";

@@ -2970,6 +2970,7 @@ done:
 
     private TupleExpressionSyntax ParseTupleExpression(SyntaxToken openParenthesis, ExpressionSyntax firstElement) {
         var nodesAndSeparators = _pool.Allocate<BelteSyntaxNode>();
+        nodesAndSeparators.Add(firstElement);
 
         while (currentToken.kind == SyntaxKind.CommaToken) {
             nodesAndSeparators.Add(EatToken());

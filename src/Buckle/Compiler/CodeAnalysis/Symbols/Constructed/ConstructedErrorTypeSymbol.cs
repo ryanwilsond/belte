@@ -8,8 +8,9 @@ internal sealed class ConstructedErrorTypeSymbol : SubstitutedErrorTypeSymbol {
 
     internal ConstructedErrorTypeSymbol(
         ErrorTypeSymbol constructedFrom,
-        ImmutableArray<TypeOrConstant> templateArguments)
-        : base((ErrorTypeSymbol)constructedFrom.originalDefinition) {
+        ImmutableArray<TypeOrConstant> templateArguments,
+        TupleExtraData tupleData = null)
+        : base((ErrorTypeSymbol)constructedFrom.originalDefinition, tupleData) {
         _constructedFrom = constructedFrom;
         this.templateArguments = templateArguments;
         templateSubstitution = new TemplateMap(
@@ -31,4 +32,8 @@ internal sealed class ConstructedErrorTypeSymbol : SubstitutedErrorTypeSymbol {
     internal override NamedTypeSymbol constructedFrom => _constructedFrom;
 
     internal override Symbol containingSymbol => _constructedFrom.containingSymbol;
+
+    private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
+        return new ConstructedErrorTypeSymbol(_constructedFrom, templateArguments, tupleData: newData);
+    }
 }

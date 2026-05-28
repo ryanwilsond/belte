@@ -21,7 +21,7 @@ internal sealed class SynthesizedFinishedNamedTypeSymbol : WrappedNamedTypeSymbo
         NamedTypeSymbol underlyingType,
         Symbol containingSymbol,
         ImmutableArray<Symbol>? members = null)
-        : base(underlyingType) {
+        : base(underlyingType, null) {
         this.containingSymbol = containingSymbol;
         _allMembers = members ?? underlyingType.GetMembers();
     }
@@ -112,5 +112,9 @@ internal sealed class SynthesizedFinishedNamedTypeSymbol : WrappedNamedTypeSymbo
 
         builder.Free();
         return result;
+    }
+
+    private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
+        throw ExceptionUtilities.Unreachable();
     }
 }

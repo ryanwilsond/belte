@@ -588,13 +588,11 @@ internal partial class Binder {
                     return BindType(referenceTypeSyntax.type, diagnostics, basesBeingResolved);
                 }
             case SyntaxKind.TupleType:
-                namespaceOrNonNullableType = new TypeWithAnnotations(BindTupleType(
+                return new TypeWithAnnotations(BindTupleType(
                     (TupleTypeSyntax)syntax,
                     diagnostics,
                     basesBeingResolved
                 ));
-
-                break;
             case SyntaxKind.PointerType: {
                     var node = (PointerTypeSyntax)syntax;
                     var elementType = BindType(node.elementType, diagnostics, basesBeingResolved);
@@ -763,19 +761,19 @@ internal partial class Binder {
         if (typesArray.Length < 2)
             throw ExceptionUtilities.UnexpectedValue(typesArray.Length);
 
-        return CreateErrorType("tuple");
-        // return NamedTypeSymbol.CreateTuple(
-        //     syntax.location,
-        //     typesArray,
-        //     locationsArray,
-        //     elementNames is null ? [] : elementNames.ToImmutableAndFree(),
-        //     this.Compilation,
-        //     this.shouldCheckConstraints,
-        //     includeNullability: this.ShouldCheckConstraints && includeNullability,
-        //     errorPositions: default(ImmutableArray<bool>),
-        //     syntax: syntax,
-        //     diagnostics: diagnostics
-        // );
+        return NamedTypeSymbol.CreateTuple(
+            syntax.location,
+            typesArray,
+            locationsArray,
+            elementNames is null ? [] : elementNames.ToImmutableAndFree(),
+            compilation,
+            // TODO What should this be?
+            // this.shouldCheckConstraints,
+            false,
+            errorPositions: default(ImmutableArray<bool>),
+            syntax: syntax,
+            diagnostics: diagnostics
+        );
     }
 
     private static bool CheckTupleMemberName(
@@ -2032,7 +2030,7 @@ internal partial class Binder {
             }
         }
 
-        var dictType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Dictionary)
+        var dictType = new TypeWithAnnotations(CorLibrary.GetWellKnownType(WellKnownType.Dictionary)
             .Construct([new TypeOrConstant(foundKeyType), new TypeOrConstant(foundValueType)]))
             .SetIsAnnotated().type;
 
@@ -3687,7 +3685,7 @@ internal partial class Binder {
 
         var boundExpression = BindValue(node.expression, diagnostics, BindValueKind.RValue);
         var thrownExpression = GenerateConversionForAssignment(
-            CorLibrary.GetSpecialType(SpecialType.Exception),
+            CorLibrary.GetWellKnownType(WellKnownType.Exception),
             boundExpression,
             diagnostics
         );
@@ -4700,7 +4698,8 @@ internal partial class Binder {
                 }
 
                 goto case TypeKind.Class;
-            case TypeKind.Primitive: {
+            case TypeKind.Primitive:
+                if (!type.isTupleType) {
                     var error = Error.CannotConstructPrimitive(node.type.location);
                     diagnostics.Push(error);
                     type = new ExtendedErrorTypeSymbol(type, LookupResultKind.NotCreatable, error);
@@ -11897,7 +11896,7 @@ symIsHidden:;
         } else if (type.specialType == SpecialType.String) {
             inferredType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Char));
             return false;
-        } else if (type.specialType == SpecialType.Enumerator) {
+        } else if (type.originalDefinition.Equals(CorLibrary.GetWellKnownType(WellKnownType.Enumerator))) {
             inferredType = ((NamedTypeSymbol)type).templateArguments[0].type;
             return false;
         } else if (lengthOps.Any() && worseIndexOp is not null) {

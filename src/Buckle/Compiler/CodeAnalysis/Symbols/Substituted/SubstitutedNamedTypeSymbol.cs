@@ -22,7 +22,9 @@ internal abstract class SubstitutedNamedTypeSymbol : WrappedNamedTypeSymbol {
         TemplateMap templateMap,
         NamedTypeSymbol originalDefinition,
         NamedTypeSymbol constructedFrom = null,
-        bool isUnboundTemplateType = false) : base(originalDefinition) {
+        bool isUnboundTemplateType = false,
+        TupleExtraData tupleData = null)
+        : base(originalDefinition, tupleData) {
         containingSymbol = newContainer;
         _inputMap = templateMap;
         this.isUnboundTemplateType = isUnboundTemplateType;

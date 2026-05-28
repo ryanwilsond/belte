@@ -490,12 +490,12 @@ internal sealed class CSharpCodeGenerator {
         var arguments = EmitArguments(node.arguments, node.argumentRefKinds);
 
         if ((object)node.method.originalDefinition ==
-            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getValue).originalDefinition) {
+            CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_getValue).originalDefinition) {
             return $"{EmitExpression(node.receiver)}.Value";
         }
 
         if ((object)node.method.originalDefinition ==
-            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getHasValue).originalDefinition) {
+            CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_getHasValue).originalDefinition) {
             return $"{EmitExpression(node.receiver)}.HasValue";
         }
 

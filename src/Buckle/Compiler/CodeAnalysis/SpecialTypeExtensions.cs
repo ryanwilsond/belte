@@ -1,5 +1,6 @@
+using Buckle.CodeAnalysis.Symbols;
 
-namespace Buckle.CodeAnalysis.Symbols;
+namespace Buckle.CodeAnalysis;
 
 internal static class SpecialTypeExtensions {
     internal static bool IsPrimitiveType(this SpecialType specialType) {
@@ -38,20 +39,6 @@ internal static class SpecialTypeExtensions {
 
     internal static bool CanOptimizeBehavior(this SpecialType specialType) {
         return specialType >= SpecialType.Object && specialType <= SpecialType.ValueType;
-    }
-
-    internal static bool IsObjectType(this SpecialType specialType) {
-        switch (specialType) {
-            case SpecialType.Object:
-            case SpecialType.Nullable:
-            case SpecialType.List:
-            case SpecialType.Dictionary:
-            case SpecialType.Vec2:
-            case SpecialType.Sprite:
-                return true;
-            default:
-                return false;
-        }
     }
 
     internal static bool IsUnsigned(this SpecialType specialType) {

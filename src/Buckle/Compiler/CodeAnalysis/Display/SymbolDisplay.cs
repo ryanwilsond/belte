@@ -107,23 +107,38 @@ public static class SymbolDisplay {
         } else if (type.specialType == SpecialType.Void) {
             text.Write(CreateKeyword("void"));
         } else if (type is NamedTypeSymbol namedType) {
-            if (namedType.specialType == SpecialType.Nullable &&
-                (format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0) {
+            if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0 &&
+                namedType.specialType == SpecialType.Nullable) {
                 var underlyingType = namedType.GetNullableUnderlyingType();
-
-                if (underlyingType is NamedTypeSymbol namedUnderlying)
-                    DisplayTypeCore(text, namedUnderlying, format);
-                else
-                    DisplayType(text, underlyingType, format, outerMostType: false);
-
+                DisplayType(text, underlyingType, format, outerMostType: false);
                 text.Write(CreatePunctuation(SyntaxKind.QuestionToken));
                 return;
             }
 
-            DisplayTypeCore(text, namedType, format);
+            if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0 &&
+                namedType.isTupleType) {
+                text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
 
-            if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0)
+                var isFirst = true;
+
+                foreach (var elementType in namedType.tupleElementTypes) {
+                    if (isFirst)
+                        isFirst = false;
+                    else
+                        text.Write(CreatePunctuation(", "));
+
+                    DisplayType(text, elementType.type.type, format);
+                }
+
+                text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+            } else {
+                DisplayTypeCore(text, namedType, format);
+            }
+
+            if (outerMostType &&
+                (format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0) {
                 text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));
+            }
         } else if (type is TemplateParameterSymbol templateParameter) {
             if ((format.templateOptions & SymbolDisplayTemplateOptions.IncludeTemplateParameters) != 0 &&
                 !string.IsNullOrEmpty(templateParameter.name)) {

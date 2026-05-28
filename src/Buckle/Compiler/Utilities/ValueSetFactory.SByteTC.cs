@@ -44,7 +44,7 @@ internal static partial class ValueSetFactory {
         }
 
         public ConstantValue ToConstantValue(sbyte value) {
-            return new ConstantValue(value, CodeAnalysis.Symbols.SpecialType.Int8);
+            return new ConstantValue(value, SpecialType.Int8);
         }
 
         string INumericTC<sbyte>.ToString(sbyte value) {

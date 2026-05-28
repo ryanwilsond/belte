@@ -10,8 +10,12 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolWithTemplates {
+internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolWithTemplates {
     private protected bool _hasNoBaseCycles;
+
+    internal NamedTypeSymbol(TupleExtraData tupleData = null) {
+        _lazyTupleData = tupleData;
+    }
 
     public abstract override string name { get; }
 

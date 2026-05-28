@@ -42,6 +42,14 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
 
     internal abstract bool isRefLikeType { get; }
 
+    internal virtual bool isTupleType => false;
+
+    internal virtual ImmutableArray<string> tupleElementNames => [];
+
+    internal virtual ImmutableArray<TypeOrConstant> tupleElementTypes => [];
+
+    internal virtual ImmutableArray<FieldSymbol> tupleElements => [];
+
     internal ImmutableHashSet<Symbol> abstractMembers {
         get {
             if (_lazyAbstractMembers is null)

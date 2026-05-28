@@ -277,6 +277,7 @@ done:
         }
 
         RegisterDeclaredCorTypes(builder);
+        RegisterDeclaredWellKnownTypes(builder);
 
         var result = new Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>>(
             builder.Count,
@@ -391,6 +392,23 @@ done:
 
                     if (!declaringCompilation.keepLookingForCorTypes)
                         return;
+                }
+            }
+        }
+    }
+
+    private void RegisterDeclaredWellKnownTypes(PooledDictionary<ReadOnlyMemory<char>, object> members) {
+        if (declaringCompilation.keepLookingForWellKnownTypes) {
+            foreach (var member in members.Values) {
+                if (member is NamedTypeSymbol type) {
+                    var wellKnownType = WellKnownTypes.GetTypeFromMetadataName(type);
+
+                    if (wellKnownType != WellKnownType.None) {
+                        declaringCompilation.RegisterDeclaredWellKnownType(wellKnownType, type);
+
+                        if (!declaringCompilation.keepLookingForWellKnownTypes)
+                            return;
+                    }
                 }
             }
         }

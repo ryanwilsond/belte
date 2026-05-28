@@ -852,7 +852,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
     private static MethodSymbol CreateNullableGetValueSymbol(TypeSymbol genericType) {
         return CreateMethodAsMemberOfNullable(
-            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getValue),
+            CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_getValue),
             genericType
         );
     }
@@ -870,21 +870,21 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
     private static MethodSymbol CreateNullableGetValueOrDefaultSymbol(TypeSymbol genericType) {
         return CreateMethodAsMemberOfNullable(
-            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_GetValueOrDefault),
+            CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_GetValueOrDefault),
             genericType
         );
     }
 
     private static MethodSymbol CreateNullableGetHasValueSymbol(TypeSymbol genericType) {
         return CreateMethodAsMemberOfNullable(
-            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getHasValue),
+            CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_getHasValue),
             genericType
         );
     }
 
     private static MethodSymbol CreateNullableCtorSymbol(TypeSymbol genericType) {
         return CreateMethodAsMemberOfNullable(
-            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_ctor),
+            CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_ctor),
             genericType
         );
     }

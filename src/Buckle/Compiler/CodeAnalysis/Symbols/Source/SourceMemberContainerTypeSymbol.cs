@@ -69,7 +69,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     internal SourceMemberContainerTypeSymbol(
         NamespaceOrTypeSymbol containingSymbol,
         MergedTypeDeclaration declaration,
-        BelteDiagnosticQueue diagnostics) {
+        BelteDiagnosticQueue diagnostics,
+        TupleExtraData tupleData = null)
+        : base(tupleData) {
         this.containingSymbol = containingSymbol;
         _declaration = declaration;
         location = declaration.nameLocations.First();

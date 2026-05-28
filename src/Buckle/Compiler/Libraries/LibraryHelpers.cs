@@ -489,7 +489,7 @@ public static class LibraryHelpers {
 
     private static SpecialOrKnownType.Boxed GenerateStringList() {
         return new SpecialOrKnownType.Boxed(new ConstructedNamedTypeSymbol(
-            CorLibrary.GetSpecialType(SpecialType.List),
+            CorLibrary.GetWellKnownType(WellKnownType.List),
             [new TypeOrConstant(CorLibrary.GetSpecialType(SpecialType.String))]
         ));
     }

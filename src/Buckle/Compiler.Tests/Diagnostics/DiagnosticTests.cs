@@ -5833,7 +5833,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0453_TupleReservedElementNameAnyPosition() {
         var text = @"
-            (int [ToString], bool b) a;
+            (int [ToString], bool b)? a;
         ";
 
         var diagnostics = @"
@@ -5846,7 +5846,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0454_TupleReservedElementName() {
         var text = @"
-            (int a, bool [Item1]) a;
+            (int a, bool [Item1])? a;
         ";
 
         var diagnostics = @"
@@ -5859,7 +5859,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0455_TupleDuplicateElementName() {
         var text = @"
-            (int a, bool [a]) a;
+            (int a, bool [a])? a;
         ";
 
         var diagnostics = @"

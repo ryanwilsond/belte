@@ -118,7 +118,7 @@ again:
         */
         var constantValue = statement.condition.constantValue;
 
-        if (statement.condition is BoundObjectCreationExpression { type.specialType: Symbols.SpecialType.Nullable } o)
+        if (statement.condition is BoundObjectCreationExpression { type.specialType: SpecialType.Nullable } o)
             constantValue = o.arguments[0].constantValue;
 
         if (ConstantValue.IsNotNull(constantValue)) {

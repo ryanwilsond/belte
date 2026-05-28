@@ -58,13 +58,6 @@ internal sealed partial class Executor : ModuleBuilder {
         { SpecialType.Void, typeof(void) },
         { SpecialType.Type, typeof(Type) },
         { SpecialType.String, typeof(string) },
-        { SpecialType.Sprite, typeof(BSprite) },
-        { SpecialType.Rect, typeof(BRect) },
-        { SpecialType.Vec2, typeof(BVec2) },
-        { SpecialType.Texture, typeof(BTexture) },
-        { SpecialType.Text, typeof(BText) },
-        { SpecialType.Sound, typeof(BSound) },
-        { SpecialType.Exception, typeof(Exception) },
     };
 
     private readonly Dictionary<TypeSymbol, TypeBuilder> _types = [];
@@ -100,7 +93,7 @@ internal sealed partial class Executor : ModuleBuilder {
         _diagnostics = diagnostics;
         _graphicsEnabled = program.compilation.options.outputKind == OutputKind.GraphicsApplication;
 
-        _topLevelTypes = program.GetTypesToEmit();
+        _topLevelTypes = program.GetTypesToEmit(includeGraphicsWellKnownTypes: false);
 
         var assemblyName = new AssemblyName(DynamicAssemblyName);
         var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
@@ -732,7 +725,7 @@ internal sealed partial class Executor : ModuleBuilder {
         var current = type;
 
         while (current is not null) {
-            if (current.specialType is SpecialType.Object or SpecialType.Exception)
+            if (current.specialType is SpecialType.Object)
                 break;
 
             baseStack.Push(current);
@@ -745,7 +738,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
     private void EmitInternal() {
         GenerateSTLMap();
-        CompleteSpecialTypes();
+        CompleteWellKnownTypes();
 
         foreach (var type in _topLevelTypes)
             CreateTypeBuilderAndBases(type);
@@ -865,14 +858,23 @@ internal sealed partial class Executor : ModuleBuilder {
         }
     }
 
-    private void CompleteSpecialTypes() {
+    private void CompleteWellKnownTypes() {
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Exception), typeof(Exception));
+
         if (_program.compilation.options.noStdLib)
             return;
 
-        foreach (var type in new[] { SpecialType.Rect, SpecialType.Text, SpecialType.Sprite,
-                                     SpecialType.Vec2, SpecialType.Texture, SpecialType.Sound }) {
-            var typeSymbol = CorLibrary.GetSpecialType(type);
-            var native = _specialTypes[type];
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Sprite), typeof(BSprite));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Rect), typeof(BRect));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Vec2), typeof(BVec2));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Texture), typeof(BTexture));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Text), typeof(BText));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Sound), typeof(BSound));
+
+        foreach (var type in new[] { WellKnownType.Rect, WellKnownType.Text, WellKnownType.Sprite,
+                                     WellKnownType.Vec2, WellKnownType.Texture, WellKnownType.Sound }) {
+            var typeSymbol = CorLibrary.GetWellKnownType(type);
+            var native = _bakedTypes[typeSymbol];
 
             foreach (var member in typeSymbol.GetMembers()) {
                 if (member is FieldSymbol f) {
@@ -1386,8 +1388,8 @@ internal sealed partial class Executor : ModuleBuilder {
 
         return mapKey switch {
             "Object<>_.ctor" => MethodInfoCache.Object_ctor,
-            "Exception<>_.ctor" => MethodInfoCache.Exception_ctor,
-            "Exception<>_.ctor_S?" => MethodInfoCache.Exception_ctor_S,
+            "Exception_.ctor" => MethodInfoCache.Exception_ctor,
+            "Exception_.ctor_S?" => MethodInfoCache.Exception_ctor_S,
             "Nullable<>_.ctor" => GetNullableCtor(method.containingType.templateArguments[0].type.type),
             _ => throw ExceptionUtilities.UnexpectedValue(mapKey),
         };

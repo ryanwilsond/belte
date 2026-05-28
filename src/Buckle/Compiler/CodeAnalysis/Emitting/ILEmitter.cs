@@ -135,7 +135,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         ResolveMethods();
         GenerateSTLMap();
 
-        _topLevelTypes = program.GetTypesToEmit(SpecialType.Rect);
+        _topLevelTypes = program.GetTypesToEmit(includeGraphicsWellKnownTypes: true);
 
         var linearBuilder = ArrayBuilder<NamedTypeSymbol>.GetInstance();
 
@@ -740,7 +740,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         var current = type;
 
         while (current is not null) {
-            if (current.specialType is SpecialType.Object or SpecialType.Exception)
+            if (current.specialType is SpecialType.Object)
                 break;
 
             baseStack.Push(current);
@@ -761,6 +761,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     private void EmitInternal(bool programOnly = false) {
+        CompleteWellKnownTypes();
+
         foreach (var type in _topLevelTypes)
             CreateTypeDefinitionAndBases(type);
 
@@ -812,6 +814,13 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
             _assemblyDefinition.CustomAttributes.Add(debuggableAttribute);
         }
+    }
+
+    private void CompleteWellKnownTypes() {
+        _types.Add(
+            CorLibrary.GetWellKnownType(WellKnownType.Exception),
+            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(Exception)))
+        );
     }
 
     private void CreateStaticEntryPoint(MethodSymbol entryPoint) {
@@ -1705,7 +1714,6 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             (SpecialType.Void, "System.Void"),
             (SpecialType.Type, "System.Type"),
             (SpecialType.Char, "System.Char"),
-            (SpecialType.Exception, "System.Exception"),
             (SpecialType.Int8, "System.SByte"),
             (SpecialType.UInt8, "System.Byte"),
             (SpecialType.Int16, "System.Int16"),
@@ -1809,8 +1817,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 { "Object<>_Equals_O?", ResolveMethod("System.Object", "Equals", ["System.Object"]) },
                 { "Object<>_GetHashCode", ResolveMethod("System.Object", "GetHashCode", []) },
                 { "Object<>_Finalize", ResolveMethod("System.Object", "Finalize", []) },
-                { "Exception<>_.ctor", ResolveMethod("System.Exception", ".ctor", []) },
-                { "Exception<>_.ctor_S?", ResolveMethod("System.Exception", ".ctor", ["System.String"]) },
+                { "Exception_.ctor", ResolveMethod("System.Exception", ".ctor", []) },
+                { "Exception_.ctor_S?", ResolveMethod("System.Exception", ".ctor", ["System.String"]) },
                 { "LowLevel_GetHashCode_O", ResolveMethod("Belte.Runtime.Utilities", "GetHashCode", ["System.Object"]) },
                 { "LowLevel_GetTypeName_O", ResolveMethod("Belte.Runtime.Utilities", "GetTypeName", ["System.Object"]) },
                 { "LowLevel_ThrowNullConditionException", ResolveMethod("Belte.Runtime.ThrowHelper", "ThrowNullConditionException", []) },
@@ -1832,8 +1840,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 { "Object<>_Equals_O?", ResolveMethod("System.Object", "Equals", ["System.Object"]) },
                 { "Object<>_GetHashCode", ResolveMethod("System.Object", "GetHashCode", []) },
                 { "Object<>_Finalize", ResolveMethod("System.Object", "Finalize", []) },
-                { "Exception<>_.ctor", ResolveMethod("System.Exception", ".ctor", []) },
-                { "Exception<>_.ctor_S?", ResolveMethod("System.Exception", ".ctor", ["System.String"]) },
+                { "Exception_.ctor", ResolveMethod("System.Exception", ".ctor", []) },
+                { "Exception_.ctor_S?", ResolveMethod("System.Exception", ".ctor", ["System.String"]) },
                 { "Console_Clear", ResolveMethod("System.Console", "Clear", []) },
                 { "Console_GetWidth", ResolveMethod("Belte.Runtime.Console", "GetWidth", []) },
                 { "Console_GetHeight", ResolveMethod("Belte.Runtime.Console", "GetHeight", []) },

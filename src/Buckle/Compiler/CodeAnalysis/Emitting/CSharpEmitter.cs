@@ -450,7 +450,7 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
     }
 
     internal override object VisitNamedType(NamedTypeSymbol symbol, IndentedTextWriter argument) {
-        if (symbol.specialType is SpecialType.Object or SpecialType.Exception)
+        if (symbol.specialType is SpecialType.Object)
             return null;
 
         if (symbol is PENamedTypeSymbol or SynthesizedFinishedNamedTypeSymbol)
@@ -656,7 +656,6 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
             { SpecialType.Void, "void" },
             { SpecialType.Type, "global::System.Type" },
             { SpecialType.String, "global::System.String" },
-            { SpecialType.Exception, "global::System.Exception" },
         };
 
         // This is just for readability

@@ -113,6 +113,8 @@ public sealed partial class Compilation {
 
     internal bool keepLookingForCorTypes => CorLibrary.StillLookingForSpecialTypes();
 
+    internal bool keepLookingForWellKnownTypes => CorLibrary.StillLookingForWellKnownTypes();
+
     internal MergedNamespaceDeclaration mergedRootDeclaration => _syntax.state.declarationTable.GetMergedRoot(this);
 
     internal DeclarationTable declarationTable => _syntax.state.declarationTable;
@@ -598,6 +600,10 @@ public sealed partial class Compilation {
     internal void RegisterDeclaredSpecialType(NamedTypeSymbol type) {
         // TODO Maybe make the CorLibrary not static?
         CorLibrary.RegisterDeclaredSpecialType(type);
+    }
+
+    internal void RegisterDeclaredWellKnownType(WellKnownType wellKnownType, NamedTypeSymbol type) {
+        CorLibrary.RegisterDeclaredWellKnownType(wellKnownType, type);
     }
 
     internal Binder GetBinder(BelteSyntaxNode syntax) {

@@ -921,8 +921,8 @@ internal sealed class Evaluator {
                 return value;
         }
 
-        var isCastable = node.operand.Type().specialType == SpecialType.String && node.Type().IsPrimitiveType() ||
-            node.Type().specialType == SpecialType.String && node.operand.Type().IsPrimitiveType();
+        var isCastable = node.operand.Type().specialType == SpecialType.String && node.Type().isPrimitiveType ||
+            node.Type().specialType == SpecialType.String && node.operand.Type().isPrimitiveType;
 
         var involvesRefTypes = !isCastable && (node.operand.Type().IsVerifierReference() ||
             (node.Type().IsVerifierReference() && node.Type().specialType != SpecialType.String));
@@ -1308,7 +1308,7 @@ internal sealed class Evaluator {
         BoundObjectCreationExpression node,
         bool used,
         ValueWrapper<bool> abort) {
-        if (node.constructor.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_ctor))
+        if (node.constructor.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_ctor))
             return EvaluateExpression(node.arguments[0], used, abort);
 
         var type = (NamedTypeSymbol)node.StrippedType();
@@ -3213,7 +3213,7 @@ internal sealed class Evaluator {
                     var path = GetFilePath(evaluatedArguments[0].@string, location)
                         ?? throw new BelteEvaluatorException("Cannot load sprite: path does not exist.", location);
 
-                    var spriteType = CorLibrary.GetSpecialType(SpecialType.Sprite);
+                    var spriteType = CorLibrary.GetWellKnownType(WellKnownType.Sprite);
                     var sprite = CreateObject(spriteType);
 
                     var temp = AllocateTemp(spriteType);
@@ -3273,7 +3273,7 @@ internal sealed class Evaluator {
                     var path = GetFilePath(evaluatedArguments[1].@string, location)
                         ?? throw new BelteEvaluatorException("Cannot load text: path does not exist.", location);
 
-                    var textType = CorLibrary.GetSpecialType(SpecialType.Text);
+                    var textType = CorLibrary.GetWellKnownType(WellKnownType.Text);
                     var textPtr = CreateObject(textType);
                     var text = H(textPtr);
 
@@ -3345,7 +3345,7 @@ internal sealed class Evaluator {
                 break;
             case "Graphics_GetMousePosition": {
                     var (x, y) = _context.graphicsHandler.GetMousePosition();
-                    var vecType = CorLibrary.GetSpecialType(SpecialType.Vec2);
+                    var vecType = CorLibrary.GetWellKnownType(WellKnownType.Vec2);
                     var vec = CreateObject(vecType);
 
                     var temp = AllocateTemp(vecType);
@@ -3444,7 +3444,7 @@ internal sealed class Evaluator {
                     var path = GetFilePath(EvaluateExpression(arguments[0], true, abort).@string, location)
                         ?? throw new BelteEvaluatorException("Cannot load sound: path does not exist.", location);
 
-                    var soundType = CorLibrary.GetSpecialType(SpecialType.Sound);
+                    var soundType = CorLibrary.GetWellKnownType(WellKnownType.Sound);
                     var soundPtr = CreateObject(soundType);
                     var sound = H(soundPtr);
 
@@ -3506,7 +3506,7 @@ internal sealed class Evaluator {
         }
 
         EvaluatorValue LoadTexture(string path, bool useColorKey = false, long r = 255, long g = 255, long b = 255) {
-            var textureType = CorLibrary.GetSpecialType(SpecialType.Texture);
+            var textureType = CorLibrary.GetWellKnownType(WellKnownType.Texture);
             var texturePointer = CreateObject(textureType);
             var texture = _context.heap[texturePointer.ptr];
             var texture2D = (_context.graphicsHandler?.LoadTexture(path, useColorKey, r, g, b))
