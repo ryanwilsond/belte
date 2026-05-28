@@ -2974,12 +2974,10 @@ internal sealed class Evaluator {
                     return true;
                 case "Console_Print_S?":
                 case "Console_Print_A?":
-                case "Console_Print_O?":
                     printed = true;
                     goto case "Console_PrintLine_S?";
                 case "Console_PrintLine_S?":
                 case "Console_PrintLine_A?":
-                case "Console_PrintLine_O?":
                     if (arguments[0].StrippedType().isObjectType) {
                         var argument = EvaluateExpression(arguments[0], true, abort);
                         var toStringMethod = ResolveVirtualMethod(_toStringMethod, null, argument);

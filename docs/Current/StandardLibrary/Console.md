@@ -18,12 +18,10 @@ The Belte public interface for the Console class can be found
 | `string! Input()` | Gets a line of input from the console. |
 | `void PrintLine(string?)` | Writes a string to the console followed by a line return. |
 | `void PrintLine(any?)` | Writes a value to the console followed by a line return. |
-| `void PrintLine(Object)` | Writes the result of `Object.ToString()` to the console followed by a line return. |
 | `void PrintLine(char?[]?)` | Writes a char array to the console as a string followed by a line return. |
 | `void PrintLine()` | Writes an empty line to the console. |
 | `void Print(string?)` | Writes a string to the console. |
 | `void Print(any?)` | Writes a value to the console. |
-| `void Print(Object)` | Writes the result of `Object.ToString()` to the console. |
 | `void Print(char?[]?)` | Writes a char array to the console as a string. |
 | `void ResetColor()` | Resets the foreground and background colors of the console. |
 | `void SetForegroundColor(int!)` | Sets the console foreground color based on [Color](#5121-color). |

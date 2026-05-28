@@ -745,11 +745,9 @@ internal static class StandardLibrary {
             StaticMethod("PrintLine", SpecialType.Void),
             StaticMethod("PrintLine", SpecialType.Void, [("message", SpecialType.String, true)]),
             StaticMethod("PrintLine", SpecialType.Void, [("value", SpecialType.Any, true)]),
-            StaticMethod("PrintLine", SpecialType.Void, [("object", SpecialType.Object, true)]),
             StaticMethod("PrintLine", SpecialType.Void, [("chars", CharArray, true)]),
             StaticMethod("Print", SpecialType.Void, [("message", SpecialType.String, true)]),
             StaticMethod("Print", SpecialType.Void, [("value", SpecialType.Any, true)]),
-            StaticMethod("Print", SpecialType.Void, [("object", SpecialType.Object, true)]),
             StaticMethod("Print", SpecialType.Void, [("chars", CharArray, true)]),
             StaticMethod("ResetColor", SpecialType.Void),
             StaticMethod("SetForegroundColor", SpecialType.Void, [("color", SpecialType.Int)]),
@@ -886,15 +884,11 @@ internal static class StandardLibrary {
                 => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
             { "Console_PrintLine_A?", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
-            { "Console_PrintLine_O?", new Func<object, object, object, object>((a, b, c)
-                => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(a); return null; }) },
             { "Console_PrintLine_[?", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.WriteLine(Array.ConvertAll((object[])a, i => (char)i)); return null; }) },
             { "Console_Print_S?", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.Write(a); return null; }) },
             { "Console_Print_A?", new Func<object, object, object, object>((a, b, c)
-                => { if (!System.Console.IsOutputRedirected) System.Console.Write(a); return null; }) },
-            { "Console_Print_O?", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.Write(a); return null; }) },
             { "Console_Print_[?", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.Write(Array.ConvertAll((object[])a, i => (char)i)); return null; }) },
