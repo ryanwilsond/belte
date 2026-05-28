@@ -171,4 +171,22 @@ internal static class SyntaxNodeExtensions {
 
         return syntax;
     }
+
+    internal static MemberDeclarationSyntax FirstMember(this CompilationUnitSyntax compilationUnit) {
+        foreach (var element in compilationUnit.elements) {
+            if (element is MemberDeclarationSyntax member)
+                return member;
+        }
+
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    internal static MemberDeclarationSyntax FirstMember(this FileScopedNamespaceDeclarationSyntax fileScopedNamespace) {
+        foreach (var element in fileScopedNamespace.elements) {
+            if (element is MemberDeclarationSyntax member)
+                return member;
+        }
+
+        throw ExceptionUtilities.Unreachable();
+    }
 }

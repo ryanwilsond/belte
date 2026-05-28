@@ -93,7 +93,7 @@ public sealed class ParserTests {
 
     private static ExpressionSyntax ParseExpression(string text) {
         var syntaxTree = SyntaxTree.Parse(text);
-        var member = Assert.Single(syntaxTree.GetCompilationUnitRoot().members);
+        var member = Assert.Single(syntaxTree.GetCompilationUnitRoot().elements);
         var globalStatement = Assert.IsType<GlobalStatementSyntax>(member);
 
         return Assert.IsType<LocalDeclarationStatementSyntax>(

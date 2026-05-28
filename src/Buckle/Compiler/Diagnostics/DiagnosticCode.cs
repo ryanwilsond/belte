@@ -466,6 +466,7 @@ public enum DiagnosticCode : ushort {
     ERR_TupleDuplicateElementName = 455,
     ERR_CannotCreateTuple = 456,
     ERR_InvalidMemberDeclarationToken = 457,
+    ERR_UsingAfterMembers = 458,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

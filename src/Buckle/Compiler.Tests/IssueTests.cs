@@ -1200,4 +1200,23 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Evaluator_UsingDirective_AllowsPlacementBetweenMembers() {
+        var text = @"
+            using static A;
+
+            class A {
+                public int a;
+            }
+
+            using B = A;
+
+            var a = new B();
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

@@ -40,8 +40,8 @@ internal sealed class SimpleProgramBinder : LocalScopeBinder {
         var locals = new HashSet<DataContainerSymbol>();
         var localsBuilder = ArrayBuilder<DataContainerSymbol>.GetInstance(DefaultLocalSymbolArrayCapacity);
 
-        foreach (var statement in _entryPoint.compilationUnit.members) {
-            if (statement is GlobalStatementSyntax topLevelStatement)
+        foreach (var element in _entryPoint.compilationUnit.elements) {
+            if (element is GlobalStatementSyntax topLevelStatement)
                 BuildLocals(this, topLevelStatement.statement, localsBuilder);
         }
 
@@ -69,8 +69,8 @@ internal sealed class SimpleProgramBinder : LocalScopeBinder {
         var locals = new HashSet<LocalFunctionSymbol>();
         var localsBuilder = ArrayBuilder<LocalFunctionSymbol>.GetInstance();
 
-        foreach (var statement in _entryPoint.compilationUnit.members) {
-            if (statement is GlobalStatementSyntax topLevelStatement)
+        foreach (var element in _entryPoint.compilationUnit.elements) {
+            if (element is GlobalStatementSyntax topLevelStatement)
                 BuildLocalFunctions(topLevelStatement.statement, ref localsBuilder);
         }
 
@@ -97,8 +97,8 @@ internal sealed class SimpleProgramBinder : LocalScopeBinder {
     private protected override ImmutableArray<LabelSymbol> BuildLabels() {
         ArrayBuilder<LabelSymbol>? labels = null;
 
-        foreach (var statement in _entryPoint.compilationUnit.members) {
-            if (statement is GlobalStatementSyntax topLevelStatement)
+        foreach (var element in _entryPoint.compilationUnit.elements) {
+            if (element is GlobalStatementSyntax topLevelStatement)
                 BuildLabels(_entryPoint, topLevelStatement.statement, ref labels);
         }
 

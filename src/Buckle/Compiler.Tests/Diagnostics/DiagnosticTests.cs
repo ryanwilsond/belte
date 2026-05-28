@@ -5896,4 +5896,22 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0458_UsingAfterMembers() {
+        var text = @"
+            namespace B { }
+
+            namespace A {
+                class C { }
+                [using B;]
+            }
+        ";
+
+        var diagnostics = @"
+            using directive must precede all other namespace members
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

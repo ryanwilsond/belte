@@ -50,7 +50,7 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
     internal override bool isMetadataFinal => false;
 
     // TODO Reference says members.First is what we want, but why?? Double check this
-    internal SyntaxNode returnTypeSyntax => compilationUnit.members.Last(m => m.kind == SyntaxKind.GlobalStatement);
+    internal SyntaxNode returnTypeSyntax => compilationUnit.elements.Last(m => m.kind == SyntaxKind.GlobalStatement);
 
     internal ExecutableCodeBinder GetBodyBinder(bool ignoreAccessibility) {
         ref var weakBinder = ref ignoreAccessibility ? ref _weakIgnoreAccessibilityBodyBinder : ref _weakBodyBinder;

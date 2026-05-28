@@ -53,9 +53,9 @@ internal sealed class QuickAttributeChecker {
     }
 
     internal QuickAttributeChecker AddAliasesIfAny(
-        SyntaxList<UsingDirectiveSyntax> usingsSyntax,
+        IEnumerable<UsingDirectiveSyntax> usingsSyntax,
         bool onlyGlobalAliases = false) {
-        if (usingsSyntax.Count == 0)
+        if (usingsSyntax.IsEmpty())
             return this;
 
         QuickAttributeChecker newChecker = null;

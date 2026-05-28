@@ -258,7 +258,7 @@ public sealed partial class BelteRepl : Repl {
             return true;
 
         UpdateTree();
-        var lastMember = state.tree.GetCompilationUnitRoot().members.LastOrDefault();
+        var lastMember = state.tree.GetCompilationUnitRoot().elements.LastOrDefault();
 
         if (lastMember is null || lastMember.GetLastToken(includeZeroWidth: true).isFabricated)
             return false;

@@ -423,13 +423,13 @@ done:
     internal Imports GetImports(BelteSyntaxNode declarationSyntax, ConsList<TypeSymbol> basesBeingResolved) {
         switch (declarationSyntax) {
             case CompilationUnitSyntax compilationUnit:
-                if (!compilationUnit.usings.Any())
+                if (!compilationUnit.elements.Any(e => e is UsingDirectiveSyntax))
                     return GetGlobalUsingImports(basesBeingResolved);
 
                 break;
 
             case BaseNamespaceDeclarationSyntax namespaceDecl:
-                if (!namespaceDecl.usings.Any())
+                if (!namespaceDecl.elements.Any(e => e is UsingDirectiveSyntax))
                     return Imports.Empty;
 
                 break;
@@ -476,12 +476,12 @@ done:
         ConsList<TypeSymbol> basesBeingResolved) {
         switch (declarationSyntax) {
             case CompilationUnitSyntax compilationUnit:
-                if (!compilationUnit.usings.Any())
+                if (!compilationUnit.elements.Any(e => e is UsingDirectiveSyntax))
                     return [];
 
                 break;
             case BaseNamespaceDeclarationSyntax namespaceDecl:
-                if (!namespaceDecl.usings.Any())
+                if (!namespaceDecl.elements.Any(e => e is UsingDirectiveSyntax))
                     return [];
 
                 break;
@@ -497,12 +497,12 @@ done:
         ConsList<TypeSymbol> basesBeingResolved) {
         switch (declarationSyntax) {
             case CompilationUnitSyntax compilationUnit:
-                if (!compilationUnit.usings.Any())
+                if (!compilationUnit.elements.Any(e => e is UsingDirectiveSyntax))
                     return GetGlobalUsingAliasesMap(basesBeingResolved);
 
                 break;
             case BaseNamespaceDeclarationSyntax namespaceDecl:
-                if (!namespaceDecl.usings.Any())
+                if (!namespaceDecl.elements.Any(e => e is UsingDirectiveSyntax))
                     return ImmutableDictionary<string, AliasAndUsingDirective>.Empty;
 
                 break;
@@ -518,12 +518,12 @@ done:
         ConsList<TypeSymbol> basesBeingResolved) {
         switch (declarationSyntax) {
             case CompilationUnitSyntax compilationUnit:
-                if (!compilationUnit.usings.Any())
+                if (!compilationUnit.elements.Any(e => e is UsingDirectiveSyntax))
                     return GetGlobalUsingNamespacesOrTypes(basesBeingResolved);
 
                 break;
             case BaseNamespaceDeclarationSyntax namespaceDecl:
-                if (!namespaceDecl.usings.Any())
+                if (!namespaceDecl.elements.Any(e => e is UsingDirectiveSyntax))
                     return [];
 
                 break;

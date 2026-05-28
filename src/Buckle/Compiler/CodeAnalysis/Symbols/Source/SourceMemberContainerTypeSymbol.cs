@@ -1514,11 +1514,11 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 AddNonTypeMembers(builder, enumDeclaration.members, diagnostics);
                 break;
             case SyntaxKind.CompilationUnit:
-                AddNonTypeMembers(builder, ((CompilationUnitSyntax)syntax).members, diagnostics);
+                AddNonTypeMembers(builder, ((CompilationUnitSyntax)syntax).elements, diagnostics);
                 break;
             case SyntaxKind.NamespaceDeclaration:
             case SyntaxKind.FileScopedNamespaceDeclaration:
-                AddNonTypeMembers(builder, ((BaseNamespaceDeclarationSyntax)syntax).members, diagnostics);
+                AddNonTypeMembers(builder, ((BaseNamespaceDeclarationSyntax)syntax).elements, diagnostics);
                 break;
             case SyntaxKind.ClassDeclaration:
             case SyntaxKind.FileScopedClassDeclaration:
@@ -1587,17 +1587,20 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         }
     }
 
-    private void AddNonTypeMembers(
+    private void AddNonTypeMembers<TNode>(
         DeclaredMembersAndInitializersBuilder builder,
-        SyntaxList<MemberDeclarationSyntax> members,
-        BelteDiagnosticQueue diagnostics) {
+        SyntaxList<TNode> members,
+        BelteDiagnosticQueue diagnostics)
+        where TNode : NamespaceElementSyntax {
         if (members.Count == 0)
             return;
 
         ArrayBuilder<FieldInitializer>? instanceInitializers = null;
         ArrayBuilder<FieldInitializer>? staticInitializers = null;
 
-        foreach (var m in members) {
+        foreach (var e in members) {
+            var m = (NamespaceElementSyntax)e;
+
             if (_lazyMembersAndInitializers is not null)
                 return;
 

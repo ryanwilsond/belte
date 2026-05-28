@@ -2312,6 +2312,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_InvalidMemberDeclarationToken, message);
     }
 
+    internal static Diagnostic UsingAfterMembers() {
+        var message = $"using directive must precede all other namespace members";
+        return CreateError(DiagnosticCode.ERR_UsingAfterMembers, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

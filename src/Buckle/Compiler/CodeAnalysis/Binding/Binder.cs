@@ -13483,8 +13483,8 @@ symIsHidden:;
         var boundStatements = ArrayBuilder<BoundStatement>.GetInstance();
         var first = true;
 
-        foreach (var statement in compilationUnit.members) {
-            if (statement is GlobalStatementSyntax topLevelStatement) {
+        foreach (var element in compilationUnit.elements) {
+            if (element is GlobalStatementSyntax topLevelStatement) {
                 if (first)
                     first = false;
 

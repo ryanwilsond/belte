@@ -21,9 +21,9 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
     }
 
     internal override void VisitCompilationUnit(CompilationUnitSyntax node) {
-        foreach (var member in node.members) {
-            if (member.kind == SyntaxKind.GlobalStatement)
-                Visit(member);
+        foreach (var element in node.elements) {
+            if (element.kind == SyntaxKind.GlobalStatement)
+                Visit(element);
         }
     }
 

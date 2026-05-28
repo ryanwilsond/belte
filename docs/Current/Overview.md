@@ -450,6 +450,7 @@ most of the differences to make it more clear where the language is unique with 
 - No interfaces
 - No properties
 - No extension methods (yet)
+- No array covariance
 - [`defer` statements](ControlFlow.md#28-defer-statements)
 - [`with` expressions and statements](ControlFlow.md#27-with-expressions-and-statements)
 - [Duck-typed `scoped` statements instead of `using` statements](ControlFlow.md#29-scoped-statements)
@@ -498,6 +499,7 @@ most of the differences to make it more clear where the language is unique with 
 - [First-class bit casting](LowLevelFeatures.md#641-bit-casts)
 - [`out` parameters can have a default value](ControlFlow.md#2161-out-arguments)
 - [C-string literals](LowLevelFeatures.md#614-c-strings)
+- [`using` aliases can be placed anywhere instead of only before all members](ClassesAndObjects.md#481-aliasing)
 - [Experimental: Non-numeric enum underlying types](ClassesAndObjects.md#463-experimental-underlying-types)
 - [Experimental: Non-type generics/templates](ClassesAndObjects.md#45-templates)
 - Experimental: Integrated graphics support with `Update()` point

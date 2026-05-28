@@ -53,9 +53,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
     internal CompilationUnitSyntax ParseCompilationUnit() {
         // TODO How do we distinguish compilation attributes from attributes of the first member?
         // var attributeLists = ParseAttributeLists();
-        var (usings, members) = ParseNamespaceBody(isGlobal: true);
+        var elements = ParseNamespaceBody(isGlobal: true);
         var endOfFile = Match(SyntaxKind.EndOfFileToken);
-        return SyntaxFactory.CompilationUnit(SyntaxFactory.List<AttributeListSyntax>(), usings, members, endOfFile);
+        return SyntaxFactory.CompilationUnit(SyntaxFactory.List<AttributeListSyntax>(), elements, endOfFile);
     }
 
     private new ResetPoint GetResetPoint() {
@@ -227,11 +227,12 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return SyntaxFactory.NameEquals(identifier, equals);
     }
 
-    private (SyntaxList<UsingDirectiveSyntax>, SyntaxList<MemberDeclarationSyntax>) ParseNamespaceBody(
+    private SyntaxList<NamespaceElementSyntax> ParseNamespaceBody(
         SyntaxKind closeKind = SyntaxKind.EndOfFileToken,
         bool isGlobal = false) {
-        var usings = _pool.Allocate<UsingDirectiveSyntax>();
-        var members = _pool.Allocate<MemberDeclarationSyntax>();
+        var elements = _pool.Allocate<NamespaceElementSyntax>();
+
+        var seenAfterUsings = false;
 
         var savedTerminatorState = _terminatorState;
         _terminatorState |= TerminatorState.IsNamespaceMemberStartOrStop;
@@ -245,17 +246,22 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
             if (PeekIsUsingDirective()) {
                 var usingDirective = ParseUsingDirective();
-                usings.Add(usingDirective);
+
+                if (seenAfterUsings && (usingDirective.alias is null || usingDirective.globalKeyword is not null))
+                    usingDirective = AddDiagnostic(usingDirective, Error.UsingAfterMembers());
+
+                elements.Add(usingDirective);
             } else if (kind == SyntaxKind.EndOfFileToken || kind == closeKind) {
                 break;
             } else {
+                seenAfterUsings = true;
                 var member = ParseMember(allowGlobalStatements: isGlobal);
-                members.Add(member);
+                elements.Add(member);
             }
         }
 
         _terminatorState = savedTerminatorState;
-        return (_pool.ToListAndFree(usings), _pool.ToListAndFree(members));
+        return _pool.ToListAndFree(elements);
     }
 
     private SyntaxList<MemberDeclarationSyntax> ParseTypeMembers(ref SyntaxToken previousToken) {
@@ -502,7 +508,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
         if (currentToken.kind == SyntaxKind.SemicolonToken) {
             var semicolon = EatToken();
-            var (usings, members) = ParseNamespaceBody();
+            var elements = ParseNamespaceBody();
 
             return SyntaxFactory.FileScopedNamespaceDeclaration(
                 attributeLists,
@@ -510,12 +516,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 keyword,
                 identifier,
                 semicolon,
-                usings,
-                members
+                elements
             );
         } else {
             var openBrace = MatchOpenBrace();
-            var (usings, members) = ParseNamespaceBody(SyntaxKind.CloseBraceToken);
+            var elements = ParseNamespaceBody(SyntaxKind.CloseBraceToken);
             var closeBrace = MatchCloseBrace();
 
             return SyntaxFactory.NamespaceDeclaration(
@@ -524,8 +529,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 keyword,
                 identifier,
                 openBrace,
-                usings,
-                members,
+                elements,
                 closeBrace
             );
         }
