@@ -2754,6 +2754,9 @@ internal partial class Binder {
                     diagnostics.Push(GetStandardLValueError(valueKind, node.location));
                     return false;
                 }
+
+                if (checkingReceiver)
+                    ReportTransientForEachAssignment(localSymbol);
             }
         } else if (RequiresRefAssignableVariable(valueKind)) {
             if (localSymbol.refKind == RefKind.None) {
@@ -2766,6 +2769,11 @@ internal partial class Binder {
         }
 
         return true;
+
+        void ReportTransientForEachAssignment(DataContainerSymbol symbol) {
+            if (symbol.type.IsStructType() && symbol.declarationKind == DataContainerDeclarationKind.ForEachLocal)
+                diagnostics.Push(Warning.TransientForEachAssignment(node.location));
+        }
     }
 
     private protected bool CheckMethodReturnValueKind(
@@ -8217,9 +8225,7 @@ internal partial class Binder {
         }
     }
 
-    private BoundExpression BindLiteralExpression(
-        LiteralExpressionSyntax node,
-        BelteDiagnosticQueue diagnostics) {
+    private BoundExpression BindLiteralExpression(LiteralExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
         return BindLiteral(node, node.token);
     }
 

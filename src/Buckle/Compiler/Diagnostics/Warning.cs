@@ -183,6 +183,11 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_IgnoringReturnValue, location, message, suggestion);
     }
 
+    internal static BelteDiagnostic TransientForEachAssignment(TextLocation location) {
+        var message = $"assignment to a for-each iterator local does not modify the element in the source collection";
+        return CreateWarning(DiagnosticCode.WRN_TransientForEachAssignment, location, message);
+    }
+
     private static BelteDiagnostic CreateWarning(DiagnosticCode code, TextLocation location, string message) {
         return CreateWarning(code, location, message, []);
     }

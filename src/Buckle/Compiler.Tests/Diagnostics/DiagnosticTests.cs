@@ -5985,4 +5985,25 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Warning_BU0464_TransientForEachAssignment() {
+        var text = @"
+            struct Elem {
+                int e;
+                constructor(int e) { this.e = e; }
+            }
+
+            Elem\[\] arr = { new (10), new (20) };
+
+            for (elem in arr)
+                [elem.e] = 10;
+        ";
+
+        var diagnostics = @"
+            assignment to a for-each iterator local does not modify the element in the source collection
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
 }

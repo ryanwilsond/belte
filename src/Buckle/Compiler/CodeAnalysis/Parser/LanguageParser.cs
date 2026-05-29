@@ -80,11 +80,15 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return base.Match(kind, nextWanted, nextWantedAlternative);
     }
 
+    private IdentifierNameSyntax CreateMissingIdentifierName() {
+        return SyntaxFactory.IdentifierName(SyntaxFactory.Missing(SyntaxKind.IdentifierToken));
+    }
+
     private bool IsTerminator() {
         if (currentToken.kind == SyntaxKind.EndOfFileToken)
             return true;
 
-        if (_bracketStack.Count > 0 && _bracketStack.Contains(currentToken.kind))
+        if (_bracketStack.Count > 0 && _bracketStack.Peek() == currentToken.kind)
             return true;
 
         for (var i = 1; i < LastTerminator; i <<= 1) {
@@ -1454,6 +1458,10 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 consumedModifiers = true;
                 return ParseLocalDeclarationStatement(attributeLists, modifiers, type);
             }
+
+            // TODO This could be further tuned
+            if (currentToken.kind != SyntaxKind.SemicolonToken && !IsPossibleExpression(allowBinaryAndAssignment: true))
+                return ParseLocalDeclarationStatement(attributeLists, modifiers, type);
         }
 
         Reset(resetPoint);
@@ -2221,7 +2229,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return IsPossibleExpression();
     }
 
-    private bool IsPossibleExpression() {
+    private bool IsPossibleExpression(bool allowBinaryAndAssignment = false) {
         var kind = currentToken.kind;
 
         switch (kind) {
@@ -2253,37 +2261,21 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.GlobalKeyword:
                 return true;
             default:
-                return SyntaxFacts.GetUnaryPrecedence(kind) != 0;
+                return SyntaxFacts.GetUnaryPrecedence(kind) != 0 ||
+                       SyntaxFacts.GetPrimaryPrecedence(kind) != 0 ||
+                       (allowBinaryAndAssignment && SyntaxFacts.GetBinaryPrecedence(kind) != 0) ||
+                       (allowBinaryAndAssignment && SyntaxFacts.GetTernaryPrecedence(kind) != 0) ||
+                       (allowBinaryAndAssignment && SyntaxFacts.IsAssignmentOperatorToken(kind));
         }
     }
 
     private ExpressionSyntax ParseAssignmentExpression(bool insideCascade = false) {
         var left = ParseOperatorExpression(insideCascade ? SyntaxKind.PeriodPeriodToken.GetPrimaryPrecedence() + 1 : 0);
 
-        switch (currentToken.kind) {
-            case SyntaxKind.PlusEqualsToken:
-            case SyntaxKind.MinusEqualsToken:
-            case SyntaxKind.AsteriskEqualsToken:
-            case SyntaxKind.SlashEqualsToken:
-            case SyntaxKind.AmpersandEqualsToken:
-            case SyntaxKind.PipeEqualsToken:
-            case SyntaxKind.AsteriskAsteriskEqualsToken:
-            case SyntaxKind.CaretEqualsToken:
-            case SyntaxKind.LessThanLessThanEqualsToken:
-            case SyntaxKind.GreaterThanGreaterThanEqualsToken:
-            case SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken:
-            case SyntaxKind.PercentEqualsToken:
-            case SyntaxKind.QuestionQuestionEqualsToken:
-            case SyntaxKind.QuestionExclamationEqualsToken:
-            case SyntaxKind.SlashBackslashEqualsToken:
-            case SyntaxKind.BackslashSlashEqualsToken:
-            case SyntaxKind.EqualsToken:
-                var operatorToken = EatToken();
-                var right = ParseAssignmentOrLambdaExpression(insideCascade);
-                left = SyntaxFactory.AssignmentExpression(left, operatorToken, right);
-                break;
-            default:
-                break;
+        if (SyntaxFacts.IsAssignmentOperatorToken(currentToken.kind)) {
+            var operatorToken = EatToken();
+            var right = ParseAssignmentOrLambdaExpression(insideCascade);
+            left = SyntaxFactory.AssignmentExpression(left, operatorToken, right);
         }
 
         return left;
@@ -2394,9 +2386,42 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return SyntaxFactory.EmptyStatement(EatToken());
     }
 
+    private static bool IsInvalidOperatorExpression(SyntaxKind kind) {
+        switch (kind) {
+            case SyntaxKind.BreakKeyword:
+            case SyntaxKind.CaseKeyword:
+            case SyntaxKind.CatchKeyword:
+            case SyntaxKind.ConstKeyword:
+            case SyntaxKind.ConstexprKeyword:
+            case SyntaxKind.FinalKeyword:
+            case SyntaxKind.ContinueKeyword:
+            case SyntaxKind.DoKeyword:
+            case SyntaxKind.FinallyKeyword:
+            case SyntaxKind.ForKeyword:
+            case SyntaxKind.GotoKeyword:
+            case SyntaxKind.IfKeyword:
+            case SyntaxKind.ElseKeyword:
+            case SyntaxKind.ScopedKeyword:
+            case SyntaxKind.ReturnKeyword:
+            case SyntaxKind.SwitchKeyword:
+            case SyntaxKind.DeferKeyword:
+            case SyntaxKind.TryKeyword:
+            case SyntaxKind.UsingKeyword:
+            case SyntaxKind.WhileKeyword:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     private ExpressionSyntax ParseOperatorExpression(int parentPrecedence = 0) {
+        var kind = currentToken.kind;
+
+        if (IsInvalidOperatorExpression(kind))
+            return AddDiagnostic(CreateMissingIdentifierName(), Error.InvalidExpressionTerm(kind));
+
         ExpressionSyntax left;
-        var unaryPrecedence = currentToken.kind.GetUnaryPrecedence();
+        var unaryPrecedence = kind.GetUnaryPrecedence();
 
         if (unaryPrecedence != 0 && unaryPrecedence >= parentPrecedence && !IsTerminator()) {
             var operatorToken = EatToken();
@@ -3007,12 +3032,7 @@ done:
 
         if (nodesAndSeparators.Count < 2) {
             nodesAndSeparators.Add(SyntaxFactory.Missing(SyntaxKind.CommaToken));
-
-            var missing = AddDiagnostic(
-                SyntaxFactory.IdentifierName(SyntaxFactory.Missing(SyntaxKind.IdentifierToken)),
-                Error.TupleTooFewElements()
-            );
-
+            var missing = AddDiagnostic(CreateMissingIdentifierName(), Error.TupleTooFewElements());
             nodesAndSeparators.Add(missing);
         }
 
@@ -3781,7 +3801,7 @@ done:
     private NameSyntax ParseLastCaseName() {
         if (currentToken.kind is not SyntaxKind.IdentifierToken and not SyntaxKind.GlobalKeyword) {
             _currentToken = AddDiagnostic(currentToken, Error.ExpectedToken("expression"));
-            return SyntaxFactory.IdentifierName(SyntaxFactory.Missing(SyntaxKind.IdentifierToken));
+            return CreateMissingIdentifierName();
         }
 
         return ParseAliasQualifiedName();
@@ -3999,7 +4019,7 @@ done:
             return ParseTupleType();
 
         return AddDiagnostic(
-            WithFutureDiagnostics(SyntaxFactory.IdentifierName(SyntaxFactory.Missing(SyntaxKind.IdentifierToken))),
+            WithFutureDiagnostics(CreateMissingIdentifierName()),
             Error.ExpectedToken(SyntaxKind.IdentifierName),
             currentToken.GetLeadingTriviaWidth(),
             currentToken.width
@@ -4020,21 +4040,11 @@ done:
         }
 
         if (nodesAndSeparators.Count < 2) {
-            if (nodesAndSeparators.Count < 1) {
-                nodesAndSeparators.Add(
-                    SyntaxFactory.TupleElement(
-                        SyntaxFactory.IdentifierName(SyntaxFactory.Missing(SyntaxKind.IdentifierToken))
-                    )
-                );
-            }
+            if (nodesAndSeparators.Count < 1)
+                nodesAndSeparators.Add(SyntaxFactory.TupleElement(CreateMissingIdentifierName()));
 
             nodesAndSeparators.Add(SyntaxFactory.Missing(SyntaxKind.CommaToken));
-
-            var missing = AddDiagnostic(
-                SyntaxFactory.IdentifierName(SyntaxFactory.Missing(SyntaxKind.IdentifierToken)),
-                Error.TupleTooFewElements()
-            );
-
+            var missing = AddDiagnostic(CreateMissingIdentifierName(), Error.TupleTooFewElements());
             nodesAndSeparators.Add(SyntaxFactory.TupleElement(missing));
         }
 

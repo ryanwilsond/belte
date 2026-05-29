@@ -144,6 +144,7 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
             initializerBinder ?? scopeBinder
         );
     }
+
     internal static SourceDataContainerSymbol MakeDeconstructionLocal(
         Symbol containingSymbol,
         Binder scopeBinder,

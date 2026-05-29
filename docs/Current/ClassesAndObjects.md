@@ -311,7 +311,7 @@ struct Time {
 A custom literal conversion is a public static method that returns the containing type, uses the `literal` keyword, and
 whose name is the desired literal suffix. Literal methods must have exactly 1 parameter. The parameter type must be a
 type represented by a literal: this includes all numeric types, `char`, and `string`. `uint8*` and `char*` are also
-valid because of [c-string literals](LowLevelFeatures.md#614-c-strings).
+valid because of [c-string literals](LowLevelFeatures.md#614-c-strings). Suffixes are case-sensitive.
 
 With the above struct definition, the following can be done:
 
@@ -328,7 +328,7 @@ Sleep(500ms);
 void Sleep(Time time) { /* ... */ }
 ```
 
-Prefixed strings (interpolated and c-strings) also support suffixes:
+Prefixed literals (such as interpolated strings and hexadecimal numerics) also support suffixes:
 
 ```belte
 var myNum = 10;

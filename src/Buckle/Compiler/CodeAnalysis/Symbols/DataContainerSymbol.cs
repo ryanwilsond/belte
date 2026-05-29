@@ -10,7 +10,7 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
 
     public bool isConst => declarationKind == DataContainerDeclarationKind.Constant;
 
-    public bool isFinal => declarationKind == DataContainerDeclarationKind.Final;
+    public bool isFinal => declarationKind.IsFinal();
 
     public bool isConstExpr => declarationKind == DataContainerDeclarationKind.ConstantExpression;
 

@@ -86,7 +86,7 @@ public static class Program {
 
     public static void Main() {
         const hInstance = GetModuleHandle(null);
-        final wc = new WNDCLASSEX();
+        var wc = new WNDCLASSEX();
         wc.cbSize = (uint32)sizeof(WNDCLASSEX);
         wc.lpfnWndProc = &WndProcImpl;
         wc.hInstance = hInstance;

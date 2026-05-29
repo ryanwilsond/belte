@@ -150,7 +150,7 @@
       - [5.7.1](Current/StandardLibrary/List.md) List
       - [5.7.2](Current/StandardLibrary/Dictionary.md) Dictionary
     - [5.8](Current/StandardLibrary/LowLevel.md) LowLevel
-    - [5.9](Current/StandardLibrary/Int.md) Int
+    - [5.9](Current/StandardLibrary/Int.md) Int and Other Numerics
     - [5.10](Current/StandardLibrary/Decimal.md) Decimal, Float64, and Float32
   - [6](Current/LowLevelFeatures.md) Low-Level Features
     - [6.1](Current/LowLevelFeatures.md#61-low-level-contexts) Low-Level Contexts

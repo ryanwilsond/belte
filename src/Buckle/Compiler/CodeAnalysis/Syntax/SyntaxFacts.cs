@@ -837,4 +837,29 @@ public static class SyntaxFacts {
 
         return true;
     }
+
+    internal static bool IsAssignmentOperatorToken(SyntaxKind kind) {
+        switch (kind) {
+            case SyntaxKind.PlusEqualsToken:
+            case SyntaxKind.MinusEqualsToken:
+            case SyntaxKind.AsteriskEqualsToken:
+            case SyntaxKind.SlashEqualsToken:
+            case SyntaxKind.AmpersandEqualsToken:
+            case SyntaxKind.PipeEqualsToken:
+            case SyntaxKind.AsteriskAsteriskEqualsToken:
+            case SyntaxKind.CaretEqualsToken:
+            case SyntaxKind.LessThanLessThanEqualsToken:
+            case SyntaxKind.GreaterThanGreaterThanEqualsToken:
+            case SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken:
+            case SyntaxKind.PercentEqualsToken:
+            case SyntaxKind.QuestionQuestionEqualsToken:
+            case SyntaxKind.QuestionExclamationEqualsToken:
+            case SyntaxKind.SlashBackslashEqualsToken:
+            case SyntaxKind.BackslashSlashEqualsToken:
+            case SyntaxKind.EqualsToken:
+                return true;
+            default:
+                return false;
+        }
+    }
 }

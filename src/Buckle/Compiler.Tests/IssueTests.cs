@@ -1219,4 +1219,39 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Evaluator_ForEach_AllowsModification() {
+        var text = @"
+            class Elem {
+                public int e;
+
+                public constructor(int e) {
+                    this.e = e;
+                }
+            }
+
+            Elem\[\] a = { new (10), new (20), new (30) };
+
+            for (num in a)
+                num.e = 5;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_MisplacedKeyword_MinimalDiagnostics() {
+        var text = @"
+            var [out] = 3;
+        ";
+
+        var diagnostics = @"
+            unexpected token 'out', expected identifier
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }
