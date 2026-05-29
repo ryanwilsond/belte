@@ -256,6 +256,16 @@
     <Field Name="suffix" Type="string"/>
     <Field Name="literal" Type="BoundExpression"/>
   </Node>
+  <AbstractNode Name="BoundTupleExpression" Base="BoundExpression">
+    <Field Name="arguments" Type="ImmutableArray&lt;BoundExpression&gt;"/>
+  </AbstractNode>
+  <Node Name="BoundTupleLiteral" Base="BoundTupleExpression">
+    <Field Name="type" Type="TypeSymbol?" Override="true" Null="allow"/>
+  </Node>
+  <Node Name="BoundConvertedTupleLiteral" Base="BoundTupleExpression">
+    <Field Name="sourceTuple" Type="BoundTupleLiteral?" Null="allow" SkipInVisitor="true"/>
+    <Field Name="wasTargetTyped" Type="bool" />
+  </Node>
   <Node Name="BoundCStringLiteral" Base="BoundExpression">
     <Field Name="isWide" Type="bool"/>
     <Field Name="literal" Type="ConstantValue"/>

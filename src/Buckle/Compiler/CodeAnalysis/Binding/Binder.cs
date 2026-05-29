@@ -3194,6 +3194,8 @@ internal partial class Binder {
                 return BindLiteralExpression((LiteralExpressionSyntax)node, diagnostics);
             case SyntaxKind.ExtendedLiteralExpression:
                 return BindExtendedLiteralExpression((ExtendedLiteralExpressionSyntax)node, diagnostics);
+            case SyntaxKind.TupleExpression:
+                return BindTupleExpression((TupleExpressionSyntax)node, diagnostics);
             case SyntaxKind.ThisExpression:
                 return BindThisExpression((ThisExpressionSyntax)node, diagnostics);
             case SyntaxKind.BaseExpression:
@@ -3279,6 +3281,12 @@ internal partial class Binder {
 
     private BoundErrorExpression ErrorExpression(
         SyntaxNode syntax,
+        ImmutableArray<BoundExpression> childNodes) {
+        return ErrorExpression(syntax, LookupResultKind.Empty, ImmutableArray<Symbol>.Empty, childNodes);
+    }
+
+    private BoundErrorExpression ErrorExpression(
+        SyntaxNode syntax,
         LookupResultKind lookupResultKind,
         BoundExpression expression) {
         return new BoundErrorExpression(syntax, lookupResultKind, [], [expression], CreateErrorType(), true);
@@ -3357,6 +3365,70 @@ internal partial class Binder {
                 true
             );
         }
+    }
+
+    private BoundExpression BindTupleExpression(TupleExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var arguments = node.arguments;
+        var numElements = arguments.Count;
+
+        if (numElements < 2) {
+            var args = numElements == 1
+                ? ImmutableArray.Create(BindValue(arguments[0], diagnostics, BindValueKind.RValue))
+                : ImmutableArray<BoundExpression>.Empty;
+
+            return ErrorExpression(node, args);
+        }
+
+        var hasNaturalType = true;
+
+        var boundArguments = ArrayBuilder<BoundExpression>.GetInstance(arguments.Count);
+        var elementTypes = ArrayBuilder<TypeWithAnnotations>.GetInstance(arguments.Count);
+        var elementLocations = ArrayBuilder<TextLocation>.GetInstance(arguments.Count);
+
+        for (var i = 0; i < numElements; i++) {
+            var argumentSyntax = arguments[i];
+            elementLocations.Add(argumentSyntax.location);
+            var boundArgument = BindValue(argumentSyntax, diagnostics, BindValueKind.RValue);
+
+            if (boundArgument.type?.specialType == SpecialType.Void) {
+                diagnostics.Push(Error.VoidInTuple(argumentSyntax.location));
+
+                boundArgument = new BoundErrorExpression(
+                    argumentSyntax,
+                    LookupResultKind.Empty,
+                    [],
+                    [boundArgument],
+                    CreateErrorType("void")
+                );
+            }
+
+            boundArguments.Add(boundArgument);
+            var elementType = boundArgument.type;
+            elementTypes.Add(new TypeWithAnnotations(elementType));
+
+            if (elementType is null)
+                hasNaturalType = false;
+        }
+
+        NamedTypeSymbol tupleType = null;
+        var elements = elementTypes.ToImmutableAndFree();
+        var locations = elementLocations.ToImmutableAndFree();
+
+        if (hasNaturalType) {
+            tupleType = NamedTypeSymbol.CreateTuple(
+                node.location,
+                elements,
+                locations,
+                [],
+                compilation,
+                syntax: node,
+                diagnostics: diagnostics,
+                shouldCheckConstraints: true,
+                errorPositions: []
+            );
+        }
+
+        return new BoundTupleLiteral(node, boundArguments.ToImmutableAndFree(), tupleType);
     }
 
     private BoundWithExpression BindWithExpression(WithExpressionSyntax node, BelteDiagnosticQueue diagnostics) {

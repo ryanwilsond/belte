@@ -410,6 +410,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         CheckForProtectedInStaticClass(diagnostics);
         CheckForUnmatchedOperators(diagnostics);
         CheckUnionIsNonEmpty(diagnostics);
+
+        CheckStructLayoutEfficiency(diagnostics);
     }
 
     private void CheckUnionIsNonEmpty(BelteDiagnosticQueue diagnostics) {

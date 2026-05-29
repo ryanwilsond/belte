@@ -61,14 +61,16 @@ public sealed partial class Compilation {
         Compilation previous,
         SyntaxAndDeclarationManager syntax,
         ReferenceManager referenceManager,
-        NamespaceSymbol namespaceOpt = null) {
+        NamespaceSymbol namespaceOpt = null,
+        bool forwardDiagnostics = false) {
         this.assemblyName = assemblyName;
         this.options = options;
         this.previous = previous;
         _syntax = syntax;
         _specialNamespace = namespaceOpt;
 
-        if (previous?.declarationDiagnostics is not null)
+        // TODO When do we want to forward diagnostics? (Something to do with handles?)
+        if (forwardDiagnostics && previous?.declarationDiagnostics is not null)
             declarationDiagnostics.PushRange(previous.declarationDiagnostics);
 
         _referenceManager = referenceManager ?? new ReferenceManager(options.references, declarationDiagnostics);

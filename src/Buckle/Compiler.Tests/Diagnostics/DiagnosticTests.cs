@@ -6006,4 +6006,69 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer, true);
     }
+
+    [Fact]
+    public void Reports_Error_BU0465_VoidInTuple() {
+        var text = @"
+            void F() { }
+
+            var a = ([F()], 3);
+        ";
+
+        var diagnostics = @"
+            a tuple may not contain a value of type 'void'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0466_StructInefficiencyCache() {
+        var text = @"
+            struct [A] {
+                int8  a0;
+                int64  b0;
+
+                int8  a1;
+                int64  b1;
+
+                int8  a2;
+                int64  b2;
+
+                int8  a3;
+                int64  b3;
+
+                int8  a4;
+                int64  b4;
+
+                int8  a5;
+                int64  b5;
+
+                int8  a6;
+            }
+        ";
+
+        var diagnostics = @"
+            struct crosses an unnecessary cache line; struct layout could be reduced from 104 bytes to 56 bytes by reordering fields
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0467_StructInefficiencyPadding() {
+        var text = @"
+            struct [A] {
+                int8 a;
+                int64 b;
+                int8 c;
+            }
+        ";
+
+        var diagnostics = @"
+            struct layout could be reduced from 24 bytes to 16 bytes by reordering fields
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
 }

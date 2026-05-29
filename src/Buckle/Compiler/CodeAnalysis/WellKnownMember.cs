@@ -51,5 +51,14 @@ internal enum WellKnownMember : byte {
     ValueTuple_TRest_Item5,
     ValueTuple_TRest_Item6,
     ValueTuple_TRest_Item7,
-    ValueTuple_TRest_Rest
+    ValueTuple_TRest_Rest,
+
+    ValueTuple_T1_ctor,
+    ValueTuple_T2_ctor,
+    ValueTuple_T3_ctor,
+    ValueTuple_T4_ctor,
+    ValueTuple_T5_ctor,
+    ValueTuple_T6_ctor,
+    ValueTuple_T7_ctor,
+    ValueTuple_TRest_ctor,
 }

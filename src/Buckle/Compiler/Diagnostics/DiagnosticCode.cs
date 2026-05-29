@@ -473,6 +473,9 @@ public enum DiagnosticCode : ushort {
     ERR_LiteralOperatorMustHaveSingleParameter = 462,
     ERR_BadLiteralOperatorParameterType = 463,
     WRN_TransientForEachAssignment = 464,
+    ERR_VoidInTuple = 465,
+    WRN_StructInefficiencyCache = 466,
+    WRN_StructInefficiencyPadding = 467,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

@@ -2341,6 +2341,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_BadLiteralOperatorParameterType, location, message);
     }
 
+    internal static BelteDiagnostic VoidInTuple(TextLocation location) {
+        var message = $"a tuple may not contain a value of type 'void'";
+        return CreateError(DiagnosticCode.ERR_VoidInTuple, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

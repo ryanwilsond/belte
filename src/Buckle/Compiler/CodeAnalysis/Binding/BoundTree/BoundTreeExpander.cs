@@ -361,6 +361,8 @@ internal abstract partial class BoundTreeExpander {
 
         return expression.kind switch {
             BoundKind.LiteralExpression => ExpandLiteralExpression((BoundLiteralExpression)expression, out replacement, useKind),
+            BoundKind.TupleLiteral => ExpandTupleLiteral((BoundTupleLiteral)expression, out replacement, useKind),
+            BoundKind.ConvertedTupleLiteral => ExpandConvertedTupleLiteral((BoundConvertedTupleLiteral)expression, out replacement, useKind),
             BoundKind.UnconvertedExtendedLiteralExpression => ExpandUnconvertedExtendedLiteralExpression((BoundUnconvertedExtendedLiteralExpression)expression, out replacement, useKind),
             BoundKind.CStringLiteral => ExpandCStringLiteral((BoundCStringLiteral)expression, out replacement, useKind),
             BoundKind.DefaultExpression => ExpandDefaultExpression((BoundDefaultExpression)expression, out replacement, useKind),
@@ -835,6 +837,36 @@ internal abstract partial class BoundTreeExpander {
         UseKind useKind) {
         replacement = expression;
         return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandTupleLiteral(
+        BoundTupleLiteral expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandConvertedTupleLiteral(
+        BoundConvertedTupleLiteral expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        var statements = new List<BoundStatement>();
+        var replacementArguments = ArrayBuilder<BoundExpression>.GetInstance();
+
+        foreach (var argument in expression.arguments) {
+            statements.AddRange(ExpandExpression(argument, out var argumentReplacement));
+            replacementArguments.Add(argumentReplacement);
+        }
+
+        replacement = expression.Update(
+            expression.sourceTuple,
+            expression.wasTargetTyped,
+            replacementArguments.ToImmutableAndFree(),
+            expression.type
+        );
+
+        return statements;
     }
 
     private protected virtual List<BoundStatement> ExpandUnconvertedExtendedLiteralExpression(

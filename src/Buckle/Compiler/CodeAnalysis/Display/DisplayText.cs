@@ -372,6 +372,12 @@ public sealed class DisplayText {
             case BoundKind.UnconvertedExtendedLiteralExpression:
                 DisplayUnconvertedExtendedLiteralExpression(text, (BoundUnconvertedExtendedLiteralExpression)node);
                 break;
+            case BoundKind.TupleLiteral:
+                DisplayTupleLiteral(text, (BoundTupleLiteral)node);
+                break;
+            case BoundKind.ConvertedTupleLiteral:
+                DisplayConvertedTupleLiteral(text, (BoundConvertedTupleLiteral)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -495,6 +501,31 @@ public sealed class DisplayText {
 
     private static void DisplayDiscardExpression(DisplayText text) {
         text.Write(CreateIdentifier("_"));
+    }
+
+    private static void DisplayTupleLiteral(DisplayText text, BoundTupleLiteral node) {
+        DisplayTupleLiteralCore(text, node.arguments);
+    }
+
+    private static void DisplayConvertedTupleLiteral(DisplayText text, BoundConvertedTupleLiteral node) {
+        DisplayTupleLiteralCore(text, node.arguments);
+    }
+
+    private static void DisplayTupleLiteralCore(DisplayText text, ImmutableArray<BoundExpression> arguments) {
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+
+        var first = true;
+
+        foreach (var argument in arguments) {
+            if (first)
+                first = false;
+            else
+                text.Write(CreatePunctuation(", "));
+
+            DisplayNode(text, argument);
+        }
+
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
 
     private static void DisplayUnconvertedExtendedLiteralExpression(
