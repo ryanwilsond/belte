@@ -230,6 +230,7 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
                 return false;
             case MethodKind.LocalFunction:
             case MethodKind.Operator:
+            case MethodKind.Literal:
             case MethodKind.Conversion:
             case MethodKind.Ordinary:
                 return true;

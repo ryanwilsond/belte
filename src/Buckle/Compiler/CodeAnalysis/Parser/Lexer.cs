@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Text;
-using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
@@ -33,6 +32,7 @@ internal sealed partial class Lexer : IDisposable {
     private DirectiveStack _directives;
     private int _position;
     private int _start;
+    private string _suffix;
     private SyntaxKind _kind;
     private object _value;
 
@@ -208,9 +208,13 @@ internal sealed partial class Lexer : IDisposable {
         var leading = _leadingTriviaCache.ToListNode();
         var trailing = _trailingTriviaCache.ToListNode();
 
-        var token = SyntaxFacts.IsContextualKeyword(kind)
-            ? SyntaxFactory.Contextual(kind, text, value, leading, trailing, diagnostics)
-            : SyntaxFactory.Token(kind, text, value, leading, trailing, diagnostics);
+        var token = _suffix is not null
+            ? SyntaxFactory.Extended(kind, text, _suffix, value, leading, trailing, diagnostics)
+            : SyntaxFacts.IsContextualKeyword(kind)
+                ? SyntaxFactory.Contextual(kind, text, value, leading, trailing, diagnostics)
+                : SyntaxFactory.Token(kind, text, value, leading, trailing, diagnostics);
+
+        _suffix = null;
 
         if (text is null)
             token.SetFlags(GreenNode.NodeFlags.IsMissing);
@@ -746,6 +750,8 @@ internal sealed partial class Lexer : IDisposable {
         } else {
             _value = sb.ToString();
         }
+
+        ReadLiteralSuffix();
     }
 
     private StringBuilder ReadStringContent(
@@ -904,6 +910,8 @@ internal sealed partial class Lexer : IDisposable {
 
         _kind = SyntaxKind.InterpolatedStringLiteralToken;
         _value = sb.ToString();
+
+        ReadLiteralSuffix();
     }
 
     internal static SyntaxToken DereadInterpolatedString(InterpolatedStringExpressionSyntax interpolatedString) {
@@ -1101,6 +1109,34 @@ internal sealed partial class Lexer : IDisposable {
         }
 
         _kind = SyntaxKind.NumericLiteralToken;
+
+        ReadLiteralSuffix();
+    }
+
+    private void ReadLiteralSuffix() {
+        if (char.IsLetter(_current)) {
+            var literalValue = _value;
+            var literalKind = _kind;
+            var savedPosition = _position;
+            var savedStart = _start;
+
+            _start = _position;
+
+            ReadIdentifierOrKeyword();
+
+            if (_kind != SyntaxKind.IdentifierToken) {
+                _position = savedPosition;
+                _value = literalValue;
+                _kind = literalKind;
+                _start = savedStart;
+                return;
+            }
+
+            _suffix = text.ToString(new TextSpan(_start, _position - _start));
+            _start = savedStart;
+            _kind = literalKind;
+            _value = literalValue;
+        }
     }
 
     private void ReadWhitespace() {

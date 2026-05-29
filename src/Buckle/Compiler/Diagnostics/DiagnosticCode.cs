@@ -467,6 +467,11 @@ public enum DiagnosticCode : ushort {
     ERR_CannotCreateTuple = 456,
     ERR_InvalidMemberDeclarationToken = 457,
     ERR_UsingAfterMembers = 458,
+    ERR_ExtendedLiteralNoTargetType = 459,
+    ERR_NoExtendedLiteralConversion = 460,
+    ERR_BadLiteralOperatorReturnType = 461,
+    ERR_LiteralOperatorMustHaveSingleParameter = 462,
+    ERR_BadLiteralOperatorParameterType = 463,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

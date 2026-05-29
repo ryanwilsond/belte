@@ -133,8 +133,6 @@ These keywords are reserved names and cannot be used as identifiers.
 - [new](ClassesAndObjects.md#432-overriding-modifiers) (modifier)
 - [null](Data.md#31-data-types)
 - [nullptr](LowLevelFeatures.md#651-creating-and-dereferencing-pointers)
-- [operator](ClassesAndObjects.md#423-operators) (normal operators)
-- [operator](ControlFlow.md#244-for-each-loops) (for each operators)
 - [out](ControlFlow.md#216-ref-arguments)
 - [override](ClassesAndObjects.md#432-overriding-modifiers)
 - [pinned](LowLevelFeatures.md#612-pinned-locals)
@@ -176,8 +174,11 @@ These keywords only act as keywords inside specific contexts. As such they can b
 - [handle](LowLevelFeatures.md#613-compiler-handle)
 - [implicit](ClassesAndObjects.md#4232-casts) (User-Defined Conversions)
 - [implicit](ControlFlow.md#217-argument-coercion) (Argument Coercion)
+- [literal](ClassesAndObjects.md#4233-user-defined-literals)
 - [notnull](ClassesAndObjects.md#4512-special-constraints)
 - [noverify](LowLevelFeatures.md#6111-verification)
+- [operator](ClassesAndObjects.md#423-operators) (normal operators)
+- [operator](ControlFlow.md#244-for-each-loops) (for each operators)
 - [primitive](ClassesAndObjects.md#4512-special-constraints)
 - [undef](Preprocessor.md#71-defineundef)
 
@@ -455,6 +456,7 @@ most of the differences to make it more clear where the language is unique with 
 - [`with` expressions and statements](ControlFlow.md#27-with-expressions-and-statements)
 - [Duck-typed `scoped` statements instead of `using` statements](ControlFlow.md#29-scoped-statements)
 - [`destructor` keyword](ControlFlow.md#291-destructors)
+- [User-defined literals](ClassesAndObjects.md#4233-user-defined-literals)
 - [File-scoped classes](ClassesAndObjects.md#411-declaring-and-using-classes)
 - Primitive types (e.g. `int`) don't have members
 - [`constructor` and `finalizer` keywords](ClassesAndObjects.md#44-constructors-and-finalizers)

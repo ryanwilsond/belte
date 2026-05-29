@@ -369,6 +369,9 @@ public sealed class DisplayText {
             case BoundKind.DiscardExpression:
                 DisplayDiscardExpression(text);
                 break;
+            case BoundKind.UnconvertedExtendedLiteralExpression:
+                DisplayUnconvertedExtendedLiteralExpression(text, (BoundUnconvertedExtendedLiteralExpression)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -492,6 +495,13 @@ public sealed class DisplayText {
 
     private static void DisplayDiscardExpression(DisplayText text) {
         text.Write(CreateIdentifier("_"));
+    }
+
+    private static void DisplayUnconvertedExtendedLiteralExpression(
+        DisplayText text,
+        BoundUnconvertedExtendedLiteralExpression node) {
+        DisplayNode(text, node.literal);
+        text.Write(CreateIdentifier(node.suffix));
     }
 
     private static void DisplayTypeExpression(DisplayText text, BoundTypeExpression node) {

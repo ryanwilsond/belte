@@ -57,6 +57,9 @@ public sealed class LexerTests {
         untestedTokenTypes.Remove(SyntaxKind.EndifKeyword);
         untestedTokenTypes.Remove(SyntaxKind.ExplicitKeyword);
         untestedTokenTypes.Remove(SyntaxKind.ImplicitKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.OperatorKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.LiteralKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.ExtendedLiteralToken);
         untestedTokenTypes.Remove(SyntaxKind.FlagsKeyword);
         untestedTokenTypes.Remove(SyntaxKind.HandleKeyword);
         untestedTokenTypes.Remove(SyntaxKind.NotnullKeyword);
@@ -339,6 +342,9 @@ public sealed class LexerTests {
         if (t1Kind == SyntaxKind.SlashToken && t2Kind == SyntaxKind.BackslashSlashEqualsToken) return true;
         if (t1Kind == SyntaxKind.SlashToken && t2Kind == SyntaxKind.SlashBackslashToken) return true;
         if (t1Kind == SyntaxKind.SlashToken && t2Kind == SyntaxKind.SlashBackslashEqualsToken) return true;
+        if (t1Kind == SyntaxKind.StringLiteralToken && t2Kind == SyntaxKind.IdentifierToken) return true;
+        if (t1Kind == SyntaxKind.NumericLiteralToken && t2Kind == SyntaxKind.IdentifierToken) return true;
+        if (t1Kind == SyntaxKind.CharacterLiteralToken && t2Kind == SyntaxKind.IdentifierToken) return true;
 
         return false;
     }

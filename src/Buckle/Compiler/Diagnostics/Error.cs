@@ -848,6 +848,10 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NullptrNoTargetType, location, message);
     }
 
+    internal static BelteDiagnostic ExtendedLiteralNoTargetType(TextLocation location, string suffix) {
+        var message = $"there is no target type for the literal with suffix '{suffix}'";
+        return CreateError(DiagnosticCode.ERR_ExtendedLiteralNoTargetType, location, message);
+    }
     internal static BelteDiagnostic EnumFieldNoTargetType(TextLocation location) {
         var message = $"there is no target type for the implicit enum field";
         return CreateError(DiagnosticCode.ERR_EnumFieldNoTargetType, location, message);
@@ -1356,6 +1360,11 @@ internal static class Error {
     internal static BelteDiagnostic BadIncrementReturnType(TextLocation location) {
         var message = $"the return type for ++ or -- operator must match the parameter type or be derived from the parameter type";
         return CreateError(DiagnosticCode.ERR_BadIncrementReturnType, location, message);
+    }
+
+    internal static BelteDiagnostic BadLiteralOperatorReturnType(TextLocation location) {
+        var message = $"the return type for literal operators must match the containing type or be derived from the containing type";
+        return CreateError(DiagnosticCode.ERR_BadLiteralOperatorReturnType, location, message);
     }
 
     internal static BelteDiagnostic BadAbstractIncrementReturnType(TextLocation location) {
@@ -2315,6 +2324,21 @@ internal static class Error {
     internal static Diagnostic UsingAfterMembers() {
         var message = $"using directive must precede all other namespace members";
         return CreateError(DiagnosticCode.ERR_UsingAfterMembers, message);
+    }
+
+    internal static BelteDiagnostic NoExtendedLiteralConversion(TextLocation location, TypeSymbol type, TypeSymbol type2, string suffix) {
+        var message = $"type '{type}' has no definition for literals of type '{type2}' with the suffix '{suffix}'";
+        return CreateError(DiagnosticCode.ERR_NoExtendedLiteralConversion, location, message);
+    }
+
+    internal static BelteDiagnostic LiteralOperatorMustHaveSingleParameter(TextLocation location) {
+        var message = $"literal operators must have exactly 1 parameter";
+        return CreateError(DiagnosticCode.ERR_LiteralOperatorMustHaveSingleParameter, location, message);
+    }
+
+    internal static BelteDiagnostic BadLiteralOperatorParameterType(TextLocation location) {
+        var message = $"literal operator parameter must be a type represented by a literal";
+        return CreateError(DiagnosticCode.ERR_BadLiteralOperatorParameterType, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

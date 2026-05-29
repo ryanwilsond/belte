@@ -252,6 +252,10 @@
   <Node Name="BoundLiteralExpression" Base="BoundExpression">
     <Field Name="constantValue" Type="ConstantValue" PropertyOverrides="true"/>
   </Node>
+  <Node Name="BoundUnconvertedExtendedLiteralExpression" Base="BoundExpression">
+    <Field Name="suffix" Type="string"/>
+    <Field Name="literal" Type="BoundExpression"/>
+  </Node>
   <Node Name="BoundCStringLiteral" Base="BoundExpression">
     <Field Name="isWide" Type="bool"/>
     <Field Name="literal" Type="ConstantValue"/>
