@@ -797,6 +797,23 @@
     </Field>
     <Field Name="body" Type="BlockStatementSyntax" Override="true"/>
   </Node>
+  <Node Name="LiteralOperatorDeclarationSyntax" Base="BaseMethodDeclarationSyntax">
+    <Kind Name="LiteralOperatorDeclaration"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
+    <Field Name="returnType" Type="TypeSyntax"/>
+    <Field Name="literalKeyword" Type="SyntaxToken">
+      <Kind Name="LiteralKeyword"/>
+    </Field>
+    <Field Name="suffix" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="parameterList" Type="ParameterListSyntax" Override="true"/>
+    <Field Name="implicitKeyword" Type="SyntaxToken" Optional="true" Override="true">
+      <Kind Name="ImplicitKeyword"/>
+    </Field>
+    <Field Name="body" Type="BlockStatementSyntax" Override="true"/>
+  </Node>
   <!-- Statements -->
   <AbstractNode Name="StatementSyntax" Base="SyntaxNode"/>
   <Node Name="GlobalStatementSyntax" Base="MemberDeclarationSyntax">
@@ -1394,6 +1411,14 @@
   <Node Name="LiteralExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="LiteralExpression"/>
     <Field Name="token" Type="SyntaxToken"/>
+  </Node>
+  <Node Name="ExtendedLiteralExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="ExtendedLiteralExpression"/>
+    <Field Name="token" Type="SyntaxToken" Optional="true"/>
+    <Field Name="expression" Type="ExpressionSyntax" Optional="true"/>
+    <Field Name="suffix" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
   </Node>
   <Node Name="TupleExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="TupleExpression"/>

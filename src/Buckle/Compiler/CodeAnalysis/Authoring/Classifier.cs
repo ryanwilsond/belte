@@ -97,6 +97,7 @@ public static class Classifier {
         var isKeyword = kind.IsKeyword();
         var isLiteral = kind is
             SyntaxKind.NumericLiteralToken or
+            SyntaxKind.ExtendedLiteralToken or
             SyntaxKind.TrueKeyword or
             SyntaxKind.FalseKeyword or
             SyntaxKind.NullKeyword or

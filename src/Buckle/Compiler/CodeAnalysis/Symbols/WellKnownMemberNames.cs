@@ -46,4 +46,8 @@ internal static class WellKnownMemberNames {
     internal const string Dispose = "Dispose";
     internal const string Deconstruct = "Deconstruct";
     internal new const string ToString = "ToString";
+
+    internal static string GetLiteralOperatorName(string suffix) {
+        return $"op_Literal_{suffix}";
+    }
 }

@@ -90,6 +90,7 @@ public enum SyntaxKind : ushort {
     CStringLiteralToken,
     CWStringLiteralToken,
     CharacterLiteralToken,
+    ExtendedLiteralToken,
     InterpolatedStringLiteralToken,
 
     // Keywords
@@ -123,6 +124,7 @@ public enum SyntaxKind : ushort {
     BaseKeyword,
     StaticKeyword,
     OperatorKeyword,
+    LiteralKeyword,
     LowlevelKeyword,
     ExtendsKeyword,
     PublicKeyword,
@@ -212,6 +214,7 @@ public enum SyntaxKind : ushort {
 
     // Primary expressions
     LiteralExpression,
+    ExtendedLiteralExpression,
     TypeOfExpression,
     NameOfExpression,
     SizeOfExpression,
@@ -292,6 +295,7 @@ public enum SyntaxKind : ushort {
     DestructorDeclaration,
     FinalizerDeclaration,
     OperatorDeclaration,
+    LiteralOperatorDeclaration,
     ConversionDeclaration,
 
     // Names

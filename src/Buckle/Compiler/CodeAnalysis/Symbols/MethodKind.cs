@@ -14,4 +14,5 @@ public enum MethodKind : byte {
     FunctionSignature,
     AnonymousFunction,
     Lambda,
+    Literal,
 }

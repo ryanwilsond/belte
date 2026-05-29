@@ -57,6 +57,7 @@ internal abstract partial class BoundExpression : BoundNode {
             case BoundKind.UnconvertedImplicitEnumFieldExpression:
             case BoundKind.UnconvertedObjectCreationExpression:
             case BoundKind.UnconvertedConditionalOperator:
+            case BoundKind.UnconvertedExtendedLiteralExpression:
                 return true;
             default:
                 return false;

@@ -742,6 +742,27 @@ public sealed class EvaluatorTests {
         var b = new A(2);
         var c = a + b;
         return a.x;", 1)]
+    [InlineData(@"
+        struct A {
+            int x;
+            constructor(int x) { this.x = x; }
+            static A literal s(int num) {
+                return new A(num * 10);
+            }
+        }
+        A a = 10s;
+        return a.x;", 100)]
+    [InlineData(@"
+        class A {
+            public string x = """";
+            public constructor(string x) { this.x = x; }
+
+            public static A literal a(string num) {
+                return new A(num + ""asdf"");
+            }
+        }
+        A a = f""num is {10}""a;
+        return a.x; ", "num is 10asdf")]
     // Overrides
     [InlineData(@"
         class A {

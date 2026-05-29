@@ -26,6 +26,7 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
         MethodKind.StaticConstructor => true,
         MethodKind.Operator => true,
         MethodKind.Conversion => true,
+        MethodKind.Literal => true,
         _ => false,
     };
 

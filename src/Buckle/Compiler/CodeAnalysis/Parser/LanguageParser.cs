@@ -407,8 +407,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
             var globalResetPoint = GetResetPoint();
             var type = ParseType();
 
-            if (currentToken.kind == SyntaxKind.OperatorKeyword)
+            if (currentToken.contextualKind == SyntaxKind.OperatorKeyword)
                 return ParseOperatorDeclaration(attributeLists, modifiers, type);
+
+            if (currentToken.contextualKind == SyntaxKind.LiteralKeyword)
+                return ParseLiteralOperatorDeclaration(attributeLists, modifiers, type);
 
             if (PeekIsPostReturnFunction()) {
                 return allowGlobalStatements
@@ -429,7 +432,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var returnType = ParseType();
 
         if (returnType.kind != SyntaxKind.EmptyName && !returnType.containsDiagnostics) {
-            if (currentToken.kind == SyntaxKind.OperatorKeyword)
+            if (currentToken.contextualKind == SyntaxKind.OperatorKeyword)
                 return ParseOperatorDeclaration(attributeLists, modifiers, returnType);
 
             if (PeekIsPostReturnFunction()) {
@@ -482,6 +485,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.UnionDeclaration:
             case SyntaxKind.EnumDeclaration:
             case SyntaxKind.OperatorDeclaration:
+            case SyntaxKind.LiteralOperatorDeclaration:
             case SyntaxKind.ConstructorDeclaration:
             case SyntaxKind.DestructorDeclaration:
             case SyntaxKind.NamespaceDeclaration:
@@ -911,11 +915,32 @@ internal sealed partial class LanguageParser : SyntaxParser {
         );
     }
 
+    private MemberDeclarationSyntax ParseLiteralOperatorDeclaration(
+        SyntaxList<AttributeListSyntax> attributeLists,
+        SyntaxList<SyntaxToken> modifiers,
+        TypeSyntax returnType) {
+        var literalKeyword = Match(SyntaxKind.LiteralKeyword, contextual: true);
+        var suffix = Match(SyntaxKind.IdentifierToken);
+        var parameterList = ParseParameterList();
+        var body = ParseBlockStatement();
+
+        return SyntaxFactory.LiteralOperatorDeclaration(
+            attributeLists,
+            modifiers,
+            returnType,
+            literalKeyword,
+            suffix,
+            parameterList,
+            null,
+            body
+        );
+    }
+
     private MemberDeclarationSyntax ParseOperatorDeclaration(
         SyntaxList<AttributeListSyntax> attributeLists,
         SyntaxList<SyntaxToken> modifiers,
         TypeSyntax returnType) {
-        var operatorKeyword = Match(SyntaxKind.OperatorKeyword);
+        var operatorKeyword = Match(SyntaxKind.OperatorKeyword, contextual: true);
         var operatorToken = EatToken();
         var opKind = operatorToken.kind;
 
@@ -995,7 +1020,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             contextual: true
         );
 
-        var operatorKeyword = Match(SyntaxKind.OperatorKeyword, SyntaxKind.IdentifierToken);
+        var operatorKeyword = Match(SyntaxKind.OperatorKeyword, SyntaxKind.IdentifierToken, contextual: true);
         var type = ParseType(false);
         var parameterList = ParseParameterList();
         var body = ParseBlockStatement();
@@ -2205,6 +2230,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.FalseKeyword:
             case SyntaxKind.DefaultKeyword:
             case SyntaxKind.NumericLiteralToken:
+            case SyntaxKind.ExtendedLiteralToken:
             case SyntaxKind.StringLiteralToken:
             case SyntaxKind.CStringLiteralToken:
             case SyntaxKind.CWStringLiteralToken:
@@ -2568,6 +2594,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseDefaultLiteral();
             case SyntaxKind.NumericLiteralToken:
                 return ParseNumericLiteral();
+            case SyntaxKind.ExtendedLiteralToken:
+                return ParseExtendedLiteral();
             case SyntaxKind.StringLiteralToken:
                 return ParseStringLiteral();
             case SyntaxKind.CStringLiteralToken:
@@ -3130,7 +3158,6 @@ done:
             case SyntaxKind.GreaterThanGreaterThanGreaterThanToken:
             case SyntaxKind.PeriodToken:
             case SyntaxKind.AsteriskToken:
-            case SyntaxKind.OperatorKeyword:
             case SyntaxKind.EndOfFileToken:
                 return true;
             default:
@@ -3575,6 +3602,43 @@ done:
         return SyntaxFactory.Literal(token);
     }
 
+    private ExpressionSyntax ParseExtendedLiteral() {
+        var token = Match(SyntaxKind.ExtendedLiteralToken) as SyntaxToken.SyntaxLiteralExtended;
+        var suffixLength = token.suffix.Length;
+
+        var suffix = SyntaxFactory.Token(
+            SyntaxKind.IdentifierToken,
+            token.text[^suffixLength..],
+            null,
+            null,
+            token.trailingTrivia.node
+        );
+
+        var literal = SyntaxFactory.Token(
+            token.contextualKind,
+            token.text[..^suffixLength],
+            token.value,
+            token.leadingTrivia.node,
+            null
+        );
+
+        ExtendedLiteralExpressionSyntax extended;
+
+        if (token.contextualKind == SyntaxKind.InterpolatedStringLiteralToken) {
+            var interpolatedString = ParseInterpolatedStringLiteralCore(literal);
+            extended = SyntaxFactory.ExtendedLiteralExpression(null, interpolatedString, suffix);
+        } else {
+            extended = SyntaxFactory.ExtendedLiteralExpression(literal, null, suffix);
+        }
+
+        var diagnostics = token.GetDiagnostics();
+
+        if (diagnostics is not null && diagnostics.Length > 0)
+            extended = extended.WithDiagnosticsGreen(diagnostics);
+
+        return extended;
+    }
+
     private ExpressionSyntax ParseBooleanLiteral() {
         var isTrue = currentToken.kind == SyntaxKind.TrueKeyword;
         var keyword = isTrue ? Match(SyntaxKind.TrueKeyword) : Match(SyntaxKind.FalseKeyword);
@@ -3602,7 +3666,10 @@ done:
     }
 
     private ExpressionSyntax ParseInterpolatedStringLiteral() {
-        var originalToken = EatToken();
+        return ParseInterpolatedStringLiteralCore(EatToken());
+    }
+
+    private ExpressionSyntax ParseInterpolatedStringLiteralCore(SyntaxToken originalToken) {
         var originalText = originalToken.text;
         var interpolations = _pool.Allocate<InterpolatedStringContentSyntax>();
 

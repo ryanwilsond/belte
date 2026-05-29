@@ -558,6 +558,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
                 return ((CoreInternalSyntax.FieldDeclarationSyntax)member).attributeLists.Any();
             case SyntaxKind.MethodDeclaration:
             case SyntaxKind.OperatorDeclaration:
+            case SyntaxKind.LiteralOperatorDeclaration:
             case SyntaxKind.ConstructorDeclaration:
             case SyntaxKind.DestructorDeclaration:
             case SyntaxKind.FinalizerDeclaration:
@@ -590,6 +591,11 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
                 var name = SyntaxFacts.GetOperatorMemberName(opDecl);
                 set.Add(name);
                 break;
+            case SyntaxKind.LiteralOperatorDeclaration:
+                var litOpDecl = (CoreInternalSyntax.LiteralOperatorDeclarationSyntax)member;
+                var litName = WellKnownMemberNames.GetLiteralOperatorName(litOpDecl.suffix.text);
+                set.Add(litName);
+                break;
             case SyntaxKind.EnumMemberDeclaration:
                 set.Add(((CoreInternalSyntax.EnumMemberDeclarationSyntax)member).identifier.text);
                 break;
@@ -607,6 +613,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
             case SyntaxKind.DestructorDeclaration:
             case SyntaxKind.FinalizerDeclaration:
             case SyntaxKind.OperatorDeclaration:
+            case SyntaxKind.LiteralOperatorDeclaration:
                 return true;
             case SyntaxKind.GlobalStatement:
                 return !skipGlobalStatements;

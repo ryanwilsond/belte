@@ -242,6 +242,7 @@ public static class SyntaxFacts {
             "defer" => SyntaxKind.DeferKeyword,
             "scoped" => SyntaxKind.ScopedKeyword,
             "final" => SyntaxKind.FinalKeyword,
+            "literal" => SyntaxKind.LiteralKeyword,
             "unreachable" => SyntaxKind.UnreachableKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
@@ -256,8 +257,10 @@ public static class SyntaxFacts {
             case SyntaxKind.FlagsKeyword:
             case SyntaxKind.HandleKeyword:
             case SyntaxKind.ImplicitKeyword:
+            case SyntaxKind.LiteralKeyword:
             case SyntaxKind.NotnullKeyword:
             case SyntaxKind.NoVerifyKeyword:
+            case SyntaxKind.OperatorKeyword:
             case SyntaxKind.PrimitiveKeyword:
             case SyntaxKind.UndefKeyword:
                 return true;
@@ -417,6 +420,7 @@ public static class SyntaxFacts {
             SyntaxKind.DeferKeyword => "defer",
             SyntaxKind.ScopedKeyword => "scoped",
             SyntaxKind.FinalKeyword => "final",
+            SyntaxKind.LiteralKeyword => "literal",
             SyntaxKind.UnreachableKeyword => "unreachable",
             _ => null,
         };

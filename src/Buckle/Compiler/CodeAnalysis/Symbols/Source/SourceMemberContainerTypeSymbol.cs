@@ -1701,6 +1701,21 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         builder.nonTypeMembers.Add(method);
                     }
                     break;
+                case SyntaxKind.LiteralOperatorDeclaration: {
+                        var operatorSyntax = (LiteralOperatorDeclarationSyntax)m;
+
+                        if (isImplicitClass && reportMisplacedGlobalCode)
+                            diagnostics.Push(Error.NamespaceUnexpected(operatorSyntax.literalKeyword.location));
+
+                        var method = SourceUserDefinedLiteralOperatorSymbol.CreateUserDefinedLiteralOperatorSymbol(
+                            this,
+                            operatorSyntax,
+                            diagnostics
+                        );
+
+                        builder.nonTypeMembers.Add(method);
+                    }
+                    break;
                 case SyntaxKind.ConversionDeclaration: {
                         var conversionSyntax = (ConversionDeclarationSyntax)m;
 

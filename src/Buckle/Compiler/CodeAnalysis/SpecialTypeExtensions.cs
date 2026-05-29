@@ -229,4 +229,36 @@ internal static class SpecialTypeExtensions {
 
         return false;
     }
+
+    internal static bool IsValidExtendedLiteral(this SpecialType type) {
+        switch (type) {
+            case SpecialType.Int8:
+            case SpecialType.Int16:
+            case SpecialType.Int32:
+            case SpecialType.Int64:
+            case SpecialType.Int:
+            case SpecialType.UInt8:
+            case SpecialType.UInt16:
+            case SpecialType.UInt32:
+            case SpecialType.UInt64:
+            case SpecialType.Decimal:
+            case SpecialType.Float32:
+            case SpecialType.Float64:
+            case SpecialType.String:
+            case SpecialType.Char:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    internal static bool IsValidPointerExtendedLiteral(this SpecialType type) {
+        switch (type) {
+            case SpecialType.UInt8:
+            case SpecialType.Char:
+                return true;
+            default:
+                return false;
+        }
+    }
 }

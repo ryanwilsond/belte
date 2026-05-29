@@ -5914,4 +5914,75 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0459_ExtendedLiteralNoTargetType() {
+        var text = @"
+            var a = [3s];
+        ";
+
+        var diagnostics = @"
+            there is no target type for the literal with suffix 's'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0460_NoExtendedLiteralConversion() {
+        var text = @"
+            int a = [3s];
+        ";
+
+        var diagnostics = @"
+            type 'int!' has no definition for literals of type 'int!' with the suffix 's'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0461_BadLiteralOperatorReturnType() {
+        var text = @"
+            class A {
+                public static int [literal] s(int num) { return num; }
+            }
+        ";
+
+        var diagnostics = @"
+            the return type for literal operators must match the containing type or be derived from the containing type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0462_LiteralOperatorMustHaveSingleParameter() {
+        var text = @"
+            class A {
+                public static A [literal] s() { return null; }
+            }
+        ";
+
+        var diagnostics = @"
+            literal operators must have exactly 1 parameter
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0463_BadLiteralOperatorParameterType() {
+        var text = @"
+            class A {
+                public static A [literal] s(A a) { return a; }
+            }
+        ";
+
+        var diagnostics = @"
+            literal operator parameter must be a type represented by a literal
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

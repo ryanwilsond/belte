@@ -10,6 +10,7 @@
   - [4.2.3](#423-operators) Operators
     - [4.2.3.1](#4231-operator-overloading) Operator Overloading
     - [4.2.3.2](#4232-casts) Casts
+    - [4.2.3.3](#4233-user-defined-literals) User-Defined Literals
 - [4.3](#43-modifiers) Modifiers
   - [4.3.1](#431-accessibility-modifiers) Accessibility Modifiers
   - [4.3.2](#432-overriding-modifiers) Overriding Modifiers
@@ -283,6 +284,63 @@ A a = (A)3;
 
 ```belte
 int a = new A();
+```
+
+#### 4.2.3.3 User-Defined Literals
+
+Similar to [user-defined casts](#4232-casts), custom literal suffixes can be defined:
+
+```belte
+struct Time {
+  int milliseconds;
+
+  constructor(int milliseconds) {
+    this.milliseconds = milliseconds;
+  }
+
+  static Time literal ms(int milliseconds) {
+    return new Time(milliseconds);
+  }
+
+  static Time literal s(int seconds) {
+    return new Time(seconds * 1000);
+  }
+}
+```
+
+A custom literal conversion is a public static method that returns the containing type, uses the `literal` keyword, and
+whose name is the desired literal suffix. Literal methods must have exactly 1 parameter. The parameter type must be a
+type represented by a literal: this includes all numeric types, `char`, and `string`. `uint8*` and `char*` are also
+valid because of [c-string literals](LowLevelFeatures.md#614-c-strings).
+
+With the above struct definition, the following can be done:
+
+```belte
+Time myTime = 3s; // myTime.milliseconds = 3000
+Time myOtherTime = 30ms; // myOtherTime.milliseconds = 30
+```
+
+Another example:
+
+```belte
+Sleep(500ms);
+
+void Sleep(Time time) { /* ... */ }
+```
+
+Prefixed strings (interpolated and c-strings) also support suffixes:
+
+```belte
+var myNum = 10;
+A myA = f"num is {myNum}"a; // myA.str = "num is 10A"
+
+class A {
+  public string str = "";
+
+  public static A literal a(string str) {
+    return new A()..str = (str + "A");
+  }
+}
 ```
 
 ## 4.3 Modifiers

@@ -151,6 +151,10 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
         Visit(node.body);
     }
 
+    internal override void VisitLiteralOperatorDeclaration(LiteralOperatorDeclarationSyntax node) {
+        Visit(node.body);
+    }
+
     internal override void VisitCallExpression(CallExpressionSyntax node) {
         if (ReceiverIsInvocation(node, out var nested)) {
             var invocations = ArrayBuilder<CallExpressionSyntax>.GetInstance();

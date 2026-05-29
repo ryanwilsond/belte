@@ -361,6 +361,7 @@ internal abstract partial class BoundTreeExpander {
 
         return expression.kind switch {
             BoundKind.LiteralExpression => ExpandLiteralExpression((BoundLiteralExpression)expression, out replacement, useKind),
+            BoundKind.UnconvertedExtendedLiteralExpression => ExpandUnconvertedExtendedLiteralExpression((BoundUnconvertedExtendedLiteralExpression)expression, out replacement, useKind),
             BoundKind.CStringLiteral => ExpandCStringLiteral((BoundCStringLiteral)expression, out replacement, useKind),
             BoundKind.DefaultExpression => ExpandDefaultExpression((BoundDefaultExpression)expression, out replacement, useKind),
             BoundKind.InitializerList => ExpandInitializerList((BoundInitializerList)expression, out replacement, useKind),
@@ -830,6 +831,14 @@ internal abstract partial class BoundTreeExpander {
 
     private protected virtual List<BoundStatement> ExpandLiteralExpression(
         BoundLiteralExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandUnconvertedExtendedLiteralExpression(
+        BoundUnconvertedExtendedLiteralExpression expression,
         out BoundExpression replacement,
         UseKind useKind) {
         replacement = expression;

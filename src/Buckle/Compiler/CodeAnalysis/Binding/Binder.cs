@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.CodeGeneration;
@@ -1591,6 +1592,12 @@ internal partial class Binder {
 
                 result = new BoundLiteralExpression(expression.syntax, null, CreateErrorType());
                 break;
+            case BoundUnconvertedExtendedLiteralExpression extended:
+                if (reportNoTargetType && !expression.hasAnyErrors)
+                    diagnostics.Push(Error.ExtendedLiteralNoTargetType(expression.syntax.location, extended.suffix));
+
+                result = ErrorExpression(expression.syntax, expression);
+                break;
             case BoundUnconvertedConditionalOperator op: {
                     var type = op.type;
                     var hasErrors = op.hasErrors;
@@ -3177,6 +3184,8 @@ internal partial class Binder {
         switch (node.kind) {
             case SyntaxKind.LiteralExpression:
                 return BindLiteralExpression((LiteralExpressionSyntax)node, diagnostics);
+            case SyntaxKind.ExtendedLiteralExpression:
+                return BindExtendedLiteralExpression((ExtendedLiteralExpressionSyntax)node, diagnostics);
             case SyntaxKind.ThisExpression:
                 return BindThisExpression((ThisExpressionSyntax)node, diagnostics);
             case SyntaxKind.BaseExpression:
@@ -8211,10 +8220,25 @@ internal partial class Binder {
     private BoundExpression BindLiteralExpression(
         LiteralExpressionSyntax node,
         BelteDiagnosticQueue diagnostics) {
-        var value = node.token.value;
+        return BindLiteral(node, node.token);
+    }
+
+    private BoundExpression BindExtendedLiteralExpression(
+        ExtendedLiteralExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        var literal = node.token is not null
+            ? BindLiteral(node, node.token)
+            : BindExpression(node.expression, diagnostics);
+
+        return new BoundUnconvertedExtendedLiteralExpression(node, node.suffix.text, literal, literal.type);
+    }
+
+    private BoundExpression BindLiteral(SyntaxNode node, SyntaxToken literalToken) {
+        var value = literalToken.value;
+        var kind = literalToken.kind;
 
         if (value is null) {
-            switch (node.token.kind) {
+            switch (kind) {
                 case SyntaxKind.NullKeyword:
                     return new BoundLiteralExpression(node, new ConstantValue(null, SpecialType.None), null);
                 case SyntaxKind.NullptrKeyword:
@@ -8222,20 +8246,20 @@ internal partial class Binder {
                 case SyntaxKind.DefaultKeyword:
                     return new BoundDefaultLiteral(node);
                 default:
-                    throw ExceptionUtilities.UnexpectedValue(node.token.kind);
+                    throw ExceptionUtilities.UnexpectedValue(kind);
             }
         }
 
         var specialType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(value);
         var constantValue = new ConstantValue(value, specialType);
 
-        if (node.token.kind == SyntaxKind.CStringLiteralToken) {
+        if (kind == SyntaxKind.CStringLiteralToken) {
             var pointerType = new PointerTypeSymbol(
                 new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.UInt8))
             );
 
             return new BoundCStringLiteral(node, isWide: false, constantValue, pointerType);
-        } else if (node.token.kind == SyntaxKind.CWStringLiteralToken) {
+        } else if (kind == SyntaxKind.CWStringLiteralToken) {
             var pointerType = new PointerTypeSymbol(
                 new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Char))
             );
@@ -13945,19 +13969,22 @@ symIsHidden:;
               ((flags & ConversionForAssignmentFlags.CompoundAssignment) == 0
                 ? !collapsedConversion.isImplicit
                 : (collapsedConversion.isExplicit && ((flags & ConversionForAssignmentFlags.PredefinedOperator) == 0)))) {
-                if ((flags & ConversionForAssignmentFlags.DefaultParameter) == 0) {
-                    GenerateImplicitConversionError(
-                        diagnostics,
-                        expression.syntax,
-                        collapsedConversion,
-                        expression,
-                        targetType
-                    );
-                }
+                if (expression.kind != BoundKind.UnconvertedExtendedLiteralExpression) {
 
-                // Implicit enum field errors are handled separately
-                if (expression.kind != BoundKind.UnconvertedImplicitEnumFieldExpression)
-                    diagnostics = BelteDiagnosticQueue.Discarded;
+                    if ((flags & ConversionForAssignmentFlags.DefaultParameter) == 0) {
+                        GenerateImplicitConversionError(
+                            diagnostics,
+                            expression.syntax,
+                            collapsedConversion,
+                            expression,
+                            targetType
+                        );
+                    }
+
+                    // Implicit enum field errors are handled separately
+                    if (expression.kind != BoundKind.UnconvertedImplicitEnumFieldExpression)
+                        diagnostics = BelteDiagnosticQueue.Discarded;
+                }
             }
         }
 
@@ -14174,62 +14201,75 @@ symIsHidden:;
         TypeSymbol destination,
         BelteDiagnosticQueue diagnostics,
         bool hasErrors = false) {
-        if (source.kind == BoundKind.UnconvertedInitializerList) {
-            var listExpression = ConvertListExpression(
-                (BoundUnconvertedInitializerList)source,
-                destination,
-                conversion,
-                diagnostics
-            );
+        switch (source.kind) {
+            case BoundKind.UnconvertedInitializerList:
+                var listExpression = ConvertListExpression(
+                    (BoundUnconvertedInitializerList)source,
+                    destination,
+                    conversion,
+                    diagnostics
+                );
 
-            return new BoundCastExpression(
-                node,
-                listExpression,
-                conversion,
-                null,
-                destination,
-                hasErrors
-            );
-        }
+                return new BoundCastExpression(
+                    node,
+                    listExpression,
+                    conversion,
+                    null,
+                    destination,
+                    hasErrors
+                );
+            case BoundKind.UnconvertedNullptrExpression:
+                var ptrExpression = ConvertNullptrExpression(
+                    (BoundUnconvertedNullptrExpression)source,
+                    destination,
+                    conversion,
+                    diagnostics
+                );
 
-        if (source.kind == BoundKind.UnconvertedNullptrExpression) {
-            var ptrExpression = ConvertNullptrExpression(
-                (BoundUnconvertedNullptrExpression)source,
-                destination,
-                conversion,
-                diagnostics
-            );
+                return new BoundCastExpression(
+                    node,
+                    ptrExpression,
+                    conversion,
+                    null,
+                    destination,
+                    hasErrors
+                );
+            case BoundKind.UnconvertedImplicitEnumFieldExpression:
+                var fieldExpression = ConvertImplicitEnumFieldExpression(
+                    (BoundUnconvertedImplicitEnumFieldExpression)source,
+                    destination,
+                    conversion,
+                    diagnostics
+                );
 
-            return new BoundCastExpression(
-                node,
-                ptrExpression,
-                conversion,
-                null,
-                destination,
-                hasErrors
-            );
-        }
+                return new BoundCastExpression(
+                    node,
+                    fieldExpression,
+                    conversion,
+                    fieldExpression.constantValue,
+                    destination,
+                    hasErrors
+                );
+            case BoundKind.UnconvertedExtendedLiteralExpression:
+                var literalCreation = ConvertExtendedLiteralExpression(
+                    (BoundUnconvertedExtendedLiteralExpression)source,
+                    destination,
+                    conversion,
+                    diagnostics
+                );
 
-        if (source.kind == BoundKind.UnconvertedImplicitEnumFieldExpression) {
-            var fieldExpression = ConvertImplicitEnumFieldExpression(
-                (BoundUnconvertedImplicitEnumFieldExpression)source,
-                destination,
-                conversion,
-                diagnostics
-            );
-
-            return new BoundCastExpression(
-                node,
-                fieldExpression,
-                conversion,
-                fieldExpression.constantValue,
-                destination,
-                hasErrors
-            );
+                return new BoundCastExpression(
+                    node,
+                    literalCreation,
+                    conversion,
+                    null,
+                    destination,
+                    hasErrors
+                );
         }
 
         if (conversion.kind == ConversionKind.ObjectCreation) {
-            var objectCreaiton = ConvertObjectCreationExpression(
+            var objectCreation = ConvertObjectCreationExpression(
                 (BoundUnconvertedObjectCreationExpression)source,
                 destination,
                 conversion,
@@ -14238,7 +14278,7 @@ symIsHidden:;
 
             return new BoundCastExpression(
                 node,
-                objectCreaiton,
+                objectCreation,
                 conversion,
                 null,
                 destination,
@@ -14385,6 +14425,189 @@ symIsHidden:;
                 default:
                     throw ExceptionUtilities.UnexpectedValue(type.typeKind);
             }
+        }
+    }
+
+    private BoundExpression ConvertExtendedLiteralExpression(
+        BoundUnconvertedExtendedLiteralExpression node,
+        TypeSymbol destination,
+        Conversion conversion,
+        BelteDiagnosticQueue diagnostics) {
+        if (conversion.method is not null)
+            return node.literal;
+
+        var candidates = GetExtendedLiteralCandidates(
+            node,
+            destination,
+            out var analyzedArguments,
+            out var memberGroup
+        );
+
+        var name = WellKnownMemberNames.GetLiteralOperatorName(node.suffix);
+
+        if (candidates.results.Length == 0) {
+            diagnostics.Push(Error.NoExtendedLiteralConversion(
+                node.syntax.location,
+                destination,
+                node.literal.type,
+                node.suffix
+            ));
+
+            return ErrorExpression(node.syntax, node);
+        }
+
+        if (!candidates.succeeded) {
+            candidates.ReportDiagnostics(
+                binder: this,
+                location: node.syntax.location,
+                node: node.syntax,
+                diagnostics,
+                name: name,
+                receiver: null,
+                invokedExpression: null,
+                analyzedArguments,
+                memberGroup: memberGroup,
+                null
+            );
+
+            return CreateErrorCall(
+                node: node.syntax,
+                name: name,
+                receiver: null,
+                methods: memberGroup,
+                resultKind: LookupResultKind.OverloadResolutionFailure,
+                templateArguments: [],
+                analyzedArguments: analyzedArguments
+            );
+        }
+
+        var memberResult = candidates.bestResult;
+
+        CheckAndCoerceArguments(
+            node.syntax,
+            memberResult,
+            analyzedArguments,
+            diagnostics,
+            null,
+            out var argsToParams
+        );
+
+        Debug.Assert(destination.Equals(memberResult.member.returnType));
+
+        var arguments = analyzedArguments.arguments.Select(a => a.expression).ToImmutableArray();
+        var refKinds = analyzedArguments.refKinds.ToImmutableAndFree();
+
+        analyzedArguments.Free();
+
+        return new BoundCallExpression(
+            node.syntax,
+            null,
+            memberResult.member,
+            arguments,
+            refKinds,
+            default,
+            LookupResultKind.Viable,
+            destination
+        );
+    }
+
+    internal OverloadResolutionResult<MethodSymbol> GetExtendedLiteralCandidates(
+        BoundUnconvertedExtendedLiteralExpression node,
+        TypeSymbol destination,
+        out AnalyzedArguments analyzedArguments,
+        out ImmutableArray<MethodSymbol> memberGroup) {
+        // TODO This should probably be moved to OverloadResolution
+        var strippedType = destination.StrippedType();
+        var result = OverloadResolutionResult<MethodSymbol>.GetInstance();
+
+        if (OperatorFacts.NoUserDefinedOperators(strippedType)) {
+            memberGroup = [];
+            analyzedArguments = null;
+            return result;
+        }
+
+        TypeSymbol constrainedToTypeOpt = strippedType as TemplateParameterSymbol;
+        var operators = ArrayBuilder<MethodSymbol>.GetInstance();
+
+        if (strippedType is not NamedTypeSymbol current)
+            current = strippedType.baseType;
+
+        if (current is null && strippedType.IsTemplateParameter())
+            current = ((TemplateParameterSymbol)strippedType).effectiveBaseClass;
+
+        var name = WellKnownMemberNames.GetLiteralOperatorName(node.suffix);
+        var hadApplicableCandidates = false;
+
+        for (; current is not null; current = current.baseType) {
+            operators.Clear();
+            GetDeclaredOperators(constrainedToTypeOpt, current, name, operators);
+
+            if (HasCandidateOperators(operators, node.literal)) {
+                hadApplicableCandidates = true;
+                break;
+            }
+        }
+
+        memberGroup = operators.ToImmutable();
+
+        if (!hadApplicableCandidates) {
+            analyzedArguments = null;
+            return result;
+        }
+
+        analyzedArguments = AnalyzedArguments.GetInstance(
+            [new BoundExpressionOrTypeOrConstant(node.literal)],
+            [false],
+            [node.literal.syntax],
+            [node.literal.type],
+            [RefKind.None],
+            []
+        );
+
+        overloadResolution.MethodOverloadResolution(
+            operators,
+            [],
+            null,
+            analyzedArguments,
+            result
+        );
+
+        return result;
+
+        static void GetDeclaredOperators(
+            TypeSymbol constrainedToTypeOpt,
+            NamedTypeSymbol type,
+            string name,
+            ArrayBuilder<MethodSymbol> operators) {
+            var typeOperators = ArrayBuilder<MethodSymbol>.GetInstance();
+            type.AddLiteralOperators(name, typeOperators);
+
+            foreach (var op in typeOperators) {
+                if (op.parameterCount != 1 || op.returnsVoid)
+                    continue;
+
+                operators.Add(op);
+            }
+
+            typeOperators.Free();
+        }
+
+        bool HasCandidateOperators(ArrayBuilder<MethodSymbol> operators, BoundExpression expression) {
+            var hadApplicableCandidate = false;
+
+            foreach (var op in operators) {
+                var conversion = conversions.ClassifyConversionFromExpression(
+                    expression,
+                    op.parameterTypesWithAnnotations[0].type
+                );
+
+                if (conversion.isImplicit) {
+                    hadApplicableCandidate = true;
+                    break;
+                }
+            }
+
+            return hadApplicableCandidate;
         }
     }
 

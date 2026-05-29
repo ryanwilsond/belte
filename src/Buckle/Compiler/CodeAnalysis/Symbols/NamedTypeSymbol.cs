@@ -142,6 +142,18 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
         }
     }
 
+    internal void AddLiteralOperators(string name, ArrayBuilder<MethodSymbol> operators) {
+        var candidates = GetSimpleNonTypeMembers(name);
+
+        if (candidates.IsEmpty)
+            return;
+
+        foreach (var candidate in candidates) {
+            if (candidate is MethodSymbol { methodKind: MethodKind.Literal } method)
+                operators.Add(method);
+        }
+    }
+
     internal new TemplateParameterSymbol FindEnclosingTemplateParameter(string name) {
         var allTemplateParameters = ArrayBuilder<TemplateParameterSymbol>.GetInstance();
         GetAllTypeParameters(allTemplateParameters);
