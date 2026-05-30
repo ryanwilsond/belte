@@ -2346,6 +2346,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_VoidInTuple, location, message);
     }
 
+    internal static BelteDiagnostic InvalidPackedAlignment(TextLocation location) {
+        var message = $"struct pack alignment must be 1, 2, 4, 8, 16, 32, 64, or 128";
+        return CreateError(DiagnosticCode.ERR_InvalidPackedAlignment, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

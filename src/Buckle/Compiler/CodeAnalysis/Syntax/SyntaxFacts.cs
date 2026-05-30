@@ -243,6 +243,7 @@ public static class SyntaxFacts {
             "scoped" => SyntaxKind.ScopedKeyword,
             "final" => SyntaxKind.FinalKeyword,
             "literal" => SyntaxKind.LiteralKeyword,
+            "packed" => SyntaxKind.PackedKeyword,
             "unreachable" => SyntaxKind.UnreachableKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
@@ -261,6 +262,7 @@ public static class SyntaxFacts {
             case SyntaxKind.NotnullKeyword:
             case SyntaxKind.NoVerifyKeyword:
             case SyntaxKind.OperatorKeyword:
+            case SyntaxKind.PackedKeyword:
             case SyntaxKind.PrimitiveKeyword:
             case SyntaxKind.UndefKeyword:
                 return true;
@@ -421,6 +423,7 @@ public static class SyntaxFacts {
             SyntaxKind.ScopedKeyword => "scoped",
             SyntaxKind.FinalKeyword => "final",
             SyntaxKind.LiteralKeyword => "literal",
+            SyntaxKind.PackedKeyword => "packed",
             SyntaxKind.UnreachableKeyword => "unreachable",
             _ => null,
         };

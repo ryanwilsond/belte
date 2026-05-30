@@ -155,6 +155,7 @@
   - [6](Current/LowLevelFeatures.md) Low-Level Features
     - [6.1](Current/LowLevelFeatures.md#61-low-level-contexts) Low-Level Contexts
     - [6.2](Current/LowLevelFeatures.md#62-structs) Structs
+      - [6.2.1](Current/LowLevelFeatures.md#621-packing) Packing
     - [6.3](Current/LowLevelFeatures.md#63-arrays) Arrays
     - [6.4](Current/LowLevelFeatures.md#64-numerics) Numerics
       - [6.4.1](Current/LowLevelFeatures.md#641-bit-casts) Bit Casts

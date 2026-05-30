@@ -875,6 +875,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             GetBaseType(type)
         );
 
+        if (type.explicitAlignment is not null)
+            typeDefinition.PackingSize = (short)type.explicitAlignment;
+
         if (type.enumFlagsAttribute) {
             var flagsCtor = _assemblyDefinition.MainModule.ImportReferenceThreadSafe(
                 typeof(FlagsAttribute).GetConstructor(Type.EmptyTypes)

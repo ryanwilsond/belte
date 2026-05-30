@@ -631,6 +631,7 @@ internal sealed class Evaluator {
         if (!_program.TryGetTypeLayoutIncludingParents(namedType, out var layout))
             throw new BelteInternalException($"Failed to get type layout ({namedType}).");
 
+        var typeAlignment = namedType.explicitAlignment ?? PointerSize;
         var fields = layout.LocalsInOrder();
         var size = 0;
 
@@ -649,7 +650,7 @@ internal sealed class Evaluator {
                     continue;
 
                 var fieldSize = GetSizeOf(field.type).int32;
-                var fieldAlignment = Math.Min(fieldSize, PointerSize);
+                var fieldAlignment = Math.Min(fieldSize, typeAlignment);
 
                 alignment = Math.Max(alignment, fieldAlignment);
                 size = Align(size, fieldAlignment);

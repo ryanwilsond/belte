@@ -247,6 +247,14 @@ public static class SymbolDisplay {
                 text.Write(CreateKeyword(SyntaxKind.FlagsKeyword));
                 text.Write(CreateSpace());
             }
+
+            if (namedType.explicitAlignment is not null) {
+                text.Write(CreateKeyword(SyntaxKind.PackedKeyword));
+                text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+                text.Write(CreateLiteral(DisplayText.FormatLiteral(namedType.explicitAlignment)));
+                text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+                text.Write(CreateSpace());
+            }
         }
 
         DisplayContainedNames(text, namedType, format);

@@ -170,6 +170,7 @@ public enum SyntaxKind : ushort {
     UnreachableKeyword,
     ScopedKeyword,
     FinalKeyword,
+    PackedKeyword,
     HandleKeyword,
 
     // Trivia
@@ -283,6 +284,7 @@ public enum SyntaxKind : ushort {
     VariableDeclaration,
     EqualsValueClause,
     StructDeclaration,
+    PackedArgument,
     ClassDeclaration,
     FileScopedClassDeclaration,
     UnionDeclaration,

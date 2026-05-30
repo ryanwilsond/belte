@@ -90,6 +90,8 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
 
     internal virtual bool knownCircularStruct => false;
 
+    internal virtual int? explicitAlignment => null;
+
     internal virtual bool isImplicitClass => false;
 
     internal override void Accept(SymbolVisitor visitor) {

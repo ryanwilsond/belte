@@ -929,7 +929,8 @@ internal sealed partial class Executor : ModuleBuilder {
         var typeBuilder = _moduleBuilder.DefineType(
             GetTypeName(type, false),
             GetTypeAttributes(type, false),
-            GetBaseType(type)
+            GetBaseType(type),
+            GetPackSize(type)
         );
 
         _types.Add(type.originalDefinition, typeBuilder);
@@ -952,6 +953,13 @@ internal sealed partial class Executor : ModuleBuilder {
             return typeof(Enum);
 
         return GetType(type.baseType);
+    }
+
+    private static PackingSize GetPackSize(NamedTypeSymbol type) {
+        if (type.explicitAlignment is null)
+            return PackingSize.Unspecified;
+
+        return (PackingSize)type.explicitAlignment.Value;
     }
 
     private void CreateNestedTypes(NamedTypeSymbol type, TypeBuilder typeBuilder, string[] workingParams) {
@@ -982,7 +990,8 @@ internal sealed partial class Executor : ModuleBuilder {
                 var nestedBuilder = typeBuilder.DefineNestedType(
                     GetTypeName(nestedType, true),
                     GetTypeAttributes(nestedType, true),
-                    GetBaseType(nestedType)
+                    GetBaseType(nestedType),
+                    GetPackSize(type)
                 );
 
                 workingParams = workingParams.Concat(nestedType.templateParameters.Select(t => t.name)).ToArray();

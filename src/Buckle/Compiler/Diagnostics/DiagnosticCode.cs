@@ -476,6 +476,8 @@ public enum DiagnosticCode : ushort {
     ERR_VoidInTuple = 465,
     WRN_StructInefficiencyCache = 466,
     WRN_StructInefficiencyPadding = 467,
+    INF_StructInefficiency = 468,
+    ERR_InvalidPackedAlignment = 469,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

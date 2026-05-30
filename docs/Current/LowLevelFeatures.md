@@ -7,6 +7,7 @@ This may change.
 
 - [6.1](#61-low-level-contexts) Low-Level Contexts
 - [6.2](#62-structs) Structs
+  - [6.2.1](#621-packing) Packing
 - [6.3](#63-arrays) Arrays
 - [6.4](#64-numerics) Numerics
   - [6.4.1](#641-bit-casts) Bit Casts
@@ -55,6 +56,58 @@ can use low-level exclusive features.
 
 Structs may be restricted to [lowlevel contexts](#61-low-level-contexts) in the
 future.
+
+### 6.2.1 Packing
+
+A struct's packing size is it's maximum alignment. Without an explicit packing
+size, a struct's packing size is typically the machine's word size (8 bytes on
+64-bit machines). The `packed` keyword can be used to set the struct's packing
+size to 1 byte (i.e. no padding between fields).
+
+```belte
+// Total size: 24 bytes
+struct A {
+  int8 a;   // Offset 0
+  int64 b;  // Offset 8
+  int8 c;   // Offset 16
+}
+```
+
+```belte
+// Total size: 10 bytes
+struct packed A {
+  int8 a;   // Offset 0
+  int64 b;  // Offset 1
+  int8 c;   // Offset 9
+}
+```
+
+An explicit packing size of 1, 2, 4, 8, 16, 32, 64, or 128 can be specified:
+
+```belte
+// Total size: 12 bytes
+struct packed(2) A {
+  int8 a;   // Offset 0
+  int64 b;  // Offset 2
+  int8 c;   // Offset 10
+}
+```
+
+If the natural alignment of the struct is below the packing size, it will stay
+at the natural alignment. Consider the following example:
+
+```belte
+// Total size: 12 bytes
+struct packed(64) A {
+  int8 a;   // Offset 0
+  int32 b;  // Offset 4
+  int8 c;   // Offset 8
+}
+```
+
+In the above example, the struct's natural alignment is 4 bytes, and because
+that is less that the specified packing size, the struct's actual alignment
+will stay at 4 bytes.
 
 ## 6.3 Arrays
 

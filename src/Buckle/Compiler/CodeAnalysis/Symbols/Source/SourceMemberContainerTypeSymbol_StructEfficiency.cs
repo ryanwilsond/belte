@@ -12,18 +12,14 @@ internal partial class SourceMemberContainerTypeSymbol {
     private const int PointerSize = 8;
     private const int CacheLineSize = 64;
 
-    private struct LayoutUnit {
-        internal ImmutableArray<Symbol> members;
-        internal int size;
-        internal int alignment;
-        internal int originalIndex;
-    }
+    private int _typeAlignment => explicitAlignment ?? PointerSize;
 
     private void CheckStructLayoutEfficiency(BelteDiagnosticQueue diagnostics) {
         if (!IsStructType() ||
             declaringCompilation.options.optimizationLevel != OptimizationLevel.Release ||
             isUnionStruct ||
-            knownCircularStruct) {
+            knownCircularStruct ||
+            _typeAlignment == 1) {
             return;
         }
 
@@ -41,8 +37,10 @@ internal partial class SourceMemberContainerTypeSymbol {
         if (avoidablePadding == 0)
             return;
 
-        if (actualSize <= 16)
+        if (actualSize <= 16) {
+            diagnostics.Push(Info.StructInefficiency(location, actualSize, optimalSize));
             return;
+        }
 
         // TODO These are just guesses, could probably tune what warrants a warning more
         var causesExtraCacheRead = ((actualSize - 1) / CacheLineSize) != ((optimalSize - 1) / CacheLineSize);
@@ -52,6 +50,8 @@ internal partial class SourceMemberContainerTypeSymbol {
             diagnostics.Push(Warning.StructInefficiencyCache(location, actualSize, optimalSize));
         else if (shouldWarn)
             diagnostics.Push(Warning.StructInefficiencyPadding(location, actualSize, optimalSize));
+        else
+            diagnostics.Push(Info.StructInefficiency(location, actualSize, optimalSize));
     }
 
     private static ImmutableArray<Symbol> GetOptimalFieldLayout(NamedTypeSymbol type) {
@@ -237,7 +237,13 @@ internal partial class SourceMemberContainerTypeSymbol {
                         );
 
                         sizeWithoutPadding += unionSizeWithoutPadding;
-                        UpdateSizeAndAlignment(ref size, ref alignment, unionSize, unionAlignment);
+
+                        UpdateSizeAndAlignment(
+                            ref size,
+                            ref alignment,
+                            unionSize,
+                            GetEffectiveAlignment(unionAlignment)
+                        );
                     }
 
                     continue;
@@ -246,13 +252,13 @@ internal partial class SourceMemberContainerTypeSymbol {
                 if (f.isFixedSizeBuffer) {
                     var bufferSize = GetFixedSizeBufferSize((SourceFixedFieldSymbol)f, out var bufferAlignment);
                     sizeWithoutPadding += bufferSize;
-                    UpdateSizeAndAlignment(ref size, ref alignment, bufferSize, bufferAlignment);
+                    UpdateSizeAndAlignment(ref size, ref alignment, bufferSize, GetEffectiveAlignment(bufferAlignment));
                     continue;
                 }
 
                 var fieldSize = GetTypeSize(f.type, out var fieldAlignment);
                 sizeWithoutPadding += fieldSize;
-                UpdateSizeAndAlignment(ref size, ref alignment, fieldSize, fieldAlignment);
+                UpdateSizeAndAlignment(ref size, ref alignment, fieldSize, GetEffectiveAlignment(fieldAlignment));
             }
         }
 
@@ -261,6 +267,13 @@ internal partial class SourceMemberContainerTypeSymbol {
         sizeWithoutPadding = Math.Max(sizeWithoutPadding, 1);
 
         return size;
+
+        int GetEffectiveAlignment(int naturalAlignment) {
+            if (type is SourceMemberContainerTypeSymbol memberContainer)
+                return Math.Min(naturalAlignment, memberContainer._typeAlignment);
+
+            return naturalAlignment;
+        }
 
         static void UpdateSizeAndAlignment(ref int size, ref int alignment, int fieldSize, int fieldAlignment) {
             alignment = Math.Max(alignment, fieldAlignment);

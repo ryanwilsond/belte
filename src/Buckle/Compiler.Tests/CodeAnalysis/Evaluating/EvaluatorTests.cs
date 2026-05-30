@@ -1290,6 +1290,17 @@ public sealed class EvaluatorTests {
     [InlineData("struct A { int8 b; } return sizeof(A);", 1)]
     [InlineData("union A { int8 b; } return sizeof(A);", 1)]
     [InlineData("struct A { } return sizeof(A);", 1)]
+    // Struct Packing
+    [InlineData("struct A { int8 a; int64 b; int8 c; } return sizeof(A);", 24)]
+    [InlineData("struct packed A { int8 a; int64 b; int8 c; } return sizeof(A);", 10)]
+    [InlineData("struct packed(1) A { int8 a; int64 b; int8 c; } return sizeof(A);", 10)]
+    [InlineData("struct packed(2) A { int8 a; int64 b; int8 c; } return sizeof(A);", 12)]
+    [InlineData("struct packed(4) A { int8 a; int64 b; int8 c; } return sizeof(A);", 16)]
+    [InlineData("struct packed(8) A { int8 a; int64 b; int8 c; } return sizeof(A);", 24)]
+    [InlineData("struct packed(16) A { int8 a; int64 b; int8 c; } return sizeof(A);", 24)]
+    [InlineData("struct packed(32) A { int8 a; int64 b; int8 c; } return sizeof(A);", 24)]
+    [InlineData("struct packed(64) A { int8 a; int64 b; int8 c; } return sizeof(A);", 24)]
+    [InlineData("struct packed(128) A { int8 a; int64 b; int8 c; } return sizeof(A);", 24)]
     public void EvaluatorOnly_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue, evaluator: true, executor: false);
     }

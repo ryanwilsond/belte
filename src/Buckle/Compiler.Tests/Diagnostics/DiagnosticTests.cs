@@ -6071,4 +6071,20 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer, true);
     }
+
+    // ! Info_BU0470_StructInefficiency
+    // ? We don't have a way to test info severity diagnostics yet
+
+    [Fact]
+    public void Reports_Error_BU0469_InvalidPackedAlignment() {
+        var text = @"
+            struct packed([3]) A { }
+        ";
+
+        var diagnostics = @"
+            struct pack alignment must be 1, 2, 4, 8, 16, 32, 64, or 128
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
 }

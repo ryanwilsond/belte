@@ -9,6 +9,7 @@ using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -101,6 +102,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
         enumFlagsAttribute = syntaxReference.node is EnumDeclarationSyntax e && e.flagsKeyword is not null;
 
+        if (syntaxReference.node is StructDeclarationSyntax s && s.packedArgument is not null)
+            explicitAlignment = MakeExplicitAlignment(s.packedArgument, diagnostics);
+
         isFileScoped = declaration.syntaxReferences[0].node.kind == SyntaxKind.FileScopedClassDeclaration;
     }
 
@@ -140,6 +144,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     internal sealed override bool isRefLikeType => HasFlag(DeclarationModifiers.Ref);
 
     internal override bool enumFlagsAttribute { get; }
+
+    internal override int? explicitAlignment { get; }
 
     internal bool anyMemberHasAttributes {
         get {
@@ -1904,6 +1910,33 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 static siblings => siblings.Any(static initializer => !initializer.field.isConstExpr)
             );
         }
+    }
+
+    private static int? MakeExplicitAlignment(PackedArgumentSyntax packedArgument, BelteDiagnosticQueue diagnostics) {
+        if (packedArgument.alignment is null)
+            return 1;
+
+        var alignmentValue = packedArgument.alignment.value;
+        var alignmentType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(alignmentValue);
+
+        if (!LiteralUtilities.TrySpecialCastCore(alignmentValue, alignmentType, SpecialType.Int, out var result)) {
+            diagnostics.Push(
+                Error.CannotConvertConstantValue(
+                    packedArgument.alignment.location,
+                    result,
+                    CorLibrary.GetSpecialType(SpecialType.Int)
+                )
+            );
+        } else {
+            var alignment = (long)result;
+
+            if (alignment is 1 or 2 or 4 or 8 or 16 or 32 or 64 or 128)
+                return (int)alignment;
+
+            diagnostics.Push(Error.InvalidPackedAlignment(packedArgument.alignment.location));
+        }
+
+        return null;
     }
 
     private DeclarationModifiers MakeModifiers(BelteDiagnosticQueue diagnostics) {

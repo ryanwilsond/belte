@@ -547,6 +547,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         SyntaxList<AttributeListSyntax> attributeLists,
         SyntaxList<SyntaxToken> modifiers) {
         var keyword = EatToken();
+        var packedArgument = ParsePackedArgument();
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenBraceToken);
         var templateParameterList = currentToken.kind == SyntaxKind.LessThanToken
             ? ParseTemplateParameterList()
@@ -566,6 +567,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             attributeLists,
             modifiers,
             keyword,
+            packedArgument,
             identifier,
             templateParameterList,
             constraintClauseList,
@@ -573,6 +575,24 @@ internal sealed partial class LanguageParser : SyntaxParser {
             members,
             closeBrace
         );
+    }
+
+    private PackedArgumentSyntax ParsePackedArgument() {
+        if (currentToken.contextualKind != SyntaxKind.PackedKeyword)
+            return null;
+
+        var keyword = ConvertToKeyword(EatToken());
+        SyntaxToken openParenthesis = null;
+        SyntaxToken alignment = null;
+        SyntaxToken closeParenthesis = null;
+
+        if (currentToken.kind == SyntaxKind.OpenParenToken) {
+            openParenthesis = EatToken();
+            alignment = Match(SyntaxKind.NumericLiteralToken, SyntaxKind.CloseParenToken);
+            closeParenthesis = Match(SyntaxKind.CloseParenToken, SyntaxKind.IdentifierToken);
+        }
+
+        return SyntaxFactory.PackedArgument(keyword, openParenthesis, alignment, closeParenthesis);
     }
 
     private MemberDeclarationSyntax ParseUnionDeclaration(

@@ -631,6 +631,7 @@
     <Field Name="keyword" Type="SyntaxToken" Override="true">
       <Kind Name="StructKeyword"/>
     </Field>
+    <Field Name="packedArgument" Type="PackedArgumentSyntax" Optional="true"/>
     <Field Name="identifier" Type="SyntaxToken" Override="true">
       <Kind Name="IdentifierToken"/>
     </Field>
@@ -642,6 +643,21 @@
     <Field Name="members" Type="SyntaxList&lt;MemberDeclarationSyntax&gt;" Override="true"/>
     <Field Name="closeBrace" Type="SyntaxToken" Override="true">
       <Kind Name="CloseBraceToken"/>
+    </Field>
+  </Node>
+  <Node Name="PackedArgumentSyntax" Base="SyntaxNode">
+    <Kind Name="PackedArgument"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="PackedKeyword"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken" Optional="true">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="alignment" Type="SyntaxToken" Optional="true">
+      <Field Name="NumericLiteralToken"/>
+    </Field>
+    <Field Name="closeParenthesis" Type="SyntaxToken" Optional="true">
+      <Kind Name="CloseParenToken"/>
     </Field>
   </Node>
   <Node Name="UnionDeclarationSyntax" Base="TypeDeclarationSyntax">
