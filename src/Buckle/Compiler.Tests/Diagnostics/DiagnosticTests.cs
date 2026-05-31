@@ -6049,7 +6049,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            struct crosses an unnecessary cache line; struct layout could be reduced from 104 bytes to 56 bytes by reordering fields
+            'A': struct crosses an unnecessary cache line; struct layout could be reduced from 104 bytes to 56 bytes by reordering fields
         ";
 
         AssertDiagnostics(text, diagnostics, _writer, true);
@@ -6066,7 +6066,45 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            struct layout could be reduced from 24 bytes to 16 bytes by reordering fields
+            'A': struct layout could be reduced from 24 bytes to 16 bytes by reordering fields
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0467_StructInefficiencyPadding2() {
+        var text = @"
+            struct packed(4) [A] {
+                int8 a;
+                int64 b;
+                int8 c;
+                int64 d;
+                int8 e;
+            }
+        ";
+
+        var diagnostics = @"
+            'A': struct layout could be reduced from 28 bytes to 20 bytes by reordering fields
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0467_StructInefficiencyPadding3() {
+        var text = @"
+            struct packed(8) [A] {
+                int8 a;
+                int64 b;
+                int8 c;
+                int64 d;
+                int8 e;
+            }
+        ";
+
+        var diagnostics = @"
+            'A': struct layout could be reduced from 40 bytes to 24 bytes by reordering fields
         ";
 
         AssertDiagnostics(text, diagnostics, _writer, true);

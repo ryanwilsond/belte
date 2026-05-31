@@ -578,6 +578,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private PackedArgumentSyntax ParsePackedArgument() {
+        // TODO Accept any compile-time constant expression instead of only numeric literals here?
+
         if (currentToken.contextualKind != SyntaxKind.PackedKeyword)
             return null;
 

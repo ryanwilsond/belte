@@ -38,7 +38,7 @@ internal partial class SourceMemberContainerTypeSymbol {
             return;
 
         if (actualSize <= 16) {
-            diagnostics.Push(Info.StructInefficiency(location, actualSize, optimalSize));
+            diagnostics.Push(Info.StructInefficiency(location, this, actualSize, optimalSize));
             return;
         }
 
@@ -47,11 +47,11 @@ internal partial class SourceMemberContainerTypeSymbol {
         var shouldWarn = avoidablePercent >= 0.25 && avoidablePadding >= 8;
 
         if (causesExtraCacheRead)
-            diagnostics.Push(Warning.StructInefficiencyCache(location, actualSize, optimalSize));
+            diagnostics.Push(Warning.StructInefficiencyCache(location, this, actualSize, optimalSize));
         else if (shouldWarn)
-            diagnostics.Push(Warning.StructInefficiencyPadding(location, actualSize, optimalSize));
+            diagnostics.Push(Warning.StructInefficiencyPadding(location, this, actualSize, optimalSize));
         else
-            diagnostics.Push(Info.StructInefficiency(location, actualSize, optimalSize));
+            diagnostics.Push(Info.StructInefficiency(location, this, actualSize, optimalSize));
     }
 
     private static ImmutableArray<Symbol> GetOptimalFieldLayout(NamedTypeSymbol type) {

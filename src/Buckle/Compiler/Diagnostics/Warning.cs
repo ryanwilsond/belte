@@ -188,13 +188,13 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_TransientForEachAssignment, location, message);
     }
 
-    internal static BelteDiagnostic StructInefficiencyCache(TextLocation location, int actualSize, int optimalSize) {
-        var message = $"struct crosses an unnecessary cache line; struct layout could be reduced from {actualSize} bytes to {optimalSize} bytes by reordering fields";
+    internal static BelteDiagnostic StructInefficiencyCache(TextLocation location, TypeSymbol type, int actualSize, int optimalSize) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': struct crosses an unnecessary cache line; struct layout could be reduced from {actualSize} bytes to {optimalSize} bytes by reordering fields";
         return CreateWarning(DiagnosticCode.WRN_StructInefficiencyCache, location, message);
     }
 
-    internal static BelteDiagnostic StructInefficiencyPadding(TextLocation location, int actualSize, int optimalSize) {
-        var message = $"struct layout could be reduced from {actualSize} bytes to {optimalSize} bytes by reordering fields";
+    internal static BelteDiagnostic StructInefficiencyPadding(TextLocation location, TypeSymbol type, int actualSize, int optimalSize) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': struct layout could be reduced from {actualSize} bytes to {optimalSize} bytes by reordering fields";
         return CreateWarning(DiagnosticCode.WRN_StructInefficiencyPadding, location, message);
     }
 
