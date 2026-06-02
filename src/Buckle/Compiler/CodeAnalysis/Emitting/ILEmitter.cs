@@ -51,6 +51,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private Dictionary<string, MethodReference> _stlMap;
 
     // <Globals> class members
+    private readonly Lock _globalsClassLock = new();
     private TypeDefinition _globalsClass;
     private FieldDefinition _c9;
     private FieldDefinition _c9__0_0;
@@ -701,38 +702,43 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         if (_globalsClass is not null)
             return;
 
-        _globalsClass = new TypeDefinition(
-            "",
-            "<Globals>",
-            TypeAttributes.Abstract | TypeAttributes.Sealed | TypeAttributes.Public,
-            _specialTypes[SpecialType.Object]
-        );
+        lock (_globalsClassLock) {
+            if (_globalsClass is not null)
+                return;
 
-        randomField = new FieldDefinition(
-            "<random>",
-            FieldAttributes.Static | FieldAttributes.Public,
-            NetTypeReference.Random
-        );
+            _globalsClass = new TypeDefinition(
+                "",
+                "<Globals>",
+                TypeAttributes.Abstract | TypeAttributes.Sealed | TypeAttributes.Public,
+                _specialTypes[SpecialType.Object]
+            );
 
-        _globalsClass.Fields.Add(randomField);
+            randomField = new FieldDefinition(
+                "<random>",
+                FieldAttributes.Static | FieldAttributes.Public,
+                NetTypeReference.Random
+            );
 
-        var cctor = new MethodDefinition(
-            ".cctor",
-            MethodAttributes.Static | MethodAttributes.Private |
-            MethodAttributes.SpecialName | MethodAttributes.RTSpecialName,
-            _specialTypes[SpecialType.Void]
-        );
+            _globalsClass.Fields.Add(randomField);
 
-        cctor.Body.InitLocals = true;
-        var cctorILProcessor = cctor.Body.GetILProcessor();
-        cctorILProcessor.Emit(OpCodes.Newobj, NetMethodReference.Random_ctor);
-        cctorILProcessor.Emit(OpCodes.Stsfld, randomField);
-        cctorILProcessor.Emit(OpCodes.Ret);
+            var cctor = new MethodDefinition(
+                ".cctor",
+                MethodAttributes.Static | MethodAttributes.Private |
+                MethodAttributes.SpecialName | MethodAttributes.RTSpecialName,
+                _specialTypes[SpecialType.Void]
+            );
 
-        _globalsClass.Methods.Insert(0, cctor);
+            cctor.Body.InitLocals = true;
+            var cctorILProcessor = cctor.Body.GetILProcessor();
+            cctorILProcessor.Emit(OpCodes.Newobj, NetMethodReference.Random_ctor);
+            cctorILProcessor.Emit(OpCodes.Stsfld, randomField);
+            cctorILProcessor.Emit(OpCodes.Ret);
 
-        lock (GlobalCecilLock)
-            _assemblyDefinition.MainModule.Types.Add(_globalsClass);
+            _globalsClass.Methods.Insert(0, cctor);
+
+            lock (GlobalCecilLock)
+                _assemblyDefinition.MainModule.Types.Add(_globalsClass);
+        }
     }
 
     private void CreateTypeDefinitionAndBases(NamedTypeSymbol type) {
