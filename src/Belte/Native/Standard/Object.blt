@@ -16,7 +16,7 @@ public class Object {
         return object is null ? false : this == object!!;
     }
 
-    public virtual int! GetHashCode() {
+    public virtual int32! GetHashCode() {
         return LowLevel.GetHashCode(this);
     }
 }

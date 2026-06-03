@@ -9,6 +9,16 @@ namespace Buckle.CodeAnalysis;
 internal enum WellKnownType : byte {
     None,
 
+    // Required
+
+    Enumerator,
+    Exception,
+
+    // Non-required
+
+    List,
+    Dictionary,
+
     ValueTuple_T1,
     ValueTuple_T2,
     ValueTuple_T3,
@@ -17,11 +27,6 @@ internal enum WellKnownType : byte {
     ValueTuple_T6,
     ValueTuple_T7,
     ValueTuple_TRest,
-
-    List,
-    Dictionary,
-    Enumerator,
-    Exception,
 
     Vec2,
     Sprite,

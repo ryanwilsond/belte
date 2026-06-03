@@ -335,6 +335,8 @@ internal sealed partial class Conversions {
                 return GetImplicitExtendedLiteralExpressionConversion(extended, target);
             case BoundUnconvertedConditionalOperator conditionalOperator:
                 return GetConditionalExpressionConversion(conditionalOperator, target);
+            case BoundTupleLiteral tuple:
+                return GetImplicitTupleConversion(tuple, target);
         }
 
         if (sourceExpression.IsLiteralNull()) {
@@ -364,6 +366,46 @@ internal sealed partial class Conversions {
             return conversion;
 
         return Conversion.None;
+    }
+
+    private Conversion GetImplicitTupleConversion(BoundTupleLiteral tuple, TypeSymbol destination) {
+        var conversion = GetTupleConversion(tuple, destination);
+
+        if (conversion.exists)
+            return conversion;
+
+        if (destination.IsNullableType()) {
+            var underlyingConversion = GetTupleConversion(tuple, destination.StrippedType());
+
+            if (underlyingConversion.exists)
+                return new Conversion(ConversionKind.ImplicitNullable, [underlyingConversion]);
+        }
+
+        return Conversion.None;
+    }
+
+    private Conversion GetTupleConversion(BoundTupleLiteral tuple, TypeSymbol destination) {
+        var arguments = tuple.arguments;
+
+        if (!destination.IsTupleTypeOfCardinality(arguments.Length))
+            return Conversion.None;
+
+        var targetElementTypes = destination.tupleElementTypes;
+        var argumentConversions = ArrayBuilder<Conversion>.GetInstance(arguments.Length);
+
+        for (var i = 0; i < arguments.Length; i++) {
+            var argument = arguments[i];
+            var result = ClassifyImplicitConversionFromExpression(argument, targetElementTypes[i].type.type);
+
+            if (!result.exists) {
+                argumentConversions.Free();
+                return Conversion.None;
+            }
+
+            argumentConversions.Add(result);
+        }
+
+        return new Conversion(ConversionKind.ImplicitTupleLiteral, argumentConversions.ToImmutableAndFree());
     }
 
     private Conversion GetMethodGroupConversion(BoundMethodGroup source, TypeSymbol destination) {
@@ -959,6 +1001,7 @@ internal sealed partial class Conversions {
             case ConversionKind.ImplicitNumeric:
             case ConversionKind.ImplicitReference:
             case ConversionKind.ImplicitNullToPointer:
+            case ConversionKind.ImplicitTupleLiteral:
             case ConversionKind.AnyBoxing:
             case ConversionKind.ImplicitConstant:
             case ConversionKind.NullLiteral:

@@ -171,6 +171,13 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
         return typeKind == TypeKind.Struct;
     }
 
+    internal bool IsTupleTypeOfCardinality(int targetCardinality) {
+        if (isTupleType)
+            return tupleElementTypes.Length == targetCardinality;
+
+        return false;
+    }
+
     internal bool IsEnumType() {
         return typeKind == TypeKind.Enum;
     }

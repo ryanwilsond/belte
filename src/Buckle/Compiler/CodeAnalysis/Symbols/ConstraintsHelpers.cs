@@ -415,15 +415,17 @@ internal static partial class ConstraintsHelpers {
         var n = templateParameters.Length;
         var succeeded = true;
 
-        for (var i = 0; i < n; i++) {
-            if (!CheckConstraints(
-                containingSymbol,
-                location,
-                diagnostics,
-                substitution,
-                templateParameters[i],
-                templateArguments[i])) {
-                succeeded = false;
+        if (n > 0 && substitution is not null) {
+            for (var i = 0; i < n; i++) {
+                if (!CheckConstraints(
+                    containingSymbol,
+                    location,
+                    diagnostics,
+                    substitution,
+                    templateParameters[i],
+                    templateArguments[i])) {
+                    succeeded = false;
+                }
             }
         }
 

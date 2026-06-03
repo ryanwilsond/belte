@@ -136,6 +136,13 @@
     <Field Name="method" Type="MethodSymbol?"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
+  <Node Name="BoundTupleBinaryOperator" Base="BoundExpression">
+    <Field Name="left" Type="BoundExpression"/>
+    <Field Name="right" Type="BoundExpression"/>
+    <Field Name="operatorKind" Type="BinaryOperatorKind"/>
+    <Field Name="operators" Type="TupleBinaryOperatorInfo.Multiple"/>
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+  </Node>
   <Node Name="BoundClampOperator" Base="BoundExpression">
     <Field Name="left" Type="BoundExpression"/>
     <Field Name="isAssignment" Type="bool"/>

@@ -401,16 +401,30 @@ done:
         if (declaringCompilation.keepLookingForWellKnownTypes) {
             foreach (var member in members.Values) {
                 if (member is NamedTypeSymbol type) {
-                    var wellKnownType = WellKnownTypes.GetTypeFromMetadataName(type);
-
-                    if (wellKnownType != WellKnownType.None) {
-                        declaringCompilation.RegisterDeclaredWellKnownType(wellKnownType, type);
-
-                        if (!declaringCompilation.keepLookingForWellKnownTypes)
-                            return;
+                    if (CheckWellKnownType(type))
+                        return;
+                } else if (member is IEnumerable<NamespaceOrTypeSymbol> enumerable) {
+                    foreach (var m in enumerable) {
+                        if (m is NamedTypeSymbol t) {
+                            if (CheckWellKnownType(t))
+                                return;
+                        }
                     }
                 }
             }
+        }
+
+        bool CheckWellKnownType(NamedTypeSymbol type) {
+            var wellKnownType = WellKnownTypes.GetTypeFromMetadataName(type);
+
+            if (wellKnownType != WellKnownType.None) {
+                declaringCompilation.RegisterDeclaredWellKnownType(wellKnownType, type);
+
+                if (!declaringCompilation.keepLookingForWellKnownTypes)
+                    return true;
+            }
+
+            return false;
         }
     }
 

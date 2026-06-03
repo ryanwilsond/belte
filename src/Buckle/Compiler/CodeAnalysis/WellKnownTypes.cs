@@ -15,6 +15,14 @@ internal static class WellKnownTypes {
         { "global::Rect", WellKnownType.Rect },
         { "global::Texture", WellKnownType.Texture },
         { "global::Sound", WellKnownType.Sound },
+        { "global::ValueTuple`1", WellKnownType.ValueTuple_T1 },
+        { "global::ValueTuple`2", WellKnownType.ValueTuple_T2 },
+        { "global::ValueTuple`3", WellKnownType.ValueTuple_T3 },
+        { "global::ValueTuple`4", WellKnownType.ValueTuple_T4 },
+        { "global::ValueTuple`5", WellKnownType.ValueTuple_T5 },
+        { "global::ValueTuple`6", WellKnownType.ValueTuple_T6 },
+        { "global::ValueTuple`7", WellKnownType.ValueTuple_T7 },
+        { "global::ValueTuple`8", WellKnownType.ValueTuple_TRest },
     };
 
     internal static WellKnownType GetTypeFromMetadataName(string metadataName) {

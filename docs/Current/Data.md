@@ -5,6 +5,7 @@
   - [3.1.2](#312-string-interpolation) String Interpolation
   - [3.1.3](#313-function-type) Function Type
   - [3.1.4](#314-default-literal) Default Literal
+  - [3.1.5](#315-tuples) Tuples
 - [3.2](#32-operators) Operators
   - [3.2.1](#321-operator-precedence) Operator Precedence
   - [3.2.2](#322-uncommon-operators) Uncommon Operators
@@ -214,6 +215,49 @@ int? a = default; // a = null
 ```
 
 Types with no default value (non-nullable class types) cannot use the `default` literal.
+
+### 3.1.5 Tuples
+
+Tuples are value types (structs) that contain fields are varying types. They act as small containers.
+
+```belte
+ValueTuple<int, bool> a = new ValueTuple<int, bool>(3, true);
+int b = a.Item1;
+bool c = a.Item2;
+```
+
+Tuples have their own syntax for brevity. The above example could equivalently be written:
+
+```belte
+var a = (3, true);
+var b = a.Item1;
+var c = a.Item2;
+```
+
+Tuples also support custom item names:
+
+```belte
+(int f1, bool f2) a = (3, true);
+var b = a.f1;
+var c = a.f2;
+```
+
+Tuples can be used to return multiple values from a function:
+
+```belte
+(int, int) Func(int a, int b) {
+  return (a + b, a - b);
+}
+```
+
+Tuples can be deconstructed into multiple locals. The following are equivalent:
+
+```belte
+var t = (3, true); var a = t.Item1; var b = t.Item2;
+(int a, bool b) = (3, true);
+(var a, var b) = (3, true);
+var (a, b) = (3, true);
+```
 
 ## 3.2 Operators
 

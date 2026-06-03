@@ -2818,16 +2818,22 @@ internal sealed class Evaluator {
                                 case ValueKind.Int8:
                                 case ValueKind.Int16:
                                 case ValueKind.Int32:
-                                case ValueKind.Int64:
                                 case ValueKind.UInt8:
                                 case ValueKind.UInt16:
                                 case ValueKind.UInt32:
-                                case ValueKind.UInt64:
                                 case ValueKind.Float32:
-                                case ValueKind.Float64:
                                 case ValueKind.Bool:
                                 case ValueKind.Char:
-                                    result = argument.int64;
+                                    result = argument.int32;
+                                    break;
+                                case ValueKind.Int64:
+                                    result = argument.int64.GetHashCode();
+                                    break;
+                                case ValueKind.UInt64:
+                                    result = argument.uint64.GetHashCode();
+                                    break;
+                                case ValueKind.Float64:
+                                    result = argument.@double.GetHashCode();
                                     break;
                                 case ValueKind.String:
                                     result = argument.@string.GetHashCode();
@@ -3000,6 +3006,118 @@ internal sealed class Evaluator {
                 case "LowLevel_FreeGCHandle_V*":
                 case "LowLevel_GetObject_V*":
                     throw new BelteEvaluatorException($"The method '{method}' is not supported in the Evaluator.", location);
+                case "HashCode_Combine_I4I4": {
+                        var argument1 = EvaluateExpression(arguments[0], true, abort);
+                        var argument2 = EvaluateExpression(arguments[1], true, abort);
+                        result = EvaluatorValue.Literal(HashCode.Combine(
+                            argument1.int32,
+                            argument2.int32
+                        ), SpecialType.Int32);
+                    }
+
+                    return true;
+                case "HashCode_Combine_I4I4I4": {
+                        var argument1 = EvaluateExpression(arguments[0], true, abort);
+                        var argument2 = EvaluateExpression(arguments[1], true, abort);
+                        var argument3 = EvaluateExpression(arguments[2], true, abort);
+                        result = EvaluatorValue.Literal(HashCode.Combine(
+                            argument1.int32,
+                            argument2.int32,
+                            argument3.int32
+                        ), SpecialType.Int32);
+                    }
+
+                    return true;
+                case "HashCode_Combine_I4I4I4I4": {
+                        var argument1 = EvaluateExpression(arguments[0], true, abort);
+                        var argument2 = EvaluateExpression(arguments[1], true, abort);
+                        var argument3 = EvaluateExpression(arguments[2], true, abort);
+                        var argument4 = EvaluateExpression(arguments[3], true, abort);
+                        result = EvaluatorValue.Literal(HashCode.Combine(
+                            argument1.int32,
+                            argument2.int32,
+                            argument3.int32,
+                            argument4.int32
+                        ), SpecialType.Int32);
+                    }
+
+                    return true;
+                case "HashCode_Combine_I4I4I4I4I4": {
+                        var argument1 = EvaluateExpression(arguments[0], true, abort);
+                        var argument2 = EvaluateExpression(arguments[1], true, abort);
+                        var argument3 = EvaluateExpression(arguments[2], true, abort);
+                        var argument4 = EvaluateExpression(arguments[3], true, abort);
+                        var argument5 = EvaluateExpression(arguments[4], true, abort);
+                        result = EvaluatorValue.Literal(HashCode.Combine(
+                            argument1.int32,
+                            argument2.int32,
+                            argument3.int32,
+                            argument4.int32,
+                            argument5.int32
+                        ), SpecialType.Int32);
+                    }
+
+                    return true;
+                case "HashCode_Combine_I4I4I4I4I4I4": {
+                        var argument1 = EvaluateExpression(arguments[0], true, abort);
+                        var argument2 = EvaluateExpression(arguments[1], true, abort);
+                        var argument3 = EvaluateExpression(arguments[2], true, abort);
+                        var argument4 = EvaluateExpression(arguments[3], true, abort);
+                        var argument5 = EvaluateExpression(arguments[4], true, abort);
+                        var argument6 = EvaluateExpression(arguments[5], true, abort);
+                        result = EvaluatorValue.Literal(HashCode.Combine(
+                            argument1.int32,
+                            argument2.int32,
+                            argument3.int32,
+                            argument4.int32,
+                            argument5.int32,
+                            argument6.int32
+                        ), SpecialType.Int32);
+                    }
+
+                    return true;
+                case "HashCode_Combine_I4I4I4I4I4I4I4": {
+                        var argument1 = EvaluateExpression(arguments[0], true, abort);
+                        var argument2 = EvaluateExpression(arguments[1], true, abort);
+                        var argument3 = EvaluateExpression(arguments[2], true, abort);
+                        var argument4 = EvaluateExpression(arguments[3], true, abort);
+                        var argument5 = EvaluateExpression(arguments[4], true, abort);
+                        var argument6 = EvaluateExpression(arguments[5], true, abort);
+                        var argument7 = EvaluateExpression(arguments[6], true, abort);
+                        result = EvaluatorValue.Literal(HashCode.Combine(
+                            argument1.int32,
+                            argument2.int32,
+                            argument3.int32,
+                            argument4.int32,
+                            argument5.int32,
+                            argument6.int32,
+                            argument7.int32
+                        ), SpecialType.Int32);
+                    }
+
+                    return true;
+                case "HashCode_Combine_I4I4I4I4I4I4I4I4": {
+                        var argument1 = EvaluateExpression(arguments[0], true, abort);
+                        var argument2 = EvaluateExpression(arguments[1], true, abort);
+                        var argument3 = EvaluateExpression(arguments[2], true, abort);
+                        var argument4 = EvaluateExpression(arguments[3], true, abort);
+                        var argument5 = EvaluateExpression(arguments[4], true, abort);
+                        var argument6 = EvaluateExpression(arguments[5], true, abort);
+                        var argument7 = EvaluateExpression(arguments[6], true, abort);
+                        var argument8 = EvaluateExpression(arguments[7], true, abort);
+                        result = EvaluatorValue.Literal(HashCode.Combine(
+                            argument1.int32,
+                            argument2.int32,
+                            argument3.int32,
+                            argument4.int32,
+                            argument5.int32,
+                            argument6.int32,
+                            argument7.int32,
+                            argument8.int32
+                        ), SpecialType.Int32);
+                    }
+
+                    return true;
                 default:
                     if (mapKey.StartsWith("LowLevel_BitCast_")) {
                         var argument = EvaluateExpression(arguments[0], true, abort);

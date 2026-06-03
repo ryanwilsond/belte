@@ -12,5 +12,6 @@ internal sealed partial class LanguageParser {
         InStatement = 1 << 3,
         InStructDefinition = 1 << 4,
         InIfCondition = 1 << 5,
+        InPattern = 1 << 6,
     }
 }

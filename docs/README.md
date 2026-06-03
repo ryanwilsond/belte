@@ -76,6 +76,7 @@
       - [3.1.2](Current/Data.md#312-string-interpolation) String Interpolation
       - [3.1.3](Current/Data.md#313-function-type) Function Type
       - [3.1.4](Current/Data.md#314-default-literal) Default Literal
+      - [3.1.5](Current/Data.md#315-tuples) Tuples
     - [3.2](Current/Data.md#32-operators) Operators
       - [3.2.1](Current/Data.md#321-operator-precedence) Operator Precedence
       - [3.2.2](Current/Data.md#322-uncommon-operators) Uncommon Operators

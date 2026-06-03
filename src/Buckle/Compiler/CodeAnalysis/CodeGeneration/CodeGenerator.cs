@@ -1201,6 +1201,9 @@ oneMoreTime:
             false
         );
 
+        if (!_evaluatorProxies.Add(local))
+            throw ExceptionUtilities.Unreachable();
+
         // Essentially reporting the slot allocation then assigning
         // Could move this rewrite to the lowerer, but then we would need a way to keep track of slot allocation
         var assignment = BoundFactory.Assignment(
@@ -2877,8 +2880,11 @@ oneMoreTime:
     }
 
     private void EmitLocalDeclarationIfApplicable(BoundAssignmentOperator expression) {
-        if (expression.left is BoundStackSlotExpression stackSlot) {
-            var local = stackSlot.symbol as DataContainerSymbol;
+        if (expression.left.kind == BoundKind.StackSlotExpression ||
+            expression.left is BoundDataContainerExpression dataExpr && dataExpr.dataContainer.isGlobal) {
+            var local = expression.left is BoundStackSlotExpression stackSlot
+                ? stackSlot.symbol as DataContainerSymbol
+                : ((BoundDataContainerExpression)expression.left).dataContainer;
 
             if (local is not null && _evaluatorProxies.Add(local)) {
                 _builder.DeclareLocal(

@@ -1644,6 +1644,22 @@ internal partial class Binder {
                 }
 
                 break;
+            case BoundTupleLiteral literal:
+                var boundArguments = ArrayBuilder<BoundExpression>.GetInstance(literal.arguments.Length);
+
+                foreach (var arg in literal.arguments)
+                    boundArguments.Add(BindToNaturalType(arg, diagnostics, reportNoTargetType));
+
+                result = new BoundConvertedTupleLiteral(
+                    literal.syntax,
+                    literal,
+                    wasTargetTyped: false,
+                    boundArguments.ToImmutableAndFree(),
+                    literal.type,
+                    literal.hasErrors
+                );
+
+                break;
             default:
                 result = expression;
                 break;
@@ -9248,6 +9264,11 @@ internal partial class Binder {
             );
         }
 
+        if (IsTupleBinaryOperation(left, right) &&
+            (kind == BinaryOperatorKind.Equal || kind == BinaryOperatorKind.NotEqual)) {
+            return BindTupleBinaryOperator(node, kind, left, right, diagnostics);
+        }
+
         var foundOperator = BindSimpleBinaryOperatorParts(
             node,
             diagnostics,
@@ -9319,6 +9340,317 @@ internal partial class Binder {
             resultType,
             hasErrors
         );
+    }
+
+    private static bool IsTupleBinaryOperation(BoundExpression left, BoundExpression right) {
+        var leftDefaultOrNew = left.IsLiteralDefaultOrImplicitObjectCreation();
+        var rightDefaultOrNew = right.IsLiteralDefaultOrImplicitObjectCreation();
+
+        if (leftDefaultOrNew && rightDefaultOrNew)
+            return false;
+
+        return (GetTupleCardinality(left) > 1 || leftDefaultOrNew) &&
+               (GetTupleCardinality(right) > 1 || rightDefaultOrNew);
+    }
+
+    private BoundTupleBinaryOperator BindTupleBinaryOperator(
+        BinaryExpressionSyntax node,
+        BinaryOperatorKind kind,
+        BoundExpression left,
+        BoundExpression right,
+        BelteDiagnosticQueue diagnostics) {
+        var operators = BindTupleBinaryOperatorNestedInfo(node, kind, left, right, diagnostics);
+        var convertedLeft = ApplyConvertedTypes(left, operators, isRight: false, diagnostics);
+        var convertedRight = ApplyConvertedTypes(right, operators, isRight: true, diagnostics);
+
+        return new BoundTupleBinaryOperator(
+            node,
+            convertedLeft,
+            convertedRight,
+            kind,
+            operators,
+            CorLibrary.GetSpecialType(SpecialType.Bool)
+        );
+    }
+
+    private TupleBinaryOperatorInfo.Multiple BindTupleBinaryOperatorNestedInfo(
+        BinaryExpressionSyntax node,
+        BinaryOperatorKind kind,
+        BoundExpression left,
+        BoundExpression right,
+        BelteDiagnosticQueue diagnostics) {
+        left = GiveTupleTypeToDefaultLiteralIfNeeded(left, right.type);
+        right = GiveTupleTypeToDefaultLiteralIfNeeded(right, left.type);
+
+        if (left.IsLiteralDefaultOrImplicitObjectCreation() ||
+            right.IsLiteralDefaultOrImplicitObjectCreation()) {
+            ReportBinaryOperatorError(node, diagnostics, node.operatorToken, left, right, LookupResultKind.Ambiguous);
+            return TupleBinaryOperatorInfo.Multiple.ErrorInstance;
+        }
+
+        var leftCardinality = GetTupleCardinality(left);
+        var rightCardinality = GetTupleCardinality(right);
+
+        if (leftCardinality != rightCardinality) {
+            // TODO Do we care about a tuple-specific error in this case?
+            ReportBinaryOperatorError(node, diagnostics, node.operatorToken, left, right, LookupResultKind.Empty);
+            // Error(diagnostics, ErrorCode.ERR_TupleSizesMismatchForBinOps, node, leftCardinality, rightCardinality);
+            return TupleBinaryOperatorInfo.Multiple.ErrorInstance;
+        }
+
+        var (leftParts, leftNames) = GetTupleArgumentsOrPlaceholders(left);
+        var (rightParts, rightNames) = GetTupleArgumentsOrPlaceholders(right);
+        // ReportNamesMismatchesIfAny(left, right, leftNames, rightNames, diagnostics);
+
+        var length = leftParts.Length;
+        var operatorsBuilder = ArrayBuilder<TupleBinaryOperatorInfo>.GetInstance(length);
+
+        for (var i = 0; i < length; i++)
+            operatorsBuilder.Add(BindTupleBinaryOperatorInfo(node, kind, leftParts[i], rightParts[i], diagnostics));
+
+        var operators = operatorsBuilder.ToImmutableAndFree();
+
+        var leftNullable = left.type?.IsNullableType() == true;
+        var rightNullable = right.type?.IsNullableType() == true;
+        var isNullable = leftNullable || rightNullable;
+
+        var leftTupleType = MakeConvertedType(
+            operators.SelectAsArray(o => o.leftConvertedType),
+            node.left,
+            leftParts,
+            leftNames,
+            isNullable,
+            compilation,
+            diagnostics
+        );
+
+        var rightTupleType = MakeConvertedType(
+            operators.SelectAsArray(o => o.rightConvertedType),
+            node.right,
+            rightParts,
+            rightNames,
+            isNullable,
+            compilation,
+            diagnostics
+        );
+
+        return new TupleBinaryOperatorInfo.Multiple(operators, leftTupleType, rightTupleType);
+    }
+
+    private TypeSymbol MakeConvertedType(
+        ImmutableArray<TypeSymbol> convertedTypes,
+        BelteSyntaxNode syntax,
+        ImmutableArray<BoundExpression> elements,
+        ImmutableArray<string> names,
+        bool isNullable,
+        Compilation compilation,
+        BelteDiagnosticQueue diagnostics) {
+        foreach (var convertedType in convertedTypes) {
+            if (convertedType is null)
+                return null;
+        }
+
+        var elementLocations = elements.SelectAsArray(e => e.syntax.location);
+
+        var tuple = NamedTypeSymbol.CreateTuple(
+            location: null,
+            elementTypesWithAnnotations: convertedTypes.SelectAsArray(t => new TypeWithAnnotations(t)),
+            elementLocations,
+            elementNames: names,
+            compilation,
+            shouldCheckConstraints: true,
+            errorPositions: default,
+            syntax,
+            diagnostics
+        );
+
+        if (!isNullable)
+            return tuple;
+
+        var nullableT = CorLibrary.GetSpecialType(SpecialType.Nullable);
+        return nullableT.Construct([new TypeOrConstant(tuple)]);
+    }
+
+    private TupleBinaryOperatorInfo BindTupleBinaryOperatorInfo(
+        BinaryExpressionSyntax node,
+        BinaryOperatorKind kind,
+        BoundExpression left,
+        BoundExpression right,
+        BelteDiagnosticQueue diagnostics) {
+        if (IsTupleBinaryOperation(left, right))
+            return BindTupleBinaryOperatorNestedInfo(node, kind, left, right, diagnostics);
+
+        var comparison = BindSimpleBinaryOperator(node, diagnostics, left, right);
+
+        switch (comparison) {
+            case BoundLiteralExpression _:
+                return new TupleBinaryOperatorInfo.NullNull(kind);
+            case BoundBinaryOperator binary:
+                PrepareBoolConversionAndTruthOperator(
+                    binary.type,
+                    node,
+                    kind,
+                    diagnostics,
+                    out var conversionIntoBoolOperator,
+                    out var conversionIntoBoolOperatorPlaceholder,
+                    out var boolOperator
+                );
+
+                return new TupleBinaryOperatorInfo.Single(
+                    binary.left.type,
+                    binary.right.type,
+                    binary.operatorKind,
+                    binary.method,
+                    binary.type,
+                    conversionIntoBoolOperatorPlaceholder,
+                    conversionIntoBoolOperator,
+                    boolOperator
+                );
+            default:
+                throw ExceptionUtilities.UnexpectedValue(comparison);
+        }
+    }
+
+    private void PrepareBoolConversionAndTruthOperator(
+        TypeSymbol type,
+        BinaryExpressionSyntax node,
+        BinaryOperatorKind binaryOperator,
+        BelteDiagnosticQueue diagnostics,
+        out BoundExpression conversionForBool,
+        out BoundValuePlaceholder conversionForBoolPlaceholder,
+        out UnaryOperatorSignature boolOperator) {
+        var boolean = CorLibrary.GetSpecialType(SpecialType.Bool);
+        var conversion = conversions.ClassifyImplicitConversionFromType(type, boolean);
+
+        if (conversion.isImplicit) {
+            conversionForBoolPlaceholder = new BoundValuePlaceholder(node, type);
+            conversionForBool = CreateConversion(
+                node,
+                conversionForBoolPlaceholder,
+                conversion,
+                isCast: false,
+                boolean,
+                diagnostics
+            );
+
+            boolOperator = default;
+            return;
+        }
+
+        UnaryOperatorKind boolOpKind;
+
+        switch (binaryOperator) {
+            case BinaryOperatorKind.Equal:
+                boolOpKind = UnaryOperatorKind.False;
+                break;
+            case BinaryOperatorKind.NotEqual:
+                boolOpKind = UnaryOperatorKind.True;
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(binaryOperator);
+        }
+
+        BoundExpression comparisonResult = new BoundValuePlaceholder(node, type);
+        var best = UnaryOperatorOverloadResolution(
+            boolOpKind,
+            comparisonResult,
+            node,
+            diagnostics,
+            out _,
+            out _
+        );
+
+        if (best.hasValue) {
+            conversionForBoolPlaceholder = new BoundValuePlaceholder(node, type);
+            conversionForBool = CreateConversion(
+                node,
+                conversionForBoolPlaceholder,
+                best.conversion,
+                isCast: false,
+                best.signature.operandType,
+                diagnostics
+            );
+
+            boolOperator = best.signature;
+            return;
+        }
+
+        GenerateImplicitConversionError(diagnostics, node, conversion, comparisonResult, boolean);
+        conversionForBoolPlaceholder = null;
+        conversionForBool = null;
+        boolOperator = default;
+        return;
+    }
+
+    private static (ImmutableArray<BoundExpression> Elements, ImmutableArray<string> Names) GetTupleArgumentsOrPlaceholders(
+        BoundExpression expr) {
+        if (expr is BoundTupleExpression tuple)
+            return (tuple.arguments, default);
+
+        var tupleType = expr.type.StrippedType();
+        var placeholders = tupleType.tupleElementTypes
+            .SelectAsArray((t, s) => (BoundExpression)new BoundValuePlaceholder(s, t.type.type), expr.syntax);
+
+        return (placeholders, tupleType.tupleElementNames);
+    }
+
+    internal static BoundExpression GiveTupleTypeToDefaultLiteralIfNeeded(BoundExpression expr, TypeSymbol targetType) {
+        if (!expr.IsLiteralDefault() || targetType is null)
+            return expr;
+
+        return new BoundDefaultExpression(expr.syntax, null, null, targetType);
+    }
+
+    private BoundExpression ApplyConvertedTypes(
+        BoundExpression expr,
+        TupleBinaryOperatorInfo @operator,
+        bool isRight,
+        BelteDiagnosticQueue diagnostics) {
+        var convertedType = isRight ? @operator.rightConvertedType : @operator.leftConvertedType;
+
+        if (convertedType is null) {
+            if (@operator.infoKind == TupleBinaryOperatorInfoKind.Multiple && expr is BoundTupleLiteral tuple) {
+                var multiple = (TupleBinaryOperatorInfo.Multiple)@operator;
+
+                if (multiple.operators.Length == 0)
+                    return BindToNaturalType(expr, diagnostics, reportNoTargetType: false);
+
+                var arguments = tuple.arguments;
+                var length = arguments.Length;
+                var builder = ArrayBuilder<BoundExpression>.GetInstance(length);
+
+                for (var i = 0; i < length; i++)
+                    builder.Add(ApplyConvertedTypes(arguments[i], multiple.operators[i], isRight, diagnostics));
+
+                return new BoundConvertedTupleLiteral(
+                    tuple.syntax,
+                    tuple,
+                    wasTargetTyped: false,
+                    builder.ToImmutableAndFree(),
+                    tuple.type,
+                    tuple.hasErrors
+                );
+            }
+
+            return BindToNaturalType(expr, diagnostics, reportNoTargetType: false);
+        }
+
+        return GenerateConversionForAssignment(convertedType, expr, diagnostics);
+    }
+
+    private static int GetTupleCardinality(BoundExpression expr) {
+        if (expr is BoundTupleExpression tuple)
+            return tuple.arguments.Length;
+
+        var type = expr.type;
+
+        if (type is null)
+            return -1;
+
+        if (type.StrippedType() is { isTupleType: true } tupleType)
+            return tupleType.tupleElementTypes.Length;
+
+        return -1;
     }
 
     private static ConstantValue FoldBinaryOperator(
@@ -14382,6 +14714,17 @@ symIsHidden:;
             );
         }
 
+        if (conversion.kind == ConversionKind.ImplicitTupleLiteral) {
+            return CreateTupleLiteralConversion(
+                node,
+                (BoundTupleLiteral)source,
+                conversion,
+                isCast,
+                destination,
+                diagnostics
+            );
+        }
+
         if (conversion.isIdentity) {
             source = BindToNaturalType(source, diagnostics);
 
@@ -14422,6 +14765,89 @@ symIsHidden:;
             destination,
             hasErrors
         );
+    }
+
+    private BoundExpression CreateTupleLiteralConversion(
+        SyntaxNode syntax,
+        BoundTupleLiteral sourceTuple,
+        Conversion conversion,
+        bool isCast,
+        TypeSymbol destination,
+        BelteDiagnosticQueue diagnostics) {
+        var destinationWithoutNullable = destination;
+        var conversionWithoutNullable = conversion;
+
+        var targetType = (NamedTypeSymbol)destinationWithoutNullable;
+
+        if (targetType.isTupleType) {
+            if (sourceTuple.type is NamedTypeSymbol { isTupleType: true } sourceType) {
+                targetType = targetType.WithTupleDataFrom(sourceType);
+            } else {
+                // We disallow literals to have argument names so this should not ever matter
+                throw ExceptionUtilities.Unreachable();
+                // var tupleSyntax = (TupleExpressionSyntax)sourceTuple.syntax;
+                // var locationBuilder = ArrayBuilder<TextLocation>.GetInstance();
+
+                // foreach (var argument in tupleSyntax.Arguments) {
+                //     locationBuilder.Add(argument.NameColon?.Name.Location);
+                // }
+
+                // targetType = targetType.WithElementNames(sourceTuple.argu,
+                //     locationBuilder.ToImmutableAndFree(),
+                //     errorPositions: default,
+                //     ImmutableArray.Create(tupleSyntax.Location));
+            }
+        }
+
+        var arguments = sourceTuple.arguments;
+        var convertedArguments = ArrayBuilder<BoundExpression>.GetInstance(arguments.Length);
+
+        var targetElementTypes = targetType.tupleElementTypes;
+        var underlyingConversions = conversionWithoutNullable.underlyingConversions;
+
+        for (var i = 0; i < arguments.Length; i++) {
+            var argument = arguments[i];
+            var destType = targetElementTypes[i];
+            var elementConversion = underlyingConversions[i];
+            convertedArguments.Add(CreateConversion(
+                argument.syntax,
+                argument,
+                elementConversion,
+                isCast: isCast,
+                destType.type.type,
+                diagnostics
+            ));
+        }
+
+        BoundExpression result = new BoundConvertedTupleLiteral(
+            sourceTuple.syntax,
+            sourceTuple,
+            wasTargetTyped: true,
+            convertedArguments.ToImmutableAndFree(),
+            targetType
+        );
+
+        if (!TypeSymbol.Equals(sourceTuple.type, destination, TypeCompareKind.ConsiderEverything)) {
+            result = new BoundCastExpression(
+                sourceTuple.syntax,
+                result,
+                conversion,
+                constantValue: null,
+                type: destination
+            );
+        }
+
+        if (isCast) {
+            result = new BoundCastExpression(
+                syntax,
+                result,
+                Conversion.Identity,
+                constantValue: null,
+                type: destination
+            );
+        }
+
+        return result;
     }
 
     internal BoundExpression CreateConversion(

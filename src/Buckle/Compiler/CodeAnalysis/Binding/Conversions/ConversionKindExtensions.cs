@@ -22,6 +22,7 @@ internal static class ConversionKindExtensions {
             case ConversionKind.AnyBoxing:
             case ConversionKind.ObjectCreation:
             case ConversionKind.ConditionalExpression:
+            case ConversionKind.ImplicitTupleLiteral:
                 return true;
             default:
                 return false;

@@ -17,6 +17,14 @@ internal static class WellKnownTypeExtensions {
             case WellKnownType.Sound when includeGraphicsTypes:
                 return true;
             case WellKnownType.Exception:
+            case WellKnownType.ValueTuple_T1:
+            case WellKnownType.ValueTuple_T2:
+            case WellKnownType.ValueTuple_T3:
+            case WellKnownType.ValueTuple_T4:
+            case WellKnownType.ValueTuple_T5:
+            case WellKnownType.ValueTuple_T6:
+            case WellKnownType.ValueTuple_T7:
+            case WellKnownType.ValueTuple_TRest:
             default:
                 return false;
         }

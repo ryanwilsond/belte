@@ -15,6 +15,7 @@ internal enum ConversionKind : byte {
     ImplicitNullToPointer,
     ImplicitEnum,
     ImplicitNumeric,
+    ImplicitTupleLiteral,
     AnyBoxing,
     Explicit,
     ExplicitNullable,

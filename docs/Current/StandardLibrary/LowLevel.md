@@ -13,7 +13,7 @@ The Belte public interface for the LowLevel class can be found
 
 | Signature | Description |
 | - | - |
-| `int! GetHashCode(Object!)` | Equivalent to calling `Object.GetHashCode()`. |
+| `int32! GetHashCode(Object!)` | Equivalent to calling `Object.GetHashCode()`. |
 | `string! GetTypeName(Object!)` | Equivalent to calling `Object.GetTypeName()`. |
 | `type! GetType(any!)` | Gets the type of the passed value. |
 | `int! Length<type T>(T!)` | Gets the length of the given array, or 0 if not passed an array. |

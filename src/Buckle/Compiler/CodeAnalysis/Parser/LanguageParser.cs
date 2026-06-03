@@ -2619,7 +2619,10 @@ internal sealed partial class LanguageParser : SyntaxParser {
             return SyntaxFactory.BinaryExpression(left, operatorToken, right);
         }
 
+        var saved = _context;
+        _context |= ParserContext.InPattern;
         var type = ParseType(allowRef: false, allowNoFollowUp: true, allowPointerTypes: false);
+        _context = saved;
 
         if (currentToken.kind == SyntaxKind.IdentifierToken && operatorToken.kind == SyntaxKind.IsKeyword) {
             var identifier = EatToken();
@@ -3182,9 +3185,10 @@ done:
 
     private bool CanFollowTemplateArgumentList(SyntaxKind kind) {
         var inExpression = (_context & ParserContext.InExpression) != 0;
+        var inPattern = (_context & ParserContext.InPattern) != 0;
 
         switch (kind) {
-            case SyntaxKind.IdentifierToken when !inExpression:
+            case SyntaxKind.IdentifierToken when !inExpression || inPattern:
             case SyntaxKind.SemicolonToken:
             case SyntaxKind.OpenParenToken:
             case SyntaxKind.CloseParenToken:

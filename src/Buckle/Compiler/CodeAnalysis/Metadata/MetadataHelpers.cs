@@ -18,6 +18,7 @@ internal static partial class MetadataHelpers {
 
     internal const string DotDelimiterString = ".";
     internal const string SystemString = "System";
+    internal const string CorLibraryString = "CorLibrary";
     internal const char GenericTypeNameManglingChar = '`';
     internal const char DotDelimiter = '.';
     internal const char CommaDelimiter = ',';

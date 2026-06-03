@@ -6,6 +6,7 @@ using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -80,6 +81,17 @@ internal partial class NamedTypeSymbol {
             WellKnownMember.ValueTuple_TRest_Item6,
             WellKnownMember.ValueTuple_TRest_Item7,
             WellKnownMember.ValueTuple_TRest_Rest ]
+    ];
+
+    private static readonly WellKnownMember[] TupleCtors = [
+        WellKnownMember.ValueTuple_T1_ctor,
+        WellKnownMember.ValueTuple_T2_ctor,
+        WellKnownMember.ValueTuple_T3_ctor,
+        WellKnownMember.ValueTuple_T4_ctor,
+        WellKnownMember.ValueTuple_T5_ctor,
+        WellKnownMember.ValueTuple_T6_ctor,
+        WellKnownMember.ValueTuple_T7_ctor,
+        WellKnownMember.ValueTuple_TRest_ctor
     ];
 
     internal NamedTypeSymbol tupleUnderlyingType
@@ -227,9 +239,8 @@ internal partial class NamedTypeSymbol {
     }
 
     internal bool IsTupleTypeOfCardinality(out int tupleCardinality) {
-        // TODO Good enough check for tuple types?
         if (!isUnboundTemplateType &&
-            originalDefinition is PrimitiveTypeSymbol &&
+            originalDefinition.containingAssembly?.name == MetadataHelpers.CorLibraryString &&
             name == ValueTupleTypeName) {
             var arity = this.arity;
 
@@ -281,5 +292,41 @@ internal partial class NamedTypeSymbol {
     internal TMember? GetTupleMemberSymbolForUnderlyingMember<TMember>(TMember underlyingMemberOpt)
         where TMember : Symbol {
         return isTupleType ? tupleData.GetTupleMemberSymbolForUnderlyingMember(underlyingMemberOpt) : null;
+    }
+
+    internal static void GetUnderlyingTypeChain(
+        NamedTypeSymbol underlyingTupleType,
+        ArrayBuilder<NamedTypeSymbol> underlyingTupleTypeChain) {
+        var currentType = underlyingTupleType;
+
+        while (true) {
+            underlyingTupleTypeChain.Add(currentType);
+
+            if (currentType.arity == ValueTupleRestPosition)
+                currentType = (NamedTypeSymbol)currentType.templateArguments[ValueTupleRestPosition - 1].type.type;
+            else
+                break;
+        }
+    }
+
+    internal static WellKnownMember GetTupleCtor(int arity) {
+        if (arity > 8)
+            throw ExceptionUtilities.Unreachable();
+
+        return TupleCtors[arity - 1];
+    }
+
+    internal NamedTypeSymbol WithTupleDataFrom(NamedTypeSymbol original) {
+        if (!isTupleType || (original._lazyTupleData is null && _lazyTupleData is null) ||
+            tupleData.EqualsIgnoringTupleUnderlyingType(original.tupleData)) {
+            return this;
+        }
+
+        return WithElementNames(
+            original.tupleElementNames,
+            original._tupleElementLocations,
+            original._tupleErrorPositions,
+            original.locations
+        );
     }
 }

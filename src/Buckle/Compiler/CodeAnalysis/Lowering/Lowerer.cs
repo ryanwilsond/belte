@@ -839,6 +839,93 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return base.VisitDefaultExpression(node);
     }
 
+    internal override BoundNode VisitTupleLiteral(BoundTupleLiteral node) {
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    internal override BoundNode VisitConvertedTupleLiteral(BoundConvertedTupleLiteral node) {
+        /*
+
+        (<args>)
+
+        ---->
+
+        new <type>(<args>)
+
+        */
+        var syntax = node.syntax;
+        var type = (NamedTypeSymbol)node.type;
+
+        var arguments = VisitList(node.arguments);
+
+        var underlyingTupleTypeChain = ArrayBuilder<NamedTypeSymbol>.GetInstance();
+        NamedTypeSymbol.GetUnderlyingTypeChain(type, underlyingTupleTypeChain);
+
+        try {
+            var smallestType = underlyingTupleTypeChain.Pop();
+            var smallestCtorArguments = ImmutableArray.Create(
+                arguments,
+                underlyingTupleTypeChain.Count * (NamedTypeSymbol.ValueTupleRestPosition - 1),
+                smallestType.arity
+            );
+
+            var smallestCtor = CorLibrary.GetWellKnownMethod(NamedTypeSymbol.GetTupleCtor(smallestType.arity));
+
+            var smallestConstructor = smallestCtor.AsMember(smallestType);
+            var currentCreation = new BoundObjectCreationExpression(
+                syntax,
+                smallestConstructor,
+                smallestCtorArguments,
+                [],
+                [],
+                default,
+                false,
+                smallestType
+            );
+
+            if (underlyingTupleTypeChain.Count > 0) {
+                var tuple8Type = underlyingTupleTypeChain.Peek();
+                var tuple8Ctor = CorLibrary.GetWellKnownMethod(
+                    NamedTypeSymbol.GetTupleCtor(NamedTypeSymbol.ValueTupleRestPosition)
+                );
+
+                do {
+                    var ctorArguments = ImmutableArray.Create(
+                        arguments,
+                        (underlyingTupleTypeChain.Count - 1) * (NamedTypeSymbol.ValueTupleRestPosition - 1),
+                        NamedTypeSymbol.ValueTupleRestPosition - 1)
+                        .Add(currentCreation);
+
+                    var constructor = tuple8Ctor.AsMember(underlyingTupleTypeChain.Pop());
+                    currentCreation = new BoundObjectCreationExpression(
+                        syntax,
+                        constructor,
+                        ctorArguments,
+                        [],
+                        [],
+                        default,
+                        false,
+                        tuple8Type
+                    );
+                } while (underlyingTupleTypeChain.Count > 0);
+            }
+
+            currentCreation = currentCreation.Update(
+                currentCreation.constructor,
+                currentCreation.arguments,
+                currentCreation.argumentRefKinds,
+                currentCreation.argsToParams,
+                currentCreation.defaultArguments,
+                currentCreation.wasTargetTyped,
+                type
+            );
+
+            return currentCreation;
+        } finally {
+            underlyingTupleTypeChain.Free();
+        }
+    }
+
     internal static BoundExpression CreateNullableGetValueCall(
         SyntaxNode syntax,
         BoundExpression operand,
@@ -852,7 +939,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
     private static MethodSymbol CreateNullableGetValueSymbol(TypeSymbol genericType) {
         return CreateMethodAsMemberOfNullable(
-            CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_getValue),
+            CorLibrary.GetWellKnownMethod(WellKnownMember.Nullable_getValue),
             genericType
         );
     }
@@ -870,21 +957,21 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
     private static MethodSymbol CreateNullableGetValueOrDefaultSymbol(TypeSymbol genericType) {
         return CreateMethodAsMemberOfNullable(
-            CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_GetValueOrDefault),
+            CorLibrary.GetWellKnownMethod(WellKnownMember.Nullable_GetValueOrDefault),
             genericType
         );
     }
 
     private static MethodSymbol CreateNullableGetHasValueSymbol(TypeSymbol genericType) {
         return CreateMethodAsMemberOfNullable(
-            CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_getHasValue),
+            CorLibrary.GetWellKnownMethod(WellKnownMember.Nullable_getHasValue),
             genericType
         );
     }
 
     private static MethodSymbol CreateNullableCtorSymbol(TypeSymbol genericType) {
         return CreateMethodAsMemberOfNullable(
-            CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_ctor),
+            CorLibrary.GetWellKnownMethod(WellKnownMember.Nullable_ctor),
             genericType
         );
     }

@@ -14,11 +14,11 @@ internal sealed class CorLibrary {
     private static readonly CorLibrary Instance = new CorLibrary();
 
     private const int TotalSpecialTypes = (int)SpecialType.TypedReference;
-    private const int TotalWellKnownMembers = 4;
+    private const int TotalWellKnownMembers = (int)WellKnownMember.ValueTuple_TRest_ctor;
     private const int TotalWellKnownTypes = (int)WellKnownType.Sound;
 
     private readonly ConcurrentDictionary<SpecialType, NamedTypeSymbol> _specialTypes = [];
-    private readonly ConcurrentDictionary<WellKnownMember, MethodSymbol> _wellKnownMembers = [];
+    private readonly ConcurrentDictionary<WellKnownMember, Symbol> _wellKnownMembers = [];
     private readonly ConcurrentDictionary<WellKnownType, NamedTypeSymbol> _wellKnownTypes = [];
 
     private ImmutableArray<UnaryOperatorSignature>[] _builtInUnaryOperators;
@@ -28,19 +28,27 @@ internal sealed class CorLibrary {
     private int _registeredWellKnownTypes;
     private bool _complete = false;
 
+    private bool _lazyComplete = false;
+    private readonly Lock _lazyCompleteLock = new();
+
     private CorLibrary() {
         RegisterPrimitiveCorTypes();
     }
 
     internal static void SetReducedState() {
-        Instance._registeredWellKnownTypes += 8;
+        Instance._registeredWellKnownTypes += (int)WellKnownType.Sound - (int)WellKnownType.Exception;
     }
 
     #region Public Model
 
-    internal static MethodSymbol GetWellKnownMember(WellKnownMember wellKnownMember) {
+    internal static Symbol GetWellKnownMember(WellKnownMember wellKnownMember) {
         Instance.EnsureCorLibraryIsComplete();
         return Instance.GetWellKnownMemberCore(wellKnownMember);
+    }
+
+    internal static MethodSymbol GetWellKnownMethod(WellKnownMember wellKnownMember) {
+        Instance.EnsureCorLibraryIsComplete();
+        return (MethodSymbol)Instance.GetWellKnownMemberCore(wellKnownMember);
     }
 
     internal static NamedTypeSymbol GetWellKnownType(WellKnownType wellKnownType) {
@@ -140,7 +148,10 @@ internal sealed class CorLibrary {
         return GetSpecialTypeCore(SpecialType.Nullable).Construct([new TypeOrConstant(type)]);
     }
 
-    private MethodSymbol GetWellKnownMemberCore(WellKnownMember wellKnownMember) {
+    private Symbol GetWellKnownMemberCore(WellKnownMember wellKnownMember) {
+        if (!_lazyComplete && wellKnownMember.IsTupleMember())
+            CompleteLazyMembers();
+
         if (!_wellKnownMembers.TryGetValue(wellKnownMember, out var result))
             throw new ArgumentException($"Well known member {wellKnownMember} has not been registered");
 
@@ -210,15 +221,6 @@ internal sealed class CorLibrary {
             [new TypeWithAnnotations(_specialTypes[SpecialType.Type])],
             SpecialType.Nullable
         ));
-
-        RegisterWellKnownType(WellKnownType.ValueTuple_T1, new PrimitiveTypeSymbol("ValueTuple", 1, valueType));
-        RegisterWellKnownType(WellKnownType.ValueTuple_T2, new PrimitiveTypeSymbol("ValueTuple", 2, valueType));
-        RegisterWellKnownType(WellKnownType.ValueTuple_T3, new PrimitiveTypeSymbol("ValueTuple", 3, valueType));
-        RegisterWellKnownType(WellKnownType.ValueTuple_T4, new PrimitiveTypeSymbol("ValueTuple", 4, valueType));
-        RegisterWellKnownType(WellKnownType.ValueTuple_T5, new PrimitiveTypeSymbol("ValueTuple", 5, valueType));
-        RegisterWellKnownType(WellKnownType.ValueTuple_T6, new PrimitiveTypeSymbol("ValueTuple", 6, valueType));
-        RegisterWellKnownType(WellKnownType.ValueTuple_T7, new PrimitiveTypeSymbol("ValueTuple", 7, valueType));
-        RegisterWellKnownType(WellKnownType.ValueTuple_TRest, new PrimitiveTypeSymbol("ValueTuple", 8, valueType));
     }
 
     private void RegisterWellKnownMembers() {
@@ -232,7 +234,7 @@ internal sealed class CorLibrary {
                 "get_Value",
                 new TypeWithAnnotations(nullableType.templateParameters[0]),
                 RefKind.None,
-                CodeAnalysis.DeclarationModifiers.None
+                DeclarationModifiers.None
             ), nullableType, []));
 
         RegisterWellKnownMember(WellKnownMember.Nullable_getHasValue,
@@ -241,7 +243,7 @@ internal sealed class CorLibrary {
                 "get_HasValue",
                 new TypeWithAnnotations(GetSpecialTypeCore(SpecialType.Bool)),
                 RefKind.None,
-                CodeAnalysis.DeclarationModifiers.None
+                DeclarationModifiers.None
             ), nullableType, []));
 
         RegisterWellKnownMember(WellKnownMember.Nullable_GetValueOrDefault,
@@ -250,11 +252,29 @@ internal sealed class CorLibrary {
                 "GetValueOrDefault",
                 new TypeWithAnnotations(nullableType.templateParameters[0]),
                 RefKind.None,
-                CodeAnalysis.DeclarationModifiers.None
+                DeclarationModifiers.None
             ), nullableType, []));
     }
 
-    private void RegisterWellKnownMember(WellKnownMember wellKnownMember, MethodSymbol member) {
+    private void CompleteLazyMembers() {
+        lock (_lazyCompleteLock) {
+            if (_lazyComplete)
+                return;
+
+            LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T1));
+            LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T2));
+            LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T3));
+            LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T4));
+            LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T5));
+            LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T6));
+            LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T7));
+            LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_TRest));
+
+            _lazyComplete = true;
+        }
+    }
+
+    private void RegisterWellKnownMember(WellKnownMember wellKnownMember, Symbol member) {
         if (wellKnownMember == WellKnownMember.None)
             throw new ArgumentException($"Cannot register member {member}; no given well-known-member id");
 
@@ -278,6 +298,19 @@ internal sealed class CorLibrary {
 
         if (_registeredWellKnownTypes > TotalWellKnownTypes)
             throw new UnreachableException($"Registered more well known types than there are well known types");
+    }
+
+    private void LazyWellKnownTupleMembers(NamedTypeSymbol type) {
+        var arity = type.arity;
+
+        RegisterWellKnownMember(NamedTypeSymbol.GetTupleCtor(arity), type.instanceConstructors[0]);
+
+        for (var i = 0; i < arity; i++) {
+            RegisterWellKnownMember(
+                NamedTypeSymbol.GetTupleTypeMember(arity, i + 1),
+                type.GetMembers(i < 7 ? $"Item{i + 1}" : "Rest")[0]
+            );
+        }
     }
 
     #endregion

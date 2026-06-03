@@ -420,6 +420,7 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.ClampOperator => ExpandClampOperator((BoundClampOperator)expression, out replacement, useKind),
             BoundKind.BitCastExpression => ExpandBitCastExpression((BoundBitCastExpression)expression, out replacement, useKind),
             BoundKind.DiscardExpression => ExpandDiscardExpression((BoundDiscardExpression)expression, out replacement, useKind),
+            BoundKind.TupleBinaryOperator => ExpandTupleBinaryOperator((BoundTupleBinaryOperator)expression, out replacement, useKind),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
     }
@@ -685,6 +686,29 @@ internal abstract partial class BoundTreeExpander {
                 expression.operatorKind,
                 expression.method,
                 expression.constantValue,
+                expression.type
+            );
+
+            return statements;
+        }
+
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandTupleBinaryOperator(
+        BoundTupleBinaryOperator expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        var statements = ExpandExpression(expression.left, out var newLeft);
+        statements.AddRange(ExpandExpression(expression.right, out var newRight));
+
+        if (statements.Count != 0 || expression.left != newLeft || expression.right != newRight) {
+            replacement = expression.Update(
+                newLeft,
+                newRight,
+                expression.operatorKind,
+                expression.operators,
                 expression.type
             );
 

@@ -117,7 +117,7 @@ public static class LibraryHelpers {
         if (reducedStdLib)
             CorLibrary.SetReducedState();
 
-        var corLibrary = Compilation.Create("CorLibrary", options, syntaxTrees.ToArray());
+        var corLibrary = Compilation.Create(MetadataHelpers.CorLibraryString, options, syntaxTrees.ToArray());
         CreateBelteNamespace(reducedStdLib);
         corLibrary = corLibrary.AddNamespace(BelteNamespace);
         corLibrary.GetDiagnostics();

@@ -15,6 +15,7 @@ internal static class StandardLibrary {
     private static SynthesizedFinishedNamedTypeSymbol _lazyConsole;
     private static SynthesizedFinishedNamedTypeSymbol _lazyMath;
     private static SynthesizedFinishedNamedTypeSymbol _lazyLowLevel;
+    private static SynthesizedFinishedNamedTypeSymbol _lazyHashCode;
     private static SynthesizedFinishedNamedTypeSymbol _lazyTime;
     private static SynthesizedFinishedNamedTypeSymbol _lazyRandom;
     private static SynthesizedFinishedNamedTypeSymbol _lazyString;
@@ -40,6 +41,15 @@ internal static class StandardLibrary {
                 Interlocked.CompareExchange(ref _lazyLowLevel, GenerateLowLevel(), null);
 
             return _lazyLowLevel;
+        }
+    }
+
+    internal static SynthesizedFinishedNamedTypeSymbol HashCode {
+        get {
+            if (_lazyHashCode is null)
+                Interlocked.CompareExchange(ref _lazyHashCode, GenerateHashCode(), null);
+
+            return _lazyHashCode;
         }
     }
 
@@ -256,6 +266,7 @@ internal static class StandardLibrary {
             yield return UInt32;
             yield return UInt16;
             yield return UInt8;
+            yield return HashCode;
         }
     }
 
@@ -489,7 +500,7 @@ internal static class StandardLibrary {
             [lengthT],
             [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(lengthT), 0, RefKind.None, "arr")],
             MethodKind.Ordinary,
-            CodeAnalysis.DeclarationModifiers.Static
+            DeclarationModifiers.Static
         );
 
         var sortT = new SynthesizedTemplateParameterSymbol(
@@ -506,7 +517,7 @@ internal static class StandardLibrary {
             [sortT],
             [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(sortT), 0, RefKind.None, "arr")],
             MethodKind.Ordinary,
-            CodeAnalysis.DeclarationModifiers.Static
+            DeclarationModifiers.Static
         );
 
         var sizeOfT = new SynthesizedTemplateParameterSymbol(
@@ -523,7 +534,7 @@ internal static class StandardLibrary {
             [sizeOfT],
             [],
             MethodKind.Ordinary,
-            CodeAnalysis.DeclarationModifiers.Static
+            DeclarationModifiers.Static
         );
 
         var bitCastTFrom = new SynthesizedTemplateParameterSymbol(
@@ -547,7 +558,7 @@ internal static class StandardLibrary {
             [bitCastTFrom, bitCastTTo],
             [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(bitCastTFrom), 0, RefKind.None, "value")],
             MethodKind.Ordinary,
-            CodeAnalysis.DeclarationModifiers.Static
+            DeclarationModifiers.Static
         );
 
         var createLPCSTR =
@@ -556,7 +567,7 @@ internal static class StandardLibrary {
                     "CreateLPCSTR",
                     new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.UInt8)))),
                     RefKind.None,
-                    CodeAnalysis.DeclarationModifiers.Public | CodeAnalysis.DeclarationModifiers.Static
+                    DeclarationModifiers.Public | DeclarationModifiers.Static
                 ),
             null,
             [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.String)), 0, RefKind.None, "str")]
@@ -568,7 +579,7 @@ internal static class StandardLibrary {
                     "CreateLPCSTR_UTF",
                     new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.UInt8)))),
                     RefKind.None,
-                    CodeAnalysis.DeclarationModifiers.Public | CodeAnalysis.DeclarationModifiers.Static
+                    DeclarationModifiers.Public | DeclarationModifiers.Static
                 ),
             null,
             [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.String)), 0, RefKind.None, "str")]
@@ -580,7 +591,7 @@ internal static class StandardLibrary {
                     "CreateLPCWSTR",
                     new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Char)))),
                     RefKind.None,
-                    CodeAnalysis.DeclarationModifiers.Public | CodeAnalysis.DeclarationModifiers.Static
+                    DeclarationModifiers.Public | DeclarationModifiers.Static
                 ),
             null,
             [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.String)), 0, RefKind.None, "str")]
@@ -592,7 +603,7 @@ internal static class StandardLibrary {
                     "FreeLPCSTR",
                     new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)),
                     RefKind.None,
-                    CodeAnalysis.DeclarationModifiers.Public | CodeAnalysis.DeclarationModifiers.Static
+                    DeclarationModifiers.Public | DeclarationModifiers.Static
                 ),
                 null,
                 [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.UInt8)))), 0, RefKind.None, "str")]
@@ -604,7 +615,7 @@ internal static class StandardLibrary {
                     "FreeLPCWSTR",
                     new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)),
                     RefKind.None,
-                    CodeAnalysis.DeclarationModifiers.Public | CodeAnalysis.DeclarationModifiers.Static
+                    DeclarationModifiers.Public | DeclarationModifiers.Static
                 ),
                 null,
                 [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Char)))), 0, RefKind.None, "str")]
@@ -616,7 +627,7 @@ internal static class StandardLibrary {
                     "ReadLPCSTR",
                     new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.String)),
                     RefKind.None,
-                    CodeAnalysis.DeclarationModifiers.Public | CodeAnalysis.DeclarationModifiers.Static
+                    DeclarationModifiers.Public | DeclarationModifiers.Static
                 ),
                 null,
                 [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.UInt8)))), 0, RefKind.None, "ptr")]
@@ -628,7 +639,7 @@ internal static class StandardLibrary {
                     "ReadLPCWSTR",
                     new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.String)),
                     RefKind.None,
-                    CodeAnalysis.DeclarationModifiers.Public | CodeAnalysis.DeclarationModifiers.Static
+                    DeclarationModifiers.Public | DeclarationModifiers.Static
                 ),
                 null,
                 [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Char)))), 0, RefKind.None, "ptr")]
@@ -640,7 +651,7 @@ internal static class StandardLibrary {
                     "GetGCPtr",
                     new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)))),
                     RefKind.None,
-                    CodeAnalysis.DeclarationModifiers.Public | CodeAnalysis.DeclarationModifiers.Static
+                    DeclarationModifiers.Public | DeclarationModifiers.Static
                 ),
                 null,
                 [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Object)), 0, RefKind.None, "obj")]
@@ -652,7 +663,7 @@ internal static class StandardLibrary {
                     "FreeGCHandle",
                     new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)),
                     RefKind.None,
-                    CodeAnalysis.DeclarationModifiers.Public | CodeAnalysis.DeclarationModifiers.Static
+                    DeclarationModifiers.Public | DeclarationModifiers.Static
                 ),
                 null,
                 [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)))), 0, RefKind.None, "ptr")]
@@ -664,14 +675,15 @@ internal static class StandardLibrary {
                     "GetObject",
                     new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Object)),
                     RefKind.None,
-                    CodeAnalysis.DeclarationModifiers.Public | CodeAnalysis.DeclarationModifiers.Static
+                    DeclarationModifiers.Public | DeclarationModifiers.Static
                 ),
                 null,
                 [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)))), 0, RefKind.None, "ptr")]
         );
 
         return StaticClass("LowLevel", [
-            StaticMethod("GetHashCode", SpecialType.Int, [("object", SpecialType.Object)]),
+            StaticMethod("GetHashCode", SpecialType.Int32, [("object", SpecialType.Object)]),
+            StaticMethod("CombineHashCode", SpecialType.Int32, [("hash1", SpecialType.Int32), ("hash2", SpecialType.Int32)]),
             StaticMethod("GetTypeName", SpecialType.String, [("object", SpecialType.Object)]),
             StaticMethod("GetType", SpecialType.Type, [("value", SpecialType.Any)]),
             length,
@@ -689,6 +701,18 @@ internal static class StandardLibrary {
             getGCPtr,
             freeGCHandle,
             getObject,
+        ]);
+    }
+
+    private static SynthesizedFinishedNamedTypeSymbol GenerateHashCode() {
+        return StaticClass("HashCode", [
+            StaticMethod("Combine", SpecialType.Int32, [("hash1", SpecialType.Int32), ("hash2", SpecialType.Int32)]),
+            StaticMethod("Combine", SpecialType.Int32, [("hash1", SpecialType.Int32), ("hash2", SpecialType.Int32), ("hash3", SpecialType.Int32)]),
+            StaticMethod("Combine", SpecialType.Int32, [("hash1", SpecialType.Int32), ("hash2", SpecialType.Int32), ("hash3", SpecialType.Int32), ("hash4", SpecialType.Int32)]),
+            StaticMethod("Combine", SpecialType.Int32, [("hash1", SpecialType.Int32), ("hash2", SpecialType.Int32), ("hash3", SpecialType.Int32), ("hash4", SpecialType.Int32), ("hash5", SpecialType.Int32)]),
+            StaticMethod("Combine", SpecialType.Int32, [("hash1", SpecialType.Int32), ("hash2", SpecialType.Int32), ("hash3", SpecialType.Int32), ("hash4", SpecialType.Int32), ("hash5", SpecialType.Int32), ("hash6", SpecialType.Int32)]),
+            StaticMethod("Combine", SpecialType.Int32, [("hash1", SpecialType.Int32), ("hash2", SpecialType.Int32), ("hash3", SpecialType.Int32), ("hash4", SpecialType.Int32), ("hash5", SpecialType.Int32), ("hash6", SpecialType.Int32), ("hash7", SpecialType.Int32)]),
+            StaticMethod("Combine", SpecialType.Int32, [("hash1", SpecialType.Int32), ("hash2", SpecialType.Int32), ("hash3", SpecialType.Int32), ("hash4", SpecialType.Int32), ("hash5", SpecialType.Int32), ("hash6", SpecialType.Int32), ("hash7", SpecialType.Int32), ("hash8", SpecialType.Int32)]),
         ]);
     }
 
