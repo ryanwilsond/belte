@@ -7635,11 +7635,7 @@ internal partial class Binder {
             //     defaultValue = new BoundLiteral(syntax, ConstantValue.Create(argument.Syntax.ToString()), Compilation.GetSpecialType(SpecialType.System_String)) { WasCompilerGenerated = true };
 
             if (defaultConstantValue is null) {
-                defaultValue = new BoundLiteralExpression(
-                    syntax,
-                    LiteralUtilities.TryGetDefaultValue(parameter.type),
-                    parameter.type
-                );
+                defaultValue = new BoundDefaultExpression(syntax, null, null, parameterType);
             } else {
                 TypeSymbol constantType = CorLibrary.GetSpecialType(parameterDefaultValue.specialType);
                 defaultValue = new BoundLiteralExpression(syntax, parameterDefaultValue, constantType);

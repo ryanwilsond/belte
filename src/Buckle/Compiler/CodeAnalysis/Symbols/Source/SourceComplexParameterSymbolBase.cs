@@ -165,7 +165,7 @@ internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol
             return null;
         }
 
-        return convertedExpression.constantValue;
+        return convertedExpression.constantValue ?? ConstantValue.Null;
     }
 
     internal sealed override CustomAttributesBag<AttributeData> GetAttributesBag() {

@@ -110,12 +110,12 @@ postbuildlinux:
 build:
 	@echo "Started building the Buckle project (release) ..."
 	@dotnet publish $(CL_DIR)/CommandLine.csproj $(FLAGS) -o bin/release \
-		-r $(SYSTEM) -p:PublishReadyToRunShowWarnings=true
+		-r $(SYSTEM) -p:PublishReadyToRunShowWarnings=true -p:PublishReadyToRun=true
 
 buildmf:
 	@echo "Started building the Buckle project (release, multi-file) ..."
 	@dotnet publish $(CL_DIR)/CommandLine.csproj $(PUBLISH_FLAGS) -o bin/release \
-		-r $(SYSTEM) -p:PublishReadyToRunShowWarnings=true
+		-r $(SYSTEM) -p:PublishReadyToRunShowWarnings=true -p:PublishReadyToRun=true
 
 buildportable:
 	@echo "Started building the Buckle project (portable) ..."

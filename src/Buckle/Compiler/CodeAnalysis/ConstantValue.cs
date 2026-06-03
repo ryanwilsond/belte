@@ -1,6 +1,5 @@
 using System.Runtime.CompilerServices;
 using Buckle.CodeAnalysis.CodeGeneration;
-using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
 

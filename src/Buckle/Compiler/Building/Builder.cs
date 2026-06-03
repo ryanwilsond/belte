@@ -18,6 +18,7 @@ public sealed class Builder {
         outputKind = OutputKind.ConsoleApplication;
         inputs = [];
         refs = [];
+        deps = [];
         l = 0;
         maxCores = 0;
         debugBuild = false;
@@ -30,6 +31,8 @@ public sealed class Builder {
     public List<(string, InputOptions, DiagnosticOptions)> inputs { get; }
 
     public List<(string, RefOptions)> refs { get; }
+
+    public List<(string, string, DepOptions)> deps { get; }
 
     public string output { get; private set; }
 
@@ -67,8 +70,16 @@ public sealed class Builder {
         output = path;
     }
 
-    public void AddRef(string path, RefOptions options) {
+    public void AddRef(string path, RefOptions options = RefOptions.Copy) {
         refs.Add((path, options));
+    }
+
+    public void AddDep(string path, DepOptions options = default) {
+        deps.Add((path, null, options));
+    }
+
+    public void AddDep(string path, string filter, DepOptions options = default) {
+        deps.Add((path, filter, options));
     }
 
     public void SetVerboseMode(VerboseMode mode) {

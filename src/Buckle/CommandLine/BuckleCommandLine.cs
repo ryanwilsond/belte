@@ -361,7 +361,13 @@ public class {name} {{
         if (err > 0)
             return err;
 
-        compiler.state = ToCompilerState(diagnostics, builder, out var pendingReferenceCopies);
+        compiler.state = ToCompilerState(
+            diagnostics,
+            builder,
+            out var pendingReferenceCopies,
+            out var pendingDependencyCopies
+        );
+
         state = compiler.state;
         state.arguments = arguments;
         state.debugMode |= debugMode;
@@ -404,6 +410,13 @@ public class {name} {{
         }
 
         ResolveReferenceCopies(state.outputFilename, pendingReferenceCopies, processName, state);
+        ResolveReferenceCopies(
+            state.outputFilename,
+            pendingDependencyCopies.Item1,
+            processName,
+            state,
+            pendingDependencyCopies.Item2
+        );
 
         return SuccessExitCode;
     }
@@ -506,7 +519,8 @@ public class {name} {{
     private static CompilerState ToCompilerState(
         DiagnosticQueue<Diagnostic> diagnostics,
         Builder builder,
-        out string[] pendingReferenceCopies) {
+        out string[] pendingReferenceCopies,
+        out (string[], string[]) pendingDependencyCopies) {
         var references = new List<string>();
         var copies = new List<string>();
 
@@ -533,6 +547,37 @@ public class {name} {{
         }
 
         pendingReferenceCopies = copies.ToArray();
+
+        var depsSource = new List<string>();
+        var depsDest = new List<string>();
+
+        foreach (var (path, filter, options) in builder.deps) {
+            if (Directory.Exists(path)) {
+                var searchOption = options.flatSearch ? SearchOption.TopDirectoryOnly : SearchOption.AllDirectories;
+                var files = Directory.GetFiles(path, filter ?? "*", searchOption);
+
+                foreach (var file in files) {
+                    depsSource.Add(file);
+
+                    var dest = options.outSubDir;
+
+                    if (options.preserveStructure) {
+                        dest = dest is null
+                            ? Path.GetRelativePath(path, Path.GetDirectoryName(file))
+                            : Path.Join(dest, Path.GetRelativePath(path, Path.GetDirectoryName(file)));
+                    }
+
+                    depsDest.Add(dest);
+                }
+            } else if (File.Exists(path)) {
+                depsSource.Add(path);
+                depsDest.Add(options.outSubDir);
+            } else {
+                diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(path));
+            }
+        }
+
+        pendingDependencyCopies = (depsSource.ToArray(), depsDest.ToArray());
 
         references.AddRange(Compiler.ResolveLibraryLevel(builder.l));
 
@@ -1741,12 +1786,23 @@ public class {name} {{
         return infos;
     }
 
-    private static void ResolveReferenceCopies(string outputPath, string[] references, string me, CompilerState state) {
+    private static void ResolveReferenceCopies(
+        string outputPath,
+        string[] references,
+        string me,
+        CompilerState state,
+        string[] outputSubDirs = null) {
         var path = Path.GetDirectoryName(outputPath);
 
-        foreach (var reference in references) {
-            var destination = Path.Join(path, Path.GetFileName(reference));
+        for (var i = 0; i < references.Length; i++) {
+            var reference = references[i];
+            var subDir = outputSubDirs?[i];
+            var destDir = subDir is null ? path : Path.Join(path, subDir);
+            var destination = Path.Join(destDir, Path.GetFileName(reference));
             var opened = false;
+
+            if (!Directory.Exists(Path.GetDirectoryName(destDir)))
+                Directory.CreateDirectory(destDir);
 
             for (var j = 1; j < 4; j++) {
                 try {
