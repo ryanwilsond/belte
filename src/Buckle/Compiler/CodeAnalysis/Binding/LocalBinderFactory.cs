@@ -103,6 +103,7 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
             case SyntaxKind.NullBindingStatement:
             case SyntaxKind.ReturnStatement:
             case SyntaxKind.WithStatement:
+            case SyntaxKind.DeferStatement:
                 embeddedScopeDesignator = statement;
                 return new EmbeddedStatementBinder(enclosing, statement);
             case SyntaxKind.SwitchStatement:

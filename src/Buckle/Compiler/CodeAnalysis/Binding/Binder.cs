@@ -12202,12 +12202,16 @@ symIsHidden:;
         Binder binder;
 
         switch (node.kind) {
+            case SyntaxKind.DeferStatement:
+                diagnostics.Push(Error.BadEmbeddedStatementDefer(node.location));
+                goto case SyntaxKind.ExpressionStatement;
             case SyntaxKind.LocalDeclarationStatement:
                 diagnostics.Push(Error.BadEmbeddedStatement(node.location));
                 goto case SyntaxKind.ExpressionStatement;
             case SyntaxKind.ExpressionStatement:
             case SyntaxKind.IfStatement:
             case SyntaxKind.NullBindingStatement:
+            case SyntaxKind.WithStatement:
             case SyntaxKind.ReturnStatement:
                 binder = GetBinder(node);
                 return binder.WrapWithVariablesIfAny(node, binder.BindStatement(node, diagnostics));

@@ -902,6 +902,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_BadEmbeddedStatement, location, message);
     }
 
+    internal static BelteDiagnostic BadEmbeddedStatementDefer(TextLocation location) {
+        var message = $"embedded statement cannot be a defer";
+        return CreateError(DiagnosticCode.ERR_BadEmbeddedStatementDefer, location, message);
+    }
+
     internal static BelteDiagnostic IncrementableLValueExpected(TextLocation location) {
         var message = "left side of increment or decrement operation must be a variable, parameter, field, or indexer";
         return CreateError(DiagnosticCode.ERR_IncrementableLValueExpected, location, message);

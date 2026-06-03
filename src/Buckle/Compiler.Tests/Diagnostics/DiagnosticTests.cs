@@ -2792,6 +2792,20 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
+    public void Reports_Error_BU0199_BadEmbeddedStatement2() {
+        var text = @"
+            int a = 10;
+            with (a = 4) [int b = a;]
+        ";
+
+        var diagnostics = @"
+            embedded statement cannot be a declaration
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
     public void Reports_Error_BU0200_IncrementableLValueExpected() {
         var text = @"
             void F() {}
@@ -6124,5 +6138,33 @@ public sealed class DiagnosticTests {
         ";
 
         AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0470_BadEmbeddedStatementDefer() {
+        var text = @"
+            int a = 10;
+            if (true) [defer a = 4;]
+        ";
+
+        var diagnostics = @"
+            embedded statement cannot be a defer
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0470_BadEmbeddedStatementDefer2() {
+        var text = @"
+            int a = 10;
+            defer [defer a = 4;]
+        ";
+
+        var diagnostics = @"
+            embedded statement cannot be a defer
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 }
