@@ -172,6 +172,7 @@ public enum SyntaxKind : ushort {
     FinalKeyword,
     PackedKeyword,
     ReverseKeyword,
+    StateKeyword,
     HandleKeyword,
 
     // Trivia
