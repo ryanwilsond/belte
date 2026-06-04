@@ -6,7 +6,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal sealed class TupleVirtualElementFieldSymbol : TupleElementFieldSymbol {
     private readonly bool _cannotUse;
 
-    public TupleVirtualElementFieldSymbol(
+    internal TupleVirtualElementFieldSymbol(
         NamedTypeSymbol container,
         FieldSymbol underlyingField,
         string name,

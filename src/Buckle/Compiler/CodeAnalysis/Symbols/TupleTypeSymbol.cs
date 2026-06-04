@@ -1,3 +1,5 @@
+using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -145,6 +147,9 @@ internal partial class NamedTypeSymbol {
 
         var underlyingType = GetTupleUnderlyingType(elementTypesWithAnnotations, syntax, compilation, diagnostics);
 
+        if (underlyingType.originalDefinition is ErrorTypeSymbol errorType && errorType.error is not null)
+            diagnostics?.Push(errorType.error);
+
         var locations = location is null ? ImmutableArray<TextLocation>.Empty : ImmutableArray.Create(location);
         var constructedType = CreateTuple(underlyingType, elementNames, errorPositions, elementLocations, locations);
 
@@ -163,7 +168,8 @@ internal partial class NamedTypeSymbol {
             BelteDiagnosticQueue diagnostics) {
             var numElements = elementTypes.Length;
             var chainLength = NumberOfValueTuples(numElements, out var remainder);
-            var firstTupleType = CorLibrary.GetWellKnownType(GetTupleType(remainder));
+
+            var firstTupleType = CorLibrary.TryGetWellKnownType(GetTupleType(remainder), compilation);
 
             NamedTypeSymbol chainedTupleType = null;
 
@@ -328,5 +334,240 @@ internal partial class NamedTypeSymbol {
             original._tupleErrorPositions,
             original.locations
         );
+    }
+
+    private protected ArrayBuilder<Symbol> MakeSynthesizedTupleMembers(
+        ImmutableArray<Symbol> currentMembers,
+        HashSet<Symbol> replacedFields = null) {
+        var elementNames = tupleElementNames;
+
+        if (elementNames.IsDefault)
+            return [];
+
+        var elementTypes = tupleElementTypes;
+        var elementsMatchedByFields = ArrayBuilder<bool>.GetInstance(elementTypes.Length, fillWithValue: false);
+        var members = ArrayBuilder<Symbol>.GetInstance(currentMembers.Length);
+
+        var currentValueTuple = this;
+        var currentNestingLevel = 0;
+
+        var currentFieldsForElements = ArrayBuilder<FieldSymbol>.GetInstance(currentValueTuple.arity);
+
+        CollectTargetTupleFields(currentValueTuple.arity, GetOriginalFields(currentMembers), currentFieldsForElements);
+
+        var elementLocations = tupleData.elementLocations;
+
+        while (true) {
+            foreach (var member in currentMembers) {
+                switch (member.kind) {
+                    case SymbolKind.Field:
+                        var field = (FieldSymbol)member;
+
+                        if (field is TupleVirtualElementFieldSymbol) {
+                            replacedFields?.Add(field);
+                            continue;
+                        }
+
+                        var underlyingField = field is TupleElementFieldSymbol tupleElement
+                            ? tupleElement.underlyingField.originalDefinition
+                            : field.originalDefinition;
+
+                        var tupleFieldIndex = currentFieldsForElements.IndexOf(
+                            underlyingField,
+                            ReferenceEqualityComparer.Instance
+                        );
+
+                        if (underlyingField is TupleErrorFieldSymbol) {
+                            replacedFields?.Add(field);
+                            continue;
+                        } else if (tupleFieldIndex >= 0) {
+                            if (currentNestingLevel != 0)
+                                tupleFieldIndex += (ValueTupleRestPosition - 1) * currentNestingLevel;
+                            else
+                                replacedFields?.Add(field);
+
+                            var providedName = elementNames.IsDefault ? null : elementNames[tupleFieldIndex];
+                            var locations = GetElementLocations(in elementLocations, tupleFieldIndex);
+
+                            var defaultName = TupleMemberName(tupleFieldIndex + 1);
+                            var defaultImplicitlyDeclared = providedName != defaultName;
+
+                            FieldSymbol defaultTupleField;
+                            var fieldSymbol = underlyingField.AsMember(currentValueTuple);
+
+                            if (currentNestingLevel != 0) {
+                                defaultTupleField = new TupleVirtualElementFieldSymbol(
+                                    this,
+                                    fieldSymbol,
+                                    defaultName,
+                                    tupleFieldIndex,
+                                    locations,
+                                    cannotUse: false,
+                                    isImplicitlyDeclared: defaultImplicitlyDeclared,
+                                    correspondingDefaultFieldOpt: null
+                                );
+
+                                members.Add(defaultTupleField);
+                            } else {
+                                if (isDefinition) {
+                                    defaultTupleField = field;
+                                } else {
+                                    defaultTupleField = new TupleElementFieldSymbol(
+                                        this,
+                                        fieldSymbol,
+                                        tupleFieldIndex,
+                                        locations,
+                                        isImplicitlyDeclared: defaultImplicitlyDeclared
+                                    );
+
+                                    members.Add(defaultTupleField);
+                                }
+                            }
+
+                            if (defaultImplicitlyDeclared && !string.IsNullOrEmpty(providedName)) {
+                                var errorPositions = _tupleErrorPositions;
+                                var isError = !errorPositions.IsDefault && errorPositions[tupleFieldIndex];
+
+                                members.Add(new TupleVirtualElementFieldSymbol(this,
+                                    fieldSymbol,
+                                    providedName,
+                                    tupleFieldIndex,
+                                    locations,
+                                    cannotUse: isError,
+                                    isImplicitlyDeclared: false,
+                                    correspondingDefaultFieldOpt: defaultTupleField)
+                                );
+                            }
+
+                            elementsMatchedByFields[tupleFieldIndex] = true;
+                        }
+
+                        break;
+                    case SymbolKind.NamedType:
+                    case SymbolKind.Method:
+                        break;
+                    default:
+                        if (currentNestingLevel == 0)
+                            throw ExceptionUtilities.UnexpectedValue(member.kind);
+
+                        break;
+                }
+            }
+
+            if (currentValueTuple.arity != ValueTupleRestPosition)
+                break;
+
+            var oldUnderlying = currentValueTuple;
+            currentValueTuple = (NamedTypeSymbol)oldUnderlying.templateArguments[ValueTupleRestIndex].type.type;
+            currentNestingLevel++;
+
+            if (currentValueTuple.arity != ValueTupleRestPosition) {
+                currentMembers = currentValueTuple.GetMembers();
+                currentFieldsForElements.Clear();
+
+                CollectTargetTupleFields(
+                    currentValueTuple.arity,
+                    GetOriginalFields(currentMembers),
+                    currentFieldsForElements
+                );
+            }
+        }
+
+        currentFieldsForElements.Free();
+
+        for (var i = 0; i < elementsMatchedByFields.Count; i++) {
+            if (!elementsMatchedByFields[i]) {
+                var fieldChainLength = NumberOfValueTuples(i + 1, out var fieldRemainder);
+                var container = GetNestedTupleUnderlyingType(this, fieldChainLength - 1).originalDefinition;
+                var providedName = elementNames.IsDefault ? null : elementNames[i];
+                var location = elementLocations.IsDefault ? null : elementLocations[i];
+                var defaultName = TupleMemberName(i + 1);
+                var defaultImplicitlyDeclared = providedName != defaultName;
+
+                var defaultTupleField = new TupleErrorFieldSymbol(
+                    this,
+                    defaultName,
+                    i,
+                    defaultImplicitlyDeclared ? null : location,
+                    elementTypes[i].type,
+                    defaultImplicitlyDeclared,
+                    correspondingDefaultFieldOpt: null
+                );
+
+                members.Add(defaultTupleField);
+
+                if (defaultImplicitlyDeclared && !string.IsNullOrEmpty(providedName)) {
+                    members.Add(new TupleErrorFieldSymbol(
+                        this,
+                        providedName,
+                        i,
+                        location,
+                        elementTypes[i].type,
+                        isImplicitlyDeclared: false,
+                        correspondingDefaultFieldOpt: defaultTupleField)
+                    );
+                }
+            }
+        }
+
+        elementsMatchedByFields.Free();
+        return members;
+
+        static NamedTypeSymbol GetNestedTupleUnderlyingType(NamedTypeSymbol topLevelUnderlyingType, int depth) {
+            var found = topLevelUnderlyingType;
+
+            for (var i = 0; i < depth; i++)
+                found = (NamedTypeSymbol)found.templateArguments[ValueTupleRestPosition - 1].type.type;
+
+            return found;
+        }
+
+        static void CollectTargetTupleFields(
+            int arity,
+            ImmutableArray<Symbol> members,
+            ArrayBuilder<FieldSymbol> fieldsForElements) {
+            var fieldsPerType = Math.Min(arity, ValueTupleRestPosition - 1);
+
+            for (var i = 0; i < fieldsPerType; i++) {
+                var wellKnownTupleField = GetTupleTypeMember(arity, i + 1);
+                fieldsForElements.Add((FieldSymbol)GetWellKnownMemberInType(members, wellKnownTupleField));
+            }
+        }
+
+        static Symbol GetWellKnownMemberInType(ImmutableArray<Symbol> members, WellKnownMember relativeMember) {
+            var wellKnownMember = CorLibrary.GetWellKnownMember(relativeMember);
+
+            foreach (var member in members) {
+                if (member.originalDefinition == wellKnownMember)
+                    return member;
+            }
+
+            throw ExceptionUtilities.Unreachable();
+        }
+
+        static ImmutableArray<Symbol> GetOriginalFields(ImmutableArray<Symbol> members) {
+            var fields = ArrayBuilder<Symbol>.GetInstance();
+
+            foreach (var member in members) {
+                if (member is TupleVirtualElementFieldSymbol)
+                    continue;
+                else if (member is TupleElementFieldSymbol tupleField)
+                    fields.Add(tupleField.underlyingField.originalDefinition);
+                else if (member is FieldSymbol field)
+                    fields.Add(field.originalDefinition);
+            }
+
+            return fields.ToImmutableAndFree();
+        }
+
+        static ImmutableArray<TextLocation> GetElementLocations(
+            in ImmutableArray<TextLocation> elementLocations,
+            int tupleFieldIndex) {
+            if (elementLocations.IsDefault)
+                return [];
+
+            var elementLocation = elementLocations[tupleFieldIndex];
+            return elementLocation == null ? [] : [elementLocation];
+        }
     }
 }

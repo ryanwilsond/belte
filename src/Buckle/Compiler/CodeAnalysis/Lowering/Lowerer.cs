@@ -185,6 +185,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         Float32.NegativeInfinity
 
         */
+        var syntax = node.syntax;
         var left = node.left.constantValue;
         var right = node.right.constantValue;
 
@@ -194,26 +195,26 @@ internal sealed class Lowerer : BoundTreeRewriter {
             if ((double)right.value == 0) {
                 if ((double)left.value == 0) {
                     var constant = ((FieldSymbol)StandardLibrary.Float64.GetMembers("NaN")[0]).constantValue;
-                    return Literal(node.syntax, constant, node.type);
+                    return Literal(syntax, constant, node.type);
                 } else if ((double)left.value > 0) {
                     var constant = ((FieldSymbol)StandardLibrary.Float64.GetMembers("PositiveInfinity")[0]).constantValue;
-                    return Literal(node.syntax, constant, node.type);
+                    return Literal(syntax, constant, node.type);
                 } else if ((double)left.value < 0) {
                     var constant = ((FieldSymbol)StandardLibrary.Float64.GetMembers("NegativeInfinity")[0]).constantValue;
-                    return Literal(node.syntax, constant, node.type);
+                    return Literal(syntax, constant, node.type);
                 }
             }
         } else if (node.operatorKind == BinaryOperatorKind.Float32Division) {
             if ((float)right.value == 0) {
                 if ((float)left.value == 0) {
                     var constant = ((FieldSymbol)StandardLibrary.Float32.GetMembers("NaN")[0]).constantValue;
-                    return Literal(node.syntax, constant, node.type);
+                    return Literal(syntax, constant, node.type);
                 } else if ((float)left.value > 0) {
                     var constant = ((FieldSymbol)StandardLibrary.Float32.GetMembers("PositiveInfinity")[0]).constantValue;
-                    return Literal(node.syntax, constant, node.type);
+                    return Literal(syntax, constant, node.type);
                 } else if ((float)left.value < 0) {
                     var constant = ((FieldSymbol)StandardLibrary.Float32.GetMembers("NegativeInfinity")[0]).constantValue;
-                    return Literal(node.syntax, constant, node.type);
+                    return Literal(syntax, constant, node.type);
                 }
             }
         }
@@ -292,6 +293,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         (<receiver> & <field>) != 0
 
+        ----> <field> is virtual tuple field
+
+        <receiver>.<field.underlying>
+
         */
         var syntax = node.syntax;
         var field = node.field;
@@ -314,6 +319,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
                 node.type
             );
         }
+
+        if (field.isVirtualTupleField)
+            return Visit(node.Update(node.receiver, field.tupleUnderlyingField, node.constantValue, node.type));
 
         var result = (BoundFieldAccessExpression)base.VisitFieldAccessExpression(node);
 

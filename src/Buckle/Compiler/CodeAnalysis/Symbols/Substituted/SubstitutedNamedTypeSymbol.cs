@@ -78,6 +78,9 @@ internal abstract class SubstitutedNamedTypeSymbol : WrappedNamedTypeSymbol {
             if (isUnboundTemplateType)
                 return new List<string>(GetTypeMembers().Select(s => s.name).Distinct());
 
+            if (isTupleType)
+                return GetMembers().Select(s => s.name).Distinct();
+
             return originalDefinition.memberNames;
         }
     }
@@ -120,6 +123,8 @@ internal abstract class SubstitutedNamedTypeSymbol : WrappedNamedTypeSymbol {
                 builder.Add(member.SymbolAsMember(this));
         }
 
+        builder = AddOrWrapTupleMembersIfNecessary(builder);
+
         var result = builder.ToImmutableAndFree();
         ImmutableInterlocked.InterlockedInitialize(ref _lazyMembers, result);
         return _lazyMembers;
@@ -144,6 +149,12 @@ internal abstract class SubstitutedNamedTypeSymbol : WrappedNamedTypeSymbol {
     }
 
     private ImmutableArray<Symbol> GetMembersWorker(string name) {
+        if (isTupleType) {
+            var result = GetMembers().WhereAsArray((m, name) => m.name == name, name);
+            CacheResult(result);
+            return result;
+        }
+
         var originalMembers = originalDefinition.GetMembers(name);
 
         if (originalMembers.IsDefaultOrEmpty)
@@ -155,11 +166,13 @@ internal abstract class SubstitutedNamedTypeSymbol : WrappedNamedTypeSymbol {
             builder.Add(member.SymbolAsMember(this));
 
         var substitutedMembers = builder.ToImmutableAndFree();
-
-        var cache = _lazyMembersByNameCache ??= new ConcurrentCache<string, ImmutableArray<Symbol>>(8);
-        cache.TryAdd(name, substitutedMembers);
-
+        CacheResult(substitutedMembers);
         return substitutedMembers;
+
+        void CacheResult(ImmutableArray<Symbol> result) {
+            var cache = _lazyMembersByNameCache ??= new ConcurrentCache<string, ImmutableArray<Symbol>>(8);
+            cache.TryAdd(name, result);
+        }
     }
 
     private void EnsureMapAndTemplateParameters() {
@@ -177,5 +190,20 @@ internal abstract class SubstitutedNamedTypeSymbol : WrappedNamedTypeSymbol {
             typeParameters,
             default
         );
+    }
+
+    private ArrayBuilder<Symbol> AddOrWrapTupleMembersIfNecessary(ArrayBuilder<Symbol> builder) {
+        if (isTupleType) {
+            var existingMembers = builder.ToImmutableAndFree();
+            var replacedFields = new HashSet<Symbol>(ReferenceEqualityComparer.Instance);
+            builder = MakeSynthesizedTupleMembers(existingMembers, replacedFields);
+
+            foreach (var existingMember in existingMembers) {
+                if (!replacedFields.Contains(existingMember))
+                    builder.Add(existingMember);
+            }
+        }
+
+        return builder;
     }
 }

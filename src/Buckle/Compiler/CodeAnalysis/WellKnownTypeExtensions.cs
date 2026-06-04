@@ -2,6 +2,27 @@
 namespace Buckle.CodeAnalysis;
 
 internal static class WellKnownTypeExtensions {
+    private static readonly string[] MetadataNames = [
+        "Enumerator`1",
+        "Exception",
+        "List`1",
+        "Dictionary`2",
+        "ValueTuple`1",
+        "ValueTuple`2",
+        "ValueTuple`3",
+        "ValueTuple`4",
+        "ValueTuple`5",
+        "ValueTuple`6",
+        "ValueTuple`7",
+        "ValueTuple`8",
+        "Vec2",
+        "Sprite",
+        "Text",
+        "Rect",
+        "Texture",
+        "Sound",
+    ];
+
     internal static bool ShouldEmit(this WellKnownType wellKnownType, bool includeGraphicsTypes) {
         switch (wellKnownType) {
             case WellKnownType.None:
@@ -28,5 +49,9 @@ internal static class WellKnownTypeExtensions {
             default:
                 return false;
         }
+    }
+
+    internal static string GetMetadataName(this WellKnownType wellKnownType) {
+        return MetadataNames[(int)wellKnownType - 1];
     }
 }

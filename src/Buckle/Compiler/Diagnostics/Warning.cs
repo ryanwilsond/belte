@@ -198,6 +198,11 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_StructInefficiencyPadding, location, message);
     }
 
+    internal static BelteDiagnostic LongTuple(TextLocation location, int size) {
+        var message = $"long tuple ({size} elements); consider using a named struct instead";
+        return CreateWarning(DiagnosticCode.WRN_LongTuple, location, message);
+    }
+
     private static BelteDiagnostic CreateWarning(DiagnosticCode code, TextLocation location, string message) {
         return CreateWarning(code, location, message, []);
     }

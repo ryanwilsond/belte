@@ -479,6 +479,8 @@ public enum DiagnosticCode : ushort {
     INF_StructInefficiency = 468,
     ERR_InvalidPackedAlignment = 469,
     ERR_BadEmbeddedStatementDefer = 470,
+    WRN_LongTuple = 471,
+    ERR_PredefinedTypeNotFound = 472,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

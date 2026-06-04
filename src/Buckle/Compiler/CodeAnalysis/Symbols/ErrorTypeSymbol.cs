@@ -76,6 +76,11 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
     internal sealed override bool isRefLikeType => false;
 
     internal override ImmutableArray<Symbol> GetMembers() {
+        if (isTupleType) {
+            var result = MakeSynthesizedTupleMembers([]);
+            return result.ToImmutableAndFree();
+        }
+
         return [];
     }
 

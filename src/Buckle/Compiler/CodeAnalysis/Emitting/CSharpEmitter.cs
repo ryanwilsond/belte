@@ -382,6 +382,9 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
             if (type is TemplateParameterSymbol t)
                 return GetSafeName(t.name);
 
+            if (type.isTupleType)
+                return GetTupleType((NamedTypeSymbol)type);
+
             return GetTypeWithContainingGenerics((NamedTypeSymbol)type);
         }
 
@@ -438,6 +441,10 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
             var typeParameters = string.Join(", ", signature.GetParameterTypes().Select(p => GetType(p.type)));
             return $"global::System.Func<{typeParameters}, {GetType(signature.returnType)}>";
         }
+    }
+
+    private string GetTupleType(NamedTypeSymbol type) {
+        return $"({string.Join(", ", type.tupleElementTypes.Select(t => GetType(t.type.type)))})";
     }
 
     internal override object VisitNamespace(NamespaceSymbol symbol, IndentedTextWriter argument) {

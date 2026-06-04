@@ -6,6 +6,7 @@ using System.Threading;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.Libraries;
@@ -54,6 +55,11 @@ internal sealed class CorLibrary {
     internal static NamedTypeSymbol GetWellKnownType(WellKnownType wellKnownType) {
         Instance.EnsureCorLibraryIsComplete();
         return Instance.GetWellKnownTypeCore(wellKnownType);
+    }
+
+    internal static NamedTypeSymbol TryGetWellKnownType(WellKnownType wellKnownType, Compilation compilation) {
+        Instance.EnsureCorLibraryIsComplete();
+        return Instance.TryGetWellKnownTypeCore(wellKnownType, compilation.assembly);
     }
 
     internal static NamedTypeSymbol GetSpecialType(SpecialType specialType) {
@@ -165,6 +171,17 @@ internal sealed class CorLibrary {
         return result;
     }
 
+    private NamedTypeSymbol TryGetWellKnownTypeCore(WellKnownType wellKnownType, AssemblySymbol assembly) {
+        if (!_wellKnownTypes.TryGetValue(wellKnownType, out var result)) {
+            var name = wellKnownType.GetMetadataName();
+            var error = new BelteDiagnostic(Error.PredefinedTypeNotFound(name));
+            var emittedName = MetadataTypeName.FromFullName(name, useCLSCompliantNameArityEncoding: true);
+            result = new MissingMetadataTypeSymbol.TopLevel(assembly.modules[0], ref emittedName, error);
+        }
+
+        return result;
+    }
+
     private void RegisterSpecialType(NamedTypeSymbol type) {
         var specialType = type.specialType;
 
@@ -261,14 +278,17 @@ internal sealed class CorLibrary {
             if (_lazyComplete)
                 return;
 
-            LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T1));
-            LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T2));
-            LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T3));
-            LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T4));
-            LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T5));
-            LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T6));
-            LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T7));
-            LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_TRest));
+            // We assume if one tuple is missing, all of them are
+            if (_wellKnownTypes.ContainsKey(WellKnownType.ValueTuple_T1)) {
+                LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T1));
+                LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T2));
+                LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T3));
+                LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T4));
+                LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T5));
+                LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T6));
+                LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T7));
+                LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_TRest));
+            }
 
             _lazyComplete = true;
         }

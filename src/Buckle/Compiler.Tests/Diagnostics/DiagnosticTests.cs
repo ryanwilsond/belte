@@ -6167,4 +6167,20 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Warning_BU0471_LongTuple() {
+        var text = @"
+            var a = [(3, 3, 3, 3, 3, 3, 3, 3, 3, 3)];
+        ";
+
+        var diagnostics = @"
+            long tuple (10 elements); consider using a named struct instead
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    // ! Error_BU0472_PredefinedTypeNotFound
+    // ? Requires '--nostdlib' command-line argument
 }

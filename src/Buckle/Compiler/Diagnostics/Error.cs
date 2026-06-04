@@ -2356,6 +2356,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_InvalidPackedAlignment, location, message);
     }
 
+    internal static Diagnostic PredefinedTypeNotFound(string name) {
+        var message = $"predefined type '{name}' is not defined (are you using '--nostdlib'?)";
+        return CreateError(DiagnosticCode.ERR_PredefinedTypeNotFound, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

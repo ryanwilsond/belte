@@ -319,6 +319,7 @@ internal sealed class CSharpCodeGenerator {
             BoundKind.UnaryOperator => EmitUnaryOperator((BoundUnaryOperator)expression),
             BoundKind.IncrementOperator => EmitIncrementOperator((BoundIncrementOperator)expression),
             BoundKind.BinaryOperator => EmitBinaryOperator((BoundBinaryOperator)expression),
+            BoundKind.TupleBinaryOperator => EmitTupleBinaryOperator((BoundTupleBinaryOperator)expression),
             BoundKind.AsOperator => EmitAsOperator((BoundAsOperator)expression),
             BoundKind.IsOperator => EmitIsOperator((BoundIsOperator)expression),
             BoundKind.NullCoalescingOperator => EmitNullCoalescingOperator((BoundNullCoalescingOperator)expression),
@@ -435,6 +436,10 @@ internal sealed class CSharpCodeGenerator {
         return $"({EmitExpression(node.left)} {SyntaxFacts.GetText(node.operatorKind.ToSyntaxKind())} {right})";
     }
 
+    private string EmitTupleBinaryOperator(BoundTupleBinaryOperator node) {
+        return $"({EmitExpression(node.left)} {SyntaxFacts.GetText(node.operatorKind.ToSyntaxKind())} {EmitExpression(node.right)})";
+    }
+
     private string EmitAsOperator(BoundAsOperator node) {
         return $"{EmitExpression(node.left)} as {EmitExpression(node.right)}";
     }
@@ -535,7 +540,7 @@ internal sealed class CSharpCodeGenerator {
         var builder = ArrayBuilder<string>.GetInstance();
 
         for (var i = 0; i < arguments.Length; i++) {
-            if (refKinds[i] == RefKind.None)
+            if (refKinds.Length <= i || refKinds[i] == RefKind.None)
                 builder.Add(EmitExpression(arguments[i]));
             else
                 builder.Add($"ref {EmitExpression(arguments[i])}");
@@ -596,6 +601,9 @@ internal sealed class CSharpCodeGenerator {
     }
 
     private string EmitObjectCreationExpression(BoundObjectCreationExpression node) {
+        if (node.type.isTupleType)
+            return $"({EmitArguments(node.arguments, node.argumentRefKinds)})";
+
         return $"new {_module.GetType(node.constructor.containingType)}({EmitArguments(node.arguments, node.argumentRefKinds)})";
     }
 

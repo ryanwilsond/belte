@@ -1860,6 +1860,25 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             default:
                 break;
         }
+
+        AddSynthesizedTupleMembersIfNecessary(builder, declaredMembersAndInitializers);
+    }
+
+    private void AddSynthesizedTupleMembersIfNecessary(
+        MembersAndInitializersBuilder builder,
+        DeclaredMembersAndInitializers declaredMembersAndInitializers) {
+        if (!isTupleType)
+            return;
+
+        var synthesizedMembers = MakeSynthesizedTupleMembers(declaredMembersAndInitializers.nonTypeMembers);
+
+        if (synthesizedMembers is null)
+            return;
+
+        foreach (var synthesizedMember in synthesizedMembers)
+            builder.AddNonTypeMember(synthesizedMember, declaredMembersAndInitializers);
+
+        synthesizedMembers.Free();
     }
 
     private void AddSynthesizedSimpleProgramEntryPointIfNecessary(

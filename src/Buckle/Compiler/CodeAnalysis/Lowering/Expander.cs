@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -397,6 +398,131 @@ internal sealed class Expander : SharedExpander {
             return statements;
         } else {
             return StabilizeIfNecessary(syntax, useKind, statements, tentativeReplacement, out replacement);
+        }
+    }
+
+    private protected override List<BoundStatement> ExpandTupleBinaryOperator(
+        BoundTupleBinaryOperator expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        /*
+
+        <left> <op> <right>
+
+        ---->
+
+        <left.Item1> <op> <right.Item1> && <left.Item2> <op> <right.Item2> && ...
+
+        */
+        var syntax = expression.syntax;
+        var boolType = CorLibrary.GetSpecialType(SpecialType.Bool);
+        var statements = new List<BoundStatement>();
+
+        replacement = null;
+
+        CreateTupleComparison(
+            syntax,
+            expression.left,
+            expression.right,
+            expression.operators,
+            boolType,
+            statements,
+            ref replacement
+        );
+
+        statements.AddRange(ExpandExpression(replacement, out replacement));
+
+        return StabilizeIfNecessary(syntax, useKind, statements, replacement, out replacement);
+
+        void CreateTupleComparison(
+            SyntaxNode syntax,
+            BoundExpression left,
+            BoundExpression right,
+            TupleBinaryOperatorInfo.Multiple operators,
+            NamedTypeSymbol boolType,
+            List<BoundStatement> statements,
+            ref BoundExpression replacement) {
+            var leftType = operators.leftConvertedType as NamedTypeSymbol;
+            var rightType = operators.rightConvertedType as NamedTypeSymbol;
+
+            statements.AddRange(ExpandExpression(left, out var newLeft, UseKind.StableValue));
+            statements.AddRange(ExpandExpression(right, out var newRight, UseKind.StableValue));
+
+            for (var i = 0; i < operators.operators.Length; i++) {
+                var ops = operators.operators[i];
+
+                var leftField = GetTupleField(i, leftType, ops.leftConvertedType, newLeft, ops);
+                var rightField = GetTupleField(i, rightType, ops.rightConvertedType, newRight, ops);
+
+                if (ops is TupleBinaryOperatorInfo.Multiple multiple) {
+                    CreateTupleComparison(
+                        syntax,
+                        leftField,
+                        rightField,
+                        multiple,
+                        boolType,
+                        statements,
+                        ref replacement
+                    );
+
+                    continue;
+                }
+
+                var op = (TupleBinaryOperatorInfo.Single)ops;
+
+                var comparison = Binary(syntax,
+                    leftField,
+                    op.kind,
+                    rightField,
+                    boolType
+                );
+
+                if (replacement is null) {
+                    replacement = comparison;
+                    continue;
+                }
+
+                var joinOp = op.kind.Operator() == BinaryOperatorKind.Equal
+                    ? BinaryOperatorKind.BoolConditionalAnd
+                    : BinaryOperatorKind.BoolConditionalOr;
+
+                replacement = Binary(syntax,
+                    replacement,
+                    joinOp,
+                    comparison,
+                    boolType
+                );
+            }
+        }
+
+        BoundExpression GetTupleField(
+            int i,
+            TypeSymbol receiverType,
+            TypeSymbol elementType,
+            BoundExpression receiver,
+            TupleBinaryOperatorInfo op) {
+            if (receiver is BoundConvertedTupleLiteral tuple)
+                return tuple.arguments[i];
+
+            var namedReceiver = (NamedTypeSymbol)receiverType;
+            var chain = receiver;
+
+            do {
+                var position = Math.Min(i + 1, 8);
+                i -= 7;
+
+                var field = ((FieldSymbol)CorLibrary.GetWellKnownMember(
+                    NamedTypeSymbol.GetTupleTypeMember(namedReceiver.arity, position)
+                )).AsMember(namedReceiver);
+
+                var elemType = position < 8 ? elementType : field.type;
+
+                chain = new BoundFieldAccessExpression(syntax, chain, field, null, elemType);
+
+                namedReceiver = field.type as NamedTypeSymbol;
+            } while (i >= 0);
+
+            return chain;
         }
     }
 

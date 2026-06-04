@@ -3444,6 +3444,9 @@ internal partial class Binder {
             );
         }
 
+        if (numElements > 7)
+            diagnostics.Push(Warning.LongTuple(node.location, numElements));
+
         return new BoundTupleLiteral(node, boundArguments.ToImmutableAndFree(), tupleType);
     }
 
