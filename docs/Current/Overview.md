@@ -181,6 +181,7 @@ These keywords only act as keywords inside specific contexts. As such they can b
 - [operator](ControlFlow.md#244-for-each-loops) (for each operators)
 - [packed](LowLevelFeatures.md#621-packing)
 - [primitive](ClassesAndObjects.md#4512-special-constraints)
+- [reverse](ControlFlow.md#271-reverse-methods)
 - [undef](Preprocessor.md#71-defineundef)
 
 ## 1.4 Nullability and Types

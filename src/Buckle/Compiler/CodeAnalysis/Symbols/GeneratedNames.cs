@@ -46,6 +46,10 @@ internal static class GeneratedNames {
         return "<" + fieldName + ">e__FixedBuffer";
     }
 
+    internal static string MakeReverseMethodName(string methodName) {
+        return "<" + methodName + ">e__Reverse";
+    }
+
     internal static string MakeClosureName(
         string topLevelMethodName,
         string localFunctionName,

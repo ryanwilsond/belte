@@ -128,6 +128,11 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
 
     internal override void VisitMethodDeclaration(MethodDeclarationSyntax node) {
         Visit(node.body);
+        Visit(node.reverseClause);
+    }
+
+    internal override void VisitReverseClause(ReverseClauseSyntax node) {
+        Visit(node.body);
     }
 
     internal override void VisitConstructorDeclaration(ConstructorDeclarationSyntax node) {

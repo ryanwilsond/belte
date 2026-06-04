@@ -52,6 +52,9 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
     // TODO Reference says members.First is what we want, but why?? Double check this
     internal SyntaxNode returnTypeSyntax => compilationUnit.elements.Last(m => m.kind == SyntaxKind.GlobalStatement);
 
+    internal TextLocation firstLocation
+        => compilationUnit.elements.First(m => m.kind == SyntaxKind.GlobalStatement).location;
+
     internal ExecutableCodeBinder GetBodyBinder(bool ignoreAccessibility) {
         ref var weakBinder = ref ignoreAccessibility ? ref _weakIgnoreAccessibilityBodyBinder : ref _weakBodyBinder;
 

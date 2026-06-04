@@ -10,6 +10,14 @@ public sealed class SymbolDisplayFormat {
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.SimplifyNullable | SymbolDisplayMiscellaneousOptions.ExpandTemplateParameter
     );
 
+    public static readonly SymbolDisplayFormat ErrorMessageExtendedFormat = new SymbolDisplayFormat(
+        qualificationStyle: SymbolDisplayQualificationStyle.IncludeContainingTypes,
+        templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
+        memberOptions: SymbolDisplayMemberOptions.IncludeParameters | SymbolDisplayMemberOptions.IncludeContainingType,
+        parameterOptions: SymbolDisplayParameterOptions.IncludeModifiers | SymbolDisplayParameterOptions.IncludeType | SymbolDisplayParameterOptions.IncludeName,
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.SimplifyNullable | SymbolDisplayMiscellaneousOptions.ExpandTemplateParameter
+    );
+
     public static readonly SymbolDisplayFormat ObjectCreationFormat = new SymbolDisplayFormat(
         qualificationStyle: SymbolDisplayQualificationStyle.IncludeContainingTypes,
         templateOptions: SymbolDisplayTemplateOptions.Everything,

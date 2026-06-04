@@ -486,6 +486,9 @@ public enum DiagnosticCode : ushort {
     ERR_TypeInferenceFailedForDeconstruction = 475,
     ERR_DeconstructWrongCardinality = 476,
     ERR_DeconstructTooFewElements = 477,
+    ERR_InvalidReverseParameter = 478,
+    ERR_ReverseRefMismatch = 479,
+    ERR_RefReverseMustHaveIdentityConversion = 480,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

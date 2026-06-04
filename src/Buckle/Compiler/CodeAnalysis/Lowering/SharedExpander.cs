@@ -646,13 +646,73 @@ internal class SharedExpander : BoundTreeExpander {
         for (var i = 0; i < assignments.Length; i++) {
             var (left, isRef) = lefts[i];
             var temp = temps[i];
-            var assignment = assignments[i];
+            var expression = assignments[i];
 
-            statements.AddRange(ExpandExpression(left, out var newLeft, UseKind.Writable));
-            statements.Add(LocalDeclaration(syntax, temp, newLeft));
-            statements.AddRange(RecreateAssignment(syntax, newLeft, assignment));
+            if (expression is BoundCallExpression call && call.method.reverseMethod.parameterCount == 0) {
+                statements.AddRange(ExpandExpression(expression, out var newCall));
+                statements.AddRange(Statement(syntax, newCall));
+                builder.Add((
+                    call.Update(
+                        call.receiver,
+                        call.method.reverseMethod,
+                        [],
+                        [],
+                        default,
+                        LookupResultKind.Viable,
+                        call.method.reverseMethod.returnType
+                    ),
+                    false
+                ));
+            } else if (expression is BoundCallExpression usedCall) {
+                statements.AddRange(ExpandExpression(expression, out var newCall));
+                statements.AddRange(LocalDeclaration(syntax, temp, newCall));
 
-            builder.Add((newLeft, isRef));
+                BoundExpression arg = Local(syntax, temp);
+
+                if (isRef)
+                    arg = new BoundReferenceExpression(syntax, arg, arg.type);
+
+                builder.Add((
+                    usedCall.Update(
+                        usedCall.receiver,
+                        usedCall.method.reverseMethod,
+                        [arg],
+                        [],
+                        default,
+                        LookupResultKind.Viable,
+                        usedCall.method.reverseMethod.returnType
+                    ),
+                    false
+                ));
+            } else if (expression is BoundCastExpression) {
+                statements.AddRange(ExpandExpression(expression, out var newCast));
+                var underlyingCall = (BoundCallExpression)((BoundCastExpression)newCast).operand;
+                statements.AddRange(LocalDeclaration(syntax, temp, newCast));
+
+                BoundExpression arg = Local(syntax, temp);
+
+                if (isRef)
+                    arg = new BoundReferenceExpression(syntax, arg, arg.type);
+
+                builder.Add((
+                    underlyingCall.Update(
+                        underlyingCall.receiver,
+                        underlyingCall.method.reverseMethod,
+                        [arg],
+                        [],
+                        default,
+                        LookupResultKind.Viable,
+                        underlyingCall.method.reverseMethod.returnType
+                    ),
+                    false
+                ));
+            } else {
+                statements.AddRange(ExpandExpression(left, out var newLeft, UseKind.Writable));
+                statements.Add(LocalDeclaration(syntax, temp, newLeft));
+                statements.AddRange(RecreateAssignment(syntax, newLeft, expression));
+
+                builder.Add((newLeft, isRef));
+            }
         }
 
         newLefts = builder.ToImmutableAndFree();
@@ -668,7 +728,11 @@ internal class SharedExpander : BoundTreeExpander {
         for (var i = temps.Length - 1; i >= 0; i--) {
             var (left, isRef) = lefts[i];
             var temp = temps[i];
-            statements.Add(Statement(syntax, Assignment(syntax, left, Local(syntax, temp), isRef, temp.type)));
+
+            if (left is BoundCallExpression)
+                statements.Add(Statement(syntax, left));
+            else
+                statements.Add(Statement(syntax, Assignment(syntax, left, Local(syntax, temp), isRef, temp.type)));
         }
 
         return statements;
@@ -683,6 +747,18 @@ internal class SharedExpander : BoundTreeExpander {
                 return (((BoundCompoundAssignmentOperator)expression).left, false);
             case BoundKind.NullCoalescingAssignmentOperator:
                 return (((BoundNullCoalescingAssignmentOperator)expression).left, false);
+            case BoundKind.CastExpression: {
+                    var method = ((BoundCallExpression)((BoundCastExpression)expression).operand).method;
+                    var isRef = method.reverseMethod.parameterCount > 0 &&
+                        method.reverseMethod.parameters[0].refKind != RefKind.None;
+                    return (expression, isRef);
+                }
+            case BoundKind.CallExpression: {
+                    var method = ((BoundCallExpression)expression).method;
+                    var isRef = method.reverseMethod.parameterCount > 0 &&
+                        method.reverseMethod.parameters[0].refKind != RefKind.None;
+                    return (expression, isRef);
+                }
             default:
                 throw ExceptionUtilities.UnexpectedValue(expression.kind);
         }

@@ -844,8 +844,10 @@ public sealed partial class Compilation {
             if (methods.Length > expectedCount)
                 diagnostics.Push(Error.MultipleMains(methods[0].location));
 
-            if (methods.Length > 1 && simpleEntryPoint is not null)
+            if (methods.Length > 1 && simpleEntryPoint is not null) {
+                diagnostics.Push(Error.MainAndGlobals(simpleEntryPoint.firstLocation));
                 diagnostics.Push(Error.MainAndGlobals(methods[0].location));
+            }
         }
 
         if (entryPoint is not null && !entryPoint.isStatic) {

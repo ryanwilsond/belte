@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -7,6 +8,10 @@ using Buckle.Diagnostics;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMethodSymbolBase {
+    private readonly MethodDeclarationSyntax _syntax;
+
+    private MethodSymbol _lazyReverseMethod;
+
     private SourceOrdinaryMethodSymbol(
         NamedTypeSymbol containingType,
         string name,
@@ -23,6 +28,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         this.hasExplicitAccessModifier = hasExplicitAccessModifier;
         var hasAnyBody = syntax.body is not null;
         location = syntax.identifier.location;
+        _syntax = syntax;
 
         if (hasAnyBody)
             CheckModifiersForBody(location, diagnostics);
@@ -40,6 +46,17 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
     private protected sealed override TextLocation _returnTypeLocation => GetSyntax().returnType.location;
 
     private bool _hasAnyBody => _flags.hasAnyBody;
+
+    internal override bool isReversible => _syntax.reverseClause is not null;
+
+    internal override MethodSymbol reverseMethod {
+        get {
+            if (isReversible && _lazyReverseMethod is null)
+                Interlocked.CompareExchange(ref _lazyReverseMethod, MakeReverseMethod(_syntax.reverseClause), null);
+
+            return _lazyReverseMethod;
+        }
+    }
 
     private SyntaxList<AttributeListSyntax> _attributeDeclarationSyntaxList {
         get {
@@ -252,5 +269,9 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             diagnostics.Push(Warning.ProtectedInSealed(location, this));
         else if (containingType.isStatic && !isStatic)
             diagnostics.Push(Error.InstanceMemberInStatic(location, this));
+    }
+
+    private MethodSymbol MakeReverseMethod(ReverseClauseSyntax syntax) {
+        return new SourceReverseMethodSymbol(syntax, containingType, this);
     }
 }

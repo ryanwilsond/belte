@@ -12,6 +12,7 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
 
     private TypeWithAnnotations _lazyReturnType;
     private ImmutableArray<ParameterSymbol> _lazyParameters;
+    private MethodSymbol _lazyReverseMethod;
     private TemplateMap _lazyMap;
     private ImmutableArray<TemplateParameterSymbol> _lazyTemplateParameters;
 
@@ -106,6 +107,17 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
     internal override NamedTypeSymbol containingType { get; }
 
     internal override MethodSymbol constructedFrom { get; }
+
+    internal override MethodSymbol reverseMethod {
+        get {
+            if (isReversible && _lazyReverseMethod is null) {
+                var reverseMethod = originalDefinition.reverseMethod.AsMember(containingType);
+                Interlocked.CompareExchange(ref _lazyReverseMethod, reverseMethod, null);
+            }
+
+            return _lazyReverseMethod;
+        }
+    }
 
     internal sealed override ImmutableArray<AttributeData> GetAttributes() {
         return originalDefinition.GetAttributes();

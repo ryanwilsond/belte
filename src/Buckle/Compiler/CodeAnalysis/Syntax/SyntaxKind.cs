@@ -171,6 +171,7 @@ public enum SyntaxKind : ushort {
     ScopedKeyword,
     FinalKeyword,
     PackedKeyword,
+    ReverseKeyword,
     HandleKeyword,
 
     // Trivia
@@ -292,6 +293,7 @@ public enum SyntaxKind : ushort {
     EnumMemberDeclaration,
     FieldDeclaration,
     MethodDeclaration,
+    ReverseClause,
     ConstructorDeclaration,
     ConstructorInitializer,
     DestructorDeclaration,

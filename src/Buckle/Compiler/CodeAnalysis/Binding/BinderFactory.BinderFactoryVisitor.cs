@@ -319,8 +319,16 @@ internal sealed partial class BinderFactory {
         }
 
         internal override Binder VisitMethodDeclaration(MethodDeclarationSyntax node) {
-            if (!LookupPosition.IsInMethodDeclaration(_position, node))
+            if (!LookupPosition.IsInMethodDeclaration(_position, node)) {
+                var reverseClause = node.reverseClause;
+
+                if (reverseClause is not null &&
+                    LookupPosition.IsBetweenTokens(_position, reverseClause.keyword, reverseClause.body.closeBrace)) {
+                    return VisitReverseClause(reverseClause);
+                }
+
                 return VisitCore(node.parent);
+            }
 
             NodeUsage usage;
 
@@ -362,7 +370,39 @@ internal sealed partial class BinderFactory {
             return resultBinder;
         }
 
-        private SourceMemberMethodSymbol GetMethodSymbol(BaseMethodDeclarationSyntax baseMethodDeclarationSyntax, Binder outerBinder) {
+        internal override Binder VisitReverseClause(ReverseClauseSyntax node) {
+            var usage = LookupPosition.IsInBlock(_position, node.body) ? NodeUsage.MethodBody : NodeUsage.Normal;
+            var key = CreateBinderCacheKey(node, usage);
+
+            if (!_binderCache.TryGetValue(key, out var resultBinder)) {
+                var grandParentType = node.parent.parent as TypeDeclarationSyntax;
+
+                if (grandParentType is not null) {
+                    resultBinder = VisitTypeDeclarationCore(
+                        grandParentType,
+                        NodeUsage.NamedTypeBodyOrTemplateParameters
+                    );
+                } else {
+                    resultBinder = VisitCore(node.parent.parent);
+                }
+
+                if (usage == NodeUsage.MethodBody) {
+                    var method = GetMethodSymbol(node, resultBinder);
+                    resultBinder = new InMethodBinder(method, resultBinder);
+
+                    if (method.isEffectivelyConst)
+                        resultBinder = resultBinder.WithAdditionalFlags(BinderFlags.ConstContext);
+                }
+
+                _binderCache.TryAdd(key, resultBinder);
+            }
+
+            return resultBinder;
+        }
+
+        private SourceMemberMethodSymbol GetMethodSymbol(
+            BaseMethodDeclarationSyntax baseMethodDeclarationSyntax,
+            Binder outerBinder) {
             if (baseMethodDeclarationSyntax == _memberDeclaration)
                 return (SourceMemberMethodSymbol)_member;
 
@@ -373,6 +413,11 @@ internal sealed partial class BinderFactory {
 
             var methodName = GetMethodName(baseMethodDeclarationSyntax);
             return (SourceMemberMethodSymbol)GetMemberSymbol(methodName, baseMethodDeclarationSyntax.fullSpan, container, SymbolKind.Method);
+        }
+
+        private SourceMemberMethodSymbol GetMethodSymbol(ReverseClauseSyntax reverseClauseSyntax, Binder outerBinder) {
+            var containingMethod = GetMethodSymbol((MethodDeclarationSyntax)reverseClauseSyntax.parent, outerBinder);
+            return (SourceMemberMethodSymbol)containingMethod.reverseMethod;
         }
 
         private NamedTypeSymbol GetContainerType(Binder binder) {

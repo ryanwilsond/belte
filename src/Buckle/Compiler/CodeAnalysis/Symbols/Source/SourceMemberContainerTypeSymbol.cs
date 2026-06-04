@@ -1657,7 +1657,11 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         );
 
                         builder.nonTypeMembers.Add(method);
+
+                        if (method.isReversible)
+                            builder.nonTypeMembers.Add(method.reverseMethod);
                     }
+
                     break;
                 case SyntaxKind.ConstructorDeclaration: {
                         var constructorSyntax = (ConstructorDeclarationSyntax)m;
@@ -1673,6 +1677,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                         builder.nonTypeMembers.Add(constructor);
                     }
+
                     break;
                 case SyntaxKind.DestructorDeclaration: {
                         var destructorSyntax = (DestructorDeclarationSyntax)m;
@@ -1683,6 +1688,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         var destructor = new SourceDestructorSymbol(this, destructorSyntax, diagnostics);
                         builder.nonTypeMembers.Add(destructor);
                     }
+
                     break;
                 case SyntaxKind.FinalizerDeclaration: {
                         var finalizerSyntax = (FinalizerDeclarationSyntax)m;
@@ -1693,6 +1699,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         var finalizer = new SourceFinalizerSymbol(this, finalizerSyntax, diagnostics);
                         builder.nonTypeMembers.Add(finalizer);
                     }
+
                     break;
                 case SyntaxKind.OperatorDeclaration: {
                         var operatorSyntax = (OperatorDeclarationSyntax)m;
@@ -1708,6 +1715,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                         builder.nonTypeMembers.Add(method);
                     }
+
                     break;
                 case SyntaxKind.LiteralOperatorDeclaration: {
                         var operatorSyntax = (LiteralOperatorDeclarationSyntax)m;
@@ -1723,6 +1731,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                         builder.nonTypeMembers.Add(method);
                     }
+
                     break;
                 case SyntaxKind.ConversionDeclaration: {
                         var conversionSyntax = (ConversionDeclarationSyntax)m;
@@ -1738,6 +1747,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                         builder.nonTypeMembers.Add(method);
                     }
+
                     break;
                 case SyntaxKind.GlobalStatement:
                     var globalStatement = ((GlobalStatementSyntax)m).statement;

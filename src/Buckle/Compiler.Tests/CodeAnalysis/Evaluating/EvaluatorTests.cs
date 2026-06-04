@@ -524,6 +524,49 @@ public sealed class EvaluatorTests {
     [InlineData("int a = 0; int[] b = { 1, 1, 1 }; int c = with (b[a++] = 5) b[a - 1]; return a;", 1)]
     [InlineData("int a = 0; int[] b = { 1, 1, 1 }; int c = with (b[a++] = 5) b[a - 1]; return b[0];", 1)]
     [InlineData("int a = 1; return with (a = 2) with (a = 3) a;", 3)]
+    [InlineData(@"
+        class A {
+            public static int c = 4;
+            public static void M() { c++; } reverse { c--; }
+        }
+        var b = with (A.M()) A.c;
+        return b;", 5)]
+    [InlineData(@"
+        class A {
+            public static int c = 4;
+            public static void M() { c++; } reverse { c--; }
+        }
+        var b = with (A.M()) A.c;
+        return A.c;", 4)]
+    [InlineData(@"
+        class A {
+            public static int c = 5;
+            public static int M(int p) { return p; } reverse (p) { c = p; }
+        }
+        var b = with (A.M(10)) A.c;
+        return b;", 5)]
+    [InlineData(@"
+        class A {
+            public static int c = 5;
+            public static int M(int p) { return p; } reverse (int p) { c = p; }
+        }
+        var b = with (A.M(10)) A.c;
+        return A.c;", 10)]
+    [InlineData(@"
+        class A {
+            public static int c = 5;
+            public static int M(int p) { return p; } reverse (decimal p) { c = (int)p; }
+        }
+        var b = with (A.M(10)) A.c;
+        return A.c;", 10)]
+    [InlineData(@"
+        class A<type T> {
+            public T c;
+            public T M(T p) { return p; } reverse (T p) { c = p; }
+        }
+        var a = new A<int>();
+        var b = with (a.M(10)) 10;
+        return a.c;", 10)]
     // Compile-time expressions
     [InlineData("int a = $3; return a;", 3)]
     [InlineData("constexpr int? a = 3; int b = $a?; return b;", 3)]

@@ -927,6 +927,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
         else
             body = ParseBlockStatement();
 
+        var reverseClause = currentToken.contextualKind == SyntaxKind.ReverseKeyword ? ParseReverseClause() : null;
+
         return SyntaxFactory.MethodDeclaration(
             attributeLists,
             modifiers,
@@ -937,8 +939,36 @@ internal sealed partial class LanguageParser : SyntaxParser {
             implicitKeyword,
             constraintClauseList,
             body,
-            semicolon
+            semicolon,
+            reverseClause
         );
+    }
+
+    private ReverseClauseSyntax ParseReverseClause() {
+        var keyword = ConvertToKeyword(EatToken());
+
+        SyntaxToken openParenthesis = null;
+        TypeSyntax type = null;
+        SyntaxToken identifier = null;
+        SyntaxToken closeParenthesis = null;
+
+        if (currentToken.kind == SyntaxKind.OpenParenToken) {
+            openParenthesis = MatchOpenParen();
+
+            // TODO Error recovery in cases like `reverse ()` or `reverse (a {` could be better
+            if (currentToken.kind == SyntaxKind.IdentifierToken && Peek(1).kind == SyntaxKind.CloseParenToken) {
+                identifier = EatToken();
+                closeParenthesis = MatchCloseParen();
+            } else {
+                type = ParseType();
+                identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.CloseParenToken);
+                closeParenthesis = MatchCloseParen();
+            }
+        }
+
+        var body = ParseBlockStatement();
+
+        return SyntaxFactory.ReverseClause(keyword, openParenthesis, type, identifier, closeParenthesis, body);
     }
 
     private MemberDeclarationSyntax ParseLiteralOperatorDeclaration(

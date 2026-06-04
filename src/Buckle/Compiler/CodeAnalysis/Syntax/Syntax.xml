@@ -781,6 +781,24 @@
     <Field Name="semicolon" Type="SyntaxToken" Optional="true">
       <Kind Name="SemicolonToken"/>
     </Field>
+    <Field Name="reverseClause" Type="ReverseClauseSyntax" Optional="true"/>
+  </Node>
+  <Node Name="ReverseClauseSyntax" Base="SyntaxNode">
+    <Kind Name="ReverseClause"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="ReverseKeyword"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken" Optional="true">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="type" Type="TypeSyntax" Optional="true"/>
+    <Field Name="identifier" Type="SyntaxToken" Optional="true">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="closeParenthesis" Type="SyntaxToken" Optional="true">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+    <Field Name="body" Type="BlockStatementSyntax"/>
   </Node>
   <Node Name="ConversionDeclarationSyntax" Base="BaseMethodDeclarationSyntax">
     <Kind Name="ConversionDeclaration"/>

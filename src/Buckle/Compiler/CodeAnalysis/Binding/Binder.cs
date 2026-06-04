@@ -3539,12 +3539,12 @@ internal partial class Binder {
     }
 
     private BoundWithExpression BindWithExpression(WithExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
-        var assignments = BindAssignmentExpressionList(node.expressions, diagnostics, out var hasErrors);
+        var assignments = BindWithExpressionList(node.expressions, diagnostics, out var hasErrors);
         var body = BindExpression(node.body, diagnostics);
         return new BoundWithExpression(node, assignments, body, body.type, hasErrors);
     }
 
-    private ImmutableArray<BoundExpression> BindAssignmentExpressionList(
+    private ImmutableArray<BoundExpression> BindWithExpressionList(
         SeparatedSyntaxList<ExpressionSyntax> expressions,
         BelteDiagnosticQueue diagnostics,
         out bool hasErrors) {
@@ -3552,12 +3552,31 @@ internal partial class Binder {
         var builder = ArrayBuilder<BoundExpression>.GetInstance();
 
         foreach (var expression in expressions) {
+            var boundExpression = BindExpression(expression, diagnostics);
+
             if (expression.kind != SyntaxKind.AssignmentExpression) {
-                diagnostics.Push(Error.WithExpressionNotAssignment(expression.location));
-                hasErrors = true;
+                if (boundExpression is BoundCallExpression call && call.method.isReversible) {
+                    var reverseMethod = call.method.reverseMethod;
+
+                    if (reverseMethod.parameterCount > 0) {
+                        var parameter = reverseMethod.parameters[0];
+
+                        boundExpression = GenerateConversionForAssignment(
+                            parameter.type,
+                            boundExpression,
+                            diagnostics,
+                            parameter.refKind != RefKind.None
+                                ? ConversionForAssignmentFlags.RefAssignment
+                                : ConversionForAssignmentFlags.None
+                        );
+                    }
+                } else {
+                    diagnostics.Push(Error.WithExpressionNotAssignment(expression.location));
+                    hasErrors = true;
+                }
             }
 
-            builder.Add(BindExpression(expression, diagnostics));
+            builder.Add(boundExpression);
         }
 
         return builder.ToImmutableAndFree();
@@ -12907,7 +12926,7 @@ symIsHidden:;
     }
 
     private BoundWithStatement BindWithStatement(WithStatementSyntax node, BelteDiagnosticQueue diagnostics) {
-        var assignments = BindAssignmentExpressionList(node.expressions, diagnostics, out var hasErrors);
+        var assignments = BindWithExpressionList(node.expressions, diagnostics, out var hasErrors);
         var wrapWithTry = node.tryKeyword is not null;
         var binder = wrapWithTry ? this : GetBinder(node);
         var body = binder.BindPossibleEmbeddedStatement(node.body, diagnostics);
@@ -14553,6 +14572,8 @@ symIsHidden:;
                     return BindConstructorBody((ConstructorDeclarationSyntax)method, diagnostics);
 
                 return BindMethodBody(method, method.body, diagnostics);
+            case ReverseClauseSyntax reverseMethod:
+                return BindMethodBody(reverseMethod, reverseMethod.body, diagnostics);
             case CompilationUnitSyntax compilationUnit:
                 return BindSimpleProgram(compilationUnit, diagnostics);
             default:
@@ -15221,7 +15242,7 @@ symIsHidden:;
         return;
     }
 
-    private protected static void GenerateImplicitConversionError(
+    internal static void GenerateImplicitConversionError(
         BelteDiagnosticQueue diagnostics,
         SyntaxNode syntax,
         Conversion conversion,

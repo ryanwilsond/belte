@@ -244,6 +244,7 @@ public static class SyntaxFacts {
             "final" => SyntaxKind.FinalKeyword,
             "literal" => SyntaxKind.LiteralKeyword,
             "packed" => SyntaxKind.PackedKeyword,
+            "reverse" => SyntaxKind.ReverseKeyword,
             "unreachable" => SyntaxKind.UnreachableKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
@@ -264,6 +265,7 @@ public static class SyntaxFacts {
             case SyntaxKind.OperatorKeyword:
             case SyntaxKind.PackedKeyword:
             case SyntaxKind.PrimitiveKeyword:
+            case SyntaxKind.ReverseKeyword:
             case SyntaxKind.UndefKeyword:
                 return true;
             default:
@@ -424,6 +426,7 @@ public static class SyntaxFacts {
             SyntaxKind.FinalKeyword => "final",
             SyntaxKind.LiteralKeyword => "literal",
             SyntaxKind.PackedKeyword => "packed",
+            SyntaxKind.ReverseKeyword => "reverse",
             SyntaxKind.UnreachableKeyword => "unreachable",
             _ => null,
         };

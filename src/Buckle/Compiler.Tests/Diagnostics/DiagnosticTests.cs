@@ -224,12 +224,13 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0016_MainAndGlobals() {
         var text = @"
-            int? a = 3;
+            [int? a = 3;]
 
             void [Main]() { }
         ";
 
         var diagnostics = @"
+            declaring a main method and using global statements creates ambiguous entry point
             declaring a main method and using global statements creates ambiguous entry point
         ";
 
@@ -6205,7 +6206,7 @@ public sealed class DiagnosticTests {
     // ? Unreachable currently
 
     [Fact]
-    public void Reports_Error_BU0475_DeconstructWrongCardinality() {
+    public void Reports_Error_BU0476_DeconstructWrongCardinality() {
         var text = @"
             [(var a, var b) = (3, 3, 3)];
         ";
@@ -6217,6 +6218,57 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0476_DeconstructTooFewElements
+    // ! Error_BU0477_DeconstructTooFewElements
     // ? Unreachable currently
+
+    [Fact]
+    public void Reports_Error_BU0478_InvalidReverseParameter() {
+        var text = @"
+            class A {
+                void M() { }
+                [reverse] (a) { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            reverse clause cannot take a parameter because the target method returns void
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0479_ReverseRefMismatch() {
+        var text = @"
+            class A {
+                int M() { return 1; }
+                [reverse] (ref int a) { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            ref mismatch between 'A.M()' and parameter 'ref int! a'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0480_RefReverseMustHaveIdentityConversion() {
+        var text = @"
+            class A {
+                ref int M(ref int a) { return ref a; }
+                reverse ([ref decimal] a) { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            the reverse clause parameter must be of type 'int!' because it is being assigned by reference
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

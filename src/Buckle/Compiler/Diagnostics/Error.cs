@@ -2140,6 +2140,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_FunctionRefMismatch, location, message);
     }
 
+    internal static BelteDiagnostic ReverseRefMismatch(TextLocation location, Symbol method, ParameterSymbol parameter) {
+        var message = $"ref mismatch between '{method}' and parameter '{parameter.ToDisplayString(SymbolDisplayFormat.ErrorMessageExtendedFormat)}'";
+        return CreateError(DiagnosticCode.ERR_ReverseRefMismatch, location, message);
+    }
+
     internal static BelteDiagnostic UnknownCallingConvention(TextLocation location, string text) {
         var message = $"unrecognized calling convention '{text}'; valid calling conventions are 'stdcall', 'winapi', 'fastcall', 'cdecl', and 'thiscall'";
         return CreateError(DiagnosticCode.ERR_UnknownCallingConvention, location, message);
@@ -2385,6 +2390,16 @@ internal static class Error {
     internal static BelteDiagnostic DeconstructTooFewElements(TextLocation location) {
         var message = $"deconstruction must contain at least 2 variables";
         return CreateError(DiagnosticCode.ERR_DeconstructTooFewElements, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidReverseParameter(TextLocation location) {
+        var message = $"reverse clause cannot take a parameter because the target method returns void";
+        return CreateError(DiagnosticCode.ERR_InvalidReverseParameter, location, message);
+    }
+
+    internal static BelteDiagnostic RefReverseMustHaveIdentityConversion(TextLocation location, TypeSymbol type) {
+        var message = $"the reverse clause parameter must be of type '{type}' because it is being assigned by reference";
+        return CreateError(DiagnosticCode.ERR_RefReverseMustHaveIdentityConversion, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
