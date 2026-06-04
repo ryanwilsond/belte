@@ -3383,6 +3383,94 @@ internal partial class Binder {
         }
     }
 
+    private BoundExpression BindDeclarationExpressionAsError(
+        DeclarationExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        var isConst = false;
+        var isConstExpr = false;
+
+        // TODO Use the out info?
+        var declType = BindVariableTypeWithAnnotations(
+            node,
+            diagnostics,
+            node.type.SkipRef(out _),
+            ref isConst,
+            ref isConstExpr,
+            out var isImplicitlyTyped,
+            out var isNonNullable,
+            out var isNullable,
+            out var alias
+        );
+
+        diagnostics.Push(Error.InvalidDeclarationExpression(node.location));
+
+        return BindDeclarationVariablesForErrorRecovery(declType, node, node, diagnostics);
+    }
+
+    private BoundExpression BindDeclarationVariablesForErrorRecovery(
+        TypeWithAnnotations declTypeWithAnnotations,
+        DeclarationExpressionSyntax designation,
+        BelteSyntaxNode syntax,
+        BelteDiagnosticQueue diagnostics) {
+        declTypeWithAnnotations = declTypeWithAnnotations.hasType
+            ? declTypeWithAnnotations
+            : new TypeWithAnnotations(CreateErrorType("var"));
+
+        var result = BindDeconstructionVariable(declTypeWithAnnotations, designation, syntax, diagnostics);
+        return BindToTypeForErrorRecovery(result);
+    }
+
+    private BoundExpression BindDeconstructionVariable(
+        TypeWithAnnotations declTypeWithAnnotations,
+        DeclarationExpressionSyntax designation,
+        BelteSyntaxNode syntax,
+        BelteDiagnosticQueue diagnostics) {
+        var localSymbol = LookupLocal(designation.identifier);
+
+        if (localSymbol is not null) {
+            var typeSyntax = designation.type;
+
+            if (typeSyntax is ReferenceTypeSyntax refType)
+                diagnostics.Push(Error.DeconstructVariableCannotBeRef(refType.refKeyword.location));
+
+            var hasErrors = localSymbol.scopeBinder.ValidateDeclarationNameConflictsInScope(localSymbol, diagnostics);
+
+            if (declTypeWithAnnotations.hasType) {
+                return new BoundDataContainerExpression(
+                    syntax,
+                    localSymbol,
+                    constantValue: null,
+                    type: declTypeWithAnnotations.type,
+                    hasErrors: hasErrors
+                );
+            }
+
+            return new DeconstructionVariablePendingInference(syntax, localSymbol, receiver: null);
+        } else {
+            var field = LookupDeclaredField(designation) ?? throw ExceptionUtilities.Unreachable();
+            var typeSyntax = designation.type;
+
+            if (typeSyntax is ReferenceTypeSyntax refType)
+                diagnostics.Push(Error.UnexpectedToken(refType.refKeyword.location, refType.refKeyword.kind));
+
+            var receiver = new BoundThisExpression(designation, containingType);
+
+            if (declTypeWithAnnotations.hasType) {
+                var fieldType = field.GetFieldType(fieldsBeingBound);
+
+                return new BoundFieldAccessExpression(
+                    syntax,
+                    receiver,
+                    field,
+                    constantValue: null,
+                    type: fieldType.type
+                );
+            }
+
+            return new DeconstructionVariablePendingInference(syntax, field, receiver);
+        }
+    }
+
     private BoundExpression BindTupleExpression(TupleExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
         var arguments = node.arguments;
         var numElements = arguments.Count;
@@ -7884,6 +7972,45 @@ internal partial class Binder {
         }
     }
 
+    private void SetInferredTypes(
+        ArrayBuilder2<DeconstructionVariable> variables,
+        ImmutableArray<TypeSymbol> foundTypes,
+        BelteDiagnosticQueue diagnostics) {
+        var matchCount = Math.Min(variables.Count, foundTypes.Length);
+
+        for (var i = 0; i < matchCount; i++) {
+            var variable = variables[i];
+
+            if (variable.single is { } pending) {
+                if (pending.type is not null)
+                    continue;
+
+                variables[i] = new DeconstructionVariable(
+                    SetInferredType(pending, foundTypes[i], diagnostics),
+                    variable.syntax
+                );
+            }
+        }
+    }
+
+    private BoundExpression SetInferredType(
+        BoundExpression expression,
+        TypeSymbol type,
+        BelteDiagnosticQueue diagnostics) {
+        switch (expression.kind) {
+            case BoundKind.DeconstructionVariablePendingInference: {
+                    var pending = (DeconstructionVariablePendingInference)expression;
+                    return pending.SetInferredTypeWithAnnotations(new TypeWithAnnotations(type), this, diagnostics);
+                }
+            case BoundKind.DiscardExpression: {
+                    var pending = (BoundDiscardExpression)expression;
+                    return pending.SetInferredTypeWithAnnotations(new TypeWithAnnotations(type));
+                }
+            default:
+                throw ExceptionUtilities.UnexpectedValue(expression.kind);
+        }
+    }
+
     private static TypeSymbol GetCorrespondingParameterType(
         AnalyzedArguments analyzedArguments,
         int i,
@@ -10452,6 +10579,9 @@ internal partial class Binder {
     private BoundExpression BindAssignmentOperator(
         AssignmentExpressionSyntax node,
         BelteDiagnosticQueue diagnostics) {
+        if (node.left.kind == SyntaxKind.TupleExpression || node.left.kind == SyntaxKind.DeclarationExpression)
+            return BindDeconstruction(node, diagnostics);
+
         if (node.assignmentToken.kind is SyntaxKind.QuestionQuestionEqualsToken or SyntaxKind.QuestionExclamationEqualsToken)
             return BindNullCoalescingCompoundAssignment(node, diagnostics);
         else if (node.assignmentToken.kind != SyntaxKind.EqualsToken)
@@ -10459,6 +10589,527 @@ internal partial class Binder {
 
         var left = BindExpressionInternal(node.left, diagnostics, false, false);
         return BindSimpleAssignmentWithUncheckedBoundLeft(node, left, diagnostics);
+    }
+
+    internal BoundExpression BindDeconstruction(
+        AssignmentExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        var left = node.left;
+        var right = node.right;
+        DeclarationExpressionSyntax declaration = null;
+        ExpressionSyntax expression = null;
+        var result = BindDeconstruction(node, left, right, diagnostics, ref declaration, ref expression);
+
+        if (declaration is not null) {
+            switch (node.parent?.kind) {
+                case null:
+                case SyntaxKind.ExpressionStatement:
+                    break;
+                default:
+                    diagnostics.Push(Error.InvalidDeclarationExpression(declaration.location));
+                    break;
+            }
+        }
+
+        return result;
+    }
+
+    internal BoundDeconstructionAssignmentOperator BindDeconstruction(
+        BelteSyntaxNode deconstruction,
+        ExpressionSyntax left,
+        ExpressionSyntax right,
+        BelteDiagnosticQueue diagnostics,
+        ref DeclarationExpressionSyntax declaration,
+        ref ExpressionSyntax expression) {
+        var locals = BindDeconstructionVariables(left, diagnostics, ref declaration, ref expression);
+
+        var deconstructionDiagnostics = BelteDiagnosticQueue.GetInstance();
+        var boundRight = BindValue(right, deconstructionDiagnostics, BindValueKind.RValue);
+
+        boundRight = FixTupleLiteral(locals.nestedVariables, boundRight, deconstruction, deconstructionDiagnostics);
+        boundRight = BindToNaturalType(boundRight, diagnostics);
+
+        var resultIsUsed = IsDeconstructionResultUsed(left);
+
+        var assignment = BindDeconstructionAssignment(
+            deconstruction,
+            left,
+            boundRight,
+            locals.nestedVariables,
+            resultIsUsed,
+            deconstructionDiagnostics
+        );
+
+        DeconstructionVariable.FreeDeconstructionVariables(locals.nestedVariables);
+
+        diagnostics.PushRangeAndFree(deconstructionDiagnostics);
+        return assignment;
+    }
+
+    private BoundDeconstructionAssignmentOperator BindDeconstructionAssignment(
+        BelteSyntaxNode node,
+        ExpressionSyntax left,
+        BoundExpression boundRight,
+        ArrayBuilder2<DeconstructionVariable> checkedVariables,
+        bool resultIsUsed,
+        BelteDiagnosticQueue diagnostics) {
+        if (boundRight.type is null || boundRight.type.IsErrorType()) {
+            FailRemainingInferences(checkedVariables, diagnostics);
+            var voidType = CorLibrary.GetSpecialType(SpecialType.Void);
+            var type = boundRight.type ?? voidType;
+
+            return new BoundDeconstructionAssignmentOperator(
+                node,
+                DeconstructionVariablesAsTuple(left, checkedVariables, diagnostics, ignoreDiagnosticsFromTuple: true),
+                new BoundCastExpression(
+                    boundRight.syntax,
+                    boundRight,
+                    Conversion.Deconstruction,
+                    constantValue: null,
+                    type: type,
+                    hasErrors: true
+                ),
+                resultIsUsed,
+                voidType,
+                hasErrors: true
+            );
+        }
+
+        var hasErrors = !MakeDeconstructionConversion(
+            boundRight.type,
+            node,
+            boundRight.syntax,
+            diagnostics,
+            checkedVariables,
+            out var conversion
+        );
+
+        // TODO Warning
+        // if (conversion.method is not null)
+        //     CheckImplicitThisCopyInReadOnlyMember(boundRight, conversion.method, diagnostics);
+
+        FailRemainingInferences(checkedVariables, diagnostics);
+
+        var lhsTuple = DeconstructionVariablesAsTuple(
+            left,
+            checkedVariables,
+            diagnostics,
+            ignoreDiagnosticsFromTuple: diagnostics.AnyErrors() || !resultIsUsed
+        );
+
+        var returnType = hasErrors ? CreateErrorType() : lhsTuple.type;
+
+        var boundConversion = new BoundCastExpression(
+            boundRight.syntax,
+            boundRight,
+            conversion,
+            constantValue: null,
+            type: returnType,
+            hasErrors: hasErrors
+        );
+
+        return new BoundDeconstructionAssignmentOperator(node, lhsTuple, boundConversion, resultIsUsed, returnType);
+    }
+
+    private BoundTupleExpression DeconstructionVariablesAsTuple(
+        BelteSyntaxNode syntax,
+        ArrayBuilder2<DeconstructionVariable> variables,
+        BelteDiagnosticQueue diagnostics,
+        bool ignoreDiagnosticsFromTuple) {
+        var count = variables.Count;
+        var valuesBuilder = ArrayBuilder<BoundExpression>.GetInstance(count);
+        var typesWithAnnotationsBuilder = ArrayBuilder<TypeWithAnnotations>.GetInstance(count);
+        var locationsBuilder = ArrayBuilder<TextLocation>.GetInstance(count);
+        var namesBuilder = ArrayBuilder<string>.GetInstance(count);
+
+        foreach (var variable in variables) {
+            BoundExpression value;
+            if (variable.nestedVariables is not null) {
+                value = DeconstructionVariablesAsTuple(
+                    variable.syntax,
+                    variable.nestedVariables,
+                    diagnostics,
+                    ignoreDiagnosticsFromTuple
+                );
+
+                namesBuilder.Add(null);
+            } else {
+                value = variable.single;
+                namesBuilder.Add(null);
+            }
+
+            valuesBuilder.Add(value);
+            typesWithAnnotationsBuilder.Add(new TypeWithAnnotations(value.type));
+            locationsBuilder.Add(variable.syntax.location);
+        }
+
+        var arguments = valuesBuilder.ToImmutableAndFree();
+
+        var uniqueFieldNames = PooledHashSet<string>.GetInstance();
+        // RemoveDuplicateInferredTupleNamesAndFreeIfEmptied(ref namesBuilder, uniqueFieldNames);
+        uniqueFieldNames.Free();
+
+        var tupleNames = namesBuilder is null ? default : namesBuilder.ToImmutableAndFree();
+
+        var type = NamedTypeSymbol.CreateTuple(
+            syntax.location,
+            typesWithAnnotationsBuilder.ToImmutableAndFree(),
+            locationsBuilder.ToImmutableAndFree(),
+            tupleNames,
+            compilation,
+            shouldCheckConstraints: !ignoreDiagnosticsFromTuple,
+            errorPositions: default,
+            syntax: syntax,
+            diagnostics: ignoreDiagnosticsFromTuple ? null : diagnostics
+        );
+
+        return (BoundTupleExpression)BindToNaturalType(
+            new BoundTupleLiteral(syntax, arguments, type),
+            diagnostics
+        );
+    }
+
+    private bool MakeDeconstructionConversion(
+        TypeSymbol type,
+        SyntaxNode syntax,
+        SyntaxNode rightSyntax,
+        BelteDiagnosticQueue diagnostics,
+        ArrayBuilder2<DeconstructionVariable> variables,
+        out Conversion conversion) {
+        ImmutableArray<TypeSymbol> tupleOrDeconstructedTypes;
+        conversion = Conversion.Deconstruction;
+        var deconstructMethod = default(DeconstructMethodInfo);
+
+        if (type.isTupleType) {
+            tupleOrDeconstructedTypes = type.tupleElementTypes.SelectAsArray(t => t.type.type);
+            SetInferredTypes(variables, tupleOrDeconstructedTypes, diagnostics);
+
+            if (variables.Count != tupleOrDeconstructedTypes.Length) {
+                diagnostics.Push(Error.DeconstructWrongCardinality(
+                    syntax.location,
+                    tupleOrDeconstructedTypes.Length,
+                    variables.Count
+                ));
+
+                return false;
+            }
+        } else {
+            // TODO User-defined Deconstruct methods
+            throw ExceptionUtilities.Unreachable();
+            // if (variables.Count < 2) {
+            //     diagnostics.Push(Error.DeconstructTooFewElements(syntax.location));
+            //     return false;
+            // }
+
+            // var inputPlaceholder = new BoundValuePlaceholder(syntax, type);
+            // var deconstructInvocation = MakeDeconstructInvocationExpression(
+            //     variables.Count,
+            //     inputPlaceholder,
+            //     rightSyntax,
+            //     diagnostics,
+            //     outPlaceholders: out var outPlaceholders,
+            //     out _,
+            //     variables
+            // );
+
+            // if (deconstructInvocation.hasAnyErrors)
+            //     return false;
+
+            // deconstructMethod = new DeconstructMethodInfo(deconstructInvocation, inputPlaceholder, outPlaceholders);
+
+            // tupleOrDeconstructedTypes = outPlaceholders.SelectAsArray(p => p.type);
+            // SetInferredTypes(variables, tupleOrDeconstructedTypes, diagnostics);
+        }
+
+        var hasErrors = false;
+        var count = variables.Count;
+        var nestedConversions = ArrayBuilder<(BoundValuePlaceholder?, BoundExpression?)>.GetInstance(count);
+
+        for (var i = 0; i < count; i++) {
+            var variable = variables[i];
+
+            Conversion nestedConversion;
+
+            if (variable.nestedVariables is not null) {
+                var elementSyntax = syntax.kind == SyntaxKind.TupleExpression
+                    ? ((TupleExpressionSyntax)syntax).arguments[i]
+                    : syntax;
+
+                hasErrors |= !MakeDeconstructionConversion(
+                    tupleOrDeconstructedTypes[i],
+                    elementSyntax,
+                    rightSyntax,
+                    diagnostics,
+                    variable.nestedVariables,
+                    out nestedConversion
+                );
+
+                var operandPlaceholder = new BoundValuePlaceholder(syntax, ErrorTypeSymbol.UnknownResultType);
+
+                nestedConversions.Add((
+                    operandPlaceholder,
+                    new BoundCastExpression(
+                        syntax,
+                        operandPlaceholder,
+                        nestedConversion,
+                        constantValue: null,
+                        type: ErrorTypeSymbol.UnknownResultType
+                    )
+                ));
+            } else {
+                var single = variable.single;
+
+                nestedConversion = conversions.ClassifyConversionFromType(
+                    tupleOrDeconstructedTypes[i],
+                    single.type
+                );
+
+                if (!nestedConversion.isImplicit) {
+                    hasErrors = true;
+
+                    GenerateImplicitConversionError(
+                        diagnostics,
+                        single.syntax,
+                        nestedConversion,
+                        tupleOrDeconstructedTypes[i],
+                        single.type
+                    );
+
+                    nestedConversions.Add((null, null));
+                } else {
+                    var operandPlaceholder = new BoundValuePlaceholder(syntax, tupleOrDeconstructedTypes[i]);
+                    nestedConversions.Add((
+                        operandPlaceholder,
+                        CreateConversion(
+                            syntax,
+                            operandPlaceholder,
+                            nestedConversion,
+                            isCast: false,
+                            single.type,
+                            diagnostics
+                        )
+                    ));
+                }
+            }
+        }
+
+        conversion = new Conversion(
+            ConversionKind.Deconstruction,
+            deconstructMethod,
+            nestedConversions.ToImmutableAndFree()
+        );
+
+        return !hasErrors;
+    }
+
+    private void FailRemainingInferences(
+        ArrayBuilder2<DeconstructionVariable> variables,
+        BelteDiagnosticQueue diagnostics) {
+        var count = variables.Count;
+
+        for (var i = 0; i < count; i++) {
+            var variable = variables[i];
+
+            if (variable.nestedVariables is object) {
+                FailRemainingInferences(variable.nestedVariables, diagnostics);
+            } else {
+                switch (variable.single.kind) {
+                    case BoundKind.DeconstructionVariablePendingInference:
+                        var errorLocal = ((DeconstructionVariablePendingInference)variable.single)
+                            .FailInference(this, diagnostics);
+
+                        variables[i] = new DeconstructionVariable(errorLocal, errorLocal.syntax);
+                        break;
+                    case BoundKind.DiscardExpression:
+                        var pending = (BoundDiscardExpression)variable.single;
+
+                        if (pending.type is null) {
+                            diagnostics.Push(Error.TypeInferenceFailedForDeconstruction(pending.syntax.location, "_"));
+                            variables[i] = new DeconstructionVariable(
+                                pending.FailInference(this, diagnostics),
+                                pending.syntax
+                            );
+                        }
+
+                        break;
+                }
+            }
+        }
+    }
+
+    private static bool IsDeconstructionResultUsed(ExpressionSyntax left) {
+        var parent = left.parent;
+
+        if (parent is null /*|| parent.Kind() == SyntaxKind.ForEachVariableStatement*/)
+            return false;
+
+        var grandParent = parent.parent;
+
+        if (grandParent is null)
+            return false;
+
+        switch (grandParent.kind) {
+            case SyntaxKind.ExpressionStatement:
+                return ((ExpressionStatementSyntax)grandParent).expression != parent;
+            // case SyntaxKind.ForStatement:
+            //     // Incrementors and Initializers don't have to produce a value
+            //     var loop = (ForStatementSyntax)grandParent;
+            //     return !loop.Incrementors.Contains(parent) && !loop.Initializers.Contains(parent);
+            default:
+                return true;
+        }
+    }
+
+    private BoundExpression FixTupleLiteral(
+        ArrayBuilder2<DeconstructionVariable> checkedVariables,
+        BoundExpression boundRight,
+        BelteSyntaxNode syntax,
+        BelteDiagnosticQueue diagnostics) {
+        if (boundRight.kind == BoundKind.TupleLiteral) {
+            var hadErrors = diagnostics.AnyErrors();
+            var mergedTupleType = MakeMergedTupleType(
+                checkedVariables,
+                (BoundTupleLiteral)boundRight,
+                syntax,
+                hadErrors ? null : diagnostics
+            );
+
+            if (mergedTupleType is not null)
+                boundRight = GenerateConversionForAssignment(mergedTupleType, boundRight, diagnostics);
+        } else if (boundRight.type is null) {
+            // TODO reachable err?
+            throw ExceptionUtilities.Unreachable();
+            // Error(diagnostics, ErrorCode.ERR_DeconstructRequiresExpression, boundRHS.Syntax);
+        }
+
+        return boundRight;
+    }
+
+    private TypeSymbol MakeMergedTupleType(
+        ArrayBuilder2<DeconstructionVariable> lhsVariables,
+        BoundTupleLiteral rhsLiteral,
+        BelteSyntaxNode syntax,
+        BelteDiagnosticQueue diagnostics) {
+        var leftLength = lhsVariables.Count;
+        var rightLength = rhsLiteral.arguments.Length;
+
+        var typesWithAnnotationsBuilder = ArrayBuilder<TypeWithAnnotations>.GetInstance(leftLength);
+        var locationsBuilder = ArrayBuilder<TextLocation>.GetInstance(leftLength);
+
+        for (var i = 0; i < rightLength; i++) {
+            var element = rhsLiteral.arguments[i];
+            var mergedType = element.type;
+
+            if (i < leftLength) {
+                var variable = lhsVariables[i];
+
+                if (variable.nestedVariables is object) {
+                    if (element.kind == BoundKind.TupleLiteral) {
+                        mergedType = MakeMergedTupleType(
+                            variable.nestedVariables,
+                            (BoundTupleLiteral)element,
+                            syntax,
+                            diagnostics
+                        );
+                    } else if (mergedType is null && diagnostics is not null) {
+                        // TODO reachable err?
+                        throw ExceptionUtilities.Unreachable();
+                        // (variables) on the left and null on the right
+                        // Error(diagnostics, ErrorCode.ERR_DeconstructRequiresExpression, element.Syntax);
+                    }
+                } else {
+                    if (variable.single.type is not null)
+                        mergedType = variable.single.type;
+                }
+            } else {
+                if (mergedType is null && diagnostics is not null) {
+                    // TODO reachable err?
+                    throw ExceptionUtilities.Unreachable();
+                    // a typeless element on the right, matching no variable on the left
+                    // Error(diagnostics, ErrorCode.ERR_DeconstructRequiresExpression, element.Syntax);
+                }
+            }
+
+            typesWithAnnotationsBuilder.Add(new TypeWithAnnotations(mergedType));
+            locationsBuilder.Add(element.syntax.location);
+        }
+
+        if (typesWithAnnotationsBuilder.Any(t => !t.hasType)) {
+            typesWithAnnotationsBuilder.Free();
+            locationsBuilder.Free();
+            return null;
+        }
+
+        return NamedTypeSymbol.CreateTuple(
+            location: null,
+            elementTypesWithAnnotations: typesWithAnnotationsBuilder.ToImmutableAndFree(),
+            elementLocations: locationsBuilder.ToImmutableAndFree(),
+            elementNames: default(ImmutableArray<string?>),
+            compilation: compilation,
+            diagnostics: diagnostics,
+            shouldCheckConstraints: true,
+            errorPositions: default(ImmutableArray<bool>),
+            syntax: syntax
+        );
+    }
+
+    private DeconstructionVariable BindDeconstructionVariables(
+        ExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics,
+        ref DeclarationExpressionSyntax declaration,
+        ref ExpressionSyntax expression) {
+        switch (node.kind) {
+            case SyntaxKind.DeclarationExpression: {
+                    var component = (DeclarationExpressionSyntax)node;
+
+                    declaration ??= component;
+
+                    var isConst = false;
+                    var isConstExpr = false;
+                    // TODO Use the out info?
+                    var declType = BindVariableTypeWithAnnotations(
+                        component,
+                        diagnostics,
+                        component.type.SkipRef(out _),
+                        ref isConst,
+                        ref isConstExpr,
+                        out var isImplicitlyTyped,
+                        out var isNonNullable,
+                        out var isNullable,
+                        out var alias
+                    );
+
+                    return BindDeconstructionVariables(declType, component, component, diagnostics);
+                }
+            case SyntaxKind.TupleExpression: {
+                    var component = (TupleExpressionSyntax)node;
+                    var builder = ArrayBuilder2<DeconstructionVariable>.GetInstance(component.arguments.Count);
+
+                    foreach (var arg in component.arguments)
+                        builder.Add(BindDeconstructionVariables(arg, diagnostics, ref declaration, ref expression));
+
+                    return new DeconstructionVariable(builder, node);
+                }
+            default:
+                var boundVariable = BindExpression(node, diagnostics);
+                var checkedVariable = CheckValue(boundVariable, BindValueKind.Assignable, diagnostics);
+
+                if (expression is null && checkedVariable.kind != BoundKind.DiscardExpression)
+                    expression = node;
+
+                return new DeconstructionVariable(checkedVariable, node);
+        }
+    }
+
+    private DeconstructionVariable BindDeconstructionVariables(
+        TypeWithAnnotations declTypeWithAnnotations,
+        DeclarationExpressionSyntax node,
+        BelteSyntaxNode syntax,
+        BelteDiagnosticQueue diagnostics) {
+        return new DeconstructionVariable(
+            BindDeconstructionVariable(declTypeWithAnnotations, node, syntax, diagnostics),
+            syntax
+        );
     }
 
     private BoundExpression BindSimpleAssignmentWithUncheckedBoundLeft(

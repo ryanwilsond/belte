@@ -381,6 +381,9 @@ public sealed class DisplayText {
             case BoundKind.TupleBinaryOperator:
                 DisplayTupleBinaryOperator(text, (BoundTupleBinaryOperator)node);
                 break;
+            case BoundKind.DeconstructionAssignmentOperator:
+                DisplayDeconstructionAssignmentOperator(text, (BoundDeconstructionAssignmentOperator)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -516,6 +519,12 @@ public sealed class DisplayText {
 
     private static void DisplayTupleBinaryOperator(DisplayText text, BoundTupleBinaryOperator node) {
         DisplayBinaryAdjacentExpression(text, node.left, node.right, node.operatorKind.ToSyntaxKind(), false);
+    }
+
+    private static void DisplayDeconstructionAssignmentOperator(
+        DisplayText text,
+        BoundDeconstructionAssignmentOperator node) {
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.EqualsToken, false);
     }
 
     private static void DisplayTupleLiteralCore(DisplayText text, ImmutableArray<BoundExpression> arguments) {

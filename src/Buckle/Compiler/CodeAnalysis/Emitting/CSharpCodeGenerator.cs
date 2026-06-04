@@ -356,6 +356,7 @@ internal sealed class CSharpCodeGenerator {
             BoundKind.InterpolatedStringExpression => EmitInterpolatedStringExpression((BoundInterpolatedStringExpression)expression),
             BoundKind.FunctionLoad => EmitFunctionLoad((BoundFunctionLoad)expression),
             BoundKind.IsPatternExpression => EmitIsPatternExpression((BoundIsPatternExpression)expression),
+            BoundKind.DeconstructionAssignmentOperator => EmitDeconstructionAssignmentOperator((BoundDeconstructionAssignmentOperator)expression),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
     }
@@ -715,6 +716,10 @@ internal sealed class CSharpCodeGenerator {
     private string EmitIsPatternExpression(BoundIsPatternExpression node) {
         var local = node.local;
         return $"{EmitExpression(node.expression)} is {_module.GetType(local.type)} {_module.GetSafeName(local.name)}";
+    }
+
+    private string EmitDeconstructionAssignmentOperator(BoundDeconstructionAssignmentOperator node) {
+        return $"{EmitExpression(node.left)} = {EmitExpression(node.right)}";
     }
 
     #endregion

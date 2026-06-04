@@ -31,4 +31,5 @@ internal enum ConversionKind : byte {
     MethodGroup,
     ObjectCreation,
     ConditionalExpression,
+    Deconstruction,
 }

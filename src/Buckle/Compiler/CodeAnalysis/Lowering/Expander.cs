@@ -401,6 +401,40 @@ internal sealed class Expander : SharedExpander {
         }
     }
 
+    private protected override List<BoundStatement> ExpandDeconstructionAssignmentOperator(
+        BoundDeconstructionAssignmentOperator expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        /*
+
+        (<var>...) = (<item>...)
+
+        ---->
+
+        <var> = <item>
+        ...
+
+        */
+        var syntax = expression.syntax;
+
+        // TODO We will use the DeconstructUncommonData on the cast once we support user-defined Deconstruct methods
+        var statements = ExpandExpression(expression.right.operand, out var newRight, UseKind.StableValue);
+        var arguments = expression.left.arguments;
+
+        for (var i = 0; i < arguments.Length; i++) {
+            var local = ((BoundDataContainerExpression)arguments[i]).dataContainer;
+            var field = GetTupleField(syntax, i, expression.right.type, local.type, newRight);
+            statements.Add(LocalDeclaration(syntax, local, field));
+        }
+
+        if (useKind == UseKind.None) {
+            replacement = null;
+            return statements;
+        }
+
+        throw ExceptionUtilities.Unreachable();
+    }
+
     private protected override List<BoundStatement> ExpandTupleBinaryOperator(
         BoundTupleBinaryOperator expression,
         out BoundExpression replacement,
@@ -451,8 +485,8 @@ internal sealed class Expander : SharedExpander {
             for (var i = 0; i < operators.operators.Length; i++) {
                 var ops = operators.operators[i];
 
-                var leftField = GetTupleField(i, leftType, ops.leftConvertedType, newLeft, ops);
-                var rightField = GetTupleField(i, rightType, ops.rightConvertedType, newRight, ops);
+                var leftField = GetTupleField(syntax, i, leftType, ops.leftConvertedType, newLeft);
+                var rightField = GetTupleField(syntax, i, rightType, ops.rightConvertedType, newRight);
 
                 if (ops is TupleBinaryOperatorInfo.Multiple multiple) {
                     CreateTupleComparison(
@@ -494,36 +528,36 @@ internal sealed class Expander : SharedExpander {
                 );
             }
         }
+    }
 
-        BoundExpression GetTupleField(
-            int i,
-            TypeSymbol receiverType,
-            TypeSymbol elementType,
-            BoundExpression receiver,
-            TupleBinaryOperatorInfo op) {
-            if (receiver is BoundConvertedTupleLiteral tuple)
-                return tuple.arguments[i];
+    private BoundExpression GetTupleField(
+        SyntaxNode syntax,
+        int i,
+        TypeSymbol receiverType,
+        TypeSymbol elementType,
+        BoundExpression receiver) {
+        if (receiver is BoundConvertedTupleLiteral tuple)
+            return tuple.arguments[i];
 
-            var namedReceiver = (NamedTypeSymbol)receiverType;
-            var chain = receiver;
+        var namedReceiver = (NamedTypeSymbol)receiverType;
+        var chain = receiver;
 
-            do {
-                var position = Math.Min(i + 1, 8);
-                i -= 7;
+        do {
+            var position = Math.Min(i + 1, 8);
+            i -= 7;
 
-                var field = ((FieldSymbol)CorLibrary.GetWellKnownMember(
-                    NamedTypeSymbol.GetTupleTypeMember(namedReceiver.arity, position)
-                )).AsMember(namedReceiver);
+            var field = ((FieldSymbol)CorLibrary.GetWellKnownMember(
+                NamedTypeSymbol.GetTupleTypeMember(namedReceiver.arity, position)
+            )).AsMember(namedReceiver);
 
-                var elemType = position < 8 ? elementType : field.type;
+            var elemType = position < 8 ? elementType : field.type;
 
-                chain = new BoundFieldAccessExpression(syntax, chain, field, null, elemType);
+            chain = new BoundFieldAccessExpression(syntax, chain, field, null, elemType);
 
-                namedReceiver = field.type as NamedTypeSymbol;
-            } while (i >= 0);
+            namedReceiver = field.type as NamedTypeSymbol;
+        } while (i >= 0);
 
-            return chain;
-        }
+        return chain;
     }
 
     private protected override List<BoundStatement> ExpandBinaryOperator(

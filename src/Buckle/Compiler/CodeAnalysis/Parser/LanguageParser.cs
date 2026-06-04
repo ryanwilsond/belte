@@ -2404,6 +2404,28 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return expression;
     }
 
+    private ExpressionSyntax ParseDeclarationOrExpression() {
+        var saved = _context;
+        _context |= ParserContext.InExpression;
+
+        var resetPoint = GetResetPoint();
+        var type = ParseType(allowRef: false);
+
+        ExpressionSyntax expression;
+
+        if (type.kind != SyntaxKind.EmptyName && !type.containsDiagnostics &&
+            currentToken.kind == SyntaxKind.IdentifierToken) {
+            var identifier = EatToken();
+            expression = SyntaxFactory.DeclarationExpression(type, identifier);
+        } else {
+            Reset(resetPoint);
+            expression = ParseAssignmentOrLambdaExpression();
+        }
+
+        _context = saved;
+        return expression;
+    }
+
     private StatementSyntax ParseEmptyStatement() {
         return SyntaxFactory.EmptyStatement(EatToken());
     }
@@ -3033,6 +3055,11 @@ done:
             return isBitCast ? ParseBitCastExpression() : ParseCastExpression();
         }
 
+        if (currentToken.kind == SyntaxKind.IdentifierToken && Peek(1).kind == SyntaxKind.CommaToken) {
+            Reset(resetPoint);
+            return ParseTupleExpression(MatchOpenParen(), ParseDeclarationOrExpression());
+        }
+
         Reset(resetPoint);
 
         var openParenthesis = MatchOpenParen();
@@ -3052,7 +3079,7 @@ done:
 
         while (currentToken.kind == SyntaxKind.CommaToken) {
             nodesAndSeparators.Add(EatToken());
-            nodesAndSeparators.Add(ParseExpression());
+            nodesAndSeparators.Add(ParseDeclarationOrExpression());
         }
 
         if (nodesAndSeparators.Count < 2) {

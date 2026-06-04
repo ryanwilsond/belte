@@ -63,10 +63,18 @@
     <Field Name="symbols" Type="ImmutableArray&lt;Symbol&gt;"/>
     <Field Name="childBoundNodes" Type="ImmutableArray&lt;BoundExpression&gt;"/>
   </Node>
-  <Node Name="OutVariablePendingInference" Base="BoundExpression">
+  <AbstractNode Name="VariablePendingInference" Base="BoundExpression">
     <Field Name="symbol" Type="Symbol"/>
     <Field Name="receiver" Type="BoundExpression?"/>
     <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
+  </AbstractNode>
+  <Node Name="OutVariablePendingInference" Base="VariablePendingInference"/>
+  <Node Name="DeconstructionVariablePendingInference" Base="VariablePendingInference"/>
+  <Node Name="BoundDeconstructionAssignmentOperator" Base="BoundExpression">
+    <Field Name="left" Type="BoundTupleExpression"/>
+    <Field Name="right" Type="BoundCastExpression"/>
+    <Field Name="isUsed" Type="bool"/>
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
   </Node>
   <Node Name="BoundNamespaceExpression" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>

@@ -3,8 +3,8 @@ using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Binding;
 
-internal partial class OutVariablePendingInference {
+internal partial class DeconstructionVariablePendingInference {
     private protected override BelteDiagnostic GetTypeInferenceError(TextLocation location, string text) {
-        return Error.TypeInferenceFailedForOut(location, text);
+        return Error.TypeInferenceFailedForDeconstruction(location, text);
     }
 }

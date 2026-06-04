@@ -256,7 +256,6 @@ Tuples can be deconstructed into multiple locals. The following are equivalent:
 var t = (3, true); var a = t.Item1; var b = t.Item2;
 (int a, bool b) = (3, true);
 (var a, var b) = (3, true);
-var (a, b) = (3, true);
 ```
 
 ## 3.2 Operators

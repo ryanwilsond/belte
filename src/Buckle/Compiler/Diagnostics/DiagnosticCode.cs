@@ -481,6 +481,11 @@ public enum DiagnosticCode : ushort {
     ERR_BadEmbeddedStatementDefer = 470,
     WRN_LongTuple = 471,
     ERR_PredefinedTypeNotFound = 472,
+    ERR_InvalidDeclarationExpression = 473,
+    ERR_DeconstructVariableCannotBeRef = 474,
+    ERR_TypeInferenceFailedForDeconstruction = 475,
+    ERR_DeconstructWrongCardinality = 476,
+    ERR_DeconstructTooFewElements = 477,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

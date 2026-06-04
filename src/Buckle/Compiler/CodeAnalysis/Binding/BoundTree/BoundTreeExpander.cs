@@ -224,7 +224,7 @@ internal abstract partial class BoundTreeExpander {
     }
 
     private protected virtual List<BoundStatement> ExpandScopedStatement(BoundScopedStatement statement) {
-        // ! Inheritors are responsible for expanding the declaration
+        // ! Inheritors are responsible for expanding
         var syntax = statement.syntax;
 
         return [
@@ -421,8 +421,18 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.BitCastExpression => ExpandBitCastExpression((BoundBitCastExpression)expression, out replacement, useKind),
             BoundKind.DiscardExpression => ExpandDiscardExpression((BoundDiscardExpression)expression, out replacement, useKind),
             BoundKind.TupleBinaryOperator => ExpandTupleBinaryOperator((BoundTupleBinaryOperator)expression, out replacement, useKind),
+            BoundKind.DeconstructionAssignmentOperator => ExpandDeconstructionAssignmentOperator((BoundDeconstructionAssignmentOperator)expression, out replacement, useKind),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
+    }
+
+    private protected virtual List<BoundStatement> ExpandDeconstructionAssignmentOperator(
+        BoundDeconstructionAssignmentOperator expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        // ! Inheritors are responsible for expanding
+        replacement = expression;
+        return [];
     }
 
     private protected virtual List<BoundStatement> ExpandWithExpression(

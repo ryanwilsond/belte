@@ -6183,4 +6183,40 @@ public sealed class DiagnosticTests {
 
     // ! Error_BU0472_PredefinedTypeNotFound
     // ? Requires '--nostdlib' command-line argument
+
+    // ! Error_BU0473_InvalidDeclarationExpression
+    // ? Unreachable currently
+
+    // ? Unreachable currently
+    // [Fact]
+    // public void Reports_Error_BU0474_DeconstructVariableCannotBeRef() {
+    //     var text = @"
+    //         [ref] var (a, b) = (3, 3);
+    //     ";
+
+    //     var diagnostics = @"
+    //         a deconstruction variable cannot be declared as a ref local
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // ! Error_BU0475_TypeInferenceFailedForDeconstruction
+    // ? Unreachable currently
+
+    [Fact]
+    public void Reports_Error_BU0475_DeconstructWrongCardinality() {
+        var text = @"
+            [(var a, var b) = (3, 3, 3)];
+        ";
+
+        var diagnostics = @"
+            cannot deconstruct a tuple of '3' elements into '2' variables
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Error_BU0476_DeconstructTooFewElements
+    // ? Unreachable currently
 }

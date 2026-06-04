@@ -2171,6 +2171,12 @@ internal static class Error {
         // return CreateError(DiagnosticCode.ERR_TypeInferenceFailedForOut, location, message);
     }
 
+    internal static BelteDiagnostic TypeInferenceFailedForDeconstruction(TextLocation location, string text) {
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"cannot infer the type of implicitly-typed deconstruction variable '{text}'";
+        // return CreateError(DiagnosticCode.ERR_TypeInferenceFailedForDeconstruction, location, message);
+    }
+
     internal static BelteDiagnostic OutVarAnnotated(TextLocation location) {
         var message = $"cannot annotate the type of an implicitly typed out data container";
         return CreateError(DiagnosticCode.ERR_OutVarAnnotated, location, message);
@@ -2359,6 +2365,26 @@ internal static class Error {
     internal static Diagnostic PredefinedTypeNotFound(string name) {
         var message = $"predefined type '{name}' is not defined (are you using '--nostdlib'?)";
         return CreateError(DiagnosticCode.ERR_PredefinedTypeNotFound, message);
+    }
+
+    internal static BelteDiagnostic InvalidDeclarationExpression(TextLocation location) {
+        var message = $"a declaration is not allowed in this context";
+        return CreateError(DiagnosticCode.ERR_InvalidDeclarationExpression, location, message);
+    }
+
+    internal static BelteDiagnostic DeconstructVariableCannotBeRef(TextLocation location) {
+        var message = $"a deconstruction variable cannot be declared as a ref local";
+        return CreateError(DiagnosticCode.ERR_DeconstructVariableCannotBeRef, location, message);
+    }
+
+    internal static BelteDiagnostic DeconstructWrongCardinality(TextLocation location, int num1, int num2) {
+        var message = $"cannot deconstruct a tuple of '{num1}' elements into '{num2}' variables";
+        return CreateError(DiagnosticCode.ERR_DeconstructWrongCardinality, location, message);
+    }
+
+    internal static BelteDiagnostic DeconstructTooFewElements(TextLocation location) {
+        var message = $"deconstruction must contain at least 2 variables";
+        return CreateError(DiagnosticCode.ERR_DeconstructTooFewElements, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
