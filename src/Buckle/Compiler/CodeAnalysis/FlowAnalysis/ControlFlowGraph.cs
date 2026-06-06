@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.IO;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
@@ -15,8 +16,10 @@ namespace Buckle.CodeAnalysis.FlowAnalysis;
 /// Creates a graphical control flow graph from a <see cref="BasicBlock" />.
 /// </summary>
 internal sealed class ControlFlowGraph {
-    private Dictionary<Symbol, int> _slotMap;
-    private ArrayBuilder<Symbol> _symbolsBySlot;
+    private readonly Dictionary<Symbol, int> _slotMap;
+    private readonly ArrayBuilder<Symbol> _symbolsBySlot;
+    private readonly MultiDictionary<Symbol, Symbol> _closureCaptures;
+
     private MethodSymbol _method;
 
     /// <summary>
@@ -30,11 +33,16 @@ internal sealed class ControlFlowGraph {
         BasicBlock start,
         BasicBlock end,
         List<BasicBlock> blocks,
-        List<ControlFlowBranch> branch) {
+        List<ControlFlowBranch> branch,
+        Dictionary<Symbol, int> slotMap,
+        ArrayBuilder<Symbol> symbolsBySlot) {
         this.start = start;
         this.end = end;
         this.blocks = blocks;
         branches = branch;
+        _symbolsBySlot = symbolsBySlot;
+        _slotMap = slotMap;
+        _closureCaptures = [];
     }
 
     /// <summary>
@@ -63,22 +71,20 @@ internal sealed class ControlFlowGraph {
     /// <param name="body"><see cref="BoundBlockStatement" /> to create from.</param>
     /// <returns><see cref="ControlFlowGraph" />.</returns>
     internal static ControlFlowGraph Create(BoundBlockStatement body) {
-        var basicBlockBuilder = new ControlFlowGraphBuilder.BasicBlockBuilder();
+        var (slotMap, symbolsBySlot) = SlotCounter.Count(body);
+        var basicBlockBuilder = new ControlFlowGraphBuilder.BasicBlockBuilder(symbolsBySlot.Count);
         var blocks = basicBlockBuilder.Build(body);
-        var graphBuilder = new ControlFlowGraphBuilder();
-
-        return graphBuilder.Build(blocks, basicBlockBuilder.regions);
+        var graphBuilder = new ControlFlowGraphBuilder(slotMap, symbolsBySlot);
+        var controlFlowGraph = graphBuilder.Build(blocks, basicBlockBuilder.regions);
+        return controlFlowGraph;
     }
 
     /// <summary>
-    /// Checks (using a <see cref="ControlFlowGraph" />) if all code paths in a body return.
+    /// Checks if all code paths in a body return.
     /// </summary>
-    /// <param name="body">Body to check.</param>
     /// <returns>If all code paths return.</returns>
-    internal static bool AllPathsReturn(BoundBlockStatement body) {
-        var graph = Create(body);
-
-        foreach (var branch in graph.end.incoming) {
+    internal bool AllPathsReturn() {
+        foreach (var branch in end.incoming) {
             var lastStatement = branch.from.statements.LastOrDefault();
 
             if (lastStatement is null)
@@ -94,19 +100,9 @@ internal sealed class ControlFlowGraph {
         return true;
     }
 
-    internal static HashSet<Symbol> DefiniteAssignment(
-        MethodSymbol method,
-        BoundBlockStatement body,
-        BelteDiagnosticQueue diagnostics) {
-        var graph = Create(body);
-        return graph.ComputeDefiniteAssignments(method, diagnostics);
-    }
-
-    private HashSet<Symbol> ComputeDefiniteAssignments(MethodSymbol method, BelteDiagnosticQueue diagnostics) {
+    internal HashSet<Symbol> CheckDefiniteAssignment(MethodSymbol method, BelteDiagnosticQueue diagnostics) {
         bool changed;
         _method = method;
-        _slotMap = [];
-        _symbolsBySlot = ArrayBuilder<Symbol>.GetInstance();
         BelteDiagnosticQueue currentDiagnostics = null;
 
         do {
@@ -147,16 +143,17 @@ internal sealed class ControlFlowGraph {
             return BitVector.Empty;
 
         var first = true;
-        var result = BitVector.Empty;
+        var result = BitVector.Null;
 
         foreach (var branch in block.incoming) {
-            var pred = branch.from;
+            var incoming = branch.from.outgoingAssignment.Clone();
+            incoming.UnionWith(branch.flowState.assigned);
 
             if (first) {
-                result = pred.outgoingAssignment.Clone();
+                result = incoming;
                 first = false;
             } else {
-                result.IntersectWith(pred.outgoingAssignment);
+                result.IntersectWith(incoming);
             }
         }
 
@@ -192,7 +189,7 @@ internal sealed class ControlFlowGraph {
                 if (declaration.initializer is not null) {
                     ApplyExpression(declaration.initializer, ref result, diagnostics);
                     var symbol = declaration.dataContainer;
-                    result[GetOrAddSlot(symbol)] = true;
+                    result[_slotMap[symbol]] = true;
                 }
 
                 break;
@@ -209,16 +206,6 @@ internal sealed class ControlFlowGraph {
         }
     }
 
-    private int GetOrAddSlot(Symbol symbol) {
-        if (_slotMap.TryGetValue(symbol, out var value))
-            return value;
-
-        var slot = _symbolsBySlot.Count;
-        _symbolsBySlot.Add(symbol);
-        _slotMap.Add(symbol, slot);
-        return slot;
-    }
-
     private void ApplyExpression(BoundExpression expression, ref BitVector result, BelteDiagnosticQueue diagnostics) {
         if (expression is null)
             return;
@@ -230,27 +217,34 @@ internal sealed class ControlFlowGraph {
             case BoundKind.CastExpression:
                 ApplyExpression(((BoundCastExpression)expression).operand, ref result, diagnostics);
                 break;
+            case BoundKind.DataContainerExpression: {
+                    var symbol = ((BoundDataContainerExpression)expression).dataContainer;
+                    // TODO This is a hack to avoid reporting for pattern locals which aren't analyzed correctly
+                    var shouldReport = symbol.declarationKind == DataContainerDeclarationKind.Variable &&
+                        !symbol.isGlobal &&
+                        (_method is SynthesizedMethodSymbolBase m ? m.baseMethod : _method.originalDefinition)
+                            .Equals(symbol.containingSymbol);
+
+                    if (shouldReport && !result[_slotMap[symbol]])
+                        diagnostics.Push(Error.UseOfUnassignedLocal(expression.syntax.location, symbol));
+
+                    break;
+                }
             case BoundKind.FieldAccessExpression: {
                     var fieldAccess = (BoundFieldAccessExpression)expression;
                     ApplyExpression(fieldAccess.receiver, ref result, diagnostics);
                     var field = fieldAccess.field;
-                    var shouldReport = (_method.isStatic && field.isStatic) ||
-                        (!_method.isStatic && Binder.IsThisInstanceAccess(fieldAccess));
 
-                    if (shouldReport && field.definiteAssignmentError is not null && !result[GetOrAddSlot(field)])
+                    if (fieldAccess.receiver?.type is SynthesizedClosureEnvironment &&
+                        fieldAccess.receiver.expressionSymbol is not null) {
+                        _closureCaptures.Add(fieldAccess.receiver.expressionSymbol, field);
+                    }
+
+                    var shouldReport = _method.IsConstructor() && ((_method.isStatic && field.isStatic) ||
+                        (!_method.isStatic && Binder.IsThisInstanceAccess(fieldAccess)));
+
+                    if (shouldReport && field.definiteAssignmentError is not null && !result[_slotMap[field]])
                         diagnostics.Push(Error.UseOfUnassignedField(fieldAccess.syntax.location, field));
-
-                    break;
-                }
-            case BoundKind.FieldSlotExpression: {
-                    var fieldSlot = (BoundFieldSlotExpression)expression;
-                    ApplyExpression(fieldSlot.receiver, ref result, diagnostics);
-                    var field = fieldSlot.field;
-                    var shouldReport = (_method.isStatic && field.isStatic) ||
-                        (!_method.isStatic && Binder.IsThisInstanceAccess(fieldSlot));
-
-                    if (shouldReport && field.definiteAssignmentError is not null && !result[GetOrAddSlot(field)])
-                        diagnostics.Push(Error.UseOfUnassignedField(fieldSlot.syntax.location, field));
 
                     break;
                 }
@@ -295,6 +289,20 @@ internal sealed class ControlFlowGraph {
                 var call = (BoundCallExpression)expression;
                 ApplyExpression(call.receiver, ref result, diagnostics);
                 ApplyExpressionList(call.arguments, ref result, diagnostics);
+
+                var expressionSymbol = call.receiver?.expressionSymbol;
+
+                if (expressionSymbol is not null && _closureCaptures.ContainsKey(expressionSymbol)) {
+                    foreach (var capture in _closureCaptures[expressionSymbol]) {
+                        if (!result[_slotMap[capture]]) {
+                            diagnostics.Push(Error.UseOfUnassignedLocal(
+                                expression.syntax.location,
+                                capture is LambdaCapturedVariable l ? l.captured : capture
+                            ));
+                        }
+                    }
+                }
+
                 break;
             case BoundKind.ObjectCreationExpression:
                 ApplyExpressionList(((BoundObjectCreationExpression)expression).arguments, ref result, diagnostics);
@@ -321,10 +329,12 @@ internal sealed class ControlFlowGraph {
             case BoundKind.ConvertedStackAllocExpression:
                 ApplyExpression(((BoundConvertedStackAllocExpression)expression).count, ref result, diagnostics);
                 break;
+            case BoundKind.CompileTimeExpression:
+                ApplyExpression(((BoundCompileTimeExpression)expression).expression, ref result, diagnostics);
+                break;
             case BoundKind.ThisExpression:
             case BoundKind.DefaultExpression:
             case BoundKind.BaseExpression:
-            case BoundKind.DataContainerExpression:
             case BoundKind.ParameterExpression:
             case BoundKind.FunctionPointerLoad:
             case BoundKind.FunctionLoad:
@@ -332,9 +342,10 @@ internal sealed class ControlFlowGraph {
             case BoundKind.SizeOfOperator:
             case BoundKind.TypeExpression:
             case BoundKind.MethodGroup:
-            case BoundKind.StackSlotExpression:
             case BoundKind.LiteralExpression:
                 break;
+            case BoundKind.StackSlotExpression:
+            case BoundKind.FieldSlotExpression:
             default:
                 throw ExceptionUtilities.UnexpectedValue(expression.kind);
         }
@@ -351,33 +362,28 @@ internal sealed class ControlFlowGraph {
             case BoundKind.AssignmentOperator:
                 ApplyAssignment((BoundAssignmentOperator)left, ref result, diagnostics);
                 break;
-            case BoundKind.StackSlotExpression: {
-                    var symbol = ((BoundStackSlotExpression)left).symbol;
-                    result[GetOrAddSlot(symbol)] = true;
-                    break;
-                }
             case BoundKind.DataContainerExpression: {
                     var symbol = ((BoundDataContainerExpression)left).dataContainer;
-                    result[GetOrAddSlot(symbol)] = true;
+                    result[_slotMap[symbol]] = true;
                     break;
                 }
             case BoundKind.ParameterExpression: {
                     var symbol = ((BoundParameterExpression)left).parameter;
-                    result[GetOrAddSlot(symbol)] = true;
+                    result[_slotMap[symbol]] = true;
                     break;
                 }
             case BoundKind.FieldSlotExpression: {
                     var fieldSlot = (BoundFieldSlotExpression)left;
                     ApplyExpression(fieldSlot.receiver, ref result, diagnostics);
                     var symbol = fieldSlot.field;
-                    result[GetOrAddSlot(symbol)] = true;
+                    result[_slotMap[symbol]] = true;
                     break;
                 }
             case BoundKind.FieldAccessExpression: {
                     var fieldAccess = (BoundFieldAccessExpression)left;
                     ApplyExpression(fieldAccess.receiver, ref result, diagnostics);
                     var symbol = fieldAccess.field;
-                    result[GetOrAddSlot(symbol)] = true;
+                    result[_slotMap[symbol]] = true;
                     break;
                 }
             case BoundKind.ArrayAccessExpression:
@@ -390,6 +396,8 @@ internal sealed class ControlFlowGraph {
             case BoundKind.PointerIndirectionOperator:
             default:
                 break;
+            case BoundKind.StackSlotExpression:
+                throw ExceptionUtilities.UnexpectedValue(left.kind);
         }
     }
 

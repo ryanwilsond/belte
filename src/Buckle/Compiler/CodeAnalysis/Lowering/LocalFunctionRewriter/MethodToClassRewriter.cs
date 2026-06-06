@@ -303,16 +303,26 @@ internal abstract partial class MethodToClassRewriter : BoundTreeRewriterWithSta
         if (!NeedsProxy(local))
             return base.VisitLocalDeclarationStatement(node);
 
-        var assignment = BoundFactory.Assignment(
-            node.syntax,
-            new BoundDataContainerExpression(node.syntax, local, null, local.type),
-            node.declaration.initializer,
-            local.isRef,
-            local.type
-        );
+        var dataContainerExpression = new BoundDataContainerExpression(node.syntax, local, null, local.type);
 
-        var statement = new BoundExpressionStatement(node.syntax, assignment);
-        return Visit(statement);
+        if (node.declaration.initializer is not null) {
+            var assignment = BoundFactory.Assignment(
+                node.syntax,
+                dataContainerExpression,
+                node.declaration.initializer,
+                local.isRef,
+                local.type
+            );
+
+            var statement = new BoundExpressionStatement(node.syntax, assignment);
+            return Visit(statement);
+        }
+
+        // These are just for analysis and are removed from the tree later
+        if (TryReplaceWithProxy(node.declaration.dataContainer, node.syntax, out var replacement))
+            return new BoundExpressionStatement(node.syntax, (BoundExpression)replacement);
+
+        return new BoundExpressionStatement(node.syntax, (BoundExpression)VisitUnhoistedLocal(dataContainerExpression));
     }
 
     internal override BoundNode VisitAssignmentOperator(BoundAssignmentOperator node) {

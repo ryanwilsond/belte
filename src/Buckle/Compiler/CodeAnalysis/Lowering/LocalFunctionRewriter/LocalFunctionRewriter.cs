@@ -884,7 +884,10 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
             body = Lowerer.Flatten(synthesizedMethod, body);
             body = Optimizer.RemoveDeadCode(body, _diagnostics);
 
-            if (!ControlFlowGraph.AllPathsReturn(body))
+            var controlFlowGraph = ControlFlowGraph.Create(body);
+            controlFlowGraph.CheckDefiniteAssignment(synthesizedMethod, _diagnostics);
+
+            if (!controlFlowGraph.AllPathsReturn())
                 _diagnostics.Push(Error.NotAllPathsReturn(node.symbol.location));
 
             if (_compilationState.compilation.options.buildMode.Evaluating()) {

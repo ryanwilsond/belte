@@ -533,14 +533,14 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
 
         _sawCompileTimeExpression |= sawCompileTimeExpression;
 
-        // TODO reuse same graph for control flow for performance
-        if (method.IsConstructor()) {
-            var assignments = ControlFlowGraph.DefiniteAssignment(method, loweredBody, _diagnostics);
+        var controlFlowGraph = ControlFlowGraph.Create(loweredBody);
+        var assignments = controlFlowGraph.CheckDefiniteAssignment(method, _diagnostics);
+
+        if (method.IsConstructor())
             state.AddConstructorDefiniteAssignments(method.methodKind == MethodKind.StaticConstructor, assignments);
-        }
 
         if (_emitting) {
-            if (!ControlFlowGraph.AllPathsReturn(loweredBody))
+            if (!controlFlowGraph.AllPathsReturn())
                 currentDiagnostics.Push(Error.NotAllPathsReturn(method.location));
 
             if (_compilation.options.buildMode.Evaluating()) {

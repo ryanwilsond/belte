@@ -14062,12 +14062,14 @@ symIsHidden:;
                         );
                     }
                 } else {
-                    initializer = ErrorExpression(declaration);
+                    if (localSymbol.isGlobal || localSymbol.isConst || localSymbol.isFinal) {
+                        initializer = ErrorExpression(declaration);
 
-                    if (!declarationType.isStatic)
-                        diagnostics.Push(Error.NoInitOnNonNullable(declaration.location));
+                        if (!declarationType.isStatic)
+                            diagnostics.Push(Error.NoInitOnNonNullable(declaration.location));
 
-                    hasErrors = true;
+                        hasErrors = true;
+                    }
                 }
             } else {
                 initializer = BindPossibleArrayInitializer(value, declarationType.type, valueKind, diagnostics);

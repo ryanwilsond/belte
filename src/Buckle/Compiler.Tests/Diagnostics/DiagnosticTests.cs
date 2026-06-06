@@ -1621,13 +1621,34 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0117_NoInitOnNonNullable() {
+    public void Reports_Error_BU0117_UseOfUnassignedLocal() {
         var text = @"
-            [int! a];
+            void M() {
+                int a;
+                int b = [a];
+            }
         ";
 
         var diagnostics = @"
-            non-nullable locals and class fields must have an initializer
+            use of unassigned local 'a'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0117_UseOfUnassignedLocal2() {
+        var text = @"
+            void M() {
+                int a;
+                [F()];
+
+                int F() { return a; }
+            }
+        ";
+
+        var diagnostics = @"
+            use of unassigned local 'a'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -6353,6 +6374,19 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             cannot use non-nullable reference type 'string!' as an unconstrained template argument type; consider making the type nullable
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0486_NoInitOnNonNullable() {
+        var text = @"
+            [int a];
+        ";
+
+        var diagnostics = @"
+            non-nullable globals and const or final locals must have an initializer
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

@@ -10,4 +10,5 @@ internal enum DataContainerDeclarationKind : byte {
     ForEachLocal,
     NullBindingLocal,
     ScopedLocal,
+    PatternLocal,
 }

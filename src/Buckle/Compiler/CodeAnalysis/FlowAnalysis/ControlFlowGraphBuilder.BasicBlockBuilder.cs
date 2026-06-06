@@ -10,14 +10,20 @@ internal sealed partial class ControlFlowGraphBuilder {
     /// Builds BasicBlocks from BoundStatements.
     /// </summary>
     internal sealed class BasicBlockBuilder {
+        private readonly int _capacity;
+
         internal readonly List<TryRegion> regions = [];
 
         private readonly List<BasicBlock> _blocks = [];
         private readonly List<BoundStatement> _statements = [];
         private BasicBlock _currentBlock;
 
+        internal BasicBlockBuilder(int capacity) {
+            _capacity = capacity;
+        }
+
         internal List<BasicBlock> Build(BoundBlockStatement block) {
-            _currentBlock = new BasicBlock();
+            _currentBlock = new BasicBlock(_capacity);
             VisitBlock(block);
             EndBlock();
             return _blocks.ToList();
@@ -117,7 +123,7 @@ again:
                 _currentBlock.statements.AddRange(_statements);
                 _blocks.Add(_currentBlock);
                 _statements.Clear();
-                _currentBlock = new BasicBlock();
+                _currentBlock = new BasicBlock(_capacity);
             }
         }
 

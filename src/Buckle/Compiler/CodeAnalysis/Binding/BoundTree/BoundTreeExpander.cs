@@ -172,6 +172,9 @@ internal abstract partial class BoundTreeExpander {
 
     private protected virtual List<BoundStatement> ExpandLocalDeclarationStatement(
         BoundLocalDeclarationStatement statement) {
+        if (statement.declaration.initializer is null)
+            return [statement];
+
         var statements = ExpandExpression(statement.declaration.initializer, out var replacement);
         var syntax = statement.syntax;
 
@@ -282,7 +285,14 @@ internal abstract partial class BoundTreeExpander {
         var statements = ExpandExpression(statement.condition, out var conditionReplacement);
 
         if (statements.Count > 0 || statement.condition != conditionReplacement) {
-            statements.Add(statement.Update(statement.label, conditionReplacement, statement.jumpIfTrue));
+            statements.Add(statement.Update(
+                statement.label,
+                conditionReplacement,
+                statement.jumpIfTrue,
+                statement.assignedOnJump,
+                statement.assignedOnFallthrough
+            ));
+
             return statements;
         }
 

@@ -549,7 +549,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
                     syntax,
                     statement.label,
                     RewriteNull(syntax, condition),
-                    statement.jumpIfTrue
+                    statement.jumpIfTrue,
+                    statement.assignedOnJump,
+                    statement.assignedOnFallthrough
                 )
             );
         }

@@ -1204,6 +1204,9 @@ oneMoreTime:
         if (!_evaluatorProxies.Add(local))
             throw ExceptionUtilities.Unreachable();
 
+        if (declaration.initializer is null)
+            return;
+
         // Essentially reporting the slot allocation then assigning
         // Could move this rewrite to the lowerer, but then we would need a way to keep track of slot allocation
         var assignment = BoundFactory.Assignment(

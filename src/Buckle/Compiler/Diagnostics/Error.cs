@@ -506,11 +506,6 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_CharacterLiteralTooLong, message);
     }
 
-    internal static BelteDiagnostic NoInitOnNonNullable(TextLocation location) {
-        var message = $"non-nullable locals and class fields must have an initializer";
-        return CreateError(DiagnosticCode.ERR_NoInitOnNonNullable, location, message);
-    }
-
     internal static BelteDiagnostic CannotBePrivateAndVirtualOrAbstract(TextLocation location, Symbol symbol) {
         var message = $"'{symbol}': virtual or abstract methods cannot be private";
         return CreateError(DiagnosticCode.ERR_CannotBePrivateAndVirtualOrAbstract, location, message);
@@ -2426,6 +2421,16 @@ internal static class Error {
         var message = $"cannot use non-nullable reference type '{type}' as an unconstrained template argument type; consider making the type nullable";
         var suggestion = "%?";
         return CreateError(DiagnosticCode.ERR_InvalidReferenceTemplateType, location, message, suggestion);
+    }
+
+    internal static BelteDiagnostic UseOfUnassignedLocal(TextLocation location, Symbol local) {
+        var message = $"use of unassigned local '{local}'";
+        return CreateError(DiagnosticCode.ERR_UseOfUnassignedLocal, location, message);
+    }
+
+    internal static BelteDiagnostic NoInitOnNonNullable(TextLocation location) {
+        var message = $"non-nullable globals and const or final locals must have an initializer";
+        return CreateError(DiagnosticCode.ERR_NoInitOnNonNullable, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

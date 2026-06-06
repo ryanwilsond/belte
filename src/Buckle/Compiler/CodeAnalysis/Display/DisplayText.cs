@@ -941,16 +941,19 @@ public sealed class DisplayText {
 
         SymbolDisplay.AppendToDisplayText(text, dataContainer, SymbolDisplayFormat.BoundDisplayFormat);
 
-        text.Write(CreateSpace());
-        text.Write(CreatePunctuation(SyntaxKind.EqualsToken));
-        text.Write(CreateSpace());
-
-        if (dataContainer.isRef) {
-            text.Write(CreateKeyword(SyntaxKind.RefKeyword));
+        if (node.initializer is not null) {
             text.Write(CreateSpace());
+            text.Write(CreatePunctuation(SyntaxKind.EqualsToken));
+            text.Write(CreateSpace());
+
+            if (dataContainer.isRef) {
+                text.Write(CreateKeyword(SyntaxKind.RefKeyword));
+                text.Write(CreateSpace());
+            }
+
+            DisplayNode(text, node.initializer);
         }
 
-        DisplayNode(text, node.initializer);
         text.WriteLine();
     }
 

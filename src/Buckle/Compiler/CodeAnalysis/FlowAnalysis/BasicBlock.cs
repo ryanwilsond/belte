@@ -9,7 +9,10 @@ namespace Buckle.CodeAnalysis.FlowAnalysis;
 /// Block in the graph, represents a <see cref="BoundStatement" />.
 /// </summary>
 internal sealed class BasicBlock {
-    internal BasicBlock() { }
+    internal BasicBlock(int capacity) {
+        incomingAssignment = BitVector.AllSet(capacity);
+        outgoingAssignment = BitVector.AllSet(capacity);
+    }
 
     internal BasicBlock(bool isStart) {
         this.isStart = isStart;

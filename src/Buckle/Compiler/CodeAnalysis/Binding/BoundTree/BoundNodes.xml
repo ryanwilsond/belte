@@ -459,6 +459,8 @@
     <Field Name="label" Type="LabelSymbol"/>
     <Field Name="condition" Type="BoundExpression"/>
     <Field Name="jumpIfTrue" Type="bool"/>
+    <Field Name="assignedOnJump" Type="ImmutableArray&lt;DataContainerSymbol&gt;" Null="allow"/>
+    <Field Name="assignedOnFallthrough" Type="ImmutableArray&lt;DataContainerSymbol&gt;" Null="allow"/>
   </Node>
   <Node Name="BoundDoWhileStatement" Base="BoundLoopStatement">
     <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>

@@ -125,7 +125,7 @@ public enum DiagnosticCode : ushort {
     ERR_ArrayOutsideOfLowLevelContext = 114,
     ERR_EmptyCharacterLiteral = 115,
     ERR_CharacterLiteralTooLong = 116,
-    ERR_NoInitOnNonNullable = 117,
+    ERR_UseOfUnassignedLocal = 117,
     ERR_CannotBePrivateAndVirtualOrAbstract = 118,
     ERR_RefReturnParameter = 119,
     ERR_EscapeOther = 120,
@@ -494,6 +494,7 @@ public enum DiagnosticCode : ushort {
     ERR_UseOfUnassignedField = 483,
     ERR_FieldNoDefiniteAssignment = 484,
     ERR_InvalidReferenceTemplateType = 485,
+    ERR_NoInitOnNonNullable = 486,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,
