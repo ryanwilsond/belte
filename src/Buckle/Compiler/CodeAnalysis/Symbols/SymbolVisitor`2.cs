@@ -65,6 +65,10 @@ internal abstract class SymbolVisitor<TArgument, TResult> {
         return DefaultVisit(symbol, argument);
     }
 
+    internal virtual TResult VisitToken(TokenSymbol symbol, TArgument argument) {
+        return DefaultVisit(symbol, argument);
+    }
+
     internal virtual TResult VisitAlias(AliasSymbol symbol, TArgument argument) {
         return DefaultVisit(symbol, argument);
     }

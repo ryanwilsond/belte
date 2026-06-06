@@ -10,6 +10,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal sealed class SourceReverseMethodSymbol : SourceMemberMethodSymbol {
     private readonly ReverseClauseSyntax _syntax;
     private readonly SourceMemberMethodSymbol _containingMethod;
+    private readonly MethodSymbol _stateMethod;
 
     private ImmutableArray<ParameterSymbol> _lazyParameters;
     private TypeWithAnnotations _lazyReturnType;
@@ -17,11 +18,13 @@ internal sealed class SourceReverseMethodSymbol : SourceMemberMethodSymbol {
     internal SourceReverseMethodSymbol(
         ReverseClauseSyntax syntax,
         NamedTypeSymbol containingType,
-        SourceMemberMethodSymbol containingMethod)
+        SourceMemberMethodSymbol containingMethod,
+        MethodSymbol stateMethod)
         : base(containingType, new SyntaxReference(syntax), MakeModifiersAndFlags(syntax, containingMethod)) {
         location = syntax.keyword.location;
         _syntax = syntax;
         _containingMethod = containingMethod;
+        _stateMethod = stateMethod;
         name = GeneratedNames.MakeReverseMethodName(containingMethod.name);
     }
 
@@ -84,9 +87,15 @@ internal sealed class SourceReverseMethodSymbol : SourceMemberMethodSymbol {
     private protected override void MethodChecks(BelteDiagnosticQueue diagnostics) {
         if (_syntax.identifier is not null) {
             var hasError = false;
-            var containingMethod = _containingMethod;
 
-            if (containingMethod.returnsVoid) {
+            var targetMethod = _stateMethod ?? _containingMethod;
+            var targetRefKind = _stateMethod is null ? _containingMethod.refKind : RefKind.None;
+            var targetTypeWithAnnotations = _stateMethod is null
+                ? _containingMethod.returnTypeWithAnnotations
+                : _stateMethod.returnType.tupleElementTypes[1].type;
+
+
+            if (targetTypeWithAnnotations.IsVoidType()) {
                 diagnostics.Push(Error.InvalidReverseParameter(location));
                 hasError = true;
             }
@@ -94,10 +103,10 @@ internal sealed class SourceReverseMethodSymbol : SourceMemberMethodSymbol {
             if (_syntax.type is null) {
                 var parameter = SourceParameterSymbol.CreateReverseParameter(
                     this,
-                    containingMethod.returnTypeWithAnnotations,
+                    targetTypeWithAnnotations,
                     _syntax,
                     _syntax.identifier.location,
-                    containingMethod.refKind,
+                    targetRefKind,
                     _syntax.identifier.text
                 );
 
@@ -128,15 +137,12 @@ internal sealed class SourceReverseMethodSymbol : SourceMemberMethodSymbol {
                 _lazyParameters = [parameter];
 
                 if (!hasError) {
-                    var returnType = _containingMethod.returnType;
+                    var returnType = targetTypeWithAnnotations.type;
 
-                    if (!containingMethod.returnsByRef && refKind != RefKind.None)
-                        diagnostics.Push(Error.ReverseRefMismatch(location, containingMethod, parameter));
+                    if (targetRefKind != refKind)
+                        diagnostics.Push(Error.ReverseRefMismatch(location, targetMethod, parameter));
 
-                    var conversion = signatureBinder.conversions.ClassifyConversionFromType(
-                        returnType,
-                        type
-                    );
+                    var conversion = signatureBinder.conversions.ClassifyConversionFromType(returnType, type);
 
                     if (refKind != RefKind.None && !conversion.isIdentity) {
                         diagnostics.Push(Error.RefReverseMustHaveIdentityConversion(_syntax.type.location, returnType));

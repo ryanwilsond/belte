@@ -454,6 +454,7 @@ most of the differences to make it more clear where the language is unique with 
 - No properties
 - No extension methods (yet)
 - No array covariance
+- [Class fields have no default value](ClassesAndObjects.md#421-fields)
 - [`defer` statements](ControlFlow.md#28-defer-statements)
 - [`with` expressions and statements](ControlFlow.md#27-with-expressions-and-statements)
 - [Duck-typed `scoped` statements instead of `using` statements](ControlFlow.md#29-scoped-statements)

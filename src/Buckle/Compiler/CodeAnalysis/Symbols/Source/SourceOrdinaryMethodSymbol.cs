@@ -11,6 +11,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
     private readonly MethodDeclarationSyntax _syntax;
 
     private MethodSymbol _lazyReverseMethod;
+    private MethodSymbol _lazyStateMethod;
 
     private SourceOrdinaryMethodSymbol(
         NamedTypeSymbol containingType,
@@ -49,12 +50,23 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
 
     internal override bool isReversible => _syntax.reverseClause is not null;
 
+    internal override bool hasReversalState => _syntax.stateClause is not null;
+
     internal override MethodSymbol reverseMethod {
         get {
             if (isReversible && _lazyReverseMethod is null)
                 Interlocked.CompareExchange(ref _lazyReverseMethod, MakeReverseMethod(_syntax.reverseClause), null);
 
             return _lazyReverseMethod;
+        }
+    }
+
+    internal override MethodSymbol stateMethod {
+        get {
+            if (hasReversalState && _lazyStateMethod is null)
+                Interlocked.CompareExchange(ref _lazyStateMethod, MakeStateMethod(_syntax.stateClause), null);
+
+            return _lazyStateMethod;
         }
     }
 
@@ -272,6 +284,10 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
     }
 
     private MethodSymbol MakeReverseMethod(ReverseClauseSyntax syntax) {
-        return new SourceReverseMethodSymbol(syntax, containingType, this);
+        return new SourceReverseMethodSymbol(syntax, containingType, this, stateMethod);
+    }
+
+    private MethodSymbol MakeStateMethod(StateClauseSyntax syntax) {
+        return new SourceStateMethodSymbol(syntax, containingType, this);
     }
 }

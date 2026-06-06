@@ -419,7 +419,7 @@ public sealed class EvaluatorTests {
     [InlineData("struct A { public int? a; } var a = new A(); return a.a;", null)]
     [InlineData("struct A { public int a; } A? a; a = new A(); return a.a;", 0)]
     [InlineData("struct A { public int a; } A? a; return a?.a;", null)]
-    [InlineData("class A { public int a; } A? a; return a?.a;", null)]
+    [InlineData("class A { public int a = default; } A? a; return a?.a;", null)]
     // This expression
     [InlineData("class A { public int? a; public void SetA(int? a) { this.a = 1; this.a = a; } public int? GetA() { return a; } } var myA = new A(); myA.SetA(3); return myA.GetA();", 3)]
     [InlineData("class A { public int? a; public void SetA(int? a) { this.a = 1; a = a; } public int? GetA() { return a; } } var myA = new A(); myA.SetA(3); return myA.GetA();", 1)]
@@ -466,7 +466,7 @@ public sealed class EvaluatorTests {
         return b.x;", 10)]
     [InlineData(@"
         struct A { public int x; }
-        class B { public A a; }
+        class B { public A a = default; }
         var b = new B();
         b.a.x = 4;
         return b.a.x;", 4)]
@@ -499,8 +499,8 @@ public sealed class EvaluatorTests {
     [InlineData("enum flags A { q, w, e, r, t, public bool Test() { return this.t; } } A a = A.t | A.r; return a.Test();", true)]
     [InlineData("enum flags A { q, w, e, r, t, public bool Test() { return this.t; } } A a = A.r; return a.Test();", false)]
     [InlineData("enum flags A { q, w, e, r, t, public static bool Test() { return true; } } return A.Test();", true)]
-    [InlineData("class C { public A a; public enum A { q, w } } C c = new C(); c.a = C.A.q; return c.a == .q;", true)]
-    [InlineData("class C { public A a; public enum A { q, w } } C c = new C(); c.a = C.A.w; return c.a == .q;", false)]
+    [InlineData("class C { public A a = default; public enum A { q, w } } C c = new C(); c.a = C.A.q; return c.a == .q;", true)]
+    [InlineData("class C { public A a = default; public enum A { q, w } } C c = new C(); c.a = C.A.w; return c.a == .q;", false)]
     [InlineData(@"
         enum flags A { q, w, e, r }
         A a = A.q | A.e;
@@ -561,7 +561,7 @@ public sealed class EvaluatorTests {
         return A.c;", 10)]
     [InlineData(@"
         class A<type T> {
-            public T c;
+            public T c = default;
             public T M(T p) { return p; } reverse (T p) { c = p; }
         }
         var a = new A<int>();
@@ -955,8 +955,8 @@ public sealed class EvaluatorTests {
     [InlineData("return f\"{1}{2}{3}\";", "123")]
     [InlineData("return f\"{true} {false}\";", "True False")]
     // Templates
-    [InlineData("class A<type t> { public t a; } var a = new A<string>(); a.a = \"test\"; return a.a;", "test")]
-    [InlineData("class A<type t> { public t a; } lowlevel { var a = new A<int?[]>(); a.a = new int?[] {1, 2, 3}; return a.a[1]; }", 2)]
+    [InlineData("class A<type t> { public t a = default; } var a = new A<string?>(); a.a = \"test\"; return a.a;", "test")]
+    [InlineData("class A<type t> { public t a = default; } lowlevel { var a = new A<int?[]>(); a.a = new int?[] {1, 2, 3}; return a.a[1]; }", 2)]
     [InlineData("class A<type t> { }; var a = new A<A<int?>>();", null)]
     [InlineData("T Test<type T>(T a) { return a; } return Test<int?>(3);", 3)]
     [InlineData("T Test<type T>() { return default; } return Test<int?>();", null)]
@@ -1086,7 +1086,7 @@ public sealed class EvaluatorTests {
     [InlineData(@"
         class A {
             public A b;
-            public int c;
+            public int c = default;
         }
         var a = new A();
         a.b = new A();
@@ -1095,7 +1095,7 @@ public sealed class EvaluatorTests {
     [InlineData(@"
         class A {
             public A b;
-            public int c;
+            public int c = default;
         }
         var a = new A();
         return a?.b?.c;", null)]
@@ -1130,7 +1130,7 @@ public sealed class EvaluatorTests {
         return sum;", 24)]
     [InlineData(@"
         class Node {
-            public int value;
+            public int value = default;
             public Node next;
         }
 
@@ -1181,7 +1181,7 @@ public sealed class EvaluatorTests {
         }
 
         class Holder {
-            public Point point;
+            public Point point = default;
         }
 
         var h = new Holder();
@@ -1194,7 +1194,7 @@ public sealed class EvaluatorTests {
         return h.point.x + p.x;", 13)]
     [InlineData(@"
         class A {
-            public int value;
+            public int value = default;
 
             public void Increment() {
                 value++;
@@ -1217,7 +1217,7 @@ public sealed class EvaluatorTests {
         }
 
         class User {
-            public Permissions permissions;
+            public Permissions permissions = default;
 
             public bool CanWrite() {
                 return permissions.Write;
@@ -1289,7 +1289,7 @@ public sealed class EvaluatorTests {
         return c.value;", 7)]
     [InlineData(@"
         class State {
-            public int value;
+            public int value = default;
         }
 
         int Run() {
@@ -1317,7 +1317,7 @@ public sealed class EvaluatorTests {
     [InlineData("string Test<string a>() { return a; } return Test<\"test\">();", "test")]
     // Runtime Defined SizeOf
     [InlineData("struct A { int32 a; bool b; } return sizeof(A);", 8)]
-    [InlineData("class A { int32 a; bool b; } return sizeof(A);", 8)]
+    [InlineData("class A { int32 a = default; bool b = default; } return sizeof(A);", 8)]
     [InlineData("struct A { int32 a; bool b; } return sizeof(A?);", 16)]
     [InlineData("return sizeof(int?);", 16)]
     [InlineData("return sizeof(bool?);", 2)]

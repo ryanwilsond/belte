@@ -2095,7 +2095,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic FieldNoDefaultValue(TextLocation location, TypeSymbol type) {
-        var message = $"cannot declare a field without an initializer with type '{type}' because it has no default value";
+        var message = $"cannot declare a struct field with type '{type}' because it has no default value";
         return CreateError(DiagnosticCode.ERR_FieldNoDefaultValue, location, message);
     }
 
@@ -2400,6 +2400,32 @@ internal static class Error {
     internal static BelteDiagnostic RefReverseMustHaveIdentityConversion(TextLocation location, TypeSymbol type) {
         var message = $"the reverse clause parameter must be of type '{type}' because it is being assigned by reference";
         return CreateError(DiagnosticCode.ERR_RefReverseMustHaveIdentityConversion, location, message);
+    }
+
+    internal static BelteDiagnostic ReversibleCannotBeRef(TextLocation location, MethodSymbol method) {
+        var message = $"a method with a state clause cannot return by reference";
+        return CreateError(DiagnosticCode.ERR_ReversibleCannotBeRef, location, message);
+    }
+
+    internal static BelteDiagnostic StateClauseWithoutReverseClause(TextLocation location, MethodSymbol method) {
+        var message = $"a method with a state clause must have a reverse clause";
+        return CreateError(DiagnosticCode.ERR_StateClauseWithoutReverseClause, location, message);
+    }
+
+    internal static BelteDiagnostic UseOfUnassignedField(TextLocation location, FieldSymbol field) {
+        var message = $"use of unassigned field '{field}'";
+        return CreateError(DiagnosticCode.ERR_UseOfUnassignedField, location, message);
+    }
+
+    internal static BelteDiagnostic FieldNoDefiniteAssignment(TextLocation location, TypeSymbol type) {
+        var message = $"cannot declare a class field without an initializer or definite constructor assignment with type '{type}' because it is non-nullable";
+        return CreateError(DiagnosticCode.ERR_FieldNoDefiniteAssignment, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidReferenceTemplateType(TextLocation location, TypeSymbol type) {
+        var message = $"cannot use non-nullable reference type '{type}' as an unconstrained template argument type; consider making the type nullable";
+        var suggestion = "%?";
+        return CreateError(DiagnosticCode.ERR_InvalidReferenceTemplateType, location, message, suggestion);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

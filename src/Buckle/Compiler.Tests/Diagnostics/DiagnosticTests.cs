@@ -3002,7 +3002,7 @@ public sealed class DiagnosticTests {
                 }
             }
             class B {
-                public int a;
+                public int a = default;
             }
             ;
         ";
@@ -5405,7 +5405,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot declare a field without an initializer with type 'A!' because it has no default value
+            cannot declare a struct field with type 'A!' because it has no default value
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -6267,6 +6267,92 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             the reverse clause parameter must be of type 'int!' because it is being assigned by reference
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0481_ReversibleCannotBeRef() {
+        var text = @"
+            class A {
+                ref int [M](ref int a) { return ref a; }
+                state(int) { return 3; }
+                reverse (int a) { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            a method with a state clause cannot return by reference
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0482_StateClauseWithoutReverseClause() {
+        var text = @"
+            class A {
+                void [M]() { }
+                state(int) { return 3; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            a method with a state clause must have a reverse clause
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0483_UseOfUnassignedField() {
+        var text = @"
+            class A {
+                A! a;
+
+                constructor() {
+                    var b = [a];
+                    a = new ();
+                }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            use of unassigned field 'A.a'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0484_FieldNoDefiniteAssignment() {
+        var text = @"
+            class A {
+                int! [a];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot declare a class field without an initializer or definite constructor assignment with type 'int!' because it is non-nullable
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0485_InvalidReferenceTemplateType() {
+        var text = @"
+            class A<type T> { }
+            var a = new A<[string]>();
+        ";
+
+        var diagnostics = @"
+            cannot use non-nullable reference type 'string!' as an unconstrained template argument type; consider making the type nullable
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

@@ -1660,6 +1660,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                         if (method.isReversible)
                             builder.nonTypeMembers.Add(method.reverseMethod);
+
+                        if (method.hasReversalState)
+                            builder.nonTypeMembers.Add(method.stateMethod);
                     }
 
                     break;

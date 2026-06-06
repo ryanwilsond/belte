@@ -238,7 +238,7 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
     private class DictionaryEnumerator extends Enumerator<KeyValuePair<TKey, TValue>> {
         private const Dictionary<TKey, TValue> _dictionary;
         private int! _index = 0;
-        private KeyValuePair<TKey, TValue> _current;
+        private KeyValuePair<TKey, TValue> _current = default;
 
         public constructor(Dictionary<TKey, TValue> dictionary) {
             _dictionary = dictionary;

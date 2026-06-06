@@ -360,6 +360,8 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             }
         }
 
+        var fieldsRequiringAssignment = ArrayBuilder<FieldSymbol>.GetInstance();
+
         for (var ordinal = 0; ordinal < members.Length; ordinal++) {
             var member = members[ordinal];
 
@@ -390,6 +392,9 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                         );
                     }
 
+                    if (f.definiteAssignmentError is not null)
+                        fieldsRequiringAssignment.Add(f);
+
                     break;
             }
         }
@@ -414,6 +419,10 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                 _methodLayouts.Add(methodLayout.Item1, methodLayout.Item2);
         }
 
+        if (fieldsRequiringAssignment.Count > 0)
+            state.ReportFieldsRequiringAssignment(fieldsRequiringAssignment, _diagnostics);
+
+        fieldsRequiringAssignment.Free();
         state.Free();
     }
 
@@ -523,6 +532,12 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             method = GetEnumMethod(method.containingType, method);
 
         _sawCompileTimeExpression |= sawCompileTimeExpression;
+
+        // TODO reuse same graph for control flow for performance
+        if (method.IsConstructor()) {
+            var assignments = ControlFlowGraph.DefiniteAssignment(method, loweredBody, _diagnostics);
+            state.AddConstructorDefiniteAssignments(method.methodKind == MethodKind.StaticConstructor, assignments);
+        }
 
         if (_emitting) {
             if (!ControlFlowGraph.AllPathsReturn(loweredBody))

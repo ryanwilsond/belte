@@ -163,7 +163,6 @@ internal class LocalScopeBinder : Binder {
             case SyntaxKind.NullBindingStatement:
             case SyntaxKind.ReturnStatement:
             case SyntaxKind.GotoStatement:
-            case SyntaxKind.ThrowExpression:
                 ExpressionVariableFinder.FindExpressionVariables(
                     this,
                     locals,

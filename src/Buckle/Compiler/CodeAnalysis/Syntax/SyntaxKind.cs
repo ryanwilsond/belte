@@ -172,6 +172,7 @@ public enum SyntaxKind : ushort {
     FinalKeyword,
     PackedKeyword,
     ReverseKeyword,
+    ReversibleKeyword,
     StateKeyword,
     HandleKeyword,
 
@@ -222,6 +223,7 @@ public enum SyntaxKind : ushort {
     NameOfExpression,
     SizeOfExpression,
     CallExpression,
+    ReversibleExpression,
     ReferenceExpression,
     MemberAccessExpression,
     ObjectCreationExpression,
@@ -246,6 +248,7 @@ public enum SyntaxKind : ushort {
     ExpressionStatement,
     ScopedStatement,
     WithStatement,
+    ReverseStatement,
     LocalDeclarationStatement,
     LocalFunctionStatement,
 
@@ -295,6 +298,7 @@ public enum SyntaxKind : ushort {
     FieldDeclaration,
     MethodDeclaration,
     ReverseClause,
+    StateClause,
     ConstructorDeclaration,
     ConstructorInitializer,
     DestructorDeclaration,

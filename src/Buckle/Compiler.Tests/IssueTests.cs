@@ -943,7 +943,7 @@ public sealed class IssueTests {
                 }
             }
 
-            var myA = new A<string>();
+            var myA = new A<string?>();
             var c = 6 + (3 + myA);
         ";
 
@@ -1207,7 +1207,7 @@ public sealed class IssueTests {
             using static A;
 
             class A {
-                public int a;
+                public int a = default;
             }
 
             using B = A;

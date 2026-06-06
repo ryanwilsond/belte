@@ -489,6 +489,11 @@ public enum DiagnosticCode : ushort {
     ERR_InvalidReverseParameter = 478,
     ERR_ReverseRefMismatch = 479,
     ERR_RefReverseMustHaveIdentityConversion = 480,
+    ERR_ReversibleCannotBeRef = 481,
+    ERR_StateClauseWithoutReverseClause = 482,
+    ERR_UseOfUnassignedField = 483,
+    ERR_FieldNoDefiniteAssignment = 484,
+    ERR_InvalidReferenceTemplateType = 485,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

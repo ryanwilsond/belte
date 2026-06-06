@@ -22,4 +22,5 @@ public enum SymbolKind : byte {
     Assembly,
     Module,
     Preprocessing,
+    Token,
 }

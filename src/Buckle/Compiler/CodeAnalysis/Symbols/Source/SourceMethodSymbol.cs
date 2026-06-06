@@ -141,6 +141,7 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
                 => constructor.constructorInitializer ?? (BelteSyntaxNode)constructor.body,
             BaseMethodDeclarationSyntax method => method.body,
             ReverseClauseSyntax reverse => reverse.body,
+            StateClauseSyntax state => state.body,
             CompilationUnitSyntax _ when this is SynthesizedEntryPoint entryPoint
                 => (BelteSyntaxNode)entryPoint.returnTypeSyntax,
             LocalFunctionStatementSyntax localFunction => localFunction.body,

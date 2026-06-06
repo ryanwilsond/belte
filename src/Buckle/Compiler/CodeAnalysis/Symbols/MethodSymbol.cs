@@ -85,6 +85,10 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
 
     internal virtual MethodSymbol reverseMethod => null;
 
+    internal virtual bool hasReversalState => false;
+
+    internal virtual MethodSymbol stateMethod => null;
+
     internal bool isEntryPointCandidate
         => isStatic && !isAbstract && !isVirtual && name == WellKnownMemberNames.EntryPointMethodName;
 

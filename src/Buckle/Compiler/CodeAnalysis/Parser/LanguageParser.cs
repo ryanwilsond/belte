@@ -927,7 +927,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
         else
             body = ParseBlockStatement();
 
-        var reverseClause = currentToken.contextualKind == SyntaxKind.ReverseKeyword ? ParseReverseClause() : null;
+        var stateClause = currentToken.contextualKind == SyntaxKind.StateKeyword ? ParseStateClause() : null;
+        var reverseClause = currentToken.kind == SyntaxKind.ReverseKeyword ? ParseReverseClause() : null;
 
         return SyntaxFactory.MethodDeclaration(
             attributeLists,
@@ -940,12 +941,22 @@ internal sealed partial class LanguageParser : SyntaxParser {
             constraintClauseList,
             body,
             semicolon,
+            stateClause,
             reverseClause
         );
     }
 
-    private ReverseClauseSyntax ParseReverseClause() {
+    private StateClauseSyntax ParseStateClause() {
         var keyword = ConvertToKeyword(EatToken());
+        var openParenthesis = MatchOpenParen();
+        var type = ParseType(allowRef: false);
+        var closeParenthesis = MatchCloseParen();
+        var body = ParseBlockStatement();
+        return SyntaxFactory.StateClause(keyword, openParenthesis, type, closeParenthesis, body);
+    }
+
+    private ReverseClauseSyntax ParseReverseClause() {
+        var keyword = EatToken();
 
         SyntaxToken openParenthesis = null;
         TypeSyntax type = null;
@@ -1485,6 +1496,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseInlineILStatement();
             case SyntaxKind.DeferKeyword:
                 return ParseDeferStatement();
+            case SyntaxKind.ReverseKeyword:
+                return ParseReverseStatement();
         }
 
         var resetPoint = GetResetPoint();
@@ -2097,6 +2110,13 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return SyntaxFactory.DeferStatement(keyword, statement);
     }
 
+    private ReverseStatementSyntax ParseReverseStatement() {
+        var keyword = EatToken();
+        var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.SemicolonToken);
+        var semicolon = EatToken(SyntaxKind.SemicolonToken);
+        return SyntaxFactory.ReverseStatement(keyword, identifier, semicolon);
+    }
+
     private SeparatedSyntaxList<ExpressionSyntax> ParseAssignmentExpressionList() {
         var nodesAndSeparators = _pool.Allocate<BelteSyntaxNode>();
         var parseNextItem = true;
@@ -2267,6 +2287,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.ILKeyword:
             case SyntaxKind.DeferKeyword:
             case SyntaxKind.ScopedKeyword:
+            case SyntaxKind.ReverseKeyword:
                 return true;
             // Attribute/Modifier starts for local declarations/functions
             case SyntaxKind.StaticKeyword:
@@ -2303,6 +2324,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.SizeOfKeyword:
             case SyntaxKind.StackAllocKeyword:
             case SyntaxKind.NewKeyword:
+            case SyntaxKind.WithKeyword:
+            case SyntaxKind.ReversibleKeyword:
             case SyntaxKind.ThisKeyword:
             case SyntaxKind.BaseKeyword:
             case SyntaxKind.ThrowKeyword:
@@ -2482,6 +2505,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.TryKeyword:
             case SyntaxKind.UsingKeyword:
             case SyntaxKind.WhileKeyword:
+            case SyntaxKind.ReverseKeyword:
                 return true;
             default:
                 return false;
@@ -2743,6 +2767,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseImplicitEnumFieldExpression();
             case SyntaxKind.WithKeyword:
                 return ParseWithExpression();
+            case SyntaxKind.ReversibleKeyword:
+                return ParseReversibleExpression();
             case SyntaxKind.IdentifierToken:
             case SyntaxKind.GlobalKeyword:
             default:
@@ -2770,6 +2796,14 @@ internal sealed partial class LanguageParser : SyntaxParser {
             closeParenthesis,
             body
         );
+    }
+
+    private ReversibleExpressionSyntax ParseReversibleExpression() {
+        var keyword = EatToken();
+        var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.ColonToken);
+        var colon = Match(SyntaxKind.ColonToken);
+        var expression = ParseExpression();
+        return SyntaxFactory.ReversibleExpression(keyword, identifier, colon, expression);
     }
 
     private ExpressionSyntax ParsePrimaryExpression(int parentPrecedence = 0, ExpressionSyntax left = null) {

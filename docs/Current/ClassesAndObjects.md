@@ -188,24 +188,25 @@ member;
 
 ### 4.2.1 Fields
 
-Fields are similar to variables or constants. They are declared as such:
+Fields are similar to [locals](Data.md#33-data-containers). They are declared as such:
 
 ```belte
 class MyClass {
-  int myField1;
+  int myField1 = 0;
   string myField2 = "Starting Value";
   // etc.
 }
 ```
 
-Fields have the same flexibility as traditional variables and constants, meaning they can be any type including another
-class:
+Fields without an initializer require definite constructor assignment:
 
 ```belte
-class A { }
+class MyClass {
+  int myField;
 
-class B {
-  A myField = new A();
+  public constructor(int p) {
+    myField = p;
+  }
 }
 ```
 
@@ -876,7 +877,8 @@ struct A {
 ```
 
 Structs always have a parameterless constructor that sets every member to it's default value. From there, fields can be
-set.
+set. Unlike class fields, struct fields are assigned a default value instead of requiring definite assignment. As such,
+struct fields must be of a type that has a default value (e.g. non-nullable reference types are not allowed).
 
 ```belte
 var myStruct = new A();

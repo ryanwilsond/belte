@@ -29,7 +29,7 @@
             "patterns": [
                 {
                     "name": "keyword.control.belte",
-                    "match": "\\b(if|else|while|for|return|break|continue|do|try|catch|finally|throw|switch|goto|default|case|with|defer|unreachable|scoped|reverse)\\b"
+                    "match": "\\b(if|else|while|for|return|break|continue|do|try|catch|finally|throw|switch|goto|default|case|with|defer|unreachable|scoped|reverse|reversible|state)\\b"
                 },
                 {
                     "name": "keyword.other.belte",

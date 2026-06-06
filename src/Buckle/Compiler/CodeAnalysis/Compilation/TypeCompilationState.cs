@@ -20,6 +20,9 @@ internal sealed class TypeCompilationState {
     private Dictionary<MethodSymbol, MethodSymbol> _constructorInitializers;
     private Dictionary<MethodSymbol, MethodSymbol> _wrappers;
 
+    private HashSet<Symbol> _instanceDefiniteAssignments;
+    private HashSet<Symbol> _staticDefiniteAssignments;
+
     internal ImportChain currentImportChain;
 
     internal TypeCompilationState(
@@ -71,6 +74,32 @@ internal sealed class TypeCompilationState {
     internal void AddSynthesizedMethod(MethodSymbol symbol, BoundBlockStatement body) {
         synthesizedMethods ??= ArrayBuilder<(MethodSymbol, BoundBlockStatement)>.GetInstance();
         synthesizedMethods.Add((symbol, body));
+    }
+
+    internal void AddConstructorDefiniteAssignments(bool isStatic, HashSet<Symbol> symbols) {
+        if (isStatic) {
+            if (_staticDefiniteAssignments is null)
+                _staticDefiniteAssignments = symbols;
+            else
+                _staticDefiniteAssignments.IntersectWith(symbols);
+        } else {
+            if (_instanceDefiniteAssignments is null)
+                _instanceDefiniteAssignments = symbols;
+            else
+                _instanceDefiniteAssignments.IntersectWith(symbols);
+        }
+    }
+
+    internal void ReportFieldsRequiringAssignment(ArrayBuilder<FieldSymbol> fields, BelteDiagnosticQueue diagnostics) {
+        foreach (var field in fields) {
+            if (field.isStatic) {
+                if (_staticDefiniteAssignments is null || !_staticDefiniteAssignments.Contains(field))
+                    diagnostics.Push(field.definiteAssignmentError);
+            } else {
+                if (_instanceDefiniteAssignments is null || !_instanceDefiniteAssignments.Contains(field))
+                    diagnostics.Push(field.definiteAssignmentError);
+            }
+        }
     }
 
     internal void ReportConstructorInitializerCycles(

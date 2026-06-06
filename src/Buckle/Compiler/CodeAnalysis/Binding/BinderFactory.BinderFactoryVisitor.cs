@@ -327,6 +327,13 @@ internal sealed partial class BinderFactory {
                     return VisitReverseClause(reverseClause);
                 }
 
+                var stateClause = node.stateClause;
+
+                if (stateClause is not null &&
+                    LookupPosition.IsBetweenTokens(_position, stateClause.keyword, stateClause.body.closeBrace)) {
+                    return VisitStateClause(stateClause);
+                }
+
                 return VisitCore(node.parent);
             }
 
@@ -339,7 +346,11 @@ internal sealed partial class BinderFactory {
             else
                 usage = NodeUsage.Normal;
 
-            var key = CreateBinderCacheKey(node, usage);
+            return VisitMethodDeclarationCore(node, usage);
+        }
+
+        private Binder VisitMethodDeclarationCore(MethodDeclarationSyntax node, NodeUsage nodeUsage) {
+            var key = CreateBinderCacheKey(node, nodeUsage);
 
             if (!_binderCache.TryGetValue(key, out var resultBinder)) {
                 var parentType = node.parent as TypeDeclarationSyntax;
@@ -351,12 +362,12 @@ internal sealed partial class BinderFactory {
 
                 SourceMemberMethodSymbol method = null;
 
-                if (usage != NodeUsage.Normal && node.templateParameterList is not null) {
+                if (nodeUsage != NodeUsage.Normal && node.templateParameterList is not null) {
                     method = GetMethodSymbol(node, resultBinder);
                     resultBinder = new WithMethodTemplateParametersBinder(method, resultBinder);
                 }
 
-                if (usage == NodeUsage.MethodBody) {
+                if (nodeUsage == NodeUsage.MethodBody) {
                     method ??= GetMethodSymbol(node, resultBinder);
                     resultBinder = new InMethodBinder(method, resultBinder);
 
@@ -371,6 +382,36 @@ internal sealed partial class BinderFactory {
         }
 
         internal override Binder VisitReverseClause(ReverseClauseSyntax node) {
+            var usage = LookupPosition.IsInBlock(_position, node.body) ? NodeUsage.MethodBody : NodeUsage.Normal;
+            var key = CreateBinderCacheKey(node, usage);
+
+            if (!_binderCache.TryGetValue(key, out var resultBinder)) {
+                var grandParentType = node.parent.parent as TypeDeclarationSyntax;
+
+                if (grandParentType is not null) {
+                    resultBinder = VisitTypeDeclarationCore(
+                        grandParentType,
+                        NodeUsage.NamedTypeBodyOrTemplateParameters
+                    );
+                } else {
+                    resultBinder = VisitCore(node.parent.parent);
+                }
+
+                if (usage == NodeUsage.MethodBody) {
+                    var method = GetMethodSymbol(node, resultBinder);
+                    resultBinder = new InMethodBinder(method, resultBinder);
+
+                    if (method.isEffectivelyConst)
+                        resultBinder = resultBinder.WithAdditionalFlags(BinderFlags.ConstContext);
+                }
+
+                _binderCache.TryAdd(key, resultBinder);
+            }
+
+            return resultBinder;
+        }
+
+        internal override Binder VisitStateClause(StateClauseSyntax node) {
             var usage = LookupPosition.IsInBlock(_position, node.body) ? NodeUsage.MethodBody : NodeUsage.Normal;
             var key = CreateBinderCacheKey(node, usage);
 
@@ -418,6 +459,11 @@ internal sealed partial class BinderFactory {
         private SourceMemberMethodSymbol GetMethodSymbol(ReverseClauseSyntax reverseClauseSyntax, Binder outerBinder) {
             var containingMethod = GetMethodSymbol((MethodDeclarationSyntax)reverseClauseSyntax.parent, outerBinder);
             return (SourceMemberMethodSymbol)containingMethod.reverseMethod;
+        }
+
+        private SourceMemberMethodSymbol GetMethodSymbol(StateClauseSyntax stateClauseSyntax, Binder outerBinder) {
+            var containingMethod = GetMethodSymbol((MethodDeclarationSyntax)stateClauseSyntax.parent, outerBinder);
+            return (SourceMemberMethodSymbol)containingMethod.stateMethod;
         }
 
         private NamedTypeSymbol GetContainerType(Binder binder) {

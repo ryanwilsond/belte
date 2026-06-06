@@ -60,6 +60,10 @@ internal abstract class SymbolVisitor {
         DefaultVisit(symbol);
     }
 
+    internal virtual void VisitToken(TokenSymbol symbol) {
+        DefaultVisit(symbol);
+    }
+
     internal virtual void VisitAlias(AliasSymbol symbol) {
         DefaultVisit(symbol);
     }

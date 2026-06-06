@@ -675,7 +675,8 @@ internal partial class Binder {
             if (nullableType.type is TemplateParameterSymbol t &&
                 (basesBeingResolved is null || !basesBeingResolved.Contains(t))) {
                 diagnostics.Push(Error.CannotAnnotateTemplate(syntax.location));
-                return nullableType;
+                // Returning the nullable type tends to improve other diagnostic reporting
+                return nullableType.SetIsAnnotated();
             }
 
             return new TypeWithAnnotations(nullableType.type.StrippedType(), false);
@@ -1472,7 +1473,9 @@ internal partial class Binder {
         var type = typeWithAnnotations.type;
 
         if (type.StrippedType() is not ErrorTypeSymbol) {
-            if (argument.expression.kind == SyntaxKind.NonNullableType)
+            if (type.specialType == SpecialType.String)
+                diagnostics.Push(Error.InvalidReferenceTemplateType(templateArgument.location, type));
+            else if (argument.expression.kind == SyntaxKind.NonNullableType)
                 diagnostics.Push(Error.AnnotationsDisallowedInTemplateArgument(templateArgument.location));
 
             analyzedArguments.types.Add(type);
@@ -2970,7 +2973,7 @@ internal partial class Binder {
         return CheckIsValidReceiverForVariable(node, fieldAccess.receiver, valueKind, diagnostics);
     }
 
-    private bool IsThisInstanceAccess(BoundExpression expression) {
+    internal static bool IsThisInstanceAccess(BoundExpression expression) {
         var left = expression;
 
         while (left is not null) {
@@ -2978,6 +2981,9 @@ internal partial class Binder {
                 return true;
             else if (left is BoundFieldAccessExpression nested)
                 left = nested.receiver;
+            // We only check for this because some post-lowering passes ask this question
+            else if (left is BoundFieldSlotExpression slot)
+                left = slot.receiver;
             else
                 break;
         }
@@ -14558,6 +14564,10 @@ symIsHidden:;
     private protected virtual TypeSymbol GetCurrentReturnType(out RefKind refKind) {
         if (containingMember is MethodSymbol symbol) {
             refKind = symbol.refKind;
+
+            if (symbol is SourceStateMethodSymbol)
+                return symbol.returnType.tupleElementTypes[1].type.type;
+
             return symbol.returnType;
         }
 
@@ -14574,6 +14584,8 @@ symIsHidden:;
                 return BindMethodBody(method, method.body, diagnostics);
             case ReverseClauseSyntax reverseMethod:
                 return BindMethodBody(reverseMethod, reverseMethod.body, diagnostics);
+            case StateClauseSyntax stateMethod:
+                return BindMethodBody(stateMethod, stateMethod.body, diagnostics);
             case CompilationUnitSyntax compilationUnit:
                 return BindSimpleProgram(compilationUnit, diagnostics);
             default:
