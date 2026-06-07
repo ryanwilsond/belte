@@ -24,11 +24,6 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_AlwaysValue, location, message);
     }
 
-    internal static BelteDiagnostic NullDereference(TextLocation location) {
-        var message = "dereference of a possibly null value";
-        return CreateWarning(DiagnosticCode.WRN_NullDereference, location, message);
-    }
-
     internal static BelteDiagnostic UnreachableCode(TextLocation location) {
         var message = "unreachable code";
         return CreateWarning(DiagnosticCode.WRN_UnreachableCode, location, message);

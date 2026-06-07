@@ -1567,7 +1567,11 @@ internal sealed class Expander : SharedExpander {
         out BoundExpression replacement,
         UseKind useKind) {
         var statements = base.ExpandNullAssertOperator(expression, out replacement, UseKind.Value);
-        return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
+
+        if (useKind == UseKind.Writable)
+            return statements;
+        else
+            return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
     }
 
     private protected override List<BoundStatement> ExpandAddressOfOperator(
@@ -1882,6 +1886,16 @@ internal sealed class Expander : SharedExpander {
                 c.defaultArguments,
                 c.resultKind,
                 c.Type()
+            );
+        } else if (access is BoundIndexerAccessExpression i) {
+            statements.AddRange(ExpandExpression(i.index, out var indexReplacement));
+            trueExpression = new BoundIndexerAccessExpression(
+                syntax,
+                newReceiver,
+                indexReplacement,
+                i.method,
+                null,
+                i.Type()
             );
         } else {
             throw ExceptionUtilities.Unreachable();

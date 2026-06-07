@@ -2445,6 +2445,34 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_LowLevelFieldInNonLowLevelType, location, message);
     }
 
+    internal static BelteDiagnostic NullableReceiver(TextLocation location, BoundExpression left, FieldSymbol right) {
+        var message = $"cannot access fields through a nullable receiver; consider using a null assert or conditional access";
+        var suggestion1 = $"{left}!.{right.ToDisplayString(SymbolDisplayFormat.ToStringNameFormat)}";
+        var suggestion2 = $"{left}?.{right.ToDisplayString(SymbolDisplayFormat.ToStringNameFormat)}";
+        return CreateError(DiagnosticCode.ERR_NullableReceiver, location, message, suggestion1, suggestion2);
+    }
+
+    internal static BelteDiagnostic NullableReceiverArray(TextLocation location, BoundExpression left, BoundExpression index) {
+        var message = $"cannot access arrays through a nullable receiver; consider using a null assert or conditional access";
+        var suggestion1 = $"{left}![{index}]";
+        var suggestion2 = $"{left}?[{index}]";
+        return CreateError(DiagnosticCode.ERR_NullableReceiverArray, location, message, suggestion1, suggestion2);
+    }
+
+    internal static BelteDiagnostic NullableReceiverCall(TextLocation location, BoundExpression left, string name) {
+        var message = $"cannot call methods through a nullable receiver; consider using a null assert or conditional access";
+        var suggestion1 = $"{left}!.{name}";
+        var suggestion2 = $"{left}?.{name}";
+        return CreateError(DiagnosticCode.ERR_NullableReceiverCall, location, message, suggestion1, suggestion2);
+    }
+
+    internal static BelteDiagnostic NullableReceiverIndex(TextLocation location, BoundExpression left, BoundExpression index) {
+        var message = $"cannot index a nullable receiver; consider using a null assert or conditional access";
+        var suggestion1 = $"{left}![{index}]";
+        var suggestion2 = $"{left}?[{index}]";
+        return CreateError(DiagnosticCode.ERR_NullableReceiverIndex, location, message, suggestion1, suggestion2);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

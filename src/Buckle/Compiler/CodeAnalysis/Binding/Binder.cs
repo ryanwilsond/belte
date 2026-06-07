@@ -2706,6 +2706,14 @@ internal partial class Binder {
                     return true;
 
                 break;
+            case BoundKind.NullAssertOperator:
+                return CheckValueKind(
+                    node,
+                    ((BoundNullAssertOperator)expression).operand,
+                    valueKind,
+                    checkingReceiver,
+                    diagnostics
+                );
         }
 
         diagnostics.Push(GetStandardLValueError(valueKind, node.location));
@@ -6395,7 +6403,7 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics) {
         if (!isConditional) {
             if (receiver.Type().IsNullableType())
-                diagnostics.Push(Warning.NullDereference(syntax.location));
+                ReportNullableReceiver(syntax, receiver, access, diagnostics);
 
             return access;
         }
@@ -6408,6 +6416,39 @@ internal partial class Binder {
                 access,
                 access.Type() is null ? access.Type() : CorLibrary.GetOrCreateNullableType(access.Type())
             );
+    }
+
+    private void ReportNullableReceiver(
+        SyntaxNode syntax,
+        BoundExpression receiver,
+        BoundExpression access,
+        BelteDiagnosticQueue diagnostics) {
+        switch (access.kind) {
+            case BoundKind.FieldAccessExpression: {
+                    var field = ((BoundFieldAccessExpression)access).field;
+                    diagnostics.Push(Error.NullableReceiver(syntax.location, receiver, field));
+                    break;
+                }
+            case BoundKind.ArrayAccessExpression: {
+                    var index = ((BoundArrayAccessExpression)access).index;
+                    diagnostics.Push(Error.NullableReceiverArray(syntax.location, receiver, index));
+                    break;
+                }
+            case BoundKind.MethodGroup: {
+                    var right = ((BoundMethodGroup)access).name;
+                    diagnostics.Push(Error.NullableReceiverCall(syntax.location, receiver, right));
+                    break;
+                }
+            case BoundKind.IndexerAccessExpression: {
+                    var index = ((BoundIndexerAccessExpression)access).index;
+                    diagnostics.Push(Error.NullableReceiverIndex(syntax.location, receiver, index));
+                    break;
+                }
+            case BoundKind.ErrorExpression:
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(access.kind);
+        }
     }
 
     private BoundExpression BindMemberAccessBadResult(

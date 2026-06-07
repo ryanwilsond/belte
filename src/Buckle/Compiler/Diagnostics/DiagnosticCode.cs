@@ -10,7 +10,7 @@ public enum DiagnosticCode : ushort {
 
     // 0 is reserved for exceptions
     WRN_AlwaysValue = 1,
-    WRN_NullDereference = 2,
+    ERR_NullableReceiver = 2,
     ERR_InvalidReference = 3,
     ERR_InvalidType = 4,
     ERR_BadCharacter = 5,
@@ -498,6 +498,9 @@ public enum DiagnosticCode : ushort {
     ERR_NoNewTypeVar = 487,
     ERR_FieldNoDefiniteAssignmentStruct = 488,
     ERR_LowLevelFieldInNonLowLevelType = 489,
+    ERR_NullableReceiverArray = 490,
+    ERR_NullableReceiverCall = 491,
+    ERR_NullableReceiverIndex = 492,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

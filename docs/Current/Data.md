@@ -64,7 +64,7 @@ The following is a list of built-in types with links to further information:
 | Integer Pointer | `intptr` | Used for .NET interop | |
 | Unsigned Integer Pointer | `uintptr` | Used for .NET interop | |
 
-Most primitive types are non-nullable by default, which can be [read about here](Overview.md#14-nullability-and-types).
+All types are non-nullable by default, which can be [read about here](Overview.md#14-nullability-and-types).
 
 Additionally, there are user-defined types:
 
@@ -580,23 +580,16 @@ var! a = new MyClass(); // Same as `MyClass! a = new MyClass();`
 
 ## 3.4 Annotations
 
-Reference-type data is nullable by default. To disable this, an exclamation mark can be used:
-
-```belte
-MyType! a = new MyType();
-```
-
-Value-type data is non-nullable by default. To enable nullability, a question mark can be used:
+Data is non-nullable by default. To enable nullability, a question mark can be used:
 
 ```belte
 int? a = null;
 ```
 
-Both of these annotations are allowed in situations where they are redundant for clarity purposes:
+An exclamation mark annotation can also be used to signify non-nullability for clarity:
 
 ```belte
-int! a = 3;
-MyType? b = new MyType();
+int! a = 0;
 ```
 
 The [null-assert (`!`) operator](#3221-x) can be used to pass nullable data into a non-nullable context:

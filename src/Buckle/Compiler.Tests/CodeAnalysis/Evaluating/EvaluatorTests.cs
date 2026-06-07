@@ -223,9 +223,9 @@ public sealed class EvaluatorTests {
     [InlineData("var? a = 3; a += null; return a;", null)]
     [InlineData("int? a = 3; a += null; return a is null;", true)]
     [InlineData("int? a = 3; a += null; return a isnt null;", false)]
-    [InlineData("int i = 0; int[]? a = {1, 2, 3}; a[i++] += 5; return i;", 1)]
-    [InlineData("int i = 0; int[]? a = {1, 2, 3}; a[i++] += 5; return a[0];", 6)]
-    [InlineData("int i = 0; int[]? a = {1, 2, 3}; a[i++] *= 5; return a[0];", 5)]
+    [InlineData("int i = 0; int[]? a = {1, 2, 3}; a![i++] += 5; return i;", 1)]
+    [InlineData("int i = 0; int[]? a = {1, 2, 3}; a![i++] += 5; return a![0];", 6)]
+    [InlineData("int i = 0; int[]? a = {1, 2, 3}; a![i++] *= 5; return a![0];", 5)]
     // Ternary expressions
     [InlineData("return true ? 3 : 5;", 3)]
     [InlineData("return false ? \"asdf\" : \"asdf2\";", "asdf2")]
@@ -247,7 +247,7 @@ public sealed class EvaluatorTests {
     [InlineData("intptr a = default; return 0;", 0)]
     [InlineData("int* a = default; return 0;", 0)]
     [InlineData("void(int)* a = default; return 0;", 0)]
-    [InlineData("int[][]? a; a = new int[][] { { 1 } }; return a[0][0];", 1)]
+    [InlineData("int[][]? a; a = new int[][] { { 1 } }; return a![0]![0];", 1)]
     [InlineData("uint64 a = 3; var b = 1 + a; return LowLevel.GetType(b) == typeof(uint64);", true)]
     [InlineData("uint64 a = 3; var b = 1 + a; return LowLevel.GetType(a) == LowLevel.GetType(b);", true)]
     [InlineData("int? a = 3; var b = a is int t; return b;", true)]
@@ -340,16 +340,16 @@ public sealed class EvaluatorTests {
     [InlineData("int! a = 3; string? b = \"test\" + (string?)a; return b;", "test3")]
     [InlineData("lowlevel { any a = new int?[] {1, 2, 3}; return ((int?[])a)[1]; }", 2)]
     [InlineData("lowlevel { any a = new bool?[] {true, false}; return ((bool?[])a)[0]; }", true)]
-    [InlineData("lowlevel { any[]? a = {1, 3.5, true, \"test\"}; return a[0]; }", 1)]
-    [InlineData("lowlevel { any[]? a = {1, 3.5, true, \"test\"}; return a[1]; }", 3.5)]
-    [InlineData("lowlevel { any[]? a = {1, 3.5, true, \"test\"}; return a[2]; }", true)]
-    [InlineData("lowlevel { any[]? a = {1, 3.5, true, \"test\"}; return a[3]; }", "test")]
+    [InlineData("lowlevel { any[]? a = {1, 3.5, true, \"test\"}; return a![0]; }", 1)]
+    [InlineData("lowlevel { any[]? a = {1, 3.5, true, \"test\"}; return a![1]; }", 3.5)]
+    [InlineData("lowlevel { any[]? a = {1, 3.5, true, \"test\"}; return a![2]; }", true)]
+    [InlineData("lowlevel { any[]? a = {1, 3.5, true, \"test\"}; return a![3]; }", "test")]
     [InlineData("constexpr float32 a = 3.33; return (int32&)a;", 1079320248)]
     // Reference expressions
     [InlineData("int? x = 4; ref int? y = ref x; x++; return y;", 5)]
     [InlineData("int? x = 4; ref int? y = ref x; y++; return x;", 5)]
     [InlineData("int? x = 4; int? y = 3; ref int? z = ref x; z = ref y; z++; return x;", 4)]
-    [InlineData("lowlevel { int?[]? a = {1, 2, 3}; a[0] = 6; return a[0]; }", 6)]
+    [InlineData("lowlevel { int?[]? a = {1, 2, 3}; a![0] = 6; return a![0]; }", 6)]
     [InlineData("int? M() { ref int? F(ref int? a) { return ref a; } int? b = 3; F(ref b) = 6; return b; } return M();", 6)]
     [InlineData(@"
         int a = 3;
@@ -361,17 +361,17 @@ public sealed class EvaluatorTests {
     [InlineData("class A { public int? f = 0; } var a = new A()..f=1.0..f=5; return a.f;", 5)]
     [InlineData("class A { public int? f = 0; public void M() { f++; } } var a = new A()..M()..M(); return a.f;", 2)]
     // Initializer list expressions and index expressions
-    [InlineData("lowlevel { decimal?[]? a = {3.1, 2.56, 5.23123}; return a[2]; }", 5.23123)]
-    [InlineData("lowlevel { decimal?[]? a = {3.1, 2.56, 5.23123}; return a[0]; }", 3.1)]
-    [InlineData("lowlevel { string?[]? a = {\"hello\", \"world\"}; return a[1]; }", "world")]
-    [InlineData("lowlevel { bool?[]? a = {true, true, false, false}; return a[3]; }", false)]
+    [InlineData("lowlevel { decimal?[]? a = {3.1, 2.56, 5.23123}; return a![2]; }", 5.23123)]
+    [InlineData("lowlevel { decimal?[]? a = {3.1, 2.56, 5.23123}; return a![0]; }", 3.1)]
+    [InlineData("lowlevel { string?[]? a = {\"hello\", \"world\"}; return a![1]; }", "world")]
+    [InlineData("lowlevel { bool?[]? a = {true, true, false, false}; return a![3]; }", false)]
     [InlineData("lowlevel { bool?[]? a = {true, true, false, false}; return a?[3]; }", false)]
     [InlineData("lowlevel { bool?[]? a; return a?[3]; }", null)]
     [InlineData("lowlevel { bool?[]? a = {true, false}; a = null; return a?[3]; }", null)]
     [InlineData("lowlevel { bool?[]? a = null; return a?[3]; }", null)]
-    [InlineData("lowlevel { int?[]? a = {1, 2, null}; return a[0]; }", 1)]
-    [InlineData("lowlevel { int?[]? a = {1, 2, null}; return a[2]; }", null)]
-    [InlineData("lowlevel { int?[][]? a = { new int?[] { 1 } }; return a[0][0]; }", 1)]
+    [InlineData("lowlevel { int?[]? a = {1, 2, null}; return a![0]; }", 1)]
+    [InlineData("lowlevel { int?[]? a = {1, 2, null}; return a![2]; }", null)]
+    [InlineData("lowlevel { int?[][]? a = { new int?[] { 1 } }; return a![0]![0]; }", 1)]
     [InlineData("lowlevel { var a = new int?[] { 1, 2, 3 }; a = { 4, 5, 6 }; return a[0]; }", 4)]
     [InlineData(@"
         class A {
@@ -386,38 +386,38 @@ public sealed class EvaluatorTests {
         lowlevel {
             int[]? a = {1, 2, 3};
             int[]? b = a;
-            b[0] = 10;
-            return a[0];
+            b![0] = 10;
+            return a![0];
         }", 10)]
     [InlineData(@"
         lowlevel {
             int[][]? a = { { 1 }, { 2 } };
-            int[]? b = a[0];
-            b[0] = 9;
-            return a[0][0];
+            int[]? b = a![0];
+            b![0] = 9;
+            return a![0]![0];
         }", 9)]
     [InlineData(@"
         class A {
             public int[]? values = {1,2,3};
         }
         var a = new A();
-        a.values[1]++;
-        return a.values[1];", 3)]
+        a.values![1]++;
+        return a.values![1];", 3)]
     // Member access expressions
     [InlineData("class A { public int? num; } A myVar = new A(); myVar.num = 3; return myVar.num + 1;", 4)]
-    [InlineData("class A { public int? num; } class B { public A? a; } B myVar = new B(); myVar.a = new A(); myVar.a.num = 3; return myVar.a.num + 1;", 4)]
+    [InlineData("class A { public int? num; } class B { public A? a; } B myVar = new B(); myVar.a = new A(); myVar.a!.num = 3; return myVar.a!.num + 1;", 4)]
     [InlineData("class A { public int? a; public int? b; } A myVar = new A(); myVar.a = 3; myVar.b = myVar.a + 3; return myVar.b;", 6)]
     [InlineData("class A { public int? a; public int? b; } A myVar = new A(); myVar.a = 3; myVar.b = myVar.a + 3; return myVar.a;", 3)]
     [InlineData("class A { public int? num; } A? myVar; int? a = myVar?.num; return a;", null)]
     [InlineData("class A { public int? num; } A myVar = new A(); myVar.num = 7; int? a = myVar?.num; return a;", 7)]
     [InlineData("class A { public static int? a = 3; } return A.a;", 3)]
     [InlineData("class A { public static int? a = 3; static constructor() { a = 10; } } return A.a;", 10)]
-    [InlineData("class A { public static int[]? a = new int[10]; static constructor() { a[0] = 10; } } return A.a[0];", 10)]
-    [InlineData("class A { public static int[]? a = new int[10]; static constructor() { a[0] = 10; } } return A.a[1];", 0)]
+    [InlineData("class A { public static int[]? a = new int[10]; static constructor() { a![0] = 10; } } return A.a![0];", 10)]
+    [InlineData("class A { public static int[]? a = new int[10]; static constructor() { a![0] = 10; } } return A.a![1];", 0)]
     [InlineData("class A { public static int? a = 3; } A.a = 20; return A.a;", 20)]
     [InlineData("struct A { public int a; } var a = new A(); return a.a;", 0)]
     [InlineData("struct A { public int? a; } var a = new A(); return a.a;", null)]
-    [InlineData("struct A { public int a; } A? a; a = new A(); return a.a;", 0)]
+    [InlineData("struct A { public int a; } A? a; a = new A(); return a!.a;", 0)]
     [InlineData("struct A { public int a; } A? a; return a?.a;", null)]
     [InlineData("class A { public int a = default; } A? a; return a?.a;", null)]
     // This expression
@@ -522,9 +522,9 @@ public sealed class EvaluatorTests {
     [InlineData("int a = 3; with (a = 5) try { return a + 5; }", 10)]
     [InlineData("int a = 3; int b = 0; with (a = 5) try { b = a + 5; } return b;", 10)]
     [InlineData("int a = 3; int b = 0; with (a = 5) try { b = a + 5; } return a;", 3)]
-    [InlineData("int a = 0; int[]? b = { 1, 1, 1 }; return with (b[a++] = 5) b[a - 1];", 5)]
-    [InlineData("int a = 0; int[]? b = { 1, 1, 1 }; int c = with (b[a++] = 5) b[a - 1]; return a;", 1)]
-    [InlineData("int a = 0; int[]? b = { 1, 1, 1 }; int c = with (b[a++] = 5) b[a - 1]; return b[0];", 1)]
+    [InlineData("int a = 0; int[]? b = { 1, 1, 1 }; return with (b![a++] = 5) b![a - 1];", 5)]
+    [InlineData("int a = 0; int[]? b = { 1, 1, 1 }; int c = with (b![a++] = 5) b![a - 1]; return a;", 1)]
+    [InlineData("int a = 0; int[]? b = { 1, 1, 1 }; int c = with (b![a++] = 5) b![a - 1]; return b![0];", 1)]
     [InlineData("int a = 1; return with (a = 2) with (a = 3) a;", 3)]
     [InlineData(@"
         class A {
@@ -719,7 +719,7 @@ public sealed class EvaluatorTests {
         class A {
             public int?[]? a = { 1, 2, 3 };
             public static ref int? operator[](A a, int? b) {
-                return ref a.a[b];
+                return ref a.a![b];
             }
         }
 
@@ -821,7 +821,7 @@ public sealed class EvaluatorTests {
 
         var b = new B();
         return b.T();", "B")]
-    [InlineData("lowlevel class A { public int?[]? b = { 1, 2, 3 }; } var a = new A(); ref var r = ref a.b; r[0]++; return a.b[0];", 2)]
+    [InlineData("lowlevel class A { public int?[]? b = { 1, 2, 3 }; } var a = new A(); ref var r = ref a.b; r![0]++; return a.b![0];", 2)]
     [InlineData(@"
         class A {
             public virtual int F() { return 1; }
@@ -1073,7 +1073,7 @@ public sealed class EvaluatorTests {
         }
 
         var a = new A()?..b = (new A()..a = 4);
-        return a.b.a;
+        return a.b!.a;
         ", 4)]
     [InlineData(@"
         int?[][]? a = null;
@@ -1090,9 +1090,9 @@ public sealed class EvaluatorTests {
             public A? b;
             public int c = default;
         }
-        var a = new A();
-        a.b = new A();
-        a.b.c = 5;
+        var? a = new A();
+        a!.b = new A();
+        a!.b!.c = 5;
         return a?.b?.c;", 5)]
     [InlineData(@"
         class A {
@@ -1151,8 +1151,8 @@ public sealed class EvaluatorTests {
         Node? current = a;
 
         while (current isnt null) {
-            sum += current.value;
-            current = current.next;
+            sum += current!.value;
+            current = current!.next;
         }
 
         return sum;", 6)]
@@ -1257,7 +1257,7 @@ public sealed class EvaluatorTests {
             public int[]? data = {1, 2, 3, 4};
 
             public ref int Item(int index) {
-                return ref data[index];
+                return ref data![index];
             }
         }
 
@@ -1266,7 +1266,7 @@ public sealed class EvaluatorTests {
 
         x *= 5;
 
-        return b.data[1];", 10)]
+        return b.data![1];", 10)]
     [InlineData(@"
         class A {
             public int value;

@@ -182,7 +182,7 @@ public sealed class IssueTests {
             }
 
             var? x = new A();
-            x.num = 3;
+            x?.num = 3;
             x = null;
             return x?.num;
         ";

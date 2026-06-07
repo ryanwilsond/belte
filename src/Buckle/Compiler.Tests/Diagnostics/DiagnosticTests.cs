@@ -28,7 +28,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Warning_BU0002_NullDereference() {
+    public void Reports_Error_BU0002_NullableReceiver() {
         var text = @"
             class A {
                 public int? num;
@@ -40,10 +40,10 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            dereference of a possibly null value
+            cannot access fields through a nullable receiver; consider using a null assert or conditional access
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 
     // ! Error_BU0003_InvalidReference
@@ -6477,6 +6477,53 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             cannot declare a lowlevel field inside of a non-lowlevel type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0490_NullableReceiverArray() {
+        var text = @"
+            var? a = new int\[10\];
+            [a\[0\]] = 4;
+        ";
+
+        var diagnostics = @"
+            cannot access arrays through a nullable receiver; consider using a null assert or conditional access
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0491_NullableReceiverCall() {
+        var text = @"
+            class A {
+                public void M() { }
+            }
+
+            void MyFunc(A? a) {
+                [a.M]();
+            }
+        ";
+
+        var diagnostics = @"
+            cannot call methods through a nullable receiver; consider using a null assert or conditional access
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0492_NullableReceiverIndex() {
+        var text = @"
+            var? a = ""test"";
+            var b = [a\[0\]];
+        ";
+
+        var diagnostics = @"
+            cannot index a nullable receiver; consider using a null assert or conditional access
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
