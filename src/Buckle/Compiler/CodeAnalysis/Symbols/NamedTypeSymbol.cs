@@ -84,6 +84,8 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
 
     internal virtual NamedTypeSymbol enumUnderlyingType => null;
 
+    internal virtual bool isLowLevel => false;
+
     internal virtual bool isUnionStruct => false;
 
     internal virtual bool enumFlagsAttribute => false;

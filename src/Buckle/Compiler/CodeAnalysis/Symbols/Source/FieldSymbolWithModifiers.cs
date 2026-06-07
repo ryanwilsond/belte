@@ -14,6 +14,8 @@ internal abstract class FieldSymbolWithModifiers : FieldSymbol, IAttributeTarget
 
     public sealed override bool isConstExpr => (_modifiers & DeclarationModifiers.ConstExpr) != 0;
 
+    internal sealed override bool isLowLevel => (_modifiers & DeclarationModifiers.LowLevel) != 0;
+
     internal abstract TextLocation errorLocation { get; }
 
     internal sealed override bool HasComplete(CompletionParts part) => _state.HasComplete(part);

@@ -1,6 +1,5 @@
 
-public lowlevel sealed class Dictionary<type TKey, type TValue>
-    where { TKey has default; TValue has default; } {
+public lowlevel sealed class Dictionary<type TKey, type TValue> {
     private int![]! _buckets = { };
     private Entry[] _entries;
     private int! _count = 0;
@@ -97,8 +96,8 @@ public lowlevel sealed class Dictionary<type TKey, type TValue>
 
                     _entries[i].hashCode = -1;
                     _entries[i].next = _freeList;
-                    _entries[i].key = default;
-                    _entries[i].value = default;
+                    _entries[i].key = lowlevel default;
+                    _entries[i].value = lowlevel default;
                     _freeList = i;
                     _freeCount++;
 
@@ -230,14 +229,14 @@ public lowlevel sealed class Dictionary<type TKey, type TValue>
     private struct Entry {
         public int! hashCode;
         public int! next;
-        public TKey key;
-        public TValue value;
+        public lowlevel TKey key;
+        public lowlevel TValue value;
     }
 
     private class DictionaryEnumerator extends Enumerator<KeyValuePair<TKey, TValue>> {
         private const Dictionary<TKey, TValue> _dictionary;
         private int! _index = 0;
-        private KeyValuePair<TKey, TValue> _current = default;
+        private KeyValuePair<TKey, TValue> _current = lowlevel default;
 
         public constructor(Dictionary<TKey, TValue> dictionary) {
             _dictionary = dictionary;
@@ -262,7 +261,7 @@ public lowlevel sealed class Dictionary<type TKey, type TValue>
             }
 
             _index = _dictionary._count + 1;
-            _current = default;
+            _current = lowlevel default;
             return false;
         }
     }

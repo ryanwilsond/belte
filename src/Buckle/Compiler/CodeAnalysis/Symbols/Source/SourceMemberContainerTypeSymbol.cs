@@ -132,7 +132,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
     internal sealed override NamedTypeSymbol constructedFrom => this;
 
-    internal bool isLowLevel => HasFlag(DeclarationModifiers.LowLevel);
+    internal override bool isLowLevel => HasFlag(DeclarationModifiers.LowLevel) || containingType?.isLowLevel == true;
 
     internal override Symbol containingSymbol { get; }
 

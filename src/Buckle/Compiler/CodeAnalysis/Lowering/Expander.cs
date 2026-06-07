@@ -344,7 +344,12 @@ internal sealed class Expander : SharedExpander {
                 statements.Add(LocalDeclaration(
                     d.syntax,
                     d.dataContainer,
-                    new BoundDefaultExpression(d.syntax, null, LiteralUtilities.TryGetDefaultValue(d.type), d.type)
+                    new BoundDefaultExpression(d.syntax,
+                        false,
+                        null,
+                        LiteralUtilities.TryGetDefaultValue(d.type),
+                        d.type
+                    )
                 ));
 
                 replacementExpressions.Add(expression);
@@ -355,7 +360,12 @@ internal sealed class Expander : SharedExpander {
 
                 statements.Add(LocalDeclaration(syntax,
                     temp,
-                    new BoundDefaultExpression(syntax, null, LiteralUtilities.TryGetDefaultValue(type), type)
+                    new BoundDefaultExpression(syntax,
+                        false,
+                        null,
+                        LiteralUtilities.TryGetDefaultValue(type),
+                        type
+                    )
                 ));
 
                 replacementExpressions.Add(Local(syntax, temp));
@@ -1366,6 +1376,7 @@ internal sealed class Expander : SharedExpander {
         if (expression.conversion.kind == ConversionKind.DefaultLiteral) {
             replacement = new BoundDefaultExpression(
                 syntax,
+                false,
                 null,
                 LiteralUtilities.TryGetDefaultValue(expression.type),
                 expression.type

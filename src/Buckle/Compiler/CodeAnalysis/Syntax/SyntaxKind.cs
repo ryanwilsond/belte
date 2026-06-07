@@ -220,6 +220,7 @@ public enum SyntaxKind : ushort {
 
     // Primary expressions
     LiteralExpression,
+    DefaultLiteralExpression,
     ExtendedLiteralExpression,
     TypeOfExpression,
     NameOfExpression,

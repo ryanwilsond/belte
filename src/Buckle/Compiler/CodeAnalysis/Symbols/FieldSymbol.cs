@@ -107,6 +107,8 @@ internal abstract class FieldSymbol : Symbol, IFieldSymbol {
 
     internal sealed override bool isExtern => false;
 
+    internal virtual bool isLowLevel => false;
+
     internal virtual bool isCapturedFrame => false;
 
     internal bool isMetadataConstant => isConstExpr;

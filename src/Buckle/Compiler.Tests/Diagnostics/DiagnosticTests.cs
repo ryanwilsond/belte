@@ -6407,7 +6407,18 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Empty slot Error_BU0485_
+    [Fact]
+    public void Reports_Error_BU0485_LowLevelDefaultOutsideLowLevelContext() {
+        var text = @"
+            int a = [lowlevel default];
+        ";
+
+        var diagnostics = @"
+            cannot use a lowlevel default literal outside of a lowlevel context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0486_NoInitOnNonNullable() {
@@ -6450,6 +6461,22 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             cannot declare a struct field without definite constructor assignment with type 'C!' because it has no default value
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0489_LowLevelFieldInNonLowLevelType() {
+        var text = @"
+            class A {
+                lowlevel [int a];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot declare a lowlevel field inside of a non-lowlevel type
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

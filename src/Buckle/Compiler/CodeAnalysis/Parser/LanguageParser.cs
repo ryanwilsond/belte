@@ -2353,6 +2353,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.OpenParenToken:
             case SyntaxKind.TrueKeyword:
             case SyntaxKind.FalseKeyword:
+            case SyntaxKind.LowlevelKeyword:
             case SyntaxKind.DefaultKeyword:
             case SyntaxKind.NumericLiteralToken:
             case SyntaxKind.ExtendedLiteralToken:
@@ -2760,6 +2761,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.TrueKeyword:
             case SyntaxKind.FalseKeyword:
                 return ParseBooleanLiteral();
+            case SyntaxKind.LowlevelKeyword:
             case SyntaxKind.DefaultKeyword:
                 return ParseDefaultLiteral();
             case SyntaxKind.NumericLiteralToken:
@@ -3828,8 +3830,9 @@ done:
     }
 
     private ExpressionSyntax ParseDefaultLiteral() {
-        var token = Match(SyntaxKind.DefaultKeyword);
-        return SyntaxFactory.Literal(token);
+        var lowlevelKeyword = EatIfMatch(SyntaxKind.LowlevelKeyword);
+        var defaultKeyword = Match(SyntaxKind.DefaultKeyword);
+        return SyntaxFactory.DefaultLiteralExpression(lowlevelKeyword, defaultKeyword);
     }
 
     private ExpressionSyntax ParseStringLiteral() {

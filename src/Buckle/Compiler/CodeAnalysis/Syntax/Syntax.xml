@@ -1501,6 +1501,11 @@
     <Kind Name="LiteralExpression"/>
     <Field Name="token" Type="SyntaxToken"/>
   </Node>
+  <Node Name="DefaultLiteralExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="DefaultLiteralExpression"/>
+    <Field Name="lowlevelKeyword" Type="SyntaxToken" Optional="true"/>
+    <Field Name="defaultKeyword" Type="SyntaxToken"/>
+  </Node>
   <Node Name="ExtendedLiteralExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="ExtendedLiteralExpression"/>
     <Field Name="token" Type="SyntaxToken" Optional="true"/>

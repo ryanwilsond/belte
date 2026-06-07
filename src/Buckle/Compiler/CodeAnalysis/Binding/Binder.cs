@@ -1658,6 +1658,7 @@ internal partial class Binder {
 
                 result = new BoundDefaultExpression(
                     literal.syntax,
+                    literal.isLowLevel,
                     targetType: null,
                     literal.constantValue,
                     CreateErrorType(),
@@ -3230,6 +3231,8 @@ internal partial class Binder {
         switch (node.kind) {
             case SyntaxKind.LiteralExpression:
                 return BindLiteralExpression((LiteralExpressionSyntax)node, diagnostics);
+            case SyntaxKind.DefaultLiteralExpression:
+                return BindDefaultLiteralExpression((DefaultLiteralExpressionSyntax)node, diagnostics);
             case SyntaxKind.ExtendedLiteralExpression:
                 return BindExtendedLiteralExpression((ExtendedLiteralExpressionSyntax)node, diagnostics);
             case SyntaxKind.TupleExpression:
@@ -7782,7 +7785,7 @@ internal partial class Binder {
             var parameterType = parameter.type;
 
             if (flags.Includes(BinderFlags.ParameterDefaultValue))
-                return new BoundDefaultExpression(syntax, null, null, parameterType);
+                return new BoundDefaultExpression(syntax, false, null, null, parameterType);
 
             var parameterDefaultValue = parameter.explicitDefaultConstantValue;
             var defaultConstantValue = parameterDefaultValue?.value;
@@ -7808,7 +7811,7 @@ internal partial class Binder {
             //     defaultValue = new BoundLiteral(syntax, ConstantValue.Create(argument.Syntax.ToString()), Compilation.GetSpecialType(SpecialType.System_String)) { WasCompilerGenerated = true };
 
             if (defaultConstantValue is null) {
-                defaultValue = new BoundDefaultExpression(syntax, null, null, parameterType);
+                defaultValue = new BoundDefaultExpression(syntax, false, null, null, parameterType);
             } else {
                 TypeSymbol constantType = CorLibrary.GetSpecialType(parameterDefaultValue.specialType);
                 defaultValue = new BoundLiteralExpression(syntax, parameterDefaultValue, constantType);
@@ -8525,6 +8528,17 @@ internal partial class Binder {
         return BindLiteral(node, node.token);
     }
 
+    private BoundExpression BindDefaultLiteralExpression(
+        DefaultLiteralExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        var isLowLevel = node.lowlevelKeyword is not null;
+
+        if (isLowLevel && !flags.Includes(BinderFlags.LowLevelContext))
+            diagnostics.Push(Error.LowLevelDefaultOutsideLowLevelContext(node.location));
+
+        return new BoundDefaultLiteral(node, isLowLevel);
+    }
+
     private BoundExpression BindExtendedLiteralExpression(
         ExtendedLiteralExpressionSyntax node,
         BelteDiagnosticQueue diagnostics) {
@@ -8545,8 +8559,6 @@ internal partial class Binder {
                     return new BoundLiteralExpression(node, new ConstantValue(null, SpecialType.None), null);
                 case SyntaxKind.NullptrKeyword:
                     return new BoundUnconvertedNullptrExpression(node);
-                case SyntaxKind.DefaultKeyword:
-                    return new BoundDefaultLiteral(node);
                 default:
                     throw ExceptionUtilities.UnexpectedValue(kind);
             }
@@ -9806,7 +9818,7 @@ internal partial class Binder {
         if (!expr.IsLiteralDefault() || targetType is null)
             return expr;
 
-        return new BoundDefaultExpression(expr.syntax, null, null, targetType);
+        return new BoundDefaultExpression(expr.syntax, false, null, null, targetType);
     }
 
     private BoundExpression ApplyConvertedTypes(
@@ -15488,14 +15500,22 @@ symIsHidden:;
         }
 
         if (conversion.kind == ConversionKind.DefaultLiteral) {
-            if (!destination.HasDefaultValue()) {
+            var defaultLiteral = (BoundDefaultLiteral)source;
+
+            if (!destination.HasDefaultValue() && !defaultLiteral.isLowLevel) {
                 if (destination.IsStructType())
                     diagnostics.Push(Error.StructWithNoDefault(source.syntax.location, destination));
                 else
                     diagnostics.Push(Error.TypeWithNoDefault(source.syntax.location, destination));
             }
 
-            source = new BoundDefaultExpression(source.syntax, targetType: null, constantValue, type: destination);
+            source = new BoundDefaultExpression(
+                source.syntax,
+                isLowLevel: defaultLiteral.isLowLevel,
+                targetType: null,
+                constantValue,
+                type: destination
+            );
         }
 
         if (conversion.method is not null && conversion.kind != ConversionKind.MethodGroup) {

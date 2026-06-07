@@ -493,10 +493,11 @@ public enum DiagnosticCode : ushort {
     ERR_StateClauseWithoutReverseClause = 482,
     ERR_UseOfUnassignedField = 483,
     ERR_FieldNoDefiniteAssignment = 484,
-    // ! Unused slot 485
+    ERR_LowLevelDefaultOutsideLowLevelContext = 485,
     ERR_NoInitOnNonNullable = 486,
     ERR_NoNewTypeVar = 487,
     ERR_FieldNoDefiniteAssignmentStruct = 488,
+    ERR_LowLevelFieldInNonLowLevelType = 489,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

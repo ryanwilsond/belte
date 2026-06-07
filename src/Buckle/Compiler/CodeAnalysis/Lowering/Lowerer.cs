@@ -1101,7 +1101,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         var type = node.type;
 
         if (type.IsStructType() && node.constructor is SynthesizedInstanceConstructorSymbol)
-            return new BoundDefaultExpression(node.syntax, null, null, type);
+            return new BoundDefaultExpression(node.syntax, false, null, null, type);
 
         return base.VisitObjectCreationExpression(node);
     }

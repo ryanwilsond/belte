@@ -112,13 +112,15 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
             diagnostics.Push(Error.FieldsCannotBeImplicitlyTyped(location));
             type = new TypeWithAnnotations(binder.CreateErrorType());
         } else if (declaration.initializer is null) {
-            if (containingType.IsStructType()) {
-                // Whether or not the type has a default value is checked later
-                var error = Error.FieldNoDefiniteAssignmentStruct(location, type.type);
-                Interlocked.CompareExchange(ref _lazyDefiniteAssignmentError, error, null);
-            } else if (containingType.IsClassType() && !type.type.IsNullableType() && !isFixedSizeBuffer) {
-                var error = Error.FieldNoDefiniteAssignment(location, type.type);
-                Interlocked.CompareExchange(ref _lazyDefiniteAssignmentError, error, null);
+            if (!isLowLevel) {
+                if (containingType.IsStructType()) {
+                    // Whether or not the type has a default value is checked later
+                    var error = Error.FieldNoDefiniteAssignmentStruct(location, type.type);
+                    Interlocked.CompareExchange(ref _lazyDefiniteAssignmentError, error, null);
+                } else if (containingType.IsClassType() && !type.type.IsNullableType() && !isFixedSizeBuffer) {
+                    var error = Error.FieldNoDefiniteAssignment(location, type.type);
+                    Interlocked.CompareExchange(ref _lazyDefiniteAssignmentError, error, null);
+                }
             }
         }
 

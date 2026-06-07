@@ -2435,6 +2435,16 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_MissingFieldInit, location, message);
     }
 
+    internal static BelteDiagnostic LowLevelDefaultOutsideLowLevelContext(TextLocation location) {
+        var message = $"cannot use a lowlevel default literal outside of a lowlevel context";
+        return CreateError(DiagnosticCode.ERR_LowLevelDefaultOutsideLowLevelContext, location, message);
+    }
+
+    internal static BelteDiagnostic LowLevelFieldInNonLowLevelType(TextLocation location) {
+        var message = $"cannot declare a lowlevel field inside of a non-lowlevel type";
+        return CreateError(DiagnosticCode.ERR_LowLevelFieldInNonLowLevelType, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }
