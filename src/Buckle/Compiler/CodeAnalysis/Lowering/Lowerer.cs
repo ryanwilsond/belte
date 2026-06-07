@@ -683,6 +683,15 @@ internal sealed class Lowerer : BoundTreeRewriter {
     }
 
     internal override BoundNode VisitArrayAccessExpression(BoundArrayAccessExpression expression) {
+        /*
+
+        <receiver>[<index>]
+
+        ----> <index> is nullable
+
+        <receiver>[<index>!]
+
+        */
         var syntax = expression.syntax;
 
         if (expression.index.Type().IsNullableType()) {

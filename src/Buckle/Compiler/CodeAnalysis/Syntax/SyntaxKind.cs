@@ -174,6 +174,7 @@ public enum SyntaxKind : ushort {
     ReverseKeyword,
     ReversibleKeyword,
     StateKeyword,
+    HasKeyword,
     HandleKeyword,
 
     // Trivia
@@ -343,6 +344,7 @@ public enum SyntaxKind : ushort {
     TemplateConstraintClause,
     TemplateExtendsConstraintClause,
     TemplateIsConstraintClause,
+    TemplateHasConstraintClause,
     TemplateConstraintClauseList,
     InitializerListExpression,
     KeyValuePair,

@@ -236,6 +236,42 @@ internal class SharedExpander : BoundTreeExpander {
         return statements;
     }
 
+    private protected override List<BoundStatement> ExpandArrayAccessExpression(
+        BoundArrayAccessExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        /*
+
+        <receiver>[<index>]
+
+        ----> <type> is non-nullable reference type, UseKind.Value, UseKind.StableValue
+
+        <receiver>[<index>]!
+
+        */
+        if (useKind != UseKind.Writable && expression.type.IsVerifierReference() && !expression.type.IsNullableType()) {
+            var statements = ExpandExpression(
+                new BoundNullAssertOperator(expression.syntax,
+                    expression.Update(
+                        expression.receiver,
+                        expression.index,
+                        expression.constantValue,
+                        CorLibrary.GetOrCreateNullableType(expression.type)
+                    ),
+                    true,
+                    expression.constantValue,
+                    expression.type
+                ),
+                out replacement,
+                useKind
+            );
+
+            return statements;
+        }
+
+        return base.ExpandArrayAccessExpression(expression, out replacement, useKind);
+    }
+
     private protected override List<BoundStatement> ExpandCastExpression(
         BoundCastExpression expression,
         out BoundExpression replacement,

@@ -477,6 +477,10 @@ internal sealed class RefILBuilder : ILBuilder {
         throw new NotImplementedException();
     }
 
+    internal override void EmitEmptyArray(TypeSymbol elementType) {
+        _iLGenerator.Emit(OpCodes.Call, _module.GetArrayEmpty(elementType));
+    }
+
     internal override void EmitToString(CodeGeneration.OpCode opCode) {
         if (_logger is not null) Log(ConvertToRef(opCode), Executor.MethodInfoCache.Object_ToString);
         _iLGenerator.Emit(ConvertToRef(opCode), Executor.MethodInfoCache.Object_ToString);

@@ -61,6 +61,10 @@ internal static class WellKnownMemberExtensions {
         WellKnownMemberNames.InstanceConstructorName,
         WellKnownMemberNames.InstanceConstructorName,
         WellKnownMemberNames.InstanceConstructorName,
+
+        WellKnownMemberNames.InstanceConstructorName,
+        "Get",
+        "Set",
     ];
 
     internal static bool IsTupleMember(this WellKnownMember wellKnownMember) {

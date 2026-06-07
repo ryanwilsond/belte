@@ -21,6 +21,7 @@ internal static class WellKnownTypeExtensions {
         "Rect",
         "Texture",
         "Sound",
+        "BitArray",
     ];
 
     internal static bool ShouldEmit(this WellKnownType wellKnownType, bool includeGraphicsTypes) {
@@ -46,6 +47,7 @@ internal static class WellKnownTypeExtensions {
             case WellKnownType.ValueTuple_T6:
             case WellKnownType.ValueTuple_T7:
             case WellKnownType.ValueTuple_TRest:
+            case WellKnownType.BitArray:
             default:
                 return false;
         }

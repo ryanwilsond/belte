@@ -82,7 +82,7 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
         return (FieldDeclarationSyntax)declaration.parent;
     }
 
-    private TypeAndRefKind GetTypeAndRefKind(ConsList<FieldSymbol> _1) {
+    private TypeAndRefKind GetTypeAndRefKind(ConsList<FieldSymbol> fieldsBeingBound) {
         // TODO Use unused parameter to create recursive field errors
         if (_lazyTypeAndRefKind is not null)
             return _lazyTypeAndRefKind;
@@ -112,8 +112,10 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
             diagnostics.Push(Error.FieldsCannotBeImplicitlyTyped(location));
             type = new TypeWithAnnotations(binder.CreateErrorType());
         } else if (declaration.initializer is null) {
-            if (containingType.IsStructType() && !type.type.HasDefaultValue()) {
-                diagnostics.Push(Error.FieldNoDefaultValue(location, type.type));
+            if (containingType.IsStructType()) {
+                // Whether or not the type has a default value is checked later
+                var error = Error.FieldNoDefiniteAssignmentStruct(location, type.type);
+                Interlocked.CompareExchange(ref _lazyDefiniteAssignmentError, error, null);
             } else if (containingType.IsClassType() && !type.type.IsNullableType() && !isFixedSizeBuffer) {
                 var error = Error.FieldNoDefiniteAssignment(location, type.type);
                 Interlocked.CompareExchange(ref _lazyDefiniteAssignmentError, error, null);

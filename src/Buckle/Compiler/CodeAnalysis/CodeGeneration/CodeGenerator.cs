@@ -1516,15 +1516,19 @@ oneMoreTime:
     private void EmitArrayCreationExpression(BoundArrayCreationExpression expression, bool used) {
         var arrayType = (ArrayTypeSymbol)expression.StrippedType();
 
-        EmitArrayIndices(expression.sizes);
+        if (expression.sizes[0].constantValue?.isDefaultValue == true) {
+            _builder.EmitEmptyArray(arrayType.elementType);
+        } else {
+            EmitArrayIndices(expression.sizes);
 
-        if (arrayType.isSZArray)
-            _builder.EmitWithSymbolToken(OpCode.Newarr, arrayType.elementType);
-        else
-            EmitArrayCreation(arrayType);
+            if (arrayType.isSZArray)
+                _builder.EmitWithSymbolToken(OpCode.Newarr, arrayType.elementType);
+            else
+                EmitArrayCreation(arrayType);
 
-        if (expression.initializer is not null)
-            EmitArrayInitializers(arrayType, expression.initializer as BoundInitializerList);
+            if (expression.initializer is not null)
+                EmitArrayInitializers(arrayType, expression.initializer);
+        }
 
         EmitPopIfUnused(used);
     }

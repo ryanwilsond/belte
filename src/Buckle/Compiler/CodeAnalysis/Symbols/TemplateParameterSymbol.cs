@@ -27,6 +27,15 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
         }
     }
 
+    public sealed override bool hasDefault {
+        get {
+            if (hasDefaultConstraint)
+                return true;
+
+            return hasDefaultFromConstraintTypes;
+        }
+    }
+
     internal sealed override Accessibility declaredAccessibility => Accessibility.NotApplicable;
 
     internal sealed override NamedTypeSymbol baseType => null;
@@ -53,9 +62,17 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
 
     internal abstract bool hasObjectTypeConstraint { get; }
 
+    internal abstract bool hasDefaultConstraint { get; }
+
+    internal abstract bool hasConstructorConstraint { get; }
+
     internal abstract bool isPrimitiveTypeFromConstraintTypes { get; }
 
     internal abstract bool isObjectTypeFromConstraintTypes { get; }
+
+    internal abstract bool hasDefaultFromConstraintTypes { get; }
+
+    internal abstract bool hasConstructorFromConstraintTypes { get; }
 
     internal abstract TypeOrConstant defaultValue { get; }
 
@@ -135,6 +152,32 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
         foreach (var constraintType in constraintTypes) {
             if (constraintType.type.StrippedType().isPrimitiveType)
                 return true;
+        }
+
+        return false;
+    }
+
+    internal static bool CalculateHasDefaultFromConstraintTypes(
+        ImmutableArray<TypeWithAnnotations> constraintTypes) {
+        foreach (var constraintType in constraintTypes) {
+            if (constraintType.type.hasDefault)
+                return true;
+        }
+
+        return false;
+    }
+
+    internal static bool CalculateHasConstructorFromConstraintTypes(
+        ImmutableArray<TypeWithAnnotations> constraintTypes) {
+        foreach (var constraintType in constraintTypes) {
+            if (constraintType.type is NamedTypeSymbol n) {
+                var instanceConstructors = n.instanceConstructors;
+
+                foreach (var instanceConstructor in instanceConstructors) {
+                    if (instanceConstructor.parameterCount == 0)
+                        return true;
+                }
+            }
         }
 
         return false;

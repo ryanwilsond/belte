@@ -23,6 +23,7 @@ internal static class WellKnownTypes {
         { "global::ValueTuple`6", WellKnownType.ValueTuple_T6 },
         { "global::ValueTuple`7", WellKnownType.ValueTuple_T7 },
         { "global::ValueTuple`8", WellKnownType.ValueTuple_TRest },
+        { "global::BitArray", WellKnownType.BitArray },
     };
 
     internal static WellKnownType GetTypeFromMetadataName(string metadataName) {

@@ -30,6 +30,14 @@ internal sealed class IndexedTemplateParameterSymbol : TemplateParameterSymbol {
 
     internal override bool isObjectTypeFromConstraintTypes => false;
 
+    internal override bool hasDefaultConstraint => false;
+
+    internal override bool hasDefaultFromConstraintTypes => false;
+
+    internal override bool hasConstructorConstraint => false;
+
+    internal override bool hasConstructorFromConstraintTypes => false;
+
     internal override bool hasNotNullConstraint => false;
 
     internal override bool allowsRefLikeType => false;

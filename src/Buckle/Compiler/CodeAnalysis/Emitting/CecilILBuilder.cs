@@ -595,6 +595,10 @@ internal sealed partial class CecilILBuilder : ILBuilder {
         throw new NotImplementedException();
     }
 
+    internal override void EmitEmptyArray(TypeSymbol elementType) {
+        iLProcessor.Emit(OpCodes.Call, _module.GetArrayEmpty(elementType));
+    }
+
     internal override void EmitToString(CodeGeneration.OpCode opCode) {
         iLProcessor.Emit(ConvertToCil(opCode), ILEmitter.NetMethodReference.Object_ToString);
     }

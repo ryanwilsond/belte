@@ -246,6 +246,20 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
         return new ConstructedNamedTypeSymbol(this, templateArguments, unbound);
     }
 
+    private protected bool CheckHasStructDefault() {
+        if (knownCircularStruct)
+            return true;
+
+        foreach (var member in GetMembers()) {
+            if (member is FieldSymbol f && !f.isStatic) {
+                if (!f.type.hasDefault)
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
     internal override bool ApplyNullableTransforms(
         byte defaultTransformFlag,
         ImmutableArray<byte> transforms,

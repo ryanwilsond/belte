@@ -1,5 +1,6 @@
 
-public lowlevel sealed class Dictionary<type TKey, type TValue> {
+public lowlevel sealed class Dictionary<type TKey, type TValue>
+    where { TKey has default; TValue has default; } {
     private int![]! _buckets = { };
     private Entry[] _entries;
     private int! _count = 0;
@@ -257,16 +258,13 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
                 ref const Entry reference = ref _dictionary._entries[_index++];
 
                 if (reference.next >= -1) {
-                    _current = new KeyValuePair<TKey, TValue>()
-                        ..key = reference.key
-                        ..value = reference.value;
-
+                    _current = new KeyValuePair<TKey, TValue>(reference.key, reference.value);
                     return true;
                 }
             }
 
             _index = _dictionary._count + 1;
-            _current = new KeyValuePair<TKey, TValue>();
+            _current = default;
             return false;
         }
     }

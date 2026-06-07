@@ -173,6 +173,7 @@
     <Kind Name="TemplateConstraintClause"/>
     <Field Name="extendConstraint" Type="TemplateExtendsConstraintClauseSyntax" Optional="true"/>
     <Field Name="isConstraint" Type="TemplateIsConstraintClauseSyntax" Optional="true"/>
+    <Field Name="hasConstraint" Type="TemplateHasConstraintClauseSyntax" Optional="true"/>
     <Field Name="expressionConstraint" Type="ExpressionStatementSyntax" Optional="true"/>
   </Node>
   <Node Name="TemplateExtendsConstraintClauseSyntax" Base="SyntaxNode">
@@ -195,6 +196,19 @@
     </Field>
     <Field Name="isKeyword" Type="SyntaxToken">
       <Kind Name="IsKeyword"/>
+    </Field>
+    <Field Name="keyword" Type="SyntaxToken"/>
+    <Field Name="semicolon" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
+    </Field>
+  </Node>
+  <Node Name="TemplateHasConstraintClauseSyntax" Base="SyntaxNode">
+    <Kind Name="TemplateHasConstraintClause"/>
+    <Field Name="name" Type="IdentifierNameSyntax">
+      <Kind Name="IdentifierName"/>
+    </Field>
+    <Field Name="hasKeyword" Type="SyntaxToken">
+      <Kind Name="HasKeyword"/>
     </Field>
     <Field Name="keyword" Type="SyntaxToken"/>
     <Field Name="semicolon" Type="SyntaxToken">

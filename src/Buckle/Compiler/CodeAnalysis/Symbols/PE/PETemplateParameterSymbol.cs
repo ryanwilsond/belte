@@ -97,11 +97,13 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
         }
     }
 
-    internal override bool allowsRefLikeType {
-        get {
-            return (_flags & MetadataHelpers.GenericParameterAttributesAllowByRefLike) != 0;
-        }
-    }
+    internal override bool hasConstructorConstraint
+        => (_flags & GenericParameterAttributes.DefaultConstructorConstraint) != 0;
+
+    internal override bool allowsRefLikeType
+        => (_flags & MetadataHelpers.GenericParameterAttributesAllowByRefLike) != 0;
+
+    internal override bool hasDefaultConstraint => false;
 
     internal override bool hasPrimitiveTypeConstraint
         => (_flags & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0;
@@ -114,6 +116,12 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
 
     internal override bool isPrimitiveTypeFromConstraintTypes
         => CalculateIsPrimitiveTypeFromConstraintTypes(constraintTypes);
+
+    internal override bool hasDefaultFromConstraintTypes
+        => CalculateHasDefaultFromConstraintTypes(constraintTypes);
+
+    internal override bool hasConstructorFromConstraintTypes
+        => CalculateHasConstructorFromConstraintTypes(constraintTypes);
 
     internal override TextLocation location => locations[0];
 

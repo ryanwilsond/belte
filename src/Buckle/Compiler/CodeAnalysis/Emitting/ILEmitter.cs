@@ -670,6 +670,15 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(sortRef);
     }
 
+    internal MethodReference GetArrayEmpty(TypeSymbol elementType) {
+        var genericArgumentType = GetType(elementType);
+
+        var sortRef = new GenericInstanceMethod(NetMethodReference.Array_Empty);
+        sortRef.GenericArguments.Add(genericArgumentType);
+
+        return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(sortRef);
+    }
+
     internal MethodReference GetLength(TypeSymbol elementType) {
         var genericArgumentType = GetType(elementType);
 
@@ -2025,6 +2034,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         NetMethodReference.ValueTuple_T6_ctor = ResolveMethod("System.ValueTuple`6", ".ctor", ["T1", "T2", "T3", "T4", "T5", "T6"]);
         NetMethodReference.ValueTuple_T7_ctor = ResolveMethod("System.ValueTuple`7", ".ctor", ["T1", "T2", "T3", "T4", "T5", "T6", "T7"]);
         NetMethodReference.ValueTuple_TRest_ctor = ResolveMethod("System.ValueTuple`8", ".ctor", ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "TRest"]);
+        NetMethodReference.Array_Empty = ResolveMethod("System.Array", "Empty", []);
     }
 
     private void GenerateSTLMap() {

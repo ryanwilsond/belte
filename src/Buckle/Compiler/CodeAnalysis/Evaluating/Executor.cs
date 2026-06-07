@@ -691,6 +691,11 @@ internal sealed partial class Executor : ModuleBuilder {
             return closedType.GetMethod("get_HasValue", BindingFlags.Public | BindingFlags.Instance, Type.EmptyTypes);
     }
 
+    internal MethodInfo GetArrayEmpty(TypeSymbol elementType) {
+        var generic = GetType(elementType);
+        return MethodInfoCache.Array_Empty.MakeGenericMethod(generic);
+    }
+
     // TODO Confirm we don't need this ever
     // internal ConstructorInfo GetTupleCtor(NamedTypeSymbol tupleType) {
     //     var tuple = GetTupleType(tupleType.arity);

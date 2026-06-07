@@ -61,4 +61,8 @@ internal enum WellKnownMember : byte {
     ValueTuple_T6_ctor,
     ValueTuple_T7_ctor,
     ValueTuple_TRest_ctor,
+
+    BitArray_ctor,
+    BitArray_Get,
+    BitArray_Set,
 }

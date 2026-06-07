@@ -247,6 +247,7 @@ public static class SyntaxFacts {
             "reverse" => SyntaxKind.ReverseKeyword,
             "reversible" => SyntaxKind.ReversibleKeyword,
             "state" => SyntaxKind.StateKeyword,
+            "has" => SyntaxKind.HasKeyword,
             "unreachable" => SyntaxKind.UnreachableKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
@@ -260,6 +261,7 @@ public static class SyntaxFacts {
             case SyntaxKind.ExplicitKeyword:
             case SyntaxKind.FlagsKeyword:
             case SyntaxKind.HandleKeyword:
+            case SyntaxKind.HasKeyword:
             case SyntaxKind.ImplicitKeyword:
             case SyntaxKind.LiteralKeyword:
             case SyntaxKind.NotnullKeyword:
@@ -431,6 +433,7 @@ public static class SyntaxFacts {
             SyntaxKind.ReverseKeyword => "reverse",
             SyntaxKind.ReversibleKeyword => "reversible",
             SyntaxKind.StateKeyword => "state",
+            SyntaxKind.HasKeyword => "has",
             SyntaxKind.UnreachableKeyword => "unreachable",
             _ => null,
         };

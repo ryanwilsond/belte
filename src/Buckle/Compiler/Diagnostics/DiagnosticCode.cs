@@ -431,7 +431,7 @@ public enum DiagnosticCode : ushort {
     ERR_BadPatternExpression = 420,
     ERR_CannotAnnotateTypePattern = 421,
     ERR_PatternCannotHandleTypes = 422,
-    ERR_FieldNoDefaultValue = 423,
+    ERR_StructWithNoDefault = 423,
     ERR_WithExpressionNotAssignment = 424,
     WRN_ExitingControlFlowInWith = 425,
     ERR_UnmanagedRequiresStatic = 426,
@@ -495,6 +495,8 @@ public enum DiagnosticCode : ushort {
     ERR_FieldNoDefiniteAssignment = 484,
     ERR_InvalidReferenceTemplateType = 485,
     ERR_NoInitOnNonNullable = 486,
+    ERR_NoNewTypeVar = 487,
+    ERR_FieldNoDefiniteAssignmentStruct = 488,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

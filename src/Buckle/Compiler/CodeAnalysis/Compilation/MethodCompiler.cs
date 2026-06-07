@@ -392,7 +392,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                         );
                     }
 
-                    if (f.definiteAssignmentError is not null)
+                    if (f.definiteAssignmentError is not null && !(symbol.IsStructType() && f.type.HasDefaultValue()))
                         fieldsRequiringAssignment.Add(f);
 
                     break;

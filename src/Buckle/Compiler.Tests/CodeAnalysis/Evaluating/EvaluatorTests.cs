@@ -473,6 +473,7 @@ public sealed class EvaluatorTests {
     [InlineData(@"
         struct A {
             public int x;
+            public constructor() {}
             public constructor(int x) {
                 this = new A()..x=x;
             }
@@ -482,6 +483,7 @@ public sealed class EvaluatorTests {
     [InlineData(@"
         struct A {
             public int x;
+            public constructor() { }
             public constructor(int a) {
                 this = new A();
                 x++;
@@ -560,7 +562,7 @@ public sealed class EvaluatorTests {
         var b = with (A.M(10)) A.c;
         return A.c;", 10)]
     [InlineData(@"
-        class A<type T> {
+        class A<type T> where { T has default; } {
             public T c = default;
             public T M(T p) { return p; } reverse (T p) { c = p; }
         }
@@ -955,12 +957,12 @@ public sealed class EvaluatorTests {
     [InlineData("return f\"{1}{2}{3}\";", "123")]
     [InlineData("return f\"{true} {false}\";", "True False")]
     // Templates
-    [InlineData("class A<type t> { public t a = default; } var a = new A<string?>(); a.a = \"test\"; return a.a;", "test")]
-    [InlineData("class A<type t> { public t a = default; } lowlevel { var a = new A<int?[]>(); a.a = new int?[] {1, 2, 3}; return a.a[1]; }", 2)]
+    [InlineData("class A<type t> where { t has default; } { public t a = default; } var a = new A<string?>(); a.a = \"test\"; return a.a;", "test")]
+    [InlineData("class A<type t> where { t has default; } { public t a = default; } lowlevel { var a = new A<int?[]>(); a.a = new int?[] {1, 2, 3}; return a.a[1]; }", 2)]
     [InlineData("class A<type t> { }; var a = new A<A<int?>>();", null)]
     [InlineData("T Test<type T>(T a) { return a; } return Test<int?>(3);", 3)]
-    [InlineData("T Test<type T>() { return default; } return Test<int?>();", null)]
-    [InlineData("T Test<type T>() { return default; } return Test<int>();", 0)]
+    [InlineData("T Test<type T>() where { T has default; } { return default; } return Test<int?>();", null)]
+    [InlineData("T Test<type T>() where { T has default; } { return default; } return Test<int>();", 0)]
     [InlineData("class A<type T> { } return typeof(A<int>) == typeof(A<int>);", true)]
     [InlineData("class A<type T> { } return typeof(A<int>) == typeof(A<bool>);", false)]
     // Misc for coverage
@@ -968,7 +970,7 @@ public sealed class EvaluatorTests {
     [InlineData("class A<type T>;", null)]
     [InlineData("class P { int? a = 3; public int? M(int? a) { return a; } } var myP = new P(); return myP.M(4);", 4)]
     [InlineData("class P { public int? M(int? a, int? b) { return a + b; } public int? M(int? a) { return a; } } var myP = new P(); return myP.M(4, 5);", 9)]
-    [InlineData("class P { public static T M<type T>() { T a = default; return a; } } return P.M<int?>();", null)]
+    [InlineData("class P { public static T M<type T>() where { T has default; } { T a = default; return a; } } return P.M<int?>();", null)]
     [InlineData("static class P { [DllImport(\"kernel32.dll\")]static extern int64* GetModuleHandle(string? lpModuleName); } return null;", null)]
     [InlineData("static class P { [DllImport(\"msvcrt.dll\", CallingConvention: CallingConvention.Cdecl)]static extern void* memcpy(void* dest, void* src, uint64 count); } return null;", null)]
     // TODO

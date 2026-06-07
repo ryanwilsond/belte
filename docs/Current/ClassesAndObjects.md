@@ -558,11 +558,16 @@ The following constraints only apply to type template parameters:
 
 A `T extends Y` constraint ensures template parameter `T` is or derives from `Y`.
 
-A `T is primitive` constraint ensure template parameter `T` is a primitive type.
+A `T is primitive` constraint ensures template parameter `T` is a primitive type.
 
 A `T is notnull` constraint constrains the template parameter `T` to being a non-nullable type. Non-nullable annotations
 are disallowed on type template parameters, so this constraint is required for the template class to know the template
 parameter is a non-nullable type.
+
+A `T has default` constraint ensures template parameter `T` has a default value (i.e. can use the
+[`default` literal](Data.md#314-default-literal) on it).
+
+A `T has constructor` constraint ensures template parameter `T` has a parameterless constructor.
 
 ## 4.6 Enums
 

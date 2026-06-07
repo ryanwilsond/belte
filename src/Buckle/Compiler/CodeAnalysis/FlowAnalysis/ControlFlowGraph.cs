@@ -241,7 +241,8 @@ internal sealed class ControlFlowGraph {
                     }
 
                     var shouldReport = _method.IsConstructor() && ((_method.isStatic && field.isStatic) ||
-                        (!_method.isStatic && Binder.IsThisInstanceAccess(fieldAccess)));
+                        (!_method.isStatic && Binder.IsThisInstanceAccess(fieldAccess))) &&
+                        !(field.containingType.IsStructType() && field.type.HasDefaultValue());
 
                     if (shouldReport && field.definiteAssignmentError is not null && !result[_slotMap[field]])
                         diagnostics.Push(Error.UseOfUnassignedField(fieldAccess.syntax.location, field));
@@ -343,6 +344,7 @@ internal sealed class ControlFlowGraph {
             case BoundKind.TypeExpression:
             case BoundKind.MethodGroup:
             case BoundKind.LiteralExpression:
+            case BoundKind.ErrorExpression:
                 break;
             case BoundKind.StackSlotExpression:
             case BoundKind.FieldSlotExpression:

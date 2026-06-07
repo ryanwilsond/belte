@@ -240,6 +240,7 @@ internal sealed partial class Conversions {
                                 BoundUnconvertedImplicitEnumFieldExpression or
                                 BoundUnconvertedNullptrExpression or
                                 BoundUnconvertedExtendedLiteralExpression or
+                                BoundUnconvertedConditionalOperator or
                                 BoundMethodGroup) {
             // We tried our best. No further built-in conversions for these cases.
             return result;

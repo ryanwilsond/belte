@@ -290,9 +290,11 @@ internal partial class Binder {
                 continue;
             }
 
-            var name = clause.extendConstraint is null
-                ? clause.isConstraint.name.identifier
-                : clause.extendConstraint.name.identifier;
+            var name = clause.extendConstraint is not null
+                ? clause.extendConstraint.name.identifier
+                : clause.isConstraint is not null
+                    ? clause.isConstraint.name.identifier
+                    : clause.hasConstraint.name.identifier;
 
             if (names.TryGetValue(name.text, out var ordinal)) {
                 if (syntaxNodes[ordinal] is null)
@@ -423,6 +425,25 @@ internal partial class Binder {
                     case SyntaxKind.NotnullKeyword:
                         if ((constraints & TypeParameterConstraintKinds.NotNull) == 0)
                             constraints |= TypeParameterConstraintKinds.NotNull;
+                        else
+                            diagnostics.Push(Error.DuplicateConstraint(syntax.location, templateParameter.name));
+
+                        continue;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(syntax.isConstraint.keyword.kind);
+                }
+            } else if (syntax.hasConstraint is not null) {
+                switch (syntax.hasConstraint.keyword.kind) {
+                    case SyntaxKind.DefaultKeyword:
+                        if ((constraints & TypeParameterConstraintKinds.Default) == 0)
+                            constraints |= TypeParameterConstraintKinds.Default;
+                        else
+                            diagnostics.Push(Error.DuplicateConstraint(syntax.location, templateParameter.name));
+
+                        continue;
+                    case SyntaxKind.ConstexprKeyword:
+                        if ((constraints & TypeParameterConstraintKinds.Constructor) == 0)
+                            constraints |= TypeParameterConstraintKinds.Constructor;
                         else
                             diagnostics.Push(Error.DuplicateConstraint(syntax.location, templateParameter.name));
 
@@ -4996,11 +5017,9 @@ internal partial class Binder {
         SyntaxNode node,
         TemplateParameterSymbol templateParameter,
         BelteDiagnosticQueue diagnostics) {
-        if (/*!templateParameter.hasConstructorConstraint &&*/ !templateParameter.isPrimitiveType) {
-            // TODO error and first condition, including the `new()` constraint feature
-            // diagnostics.Add(ErrorCode.ERR_NoNewTyvar, node.Location, templateParameter);
-            throw ExceptionUtilities.Unreachable();
-            // return false;
+        if (!templateParameter.hasConstructorConstraint) {
+            diagnostics.Push(Error.NoNewTypeVar(node.location, templateParameter));
+            return false;
         }
 
         return true;
@@ -14522,6 +14541,7 @@ symIsHidden:;
 
         switch (expression.kind) {
             case BoundKind.AssignmentOperator:
+            case BoundKind.DeconstructionAssignmentOperator:
             case BoundKind.ErrorExpression:
             case BoundKind.CompoundAssignmentOperator:
             case BoundKind.ThrowExpression:
@@ -15434,8 +15454,12 @@ symIsHidden:;
         }
 
         if (conversion.kind == ConversionKind.DefaultLiteral) {
-            if (!destination.HasDefaultValue())
-                diagnostics.Push(Error.TypeWithNoDefault(source.syntax.location, destination));
+            if (!destination.HasDefaultValue()) {
+                if (destination.IsStructType())
+                    diagnostics.Push(Error.StructWithNoDefault(source.syntax.location, destination));
+                else
+                    diagnostics.Push(Error.TypeWithNoDefault(source.syntax.location, destination));
+            }
 
             source = new BoundDefaultExpression(source.syntax, targetType: null, constantValue, type: destination);
         }

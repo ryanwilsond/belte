@@ -5416,17 +5416,23 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0423_FieldNoDefaultValue() {
+    public void Reports_Error_BU0423_StructWithNoDefault() {
         var text = @"
             class A { }
 
             struct B {
-                A! [a];
+                A! a;
+
+                constructor() {
+                    a = new ();
+                }
             }
+
+            B b = [default];
         ";
 
         var diagnostics = @"
-            cannot declare a struct field with type 'A!' because it has no default value
+            cannot use a default literal for struct type 'B!' because it has fields with no default value
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -6387,6 +6393,39 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             non-nullable globals and const or final locals must have an initializer
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0487_NoNewTypeVar() {
+        var text = @"
+            class A<type T> {
+                T t = [new ()];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot create an instance of the type 'type! T' because it does not have the constructor constraint
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0488_FieldNoDefiniteAssignmentStruct() {
+        var text = @"
+            class C { }
+            struct A {
+                C! [a];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot declare a struct field without definite constructor assignment with type 'C!' because it has no default value
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

@@ -172,6 +172,7 @@ These keywords only act as keywords inside specific contexts. As such they can b
 - [explicit](ClassesAndObjects.md#4232-casts)
 - [flags](ClassesAndObjects.md#461-flags)
 - [handle](LowLevelFeatures.md#613-compiler-handle)
+- [has](ClassesAndObjects.md#4512-special-constraints)
 - [implicit](ClassesAndObjects.md#4232-casts) (user-defined conversions)
 - [implicit](ControlFlow.md#217-argument-coercion) (argument coercion)
 - [literal](ClassesAndObjects.md#4233-user-defined-literals)

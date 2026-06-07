@@ -2089,9 +2089,9 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_OutNoDefaultValue, location, message);
     }
 
-    internal static BelteDiagnostic FieldNoDefaultValue(TextLocation location, TypeSymbol type) {
-        var message = $"cannot declare a struct field with type '{type}' because it has no default value";
-        return CreateError(DiagnosticCode.ERR_FieldNoDefaultValue, location, message);
+    internal static BelteDiagnostic StructWithNoDefault(TextLocation location, TypeSymbol type) {
+        var message = $"cannot use a default literal for struct type '{type}' because it has fields with no default value";
+        return CreateError(DiagnosticCode.ERR_StructWithNoDefault, location, message);
     }
 
     internal static BelteDiagnostic NullErasureOnNull(TextLocation location) {
@@ -2417,6 +2417,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_FieldNoDefiniteAssignment, location, message);
     }
 
+    internal static BelteDiagnostic FieldNoDefiniteAssignmentStruct(TextLocation location, TypeSymbol type) {
+        var message = $"cannot declare a struct field without definite constructor assignment with type '{type}' because it has no default value";
+        return CreateError(DiagnosticCode.ERR_FieldNoDefiniteAssignmentStruct, location, message);
+    }
+
     internal static BelteDiagnostic InvalidReferenceTemplateType(TextLocation location, TypeSymbol type) {
         var message = $"cannot use non-nullable reference type '{type}' as an unconstrained template argument type; consider making the type nullable";
         var suggestion = "%?";
@@ -2430,6 +2435,11 @@ internal static class Error {
 
     internal static BelteDiagnostic NoInitOnNonNullable(TextLocation location) {
         var message = $"non-nullable globals and const or final locals must have an initializer";
+        return CreateError(DiagnosticCode.ERR_NoInitOnNonNullable, location, message);
+    }
+
+    internal static BelteDiagnostic NoNewTypeVar(TextLocation location, TemplateParameterSymbol symbol) {
+        var message = $"cannot create an instance of the type '{symbol}' because it does not have the constructor constraint";
         return CreateError(DiagnosticCode.ERR_NoInitOnNonNullable, location, message);
     }
 

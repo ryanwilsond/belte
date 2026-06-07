@@ -10,4 +10,6 @@ internal enum TypeParameterConstraintKinds : byte {
     NotNull = 1 << 2,
     AllowByRefLike = 1 << 3,
     Expression = 1 << 4,
+    Default = 1 << 5,
+    Constructor,
 }

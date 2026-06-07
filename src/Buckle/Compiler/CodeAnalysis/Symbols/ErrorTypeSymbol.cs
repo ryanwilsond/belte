@@ -28,6 +28,8 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
 
     public override bool isPrimitiveType => true;
 
+    internal override bool hasStructDefault => true;
+
     public override ImmutableArray<TemplateParameterSymbol> templateParameters {
         get {
             if (_lazyTemplateParameters.IsDefault) {

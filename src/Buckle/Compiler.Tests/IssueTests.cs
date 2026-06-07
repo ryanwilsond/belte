@@ -955,7 +955,7 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_Structs_InitializesProperly() {
         var text = @"
-            lowlevel struct A<type T> {
+            lowlevel struct A<type T> where { T has default; } {
                 T a;
             }
 

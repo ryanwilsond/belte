@@ -57,7 +57,7 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
     internal abstract bool isDeclaredConst { get; }
 
     // TODO This will also check if the containing type is const when const structs are added (if they are added)
-    internal virtual bool isEffectivelyConst => isDeclaredConst;
+    internal virtual bool isEffectivelyConst => isDeclaredConst || isStatic;
 
     internal virtual int parameterCount => parameters.Length;
 

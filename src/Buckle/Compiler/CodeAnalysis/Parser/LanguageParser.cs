@@ -802,18 +802,22 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private TemplateConstraintClauseSyntax ParseTemplateConstraintClause() {
         TemplateExtendsConstraintClauseSyntax extendConstraint = null;
         TemplateIsConstraintClauseSyntax isConstraint = null;
+        TemplateHasConstraintClauseSyntax hasConstraint = null;
         ExpressionStatementSyntax expressionConstraint = null;
 
         if (Peek(1).kind == SyntaxKind.ExtendsKeyword)
             extendConstraint = ParseTemplateExtendConstraintClause();
         else if (Peek(1).kind == SyntaxKind.IsKeyword)
             isConstraint = ParseTemplateIsConstraintClause();
+        else if (Peek(1).contextualKind == SyntaxKind.HasKeyword)
+            hasConstraint = ParseTemplateHasConstraintClause();
         else
             expressionConstraint = (ExpressionStatementSyntax)ParseExpressionStatement();
 
         return SyntaxFactory.TemplateConstraintClause(
             extendConstraint,
             isConstraint,
+            hasConstraint,
             expressionConstraint
         );
     }
@@ -832,6 +836,21 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var keyword = MatchTwo(SyntaxKind.PrimitiveKeyword, SyntaxKind.NotnullKeyword, contextual: true);
         var semicolon = EatToken(SyntaxKind.SemicolonToken);
         return SyntaxFactory.TemplateIsConstraintClause(name, isKeyword, keyword, semicolon);
+    }
+
+    private TemplateHasConstraintClauseSyntax ParseTemplateHasConstraintClause() {
+        var name = ParseIdentifierName();
+
+        var hasKeyword = Match(
+            SyntaxKind.HasKeyword,
+            SyntaxKind.DefaultKeyword,
+            SyntaxKind.ConstructorKeyword,
+            contextual: true
+        );
+
+        var keyword = MatchTwo(SyntaxKind.DefaultKeyword, SyntaxKind.ConstructorKeyword);
+        var semicolon = EatToken(SyntaxKind.SemicolonToken);
+        return SyntaxFactory.TemplateHasConstraintClause(name, hasKeyword, keyword, semicolon);
     }
 
     private ConstructorDeclarationSyntax ParseConstructorDeclaration(
