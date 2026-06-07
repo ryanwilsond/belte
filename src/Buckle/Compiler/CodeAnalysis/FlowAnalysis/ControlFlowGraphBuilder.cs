@@ -15,6 +15,7 @@ namespace Buckle.CodeAnalysis.FlowAnalysis;
 internal sealed partial class ControlFlowGraphBuilder {
     private readonly Dictionary<Symbol, int> _slotMap;
     private readonly ArrayBuilder<Symbol> _symbolsBySlot;
+    private readonly MethodSymbol _method;
 
     private readonly Dictionary<BoundStatement, BasicBlock> _blockFromStatement = [];
     private readonly Dictionary<LabelSymbol, BasicBlock> _blockFromLabel = [];
@@ -24,9 +25,13 @@ internal sealed partial class ControlFlowGraphBuilder {
     private List<BasicBlock> _blocks = [];
     private readonly Dictionary<BasicBlock, List<TryRegion>> _regionsByBlock = [];
 
-    internal ControlFlowGraphBuilder(Dictionary<Symbol, int> slotMap, ArrayBuilder<Symbol> symbolsBySlot) {
+    internal ControlFlowGraphBuilder(
+        MethodSymbol method,
+        Dictionary<Symbol, int> slotMap,
+        ArrayBuilder<Symbol> symbolsBySlot) {
         _slotMap = slotMap;
         _symbolsBySlot = symbolsBySlot;
+        _method = method;
     }
 
     internal ControlFlowGraph Build(List<BasicBlock> blocks, List<TryRegion> regions) {
@@ -156,7 +161,7 @@ again:
         blocks.Insert(0, _start);
         blocks.Add(_end);
 
-        return new ControlFlowGraph(_start, _end, blocks, _branches, _slotMap, _symbolsBySlot);
+        return new ControlFlowGraph(_start, _end, blocks, _branches, _slotMap, _symbolsBySlot, _method);
     }
 
     private void AddThrowEdges(BasicBlock block) {

@@ -6,6 +6,7 @@
   - [4.1.3](#413-base-access) Base Access
 - [4.2](#42-members) Members
   - [4.2.1](#421-fields) Fields
+    - [4.2.1.1](#4211-definite-assignment) Definite Assignment
   - [4.2.2](#422-methods) Methods
   - [4.2.3](#423-operators) Operators
     - [4.2.3.1](#4231-operator-overloading) Operator Overloading
@@ -198,13 +199,51 @@ class MyClass {
 }
 ```
 
-Fields without an initializer require definite constructor assignment:
+#### 4.2.1.1 Definite Assignment
+
+Non-nullable fields without an initializer require definite constructor assignment:
 
 ```belte
 class MyClass {
   int myField;
 
   public constructor(int p) {
+    myField = p;
+  }
+}
+```
+
+This analysis assumes the constructors exit normally, meaning this is also okay even though there are paths where the
+field is not assigned:
+
+```belte
+class MyClass {
+  int myField;
+
+  public constructor(int p) {
+    if (p < 0)
+      throw new ArgumentException();
+
+    myField = p;
+  }
+}
+```
+
+If a constructor calls a method that initializes fields, that method can be marked with an `initializes` clause to
+forward it's definite assignments:
+
+```belte
+class MyClass {
+  int myField;
+
+  public constructor(int p) {
+    if (p < 0)
+      throw new ArgumentException();
+
+    Init(p);
+  }
+
+  private void Init(int p) initializes(p) {
     myField = p;
   }
 }

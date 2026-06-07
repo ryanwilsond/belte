@@ -300,6 +300,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NoSuchMember, location, message);
     }
 
+    internal static BelteDiagnostic NoSuchField(TextLocation location, TypeSymbol operand, string text) {
+        var message = $"'{operand.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' contains no such field '{text}'";
+        return CreateError(DiagnosticCode.ERR_NoSuchField, location, message);
+    }
+
     internal static BelteDiagnostic NoSuchMember(TextLocation location, BoundExpression operand, string text) {
         var message = $"'{operand}' contains no such member '{text}'";
         return CreateError(DiagnosticCode.ERR_NoSuchMember, location, message);
@@ -1098,9 +1103,8 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic RefReturnMustHaveIdentityConversion(TextLocation location, TypeSymbol type) {
-        throw Utilities.ExceptionUtilities.Unreachable();
-        // var message = $"the return expression must be of type '{type}' because this method returns by reference";
-        // return CreateError(DiagnosticCode.ERR_RefReturnMustHaveIdentityConversion, location, message);
+        var message = $"the return expression must be of type '{type}' because this method returns by reference";
+        return CreateError(DiagnosticCode.ERR_RefReturnMustHaveIdentityConversion, location, message);
     }
 
     internal static BelteDiagnostic RefAssignmentMustHaveIdentityConversion(TextLocation location, TypeSymbol type) {
@@ -1609,19 +1613,8 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic AnnotationsDisallowedInObjectCreation(TextLocation location) {
-        var message = $"cannot use a non-nullable annotation in object creation";
+        var message = $"cannot use a nullability annotation in object or array creation";
         return CreateError(DiagnosticCode.ERR_AnnotationsDisallowedInObjectCreation, location, message);
-    }
-
-    internal static BelteDiagnostic AnnotationsDisallowedInTemplateArgument(TextLocation location) {
-        var message = $"cannot use a non-nullable annotation in template arguments";
-        return CreateError(DiagnosticCode.ERR_AnnotationsDisallowedInTemplateArgument, location, message);
-    }
-
-    internal static BelteDiagnostic CannotAnnotateStruct(TextLocation location) {
-        throw Utilities.ExceptionUtilities.Unreachable();
-        // var message = $"cannot use a nullable or non-nullable annotation on a struct type";
-        // return CreateError(DiagnosticCode.ERR_CannotAnnotateStruct, location, message);
     }
 
     internal static BelteDiagnostic MissingArraySize(TextLocation location) {
@@ -2422,12 +2415,6 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_FieldNoDefiniteAssignmentStruct, location, message);
     }
 
-    internal static BelteDiagnostic InvalidReferenceTemplateType(TextLocation location, TypeSymbol type) {
-        var message = $"cannot use non-nullable reference type '{type}' as an unconstrained template argument type; consider making the type nullable";
-        var suggestion = "%?";
-        return CreateError(DiagnosticCode.ERR_InvalidReferenceTemplateType, location, message, suggestion);
-    }
-
     internal static BelteDiagnostic UseOfUnassignedLocal(TextLocation location, Symbol local) {
         var message = $"use of unassigned local '{local}'";
         return CreateError(DiagnosticCode.ERR_UseOfUnassignedLocal, location, message);
@@ -2441,6 +2428,11 @@ internal static class Error {
     internal static BelteDiagnostic NoNewTypeVar(TextLocation location, TemplateParameterSymbol symbol) {
         var message = $"cannot create an instance of the type '{symbol}' because it does not have the constructor constraint";
         return CreateError(DiagnosticCode.ERR_NoInitOnNonNullable, location, message);
+    }
+
+    internal static BelteDiagnostic MissingFieldInit(TextLocation location, FieldSymbol symbol) {
+        var message = $"not all code paths initialize field '{symbol}'";
+        return CreateError(DiagnosticCode.ERR_MissingFieldInit, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

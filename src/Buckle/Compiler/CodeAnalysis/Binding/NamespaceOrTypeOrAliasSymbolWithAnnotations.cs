@@ -36,7 +36,8 @@ internal readonly struct NamespaceOrTypeOrAliasSymbolWithAnnotations {
 
         return symbol is not TypeSymbol type
             ? new NamespaceOrTypeOrAliasSymbolWithAnnotations(symbol, isNullable)
-            : new NamespaceOrTypeOrAliasSymbolWithAnnotations(new TypeWithAnnotations(type, isNullable));
+            : new NamespaceOrTypeOrAliasSymbolWithAnnotations(
+                new TypeWithAnnotations(isNullable ? type : type.StrippedType(), isNullable));
     }
 
     public static implicit operator NamespaceOrTypeOrAliasSymbolWithAnnotations(

@@ -90,6 +90,20 @@ internal sealed class TypeCompilationState {
         }
     }
 
+    internal void OrConstructorDefiniteAssignments(bool isStatic, HashSet<Symbol> symbols) {
+        if (isStatic) {
+            if (_staticDefiniteAssignments is null)
+                _staticDefiniteAssignments = symbols;
+            else
+                _staticDefiniteAssignments.UnionWith(symbols);
+        } else {
+            if (_instanceDefiniteAssignments is null)
+                _instanceDefiniteAssignments = symbols;
+            else
+                _instanceDefiniteAssignments.UnionWith(symbols);
+        }
+    }
+
     internal void ReportFieldsRequiringAssignment(ArrayBuilder<FieldSymbol> fields, BelteDiagnosticQueue diagnostics) {
         foreach (var field in fields) {
             if (field.isStatic) {

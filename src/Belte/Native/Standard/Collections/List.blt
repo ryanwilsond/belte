@@ -1,8 +1,8 @@
 
 public lowlevel sealed class List<type T> {
     private T[] _array;
-    private int! _length = 0;
-    private int! _res = 0;
+    private int! _length;
+    private int! _res;
 
     public constructor() {
         TidyInit();
@@ -23,7 +23,7 @@ public lowlevel sealed class List<type T> {
 
     public constructor(T[] array) {
         TidyInit();
-        ConstructContents(array, LowLevel.Length<T[]>(array!));
+        ConstructContents(array, LowLevel.Length<T[]>(array));
     }
 
     public constructor(List<T> list) {
@@ -191,7 +191,7 @@ public lowlevel sealed class List<type T> {
         _res = newCapacity;
     }
 
-    private void TidyInit() {
+    private void TidyInit() initializes(_array, _length, _res) {
         _array = new T[10];
         _length = 0;
         _res = 10;

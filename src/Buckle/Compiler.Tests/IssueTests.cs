@@ -181,7 +181,7 @@ public sealed class IssueTests {
                 public int? num;
             }
 
-            var x = new A();
+            var? x = new A();
             x.num = 3;
             x = null;
             return x?.num;

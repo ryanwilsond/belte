@@ -938,6 +938,10 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var constraintClauseList = currentToken.kind == SyntaxKind.WhereKeyword
             ? ParseTemplateConstraintClauseList()
             : null;
+        var initClause = currentToken.contextualKind == SyntaxKind.InitializesKeyword
+            ? ParseInitConstraintClause()
+            : null;
+
         BlockStatementSyntax body = null;
         SyntaxToken semicolon = null;
 
@@ -958,11 +962,32 @@ internal sealed partial class LanguageParser : SyntaxParser {
             parameterList,
             implicitKeyword,
             constraintClauseList,
+            initClause,
             body,
             semicolon,
             stateClause,
             reverseClause
         );
+    }
+
+    private InitConstraintClauseSyntax ParseInitConstraintClause() {
+        var keyword = ConvertToKeyword(EatToken());
+        var openParenthesis = MatchOpenParen();
+        var names = ParseIdentifierList();
+        var closeParenthesis = MatchCloseParen();
+        return SyntaxFactory.InitConstraintClause(keyword, openParenthesis, names, closeParenthesis);
+    }
+
+    private SeparatedSyntaxList<IdentifierNameSyntax> ParseIdentifierList() {
+        var nodesAndSeparators = _pool.Allocate<BelteSyntaxNode>();
+        nodesAndSeparators.Add(ParseIdentifierName());
+
+        while (currentToken.kind == SyntaxKind.CommaToken) {
+            nodesAndSeparators.Add(EatToken());
+            nodesAndSeparators.Add(ParseIdentifierName());
+        }
+
+        return _pool.ToSeparatedListAndFree<IdentifierNameSyntax>(nodesAndSeparators);
     }
 
     private StateClauseSyntax ParseStateClause() {
@@ -3287,6 +3312,7 @@ done:
             case SyntaxKind.OpenBracketToken:
             case SyntaxKind.IdentifierToken:
             case SyntaxKind.ExclamationToken:
+            case SyntaxKind.QuestionToken:
                 return true;
             default:
                 return false;

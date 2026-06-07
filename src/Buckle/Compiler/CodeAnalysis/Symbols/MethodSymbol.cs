@@ -89,8 +89,7 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
 
     internal virtual MethodSymbol stateMethod => null;
 
-    internal bool isEntryPointCandidate
-        => isStatic && !isAbstract && !isVirtual && name == WellKnownMemberNames.EntryPointMethodName;
+    internal virtual ImmutableArray<FieldSymbol> initFields => [];
 
     internal ImmutableArray<TypeWithAnnotations> parameterTypesWithAnnotations {
         get {

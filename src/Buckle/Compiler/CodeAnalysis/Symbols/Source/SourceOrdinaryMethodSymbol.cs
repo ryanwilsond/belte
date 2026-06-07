@@ -1,9 +1,12 @@
 using System.Collections.Immutable;
+using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -12,6 +15,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
 
     private MethodSymbol _lazyReverseMethod;
     private MethodSymbol _lazyStateMethod;
+    private ImmutableArray<FieldSymbol> _lazyInitFields;
 
     private SourceOrdinaryMethodSymbol(
         NamedTypeSymbol containingType,
@@ -70,6 +74,22 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         }
     }
 
+    internal override ImmutableArray<FieldSymbol> initFields {
+        get {
+            if (_lazyInitFields == default) {
+                var diagnostics = BelteDiagnosticQueue.GetInstance();
+                var initFields = MakeInitFields(_syntax.initConstraintClauseSyntax, diagnostics);
+
+                if (ImmutableInterlocked.InterlockedInitialize(ref _lazyInitFields, initFields)) {
+                    AddDeclarationDiagnostics(diagnostics);
+                    diagnostics.Free();
+                }
+            }
+
+            return _lazyInitFields;
+        }
+    }
+
     private SyntaxList<AttributeListSyntax> _attributeDeclarationSyntaxList {
         get {
             if (containingType is SourceMemberContainerTypeSymbol sourceContainer &&
@@ -119,6 +139,8 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         }
 
         CheckModifiers(GetSyntax().identifier.location, diagnostics);
+
+        _ = initFields;
     }
 
     private static (DeclarationModifiers, Flags) MakeModifiersAndFlags(
@@ -283,11 +305,44 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             diagnostics.Push(Error.InstanceMemberInStatic(location, this));
     }
 
-    private MethodSymbol MakeReverseMethod(ReverseClauseSyntax syntax) {
+    private SourceReverseMethodSymbol MakeReverseMethod(ReverseClauseSyntax syntax) {
         return new SourceReverseMethodSymbol(syntax, containingType, this, stateMethod);
     }
 
-    private MethodSymbol MakeStateMethod(StateClauseSyntax syntax) {
+    private SourceStateMethodSymbol MakeStateMethod(StateClauseSyntax syntax) {
         return new SourceStateMethodSymbol(syntax, containingType, this);
+    }
+
+    private ImmutableArray<FieldSymbol> MakeInitFields(
+        InitConstraintClauseSyntax syntax,
+        BelteDiagnosticQueue diagnostics) {
+        if (syntax is null)
+            return [];
+
+        var members = containingType.GetMembers();
+        var fields = members.Where(m => m is FieldSymbol).Select(m => m as FieldSymbol).ToImmutableArray();
+
+        var builder = ArrayBuilder<FieldSymbol>.GetInstance();
+
+        foreach (var identifier in syntax.names) {
+            var name = identifier.identifier.text;
+
+            if (!members.Any(m => m.name == name)) {
+                diagnostics.Push(Error.NoSuchMember(identifier.location, containingType, name));
+                continue;
+            }
+
+            var candidates = fields.WhereAsArray(f => f.name == name);
+
+            if (candidates.Length == 0)
+                diagnostics.Push(Error.NoSuchField(identifier.location, containingType, name));
+            else if (candidates.Length == 1)
+                builder.Add(candidates[0]);
+            else
+                // Pretty sure this is unreachable, but if not we can make use of some of the unused errors around ambiguous members
+                throw ExceptionUtilities.Unreachable();
+        }
+
+        return builder.ToImmutableAndFree();
     }
 }

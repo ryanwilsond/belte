@@ -9,15 +9,14 @@ public lowlevel sealed class BitArray {
     public constructor(int32 length) : this(length, false) { }
 
     public constructor(int32 length, bool defaultValue) {
-        _bitLength = length;
-
         if (length < 0)
             throw new ArgumentOutOfRangeException();
 
+        _bitLength = length;
         _array = AllocateByteArray(length);
 
         if (defaultValue) {
-            LowLevel.Fill<uint8>(_array!, 0xFF);
+            LowLevel.Fill<uint8>(_array, 0xFF);
             ClearHighExtraBits();
         }
     }

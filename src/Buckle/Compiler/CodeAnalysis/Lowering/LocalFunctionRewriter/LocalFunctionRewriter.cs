@@ -882,10 +882,10 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
 
             // The main lowering passes happen while the local function body is still present in the enclosing method
             body = Lowerer.Flatten(synthesizedMethod, body);
-            body = Optimizer.RemoveDeadCode(body, _diagnostics);
+            body = Optimizer.RemoveDeadCode(synthesizedMethod, body, _diagnostics);
 
-            var controlFlowGraph = ControlFlowGraph.Create(body);
-            controlFlowGraph.CheckDefiniteAssignment(synthesizedMethod, _diagnostics);
+            var controlFlowGraph = ControlFlowGraph.Create(synthesizedMethod, body);
+            controlFlowGraph.CheckDefiniteAssignment(_diagnostics);
 
             if (!controlFlowGraph.AllPathsReturn())
                 _diagnostics.Push(Error.NotAllPathsReturn(node.symbol.location));

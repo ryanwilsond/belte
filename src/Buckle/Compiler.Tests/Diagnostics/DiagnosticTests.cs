@@ -34,7 +34,7 @@ public sealed class DiagnosticTests {
                 public int? num;
             }
 
-            void MyFunc(A a) {
+            void MyFunc(A? a) {
                 [a.num] = 3;
             }
         ";
@@ -210,7 +210,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0015_BadArgumentName2() {
         var text = @"
-            void(int) F;
+            void(int)? F;
             F([a]: 3);
         ";
 
@@ -765,7 +765,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0055_VoidUsedAsType3() {
         var text = @"
-            void([void]) a;
+            void([void])? a;
         ";
 
         var diagnostics = @"
@@ -914,7 +914,20 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            cannot use a non-nullable annotation in object creation
+            cannot use a nullability annotation in object or array creation
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0063_AnnotationsDisallowedInObjectCreation2() {
+        var text = @"
+            var a = new [int\[1\]!] { 1 };
+        ";
+
+        var diagnostics = @"
+            cannot use a nullability annotation in object or array creation
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -923,21 +936,23 @@ public sealed class DiagnosticTests {
     // ! Error_BU0064_ConstantToNonConstantReference
     // Unreachable currently
 
-    // ! Currently not enforced
-    // [Fact]
-    // public void Reports_Error_BU0065_CannotAnnotateStruct() {
-    //     var text = @"
-    //         struct A { }
-    //         [[A!] a];
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0065_NoSuchField() {
+        var text = @"
+            class A {
+                public void f() {}
 
-    //     var diagnostics = @"
-    //         cannot use a nullable or non-nullable annotation on a struct type
-    //         non-nullable locals and class fields must have an initializer
-    //     ";
+                public void M() initializes([f]) { }
+            }
+            ;
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        var diagnostics = @"
+            'A' contains no such field 'f'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0066_IncorrectUnaryOperatorArgs() {
@@ -1151,14 +1166,22 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0082_AnnotationsDisallowedInTemplateArgument() {
+    public void Reports_Error_BU0082_MissingFieldInit() {
         var text = @"
-            class A<type T> { }
-            var a = new A<[int!]>();
+            class A {
+                public int a;
+                public constructor() {
+                    Init();
+                }
+                private void [Init]() initializes(a) {
+
+                }
+            }
+            ;
         ";
 
         var diagnostics = @"
-            cannot use a non-nullable annotation in template arguments
+            not all code paths initialize field 'A.a'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1322,7 +1345,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0094_OperatorRefReturn() {
         var text = @"
             class A {
-                public static ref A [operator]+(A a, A b) { return null; }
+                public static ref A? [operator]+(A a, A b) { return null; }
             }
         ";
 
@@ -1767,7 +1790,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            the type 'Object?' must be or derive from 'B' in order to use it as parameter 'T' in the template type or method 'A<type! T>'
+            the type 'Object!' must be or derive from 'B' in order to use it as parameter 'T' in the template type or method 'A<type! T>'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1993,7 +2016,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            the operator A.op_Equality(A?, A?) requires a matching operator '!=' to also be defined
+            the operator A.op_Equality(A!, A!) requires a matching operator '!=' to also be defined
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -2171,7 +2194,7 @@ public sealed class DiagnosticTests {
         var text = @"
             class A {
                 private class B { }
-                public [B f];
+                public [B? f];
             }
         ";
 
@@ -2187,12 +2210,12 @@ public sealed class DiagnosticTests {
         var text = @"
             class A {
                 private class B { }
-                public static B [operator]+(A a, A b) { return null; }
+                public static B? [operator]+(A a, A b) { return null; }
             }
         ";
 
         var diagnostics = @"
-            inconsistent accessibility: return type 'A.B' is less accessible than operator 'A.op_Addition(A?, A?)'
+            inconsistent accessibility: return type 'A.B' is less accessible than operator 'A.op_Addition(A!, A!)'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -2203,7 +2226,7 @@ public sealed class DiagnosticTests {
         var text = @"
             class A {
                 private class B { }
-                public static B [F]() { return null; }
+                public static B? [F]() { return null; }
             }
         ";
 
@@ -2219,12 +2242,12 @@ public sealed class DiagnosticTests {
         var text = @"
             class A {
                 private class B { }
-                public static A [operator]+(B b, A a) { return null; }
+                public static A? [operator]+(B b, A a) { return null; }
             }
         ";
 
         var diagnostics = @"
-            inconsistent accessibility: parameter type 'A.B' is less accessible than operator 'A.op_Addition(A.B?, A?)'
+            inconsistent accessibility: parameter type 'A.B' is less accessible than operator 'A.op_Addition(A.B!, A!)'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -2240,7 +2263,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            inconsistent accessibility: parameter type 'A.B' is less accessible than method 'A.F(A.B?)'
+            inconsistent accessibility: parameter type 'A.B' is less accessible than method 'A.F(A.B!)'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -2554,7 +2577,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            binary operator '+' is ambiguous for operands with types 'A?' and 'B?'
+            binary operator '+' is ambiguous for operands with types 'A!' and 'B!'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -2652,7 +2675,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0189_CannotConvertToStatic() {
         var text = @"
             static class A { }
-            Object a;
+            Object? a;
             [(A)a];
         ";
 
@@ -2734,7 +2757,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0195_NoCorrespondingArgument2() {
         var text = @"
-            void(int a) F;
+            void(int a)? F;
             [F]();
         ";
 
@@ -2748,7 +2771,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0195_NoCorrespondingArgument3() {
         var text = @"
-            void(int) F;
+            void(int)? F;
             [F]();
         ";
 
@@ -3057,8 +3080,21 @@ public sealed class DiagnosticTests {
     // ! Error_BU0232_PossibleBadNegativeCast
     // Unreachable currently
 
-    // Nested diagnostics
-    // ! Error_BU0233_RefReturnMustHaveIdentityConversion
+    [Fact]
+    public void Reports_Error_BU0233_RefReturnMustHaveIdentityConversion() {
+        var text = @"
+            class A {
+                public static ref A [operator]+(A a, A b) { return [null]; }
+            }
+        ";
+
+        var diagnostics = @"
+            non-indexing operators cannot return by reference
+            the return expression must be of type 'A!' because this method returns by reference
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0234_RefAssignmentMustHaveIdentityConversion() {
@@ -3695,7 +3731,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0293_BadUnaryOperatorSignature() {
         var text = @"
             class A {
-                public static A [operator]+(int a) { return null; }
+                public static A? [operator]+(int a) { return null; }
             }
         ";
 
@@ -3713,7 +3749,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0295_BadShiftOperatorSignature() {
         var text = @"
             class A {
-                public static A [operator]<<(int? a, int? b) { return null; }
+                public static A? [operator]<<(int? a, int? b) { return null; }
             }
         ";
 
@@ -3731,7 +3767,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0297_BadBinaryOperatorSignature() {
         var text = @"
             class A {
-                public static A [operator]+(int? a, int? b) { return null; }
+                public static A? [operator]+(int? a, int? b) { return null; }
             }
         ";
 
@@ -3752,7 +3788,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0300_BadIncrementOperatorSignature() {
         var text = @"
             class A {
-                public static A [operator]++(int? a) { return null; }
+                public static A? [operator]++(int? a) { return null; }
             }
         ";
 
@@ -4135,7 +4171,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            the type 'Object?' must be a primitive type in order to use it as parameter 'T' in the template type or method 'A<type! T>'
+            the type 'Object!' must be a primitive type in order to use it as parameter 'T' in the template type or method 'A<type! T>'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -5086,7 +5122,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0400_NullErasureOnTypeWithNoDefault() {
         var text = @"
             class A { }
-            A a = new A();
+            A? a = new A();
             A! b = [a?];
         ";
 
@@ -5176,7 +5212,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0406_FunctionCannotContainPointer() {
         var text = @"
-            [void(int*)] a;
+            [void(int*)]? a;
         ";
 
         var diagnostics = @"
@@ -5190,7 +5226,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0407_MethodFunctionMismatch() {
         var text = @"
             void F(int a) { }
-            void() a = [F];
+            void()? a = [F];
         ";
 
         var diagnostics = @"
@@ -6002,7 +6038,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0462_LiteralOperatorMustHaveSingleParameter() {
         var text = @"
             class A {
-                public static A [literal] s() { return null; }
+                public static A? [literal] s() { return null; }
             }
         ";
 
@@ -6371,19 +6407,7 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0485_InvalidReferenceTemplateType() {
-        var text = @"
-            class A<type T> { }
-            var a = new A<[string]>();
-        ";
-
-        var diagnostics = @"
-            cannot use non-nullable reference type 'string!' as an unconstrained template argument type; consider making the type nullable
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    // ! Empty slot Error_BU0485_
 
     [Fact]
     public void Reports_Error_BU0486_NoInitOnNonNullable() {

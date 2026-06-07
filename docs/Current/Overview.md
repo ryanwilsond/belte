@@ -19,6 +19,7 @@ Currently, the Belte compiler, Buckle, supports interpretation and building to a
   - [1.4.4](#144-fields) Fields
   - [1.4.5](#145-implicit-typing) Implicit Typing
   - [1.4.6](#146-null-flow-analysis) Null-Flow Analysis
+  - [1.4.7](#147-arrays) Arrays
 - [1.5](#15-differences-from-c) Differences from C#
 
 ## 1.1 Conventions
@@ -175,6 +176,7 @@ These keywords only act as keywords inside specific contexts. As such they can b
 - [has](ClassesAndObjects.md#4512-special-constraints)
 - [implicit](ClassesAndObjects.md#4232-casts) (user-defined conversions)
 - [implicit](ControlFlow.md#217-argument-coercion) (argument coercion)
+- [initializes](ClassesAndObjects.md#4211-definite-assignment)
 - [literal](ClassesAndObjects.md#4233-user-defined-literals)
 - [notnull](ClassesAndObjects.md#4512-special-constraints)
 - [noverify](LowLevelFeatures.md#6111-verification)
@@ -192,8 +194,7 @@ which is a consolidation of important nullability semantics found in the rest of
 
 To summarize:
 
-- Reference types (classes) are nullable by default
-- Value types (primitives, pointers, structs) are non-nullable by default
+- Types are non-nullable by default
 - `!` removes nullability
 - `?` adds nullability
 - Pointer types are never nullable
@@ -218,14 +219,14 @@ class MyClass {
 
 In this example, `a.i` is `5` because both `a` and `b` refer to the same object in memory.
 
-Reference types are nullable by default. To make it non-nullable, a `!` annotation can be used:
+Reference types are non-nullable by default. To make it nullable, a `?` annotation can be used:
 
 ```belte
 var a = new MyClass();
-a = null; // OK
-
-var! a = new MyClass();
 a = null; // Invalid
+
+var? a = new MyClass();
+a = null; // Okay
 ```
 
 Notice how nullable annotations apply normally even when implicitly typing. The following are identical:
@@ -235,10 +236,9 @@ MyClass! a = new MyClass();
 var! a = new MyClass();
 ```
 
-All non-reference types are non-nullable by default (this includes primitives, structs, and pointers). The only
-exception is the primitive `any` type which is nullable by default.
+Value types are also non-nullable by default (this includes primitives, structs, and pointers).
 
-To make a non-reference type nullable, a `?` annotation can be used:
+To make a non-reference type nullable, a `?` annotation can be used just like reference types:
 
 ```belte
 int a = 3;
@@ -257,15 +257,6 @@ are identical because `int` defaults to being non-nullable:
 int a = 3;
 int! a = 3;
 ```
-
-Likewise, the following are identical because class types default to being nullable:
-
-```belte
-MyClass a = new MyClass();
-MyClass? a = new MyClass();
-```
-
-Redundant annotations are encouraged in source docs for clarity.
 
 ### 1.4.2 Pointers and Function Pointers
 
@@ -306,36 +297,17 @@ int* ptr = nullptr;
 int* ptr;
 ```
 
-When implicitly typing, the inferred type is usually the direct type of the initializer. The following are identical:
+When implicitly typing, the inferred type is the direct type of the initializer. The following are identical:
 
 ```belte
 int a = 3;
 var a = 3;
 ```
 
-The exception to this is object creation expressions, which will automatically "lift", meaning that an implicit local
-with an initializer that is an object creation expression will default to being nullable. The following are identical:
-
-```belte
-MyClass a = new MyClass();
-MyClass? a = new MyClass();
-var a = new MyClass();
-var? a = new MyClass();
-```
-
-As the object creation itself is not nullable, they can be used for non-nullable reference types. The following are
-identical:
-
-```belte
-MyClass! a = new MyClass();
-var! a = new MyClass();
-```
-
 ### 1.4.4 Fields
 
-Unlike locals, non-nullable fields do not require an initializer and instead are set to a default value. Struct fields
-cannot have initializers at all. The default value of numeric types is `0`, for booleans `false`, and an empty string
-for strings.
+Unlike locals, non-nullable struct fields do not allow initializers and instead are set to a default value. The default
+value of numeric types is `0`, for booleans `false`, and an empty string for strings.
 
 An mentioned earlier, pointers and function pointers default to `nullptr`.
 
@@ -347,7 +319,7 @@ var b = a.str.num;
 // b equals 0
 
 class MyClass {
-  MyStruct str;
+  MyStruct str = default;
 }
 
 struct MyStruct {
@@ -355,10 +327,30 @@ struct MyStruct {
 }
 ```
 
+Class fields always require an initializer or definite assignment, which can be
+[read about here](ClassesAndObjects.md#4211-definite-assignment).
+
+Since structs set their fields to their default value, the default value of a struct is a struct where every field is
+set to it's default value. If a struct contains a field that has no default value, the struct also has no default value:
+
+```belte
+class A { }
+
+struct MyStruct {
+  A a;
+
+  constructor(A a) {
+    this.a = a;
+  }
+}
+
+MyStruct myStruct = default; // Invalid because type `A` has no default value
+```
+
 ### 1.4.5 Implicit Typing
 
-`var`, `const`, and `constexpr` can be used when defining a local indicating that their type should be inferred. The
-inferred type is usually the exact type of the initializer. The following are identical:
+`var`, `const`, `final`, and `constexpr` can be used when defining a local indicating that their type should be
+inferred. The inferred type is usually the exact type of the initializer. The following are identical:
 
 ```belte
 int a = 3;
@@ -374,8 +366,8 @@ var a = Func();
 int? Func() { /* ... */ }
 ```
 
-`var` means a normal local declaration. `const` and `constexpr` infer the type of a local with the respective modifiers.
-The following are identical:
+`var` means a normal local declaration. `const`, `final`, and `constexpr` infer the type of a local with the respective
+modifiers. The following are identical:
 
 ```belte
 const int a = 3;
@@ -383,12 +375,16 @@ const a = 3;
 
 constexpr int a = 3;
 constexpr a = 3;
+
+final int a = 3;
+final a = 3;
 ```
 
 `const` means the local cannot be assigned to or otherwise modified. `constexpr` means the value of the local is a
 compile-time constant that will be substituted at compile time. For classes, a `const` modifier means fields can only be
 read but not written to, and only methods marked `const` can be called. Class-types cannot use the `constexpr` modifier
-because they are not compile-time constants.
+because they are not compile-time constants. `final` means the local cannot be assigned to but can be modified. This
+means any class method can be called or array elements can be modified.
 
 ### 1.4.6 Null-Flow Analysis
 
@@ -441,6 +437,52 @@ if (a) {
 ```
 
 In this example, if `a` is null, a runtime exception is thrown at the if condition.
+
+### 1.4.7 Arrays
+
+Arrays initialize memory to the element type's default value:
+
+```belte
+var arr = new int[10];
+arr[0]; // 0
+```
+
+If the type has no default value (certain structs and non-nullable reference types), an `Array<T>` under the hood is
+used instead which tracks which elements have been initialized. Reading uninitialized elements throws a runtime error:
+
+```belte
+class A { }
+
+var arr = new A[10];
+arr[0]; // Throws
+```
+
+In [lowlevel contexts](LowLevelFeatures.md#63-arrays), arrays will always be "true" arrays meaning initialization is not
+tracked, potentially leading to nullability bleeding into non-nullable contexts. This is intended to be used for
+situations where the array initialization is tracked separately, such as when defining custom collection types. In a
+lowlevel context, the `Array<T>` type can still be used explicitly. The following are equivalent:
+
+```belte
+class A { }
+
+var arr = new A[10];
+```
+
+```belte
+class A { }
+
+lowlevel {
+  var arr = new Array<A>(10);
+}
+```
+
+The most common occurrence of these arrays are unconstrained template types:
+
+```belte
+class A<type T> {
+  T[] arr; // Array<T>
+}
+```
 
 ## 1.5 Differences from C\#
 

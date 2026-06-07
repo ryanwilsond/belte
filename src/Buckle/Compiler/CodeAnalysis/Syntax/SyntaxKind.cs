@@ -175,6 +175,7 @@ public enum SyntaxKind : ushort {
     ReversibleKeyword,
     StateKeyword,
     HasKeyword,
+    InitializesKeyword,
     HandleKeyword,
 
     // Trivia
@@ -300,6 +301,7 @@ public enum SyntaxKind : ushort {
     MethodDeclaration,
     ReverseClause,
     StateClause,
+    InitConstraintClause,
     ConstructorDeclaration,
     ConstructorInitializer,
     DestructorDeclaration,

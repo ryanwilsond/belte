@@ -249,6 +249,7 @@ public static class SyntaxFacts {
             "state" => SyntaxKind.StateKeyword,
             "has" => SyntaxKind.HasKeyword,
             "unreachable" => SyntaxKind.UnreachableKeyword,
+            "initializes" => SyntaxKind.InitializesKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -263,6 +264,7 @@ public static class SyntaxFacts {
             case SyntaxKind.HandleKeyword:
             case SyntaxKind.HasKeyword:
             case SyntaxKind.ImplicitKeyword:
+            case SyntaxKind.InitializesKeyword:
             case SyntaxKind.LiteralKeyword:
             case SyntaxKind.NotnullKeyword:
             case SyntaxKind.NoVerifyKeyword:
@@ -435,6 +437,7 @@ public static class SyntaxFacts {
             SyntaxKind.StateKeyword => "state",
             SyntaxKind.HasKeyword => "has",
             SyntaxKind.UnreachableKeyword => "unreachable",
+            SyntaxKind.InitializesKeyword => "initializes",
             _ => null,
         };
     }

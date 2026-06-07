@@ -791,12 +791,26 @@
       <Kind Name="ImplicitKeyword"/>
     </Field>
     <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Optional="true"/>
+    <Field Name="initConstraintClauseSyntax" Type="InitConstraintClauseSyntax" Optional="true"/>
     <Field Name="body" Type="BlockStatementSyntax" Override="true" Optional="true"/>
     <Field Name="semicolon" Type="SyntaxToken" Optional="true">
       <Kind Name="SemicolonToken"/>
     </Field>
     <Field Name="stateClause" Type="StateClauseSyntax" Optional="true"/>
     <Field Name="reverseClause" Type="ReverseClauseSyntax" Optional="true"/>
+  </Node>
+  <Node Name="InitConstraintClauseSyntax" Base="SyntaxNode">
+    <Kind Name="InitConstraintClause"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="InitializesKeyword"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="names" Type="SeparatedSyntaxList&lt;IdentifierNameSyntax&gt;"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
   </Node>
   <Node Name="StateClauseSyntax" Base="SyntaxNode">
     <Kind Name="StateClause"/>

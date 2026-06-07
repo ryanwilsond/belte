@@ -533,11 +533,22 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
 
         _sawCompileTimeExpression |= sawCompileTimeExpression;
 
-        var controlFlowGraph = ControlFlowGraph.Create(loweredBody);
-        var assignments = controlFlowGraph.CheckDefiniteAssignment(method, _diagnostics);
+        var controlFlowGraph = ControlFlowGraph.Create(method, loweredBody);
+        var assignments = controlFlowGraph.CheckDefiniteAssignment(_diagnostics);
 
-        if (method.IsConstructor() && !method.HasThisConstructorInitializer())
+        foreach (var field in method.initFields) {
+            if (!assignments.Contains(field))
+                _diagnostics.Push(Error.MissingFieldInit(method.location, field));
+        }
+
+        if ((object)state.type == _entryPoint?.containingType) {
+            if (method == _entryPoint)
+                state.AddConstructorDefiniteAssignments(method.isStatic, assignments);
+            else if (method.IsConstructor() && !method.HasThisConstructorInitializer())
+                state.OrConstructorDefiniteAssignments(method.methodKind == MethodKind.StaticConstructor, assignments);
+        } else if (method.IsConstructor() && !method.HasThisConstructorInitializer()) {
             state.AddConstructorDefiniteAssignments(method.methodKind == MethodKind.StaticConstructor, assignments);
+        }
 
         if (_emitting) {
             if (!controlFlowGraph.AllPathsReturn())
@@ -598,7 +609,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                 ref entryPoint
             );
 
-            loweredBody = Optimizer.RemoveDeadCode(loweredBody, currentDiagnostics);
+            loweredBody = Optimizer.RemoveDeadCode(method, loweredBody, currentDiagnostics);
         }
 
         return loweredBody;

@@ -19,8 +19,7 @@ internal sealed class ControlFlowGraph {
     private readonly Dictionary<Symbol, int> _slotMap;
     private readonly ArrayBuilder<Symbol> _symbolsBySlot;
     private readonly MultiDictionary<Symbol, Symbol> _closureCaptures;
-
-    private MethodSymbol _method;
+    private readonly MethodSymbol _method;
 
     /// <summary>
     /// Creates a <see cref="ControlFlowGraph" />.
@@ -35,7 +34,8 @@ internal sealed class ControlFlowGraph {
         List<BasicBlock> blocks,
         List<ControlFlowBranch> branch,
         Dictionary<Symbol, int> slotMap,
-        ArrayBuilder<Symbol> symbolsBySlot) {
+        ArrayBuilder<Symbol> symbolsBySlot,
+        MethodSymbol method) {
         this.start = start;
         this.end = end;
         this.blocks = blocks;
@@ -43,6 +43,7 @@ internal sealed class ControlFlowGraph {
         _symbolsBySlot = symbolsBySlot;
         _slotMap = slotMap;
         _closureCaptures = [];
+        _method = method;
     }
 
     /// <summary>
@@ -70,11 +71,11 @@ internal sealed class ControlFlowGraph {
     /// </summary>
     /// <param name="body"><see cref="BoundBlockStatement" /> to create from.</param>
     /// <returns><see cref="ControlFlowGraph" />.</returns>
-    internal static ControlFlowGraph Create(BoundBlockStatement body) {
-        var (slotMap, symbolsBySlot) = SlotCounter.Count(body);
+    internal static ControlFlowGraph Create(MethodSymbol method, BoundBlockStatement body) {
+        var (slotMap, symbolsBySlot) = SlotCounter.Count(method, body);
         var basicBlockBuilder = new ControlFlowGraphBuilder.BasicBlockBuilder(symbolsBySlot.Count);
         var blocks = basicBlockBuilder.Build(body);
-        var graphBuilder = new ControlFlowGraphBuilder(slotMap, symbolsBySlot);
+        var graphBuilder = new ControlFlowGraphBuilder(method, slotMap, symbolsBySlot);
         var controlFlowGraph = graphBuilder.Build(blocks, basicBlockBuilder.regions);
         return controlFlowGraph;
     }
@@ -100,9 +101,8 @@ internal sealed class ControlFlowGraph {
         return true;
     }
 
-    internal HashSet<Symbol> CheckDefiniteAssignment(MethodSymbol method, BelteDiagnosticQueue diagnostics) {
+    internal HashSet<Symbol> CheckDefiniteAssignment(BelteDiagnosticQueue diagnostics) {
         bool changed;
-        _method = method;
         BelteDiagnosticQueue currentDiagnostics = null;
 
         do {
@@ -126,11 +126,26 @@ internal sealed class ControlFlowGraph {
         diagnostics.PushRangeAndFree(currentDiagnostics);
 
         var set = new HashSet<Symbol>();
-        var definiteAssignment = end.outgoingAssignment;
+        var definiteAssignmentFields = blocks[^2].outgoingAssignment;
 
-        for (var i = 0; i < definiteAssignment.capacity; i++) {
-            if (definiteAssignment[i])
-                set.Add(_symbolsBySlot[i]);
+        for (var i = 0; i < definiteAssignmentFields.capacity; i++) {
+            if (definiteAssignmentFields[i]) {
+                var symbol = _symbolsBySlot[i];
+
+                if (symbol is FieldSymbol)
+                    set.Add(_symbolsBySlot[i]);
+            }
+        }
+
+        var definiteAssignmentLocals = end.outgoingAssignment;
+
+        for (var i = 0; i < definiteAssignmentLocals.capacity; i++) {
+            if (definiteAssignmentLocals[i]) {
+                var symbol = _symbolsBySlot[i];
+
+                if (symbol is DataContainerSymbol)
+                    set.Add(_symbolsBySlot[i]);
+            }
         }
 
         _symbolsBySlot.Free();
@@ -291,6 +306,9 @@ internal sealed class ControlFlowGraph {
                 var call = (BoundCallExpression)expression;
                 ApplyExpression(call.receiver, ref result, diagnostics);
                 ApplyExpressionList(call.arguments, ref result, diagnostics);
+
+                foreach (var field in call.method.initFields)
+                    result[_slotMap[field]] = true;
 
                 var expressionSymbol = call.receiver?.expressionSymbol;
 

@@ -646,52 +646,48 @@ internal partial class Binder {
                 return new TypeWithAnnotations(CreateErrorType());
         }
 
-        if (namespaceOrNonNullableType.isType || namespaceOrNonNullableType.isAlias) {
-            var typeToCheck = namespaceOrNonNullableType.typeWithAnnotations;
+        // TODO Remove
+        // if (namespaceOrNonNullableType.isType || namespaceOrNonNullableType.isAlias) {
+        //     var typeToCheck = namespaceOrNonNullableType.typeWithAnnotations;
 
-            if (namespaceOrNonNullableType.isAlias) {
-                var unwrappedSymbol = UnwrapAliasNoDiagnostics(namespaceOrNonNullableType.symbol);
+        //     if (namespaceOrNonNullableType.isAlias) {
+        //         var unwrappedSymbol = UnwrapAliasNoDiagnostics(namespaceOrNonNullableType.symbol);
 
-                if (unwrappedSymbol.kind != SymbolKind.Namespace)
-                    // The alias target will already be annotated
-                    return new TypeWithAnnotations((TypeSymbol)unwrappedSymbol);
-                else
-                    return namespaceOrNonNullableType;
-            }
+        //         if (unwrappedSymbol.kind != SymbolKind.Namespace)
+        //             // The alias target will already be annotated
+        //             return new TypeWithAnnotations((TypeSymbol)unwrappedSymbol);
+        //         else
+        //             return namespaceOrNonNullableType;
+        //     }
 
-            if (typeToCheck.specialType == SpecialType.Void ||
-                typeToCheck.type.IsStructType() ||
-                typeToCheck.isStatic ||
-                typeToCheck.type.IsEnumType()) {
-                return typeToCheck;
-            }
+        //     if (typeToCheck.specialType == SpecialType.Void ||
+        //         typeToCheck.type.IsStructType() ||
+        //         typeToCheck.isStatic ||
+        //         typeToCheck.type.IsEnumType()) {
+        //         return typeToCheck;
+        //     }
 
-            // If we try to resolve hasNotNullConstraint while constraints are being bound we get a loop
-            if (typeToCheck.type is TemplateParameterSymbol t &&
-                (basesBeingResolved is null || !basesBeingResolved.Contains(t))) {
-                // TODO Should we always keep non-nullable because it might be or lift T and use T!
-                // if (t.hasNotNullConstraint)
-                return typeToCheck;
-            }
+        //     // If we try to resolve hasNotNullConstraint while constraints are being bound we get a loop
+        //     if (typeToCheck.type is TemplateParameterSymbol t &&
+        //         (basesBeingResolved is null || !basesBeingResolved.Contains(t))) {
+        //         // TODO Should we always keep non-nullable because it might be or lift T and use T!
+        //         // if (t.hasNotNullConstraint)
+        //         return typeToCheck;
+        //     }
 
-            if (typeToCheck.specialType.IsPrimitiveType() &&
-                typeToCheck.specialType is not SpecialType.Array and not SpecialType.Any) {
-                return typeToCheck;
-            }
+        //     if (typeToCheck.specialType.IsPrimitiveType() &&
+        //         typeToCheck.specialType is not SpecialType.Array and not SpecialType.Any) {
+        //         return typeToCheck;
+        //     }
 
-            return typeToCheck.SetIsAnnotated();
-        }
+        //     return typeToCheck.SetIsAnnotated();
+        // }
 
         return namespaceOrNonNullableType;
 
         TypeWithAnnotations BindNonNullable() {
             var nonNullableSyntax = (NonNullableTypeSyntax)syntax;
             var nullableType = BindType(nonNullableSyntax.type, diagnostics, basesBeingResolved);
-
-            // if (nullableType.type.IsStructType()) {
-            //     diagnostics.Push(Error.CannotAnnotateStruct(syntax.location));
-            //     return nullableType;
-            // }
 
             if (nullableType.type is TemplateParameterSymbol t &&
                 (basesBeingResolved is null || !basesBeingResolved.Contains(t))) {
@@ -709,11 +705,6 @@ internal partial class Binder {
 
             if (underlyingType.IsNullableType())
                 return underlyingType;
-
-            // if (underlyingType.type.IsStructType()) {
-            //     diagnostics.Push(Error.CannotAnnotateStruct(syntax.location));
-            //     return underlyingType;
-            // }
 
             if (underlyingType.type.IsPointerOrFunctionPointer()) {
                 diagnostics.Push(Error.CannotAnnotatePointer(syntax.location));
@@ -1513,11 +1504,6 @@ internal partial class Binder {
         var type = typeWithAnnotations.type;
 
         if (type.StrippedType() is not ErrorTypeSymbol) {
-            if (type.specialType == SpecialType.String)
-                diagnostics.Push(Error.InvalidReferenceTemplateType(templateArgument.location, type));
-            else if (argument.expression.kind == SyntaxKind.NonNullableType)
-                diagnostics.Push(Error.AnnotationsDisallowedInTemplateArgument(templateArgument.location));
-
             analyzedArguments.types.Add(type);
             analyzedArguments.hasErrors.Add(false);
             analyzedArguments.arguments.Add(new BoundExpressionOrTypeOrConstant(argument, new TypeOrConstant(type)));
@@ -2079,15 +2065,6 @@ internal partial class Binder {
             builder.Add((boundKey, boundValue));
         }
 
-        var foundKeyTypeWithAnnotations = new TypeWithAnnotations(foundKeyType);
-        var foundValueTypeWithAnnotations = new TypeWithAnnotations(foundValueType);
-
-        if (foundKeyType is not null)
-            foundKeyType = foundKeyTypeWithAnnotations.SetIsAnnotated().type;
-
-        if (foundValueType is not null)
-            foundValueType = foundValueTypeWithAnnotations.SetIsAnnotated().type;
-
         if (!failed) {
             for (var i = 0; i < builder.Count; i++) {
                 var castedKey = GenerateConversionForAssignment(foundKeyType, builder[i].Item1, diagnostics);
@@ -2190,14 +2167,8 @@ internal partial class Binder {
 
         foundTypeWithAnnotations = new TypeWithAnnotations(foundElementType);
 
-        // TODO This is a simplified check compared to the "canonical" nullability rules laid out in BindNamespaceOrTypeOrAliasSymbol
-        // TODO Unfortunately we can't check the template parameter constraints without causing a loop? (double check)
-        // This isn't a big deal because all it does is restrict implicit casting, it doesn't cause broken behavior
-        if ((foundElementType.typeKind is TypeKind.Class or TypeKind.Array ||
-            foundElementType.specialType == SpecialType.Any || (shouldLift && shouldLiftIfPossible)) &&
-            !foundElementType.IsNullableType()) {
+        if (shouldLift && shouldLiftIfPossible && !foundElementType.IsNullableType())
             foundTypeWithAnnotations = foundTypeWithAnnotations.SetIsAnnotated();
-        }
 
         var builder = ArrayBuilder<BoundExpression>.GetInstance();
 
@@ -4912,7 +4883,7 @@ internal partial class Binder {
     private BoundExpression BindArrayCreationExpression(
         ArrayCreationExpressionSyntax node,
         BelteDiagnosticQueue diagnostics) {
-        var arrayType = GetArrayType(node.type);
+        var arrayType = GetArrayType(node.type, diagnostics);
         var type = BindArrayType(arrayType, diagnostics, true, null).type;
         var (rank, _) = GetArrayRankAndElementType(type);
         var sizes = ArrayBuilder<BoundExpression>.GetInstance();
@@ -4950,15 +4921,20 @@ internal partial class Binder {
                 hasErrors
             );
 
-        static ArrayTypeSyntax GetArrayType(TypeSyntax syntax) {
-            if (syntax is ArrayTypeSyntax a)
+        static ArrayTypeSyntax GetArrayType(TypeSyntax syntax, BelteDiagnosticQueue diagnostics) {
+            if (syntax is ArrayTypeSyntax a) {
                 return a;
-            else if (syntax is NonNullableTypeSyntax n)
-                return GetArrayType(n.type);
-            else if (syntax is ReferenceTypeSyntax r)
-                return GetArrayType(r.type);
-            else
+            } else if (syntax is NonNullableTypeSyntax nn) {
+                diagnostics.Push(Error.AnnotationsDisallowedInObjectCreation(nn.location));
+                return GetArrayType(nn.type, diagnostics);
+            } else if (syntax is NullableTypeSyntax n) {
+                diagnostics.Push(Error.AnnotationsDisallowedInObjectCreation(n.location));
+                return GetArrayType(n.type, diagnostics);
+            } else if (syntax is ReferenceTypeSyntax r) {
+                return GetArrayType(r.type, diagnostics);
+            } else {
                 throw ExceptionUtilities.Unreachable();
+            }
         }
     }
 
@@ -4972,7 +4948,7 @@ internal partial class Binder {
         var type = typeWithAnnotations.nullableUnderlyingTypeOrSelf;
         var originalType = type;
 
-        if (!typeWithAnnotations.isNullable && type.IsClassType() && !type.isStatic)
+        if (node.type.kind is SyntaxKind.NonNullableType or SyntaxKind.NullableType)
             diagnostics.Push(Error.AnnotationsDisallowedInObjectCreation(node.location));
 
         switch (type.typeKind) {
@@ -14084,10 +14060,6 @@ symIsHidden:;
                 } else if (declarationType.type.IsPointerOrFunctionPointer() && isNullable) {
                     diagnostics.Push(Error.CannotAnnotatePointer(typeSyntax.location));
                 } else {
-                    var shouldImplicitlyLift = initializer.type.IsVerifierReference() &&
-                        initializer.kind is BoundKind.ObjectCreationExpression or BoundKind.ArrayCreationExpression &&
-                        !isNonNullable;
-
                     if (isNonNullable && declarationType.IsNullableType()) {
                         declarationType = new TypeWithAnnotations(declarationType.nullableUnderlyingTypeOrSelf);
                         initializer = GenerateConversionForAssignment(
@@ -14096,7 +14068,7 @@ symIsHidden:;
                             diagnostics,
                             conversionFlags
                         );
-                    } else if ((isNullable && !declarationType.IsNullableType()) || shouldImplicitlyLift) {
+                    } else if (isNullable && !declarationType.IsNullableType()) {
                         declarationType = declarationType.SetIsAnnotated();
                         initializer = GenerateConversionForAssignment(
                             declarationType.type,
