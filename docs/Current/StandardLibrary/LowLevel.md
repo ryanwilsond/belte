@@ -18,6 +18,7 @@ The Belte public interface for the LowLevel class can be found
 | `type! GetType(any!)` | Gets the type of the passed value. |
 | `int! Length<type T>(T!)` | Gets the length of the given array, or 0 if not passed an array. |
 | `void Sort<type T>(T!)` | Sorts the given array, or does nothing if not passed an array. |
+| `void Fill<type TElem>(TElem[]!, TElem!)` | Fills the given array with the given value. |
 | `int32 SizeOf<type T>()` | Gets the size of the template argument type in number of bytes. (Using the [`sizeof` operator](../LowLevelFeatures.md#69-sizeof-operator) is preferred.) |
 | `TTo BitCast<type TFrom, type TTo>(TFrom)` | Bit casts the given value into a new type. |
 | `uint8* CreateLPCSTR(string!)` | Creates a raw `uint8` (representing ascii characters) array with the content of the passed string and returns a pointer to the first element. |
@@ -31,6 +32,8 @@ The Belte public interface for the LowLevel class can be found
 | `void FreeGCHandle(void*)` | Frees the given garbage collector handle.* |
 | `Object! GetObject(void*)` | Gets the object associated with the given garbage collector handle.* |
 | `void ThrowNullConditionException()` | Throws `new NullConditionException()`. |
+| `bool! IsLittleEndian()` | If the current architecture is little endian. |
+| `int32! ReverseEndianness(int32!)` | Reverses the endianness of the given value. |
 
 *Note that while you can get the address of `this`, it is safer to use
 `GetGCPtr` and `GetObject` as they will stay accurate even if the garbage

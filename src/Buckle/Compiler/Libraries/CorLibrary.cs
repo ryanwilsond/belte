@@ -15,8 +15,8 @@ internal sealed class CorLibrary {
     private static readonly CorLibrary Instance = new CorLibrary();
 
     private const int TotalSpecialTypes = (int)SpecialType.TypedReference;
-    private const int TotalWellKnownMembers = (int)WellKnownMember.BitArray_Set;
-    private const int TotalWellKnownTypes = (int)WellKnownType.BitArray;
+    private const int TotalWellKnownMembers = (int)WellKnownMember.Array_Set;
+    private const int TotalWellKnownTypes = (int)WellKnownType.Array;
 
     private readonly ConcurrentDictionary<SpecialType, NamedTypeSymbol> _specialTypes = [];
     private readonly ConcurrentDictionary<WellKnownMember, Symbol> _wellKnownMembers = [];
@@ -290,11 +290,12 @@ internal sealed class CorLibrary {
                 LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_TRest));
             }
 
-            if (_wellKnownTypes.ContainsKey(WellKnownType.BitArray)) {
-                var type = GetWellKnownType(WellKnownType.BitArray);
-                RegisterWellKnownMember(WellKnownMember.BitArray_ctor, type.instanceConstructors[0]);
-                RegisterWellKnownMember(WellKnownMember.BitArray_Get, type.GetMembers("Get")[0]);
-                RegisterWellKnownMember(WellKnownMember.BitArray_Set, type.GetMembers("Set")[0]);
+            if (_wellKnownTypes.ContainsKey(WellKnownType.Array)) {
+                var type = GetWellKnownType(WellKnownType.Array);
+                RegisterWellKnownMember(WellKnownMember.Array_ctor_1, type.instanceConstructors[0]);
+                RegisterWellKnownMember(WellKnownMember.Array_ctor_2, type.instanceConstructors[1]);
+                RegisterWellKnownMember(WellKnownMember.Array_Get, type.GetMembers("Get")[0]);
+                RegisterWellKnownMember(WellKnownMember.Array_Set, type.GetMembers("Set")[0]);
             }
 
             _lazyComplete = true;

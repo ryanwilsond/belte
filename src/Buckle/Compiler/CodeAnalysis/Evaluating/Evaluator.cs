@@ -1,4 +1,5 @@
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -2802,7 +2803,7 @@ internal sealed class Evaluator {
             return HandleGraphicsCall(location, method, arguments, abort, out result);
 
         // TODO If we deem these string checks too slow, we could probably compute unique Int64 mapKeys instead
-        var mapKey = LibraryHelpers.BuildMapKey(method);
+        var mapKey = LibraryHelpers.BuildMapKey(method.originalDefinition);
 
         if ((object)method.containingNamespace == LibraryHelpers.BelteNamespace.originalDefinition) {
             switch (mapKey) {
@@ -2907,8 +2908,7 @@ internal sealed class Evaluator {
                     }
 
                     return true;
-                case "LowLevel_Length_[?":
-                case "LowLevel_Length_[": {
+                case "LowLevel_Length_T": {
                         var argument = EvaluateExpression(arguments[0], true, abort);
 
                         if (argument.kind != ValueKind.HeapPtr) {
@@ -2944,7 +2944,16 @@ internal sealed class Evaluator {
                     _lazyRandom ??= new Random();
                     result = _lazyRandom.NextDouble();
                     return true;
-                case "LowLevel_Sort_[?": {
+                case "LowLevel_IsLittleEndian":
+                    result = EvaluatorValue.Literal(BitConverter.IsLittleEndian);
+                    return true;
+                case "LowLevel_ReverseEndianness_I4": {
+                        var argument = EvaluateExpression(arguments[0], true, abort);
+                        argument.int32 = BinaryPrimitives.ReverseEndianness(argument.int32);
+                        result = argument;
+                        return true;
+                    }
+                case "LowLevel_Sort_T": {
                         var arrayPtr = EvaluateExpression(arguments[0], true, abort);
 
                         if (arrayPtr.kind != ValueKind.HeapPtr)
@@ -2966,6 +2975,15 @@ internal sealed class Evaluator {
                             throw new BelteInvalidCastException(location);
 
                         Array.Sort(array.fields, comparison);
+                    }
+
+                    return true;
+                case "LowLevel_Fill_[T": {
+                        var arrayPtr = EvaluateExpression(arguments[0], true, abort);
+                        var value = EvaluateExpression(arguments[1], true, abort);
+                        var array = _context.heap[arrayPtr.ptr];
+
+                        Array.Fill(array.fields, value);
                     }
 
                     return true;

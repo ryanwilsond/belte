@@ -536,7 +536,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         var controlFlowGraph = ControlFlowGraph.Create(loweredBody);
         var assignments = controlFlowGraph.CheckDefiniteAssignment(method, _diagnostics);
 
-        if (method.IsConstructor())
+        if (method.IsConstructor() && !method.HasThisConstructorInitializer())
             state.AddConstructorDefiniteAssignments(method.methodKind == MethodKind.StaticConstructor, assignments);
 
         if (_emitting) {

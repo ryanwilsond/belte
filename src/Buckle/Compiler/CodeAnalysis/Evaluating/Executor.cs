@@ -746,6 +746,13 @@ internal sealed partial class Executor : ModuleBuilder {
         return closedMethod;
     }
 
+    internal MethodInfo GetFill(TypeSymbol elementType) {
+        var generic = GetType(elementType);
+        var sort = typeof(Array).GetMethods().Where(m => m.Name == "Fill" && m.GetParameters().Length == 2).Single();
+        var closedMethod = sort.MakeGenericMethod(generic);
+        return closedMethod;
+    }
+
     internal MethodInfo GetLength(TypeSymbol elementType) {
         var generic = GetType(elementType);
         var length = typeof(Belte.Runtime.Utilities).GetMethod("Length");
@@ -1815,6 +1822,8 @@ internal sealed partial class Executor : ModuleBuilder {
             { "LowLevel_GetGCPtr_O", typeof(Belte.Runtime.Utilities).GetMethod("GetGCPtr", Flags, [typeof(object)]) },
             { "LowLevel_FreeGCHandle_V*", typeof(Belte.Runtime.Utilities).GetMethod("FreeGCHandle", Flags, [typeof(void*)]) },
             { "LowLevel_GetObject_V*", typeof(Belte.Runtime.Utilities).GetMethod("GetObject", Flags, [typeof(void*)]) },
+            { "LowLevel_IsLittleEndian", typeof(Belte.Runtime.Utilities).GetMethod("IsLittleEndian", Flags, []) },
+            { "LowLevel_ReverseEndianness_I4", typeof(System.Buffers.Binary.BinaryPrimitives).GetMethod("ReverseEndianness", Flags, [typeof(int)]) },
             { "HashCode_Combine_I4I4", typeof(Belte.Runtime.Utilities).GetMethod("HashCodeCombine", Flags, [typeof(int), typeof(int)]) },
             { "HashCode_Combine_I4I4I4", typeof(Belte.Runtime.Utilities).GetMethod("HashCodeCombine", Flags, [typeof(int), typeof(int), typeof(int)]) },
             { "HashCode_Combine_I4I4I4I4", typeof(Belte.Runtime.Utilities).GetMethod("HashCodeCombine", Flags, [typeof(int), typeof(int), typeof(int), typeof(int)]) },

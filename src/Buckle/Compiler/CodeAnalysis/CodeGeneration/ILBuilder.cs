@@ -92,6 +92,8 @@ internal abstract class ILBuilder {
 
     internal abstract void EmitSort(TypeSymbol elementType);
 
+    internal abstract void EmitFill(TypeSymbol elementType);
+
     internal abstract void EmitLength(TypeSymbol elementType);
 
     internal abstract void EmitSizeOf(TypeSymbol elementType);

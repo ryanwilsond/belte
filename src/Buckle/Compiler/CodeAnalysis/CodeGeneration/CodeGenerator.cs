@@ -1693,6 +1693,13 @@ oneMoreTime:
                     }
 
                     return;
+                case "Fill": {
+                        EmitArguments(arguments, method.parameters, expression.argumentRefKinds);
+                        _builder.EmitFill(method.templateArguments[0].type.type);
+                        EmitCallCleanup(method, useKind);
+                    }
+
+                    return;
                 case "Length": {
                         EmitArguments(arguments, method.parameters, expression.argumentRefKinds);
                         _builder.EmitLength(method.templateArguments[0].type.type);

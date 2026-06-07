@@ -8,6 +8,8 @@ public static class LowLevel {
 
     public static void Sort<type T>(T! array);
 
+    public static void Fill<type TElem>(TElem[]! array, TElem value);
+
     public static int32 SizeOf<type T>();
 
     public static TTo! BitCast<type TFrom, type TTo>(TFrom! value);
@@ -33,4 +35,8 @@ public static class LowLevel {
     public static Object! GetObject(void* ptr);
 
     public static void ThrowNullConditionException();
+
+    public static bool IsLittleEndian();
+
+    public static int32 ReverseEndianness(int32 value);
 }

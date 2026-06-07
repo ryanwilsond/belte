@@ -1032,7 +1032,7 @@ internal partial class Binder {
             if (!permitDimensions && dimension is not null)
                 diagnostics.Push(Error.ArraySizeInDeclaration(rankSpecifier.size.location));
 
-            var array = ArrayTypeSymbol.CreateArray(type, 1);
+            var array = CreateArray(type, 1);
             type = new TypeWithAnnotations(array);
 
             if (i + 1 < jaggedRank)
@@ -1040,6 +1040,25 @@ internal partial class Binder {
         }
 
         return type;
+
+        TypeSymbol CreateArray(TypeWithAnnotations elementType, int rank) {
+            var element = elementType.type;
+
+            if (flags.Includes(BinderFlags.LowLevelContext) ||
+                rank != 1 ||
+                element.HasDefaultValue() ||
+                element.IsVerifierReference()) {
+                return ArrayTypeSymbol.CreateArray(type, 1);
+            }
+
+            var fatArray = CorLibrary.TryGetWellKnownType(WellKnownType.Array, compilation);
+
+            // TODO Warn its missing
+            if (fatArray is ErrorTypeSymbol)
+                return ArrayTypeSymbol.CreateArray(type, 1);
+
+            return fatArray.Construct([new TypeOrConstant(elementType)]);
+        }
     }
 
     private protected NamespaceOrTypeOrAliasSymbolWithAnnotations BindNonTemplateSimpleNamespaceOrTypeOrAliasSymbol(
@@ -2626,6 +2645,11 @@ internal partial class Binder {
             case BoundKind.IndexerAccessExpression:
                 var index = (BoundIndexerAccessExpression)expression;
 
+                if (CorLibrary.TryGetWellKnownType(WellKnownType.Array, compilation)
+                    .Equals(index.receiver.StrippedType().originalDefinition)) {
+                    return true;
+                }
+
                 if (index.method is not null) {
                     return CheckMethodReturnValueKind(
                         index.method,
@@ -4178,6 +4202,33 @@ internal partial class Binder {
             return ErrorIndexerExpression(node, expression, analyzedArguments, null, diagnostics);
         }
 
+        var fatArray = CorLibrary.TryGetWellKnownType(WellKnownType.Array, compilation);
+
+        if (expression.StrippedType().originalDefinition.Equals(fatArray)) {
+            var intType = CorLibrary.GetSpecialType(SpecialType.Int);
+            var namedType = (NamedTypeSymbol)expression.StrippedType();
+            var resultType = namedType.templateArguments[0].type.type;
+
+            var conversion = conversions.ClassifyImplicitConversionFromExpression(argument, intType);
+
+            if (!conversion.exists)
+                GenerateImplicitConversionError(diagnostics, node, conversion, argument, intType);
+
+            var boundConversion = CreateConversion(argument, conversion, intType, diagnostics);
+
+            var method = CorLibrary.GetWellKnownMethod(WellKnownMember.Array_Get).AsMember(namedType);
+
+            return new BoundIndexerAccessExpression(
+                node,
+                expression,
+                boundConversion,
+                method,
+                null,
+                resultType,
+                false
+            );
+        }
+
         var lookupResult = LookupResult.GetInstance();
         var lookupOptions = expression.kind == BoundKind.BaseExpression
             ? LookupOptions.UseBaseReferenceAccessibility
@@ -4655,10 +4706,10 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics,
         ExpressionSyntax creationSyntax,
         InitializerListExpressionSyntax initSyntax,
-        ArrayTypeSymbol type,
+        TypeSymbol type,
         ImmutableArray<BoundExpression> sizes,
         bool hasErrors = false) {
-        var rank = type.rank;
+        var rank = type is ArrayTypeSymbol array ? array.rank : 1;
         var numSizes = sizes.Length;
         var knownSizes = new long?[Math.Max(rank, numSizes)];
 
@@ -4698,7 +4749,7 @@ internal partial class Binder {
 
             sizes = sizeArray.AsImmutableOrNull();
         } else if (!hasErrors && rank != numSizes) {
-            diagnostics.Push(Error.BadIndexCount(nonNullSyntax.location, type.rank));
+            diagnostics.Push(Error.BadIndexCount(nonNullSyntax.location, rank));
             hasErrors = true;
         }
 
@@ -4708,7 +4759,7 @@ internal partial class Binder {
     private BoundInitializerList BindArrayInitializerList(
         BelteDiagnosticQueue diagnostics,
         InitializerListExpressionSyntax node,
-        ArrayTypeSymbol type,
+        TypeSymbol type,
         long?[] knownSizes,
         int dimension,
         bool isInferred,
@@ -4733,16 +4784,17 @@ internal partial class Binder {
     private BoundInitializerList ConvertAndBindArrayInitialization(
         BelteDiagnosticQueue diagnostics,
         InitializerListExpressionSyntax node,
-        ArrayTypeSymbol type,
+        TypeSymbol type,
         long?[] knownSizes,
         int dimension,
         ImmutableArray<BoundExpression> boundInitExpr,
         ref int boundInitExprIndex,
         bool isInferred) {
         var initializers = ArrayBuilder<BoundExpression>.GetInstance();
+        var (rank, elementType) = GetArrayRankAndElementType(type);
 
-        if (dimension == type.rank) {
-            var elemType = type.elementType;
+        if (dimension == rank) {
+            var elemType = elementType;
 
             foreach (var expressionSyntax in node.items) {
                 var boundExpression = boundInitExpr[boundInitExprIndex];
@@ -4794,10 +4846,17 @@ internal partial class Binder {
         InitializerListExpressionSyntax initializer,
         BelteDiagnosticQueue diagnostics,
         int dimension,
-        ArrayTypeSymbol type) {
+        TypeSymbol type) {
         var exprBuilder = ArrayBuilder<BoundExpression>.GetInstance();
         BindArrayInitializerExpressions(initializer, exprBuilder, diagnostics, dimension, type);
         return exprBuilder.ToImmutableAndFree();
+    }
+
+    internal static (int rank, TypeSymbol elementType) GetArrayRankAndElementType(TypeSymbol type) {
+        if (type is ArrayTypeSymbol array)
+            return (array.rank, array.elementType);
+        else
+            return (1, ((NamedTypeSymbol)type).templateArguments[0].type.type);
     }
 
     private void BindArrayInitializerExpressions(
@@ -4805,12 +4864,14 @@ internal partial class Binder {
         ArrayBuilder<BoundExpression> exprBuilder,
         BelteDiagnosticQueue diagnostics,
         int dimension,
-        ArrayTypeSymbol type) {
-        if (dimension == type.rank) {
+        TypeSymbol type) {
+        var (rank, elementType) = GetArrayRankAndElementType(type);
+
+        if (dimension == rank) {
             foreach (var expression in initializer.items) {
                 var boundExpression = BindPossibleArrayInitializer(
                     expression,
-                    type.elementType,
+                    elementType,
                     BindValueKind.RValue,
                     diagnostics
                 );
@@ -4852,12 +4913,13 @@ internal partial class Binder {
         ArrayCreationExpressionSyntax node,
         BelteDiagnosticQueue diagnostics) {
         var arrayType = GetArrayType(node.type);
-        var type = (ArrayTypeSymbol)BindArrayType(arrayType, diagnostics, true, null).type;
+        var type = BindArrayType(arrayType, diagnostics, true, null).type;
+        var (rank, _) = GetArrayRankAndElementType(type);
         var sizes = ArrayBuilder<BoundExpression>.GetInstance();
         var hasErrors = false;
         var indexType = CorLibrary.GetSpecialType(SpecialType.Int);
 
-        for (var i = 0; i < type.rank; i++) {
+        for (var i = 0; i < rank; i++) {
             var rankSpecifier = arrayType.rankSpecifiers[i];
             var size = rankSpecifier.size;
 

@@ -116,6 +116,9 @@ will stay at 4 bytes.
 Initializer lists may create a [List](StandardLibrary/List.md) outside of
 [lowlevel contexts](#61-low-level-contexts) in the future.
 
+If an array is created for a type that does not have a default value, an `Array<T>` is created that tracks
+initializations. In lowlevel contexts, this is bypassed and an unsafe array can be created.
+
 ## 6.4 Numerics
 
 To allow for better interop, several numeric types can be used to specify

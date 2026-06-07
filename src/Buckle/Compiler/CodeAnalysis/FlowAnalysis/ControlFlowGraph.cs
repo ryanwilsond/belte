@@ -242,7 +242,8 @@ internal sealed class ControlFlowGraph {
 
                     var shouldReport = _method.IsConstructor() && ((_method.isStatic && field.isStatic) ||
                         (!_method.isStatic && Binder.IsThisInstanceAccess(fieldAccess))) &&
-                        !(field.containingType.IsStructType() && field.type.HasDefaultValue());
+                        !(field.containingType.IsStructType() && field.type.HasDefaultValue()) &&
+                        !_method.HasThisConstructorInitializer();
 
                     if (shouldReport && field.definiteAssignmentError is not null && !result[_slotMap[field]])
                         diagnostics.Push(Error.UseOfUnassignedField(fieldAccess.syntax.location, field));

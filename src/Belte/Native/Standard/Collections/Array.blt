@@ -1,5 +1,38 @@
 
-public lowlevel static class Array<type T> {
+public lowlevel sealed class Array<type T> {
+    private T[] _array;
+    private BitArray _bitArray;
+
+    public constructor(int length) {
+        _array = new T[(int32)length];
+        _bitArray = new BitArray((int32)length);
+    }
+
+    public constructor(int length, T[] initializer) {
+        _array = initializer;
+        _bitArray = new BitArray((int32)length, true);
+    }
+
+    public T Get(int index) {
+        if (_bitArray.Get((int32)index))
+            return _array[(int32)index];
+
+        throw new InvalidOperationException();
+    }
+
+    public void Set(int index, T value) {
+        _array[(int32)index] = value;
+        _bitArray.Set((int32)index, true);
+    }
+
+    public static implicit operator T[](Array<T> array) {
+        return array._array;
+    }
+
+    public static implicit operator Array<T>(T[] array) {
+        return new Array<T>(LowLevel.Length<T[]>(array), array);
+    }
+
     public static void Copy(T[] to, T[] from, int! start, int! length) {
         for (int! i = 0; i < length; i++)
             to[i + start] = from[i];

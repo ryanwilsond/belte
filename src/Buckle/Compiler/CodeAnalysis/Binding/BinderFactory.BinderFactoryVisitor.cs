@@ -307,6 +307,9 @@ internal sealed partial class BinderFactory {
                     } else {
                         resultBinder = new InContainerBinder(typeSymbol, resultBinder);
 
+                        if (typeSymbol.isLowLevel)
+                            resultBinder = resultBinder.WithAdditionalFlags(BinderFlags.LowLevelContext);
+
                         if (node.templateParameterList is not null)
                             resultBinder = new WithClassTemplateParametersBinder(typeSymbol, resultBinder);
                     }

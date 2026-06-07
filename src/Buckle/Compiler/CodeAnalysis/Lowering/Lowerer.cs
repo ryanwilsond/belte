@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
@@ -253,6 +254,10 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         <right>
 
+        ----> <left> is Array
+
+        <left.Set(<index>, <right>)>
+
         */
         if (expression.left.Type().IsNullableType() &&
             !expression.right.Type().IsNullableType() &&
@@ -272,6 +277,21 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         if (expression.left.kind == BoundKind.DiscardExpression && !_transpiling)
             return Visit(expression.right);
+
+        if (expression.left.kind == BoundKind.IndexerAccessExpression) {
+            var indexer = (BoundIndexerAccessExpression)expression.left;
+            var namedType = (NamedTypeSymbol)indexer.receiver.StrippedType();
+
+            if (CorLibrary.GetWellKnownType(WellKnownType.Array).Equals(namedType.originalDefinition)) {
+                var method = CorLibrary.GetWellKnownMethod(WellKnownMember.Array_Set).AsMember(namedType);
+
+                return Visit(InstanceCall(expression.syntax,
+                    indexer.receiver,
+                    method,
+                    [indexer.index, expression.right]
+                ));
+            }
+        }
 
         return base.VisitAssignmentOperator(expression);
     }
@@ -571,8 +591,12 @@ internal sealed class Lowerer : BoundTreeRewriter {
         */
         var syntax = node.syntax;
 
-        if (node.method is not null)
-            return Visit(Call(syntax, node.method, node.receiver, node.index));
+        if (node.method is not null) {
+            if (node.method.isStatic)
+                return Visit(Call(syntax, node.method, node.receiver, node.index));
+            else
+                return Visit(InstanceCall(syntax, node.receiver, node.method, node.index));
+        }
 
         return base.VisitIndexerAccessExpression(node);
     }
@@ -731,7 +755,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
     private BoundInitializerList VisitNonIsolatedList(BoundInitializerList expression) {
         var syntax = expression.syntax;
-        var arrayType = (ArrayTypeSymbol)expression.StrippedType();
+        var type = expression.StrippedType();
+        var (_, elementType) = Binder.GetArrayRankAndElementType(type);
         ArrayBuilder<BoundExpression>? newList = null;
 
         for (var i = 0; i < expression.items.Length; i++) {
@@ -755,12 +780,12 @@ internal sealed class Lowerer : BoundTreeRewriter {
         return expression;
 
         BoundNode VisitListItem(BoundExpression item) {
-            if (ShouldBeTreatedAsNullable(arrayType.elementType) &&
+            if (ShouldBeTreatedAsNullable(elementType) &&
                 !item.Type().IsNullableType()) {
                 if (item.constantValue is null)
-                    return Visit(CreateNullable(syntax, item, arrayType.elementType));
+                    return Visit(CreateNullable(syntax, item, elementType));
                 else
-                    return VisitConstant(Literal(syntax, item.constantValue.value, arrayType.elementType));
+                    return VisitConstant(Literal(syntax, item.constantValue.value, elementType));
             }
 
             return Visit(item);
@@ -768,14 +793,57 @@ internal sealed class Lowerer : BoundTreeRewriter {
     }
 
     internal override BoundNode VisitArrayCreationExpression(BoundArrayCreationExpression expression) {
-        var sizes = VisitList(expression.sizes);
+        /*
 
-        var initializer = expression.initializer is null
-            ? null
-            : VisitNonIsolatedList(expression.initializer);
+        new <element>[<sizes>]
 
-        var type = VisitType(expression.Type());
-        return expression.Update(sizes, initializer, type);
+        ----> <element> has no default value
+
+        new Array<<element>>(<sizes>)
+
+        */
+        if (expression.type.StrippedType() is ArrayTypeSymbol) {
+            var sizes = VisitList(expression.sizes);
+
+            var initializer = expression.initializer is null
+                ? null
+                : VisitNonIsolatedList(expression.initializer);
+
+            var type = VisitType(expression.Type());
+            return expression.Update(sizes, initializer, type);
+        }
+
+        var arrayType = (NamedTypeSymbol)expression.type.StrippedType();
+
+        if (expression.initializer is null) {
+            var ctor = CorLibrary.GetWellKnownMethod(WellKnownMember.Array_ctor_1).AsMember(arrayType);
+            Debug.Assert(expression.sizes.Length == 1);
+
+            return Visit(new BoundObjectCreationExpression(
+                expression.syntax,
+                ctor,
+                [expression.sizes[0]],
+                [],
+                [],
+                default,
+                false,
+                arrayType
+            ));
+        } else {
+            var ctor = CorLibrary.GetWellKnownMethod(WellKnownMember.Array_ctor_2).AsMember(arrayType);
+            var rawType = ArrayTypeSymbol.FromFatArray(arrayType);
+
+            return Visit(new BoundObjectCreationExpression(
+                expression.syntax,
+                ctor,
+                [expression.sizes[0], expression.Update(expression.sizes, expression.initializer, rawType)],
+                [],
+                [],
+                default,
+                false,
+                arrayType
+            ));
+        }
     }
 
     internal override BoundNode VisitIsOperator(BoundIsOperator expression) {

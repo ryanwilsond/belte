@@ -433,6 +433,10 @@ internal sealed partial class CecilILBuilder : ILBuilder {
         iLProcessor.Emit(OpCodes.Call, _module.GetSort(elementType));
     }
 
+    internal override void EmitFill(TypeSymbol elementType) {
+        iLProcessor.Emit(OpCodes.Call, _module.GetFill(elementType));
+    }
+
     internal override void EmitLength(TypeSymbol elementType) {
         iLProcessor.Emit(OpCodes.Call, _module.GetLength(elementType));
     }

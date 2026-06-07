@@ -670,6 +670,15 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(sortRef);
     }
 
+    internal MethodReference GetFill(TypeSymbol elementType) {
+        var genericArgumentType = GetType(elementType);
+
+        var fillRef = new GenericInstanceMethod(NetMethodReference.Array_Fill);
+        fillRef.GenericArguments.Add(genericArgumentType);
+
+        return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(fillRef);
+    }
+
     internal MethodReference GetArrayEmpty(TypeSymbol elementType) {
         var genericArgumentType = GetType(elementType);
 
@@ -2035,6 +2044,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         NetMethodReference.ValueTuple_T7_ctor = ResolveMethod("System.ValueTuple`7", ".ctor", ["T1", "T2", "T3", "T4", "T5", "T6", "T7"]);
         NetMethodReference.ValueTuple_TRest_ctor = ResolveMethod("System.ValueTuple`8", ".ctor", ["T1", "T2", "T3", "T4", "T5", "T6", "T7", "TRest"]);
         NetMethodReference.Array_Empty = ResolveMethod("System.Array", "Empty", []);
+        NetMethodReference.Array_Fill = ResolveMethod("System.Array", "Fill", ["T[]", "T"]);
     }
 
     private void GenerateSTLMap() {
@@ -2061,6 +2071,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 { "LowLevel_GetGCPtr_O", ResolveMethod("Belte.Runtime.Utilities", "GetGCPtr", ["System.Object"]) },
                 { "LowLevel_FreeGCHandle_V*", ResolveMethod("Belte.Runtime.Utilities", "FreeGCHandle", ["System.Void*"]) },
                 { "LowLevel_GetObject_V*", ResolveMethod("Belte.Runtime.Utilities", "GetObject", ["System.Void*"]) },
+                { "LowLevel_IsLittleEndian", ResolveMethod("Belte.Runtime.Utilities", "IsLittleEndian", []) },
+                { "LowLevel_ReverseEndianness_I4", ResolveMethod("System.Buffers.Binary.BinaryPrimitives", "ReverseEndianness", ["System.Int32"]) },
             };
         } else {
             _stlMap = new Dictionary<string, MethodReference>() {
@@ -2141,6 +2153,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 { "LowLevel_GetGCPtr_O", ResolveMethod("Belte.Runtime.Utilities", "GetGCPtr", ["System.Object"]) },
                 { "LowLevel_FreeGCHandle_V*", ResolveMethod("Belte.Runtime.Utilities", "FreeGCHandle", ["System.Void*"]) },
                 { "LowLevel_GetObject_V*", ResolveMethod("Belte.Runtime.Utilities", "GetObject", ["System.Void*"]) },
+                { "LowLevel_IsLittleEndian", ResolveMethod("Belte.Runtime.Utilities", "IsLittleEndian", []) },
+                { "LowLevel_ReverseEndianness_I4", ResolveMethod("System.Buffers.Binary.BinaryPrimitives", "ReverseEndianness", ["System.Int32"]) },
                 { "HashCode_Combine_I4I4", ResolveMethod("Belte.Runtime.Utilities", "HashCodeCombine", ["System.Int32", "System.Int32"]) },
                 { "HashCode_Combine_I4I4I4", ResolveMethod("Belte.Runtime.Utilities", "HashCodeCombine", ["System.Int32", "System.Int32", "System.Int32"]) },
                 { "HashCode_Combine_I4I4I4I4", ResolveMethod("Belte.Runtime.Utilities", "HashCodeCombine", ["System.Int32", "System.Int32", "System.Int32", "System.Int32"]) },
