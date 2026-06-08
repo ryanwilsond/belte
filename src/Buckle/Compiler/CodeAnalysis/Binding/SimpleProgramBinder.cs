@@ -36,6 +36,13 @@ internal sealed class SimpleProgramBinder : LocalScopeBinder {
         throw ExceptionUtilities.Unreachable();
     }
 
+    internal override ImmutableArray<TokenSymbol> GetDeclaredTokensForScope(SyntaxNode scopeDesignator) {
+        if (this.scopeDesignator == scopeDesignator)
+            return tokens;
+
+        throw ExceptionUtilities.Unreachable();
+    }
+
     private protected override ImmutableArray<DataContainerSymbol> BuildLocals() {
         var locals = new HashSet<DataContainerSymbol>();
         var localsBuilder = ArrayBuilder<DataContainerSymbol>.GetInstance(DefaultLocalSymbolArrayCapacity);
@@ -103,5 +110,36 @@ internal sealed class SimpleProgramBinder : LocalScopeBinder {
         }
 
         return labels?.ToImmutableAndFree() ?? [];
+    }
+
+    private protected override ImmutableArray<TokenSymbol> BuildTokens() {
+        var tokens = new HashSet<TokenSymbol>();
+        ArrayBuilder<TokenSymbol> tokensBuilder = null;
+
+        foreach (var element in _entryPoint.compilationUnit.elements) {
+            if (element is GlobalStatementSyntax topLevelStatement)
+                BuildTokens(this, topLevelStatement.statement, ref tokensBuilder);
+        }
+
+        if (tokensBuilder is not null) {
+            tokens.AddAll(tokensBuilder);
+            tokensBuilder.Free();
+        }
+
+        for (var compilation = _entryPoint.declaringCompilation.previous;
+            compilation is not null;
+            compilation = compilation.previous) {
+            if (compilation.entryPoint is not SynthesizedEntryPoint synthesizedEntryPoint)
+                continue;
+
+            var compilationUnit = synthesizedEntryPoint.compilationUnit;
+            var entryPointBinder = synthesizedEntryPoint
+                .TryGetBodyBinder(null, flags.Includes(BinderFlags.IgnoreAccessibility))
+                .GetBinder(compilationUnit);
+
+            tokens.AddAll(entryPointBinder.GetDeclaredTokensForScope(compilationUnit));
+        }
+
+        return tokens.ToImmutableArray();
     }
 }

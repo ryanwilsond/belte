@@ -45,6 +45,15 @@ internal sealed class SubmissionBinder : LocalScopeBinder {
         }
     }
 
+    internal override TokenSymbol LookupTokenInSingleBinder(string name) {
+        var result = LookupTokenInSubmissions(name);
+
+        if (result is not null)
+            return result;
+
+        return base.LookupTokenInSingleBinder(name);
+    }
+
     internal override void LookupSymbolsInSingleBinder(
         LookupResult result,
         string name,

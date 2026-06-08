@@ -245,7 +245,12 @@ public static class SyntaxFacts {
             "literal" => SyntaxKind.LiteralKeyword,
             "packed" => SyntaxKind.PackedKeyword,
             "reverse" => SyntaxKind.ReverseKeyword,
+            "reversible" => SyntaxKind.ReversibleKeyword,
+            "state" => SyntaxKind.StateKeyword,
+            "has" => SyntaxKind.HasKeyword,
             "unreachable" => SyntaxKind.UnreachableKeyword,
+            "initializes" => SyntaxKind.InitializesKeyword,
+            "commit" => SyntaxKind.CommitKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -258,14 +263,16 @@ public static class SyntaxFacts {
             case SyntaxKind.ExplicitKeyword:
             case SyntaxKind.FlagsKeyword:
             case SyntaxKind.HandleKeyword:
+            case SyntaxKind.HasKeyword:
             case SyntaxKind.ImplicitKeyword:
+            case SyntaxKind.InitializesKeyword:
             case SyntaxKind.LiteralKeyword:
             case SyntaxKind.NotnullKeyword:
             case SyntaxKind.NoVerifyKeyword:
             case SyntaxKind.OperatorKeyword:
             case SyntaxKind.PackedKeyword:
             case SyntaxKind.PrimitiveKeyword:
-            case SyntaxKind.ReverseKeyword:
+            case SyntaxKind.StateKeyword:
             case SyntaxKind.UndefKeyword:
                 return true;
             default:
@@ -427,7 +434,12 @@ public static class SyntaxFacts {
             SyntaxKind.LiteralKeyword => "literal",
             SyntaxKind.PackedKeyword => "packed",
             SyntaxKind.ReverseKeyword => "reverse",
+            SyntaxKind.ReversibleKeyword => "reversible",
+            SyntaxKind.StateKeyword => "state",
+            SyntaxKind.HasKeyword => "has",
             SyntaxKind.UnreachableKeyword => "unreachable",
+            SyntaxKind.InitializesKeyword => "initializes",
+            SyntaxKind.CommitKeyword => "commit",
             _ => null,
         };
     }

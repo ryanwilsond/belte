@@ -1204,6 +1204,9 @@ oneMoreTime:
         if (!_evaluatorProxies.Add(local))
             throw ExceptionUtilities.Unreachable();
 
+        if (declaration.initializer is null)
+            return;
+
         // Essentially reporting the slot allocation then assigning
         // Could move this rewrite to the lowerer, but then we would need a way to keep track of slot allocation
         var assignment = BoundFactory.Assignment(
@@ -1513,15 +1516,19 @@ oneMoreTime:
     private void EmitArrayCreationExpression(BoundArrayCreationExpression expression, bool used) {
         var arrayType = (ArrayTypeSymbol)expression.StrippedType();
 
-        EmitArrayIndices(expression.sizes);
+        if (expression.sizes[0].constantValue?.isDefaultValue == true) {
+            _builder.EmitEmptyArray(arrayType.elementType);
+        } else {
+            EmitArrayIndices(expression.sizes);
 
-        if (arrayType.isSZArray)
-            _builder.EmitWithSymbolToken(OpCode.Newarr, arrayType.elementType);
-        else
-            EmitArrayCreation(arrayType);
+            if (arrayType.isSZArray)
+                _builder.EmitWithSymbolToken(OpCode.Newarr, arrayType.elementType);
+            else
+                EmitArrayCreation(arrayType);
 
-        if (expression.initializer is not null)
-            EmitArrayInitializers(arrayType, expression.initializer as BoundInitializerList);
+            if (expression.initializer is not null)
+                EmitArrayInitializers(arrayType, expression.initializer);
+        }
 
         EmitPopIfUnused(used);
     }
@@ -1682,6 +1689,13 @@ oneMoreTime:
                 case "Sort": {
                         EmitArguments(arguments, method.parameters, expression.argumentRefKinds);
                         _builder.EmitSort(method.templateArguments[0].type.type);
+                        EmitCallCleanup(method, useKind);
+                    }
+
+                    return;
+                case "Fill": {
+                        EmitArguments(arguments, method.parameters, expression.argumentRefKinds);
+                        _builder.EmitFill(method.templateArguments[0].type.type);
                         EmitCallCleanup(method, useKind);
                     }
 

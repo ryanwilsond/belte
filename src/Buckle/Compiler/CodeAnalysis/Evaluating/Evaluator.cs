@@ -1,4 +1,5 @@
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -282,7 +283,12 @@ internal sealed class Evaluator {
                 var arg = layout.GetLocal(parameter);
 
                 if (argument.isType) {
-                    heapObject.fields[arg.slot] = EvaluatorValue.Type(argument.type.type);
+                    var t = argument.type.type;
+
+                    if (t is TemplateParameterSymbol templateParameter)
+                        t = SubstituteTemplateParameter(templateParameter);
+
+                    heapObject.fields[arg.slot] = EvaluatorValue.Type(t);
                 } else {
                     heapObject.fields[arg.slot] = EvaluatorValue.Literal(
                         argument.constant.value,
@@ -2802,7 +2808,7 @@ internal sealed class Evaluator {
             return HandleGraphicsCall(location, method, arguments, abort, out result);
 
         // TODO If we deem these string checks too slow, we could probably compute unique Int64 mapKeys instead
-        var mapKey = LibraryHelpers.BuildMapKey(method);
+        var mapKey = LibraryHelpers.BuildMapKey(method.originalDefinition);
 
         if ((object)method.containingNamespace == LibraryHelpers.BelteNamespace.originalDefinition) {
             switch (mapKey) {
@@ -2880,7 +2886,7 @@ internal sealed class Evaluator {
                         var argument = EvaluateExpression(arguments[0], true, abort);
 
                         if (argument.kind == ValueKind.HeapPtr) {
-                            var type = (NamedTypeSymbol)_context.heap[argument.ptr].type;
+                            var type = _context.heap[argument.ptr].type;
                             result = GetTypeName(type);
                         } else if (argument.kind == ValueKind.Struct) {
                             var type = argument.@struct.type;
@@ -2907,8 +2913,7 @@ internal sealed class Evaluator {
                     }
 
                     return true;
-                case "LowLevel_Length_[?":
-                case "LowLevel_Length_[": {
+                case "LowLevel_Length_T": {
                         var argument = EvaluateExpression(arguments[0], true, abort);
 
                         if (argument.kind != ValueKind.HeapPtr) {
@@ -2944,7 +2949,16 @@ internal sealed class Evaluator {
                     _lazyRandom ??= new Random();
                     result = _lazyRandom.NextDouble();
                     return true;
-                case "LowLevel_Sort_[?": {
+                case "LowLevel_IsLittleEndian":
+                    result = EvaluatorValue.Literal(BitConverter.IsLittleEndian);
+                    return true;
+                case "LowLevel_ReverseEndianness_I4": {
+                        var argument = EvaluateExpression(arguments[0], true, abort);
+                        argument.int32 = BinaryPrimitives.ReverseEndianness(argument.int32);
+                        result = argument;
+                        return true;
+                    }
+                case "LowLevel_Sort_T": {
                         var arrayPtr = EvaluateExpression(arguments[0], true, abort);
 
                         if (arrayPtr.kind != ValueKind.HeapPtr)
@@ -2969,6 +2983,15 @@ internal sealed class Evaluator {
                     }
 
                     return true;
+                case "LowLevel_Fill_[T": {
+                        var arrayPtr = EvaluateExpression(arguments[0], true, abort);
+                        var value = EvaluateExpression(arguments[1], true, abort);
+                        var array = _context.heap[arrayPtr.ptr];
+
+                        Array.Fill(array.fields, value);
+                    }
+
+                    return true;
                 case "String_Split_SS": {
                         var args = arguments.Select(a => EvaluateExpression(a, true, abort).@string).ToArray();
                         var text = args[0];
@@ -2984,14 +3007,16 @@ internal sealed class Evaluator {
                     printed = true;
                     goto case "Console_PrintLine_S?";
                 case "Console_PrintLine_S?":
-                case "Console_PrintLine_A?":
-                    if (arguments[0].StrippedType().isObjectType) {
+                case "Console_PrintLine_A?": {
                         var argument = EvaluateExpression(arguments[0], true, abort);
-                        var toStringMethod = ResolveVirtualMethod(_toStringMethod, null, argument);
-                        var toStringResult = InvokeMethod(toStringMethod, argument, [], abort);
-                        var func = StandardLibrary.EvaluatorMap[mapKey];
-                        result = func(toStringResult.@string, null, null);
-                        return true;
+
+                        if (argument.kind is ValueKind.HeapPtr or ValueKind.Struct) {
+                            var toStringMethod = ResolveVirtualMethod(_toStringMethod, null, argument);
+                            var toStringResult = InvokeMethod(toStringMethod, argument, [], abort);
+                            var func = StandardLibrary.EvaluatorMap[mapKey];
+                            result = func(toStringResult.@string, null, null);
+                            return true;
+                        }
                     }
 
                     break;

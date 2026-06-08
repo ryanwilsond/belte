@@ -45,11 +45,10 @@ internal partial class ConstantValue {
     internal BelteDiagnostic[] diagnostics { get; }
 
     internal bool isDefaultValue
-        => (value is long i && i == 0) ||
-           (value is bool b && !b) ||
-           (value is double d && d == 0) ||
-           (value is string s && s == "");
+        => LiteralUtilities.TypeHasConstantDefaultValue(specialType) &&
+            LiteralUtilities.GetDefaultValue(specialType).Equals(value);
 
+    // TODO Extend this to all numerics
     internal bool isOne
         => (value is long i && i == 1) ||
            (value is bool b && b) ||

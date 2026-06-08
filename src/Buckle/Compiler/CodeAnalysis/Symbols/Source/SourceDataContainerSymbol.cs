@@ -21,7 +21,8 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
         bool allowRefKind,
         TypeSyntax typeSyntax,
         SyntaxToken identifierToken,
-        SyntaxTokenList modifiers) {
+        SyntaxTokenList modifiers,
+        DataContainerDeclarationKind? kind = null) {
         this.containingSymbol = containingSymbol;
         this.scopeBinder = scopeBinder;
         this.identifierToken = identifierToken;
@@ -36,6 +37,10 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
         scope = refKind == RefKind.None ? ScopedKind.Value : ScopedKind.Ref;
 
         declarationKind = MakeModifiers(modifiers, _declarationDiagnostics, out var isPinned);
+
+        if (kind is not null)
+            declarationKind = kind.Value;
+
         this.isPinned = isPinned;
         GetAttributes();
     }
@@ -142,6 +147,27 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
             initializer,
             modifiers,
             initializerBinder ?? scopeBinder
+        );
+    }
+
+    internal static SourceDataContainerSymbol MakeLocalSymbolWithEnclosingContext(
+        Symbol containingSymbol,
+        Binder scopeBinder,
+        Binder nodeBinder,
+        TypeSyntax typeSyntax,
+        SyntaxToken identifierToken,
+        DataContainerDeclarationKind kind,
+        SyntaxNode nodeToBind) {
+        return new LocalSymbolWithEnclosingContext(
+            containingSymbol,
+            scopeBinder,
+            nodeBinder,
+            typeSyntax,
+            identifierToken,
+            null,
+            nodeToBind,
+            null,
+            kind
         );
     }
 

@@ -2,6 +2,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.FlowAnalysis;
+using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
@@ -19,8 +20,11 @@ internal sealed class Optimizer : BoundTreeRewriter {
         return (BoundStatement)optimizer.Visit(statement);
     }
 
-    internal static BoundBlockStatement RemoveDeadCode(BoundBlockStatement block, BelteDiagnosticQueue diagnostics) {
-        var controlFlow = ControlFlowGraph.Create(block);
+    internal static BoundBlockStatement RemoveDeadCode(
+        MethodSymbol method,
+        BoundBlockStatement block,
+        BelteDiagnosticQueue diagnostics) {
+        var controlFlow = ControlFlowGraph.Create(method, block);
         var reachableStatements = new HashSet<BoundStatement>(controlFlow.blocks.SelectMany(b => b.statements));
 
         var builder = block.statements.ToBuilder();

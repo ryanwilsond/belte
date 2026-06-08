@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
+using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -16,6 +17,7 @@ internal abstract class SubstitutedNamedTypeSymbol : WrappedNamedTypeSymbol {
     private NamedTypeSymbol _lazyBaseType = ErrorTypeSymbol.UnknownResultType;
     private ConcurrentCache<string, ImmutableArray<Symbol>> _lazyMembersByNameCache;
     private ImmutableArray<Symbol> _lazyMembers;
+    private int _lazyHasStructDefault;
 
     private protected SubstitutedNamedTypeSymbol(
         Symbol newContainer,
@@ -82,6 +84,25 @@ internal abstract class SubstitutedNamedTypeSymbol : WrappedNamedTypeSymbol {
                 return GetMembers().Select(s => s.name).Distinct();
 
             return originalDefinition.memberNames;
+        }
+    }
+
+    internal override bool hasStructDefault {
+        get {
+            if (_lazyHasStructDefault == (int)ThreeState.Unknown) {
+                if (typeKind != TypeKind.Struct) {
+                    Interlocked.CompareExchange(
+                        ref _lazyHasStructDefault,
+                        (int)ThreeState.False,
+                        (int)ThreeState.Unknown
+                    );
+                } else {
+                    var value = (int)CheckHasStructDefault().ToThreeState();
+                    Interlocked.CompareExchange(ref _lazyHasStructDefault, value, (int)ThreeState.Unknown);
+                }
+            }
+
+            return _lazyHasStructDefault == (int)ThreeState.True;
         }
     }
 

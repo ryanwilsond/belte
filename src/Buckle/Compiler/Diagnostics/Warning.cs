@@ -24,11 +24,6 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_AlwaysValue, location, message);
     }
 
-    internal static BelteDiagnostic NullDereference(TextLocation location) {
-        var message = "dereference of a possibly null value";
-        return CreateWarning(DiagnosticCode.WRN_NullDereference, location, message);
-    }
-
     internal static BelteDiagnostic UnreachableCode(TextLocation location) {
         var message = "unreachable code";
         return CreateWarning(DiagnosticCode.WRN_UnreachableCode, location, message);
@@ -145,9 +140,8 @@ internal static class Warning {
     }
 
     internal static BelteDiagnostic LocalUsingTypeName(TextLocation location, string name) {
-        throw Utilities.ExceptionUtilities.Unreachable();
-        // var message = $"local '{name}' shares a name with a type in this namespace";
-        // return CreateWarning(DiagnosticCode.WRN_LocalUsingTypeName, location, message);
+        var message = $"local '{name}' shares a name with a type in this namespace";
+        return CreateWarning(DiagnosticCode.WRN_LocalUsingTypeName, location, message);
     }
 
     internal static BelteDiagnostic ProtectedInSealed(TextLocation location, Symbol symbol) {

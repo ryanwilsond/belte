@@ -297,6 +297,10 @@ internal sealed class RefILBuilder : ILBuilder {
         EmitWithSymbolToken(OpCodes.Call, _module.GetSort(elementType));
     }
 
+    internal override void EmitFill(TypeSymbol elementType) {
+        EmitWithSymbolToken(OpCodes.Call, _module.GetFill(elementType));
+    }
+
     internal override void EmitLength(TypeSymbol elementType) {
         EmitWithSymbolToken(OpCodes.Call, _module.GetLength(elementType));
     }
@@ -475,6 +479,10 @@ internal sealed class RefILBuilder : ILBuilder {
 
     internal override void EmitArraySet(ArrayTypeSymbol type) {
         throw new NotImplementedException();
+    }
+
+    internal override void EmitEmptyArray(TypeSymbol elementType) {
+        _iLGenerator.Emit(OpCodes.Call, _module.GetArrayEmpty(elementType));
     }
 
     internal override void EmitToString(CodeGeneration.OpCode opCode) {

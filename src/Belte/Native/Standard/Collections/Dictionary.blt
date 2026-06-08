@@ -10,21 +10,19 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
 
     public constructor(int! capacity) : this(capacity, null) { }
 
-    public constructor(EqualityComparer<TKey> comparer) : this(0, comparer) { }
+    public constructor(EqualityComparer<TKey>? comparer) : this(0, comparer) { }
 
-    public constructor(int! capacity, EqualityComparer<TKey> comparer) {
+    public constructor(int! capacity, EqualityComparer<TKey>? comparer) {
         if (capacity < 0)
             throw new ArgumentOutOfRangeException();
 
-        if (capacity > 0)
-            Initialize(capacity);
-
+        Initialize(capacity);
         this.comparer = comparer ?? new EqualityComparer<TKey>();
     }
 
     public constructor(Dictionary<TKey, TValue> dictionary) : this(dictionary, null) { }
 
-    public constructor(Dictionary<TKey, TValue> dictionary, EqualityComparer<TKey> comparer)
+    public constructor(Dictionary<TKey, TValue> dictionary, EqualityComparer<TKey>? comparer)
         : this(dictionary?.Length()?, comparer) {
         if (dictionary is null)
             throw new ArgumentNullException();
@@ -98,8 +96,8 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
 
                     _entries[i].hashCode = -1;
                     _entries[i].next = _freeList;
-                    _entries[i].key = default;
-                    _entries[i].value = default;
+                    _entries[i].key = lowlevel default;
+                    _entries[i].value = lowlevel default;
                     _freeList = i;
                     _freeCount++;
 
@@ -169,7 +167,7 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
             _freeList = _entries[index].next;
             _freeCount--;
         } else {
-            if (_count == LowLevel.Length<Entry[]>(_entries)) {
+            if (_count == LowLevel.Length<Entry[]?>(_entries)) {
                 Resize();
                 targetBucket = hashCode % LowLevel.Length<int![]>(_buckets);
             }
@@ -190,7 +188,7 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
     }
 
     private void Resize(int! newSize, bool! forceNewHashCodes) {
-        int![]! newBuckets = new int![newSize]!;
+        int![]! newBuckets = new int![newSize];
 
         for (int! i = 0; i < LowLevel.Length<int![]>(newBuckets); i++)
             newBuckets[i] = -1;
@@ -217,7 +215,7 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
         _entries = newEntries;
     }
 
-    private void Initialize(int! capacity) {
+    private void Initialize(int! capacity) initializes(_entries, _buckets, _freeList) {
         int! size = HashHelpers.GetPrime(capacity);
         _buckets = new int![size];
 
@@ -231,14 +229,14 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
     private struct Entry {
         public int! hashCode;
         public int! next;
-        public TKey key;
-        public TValue value;
+        public lowlevel TKey key;
+        public lowlevel TValue value;
     }
 
     private class DictionaryEnumerator extends Enumerator<KeyValuePair<TKey, TValue>> {
         private const Dictionary<TKey, TValue> _dictionary;
         private int! _index = 0;
-        private KeyValuePair<TKey, TValue> _current;
+        private KeyValuePair<TKey, TValue> _current = lowlevel default;
 
         public constructor(Dictionary<TKey, TValue> dictionary) {
             _dictionary = dictionary;
@@ -257,16 +255,13 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
                 ref const Entry reference = ref _dictionary._entries[_index++];
 
                 if (reference.next >= -1) {
-                    _current = new KeyValuePair<TKey, TValue>()
-                        ..key = reference.key
-                        ..value = reference.value;
-
+                    _current = new KeyValuePair<TKey, TValue>(reference.key, reference.value);
                     return true;
                 }
             }
 
             _index = _dictionary._count + 1;
-            _current = new KeyValuePair<TKey, TValue>();
+            _current = lowlevel default;
             return false;
         }
     }

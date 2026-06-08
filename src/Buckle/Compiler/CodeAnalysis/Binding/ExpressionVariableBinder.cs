@@ -27,6 +27,20 @@ internal sealed class ExpressionVariableBinder : LocalScopeBinder {
         return builder.ToImmutableAndFree();
     }
 
+    private protected override ImmutableArray<TokenSymbol> BuildTokens() {
+        var builder = ArrayBuilder<TokenSymbol>.GetInstance();
+        var scopeDesignator = (BelteSyntaxNode)this.scopeDesignator;
+
+        ExpressionTokenFinder.FindExpressionTokens(
+            this,
+            ref builder,
+            scopeDesignator,
+            GetBinder(scopeDesignator)
+        );
+
+        return builder.ToImmutableAndFree();
+    }
+
     internal override ImmutableArray<DataContainerSymbol> GetDeclaredLocalsForScope(SyntaxNode scopeDesignator) {
         if (this.scopeDesignator == scopeDesignator)
             return locals;
@@ -36,6 +50,13 @@ internal sealed class ExpressionVariableBinder : LocalScopeBinder {
 
     internal override ImmutableArray<LocalFunctionSymbol> GetDeclaredLocalFunctionsForScope(
         BelteSyntaxNode scopeDesignator) {
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    internal override ImmutableArray<TokenSymbol> GetDeclaredTokensForScope(SyntaxNode scopeDesignator) {
+        if (this.scopeDesignator == scopeDesignator)
+            return tokens;
+
         throw ExceptionUtilities.Unreachable();
     }
 }

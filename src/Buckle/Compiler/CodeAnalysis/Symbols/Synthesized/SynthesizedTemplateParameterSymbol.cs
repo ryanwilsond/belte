@@ -29,9 +29,17 @@ internal sealed class SynthesizedTemplateParameterSymbol : TemplateParameterSymb
 
     internal override bool hasObjectTypeConstraint => false;
 
+    internal override bool hasDefaultConstraint => false;
+
+    internal override bool hasConstructorConstraint => false;
+
     internal override bool isPrimitiveTypeFromConstraintTypes => false;
 
     internal override bool isObjectTypeFromConstraintTypes => false;
+
+    internal override bool hasDefaultFromConstraintTypes => false;
+
+    internal override bool hasConstructorFromConstraintTypes => false;
 
     internal override bool hasNotNullConstraint => false;
 

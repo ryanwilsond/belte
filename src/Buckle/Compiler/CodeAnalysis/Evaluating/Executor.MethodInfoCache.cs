@@ -32,5 +32,6 @@ internal sealed partial class Executor {
         internal static ConstructorInfo ValueTuple_T6_ctor = typeof(ValueTuple<,,,,,>).GetConstructors().Single();
         internal static ConstructorInfo ValueTuple_T7_ctor = typeof(ValueTuple<,,,,,>).GetConstructors().Single();
         internal static ConstructorInfo ValueTuple_TRest_ctor = typeof(ValueTuple<,,,,,,>).GetConstructors().Single();
+        internal static MethodInfo Array_Empty = typeof(Array).GetMethod("Empty", Type.EmptyTypes);
     }
 }

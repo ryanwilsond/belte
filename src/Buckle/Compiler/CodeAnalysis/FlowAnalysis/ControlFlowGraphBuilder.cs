@@ -1,9 +1,11 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Libraries;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.FlowAnalysis;
 
@@ -11,6 +13,10 @@ namespace Buckle.CodeAnalysis.FlowAnalysis;
 /// Builds a <see cref="ControlFlowGraph" /> from BasicBlocks and BasicBlockBranches.
 /// </summary>
 internal sealed partial class ControlFlowGraphBuilder {
+    private readonly Dictionary<Symbol, int> _slotMap;
+    private readonly ArrayBuilder<Symbol> _symbolsBySlot;
+    private readonly MethodSymbol _method;
+
     private readonly Dictionary<BoundStatement, BasicBlock> _blockFromStatement = [];
     private readonly Dictionary<LabelSymbol, BasicBlock> _blockFromLabel = [];
     private readonly List<ControlFlowBranch> _branches = [];
@@ -18,6 +24,15 @@ internal sealed partial class ControlFlowGraphBuilder {
     private readonly BasicBlock _end = new BasicBlock(false);
     private List<BasicBlock> _blocks = [];
     private readonly Dictionary<BasicBlock, List<TryRegion>> _regionsByBlock = [];
+
+    internal ControlFlowGraphBuilder(
+        MethodSymbol method,
+        Dictionary<Symbol, int> slotMap,
+        ArrayBuilder<Symbol> symbolsBySlot) {
+        _slotMap = slotMap;
+        _symbolsBySlot = symbolsBySlot;
+        _method = method;
+    }
 
     internal ControlFlowGraph Build(List<BasicBlock> blocks, List<TryRegion> regions) {
         _blocks = blocks;
@@ -65,11 +80,24 @@ internal sealed partial class ControlFlowGraphBuilder {
                             var thenBlock = _blockFromLabel[cgs.label];
                             var elseBlock = next;
                             var negatedCondition = Negate(cgs.condition);
-                            var thenCondition = cgs.jumpIfTrue ? cgs.condition : negatedCondition;
-                            var elseCondition = cgs.jumpIfTrue ? negatedCondition : cgs.condition;
+                            var negated = !cgs.jumpIfTrue;
 
-                            Connect(current, thenBlock, thenCondition);
-                            Connect(current, elseBlock, elseCondition);
+                            var thenCondition = negated ? negatedCondition : cgs.condition;
+                            var elseCondition = negated ? cgs.condition : negatedCondition;
+
+                            Connect(
+                                current,
+                                thenBlock,
+                                thenCondition,
+                                negated ? cgs.assignedOnFallthrough : cgs.assignedOnJump
+                            );
+
+                            Connect(
+                                current,
+                                elseBlock,
+                                elseCondition,
+                                negated ? cgs.assignedOnJump : cgs.assignedOnFallthrough
+                            );
                         }
 
                         break;
@@ -133,7 +161,7 @@ again:
         blocks.Insert(0, _start);
         blocks.Add(_end);
 
-        return new ControlFlowGraph(_start, _end, blocks, _branches);
+        return new ControlFlowGraph(_start, _end, blocks, _branches, _slotMap, _symbolsBySlot, _method);
     }
 
     private void AddThrowEdges(BasicBlock block) {
@@ -196,7 +224,11 @@ again:
             || (statement is BoundExpressionStatement es && es.expression is BoundThrowExpression);
     }
 
-    private void Connect(BasicBlock from, BasicBlock to, BoundExpression condition = null) {
+    private void Connect(
+        BasicBlock from,
+        BasicBlock to,
+        BoundExpression condition = null,
+        ImmutableArray<DataContainerSymbol> assignedOnJump = default) {
         if (ConstantValue.IsNull(condition?.constantValue))
             return;
 
@@ -209,7 +241,7 @@ again:
                 return;
         }
 
-        ConnectDirect(from, to, condition);
+        ConnectDirect(from, to, condition, assignedOnJump);
     }
 
     private List<TryRegion> GetActiveRegions(BasicBlock block) {
@@ -246,7 +278,11 @@ again:
         return fromRegions.Contains(region) && !toRegions.Contains(region);
     }
 
-    private void ConnectDirect(BasicBlock from, BasicBlock to, BoundExpression condition = null) {
+    private void ConnectDirect(
+        BasicBlock from,
+        BasicBlock to,
+        BoundExpression condition = null,
+        ImmutableArray<DataContainerSymbol> assignedOnJump = default) {
         if (ConstantValue.IsNull(condition?.constantValue))
             return;
 
@@ -259,10 +295,23 @@ again:
                 return;
         }
 
-        var branch = new ControlFlowBranch(from, to, condition);
+        var flowState = CreateFlowState(assignedOnJump);
+
+        var branch = new ControlFlowBranch(from, to, condition, flowState);
 
         from.outgoing.Add(branch);
         to.incoming.Add(branch);
         _branches.Add(branch);
+    }
+
+    private FlowState CreateFlowState(ImmutableArray<DataContainerSymbol> assigned) {
+        var bitVector = BitVector.Create(_symbolsBySlot.Count);
+
+        if (assigned != default) {
+            foreach (var local in assigned)
+                bitVector[_slotMap[local]] = true;
+        }
+
+        return new FlowState() { assigned = bitVector };
     }
 }

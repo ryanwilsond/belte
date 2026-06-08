@@ -38,6 +38,12 @@ internal sealed class EmbeddedStatementBinder : LocalScopeBinder {
         return labels?.ToImmutableAndFree() ?? [];
     }
 
+    private protected override ImmutableArray<TokenSymbol> BuildTokens() {
+        ArrayBuilder<TokenSymbol> tokens = null;
+        BuildTokens(this, _statement, ref tokens);
+        return (tokens is not null) ? tokens.ToImmutableAndFree() : [];
+    }
+
     internal override ImmutableArray<DataContainerSymbol> GetDeclaredLocalsForScope(SyntaxNode scopeDesignator) {
         if (this.scopeDesignator == scopeDesignator)
             return locals;
@@ -48,6 +54,13 @@ internal sealed class EmbeddedStatementBinder : LocalScopeBinder {
     internal override ImmutableArray<LocalFunctionSymbol> GetDeclaredLocalFunctionsForScope(BelteSyntaxNode scopeDesignator) {
         if (this.scopeDesignator == scopeDesignator)
             return localFunctions;
+
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    internal override ImmutableArray<TokenSymbol> GetDeclaredTokensForScope(SyntaxNode scopeDesignator) {
+        if (this.scopeDesignator == scopeDesignator)
+            return tokens;
 
         throw ExceptionUtilities.Unreachable();
     }

@@ -1,4 +1,5 @@
 using Buckle.CodeAnalysis.Binding;
+using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -106,9 +107,13 @@ internal abstract class FieldSymbol : Symbol, IFieldSymbol {
 
     internal sealed override bool isExtern => false;
 
+    internal virtual bool isLowLevel => false;
+
     internal virtual bool isCapturedFrame => false;
 
     internal bool isMetadataConstant => isConstExpr;
+
+    internal virtual BelteDiagnostic definiteAssignmentError => null;
 
     internal abstract ConstantValue GetConstantValue(ConstantFieldsInProgress inProgress);
 

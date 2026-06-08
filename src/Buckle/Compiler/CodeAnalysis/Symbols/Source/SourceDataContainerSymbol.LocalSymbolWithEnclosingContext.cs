@@ -19,14 +19,16 @@ internal partial class SourceDataContainerSymbol {
             SyntaxToken identifierToken,
             SyntaxTokenList modifiers,
             SyntaxNode nodeToBind,
-            SyntaxNode forbiddenZone)
+            SyntaxNode forbiddenZone,
+            DataContainerDeclarationKind? kind = null)
             : base(
                 containingSymbol,
                 scopeBinder,
                 allowRefKind: false,
                 typeSyntax,
                 identifierToken,
-                modifiers) {
+                modifiers,
+                kind) {
             _nodeBinder = nodeBinder;
             _nodeToBind = nodeToBind;
             this.forbiddenZone = forbiddenZone;

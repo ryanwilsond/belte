@@ -30,6 +30,8 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
 
     public abstract bool isObjectType { get; }
 
+    public virtual bool hasDefault => HasDefaultValue();
+
     public virtual SpecialType specialType => SpecialType.None;
 
     internal new TypeSymbol originalDefinition => _originalTypeSymbolDefinition;
@@ -43,6 +45,8 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
     internal abstract bool isRefLikeType { get; }
 
     internal virtual bool isTupleType => false;
+
+    internal virtual bool hasStructDefault => IsStructType();
 
     internal virtual ImmutableArray<string> tupleElementNames => [];
 
@@ -139,15 +143,14 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
     }
 
     internal bool HasDefaultValue() {
-        if (this.IsNullableType() || LiteralUtilities.TypeHasDefaultValue(specialType) || IsStructType())
+        if (this.IsNullableType() || LiteralUtilities.TypeHasDefaultValue(specialType))
             return true;
 
-        if (this is TemplateParameterSymbol t) {
-            if (t.hasNotNullConstraint)
-                return false;
-
+        if (IsStructType() && hasStructDefault)
             return true;
-        }
+
+        if (this is TemplateParameterSymbol t)
+            return t.hasDefault;
 
         if (IsEnumType())
             return this.GetEnumUnderlyingType().HasDefaultValue();

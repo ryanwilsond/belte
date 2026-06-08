@@ -103,6 +103,13 @@ internal sealed class NullBindingBinder : LocalScopeBinder {
         throw ExceptionUtilities.Unreachable();
     }
 
+    internal override ImmutableArray<TokenSymbol> GetDeclaredTokensForScope(SyntaxNode scopeDesignator) {
+        if (_syntax == scopeDesignator)
+            return tokens;
+
+        throw ExceptionUtilities.Unreachable();
+    }
+
     internal override ImmutableArray<LocalFunctionSymbol> GetDeclaredLocalFunctionsForScope(
         BelteSyntaxNode scopeDesignator) {
         throw ExceptionUtilities.Unreachable();

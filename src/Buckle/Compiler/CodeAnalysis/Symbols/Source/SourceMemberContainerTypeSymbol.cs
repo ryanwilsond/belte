@@ -64,6 +64,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     private ImmutableArray<Symbol> _lazyMembersFlattened;
     private ThreeState _lazyAnyMemberHasAttributes;
     private int _lazyKnownCircularStruct;
+    private int _lazyHasStructDefault;
 
     private bool _fieldDefinitionsNoted;
 
@@ -131,7 +132,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
     internal sealed override NamedTypeSymbol constructedFrom => this;
 
-    internal bool isLowLevel => HasFlag(DeclarationModifiers.LowLevel);
+    internal override bool isLowLevel => HasFlag(DeclarationModifiers.LowLevel) || containingType?.isLowLevel == true;
 
     internal override Symbol containingSymbol { get; }
 
@@ -180,7 +181,11 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         get {
             if (_lazyKnownCircularStruct == (int)ThreeState.Unknown) {
                 if (typeKind != TypeKind.Struct) {
-                    Interlocked.CompareExchange(ref _lazyKnownCircularStruct, (int)ThreeState.False, (int)ThreeState.Unknown);
+                    Interlocked.CompareExchange(
+                        ref _lazyKnownCircularStruct,
+                        (int)ThreeState.False,
+                        (int)ThreeState.Unknown
+                    );
                 } else {
                     var diagnostics = BelteDiagnosticQueue.GetInstance();
                     var value = (int)CheckStructCircularity(diagnostics).ToThreeState();
@@ -195,6 +200,25 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             }
 
             return _lazyKnownCircularStruct == (int)ThreeState.True;
+        }
+    }
+
+    internal override bool hasStructDefault {
+        get {
+            if (_lazyHasStructDefault == (int)ThreeState.Unknown) {
+                if (typeKind != TypeKind.Struct) {
+                    Interlocked.CompareExchange(
+                        ref _lazyHasStructDefault,
+                        (int)ThreeState.False,
+                        (int)ThreeState.Unknown
+                    );
+                } else {
+                    var value = (int)CheckHasStructDefault().ToThreeState();
+                    Interlocked.CompareExchange(ref _lazyHasStructDefault, value, (int)ThreeState.Unknown);
+                }
+            }
+
+            return _lazyHasStructDefault == (int)ThreeState.True;
         }
     }
 
@@ -1660,6 +1684,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                         if (method.isReversible)
                             builder.nonTypeMembers.Add(method.reverseMethod);
+
+                        if (method.hasReversalState)
+                            builder.nonTypeMembers.Add(method.stateMethod);
                     }
 
                     break;
@@ -1931,7 +1958,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         if (!hasStaticConstructor && HasNonConstExprInitializer(declaredMembersAndInitializers.staticInitializers))
             builder.AddNonTypeMember(new SynthesizedStaticConstructor(this), declaredMembersAndInitializers);
 
-        if ((!hasParameterlessConstructor && IsStructType()) || (!hasConstructor && !isStatic))
+        // TODO Do we want to have structs a parameterless constructor always?
+        // if ((!hasParameterlessConstructor && IsStructType()) || (!hasConstructor && !isStatic))
+        if (!hasConstructor && !isStatic)
             builder.AddNonTypeMember(new SynthesizedInstanceConstructorSymbol(this), declaredMembersAndInitializers);
 
         static bool HasNonConstExprInitializer(ImmutableArray<ImmutableArray<FieldInitializer>> initializers) {
@@ -2270,7 +2299,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 if (field.isStatic)
                     continue;
 
-                var type = field.NonPointerType();
+                var type = field.NonPointerType()?.StrippedType();
 
                 if ((type is not null) &&
                     (type.typeKind == TypeKind.Struct) &&

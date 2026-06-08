@@ -181,8 +181,8 @@ public sealed class IssueTests {
                 public int? num;
             }
 
-            var x = new A();
-            x.num = 3;
+            var? x = new A();
+            x?.num = 3;
             x = null;
             return x?.num;
         ";
@@ -943,7 +943,7 @@ public sealed class IssueTests {
                 }
             }
 
-            var myA = new A<string>();
+            var myA = new A<string?>();
             var c = 6 + (3 + myA);
         ";
 
@@ -955,7 +955,7 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_Structs_InitializesProperly() {
         var text = @"
-            lowlevel struct A<type T> {
+            lowlevel struct A<type T> where { T has default; } {
                 T a;
             }
 
@@ -1207,7 +1207,7 @@ public sealed class IssueTests {
             using static A;
 
             class A {
-                public int a;
+                public int a = default;
             }
 
             using B = A;

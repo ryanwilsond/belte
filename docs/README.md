@@ -67,10 +67,11 @@
     - [2.6](Current/ControlFlow.md#26-exceptions-and-handling) Exceptions and Handling
       - [2.6.1](Current/ControlFlow.md#261-trycatchfinally) Try/Catch/Finally
     - [2.7](Current/ControlFlow.md#27-with-expressions-and-statements) With Expressions and Statements
-      - [2.7.1](Current/ControlFlow.md#271-reverse-methods) Reverse Methods
+      - [2.7.1](Current/ControlFlow.md#271-commit-statements) Commit Statements
     - [2.8](Current/ControlFlow.md#28-defer-statements) Defer Statements
     - [2.9](Current/ControlFlow.md#29-scoped-statements) Scoped Statements
     - [2.10](Current/ControlFlow.md#210-unreachable-statements) Unreachable Statements
+    - [2.11](Current/ControlFlow.md#211-reverse-statements) Reverse Statements
   - [3](Current/Data.md) Data
     - [3.1](Current/Data.md#31-data-types) Data Types
       - [3.1.1](Current/Data.md#311-casts) Casts
@@ -111,6 +112,7 @@
     - [4.2](Current/ClassesAndObjects.md#42-members) Members
       - [4.2.1](Current/ClassesAndObjects.md#421-fields) Fields
       - [4.2.2](Current/ClassesAndObjects.md#422-methods) Methods
+        - [4.2.2.1](Current/ClassesAndObjects.md#4221-state-and-reverse-clauses) State and Reverse Clauses
       - [4.2.3](Current/ClassesAndObjects.md#423-operators) Operators
         - [4.2.3.1](Current/ClassesAndObjects.md#4231-operator-overloading) Operator Overloading
         - [4.2.3.2](Current/ClassesAndObjects.md#4232-casts) Casts
@@ -180,6 +182,8 @@
       - [6.13.1](Current/LowLevelFeatures.md#6131-messages) Messages
       - [6.13.2](Current/LowLevelFeatures.md#6132-ordering) Ordering
     - [6.14](Current/LowLevelFeatures.md#614-c-strings) C-Strings
+    - [6.15](Current/LowLevelFeatures.md#615-fields) Fields
+    - [6.16](Current/LowLevelFeatures.md#616-default-literal) Default Literal
   - [7](Current/Preprocessor.md) Preprocessor Directives
     - [7.1](Current/Preprocessor.md#71-defineundef) Define/Undef
     - [7.2](Current/Preprocessor.md#72-control) Control

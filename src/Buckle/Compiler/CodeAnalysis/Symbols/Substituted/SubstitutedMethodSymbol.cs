@@ -13,6 +13,7 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
     private TypeWithAnnotations _lazyReturnType;
     private ImmutableArray<ParameterSymbol> _lazyParameters;
     private MethodSymbol _lazyReverseMethod;
+    private MethodSymbol _lazyStateMethod;
     private TemplateMap _lazyMap;
     private ImmutableArray<TemplateParameterSymbol> _lazyTemplateParameters;
 
@@ -116,6 +117,17 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
             }
 
             return _lazyReverseMethod;
+        }
+    }
+
+    internal override MethodSymbol stateMethod {
+        get {
+            if (hasReversalState && _lazyStateMethod is null) {
+                var stateMethod = originalDefinition.stateMethod.AsMember(containingType);
+                Interlocked.CompareExchange(ref _lazyStateMethod, stateMethod, null);
+            }
+
+            return _lazyStateMethod;
         }
     }
 

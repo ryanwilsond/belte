@@ -31,10 +31,11 @@
 - [2.6](#26-exceptions-and-handling) Exceptions and Handling
   - [2.6.1](#261-trycatchfinally) Try/Catch/Finally
 - [2.7](#27-with-expressions-and-statements) With Expressions and Statements
-  - [2.7.1](#271-reverse-methods) Reverse Methods
+  - [2.7.1](#271-commit-statements) Commit Statements
 - [2.8](#28-defer-statements) Defer Statements
 - [2.9](#29-scoped-statements) Scoped Statements
 - [2.10](#210-unreachable-statements) Unreachable Statements
+- [2.11](#211-reverse-statements) Reverse Statements
 
 ## 2.1 Functions
 
@@ -828,67 +829,18 @@ return with (a = 5) with (b = 10) with (c = 0) SomeMethod();
 
 Using a single `with` where possible is preferred as the compiler can optimize it better.
 
-### 2.7.1 Reverse Methods
+Apart from assignments,
+[user-defined reversal methods can be defined](ClassesAndObjects.md#4221-state-and-reverse-clauses) to use `with` in
+more contexts.
 
-To define custom reversal logic for a with expression or statement, a reverse clause can be added to a method that runs
-at the end of the with.
+### 2.7.1 Commit Statements
 
-For example:
-
-```belte
-var stack = new Stack<int>();
-
-with (stack.Push(3)) {
-  // ...
-}
-
-public class Stack<type T> {
-  public void Push(T item) {
-    // ...
-  } reverse {
-    Pop();
-  }
-
-  public T Pop() {
-    // ...
-  }
-}
-```
-
-In the above example, the method `Stack<T>.Push(T)` defines a reverse clause that will run at the end of the above
-`with` statement.
-
-The reverse clause can optionally accept a single parameter that automatically passes the return value of the target
-method to communicate data between the two.
-
-For example:
+A `commit` statement can be used to avoid performing the reversal actions of the enclosing `with`:
 
 ```belte
-class A {
-  public int Func(int val) {
-    return val;
-  } reverse (p) {
-    // ...
-  }
-}
-
-var a = new A();
-
-with (a.Func(10)) {
-  // ...
-}
-```
-
-In the above example, the reverse clause will be executed with `p = 10`. The reverse parameter can also be explicitly
-typed to any type that the return type of the target method can implicitly cast to:
-
-```belte
-class A {
-  public int Func(int val) {
-    return val;
-  } reverse (decimal p) {
-    // ...
-  }
+with (a = 10) {
+  if (TrySomething())
+    commit; // If this is reached, 'a' will stay set to 10
 }
 ```
 
@@ -1126,3 +1078,43 @@ unreachable;
 This can be used when the compiler cannot prove a method always returns and errs.
 
 Note that because this turns into a [`throw`](#261-trycatchfinally), it will be caught by enclosing catch blocks.
+
+## 2.11 Reverse Statements
+
+A `reversible` expression creates a token that can be referenced later with a `reverse` statement.
+
+```belte
+var value = reversible Token: Method();
+```
+
+The `reversible` expression uses the format `reversible <token name>: <expression>` where the expression is a call to a
+[reversible method](ClassesAndObjects.md#4221-state-and-reverse-clauses). The expression results in the the return value
+of the method. The token can then be used to call the reverse clause of the method:
+
+```belte
+reverse Token;
+```
+
+For cases where the reverse clause is unconditionally called, a
+[`with` statement or expression](#27-with-expressions-and-statements) should be used instead as it doesn't require
+managing a token. Managing a token is required to conditionally reverse a method:
+
+```belte
+if (reversible T: TrySomeOperation()) {
+  // ...
+} else {
+  reverse T;
+}
+
+```
+
+A `reverse defer` statement can be used to avoid naming a token. The following are equivalent:
+
+```belte
+reversible T: Method();
+defer reverse T;
+```
+
+```belte
+reverse defer Method();
+```

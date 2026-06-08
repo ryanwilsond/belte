@@ -344,7 +344,12 @@ internal sealed class Expander : SharedExpander {
                 statements.Add(LocalDeclaration(
                     d.syntax,
                     d.dataContainer,
-                    new BoundDefaultExpression(d.syntax, null, LiteralUtilities.TryGetDefaultValue(d.type), d.type)
+                    new BoundDefaultExpression(d.syntax,
+                        false,
+                        null,
+                        LiteralUtilities.TryGetDefaultValue(d.type),
+                        d.type
+                    )
                 ));
 
                 replacementExpressions.Add(expression);
@@ -355,7 +360,12 @@ internal sealed class Expander : SharedExpander {
 
                 statements.Add(LocalDeclaration(syntax,
                     temp,
-                    new BoundDefaultExpression(syntax, null, LiteralUtilities.TryGetDefaultValue(type), type)
+                    new BoundDefaultExpression(syntax,
+                        false,
+                        null,
+                        LiteralUtilities.TryGetDefaultValue(type),
+                        type
+                    )
                 ));
 
                 replacementExpressions.Add(Local(syntax, temp));
@@ -790,8 +800,8 @@ internal sealed class Expander : SharedExpander {
 
         ---->
 
-        result = <left>
-        goto break if result == false
+        result = false
+        goto break if <left> == false
         result = <right>
         break:
         result
@@ -799,8 +809,6 @@ internal sealed class Expander : SharedExpander {
         */
         var syntax = expression.syntax;
         var boolType = CorLibrary.GetSpecialType(SpecialType.Bool);
-
-        // TODO There is probably potential for short cutting if left and right are "simple" (e.g. `a && b`)
 
         if (expression.left.Type().IsNullableType() && expression.right.Type().IsNullableType()) {
             var statements = ExpandExpression(expression.left, out var newLeft, UseKind.StableValue);
@@ -897,7 +905,7 @@ internal sealed class Expander : SharedExpander {
             var statements = ExpandExpression(expression.left, out var newLeft);
             var temp = GenerateTempLocal(boolType);
             var breakLabel = GenerateLabel();
-            statements.Add(LocalDeclaration(syntax, temp, newLeft));
+            statements.Add(LocalDeclaration(syntax, temp, Literal(syntax, false, boolType)));
             statements.Add(GotoIf(syntax, breakLabel,
                 Binary(syntax,
                     newLeft,
@@ -1023,7 +1031,8 @@ internal sealed class Expander : SharedExpander {
                     false,
                     null,
                     expression.type
-                )
+                ),
+                assignedOnFallthrough: [temp]
             ));
             statements.AddRange(ExpandExpression(CreateCast(syntax, local.type, newOperand), out var cast));
             statements.Add(LocalDeclaration(syntax, local, cast));
@@ -1367,6 +1376,7 @@ internal sealed class Expander : SharedExpander {
         if (expression.conversion.kind == ConversionKind.DefaultLiteral) {
             replacement = new BoundDefaultExpression(
                 syntax,
+                false,
                 null,
                 LiteralUtilities.TryGetDefaultValue(expression.type),
                 expression.type
@@ -1557,7 +1567,11 @@ internal sealed class Expander : SharedExpander {
         out BoundExpression replacement,
         UseKind useKind) {
         var statements = base.ExpandNullAssertOperator(expression, out replacement, UseKind.Value);
-        return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
+
+        if (useKind == UseKind.Writable)
+            return statements;
+        else
+            return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
     }
 
     private protected override List<BoundStatement> ExpandAddressOfOperator(
@@ -1872,6 +1886,16 @@ internal sealed class Expander : SharedExpander {
                 c.defaultArguments,
                 c.resultKind,
                 c.Type()
+            );
+        } else if (access is BoundIndexerAccessExpression i) {
+            statements.AddRange(ExpandExpression(i.index, out var indexReplacement));
+            trueExpression = new BoundIndexerAccessExpression(
+                syntax,
+                newReceiver,
+                indexReplacement,
+                i.method,
+                null,
+                i.Type()
             );
         } else {
             throw ExceptionUtilities.Unreachable();

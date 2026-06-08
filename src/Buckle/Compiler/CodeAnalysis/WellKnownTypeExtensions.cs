@@ -21,6 +21,7 @@ internal static class WellKnownTypeExtensions {
         "Rect",
         "Texture",
         "Sound",
+        "Array`1",
     ];
 
     internal static bool ShouldEmit(this WellKnownType wellKnownType, bool includeGraphicsTypes) {
@@ -29,6 +30,7 @@ internal static class WellKnownTypeExtensions {
             case WellKnownType.List:
             case WellKnownType.Dictionary:
             case WellKnownType.Enumerator:
+            case WellKnownType.Array:
                 return true;
             case WellKnownType.Vec2 when includeGraphicsTypes:
             case WellKnownType.Sprite when includeGraphicsTypes:

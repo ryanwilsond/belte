@@ -612,6 +612,9 @@ internal static partial class ConstraintsHelpers {
             return false;
         }
 
+        if (templateParameter.hasDefaultConstraint && !templateArgument.type.type.HasDefaultValue())
+            return false;
+
         return true;
     }
 

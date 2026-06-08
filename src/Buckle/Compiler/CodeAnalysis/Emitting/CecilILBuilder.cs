@@ -433,6 +433,10 @@ internal sealed partial class CecilILBuilder : ILBuilder {
         iLProcessor.Emit(OpCodes.Call, _module.GetSort(elementType));
     }
 
+    internal override void EmitFill(TypeSymbol elementType) {
+        iLProcessor.Emit(OpCodes.Call, _module.GetFill(elementType));
+    }
+
     internal override void EmitLength(TypeSymbol elementType) {
         iLProcessor.Emit(OpCodes.Call, _module.GetLength(elementType));
     }
@@ -593,6 +597,10 @@ internal sealed partial class CecilILBuilder : ILBuilder {
 
     internal override void EmitArraySet(ArrayTypeSymbol type) {
         throw new NotImplementedException();
+    }
+
+    internal override void EmitEmptyArray(TypeSymbol elementType) {
+        iLProcessor.Emit(OpCodes.Call, _module.GetArrayEmpty(elementType));
     }
 
     internal override void EmitToString(CodeGeneration.OpCode opCode) {

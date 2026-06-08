@@ -15,8 +15,8 @@ internal sealed class CorLibrary {
     private static readonly CorLibrary Instance = new CorLibrary();
 
     private const int TotalSpecialTypes = (int)SpecialType.TypedReference;
-    private const int TotalWellKnownMembers = (int)WellKnownMember.ValueTuple_TRest_ctor;
-    private const int TotalWellKnownTypes = (int)WellKnownType.Sound;
+    private const int TotalWellKnownMembers = (int)WellKnownMember.Array_Set;
+    private const int TotalWellKnownTypes = (int)WellKnownType.Array;
 
     private readonly ConcurrentDictionary<SpecialType, NamedTypeSymbol> _specialTypes = [];
     private readonly ConcurrentDictionary<WellKnownMember, Symbol> _wellKnownMembers = [];
@@ -290,7 +290,28 @@ internal sealed class CorLibrary {
                 LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_TRest));
             }
 
+            if (_wellKnownTypes.ContainsKey(WellKnownType.Array)) {
+                var type = GetWellKnownType(WellKnownType.Array);
+                RegisterWellKnownMember(WellKnownMember.Array_ctor_1, type.instanceConstructors[0]);
+                RegisterWellKnownMember(WellKnownMember.Array_ctor_2, type.instanceConstructors[1]);
+                RegisterWellKnownMember(WellKnownMember.Array_Get, type.GetMembers("Get")[0]);
+                RegisterWellKnownMember(WellKnownMember.Array_Set, type.GetMembers("Set")[0]);
+            }
+
             _lazyComplete = true;
+        }
+
+        void LazyWellKnownTupleMembers(NamedTypeSymbol type) {
+            var arity = type.arity;
+
+            RegisterWellKnownMember(NamedTypeSymbol.GetTupleCtor(arity), type.instanceConstructors[0]);
+
+            for (var i = 0; i < arity; i++) {
+                RegisterWellKnownMember(
+                    NamedTypeSymbol.GetTupleTypeMember(arity, i + 1),
+                    type.GetMembers(i < 7 ? $"Item{i + 1}" : "Rest")[0]
+                );
+            }
         }
     }
 
@@ -318,19 +339,6 @@ internal sealed class CorLibrary {
 
         if (_registeredWellKnownTypes > TotalWellKnownTypes)
             throw new UnreachableException($"Registered more well known types than there are well known types");
-    }
-
-    private void LazyWellKnownTupleMembers(NamedTypeSymbol type) {
-        var arity = type.arity;
-
-        RegisterWellKnownMember(NamedTypeSymbol.GetTupleCtor(arity), type.instanceConstructors[0]);
-
-        for (var i = 0; i < arity; i++) {
-            RegisterWellKnownMember(
-                NamedTypeSymbol.GetTupleTypeMember(arity, i + 1),
-                type.GetMembers(i < 7 ? $"Item{i + 1}" : "Rest")[0]
-            );
-        }
     }
 
     #endregion

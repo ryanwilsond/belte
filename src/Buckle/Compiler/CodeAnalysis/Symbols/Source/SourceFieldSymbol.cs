@@ -37,5 +37,7 @@ internal abstract class SourceFieldSymbol : FieldSymbolWithModifiers {
             diagnostics.Push(Error.ConflictingModifiers(location, "const", "final"));
         else if (isFinal && isConstExpr)
             diagnostics.Push(Error.ConflictingModifiers(location, "final", "constexpr"));
+        else if (!containingType.isLowLevel && isLowLevel)
+            diagnostics.Push(Error.LowLevelFieldInNonLowLevelType(errorLocation));
     }
 }

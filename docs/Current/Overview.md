@@ -19,6 +19,7 @@ Currently, the Belte compiler, Buckle, supports interpretation and building to a
   - [1.4.4](#144-fields) Fields
   - [1.4.5](#145-implicit-typing) Implicit Typing
   - [1.4.6](#146-null-flow-analysis) Null-Flow Analysis
+  - [1.4.7](#147-arrays) Arrays
 - [1.5](#15-differences-from-c) Differences from C#
 
 ## 1.1 Conventions
@@ -95,21 +96,23 @@ These keywords are reserved names and cannot be used as identifiers.
 - [case](ControlFlow.md#25-switch)
 - [catch](ControlFlow.md#261-trycatchfinally)
 - [class](ClassesAndObjects.md#41-classes)
-- [const](Data.md#331-modifiers) (data containers)
-- [const](ClassesAndObjects.md#434-const) (methods)
-- [constexpr](Data.md#331-modifiers) (locals and parameters)
-- [constexpr](ClassesAndObjects.md#433-static-and-constexpr) (fields)
+- [commit](ControlFlow.md#271-commit-statements)
+- [const](Data.md#331-modifiers) (data container modifier)
+- [const](ClassesAndObjects.md#434-const) (method modifier)
+- [constexpr](Data.md#331-modifiers) (local and parameter modifier)
+- [constexpr](ClassesAndObjects.md#433-static-and-constexpr) (field modifier)
 - [constructor](ClassesAndObjects.md#44-constructors-and-finalizers)
 - [continue](ControlFlow.md#246-continue)
 - [default](Data.md#314-default-literal) (literal)
 - [default](ControlFlow.md#25-switch) (switch label)
-- [defer](ControlFlow.md#28-defer-statements)
+- [defer](ControlFlow.md#28-defer-statements) (defer)
+- [defer](ControlFlow.md#211-reverse-statements) (reverse defer)
 - [destructor](ControlFlow.md#291-destructors)
 - [do](ControlFlow.md#242-do-while-loops)
 - [else](ControlFlow.md#23-conditionals)
 - [enum](ClassesAndObjects.md#46-enums)
 - [extends](ClassesAndObjects.md#412-inheritance) (inheritance)
-- [extends](ClassesAndObjects.md#4512-special-constraints) (template constraints)
+- [extends](ClassesAndObjects.md#4512-special-constraints) (template constraint)
 - [extern](LowLevelFeatures.md#67-extern-methods)
 - [false](Data.md#31-data-types)
 - [final](Data.md#331-modifiers)
@@ -126,7 +129,9 @@ These keywords are reserved names and cannot be used as identifiers.
 - [in](ControlFlow.md#244-for-each-loops)
 - [is](Data.md#32-operators)
 - [isnt](Data.md#32-operators)
-- [lowlevel](LowLevelFeatures.md#61-low-level-contexts)
+- [lowlevel](LowLevelFeatures.md#61-low-level-contexts) (scope modifier)
+- [lowlevel](LowLevelFeatures.md#615-fields) (field modifier)
+- [lowlevel](LowLevelFeatures.md#616-default-literal) (lowlevel default literal)
 - [nameof](Data.md#32-operators)
 - [namespace](ClassesAndObjects.md#47-namespaces)
 - [new](ClassesAndObjects.md#411-declaring-and-using-classes) (instantiation)
@@ -141,9 +146,12 @@ These keywords are reserved names and cannot be used as identifiers.
 - [public](ClassesAndObjects.md#431-accessibility-modifiers)
 - [ref](Data.md#35-references)
 - [return](ControlFlow.md#21-functions)
+- [reverse](ClassesAndObjects.md#4221-state-and-reverse-clauses) (method clause)
+- [reverse](ControlFlow.md#211-reverse-statements) (statement)
+- [reversible](ControlFlow.md#211-reverse-statements)
 - [scoped](ControlFlow.md#29-scoped-statements)
-- [sealed](ClassesAndObjects.md#435-sealed-and-abstract) (classes)
-- [sealed](ClassesAndObjects.md#432-overriding-modifiers) (members)
+- [sealed](ClassesAndObjects.md#435-sealed-and-abstract) (class modifier)
+- [sealed](ClassesAndObjects.md#432-overriding-modifiers) (member modifier)
 - [sizeof](LowLevelFeatures.md#69-sizeof-operator)
 - [stackalloc](LowLevelFeatures.md#610-stackalloc-operator)
 - [static](ClassesAndObjects.md#433-static-and-constexpr) (modifier)
@@ -172,8 +180,10 @@ These keywords only act as keywords inside specific contexts. As such they can b
 - [explicit](ClassesAndObjects.md#4232-casts)
 - [flags](ClassesAndObjects.md#461-flags)
 - [handle](LowLevelFeatures.md#613-compiler-handle)
+- [has](ClassesAndObjects.md#4512-special-constraints)
 - [implicit](ClassesAndObjects.md#4232-casts) (user-defined conversions)
 - [implicit](ControlFlow.md#217-argument-coercion) (argument coercion)
+- [initializes](ClassesAndObjects.md#4211-definite-assignment)
 - [literal](ClassesAndObjects.md#4233-user-defined-literals)
 - [notnull](ClassesAndObjects.md#4512-special-constraints)
 - [noverify](LowLevelFeatures.md#6111-verification)
@@ -181,7 +191,7 @@ These keywords only act as keywords inside specific contexts. As such they can b
 - [operator](ControlFlow.md#244-for-each-loops) (for each operators)
 - [packed](LowLevelFeatures.md#621-packing)
 - [primitive](ClassesAndObjects.md#4512-special-constraints)
-- [reverse](ControlFlow.md#271-reverse-methods)
+- [state](ClassesAndObjects.md#4221-state-and-reverse-clauses)
 - [undef](Preprocessor.md#71-defineundef)
 
 ## 1.4 Nullability and Types
@@ -191,8 +201,7 @@ which is a consolidation of important nullability semantics found in the rest of
 
 To summarize:
 
-- Reference types (classes) are nullable by default
-- Value types (primitives, pointers, structs) are non-nullable by default
+- Types are non-nullable by default
 - `!` removes nullability
 - `?` adds nullability
 - Pointer types are never nullable
@@ -217,14 +226,14 @@ class MyClass {
 
 In this example, `a.i` is `5` because both `a` and `b` refer to the same object in memory.
 
-Reference types are nullable by default. To make it non-nullable, a `!` annotation can be used:
+Reference types are non-nullable by default. To make it nullable, a `?` annotation can be used:
 
 ```belte
 var a = new MyClass();
-a = null; // OK
-
-var! a = new MyClass();
 a = null; // Invalid
+
+var? a = new MyClass();
+a = null; // Okay
 ```
 
 Notice how nullable annotations apply normally even when implicitly typing. The following are identical:
@@ -234,10 +243,9 @@ MyClass! a = new MyClass();
 var! a = new MyClass();
 ```
 
-All non-reference types are non-nullable by default (this includes primitives, structs, and pointers). The only
-exception is the primitive `any` type which is nullable by default.
+Value types are also non-nullable by default (this includes primitives, structs, and pointers).
 
-To make a non-reference type nullable, a `?` annotation can be used:
+To make a non-reference type nullable, a `?` annotation can be used just like reference types:
 
 ```belte
 int a = 3;
@@ -256,15 +264,6 @@ are identical because `int` defaults to being non-nullable:
 int a = 3;
 int! a = 3;
 ```
-
-Likewise, the following are identical because class types default to being nullable:
-
-```belte
-MyClass a = new MyClass();
-MyClass? a = new MyClass();
-```
-
-Redundant annotations are encouraged in source docs for clarity.
 
 ### 1.4.2 Pointers and Function Pointers
 
@@ -305,36 +304,17 @@ int* ptr = nullptr;
 int* ptr;
 ```
 
-When implicitly typing, the inferred type is usually the direct type of the initializer. The following are identical:
+When implicitly typing, the inferred type is the direct type of the initializer. The following are identical:
 
 ```belte
 int a = 3;
 var a = 3;
 ```
 
-The exception to this is object creation expressions, which will automatically "lift", meaning that an implicit local
-with an initializer that is an object creation expression will default to being nullable. The following are identical:
-
-```belte
-MyClass a = new MyClass();
-MyClass? a = new MyClass();
-var a = new MyClass();
-var? a = new MyClass();
-```
-
-As the object creation itself is not nullable, they can be used for non-nullable reference types. The following are
-identical:
-
-```belte
-MyClass! a = new MyClass();
-var! a = new MyClass();
-```
-
 ### 1.4.4 Fields
 
-Unlike locals, non-nullable fields do not require an initializer and instead are set to a default value. Struct fields
-cannot have initializers at all. The default value of numeric types is `0`, for booleans `false`, and an empty string
-for strings.
+Unlike locals, non-nullable struct fields do not allow initializers and instead are set to a default value. The default
+value of numeric types is `0`, for booleans `false`, and an empty string for strings.
 
 An mentioned earlier, pointers and function pointers default to `nullptr`.
 
@@ -346,7 +326,7 @@ var b = a.str.num;
 // b equals 0
 
 class MyClass {
-  MyStruct str;
+  MyStruct str = default;
 }
 
 struct MyStruct {
@@ -354,10 +334,30 @@ struct MyStruct {
 }
 ```
 
+Class fields always require an initializer or definite assignment, which can be
+[read about here](ClassesAndObjects.md#4211-definite-assignment).
+
+Since structs set their fields to their default value, the default value of a struct is a struct where every field is
+set to it's default value. If a struct contains a field that has no default value, the struct also has no default value:
+
+```belte
+class A { }
+
+struct MyStruct {
+  A a;
+
+  constructor(A a) {
+    this.a = a;
+  }
+}
+
+MyStruct myStruct = default; // Invalid because type `A` has no default value
+```
+
 ### 1.4.5 Implicit Typing
 
-`var`, `const`, and `constexpr` can be used when defining a local indicating that their type should be inferred. The
-inferred type is usually the exact type of the initializer. The following are identical:
+`var`, `const`, `final`, and `constexpr` can be used when defining a local indicating that their type should be
+inferred. The inferred type is usually the exact type of the initializer. The following are identical:
 
 ```belte
 int a = 3;
@@ -373,8 +373,8 @@ var a = Func();
 int? Func() { /* ... */ }
 ```
 
-`var` means a normal local declaration. `const` and `constexpr` infer the type of a local with the respective modifiers.
-The following are identical:
+`var` means a normal local declaration. `const`, `final`, and `constexpr` infer the type of a local with the respective
+modifiers. The following are identical:
 
 ```belte
 const int a = 3;
@@ -382,12 +382,16 @@ const a = 3;
 
 constexpr int a = 3;
 constexpr a = 3;
+
+final int a = 3;
+final a = 3;
 ```
 
 `const` means the local cannot be assigned to or otherwise modified. `constexpr` means the value of the local is a
 compile-time constant that will be substituted at compile time. For classes, a `const` modifier means fields can only be
 read but not written to, and only methods marked `const` can be called. Class-types cannot use the `constexpr` modifier
-because they are not compile-time constants.
+because they are not compile-time constants. `final` means the local cannot be assigned to but can be modified. This
+means any class method can be called or array elements can be modified.
 
 ### 1.4.6 Null-Flow Analysis
 
@@ -441,6 +445,52 @@ if (a) {
 
 In this example, if `a` is null, a runtime exception is thrown at the if condition.
 
+### 1.4.7 Arrays
+
+Arrays initialize memory to the element type's default value:
+
+```belte
+var arr = new int[10];
+arr[0]; // 0
+```
+
+If the type has no default value (certain structs and non-nullable reference types), an `Array<T>` under the hood is
+used instead which tracks which elements have been initialized. Reading uninitialized elements throws a runtime error:
+
+```belte
+class A { }
+
+var arr = new A[10];
+arr[0]; // Throws
+```
+
+In [lowlevel contexts](LowLevelFeatures.md#63-arrays), arrays will always be "true" arrays meaning initialization is not
+tracked, potentially leading to nullability bleeding into non-nullable contexts. This is intended to be used for
+situations where the array initialization is tracked separately, such as when defining custom collection types. In a
+lowlevel context, the `Array<T>` type can still be used explicitly. The following are equivalent:
+
+```belte
+class A { }
+
+var arr = new A[10];
+```
+
+```belte
+class A { }
+
+lowlevel {
+  var arr = new Array<A>(10);
+}
+```
+
+The most common occurrence of these arrays are unconstrained template types:
+
+```belte
+class A<type T> {
+  T[] arr; // Array<T>
+}
+```
+
 ## 1.5 Differences from C\#
 
 Belte is similar enough to C# so that the differences are more notable than the similarities. The following is a list of
@@ -454,12 +504,15 @@ most of the differences to make it more clear where the language is unique with 
 - No properties
 - No extension methods (yet)
 - No array covariance
+- [Class fields have no default value](ClassesAndObjects.md#421-fields)
 - [`defer` statements](ControlFlow.md#28-defer-statements)
 - [`with` expressions and statements](ControlFlow.md#27-with-expressions-and-statements)
 - [Duck-typed `scoped` statements instead of `using` statements](ControlFlow.md#29-scoped-statements)
 - [`destructor` keyword](ControlFlow.md#291-destructors)
 - [User-defined literals](ClassesAndObjects.md#4233-user-defined-literals)
 - [File-scoped classes](ClassesAndObjects.md#411-declaring-and-using-classes)
+- [Reversible methods](ClassesAndObjects.md#4221-state-and-reverse-clauses)
+- [Reversible statements](ControlFlow.md#211-reverse-statements)
 - Primitive types (e.g. `int`) don't have members
 - [`constructor` and `finalizer` keywords](ClassesAndObjects.md#44-constructors-and-finalizers)
 - Types are not reserved names (including primitives)

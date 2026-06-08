@@ -34,4 +34,6 @@ internal enum WellKnownType : byte {
     Rect,
     Texture,
     Sound,
+
+    Array,
 }

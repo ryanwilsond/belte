@@ -69,9 +69,7 @@ public static partial class BuckleCommandLine {
         new DiagnosticInfo(0471, "BU"),
     ];
 
-    private static readonly DiagnosticInfo[] WarningLevel3 = [
-        new DiagnosticInfo(0002, "BU"),
-    ];
+    private static readonly DiagnosticInfo[] WarningLevel3 = [];
 
     /// <summary>
     /// Processes/decodes command-line arguments, and invokes <see cref="Compiler" />.

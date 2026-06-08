@@ -119,6 +119,10 @@ internal abstract partial class WithUsingNamespacesAndTypesBinder : Binder {
         return null;
     }
 
+    private protected override SourceTokenSymbol LookupToken(SyntaxToken identifier) {
+        return null;
+    }
+
     internal static WithUsingNamespacesAndTypesBinder Create(
         SourceNamespaceSymbol declaringSymbol,
         BelteSyntaxNode declarationSyntax,

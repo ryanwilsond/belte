@@ -14,9 +14,11 @@ internal class LocalScopeBinder : Binder {
     private ImmutableArray<DataContainerSymbol> _locals;
     private ImmutableArray<LocalFunctionSymbol> _localFunctions;
     private ImmutableArray<LabelSymbol> _labels;
+    private ImmutableArray<TokenSymbol> _tokens;
     private Dictionary<string, DataContainerSymbol> _lazyLocalsMap;
     private Dictionary<string, LocalFunctionSymbol> _lazyLocalFunctionsMap;
     private Dictionary<string, LabelSymbol> _lazyLabelsMap;
+    private Dictionary<string, TokenSymbol> _lazyTokensMap;
 
     internal LocalScopeBinder(Binder next) : this(next, next.flags) { }
 
@@ -61,6 +63,19 @@ internal class LocalScopeBinder : Binder {
         return [];
     }
 
+    internal sealed override ImmutableArray<TokenSymbol> tokens {
+        get {
+            if (_tokens.IsDefault)
+                ImmutableInterlocked.InterlockedCompareExchange(ref _tokens, BuildTokens(), default);
+
+            return _tokens;
+        }
+    }
+
+    private protected virtual ImmutableArray<TokenSymbol> BuildTokens() {
+        return [];
+    }
+
     private Dictionary<string, DataContainerSymbol> _localsMap {
         get {
             if (_lazyLocalsMap is null && locals.Length > 0)
@@ -88,6 +103,15 @@ internal class LocalScopeBinder : Binder {
         }
     }
 
+    private Dictionary<string, TokenSymbol> _tokensMap {
+        get {
+            if (_lazyTokensMap is null && tokens.Length > 0)
+                _lazyTokensMap = BuildMap(tokens);
+
+            return _lazyTokensMap;
+        }
+    }
+
     private static Dictionary<string, TSymbol> BuildMap<TSymbol>(ImmutableArray<TSymbol> array) where TSymbol : Symbol {
         var map = new Dictionary<string, TSymbol>();
 
@@ -99,7 +123,7 @@ internal class LocalScopeBinder : Binder {
         return map;
     }
 
-    protected ImmutableArray<DataContainerSymbol> BuildLocals(
+    private protected ImmutableArray<DataContainerSymbol> BuildLocals(
         SyntaxList<StatementSyntax> statements,
         Binder enclosingBinder) {
         var locals = ArrayBuilder<DataContainerSymbol>.GetInstance(DefaultLocalSymbolArrayCapacity);
@@ -163,7 +187,6 @@ internal class LocalScopeBinder : Binder {
             case SyntaxKind.NullBindingStatement:
             case SyntaxKind.ReturnStatement:
             case SyntaxKind.GotoStatement:
-            case SyntaxKind.ThrowExpression:
                 ExpressionVariableFinder.FindExpressionVariables(
                     this,
                     locals,
@@ -255,6 +278,78 @@ internal class LocalScopeBinder : Binder {
         StatementSyntax statement,
         ref ArrayBuilder<LabelSymbol> labels) { }
 
+    private protected void BuildTokens(
+        SyntaxList<StatementSyntax> statements,
+        Binder enclosingBinder,
+        ref ArrayBuilder<TokenSymbol> tokens) {
+        foreach (var statement in statements)
+            BuildTokens(enclosingBinder, statement, ref tokens);
+    }
+
+    internal void BuildTokens(
+        Binder enclosingBinder,
+        StatementSyntax statement,
+        ref ArrayBuilder<TokenSymbol> tokens) {
+        var innerStatement = statement;
+
+        switch (innerStatement.kind) {
+            case SyntaxKind.LocalDeclarationStatement: {
+                    var localDeclarationBinder = enclosingBinder.GetBinder(innerStatement) ?? enclosingBinder;
+                    var decl = (LocalDeclarationStatementSyntax)innerStatement;
+
+                    decl.declaration.type.VisitRankSpecifiers((rankSpecifier, args) => {
+                        FindTokensInRankSpecifier(rankSpecifier.size, args);
+                    }, (localScopeBinder: this, tokens, localDeclarationBinder));
+
+                    goto default;
+                }
+            case SyntaxKind.LocalFunctionStatement: {
+                    var localFunctionDeclarationBinder = enclosingBinder.GetBinder(innerStatement) ?? enclosingBinder;
+                    var decl = (LocalFunctionStatementSyntax)innerStatement;
+
+                    foreach (var parameter in decl.parameterList.parameters) {
+                        parameter.type?.VisitRankSpecifiers((rankSpecifier, args) => {
+                            FindTokensInRankSpecifier(rankSpecifier.size, args);
+                        }, (localScopeBinder: this, tokens, localDeclarationBinder: localFunctionDeclarationBinder));
+                    }
+
+                    if (decl.constraintClauseList is not null) {
+                        foreach (var constraintClause in decl.constraintClauseList.constraintClauses) {
+                            constraintClause.extendConstraint?.type.VisitRankSpecifiers((rankSpecifier, args) => {
+                                FindTokensInRankSpecifier(rankSpecifier.size, args);
+                            }, (
+                                localScopeBinder: this,
+                                tokens,
+                                localDeclarationBinder: localFunctionDeclarationBinder
+                            ));
+                        }
+                    }
+
+                    goto default;
+                }
+            default:
+                ExpressionTokenFinder.FindExpressionTokens(
+                    this,
+                    ref tokens,
+                    innerStatement,
+                    enclosingBinder.GetBinder(innerStatement) ?? enclosingBinder
+                );
+
+                break;
+        }
+
+        static void FindTokensInRankSpecifier(
+            ExpressionSyntax expression,
+            (LocalScopeBinder localScopeBinder, ArrayBuilder<TokenSymbol> tokens, Binder localDeclarationBinder) args) {
+            ExpressionTokenFinder.FindExpressionTokens(
+                args.localScopeBinder,
+                ref args.tokens,
+                expression,
+                args.localDeclarationBinder
+            );
+        }
+    }
+
     private protected override SourceDataContainerSymbol LookupLocal(SyntaxToken identifier) {
         if (_localsMap is not null && _localsMap.TryGetValue(identifier.text, out var result)) {
             if (result.identifierToken == identifier)
@@ -283,11 +378,28 @@ internal class LocalScopeBinder : Binder {
         return base.LookupLocalFunction(identifier);
     }
 
+    private protected override SourceTokenSymbol LookupToken(SyntaxToken identifier) {
+        if (_tokensMap is not null && _tokensMap.TryGetValue(identifier.text, out var result)) {
+            if (result.identifierToken == identifier)
+                return (SourceTokenSymbol)result;
+
+            foreach (var token in tokens) {
+                if (token.identifierToken == identifier)
+                    return (SourceTokenSymbol)token;
+            }
+        }
+
+        return base.LookupToken(identifier);
+    }
+
     internal virtual bool EnsureSingleDefinition(
         Symbol symbol,
         string name,
         TextLocation location,
         BelteDiagnosticQueue diagnostics) {
+        if (symbol.kind == SymbolKind.Token)
+            return EnsureSingleTokenDefinition(symbol, name, location, diagnostics);
+
         DataContainerSymbol existingLocal = null;
         LocalFunctionSymbol existingLocalFunction = null;
 
@@ -297,10 +409,30 @@ internal class LocalScopeBinder : Binder {
         if ((localsMap is not null && localsMap.TryGetValue(name, out existingLocal)) ||
             (localFunctionsMap is not null && localFunctionsMap.TryGetValue(name, out existingLocalFunction))) {
             var existingSymbol = (Symbol)existingLocal ?? existingLocalFunction;
+
             if (symbol == existingSymbol)
                 return false;
 
             return ReportConflictWithLocal(existingSymbol, symbol, name, location, diagnostics);
+        }
+
+        return false;
+    }
+
+    private bool EnsureSingleTokenDefinition(
+        Symbol symbol,
+        string name,
+        TextLocation location,
+        BelteDiagnosticQueue diagnostics) {
+        TokenSymbol existingToken = null;
+
+        var tokensMap = _tokensMap;
+
+        if (tokensMap is not null && tokensMap.TryGetValue(name, out existingToken)) {
+            if (symbol == existingToken)
+                return false;
+
+            return ReportConflictWithToken(existingToken, symbol, name, location, diagnostics);
         }
 
         return false;
@@ -339,6 +471,34 @@ internal class LocalScopeBinder : Binder {
 
         diagnostics.Push(Error.InternalError(newLocation));
         return false;
+    }
+
+    private bool ReportConflictWithToken(
+        Symbol local,
+        Symbol newSymbol,
+        string name,
+        TextLocation newLocation,
+        BelteDiagnosticQueue diagnostics) {
+        var declaredInThisScope = tokens.Contains((TokenSymbol)newSymbol);
+
+        if (declaredInThisScope && newLocation.span.start >= local.location.span.start) {
+            diagnostics.Push(Error.TokenAlreadyDeclared(newLocation, name));
+            return true;
+        }
+
+        diagnostics.Push(Error.InternalError(newLocation));
+        return false;
+    }
+
+    internal override TokenSymbol LookupTokenInSingleBinder(string name) {
+        var tokensMap = _tokensMap;
+
+        if (tokensMap is not null) {
+            if (tokensMap.TryGetValue(name, out var tokenSymbol))
+                return tokenSymbol;
+        }
+
+        return null;
     }
 
     internal override void LookupSymbolsInSingleBinder(

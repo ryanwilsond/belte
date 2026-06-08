@@ -802,18 +802,22 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private TemplateConstraintClauseSyntax ParseTemplateConstraintClause() {
         TemplateExtendsConstraintClauseSyntax extendConstraint = null;
         TemplateIsConstraintClauseSyntax isConstraint = null;
+        TemplateHasConstraintClauseSyntax hasConstraint = null;
         ExpressionStatementSyntax expressionConstraint = null;
 
         if (Peek(1).kind == SyntaxKind.ExtendsKeyword)
             extendConstraint = ParseTemplateExtendConstraintClause();
         else if (Peek(1).kind == SyntaxKind.IsKeyword)
             isConstraint = ParseTemplateIsConstraintClause();
+        else if (Peek(1).contextualKind == SyntaxKind.HasKeyword)
+            hasConstraint = ParseTemplateHasConstraintClause();
         else
             expressionConstraint = (ExpressionStatementSyntax)ParseExpressionStatement();
 
         return SyntaxFactory.TemplateConstraintClause(
             extendConstraint,
             isConstraint,
+            hasConstraint,
             expressionConstraint
         );
     }
@@ -832,6 +836,21 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var keyword = MatchTwo(SyntaxKind.PrimitiveKeyword, SyntaxKind.NotnullKeyword, contextual: true);
         var semicolon = EatToken(SyntaxKind.SemicolonToken);
         return SyntaxFactory.TemplateIsConstraintClause(name, isKeyword, keyword, semicolon);
+    }
+
+    private TemplateHasConstraintClauseSyntax ParseTemplateHasConstraintClause() {
+        var name = ParseIdentifierName();
+
+        var hasKeyword = Match(
+            SyntaxKind.HasKeyword,
+            SyntaxKind.DefaultKeyword,
+            SyntaxKind.ConstructorKeyword,
+            contextual: true
+        );
+
+        var keyword = MatchTwo(SyntaxKind.DefaultKeyword, SyntaxKind.ConstructorKeyword);
+        var semicolon = EatToken(SyntaxKind.SemicolonToken);
+        return SyntaxFactory.TemplateHasConstraintClause(name, hasKeyword, keyword, semicolon);
     }
 
     private ConstructorDeclarationSyntax ParseConstructorDeclaration(
@@ -919,6 +938,10 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var constraintClauseList = currentToken.kind == SyntaxKind.WhereKeyword
             ? ParseTemplateConstraintClauseList()
             : null;
+        var initClause = currentToken.contextualKind == SyntaxKind.InitializesKeyword
+            ? ParseInitConstraintClause()
+            : null;
+
         BlockStatementSyntax body = null;
         SyntaxToken semicolon = null;
 
@@ -927,7 +950,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
         else
             body = ParseBlockStatement();
 
-        var reverseClause = currentToken.contextualKind == SyntaxKind.ReverseKeyword ? ParseReverseClause() : null;
+        var stateClause = currentToken.contextualKind == SyntaxKind.StateKeyword ? ParseStateClause() : null;
+        var reverseClause = currentToken.kind == SyntaxKind.ReverseKeyword ? ParseReverseClause() : null;
 
         return SyntaxFactory.MethodDeclaration(
             attributeLists,
@@ -938,14 +962,45 @@ internal sealed partial class LanguageParser : SyntaxParser {
             parameterList,
             implicitKeyword,
             constraintClauseList,
+            initClause,
             body,
             semicolon,
+            stateClause,
             reverseClause
         );
     }
 
-    private ReverseClauseSyntax ParseReverseClause() {
+    private InitConstraintClauseSyntax ParseInitConstraintClause() {
         var keyword = ConvertToKeyword(EatToken());
+        var openParenthesis = MatchOpenParen();
+        var names = ParseIdentifierList();
+        var closeParenthesis = MatchCloseParen();
+        return SyntaxFactory.InitConstraintClause(keyword, openParenthesis, names, closeParenthesis);
+    }
+
+    private SeparatedSyntaxList<IdentifierNameSyntax> ParseIdentifierList() {
+        var nodesAndSeparators = _pool.Allocate<BelteSyntaxNode>();
+        nodesAndSeparators.Add(ParseIdentifierName());
+
+        while (currentToken.kind == SyntaxKind.CommaToken) {
+            nodesAndSeparators.Add(EatToken());
+            nodesAndSeparators.Add(ParseIdentifierName());
+        }
+
+        return _pool.ToSeparatedListAndFree<IdentifierNameSyntax>(nodesAndSeparators);
+    }
+
+    private StateClauseSyntax ParseStateClause() {
+        var keyword = ConvertToKeyword(EatToken());
+        var openParenthesis = MatchOpenParen();
+        var type = ParseType(allowRef: false);
+        var closeParenthesis = MatchCloseParen();
+        var body = ParseBlockStatement();
+        return SyntaxFactory.StateClause(keyword, openParenthesis, type, closeParenthesis, body);
+    }
+
+    private ReverseClauseSyntax ParseReverseClause() {
+        var keyword = EatToken();
 
         SyntaxToken openParenthesis = null;
         TypeSyntax type = null;
@@ -1485,6 +1540,10 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseInlineILStatement();
             case SyntaxKind.DeferKeyword:
                 return ParseDeferStatement();
+            case SyntaxKind.ReverseKeyword:
+                return ParseReverseOrReverseDeferStatement();
+            case SyntaxKind.CommitKeyword:
+                return ParseCommitStatement();
         }
 
         var resetPoint = GetResetPoint();
@@ -1828,6 +1887,12 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return SyntaxFactory.ContinueStatement(keyword, semicolon);
     }
 
+    private StatementSyntax ParseCommitStatement() {
+        var keyword = EatToken();
+        var semicolon = EatToken(SyntaxKind.SemicolonToken);
+        return SyntaxFactory.CommitStatement(keyword, semicolon);
+    }
+
     private StatementSyntax ParseBreakStatement() {
         var keyword = EatToken();
         var semicolon = EatToken(SyntaxKind.SemicolonToken);
@@ -2097,6 +2162,21 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return SyntaxFactory.DeferStatement(keyword, statement);
     }
 
+    private StatementSyntax ParseReverseOrReverseDeferStatement() {
+        var keyword = EatToken();
+
+        if (currentToken.kind == SyntaxKind.DeferKeyword) {
+            var deferKeyword = EatToken();
+            var expression = ParseExpression();
+            var semicolon = EatToken(SyntaxKind.SemicolonToken);
+            return SyntaxFactory.ReverseDeferStatement(keyword, deferKeyword, expression, semicolon);
+        } else {
+            var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.SemicolonToken);
+            var semicolon = EatToken(SyntaxKind.SemicolonToken);
+            return SyntaxFactory.ReverseStatement(keyword, identifier, semicolon);
+        }
+    }
+
     private SeparatedSyntaxList<ExpressionSyntax> ParseAssignmentExpressionList() {
         var nodesAndSeparators = _pool.Allocate<BelteSyntaxNode>();
         var parseNextItem = true;
@@ -2267,6 +2347,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.ILKeyword:
             case SyntaxKind.DeferKeyword:
             case SyntaxKind.ScopedKeyword:
+            case SyntaxKind.ReverseKeyword:
+            case SyntaxKind.CommitKeyword:
                 return true;
             // Attribute/Modifier starts for local declarations/functions
             case SyntaxKind.StaticKeyword:
@@ -2288,6 +2370,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.OpenParenToken:
             case SyntaxKind.TrueKeyword:
             case SyntaxKind.FalseKeyword:
+            case SyntaxKind.LowlevelKeyword:
             case SyntaxKind.DefaultKeyword:
             case SyntaxKind.NumericLiteralToken:
             case SyntaxKind.ExtendedLiteralToken:
@@ -2303,6 +2386,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.SizeOfKeyword:
             case SyntaxKind.StackAllocKeyword:
             case SyntaxKind.NewKeyword:
+            case SyntaxKind.WithKeyword:
+            case SyntaxKind.ReversibleKeyword:
             case SyntaxKind.ThisKeyword:
             case SyntaxKind.BaseKeyword:
             case SyntaxKind.ThrowKeyword:
@@ -2482,6 +2567,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.TryKeyword:
             case SyntaxKind.UsingKeyword:
             case SyntaxKind.WhileKeyword:
+            case SyntaxKind.ReverseKeyword:
+            case SyntaxKind.CommitKeyword:
                 return true;
             default:
                 return false;
@@ -2692,6 +2779,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.TrueKeyword:
             case SyntaxKind.FalseKeyword:
                 return ParseBooleanLiteral();
+            case SyntaxKind.LowlevelKeyword:
             case SyntaxKind.DefaultKeyword:
                 return ParseDefaultLiteral();
             case SyntaxKind.NumericLiteralToken:
@@ -2743,6 +2831,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseImplicitEnumFieldExpression();
             case SyntaxKind.WithKeyword:
                 return ParseWithExpression();
+            case SyntaxKind.ReversibleKeyword:
+                return ParseReversibleExpression();
             case SyntaxKind.IdentifierToken:
             case SyntaxKind.GlobalKeyword:
             default:
@@ -2770,6 +2860,14 @@ internal sealed partial class LanguageParser : SyntaxParser {
             closeParenthesis,
             body
         );
+    }
+
+    private ReversibleExpressionSyntax ParseReversibleExpression() {
+        var keyword = EatToken();
+        var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.ColonToken);
+        var colon = Match(SyntaxKind.ColonToken);
+        var expression = ParseExpression();
+        return SyntaxFactory.ReversibleExpression(keyword, identifier, colon, expression);
     }
 
     private ExpressionSyntax ParsePrimaryExpression(int parentPrecedence = 0, ExpressionSyntax left = null) {
@@ -3234,6 +3332,7 @@ done:
             case SyntaxKind.OpenBracketToken:
             case SyntaxKind.IdentifierToken:
             case SyntaxKind.ExclamationToken:
+            case SyntaxKind.QuestionToken:
                 return true;
             default:
                 return false;
@@ -3749,8 +3848,9 @@ done:
     }
 
     private ExpressionSyntax ParseDefaultLiteral() {
-        var token = Match(SyntaxKind.DefaultKeyword);
-        return SyntaxFactory.Literal(token);
+        var lowlevelKeyword = EatIfMatch(SyntaxKind.LowlevelKeyword);
+        var defaultKeyword = Match(SyntaxKind.DefaultKeyword);
+        return SyntaxFactory.DefaultLiteralExpression(lowlevelKeyword, defaultKeyword);
     }
 
     private ExpressionSyntax ParseStringLiteral() {

@@ -8,6 +8,10 @@ public static class Utilities {
         return o.GetHashCode();
     }
 
+    public static bool IsLittleEndian() {
+        return BitConverter.IsLittleEndian;
+    }
+
     public static int HashCodeCombine(int hash1, int hash2) {
         return HashCode.Combine(hash1, hash2);
     }

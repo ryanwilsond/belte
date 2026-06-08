@@ -498,7 +498,7 @@ internal static class StandardLibrary {
             null,
             new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Int)),
             [lengthT],
-            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(lengthT), 0, RefKind.None, "arr")],
+            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(lengthT), 0, RefKind.None, "array")],
             MethodKind.Ordinary,
             DeclarationModifiers.Static
         );
@@ -515,7 +515,25 @@ internal static class StandardLibrary {
             null,
             new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)),
             [sortT],
-            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(sortT), 0, RefKind.None, "arr")],
+            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(sortT), 0, RefKind.None, "array")],
+            MethodKind.Ordinary,
+            DeclarationModifiers.Static
+        );
+
+        var fillT = new SynthesizedTemplateParameterSymbol(
+            null,
+            new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type)),
+            0,
+            "TElem"
+        );
+
+        var fill = new SynthesizedTemplateMethodSymbol(
+            "Fill",
+            null,
+            new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)),
+            [fillT],
+            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(ArrayTypeSymbol.CreateSZArray(new TypeWithAnnotations(fillT))), 0, RefKind.None, "array"),
+             SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(fillT), 0, RefKind.None, "value")],
             MethodKind.Ordinary,
             DeclarationModifiers.Static
         );
@@ -688,6 +706,7 @@ internal static class StandardLibrary {
             StaticMethod("GetType", SpecialType.Type, [("value", SpecialType.Any)]),
             length,
             sort,
+            fill,
             sizeOf,
             bitCast,
             StaticMethod("ThrowNullConditionException", SpecialType.Void),
@@ -701,6 +720,8 @@ internal static class StandardLibrary {
             getGCPtr,
             freeGCHandle,
             getObject,
+            StaticMethod("IsLittleEndian", SpecialType.Bool),
+            StaticMethod("ReverseEndianness", SpecialType.Int32, [("value", SpecialType.Int32)]),
         ]);
     }
 

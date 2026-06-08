@@ -17,7 +17,7 @@ public static class LibraryHelpers {
     private static readonly string[] ReducedStdLibFiles = [
         "Compiler.Object.blt",
         "Compiler.ReducedEnumerator.blt",
-        "Compiler.Exception.blt"
+        "Compiler.Exception.blt",
     ];
 
     private static readonly string[] ReducedStdLibExclude = [

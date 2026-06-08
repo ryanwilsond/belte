@@ -15,10 +15,12 @@ namespace Buckle.CodeAnalysis.Lowering;
 
 internal class SharedExpander : BoundTreeExpander {
     private protected readonly BelteDiagnosticQueue _diagnostics;
+    private readonly Dictionary<TokenSymbol, List<BoundStatement>> _tokenMap;
 
     internal SharedExpander(MethodSymbol container, BelteDiagnosticQueue diagnostics) {
         _container = container;
         _diagnostics = diagnostics;
+        _tokenMap = [];
     }
 
     private protected override MethodSymbol _container { get; set; }
@@ -53,6 +55,173 @@ internal class SharedExpander : BoundTreeExpander {
         BoundLocalDeclarationStatement statement) {
         _localNames.Add(statement.declaration.dataContainer.name);
         return base.ExpandLocalDeclarationStatement(statement);
+    }
+
+    private protected override List<BoundStatement> ExpandReverseStatement(BoundReverseStatement statement) {
+        return _tokenMap[statement.token];
+    }
+
+    private protected override List<BoundStatement> ExpandReverseDeferStatement(BoundReverseDeferStatement statement) {
+        /*
+
+        reverse defer <call>
+
+        ---->
+
+        reversible Temp: <call>
+        defer reverse Temp
+
+        */
+        var syntax = statement.syntax;
+        var token = GenerateToken();
+
+        return [
+            .. ExpandStatement(Statement(syntax,
+                new BoundReversibleExpression(syntax, statement.call, token, statement.conversion, statement.call.type)
+            )),
+            .. ExpandStatement(new BoundDeferStatement(syntax, new BoundReverseStatement(syntax, token)))
+        ];
+    }
+
+    private protected override List<BoundStatement> ExpandReversibleExpression(
+        BoundReversibleExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        /*
+
+        reversible <token>: <call>
+
+        ----> method has state
+
+        temp = <call>
+        temp.Item1
+
+        <token>: <call.reverse>(temp.Item2)
+
+        ----> reversal takes no parameter
+
+        <call>
+
+        <token>: <call.reverse>()
+
+        ---->
+
+        temp = <call>
+        temp
+
+        <token>: <call.reverse>(temp)
+
+        */
+        var syntax = expression.syntax;
+        var call = expression.call;
+        var targetMethod = call.method;
+        var reverseMethod = targetMethod.reverseMethod;
+
+        if (targetMethod.hasReversalState) {
+            var stateMethod = targetMethod.stateMethod;
+            var tupleType = (NamedTypeSymbol)stateMethod.returnType;
+            var temp = GenerateTempLocal(tupleType);
+
+            var statements = ExpandExpression(
+                call.Update(
+                    call.receiver,
+                    stateMethod,
+                    call.arguments,
+                    call.argumentRefKinds,
+                    call.defaultArguments,
+                    call.resultKind,
+                    tupleType
+                ),
+                out var newCall
+            );
+
+            statements.Add(LocalDeclaration(syntax, temp, newCall));
+
+            var tupleField1 = ((FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item1))
+                .AsMember(tupleType);
+            var tupleField2 = ((FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2))
+                .AsMember(tupleType);
+
+            replacement = new BoundFieldAccessExpression(syntax,
+                Local(syntax, temp),
+                tupleField1,
+                null,
+                tupleField1.type
+            );
+
+            BoundExpression reverseArg = new BoundFieldAccessExpression(syntax,
+                Local(syntax, temp),
+                tupleField2,
+                null,
+                tupleField2.type
+            );
+
+            List<BoundStatement> tokenStatements = [];
+
+            if (expression.conversion != default) {
+                tokenStatements.AddRange(ExpandExpression(
+                    Cast(syntax, reverseMethod.GetParameterType(0), reverseArg, expression.conversion, null),
+                    out reverseArg
+                ));
+            }
+
+            tokenStatements.Add(Statement(syntax, call.Update(
+                call.receiver,
+                reverseMethod,
+                [reverseArg],
+                [],
+                default,
+                call.resultKind,
+                reverseMethod.returnType
+            )));
+
+            _tokenMap.Add(expression.token, tokenStatements);
+
+            return statements;
+        } else if (reverseMethod.parameterCount == 0) {
+            var statements = ExpandExpression(call, out replacement);
+
+            _tokenMap.Add(expression.token, [Statement(syntax, call.Update(
+                call.receiver,
+                reverseMethod,
+                [],
+                [],
+                default,
+                call.resultKind,
+                reverseMethod.returnType
+            ))]);
+
+            return statements;
+        } else {
+            var temp = GenerateTempLocal(targetMethod.returnType);
+            var statements = ExpandExpression(call, out var newCall);
+            statements.Add(LocalDeclaration(syntax, temp, newCall));
+            replacement = Local(syntax, temp);
+
+            BoundExpression reverseArg = Local(syntax, temp);
+            List<BoundStatement> tokenStatements = [];
+
+            if (expression.conversion != default) {
+                tokenStatements.AddRange(ExpandExpression(
+                    Cast(syntax, reverseMethod.GetParameterType(0), reverseArg, expression.conversion, null),
+                    out reverseArg
+                ));
+            }
+
+            tokenStatements.Add(Statement(syntax, call.Update(
+                call.receiver,
+                reverseMethod,
+                [reverseArg],
+                [],
+                default,
+                call.resultKind,
+                reverseMethod.returnType
+            )));
+
+            _tokenMap.Add(expression.token, tokenStatements);
+
+            return statements;
+        }
     }
 
     private protected override List<BoundStatement> ExpandCStringLiteral(
@@ -234,6 +403,42 @@ internal class SharedExpander : BoundTreeExpander {
         };
 
         return statements;
+    }
+
+    private protected override List<BoundStatement> ExpandArrayAccessExpression(
+        BoundArrayAccessExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        /*
+
+        <receiver>[<index>]
+
+        ----> <type> is non-nullable reference type, UseKind.Value, UseKind.StableValue
+
+        <receiver>[<index>]!
+
+        */
+        if (useKind != UseKind.Writable && expression.type.IsVerifierReference() && !expression.type.IsNullableType()) {
+            var statements = ExpandExpression(
+                new BoundNullAssertOperator(expression.syntax,
+                    expression.Update(
+                        expression.receiver,
+                        expression.index,
+                        expression.constantValue,
+                        CorLibrary.GetOrCreateNullableType(expression.type)
+                    ),
+                    true,
+                    expression.constantValue,
+                    expression.type
+                ),
+                out replacement,
+                useKind
+            );
+
+            return statements;
+        }
+
+        return base.ExpandArrayAccessExpression(expression, out replacement, useKind);
     }
 
     private protected override List<BoundStatement> ExpandCastExpression(
@@ -542,6 +747,30 @@ internal class SharedExpander : BoundTreeExpander {
         return statements;
     }
 
+    private protected override List<BoundStatement> ExpandCommitStatement(BoundCommitStatement statement) {
+        /*
+
+        commit
+
+        ---->
+
+        <commit local> = true
+
+        */
+        var syntax = statement.syntax;
+        var local = statement.commitLocal;
+        var boolType = local.type;
+
+        return [Statement(syntax,
+            Assignment(syntax,
+                Local(syntax, statement.commitLocal),
+                Literal(syntax, true, boolType),
+                false,
+                boolType
+            )
+        )];
+    }
+
     private protected override List<BoundStatement> ExpandWithStatement(BoundWithStatement statement) {
         /*
 
@@ -551,17 +780,21 @@ internal class SharedExpander : BoundTreeExpander {
 
         ---->
 
+        commit = false
         temp0 = <assignment0.left>
         <assignment0>
         ...
 
         <body>
 
+        goto Commit if commit
         <assignment0.left> = temp0
         ...
+    Commit:
 
         ----> surround with try
 
+        commit = false
         temp0 = <assignment0.left>
         <assignment0>
         ...
@@ -569,8 +802,10 @@ internal class SharedExpander : BoundTreeExpander {
         try {
             <body>
         } finally {
+            goto Commit if commit
             <assignment0.left> = temp0
             ...
+    Commit:
         }
 
         */
@@ -579,18 +814,35 @@ internal class SharedExpander : BoundTreeExpander {
         var lefts = statement.assignments.SelectAsArray(a => GetLeft(a));
         var temps = lefts.SelectAsArray(l => GenerateTempLocal(l.Item1.type) as DataContainerSymbol);
 
-        var statements = CreateWithPrologue(syntax, lefts, temps, statement.assignments, out var newLefts);
+        var commitLocal = statement.commitLocal;
+
+        List<BoundStatement> statements = [];
+
+        if (commitLocal is not null)
+            statements.Add(LocalDeclaration(syntax, commitLocal, Literal(syntax, false, commitLocal.type)));
+
+        statements.AddRange(CreateWithPrologue(syntax, lefts, temps, statement.assignments, out var newLefts));
 
         if (statement.wrapWithTry) {
             var tryBody = Block(syntax, ExpandStatement(statement.body).ToArray());
-            var finallyBody = Block(syntax, CreateWithEpilogue(syntax, newLefts, temps).ToArray());
+            var finallyBody = Block(syntax, SurroundWithCommit(CreateWithEpilogue(syntax, newLefts, temps)).ToArray());
             statements.Add(new BoundTryStatement(syntax, tryBody, null, finallyBody));
         } else {
             statements.AddRange(ExpandStatement(statement.body));
-            statements.AddRange(CreateWithEpilogue(syntax, newLefts, temps));
+            statements.AddRange(SurroundWithCommit(CreateWithEpilogue(syntax, newLefts, temps)));
         }
 
         return statements;
+
+        List<BoundStatement> SurroundWithCommit(List<BoundStatement> statements) {
+            if (commitLocal is null)
+                return statements;
+
+            var label = GenerateLabel();
+            statements.Insert(0, GotoIf(syntax, label, Local(syntax, commitLocal)));
+            statements.Add(Label(syntax, label));
+            return statements;
+        }
     }
 
     private protected override List<BoundStatement> ExpandWithExpression(
@@ -663,49 +915,8 @@ internal class SharedExpander : BoundTreeExpander {
                     ),
                     false
                 ));
-            } else if (expression is BoundCallExpression usedCall) {
-                statements.AddRange(ExpandExpression(expression, out var newCall));
-                statements.AddRange(LocalDeclaration(syntax, temp, newCall));
-
-                BoundExpression arg = Local(syntax, temp);
-
-                if (isRef)
-                    arg = new BoundReferenceExpression(syntax, arg, arg.type);
-
-                builder.Add((
-                    usedCall.Update(
-                        usedCall.receiver,
-                        usedCall.method.reverseMethod,
-                        [arg],
-                        [],
-                        default,
-                        LookupResultKind.Viable,
-                        usedCall.method.reverseMethod.returnType
-                    ),
-                    false
-                ));
-            } else if (expression is BoundCastExpression) {
-                statements.AddRange(ExpandExpression(expression, out var newCast));
-                var underlyingCall = (BoundCallExpression)((BoundCastExpression)newCast).operand;
-                statements.AddRange(LocalDeclaration(syntax, temp, newCast));
-
-                BoundExpression arg = Local(syntax, temp);
-
-                if (isRef)
-                    arg = new BoundReferenceExpression(syntax, arg, arg.type);
-
-                builder.Add((
-                    underlyingCall.Update(
-                        underlyingCall.receiver,
-                        underlyingCall.method.reverseMethod,
-                        [arg],
-                        [],
-                        default,
-                        LookupResultKind.Viable,
-                        underlyingCall.method.reverseMethod.returnType
-                    ),
-                    false
-                ));
+            } else if (expression is BoundCallExpression or BoundCastExpression) {
+                CreateReverseCallPrologue(expression, temp, isRef, builder, statements);
             } else {
                 statements.AddRange(ExpandExpression(left, out var newLeft, UseKind.Writable));
                 statements.Add(LocalDeclaration(syntax, temp, newLeft));
@@ -717,6 +928,103 @@ internal class SharedExpander : BoundTreeExpander {
 
         newLefts = builder.ToImmutableAndFree();
         return statements;
+    }
+
+    private void CreateReverseCallPrologue(
+        BoundExpression expression,
+        DataContainerSymbol temp,
+        bool isRef,
+        ArrayBuilder<(BoundExpression, bool)> builder,
+        List<BoundStatement> statements) {
+        var syntax = expression.syntax;
+        BoundCallExpression call;
+        MethodSymbol reverseMethod;
+
+        if (expression is BoundCallExpression c) {
+            call = c;
+            reverseMethod = call.method.reverseMethod;
+
+            if (call.method.hasReversalState) {
+                var stateMethod = call.method.stateMethod;
+                var tupleType = (NamedTypeSymbol)stateMethod.returnType;
+
+                call = call.Update(
+                    call.receiver,
+                    stateMethod,
+                    call.arguments,
+                    call.argumentRefKinds,
+                    call.defaultArguments,
+                    call.resultKind,
+                    tupleType
+                );
+
+                statements.AddRange(ExpandExpression(call, out var newCall));
+
+                var tupleField = ((FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2))
+                    .AsMember(tupleType);
+
+                var initializer = new BoundFieldAccessExpression(syntax, newCall, tupleField, null, tupleField.type);
+                statements.AddRange(LocalDeclaration(syntax, temp, initializer));
+            } else {
+                statements.AddRange(ExpandExpression(call, out var newCall));
+                statements.AddRange(LocalDeclaration(syntax, temp, newCall));
+            }
+        } else if (expression is BoundCastExpression cast) {
+            call = (BoundCallExpression)cast.operand;
+            reverseMethod = call.method.reverseMethod;
+
+            if (call.method.hasReversalState) {
+                var stateMethod = call.method.stateMethod;
+                var tupleType = (NamedTypeSymbol)stateMethod.returnType;
+
+                call = call.Update(
+                    call.receiver,
+                    stateMethod,
+                    call.arguments,
+                    call.argumentRefKinds,
+                    call.defaultArguments,
+                    call.resultKind,
+                    tupleType
+                );
+
+                statements.AddRange(ExpandExpression(call, out var newCall));
+
+                var tupleField = ((FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2))
+                    .AsMember(tupleType);
+
+                var initializer = cast.Update(
+                    new BoundFieldAccessExpression(syntax, newCall, tupleField, null, tupleField.type),
+                    cast.conversion,
+                    cast.constantValue,
+                    cast.type
+                );
+
+                statements.AddRange(LocalDeclaration(syntax, temp, initializer));
+            } else {
+                statements.AddRange(ExpandExpression(cast, out var newCast));
+                statements.AddRange(LocalDeclaration(syntax, temp, newCast));
+            }
+        } else {
+            throw ExceptionUtilities.Unreachable();
+        }
+
+        BoundExpression arg = Local(syntax, temp);
+
+        if (isRef)
+            arg = new BoundReferenceExpression(syntax, arg, arg.type);
+
+        builder.Add((
+            call.Update(
+                call.receiver,
+                reverseMethod,
+                [arg],
+                [],
+                default,
+                LookupResultKind.Viable,
+                reverseMethod.returnType
+            ),
+            false
+        ));
     }
 
     private List<BoundStatement> CreateWithEpilogue(

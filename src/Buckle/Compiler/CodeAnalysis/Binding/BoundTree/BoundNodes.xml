@@ -290,12 +290,27 @@
     <Field Name="isInferred" Type="bool"/>
   </Node>
   <Node Name="BoundDefaultLiteral" Base="BoundExpression">
+    <Field Name="isLowLevel" Type="bool"/>
     <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
   </Node>
   <Node Name="BoundDefaultExpression" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+    <Field Name="isLowLevel" Type="bool"/>
     <Field Name="targetType" Type="BoundTypeExpression?" SkipInVisitor="true"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundReversibleExpression" Base="BoundExpression">
+    <Field Name="call" Type="BoundCallExpression?"/>
+    <Field Name="token" Type="TokenSymbol"/>
+    <Field Name="conversion" Type="Conversion"/>
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+  </Node>
+  <Node Name="BoundReverseStatement" Base="BoundStatement">
+    <Field Name="token" Type="TokenSymbol?"/>
+  </Node>
+  <Node Name="BoundReverseDeferStatement" Base="BoundStatement">
+    <Field Name="call" Type="BoundCallExpression?"/>
+    <Field Name="conversion" Type="Conversion"/>
   </Node>
   <Node Name="BoundInterpolatedStringExpression" Base="BoundExpression">
     <Field Name="contents" Type="ImmutableArray&lt;BoundExpression&gt;"/>
@@ -459,6 +474,8 @@
     <Field Name="label" Type="LabelSymbol"/>
     <Field Name="condition" Type="BoundExpression"/>
     <Field Name="jumpIfTrue" Type="bool"/>
+    <Field Name="assignedOnJump" Type="ImmutableArray&lt;DataContainerSymbol&gt;" Null="allow"/>
+    <Field Name="assignedOnFallthrough" Type="ImmutableArray&lt;DataContainerSymbol&gt;" Null="allow"/>
   </Node>
   <Node Name="BoundDoWhileStatement" Base="BoundLoopStatement">
     <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
@@ -493,6 +510,10 @@
     <Field Name="assignments" Type="ImmutableArray&lt;BoundExpression&gt;"/>
     <Field Name="body" Type="BoundStatement"/>
     <Field Name="wrapWithTry" Type="bool"/>
+    <Field Name="commitLocal" Type="DataContainerSymbol?"/>
+  </Node>
+  <Node Name="BoundCommitStatement" Base="BoundStatement">
+    <Field Name="commitLocal" Type="DataContainerSymbol"/>
   </Node>
   <Node Name="BoundWithExpression" Base="BoundExpression">
     <Field Name="assignments" Type="ImmutableArray&lt;BoundExpression&gt;"/>

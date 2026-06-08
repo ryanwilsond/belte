@@ -69,5 +69,7 @@ internal sealed partial class ILEmitter {
         internal static MethodReference ValueTuple_T6_ctor;
         internal static MethodReference ValueTuple_T7_ctor;
         internal static MethodReference ValueTuple_TRest_ctor;
+        internal static MethodReference Array_Empty;
+        internal static MethodReference Array_Fill;
     }
 }
