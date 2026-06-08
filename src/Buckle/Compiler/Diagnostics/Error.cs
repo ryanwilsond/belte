@@ -2499,6 +2499,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_ReverseDeferExpressionNotReversible, location, message);
     }
 
+    internal static BelteDiagnostic InvalidCommit(TextLocation location) {
+        var message = $"commit statements can only be used within a with statement";
+        return CreateError(DiagnosticCode.ERR_InvalidCommit, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

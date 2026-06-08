@@ -6609,4 +6609,17 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0498_InvalidCommit() {
+        var text = @"
+            [commit;]
+        ";
+
+        var diagnostics = @"
+            commit statements can only be used within a with statement
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

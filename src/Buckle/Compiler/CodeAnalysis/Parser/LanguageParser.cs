@@ -1542,6 +1542,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseDeferStatement();
             case SyntaxKind.ReverseKeyword:
                 return ParseReverseOrReverseDeferStatement();
+            case SyntaxKind.CommitKeyword:
+                return ParseCommitStatement();
         }
 
         var resetPoint = GetResetPoint();
@@ -1883,6 +1885,12 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var keyword = EatToken();
         var semicolon = EatToken(SyntaxKind.SemicolonToken);
         return SyntaxFactory.ContinueStatement(keyword, semicolon);
+    }
+
+    private StatementSyntax ParseCommitStatement() {
+        var keyword = EatToken();
+        var semicolon = EatToken(SyntaxKind.SemicolonToken);
+        return SyntaxFactory.CommitStatement(keyword, semicolon);
     }
 
     private StatementSyntax ParseBreakStatement() {
@@ -2340,6 +2348,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.DeferKeyword:
             case SyntaxKind.ScopedKeyword:
             case SyntaxKind.ReverseKeyword:
+            case SyntaxKind.CommitKeyword:
                 return true;
             // Attribute/Modifier starts for local declarations/functions
             case SyntaxKind.StaticKeyword:
@@ -2559,6 +2568,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.UsingKeyword:
             case SyntaxKind.WhileKeyword:
             case SyntaxKind.ReverseKeyword:
+            case SyntaxKind.CommitKeyword:
                 return true;
             default:
                 return false;

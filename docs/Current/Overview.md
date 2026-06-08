@@ -96,6 +96,7 @@ These keywords are reserved names and cannot be used as identifiers.
 - [case](ControlFlow.md#25-switch)
 - [catch](ControlFlow.md#261-trycatchfinally)
 - [class](ClassesAndObjects.md#41-classes)
+- [commit](ControlFlow.md#271-commit-statements)
 - [const](Data.md#331-modifiers) (data container modifier)
 - [const](ClassesAndObjects.md#434-const) (method modifier)
 - [constexpr](Data.md#331-modifiers) (local and parameter modifier)
@@ -510,6 +511,8 @@ most of the differences to make it more clear where the language is unique with 
 - [`destructor` keyword](ControlFlow.md#291-destructors)
 - [User-defined literals](ClassesAndObjects.md#4233-user-defined-literals)
 - [File-scoped classes](ClassesAndObjects.md#411-declaring-and-using-classes)
+- [Reversible methods](ClassesAndObjects.md#4221-state-and-reverse-clauses)
+- [Reversible statements](ControlFlow.md#211-reverse-statements)
 - Primitive types (e.g. `int`) don't have members
 - [`constructor` and `finalizer` keywords](ClassesAndObjects.md#44-constructors-and-finalizers)
 - Types are not reserved names (including primitives)

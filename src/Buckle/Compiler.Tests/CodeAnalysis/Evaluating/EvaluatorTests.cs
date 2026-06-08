@@ -526,6 +526,8 @@ public sealed class EvaluatorTests {
     [InlineData("int a = 0; int[]? b = { 1, 1, 1 }; int c = with (b![a++] = 5) b![a - 1]; return a;", 1)]
     [InlineData("int a = 0; int[]? b = { 1, 1, 1 }; int c = with (b![a++] = 5) b![a - 1]; return b![0];", 1)]
     [InlineData("int a = 1; return with (a = 2) with (a = 3) a;", 3)]
+    [InlineData("int a = 1; with (a = 2) ; return a;", 1)]
+    [InlineData("int a = 1; with (a = 2) commit; return a;", 2)]
     [InlineData(@"
         class A {
             public static int c = 4;

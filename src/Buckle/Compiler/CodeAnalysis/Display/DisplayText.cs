@@ -170,6 +170,9 @@ public sealed class DisplayText {
             case BoundKind.BreakStatement:
                 DisplayBreakStatement(text);
                 break;
+            case BoundKind.CommitStatement:
+                DisplayCommitStatement(text);
+                break;
             case BoundKind.ContinueStatement:
                 DisplayContinueStatement(text);
                 break;
@@ -518,6 +521,7 @@ public sealed class DisplayText {
         text.Write(CreateKeyword(SyntaxKind.ReverseKeyword));
         text.Write(CreateSpace());
         text.Write(CreateIdentifier(node.token.name));
+        text.WriteLine();
     }
 
     private static void DisplayReverseDeferStatement(DisplayText text, BoundReverseDeferStatement node) {
@@ -526,6 +530,7 @@ public sealed class DisplayText {
         text.Write(CreateKeyword(SyntaxKind.DeferKeyword));
         text.Write(CreateSpace());
         DisplayNode(text, node.call);
+        text.WriteLine();
     }
 
     private static void DisplayReversibleExpression(DisplayText text, BoundReversibleExpression node) {
@@ -649,6 +654,11 @@ public sealed class DisplayText {
 
     private static void DisplayBreakStatement(DisplayText text) {
         text.Write(CreateKeyword(SyntaxKind.BreakKeyword));
+        text.WriteLine();
+    }
+
+    private static void DisplayCommitStatement(DisplayText text) {
+        text.Write(CreateKeyword(SyntaxKind.CommitKeyword));
         text.WriteLine();
     }
 

@@ -1009,6 +1009,15 @@
       <Kind Name="SemicolonToken"/>
     </Field>
   </Node>
+  <Node Name="CommitStatementSyntax" Base="StatementSyntax">
+    <Kind Name="CommitStatement"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="CommitKeyword"/>
+    </Field>
+    <Field Name="semicolon" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
+    </Field>
+  </Node>
   <Node Name="ContinueStatementSyntax" Base="StatementSyntax">
     <Kind Name="ContinueStatement"/>
     <Field Name="keyword" Type="SyntaxToken">

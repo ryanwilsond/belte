@@ -67,6 +67,7 @@
     - [2.6](Current/ControlFlow.md#26-exceptions-and-handling) Exceptions and Handling
       - [2.6.1](Current/ControlFlow.md#261-trycatchfinally) Try/Catch/Finally
     - [2.7](Current/ControlFlow.md#27-with-expressions-and-statements) With Expressions and Statements
+      - [2.7.1](Current/ControlFlow.md#271-commit-statements) Commit Statements
     - [2.8](Current/ControlFlow.md#28-defer-statements) Defer Statements
     - [2.9](Current/ControlFlow.md#29-scoped-statements) Scoped Statements
     - [2.10](Current/ControlFlow.md#210-unreachable-statements) Unreachable Statements

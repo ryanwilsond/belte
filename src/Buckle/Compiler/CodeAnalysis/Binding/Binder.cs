@@ -63,6 +63,8 @@ internal partial class Binder {
 
     internal virtual SynthesizedLabelSymbol continueLabel => next.continueLabel;
 
+    internal virtual SynthesizedDataContainerSymbol commitLocal => next.commitLocal;
+
     internal virtual bool inMethod => next.inMethod;
 
     internal virtual DataContainerSymbol localInProgress => next.localInProgress;
@@ -174,6 +176,10 @@ internal partial class Binder {
 
     private protected virtual SourceTokenSymbol LookupToken(SyntaxToken identifier) {
         return next.LookupToken(identifier);
+    }
+
+    private protected virtual SynthesizedDataContainerSymbol BuildWithCommit() {
+        return next.BuildWithCommit();
     }
 
     private protected virtual bool IsUnboundTypeAllowed(TemplateNameSyntax syntax) {
@@ -12980,6 +12986,7 @@ symIsHidden:;
             SyntaxKind.ForEachStatement => BindForEachStatement((ForEachStatementSyntax)node, diagnostics),
             SyntaxKind.BreakStatement => BindBreakStatement((BreakStatementSyntax)node, diagnostics),
             SyntaxKind.ContinueStatement => BindContinueStatement((ContinueStatementSyntax)node, diagnostics),
+            SyntaxKind.CommitStatement => BindCommitStatement((CommitStatementSyntax)node, diagnostics),
             SyntaxKind.TryStatement => BindTryStatement((TryStatementSyntax)node, diagnostics),
             SyntaxKind.SwitchStatement => BindSwitchStatement((SwitchStatementSyntax)node, diagnostics),
             SyntaxKind.GotoStatement => BindGotoStatement((GotoStatementSyntax)node, diagnostics),
@@ -13203,9 +13210,9 @@ symIsHidden:;
     private BoundWithStatement BindWithStatement(WithStatementSyntax node, BelteDiagnosticQueue diagnostics) {
         var assignments = BindWithExpressionList(node.expressions, diagnostics, out var hasErrors);
         var wrapWithTry = node.tryKeyword is not null;
-        var binder = wrapWithTry ? this : GetBinder(node);
+        var binder = GetBinder(node);
         var body = binder.BindPossibleEmbeddedStatement(node.body, diagnostics);
-        return new BoundWithStatement(node, assignments, body, wrapWithTry, hasErrors);
+        return new BoundWithStatement(node, assignments, body, wrapWithTry, binder.commitLocal, hasErrors);
     }
 
     private BoundNullBindingStatement BindNullBindingStatement(
@@ -13331,7 +13338,6 @@ symIsHidden:;
         return new BoundUnreachableStatement(node);
     }
 
-
     private BoundStatement BindContinueStatement(ContinueStatementSyntax node, BelteDiagnosticQueue diagnostics) {
         var target = continueLabel;
 
@@ -13341,6 +13347,17 @@ symIsHidden:;
         }
 
         return new BoundContinueStatement(node, target);
+    }
+
+    private BoundStatement BindCommitStatement(CommitStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        var target = BuildWithCommit();
+
+        if (target is null) {
+            diagnostics.Push(Error.InvalidCommit(node.location));
+            return new BoundErrorStatement(node, [], hasErrors: true);
+        }
+
+        return new BoundCommitStatement(node, target);
     }
 
     private BoundStatement BindInlineILStatement(InlineILStatementSyntax node, BelteDiagnosticQueue diagnostics) {
@@ -14697,7 +14714,7 @@ symIsHidden:;
             argument = BindValue(expressionSyntax, diagnostics, requiredValueKind);
         }
 
-        if (flags.Includes(BinderFlags.InWithBody))
+        if (flags.Includes(BinderFlags.InWithTryBody))
             diagnostics.Push(Warning.ExitingControlFlowInWith(node.location));
 
         if (flags.Includes(BinderFlags.InFinallyBlock))

@@ -31,6 +31,7 @@
 - [2.6](#26-exceptions-and-handling) Exceptions and Handling
   - [2.6.1](#261-trycatchfinally) Try/Catch/Finally
 - [2.7](#27-with-expressions-and-statements) With Expressions and Statements
+  - [2.7.1](#271-commit-statements) Commit Statements
 - [2.8](#28-defer-statements) Defer Statements
 - [2.9](#29-scoped-statements) Scoped Statements
 - [2.10](#210-unreachable-statements) Unreachable Statements
@@ -831,6 +832,17 @@ Using a single `with` where possible is preferred as the compiler can optimize i
 Apart from assignments,
 [user-defined reversal methods can be defined](ClassesAndObjects.md#4221-state-and-reverse-clauses) to use `with` in
 more contexts.
+
+### 2.7.1 Commit Statements
+
+A `commit` statement can be used to avoid performing the reversal actions of the enclosing `with`:
+
+```belte
+with (a = 10) {
+  if (TrySomething())
+    commit; // If this is reached, 'a' will stay set to 10
+}
+```
 
 ## 2.8 Defer Statements
 

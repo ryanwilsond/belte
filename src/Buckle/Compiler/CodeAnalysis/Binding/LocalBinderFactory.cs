@@ -352,15 +352,12 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
     }
 
     internal override void VisitWithStatement(WithStatementSyntax node) {
-        Binder enclosing;
+        Binder enclosing = new WithBinder(_enclosing, node);
 
-        if (node.tryKeyword is null) {
-            enclosing = _enclosing.WithAdditionalFlags(BinderFlags.InWithBody);
-            AddToMap(node, enclosing);
-        } else {
-            enclosing = _enclosing;
-        }
+        if (node.tryKeyword is null)
+            enclosing = enclosing.WithAdditionalFlags(BinderFlags.InWithTryBody);
 
+        AddToMap(node, enclosing);
         VisitPossibleEmbeddedStatement(node.body, enclosing);
     }
 

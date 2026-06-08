@@ -510,6 +510,10 @@
     <Field Name="assignments" Type="ImmutableArray&lt;BoundExpression&gt;"/>
     <Field Name="body" Type="BoundStatement"/>
     <Field Name="wrapWithTry" Type="bool"/>
+    <Field Name="commitLocal" Type="DataContainerSymbol?"/>
+  </Node>
+  <Node Name="BoundCommitStatement" Base="BoundStatement">
+    <Field Name="commitLocal" Type="DataContainerSymbol"/>
   </Node>
   <Node Name="BoundWithExpression" Base="BoundExpression">
     <Field Name="assignments" Type="ImmutableArray&lt;BoundExpression&gt;"/>

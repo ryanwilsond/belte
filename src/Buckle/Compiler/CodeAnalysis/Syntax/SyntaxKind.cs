@@ -176,6 +176,7 @@ public enum SyntaxKind : ushort {
     StateKeyword,
     HasKeyword,
     InitializesKeyword,
+    CommitKeyword,
     HandleKeyword,
 
     // Trivia
@@ -251,6 +252,7 @@ public enum SyntaxKind : ushort {
     ExpressionStatement,
     ScopedStatement,
     WithStatement,
+    CommitStatement,
     ReverseStatement,
     ReverseDeferStatement,
     LocalDeclarationStatement,

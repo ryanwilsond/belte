@@ -24,6 +24,8 @@ internal sealed class EndBinder : Binder {
 
     internal override SynthesizedLabelSymbol continueLabel => null;
 
+    internal override SynthesizedDataContainerSymbol commitLocal => null;
+
     internal override BoundExpression conditionalReceiverExpression => null;
 
     internal override Symbol containingMember => null;
@@ -68,6 +70,10 @@ internal sealed class EndBinder : Binder {
 
     internal override BoundDoWhileStatement BindDoWhileParts(BelteDiagnosticQueue diagnostics, Binder originalBinder) {
         throw ExceptionUtilities.Unreachable();
+    }
+
+    private protected override SynthesizedDataContainerSymbol BuildWithCommit() {
+        return null;
     }
 
     internal override BoundStatement BindSwitchStatementCore(

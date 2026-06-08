@@ -70,6 +70,7 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.TryStatement => ExpandTryStatement((BoundTryStatement)statement),
             BoundKind.BreakStatement => ExpandBreakStatement((BoundBreakStatement)statement),
             BoundKind.ContinueStatement => ExpandContinueStatement((BoundContinueStatement)statement),
+            BoundKind.CommitStatement => ExpandCommitStatement((BoundCommitStatement)statement),
             BoundKind.ErrorStatement => ExpandErrorStatement((BoundErrorStatement)statement),
             BoundKind.LocalFunctionStatement => ExpandLocalFunctionStatement((BoundLocalFunctionStatement)statement),
             BoundKind.SequencePoint => ExpandSequencePoint((BoundSequencePoint)statement),
@@ -100,7 +101,8 @@ internal abstract partial class BoundTreeExpander {
                 syntax,
                 newAssignments,
                 Simplify(syntax, ExpandStatement(statement.body)),
-                statement.wrapWithTry
+                statement.wrapWithTry,
+                statement.commitLocal
             )
         );
 
@@ -360,6 +362,10 @@ internal abstract partial class BoundTreeExpander {
     }
 
     private protected virtual List<BoundStatement> ExpandContinueStatement(BoundContinueStatement statement) {
+        return [statement];
+    }
+
+    private protected virtual List<BoundStatement> ExpandCommitStatement(BoundCommitStatement statement) {
         return [statement];
     }
 

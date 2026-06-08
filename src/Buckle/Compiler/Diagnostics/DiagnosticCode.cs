@@ -506,6 +506,7 @@ public enum DiagnosticCode : ushort {
     ERR_TokenAlreadyDeclared = 495,
     ERR_ReversibleExpressionNotReversible = 496,
     ERR_ReverseDeferExpressionNotReversible = 497,
+    ERR_InvalidCommit = 498,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

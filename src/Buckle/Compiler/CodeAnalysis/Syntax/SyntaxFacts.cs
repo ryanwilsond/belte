@@ -250,6 +250,7 @@ public static class SyntaxFacts {
             "has" => SyntaxKind.HasKeyword,
             "unreachable" => SyntaxKind.UnreachableKeyword,
             "initializes" => SyntaxKind.InitializesKeyword,
+            "commit" => SyntaxKind.CommitKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -438,6 +439,7 @@ public static class SyntaxFacts {
             SyntaxKind.HasKeyword => "has",
             SyntaxKind.UnreachableKeyword => "unreachable",
             SyntaxKind.InitializesKeyword => "initializes",
+            SyntaxKind.CommitKeyword => "commit",
             _ => null,
         };
     }

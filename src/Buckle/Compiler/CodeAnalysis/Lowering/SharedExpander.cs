@@ -747,6 +747,30 @@ internal class SharedExpander : BoundTreeExpander {
         return statements;
     }
 
+    private protected override List<BoundStatement> ExpandCommitStatement(BoundCommitStatement statement) {
+        /*
+
+        commit
+
+        ---->
+
+        <commit local> = true
+
+        */
+        var syntax = statement.syntax;
+        var local = statement.commitLocal;
+        var boolType = local.type;
+
+        return [Statement(syntax,
+            Assignment(syntax,
+                Local(syntax, statement.commitLocal),
+                Literal(syntax, true, boolType),
+                false,
+                boolType
+            )
+        )];
+    }
+
     private protected override List<BoundStatement> ExpandWithStatement(BoundWithStatement statement) {
         /*
 
@@ -756,17 +780,21 @@ internal class SharedExpander : BoundTreeExpander {
 
         ---->
 
+        commit = false
         temp0 = <assignment0.left>
         <assignment0>
         ...
 
         <body>
 
+        goto Commit if commit
         <assignment0.left> = temp0
         ...
+    Commit:
 
         ----> surround with try
 
+        commit = false
         temp0 = <assignment0.left>
         <assignment0>
         ...
@@ -774,8 +802,10 @@ internal class SharedExpander : BoundTreeExpander {
         try {
             <body>
         } finally {
+            goto Commit if commit
             <assignment0.left> = temp0
             ...
+    Commit:
         }
 
         */
@@ -784,18 +814,35 @@ internal class SharedExpander : BoundTreeExpander {
         var lefts = statement.assignments.SelectAsArray(a => GetLeft(a));
         var temps = lefts.SelectAsArray(l => GenerateTempLocal(l.Item1.type) as DataContainerSymbol);
 
-        var statements = CreateWithPrologue(syntax, lefts, temps, statement.assignments, out var newLefts);
+        var commitLocal = statement.commitLocal;
+
+        List<BoundStatement> statements = [];
+
+        if (commitLocal is not null)
+            statements.Add(LocalDeclaration(syntax, commitLocal, Literal(syntax, false, commitLocal.type)));
+
+        statements.AddRange(CreateWithPrologue(syntax, lefts, temps, statement.assignments, out var newLefts));
 
         if (statement.wrapWithTry) {
             var tryBody = Block(syntax, ExpandStatement(statement.body).ToArray());
-            var finallyBody = Block(syntax, CreateWithEpilogue(syntax, newLefts, temps).ToArray());
+            var finallyBody = Block(syntax, SurroundWithCommit(CreateWithEpilogue(syntax, newLefts, temps)).ToArray());
             statements.Add(new BoundTryStatement(syntax, tryBody, null, finallyBody));
         } else {
             statements.AddRange(ExpandStatement(statement.body));
-            statements.AddRange(CreateWithEpilogue(syntax, newLefts, temps));
+            statements.AddRange(SurroundWithCommit(CreateWithEpilogue(syntax, newLefts, temps)));
         }
 
         return statements;
+
+        List<BoundStatement> SurroundWithCommit(List<BoundStatement> statements) {
+            if (commitLocal is null)
+                return statements;
+
+            var label = GenerateLabel();
+            statements.Insert(0, GotoIf(syntax, label, Local(syntax, commitLocal)));
+            statements.Add(Label(syntax, label));
+            return statements;
+        }
     }
 
     private protected override List<BoundStatement> ExpandWithExpression(
