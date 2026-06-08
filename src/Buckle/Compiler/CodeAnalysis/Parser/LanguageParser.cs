@@ -1541,7 +1541,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.DeferKeyword:
                 return ParseDeferStatement();
             case SyntaxKind.ReverseKeyword:
-                return ParseReverseStatement();
+                return ParseReverseOrReverseDeferStatement();
         }
 
         var resetPoint = GetResetPoint();
@@ -2154,11 +2154,19 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return SyntaxFactory.DeferStatement(keyword, statement);
     }
 
-    private ReverseStatementSyntax ParseReverseStatement() {
+    private StatementSyntax ParseReverseOrReverseDeferStatement() {
         var keyword = EatToken();
-        var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.SemicolonToken);
-        var semicolon = EatToken(SyntaxKind.SemicolonToken);
-        return SyntaxFactory.ReverseStatement(keyword, identifier, semicolon);
+
+        if (currentToken.kind == SyntaxKind.DeferKeyword) {
+            var deferKeyword = EatToken();
+            var expression = ParseExpression();
+            var semicolon = EatToken(SyntaxKind.SemicolonToken);
+            return SyntaxFactory.ReverseDeferStatement(keyword, deferKeyword, expression, semicolon);
+        } else {
+            var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.SemicolonToken);
+            var semicolon = EatToken(SyntaxKind.SemicolonToken);
+            return SyntaxFactory.ReverseStatement(keyword, identifier, semicolon);
+        }
     }
 
     private SeparatedSyntaxList<ExpressionSyntax> ParseAssignmentExpressionList() {

@@ -15,10 +15,12 @@ namespace Buckle.CodeAnalysis.Lowering;
 
 internal class SharedExpander : BoundTreeExpander {
     private protected readonly BelteDiagnosticQueue _diagnostics;
+    private readonly Dictionary<TokenSymbol, List<BoundStatement>> _tokenMap;
 
     internal SharedExpander(MethodSymbol container, BelteDiagnosticQueue diagnostics) {
         _container = container;
         _diagnostics = diagnostics;
+        _tokenMap = [];
     }
 
     private protected override MethodSymbol _container { get; set; }
@@ -53,6 +55,173 @@ internal class SharedExpander : BoundTreeExpander {
         BoundLocalDeclarationStatement statement) {
         _localNames.Add(statement.declaration.dataContainer.name);
         return base.ExpandLocalDeclarationStatement(statement);
+    }
+
+    private protected override List<BoundStatement> ExpandReverseStatement(BoundReverseStatement statement) {
+        return _tokenMap[statement.token];
+    }
+
+    private protected override List<BoundStatement> ExpandReverseDeferStatement(BoundReverseDeferStatement statement) {
+        /*
+
+        reverse defer <call>
+
+        ---->
+
+        reversible Temp: <call>
+        defer reverse Temp
+
+        */
+        var syntax = statement.syntax;
+        var token = GenerateToken();
+
+        return [
+            .. ExpandStatement(Statement(syntax,
+                new BoundReversibleExpression(syntax, statement.call, token, statement.conversion, statement.call.type)
+            )),
+            .. ExpandStatement(new BoundDeferStatement(syntax, new BoundReverseStatement(syntax, token)))
+        ];
+    }
+
+    private protected override List<BoundStatement> ExpandReversibleExpression(
+        BoundReversibleExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        /*
+
+        reversible <token>: <call>
+
+        ----> method has state
+
+        temp = <call>
+        temp.Item1
+
+        <token>: <call.reverse>(temp.Item2)
+
+        ----> reversal takes no parameter
+
+        <call>
+
+        <token>: <call.reverse>()
+
+        ---->
+
+        temp = <call>
+        temp
+
+        <token>: <call.reverse>(temp)
+
+        */
+        var syntax = expression.syntax;
+        var call = expression.call;
+        var targetMethod = call.method;
+        var reverseMethod = targetMethod.reverseMethod;
+
+        if (targetMethod.hasReversalState) {
+            var stateMethod = targetMethod.stateMethod;
+            var tupleType = (NamedTypeSymbol)stateMethod.returnType;
+            var temp = GenerateTempLocal(tupleType);
+
+            var statements = ExpandExpression(
+                call.Update(
+                    call.receiver,
+                    stateMethod,
+                    call.arguments,
+                    call.argumentRefKinds,
+                    call.defaultArguments,
+                    call.resultKind,
+                    tupleType
+                ),
+                out var newCall
+            );
+
+            statements.Add(LocalDeclaration(syntax, temp, newCall));
+
+            var tupleField1 = ((FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item1))
+                .AsMember(tupleType);
+            var tupleField2 = ((FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2))
+                .AsMember(tupleType);
+
+            replacement = new BoundFieldAccessExpression(syntax,
+                Local(syntax, temp),
+                tupleField1,
+                null,
+                tupleField1.type
+            );
+
+            BoundExpression reverseArg = new BoundFieldAccessExpression(syntax,
+                Local(syntax, temp),
+                tupleField2,
+                null,
+                tupleField2.type
+            );
+
+            List<BoundStatement> tokenStatements = [];
+
+            if (expression.conversion != default) {
+                tokenStatements.AddRange(ExpandExpression(
+                    Cast(syntax, reverseMethod.GetParameterType(0), reverseArg, expression.conversion, null),
+                    out reverseArg
+                ));
+            }
+
+            tokenStatements.Add(Statement(syntax, call.Update(
+                call.receiver,
+                reverseMethod,
+                [reverseArg],
+                [],
+                default,
+                call.resultKind,
+                reverseMethod.returnType
+            )));
+
+            _tokenMap.Add(expression.token, tokenStatements);
+
+            return statements;
+        } else if (reverseMethod.parameterCount == 0) {
+            var statements = ExpandExpression(call, out replacement);
+
+            _tokenMap.Add(expression.token, [Statement(syntax, call.Update(
+                call.receiver,
+                reverseMethod,
+                [],
+                [],
+                default,
+                call.resultKind,
+                reverseMethod.returnType
+            ))]);
+
+            return statements;
+        } else {
+            var temp = GenerateTempLocal(targetMethod.returnType);
+            var statements = ExpandExpression(call, out var newCall);
+            statements.Add(LocalDeclaration(syntax, temp, newCall));
+            replacement = Local(syntax, temp);
+
+            BoundExpression reverseArg = Local(syntax, temp);
+            List<BoundStatement> tokenStatements = [];
+
+            if (expression.conversion != default) {
+                tokenStatements.AddRange(ExpandExpression(
+                    Cast(syntax, reverseMethod.GetParameterType(0), reverseArg, expression.conversion, null),
+                    out reverseArg
+                ));
+            }
+
+            tokenStatements.Add(Statement(syntax, call.Update(
+                call.receiver,
+                reverseMethod,
+                [reverseArg],
+                [],
+                default,
+                call.resultKind,
+                reverseMethod.returnType
+            )));
+
+            _tokenMap.Add(expression.token, tokenStatements);
+
+            return statements;
+        }
     }
 
     private protected override List<BoundStatement> ExpandCStringLiteral(

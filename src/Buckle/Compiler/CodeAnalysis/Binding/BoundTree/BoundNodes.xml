@@ -299,6 +299,19 @@
     <Field Name="targetType" Type="BoundTypeExpression?" SkipInVisitor="true"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
+  <Node Name="BoundReversibleExpression" Base="BoundExpression">
+    <Field Name="call" Type="BoundCallExpression?"/>
+    <Field Name="token" Type="TokenSymbol"/>
+    <Field Name="conversion" Type="Conversion"/>
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+  </Node>
+  <Node Name="BoundReverseStatement" Base="BoundStatement">
+    <Field Name="token" Type="TokenSymbol?"/>
+  </Node>
+  <Node Name="BoundReverseDeferStatement" Base="BoundStatement">
+    <Field Name="call" Type="BoundCallExpression?"/>
+    <Field Name="conversion" Type="Conversion"/>
+  </Node>
   <Node Name="BoundInterpolatedStringExpression" Base="BoundExpression">
     <Field Name="contents" Type="ImmutableArray&lt;BoundExpression&gt;"/>
     <Field Name="isCString" Type="bool"/>

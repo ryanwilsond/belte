@@ -54,6 +54,10 @@ internal sealed class EndBinder : Binder {
         throw ExceptionUtilities.Unreachable();
     }
 
+    internal override ImmutableArray<TokenSymbol> GetDeclaredTokensForScope(SyntaxNode scopeDesignator) {
+        throw ExceptionUtilities.Unreachable();
+    }
+
     internal override BoundForStatement BindForParts(BelteDiagnosticQueue diagnostics, Binder originalBinder) {
         throw ExceptionUtilities.Unreachable();
     }
@@ -90,6 +94,10 @@ internal sealed class EndBinder : Binder {
     }
 
     private protected override LocalFunctionSymbol LookupLocalFunction(SyntaxToken identifier) {
+        return null;
+    }
+
+    private protected override SourceTokenSymbol LookupToken(SyntaxToken identifier) {
         return null;
     }
 }

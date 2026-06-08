@@ -1022,21 +1022,23 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Current approach is too expensive to check for this warning
-    // [Fact]
-    // public void Reports_Warning_BU0071_LocalUsingTypeName() {
-    //     var text = @"
-    //         class A { }
+    [Fact]
+    public void Reports_Warning_BU0071_LocalUsingTypeName() {
+        var text = @"
+            class A {
+                public void M() {
+                    int [A] = 3;
+                }
+            }
+            ;
+        ";
 
-    //         A [A] = new A();
-    //     ";
+        var diagnostics = @"
+            local 'A' shares a name with a type in this namespace
+        ";
 
-    //     var diagnostics = @"
-    //         local 'A' shares a name with a type in this namespace
-    //     ";
-
-    //     AssertDiagnostics(text, diagnostics, _writer, true);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
 
     [Fact]
     public void Reports_Error_BU0072_CannotImplyNull() {
@@ -6545,6 +6547,64 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             reverse clause must have a parameter that matches the type of the state clause
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0494_UndefinedToken() {
+        var text = @"
+            reverse [a];
+        ";
+
+        var diagnostics = @"
+            undefined token 'a'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0495_TokenAlreadyDeclared() {
+        var text = @"
+            class A {
+                public static void M() { }
+                    reverse { }
+            }
+
+            reversible T: A.M();
+            reversible [T]: A.M();
+        ";
+
+        var diagnostics = @"
+            a token with the name 'T' has already been declared in this scope
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0496_ReversibleExpressionNotReversible() {
+        var text = @"
+            reversible T: [3];
+        ";
+
+        var diagnostics = @"
+            the target expression of a reversible expression must be a call to a reversible method
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0497_ReverseDeferExpressionNotReversible() {
+        var text = @"
+            reverse defer [3];
+        ";
+
+        var diagnostics = @"
+            the target expression of a reverse defer statement must be a call to a reversible method
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

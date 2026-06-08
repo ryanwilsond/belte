@@ -1073,6 +1073,19 @@
       <Kind Name="SemicolonToken"/>
     </Field>
   </Node>
+  <Node Name="ReverseDeferStatementSyntax" Base="StatementSyntax">
+    <Kind Name="ReverseDeferStatement"/>
+    <Field Name="reverseKeyword" Type="SyntaxToken">
+      <Kind Name="ReverseKeyword"/>
+    </Field>
+    <Field Name="deferKeyword" Type="SyntaxToken">
+      <Kind Name="DeferKeyword"/>
+    </Field>
+    <Field Name="expression" Type="ExpressionSyntax"/>
+    <Field Name="semicolon" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
+    </Field>
+  </Node>
   <Node Name="ForStatementSyntax" Base="StatementSyntax">
     <Kind Name="ForStatement"/>
     <Field Name="keyword" Type="SyntaxToken">

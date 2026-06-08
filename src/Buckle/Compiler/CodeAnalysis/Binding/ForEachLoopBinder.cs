@@ -122,4 +122,11 @@ internal sealed class ForEachLoopBinder : LoopBinder {
         BelteSyntaxNode scopeDesignator) {
         throw ExceptionUtilities.Unreachable();
     }
+
+    internal override ImmutableArray<TokenSymbol> GetDeclaredTokensForScope(SyntaxNode scopeDesignator) {
+        if (this.scopeDesignator == scopeDesignator)
+            return tokens;
+
+        throw ExceptionUtilities.Unreachable();
+    }
 }

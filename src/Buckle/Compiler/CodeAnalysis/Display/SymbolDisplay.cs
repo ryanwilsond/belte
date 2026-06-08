@@ -72,6 +72,9 @@ public static class SymbolDisplay {
             case SymbolKind.Label:
                 DisplayLabel(text, (LabelSymbol)symbol, format);
                 break;
+            case SymbolKind.Token:
+                DisplayToken(text, (TokenSymbol)symbol, format);
+                break;
             case SymbolKind.Alias:
                 DisplayAlias(text, (AliasSymbol)symbol);
                 break;
@@ -348,6 +351,10 @@ public static class SymbolDisplay {
     private static void DisplayLabel(DisplayText text, LabelSymbol label, SymbolDisplayFormat _) {
         text.Write(CreateIdentifier(label.name));
         text.Write(CreatePunctuation(SyntaxKind.ColonToken));
+    }
+
+    private static void DisplayToken(DisplayText text, TokenSymbol token, SymbolDisplayFormat _) {
+        text.Write(CreateIdentifier(token.name));
     }
 
     private static void DisplayField(DisplayText text, FieldSymbol field, SymbolDisplayFormat format) {

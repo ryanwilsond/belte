@@ -140,9 +140,8 @@ internal static class Warning {
     }
 
     internal static BelteDiagnostic LocalUsingTypeName(TextLocation location, string name) {
-        throw Utilities.ExceptionUtilities.Unreachable();
-        // var message = $"local '{name}' shares a name with a type in this namespace";
-        // return CreateWarning(DiagnosticCode.WRN_LocalUsingTypeName, location, message);
+        var message = $"local '{name}' shares a name with a type in this namespace";
+        return CreateWarning(DiagnosticCode.WRN_LocalUsingTypeName, location, message);
     }
 
     internal static BelteDiagnostic ProtectedInSealed(TextLocation location, Symbol symbol) {

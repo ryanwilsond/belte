@@ -95,6 +95,13 @@ internal class SwitchBinder : LocalScopeBinder {
         throw ExceptionUtilities.Unreachable();
     }
 
+    internal override ImmutableArray<TokenSymbol> GetDeclaredTokensForScope(SyntaxNode scopeDesignator) {
+        if (_switchSyntax == scopeDesignator)
+            return tokens;
+
+        throw ExceptionUtilities.Unreachable();
+    }
+
     internal static SwitchBinder Create(Binder next, SwitchStatementSyntax switchSyntax) {
         return new SwitchBinder(next, switchSyntax);
     }
@@ -145,6 +152,15 @@ internal class SwitchBinder : LocalScopeBinder {
             builder.AddRange(BuildLocalFunctions(section.statements));
 
         return builder.ToImmutableAndFree();
+    }
+
+    private protected override ImmutableArray<TokenSymbol> BuildTokens() {
+        ArrayBuilder<TokenSymbol> builder = null;
+
+        foreach (var section in _switchSyntax.sections)
+            BuildTokens(section.statements, GetBinder(section), ref builder);
+
+        return builder is null ? [] : builder.ToImmutableAndFree();
     }
 
     private protected override ImmutableArray<LabelSymbol> BuildLabels() {

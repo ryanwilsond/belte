@@ -502,6 +502,10 @@ public enum DiagnosticCode : ushort {
     ERR_NullableReceiverCall = 491,
     ERR_NullableReceiverIndex = 492,
     ERR_ReverseDoesNotTakeState = 493,
+    ERR_UndefinedToken = 494,
+    ERR_TokenAlreadyDeclared = 495,
+    ERR_ReversibleExpressionNotReversible = 496,
+    ERR_ReverseDeferExpressionNotReversible = 497,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

@@ -252,6 +252,7 @@ public enum SyntaxKind : ushort {
     ScopedStatement,
     WithStatement,
     ReverseStatement,
+    ReverseDeferStatement,
     LocalDeclarationStatement,
     LocalFunctionStatement,
 

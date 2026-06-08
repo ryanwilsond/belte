@@ -26,6 +26,10 @@ internal sealed class SimpleProgramUnitBinder : LocalScopeBinder {
         return _scope.GetDeclaredLocalFunctionsForScope(scopeDesignator);
     }
 
+    internal override ImmutableArray<TokenSymbol> GetDeclaredTokensForScope(SyntaxNode scopeDesignator) {
+        return _scope.GetDeclaredTokensForScope(scopeDesignator);
+    }
+
     private protected override ImmutableArray<DataContainerSymbol> BuildLocals() {
         return _scope.locals;
     }
@@ -36,5 +40,9 @@ internal sealed class SimpleProgramUnitBinder : LocalScopeBinder {
 
     private protected override ImmutableArray<LabelSymbol> BuildLabels() {
         return [];
+    }
+
+    private protected override ImmutableArray<TokenSymbol> BuildTokens() {
+        return _scope.tokens;
     }
 }

@@ -81,6 +81,8 @@ internal partial class Binder {
 
     internal virtual ImmutableArray<LabelSymbol> labels => [];
 
+    internal virtual ImmutableArray<TokenSymbol> tokens => [];
+
     internal virtual bool isInMethodBody => next.isInMethodBody;
 
     internal virtual bool isNestedFunctionBinder => false;
@@ -146,6 +148,10 @@ internal partial class Binder {
         return next.GetDeclaredLocalFunctionsForScope(scopeDesignator);
     }
 
+    internal virtual ImmutableArray<TokenSymbol> GetDeclaredTokensForScope(SyntaxNode scopeDesignator) {
+        return next.GetDeclaredTokensForScope(scopeDesignator);
+    }
+
     internal virtual BoundForStatement BindForParts(BelteDiagnosticQueue diagnostics, Binder originalBinder) {
         return next.BindForParts(diagnostics, originalBinder);
     }
@@ -164,6 +170,10 @@ internal partial class Binder {
 
     private protected virtual LocalFunctionSymbol LookupLocalFunction(SyntaxToken identifier) {
         return next.LookupLocalFunction(identifier);
+    }
+
+    private protected virtual SourceTokenSymbol LookupToken(SyntaxToken identifier) {
+        return next.LookupToken(identifier);
     }
 
     private protected virtual bool IsUnboundTypeAllowed(TemplateNameSyntax syntax) {
@@ -3319,6 +3329,8 @@ internal partial class Binder {
                 return BindAnonymousFunction((AnonymousFunctionExpressionSyntax)node, diagnostics);
             case SyntaxKind.WithExpression:
                 return BindWithExpression((WithExpressionSyntax)node, diagnostics);
+            case SyntaxKind.ReversibleExpression:
+                return BindReversibleExpression((ReversibleExpressionSyntax)node, diagnostics);
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -3414,6 +3426,80 @@ internal partial class Binder {
                 true
             );
         }
+    }
+
+    private BoundExpression BindReversibleExpression(
+        ReversibleExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        var token = LocateDeclaredTokenSymbol(node.identifier);
+
+        var nameConflict = token.scopeBinder.ValidateDeclarationNameConflictsInScope(token, diagnostics);
+
+        var hasError = BindReverseExpression(
+            node.expression,
+            diagnostics,
+            out var boundExpression,
+            out var conversion,
+            out var call
+        );
+
+        if (hasError) {
+            diagnostics.Push(Error.ReversibleExpressionNotReversible(node.expression.location));
+            return new BoundReversibleExpression(node, null, token, conversion, boundExpression.type, true);
+        }
+
+        return new BoundReversibleExpression(node, call, token, conversion, boundExpression.type, nameConflict);
+    }
+
+    private bool BindReverseExpression(
+        ExpressionSyntax expression,
+        BelteDiagnosticQueue diagnostics,
+        out BoundExpression boundExpression,
+        out Conversion conversion,
+        out BoundCallExpression call) {
+        boundExpression = BindExpression(expression, diagnostics);
+        conversion = default;
+
+        if (boundExpression is BoundCallExpression c && c.method.isReversible) {
+            call = c;
+            var reverseMethod = call.method.reverseMethod;
+
+            if (reverseMethod.parameterCount > 0) {
+                var parameter = reverseMethod.parameters[0];
+                var dummy = boundExpression;
+
+                if (call.method.hasReversalState) {
+                    dummy = call.Update(
+                        call.receiver,
+                        call.method,
+                        call.arguments,
+                        call.argumentRefKinds,
+                        call.defaultArguments,
+                        call.resultKind,
+                        call.method.stateMethod.returnType.tupleElementTypes[1].type.type
+                    );
+                }
+
+                GenerateConversionForAssignment(
+                    parameter.type,
+                    dummy,
+                    diagnostics,
+                    out conversion,
+                    parameter.refKind != RefKind.None
+                        ? ConversionForAssignmentFlags.RefAssignment
+                        : ConversionForAssignmentFlags.None
+                );
+            }
+        } else {
+            call = null;
+            return true;
+        }
+
+        return false;
+    }
+
+    private SourceTokenSymbol LocateDeclaredTokenSymbol(SyntaxToken identifier) {
+        return LookupToken(identifier) ?? new SourceTokenSymbol(containingMember, identifier, this);
     }
 
     private BoundExpression BindDeclarationExpressionAsError(
@@ -12323,6 +12409,28 @@ symIsHidden:;
             return nsOrType.GetMembersUnordered();
     }
 
+    private TokenSymbol LookupTokenByName(string name) {
+        Binder binder = null;
+
+        for (var scope = this; scope is not null; scope = scope.next) {
+            if (binder is not null) {
+                var result = scope.LookupTokenInSingleBinder(name);
+
+                if (result is not null)
+                    return result;
+            } else {
+                var result = scope.LookupTokenInSingleBinder(name);
+
+                if (result is null)
+                    binder = scope;
+                else
+                    return result;
+            }
+        }
+
+        return null;
+    }
+
     private Binder LookupSymbolsInternal(
         LookupResult result,
         string name,
@@ -12380,6 +12488,10 @@ symIsHidden:;
         TextLocation errorLocation,
         bool diagnose) { }
 
+    internal virtual TokenSymbol LookupTokenInSingleBinder(string name) {
+        return null;
+    }
+
     internal virtual void AddLookupSymbolsInfoInSingleBinder(
         LookupSymbolsInfo info,
         LookupOptions options,
@@ -12410,6 +12522,11 @@ symIsHidden:;
                 );
             }
         }
+    }
+
+    private protected TokenSymbol LookupTokenInSubmissions(string name) {
+        // TODO If we want to allow using tokens from previous submissions, compilations need to track token statements
+        return null;
     }
 
     private protected void LookupMembersInSubmissions(
@@ -12869,8 +12986,38 @@ symIsHidden:;
             SyntaxKind.InlineILStatement => BindInlineILStatement((InlineILStatementSyntax)node, diagnostics),
             SyntaxKind.WithStatement => BindWithStatement((WithStatementSyntax)node, diagnostics),
             SyntaxKind.UnreachableStatement => BindUnreachableStatement((UnreachableStatementSyntax)node),
+            SyntaxKind.ReverseStatement => BindReverseStatement((ReverseStatementSyntax)node, diagnostics),
+            SyntaxKind.ReverseDeferStatement => BindReverseDeferStatement((ReverseDeferStatementSyntax)node, diagnostics),
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
+    }
+
+    private BoundStatement BindReverseStatement(ReverseStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        var token = LookupTokenByName(node.identifier.text);
+
+        if (token is null)
+            diagnostics.Push(Error.UndefinedToken(node.identifier.location, node.identifier.text));
+
+        return new BoundReverseStatement(node, token);
+    }
+
+    private BoundStatement BindReverseDeferStatement(
+        ReverseDeferStatementSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        var hasError = BindReverseExpression(
+            node.expression,
+            diagnostics,
+            out _,
+            out var conversion,
+            out var call
+        );
+
+        if (hasError) {
+            diagnostics.Push(Error.ReverseDeferExpressionNotReversible(node.expression.location));
+            return new BoundReverseDeferStatement(node, null, conversion, true);
+        }
+
+        return new BoundReverseDeferStatement(node, call, conversion);
     }
 
     private BoundStatement BindSwitchStatement(SwitchStatementSyntax node, BelteDiagnosticQueue diagnostics) {
@@ -14443,7 +14590,7 @@ symIsHidden:;
             if (binder is InContainerBinder inContainerBinder) {
                 var container = inContainerBinder.container;
 
-                if (name == container.name) {
+                if (name == container.name && symbol.kind == SymbolKind.Local) {
                     diagnostics.Push(Warning.LocalUsingTypeName(location, name));
                     return false;
                 }
@@ -14460,6 +14607,7 @@ symIsHidden:;
 
             if (!onlyLookingForWarnings) {
                 var scope = binder as LocalScopeBinder;
+
                 if (scope?.EnsureSingleDefinition(symbol, name, location, diagnostics) == true)
                     return true;
             }
@@ -14650,6 +14798,7 @@ symIsHidden:;
             case BoundKind.CompileTimeExpression:
             case BoundKind.CallExpression:
             case BoundKind.CascadeListExpression:
+            case BoundKind.ReversibleExpression:
                 return false;
             case BoundKind.ConditionalAccessExpression:
                 var conditionalAccess = (BoundConditionalAccessExpression)expression;

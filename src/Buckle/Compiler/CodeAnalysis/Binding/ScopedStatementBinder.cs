@@ -29,6 +29,20 @@ internal sealed class ScopedStatementBinder : LocalScopeBinder {
         return locals.ToImmutableAndFree();
     }
 
+    private protected override ImmutableArray<TokenSymbol> BuildTokens() {
+        var declarationSyntax = _syntax.declaration;
+
+        var tokens = ArrayBuilder<TokenSymbol>.GetInstance(1);
+
+        declarationSyntax.type.VisitRankSpecifiers((rankSpecifier, args) => {
+            ExpressionTokenFinder.FindExpressionTokens(args.binder, ref args.tokens, rankSpecifier.size);
+        }, (binder: this, tokens: tokens));
+
+        ExpressionTokenFinder.FindExpressionTokens(this, ref tokens, declarationSyntax);
+
+        return tokens.ToImmutableAndFree();
+    }
+
     internal override BoundStatement BindScopedStatementParts(BelteDiagnosticQueue diagnostics, Binder originalBinder) {
         var declarationSyntax = _syntax;
         var boundScopedStatement = BindScopedStatementOrDeclarationFromParts(
@@ -98,6 +112,13 @@ internal sealed class ScopedStatementBinder : LocalScopeBinder {
 
     internal override ImmutableArray<LocalFunctionSymbol> GetDeclaredLocalFunctionsForScope(
         BelteSyntaxNode scopeDesignator) {
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    internal override ImmutableArray<TokenSymbol> GetDeclaredTokensForScope(SyntaxNode scopeDesignator) {
+        if (_syntax == scopeDesignator)
+            return tokens;
+
         throw ExceptionUtilities.Unreachable();
     }
 

@@ -2479,6 +2479,26 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_ReverseDoesNotTakeState, location, message, suggestion);
     }
 
+    internal static BelteDiagnostic UndefinedToken(TextLocation location, string name) {
+        var message = $"undefined token '{name}'";
+        return CreateError(DiagnosticCode.ERR_UndefinedToken, location, message);
+    }
+
+    internal static BelteDiagnostic TokenAlreadyDeclared(TextLocation location, string name) {
+        var message = $"a token with the name '{name}' has already been declared in this scope";
+        return CreateError(DiagnosticCode.ERR_TokenAlreadyDeclared, location, message);
+    }
+
+    internal static BelteDiagnostic ReversibleExpressionNotReversible(TextLocation location) {
+        var message = $"the target expression of a reversible expression must be a call to a reversible method";
+        return CreateError(DiagnosticCode.ERR_ReversibleExpressionNotReversible, location, message);
+    }
+
+    internal static BelteDiagnostic ReverseDeferExpressionNotReversible(TextLocation location) {
+        var message = $"the target expression of a reverse defer statement must be a call to a reversible method";
+        return CreateError(DiagnosticCode.ERR_ReverseDeferExpressionNotReversible, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

@@ -16,6 +16,7 @@ internal abstract partial class BoundTreeExpander {
 
     private protected int _tempCount = 0;
     private protected int _labelCount = 0;
+    private protected int _tokenCount = 0;
 
     private protected abstract MethodSymbol _container { get; set; }
 
@@ -28,6 +29,10 @@ internal abstract partial class BoundTreeExpander {
 
     private protected SynthesizedLabelSymbol GenerateLabel(string suffix = null) {
         return new SynthesizedLabelSymbol($"ExpLabel{++_labelCount}{suffix}");
+    }
+
+    private protected SynthesizedTokenSymbol GenerateToken() {
+        return new SynthesizedTokenSymbol($"<>ExpToken{++_tokenCount}");
     }
 
     private protected SynthesizedDataContainerSymbol GenerateTempLocal(TypeSymbol type) {
@@ -75,6 +80,8 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.WithStatement => ExpandWithStatement((BoundWithStatement)statement),
             BoundKind.ScopedStatement => ExpandScopedStatement((BoundScopedStatement)statement),
             BoundKind.UnreachableStatement => ExpandUnreachableStatement((BoundUnreachableStatement)statement),
+            BoundKind.ReverseStatement => ExpandReverseStatement((BoundReverseStatement)statement),
+            BoundKind.ReverseDeferStatement => ExpandReverseDeferStatement((BoundReverseDeferStatement)statement),
             _ => throw ExceptionUtilities.UnexpectedValue(statement.kind),
         };
     }
@@ -360,6 +367,15 @@ internal abstract partial class BoundTreeExpander {
         return [statement];
     }
 
+    private protected virtual List<BoundStatement> ExpandReverseStatement(BoundReverseStatement statement) {
+        return [statement];
+    }
+
+    private protected virtual List<BoundStatement> ExpandReverseDeferStatement(BoundReverseDeferStatement statement) {
+        // ! Inheritors are responsible for expanding
+        return [statement];
+    }
+
     private protected virtual List<BoundStatement> ExpandExpression(
         BoundExpression expression,
         out BoundExpression replacement,
@@ -432,8 +448,18 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.DiscardExpression => ExpandDiscardExpression((BoundDiscardExpression)expression, out replacement, useKind),
             BoundKind.TupleBinaryOperator => ExpandTupleBinaryOperator((BoundTupleBinaryOperator)expression, out replacement, useKind),
             BoundKind.DeconstructionAssignmentOperator => ExpandDeconstructionAssignmentOperator((BoundDeconstructionAssignmentOperator)expression, out replacement, useKind),
+            BoundKind.ReversibleExpression => ExpandReversibleExpression((BoundReversibleExpression)expression, out replacement, useKind),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
+    }
+
+    private protected virtual List<BoundStatement> ExpandReversibleExpression(
+        BoundReversibleExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        // ! Inheritors are responsible for expanding
+        replacement = expression;
+        return [];
     }
 
     private protected virtual List<BoundStatement> ExpandDeconstructionAssignmentOperator(

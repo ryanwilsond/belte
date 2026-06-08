@@ -22,13 +22,9 @@ internal abstract class TokenSymbol : Symbol {
 
     internal override Accessibility declaredAccessibility => Accessibility.NotApplicable;
 
-    internal virtual SyntaxNodeOrToken identifierNodeOrToken => default;
-
-    internal virtual MethodSymbol containingMethod => throw new NotSupportedException();
+    internal virtual SyntaxToken identifierToken => default;
 
     internal override Symbol containingSymbol => throw new NotSupportedException();
-
-    internal abstract MethodSymbol stateMethod { get; }
 
     internal override void Accept(SymbolVisitor visitor) {
         visitor.VisitToken(this);

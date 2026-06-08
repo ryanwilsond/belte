@@ -384,6 +384,15 @@ public sealed class DisplayText {
             case BoundKind.DeconstructionAssignmentOperator:
                 DisplayDeconstructionAssignmentOperator(text, (BoundDeconstructionAssignmentOperator)node);
                 break;
+            case BoundKind.ReverseStatement:
+                DisplayReverseStatement(text, (BoundReverseStatement)node);
+                break;
+            case BoundKind.ReverseDeferStatement:
+                DisplayReverseDeferStatement(text, (BoundReverseDeferStatement)node);
+                break;
+            case BoundKind.ReversibleExpression:
+                DisplayReversibleExpression(text, (BoundReversibleExpression)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -503,6 +512,29 @@ public sealed class DisplayText {
             stringBuilder.Append(isCharacter ? '\'' : '"');
 
         text.Write(CreateString(stringBuilder.ToString()));
+    }
+
+    private static void DisplayReverseStatement(DisplayText text, BoundReverseStatement node) {
+        text.Write(CreateKeyword(SyntaxKind.ReverseKeyword));
+        text.Write(CreateSpace());
+        text.Write(CreateIdentifier(node.token.name));
+    }
+
+    private static void DisplayReverseDeferStatement(DisplayText text, BoundReverseDeferStatement node) {
+        text.Write(CreateKeyword(SyntaxKind.ReverseKeyword));
+        text.Write(CreateSpace());
+        text.Write(CreateKeyword(SyntaxKind.DeferKeyword));
+        text.Write(CreateSpace());
+        DisplayNode(text, node.call);
+    }
+
+    private static void DisplayReversibleExpression(DisplayText text, BoundReversibleExpression node) {
+        text.Write(CreateKeyword(SyntaxKind.ReversibleKeyword));
+        text.Write(CreateSpace());
+        text.Write(CreateIdentifier(node.token.name));
+        text.Write(CreatePunctuation(SyntaxKind.ColonToken));
+        text.Write(CreateSpace());
+        DisplayNode(text, node.call);
     }
 
     private static void DisplayDiscardExpression(DisplayText text) {

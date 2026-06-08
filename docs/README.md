@@ -70,6 +70,7 @@
     - [2.8](Current/ControlFlow.md#28-defer-statements) Defer Statements
     - [2.9](Current/ControlFlow.md#29-scoped-statements) Scoped Statements
     - [2.10](Current/ControlFlow.md#210-unreachable-statements) Unreachable Statements
+    - [2.11](Current/ControlFlow.md#211-reverse-statements) Reverse Statements
   - [3](Current/Data.md) Data
     - [3.1](Current/Data.md#31-data-types) Data Types
       - [3.1.1](Current/Data.md#311-casts) Casts
