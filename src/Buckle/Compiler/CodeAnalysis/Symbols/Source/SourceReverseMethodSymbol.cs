@@ -85,15 +85,14 @@ internal sealed class SourceReverseMethodSymbol : SourceMemberMethodSymbol {
     }
 
     private protected override void MethodChecks(BelteDiagnosticQueue diagnostics) {
+        var targetMethod = _stateMethod ?? _containingMethod;
+        var targetRefKind = _stateMethod is null ? _containingMethod.refKind : RefKind.None;
+        var targetTypeWithAnnotations = _stateMethod is null
+            ? _containingMethod.returnTypeWithAnnotations
+            : _stateMethod.returnType.tupleElementTypes[1].type;
+
         if (_syntax.identifier is not null) {
             var hasError = false;
-
-            var targetMethod = _stateMethod ?? _containingMethod;
-            var targetRefKind = _stateMethod is null ? _containingMethod.refKind : RefKind.None;
-            var targetTypeWithAnnotations = _stateMethod is null
-                ? _containingMethod.returnTypeWithAnnotations
-                : _stateMethod.returnType.tupleElementTypes[1].type;
-
 
             if (targetTypeWithAnnotations.IsVoidType()) {
                 diagnostics.Push(Error.InvalidReverseParameter(location));
@@ -158,6 +157,9 @@ internal sealed class SourceReverseMethodSymbol : SourceMemberMethodSymbol {
                 }
             }
         } else {
+            if (_stateMethod is not null)
+                diagnostics.Push(Error.ReverseDoesNotTakeState(location, targetTypeWithAnnotations.type));
+
             _lazyParameters = [];
         }
 

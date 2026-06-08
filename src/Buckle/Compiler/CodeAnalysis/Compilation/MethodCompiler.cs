@@ -464,11 +464,24 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         int methodOrdinal,
         ref Binder.ProcessedFieldInitializers processedInitializers,
         TypeCompilationState state) {
-        if (method.isAbstract || method.originalDefinition is PEMethodSymbol)
+        if (method.isAbstract || method.originalDefinition is PEMethodSymbol or SourceStateMethodSymbol)
             return;
 
+        var methodDiagnostics = CompileMethodCore(method, methodOrdinal, ref processedInitializers, state);
+
+        if (methodDiagnostics is not null)
+            _diagnostics.PushRangeAndFree(methodDiagnostics);
+    }
+
+    private BelteDiagnosticQueue CompileMethodCore(
+        MethodSymbol method,
+        int methodOrdinal,
+        ref Binder.ProcessedFieldInitializers processedInitializers,
+        TypeCompilationState state,
+        bool isStateMethod = false,
+        BoundBlockStatement partialTargetBody = null) {
         if (_methodBodies.ContainsKey(method))
-            return;
+            return null;
 
         var oldImportChain = state.currentImportChain;
 
@@ -508,9 +521,8 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         );
 
         if (body is null || currentDiagnostics.AnyErrors()) {
-            _diagnostics.PushRangeAndFree(currentDiagnostics);
             _methodBodies.Add(method, body);
-            return;
+            return currentDiagnostics;
         }
 
         importChain ??= processedInitializers.firstImportChain;
@@ -534,11 +546,11 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         _sawCompileTimeExpression |= sawCompileTimeExpression;
 
         var controlFlowGraph = ControlFlowGraph.Create(method, loweredBody);
-        var assignments = controlFlowGraph.CheckDefiniteAssignment(_diagnostics);
+        var assignments = controlFlowGraph.CheckDefiniteAssignment(currentDiagnostics);
 
         foreach (var field in method.initFields) {
             if (!assignments.Contains(field))
-                _diagnostics.Push(Error.MissingFieldInit(method.location, field));
+                currentDiagnostics.Push(Error.MissingFieldInit(method.location, field));
         }
 
         if ((object)state.type == _entryPoint?.containingType) {
@@ -548,6 +560,20 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                 state.OrConstructorDefiniteAssignments(method.methodKind == MethodKind.StaticConstructor, assignments);
         } else if (method.IsConstructor() && !method.HasThisConstructorInitializer()) {
             state.AddConstructorDefiniteAssignments(method.methodKind == MethodKind.StaticConstructor, assignments);
+        }
+
+        if (isStateMethod)
+            loweredBody = StateMethodRewriter.Merge(method, partialTargetBody, loweredBody, currentDiagnostics);
+
+        if (method.hasReversalState) {
+            CompileMethodCore(
+                method.stateMethod,
+                methodOrdinal + 1,
+                ref processedInitializers,
+                state,
+                true,
+                loweredBody
+            );
         }
 
         if (_emitting) {
@@ -570,9 +596,10 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         if (_collectSymbols)
             SymbolCollector.Collect(this, loweredBody);
 
-        _diagnostics.PushRangeAndFree(currentDiagnostics);
         state.currentImportChain = oldImportChain;
         _methodBodies.TryAdd(method, loweredBody);
+
+        return currentDiagnostics;
     }
 
     private BoundBlockStatement LowerBody(

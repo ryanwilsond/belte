@@ -3594,6 +3594,18 @@ internal partial class Binder {
                     if (reverseMethod.parameterCount > 0) {
                         var parameter = reverseMethod.parameters[0];
 
+                        if (call.method.hasReversalState) {
+                            boundExpression = call.Update(
+                                call.receiver,
+                                call.method,
+                                call.arguments,
+                                call.argumentRefKinds,
+                                call.defaultArguments,
+                                call.resultKind,
+                                call.method.stateMethod.returnType.tupleElementTypes[1].type.type
+                            );
+                        }
+
                         boundExpression = GenerateConversionForAssignment(
                             parameter.type,
                             boundExpression,

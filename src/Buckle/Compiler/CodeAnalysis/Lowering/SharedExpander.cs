@@ -699,49 +699,8 @@ internal class SharedExpander : BoundTreeExpander {
                     ),
                     false
                 ));
-            } else if (expression is BoundCallExpression usedCall) {
-                statements.AddRange(ExpandExpression(expression, out var newCall));
-                statements.AddRange(LocalDeclaration(syntax, temp, newCall));
-
-                BoundExpression arg = Local(syntax, temp);
-
-                if (isRef)
-                    arg = new BoundReferenceExpression(syntax, arg, arg.type);
-
-                builder.Add((
-                    usedCall.Update(
-                        usedCall.receiver,
-                        usedCall.method.reverseMethod,
-                        [arg],
-                        [],
-                        default,
-                        LookupResultKind.Viable,
-                        usedCall.method.reverseMethod.returnType
-                    ),
-                    false
-                ));
-            } else if (expression is BoundCastExpression) {
-                statements.AddRange(ExpandExpression(expression, out var newCast));
-                var underlyingCall = (BoundCallExpression)((BoundCastExpression)newCast).operand;
-                statements.AddRange(LocalDeclaration(syntax, temp, newCast));
-
-                BoundExpression arg = Local(syntax, temp);
-
-                if (isRef)
-                    arg = new BoundReferenceExpression(syntax, arg, arg.type);
-
-                builder.Add((
-                    underlyingCall.Update(
-                        underlyingCall.receiver,
-                        underlyingCall.method.reverseMethod,
-                        [arg],
-                        [],
-                        default,
-                        LookupResultKind.Viable,
-                        underlyingCall.method.reverseMethod.returnType
-                    ),
-                    false
-                ));
+            } else if (expression is BoundCallExpression or BoundCastExpression) {
+                CreateReverseCallPrologue(expression, temp, isRef, builder, statements);
             } else {
                 statements.AddRange(ExpandExpression(left, out var newLeft, UseKind.Writable));
                 statements.Add(LocalDeclaration(syntax, temp, newLeft));
@@ -753,6 +712,103 @@ internal class SharedExpander : BoundTreeExpander {
 
         newLefts = builder.ToImmutableAndFree();
         return statements;
+    }
+
+    private void CreateReverseCallPrologue(
+        BoundExpression expression,
+        DataContainerSymbol temp,
+        bool isRef,
+        ArrayBuilder<(BoundExpression, bool)> builder,
+        List<BoundStatement> statements) {
+        var syntax = expression.syntax;
+        BoundCallExpression call;
+        MethodSymbol reverseMethod;
+
+        if (expression is BoundCallExpression c) {
+            call = c;
+            reverseMethod = call.method.reverseMethod;
+
+            if (call.method.hasReversalState) {
+                var stateMethod = call.method.stateMethod;
+                var tupleType = (NamedTypeSymbol)stateMethod.returnType;
+
+                call = call.Update(
+                    call.receiver,
+                    stateMethod,
+                    call.arguments,
+                    call.argumentRefKinds,
+                    call.defaultArguments,
+                    call.resultKind,
+                    tupleType
+                );
+
+                statements.AddRange(ExpandExpression(call, out var newCall));
+
+                var tupleField = ((FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2))
+                    .AsMember(tupleType);
+
+                var initializer = new BoundFieldAccessExpression(syntax, newCall, tupleField, null, tupleField.type);
+                statements.AddRange(LocalDeclaration(syntax, temp, initializer));
+            } else {
+                statements.AddRange(ExpandExpression(call, out var newCall));
+                statements.AddRange(LocalDeclaration(syntax, temp, newCall));
+            }
+        } else if (expression is BoundCastExpression cast) {
+            call = (BoundCallExpression)cast.operand;
+            reverseMethod = call.method.reverseMethod;
+
+            if (call.method.hasReversalState) {
+                var stateMethod = call.method.stateMethod;
+                var tupleType = (NamedTypeSymbol)stateMethod.returnType;
+
+                call = call.Update(
+                    call.receiver,
+                    stateMethod,
+                    call.arguments,
+                    call.argumentRefKinds,
+                    call.defaultArguments,
+                    call.resultKind,
+                    tupleType
+                );
+
+                statements.AddRange(ExpandExpression(call, out var newCall));
+
+                var tupleField = ((FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2))
+                    .AsMember(tupleType);
+
+                var initializer = cast.Update(
+                    new BoundFieldAccessExpression(syntax, newCall, tupleField, null, tupleField.type),
+                    cast.conversion,
+                    cast.constantValue,
+                    cast.type
+                );
+
+                statements.AddRange(LocalDeclaration(syntax, temp, initializer));
+            } else {
+                statements.AddRange(ExpandExpression(cast, out var newCast));
+                statements.AddRange(LocalDeclaration(syntax, temp, newCast));
+            }
+        } else {
+            throw ExceptionUtilities.Unreachable();
+        }
+
+        BoundExpression arg = Local(syntax, temp);
+
+        if (isRef)
+            arg = new BoundReferenceExpression(syntax, arg, arg.type);
+
+        builder.Add((
+            call.Update(
+                call.receiver,
+                reverseMethod,
+                [arg],
+                [],
+                default,
+                LookupResultKind.Viable,
+                reverseMethod.returnType
+            ),
+            false
+        ));
     }
 
     private List<BoundStatement> CreateWithEpilogue(

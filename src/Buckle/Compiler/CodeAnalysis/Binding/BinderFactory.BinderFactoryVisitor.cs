@@ -419,19 +419,15 @@ internal sealed partial class BinderFactory {
             var key = CreateBinderCacheKey(node, usage);
 
             if (!_binderCache.TryGetValue(key, out var resultBinder)) {
-                var grandParentType = node.parent.parent as TypeDeclarationSyntax;
+                var parentMethod = node.parent as MethodDeclarationSyntax;
 
-                if (grandParentType is not null) {
-                    resultBinder = VisitTypeDeclarationCore(
-                        grandParentType,
-                        NodeUsage.NamedTypeBodyOrTemplateParameters
-                    );
-                } else {
-                    resultBinder = VisitCore(node.parent.parent);
-                }
+                if (parentMethod is not null)
+                    resultBinder = VisitMethodDeclarationCore(parentMethod, NodeUsage.MethodBody);
+                else
+                    resultBinder = VisitCore(node.parent);
 
                 if (usage == NodeUsage.MethodBody) {
-                    var method = GetMethodSymbol(node, resultBinder);
+                    var method = GetStateMethodSymbol(node, resultBinder);
                     resultBinder = new InMethodBinder(method, resultBinder);
 
                     if (method.isEffectivelyConst)
@@ -442,6 +438,24 @@ internal sealed partial class BinderFactory {
             }
 
             return resultBinder;
+        }
+
+        private SourceMemberMethodSymbol GetStateMethodSymbol(StateClauseSyntax node, Binder resultBinder) {
+            if (node == _memberDeclaration)
+                return (SourceMemberMethodSymbol)_member;
+
+            if ((resultBinder.containingMember as MethodSymbol).stateMethod is not SourceMemberMethodSymbol candidate)
+                return null;
+
+            if (CheckSymbol(candidate, node.fullSpan, SymbolKind.Method, out var result))
+                return (SourceMemberMethodSymbol)result;
+
+            return null;
+        }
+
+        private SourceMemberMethodSymbol GetMethodSymbol(ReverseClauseSyntax reverseClauseSyntax, Binder outerBinder) {
+            var containingMethod = GetMethodSymbol((MethodDeclarationSyntax)reverseClauseSyntax.parent, outerBinder);
+            return (SourceMemberMethodSymbol)containingMethod.reverseMethod;
         }
 
         private SourceMemberMethodSymbol GetMethodSymbol(
@@ -457,16 +471,6 @@ internal sealed partial class BinderFactory {
 
             var methodName = GetMethodName(baseMethodDeclarationSyntax);
             return (SourceMemberMethodSymbol)GetMemberSymbol(methodName, baseMethodDeclarationSyntax.fullSpan, container, SymbolKind.Method);
-        }
-
-        private SourceMemberMethodSymbol GetMethodSymbol(ReverseClauseSyntax reverseClauseSyntax, Binder outerBinder) {
-            var containingMethod = GetMethodSymbol((MethodDeclarationSyntax)reverseClauseSyntax.parent, outerBinder);
-            return (SourceMemberMethodSymbol)containingMethod.reverseMethod;
-        }
-
-        private SourceMemberMethodSymbol GetMethodSymbol(StateClauseSyntax stateClauseSyntax, Binder outerBinder) {
-            var containingMethod = GetMethodSymbol((MethodDeclarationSyntax)stateClauseSyntax.parent, outerBinder);
-            return (SourceMemberMethodSymbol)containingMethod.stateMethod;
         }
 
         private NamedTypeSymbol GetContainerType(Binder binder) {
@@ -489,25 +493,24 @@ internal sealed partial class BinderFactory {
             }
 
             return null;
+        }
 
-            bool CheckSymbol(Symbol sym, TextSpan memberSpan, SymbolKind kind, out Symbol result) {
-                result = sym;
+        private bool CheckSymbol(Symbol sym, TextSpan memberSpan, SymbolKind kind, out Symbol result) {
+            result = sym;
 
-                if (sym.kind != kind)
-                    return false;
-
-                var syntaxReference = sym.syntaxReference;
-
-                if (kind is SymbolKind.Method) {
-
-                    if (InSpan(syntaxReference?.location, syntaxReference?.syntaxTree, _syntaxTree, memberSpan))
-                        return true;
-                } else if (InSpan(syntaxReference?.location, syntaxReference?.syntaxTree, _syntaxTree, memberSpan)) {
-                    return true;
-                }
-
+            if (sym.kind != kind)
                 return false;
+
+            var syntaxReference = sym.syntaxReference;
+
+            if (kind is SymbolKind.Method) {
+                if (InSpan(syntaxReference?.location, syntaxReference?.syntaxTree, _syntaxTree, memberSpan))
+                    return true;
+            } else if (InSpan(syntaxReference?.location, syntaxReference?.syntaxTree, _syntaxTree, memberSpan)) {
+                return true;
             }
+
+            return false;
         }
 
         private static bool InSpan(

@@ -8,6 +8,7 @@
   - [4.2.1](#421-fields) Fields
     - [4.2.1.1](#4211-definite-assignment) Definite Assignment
   - [4.2.2](#422-methods) Methods
+    - [4.2.2.1](#4221-state-and-reverse-clauses) State and Reverse Clauses
   - [4.2.3](#423-operators) Operators
     - [4.2.3.1](#4231-operator-overloading) Operator Overloading
     - [4.2.3.2](#4232-casts) Casts
@@ -267,6 +268,113 @@ When accessing a method, it must be called:
 var myInstance = new MyClass();
 myInstance.MyMethod();
 ```
+
+#### 4.2.2.1 State and Reverse Clauses
+
+A method with a reverse clause will automatically run that code when exiting a
+[with expression or statement](ControlFlow.md#27-with-expressions-and-statements)
+
+For example:
+
+```belte
+var stack = new Stack<int>();
+
+with (stack.Push(3)) {
+  // ...
+}
+
+public class Stack<type T> {
+  public void Push(T item) {
+    // ...
+  } reverse {
+    Pop();
+  }
+
+  public T Pop() {
+    // ...
+  }
+}
+```
+
+In the above example, the method `Stack<T>.Push(T)` defines a reverse clause that will run at the end of the above
+`with` statement.
+
+The reverse clause can optionally accept a single parameter that automatically passes the return value of the target
+method to communicate data between the two.
+
+For example:
+
+```belte
+class A {
+  public int Func(int val) {
+    return val;
+  } reverse (p) {
+    // ...
+  }
+}
+
+var a = new A();
+
+with (a.Func(10)) {
+  // ...
+}
+```
+
+In the above example, the reverse clause will be executed with `p = 10`. The reverse parameter can also be explicitly
+typed to any type that the return type of the target method can implicitly cast to:
+
+```belte
+class A {
+  public int Func(int val) {
+    return val;
+  } reverse (decimal p) {
+    // ...
+  }
+}
+```
+
+A state clause can be added to a method where when the data needed to reverse an operation does not naturally derive
+from the operation's return value. State clauses can also be used to avoid polluting a method with a return value only
+used in reversal when the method would otherwise have a void return.
+
+For example, a method that appends an element to a list and is reversible:
+
+```belte
+public class List<type T> {
+  public void Append(T value) {
+    if (_res > _length) {
+      _array[_length] = value;
+      _length++;
+      return;
+    }
+
+    ExpandStorage();
+    _array[_length] = value;
+    _length++;
+  } state (int) {
+    return _length - 1;
+  } reverse (index) {
+    RemoveAt(index);
+  }
+}
+```
+
+When calling `List<T>.Append()` normally, it has a void return. But when used in a with statement or expression, the
+return value of the state clause will be stored and passed to the reverse clause when reversing:
+
+```belte
+List<int> myList = { 1, 2, 3 };
+
+with (myList.Append(4)) {
+  // myList = { 1, 2, 3, 4 }
+  // ...
+}
+
+// myList = { 1, 2, 3}
+```
+
+The state clause can use any values of the target method (parameters and locals) as long as all code paths have assigned
+a value to those values.
 
 ### 4.2.3 Operators
 

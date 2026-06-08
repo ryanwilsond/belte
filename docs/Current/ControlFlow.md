@@ -31,7 +31,6 @@
 - [2.6](#26-exceptions-and-handling) Exceptions and Handling
   - [2.6.1](#261-trycatchfinally) Try/Catch/Finally
 - [2.7](#27-with-expressions-and-statements) With Expressions and Statements
-  - [2.7.1](#271-reverse-methods) Reverse Methods
 - [2.8](#28-defer-statements) Defer Statements
 - [2.9](#29-scoped-statements) Scoped Statements
 - [2.10](#210-unreachable-statements) Unreachable Statements
@@ -828,69 +827,9 @@ return with (a = 5) with (b = 10) with (c = 0) SomeMethod();
 
 Using a single `with` where possible is preferred as the compiler can optimize it better.
 
-### 2.7.1 Reverse Methods
-
-To define custom reversal logic for a with expression or statement, a reverse clause can be added to a method that runs
-at the end of the with.
-
-For example:
-
-```belte
-var stack = new Stack<int>();
-
-with (stack.Push(3)) {
-  // ...
-}
-
-public class Stack<type T> {
-  public void Push(T item) {
-    // ...
-  } reverse {
-    Pop();
-  }
-
-  public T Pop() {
-    // ...
-  }
-}
-```
-
-In the above example, the method `Stack<T>.Push(T)` defines a reverse clause that will run at the end of the above
-`with` statement.
-
-The reverse clause can optionally accept a single parameter that automatically passes the return value of the target
-method to communicate data between the two.
-
-For example:
-
-```belte
-class A {
-  public int Func(int val) {
-    return val;
-  } reverse (p) {
-    // ...
-  }
-}
-
-var a = new A();
-
-with (a.Func(10)) {
-  // ...
-}
-```
-
-In the above example, the reverse clause will be executed with `p = 10`. The reverse parameter can also be explicitly
-typed to any type that the return type of the target method can implicitly cast to:
-
-```belte
-class A {
-  public int Func(int val) {
-    return val;
-  } reverse (decimal p) {
-    // ...
-  }
-}
-```
+Apart from assignments,
+[user-defined reversal methods can be defined](ClassesAndObjects.md#4221-state-and-reverse-clauses) to use `with` in
+more contexts.
 
 ## 2.8 Defer Statements
 

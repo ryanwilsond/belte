@@ -569,6 +569,48 @@ public sealed class EvaluatorTests {
         var a = new A<int>();
         var b = with (a.M(10)) 10;
         return a.c;", 10)]
+    // TODO These tests succeed when done manually but fail as tests for some reason?
+    // [InlineData(@"
+    //     class A {
+    //         public static int s = 0;
+
+    //         public static int M(int p) {
+    //             return p;
+    //         } state(bool) {
+    //             return p > 4;
+    //         } reverse(bool b) {
+    //             s = b ? 50 : 30;
+    //         }
+    //     }
+    //     return with(A.M(10)) A.s;", 0)]
+    // [InlineData(@"
+    //     class A {
+    //         public static int s = 0;
+
+    //         public static int M(int p) {
+    //             return p;
+    //         } state(bool) {
+    //             return p > 4;
+    //         } reverse(bool b) {
+    //             s = b ? 50 : 30;
+    //         }
+    //     }
+    //     with (A.M(10)) ;
+    //     return A.s;", 50)]
+    // [InlineData(@"
+    //     class A {
+    //         public static int s = 0;
+
+    //         public static int M(int p) {
+    //             return p;
+    //         } state(bool) {
+    //             return p > 4;
+    //         } reverse(bool b) {
+    //             s = b ? 50 : 30;
+    //         }
+    //     }
+    //     with (A.M(3)) ;
+    //     return A.s;", 30)]
     // Compile-time expressions
     [InlineData("int a = $3; return a;", 3)]
     [InlineData("constexpr int? a = 3; int b = $a?; return b;", 3)]

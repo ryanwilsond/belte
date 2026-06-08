@@ -283,7 +283,12 @@ internal sealed class Evaluator {
                 var arg = layout.GetLocal(parameter);
 
                 if (argument.isType) {
-                    heapObject.fields[arg.slot] = EvaluatorValue.Type(argument.type.type);
+                    var t = argument.type.type;
+
+                    if (t is TemplateParameterSymbol templateParameter)
+                        t = SubstituteTemplateParameter(templateParameter);
+
+                    heapObject.fields[arg.slot] = EvaluatorValue.Type(t);
                 } else {
                     heapObject.fields[arg.slot] = EvaluatorValue.Literal(
                         argument.constant.value,
@@ -2881,7 +2886,7 @@ internal sealed class Evaluator {
                         var argument = EvaluateExpression(arguments[0], true, abort);
 
                         if (argument.kind == ValueKind.HeapPtr) {
-                            var type = (NamedTypeSymbol)_context.heap[argument.ptr].type;
+                            var type = _context.heap[argument.ptr].type;
                             result = GetTypeName(type);
                         } else if (argument.kind == ValueKind.Struct) {
                             var type = argument.@struct.type;
@@ -3002,14 +3007,16 @@ internal sealed class Evaluator {
                     printed = true;
                     goto case "Console_PrintLine_S?";
                 case "Console_PrintLine_S?":
-                case "Console_PrintLine_A?":
-                    if (arguments[0].StrippedType().isObjectType) {
+                case "Console_PrintLine_A?": {
                         var argument = EvaluateExpression(arguments[0], true, abort);
-                        var toStringMethod = ResolveVirtualMethod(_toStringMethod, null, argument);
-                        var toStringResult = InvokeMethod(toStringMethod, argument, [], abort);
-                        var func = StandardLibrary.EvaluatorMap[mapKey];
-                        result = func(toStringResult.@string, null, null);
-                        return true;
+
+                        if (argument.kind is ValueKind.HeapPtr or ValueKind.Struct) {
+                            var toStringMethod = ResolveVirtualMethod(_toStringMethod, null, argument);
+                            var toStringResult = InvokeMethod(toStringMethod, argument, [], abort);
+                            var func = StandardLibrary.EvaluatorMap[mapKey];
+                            result = func(toStringResult.@string, null, null);
+                            return true;
+                        }
                     }
 
                     break;

@@ -2473,6 +2473,12 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NullableReceiverIndex, location, message, suggestion1, suggestion2);
     }
 
+    internal static BelteDiagnostic ReverseDoesNotTakeState(TextLocation location, TypeSymbol type) {
+        var message = $"reverse clause must have a parameter that matches the type of the state clause";
+        var suggestion = $"% ({type} state)";
+        return CreateError(DiagnosticCode.ERR_ReverseDoesNotTakeState, location, message, suggestion);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

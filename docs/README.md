@@ -67,7 +67,6 @@
     - [2.6](Current/ControlFlow.md#26-exceptions-and-handling) Exceptions and Handling
       - [2.6.1](Current/ControlFlow.md#261-trycatchfinally) Try/Catch/Finally
     - [2.7](Current/ControlFlow.md#27-with-expressions-and-statements) With Expressions and Statements
-      - [2.7.1](Current/ControlFlow.md#271-reverse-methods) Reverse Methods
     - [2.8](Current/ControlFlow.md#28-defer-statements) Defer Statements
     - [2.9](Current/ControlFlow.md#29-scoped-statements) Scoped Statements
     - [2.10](Current/ControlFlow.md#210-unreachable-statements) Unreachable Statements
@@ -111,6 +110,7 @@
     - [4.2](Current/ClassesAndObjects.md#42-members) Members
       - [4.2.1](Current/ClassesAndObjects.md#421-fields) Fields
       - [4.2.2](Current/ClassesAndObjects.md#422-methods) Methods
+        - [4.2.2.1](Current/ClassesAndObjects.md#4221-state-and-reverse-clauses) State and Reverse Clauses
       - [4.2.3](Current/ClassesAndObjects.md#423-operators) Operators
         - [4.2.3.1](Current/ClassesAndObjects.md#4231-operator-overloading) Operator Overloading
         - [4.2.3.2](Current/ClassesAndObjects.md#4232-casts) Casts

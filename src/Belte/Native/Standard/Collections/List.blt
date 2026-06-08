@@ -60,11 +60,11 @@ public lowlevel sealed class List<type T> {
         return new Array<T>((int32)_length, copy);
     }
 
-    public int! Append(T value) {
+    public void Append(T value) {
         if (_res > _length) {
             _array[_length] = value;
             _length++;
-            return _length - 1;
+            return;
         }
 
         int! newCapacity = _length * 2;
@@ -75,9 +75,9 @@ public lowlevel sealed class List<type T> {
 
         _length++;
         _res = newCapacity;
-
+    } state (int!) {
         return _length - 1;
-    } reverse (index) {
+    } reverse (int! index) {
         RemoveAt(index);
     }
 

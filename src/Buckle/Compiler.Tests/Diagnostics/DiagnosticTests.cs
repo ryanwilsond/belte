@@ -6528,4 +6528,25 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0493_ReverseDoesNotMatchState() {
+        var text = @"
+            class A {
+                public static int M(int p) {
+                    return p;
+                } state(bool) {
+                    return p > 4;
+                } [reverse] {
+                }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            reverse clause must have a parameter that matches the type of the state clause
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }
