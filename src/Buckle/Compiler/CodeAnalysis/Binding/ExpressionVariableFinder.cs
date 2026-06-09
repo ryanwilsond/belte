@@ -57,15 +57,15 @@ internal sealed class ExpressionVariableFinder : ExpressionVariableFinder<DataCo
         BaseArgumentListSyntax argumentListSyntax,
         SyntaxTokenList modifiers,
         SyntaxNode nodeToBind) {
-        return SourceDataContainerSymbol.MakeLocal(
+        return SourceDataContainerSymbol.MakeLocalSymbolWithEnclosingContext(
             containingSymbol: _scopeBinder.containingMember,
             scopeBinder: _scopeBinder,
-            allowRefKind: true,
-            initializer: null,
             nodeBinder: _enclosingBinder,
             typeSyntax: node.type,
             identifierToken: identifier,
-            modifiers: modifiers,
+            kind: node.IsOutVarDeclaration()
+                ? DataContainerDeclarationKind.OutVariable
+                : DataContainerDeclarationKind.DeclarationExpressionVariable,
             nodeToBind: nodeToBind
         );
     }
@@ -74,16 +74,13 @@ internal sealed class ExpressionVariableFinder : ExpressionVariableFinder<DataCo
         TypeSyntax type,
         DeclarationPatternSyntax node,
         SyntaxNode nodeToBind) {
-        // TODO EnclosingContext aware local to prevent duplicates (same for out vars)
-        return SourceDataContainerSymbol.MakeLocal(
+        return SourceDataContainerSymbol.MakeLocalSymbolWithEnclosingContext(
             containingSymbol: _scopeBinder.containingMember,
             scopeBinder: _scopeBinder,
-            allowRefKind: true,
-            initializer: null,
             nodeBinder: _enclosingBinder,
             typeSyntax: type,
             identifierToken: node.identifier,
-            modifiers: null,
+            kind: DataContainerDeclarationKind.PatternLocal,
             nodeToBind: nodeToBind
         );
     }

@@ -1,4 +1,4 @@
-# 5.9 Int and other Numerics
+# 5.9 Int and Other Numerics
 
 The Int class provides static `int` helpers.
 

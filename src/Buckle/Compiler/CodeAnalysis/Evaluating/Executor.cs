@@ -58,13 +58,6 @@ internal sealed partial class Executor : ModuleBuilder {
         { SpecialType.Void, typeof(void) },
         { SpecialType.Type, typeof(Type) },
         { SpecialType.String, typeof(string) },
-        { SpecialType.Sprite, typeof(BSprite) },
-        { SpecialType.Rect, typeof(BRect) },
-        { SpecialType.Vec2, typeof(BVec2) },
-        { SpecialType.Texture, typeof(BTexture) },
-        { SpecialType.Text, typeof(BText) },
-        { SpecialType.Sound, typeof(BSound) },
-        { SpecialType.Exception, typeof(Exception) },
     };
 
     private readonly Dictionary<TypeSymbol, TypeBuilder> _types = [];
@@ -100,7 +93,7 @@ internal sealed partial class Executor : ModuleBuilder {
         _diagnostics = diagnostics;
         _graphicsEnabled = program.compilation.options.outputKind == OutputKind.GraphicsApplication;
 
-        _topLevelTypes = program.GetTypesToEmit();
+        _topLevelTypes = program.GetTypesToEmit(includeGraphicsWellKnownTypes: false);
 
         var assemblyName = new AssemblyName(DynamicAssemblyName);
         var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
@@ -698,9 +691,64 @@ internal sealed partial class Executor : ModuleBuilder {
             return closedType.GetMethod("get_HasValue", BindingFlags.Public | BindingFlags.Instance, Type.EmptyTypes);
     }
 
+    internal MethodInfo GetArrayEmpty(TypeSymbol elementType) {
+        var generic = GetType(elementType);
+        return MethodInfoCache.Array_Empty.MakeGenericMethod(generic);
+    }
+
+    // TODO Confirm we don't need this ever
+    // internal ConstructorInfo GetTupleCtor(NamedTypeSymbol tupleType) {
+    //     var tuple = GetTupleType(tupleType.arity);
+    //     var generics = tupleType.templateArguments.Select(t => GetType(t.type.type)).ToArray();
+    //     var closedType = tuple.MakeGenericType(generics);
+
+    //     if (closedType.ContainsGenericParameters ||
+    //         generics.Any(t => t is TypeBuilder) ||
+    //         generics.Any(t => t is GenericTypeParameterBuilder)) {
+    //         return TypeBuilder.GetConstructor(closedType, GetTupleCtorInfo(tupleType.arity));
+    //     } else {
+    //         return closedType.GetConstructor(generics);
+    //     }
+    // }
+
+    // private static Type GetTupleType(int arity) {
+    //     return arity switch {
+    //         1 => typeof(ValueTuple<>),
+    //         2 => typeof(ValueTuple<,>),
+    //         3 => typeof(ValueTuple<,,>),
+    //         4 => typeof(ValueTuple<,,,>),
+    //         5 => typeof(ValueTuple<,,,,>),
+    //         6 => typeof(ValueTuple<,,,,,>),
+    //         7 => typeof(ValueTuple<,,,,,,>),
+    //         8 => typeof(ValueTuple<,,,,,,,>),
+    //         _ => throw ExceptionUtilities.UnexpectedValue(arity)
+    //     };
+    // }
+
+    // private static ConstructorInfo GetTupleCtorInfo(int arity) {
+    //     return arity switch {
+    //         1 => MethodInfoCache.ValueTuple_T1_ctor,
+    //         2 => MethodInfoCache.ValueTuple_T2_ctor,
+    //         3 => MethodInfoCache.ValueTuple_T3_ctor,
+    //         4 => MethodInfoCache.ValueTuple_T4_ctor,
+    //         5 => MethodInfoCache.ValueTuple_T5_ctor,
+    //         6 => MethodInfoCache.ValueTuple_T6_ctor,
+    //         7 => MethodInfoCache.ValueTuple_T7_ctor,
+    //         8 => MethodInfoCache.ValueTuple_TRest_ctor,
+    //         _ => throw ExceptionUtilities.UnexpectedValue(arity)
+    //     };
+    // }
+
     internal MethodInfo GetSort(TypeSymbol elementType) {
         var generic = GetType(elementType);
         var sort = typeof(Belte.Runtime.Utilities).GetMethod("Sort");
+        var closedMethod = sort.MakeGenericMethod(generic);
+        return closedMethod;
+    }
+
+    internal MethodInfo GetFill(TypeSymbol elementType) {
+        var generic = GetType(elementType);
+        var sort = typeof(Array).GetMethods().Where(m => m.Name == "Fill" && m.GetParameters().Length == 2).Single();
         var closedMethod = sort.MakeGenericMethod(generic);
         return closedMethod;
     }
@@ -732,7 +780,7 @@ internal sealed partial class Executor : ModuleBuilder {
         var current = type;
 
         while (current is not null) {
-            if (current.specialType is SpecialType.Object or SpecialType.Exception)
+            if (current.specialType is SpecialType.Object)
                 break;
 
             baseStack.Push(current);
@@ -745,7 +793,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
     private void EmitInternal() {
         GenerateSTLMap();
-        CompleteSpecialTypes();
+        CompleteWellKnownTypes();
 
         foreach (var type in _topLevelTypes)
             CreateTypeBuilderAndBases(type);
@@ -865,14 +913,36 @@ internal sealed partial class Executor : ModuleBuilder {
         }
     }
 
-    private void CompleteSpecialTypes() {
+    private void CompleteWellKnownTypes() {
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Exception), typeof(Exception));
+
         if (_program.compilation.options.noStdLib)
             return;
 
-        foreach (var type in new[] { SpecialType.Rect, SpecialType.Text, SpecialType.Sprite,
-                                     SpecialType.Vec2, SpecialType.Texture, SpecialType.Sound }) {
-            var typeSymbol = CorLibrary.GetSpecialType(type);
-            var native = _specialTypes[type];
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Sprite), typeof(BSprite));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Rect), typeof(BRect));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Vec2), typeof(BVec2));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Texture), typeof(BTexture));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Text), typeof(BText));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Sound), typeof(BSound));
+
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T1), typeof(ValueTuple<>));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T2), typeof(ValueTuple<,>));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T3), typeof(ValueTuple<,,>));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T4), typeof(ValueTuple<,,,>));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T5), typeof(ValueTuple<,,,,>));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T6), typeof(ValueTuple<,,,,,>));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T7), typeof(ValueTuple<,,,,,,>));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_TRest), typeof(ValueTuple<,,,,,,,>));
+
+        foreach (var type in new[] { WellKnownType.Rect, WellKnownType.Text, WellKnownType.Sprite,
+                                     WellKnownType.Vec2, WellKnownType.Texture, WellKnownType.Sound,
+                                     WellKnownType.ValueTuple_T1, WellKnownType.ValueTuple_T2,
+                                     WellKnownType.ValueTuple_T3, WellKnownType.ValueTuple_T4,
+                                     WellKnownType.ValueTuple_T5, WellKnownType.ValueTuple_T6,
+                                     WellKnownType.ValueTuple_T7, WellKnownType.ValueTuple_TRest, }) {
+            var typeSymbol = CorLibrary.GetWellKnownType(type);
+            var native = _bakedTypes[typeSymbol];
 
             foreach (var member in typeSymbol.GetMembers()) {
                 if (member is FieldSymbol f) {
@@ -927,7 +997,8 @@ internal sealed partial class Executor : ModuleBuilder {
         var typeBuilder = _moduleBuilder.DefineType(
             GetTypeName(type, false),
             GetTypeAttributes(type, false),
-            GetBaseType(type)
+            GetBaseType(type),
+            GetPackSize(type)
         );
 
         _types.Add(type.originalDefinition, typeBuilder);
@@ -950,6 +1021,13 @@ internal sealed partial class Executor : ModuleBuilder {
             return typeof(Enum);
 
         return GetType(type.baseType);
+    }
+
+    private static PackingSize GetPackSize(NamedTypeSymbol type) {
+        if (type.explicitAlignment is null)
+            return PackingSize.Unspecified;
+
+        return (PackingSize)type.explicitAlignment.Value;
     }
 
     private void CreateNestedTypes(NamedTypeSymbol type, TypeBuilder typeBuilder, string[] workingParams) {
@@ -980,7 +1058,8 @@ internal sealed partial class Executor : ModuleBuilder {
                 var nestedBuilder = typeBuilder.DefineNestedType(
                     GetTypeName(nestedType, true),
                     GetTypeAttributes(nestedType, true),
-                    GetBaseType(nestedType)
+                    GetBaseType(nestedType),
+                    GetPackSize(type)
                 );
 
                 workingParams = workingParams.Concat(nestedType.templateParameters.Select(t => t.name)).ToArray();
@@ -1384,10 +1463,13 @@ internal sealed partial class Executor : ModuleBuilder {
     private ConstructorInfo CheckConstructorsStandardMap(MethodSymbol method) {
         var mapKey = LibraryHelpers.BuildMapKey(method);
 
+        // if (mapKey.StartsWith("ValueTuple_.ctor_"))
+        //     return GetTupleCtor(method.containingType);
+
         return mapKey switch {
             "Object<>_.ctor" => MethodInfoCache.Object_ctor,
-            "Exception<>_.ctor" => MethodInfoCache.Exception_ctor,
-            "Exception<>_.ctor_S?" => MethodInfoCache.Exception_ctor_S,
+            "Exception_.ctor" => MethodInfoCache.Exception_ctor,
+            "Exception_.ctor_S?" => MethodInfoCache.Exception_ctor_S,
             "Nullable<>_.ctor" => GetNullableCtor(method.containingType.templateArguments[0].type.type),
             _ => throw ExceptionUtilities.UnexpectedValue(mapKey),
         };
@@ -1601,12 +1683,10 @@ internal sealed partial class Executor : ModuleBuilder {
             { "Console_GetHeight", typeof(Belte.Runtime.Console).GetMethod("GetHeight", Flags, Type.EmptyTypes) },
             { "Console_Print_S?", typeof(Console).GetMethod("Write", Flags, [typeof(string)]) },
             { "Console_Print_A?", typeof(Console).GetMethod("Write", Flags, [typeof(object)]) },
-            { "Console_Print_O?", typeof(Console).GetMethod("Write", Flags, [typeof(object)]) },
             { "Console_Print_[?", typeof(Console).GetMethod("Write", Flags, [typeof(char[])]) },
             { "Console_PrintLine", typeof(Console).GetMethod("WriteLine", Flags, Type.EmptyTypes) },
             { "Console_PrintLine_S?", typeof(Console).GetMethod("WriteLine", Flags, [typeof(string)]) },
             { "Console_PrintLine_A?", typeof(Console).GetMethod("WriteLine", Flags, [typeof(object)]) },
-            { "Console_PrintLine_O?", typeof(Console).GetMethod("WriteLine", Flags, [typeof(object)]) },
             { "Console_PrintLine_[?", typeof(Console).GetMethod("WriteLine", Flags, [typeof(char[])]) },
             { "Console_Input", typeof(Console).GetMethod("ReadLine", Flags, Type.EmptyTypes) },
             { "Console_ResetColor", typeof(Console).GetMethod("ResetColor", Flags, Type.EmptyTypes) },
@@ -1742,6 +1822,15 @@ internal sealed partial class Executor : ModuleBuilder {
             { "LowLevel_GetGCPtr_O", typeof(Belte.Runtime.Utilities).GetMethod("GetGCPtr", Flags, [typeof(object)]) },
             { "LowLevel_FreeGCHandle_V*", typeof(Belte.Runtime.Utilities).GetMethod("FreeGCHandle", Flags, [typeof(void*)]) },
             { "LowLevel_GetObject_V*", typeof(Belte.Runtime.Utilities).GetMethod("GetObject", Flags, [typeof(void*)]) },
+            { "LowLevel_IsLittleEndian", typeof(Belte.Runtime.Utilities).GetMethod("IsLittleEndian", Flags, []) },
+            { "LowLevel_ReverseEndianness_I4", typeof(System.Buffers.Binary.BinaryPrimitives).GetMethod("ReverseEndianness", Flags, [typeof(int)]) },
+            { "HashCode_Combine_I4I4", typeof(Belte.Runtime.Utilities).GetMethod("HashCodeCombine", Flags, [typeof(int), typeof(int)]) },
+            { "HashCode_Combine_I4I4I4", typeof(Belte.Runtime.Utilities).GetMethod("HashCodeCombine", Flags, [typeof(int), typeof(int), typeof(int)]) },
+            { "HashCode_Combine_I4I4I4I4", typeof(Belte.Runtime.Utilities).GetMethod("HashCodeCombine", Flags, [typeof(int), typeof(int), typeof(int), typeof(int)]) },
+            { "HashCode_Combine_I4I4I4I4I4", typeof(Belte.Runtime.Utilities).GetMethod("HashCodeCombine", Flags, [typeof(int), typeof(int), typeof(int), typeof(int), typeof(int)]) },
+            { "HashCode_Combine_I4I4I4I4I4I4", typeof(Belte.Runtime.Utilities).GetMethod("HashCodeCombine", Flags, [typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int)]) },
+            { "HashCode_Combine_I4I4I4I4I4I4I4", typeof(Belte.Runtime.Utilities).GetMethod("HashCodeCombine", Flags, [typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int)]) },
+            { "HashCode_Combine_I4I4I4I4I4I4I4I4", typeof(Belte.Runtime.Utilities).GetMethod("HashCodeCombine", Flags, [typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int)]) },
             { "Time_Now", typeof(Belte.Runtime.Utilities).GetMethod("TimeNow", Flags, Type.EmptyTypes) },
             { "Time_Sleep_I", typeof(Belte.Runtime.Utilities).GetMethod("TimeSleep", Flags, [typeof(long)]) },
             { "String_Ascii_S", typeof(Belte.Runtime.Utilities).GetMethod("Ascii", Flags, [typeof(string)]) },

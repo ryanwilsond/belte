@@ -382,6 +382,9 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
             if (type is TemplateParameterSymbol t)
                 return GetSafeName(t.name);
 
+            if (type.isTupleType)
+                return GetTupleType((NamedTypeSymbol)type);
+
             return GetTypeWithContainingGenerics((NamedTypeSymbol)type);
         }
 
@@ -440,6 +443,10 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
         }
     }
 
+    private string GetTupleType(NamedTypeSymbol type) {
+        return $"({string.Join(", ", type.tupleElementTypes.Select(t => GetType(t.type.type)))})";
+    }
+
     internal override object VisitNamespace(NamespaceSymbol symbol, IndentedTextWriter argument) {
         using var curly = new CurlyIndenter(argument, $"namespace {GetSafeName(symbol.name)}");
 
@@ -450,7 +457,7 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
     }
 
     internal override object VisitNamedType(NamedTypeSymbol symbol, IndentedTextWriter argument) {
-        if (symbol.specialType is SpecialType.Object or SpecialType.Exception)
+        if (symbol.specialType is SpecialType.Object)
             return null;
 
         if (symbol is PENamedTypeSymbol or SynthesizedFinishedNamedTypeSymbol)
@@ -504,12 +511,10 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
             { "Console_GetHeight", "global::Belte.Runtime.Console.GetHeight" },
             { "Console_Print_S?", "global::System.Console.Write" },
             { "Console_Print_A?", "global::System.Console.Write" },
-            { "Console_Print_O?", "global::System.Console.Write" },
             { "Console_Print_[?", "global::System.Console.Write" },
             { "Console_PrintLine", "global::System.Console.WriteLine" },
             { "Console_PrintLine_S?", "global::System.Console.WriteLine" },
             { "Console_PrintLine_A?", "global::System.Console.WriteLine" },
-            { "Console_PrintLine_O?", "global::System.Console.WriteLine" },
             { "Console_PrintLine_[?", "global::System.Console.WriteLine" },
             { "Console_Input", "global::System.Console.ReadLine" },
             { "Console_ResetColor", "global::System.Console.ResetColor" },
@@ -611,9 +616,18 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
             { "LowLevel_FreeGCHandle_V*", "global::Belte.Runtime.Utilities.FreeGCHandle" },
             { "LowLevel_GetObject_V*", "global::Belte.Runtime.Utilities.GetObject" },
             { "LowLevel_ThrowNullConditionException", "throw new global::Belte.Runtime.NullConditionException" },
-            { "LowLevel_Length_[", "global::Belte.Runtime.Utilities.Length" },
-            { "LowLevel_Length_[?", "global::Belte.Runtime.Utilities.Length" },
-            { "LowLevel_Sort_[?", "global::Belte.Runtime.Utilities.Sort" },
+            { "LowLevel_Length_T", "global::Belte.Runtime.Utilities.Length" },
+            { "LowLevel_Sort_T", "global::Belte.Runtime.Utilities.Sort" },
+            { "LowLevel_Fill_[T", "global::System.Array.Fill" },
+            { "LowLevel_IsLittleEndian", "global::Belte.Runtime.Utilities.IsLittleEndian" },
+            { "LowLevel_ReverseEndianness_I4", "global::System.Buffers.Binary.BinaryPrimitives.ReverseEndianness" },
+            { "HashCode_Combine_I4I4", "global::Belte.Runtime.Utilities.HashCodeCombine" },
+            { "HashCode_Combine_I4I4I4", "global::Belte.Runtime.Utilities.HashCodeCombine" },
+            { "HashCode_Combine_I4I4I4I4", "global::Belte.Runtime.Utilities.HashCodeCombine" },
+            { "HashCode_Combine_I4I4I4I4I4", "global::Belte.Runtime.Utilities.HashCodeCombine" },
+            { "HashCode_Combine_I4I4I4I4I4I4", "global::Belte.Runtime.Utilities.HashCodeCombine" },
+            { "HashCode_Combine_I4I4I4I4I4I4I4", "global::Belte.Runtime.Utilities.HashCodeCombine" },
+            { "HashCode_Combine_I4I4I4I4I4I4I4I4", "global::Belte.Runtime.Utilities.HashCodeCombine" },
             { "Time_Now", "global::Belte.Runtime.Utilities.TimeNow" },
             { "Time_Sleep_I", "global::Belte.Runtime.Utilities.TimeSleep" },
             { "String_Ascii_S", "global::Belte.Runtime.Utilities.Ascii" },
@@ -656,7 +670,6 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
             { SpecialType.Void, "void" },
             { SpecialType.Type, "global::System.Type" },
             { SpecialType.String, "global::System.String" },
-            { SpecialType.Exception, "global::System.Exception" },
         };
 
         // This is just for readability

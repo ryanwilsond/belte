@@ -173,6 +173,7 @@
     <Kind Name="TemplateConstraintClause"/>
     <Field Name="extendConstraint" Type="TemplateExtendsConstraintClauseSyntax" Optional="true"/>
     <Field Name="isConstraint" Type="TemplateIsConstraintClauseSyntax" Optional="true"/>
+    <Field Name="hasConstraint" Type="TemplateHasConstraintClauseSyntax" Optional="true"/>
     <Field Name="expressionConstraint" Type="ExpressionStatementSyntax" Optional="true"/>
   </Node>
   <Node Name="TemplateExtendsConstraintClauseSyntax" Base="SyntaxNode">
@@ -195,6 +196,19 @@
     </Field>
     <Field Name="isKeyword" Type="SyntaxToken">
       <Kind Name="IsKeyword"/>
+    </Field>
+    <Field Name="keyword" Type="SyntaxToken"/>
+    <Field Name="semicolon" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
+    </Field>
+  </Node>
+  <Node Name="TemplateHasConstraintClauseSyntax" Base="SyntaxNode">
+    <Kind Name="TemplateHasConstraintClause"/>
+    <Field Name="name" Type="IdentifierNameSyntax">
+      <Kind Name="IdentifierName"/>
+    </Field>
+    <Field Name="hasKeyword" Type="SyntaxToken">
+      <Kind Name="HasKeyword"/>
     </Field>
     <Field Name="keyword" Type="SyntaxToken"/>
     <Field Name="semicolon" Type="SyntaxToken">
@@ -368,7 +382,7 @@
     </Field>
     <Field Name="isActive" Type="bool" Override="true"/>
   </Node>
-  <Node Name="UsingDirectiveSyntax" Base="SyntaxNode">
+  <Node Name="UsingDirectiveSyntax" Base="NamespaceElementSyntax">
     <Kind Name="UsingDirective"/>
     <Field Name="globalKeyword" Type="SyntaxToken" Optional="true">
       <Kind Name="GlobalKeyword" />
@@ -474,17 +488,34 @@
     <Field Name="constOrFinalKeyword" Type="SyntaxToken" Optional="true"/>
     <Field Name="type" Type="TypeSyntax"/>
   </Node>
+  <Node Name="TupleTypeSyntax" Base="TypeSyntax">
+    <Kind Name="TupleType"/>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="elements" Type="SeparatedSyntaxList&lt;TupleElementSyntax&gt;"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+  </Node>
+  <Node Name="TupleElementSyntax" Base="SyntaxNode">
+    <Kind Name="TupleElement"/>
+    <Field Name="type" Type="TypeSyntax"/>
+    <Field Name="identifier" Type="SyntaxToken" Optional="true">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+  </Node>
   <!-- Declarations -->
   <Node Name="CompilationUnitSyntax" Base="SyntaxNode">
     <Kind Name="CompilationUnit"/>
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;"/>
-    <Field Name="usings" Type="SyntaxList&lt;UsingDirectiveSyntax&gt;"/>
-    <Field Name="members" Type="SyntaxList&lt;MemberDeclarationSyntax&gt;"/>
+    <Field Name="elements" Type="SyntaxList&lt;NamespaceElementSyntax&gt;"/>
     <Field Name="endOfFile" Type="SyntaxToken">
       <Kind Name="EndOfFileToken"/>
     </Field>
   </Node>
-  <AbstractNode Name="MemberDeclarationSyntax" Base="SyntaxNode">
+  <AbstractNode Name="NamespaceElementSyntax" Base="SyntaxNode"/>
+  <AbstractNode Name="MemberDeclarationSyntax" Base="NamespaceElementSyntax">
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;"/>
     <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;"/>
   </AbstractNode>
@@ -493,8 +524,7 @@
       <Kind Name="NamespaceKeyword"/>
     </Field>
     <Field Name="name" Type="NameSyntax"/>
-    <Field Name="usings" Type="SyntaxList&lt;UsingDirectiveSyntax&gt;"/>
-    <Field Name="members" Type="SyntaxList&lt;MemberDeclarationSyntax&gt;"/>
+    <Field Name="elements" Type="SyntaxList&lt;NamespaceElementSyntax&gt;"/>
   </AbstractNode>
   <Node Name="NamespaceDeclarationSyntax" Base="BaseNamespaceDeclarationSyntax">
     <Kind Name="NamespaceDeclaration"/>
@@ -507,8 +537,7 @@
     <Field Name="openBrace" Type="SyntaxToken">
       <Kind Name="OpenBraceToken"/>
     </Field>
-    <Field Name="usings" Type="SyntaxList&lt;UsingDirectiveSyntax&gt;" Override="true"/>
-    <Field Name="members" Type="SyntaxList&lt;MemberDeclarationSyntax&gt;" Override="true"/>
+    <Field Name="elements" Type="SyntaxList&lt;NamespaceElementSyntax&gt;" Override="true"/>
     <Field Name="closeBrace" Type="SyntaxToken">
       <Kind Name="CloseBraceToken"/>
     </Field>
@@ -524,8 +553,7 @@
     <Field Name="semicolon" Type="SyntaxToken">
       <Kind Name="SemicolonToken"/>
     </Field>
-    <Field Name="usings" Type="SyntaxList&lt;UsingDirectiveSyntax&gt;" Override="true"/>
-    <Field Name="members" Type="SyntaxList&lt;MemberDeclarationSyntax&gt;" Override="true"/>
+    <Field Name="elements" Type="SyntaxList&lt;NamespaceElementSyntax&gt;" Override="true"/>
   </Node>
   <AbstractNode Name="TypeDeclarationSyntax" Base="MemberDeclarationSyntax">
     <Field Name="keyword" Type="SyntaxToken"/>
@@ -617,6 +645,7 @@
     <Field Name="keyword" Type="SyntaxToken" Override="true">
       <Kind Name="StructKeyword"/>
     </Field>
+    <Field Name="packedArgument" Type="PackedArgumentSyntax" Optional="true"/>
     <Field Name="identifier" Type="SyntaxToken" Override="true">
       <Kind Name="IdentifierToken"/>
     </Field>
@@ -628,6 +657,21 @@
     <Field Name="members" Type="SyntaxList&lt;MemberDeclarationSyntax&gt;" Override="true"/>
     <Field Name="closeBrace" Type="SyntaxToken" Override="true">
       <Kind Name="CloseBraceToken"/>
+    </Field>
+  </Node>
+  <Node Name="PackedArgumentSyntax" Base="SyntaxNode">
+    <Kind Name="PackedArgument"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="PackedKeyword"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken" Optional="true">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="alignment" Type="SyntaxToken" Optional="true">
+      <Field Name="NumericLiteralToken"/>
+    </Field>
+    <Field Name="closeParenthesis" Type="SyntaxToken" Optional="true">
+      <Kind Name="CloseParenToken"/>
     </Field>
   </Node>
   <Node Name="UnionDeclarationSyntax" Base="TypeDeclarationSyntax">
@@ -747,10 +791,57 @@
       <Kind Name="ImplicitKeyword"/>
     </Field>
     <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Optional="true"/>
+    <Field Name="initConstraintClauseSyntax" Type="InitConstraintClauseSyntax" Optional="true"/>
     <Field Name="body" Type="BlockStatementSyntax" Override="true" Optional="true"/>
     <Field Name="semicolon" Type="SyntaxToken" Optional="true">
       <Kind Name="SemicolonToken"/>
     </Field>
+    <Field Name="stateClause" Type="StateClauseSyntax" Optional="true"/>
+    <Field Name="reverseClause" Type="ReverseClauseSyntax" Optional="true"/>
+  </Node>
+  <Node Name="InitConstraintClauseSyntax" Base="SyntaxNode">
+    <Kind Name="InitConstraintClause"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="InitializesKeyword"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="names" Type="SeparatedSyntaxList&lt;IdentifierNameSyntax&gt;"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+  </Node>
+  <Node Name="StateClauseSyntax" Base="SyntaxNode">
+    <Kind Name="StateClause"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="StateKeyword"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="type" Type="TypeSyntax"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+    <Field Name="body" Type="BlockStatementSyntax"/>
+  </Node>
+  <Node Name="ReverseClauseSyntax" Base="SyntaxNode">
+    <Kind Name="ReverseClause"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="ReverseKeyword"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken" Optional="true">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="type" Type="TypeSyntax" Optional="true"/>
+    <Field Name="identifier" Type="SyntaxToken" Optional="true">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="closeParenthesis" Type="SyntaxToken" Optional="true">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+    <Field Name="body" Type="BlockStatementSyntax"/>
   </Node>
   <Node Name="ConversionDeclarationSyntax" Base="BaseMethodDeclarationSyntax">
     <Kind Name="ConversionDeclaration"/>
@@ -777,6 +868,23 @@
     </Field>
     <Field Name="operatorToken" Type="SyntaxToken"/>
     <Field Name="rightOperatorToken" Type="SyntaxToken" Optional="true"/>
+    <Field Name="parameterList" Type="ParameterListSyntax" Override="true"/>
+    <Field Name="implicitKeyword" Type="SyntaxToken" Optional="true" Override="true">
+      <Kind Name="ImplicitKeyword"/>
+    </Field>
+    <Field Name="body" Type="BlockStatementSyntax" Override="true"/>
+  </Node>
+  <Node Name="LiteralOperatorDeclarationSyntax" Base="BaseMethodDeclarationSyntax">
+    <Kind Name="LiteralOperatorDeclaration"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
+    <Field Name="returnType" Type="TypeSyntax"/>
+    <Field Name="literalKeyword" Type="SyntaxToken">
+      <Kind Name="LiteralKeyword"/>
+    </Field>
+    <Field Name="suffix" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
     <Field Name="parameterList" Type="ParameterListSyntax" Override="true"/>
     <Field Name="implicitKeyword" Type="SyntaxToken" Optional="true" Override="true">
       <Kind Name="ImplicitKeyword"/>
@@ -813,11 +921,11 @@
     <Field Name="scopedKeyword" Type="SyntaxToken">
       <Kind Name="ScopedKeyword"/>
     </Field>
-    <Field Name="OpenParenToken" Type="SyntaxToken">
+    <Field Name="openParenthesis" Type="SyntaxToken">
       <Kind Name="OpenParenToken"/>
     </Field>
     <Field Name="declaration" Type="VariableDeclarationSyntax"/>
-    <Field Name="CloseParenToken" Type="SyntaxToken">
+    <Field Name="closeParenthesis" Type="SyntaxToken">
       <Kind Name="CloseParenToken"/>
     </Field>
     <Field Name="statement" Type="StatementSyntax"/>
@@ -901,6 +1009,15 @@
       <Kind Name="SemicolonToken"/>
     </Field>
   </Node>
+  <Node Name="CommitStatementSyntax" Base="StatementSyntax">
+    <Kind Name="CommitStatement"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="CommitKeyword"/>
+    </Field>
+    <Field Name="semicolon" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
+    </Field>
+  </Node>
   <Node Name="ContinueStatementSyntax" Base="StatementSyntax">
     <Kind Name="ContinueStatement"/>
     <Field Name="keyword" Type="SyntaxToken">
@@ -952,6 +1069,31 @@
       <Kind Name="DeferKeyword"/>
     </Field>
     <Field Name="statement" Type="StatementSyntax"/>
+  </Node>
+  <Node Name="ReverseStatementSyntax" Base="StatementSyntax">
+    <Kind Name="ReverseStatement"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="ReverseKeyword"/>
+    </Field>
+    <Field Name="identifier" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="semicolon" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
+    </Field>
+  </Node>
+  <Node Name="ReverseDeferStatementSyntax" Base="StatementSyntax">
+    <Kind Name="ReverseDeferStatement"/>
+    <Field Name="reverseKeyword" Type="SyntaxToken">
+      <Kind Name="ReverseKeyword"/>
+    </Field>
+    <Field Name="deferKeyword" Type="SyntaxToken">
+      <Kind Name="DeferKeyword"/>
+    </Field>
+    <Field Name="expression" Type="ExpressionSyntax"/>
+    <Field Name="semicolon" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
+    </Field>
   </Node>
   <Node Name="ForStatementSyntax" Base="StatementSyntax">
     <Kind Name="ForStatement"/>
@@ -1381,6 +1523,29 @@
     <Kind Name="LiteralExpression"/>
     <Field Name="token" Type="SyntaxToken"/>
   </Node>
+  <Node Name="DefaultLiteralExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="DefaultLiteralExpression"/>
+    <Field Name="lowlevelKeyword" Type="SyntaxToken" Optional="true"/>
+    <Field Name="defaultKeyword" Type="SyntaxToken"/>
+  </Node>
+  <Node Name="ExtendedLiteralExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="ExtendedLiteralExpression"/>
+    <Field Name="token" Type="SyntaxToken" Optional="true"/>
+    <Field Name="expression" Type="ExpressionSyntax" Optional="true"/>
+    <Field Name="suffix" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+  </Node>
+  <Node Name="TupleExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="TupleExpression"/>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="arguments" Type="SeparatedSyntaxList&lt;ExpressionSyntax&gt;"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+  </Node>
   <Node Name="InterpolatedStringExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="InterpolatedStringExpression"/>
     <Field Name="stringStart" Type="SyntaxToken">
@@ -1528,5 +1693,18 @@
       <Kind Name="CloseParenToken"/>
     </Field>
     <Field Name="body" Type="ExpressionSyntax"/>
+  </Node>
+  <Node Name="ReversibleExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="ReversibleExpression"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="ReversibleKeyword"/>
+    </Field>
+    <Field Name="identifier" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="colon" Type="SyntaxToken">
+      <Kind Name="ColonToken"/>
+    </Field>
+    <Field Name="expression" Type="ExpressionSyntax"/>
   </Node>
 </Tree>

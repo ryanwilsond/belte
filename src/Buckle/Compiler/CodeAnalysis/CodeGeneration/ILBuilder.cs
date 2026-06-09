@@ -92,6 +92,8 @@ internal abstract class ILBuilder {
 
     internal abstract void EmitSort(TypeSymbol elementType);
 
+    internal abstract void EmitFill(TypeSymbol elementType);
+
     internal abstract void EmitLength(TypeSymbol elementType);
 
     internal abstract void EmitSizeOf(TypeSymbol elementType);
@@ -125,6 +127,8 @@ internal abstract class ILBuilder {
     internal abstract void EmitArrayGet(ArrayTypeSymbol type);
 
     internal abstract void EmitArrayCreate(ArrayTypeSymbol type);
+
+    internal abstract void EmitEmptyArray(TypeSymbol elementType);
 
     internal abstract void EmitToString(OpCode opCode);
 

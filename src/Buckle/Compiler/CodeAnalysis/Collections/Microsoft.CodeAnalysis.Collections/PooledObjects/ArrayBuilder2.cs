@@ -338,6 +338,13 @@ internal sealed partial class ArrayBuilder2<T> : IReadOnlyCollection<T>, IReadOn
 
     #region Poolable
 
+    public void FreeAll(Func<T, ArrayBuilder2<T>> getNested) {
+        foreach (var item in this)
+            getNested(item)?.FreeAll(getNested);
+
+        Free();
+    }
+
     // To implement Poolable, you need two things:
     // 1) Expose Freeing primitive.
     public void Free() {

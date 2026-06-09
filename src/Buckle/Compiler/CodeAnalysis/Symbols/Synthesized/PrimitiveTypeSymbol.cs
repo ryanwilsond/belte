@@ -6,6 +6,7 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Libraries;
+using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -16,6 +17,14 @@ internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
     internal PrimitiveTypeSymbol(string name, SpecialType specialType, int arity = 0, NamedTypeSymbol baseType = null) {
         this.name = name;
         this.specialType = specialType;
+        this.arity = arity;
+        _lazyBaseType = baseType;
+        templateParameters = ConstructTemplateParameters();
+    }
+
+    internal PrimitiveTypeSymbol(string name, int arity, NamedTypeSymbol baseType = null) {
+        this.name = name;
+        specialType = SpecialType.None;
         this.arity = arity;
         _lazyBaseType = baseType;
         templateParameters = ConstructTemplateParameters();
@@ -101,5 +110,9 @@ internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
             builder.Add(new SynthesizedTemplateParameterSymbol(this, typeType, i));
 
         return builder.ToImmutableAndFree();
+    }
+
+    private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
+        throw ExceptionUtilities.Unreachable();
     }
 }

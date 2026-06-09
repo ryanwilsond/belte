@@ -7,6 +7,7 @@ This may change.
 
 - [6.1](#61-low-level-contexts) Low-Level Contexts
 - [6.2](#62-structs) Structs
+  - [6.2.1](#621-packing) Packing
 - [6.3](#63-arrays) Arrays
 - [6.4](#64-numerics) Numerics
   - [6.4.1](#641-bit-casts) Bit Casts
@@ -29,6 +30,8 @@ This may change.
   - [6.13.1](#6131-messages) Messages
   - [6.13.2](#6132-ordering) Ordering
 - [6.14](#614-c-strings) C-Strings
+- [6.15](#615-fields) Fields
+- [6.16](#616-default-literal) Default Literal
 
 Additionally, the
 [Standard Library contains a class named LowLevel that provides various helper methods](StandardLibrary/LowLevel.md).
@@ -56,12 +59,67 @@ can use low-level exclusive features.
 Structs may be restricted to [lowlevel contexts](#61-low-level-contexts) in the
 future.
 
+### 6.2.1 Packing
+
+A struct's packing size is it's maximum alignment. Without an explicit packing
+size, a struct's packing size is typically the machine's word size (8 bytes on
+64-bit machines). The `packed` keyword can be used to set the struct's packing
+size to 1 byte (i.e. no padding between fields).
+
+```belte
+// Total size: 24 bytes
+struct A {
+  int8 a;   // Offset 0
+  int64 b;  // Offset 8
+  int8 c;   // Offset 16
+}
+```
+
+```belte
+// Total size: 10 bytes
+struct packed A {
+  int8 a;   // Offset 0
+  int64 b;  // Offset 1
+  int8 c;   // Offset 9
+}
+```
+
+An explicit packing size of 1, 2, 4, 8, 16, 32, 64, or 128 can be specified:
+
+```belte
+// Total size: 12 bytes
+struct packed(2) A {
+  int8 a;   // Offset 0
+  int64 b;  // Offset 2
+  int8 c;   // Offset 10
+}
+```
+
+If the natural alignment of the struct is below the packing size, it will stay
+at the natural alignment. Consider the following example:
+
+```belte
+// Total size: 12 bytes
+struct packed(64) A {
+  int8 a;   // Offset 0
+  int32 b;  // Offset 4
+  int8 c;   // Offset 8
+}
+```
+
+In the above example, the struct's natural alignment is 4 bytes, and because
+that is less that the specified packing size, the struct's actual alignment
+will stay at 4 bytes.
+
 ## 6.3 Arrays
 
 > [Main array docs](Data.md#36-arrays)
 
 Initializer lists may create a [List](StandardLibrary/List.md) outside of
 [lowlevel contexts](#61-low-level-contexts) in the future.
+
+If an array is created for a type that does not have a default value, an `Array<T>` is created that tracks
+initializations. In lowlevel contexts, this is bypassed and an unsafe array can be created.
 
 ## 6.4 Numerics
 
@@ -622,3 +680,36 @@ int myNum = 10;
 char* a = wf"num is {myNum}";
 uint8* b = cf"num is {myNum}";
 ```
+
+## 6.15 Fields
+
+A field marked `lowlevel` has no [definite assignment](ClassesAndObjects.md#4211-definite-assignment) restrictions
+meaning types without a default value can exist as fields without an initializer or constructor assignment:
+
+```belte
+lowlevel class A {
+  lowlevel string a;
+}
+```
+
+The `lowlevel` field modifier can only be used in lowlevel contexts.
+
+This should only be used in cases where [`initialize` annotations](ClassesAndObjects.md#4211-definite-assignment) are
+not sufficient.
+
+## 6.16 Default Literal
+
+A `lowlevel default` literal assigns a default value to types that normally don't accept a default value:
+
+```belte
+class A { }
+
+lowlevel {
+  A! a = lowlevel default;
+}
+```
+
+Lowlevel default literals can only be used in lowlevel contexts.
+
+This should only be used in cases where read access to a data container is tightly controlled to avoid reading while
+not initialized to a valid value.

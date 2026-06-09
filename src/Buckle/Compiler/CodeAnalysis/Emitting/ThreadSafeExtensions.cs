@@ -39,4 +39,11 @@ internal static class ThreadSafeExtensions {
         lock (ILEmitter.GlobalCecilLock)
             return module.ImportReference(type);
     }
+
+    internal static FieldReference ImportReferenceThreadSafe(
+        this ModuleDefinition module,
+        System.Reflection.FieldInfo fieldInfo) {
+        lock (ILEmitter.GlobalCecilLock)
+            return module.ImportReference(fieldInfo);
+    }
 }

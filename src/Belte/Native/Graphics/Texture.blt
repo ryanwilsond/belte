@@ -3,4 +3,10 @@ public class Texture {
     private const int! ptr;
     public const int! width;
     public const int! height;
+
+    private constructor(int! ptr, int! width, int! height) {
+        this.ptr = ptr;
+        this.width = width;
+        this.height = height;
+    }
 }

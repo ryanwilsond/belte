@@ -6,6 +6,7 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
+using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.Libraries;
@@ -93,5 +94,9 @@ internal sealed class SynthesizedSimpleNamedTypeSymbol : NamedTypeSymbol {
 
     internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers(ReadOnlyMemory<char> name) {
         return [];
+    }
+
+    private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
+        throw ExceptionUtilities.Unreachable();
     }
 }

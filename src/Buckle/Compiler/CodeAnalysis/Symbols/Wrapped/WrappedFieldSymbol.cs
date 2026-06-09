@@ -39,6 +39,8 @@ internal abstract class WrappedFieldSymbol : FieldSymbol {
 
     internal override int unionGroupId => underlyingField.unionGroupId;
 
+    internal override bool isLowLevel => underlyingField.isLowLevel;
+
     internal override ConstantValue GetConstantValue(ConstantFieldsInProgress inProgress) {
         return underlyingField.GetConstantValue(inProgress);
     }

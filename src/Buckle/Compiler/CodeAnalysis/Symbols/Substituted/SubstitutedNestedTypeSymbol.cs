@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -18,4 +19,8 @@ internal sealed class SubstitutedNestedTypeSymbol : SubstitutedNamedTypeSymbol {
     public override ImmutableArray<BoundExpression> templateConstraints => [];
 
     internal override NamedTypeSymbol constructedFrom => this;
+
+    private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
+        throw ExceptionUtilities.Unreachable();
+    }
 }

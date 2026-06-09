@@ -17,7 +17,7 @@ public static class LibraryHelpers {
     private static readonly string[] ReducedStdLibFiles = [
         "Compiler.Object.blt",
         "Compiler.ReducedEnumerator.blt",
-        "Compiler.Exception.blt"
+        "Compiler.Exception.blt",
     ];
 
     private static readonly string[] ReducedStdLibExclude = [
@@ -117,7 +117,7 @@ public static class LibraryHelpers {
         if (reducedStdLib)
             CorLibrary.SetReducedState();
 
-        var corLibrary = Compilation.Create("CorLibrary", options, syntaxTrees.ToArray());
+        var corLibrary = Compilation.Create(MetadataHelpers.CorLibraryString, options, syntaxTrees.ToArray());
         CreateBelteNamespace(reducedStdLib);
         corLibrary = corLibrary.AddNamespace(BelteNamespace);
         corLibrary.GetDiagnostics();
@@ -489,7 +489,7 @@ public static class LibraryHelpers {
 
     private static SpecialOrKnownType.Boxed GenerateStringList() {
         return new SpecialOrKnownType.Boxed(new ConstructedNamedTypeSymbol(
-            CorLibrary.GetSpecialType(SpecialType.List),
+            CorLibrary.GetWellKnownType(WellKnownType.List),
             [new TypeOrConstant(CorLibrary.GetSpecialType(SpecialType.String))]
         ));
     }

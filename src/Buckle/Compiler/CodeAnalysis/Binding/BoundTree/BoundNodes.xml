@@ -63,10 +63,18 @@
     <Field Name="symbols" Type="ImmutableArray&lt;Symbol&gt;"/>
     <Field Name="childBoundNodes" Type="ImmutableArray&lt;BoundExpression&gt;"/>
   </Node>
-  <Node Name="OutVariablePendingInference" Base="BoundExpression">
+  <AbstractNode Name="VariablePendingInference" Base="BoundExpression">
     <Field Name="symbol" Type="Symbol"/>
     <Field Name="receiver" Type="BoundExpression?"/>
     <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
+  </AbstractNode>
+  <Node Name="OutVariablePendingInference" Base="VariablePendingInference"/>
+  <Node Name="DeconstructionVariablePendingInference" Base="VariablePendingInference"/>
+  <Node Name="BoundDeconstructionAssignmentOperator" Base="BoundExpression">
+    <Field Name="left" Type="BoundTupleExpression"/>
+    <Field Name="right" Type="BoundCastExpression"/>
+    <Field Name="isUsed" Type="bool"/>
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
   </Node>
   <Node Name="BoundNamespaceExpression" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
@@ -79,7 +87,7 @@
   </Node>
   <Node Name="BoundArrayAccessExpression" Base="BoundExpression">
     <Field Name="receiver" Type="BoundExpression"/>
-    <Field Name="index" Type="BoundExpression"/>
+    <Field Name="index" Type="BoundExpression?"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
   <Node Name="BoundIndexerAccessExpression" Base="BoundExpression">
@@ -135,6 +143,13 @@
     <Field Name="operatorKind" Type="BinaryOperatorKind"/>
     <Field Name="method" Type="MethodSymbol?"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundTupleBinaryOperator" Base="BoundExpression">
+    <Field Name="left" Type="BoundExpression"/>
+    <Field Name="right" Type="BoundExpression"/>
+    <Field Name="operatorKind" Type="BinaryOperatorKind"/>
+    <Field Name="operators" Type="TupleBinaryOperatorInfo.Multiple"/>
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
   </Node>
   <Node Name="BoundClampOperator" Base="BoundExpression">
     <Field Name="left" Type="BoundExpression"/>
@@ -252,6 +267,20 @@
   <Node Name="BoundLiteralExpression" Base="BoundExpression">
     <Field Name="constantValue" Type="ConstantValue" PropertyOverrides="true"/>
   </Node>
+  <Node Name="BoundUnconvertedExtendedLiteralExpression" Base="BoundExpression">
+    <Field Name="suffix" Type="string"/>
+    <Field Name="literal" Type="BoundExpression"/>
+  </Node>
+  <AbstractNode Name="BoundTupleExpression" Base="BoundExpression">
+    <Field Name="arguments" Type="ImmutableArray&lt;BoundExpression&gt;"/>
+  </AbstractNode>
+  <Node Name="BoundTupleLiteral" Base="BoundTupleExpression">
+    <Field Name="type" Type="TypeSymbol?" Override="true" Null="allow"/>
+  </Node>
+  <Node Name="BoundConvertedTupleLiteral" Base="BoundTupleExpression">
+    <Field Name="sourceTuple" Type="BoundTupleLiteral?" Null="allow" SkipInVisitor="true"/>
+    <Field Name="wasTargetTyped" Type="bool" />
+  </Node>
   <Node Name="BoundCStringLiteral" Base="BoundExpression">
     <Field Name="isWide" Type="bool"/>
     <Field Name="literal" Type="ConstantValue"/>
@@ -261,12 +290,27 @@
     <Field Name="isInferred" Type="bool"/>
   </Node>
   <Node Name="BoundDefaultLiteral" Base="BoundExpression">
+    <Field Name="isLowLevel" Type="bool"/>
     <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
   </Node>
   <Node Name="BoundDefaultExpression" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+    <Field Name="isLowLevel" Type="bool"/>
     <Field Name="targetType" Type="BoundTypeExpression?" SkipInVisitor="true"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundReversibleExpression" Base="BoundExpression">
+    <Field Name="call" Type="BoundCallExpression?"/>
+    <Field Name="token" Type="TokenSymbol"/>
+    <Field Name="conversion" Type="Conversion"/>
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+  </Node>
+  <Node Name="BoundReverseStatement" Base="BoundStatement">
+    <Field Name="token" Type="TokenSymbol?"/>
+  </Node>
+  <Node Name="BoundReverseDeferStatement" Base="BoundStatement">
+    <Field Name="call" Type="BoundCallExpression?"/>
+    <Field Name="conversion" Type="Conversion"/>
   </Node>
   <Node Name="BoundInterpolatedStringExpression" Base="BoundExpression">
     <Field Name="contents" Type="ImmutableArray&lt;BoundExpression&gt;"/>
@@ -430,6 +474,8 @@
     <Field Name="label" Type="LabelSymbol"/>
     <Field Name="condition" Type="BoundExpression"/>
     <Field Name="jumpIfTrue" Type="bool"/>
+    <Field Name="assignedOnJump" Type="ImmutableArray&lt;DataContainerSymbol&gt;" Null="allow"/>
+    <Field Name="assignedOnFallthrough" Type="ImmutableArray&lt;DataContainerSymbol&gt;" Null="allow"/>
   </Node>
   <Node Name="BoundDoWhileStatement" Base="BoundLoopStatement">
     <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
@@ -464,6 +510,10 @@
     <Field Name="assignments" Type="ImmutableArray&lt;BoundExpression&gt;"/>
     <Field Name="body" Type="BoundStatement"/>
     <Field Name="wrapWithTry" Type="bool"/>
+    <Field Name="commitLocal" Type="DataContainerSymbol?"/>
+  </Node>
+  <Node Name="BoundCommitStatement" Base="BoundStatement">
+    <Field Name="commitLocal" Type="DataContainerSymbol"/>
   </Node>
   <Node Name="BoundWithExpression" Base="BoundExpression">
     <Field Name="assignments" Type="ImmutableArray&lt;BoundExpression&gt;"/>

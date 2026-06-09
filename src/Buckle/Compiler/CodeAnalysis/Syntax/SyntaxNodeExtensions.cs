@@ -54,6 +54,13 @@ internal static class SyntaxNodeExtensions {
                     var referenceTypeSyntax = (ReferenceTypeSyntax)type;
                     stack.Push(referenceTypeSyntax.type);
                     break;
+                case SyntaxKind.TupleType:
+                    var tupleTypeSyntax = (TupleTypeSyntax)type;
+
+                    for (var i = tupleTypeSyntax.elements.Count - 1; i >= 0; i--)
+                        stack.Push(tupleTypeSyntax.elements[i].type);
+
+                    break;
                 case SyntaxKind.FunctionPointerType:
                     var functionPointerTypeSyntax = (FunctionPointerSyntax)type;
 
@@ -163,5 +170,28 @@ internal static class SyntaxNodeExtensions {
             syntax = refType;
 
         return syntax;
+    }
+
+    internal static bool IsOutVarDeclaration(this DeclarationExpressionSyntax p) {
+        return p.parent?.kind == SyntaxKind.Argument
+            && ((ArgumentSyntax)p.parent).refKindKeyword.kind == SyntaxKind.OutKeyword;
+    }
+
+    internal static MemberDeclarationSyntax FirstMember(this CompilationUnitSyntax compilationUnit) {
+        foreach (var element in compilationUnit.elements) {
+            if (element is MemberDeclarationSyntax member)
+                return member;
+        }
+
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    internal static MemberDeclarationSyntax FirstMember(this FileScopedNamespaceDeclarationSyntax fileScopedNamespace) {
+        foreach (var element in fileScopedNamespace.elements) {
+            if (element is MemberDeclarationSyntax member)
+                return member;
+        }
+
+        throw ExceptionUtilities.Unreachable();
     }
 }

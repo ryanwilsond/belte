@@ -46,15 +46,14 @@ internal sealed class Interpreter {
 
         var timer = logTime ? Stopwatch.StartNew() : null;
 
-        foreach (var member in root.members) {
-            textOffset += member.position;
+        foreach (var element in root.elements) {
+            textOffset += element.position;
 
             var newSyntaxTree = SyntaxTree.Create(
                 syntaxTree.text.GetSubText(new TextSpan(textOffset, syntaxTree.text.length - textOffset)),
                 SyntaxFactory.CompilationUnit(
                     root.attributeLists,
-                    root.usings,
-                    new SyntaxList<MemberDeclarationSyntax>(member),
+                    new SyntaxList<NamespaceElementSyntax>(element),
                     parsedSyntaxTree.endOfFile
                 ),
                 syntaxTree.options

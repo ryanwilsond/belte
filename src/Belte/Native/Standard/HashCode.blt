@@ -1,0 +1,16 @@
+
+public static class HashCode {
+    public static int32! Combine(int32! hash1, int32! hash2);
+
+    public static int32! Combine(int32! hash1, int32! hash2, int32! hash3);
+
+    public static int32! Combine(int32! hash1, int32! hash2, int32! hash3, int32! hash4);
+
+    public static int32! Combine(int32! hash1, int32! hash2, int32! hash3, int32! hash4, int32! hash5);
+
+    public static int32! Combine(int32! hash1, int32! hash2, int32! hash3, int32! hash4, int32! hash5, int32! hash6);
+
+    public static int32! Combine(int32! hash1, int32! hash2, int32! hash3, int32! hash4, int32! hash5, int32! hash6, int32! hash7);
+
+    public static int32! Combine(int32! hash1, int32! hash2, int32! hash3, int32! hash4, int32! hash5, int32! hash6, int32! hash7, int32! hash8);
+}

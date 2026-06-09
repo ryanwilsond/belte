@@ -90,6 +90,7 @@ public enum SyntaxKind : ushort {
     CStringLiteralToken,
     CWStringLiteralToken,
     CharacterLiteralToken,
+    ExtendedLiteralToken,
     InterpolatedStringLiteralToken,
 
     // Keywords
@@ -123,6 +124,7 @@ public enum SyntaxKind : ushort {
     BaseKeyword,
     StaticKeyword,
     OperatorKeyword,
+    LiteralKeyword,
     LowlevelKeyword,
     ExtendsKeyword,
     PublicKeyword,
@@ -168,6 +170,13 @@ public enum SyntaxKind : ushort {
     UnreachableKeyword,
     ScopedKeyword,
     FinalKeyword,
+    PackedKeyword,
+    ReverseKeyword,
+    ReversibleKeyword,
+    StateKeyword,
+    HasKeyword,
+    InitializesKeyword,
+    CommitKeyword,
     HandleKeyword,
 
     // Trivia
@@ -212,10 +221,13 @@ public enum SyntaxKind : ushort {
 
     // Primary expressions
     LiteralExpression,
+    DefaultLiteralExpression,
+    ExtendedLiteralExpression,
     TypeOfExpression,
     NameOfExpression,
     SizeOfExpression,
     CallExpression,
+    ReversibleExpression,
     ReferenceExpression,
     MemberAccessExpression,
     ObjectCreationExpression,
@@ -227,6 +239,7 @@ public enum SyntaxKind : ushort {
     InterpolatedStringExpression,
     ParenthesizedLambdaExpression,
     SimpleLambdaExpression,
+    TupleExpression,
     InterpolatedStringText,
     Interpolation,
     InterpolatedStringStartToken,
@@ -239,6 +252,9 @@ public enum SyntaxKind : ushort {
     ExpressionStatement,
     ScopedStatement,
     WithStatement,
+    CommitStatement,
+    ReverseStatement,
+    ReverseDeferStatement,
     LocalDeclarationStatement,
     LocalFunctionStatement,
 
@@ -279,6 +295,7 @@ public enum SyntaxKind : ushort {
     VariableDeclaration,
     EqualsValueClause,
     StructDeclaration,
+    PackedArgument,
     ClassDeclaration,
     FileScopedClassDeclaration,
     UnionDeclaration,
@@ -286,11 +303,15 @@ public enum SyntaxKind : ushort {
     EnumMemberDeclaration,
     FieldDeclaration,
     MethodDeclaration,
+    ReverseClause,
+    StateClause,
+    InitConstraintClause,
     ConstructorDeclaration,
     ConstructorInitializer,
     DestructorDeclaration,
     FinalizerDeclaration,
     OperatorDeclaration,
+    LiteralOperatorDeclaration,
     ConversionDeclaration,
 
     // Names
@@ -306,6 +327,8 @@ public enum SyntaxKind : ushort {
     FunctionPointerType,
     FunctionType,
     ReferenceType,
+    TupleType,
+    TupleElement,
     BaseType,
     NameEquals,
 
@@ -327,6 +350,7 @@ public enum SyntaxKind : ushort {
     TemplateConstraintClause,
     TemplateExtendsConstraintClause,
     TemplateIsConstraintClause,
+    TemplateHasConstraintClause,
     TemplateConstraintClauseList,
     InitializerListExpression,
     KeyValuePair,

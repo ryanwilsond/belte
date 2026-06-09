@@ -134,7 +134,7 @@ internal sealed partial class BoundProgram {
         return builder.ToImmutableAndFree();
     }
 
-    internal ImmutableArray<NamedTypeSymbol> GetTypesToEmit(params SpecialType[] typesToInclude) {
+    internal ImmutableArray<NamedTypeSymbol> GetTypesToEmit(bool includeGraphicsWellKnownTypes) {
         var types = GetAllTypes();
         var length = types.Length;
         var builder = ArrayBuilder<NamedTypeSymbol>.GetInstance(length);
@@ -142,11 +142,14 @@ internal sealed partial class BoundProgram {
         for (var i = 0; i < length; i++) {
             var t = types[i];
 
-            if (t.kind == SymbolKind.NamedType &&
-                t.containingSymbol.kind == SymbolKind.Namespace &&
-                (t.specialType is SpecialType.None or SpecialType.List or
-                                  SpecialType.Dictionary or SpecialType.Enumerator ||
-                 System.MemoryExtensions.Contains(typesToInclude, t.specialType)) &&
+            if (t is not NamedTypeSymbol namedType)
+                continue;
+
+            var wellKnownType = WellKnownTypes.GetTypeFromMetadataName(namedType);
+
+            if (t.containingSymbol.kind == SymbolKind.Namespace &&
+                t.specialType is SpecialType.None &&
+                wellKnownType.ShouldEmit(includeGraphicsWellKnownTypes) &&
                 t.originalDefinition is not PENamedTypeSymbol) {
                 builder.Add((NamedTypeSymbol)t);
             }

@@ -61,14 +61,16 @@ public sealed partial class Compilation {
         Compilation previous,
         SyntaxAndDeclarationManager syntax,
         ReferenceManager referenceManager,
-        NamespaceSymbol namespaceOpt = null) {
+        NamespaceSymbol namespaceOpt = null,
+        bool forwardDiagnostics = false) {
         this.assemblyName = assemblyName;
         this.options = options;
         this.previous = previous;
         _syntax = syntax;
         _specialNamespace = namespaceOpt;
 
-        if (previous?.declarationDiagnostics is not null)
+        // TODO When do we want to forward diagnostics? (Something to do with handles?)
+        if (forwardDiagnostics && previous?.declarationDiagnostics is not null)
             declarationDiagnostics.PushRange(previous.declarationDiagnostics);
 
         _referenceManager = referenceManager ?? new ReferenceManager(options.references, declarationDiagnostics);
@@ -112,6 +114,8 @@ public sealed partial class Compilation {
     internal ImmutableArray<SyntaxTree> syntaxTrees => _syntax.state.syntaxTrees;
 
     internal bool keepLookingForCorTypes => CorLibrary.StillLookingForSpecialTypes();
+
+    internal bool keepLookingForWellKnownTypes => CorLibrary.StillLookingForWellKnownTypes();
 
     internal MergedNamespaceDeclaration mergedRootDeclaration => _syntax.state.declarationTable.GetMergedRoot(this);
 
@@ -209,6 +213,38 @@ public sealed partial class Compilation {
                 InterlockedOperations.Initialize(ref _lazyTreeToUsedImportDirectivesMap, new());
 
             return _lazyTreeToUsedImportDirectivesMap;
+        }
+    }
+
+    internal ExtendedErrorTypeSymbol implicitlyTypedVariableUsedInForbiddenZoneType {
+        get {
+            if (field is null) {
+                Interlocked.CompareExchange(ref field, new ExtendedErrorTypeSymbol(
+                    this,
+                    name: "var",
+                    arity: 0,
+                    error: null,
+                    variableUsedBeforeDeclaration: true
+                ), null);
+            }
+
+            return field;
+        }
+    }
+
+    internal ExtendedErrorTypeSymbol implicitlyTypedVariableInferenceFailedType {
+        get {
+            if (field is null) {
+                Interlocked.CompareExchange(ref field, new ExtendedErrorTypeSymbol(
+                    this,
+                    name: "var",
+                    arity: 0,
+                    error: null,
+                    unreported: false
+                ), null);
+            }
+
+            return field;
         }
     }
 
@@ -600,6 +636,10 @@ public sealed partial class Compilation {
         CorLibrary.RegisterDeclaredSpecialType(type);
     }
 
+    internal void RegisterDeclaredWellKnownType(WellKnownType wellKnownType, NamedTypeSymbol type) {
+        CorLibrary.RegisterDeclaredWellKnownType(wellKnownType, type);
+    }
+
     internal Binder GetBinder(BelteSyntaxNode syntax) {
         return GetBinderFactory(syntax.syntaxTree).GetBinder(syntax);
     }
@@ -836,8 +876,10 @@ public sealed partial class Compilation {
             if (methods.Length > expectedCount)
                 diagnostics.Push(Error.MultipleMains(methods[0].location));
 
-            if (methods.Length > 1 && simpleEntryPoint is not null)
+            if (methods.Length > 1 && simpleEntryPoint is not null) {
+                diagnostics.Push(Error.MainAndGlobals(simpleEntryPoint.firstLocation));
                 diagnostics.Push(Error.MainAndGlobals(methods[0].location));
+            }
         }
 
         if (entryPoint is not null && !entryPoint.isStatic) {
@@ -1104,7 +1146,7 @@ public sealed partial class Compilation {
         var cfgStatement = program.entryPoint is null ? null : program.methodBodies[program.entryPoint];
 
         if (cfgStatement is not null) {
-            var cfg = ControlFlowGraph.Create(cfgStatement);
+            var cfg = ControlFlowGraph.Create(program.entryPoint, cfgStatement);
 
             using var streamWriter = new StreamWriter(cfgPath);
             cfg.WriteTo(streamWriter);

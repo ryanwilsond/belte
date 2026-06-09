@@ -6,7 +6,8 @@ internal abstract class SubstitutedErrorTypeSymbol : ErrorTypeSymbol {
     private readonly ErrorTypeSymbol _originalDefinition;
     private int _hashCode;
 
-    private protected SubstitutedErrorTypeSymbol(ErrorTypeSymbol originalDefinition) {
+    private protected SubstitutedErrorTypeSymbol(ErrorTypeSymbol originalDefinition, TupleExtraData tupleData = null)
+        : base(tupleData) {
         _originalDefinition = originalDefinition;
     }
 

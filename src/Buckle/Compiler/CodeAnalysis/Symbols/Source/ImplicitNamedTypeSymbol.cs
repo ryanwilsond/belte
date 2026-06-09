@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -32,4 +33,8 @@ internal sealed class ImplicitNamedTypeSymbol : SourceMemberContainerTypeSymbol 
     public override ImmutableArray<TypeOrConstant> templateArguments => [];
 
     public override ImmutableArray<BoundExpression> templateConstraints => [];
+
+    private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
+        throw ExceptionUtilities.Unreachable();
+    }
 }

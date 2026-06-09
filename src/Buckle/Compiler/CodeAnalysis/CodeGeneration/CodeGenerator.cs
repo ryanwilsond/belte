@@ -1201,6 +1201,12 @@ oneMoreTime:
             false
         );
 
+        if (!_evaluatorProxies.Add(local))
+            throw ExceptionUtilities.Unreachable();
+
+        if (declaration.initializer is null)
+            return;
+
         // Essentially reporting the slot allocation then assigning
         // Could move this rewrite to the lowerer, but then we would need a way to keep track of slot allocation
         var assignment = BoundFactory.Assignment(
@@ -1510,15 +1516,19 @@ oneMoreTime:
     private void EmitArrayCreationExpression(BoundArrayCreationExpression expression, bool used) {
         var arrayType = (ArrayTypeSymbol)expression.StrippedType();
 
-        EmitArrayIndices(expression.sizes);
+        if (expression.sizes[0].constantValue?.isDefaultValue == true) {
+            _builder.EmitEmptyArray(arrayType.elementType);
+        } else {
+            EmitArrayIndices(expression.sizes);
 
-        if (arrayType.isSZArray)
-            _builder.EmitWithSymbolToken(OpCode.Newarr, arrayType.elementType);
-        else
-            EmitArrayCreation(arrayType);
+            if (arrayType.isSZArray)
+                _builder.EmitWithSymbolToken(OpCode.Newarr, arrayType.elementType);
+            else
+                EmitArrayCreation(arrayType);
 
-        if (expression.initializer is not null)
-            EmitArrayInitializers(arrayType, expression.initializer as BoundInitializerList);
+            if (expression.initializer is not null)
+                EmitArrayInitializers(arrayType, expression.initializer);
+        }
 
         EmitPopIfUnused(used);
     }
@@ -1636,6 +1646,18 @@ oneMoreTime:
         if (originalDef.containingType.specialType == SpecialType.Nullable)
             return true;
 
+        if (originalDef.containingType.name == NamedTypeSymbol.ValueTupleTypeName &&
+           (originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T1_ctor) ||
+            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_ctor) ||
+            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T3_ctor) ||
+            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_ctor) ||
+            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_ctor) ||
+            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_ctor) ||
+            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_ctor) ||
+            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_ctor))) {
+            return true;
+        }
+
         return false;
     }
 
@@ -1657,7 +1679,7 @@ oneMoreTime:
                         _builder.EmitThrowNullCondition();
                         // This is to balance the stack
                         EmitDefaultValue(
-                            CorLibrary.GetSpecialType(SpecialType.Exception),
+                            CorLibrary.GetWellKnownType(WellKnownType.Exception),
                             useKind != UseKind.Unused,
                             expression.syntax
                         );
@@ -1667,6 +1689,13 @@ oneMoreTime:
                 case "Sort": {
                         EmitArguments(arguments, method.parameters, expression.argumentRefKinds);
                         _builder.EmitSort(method.templateArguments[0].type.type);
+                        EmitCallCleanup(method, useKind);
+                    }
+
+                    return;
+                case "Fill": {
+                        EmitArguments(arguments, method.parameters, expression.argumentRefKinds);
+                        _builder.EmitFill(method.templateArguments[0].type.type);
                         EmitCallCleanup(method, useKind);
                     }
 
@@ -2093,9 +2122,9 @@ oneMoreTime:
         if (methodContainingType.IsNullableType()) {
             var originalMethod = method.originalDefinition;
 
-            if ((object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getValue) ||
-                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getHasValue) ||
-                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_GetValueOrDefault)) {
+            if ((object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_getValue) ||
+                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_getHasValue) ||
+                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_GetValueOrDefault)) {
                 return true;
             }
         }
@@ -2865,8 +2894,11 @@ oneMoreTime:
     }
 
     private void EmitLocalDeclarationIfApplicable(BoundAssignmentOperator expression) {
-        if (expression.left is BoundStackSlotExpression stackSlot) {
-            var local = stackSlot.symbol as DataContainerSymbol;
+        if (expression.left.kind == BoundKind.StackSlotExpression ||
+            expression.left is BoundDataContainerExpression dataExpr && dataExpr.dataContainer.isGlobal) {
+            var local = expression.left is BoundStackSlotExpression stackSlot
+                ? stackSlot.symbol as DataContainerSymbol
+                : ((BoundDataContainerExpression)expression.left).dataContainer;
 
             if (local is not null && _evaluatorProxies.Add(local)) {
                 _builder.DeclareLocal(

@@ -67,15 +67,19 @@
     - [2.6](Current/ControlFlow.md#26-exceptions-and-handling) Exceptions and Handling
       - [2.6.1](Current/ControlFlow.md#261-trycatchfinally) Try/Catch/Finally
     - [2.7](Current/ControlFlow.md#27-with-expressions-and-statements) With Expressions and Statements
+      - [2.7.1](Current/ControlFlow.md#271-commit-statements) Commit Statements
     - [2.8](Current/ControlFlow.md#28-defer-statements) Defer Statements
     - [2.9](Current/ControlFlow.md#29-scoped-statements) Scoped Statements
     - [2.10](Current/ControlFlow.md#210-unreachable-statements) Unreachable Statements
+    - [2.11](Current/ControlFlow.md#211-reverse-statements) Reverse Statements
   - [3](Current/Data.md) Data
     - [3.1](Current/Data.md#31-data-types) Data Types
       - [3.1.1](Current/Data.md#311-casts) Casts
       - [3.1.2](Current/Data.md#312-string-interpolation) String Interpolation
       - [3.1.3](Current/Data.md#313-function-type) Function Type
       - [3.1.4](Current/Data.md#314-default-literal) Default Literal
+      - [3.1.5](Current/Data.md#315-tuples) Tuples
+        - [3.1.5.1](Current/Data.md#3151-user-defined-deconstruction) User-Defined Deconstruction
     - [3.2](Current/Data.md#32-operators) Operators
       - [3.2.1](Current/Data.md#321-operator-precedence) Operator Precedence
       - [3.2.2](Current/Data.md#322-uncommon-operators) Uncommon Operators
@@ -109,9 +113,11 @@
     - [4.2](Current/ClassesAndObjects.md#42-members) Members
       - [4.2.1](Current/ClassesAndObjects.md#421-fields) Fields
       - [4.2.2](Current/ClassesAndObjects.md#422-methods) Methods
+        - [4.2.2.1](Current/ClassesAndObjects.md#4221-state-and-reverse-clauses) State and Reverse Clauses
       - [4.2.3](Current/ClassesAndObjects.md#423-operators) Operators
         - [4.2.3.1](Current/ClassesAndObjects.md#4231-operator-overloading) Operator Overloading
         - [4.2.3.2](Current/ClassesAndObjects.md#4232-casts) Casts
+        - [4.2.3.3](Current/ClassesAndObjects.md#4233-user-defined-literals) User-Defined Literals
     - [4.3](Current/ClassesAndObjects.md#43-modifiers) Modifiers
       - [4.3.1](Current/ClassesAndObjects.md#431-accessibility-modifiers) Accessibility Modifiers
       - [4.3.2](Current/ClassesAndObjects.md#432-overriding-modifiers) Overriding Modifiers
@@ -149,11 +155,12 @@
       - [5.7.1](Current/StandardLibrary/List.md) List
       - [5.7.2](Current/StandardLibrary/Dictionary.md) Dictionary
     - [5.8](Current/StandardLibrary/LowLevel.md) LowLevel
-    - [5.9](Current/StandardLibrary/Int.md) Int
+    - [5.9](Current/StandardLibrary/Int.md) Int and Other Numerics
     - [5.10](Current/StandardLibrary/Decimal.md) Decimal, Float64, and Float32
   - [6](Current/LowLevelFeatures.md) Low-Level Features
     - [6.1](Current/LowLevelFeatures.md#61-low-level-contexts) Low-Level Contexts
     - [6.2](Current/LowLevelFeatures.md#62-structs) Structs
+      - [6.2.1](Current/LowLevelFeatures.md#621-packing) Packing
     - [6.3](Current/LowLevelFeatures.md#63-arrays) Arrays
     - [6.4](Current/LowLevelFeatures.md#64-numerics) Numerics
       - [6.4.1](Current/LowLevelFeatures.md#641-bit-casts) Bit Casts
@@ -176,6 +183,8 @@
       - [6.13.1](Current/LowLevelFeatures.md#6131-messages) Messages
       - [6.13.2](Current/LowLevelFeatures.md#6132-ordering) Ordering
     - [6.14](Current/LowLevelFeatures.md#614-c-strings) C-Strings
+    - [6.15](Current/LowLevelFeatures.md#615-fields) Fields
+    - [6.16](Current/LowLevelFeatures.md#616-default-literal) Default Literal
   - [7](Current/Preprocessor.md) Preprocessor Directives
     - [7.1](Current/Preprocessor.md#71-defineundef) Define/Undef
     - [7.2](Current/Preprocessor.md#72-control) Control

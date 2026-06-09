@@ -181,8 +181,8 @@ public sealed class IssueTests {
                 public int? num;
             }
 
-            var x = new A();
-            x.num = 3;
+            var? x = new A();
+            x?.num = 3;
             x = null;
             return x?.num;
         ";
@@ -315,13 +315,28 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_Block_NoInfiniteLoop() {
         var text = @"
-            {
-            [)][]
+            {[]
+            )[]
         ";
 
         var diagnostics = @"
-            expected expression
+            expected token '}'
             expected '}' at end of input
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_Block_MinimalDiagnostics() {
+        var text = @"
+            {[]
+            )
+            }
+        ";
+
+        var diagnostics = @"
+            expected token '}'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -928,7 +943,7 @@ public sealed class IssueTests {
                 }
             }
 
-            var myA = new A<string>();
+            var myA = new A<string?>();
             var c = 6 + (3 + myA);
         ";
 
@@ -940,7 +955,7 @@ public sealed class IssueTests {
     [Fact]
     public void Evaluator_Structs_InitializesProperly() {
         var text = @"
-            lowlevel struct A<type T> {
+            lowlevel struct A<type T> where { T has default; } {
                 T a;
             }
 
@@ -1134,6 +1149,121 @@ public sealed class IssueTests {
 
         var diagnostics = @"
             cannot use local 'a' before it is declared
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_IndexExpression_NoCrashOnNoIndex() {
+        var text = @"
+            int\[\] a = { 1 };
+            var b = [a\[\]];
+        ";
+
+        var diagnostics = @"
+            wrong number of indices inside []; expected 1
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_StackallocLocal_NoCrashOnNoIndex() {
+        var text = @"
+            int a[\[\]];
+        ";
+
+        var diagnostics = @"
+            a stackalloc expression or local requires a type with a single array size specifier
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_TypeDeclaration_MissingClosingBraceMinimalDiagnostics() {
+        var text = @"
+            class A {
+                public int M() {
+                    return 3;[]
+
+                public int B() {
+                    return 10;
+                }
+            }
+        ";
+
+        var diagnostics = @"
+            expected token '}'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_UsingDirective_AllowsPlacementBetweenMembers() {
+        var text = @"
+            using static A;
+
+            class A {
+                public int a = default;
+            }
+
+            using B = A;
+
+            var a = new B();
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_ForEach_AllowsModification() {
+        var text = @"
+            class Elem {
+                public int e;
+
+                public constructor(int e) {
+                    this.e = e;
+                }
+            }
+
+            Elem\[\] a = { new (10), new (20), new (30) };
+
+            for (num in a)
+                num.e = 5;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_MisplacedKeyword_MinimalDiagnostics() {
+        var text = @"
+            var [out] = 3;
+        ";
+
+        var diagnostics = @"
+            unexpected token 'out', expected identifier
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Evaluator_DeconstructAssignment_NoInfiniteLoop() {
+        var text = @"
+            (var [a], var [b]) = a;
+        ";
+
+        var diagnostics = @"
+            cannot infer the type of implicitly-typed deconstruction variable 'a'
+            cannot infer the type of implicitly-typed deconstruction variable 'b'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

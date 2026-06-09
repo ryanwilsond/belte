@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
@@ -101,17 +102,23 @@ internal partial class SourceNamespaceSymbol {
             ConsList<TypeSymbol> basesBeingResolved,
             bool onlyGlobal) {
             if (usings is null) {
-                SyntaxList<UsingDirectiveSyntax> usingDirectives;
+                IEnumerable<UsingDirectiveSyntax> usingDirectives;
                 bool? applyIsGlobalFilter;
 
                 switch (declarationSyntax) {
                     case CompilationUnitSyntax compilationUnit:
                         applyIsGlobalFilter = onlyGlobal;
-                        usingDirectives = compilationUnit.usings;
+                        usingDirectives = compilationUnit.elements
+                            .Where(e => e is UsingDirectiveSyntax)
+                            .Select(e => (UsingDirectiveSyntax)e);
+
                         break;
                     case BaseNamespaceDeclarationSyntax namespaceDecl:
                         applyIsGlobalFilter = null;
-                        usingDirectives = namespaceDecl.usings;
+                        usingDirectives = namespaceDecl.elements
+                            .Where(e => e is UsingDirectiveSyntax)
+                            .Select(e => (UsingDirectiveSyntax)e);
+
                         break;
                     default:
                         throw ExceptionUtilities.UnexpectedValue(declarationSyntax);
@@ -146,7 +153,7 @@ internal partial class SourceNamespaceSymbol {
             return usings;
 
             UsingsAndDiagnostics BuildUsings(
-                SyntaxList<UsingDirectiveSyntax> usingDirectives,
+                IEnumerable<UsingDirectiveSyntax> usingDirectives,
                 SourceNamespaceSymbol declaringSymbol,
                 BelteSyntaxNode declarationSyntax,
                 bool? applyIsGlobalFilter,

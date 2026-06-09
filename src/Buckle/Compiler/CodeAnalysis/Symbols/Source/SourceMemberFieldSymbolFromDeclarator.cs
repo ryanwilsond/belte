@@ -9,6 +9,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 
 internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberFieldSymbol {
     private TypeAndRefKind _lazyTypeAndRefKind;
+    private BelteDiagnostic _lazyDefiniteAssignmentError;
 
     internal SourceMemberFieldSymbolFromDeclarator(
         NamedTypeSymbol containingType,
@@ -33,6 +34,8 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
 
     private protected sealed override SyntaxTokenList _modifiersTokenList
         => GetFieldDeclaration(_variableDeclaration).modifiers;
+
+    internal override BelteDiagnostic definiteAssignmentError => _lazyDefiniteAssignmentError;
 
     private protected VariableDeclarationSyntax _variableDeclaration => (VariableDeclarationSyntax)syntaxNode;
 
@@ -79,7 +82,7 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
         return (FieldDeclarationSyntax)declaration.parent;
     }
 
-    private TypeAndRefKind GetTypeAndRefKind(ConsList<FieldSymbol> _1) {
+    private TypeAndRefKind GetTypeAndRefKind(ConsList<FieldSymbol> fieldsBeingBound) {
         // TODO Use unused parameter to create recursive field errors
         if (_lazyTypeAndRefKind is not null)
             return _lazyTypeAndRefKind;
@@ -108,8 +111,17 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
 
             diagnostics.Push(Error.FieldsCannotBeImplicitlyTyped(location));
             type = new TypeWithAnnotations(binder.CreateErrorType());
-        } else if (!type.type.HasDefaultValue() && declaration.initializer is null) {
-            diagnostics.Push(Error.FieldNoDefaultValue(location, type.type));
+        } else if (declaration.initializer is null) {
+            if (!isLowLevel) {
+                if (containingType.IsStructType()) {
+                    // Whether or not the type has a default value is checked later
+                    var error = Error.FieldNoDefiniteAssignmentStruct(location, type.type);
+                    Interlocked.CompareExchange(ref _lazyDefiniteAssignmentError, error, null);
+                } else if (containingType.IsClassType() && !type.type.IsNullableType() && !isFixedSizeBuffer) {
+                    var error = Error.FieldNoDefiniteAssignment(location, type.type);
+                    Interlocked.CompareExchange(ref _lazyDefiniteAssignmentError, error, null);
+                }
+            }
         }
 
         if (isFixedSizeBuffer) {

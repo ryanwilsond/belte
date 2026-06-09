@@ -24,11 +24,6 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_AlwaysValue, location, message);
     }
 
-    internal static BelteDiagnostic NullDereference(TextLocation location) {
-        var message = "dereference of a possibly null value";
-        return CreateWarning(DiagnosticCode.WRN_NullDereference, location, message);
-    }
-
     internal static BelteDiagnostic UnreachableCode(TextLocation location) {
         var message = "unreachable code";
         return CreateWarning(DiagnosticCode.WRN_UnreachableCode, location, message);
@@ -145,9 +140,8 @@ internal static class Warning {
     }
 
     internal static BelteDiagnostic LocalUsingTypeName(TextLocation location, string name) {
-        throw Utilities.ExceptionUtilities.Unreachable();
-        // var message = $"local '{name}' shares a name with a type in this namespace";
-        // return CreateWarning(DiagnosticCode.WRN_LocalUsingTypeName, location, message);
+        var message = $"local '{name}' shares a name with a type in this namespace";
+        return CreateWarning(DiagnosticCode.WRN_LocalUsingTypeName, location, message);
     }
 
     internal static BelteDiagnostic ProtectedInSealed(TextLocation location, Symbol symbol) {
@@ -181,6 +175,26 @@ internal static class Warning {
         var message = $"ignoring return value of method '{method}'; consider using a discard assignment if this is intended";
         var suggestion = "_ = %";
         return CreateWarning(DiagnosticCode.WRN_IgnoringReturnValue, location, message, suggestion);
+    }
+
+    internal static BelteDiagnostic TransientForEachAssignment(TextLocation location) {
+        var message = $"assignment to a for-each iterator local does not modify the element in the source collection";
+        return CreateWarning(DiagnosticCode.WRN_TransientForEachAssignment, location, message);
+    }
+
+    internal static BelteDiagnostic StructInefficiencyCache(TextLocation location, TypeSymbol type, int actualSize, int optimalSize) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': struct crosses an unnecessary cache line; struct layout could be reduced from {actualSize} bytes to {optimalSize} bytes by reordering fields";
+        return CreateWarning(DiagnosticCode.WRN_StructInefficiencyCache, location, message);
+    }
+
+    internal static BelteDiagnostic StructInefficiencyPadding(TextLocation location, TypeSymbol type, int actualSize, int optimalSize) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': struct layout could be reduced from {actualSize} bytes to {optimalSize} bytes by reordering fields";
+        return CreateWarning(DiagnosticCode.WRN_StructInefficiencyPadding, location, message);
+    }
+
+    internal static BelteDiagnostic LongTuple(TextLocation location, int size) {
+        var message = $"long tuple ({size} elements); consider using a named struct instead";
+        return CreateWarning(DiagnosticCode.WRN_LongTuple, location, message);
     }
 
     private static BelteDiagnostic CreateWarning(DiagnosticCode code, TextLocation location, string message) {

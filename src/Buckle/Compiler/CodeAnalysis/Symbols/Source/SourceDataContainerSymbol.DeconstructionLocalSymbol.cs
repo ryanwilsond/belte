@@ -32,21 +32,7 @@ internal partial class SourceDataContainerSymbol {
 
         internal override DataContainerDeclarationKind declarationKind { get; }
 
-        internal override SyntaxNode forbiddenZone {
-            get {
-                switch (_deconstruction.kind) {
-                    case SyntaxKind.AssignmentExpression:
-                        return _deconstruction;
-                    // TODO This should be set to the declaration if we start using one
-                    // case SyntaxKind.ForEachStatement:
-                    //     return (ForEachStatementSyntax)_deconstruction;
-                    default:
-                        return null;
-                }
-            }
-        }
-
-        private protected override TypeWithAnnotations InferTypeOfImplicit(BelteDiagnosticQueue diagnostics) {
+        private protected override TypeWithAnnotations InferTypeOfImplicit() {
             switch (_deconstruction.kind) {
                 case SyntaxKind.AssignmentExpression:
                     throw ExceptionUtilities.Unreachable();
@@ -56,7 +42,7 @@ internal partial class SourceDataContainerSymbol {
                 // _nodeBinder.BindDeconstruction(assignment, assignment.Left, assignment.Right, diagnostics, ref declaration, ref expression);
                 // break;
                 case SyntaxKind.ForEachStatement:
-                    _nodeBinder.BindForEachDeconstruction(diagnostics, _nodeBinder);
+                    _nodeBinder.BindForEachDeconstruction(BelteDiagnosticQueue.Discarded, _nodeBinder);
                     break;
                 default:
                     return new TypeWithAnnotations(_nodeBinder.CreateErrorType());

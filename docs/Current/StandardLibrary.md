@@ -32,7 +32,7 @@ not require using the namespace qualifier to reference.
     - [5.7.2.4](StandardLibrary/Dictionary.md#5724-initializer-dictionaries) Initializer Dictionaries
 - [5.8](StandardLibrary/LowLevel.md) LowLevel
   - [5.8.1](StandardLibrary/LowLevel.md#581-methods) Methods
-- [5.9](StandardLibrary/Int.md) Int
+- [5.9](StandardLibrary/Int.md) Int and Other Numerics
   - [5.9.1](StandardLibrary/Int.md#591-fields) Fields
   - [5.9.2](StandardLibrary/Int.md#592-methods) Methods
 - [5.10](StandardLibrary/Decimal.md) Decimal, Float64, and Float32

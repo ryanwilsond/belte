@@ -77,5 +77,12 @@ internal sealed class ForLoopBinder : LoopBinder {
         throw ExceptionUtilities.Unreachable();
     }
 
+    internal override ImmutableArray<TokenSymbol> GetDeclaredTokensForScope(SyntaxNode scopeDesignator) {
+        if (this.scopeDesignator == scopeDesignator)
+            return tokens;
+
+        throw ExceptionUtilities.Unreachable();
+    }
+
     internal override SyntaxNode scopeDesignator => _syntax;
 }

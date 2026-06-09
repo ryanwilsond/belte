@@ -27,6 +27,13 @@ internal sealed class CatchClauseBinder : LocalScopeBinder {
         throw ExceptionUtilities.Unreachable();
     }
 
+    internal override ImmutableArray<TokenSymbol> GetDeclaredTokensForScope(SyntaxNode scopeDesignator) {
+        if (_syntax == scopeDesignator)
+            return tokens;
+
+        throw ExceptionUtilities.Unreachable();
+    }
+
     private protected override ImmutableArray<DataContainerSymbol> BuildLocals() {
         // TODO Eventually this will create a filter local (e.g. `catch (SomeException as e)`)
         return [];

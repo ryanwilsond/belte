@@ -3,6 +3,7 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -74,6 +75,11 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
         MakeParametersAndBindReturnType(BelteDiagnosticQueue diagnostics);
 
     private void CheckOperatorSignatures(BelteDiagnosticQueue diagnostics) {
+        if (methodKind == MethodKind.Literal) {
+            CheckLiteralOperatorSignature(diagnostics);
+            return;
+        }
+
         if (!DoesOperatorHaveCorrectArity(name, parameterCount))
             return;
 
@@ -110,6 +116,33 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
             default:
                 CheckBinarySignature(diagnostics);
                 break;
+        }
+    }
+
+    private void CheckLiteralOperatorSignature(BelteDiagnosticQueue diagnostics) {
+        if (!(((isAbstract || isVirtual) && IsSelfConstrainedTypeParameter(returnType)) ||
+            returnType.EffectiveType().IsEqualToOrDerivedFrom(containingType, ComparisonForUserDefinedOperators))) {
+            diagnostics.Push(Error.BadLiteralOperatorReturnType(location));
+        }
+
+        if (parameterCount != 1) {
+            diagnostics.Push(Error.LiteralOperatorMustHaveSingleParameter(location));
+            return;
+        }
+
+        // TODO This disallows user-defined implicit conversions to literal operators
+        // TODO This is probably what we want, but is technically more restrictive than we have to be
+        if (!IsValidExtendedLiteralType(GetParameterType(0).StrippedType()))
+            diagnostics.Push(Error.BadLiteralOperatorParameterType(location));
+
+        static bool IsValidExtendedLiteralType(TypeSymbol type) {
+            if (type.specialType.IsValidExtendedLiteral())
+                return true;
+
+            if (type is PointerTypeSymbol pointer && pointer.pointedAtType.specialType.IsValidPointerExtendedLiteral())
+                return true;
+
+            return false;
         }
     }
 
@@ -198,7 +231,7 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
                 diagnostics.Push(Error.BadUnaryOperatorSignature(location));
         }
 
-        if (returnType.specialType != SpecialType.Enumerator)
+        if (!returnType.originalDefinition.Equals(CorLibrary.GetWellKnownType(WellKnownType.Enumerator)))
             diagnostics.Push(Error.IterMustReturnEnumerator(location));
     }
 

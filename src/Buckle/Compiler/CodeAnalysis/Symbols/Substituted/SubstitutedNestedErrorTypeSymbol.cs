@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -28,4 +29,8 @@ internal sealed class SubstitutedNestedErrorTypeSymbol : SubstitutedErrorTypeSym
     internal override NamedTypeSymbol constructedFrom => this;
 
     internal override Symbol containingSymbol { get; }
+
+    private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
+        throw ExceptionUtilities.Unreachable();
+    }
 }

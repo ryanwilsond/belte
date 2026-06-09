@@ -20,9 +20,11 @@
   <ItemGroup>
     <Content Remove="../../Belte/Native/Standard/Object.blt" />
     <Content Remove="../../Belte/Native/Standard/HashHelpers.blt" />
+    <Content Remove="../../Belte/Native/Standard/Tuple.blt" />
     <Content Remove="../../Belte/Native/Standard/Collections/KeyNotFoundException.blt" />
     <Content Remove="../../Belte/Native/Standard/Collections/EqualityComparer.blt" />
     <Content Remove="../../Belte/Native/Standard/Collections/Array.blt" />
+    <Content Remove="../../Belte/Native/Standard/Collections/BitArray.blt" />
     <Content Remove="../../Belte/Native/Standard/Collections/List.blt" />
     <Content Remove="../../Belte/Native/Standard/Collections/Enumerator.blt" />
     <Content Remove="../../Belte/Native/Standard/Collections/ReducedEnumerator.blt" />
@@ -49,9 +51,11 @@
   <ItemGroup>
     <EmbeddedResource Include="../../Belte/Native/Standard/Object.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/HashHelpers.blt" />
+    <EmbeddedResource Include="../../Belte/Native/Standard/Tuple.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Collections/KeyNotFoundException.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Collections/EqualityComparer.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Collections/Array.blt" />
+    <EmbeddedResource Include="../../Belte/Native/Standard/Collections/BitArray.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Collections/List.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Collections/Enumerator.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Collections/ReducedEnumerator.blt" />

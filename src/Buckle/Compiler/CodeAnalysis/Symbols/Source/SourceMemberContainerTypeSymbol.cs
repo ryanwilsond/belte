@@ -9,6 +9,7 @@ using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -63,13 +64,16 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     private ImmutableArray<Symbol> _lazyMembersFlattened;
     private ThreeState _lazyAnyMemberHasAttributes;
     private int _lazyKnownCircularStruct;
+    private int _lazyHasStructDefault;
 
     private bool _fieldDefinitionsNoted;
 
     internal SourceMemberContainerTypeSymbol(
         NamespaceOrTypeSymbol containingSymbol,
         MergedTypeDeclaration declaration,
-        BelteDiagnosticQueue diagnostics) {
+        BelteDiagnosticQueue diagnostics,
+        TupleExtraData tupleData = null)
+        : base(tupleData) {
         this.containingSymbol = containingSymbol;
         _declaration = declaration;
         location = declaration.nameLocations.First();
@@ -99,6 +103,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
         enumFlagsAttribute = syntaxReference.node is EnumDeclarationSyntax e && e.flagsKeyword is not null;
 
+        if (syntaxReference.node is StructDeclarationSyntax s && s.packedArgument is not null)
+            explicitAlignment = MakeExplicitAlignment(s.packedArgument, diagnostics);
+
         isFileScoped = declaration.syntaxReferences[0].node.kind == SyntaxKind.FileScopedClassDeclaration;
     }
 
@@ -125,7 +132,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
     internal sealed override NamedTypeSymbol constructedFrom => this;
 
-    internal bool isLowLevel => HasFlag(DeclarationModifiers.LowLevel);
+    internal override bool isLowLevel => HasFlag(DeclarationModifiers.LowLevel) || containingType?.isLowLevel == true;
 
     internal override Symbol containingSymbol { get; }
 
@@ -138,6 +145,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     internal sealed override bool isRefLikeType => HasFlag(DeclarationModifiers.Ref);
 
     internal override bool enumFlagsAttribute { get; }
+
+    internal override int? explicitAlignment { get; }
 
     internal bool anyMemberHasAttributes {
         get {
@@ -172,7 +181,11 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         get {
             if (_lazyKnownCircularStruct == (int)ThreeState.Unknown) {
                 if (typeKind != TypeKind.Struct) {
-                    Interlocked.CompareExchange(ref _lazyKnownCircularStruct, (int)ThreeState.False, (int)ThreeState.Unknown);
+                    Interlocked.CompareExchange(
+                        ref _lazyKnownCircularStruct,
+                        (int)ThreeState.False,
+                        (int)ThreeState.Unknown
+                    );
                 } else {
                     var diagnostics = BelteDiagnosticQueue.GetInstance();
                     var value = (int)CheckStructCircularity(diagnostics).ToThreeState();
@@ -187,6 +200,25 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             }
 
             return _lazyKnownCircularStruct == (int)ThreeState.True;
+        }
+    }
+
+    internal override bool hasStructDefault {
+        get {
+            if (_lazyHasStructDefault == (int)ThreeState.Unknown) {
+                if (typeKind != TypeKind.Struct) {
+                    Interlocked.CompareExchange(
+                        ref _lazyHasStructDefault,
+                        (int)ThreeState.False,
+                        (int)ThreeState.Unknown
+                    );
+                } else {
+                    var value = (int)CheckHasStructDefault().ToThreeState();
+                    Interlocked.CompareExchange(ref _lazyHasStructDefault, value, (int)ThreeState.Unknown);
+                }
+            }
+
+            return _lazyHasStructDefault == (int)ThreeState.True;
         }
     }
 
@@ -408,6 +440,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         CheckForProtectedInStaticClass(diagnostics);
         CheckForUnmatchedOperators(diagnostics);
         CheckUnionIsNonEmpty(diagnostics);
+
+        CheckStructLayoutEfficiency(diagnostics);
     }
 
     private void CheckUnionIsNonEmpty(BelteDiagnosticQueue diagnostics) {
@@ -1514,11 +1548,11 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 AddNonTypeMembers(builder, enumDeclaration.members, diagnostics);
                 break;
             case SyntaxKind.CompilationUnit:
-                AddNonTypeMembers(builder, ((CompilationUnitSyntax)syntax).members, diagnostics);
+                AddNonTypeMembers(builder, ((CompilationUnitSyntax)syntax).elements, diagnostics);
                 break;
             case SyntaxKind.NamespaceDeclaration:
             case SyntaxKind.FileScopedNamespaceDeclaration:
-                AddNonTypeMembers(builder, ((BaseNamespaceDeclarationSyntax)syntax).members, diagnostics);
+                AddNonTypeMembers(builder, ((BaseNamespaceDeclarationSyntax)syntax).elements, diagnostics);
                 break;
             case SyntaxKind.ClassDeclaration:
             case SyntaxKind.FileScopedClassDeclaration:
@@ -1587,17 +1621,20 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         }
     }
 
-    private void AddNonTypeMembers(
+    private void AddNonTypeMembers<TNode>(
         DeclaredMembersAndInitializersBuilder builder,
-        SyntaxList<MemberDeclarationSyntax> members,
-        BelteDiagnosticQueue diagnostics) {
+        SyntaxList<TNode> members,
+        BelteDiagnosticQueue diagnostics)
+        where TNode : NamespaceElementSyntax {
         if (members.Count == 0)
             return;
 
         ArrayBuilder<FieldInitializer>? instanceInitializers = null;
         ArrayBuilder<FieldInitializer>? staticInitializers = null;
 
-        foreach (var m in members) {
+        foreach (var e in members) {
+            var m = (NamespaceElementSyntax)e;
+
             if (_lazyMembersAndInitializers is not null)
                 return;
 
@@ -1644,7 +1681,14 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         );
 
                         builder.nonTypeMembers.Add(method);
+
+                        if (method.isReversible)
+                            builder.nonTypeMembers.Add(method.reverseMethod);
+
+                        if (method.hasReversalState)
+                            builder.nonTypeMembers.Add(method.stateMethod);
                     }
+
                     break;
                 case SyntaxKind.ConstructorDeclaration: {
                         var constructorSyntax = (ConstructorDeclarationSyntax)m;
@@ -1660,6 +1704,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                         builder.nonTypeMembers.Add(constructor);
                     }
+
                     break;
                 case SyntaxKind.DestructorDeclaration: {
                         var destructorSyntax = (DestructorDeclarationSyntax)m;
@@ -1670,6 +1715,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         var destructor = new SourceDestructorSymbol(this, destructorSyntax, diagnostics);
                         builder.nonTypeMembers.Add(destructor);
                     }
+
                     break;
                 case SyntaxKind.FinalizerDeclaration: {
                         var finalizerSyntax = (FinalizerDeclarationSyntax)m;
@@ -1680,6 +1726,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         var finalizer = new SourceFinalizerSymbol(this, finalizerSyntax, diagnostics);
                         builder.nonTypeMembers.Add(finalizer);
                     }
+
                     break;
                 case SyntaxKind.OperatorDeclaration: {
                         var operatorSyntax = (OperatorDeclarationSyntax)m;
@@ -1695,6 +1742,23 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                         builder.nonTypeMembers.Add(method);
                     }
+
+                    break;
+                case SyntaxKind.LiteralOperatorDeclaration: {
+                        var operatorSyntax = (LiteralOperatorDeclarationSyntax)m;
+
+                        if (isImplicitClass && reportMisplacedGlobalCode)
+                            diagnostics.Push(Error.NamespaceUnexpected(operatorSyntax.literalKeyword.location));
+
+                        var method = SourceUserDefinedLiteralOperatorSymbol.CreateUserDefinedLiteralOperatorSymbol(
+                            this,
+                            operatorSyntax,
+                            diagnostics
+                        );
+
+                        builder.nonTypeMembers.Add(method);
+                    }
+
                     break;
                 case SyntaxKind.ConversionDeclaration: {
                         var conversionSyntax = (ConversionDeclarationSyntax)m;
@@ -1710,6 +1774,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                         builder.nonTypeMembers.Add(method);
                     }
+
                     break;
                 case SyntaxKind.GlobalStatement:
                     var globalStatement = ((GlobalStatementSyntax)m).statement;
@@ -1832,6 +1897,25 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             default:
                 break;
         }
+
+        AddSynthesizedTupleMembersIfNecessary(builder, declaredMembersAndInitializers);
+    }
+
+    private void AddSynthesizedTupleMembersIfNecessary(
+        MembersAndInitializersBuilder builder,
+        DeclaredMembersAndInitializers declaredMembersAndInitializers) {
+        if (!isTupleType)
+            return;
+
+        var synthesizedMembers = MakeSynthesizedTupleMembers(declaredMembersAndInitializers.nonTypeMembers);
+
+        if (synthesizedMembers is null)
+            return;
+
+        foreach (var synthesizedMember in synthesizedMembers)
+            builder.AddNonTypeMember(synthesizedMember, declaredMembersAndInitializers);
+
+        synthesizedMembers.Free();
     }
 
     private void AddSynthesizedSimpleProgramEntryPointIfNecessary(
@@ -1874,7 +1958,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         if (!hasStaticConstructor && HasNonConstExprInitializer(declaredMembersAndInitializers.staticInitializers))
             builder.AddNonTypeMember(new SynthesizedStaticConstructor(this), declaredMembersAndInitializers);
 
-        if ((!hasParameterlessConstructor && IsStructType()) || (!hasConstructor && !isStatic))
+        // TODO Do we want to have structs a parameterless constructor always?
+        // if ((!hasParameterlessConstructor && IsStructType()) || (!hasConstructor && !isStatic))
+        if (!hasConstructor && !isStatic)
             builder.AddNonTypeMember(new SynthesizedInstanceConstructorSymbol(this), declaredMembersAndInitializers);
 
         static bool HasNonConstExprInitializer(ImmutableArray<ImmutableArray<FieldInitializer>> initializers) {
@@ -1882,6 +1968,33 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 static siblings => siblings.Any(static initializer => !initializer.field.isConstExpr)
             );
         }
+    }
+
+    private static int? MakeExplicitAlignment(PackedArgumentSyntax packedArgument, BelteDiagnosticQueue diagnostics) {
+        if (packedArgument.alignment is null)
+            return 1;
+
+        var alignmentValue = packedArgument.alignment.value;
+        var alignmentType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(alignmentValue);
+
+        if (!LiteralUtilities.TrySpecialCastCore(alignmentValue, alignmentType, SpecialType.Int, out var result)) {
+            diagnostics.Push(
+                Error.CannotConvertConstantValue(
+                    packedArgument.alignment.location,
+                    result,
+                    CorLibrary.GetSpecialType(SpecialType.Int)
+                )
+            );
+        } else {
+            var alignment = (long)result;
+
+            if (alignment is 1 or 2 or 4 or 8 or 16 or 32 or 64 or 128)
+                return (int)alignment;
+
+            diagnostics.Push(Error.InvalidPackedAlignment(packedArgument.alignment.location));
+        }
+
+        return null;
     }
 
     private DeclarationModifiers MakeModifiers(BelteDiagnosticQueue diagnostics) {
@@ -2186,7 +2299,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 if (field.isStatic)
                     continue;
 
-                var type = field.NonPointerType();
+                var type = field.NonPointerType()?.StrippedType();
 
                 if ((type is not null) &&
                     (type.typeKind == TypeKind.Struct) &&

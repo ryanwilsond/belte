@@ -119,7 +119,6 @@ internal abstract class ExpressionVariableFinder<TFieldOrLocalSymbol> : SyntaxWa
         base.VisitDeclarationPattern(node);
     }
 
-
     internal override void VisitConstructorDeclaration(ConstructorDeclarationSyntax node) {
         if (node.constructorInitializer is not null)
             VisitNodeToBind(node.constructorInitializer);

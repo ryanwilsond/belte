@@ -4,7 +4,7 @@ using Buckle.CodeAnalysis.Text;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class WrappedNamedTypeSymbol : NamedTypeSymbol {
-    internal WrappedNamedTypeSymbol(NamedTypeSymbol underlyingNamedType) {
+    internal WrappedNamedTypeSymbol(NamedTypeSymbol underlyingNamedType, TupleExtraData tupleData) : base(tupleData) {
         this.underlyingNamedType = underlyingNamedType;
     }
 
@@ -35,4 +35,6 @@ internal abstract class WrappedNamedTypeSymbol : NamedTypeSymbol {
     internal override bool isSealed => underlyingNamedType.isSealed;
 
     internal override bool isRefLikeType => underlyingNamedType.isRefLikeType;
+
+    internal override bool hasStructDefault => underlyingNamedType.hasStructDefault;
 }

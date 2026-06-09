@@ -41,5 +41,9 @@ internal abstract partial class MissingMetadataTypeSymbol {
                 _arity == other._arity &&
                 _containingType.Equals(other._containingType, comparison);
         }
+
+        private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
+            throw ExceptionUtilities.Unreachable();
+        }
     }
 }

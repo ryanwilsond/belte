@@ -31,8 +31,6 @@ internal partial class SourceDataContainerSymbol {
             _initializerBinder = initializerBinder;
         }
 
-        internal override SyntaxNode forbiddenZone => _initializer;
-
         internal override ConstantValue GetConstantValue(
             SyntaxNode node,
             DataContainerSymbol inProgress,
@@ -53,8 +51,14 @@ internal partial class SourceDataContainerSymbol {
                 : new BelteDiagnosticQueue(_lazyConstantValue.diagnostics);
         }
 
-        private protected override TypeWithAnnotations InferTypeOfImplicit(BelteDiagnosticQueue diagnostics) {
-            var initializer = _initializerBinder.BindInferredDataContainerInitializer(diagnostics, refKind, _initializer, _initializer);
+        private protected override TypeWithAnnotations InferTypeOfImplicit() {
+            var initializer = _initializerBinder.BindInferredDataContainerInitializer(
+                BelteDiagnosticQueue.Discarded,
+                refKind,
+                _initializer,
+                _initializer
+            );
+
             return new TypeWithAnnotations(initializer.Type());
         }
 

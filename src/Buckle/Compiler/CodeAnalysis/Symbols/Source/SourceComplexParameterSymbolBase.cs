@@ -21,7 +21,7 @@ internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol
         string name,
         ParameterSyntax syntax,
         ScopedKind scope)
-        : base(owner, ordinal, refKind, isConst, scope, name, syntax) {
+        : base(owner, ordinal, refKind, isConst, scope, name, new SyntaxReference(syntax), syntax.identifier.location) {
         _hasDefaultValue = syntax is not null && syntax.defaultValue is not null;
     }
 
@@ -165,7 +165,7 @@ internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol
             return null;
         }
 
-        return convertedExpression.constantValue;
+        return convertedExpression.constantValue ?? ConstantValue.Null;
     }
 
     internal sealed override CustomAttributesBag<AttributeData> GetAttributesBag() {

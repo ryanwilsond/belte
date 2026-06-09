@@ -43,6 +43,13 @@ internal sealed class WhileBinder : LoopBinder {
         throw ExceptionUtilities.Unreachable();
     }
 
+    internal override ImmutableArray<TokenSymbol> GetDeclaredTokensForScope(SyntaxNode scopeDesignator) {
+        if (_syntax == scopeDesignator)
+            return tokens;
+
+        throw ExceptionUtilities.Unreachable();
+    }
+
     private protected override ImmutableArray<DataContainerSymbol> BuildLocals() {
         var locals = ArrayBuilder<DataContainerSymbol>.GetInstance();
         ExpressionSyntax condition;
@@ -60,5 +67,24 @@ internal sealed class WhileBinder : LoopBinder {
 
         ExpressionVariableFinder.FindExpressionVariables(this, locals, node: condition);
         return locals.ToImmutableAndFree();
+    }
+
+    private protected override ImmutableArray<TokenSymbol> BuildTokens() {
+        var tokens = ArrayBuilder<TokenSymbol>.GetInstance();
+        ExpressionSyntax condition;
+
+        switch (_syntax.kind) {
+            case SyntaxKind.WhileStatement:
+                condition = ((WhileStatementSyntax)_syntax).condition;
+                break;
+            case SyntaxKind.DoWhileStatement:
+                condition = ((DoWhileStatementSyntax)_syntax).condition;
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(_syntax.kind);
+        }
+
+        ExpressionTokenFinder.FindExpressionTokens(this, ref tokens, node: condition);
+        return tokens.ToImmutableAndFree();
     }
 }

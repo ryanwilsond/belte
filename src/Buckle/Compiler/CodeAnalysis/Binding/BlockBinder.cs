@@ -37,6 +37,13 @@ internal sealed class BlockBinder : LocalScopeBinder {
         throw ExceptionUtilities.Unreachable();
     }
 
+    internal override ImmutableArray<TokenSymbol> GetDeclaredTokensForScope(SyntaxNode scopeDesignator) {
+        if (this.scopeDesignator == scopeDesignator)
+            return tokens;
+
+        throw ExceptionUtilities.Unreachable();
+    }
+
     private protected override ImmutableArray<DataContainerSymbol> BuildLocals() {
         return BuildLocals(_block.statements, this);
     }
@@ -49,5 +56,11 @@ internal sealed class BlockBinder : LocalScopeBinder {
         ArrayBuilder<LabelSymbol> labels = null;
         BuildLabels(_block.statements, ref labels);
         return (labels is not null) ? labels.ToImmutableAndFree() : [];
+    }
+
+    private protected override ImmutableArray<TokenSymbol> BuildTokens() {
+        ArrayBuilder<TokenSymbol> tokens = null;
+        BuildTokens(_block.statements, this, ref tokens);
+        return (tokens is not null) ? tokens.ToImmutableAndFree() : [];
     }
 }

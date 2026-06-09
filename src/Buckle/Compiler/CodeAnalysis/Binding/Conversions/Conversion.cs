@@ -32,6 +32,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
     internal static Conversion ExplicitEnum => new Conversion(ConversionKind.ExplicitEnum);
     internal static Conversion AnyUnboxing => new Conversion(ConversionKind.AnyUnboxing);
     internal static Conversion ObjectCreation => new Conversion(ConversionKind.ObjectCreation);
+    internal static Conversion Deconstruction => new Conversion(ConversionKind.Deconstruction);
     internal static Conversion ImplicitNullableWithIdentityUnderlying
         => new Conversion(ConversionKind.ImplicitNullable, IdentityUnderlying);
     internal static Conversion ExplicitNullableWithIdentityUnderlying
@@ -53,6 +54,14 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
     internal Conversion(ConversionKind castKind, ImmutableArray<Conversion> nestedConversions) {
         kind = castKind;
         _uncommonData = new NestedUncommonData(nestedConversions);
+    }
+
+    internal Conversion(
+        ConversionKind kind,
+        DeconstructMethodInfo deconstructMethodInfo,
+        ImmutableArray<(BoundValuePlaceholder placeholder, BoundExpression conversion)> deconstructConversionInfo) {
+        this.kind = kind;
+        _uncommonData = new DeconstructionUncommonData(deconstructMethodInfo, deconstructConversionInfo);
     }
 
     internal Conversion(UserDefinedConversionResult conversionResult, bool isImplicit) {
@@ -131,9 +140,22 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
                     }
 
                     break;
+                case DeconstructionUncommonData deconstructionUncommonData:
+                    if (deconstructionUncommonData.deconstructMethodInfo.call is BoundCallExpression call)
+                        return call.method;
+
+                    break;
             }
 
             return null;
+        }
+    }
+
+    internal DeconstructMethodInfo deconstructionInfo {
+        get {
+            return _uncommonData is not DeconstructionUncommonData uncommonData
+                ? default
+                : uncommonData.deconstructMethodInfo;
         }
     }
 

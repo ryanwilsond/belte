@@ -5,6 +5,8 @@
   - [3.1.2](#312-string-interpolation) String Interpolation
   - [3.1.3](#313-function-type) Function Type
   - [3.1.4](#314-default-literal) Default Literal
+  - [3.1.5](#315-tuples) Tuples
+    - [3.1.5.1](#3151-user-defined-deconstruction) User-Defined Deconstruction
 - [3.2](#32-operators) Operators
   - [3.2.1](#321-operator-precedence) Operator Precedence
   - [3.2.2](#322-uncommon-operators) Uncommon Operators
@@ -63,7 +65,7 @@ The following is a list of built-in types with links to further information:
 | Integer Pointer | `intptr` | Used for .NET interop | |
 | Unsigned Integer Pointer | `uintptr` | Used for .NET interop | |
 
-Most primitive types are non-nullable by default, which can be [read about here](Overview.md#14-nullability-and-types).
+All types are non-nullable by default, which can be [read about here](Overview.md#14-nullability-and-types).
 
 Additionally, there are user-defined types:
 
@@ -214,6 +216,67 @@ int? a = default; // a = null
 ```
 
 Types with no default value (non-nullable class types) cannot use the `default` literal.
+
+### 3.1.5 Tuples
+
+Tuples are value types (structs) that contain fields are varying types. They act as small containers.
+
+```belte
+ValueTuple<int, bool> a = new ValueTuple<int, bool>(3, true);
+int b = a.Item1;
+bool c = a.Item2;
+```
+
+Tuples have their own syntax for brevity. The above example could equivalently be written:
+
+```belte
+var a = (3, true);
+var b = a.Item1;
+var c = a.Item2;
+```
+
+Tuples also support custom item names:
+
+```belte
+(int f1, bool f2) a = (3, true);
+var b = a.f1;
+var c = a.f2;
+```
+
+Tuples can be used to return multiple values from a function:
+
+```belte
+(int, int) Func(int a, int b) {
+  return (a + b, a - b);
+}
+```
+
+Tuples can be deconstructed into multiple locals. The following are equivalent:
+
+```belte
+var t = (3, true); var a = t.Item1; var b = t.Item2;
+(int a, bool b) = (3, true);
+(var a, var b) = (3, true);
+```
+
+#### 3.1.5.1 User-Defined Deconstruction
+
+User-defined deconstruction can be done by [defining an implicit cast](ClassesAndObjects.md#4232-casts) to a tuple type:
+
+```belte
+var myClass = new MyClass();
+// ...
+(var a, var b) = myClass;
+
+class MyClass {
+  private int a;
+  private int b;
+
+  public static implicit operator (int, int)(MyClass obj) {
+    return (obj.a, obj.b);
+  }
+}
+```
 
 ## 3.2 Operators
 
@@ -537,23 +600,16 @@ var! a = new MyClass(); // Same as `MyClass! a = new MyClass();`
 
 ## 3.4 Annotations
 
-Reference-type data is nullable by default. To disable this, an exclamation mark can be used:
-
-```belte
-MyType! a = new MyType();
-```
-
-Value-type data is non-nullable by default. To enable nullability, a question mark can be used:
+Data is non-nullable by default. To enable nullability, a question mark can be used:
 
 ```belte
 int? a = null;
 ```
 
-Both of these annotations are allowed in situations where they are redundant for clarity purposes:
+An exclamation mark annotation can also be used to signify non-nullability for clarity:
 
 ```belte
-int! a = 3;
-MyType? b = new MyType();
+int! a = 0;
 ```
 
 The [null-assert (`!`) operator](#3221-x) can be used to pass nullable data into a non-nullable context:

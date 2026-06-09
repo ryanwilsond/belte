@@ -76,16 +76,14 @@ public sealed class Compiler {
     /// </summary>
     /// <returns>Error code, 0 = success.</returns>
     public int Compile() {
-        lock (state) lock (me) {
-            diagnostics.Clear();
+        diagnostics.Clear();
 
-            if (state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute)
-                InternalInterpreter();
-            else
-                InternalCompiler();
+        if (state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute)
+            InternalInterpreter();
+        else
+            InternalCompiler();
 
-            return CalculateExitCode(diagnostics);
-        }
+        return CalculateExitCode(diagnostics);
     }
 
     /// <summary>

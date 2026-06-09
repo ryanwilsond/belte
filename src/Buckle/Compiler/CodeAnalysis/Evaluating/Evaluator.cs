@@ -1,4 +1,5 @@
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -282,7 +283,12 @@ internal sealed class Evaluator {
                 var arg = layout.GetLocal(parameter);
 
                 if (argument.isType) {
-                    heapObject.fields[arg.slot] = EvaluatorValue.Type(argument.type.type);
+                    var t = argument.type.type;
+
+                    if (t is TemplateParameterSymbol templateParameter)
+                        t = SubstituteTemplateParameter(templateParameter);
+
+                    heapObject.fields[arg.slot] = EvaluatorValue.Type(t);
                 } else {
                     heapObject.fields[arg.slot] = EvaluatorValue.Literal(
                         argument.constant.value,
@@ -631,6 +637,7 @@ internal sealed class Evaluator {
         if (!_program.TryGetTypeLayoutIncludingParents(namedType, out var layout))
             throw new BelteInternalException($"Failed to get type layout ({namedType}).");
 
+        var typeAlignment = namedType.explicitAlignment ?? PointerSize;
         var fields = layout.LocalsInOrder();
         var size = 0;
 
@@ -649,7 +656,7 @@ internal sealed class Evaluator {
                     continue;
 
                 var fieldSize = GetSizeOf(field.type).int32;
-                var fieldAlignment = Math.Min(fieldSize, PointerSize);
+                var fieldAlignment = Math.Min(fieldSize, typeAlignment);
 
                 alignment = Math.Max(alignment, fieldAlignment);
                 size = Align(size, fieldAlignment);
@@ -921,8 +928,8 @@ internal sealed class Evaluator {
                 return value;
         }
 
-        var isCastable = node.operand.Type().specialType == SpecialType.String && node.Type().IsPrimitiveType() ||
-            node.Type().specialType == SpecialType.String && node.operand.Type().IsPrimitiveType();
+        var isCastable = node.operand.Type().specialType == SpecialType.String && node.Type().isPrimitiveType ||
+            node.Type().specialType == SpecialType.String && node.operand.Type().isPrimitiveType;
 
         var involvesRefTypes = !isCastable && (node.operand.Type().IsVerifierReference() ||
             (node.Type().IsVerifierReference() && node.Type().specialType != SpecialType.String));
@@ -1308,7 +1315,7 @@ internal sealed class Evaluator {
         BoundObjectCreationExpression node,
         bool used,
         ValueWrapper<bool> abort) {
-        if (node.constructor.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_ctor))
+        if (node.constructor.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_ctor))
             return EvaluateExpression(node.arguments[0], used, abort);
 
         var type = (NamedTypeSymbol)node.StrippedType();
@@ -2801,7 +2808,7 @@ internal sealed class Evaluator {
             return HandleGraphicsCall(location, method, arguments, abort, out result);
 
         // TODO If we deem these string checks too slow, we could probably compute unique Int64 mapKeys instead
-        var mapKey = LibraryHelpers.BuildMapKey(method);
+        var mapKey = LibraryHelpers.BuildMapKey(method.originalDefinition);
 
         if ((object)method.containingNamespace == LibraryHelpers.BelteNamespace.originalDefinition) {
             switch (mapKey) {
@@ -2817,16 +2824,22 @@ internal sealed class Evaluator {
                                 case ValueKind.Int8:
                                 case ValueKind.Int16:
                                 case ValueKind.Int32:
-                                case ValueKind.Int64:
                                 case ValueKind.UInt8:
                                 case ValueKind.UInt16:
                                 case ValueKind.UInt32:
-                                case ValueKind.UInt64:
                                 case ValueKind.Float32:
-                                case ValueKind.Float64:
                                 case ValueKind.Bool:
                                 case ValueKind.Char:
-                                    result = argument.int64;
+                                    result = argument.int32;
+                                    break;
+                                case ValueKind.Int64:
+                                    result = argument.int64.GetHashCode();
+                                    break;
+                                case ValueKind.UInt64:
+                                    result = argument.uint64.GetHashCode();
+                                    break;
+                                case ValueKind.Float64:
+                                    result = argument.@double.GetHashCode();
                                     break;
                                 case ValueKind.String:
                                     result = argument.@string.GetHashCode();
@@ -2873,7 +2886,7 @@ internal sealed class Evaluator {
                         var argument = EvaluateExpression(arguments[0], true, abort);
 
                         if (argument.kind == ValueKind.HeapPtr) {
-                            var type = (NamedTypeSymbol)_context.heap[argument.ptr].type;
+                            var type = _context.heap[argument.ptr].type;
                             result = GetTypeName(type);
                         } else if (argument.kind == ValueKind.Struct) {
                             var type = argument.@struct.type;
@@ -2900,8 +2913,7 @@ internal sealed class Evaluator {
                     }
 
                     return true;
-                case "LowLevel_Length_[?":
-                case "LowLevel_Length_[": {
+                case "LowLevel_Length_T": {
                         var argument = EvaluateExpression(arguments[0], true, abort);
 
                         if (argument.kind != ValueKind.HeapPtr) {
@@ -2937,7 +2949,16 @@ internal sealed class Evaluator {
                     _lazyRandom ??= new Random();
                     result = _lazyRandom.NextDouble();
                     return true;
-                case "LowLevel_Sort_[?": {
+                case "LowLevel_IsLittleEndian":
+                    result = EvaluatorValue.Literal(BitConverter.IsLittleEndian);
+                    return true;
+                case "LowLevel_ReverseEndianness_I4": {
+                        var argument = EvaluateExpression(arguments[0], true, abort);
+                        argument.int32 = BinaryPrimitives.ReverseEndianness(argument.int32);
+                        result = argument;
+                        return true;
+                    }
+                case "LowLevel_Sort_T": {
                         var arrayPtr = EvaluateExpression(arguments[0], true, abort);
 
                         if (arrayPtr.kind != ValueKind.HeapPtr)
@@ -2962,6 +2983,15 @@ internal sealed class Evaluator {
                     }
 
                     return true;
+                case "LowLevel_Fill_[T": {
+                        var arrayPtr = EvaluateExpression(arguments[0], true, abort);
+                        var value = EvaluateExpression(arguments[1], true, abort);
+                        var array = _context.heap[arrayPtr.ptr];
+
+                        Array.Fill(array.fields, value);
+                    }
+
+                    return true;
                 case "String_Split_SS": {
                         var args = arguments.Select(a => EvaluateExpression(a, true, abort).@string).ToArray();
                         var text = args[0];
@@ -2974,19 +3004,19 @@ internal sealed class Evaluator {
                     return true;
                 case "Console_Print_S?":
                 case "Console_Print_A?":
-                case "Console_Print_O?":
                     printed = true;
                     goto case "Console_PrintLine_S?";
                 case "Console_PrintLine_S?":
-                case "Console_PrintLine_A?":
-                case "Console_PrintLine_O?":
-                    if (arguments[0].StrippedType().isObjectType) {
+                case "Console_PrintLine_A?": {
                         var argument = EvaluateExpression(arguments[0], true, abort);
-                        var toStringMethod = ResolveVirtualMethod(_toStringMethod, null, argument);
-                        var toStringResult = InvokeMethod(toStringMethod, argument, [], abort);
-                        var func = StandardLibrary.EvaluatorMap[mapKey];
-                        result = func(toStringResult.@string, null, null);
-                        return true;
+
+                        if (argument.kind is ValueKind.HeapPtr or ValueKind.Struct) {
+                            var toStringMethod = ResolveVirtualMethod(_toStringMethod, null, argument);
+                            var toStringResult = InvokeMethod(toStringMethod, argument, [], abort);
+                            var func = StandardLibrary.EvaluatorMap[mapKey];
+                            result = func(toStringResult.@string, null, null);
+                            return true;
+                        }
                     }
 
                     break;
@@ -3001,6 +3031,118 @@ internal sealed class Evaluator {
                 case "LowLevel_FreeGCHandle_V*":
                 case "LowLevel_GetObject_V*":
                     throw new BelteEvaluatorException($"The method '{method}' is not supported in the Evaluator.", location);
+                case "HashCode_Combine_I4I4": {
+                        var argument1 = EvaluateExpression(arguments[0], true, abort);
+                        var argument2 = EvaluateExpression(arguments[1], true, abort);
+                        result = EvaluatorValue.Literal(HashCode.Combine(
+                            argument1.int32,
+                            argument2.int32
+                        ), SpecialType.Int32);
+                    }
+
+                    return true;
+                case "HashCode_Combine_I4I4I4": {
+                        var argument1 = EvaluateExpression(arguments[0], true, abort);
+                        var argument2 = EvaluateExpression(arguments[1], true, abort);
+                        var argument3 = EvaluateExpression(arguments[2], true, abort);
+                        result = EvaluatorValue.Literal(HashCode.Combine(
+                            argument1.int32,
+                            argument2.int32,
+                            argument3.int32
+                        ), SpecialType.Int32);
+                    }
+
+                    return true;
+                case "HashCode_Combine_I4I4I4I4": {
+                        var argument1 = EvaluateExpression(arguments[0], true, abort);
+                        var argument2 = EvaluateExpression(arguments[1], true, abort);
+                        var argument3 = EvaluateExpression(arguments[2], true, abort);
+                        var argument4 = EvaluateExpression(arguments[3], true, abort);
+                        result = EvaluatorValue.Literal(HashCode.Combine(
+                            argument1.int32,
+                            argument2.int32,
+                            argument3.int32,
+                            argument4.int32
+                        ), SpecialType.Int32);
+                    }
+
+                    return true;
+                case "HashCode_Combine_I4I4I4I4I4": {
+                        var argument1 = EvaluateExpression(arguments[0], true, abort);
+                        var argument2 = EvaluateExpression(arguments[1], true, abort);
+                        var argument3 = EvaluateExpression(arguments[2], true, abort);
+                        var argument4 = EvaluateExpression(arguments[3], true, abort);
+                        var argument5 = EvaluateExpression(arguments[4], true, abort);
+                        result = EvaluatorValue.Literal(HashCode.Combine(
+                            argument1.int32,
+                            argument2.int32,
+                            argument3.int32,
+                            argument4.int32,
+                            argument5.int32
+                        ), SpecialType.Int32);
+                    }
+
+                    return true;
+                case "HashCode_Combine_I4I4I4I4I4I4": {
+                        var argument1 = EvaluateExpression(arguments[0], true, abort);
+                        var argument2 = EvaluateExpression(arguments[1], true, abort);
+                        var argument3 = EvaluateExpression(arguments[2], true, abort);
+                        var argument4 = EvaluateExpression(arguments[3], true, abort);
+                        var argument5 = EvaluateExpression(arguments[4], true, abort);
+                        var argument6 = EvaluateExpression(arguments[5], true, abort);
+                        result = EvaluatorValue.Literal(HashCode.Combine(
+                            argument1.int32,
+                            argument2.int32,
+                            argument3.int32,
+                            argument4.int32,
+                            argument5.int32,
+                            argument6.int32
+                        ), SpecialType.Int32);
+                    }
+
+                    return true;
+                case "HashCode_Combine_I4I4I4I4I4I4I4": {
+                        var argument1 = EvaluateExpression(arguments[0], true, abort);
+                        var argument2 = EvaluateExpression(arguments[1], true, abort);
+                        var argument3 = EvaluateExpression(arguments[2], true, abort);
+                        var argument4 = EvaluateExpression(arguments[3], true, abort);
+                        var argument5 = EvaluateExpression(arguments[4], true, abort);
+                        var argument6 = EvaluateExpression(arguments[5], true, abort);
+                        var argument7 = EvaluateExpression(arguments[6], true, abort);
+                        result = EvaluatorValue.Literal(HashCode.Combine(
+                            argument1.int32,
+                            argument2.int32,
+                            argument3.int32,
+                            argument4.int32,
+                            argument5.int32,
+                            argument6.int32,
+                            argument7.int32
+                        ), SpecialType.Int32);
+                    }
+
+                    return true;
+                case "HashCode_Combine_I4I4I4I4I4I4I4I4": {
+                        var argument1 = EvaluateExpression(arguments[0], true, abort);
+                        var argument2 = EvaluateExpression(arguments[1], true, abort);
+                        var argument3 = EvaluateExpression(arguments[2], true, abort);
+                        var argument4 = EvaluateExpression(arguments[3], true, abort);
+                        var argument5 = EvaluateExpression(arguments[4], true, abort);
+                        var argument6 = EvaluateExpression(arguments[5], true, abort);
+                        var argument7 = EvaluateExpression(arguments[6], true, abort);
+                        var argument8 = EvaluateExpression(arguments[7], true, abort);
+                        result = EvaluatorValue.Literal(HashCode.Combine(
+                            argument1.int32,
+                            argument2.int32,
+                            argument3.int32,
+                            argument4.int32,
+                            argument5.int32,
+                            argument6.int32,
+                            argument7.int32,
+                            argument8.int32
+                        ), SpecialType.Int32);
+                    }
+
+                    return true;
                 default:
                     if (mapKey.StartsWith("LowLevel_BitCast_")) {
                         var argument = EvaluateExpression(arguments[0], true, abort);
@@ -3213,7 +3355,7 @@ internal sealed class Evaluator {
                     var path = GetFilePath(evaluatedArguments[0].@string, location)
                         ?? throw new BelteEvaluatorException("Cannot load sprite: path does not exist.", location);
 
-                    var spriteType = CorLibrary.GetSpecialType(SpecialType.Sprite);
+                    var spriteType = CorLibrary.GetWellKnownType(WellKnownType.Sprite);
                     var sprite = CreateObject(spriteType);
 
                     var temp = AllocateTemp(spriteType);
@@ -3273,7 +3415,7 @@ internal sealed class Evaluator {
                     var path = GetFilePath(evaluatedArguments[1].@string, location)
                         ?? throw new BelteEvaluatorException("Cannot load text: path does not exist.", location);
 
-                    var textType = CorLibrary.GetSpecialType(SpecialType.Text);
+                    var textType = CorLibrary.GetWellKnownType(WellKnownType.Text);
                     var textPtr = CreateObject(textType);
                     var text = H(textPtr);
 
@@ -3345,7 +3487,7 @@ internal sealed class Evaluator {
                 break;
             case "Graphics_GetMousePosition": {
                     var (x, y) = _context.graphicsHandler.GetMousePosition();
-                    var vecType = CorLibrary.GetSpecialType(SpecialType.Vec2);
+                    var vecType = CorLibrary.GetWellKnownType(WellKnownType.Vec2);
                     var vec = CreateObject(vecType);
 
                     var temp = AllocateTemp(vecType);
@@ -3444,7 +3586,7 @@ internal sealed class Evaluator {
                     var path = GetFilePath(EvaluateExpression(arguments[0], true, abort).@string, location)
                         ?? throw new BelteEvaluatorException("Cannot load sound: path does not exist.", location);
 
-                    var soundType = CorLibrary.GetSpecialType(SpecialType.Sound);
+                    var soundType = CorLibrary.GetWellKnownType(WellKnownType.Sound);
                     var soundPtr = CreateObject(soundType);
                     var sound = H(soundPtr);
 
@@ -3506,7 +3648,7 @@ internal sealed class Evaluator {
         }
 
         EvaluatorValue LoadTexture(string path, bool useColorKey = false, long r = 255, long g = 255, long b = 255) {
-            var textureType = CorLibrary.GetSpecialType(SpecialType.Texture);
+            var textureType = CorLibrary.GetWellKnownType(WellKnownType.Texture);
             var texturePointer = CreateObject(textureType);
             var texture = _context.heap[texturePointer.ptr];
             var texture2D = (_context.graphicsHandler?.LoadTexture(path, useColorKey, r, g, b))

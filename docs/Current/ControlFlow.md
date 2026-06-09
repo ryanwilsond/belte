@@ -31,9 +31,11 @@
 - [2.6](#26-exceptions-and-handling) Exceptions and Handling
   - [2.6.1](#261-trycatchfinally) Try/Catch/Finally
 - [2.7](#27-with-expressions-and-statements) With Expressions and Statements
+  - [2.7.1](#271-commit-statements) Commit Statements
 - [2.8](#28-defer-statements) Defer Statements
 - [2.9](#29-scoped-statements) Scoped Statements
 - [2.10](#210-unreachable-statements) Unreachable Statements
+- [2.11](#211-reverse-statements) Reverse Statements
 
 ## 2.1 Functions
 
@@ -827,6 +829,21 @@ return with (a = 5) with (b = 10) with (c = 0) SomeMethod();
 
 Using a single `with` where possible is preferred as the compiler can optimize it better.
 
+Apart from assignments,
+[user-defined reversal methods can be defined](ClassesAndObjects.md#4221-state-and-reverse-clauses) to use `with` in
+more contexts.
+
+### 2.7.1 Commit Statements
+
+A `commit` statement can be used to avoid performing the reversal actions of the enclosing `with`:
+
+```belte
+with (a = 10) {
+  if (TrySomething())
+    commit; // If this is reached, 'a' will stay set to 10
+}
+```
+
 ## 2.8 Defer Statements
 
 `defer` statements defer the execution of a statement to the end of the current block, regardless of how the block
@@ -1061,3 +1078,43 @@ unreachable;
 This can be used when the compiler cannot prove a method always returns and errs.
 
 Note that because this turns into a [`throw`](#261-trycatchfinally), it will be caught by enclosing catch blocks.
+
+## 2.11 Reverse Statements
+
+A `reversible` expression creates a token that can be referenced later with a `reverse` statement.
+
+```belte
+var value = reversible Token: Method();
+```
+
+The `reversible` expression uses the format `reversible <token name>: <expression>` where the expression is a call to a
+[reversible method](ClassesAndObjects.md#4221-state-and-reverse-clauses). The expression results in the the return value
+of the method. The token can then be used to call the reverse clause of the method:
+
+```belte
+reverse Token;
+```
+
+For cases where the reverse clause is unconditionally called, a
+[`with` statement or expression](#27-with-expressions-and-statements) should be used instead as it doesn't require
+managing a token. Managing a token is required to conditionally reverse a method:
+
+```belte
+if (reversible T: TrySomeOperation()) {
+  // ...
+} else {
+  reverse T;
+}
+
+```
+
+A `reverse defer` statement can be used to avoid naming a token. The following are equivalent:
+
+```belte
+reversible T: Method();
+defer reverse T;
+```
+
+```belte
+reverse defer Method();
+```

@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -31,12 +32,26 @@ internal sealed class SubmissionBinder : LocalScopeBinder {
         get {
             if (_lazyQuickAttributeChecker is null) {
                 var result = next.quickAttributeChecker;
-                result = result.AddAliasesIfAny(_declarationSyntax.usings);
+                result = result.AddAliasesIfAny(
+                    _declarationSyntax.elements
+                        .Where(e => e is UsingDirectiveSyntax)
+                        .Select(e => (UsingDirectiveSyntax)e)
+                    );
+
                 _lazyQuickAttributeChecker = result;
             }
 
             return _lazyQuickAttributeChecker;
         }
+    }
+
+    internal override TokenSymbol LookupTokenInSingleBinder(string name) {
+        var result = LookupTokenInSubmissions(name);
+
+        if (result is not null)
+            return result;
+
+        return base.LookupTokenInSingleBinder(name);
     }
 
     internal override void LookupSymbolsInSingleBinder(

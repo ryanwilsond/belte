@@ -146,6 +146,7 @@ internal abstract class Symbol : ISymbol {
             switch (kind) {
                 case SymbolKind.Local:
                 case SymbolKind.Label:
+                case SymbolKind.Token:
                 case SymbolKind.Alias:
                     return true;
                 case SymbolKind.Namespace:

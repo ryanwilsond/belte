@@ -96,6 +96,9 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
         if (local.isRef && node.declaration.initializer.IsLiteralNull())
             _lateTempCount++;
 
+        if (node.declaration.initializer is null)
+            return Nop();
+
         return Visit(new BoundExpressionStatement(syntax,
             Assignment(node.syntax,
                 new BoundDataContainerExpression(syntax, local, null, local.type),

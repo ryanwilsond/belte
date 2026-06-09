@@ -170,6 +170,9 @@ public sealed class DisplayText {
             case BoundKind.BreakStatement:
                 DisplayBreakStatement(text);
                 break;
+            case BoundKind.CommitStatement:
+                DisplayCommitStatement(text);
+                break;
             case BoundKind.ContinueStatement:
                 DisplayContinueStatement(text);
                 break;
@@ -369,6 +372,33 @@ public sealed class DisplayText {
             case BoundKind.DiscardExpression:
                 DisplayDiscardExpression(text);
                 break;
+            case BoundKind.UnconvertedExtendedLiteralExpression:
+                DisplayUnconvertedExtendedLiteralExpression(text, (BoundUnconvertedExtendedLiteralExpression)node);
+                break;
+            case BoundKind.TupleLiteral:
+                DisplayTupleLiteral(text, (BoundTupleLiteral)node);
+                break;
+            case BoundKind.ConvertedTupleLiteral:
+                DisplayConvertedTupleLiteral(text, (BoundConvertedTupleLiteral)node);
+                break;
+            case BoundKind.TupleBinaryOperator:
+                DisplayTupleBinaryOperator(text, (BoundTupleBinaryOperator)node);
+                break;
+            case BoundKind.DeconstructionAssignmentOperator:
+                DisplayDeconstructionAssignmentOperator(text, (BoundDeconstructionAssignmentOperator)node);
+                break;
+            case BoundKind.ReverseStatement:
+                DisplayReverseStatement(text, (BoundReverseStatement)node);
+                break;
+            case BoundKind.ReverseDeferStatement:
+                DisplayReverseDeferStatement(text, (BoundReverseDeferStatement)node);
+                break;
+            case BoundKind.ReversibleExpression:
+                DisplayReversibleExpression(text, (BoundReversibleExpression)node);
+                break;
+            case BoundKind.ValuePlaceholder:
+                DisplayValuePlaceholder(text, (BoundValuePlaceholder)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -490,8 +520,81 @@ public sealed class DisplayText {
         text.Write(CreateString(stringBuilder.ToString()));
     }
 
+    private static void DisplayValuePlaceholder(DisplayText text, BoundValuePlaceholder node) {
+        text.Write(CreatePunctuation("[ "));
+        SymbolDisplay.AppendToDisplayText(text, node.type);
+        text.Write(CreatePunctuation(" ]"));
+    }
+
+    private static void DisplayReverseStatement(DisplayText text, BoundReverseStatement node) {
+        text.Write(CreateKeyword(SyntaxKind.ReverseKeyword));
+        text.Write(CreateSpace());
+        text.Write(CreateIdentifier(node.token.name));
+        text.WriteLine();
+    }
+
+    private static void DisplayReverseDeferStatement(DisplayText text, BoundReverseDeferStatement node) {
+        text.Write(CreateKeyword(SyntaxKind.ReverseKeyword));
+        text.Write(CreateSpace());
+        text.Write(CreateKeyword(SyntaxKind.DeferKeyword));
+        text.Write(CreateSpace());
+        DisplayNode(text, node.call);
+        text.WriteLine();
+    }
+
+    private static void DisplayReversibleExpression(DisplayText text, BoundReversibleExpression node) {
+        text.Write(CreateKeyword(SyntaxKind.ReversibleKeyword));
+        text.Write(CreateSpace());
+        text.Write(CreateIdentifier(node.token.name));
+        text.Write(CreatePunctuation(SyntaxKind.ColonToken));
+        text.Write(CreateSpace());
+        DisplayNode(text, node.call);
+    }
+
     private static void DisplayDiscardExpression(DisplayText text) {
         text.Write(CreateIdentifier("_"));
+    }
+
+    private static void DisplayTupleLiteral(DisplayText text, BoundTupleLiteral node) {
+        DisplayTupleLiteralCore(text, node.arguments);
+    }
+
+    private static void DisplayConvertedTupleLiteral(DisplayText text, BoundConvertedTupleLiteral node) {
+        DisplayTupleLiteralCore(text, node.arguments);
+    }
+
+    private static void DisplayTupleBinaryOperator(DisplayText text, BoundTupleBinaryOperator node) {
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, node.operatorKind.ToSyntaxKind(), false);
+    }
+
+    private static void DisplayDeconstructionAssignmentOperator(
+        DisplayText text,
+        BoundDeconstructionAssignmentOperator node) {
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, SyntaxKind.EqualsToken, false);
+    }
+
+    private static void DisplayTupleLiteralCore(DisplayText text, ImmutableArray<BoundExpression> arguments) {
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+
+        var first = true;
+
+        foreach (var argument in arguments) {
+            if (first)
+                first = false;
+            else
+                text.Write(CreatePunctuation(", "));
+
+            DisplayNode(text, argument);
+        }
+
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+    }
+
+    private static void DisplayUnconvertedExtendedLiteralExpression(
+        DisplayText text,
+        BoundUnconvertedExtendedLiteralExpression node) {
+        DisplayNode(text, node.literal);
+        text.Write(CreateIdentifier(node.suffix));
     }
 
     private static void DisplayTypeExpression(DisplayText text, BoundTypeExpression node) {
@@ -560,6 +663,11 @@ public sealed class DisplayText {
 
     private static void DisplayBreakStatement(DisplayText text) {
         text.Write(CreateKeyword(SyntaxKind.BreakKeyword));
+        text.WriteLine();
+    }
+
+    private static void DisplayCommitStatement(DisplayText text) {
+        text.Write(CreateKeyword(SyntaxKind.CommitKeyword));
         text.WriteLine();
     }
 
@@ -884,16 +992,19 @@ public sealed class DisplayText {
 
         SymbolDisplay.AppendToDisplayText(text, dataContainer, SymbolDisplayFormat.BoundDisplayFormat);
 
-        text.Write(CreateSpace());
-        text.Write(CreatePunctuation(SyntaxKind.EqualsToken));
-        text.Write(CreateSpace());
-
-        if (dataContainer.isRef) {
-            text.Write(CreateKeyword(SyntaxKind.RefKeyword));
+        if (node.initializer is not null) {
             text.Write(CreateSpace());
+            text.Write(CreatePunctuation(SyntaxKind.EqualsToken));
+            text.Write(CreateSpace());
+
+            if (dataContainer.isRef) {
+                text.Write(CreateKeyword(SyntaxKind.RefKeyword));
+                text.Write(CreateSpace());
+            }
+
+            DisplayNode(text, node.initializer);
         }
 
-        DisplayNode(text, node.initializer);
         text.WriteLine();
     }
 

@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -343,7 +344,12 @@ internal sealed class Expander : SharedExpander {
                 statements.Add(LocalDeclaration(
                     d.syntax,
                     d.dataContainer,
-                    new BoundDefaultExpression(d.syntax, null, LiteralUtilities.TryGetDefaultValue(d.type), d.type)
+                    new BoundDefaultExpression(d.syntax,
+                        false,
+                        null,
+                        LiteralUtilities.TryGetDefaultValue(d.type),
+                        d.type
+                    )
                 ));
 
                 replacementExpressions.Add(expression);
@@ -354,7 +360,12 @@ internal sealed class Expander : SharedExpander {
 
                 statements.Add(LocalDeclaration(syntax,
                     temp,
-                    new BoundDefaultExpression(syntax, null, LiteralUtilities.TryGetDefaultValue(type), type)
+                    new BoundDefaultExpression(syntax,
+                        false,
+                        null,
+                        LiteralUtilities.TryGetDefaultValue(type),
+                        type
+                    )
                 ));
 
                 replacementExpressions.Add(Local(syntax, temp));
@@ -398,6 +409,186 @@ internal sealed class Expander : SharedExpander {
         } else {
             return StabilizeIfNecessary(syntax, useKind, statements, tentativeReplacement, out replacement);
         }
+    }
+
+    private protected override List<BoundStatement> ExpandDeconstructionAssignmentOperator(
+        BoundDeconstructionAssignmentOperator expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        /*
+
+        (<var>...) = (<item>...)
+
+        ---->
+
+        <var> = <item>
+        ...
+
+        */
+        var syntax = expression.syntax;
+
+        BoundExpression newRight;
+        List<BoundStatement> statements;
+
+        if (expression.right.conversion.method is not null) {
+            var call = (BoundCallExpression)expression.right.conversion.deconstructionInfo.call;
+
+            statements = ExpandExpression(
+                call.Update(
+                    null,
+                    call.method,
+                    [expression.right.operand],
+                    [],
+                    call.defaultArguments,
+                    call.resultKind,
+                    call.type
+                ),
+                out newRight,
+                UseKind.StableValue
+            );
+        } else {
+            statements = ExpandExpression(expression.right.operand, out newRight, UseKind.StableValue);
+        }
+
+        var arguments = expression.left.arguments;
+
+        for (var i = 0; i < arguments.Length; i++) {
+            var local = ((BoundDataContainerExpression)arguments[i]).dataContainer;
+            var field = GetTupleField(syntax, i, expression.right.type, local.type, newRight);
+            statements.Add(LocalDeclaration(syntax, local, field));
+        }
+
+        if (useKind == UseKind.None) {
+            replacement = null;
+            return statements;
+        }
+
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    private protected override List<BoundStatement> ExpandTupleBinaryOperator(
+        BoundTupleBinaryOperator expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        /*
+
+        <left> <op> <right>
+
+        ---->
+
+        <left.Item1> <op> <right.Item1> && <left.Item2> <op> <right.Item2> && ...
+
+        */
+        var syntax = expression.syntax;
+        var boolType = CorLibrary.GetSpecialType(SpecialType.Bool);
+        var statements = new List<BoundStatement>();
+
+        replacement = null;
+
+        CreateTupleComparison(
+            syntax,
+            expression.left,
+            expression.right,
+            expression.operators,
+            boolType,
+            statements,
+            ref replacement
+        );
+
+        statements.AddRange(ExpandExpression(replacement, out replacement));
+
+        return StabilizeIfNecessary(syntax, useKind, statements, replacement, out replacement);
+
+        void CreateTupleComparison(
+            SyntaxNode syntax,
+            BoundExpression left,
+            BoundExpression right,
+            TupleBinaryOperatorInfo.Multiple operators,
+            NamedTypeSymbol boolType,
+            List<BoundStatement> statements,
+            ref BoundExpression replacement) {
+            var leftType = operators.leftConvertedType as NamedTypeSymbol;
+            var rightType = operators.rightConvertedType as NamedTypeSymbol;
+
+            statements.AddRange(ExpandExpression(left, out var newLeft, UseKind.StableValue));
+            statements.AddRange(ExpandExpression(right, out var newRight, UseKind.StableValue));
+
+            for (var i = 0; i < operators.operators.Length; i++) {
+                var ops = operators.operators[i];
+
+                var leftField = GetTupleField(syntax, i, leftType, ops.leftConvertedType, newLeft);
+                var rightField = GetTupleField(syntax, i, rightType, ops.rightConvertedType, newRight);
+
+                if (ops is TupleBinaryOperatorInfo.Multiple multiple) {
+                    CreateTupleComparison(
+                        syntax,
+                        leftField,
+                        rightField,
+                        multiple,
+                        boolType,
+                        statements,
+                        ref replacement
+                    );
+
+                    continue;
+                }
+
+                var op = (TupleBinaryOperatorInfo.Single)ops;
+
+                var comparison = Binary(syntax,
+                    leftField,
+                    op.kind,
+                    rightField,
+                    boolType
+                );
+
+                if (replacement is null) {
+                    replacement = comparison;
+                    continue;
+                }
+
+                var joinOp = op.kind.Operator() == BinaryOperatorKind.Equal
+                    ? BinaryOperatorKind.BoolConditionalAnd
+                    : BinaryOperatorKind.BoolConditionalOr;
+
+                replacement = Binary(syntax,
+                    replacement,
+                    joinOp,
+                    comparison,
+                    boolType
+                );
+            }
+        }
+    }
+
+    private BoundExpression GetTupleField(
+        SyntaxNode syntax,
+        int i,
+        TypeSymbol receiverType,
+        TypeSymbol elementType,
+        BoundExpression receiver) {
+        if (receiver is BoundConvertedTupleLiteral tuple)
+            return tuple.arguments[i];
+
+        var namedReceiver = (NamedTypeSymbol)receiverType;
+        var chain = receiver;
+
+        do {
+            var position = Math.Min(i + 1, 8);
+            i -= 7;
+
+            var field = ((FieldSymbol)CorLibrary.GetWellKnownMember(
+                NamedTypeSymbol.GetTupleTypeMember(namedReceiver.arity, position)
+            )).AsMember(namedReceiver);
+
+            var elemType = position < 8 ? elementType : field.type;
+
+            chain = new BoundFieldAccessExpression(syntax, chain, field, null, elemType);
+
+            namedReceiver = field.type as NamedTypeSymbol;
+        } while (i >= 0);
+
+        return chain;
     }
 
     private protected override List<BoundStatement> ExpandBinaryOperator(
@@ -630,8 +821,8 @@ internal sealed class Expander : SharedExpander {
 
         ---->
 
-        result = <left>
-        goto break if result == false
+        result = false
+        goto break if <left> == false
         result = <right>
         break:
         result
@@ -639,8 +830,6 @@ internal sealed class Expander : SharedExpander {
         */
         var syntax = expression.syntax;
         var boolType = CorLibrary.GetSpecialType(SpecialType.Bool);
-
-        // TODO There is probably potential for short cutting if left and right are "simple" (e.g. `a && b`)
 
         if (expression.left.Type().IsNullableType() && expression.right.Type().IsNullableType()) {
             var statements = ExpandExpression(expression.left, out var newLeft, UseKind.StableValue);
@@ -737,7 +926,7 @@ internal sealed class Expander : SharedExpander {
             var statements = ExpandExpression(expression.left, out var newLeft);
             var temp = GenerateTempLocal(boolType);
             var breakLabel = GenerateLabel();
-            statements.Add(LocalDeclaration(syntax, temp, newLeft));
+            statements.Add(LocalDeclaration(syntax, temp, Literal(syntax, false, boolType)));
             statements.Add(GotoIf(syntax, breakLabel,
                 Binary(syntax,
                     newLeft,
@@ -863,7 +1052,8 @@ internal sealed class Expander : SharedExpander {
                     false,
                     null,
                     expression.type
-                )
+                ),
+                assignedOnFallthrough: [temp]
             ));
             statements.AddRange(ExpandExpression(CreateCast(syntax, local.type, newOperand), out var cast));
             statements.Add(LocalDeclaration(syntax, local, cast));
@@ -1207,6 +1397,7 @@ internal sealed class Expander : SharedExpander {
         if (expression.conversion.kind == ConversionKind.DefaultLiteral) {
             replacement = new BoundDefaultExpression(
                 syntax,
+                false,
                 null,
                 LiteralUtilities.TryGetDefaultValue(expression.type),
                 expression.type
@@ -1397,7 +1588,11 @@ internal sealed class Expander : SharedExpander {
         out BoundExpression replacement,
         UseKind useKind) {
         var statements = base.ExpandNullAssertOperator(expression, out replacement, UseKind.Value);
-        return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
+
+        if (useKind == UseKind.Writable)
+            return statements;
+        else
+            return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
     }
 
     private protected override List<BoundStatement> ExpandAddressOfOperator(
@@ -1712,6 +1907,16 @@ internal sealed class Expander : SharedExpander {
                 c.defaultArguments,
                 c.resultKind,
                 c.Type()
+            );
+        } else if (access is BoundIndexerAccessExpression i) {
+            statements.AddRange(ExpandExpression(i.index, out var indexReplacement));
+            trueExpression = new BoundIndexerAccessExpression(
+                syntax,
+                newReceiver,
+                indexReplacement,
+                i.method,
+                null,
+                i.Type()
             );
         } else {
             throw ExceptionUtilities.Unreachable();

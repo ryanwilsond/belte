@@ -242,7 +242,15 @@ public static class SyntaxFacts {
             "defer" => SyntaxKind.DeferKeyword,
             "scoped" => SyntaxKind.ScopedKeyword,
             "final" => SyntaxKind.FinalKeyword,
+            "literal" => SyntaxKind.LiteralKeyword,
+            "packed" => SyntaxKind.PackedKeyword,
+            "reverse" => SyntaxKind.ReverseKeyword,
+            "reversible" => SyntaxKind.ReversibleKeyword,
+            "state" => SyntaxKind.StateKeyword,
+            "has" => SyntaxKind.HasKeyword,
             "unreachable" => SyntaxKind.UnreachableKeyword,
+            "initializes" => SyntaxKind.InitializesKeyword,
+            "commit" => SyntaxKind.CommitKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -255,10 +263,16 @@ public static class SyntaxFacts {
             case SyntaxKind.ExplicitKeyword:
             case SyntaxKind.FlagsKeyword:
             case SyntaxKind.HandleKeyword:
+            case SyntaxKind.HasKeyword:
             case SyntaxKind.ImplicitKeyword:
+            case SyntaxKind.InitializesKeyword:
+            case SyntaxKind.LiteralKeyword:
             case SyntaxKind.NotnullKeyword:
             case SyntaxKind.NoVerifyKeyword:
+            case SyntaxKind.OperatorKeyword:
+            case SyntaxKind.PackedKeyword:
             case SyntaxKind.PrimitiveKeyword:
+            case SyntaxKind.StateKeyword:
             case SyntaxKind.UndefKeyword:
                 return true;
             default:
@@ -417,7 +431,15 @@ public static class SyntaxFacts {
             SyntaxKind.DeferKeyword => "defer",
             SyntaxKind.ScopedKeyword => "scoped",
             SyntaxKind.FinalKeyword => "final",
+            SyntaxKind.LiteralKeyword => "literal",
+            SyntaxKind.PackedKeyword => "packed",
+            SyntaxKind.ReverseKeyword => "reverse",
+            SyntaxKind.ReversibleKeyword => "reversible",
+            SyntaxKind.StateKeyword => "state",
+            SyntaxKind.HasKeyword => "has",
             SyntaxKind.UnreachableKeyword => "unreachable",
+            SyntaxKind.InitializesKeyword => "initializes",
+            SyntaxKind.CommitKeyword => "commit",
             _ => null,
         };
     }
@@ -832,5 +854,30 @@ public static class SyntaxFacts {
             return false;
 
         return true;
+    }
+
+    internal static bool IsAssignmentOperatorToken(SyntaxKind kind) {
+        switch (kind) {
+            case SyntaxKind.PlusEqualsToken:
+            case SyntaxKind.MinusEqualsToken:
+            case SyntaxKind.AsteriskEqualsToken:
+            case SyntaxKind.SlashEqualsToken:
+            case SyntaxKind.AmpersandEqualsToken:
+            case SyntaxKind.PipeEqualsToken:
+            case SyntaxKind.AsteriskAsteriskEqualsToken:
+            case SyntaxKind.CaretEqualsToken:
+            case SyntaxKind.LessThanLessThanEqualsToken:
+            case SyntaxKind.GreaterThanGreaterThanEqualsToken:
+            case SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken:
+            case SyntaxKind.PercentEqualsToken:
+            case SyntaxKind.QuestionQuestionEqualsToken:
+            case SyntaxKind.QuestionExclamationEqualsToken:
+            case SyntaxKind.SlashBackslashEqualsToken:
+            case SyntaxKind.BackslashSlashEqualsToken:
+            case SyntaxKind.EqualsToken:
+                return true;
+            default:
+                return false;
+        }
     }
 }

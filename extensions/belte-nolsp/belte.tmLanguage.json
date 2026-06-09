@@ -29,11 +29,11 @@
             "patterns": [
                 {
                     "name": "keyword.control.belte",
-                    "match": "\\b(if|else|while|for|return|break|continue|do|try|catch|finally|throw|switch|goto|default|case|with|defer|unreachable|scoped)\\b"
+                    "match": "\\b(if|else|while|for|return|break|continue|do|try|catch|finally|throw|switch|goto|default|case|with|defer|unreachable|scoped|reverse|reversible|state|commit)\\b"
                 },
                 {
                     "name": "keyword.other.belte",
-                    "match": "\\b(this|base|var|ref|new|operator|lowlevel|implicit|explicit|nameof|typeof|sizeof|stackalloc|primitive|notnull|is|isnt|as|global|il|noverify|out|union)\\b"
+                    "match": "\\b(this|base|var|ref|new|operator|lowlevel|implicit|explicit|nameof|typeof|sizeof|stackalloc|primitive|notnull|is|isnt|as|global|il|noverify|out|union|literal|has|initializes)\\b"
                 },
                 {
                     "name": "keyword.operator.arithmetic.belte",
@@ -95,7 +95,7 @@
                 },
                 {
                     "name": "storage.type.class.belte",
-                    "match": "\\b(class|struct|constructor|extends|where|namespace|using|enum|flags|destructor|finalizer)\\b"
+                    "match": "\\b(class|struct|constructor|extends|where|namespace|using|enum|flags|destructor|finalizer|packed)\\b"
                 },
                 {
                     "name": "storage.type.number.belte",

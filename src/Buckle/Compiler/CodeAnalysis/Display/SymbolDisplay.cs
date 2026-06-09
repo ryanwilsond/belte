@@ -72,6 +72,9 @@ public static class SymbolDisplay {
             case SymbolKind.Label:
                 DisplayLabel(text, (LabelSymbol)symbol, format);
                 break;
+            case SymbolKind.Token:
+                DisplayToken(text, (TokenSymbol)symbol, format);
+                break;
             case SymbolKind.Alias:
                 DisplayAlias(text, (AliasSymbol)symbol);
                 break;
@@ -107,23 +110,38 @@ public static class SymbolDisplay {
         } else if (type.specialType == SpecialType.Void) {
             text.Write(CreateKeyword("void"));
         } else if (type is NamedTypeSymbol namedType) {
-            if (namedType.specialType == SpecialType.Nullable &&
-                (format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0) {
+            if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0 &&
+                namedType.specialType == SpecialType.Nullable) {
                 var underlyingType = namedType.GetNullableUnderlyingType();
-
-                if (underlyingType is NamedTypeSymbol namedUnderlying)
-                    DisplayTypeCore(text, namedUnderlying, format);
-                else
-                    DisplayType(text, underlyingType, format, outerMostType: false);
-
+                DisplayType(text, underlyingType, format, outerMostType: false);
                 text.Write(CreatePunctuation(SyntaxKind.QuestionToken));
                 return;
             }
 
-            DisplayTypeCore(text, namedType, format);
+            if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0 &&
+                namedType.isTupleType) {
+                text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
 
-            if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0)
+                var isFirst = true;
+
+                foreach (var elementType in namedType.tupleElementTypes) {
+                    if (isFirst)
+                        isFirst = false;
+                    else
+                        text.Write(CreatePunctuation(", "));
+
+                    DisplayType(text, elementType.type.type, format);
+                }
+
+                text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+            } else {
+                DisplayTypeCore(text, namedType, format);
+            }
+
+            if (outerMostType &&
+                (format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0) {
                 text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));
+            }
         } else if (type is TemplateParameterSymbol templateParameter) {
             if ((format.templateOptions & SymbolDisplayTemplateOptions.IncludeTemplateParameters) != 0 &&
                 !string.IsNullOrEmpty(templateParameter.name)) {
@@ -232,6 +250,14 @@ public static class SymbolDisplay {
                 text.Write(CreateKeyword(SyntaxKind.FlagsKeyword));
                 text.Write(CreateSpace());
             }
+
+            if (namedType.explicitAlignment is not null) {
+                text.Write(CreateKeyword(SyntaxKind.PackedKeyword));
+                text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+                text.Write(CreateLiteral(DisplayText.FormatLiteral(namedType.explicitAlignment)));
+                text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+                text.Write(CreateSpace());
+            }
         }
 
         DisplayContainedNames(text, namedType, format);
@@ -325,6 +351,10 @@ public static class SymbolDisplay {
     private static void DisplayLabel(DisplayText text, LabelSymbol label, SymbolDisplayFormat _) {
         text.Write(CreateIdentifier(label.name));
         text.Write(CreatePunctuation(SyntaxKind.ColonToken));
+    }
+
+    private static void DisplayToken(DisplayText text, TokenSymbol token, SymbolDisplayFormat _) {
+        text.Write(CreateIdentifier(token.name));
     }
 
     private static void DisplayField(DisplayText text, FieldSymbol field, SymbolDisplayFormat format) {

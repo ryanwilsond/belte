@@ -60,6 +60,14 @@ internal abstract class WrappedMethodSymbol : MethodSymbol {
 
     internal override bool coerceArguments => underlyingMethod.coerceArguments;
 
+    internal override bool isReversible => underlyingMethod.isReversible;
+
+    internal override MethodSymbol reverseMethod => underlyingMethod.reverseMethod;
+
+    internal override bool hasReversalState => underlyingMethod.hasReversalState;
+
+    internal override MethodSymbol stateMethod => underlyingMethod.stateMethod;
+
     internal override bool IsMetadataVirtual(bool forceComplete = false)
         => underlyingMethod.IsMetadataVirtual(forceComplete);
 

@@ -50,13 +50,27 @@ internal abstract partial class BoundExpression : BoundNode {
         return kind == BoundKind.LiteralExpression && ConstantValue.IsNull(constantValue);
     }
 
+    internal bool IsLiteralDefault() {
+        return kind == BoundKind.DefaultLiteral;
+    }
+
+    internal bool IsImplicitObjectCreation() {
+        return kind == BoundKind.UnconvertedObjectCreationExpression;
+    }
+
+    internal bool IsLiteralDefaultOrImplicitObjectCreation() {
+        return IsLiteralDefault() || IsImplicitObjectCreation();
+    }
+
     internal bool NeedsToBeConverted() {
         switch (kind) {
             case BoundKind.DefaultLiteral:
+            case BoundKind.TupleLiteral:
             case BoundKind.UnconvertedInitializerList:
             case BoundKind.UnconvertedImplicitEnumFieldExpression:
             case BoundKind.UnconvertedObjectCreationExpression:
             case BoundKind.UnconvertedConditionalOperator:
+            case BoundKind.UnconvertedExtendedLiteralExpression:
                 return true;
             default:
                 return false;
