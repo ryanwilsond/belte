@@ -1550,8 +1550,10 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
         attributeLists ??= ParseAttributeLists();
 
-        if ((modifiers is null || !modifiers.Any()) && currentToken.kind == SyntaxKind.ScopedKeyword)
+        if ((modifiers is null || !modifiers.Any()) && currentToken.kind == SyntaxKind.ScopedKeyword) {
+            consumedAttributeLists = true;
             return ParseScopedStatementOrLocalDeclaration(attributeLists);
+        }
 
         modifiers ??= ParseModifiers();
         var type = ParseType();
@@ -1571,8 +1573,12 @@ internal sealed partial class LanguageParser : SyntaxParser {
             }
 
             // TODO This could be further tuned
-            if (currentToken.kind != SyntaxKind.SemicolonToken && !IsPossibleExpression(allowBinaryAndAssignment: true))
+            if (currentToken.kind != SyntaxKind.SemicolonToken &&
+                !IsPossibleExpression(allowBinaryAndAssignment: true)) {
+                consumedAttributeLists = true;
+                consumedModifiers = true;
                 return ParseLocalDeclarationStatement(attributeLists, modifiers, type);
+            }
         }
 
         Reset(resetPoint);
