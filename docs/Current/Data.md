@@ -6,6 +6,7 @@
   - [3.1.3](#313-function-type) Function Type
   - [3.1.4](#314-default-literal) Default Literal
   - [3.1.5](#315-tuples) Tuples
+    - [3.1.5.1](#3151-user-defined-deconstruction) User-Defined Deconstruction
 - [3.2](#32-operators) Operators
   - [3.2.1](#321-operator-precedence) Operator Precedence
   - [3.2.2](#322-uncommon-operators) Uncommon Operators
@@ -256,6 +257,25 @@ Tuples can be deconstructed into multiple locals. The following are equivalent:
 var t = (3, true); var a = t.Item1; var b = t.Item2;
 (int a, bool b) = (3, true);
 (var a, var b) = (3, true);
+```
+
+#### 3.1.5.1 User-Defined Deconstruction
+
+User-defined deconstruction can be done by [defining an implicit cast](ClassesAndObjects.md#4232-casts) to a tuple type:
+
+```belte
+var myClass = new MyClass();
+// ...
+(var a, var b) = myClass;
+
+class MyClass {
+  private int a;
+  private int b;
+
+  public static implicit operator (int, int)(MyClass obj) {
+    return (obj.a, obj.b);
+  }
+}
 ```
 
 ## 3.2 Operators

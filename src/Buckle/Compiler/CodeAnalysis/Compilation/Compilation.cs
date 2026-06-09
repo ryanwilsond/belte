@@ -216,6 +216,38 @@ public sealed partial class Compilation {
         }
     }
 
+    internal ExtendedErrorTypeSymbol implicitlyTypedVariableUsedInForbiddenZoneType {
+        get {
+            if (field is null) {
+                Interlocked.CompareExchange(ref field, new ExtendedErrorTypeSymbol(
+                    this,
+                    name: "var",
+                    arity: 0,
+                    error: null,
+                    variableUsedBeforeDeclaration: true
+                ), null);
+            }
+
+            return field;
+        }
+    }
+
+    internal ExtendedErrorTypeSymbol implicitlyTypedVariableInferenceFailedType {
+        get {
+            if (field is null) {
+                Interlocked.CompareExchange(ref field, new ExtendedErrorTypeSymbol(
+                    this,
+                    name: "var",
+                    arity: 0,
+                    error: null,
+                    unreported: false
+                ), null);
+            }
+
+            return field;
+        }
+    }
+
     public SemanticModel GetSemanticModel(SyntaxTree syntaxTree) {
         ArgumentNullException.ThrowIfNull(syntaxTree);
 

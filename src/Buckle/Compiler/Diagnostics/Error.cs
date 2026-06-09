@@ -2165,9 +2165,8 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic TypeInferenceFailedForDeconstruction(TextLocation location, string text) {
-        throw Utilities.ExceptionUtilities.Unreachable();
-        // var message = $"cannot infer the type of implicitly-typed deconstruction variable '{text}'";
-        // return CreateError(DiagnosticCode.ERR_TypeInferenceFailedForDeconstruction, location, message);
+        var message = $"cannot infer the type of implicitly-typed deconstruction variable '{text}'";
+        return CreateError(DiagnosticCode.ERR_TypeInferenceFailedForDeconstruction, location, message);
     }
 
     internal static BelteDiagnostic OutVarAnnotated(TextLocation location) {
@@ -2502,6 +2501,21 @@ internal static class Error {
     internal static BelteDiagnostic InvalidCommit(TextLocation location) {
         var message = $"commit statements can only be used within a with statement";
         return CreateError(DiagnosticCode.ERR_InvalidCommit, location, message);
+    }
+
+    internal static BelteDiagnostic MissingDeconstruct(TextLocation location, TypeSymbol type, int cardinality) {
+        var message = $"type '{type}' has no implicit conversion to a tuple of cardinality {cardinality}";
+        return CreateError(DiagnosticCode.ERR_MissingDeconstruct, location, message);
+    }
+
+    internal static BelteDiagnostic DeconstructRequiresExpression(TextLocation location) {
+        var message = $"deconstruct assignment requires an expression with a type on the right-hand-side";
+        return CreateError(DiagnosticCode.ERR_DeconstructRequiresExpression, location, message);
+    }
+
+    internal static BelteDiagnostic AmbiguousDeconstruct(TextLocation location, TypeSymbol type) {
+        var message = $"deconstruction of type '{type}' is ambiguous; consider explicitly typing deconstruction variables";
+        return CreateError(DiagnosticCode.ERR_AmbiguousDeconstruct, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

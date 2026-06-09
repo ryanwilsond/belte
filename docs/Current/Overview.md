@@ -559,6 +559,7 @@ most of the differences to make it more clear where the language is unique with 
 - [`using` aliases can be placed anywhere instead of only before all members](ClassesAndObjects.md#481-aliasing)
 - Struct layout efficiency analysis
 - [`packed` keyword instead of StructLayout attribute](LowLevelFeatures.md#621-packing)
+- [User-defined deconstruction uses same syntax as user-defined casts](Data.md#3151-user-defined-deconstruction)
 - [Experimental: Non-numeric enum underlying types](ClassesAndObjects.md#463-experimental-underlying-types)
 - [Experimental: Non-type generics/templates](ClassesAndObjects.md#45-templates)
 - Experimental: Integrated graphics support with `Update()` point

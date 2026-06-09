@@ -6267,8 +6267,20 @@ public sealed class DiagnosticTests {
     //     AssertDiagnostics(text, diagnostics, _writer);
     // }
 
-    // ! Error_BU0475_TypeInferenceFailedForDeconstruction
-    // ? Unreachable currently
+    [Fact]
+    public void Reports_Error_BU0475_TypeInferenceFailedForDeconstruction() {
+        var text = @"
+            int x = 4;
+            (var [a], int b) = [x];
+        ";
+
+        var diagnostics = @"
+            cannot infer the type of implicitly-typed deconstruction variable 'a'
+            type 'int!' has no implicit conversion to a tuple of cardinality 2
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0476_DeconstructWrongCardinality() {
@@ -6618,6 +6630,57 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             commit statements can only be used within a with statement
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0499_MissingDeconstruct() {
+        var text = @"
+            int x = 4;
+            (int a, int b) = [x];
+        ";
+
+        var diagnostics = @"
+            type 'int!' has no implicit conversion to a tuple of cardinality 2
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0500_DeconstructRequiresExpression() {
+        var text = @"
+            (int a, int b) = [null];
+        ";
+
+        var diagnostics = @"
+            deconstruct assignment requires an expression with a type on the right-hand-side
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0501_AmbiguousDeconstruct() {
+        var text = @"
+            class A {
+                public static implicit operator (int, int)(A _) {
+                    return (0, 0);
+                }
+                public static implicit operator (bool, bool)(A _) {
+                    return (false, false);
+                }
+            }
+            var x = new A();
+            (var [a], var [b]) = [x];
+        ";
+
+        var diagnostics = @"
+            cannot infer the type of implicitly-typed deconstruction variable 'a'
+            cannot infer the type of implicitly-typed deconstruction variable 'b'
+            deconstruction of type 'A!' is ambiguous; consider explicitly typing deconstruction variables
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

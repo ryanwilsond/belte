@@ -396,6 +396,9 @@ public sealed class DisplayText {
             case BoundKind.ReversibleExpression:
                 DisplayReversibleExpression(text, (BoundReversibleExpression)node);
                 break;
+            case BoundKind.ValuePlaceholder:
+                DisplayValuePlaceholder(text, (BoundValuePlaceholder)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -515,6 +518,12 @@ public sealed class DisplayText {
             stringBuilder.Append(isCharacter ? '\'' : '"');
 
         text.Write(CreateString(stringBuilder.ToString()));
+    }
+
+    private static void DisplayValuePlaceholder(DisplayText text, BoundValuePlaceholder node) {
+        text.Write(CreatePunctuation("[ "));
+        SymbolDisplay.AppendToDisplayText(text, node.type);
+        text.Write(CreatePunctuation(" ]"));
     }
 
     private static void DisplayReverseStatement(DisplayText text, BoundReverseStatement node) {

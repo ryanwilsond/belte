@@ -1254,4 +1254,18 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Evaluator_DeconstructAssignment_NoInfiniteLoop() {
+        var text = @"
+            (var [a], var [b]) = a;
+        ";
+
+        var diagnostics = @"
+            cannot infer the type of implicitly-typed deconstruction variable 'a'
+            cannot infer the type of implicitly-typed deconstruction variable 'b'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

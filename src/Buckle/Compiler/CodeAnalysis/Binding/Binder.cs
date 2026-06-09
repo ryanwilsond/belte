@@ -6110,25 +6110,13 @@ internal partial class Binder {
                 error: null,
                 variableUsedBeforeDeclaration: true
             );
-        } else if (localSymbol is SourceDataContainerSymbol { isImplicitlyTyped: true } &&
-                localSymbol.forbiddenZone?.Contains(node) == true) {
-            diagnostics.Push(localSymbol.GetForbiddenDiagnostic(node.location));
-
-            type = new ExtendedErrorTypeSymbol(
-                compilation,
-                "var",
-                0,
-                error: null,
-                variableUsedBeforeDeclaration: true
-            );
-
         } else {
-            type = localSymbol.type;
+            type = localSymbol.GetTypeWithAnnotations(node, diagnostics).type;
 
             if (IsBadLocalOrParameterCapture(localSymbol, type, localSymbol.refKind)) {
-                isError = true;
                 // TODO is this a reachable error?
                 throw ExceptionUtilities.Unreachable();
+                // isError = true;
             }
         }
 
@@ -11033,31 +11021,29 @@ internal partial class Binder {
                 return false;
             }
         } else {
-            // TODO User-defined Deconstruct methods
-            throw ExceptionUtilities.Unreachable();
-            // if (variables.Count < 2) {
-            //     diagnostics.Push(Error.DeconstructTooFewElements(syntax.location));
-            //     return false;
-            // }
+            if (variables.Count < 2) {
+                throw ExceptionUtilities.Unreachable();
+                // diagnostics.Push(Error.DeconstructTooFewElements(syntax.location));
+                // return false;
+            }
 
-            // var inputPlaceholder = new BoundValuePlaceholder(syntax, type);
-            // var deconstructInvocation = MakeDeconstructInvocationExpression(
-            //     variables.Count,
-            //     inputPlaceholder,
-            //     rightSyntax,
-            //     diagnostics,
-            //     outPlaceholders: out var outPlaceholders,
-            //     out _,
-            //     variables
-            // );
+            var inputPlaceholder = new BoundValuePlaceholder(syntax, type);
+            var deconstructInvocation = MakeDeconstructInvocationExpression(
+                variables.Count,
+                inputPlaceholder,
+                rightSyntax,
+                diagnostics,
+                variables,
+                out var placeholders
+            );
 
-            // if (deconstructInvocation.hasAnyErrors)
-            //     return false;
+            if (deconstructInvocation.hasAnyErrors)
+                return false;
 
-            // deconstructMethod = new DeconstructMethodInfo(deconstructInvocation, inputPlaceholder, outPlaceholders);
+            deconstructMethod = new DeconstructMethodInfo(deconstructInvocation, inputPlaceholder, placeholders);
 
-            // tupleOrDeconstructedTypes = outPlaceholders.SelectAsArray(p => p.type);
-            // SetInferredTypes(variables, tupleOrDeconstructedTypes, diagnostics);
+            tupleOrDeconstructedTypes = placeholders.SelectAsArray(p => p.type);
+            SetInferredTypes(variables, tupleOrDeconstructedTypes, diagnostics);
         }
 
         var hasErrors = false;
@@ -11141,6 +11127,112 @@ internal partial class Binder {
         return !hasErrors;
     }
 
+    private BoundExpression MakeDeconstructInvocationExpression(
+        int numCheckedVariables,
+        BoundExpression receiver,
+        SyntaxNode rightSyntax,
+        BelteDiagnosticQueue diagnostics,
+        ArrayBuilder2<DeconstructionVariable> variables,
+        out ImmutableArray<BoundValuePlaceholder> placeholders) {
+        var receiverSyntax = (BelteSyntaxNode)receiver.syntax;
+        receiver = BindToNaturalType(receiver, diagnostics);
+        placeholders = default;
+
+        if (receiver.type is not NamedTypeSymbol namedType)
+            return MissingDeconstruct(receiver, rightSyntax, numCheckedVariables, diagnostics, null);
+
+        var candidates = namedType.GetOperators(WellKnownMemberNames.ImplicitConversionName)
+            .WhereAsArray(o => o.returnType.IsTupleTypeOfCardinality(numCheckedVariables));
+
+        if (candidates.Length == 0)
+            return MissingDeconstruct(receiver, rightSyntax, numCheckedVariables, diagnostics, null);
+
+        if (candidates.Length == 1) {
+            var method = candidates[0];
+            CheckCandidate(receiverSyntax, method, null, variables, out placeholders);
+
+            return new BoundCallExpression(
+                rightSyntax,
+                receiver,
+                method,
+                [],
+                [],
+                default,
+                LookupResultKind.Viable,
+                method.returnType
+            );
+        }
+
+        var filteredCandidatesBuilder = ArrayBuilder<MethodSymbol>.GetInstance(candidates.Length);
+
+        foreach (var candidate in candidates)
+            CheckCandidate(receiverSyntax, candidate, filteredCandidatesBuilder, variables, out _);
+
+        var filteredCandidates = filteredCandidatesBuilder.ToImmutableAndFree();
+
+        if (filteredCandidates.Length == 1) {
+            var method = filteredCandidates[0];
+            CheckCandidate(receiverSyntax, method, null, variables, out placeholders);
+
+            return new BoundCallExpression(
+                rightSyntax,
+                receiver,
+                method,
+                [],
+                [],
+                default,
+                LookupResultKind.Viable,
+                method.returnType
+            );
+        }
+
+        diagnostics.Push(Error.AmbiguousDeconstruct(rightSyntax.location, namedType));
+
+        return ErrorExpression(rightSyntax, receiver);
+
+        void CheckCandidate(
+            SyntaxNode syntax,
+            MethodSymbol candidate,
+            ArrayBuilder<MethodSymbol> builder,
+            ArrayBuilder2<DeconstructionVariable> variables,
+            out ImmutableArray<BoundValuePlaceholder> placeholders) {
+            var elementTypes = candidate.returnType.tupleElementTypes;
+            var failed = false;
+            var placeholdersBuilder = ArrayBuilder<BoundValuePlaceholder>.GetInstance(elementTypes.Length);
+
+            for (var i = 0; i < elementTypes.Length; i++) {
+                var type = variables[i].single.type;
+                var placeholder = new BoundValuePlaceholder(syntax, elementTypes[i].type.type);
+                placeholdersBuilder.Add(placeholder);
+
+                if (type is null || type.IsErrorType())
+                    continue;
+
+                var conversion = conversions.ClassifyImplicitConversionFromType(type, placeholder.type);
+
+                if (!conversion.exists)
+                    failed = true;
+            }
+
+            if (!failed)
+                builder?.Add(candidate);
+
+            placeholders = placeholdersBuilder.ToImmutableAndFree();
+        }
+    }
+
+    private BoundExpression MissingDeconstruct(
+        BoundExpression receiver,
+        SyntaxNode rightSyntax,
+        int numParameters,
+        BelteDiagnosticQueue diagnostics,
+        BoundExpression childNode) {
+        if (receiver.type?.IsErrorType() == false)
+            diagnostics.Push(Error.MissingDeconstruct(rightSyntax.location, receiver.type, numParameters));
+
+        return ErrorExpression(rightSyntax, childNode);
+    }
+
     private void FailRemainingInferences(
         ArrayBuilder2<DeconstructionVariable> variables,
         BelteDiagnosticQueue diagnostics) {
@@ -11216,9 +11308,7 @@ internal partial class Binder {
             if (mergedTupleType is not null)
                 boundRight = GenerateConversionForAssignment(mergedTupleType, boundRight, diagnostics);
         } else if (boundRight.type is null) {
-            // TODO reachable err?
-            throw ExceptionUtilities.Unreachable();
-            // Error(diagnostics, ErrorCode.ERR_DeconstructRequiresExpression, boundRHS.Syntax);
+            diagnostics.Push(Error.DeconstructRequiresExpression(boundRight.syntax.location));
         }
 
         return boundRight;

@@ -69,8 +69,7 @@ internal partial class VariablePendingInference {
 
     private void ReportInferenceFailure(BelteDiagnosticQueue diagnostics) {
         var identifier = ((DeclarationExpressionSyntax)syntax).identifier;
-
-        diagnostics.Push(Error.TypeInferenceFailedForOut(identifier.location, identifier.text));
+        diagnostics.Push(GetTypeInferenceError(identifier.location, identifier.text));
     }
 
     private protected abstract BelteDiagnostic GetTypeInferenceError(TextLocation location, string text);

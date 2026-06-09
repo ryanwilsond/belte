@@ -427,8 +427,29 @@ internal sealed class Expander : SharedExpander {
         */
         var syntax = expression.syntax;
 
-        // TODO We will use the DeconstructUncommonData on the cast once we support user-defined Deconstruct methods
-        var statements = ExpandExpression(expression.right.operand, out var newRight, UseKind.StableValue);
+        BoundExpression newRight;
+        List<BoundStatement> statements;
+
+        if (expression.right.conversion.method is not null) {
+            var call = (BoundCallExpression)expression.right.conversion.deconstructionInfo.call;
+
+            statements = ExpandExpression(
+                call.Update(
+                    null,
+                    call.method,
+                    [expression.right.operand],
+                    [],
+                    call.defaultArguments,
+                    call.resultKind,
+                    call.type
+                ),
+                out newRight,
+                UseKind.StableValue
+            );
+        } else {
+            statements = ExpandExpression(expression.right.operand, out newRight, UseKind.StableValue);
+        }
+
         var arguments = expression.left.arguments;
 
         for (var i = 0; i < arguments.Length; i++) {

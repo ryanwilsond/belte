@@ -140,9 +140,22 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
                     }
 
                     break;
+                case DeconstructionUncommonData deconstructionUncommonData:
+                    if (deconstructionUncommonData.deconstructMethodInfo.call is BoundCallExpression call)
+                        return call.method;
+
+                    break;
             }
 
             return null;
+        }
+    }
+
+    internal DeconstructMethodInfo deconstructionInfo {
+        get {
+            return _uncommonData is not DeconstructionUncommonData uncommonData
+                ? default
+                : uncommonData.deconstructMethodInfo;
         }
     }
 

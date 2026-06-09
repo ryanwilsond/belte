@@ -11,4 +11,6 @@ internal enum DataContainerDeclarationKind : byte {
     NullBindingLocal,
     ScopedLocal,
     PatternLocal,
+    OutVariable,
+    DeclarationExpressionVariable,
 }

@@ -172,6 +172,11 @@ internal static class SyntaxNodeExtensions {
         return syntax;
     }
 
+    internal static bool IsOutVarDeclaration(this DeclarationExpressionSyntax p) {
+        return p.parent?.kind == SyntaxKind.Argument
+            && ((ArgumentSyntax)p.parent).refKindKeyword.kind == SyntaxKind.OutKeyword;
+    }
+
     internal static MemberDeclarationSyntax FirstMember(this CompilationUnitSyntax compilationUnit) {
         foreach (var element in compilationUnit.elements) {
             if (element is MemberDeclarationSyntax member)

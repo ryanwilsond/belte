@@ -86,13 +86,15 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
         }
     }
 
-    internal virtual SyntaxNode forbiddenZone => null;
-
     internal TypeSymbol type => typeWithAnnotations.type;
 
     internal bool isGlobal => containingSymbol is SynthesizedEntryPoint;
 
     internal abstract SynthesizedLocalKind synthesizedKind { get; }
+
+    internal virtual TypeWithAnnotations GetTypeWithAnnotations(SyntaxNode reference, BelteDiagnosticQueue diagnostics) {
+        return typeWithAnnotations;
+    }
 
     internal sealed override void Accept(SymbolVisitor visitor) {
         visitor.VisitDataContainer(this);
