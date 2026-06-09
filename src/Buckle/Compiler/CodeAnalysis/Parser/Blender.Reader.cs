@@ -3,8 +3,8 @@ using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
-internal sealed partial class Blender {
-    private sealed class Reader {
+internal readonly partial struct Blender {
+    private struct Reader {
         private readonly Lexer _lexer;
         private Cursor _oldTreeCursor;
         private ImmutableStack<TextChangeRange> _changes;
@@ -45,7 +45,9 @@ internal sealed partial class Blender {
             var node = _oldTreeCursor.currentNodeOrToken;
 
             _changeDelta += node.fullWidth;
-            _oldTreeCursor = _oldTreeCursor.MoveToNextSibling();
+            // TODO Directives (repl doesn't care but future lsp will)
+            // _oldTreeCursor = node.ApplyDirectives(_oldDirectives);
+            _oldTreeCursor = Cursor.MoveToNextSibling(_oldTreeCursor);
 
             SkipPastChanges();
         }
@@ -76,6 +78,8 @@ internal sealed partial class Blender {
                 _lexer.Move(_newPosition);
 
             var token = _lexer.LexNext(LexerMode.Syntax);
+            // TODO directives
+
             return token;
         }
 
@@ -86,12 +90,14 @@ internal sealed partial class Blender {
             var currentNodeOrToken = _oldTreeCursor.currentNodeOrToken;
 
             if (!CanReuse(currentNodeOrToken)) {
-                blendedNode = null;
+                blendedNode = default;
                 return false;
             }
 
             _newPosition += currentNodeOrToken.fullWidth;
-            _oldTreeCursor = _oldTreeCursor.MoveToNextSibling();
+            _oldTreeCursor = Cursor.MoveToNextSibling(_oldTreeCursor);
+
+            // TODO directives
 
             blendedNode = CreateBlendedNode(
                 currentNodeOrToken.AsNode(),
@@ -119,10 +125,15 @@ internal sealed partial class Blender {
                 return false;
             }
 
+            if (IsFabricatedToken(nodeOrToken.kind))
+                return false;
+
             if ((nodeOrToken.isToken && nodeOrToken.AsToken().isFabricated) ||
                 (nodeOrToken.isNode && IsIncomplete(nodeOrToken.AsNode()))) {
                 return false;
             }
+
+            // TODO directives?
 
             return true;
         }
@@ -138,12 +149,30 @@ internal sealed partial class Blender {
             var oldSpan = node.fullSpan;
             var changeSpan = _changes.Peek().span;
 
-            return oldSpan.OverlapsWith(changeSpan);
+            return oldSpan.IntersectsWith(changeSpan);
+        }
+
+        private static bool IsFabricatedToken(SyntaxKind kind) {
+            switch (kind) {
+                case SyntaxKind.GreaterThanGreaterThanToken:
+                case SyntaxKind.GreaterThanGreaterThanGreaterThanToken:
+                // TODO See parser todo comment about these 2 tokens
+                // case SyntaxKind.GreaterThanGreaterThanEqualsToken:
+                // case SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken:
+                case SyntaxKind.AsteriskAsteriskToken:
+                case SyntaxKind.GreaterThanLessThanToken:
+                case SyntaxKind.GreaterThanLessThanEqualsToken:
+                    return true;
+                default:
+                    return SyntaxFacts.IsContextualKeyword(kind);
+            }
         }
 
         private BlendedNode CreateBlendedNode(SyntaxNode node, SyntaxToken token) {
             return new BlendedNode(
-                node, token, new Blender(_lexer, _oldTreeCursor, _changes, _newPosition, _changeDelta)
+                node,
+                token,
+                new Blender(_lexer, _oldTreeCursor, _changes, _newPosition, _changeDelta)
             );
         }
     }

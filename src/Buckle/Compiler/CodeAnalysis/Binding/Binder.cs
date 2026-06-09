@@ -795,7 +795,7 @@ internal partial class Binder {
             syntax.location,
             typesArray,
             locationsArray,
-            elementNames is null ? [] : elementNames.ToImmutableAndFree(),
+            elementNames is null ? default : elementNames.ToImmutableAndFree(),
             compilation,
             // TODO What should this be?
             // this.shouldCheckConstraints,
@@ -3648,7 +3648,7 @@ internal partial class Binder {
                 node.location,
                 elements,
                 locations,
-                [],
+                default,
                 compilation,
                 syntax: node,
                 diagnostics: diagnostics,
@@ -11373,11 +11373,11 @@ internal partial class Binder {
             location: null,
             elementTypesWithAnnotations: typesWithAnnotationsBuilder.ToImmutableAndFree(),
             elementLocations: locationsBuilder.ToImmutableAndFree(),
-            elementNames: default(ImmutableArray<string?>),
+            elementNames: default,
             compilation: compilation,
             diagnostics: diagnostics,
             shouldCheckConstraints: true,
-            errorPositions: default(ImmutableArray<bool>),
+            errorPositions: default,
             syntax: syntax
         );
     }

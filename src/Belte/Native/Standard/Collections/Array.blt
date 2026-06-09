@@ -20,9 +20,10 @@ public lowlevel sealed class Array<type T> {
         throw new InvalidOperationException();
     }
 
-    public void Set(int index, T value) {
+    public T Set(int index, T value) {
         _array[(int32)index] = value;
         _bitArray.Set((int32)index, true);
+        return value;
     }
 
     public static implicit operator T[](Array<T> array) {

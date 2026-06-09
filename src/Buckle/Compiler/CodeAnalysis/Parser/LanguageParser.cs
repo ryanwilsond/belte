@@ -2424,6 +2424,47 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return left;
     }
 
+    private bool TryParseOperatorToken(out SyntaxToken token) {
+        var kind = currentToken.kind;
+
+        if (SyntaxFacts.IsAssignmentOperatorToken(kind)) {
+            token = EatToken();
+            return true;
+        }
+
+        // TODO This logic is correct, but we actually handle >>= and >>>= in the lexer
+        // TODO We need to determine whether or not we want a >> token followed by = but treated separately
+        if (currentToken.kind == SyntaxKind.GreaterThanToken &&
+            Peek(1) is SyntaxToken { kind: SyntaxKind.GreaterThanToken or SyntaxKind.GreaterThanEqualsToken } token2 &&
+            NoTriviaBetween(currentToken, token2)) {
+            if (token2.kind == SyntaxKind.GreaterThanToken &&
+                Peek(2) is SyntaxToken { kind: SyntaxKind.GreaterThanEqualsToken } token3 &&
+                NoTriviaBetween(token2, token3)) {
+                var operatorToken1 = EatToken();
+                EatToken();
+
+                token = SyntaxFactory.Token(
+                    operatorToken1.GetLeadingTrivia(),
+                    SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken,
+                    EatToken().GetTrailingTrivia()
+                );
+
+                return true;
+            } else {
+                token = SyntaxFactory.Token(
+                    EatToken().GetLeadingTrivia(),
+                    SyntaxKind.GreaterThanGreaterThanEqualsToken,
+                    EatToken().GetTrailingTrivia()
+                );
+
+                return true;
+            }
+        }
+
+        token = null;
+        return false;
+    }
+
     private ExpressionSyntax ParseAssignmentOrLambdaExpression(bool insideCascade = false) {
         if (!insideCascade && TryParseLambdaExpression(out var expression))
             return expression;
@@ -2620,16 +2661,27 @@ internal sealed partial class LanguageParser : SyntaxParser {
             var precedence = combinedTokenKind.GetBinaryPrecedence();
 
             if (currentToken.kind == SyntaxKind.GreaterThanToken &&
-                Peek(1).kind == SyntaxKind.GreaterThanToken &&
+                Peek(1).kind is SyntaxKind.GreaterThanToken or SyntaxKind.GreaterThanEqualsToken &&
                 NoTriviaBetween(currentToken, Peek(1))) {
-                if (Peek(2).kind == SyntaxKind.GreaterThanToken && NoTriviaBetween(Peek(1), Peek(2))) {
-                    tokensToCombine = 3;
-                    combinedTokenKind = SyntaxKind.GreaterThanGreaterThanGreaterThanToken;
-                    precedence = combinedTokenKind.GetBinaryPrecedence();
+                if (Peek(1).kind == SyntaxKind.GreaterThanToken) {
+                    if (Peek(2).kind is SyntaxKind.GreaterThanToken or SyntaxKind.GreaterThanEqualsToken &&
+                        NoTriviaBetween(Peek(1), Peek(2))) {
+                        if (Peek(2).kind == SyntaxKind.GreaterThanToken) {
+                            tokensToCombine = 3;
+                            combinedTokenKind = SyntaxKind.GreaterThanGreaterThanGreaterThanToken;
+                            precedence = combinedTokenKind.GetBinaryPrecedence();
+                        } else {
+                            // >>>=, needs to be handled by ParseAssignmentExpression
+                            break;
+                        }
+                    } else {
+                        tokensToCombine = 2;
+                        combinedTokenKind = SyntaxKind.GreaterThanGreaterThanToken;
+                        precedence = combinedTokenKind.GetBinaryPrecedence();
+                    }
                 } else {
-                    tokensToCombine = 2;
-                    combinedTokenKind = SyntaxKind.GreaterThanGreaterThanToken;
-                    precedence = combinedTokenKind.GetBinaryPrecedence();
+                    // >>=, needs to be handled by ParseAssignmentExpression
+                    break;
                 }
             } else if (currentToken.kind == SyntaxKind.AsteriskToken &&
                 Peek(1).kind == SyntaxKind.AsteriskToken &&

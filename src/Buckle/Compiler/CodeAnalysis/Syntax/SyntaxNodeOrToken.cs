@@ -10,7 +10,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// A wrapper of either a <see cref="SyntaxNode" /> or <see cref="SyntaxToken" />.
 /// </summary>
 [DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
-public sealed class SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
+public readonly struct SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
     private readonly SyntaxNode _nodeOrParent;
     private readonly GreenNode _token;
     private readonly int _tokenIndex;
@@ -130,7 +130,7 @@ public sealed class SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
     /// <summary>
     /// The underlying <see cref="GreenNode" />.
     /// </summary>
-    internal GreenNode underlyingNode => _token ?? _nodeOrParent.green;
+    internal GreenNode underlyingNode => _token ?? _nodeOrParent?.green;
 
     /// <summary>
     /// Returns the underlying <see cref="SyntaxToken" /> if this <see cref="SyntaxNodeOrToken" /> is
@@ -288,13 +288,13 @@ public sealed class SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
     public static implicit operator SyntaxNodeOrToken(SyntaxNode node) {
         return node is not null
             ? new SyntaxNodeOrToken(node)
-            : null;
+            : default;
     }
 
     public bool Equals(SyntaxNodeOrToken other) {
-        return _nodeOrParent == other?._nodeOrParent &&
-               _token == other?._token &&
-               _tokenIndex == other?._tokenIndex;
+        return _nodeOrParent == other._nodeOrParent &&
+               _token == other._token &&
+               _tokenIndex == other._tokenIndex;
     }
 
     public static bool operator ==(SyntaxNodeOrToken left, SyntaxNodeOrToken right) {

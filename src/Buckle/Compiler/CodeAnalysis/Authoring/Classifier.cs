@@ -27,7 +27,7 @@ public static class Classifier {
         TextSpan span,
         ArrayBuilder<ClassifiedSpan> result,
         bool isTypeName = false) {
-        if (node is null)
+        if (node == default)
             return;
 
         if (node.fullSpan is not null && !node.fullSpan.OverlapsWith(span))

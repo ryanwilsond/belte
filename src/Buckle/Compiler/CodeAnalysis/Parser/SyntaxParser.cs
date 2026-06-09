@@ -42,7 +42,7 @@ internal abstract partial class SyntaxParser : IDisposable {
             _firstBlender = new Blender(_lexer, oldTree, changes);
             _blendedTokens = BlendedNodesPool.Allocate();
         } else {
-            _firstBlender = null;
+            _firstBlender = default;
             _lexedTokens = new ArrayElement<SyntaxToken>[32];
         }
 
@@ -60,13 +60,13 @@ internal abstract partial class SyntaxParser : IDisposable {
     // Used for reusing nodes from the old tree. Just validate and call EatNode to reuse an old node.
     internal SyntaxNode currentNode {
         get {
-            var node = _currentNode?.node;
+            var node = _currentNode.node;
 
             if (node is not null)
                 return node;
 
             ReadCurrentNode();
-            return _currentNode?.node;
+            return _currentNode.node;
         }
     }
 
@@ -109,7 +109,7 @@ internal abstract partial class SyntaxParser : IDisposable {
         _tokenOffset = resetPoint.position;
         _prevTokenTrailingTrivia = resetPoint.prevTokenTrailingTrivia;
         _currentToken = null;
-        _currentNode = null;
+        _currentNode = default;
 
         if (_blendedTokens is not null) {
             for (var i = _tokenOffset; i < _tokenCount; i++) {
@@ -324,7 +324,7 @@ internal abstract partial class SyntaxParser : IDisposable {
         _blendedTokens[_tokenOffset++] = _currentNode;
         _tokenCount = _tokenOffset;
 
-        _currentNode = null;
+        _currentNode = default;
         _currentToken = null;
 
         return saved;
@@ -408,7 +408,7 @@ internal abstract partial class SyntaxParser : IDisposable {
             if (_tokenCount > 0) {
                 AddToken(_blendedTokens[_tokenCount - 1].blender.ReadToken());
             } else {
-                if (_currentNode?.token is not null)
+                if (_currentNode.token is not null)
                     AddToken(_currentNode);
                 else
                     AddToken(_firstBlender.ReadToken());
@@ -604,7 +604,7 @@ internal abstract partial class SyntaxParser : IDisposable {
         _currentToken = null;
 
         if (_blendedTokens is not null)
-            _currentNode = null;
+            _currentNode = default;
 
         _tokenOffset++;
     }

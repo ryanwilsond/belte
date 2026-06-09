@@ -2,12 +2,10 @@ using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
-internal sealed partial class Blender {
-    private sealed class Cursor {
+internal readonly partial struct Blender {
+    private readonly struct Cursor {
         internal readonly SyntaxNodeOrToken currentNodeOrToken;
         private readonly int _indexInParent;
-
-        internal Cursor() { }
 
         private Cursor(SyntaxNodeOrToken node, int indexIntParent) {
             currentNodeOrToken = node;
@@ -22,7 +20,7 @@ internal sealed partial class Blender {
             => currentNodeOrToken.kind == SyntaxKind.None ||
                currentNodeOrToken.kind == SyntaxKind.EndOfFileToken;
 
-        internal Cursor MoveToNextSibling() {
+        private Cursor TryFindNextNonZeroWidthOrIsEndOfFileSibling() {
             if (currentNodeOrToken.parent is not null) {
                 var siblings = currentNodeOrToken.parent.ChildNodesAndTokens();
 
@@ -32,11 +30,22 @@ internal sealed partial class Blender {
                     if (IsNonZeroWidthOrIsEndOfFile(sibling))
                         return new Cursor(sibling, i);
                 }
-
-                return MoveToParent().MoveToNextSibling();
             }
 
-            return null;
+            return default;
+        }
+
+        internal static Cursor MoveToNextSibling(Cursor cursor) {
+            while (cursor.currentNodeOrToken.underlyingNode is not null) {
+                var nextSibling = cursor.TryFindNextNonZeroWidthOrIsEndOfFileSibling();
+
+                if (nextSibling.currentNodeOrToken.underlyingNode is not null)
+                    return nextSibling;
+
+                cursor = cursor.MoveToParent();
+            }
+
+            return default;
         }
 
         internal Cursor MoveToFirstChild() {

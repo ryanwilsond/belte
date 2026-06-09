@@ -2,8 +2,10 @@
 
 ~~These features are only enabled in low-level contexts.~~
 
-Currently, all of these features are enabled everywhere for conciseness.
-This may change.
+Currently, most of these features are enabled everywhere for conciseness.
+[Lowlevel fields](#615-fields) and
+[lowlevel default literals](#616-default-literal) still require being inside of
+a lowlevel context.
 
 - [6.1](#61-low-level-contexts) Low-Level Contexts
 - [6.2](#62-structs) Structs

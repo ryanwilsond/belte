@@ -91,7 +91,7 @@ public sealed partial class SyntaxNodeOrTokenList : IReadOnlyCollection<SyntaxNo
     internal SyntaxNodeOrToken FirstOrDefault() {
         return Any()
             ? this[0]
-            : null;
+            : default;
     }
 
     internal SyntaxNodeOrToken Last() {
@@ -101,7 +101,7 @@ public sealed partial class SyntaxNodeOrTokenList : IReadOnlyCollection<SyntaxNo
     internal SyntaxNodeOrToken LastOrDefault() {
         return Any()
             ? this[Count - 1]
-            : null;
+            : default;
     }
 
     internal bool Any() {

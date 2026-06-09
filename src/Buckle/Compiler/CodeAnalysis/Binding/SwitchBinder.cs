@@ -56,7 +56,7 @@ internal class SwitchBinder : LocalScopeBinder {
                 var result = new Dictionary<SyntaxNode, LabelSymbol>();
 
                 foreach (var label in labels) {
-                    var node = ((SourceLabelSymbol)label).identifierNodeOrToken?.AsNode();
+                    var node = ((SourceLabelSymbol)label).identifierNodeOrToken.AsNode();
 
                     if (node is not null)
                         result.TryAdd(node, label);
@@ -205,7 +205,7 @@ internal class SwitchBinder : LocalScopeBinder {
                         if (boundValue is not BoundTypeExpression)
                             ConvertCaseExpression(labelSyntax, boundValue, out boundLabelConstant, tempDiagnosticBag);
 
-                        labels.Add(new SourceLabelSymbol((MethodSymbol)containingMember, null, boundLabelConstant));
+                        labels.Add(new SourceLabelSymbol((MethodSymbol)containingMember, default, boundLabelConstant));
                     }
 
                     labels.Add(new SourceLabelSymbol((MethodSymbol)containingMember, multiCaseLabel));

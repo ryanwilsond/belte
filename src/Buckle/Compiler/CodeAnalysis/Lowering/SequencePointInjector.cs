@@ -115,7 +115,7 @@ internal sealed class SequencePointInjector : BoundTreeRewriter {
 
         if (startOpt is not null && startOpt.Count > 0)
             node = startOpt.First();
-        else if (startFallbackOpt is not null)
+        else if (startFallbackOpt != default)
             node = startFallbackOpt;
         else
             node = endOpt;
@@ -124,7 +124,7 @@ internal sealed class SequencePointInjector : BoundTreeRewriter {
 
         int endPos;
 
-        if (endOpt is not null)
+        if (endOpt != default)
             endPos = GetEndPosition(endOpt);
         else
             endPos = GetEndPosition(startFallbackOpt);
