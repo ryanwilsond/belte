@@ -8,8 +8,8 @@ using Buckle.Utilities;
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Basic syntax facts references by the <see cref="InternalSyntax.LanguageParser" /> and the
-/// <see cref="InternalSyntax.Lexer" />.
+/// Basic syntax facts references by the <see cref="LanguageParser" /> and the
+/// <see cref="Lexer" />.
 /// </summary>
 public static class SyntaxFacts {
     /// <summary>
