@@ -274,6 +274,8 @@ public sealed class EvaluatorTests {
     [InlineData("int? a = 3; int? b = 6; return b;", 6)]
     [InlineData("int? a = 3; int? b = 6; b += a; return a;", 3)]
     [InlineData("int? a = 3; int? b = 6; b += a; return b;", 9)]
+    [InlineData("int? @@<a>@ = 3; return @@<a>@;", 3)]
+    [InlineData("int? @@<a> = 3; return @@<a>@;", 3)]
     // Postfix expressions
     [InlineData("int? a = 3; a++; return a;", 4)]
     [InlineData("int? a = 3; a--; return a;", 2)]

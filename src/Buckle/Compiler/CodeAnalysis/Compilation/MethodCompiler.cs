@@ -563,7 +563,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         }
 
         if (isStateMethod)
-            loweredBody = StateMethodRewriter.Merge(method, partialTargetBody, loweredBody, currentDiagnostics);
+            loweredBody = StateMethodRewriter.Merge(method, partialTargetBody, loweredBody);
 
         if (method.hasReversalState) {
             CompileMethodCore(

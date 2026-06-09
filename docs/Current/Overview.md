@@ -21,6 +21,7 @@ Currently, the Belte compiler, Buckle, supports interpretation and building to a
   - [1.4.6](#146-null-flow-analysis) Null-Flow Analysis
   - [1.4.7](#147-arrays) Arrays
 - [1.5](#15-differences-from-c) Differences from C#
+- [1.6](#16-identifiers) Identifiers
 
 ## 1.1 Conventions
 
@@ -560,6 +561,43 @@ most of the differences to make it more clear where the language is unique with 
 - Struct layout efficiency analysis
 - [`packed` keyword instead of StructLayout attribute](LowLevelFeatures.md#621-packing)
 - [User-defined deconstruction uses same syntax as user-defined casts](Data.md#3151-user-defined-deconstruction)
+- [Verbatim identifier can use any non-whitespace characters](#16-identifiers)
 - [Experimental: Non-numeric enum underlying types](ClassesAndObjects.md#463-experimental-underlying-types)
 - [Experimental: Non-type generics/templates](ClassesAndObjects.md#45-templates)
 - Experimental: Integrated graphics support with `Update()` point
+
+## 1.6 Identifiers
+
+Identifiers are used to name symbols. For example, in the statement `var a = 3;`, the name of the symbol is `a`, which
+is the identifier.
+
+Identifiers are continuous strings of letters, digits, and the underscore (`_`) character, where the first character has
+to be a non-digit. Legal identifier could be `myLocal`, `My_Local`, `MyTemp3`, or `_`, whereas `3myLocal` would be
+illegal because it starts with a digit. Identifiers cannot be the same as any
+[non-contextual keywords](#131-non-contextual-keywords). For example, `var class = 3;` would be illegal because `class`
+is a non-contextual keyword.
+
+The verbatim specifier `@` can be used to treat what would be a keyword as an identifier. For example, `var @class = 3;`
+would be legal.
+
+The double verbatim specifier `@@` can be used to treat any non-whitespace, non-at character as a part of the
+identifier. For example, `var @@my<class> = 3;` would be legal where `my<class>` is the identifier. A third `@` will
+terminate the identifier to avoid capturing unwanted characters: `@@my<class>@.MyMethod()`. Alternatively, whitespace
+could be used: `@@my<class> .MyMethod()`.
+
+The double verbatim specifier can be used to reference compiler-generated symbols in advanced scenarios.
+
+For example, consider this code where the user wants to explicitly call the
+[state clause of a reversible method](ClassesAndObjects.md#4221-state-and-reverse-clauses):
+
+```belte
+(var returnValue, var stateValue) = MyClass.@@<MyMethod>a__Reversible@(10);
+
+class MyClass {
+  public static int MyMethod(int p) {
+    return p + 5;
+  } state (int) {
+    return p - 5;
+  } reverse (int state) { }
+}
+```

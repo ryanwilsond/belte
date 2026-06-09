@@ -2539,6 +2539,22 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
+    public void Reports_Error_BU0177_LocalAlreadyDeclared3() {
+        var text = @"
+            void F() {
+                int? a = 3;
+                int? [@@a] = 6;
+            }
+        ";
+
+        var diagnostics = @"
+            a local or local function with the name 'a' has already been declared in this scope
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
     public void Reports_Error_BU0178_CannotConvertArgument() {
         var text = @"
             void F(int? a) { }
@@ -6697,6 +6713,32 @@ public sealed class DiagnosticTests {
             cannot infer the type of implicitly-typed deconstruction variable 'a'
             cannot infer the type of implicitly-typed deconstruction variable 'b'
             deconstruction of type 'A!' is ambiguous; consider explicitly typing deconstruction variables
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0502_ExpectedVerbatimLiteral() {
+        var text = @"
+            var [@] = 3;
+        ";
+
+        var diagnostics = @"
+            expected identifier after verbatim specifier: @
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0502_ExpectedVerbatimLiteral2() {
+        var text = @"
+            var [@@] = 3;
+        ";
+
+        var diagnostics = @"
+            expected identifier after verbatim specifier: @@
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

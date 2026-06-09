@@ -2,17 +2,14 @@ using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.Diagnostics;
 using Buckle.Libraries;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
 internal sealed class StateMethodRewriter : BoundTreeExpander {
-    private readonly TypeSymbol _captureType;
     private readonly TypeSymbol _returnType;
     private readonly NamedTypeSymbol _tupleType;
-    private readonly BelteDiagnosticQueue _diagnostics;
     private readonly DataContainerSymbol _returnTemp;
     private readonly LabelSymbol _successLabel;
 
@@ -21,12 +18,9 @@ internal sealed class StateMethodRewriter : BoundTreeExpander {
     private StateMethodRewriter(
         MethodSymbol stateMethod,
         BoundBlockStatement targetBody,
-        BoundBlockStatement stateBody,
-        BelteDiagnosticQueue diagnostics) {
+        BoundBlockStatement stateBody) {
         _returnType = stateMethod.returnType.tupleElementTypes[0].type.type;
-        _captureType = stateMethod.returnType.tupleElementTypes[1].type.type;
         _tupleType = (NamedTypeSymbol)stateMethod.returnType;
-        _diagnostics = diagnostics;
         _container = stateMethod;
 
         _localNames.AddRange(targetBody.locals.Select(l => l.name));
@@ -44,9 +38,8 @@ internal sealed class StateMethodRewriter : BoundTreeExpander {
     internal static BoundBlockStatement Merge(
         MethodSymbol stateMethod,
         BoundBlockStatement targetBody,
-        BoundBlockStatement stateBody,
-        BelteDiagnosticQueue diagnostics) {
-        var stateMethodRewriter = new StateMethodRewriter(stateMethod, targetBody, stateBody, diagnostics);
+        BoundBlockStatement stateBody) {
+        var stateMethodRewriter = new StateMethodRewriter(stateMethod, targetBody, stateBody);
 
         var tempDeclaration = LocalDeclaration(stateBody.syntax, stateMethodRewriter._returnTemp, null);
         var successLabel = Label(stateBody.syntax, stateMethodRewriter._successLabel);

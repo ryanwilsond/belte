@@ -35,6 +35,7 @@
       - [1.4.5](Current/Overview.md#145-implicit-typing) Implicit Typing
       - [1.4.6](Current/Overview.md#146-null-flow-analysis) Null-Flow Analysis
     - [1.5](Current/Overview.md#15-differences-from-c) **Differences from C#**
+    - [1.6](Current/Overview.md#16-identifiers) Identifiers
   - [2](Current/ControlFlow.md) Control Flow
     - [2.1](Current/ControlFlow.md#21-functions) Functions
       - [2.1.1](Current/ControlFlow.md#211-nested-functions) Nested Functions

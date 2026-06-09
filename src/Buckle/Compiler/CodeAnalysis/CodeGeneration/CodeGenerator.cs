@@ -1351,6 +1351,14 @@ oneMoreTime:
         }
     }
 
+    private void EmitExpressionWithoutNullCheck(BoundExpression expression, bool used) {
+        // We bypass the null assert because the runtime will throw on null anyway
+        if (expression.kind == BoundKind.NullAssertOperator)
+            EmitExpression(((BoundNullAssertOperator)expression).operand, used);
+        else
+            EmitExpression(expression, used);
+    }
+
     private void EmitDefaultExpression(BoundDefaultExpression expression, bool used) {
         EmitDefaultValue(expression.type, used, expression.syntax);
     }
@@ -1986,7 +1994,7 @@ oneMoreTime:
             temp = null;
 
             if (addressKind is null) {
-                EmitExpression(receiver, used: true);
+                EmitExpressionWithoutNullCheck(receiver, used: true);
 
                 if (box)
                     EmitBox(receiverType);
@@ -3427,7 +3435,7 @@ oneMoreTime:
                 return;
 
             if (!field.isStatic && receiver.type.IsVerifierValue() && field.refKind == RefKind.None) {
-                EmitExpression(receiver, used: false);
+                EmitExpressionWithoutNullCheck(receiver, used: false);
                 return;
             }
         }
@@ -3451,7 +3459,7 @@ oneMoreTime:
             var fieldType = field.type;
 
             if (IsValueType(fieldType) && (object)fieldType == (object)receiver.type) {
-                EmitExpression(receiver, used);
+                EmitExpressionWithoutNullCheck(receiver, used);
             } else {
                 var temp = EmitFieldLoadReceiver(receiver);
 

@@ -39,7 +39,7 @@ internal static class GeneratedNames {
     }
 
     internal static string MakeAnonymousUnionFieldName(string typeName) {
-        return "<" + typeName + ">e__AnonymousUnion";
+        return "<" + typeName + ">u__AnonymousUnion";
     }
 
     internal static string MakeFixedFieldImplementationName(string fieldName) {
@@ -47,11 +47,11 @@ internal static class GeneratedNames {
     }
 
     internal static string MakeReverseMethodName(string methodName) {
-        return "<" + methodName + ">e__Reverse";
+        return "<" + methodName + ">r__Reverse";
     }
 
     internal static string MakeStateMethodName(string methodName) {
-        return "<" + methodName + ">e__Reversible";
+        return "<" + methodName + ">a__Reversible";
     }
 
     internal static string MakeClosureName(

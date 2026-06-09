@@ -1351,12 +1351,30 @@ internal sealed partial class Lexer : IDisposable {
 
     private void ReadVerbatimIdentifier() {
         _position++;
+        var isDoubleVerbatim = AdvanceIfMatches('@');
+        var startOfIdentifier = _position;
 
-        while (!char.IsWhiteSpace(_current) && _current != '\0')
-            _position++;
+        if (isDoubleVerbatim) {
+            while (!char.IsWhiteSpace(_current) && _current != '\0' && _current != '@')
+                _position++;
+        } else {
+            while (char.IsLetterOrDigit(_current) || _current == '_')
+                _position++;
+        }
 
-        var length = _position - _start - 1;
-        _value = text.ToString(new TextSpan(_start + 1, length));
+        if (_position == startOfIdentifier) {
+            AddDiagnostic(
+                Error.ExpectedVerbatimLiteral(isDoubleVerbatim ? "@@" : "@"),
+                _start,
+                isDoubleVerbatim ? 2 : 1
+            );
+        }
+
+        var length = _position - startOfIdentifier;
+        _value = text.ToString(new TextSpan(startOfIdentifier, length));
         _kind = SyntaxKind.IdentifierToken;
+
+        if (_current == '@')
+            _position++;
     }
 }

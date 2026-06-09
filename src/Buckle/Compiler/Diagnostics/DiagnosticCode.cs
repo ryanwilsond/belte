@@ -510,6 +510,7 @@ public enum DiagnosticCode : ushort {
     ERR_MissingDeconstruct = 499,
     ERR_DeconstructRequiresExpression = 500,
     ERR_AmbiguousDeconstruct = 501,
+    ERR_ExpectedVerbatimLiteral = 502,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

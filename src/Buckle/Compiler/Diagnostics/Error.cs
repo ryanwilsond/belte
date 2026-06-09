@@ -2518,6 +2518,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_AmbiguousDeconstruct, location, message);
     }
 
+    internal static Diagnostic ExpectedVerbatimLiteral(string specifier) {
+        var message = $"expected identifier after verbatim specifier: {specifier}";
+        return CreateError(DiagnosticCode.ERR_ExpectedVerbatimLiteral, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }
