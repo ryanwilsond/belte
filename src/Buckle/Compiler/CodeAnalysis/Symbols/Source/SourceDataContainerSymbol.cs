@@ -50,7 +50,7 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
         GetAttributes();
     }
 
-    public override string name => identifierToken.text;
+    public override string name => identifierToken.valueText;
 
     public override RefKind refKind { get; }
 

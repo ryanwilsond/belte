@@ -393,7 +393,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
         foreach (var templateSyntax in syntax.templateParameterList.parameters) {
             var identifier = templateSyntax.identifier;
-            var name = identifier.text;
+            var name = identifier.valueText;
 
             var result = new SourceTemplateParameterSymbol(
                 this,

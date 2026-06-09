@@ -41,7 +41,7 @@ internal sealed class SourceLabelSymbol : LabelSymbol {
         var tk = _identifierNodeOrToken.AsToken();
 
         if (tk.kind != SyntaxKind.None)
-            return tk.text;
+            return tk.valueText;
 
         return switchCaseLabelConstant?.ToString() ?? "";
     }

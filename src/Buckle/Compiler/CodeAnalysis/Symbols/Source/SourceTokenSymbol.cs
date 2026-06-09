@@ -19,7 +19,7 @@ internal sealed class SourceTokenSymbol : TokenSymbol {
 
     private string MakeTokenName() {
         if (_identifierToken.kind != SyntaxKind.None)
-            return _identifierToken.text;
+            return _identifierToken.valueText;
 
         return "";
     }

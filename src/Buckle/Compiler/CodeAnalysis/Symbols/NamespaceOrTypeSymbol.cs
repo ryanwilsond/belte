@@ -21,7 +21,7 @@ internal abstract class NamespaceOrTypeSymbol : Symbol, INamespaceOrTypeSymbol {
     internal sealed override bool isExtern => false;
 
     internal SourceNamedTypeSymbol GetSourceTypeMember(TypeDeclarationSyntax syntax) {
-        return GetSourceTypeMember(syntax.identifier.text, syntax.arity, syntax.kind, syntax);
+        return GetSourceTypeMember(syntax.identifier.valueText, syntax.arity, syntax.kind, syntax);
     }
 
     internal SourceNamedTypeSymbol? GetSourceTypeMember(

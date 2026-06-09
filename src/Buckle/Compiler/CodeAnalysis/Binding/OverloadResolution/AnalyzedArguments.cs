@@ -50,7 +50,7 @@ internal sealed class AnalyzedArguments {
     }
 
     internal void AddName(SyntaxToken name) {
-        names.Add((name.text, name.location));
+        names.Add((name.valueText, name.location));
     }
 
     internal string Name(int i) {

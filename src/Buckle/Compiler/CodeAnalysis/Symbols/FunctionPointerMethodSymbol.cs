@@ -118,7 +118,7 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
         var unmanagedCallingConvention = CallingConvention.Unspecified;
 
         if (syntax.callingConvention is not null) {
-            switch (syntax.callingConvention.text.ToLower()) {
+            switch (syntax.callingConvention.valueText.ToLower()) {
                 case "cdecl":
                     unmanagedCallingConvention = CallingConvention.Cdecl;
                     break;
@@ -135,9 +135,11 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
                     unmanagedCallingConvention = CallingConvention.ThisCall;
                     break;
                 default:
-                    diagnostics.Push(
-                        Error.UnknownCallingConvention(syntax.callingConvention.location, syntax.callingConvention.text)
-                    );
+                    diagnostics.Push(Error.UnknownCallingConvention(
+                        syntax.callingConvention.location,
+                        syntax.callingConvention.valueText
+                    ));
+
                     break;
             }
         }

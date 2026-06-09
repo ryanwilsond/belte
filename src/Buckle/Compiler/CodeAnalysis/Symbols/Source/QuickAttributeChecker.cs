@@ -64,8 +64,8 @@ internal sealed class QuickAttributeChecker {
             if (usingDirective.alias is not null &&
                 usingDirective.name != null &&
                 (!onlyGlobalAliases || usingDirective.globalKeyword is not null)) {
-                var name = usingDirective.alias.name.identifier.text;
-                var target = usingDirective.name.GetUnqualifiedName().identifier.text;
+                var name = usingDirective.alias.name.identifier.valueText;
+                var target = usingDirective.name.GetUnqualifiedName().identifier.valueText;
 
                 if (_nameToAttributeMap.TryGetValue(target, out var foundAttributes))
                     (newChecker ??= new QuickAttributeChecker(this)).AddName(name, foundAttributes);
@@ -80,7 +80,7 @@ internal sealed class QuickAttributeChecker {
 
     public bool IsPossibleMatch(AttributeSyntax attr, QuickAttributes pattern) {
         // string name = attr.identifier.GetUnqualifiedName().Identifier.ValueText;
-        var name = attr.name.GetUnqualifiedName().identifier.text;
+        var name = attr.name.GetUnqualifiedName().identifier.valueText;
 
         if (_nameToAttributeMap.TryGetValue(name, out var foundAttributes) ||
             _nameToAttributeMap.TryGetValue(name + "Attribute", out foundAttributes)) {

@@ -351,7 +351,7 @@ internal class LocalScopeBinder : Binder {
     }
 
     private protected override SourceDataContainerSymbol LookupLocal(SyntaxToken identifier) {
-        if (_localsMap is not null && _localsMap.TryGetValue(identifier.text, out var result)) {
+        if (_localsMap is not null && _localsMap.TryGetValue(identifier.valueText, out var result)) {
             if (result.identifierToken == identifier)
                 return (SourceDataContainerSymbol)result;
 
@@ -365,7 +365,7 @@ internal class LocalScopeBinder : Binder {
     }
 
     private protected override LocalFunctionSymbol LookupLocalFunction(SyntaxToken identifier) {
-        if (_localFunctionsMap is not null && _localFunctionsMap.TryGetValue(identifier.text, out var result)) {
+        if (_localFunctionsMap is not null && _localFunctionsMap.TryGetValue(identifier.valueText, out var result)) {
             if (result.identifier == identifier)
                 return result;
 
@@ -379,7 +379,7 @@ internal class LocalScopeBinder : Binder {
     }
 
     private protected override SourceTokenSymbol LookupToken(SyntaxToken identifier) {
-        if (_tokensMap is not null && _tokensMap.TryGetValue(identifier.text, out var result)) {
+        if (_tokensMap is not null && _tokensMap.TryGetValue(identifier.valueText, out var result)) {
             if (result.identifierToken == identifier)
                 return (SourceTokenSymbol)result;
 

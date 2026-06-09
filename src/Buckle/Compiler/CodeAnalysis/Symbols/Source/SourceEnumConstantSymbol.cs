@@ -38,7 +38,7 @@ internal abstract partial class SourceEnumConstantSymbol : SourceFieldSymbolWith
         SourceMemberContainerTypeSymbol containingEnum,
         EnumMemberDeclarationSyntax syntax,
         BelteDiagnosticQueue diagnostics)
-        : base(containingEnum, syntax.identifier.text, new SyntaxReference(syntax)) { }
+        : base(containingEnum, syntax.identifier.valueText, new SyntaxReference(syntax)) { }
 
     public sealed override RefKind refKind => RefKind.None;
 

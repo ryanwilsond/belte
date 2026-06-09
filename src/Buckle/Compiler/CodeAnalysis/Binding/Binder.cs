@@ -312,13 +312,13 @@ internal partial class Binder {
                     ? clause.isConstraint.name.identifier
                     : clause.hasConstraint.name.identifier;
 
-            if (names.TryGetValue(name.text, out var ordinal)) {
+            if (names.TryGetValue(name.valueText, out var ordinal)) {
                 if (syntaxNodes[ordinal] is null)
                     syntaxNodes[ordinal] = ArrayBuilder<TemplateConstraintClauseSyntax>.GetInstance();
 
                 syntaxNodes[ordinal].Add(clause);
             } else {
-                diagnostics.Push(Error.UnknownTemplate(name.location, containingSymbol.name, name.text));
+                diagnostics.Push(Error.UnknownTemplate(name.location, containingSymbol.name, name.valueText));
             }
         }
 
@@ -736,7 +736,7 @@ internal partial class Binder {
             var left = bindingResult is AliasSymbol alias ? alias.target : (NamespaceOrTypeSymbol)bindingResult;
 
             if (left.kind == SymbolKind.NamedType) {
-                var error = Error.ColonColonWithTypeAlias(node.alias.location, node.alias.identifier.text);
+                var error = Error.ColonColonWithTypeAlias(node.alias.location, node.alias.identifier.valueText);
                 diagnostics.Push(error);
 
                 return new TypeWithAnnotations(
@@ -773,7 +773,7 @@ internal partial class Binder {
             var nameToken = argumentSyntax.identifier;
 
             if (nameToken is not null) {
-                name = nameToken.text;
+                name = nameToken.valueText;
                 CheckTupleMemberName(name, i, nameToken, diagnostics, uniqueFieldNames);
                 locations.Add(nameToken.location);
             } else {
@@ -851,7 +851,7 @@ internal partial class Binder {
         if (node.identifier.kind == SyntaxKind.GlobalKeyword) {
             return compilation.globalNamespaceAlias;
         } else {
-            var plainName = node.identifier.text;
+            var plainName = node.identifier.valueText;
             var result = LookupResult.GetInstance();
             LookupSymbolsWithFallback(result, plainName, 0, node.location, null, LookupOptions.NamespaceAliasesOnly);
 
@@ -1073,7 +1073,7 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics,
         ConsList<TypeSymbol> basesBeingResolved,
         NamespaceOrTypeSymbol qualifier) {
-        var name = node.identifier.text;
+        var name = node.identifier.valueText;
 
         if (string.IsNullOrWhiteSpace(name)) {
             var error = Error.UndefinedSymbol(node.location, name);
@@ -1151,7 +1151,7 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics,
         ConsList<TypeSymbol> basesBeingResolved,
         NamespaceOrTypeSymbol qualifier) {
-        var plainName = node.identifier.text;
+        var plainName = node.identifier.valueText;
         var templateArguments = node.templateArgumentList.arguments;
         var options = LookupOptions.NamespacesOrTypesOnly;
         var isUnboundTypeExpr = node.isUnboundTemplateName;
@@ -3808,7 +3808,7 @@ internal partial class Binder {
     private BoundExpression BindImplicitEnumFieldExpression(
         ImplicitEnumFieldExpressionSyntax node,
         BelteDiagnosticQueue diagnostics) {
-        return new BoundUnconvertedImplicitEnumFieldExpression(node, node.identifier.text);
+        return new BoundUnconvertedImplicitEnumFieldExpression(node, node.identifier.valueText);
     }
 
     private BoundExpression BindStackAllocExpression(
@@ -4131,9 +4131,9 @@ internal partial class Binder {
 
     private string GetNameFromSyntax(NameSyntax name) {
         return name switch {
-            IdentifierNameSyntax identifier => identifier.identifier.text,
-            TemplateNameSyntax template => template.identifier.text,
-            QualifiedNameSyntax qualified => qualified.right.identifier.text,
+            IdentifierNameSyntax identifier => identifier.identifier.valueText,
+            TemplateNameSyntax template => template.identifier.valueText,
+            QualifiedNameSyntax qualified => qualified.right.identifier.valueText,
             _ => throw ExceptionUtilities.UnexpectedValue(name.kind),
         };
     }
@@ -5574,7 +5574,7 @@ internal partial class Binder {
         var templateArguments = hasTemplateArguments ? BindTemplateArguments(templateArgumentList, diagnostics) : null;
 
         var lookupResult = LookupResult.GetInstance();
-        var name = node.identifier.text;
+        var name = node.identifier.valueText;
         LookupIdentifier(lookupResult, node, called);
 
         if (lookupResult.kind != LookupResultKind.Empty) {
@@ -5660,7 +5660,7 @@ internal partial class Binder {
     }
 
     private static bool FallBackOnDiscard(IdentifierNameSyntax node) {
-        if (node.identifier.text != "_")
+        if (node.identifier.valueText != "_")
             return false;
 
         var containingDeconstruction = node.GetContainingDeconstruction();
@@ -5879,7 +5879,7 @@ internal partial class Binder {
     }
 
     private void LookupIdentifier(LookupResult lookupResult, SimpleNameSyntax node, bool called) {
-        LookupIdentifier(lookupResult, node.identifier.text, node.arity, called, node.location);
+        LookupIdentifier(lookupResult, node.identifier.valueText, node.arity, called, node.location);
     }
 
     private void LookupIdentifier(
@@ -6011,7 +6011,7 @@ internal partial class Binder {
         if (leftType is null)
             return BindAsValue(left, diagnostics);
 
-        var leftName = left.identifier.text;
+        var leftName = left.identifier.valueText;
 
         if (leftType.name == leftName || IsUsingAliasInScope(leftName)) {
             var boundType = BindNamespaceOrType(left, BelteDiagnosticQueue.Discarded);
@@ -6175,7 +6175,7 @@ internal partial class Binder {
                 ? BindTemplateArguments(templateArgumentsSyntax, diagnostics)
                 : null;
 
-            var rightName = right.identifier.text;
+            var rightName = right.identifier.valueText;
             var rightArity = right.arity;
             BoundExpression result = null;
 
@@ -8423,7 +8423,7 @@ internal partial class Binder {
     }
 
     internal GlobalExpressionVariable LookupDeclaredField(DeclarationExpressionSyntax declaration) {
-        return LookupDeclaredField(declaration, declaration.identifier.text);
+        return LookupDeclaredField(declaration, declaration.identifier.valueText);
     }
 
     internal GlobalExpressionVariable LookupDeclaredField(SyntaxNode node, string identifier) {
@@ -8504,7 +8504,7 @@ internal partial class Binder {
         var nameSyntax = GetNameSyntax(syntax, out var nameString);
 
         if (nameSyntax is not null)
-            return nameSyntax.GetUnqualifiedName().identifier.text;
+            return nameSyntax.GetUnqualifiedName().identifier.valueText;
 
         return nameString;
     }
@@ -11944,7 +11944,7 @@ internal partial class Binder {
 
             while (node is ExpressionSyntax) {
                 if (node.kind == SyntaxKind.AliasQualifiedName) {
-                    aliasOpt = ((AliasQualifiedNameSyntax)node).alias.identifier.text;
+                    aliasOpt = ((AliasQualifiedNameSyntax)node).alias.identifier.valueText;
                     break;
                 }
 
@@ -13090,10 +13090,11 @@ symIsHidden:;
     }
 
     private BoundStatement BindReverseStatement(ReverseStatementSyntax node, BelteDiagnosticQueue diagnostics) {
-        var token = LookupTokenByName(node.identifier.text);
+        var name = node.identifier.valueText;
+        var token = LookupTokenByName(name);
 
         if (token is null)
-            diagnostics.Push(Error.UndefinedToken(node.identifier.location, node.identifier.text));
+            diagnostics.Push(Error.UndefinedToken(node.identifier.location, name));
 
         return new BoundReverseStatement(node, token);
     }

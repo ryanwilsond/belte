@@ -131,7 +131,7 @@ internal sealed partial class BinderFactory {
             if (!_binderCache.TryGetValue(key, out var resultBinder)) {
                 var outer = VisitCore(parent.parent);
                 var container = ((NamespaceOrTypeSymbol)outer.containingMember)
-                    .GetSourceTypeMember(parent.identifier.text, 0, SyntaxKind.EnumDeclaration, parent);
+                    .GetSourceTypeMember(parent.identifier.valueText, 0, SyntaxKind.EnumDeclaration, parent);
 
                 resultBinder = new InContainerBinder(container, outer);
                 _binderCache.TryAdd(key, resultBinder);
@@ -534,13 +534,13 @@ internal sealed partial class BinderFactory {
                     return SyntaxFacts.GetOperatorMemberName(operatorDeclaration);
                 case SyntaxKind.LiteralOperatorDeclaration:
                     var literalOperatorDeclaration = (LiteralOperatorDeclarationSyntax)syntax;
-                    return WellKnownMemberNames.GetLiteralOperatorName(literalOperatorDeclaration.suffix.text);
+                    return WellKnownMemberNames.GetLiteralOperatorName(literalOperatorDeclaration.suffix.valueText);
                 case SyntaxKind.ConversionDeclaration:
                     var conversionDeclaration = (ConversionDeclarationSyntax)syntax;
                     return SyntaxFacts.GetOperatorMemberName(conversionDeclaration);
                 case SyntaxKind.MethodDeclaration:
                     var methodDeclSyntax = (MethodDeclarationSyntax)syntax;
-                    return methodDeclSyntax.identifier.text;
+                    return methodDeclSyntax.identifier.valueText;
                 default:
                     throw ExceptionUtilities.UnexpectedValue(syntax.kind);
             }

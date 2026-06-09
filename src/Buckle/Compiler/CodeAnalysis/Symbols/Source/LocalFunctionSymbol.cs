@@ -39,7 +39,7 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
         syntax.returnType.SkipRef(out _refKind);
     }
 
-    public override string name => syntax.identifier.text ?? "";
+    public override string name => syntax.identifier.valueText ?? "";
 
     public override RefKind refKind => _refKind;
 
@@ -272,7 +272,7 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
             var parameter = parameters[ordinal];
             var identifier = parameter.identifier;
             var location = identifier.location;
-            var name = identifier.text ?? "";
+            var name = identifier.valueText ?? "";
 
             foreach (var @param in result) {
                 if (name == @param.name) {

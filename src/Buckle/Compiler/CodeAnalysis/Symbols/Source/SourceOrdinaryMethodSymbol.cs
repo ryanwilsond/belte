@@ -105,7 +105,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         NamedTypeSymbol containingType,
         MethodDeclarationSyntax syntax,
         BelteDiagnosticQueue diagnostics) {
-        var name = syntax.identifier.text;
+        var name = syntax.identifier.valueText;
 
         return syntax.templateParameterList is null
             ? new SourceSimpleOrdinaryMethodSymbol(containingType, name, syntax, MethodKind.Ordinary, diagnostics)
@@ -325,7 +325,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         var builder = ArrayBuilder<FieldSymbol>.GetInstance();
 
         foreach (var identifier in syntax.names) {
-            var name = identifier.identifier.text;
+            var name = identifier.identifier.valueText;
 
             if (!members.Any(m => m.name == name)) {
                 diagnostics.Push(Error.NoSuchMember(identifier.location, containingType, name));

@@ -38,7 +38,7 @@ internal static class ParameterHelpers {
                                                 syntax,
                                                 refKind,
                                                 isConst,
-                                                syntax.identifier.text,
+                                                syntax.identifier.valueText,
                                                 ordinal,
                                                 scope
                                             );
@@ -50,7 +50,7 @@ internal static class ParameterHelpers {
         FunctionPointerMethodSymbol owner,
         SeparatedSyntaxList<FunctionPointerParameterSyntax> parametersList,
         BelteDiagnosticQueue diagnostics) {
-        var names = parametersList.Select(p => p.identifier?.text);
+        var names = parametersList.Select(p => p.identifier?.valueText);
 
         return MakeParameters(
             binder,
@@ -70,7 +70,7 @@ internal static class ParameterHelpers {
                                             parameterType,
                                             refKind,
                                             isConst,
-                                            syntax.identifier?.text ?? MakeDefaultName(ordinal, names),
+                                            syntax.identifier?.valueText ?? MakeDefaultName(ordinal, names),
                                             ordinal,
                                             owner
                                         );
@@ -95,7 +95,7 @@ internal static class ParameterHelpers {
         FunctionMethodSymbol owner,
         SeparatedSyntaxList<FunctionPointerParameterSyntax> parametersList,
         BelteDiagnosticQueue diagnostics) {
-        var names = parametersList.Select(p => p.identifier?.text);
+        var names = parametersList.Select(p => p.identifier?.valueText);
 
         return MakeParameters(
             binder,
@@ -115,7 +115,7 @@ internal static class ParameterHelpers {
                                             parameterType,
                                             refKind,
                                             isConst,
-                                            syntax.identifier?.text ?? MakeDefaultName(ordinal, names),
+                                            syntax.identifier?.valueText ?? MakeDefaultName(ordinal, names),
                                             ordinal,
                                             owner
                                         );
@@ -144,7 +144,7 @@ internal static class ParameterHelpers {
         } else if (!defaultExpression.hasAnyErrors && !IsValidDefaultValue(defaultExpression)) {
             diagnostics.Push(Error.DefaultMustBeConstant(
                 parameterSyntax.defaultValue.value.location,
-                parameterSyntax.identifier.text
+                parameterSyntax.identifier.valueText
             ));
 
             hasErrors = true;
@@ -159,7 +159,7 @@ internal static class ParameterHelpers {
         } else if (conversion.isBoxing) {
             diagnostics.Push(Error.NotNullRefDefaultParameter(
                 parameterSyntax.identifier.location,
-                parameterSyntax.identifier.text,
+                parameterSyntax.identifier.valueText,
                 parameterType
             ));
 
@@ -188,7 +188,7 @@ internal static class ParameterHelpers {
         if (owner.IsOperator()) {
             diagnostics.Push(Warning.DefaultValueNoEffect(
                 parameterSyntax.identifier.location,
-                parameterSyntax.identifier.text
+                parameterSyntax.identifier.valueText
             ));
         }
 

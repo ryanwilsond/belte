@@ -65,11 +65,11 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0005_BadCharacter() {
         var text = @"
-            [@];
+            [`];
         ";
 
         var diagnostics = @"
-            unexpected character '@'
+            unexpected character '`'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -2512,6 +2512,22 @@ public sealed class DiagnosticTests {
             void F() {
                 int? a = 3;
                 int? [a] = 6;
+            }
+        ";
+
+        var diagnostics = @"
+            a local or local function with the name 'a' has already been declared in this scope
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0177_LocalAlreadyDeclared2() {
+        var text = @"
+            void F() {
+                int? a = 3;
+                int? [@a] = 6;
             }
         ";
 

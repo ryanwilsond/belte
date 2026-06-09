@@ -189,6 +189,13 @@ internal abstract partial class GreenNode {
     }
 
     /// <summary>
+    /// Gets the stored value as a string, if applicable.
+    /// </summary>
+    internal virtual string GetValueText() {
+        return "";
+    }
+
+    /// <summary>
     /// Returns a copy of this node with leading trivia.
     /// </summary>
     internal virtual GreenNode WithLeadingTrivia(GreenNode trivia) {

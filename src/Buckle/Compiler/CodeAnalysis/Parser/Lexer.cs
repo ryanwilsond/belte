@@ -621,6 +621,9 @@ internal sealed partial class Lexer : IDisposable {
             case '9':
                 ReadNumericLiteral();
                 break;
+            case '@':
+                ReadVerbatimIdentifier();
+                break;
             case '_':
                 ReadIdentifierOrKeyword();
                 break;
@@ -1341,5 +1344,19 @@ internal sealed partial class Lexer : IDisposable {
         var length = _position - _start;
         var identifierOrKeywordText = text.ToString(new TextSpan(_start, length));
         _kind = SyntaxFacts.GetKeywordType(identifierOrKeywordText);
+
+        if (_kind == SyntaxKind.IdentifierToken)
+            _value = identifierOrKeywordText;
+    }
+
+    private void ReadVerbatimIdentifier() {
+        _position++;
+
+        while (!char.IsWhiteSpace(_current) && _current != '\0')
+            _position++;
+
+        var length = _position - _start - 1;
+        _value = text.ToString(new TextSpan(_start + 1, length));
+        _kind = SyntaxKind.IdentifierToken;
     }
 }

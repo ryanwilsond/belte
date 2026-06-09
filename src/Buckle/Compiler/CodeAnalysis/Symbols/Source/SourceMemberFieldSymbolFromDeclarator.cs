@@ -17,7 +17,7 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
         DeclarationModifiers modifiers,
         bool modifierErrors,
         BelteDiagnosticQueue diagnostics)
-        : base(containingType, modifiers, declaration.identifier.text, new SyntaxReference(declaration)) {
+        : base(containingType, modifiers, declaration.identifier.valueText, new SyntaxReference(declaration)) {
         hasInitializer = declaration.initializer is not null;
 
         CheckAccessibility(diagnostics);

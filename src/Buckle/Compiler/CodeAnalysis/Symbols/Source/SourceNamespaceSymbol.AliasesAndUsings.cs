@@ -199,7 +199,7 @@ internal partial class SourceNamespaceSymbol {
                         if (usingDirective.staticKeyword is not null)
                             diagnostics.Push(Error.NoAliasHere(location));
 
-                        var identifierValueText = identifier.text;
+                        var identifierValueText = identifier.valueText;
                         var skipInLookup = false;
 
                         if (usingAliasesMap?.ContainsKey(identifierValueText) ??

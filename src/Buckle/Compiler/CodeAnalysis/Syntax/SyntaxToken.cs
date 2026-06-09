@@ -73,13 +73,16 @@ public sealed class SyntaxToken {
     /// <summary>
     /// The value of the token, if any value exists.
     /// </summary>
-    /// <returns></returns>
     public object value => node.GetValue();
+
+    /// <summary>
+    /// The string value of the token, if any string value exists.
+    /// </summary>
+    public string valueText => node.GetValueText();
 
     /// <summary>
     /// The text of the token, if any text exists.
     /// </summary>
-    /// <returns></returns>
     public string text => ToString();
 
     /// <summary>

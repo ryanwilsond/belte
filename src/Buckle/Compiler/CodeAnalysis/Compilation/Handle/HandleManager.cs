@@ -88,7 +88,7 @@ internal sealed class HandleManager {
             }
         }
 
-        var targetName = syntax.identifier.text;
+        var targetName = syntax.identifier.valueText;
         var candidates = _compilation.globalNamespaceInternal.GetTypeMembers(targetName);
 
         if (candidates.Length == 0) {

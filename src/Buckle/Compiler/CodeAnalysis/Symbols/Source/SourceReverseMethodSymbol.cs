@@ -106,7 +106,7 @@ internal sealed class SourceReverseMethodSymbol : SourceMemberMethodSymbol {
                     _syntax,
                     _syntax.identifier.location,
                     targetRefKind,
-                    _syntax.identifier.text
+                    _syntax.identifier.valueText
                 );
 
                 _lazyParameters = [parameter];
@@ -130,7 +130,7 @@ internal sealed class SourceReverseMethodSymbol : SourceMemberMethodSymbol {
                     _syntax,
                     _syntax.identifier.location,
                     refKind,
-                    _syntax.identifier.text
+                    _syntax.identifier.valueText
                 );
 
                 _lazyParameters = [parameter];

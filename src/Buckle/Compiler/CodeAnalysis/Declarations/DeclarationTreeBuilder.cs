@@ -250,7 +250,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
 
         while (name is QualifiedNameSyntax dotted) {
             var ns = SingleNamespaceDeclaration.Create(
-                name: dotted.right.identifier.text,
+                name: dotted.right.identifier.valueText,
                 hasUsings: hasUsings,
                 hasExternAliases: false,
                 syntaxReference: new SyntaxReference(currentNode),
@@ -292,7 +292,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
             diagnostics.Push(Error.InvalidAttributes(node.attributeLists[0].location));
 
         if ((node.modifiers?.Count ?? 0) > 0)
-            diagnostics.Push(Error.InvalidModifier(node.modifiers[0].location, node.modifiers[0].text));
+            diagnostics.Push(Error.InvalidModifier(node.modifiers[0].location, node.modifiers[0].valueText));
 
         foreach (var element in node.elements) {
             if (element is UsingDirectiveSyntax directive &&
@@ -303,7 +303,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         }
 
         return SingleNamespaceDeclaration.Create(
-            name: name.GetUnqualifiedName().identifier.text,
+            name: name.GetUnqualifiedName().identifier.valueText,
             hasUsings: hasUsings,
             hasExternAliases: false,
             syntaxReference: new SyntaxReference(currentNode),
@@ -350,7 +350,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
 
         return new SingleTypeDeclaration(
             kind: DeclarationKind.Enum,
-            name: node.identifier.text,
+            name: node.identifier.valueText,
             arity: 0,
             modifiers: modifiers,
             declFlags: declFlags,
@@ -439,7 +439,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
 
         return new SingleTypeDeclaration(
             kind: kind,
-            name: node.identifier?.text,
+            name: node.identifier?.valueText,
             arity: node.arity,
             modifiers: modifiers,
             declFlags: declFlags,
