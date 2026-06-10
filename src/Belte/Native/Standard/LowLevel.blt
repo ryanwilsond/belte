@@ -4,11 +4,11 @@ public static class LowLevel {
 
     public static string! GetTypeName(Object! object);
 
-    public static int! Length<type T>(T! array);
+    public static int! Length<type TElem>(Buffer<TElem>! array);
 
-    public static void Sort<type T>(T! array);
+    public static void Sort<type TElem>(Buffer<TElem>! array);
 
-    public static void Fill<type TElem>(TElem[]! array, TElem value);
+    public static void Fill<type TElem>(Buffer<TElem>! array, TElem value);
 
     public static int32 SizeOf<type T>();
 

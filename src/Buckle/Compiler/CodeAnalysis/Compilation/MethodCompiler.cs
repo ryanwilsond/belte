@@ -766,10 +766,13 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
 
         if (method == entryPoint && method is SynthesizedEntryPoint synth && body.localFunctions.Length > 0) {
             var candidateLocals = ArrayBuilder<MethodSymbol>.GetInstance();
+            var potentiallyMistakenLocals = ArrayBuilder<MethodSymbol>.GetInstance();
 
             foreach (var local in body.localFunctions) {
                 if (Compilation.HasEntryPointSignature(local))
                     candidateLocals.Add(local);
+                else if (local.name == WellKnownMemberNames.EntryPointMethodName)
+                    potentiallyMistakenLocals.Add(local);
             }
 
             if (candidateLocals.Count > 0) {
@@ -787,6 +790,9 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
 
                 if (newEntryPoint is not null && !bodyHasLogic)
                     entryPoint = newEntryPoint;
+            } else if (potentiallyMistakenLocals.Count > 0) {
+                foreach (var potentiallyMistake in potentiallyMistakenLocals)
+                    diagnostics.Push(Warning.LocalFunctionUsingEntryPointName(potentiallyMistake.location));
             }
         }
 

@@ -2662,7 +2662,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0184_InvalidObjectCreation() {
         var text = @"
-            using A = int\[\];
+            using A = Buffer<int>;
             var a = new [A]();
         ";
 
@@ -6273,7 +6273,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            long tuple (10 elements); consider using a named struct instead
+            long tuple (10 elements); consider using a named struct
         ";
 
         AssertDiagnostics(text, diagnostics, _writer, true);
@@ -6742,5 +6742,105 @@ public sealed class DiagnosticTests {
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0503_UnnecessaryLowLevelDefaultLiteral() {
+        var text = @"
+            lowlevel {
+                int a = [lowlevel default];
+            }
+        ";
+
+        var diagnostics = @"
+            lowlevel default literal is unnecessary because the type 'int!' has a default value; consider using a regular default literal
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0504_UnnecessaryLowLevelDefaultExpression() {
+        var text = @"
+            lowlevel {
+                var a = [lowlevel default(int)];
+            }
+        ";
+
+        var diagnostics = @"
+            lowlevel default expression is unnecessary because the type 'int!' has a default value; consider using a regular default expression
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0505_InvalidBufferCreation() {
+        var text = @"
+            var a = [new Buffer<int>()];
+        ";
+
+        var diagnostics = @"
+            buffer creation must have exactly 1 or 2 arguments
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0506_InvalidRefKindInBufferCreation() {
+        var text = @"
+            void Func() {
+                int a = 3;
+                var b = new Buffer<int>([ref a]);
+            }
+        ";
+
+        var diagnostics = @"
+            arguments in buffer creation cannot be by-reference
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0507_OmittedArgumentInBufferCreation() {
+        var text = @"
+            var a = new Buffer<int>([], 4);
+        ";
+
+        var diagnostics = @"
+            arguments in buffer creation cannot be omitted
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0508_InvalidBufferCreationArgument() {
+        var text = @"
+            var a = new Buffer<int>(10, [10]);
+        ";
+
+        var diagnostics = @"
+            second argument in buffer creation must be an initializer list
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0509_LocalFunctionUsingEntryPointName() {
+        var text = @"
+            void [Main](int args) {
+
+            }
+        ";
+
+        var diagnostics = @"
+            local function uses the entry point name but is not treated as the entry point because it does not have the correct signature
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
     }
 }

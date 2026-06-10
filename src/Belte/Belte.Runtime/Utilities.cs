@@ -55,18 +55,12 @@ public static class Utilities {
         return value;
     }
 
-    public static void Sort<T>(T array) {
-        if (array is null)
-            return;
-
-        Array.Sort((Array)(object)array);
+    public static void Sort<T>(T[] array) {
+        Array.Sort(array);
     }
 
-    public static long Length<T>(T array) {
-        if (array is null)
-            return 0;
-
-        return ((Array)(object)array).LongLength;
+    public static long Length<T>(T[] array) {
+        return array.LongLength;
     }
 
     public static long StringLength(string str) {

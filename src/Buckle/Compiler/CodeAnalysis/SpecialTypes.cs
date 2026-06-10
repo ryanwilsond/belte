@@ -27,6 +27,7 @@ internal static class SpecialTypes {
         { "global::string", SpecialType.String },
         { "global::type", SpecialType.Type },
         { "global::any", SpecialType.Any },
+        { "global::Buffer`1", SpecialType.Buffer },
     };
 
     internal static SpecialType GetTypeFromMetadataName(string metadataName) {

@@ -101,8 +101,9 @@ public sealed class LexerTests {
 
     [Theory]
     [MemberData(nameof(GetTokenPairsData))]
+    [Trait("Category", "Slow")]
     internal void Lexer_Lexes_TokenPairs(SyntaxKind t1Kind, string t1Text,
-                                        SyntaxKind t2Kind, string t2Text) {
+                                         SyntaxKind t2Kind, string t2Text) {
         var text = t1Text + t2Text;
         var tokens = SyntaxTreeExtensions.ParseTokens(text);
 
@@ -115,6 +116,7 @@ public sealed class LexerTests {
 
     [Theory]
     [MemberData(nameof(GetTokenPairsWithSeparatorData))]
+    [Trait("Category", "Slow")]
     internal void Lexer_Lexes_TokenPairs_WithSeparators(SyntaxKind t1Kind, string t1Text,
                                                         SyntaxKind separatorKind, string separatorText,
                                                         SyntaxKind t2Kind, string t2Text) {

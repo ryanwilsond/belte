@@ -8,7 +8,7 @@ public abstract class Enumerator<type T> {
         throw new InvalidOperationException();
     }
 
-    public T[] ToArray() {
+    public Buffer<T> ToArray() {
         return ToList().ToArray();
     }
 

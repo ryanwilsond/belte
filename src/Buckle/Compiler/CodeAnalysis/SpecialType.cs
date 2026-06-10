@@ -35,6 +35,7 @@ public enum SpecialType : byte {
     Void,
     ValueType,
     TypedReference,
+    Buffer,
 
     // Superficial special types
     Pointer,

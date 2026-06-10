@@ -897,7 +897,7 @@ public sealed partial class Compilation {
     }
 
     internal static bool HasEntryPointSignature(MethodSymbol method) {
-        if (!method.name.Equals("main", StringComparison.CurrentCultureIgnoreCase))
+        if (!method.name.Equals(WellKnownMemberNames.EntryPointMethodName))
             return false;
 
         var returnType = method.returnType;
@@ -923,8 +923,15 @@ public sealed partial class Compilation {
 
         var firstType = method.parameters[0].type;
 
-        if (firstType.specialType != SpecialType.Array)
-            return false;
+        if (firstType.specialType != SpecialType.Array) {
+            if (!firstType.originalDefinition.Equals(CorLibrary.GetWellKnownType(WellKnownType.Array)))
+                return false;
+
+            if (((NamedTypeSymbol)firstType).templateArguments[0].type.type.specialType != SpecialType.String)
+                return false;
+
+            return true;
+        }
 
         var elementType = ((ArrayTypeSymbol)firstType).elementType;
 

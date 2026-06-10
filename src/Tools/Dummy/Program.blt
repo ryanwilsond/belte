@@ -8,8 +8,8 @@ using System.Text;
 using System.IO;
 
 public static class Program {
-    public static void Main(string[]! args) {
-        var length = LowLevel.Length<string[]>(args);
+    public static void Main(string[] args) {
+        var length = args.Length();
 
         if (length != 8) {
             Console.PrintLine(f"Need 8 arguments (got {length}): [FileCount] [TypesPerFile] [MethodsPerType] [FanOut] [DependencyMode] [Rounds] [Depth] [OutDir]");

@@ -1428,15 +1428,17 @@ internal abstract partial class BoundTreeExpander {
         if (!expression.field.isStatic) {
             // Structs are special case because they have limited expansion ability (they are non-nullable)
             // And because they are passed by value so in something like `a.b.c = x`, we can't hoist anything
-            var isTrueStructReceiver = expression.receiver.Type().IsStructType() &&
-                !(expression.receiver is BoundCallExpression c &&
-                    c.receiver is not null &&
-                    c.receiver.StrippedType().IsStructType());
+            var isUnstableStructReceiver = expression.receiver.Type().IsStructType() &&
+                // !(expression.receiver is BoundCallExpression c &&
+                //     c.receiver is not null &&
+                //     c.receiver.StrippedType().IsStructType());
+                // TODO What nodes actually count here
+                expression.receiver.kind is BoundKind.FieldAccessExpression;
 
             var statements = ExpandExpression(
                 expression.receiver,
                 out var newReceiver,
-                isTrueStructReceiver ? UseKind.Writable : UseKind.StableValue
+                isUnstableStructReceiver ? UseKind.Writable : UseKind.StableValue
             );
 
             if (statements.Count != 0 || expression.receiver != newReceiver) {

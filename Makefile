@@ -49,9 +49,11 @@ setup: prebuild generate libs
 # Tests the solution
 test:
 	@echo Started testing the Belte solution ...
-	@dotnet build $(CL_DIR).Tests/CommandLine.Tests.csproj
-	@dotnet build $(COMPILER_DIR).Tests/Compiler.Tests.csproj
-	@dotnet build $(DIAGNOSTICS_DIR).Tests/Diagnostics.Tests.csproj
+	@dotnet test $(SLN) --filter "Category!=Slow"
+	@echo "    Finished"
+
+testall:
+	@echo Started testing the Belte solution ...
 	@dotnet test $(SLN)
 	@echo "    Finished"
 

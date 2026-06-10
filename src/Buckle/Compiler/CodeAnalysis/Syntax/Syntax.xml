@@ -1528,6 +1528,18 @@
     <Field Name="lowlevelKeyword" Type="SyntaxToken" Optional="true"/>
     <Field Name="defaultKeyword" Type="SyntaxToken"/>
   </Node>
+  <Node Name="DefaultExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="DefaultExpression"/>
+    <Field Name="lowlevelKeyword" Type="SyntaxToken" Optional="true"/>
+    <Field Name="defaultKeyword" Type="SyntaxToken"/>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="type" Type="TypeSyntax"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+  </Node>
   <Node Name="ExtendedLiteralExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="ExtendedLiteralExpression"/>
     <Field Name="token" Type="SyntaxToken" Optional="true"/>

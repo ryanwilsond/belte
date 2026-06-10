@@ -21,6 +21,8 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Evaluating;
 
 internal sealed partial class Executor : ModuleBuilder {
+    private const string MainWrapperName = "<ExecutorMain>";
+
     public static readonly Random Random = new Random();
     public static GraphicsHandler GraphicsHandler;
     public static object Program;
@@ -74,6 +76,7 @@ internal sealed partial class Executor : ModuleBuilder {
     private readonly System.Reflection.Emit.ModuleBuilder _moduleBuilder;
     private readonly bool _graphicsEnabled;
     private readonly string[] _arguments;
+    private readonly MethodSymbol _entryPoint;
     private readonly BelteDiagnosticQueue _diagnostics;
 
     private NamedTypeSymbol _programNamedType;
@@ -82,6 +85,8 @@ internal sealed partial class Executor : ModuleBuilder {
     private bool _graphicsInitialized;
     private StringWriter _logger;
     private volatile bool _reportedGraphicsCall;
+
+    private MethodInfo _mainWrapper;
 
     internal FieldInfo randomField;
     internal FieldInfo graphicsHandlerField;
@@ -106,13 +111,15 @@ internal sealed partial class Executor : ModuleBuilder {
 
         _linearNestedTypes = linearBuilder.ToImmutable();
         _methodBodies = program.GetAllMethodBodies().ToImmutableDictionary(pair => pair.Item1, pair => pair.Item2);
+
+        _entryPoint = _program.entryPoint;
     }
 
     internal object Execute(bool verbose, bool logTime, string verbosePath, bool noArtifacts) {
         var timer = logTime ? Stopwatch.StartNew() : null;
         _logger = (verbose && !noArtifacts) ? new StringWriter() : null;
 
-        var entryPoint = _program.entryPoint;
+        var entryPoint = _entryPoint;
 
         if (entryPoint is null)
             return null;
@@ -139,12 +146,7 @@ internal sealed partial class Executor : ModuleBuilder {
         if (_graphicsEnabled && _graphicsInitialized)
             GraphicsHandler = new GraphicsHandler(null, false, false);
 
-        var mainMethod = _programType.GetMethod(
-            entryPoint.name,
-            _programNamedType.isStatic
-                ? BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static
-                : BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance
-        );
+        var mainMethod = GetEntryPoint();
 
         if (_graphicsEnabled && _graphicsInitialized && _program.updatePoint is not null) {
             var updateMethod = _programType.GetMethod(
@@ -227,6 +229,53 @@ internal sealed partial class Executor : ModuleBuilder {
         }
 
         return result;
+    }
+
+    private MethodInfo GetEntryPointCore(string name) {
+        return _programType.GetMethod(
+            name,
+            _programNamedType.isStatic
+                ? BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static
+                : BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance
+        );
+    }
+
+    private MethodInfo GetEntryPoint() {
+        return _mainWrapper is null ? GetEntryPointCore(_entryPoint.name) : GetEntryPointCore(MainWrapperName);
+    }
+
+    private void CreateMainWrapperIfApplicable(TypeBuilder typeBuilder) {
+        if (_entryPoint.parameterCount != 1 || _entryPoint.GetParameterType(0).specialType == SpecialType.Array)
+            return;
+
+        Debug.Assert(_mainWrapper is null);
+
+        var main = GetMethod(_entryPoint);
+
+        var isStatic = _entryPoint.isStatic;
+
+        var wrapper = typeBuilder.DefineMethod(MainWrapperName, main.Attributes, main.ReturnType, [typeof(string[])]);
+
+        var il = wrapper.GetILGenerator();
+
+        var arrayTypeSymbol = (NamedTypeSymbol)_entryPoint.GetParameterType(0);
+
+        var ctorSymbol = CorLibrary.GetWellKnownMethod(WellKnownMember.Array_ctor_2).AsMember(arrayTypeSymbol);
+        var ctor = GetConstructor(ctorSymbol);
+
+        il.Emit(OpCodes.Ldarg_0);
+
+        if (!isStatic)
+            il.Emit(OpCodes.Ldarg_1);
+
+        il.Emit(OpCodes.Ldlen);
+        il.Emit(OpCodes.Conv_I8);
+        il.Emit(isStatic ? OpCodes.Ldarg_0 : OpCodes.Ldarg_1);
+        il.Emit(OpCodes.Newobj, ctor);
+        il.Emit(OpCodes.Call, main);
+        il.Emit(OpCodes.Ret);
+
+        _mainWrapper = wrapper;
     }
 
     internal static Executor CreateForHandler(
@@ -748,7 +797,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
     internal MethodInfo GetFill(TypeSymbol elementType) {
         var generic = GetType(elementType);
-        var sort = typeof(Array).GetMethods().Where(m => m.Name == "Fill" && m.GetParameters().Length == 2).Single();
+        var sort = typeof(Array).GetMethods().Single(m => m.Name == "Fill" && m.GetParameters().Length == 2);
         var closedMethod = sort.MakeGenericMethod(generic);
         return closedMethod;
     }
@@ -903,6 +952,7 @@ internal sealed partial class Executor : ModuleBuilder {
         foreach (var (type, tb) in _types) {
             if (!type.IsStructType()) {
                 if (type.Equals(_programNamedType.originalDefinition)) {
+                    CreateMainWrapperIfApplicable(tb);
                     _programType = tb.CreateType();
                     continue;
                 }

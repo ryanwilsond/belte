@@ -511,6 +511,13 @@ public enum DiagnosticCode : ushort {
     ERR_DeconstructRequiresExpression = 500,
     ERR_AmbiguousDeconstruct = 501,
     ERR_ExpectedVerbatimLiteral = 502,
+    WRN_UnnecessaryLowLevelDefaultLiteral = 503,
+    WRN_UnnecessaryLowLevelDefaultExpression = 504,
+    ERR_InvalidBufferCreation = 505,
+    ERR_InvalidRefKindInBufferCreation = 506,
+    ERR_OmittedArgumentInBufferCreation = 507,
+    ERR_InvalidBufferCreationArgument = 508,
+    WRN_LocalFunctionUsingEntryPointName = 509,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

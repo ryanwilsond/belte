@@ -193,8 +193,25 @@ internal static class Warning {
     }
 
     internal static BelteDiagnostic LongTuple(TextLocation location, int size) {
-        var message = $"long tuple ({size} elements); consider using a named struct instead";
+        var message = $"long tuple ({size} elements); consider using a named struct";
         return CreateWarning(DiagnosticCode.WRN_LongTuple, location, message);
+    }
+
+    internal static BelteDiagnostic UnnecessaryLowLevelDefaultLiteral(TextLocation location, TypeSymbol type) {
+        var message = $"lowlevel default literal is unnecessary because the type '{type}' has a default value; consider using a regular default literal";
+        var suggestion = "default";
+        return CreateWarning(DiagnosticCode.WRN_UnnecessaryLowLevelDefaultLiteral, location, message, suggestion);
+    }
+
+    internal static BelteDiagnostic UnnecessaryLowLevelDefaultExpression(TextLocation location, TypeSymbol type) {
+        var message = $"lowlevel default expression is unnecessary because the type '{type}' has a default value; consider using a regular default expression";
+        var suggestion = $"default({type})";
+        return CreateWarning(DiagnosticCode.WRN_UnnecessaryLowLevelDefaultExpression, location, message, suggestion);
+    }
+
+    internal static BelteDiagnostic LocalFunctionUsingEntryPointName(TextLocation location) {
+        var message = $"local function uses the entry point name but is not treated as the entry point because it does not have the correct signature";
+        return CreateWarning(DiagnosticCode.WRN_LocalFunctionUsingEntryPointName, location, message);
     }
 
     private static BelteDiagnostic CreateWarning(DiagnosticCode code, TextLocation location, string message) {

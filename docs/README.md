@@ -162,7 +162,7 @@
     - [6.1](Current/LowLevelFeatures.md#61-low-level-contexts) Low-Level Contexts
     - [6.2](Current/LowLevelFeatures.md#62-structs) Structs
       - [6.2.1](Current/LowLevelFeatures.md#621-packing) Packing
-    - [6.3](Current/LowLevelFeatures.md#63-arrays) Arrays
+    - [6.3](Current/LowLevelFeatures.md#63-arrays-and-buffers) Arrays and Buffers
     - [6.4](Current/LowLevelFeatures.md#64-numerics) Numerics
       - [6.4.1](Current/LowLevelFeatures.md#641-bit-casts) Bit Casts
     - [6.5](Current/LowLevelFeatures.md#65-pointers) Pointers
@@ -184,8 +184,8 @@
       - [6.13.1](Current/LowLevelFeatures.md#6131-messages) Messages
       - [6.13.2](Current/LowLevelFeatures.md#6132-ordering) Ordering
     - [6.14](Current/LowLevelFeatures.md#614-c-strings) C-Strings
-    - [6.15](Current/LowLevelFeatures.md#615-fields) Fields
-    - [6.16](Current/LowLevelFeatures.md#616-default-literal) Default Literal
+    - [6.15](Current/LowLevelFeatures.md#615-lowlevel-fields) Fields
+    - [6.16](Current/LowLevelFeatures.md#616-lowlevel-default-literal) Default Literal
   - [7](Current/Preprocessor.md) Preprocessor Directives
     - [7.1](Current/Preprocessor.md#71-defineundef) Define/Undef
     - [7.2](Current/Preprocessor.md#72-control) Control

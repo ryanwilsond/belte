@@ -882,10 +882,12 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             if (!(entryPoint.returnsVoid || entryPoint.returnType.specialType == SpecialType.Int32)) {
                 _diagnostics.Push(Error.IncompatibleEntryPointReturn(entryPoint.location, entryPoint));
             } else {
+                var entry = CreateEntryWrapperIfApplicable(entryPoint);
+
                 if (entryPoint.isStatic)
-                    _assemblyDefinition.EntryPoint = _methods[entryPoint];
+                    _assemblyDefinition.EntryPoint = entry;
                 else
-                    CreateStaticEntryPoint(entryPoint);
+                    CreateStaticEntryPoint(entry, entryPoint.containingType.instanceConstructors[0]);
             }
         }
 
@@ -1036,9 +1038,53 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,,,>).GetField("Rest"))));
     }
 
-    private void CreateStaticEntryPoint(MethodSymbol entryPoint) {
-        var hasArgs = entryPoint.parameterCount > 0;
-        var instanceEntry = _methods[entryPoint];
+    private MethodDefinition CreateEntryWrapperIfApplicable(MethodSymbol entrySymbol) {
+        var entryDef = _methods[entrySymbol];
+
+        if (entrySymbol.parameterCount != 1 || entrySymbol.GetParameterType(0).specialType == SpecialType.Array)
+            return entryDef;
+
+        var isStatic = entrySymbol.isStatic;
+
+        var programType = _types[entrySymbol.containingType];
+
+        var wrapper = new MethodDefinition("Main", entryDef.Attributes, entryDef.ReturnType);
+
+        wrapper.Parameters.Add(new Mono.Cecil.ParameterDefinition(
+            "args",
+            ParameterAttributes.None,
+            _assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(string[]))
+        ));
+
+        programType.Methods.Add(wrapper);
+
+        var wrapperBuilder = new CecilILBuilder(null, this, wrapper);
+        var il = wrapperBuilder.iLProcessor;
+
+        var arrayTypeSymbol = (NamedTypeSymbol)entrySymbol.GetParameterType(0);
+
+        var ctorSymbol = CorLibrary.GetWellKnownMethod(WellKnownMember.Array_ctor_2).AsMember(arrayTypeSymbol);
+        var ctor = GetMethod(ctorSymbol);
+
+        il.Emit(OpCodes.Ldarg_0);
+
+        if (!isStatic)
+            il.Emit(OpCodes.Ldarg_1);
+
+        il.Emit(OpCodes.Ldlen);
+        il.Emit(OpCodes.Conv_I8);
+        il.Emit(isStatic ? OpCodes.Ldarg_0 : OpCodes.Ldarg_1);
+        il.Emit(OpCodes.Newobj, ctor);
+        il.Emit(OpCodes.Call, entryDef);
+        il.Emit(OpCodes.Ret);
+
+        wrapperBuilder.Finish();
+
+        return wrapper;
+    }
+
+    private void CreateStaticEntryPoint(MethodDefinition instanceEntry, MethodSymbol programCtor) {
+        var hasArgs = instanceEntry.Parameters.Count > 0;
 
         var staticClass = new TypeDefinition(
             "",
@@ -1050,14 +1096,14 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         var staticEntry = new MethodDefinition(
             "Main",
             MethodAttributes.Static | MethodAttributes.Public,
-            GetType(entryPoint.returnType)
+            instanceEntry.ReturnType
         );
 
         if (hasArgs) {
             staticEntry.Parameters.Add(new Mono.Cecil.ParameterDefinition(
                 "args",
                 ParameterAttributes.None,
-                GetType(entryPoint.parameters[0].type)
+                instanceEntry.Parameters[0].ParameterType
             ));
         }
 
@@ -1066,7 +1112,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         var staticBuilder = new CecilILBuilder(null, this, staticEntry);
         var il = staticBuilder.iLProcessor;
 
-        il.Emit(OpCodes.Newobj, GetMethod(entryPoint.containingType.instanceConstructors[0]));
+        il.Emit(OpCodes.Newobj, GetMethod(programCtor));
 
         if (hasArgs)
             il.Emit(OpCodes.Ldarg_0);
@@ -2030,8 +2076,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         NetMethodReference.NullReferenceException_ctor = ResolveMethod("System.NullReferenceException", ".ctor", []);
         NetMethodReference.NullConditionException_ctor = ResolveMethod("Belte.Runtime.NullConditionException", ".ctor", []);
         NetMethodReference.UnreachableException_ctor = ResolveMethod("System.Diagnostics.UnreachableException", ".ctor", []);
-        NetMethodReference.LowLevel_Sort = ResolveMethod("Belte.Runtime.Utilities", "Sort", ["T"]);
-        NetMethodReference.LowLevel_Length = ResolveMethod("Belte.Runtime.Utilities", "Length", ["T"]);
+        NetMethodReference.LowLevel_Sort = ResolveMethod("Belte.Runtime.Utilities", "Sort", ["T[]"]);
+        NetMethodReference.LowLevel_Length = ResolveMethod("Belte.Runtime.Utilities", "Length", ["T[]"]);
         NetMethodReference.AssertNull = ResolveMethod("Belte.Runtime.Utilities", "AssertNull", ["T"]);
         NetMethodReference.Marshal_SizeOf = ResolveMethod("System.Runtime.InteropServices.Marshal", "SizeOf", []);
         NetMethodReference.Unsafe_BitCast = ResolveMethod("System.Runtime.CompilerServices.Unsafe", "BitCast", ["TFrom"]);

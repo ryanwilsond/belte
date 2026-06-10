@@ -3,14 +3,14 @@
 ~~These features are only enabled in low-level contexts.~~
 
 Currently, most of these features are enabled everywhere for conciseness.
-[Lowlevel fields](#615-fields) and
-[lowlevel default literals](#616-default-literal) still require being inside of
+[Lowlevel fields](#615-lowlevel-fields) and
+[lowlevel default literals](#616-lowlevel-default-literal) still require being inside of
 a lowlevel context.
 
 - [6.1](#61-low-level-contexts) Low-Level Contexts
 - [6.2](#62-structs) Structs
   - [6.2.1](#621-packing) Packing
-- [6.3](#63-arrays) Arrays
+- [6.3](#63-arrays-and-buffers) Arrays and Buffers
 - [6.4](#64-numerics) Numerics
   - [6.4.1](#641-bit-casts) Bit Casts
 - [6.5](#65-pointers) Pointers
@@ -32,8 +32,8 @@ a lowlevel context.
   - [6.13.1](#6131-messages) Messages
   - [6.13.2](#6132-ordering) Ordering
 - [6.14](#614-c-strings) C-Strings
-- [6.15](#615-fields) Fields
-- [6.16](#616-default-literal) Default Literal
+- [6.15](#615-lowlevel-fields) Fields
+- [6.16](#616-lowlevel-default-literal) Default Literal
 
 Additionally, the
 [Standard Library contains a class named LowLevel that provides various helper methods](StandardLibrary/LowLevel.md).
@@ -113,15 +113,19 @@ In the above example, the struct's natural alignment is 4 bytes, and because
 that is less that the specified packing size, the struct's actual alignment
 will stay at 4 bytes.
 
-## 6.3 Arrays
+## 6.3 Arrays and Buffers
 
 > [Main array docs](Data.md#36-arrays)
 
-Initializer lists may create a [List](StandardLibrary/List.md) outside of
-[lowlevel contexts](#61-low-level-contexts) in the future.
+The ordinary array syntax `int[]` is shorthand for `Array<int>` which tracks initialization state for each element to
+prevent reading before writing to an element. To use a raw CLR array instead, a `Buffer<T>` can be used:
 
-If an array is created for a type that does not have a default value, an `Array<T>` is created that tracks
-initializations. In lowlevel contexts, this is bypassed and an unsafe array can be created.
+```belte
+var a = new Buffer<int>(10);
+var b = a[0]; // Okay
+```
+
+Each element will be zero-initialized even if the type has no default value.
 
 ## 6.4 Numerics
 
@@ -683,7 +687,7 @@ char* a = wf"num is {myNum}";
 uint8* b = cf"num is {myNum}";
 ```
 
-## 6.15 Fields
+## 6.15 LowLevel Fields
 
 A field marked `lowlevel` has no [definite assignment](ClassesAndObjects.md#4211-definite-assignment) restrictions
 meaning types without a default value can exist as fields without an initializer or constructor assignment:
@@ -699,7 +703,7 @@ The `lowlevel` field modifier can only be used in lowlevel contexts.
 This should only be used in cases where [`initialize` annotations](ClassesAndObjects.md#4211-definite-assignment) are
 not sufficient.
 
-## 6.16 Default Literal
+## 6.16 LowLevel Default Literal
 
 A `lowlevel default` literal assigns a default value to types that normally don't accept a default value:
 
@@ -708,6 +712,16 @@ class A { }
 
 lowlevel {
   A! a = lowlevel default;
+}
+```
+
+Like normal default literals, they can also be explicitly typed:
+
+```belte
+class A { }
+
+lowlevel {
+  var! a = lowlevel default(A);
 }
 ```
 

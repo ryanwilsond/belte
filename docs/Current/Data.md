@@ -206,13 +206,19 @@ functionality, use function pointers instead.
 
 ### 3.1.4 Default Literal
 
-The `default` literal can be used to indicate `null` for nullable types or the default value for primitives.
+The `default` literal can be used to indicate `null` for nullable types or the default value for others.
 
 For example:
 
 ```belte
 int a = default; // a = 0
 int? a = default; // a = null
+```
+
+The default literal can be explicitly typed when the type cannot be inferred from usage:
+
+```belte
+var a = default(int);
 ```
 
 Types with no default value (non-nullable class types) cannot use the `default` literal.
@@ -780,6 +786,13 @@ F({1, 2, 3});
 F(new int[] {1, 2, 3});
 
 void F(int[] arr) { /* ... */}
+```
+
+Arrays prevent reading elements before they a written by throwing at runtime:
+
+```belte
+var a = new int[10];
+var b = a[0]; // Exception
 ```
 
 ## 3.7 Compile-Time Expressions

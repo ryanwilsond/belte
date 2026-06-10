@@ -2839,7 +2839,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseBooleanLiteral();
             case SyntaxKind.LowlevelKeyword:
             case SyntaxKind.DefaultKeyword:
-                return ParseDefaultLiteral();
+                return ParseDefaultLiteralOrExpression();
             case SyntaxKind.NumericLiteralToken:
                 return ParseNumericLiteral();
             case SyntaxKind.ExtendedLiteralToken:
@@ -3147,20 +3147,46 @@ done:
         lastTokenOfType = EatToken();
 
         if (currentToken.kind == SyntaxKind.LessThanToken)
-            return ScanPossibleTemplateParameterList(out lastTokenOfType, out _);
+            return ScanPossibleTemplateArgumentList(out lastTokenOfType, out _);
         else
             return ScanTypeFlags.NonTemplateTypeOrExpression;
     }
 
     private ScanTypeFlags ScanPossibleTemplateParameterList(
         out SyntaxToken lastTokenOfType,
-        out bool isDefinitelyTemplateArgumentList) {
+        out bool isDefinitelyTemplateParameterList) {
         // TODO Do extra checks after initial fail?
         var resetPoint = GetResetPoint();
 
         var list = ParseTemplateParameterList();
 
+        // Reset(resetPoint);
+
+        if (!list.containsDiagnostics) {
+            isDefinitelyTemplateParameterList = true;
+            lastTokenOfType = list.GetLastToken();
+            return ScanTypeFlags.TemplateTypeOrMethod;
+        }
+
         Reset(resetPoint);
+
+        lastTokenOfType = null;
+        isDefinitelyTemplateParameterList = false;
+        return ScanTypeFlags.NotType;
+    }
+
+    private ScanTypeFlags ScanPossibleTemplateArgumentList(
+        out SyntaxToken lastTokenOfType,
+        out bool isDefinitelyTemplateArgumentList) {
+        var resetPoint = GetResetPoint();
+
+        // TODO Need the param `int offset`?
+        // for (; offset > 0; offset--)
+        //     EatToken();
+
+        var list = ParseTemplateArgumentList();
+
+        // Reset(resetPoint);
 
         if (!list.containsDiagnostics) {
             isDefinitelyTemplateArgumentList = true;
@@ -3168,32 +3194,11 @@ done:
             return ScanTypeFlags.TemplateTypeOrMethod;
         }
 
+        Reset(resetPoint);
+
         lastTokenOfType = null;
         isDefinitelyTemplateArgumentList = false;
         return ScanTypeFlags.NotType;
-    }
-
-    private void ScanPossibleTemplateArgumentList(
-        int offset,
-        out SyntaxToken lastTokenOfType,
-        out bool isDefinitelyTemplateArgumentList) {
-        var resetPoint = GetResetPoint();
-
-        for (; offset > 0; offset--)
-            EatToken();
-
-        var list = ParseTemplateArgumentList();
-
-        Reset(resetPoint);
-
-        if (!list.containsDiagnostics) {
-            isDefinitelyTemplateArgumentList = true;
-            lastTokenOfType = list.GetLastToken();
-            return;
-        }
-
-        lastTokenOfType = null;
-        isDefinitelyTemplateArgumentList = false;
     }
 
     private ScanTypeFlags ScanFunctionPointerType(out SyntaxToken lastTokenOfType) {
@@ -3905,10 +3910,25 @@ done:
         return SyntaxFactory.Literal(keyword, isTrue);
     }
 
-    private ExpressionSyntax ParseDefaultLiteral() {
+    private ExpressionSyntax ParseDefaultLiteralOrExpression() {
         var lowlevelKeyword = EatIfMatch(SyntaxKind.LowlevelKeyword);
         var defaultKeyword = Match(SyntaxKind.DefaultKeyword);
-        return SyntaxFactory.DefaultLiteralExpression(lowlevelKeyword, defaultKeyword);
+
+        if (currentToken.kind == SyntaxKind.OpenParenToken) {
+            var openParenthesis = MatchOpenParen();
+            var type = ParseType(allowRef: false);
+            var closeParenthesis = MatchCloseParen();
+
+            return SyntaxFactory.DefaultExpression(
+                lowlevelKeyword,
+                defaultKeyword,
+                openParenthesis,
+                type,
+                closeParenthesis
+            );
+        } else {
+            return SyntaxFactory.DefaultLiteralExpression(lowlevelKeyword, defaultKeyword);
+        }
     }
 
     private ExpressionSyntax ParseStringLiteral() {

@@ -14,7 +14,7 @@ namespace Buckle.Libraries;
 internal sealed class CorLibrary {
     private static readonly CorLibrary Instance = new CorLibrary();
 
-    private const int TotalSpecialTypes = (int)SpecialType.TypedReference;
+    private const int TotalSpecialTypes = (int)SpecialType.Buffer;
     private const int TotalWellKnownMembers = (int)WellKnownMember.Array_Set;
     private const int TotalWellKnownTypes = (int)WellKnownType.Array;
 
@@ -231,7 +231,7 @@ internal sealed class CorLibrary {
 
         RegisterSpecialType(new SynthesizedSimpleNamedTypeSymbol(
             "Nullable",
-            TypeKind.Class,
+            TypeKind.Struct,
             valueType,
             DeclarationModifiers.None,
             null,

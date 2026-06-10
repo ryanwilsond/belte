@@ -77,9 +77,14 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
                 case DataContainerDeclarationKind.Final:
                 case DataContainerDeclarationKind.ConstantExpression:
                 case DataContainerDeclarationKind.ForEachLocal:
-                case DataContainerDeclarationKind.NullBindingLocal:
                 case DataContainerDeclarationKind.ScopedLocal:
                     return false;
+                // TODO Should we allow assignment to null binding locals?
+                case DataContainerDeclarationKind.NullBindingLocal:
+                case DataContainerDeclarationKind.Variable:
+                case DataContainerDeclarationKind.PatternLocal:
+                case DataContainerDeclarationKind.OutVariable:
+                case DataContainerDeclarationKind.DeclarationExpressionVariable:
                 default:
                     return true;
             }

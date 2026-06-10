@@ -350,7 +350,7 @@ internal static class StandardLibrary {
 
     private static SynthesizedFinishedNamedTypeSymbol GenerateString() {
         return StaticClass("String", [
-            StaticMethod("Split", StringArray, [("text", SpecialType.String), ("separator", SpecialType.String)]),
+            StaticMethod("Split", StringBuffer, [("text", SpecialType.String), ("separator", SpecialType.String)]),
             StaticMethod("Ascii", SpecialType.Int, true, [("chr", SpecialType.String)]),
             StaticMethod("Char", SpecialType.String, [("ascii", SpecialType.Int)]),
             StaticMethod("Length", SpecialType.Int, [("str", SpecialType.String)]),
@@ -363,11 +363,11 @@ internal static class StandardLibrary {
             StaticMethod("PadRight", SpecialType.String, [("text", SpecialType.String), ("padding", SpecialType.Char), ("totalWidth", SpecialType.Int)]),
             StaticMethod("Replace", SpecialType.String, [("text", SpecialType.String), ("search", SpecialType.String), ("replacement", SpecialType.String)]),
             StaticMethod("Trim", SpecialType.String, [("text", SpecialType.String)]),
-            StaticMethod("Trim", SpecialType.String, [("text", SpecialType.String), ("trimCharacters", CharArray)]),
+            StaticMethod("Trim", SpecialType.String, [("text", SpecialType.String), ("trimCharacters", CharBuffer)]),
             StaticMethod("TrimStart", SpecialType.String, [("text", SpecialType.String)]),
-            StaticMethod("TrimStart", SpecialType.String, [("text", SpecialType.String), ("trimCharacters", CharArray)]),
+            StaticMethod("TrimStart", SpecialType.String, [("text", SpecialType.String), ("trimCharacters", CharBuffer)]),
             StaticMethod("TrimEnd", SpecialType.String, [("text", SpecialType.String)]),
-            StaticMethod("TrimEnd", SpecialType.String, [("text", SpecialType.String), ("trimCharacters", CharArray)]),
+            StaticMethod("TrimEnd", SpecialType.String, [("text", SpecialType.String), ("trimCharacters", CharBuffer)]),
         ]);
     }
 
@@ -498,7 +498,7 @@ internal static class StandardLibrary {
             null,
             new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Int)),
             [lengthT],
-            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(lengthT), 0, RefKind.None, "array")],
+            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(ArrayTypeSymbol.CreateSZArray(new TypeWithAnnotations(lengthT))), 0, RefKind.None, "array")],
             MethodKind.Ordinary,
             DeclarationModifiers.Static
         );
@@ -515,7 +515,7 @@ internal static class StandardLibrary {
             null,
             new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)),
             [sortT],
-            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(sortT), 0, RefKind.None, "array")],
+            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(ArrayTypeSymbol.CreateSZArray(new TypeWithAnnotations(sortT))), 0, RefKind.None, "array")],
             MethodKind.Ordinary,
             DeclarationModifiers.Static
         );
@@ -790,10 +790,10 @@ internal static class StandardLibrary {
             StaticMethod("PrintLine", SpecialType.Void),
             StaticMethod("PrintLine", SpecialType.Void, [("message", SpecialType.String, true)]),
             StaticMethod("PrintLine", SpecialType.Void, [("value", SpecialType.Any, true)]),
-            StaticMethod("PrintLine", SpecialType.Void, [("chars", CharArray, true)]),
+            StaticMethod("PrintLine", SpecialType.Void, [("chars", CharBuffer, true)]),
             StaticMethod("Print", SpecialType.Void, [("message", SpecialType.String, true)]),
             StaticMethod("Print", SpecialType.Void, [("value", SpecialType.Any, true)]),
-            StaticMethod("Print", SpecialType.Void, [("chars", CharArray, true)]),
+            StaticMethod("Print", SpecialType.Void, [("chars", CharBuffer, true)]),
             StaticMethod("ResetColor", SpecialType.Void),
             StaticMethod("SetForegroundColor", SpecialType.Void, [("color", SpecialType.Int)]),
             StaticMethod("SetBackgroundColor", SpecialType.Void, [("color", SpecialType.Int)]),

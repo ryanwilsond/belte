@@ -27,7 +27,9 @@ internal sealed class BoundExpressionOrTypeOrConstant {
         ? _expression.Type()
         : typeOrConstant.isType
             ? typeOrConstant.type.type
-            : CorLibrary.GetSpecialType(typeOrConstant.constant.specialType);
+            : typeOrConstant.constant is null
+                ? null
+                : CorLibrary.GetSpecialType(typeOrConstant.constant.specialType);
 
     internal bool isExpression { get; }
 

@@ -23,9 +23,9 @@ internal sealed class EvaluatorSlotManager : LocalSlotManager {
         LocalSlotConstraints constraints,
         bool isSlotReusable) {
         if (!isSlotReusable || !_freeSlots.TryPop(new LocalSignature(type, constraints), out var local))
-            local = DeclareLocalImpl(type, symbol, name, kind, constraints);
+            local = DeclareLocalImpl(type, symbol.originalDefinition, name, kind, constraints);
 
-        _localMap.Add(symbol, local);
+        _localMap.Add(symbol.originalDefinition, local);
         return local;
     }
 
@@ -36,8 +36,8 @@ internal sealed class EvaluatorSlotManager : LocalSlotManager {
         SynthesizedLocalKind kind,
         LocalSlotConstraints constraints,
         int slot) {
-        var local = DeclareLocalImpl(type, symbol, name, kind, constraints, slot);
-        _localMap.Add(symbol, local);
+        var local = DeclareLocalImpl(type, symbol.originalDefinition, name, kind, constraints, slot);
+        _localMap.Add(symbol.originalDefinition, local);
         return local;
     }
 

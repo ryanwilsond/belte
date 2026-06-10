@@ -289,17 +289,28 @@ internal sealed partial class Conversions {
     }
 
     internal Conversion ClassifyConversionFromType(TypeSymbol source, TypeSymbol target) {
-        var conversion = GetImplicitUserDefinedConversion(source, target);
+        var conversion = FastClassifyConversion(source, target);
+
+        if (conversion.exists) {
+            return conversion;
+        } else {
+            conversion = Conversion.Classify(source, target);
+
+            if (Conversion.CollapseConversion(conversion).isImplicit)
+                return conversion;
+        }
+
+        conversion = GetImplicitUserDefinedConversion(source, target);
 
         if (conversion.exists)
             return conversion;
 
-        conversion = GetExplicitUserDefinedConversion(source, target);
+        conversion = Conversion.Classify(source, target);
 
         if (conversion.exists)
             return conversion;
 
-        return Conversion.Classify(source, target);
+        return GetExplicitUserDefinedConversion(source, target);
     }
 
     internal Conversion ClassifyImplicitConversionFromType(TypeSymbol source, TypeSymbol target) {
@@ -356,14 +367,14 @@ internal sealed partial class Conversions {
         if (conversion.exists && Conversion.CollapseConversion(conversion).isImplicit)
             return conversion;
 
-        conversion = GetImplicitUserDefinedConversion(sourceExpression, sourceExpression.Type(), target);
-
-        if (conversion.exists)
-            return conversion;
-
         conversion = Conversion.Classify(sourceExpression.Type(), target);
 
         if (Conversion.CollapseConversion(conversion).isImplicit)
+            return conversion;
+
+        conversion = GetImplicitUserDefinedConversion(sourceExpression, sourceExpression.Type(), target);
+
+        if (conversion.exists)
             return conversion;
 
         return Conversion.None;
@@ -1007,6 +1018,9 @@ internal sealed partial class Conversions {
             case ConversionKind.ImplicitConstant:
             case ConversionKind.NullLiteral:
             case ConversionKind.DefaultLiteral:
+                return true;
+            // TODO Should remove Implicit as a conversion kind because its vague
+            case ConversionKind.Implicit:
                 return true;
             default:
                 throw ExceptionUtilities.UnexpectedValue(kind);

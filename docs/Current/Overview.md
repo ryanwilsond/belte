@@ -131,8 +131,8 @@ These keywords are reserved names and cannot be used as identifiers.
 - [is](Data.md#32-operators)
 - [isnt](Data.md#32-operators)
 - [lowlevel](LowLevelFeatures.md#61-low-level-contexts) (scope modifier)
-- [lowlevel](LowLevelFeatures.md#615-fields) (field modifier)
-- [lowlevel](LowLevelFeatures.md#616-default-literal) (lowlevel default literal)
+- [lowlevel](LowLevelFeatures.md#615-lowlevel-fields) (field modifier)
+- [lowlevel](LowLevelFeatures.md#616-lowlevel-default-literal) (lowlevel default literal)
 - [nameof](Data.md#32-operators)
 - [namespace](ClassesAndObjects.md#47-namespaces)
 - [new](ClassesAndObjects.md#411-declaring-and-using-classes) (instantiation)
@@ -448,49 +448,31 @@ In this example, if `a` is null, a runtime exception is thrown at the if conditi
 
 ### 1.4.7 Arrays
 
-Arrays initialize memory to the element type's default value:
+Arrays are a collection of elements. Elements cannot be read before they are written:
 
 ```belte
 var arr = new int[10];
-arr[0]; // 0
+arr[0]; // Exception
 ```
 
-If the type has no default value (certain structs and non-nullable reference types), an `Array<T>` under the hood is
-used instead which tracks which elements have been initialized. Reading uninitialized elements throws a runtime error:
+```belte
+var arr = new int[10];
+arr[0] = 45;
+arr[0]; // Okay
+```
+
+A [`Buffer<T>`](LowLevelFeatures.md#63-arrays-and-buffers) can be used to avoid these checks, but should be avoided if
+possible because it potentially allows reading invalid values for a type:
 
 ```belte
 class A { }
 
-var arr = new A[10];
-arr[0]; // Throws
+var buffer = new Buffer<A>(10);
+A a = buffer[0]; // null
 ```
 
-In [lowlevel contexts](LowLevelFeatures.md#63-arrays), arrays will always be "true" arrays meaning initialization is not
-tracked, potentially leading to nullability bleeding into non-nullable contexts. This is intended to be used for
-situations where the array initialization is tracked separately, such as when defining custom collection types. In a
-lowlevel context, the `Array<T>` type can still be used explicitly. The following are equivalent:
-
-```belte
-class A { }
-
-var arr = new A[10];
-```
-
-```belte
-class A { }
-
-lowlevel {
-  var arr = new Array<A>(10);
-}
-```
-
-The most common occurrence of these arrays are unconstrained template types:
-
-```belte
-class A<type T> {
-  T[] arr; // Array<T>
-}
-```
+In the above example, the non-nullable local `a` is given a null value from the buffer. Buffers should only be used when
+performance is critical or working with unconstrained templates.
 
 ## 1.5 Differences from C\#
 
@@ -514,6 +496,7 @@ most of the differences to make it more clear where the language is unique with 
 - [File-scoped classes](ClassesAndObjects.md#411-declaring-and-using-classes)
 - [Reversible methods](ClassesAndObjects.md#4221-state-and-reverse-clauses)
 - [Reversible statements](ControlFlow.md#211-reverse-statements)
+- [Arrays prevent reading before writing to elements](#147-arrays)
 - Primitive types (e.g. `int`) don't have members
 - [`constructor` and `finalizer` keywords](ClassesAndObjects.md#44-constructors-and-finalizers)
 - Types are not reserved names (including primitives)

@@ -717,7 +717,7 @@ public sealed class IssueTests {
     public void Evaluator_IndexExpression_NotTreatedAsTypeClause() {
         var text = @"
             lowlevel {
-                int? a = 1;
+                int a = 1;
                 int?\[\] b = {1, 2, 3};
                 b\[a\] = 3;
             }
@@ -1255,6 +1255,7 @@ public sealed class IssueTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
+    // TODO It would be more ideal if this actually mentioned the issue of using `a` before being declared
     [Fact]
     public void Evaluator_DeconstructAssignment_NoInfiniteLoop() {
         var text = @"

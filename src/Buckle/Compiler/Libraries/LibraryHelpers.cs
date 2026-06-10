@@ -18,6 +18,7 @@ public static class LibraryHelpers {
         "Compiler.Object.blt",
         "Compiler.ReducedEnumerator.blt",
         "Compiler.Exception.blt",
+        "Compiler.Buffer.blt",
     ];
 
     private static readonly string[] ReducedStdLibExclude = [
@@ -30,18 +31,18 @@ public static class LibraryHelpers {
 
     private static SynthesizedBelteNamespaceSymbol _belteNamespace;
     private static SpecialOrKnownType.Boxed _lazyStringList;
-    private static SpecialOrKnownType.Boxed _lazyStringArray;
-    private static SpecialOrKnownType.Boxed _lazyAnyArray;
-    private static SpecialOrKnownType.Boxed _lazyCharArray;
+    private static SpecialOrKnownType.Boxed _lazyStringBuffer;
+    private static SpecialOrKnownType.Boxed _lazyAnyBuffer;
+    private static SpecialOrKnownType.Boxed _lazyCharBuffer;
 
     internal static NamespaceSymbol BelteNamespace => _belteNamespace;
 
-    internal static SpecialOrKnownType CharArray {
+    internal static SpecialOrKnownType CharBuffer {
         get {
-            if (_lazyCharArray is null)
-                Interlocked.CompareExchange(ref _lazyCharArray, GenerateArray(SpecialType.Char), null);
+            if (_lazyCharBuffer is null)
+                Interlocked.CompareExchange(ref _lazyCharBuffer, GenerateArray(SpecialType.Char), null);
 
-            return _lazyCharArray.type;
+            return _lazyCharBuffer.type;
         }
     }
 
@@ -54,21 +55,21 @@ public static class LibraryHelpers {
         }
     }
 
-    internal static SpecialOrKnownType StringArray {
+    internal static SpecialOrKnownType StringBuffer {
         get {
-            if (_lazyStringArray is null)
-                Interlocked.CompareExchange(ref _lazyStringArray, GenerateArray(SpecialType.String), null);
+            if (_lazyStringBuffer is null)
+                Interlocked.CompareExchange(ref _lazyStringBuffer, GenerateArray(SpecialType.String), null);
 
-            return _lazyStringArray.type;
+            return _lazyStringBuffer.type;
         }
     }
 
-    internal static SpecialOrKnownType AnyArray {
+    internal static SpecialOrKnownType AnyBuffer {
         get {
-            if (_lazyAnyArray is null)
-                Interlocked.CompareExchange(ref _lazyAnyArray, GenerateArray(SpecialType.Any), null);
+            if (_lazyAnyBuffer is null)
+                Interlocked.CompareExchange(ref _lazyAnyBuffer, GenerateArray(SpecialType.Any), null);
 
-            return _lazyAnyArray.type;
+            return _lazyAnyBuffer.type;
         }
     }
 

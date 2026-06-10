@@ -413,30 +413,31 @@ internal class SharedExpander : BoundTreeExpander {
 
         <receiver>[<index>]
 
-        ----> <type> is non-nullable reference type, UseKind.Value, UseKind.StableValue
+        // ----> <type> is non-nullable reference type, UseKind.Value, UseKind.StableValue
 
-        <receiver>[<index>]!
+        // <receiver>[<index>]!
 
         */
-        if (useKind != UseKind.Writable && expression.type.IsVerifierReference() && !expression.type.IsNullableType()) {
-            var statements = ExpandExpression(
-                new BoundNullAssertOperator(expression.syntax,
-                    expression.Update(
-                        expression.receiver,
-                        expression.index,
-                        expression.constantValue,
-                        CorLibrary.GetOrCreateNullableType(expression.type)
-                    ),
-                    true,
-                    expression.constantValue,
-                    expression.type
-                ),
-                out replacement,
-                useKind
-            );
+        // TODO See todo comment in the Binder, we probably don't want to do this optimization
+        // if (useKind != UseKind.Writable && expression.type.IsVerifierReference() && !expression.type.IsNullableType()) {
+        //     var statements = ExpandExpression(
+        //         new BoundNullAssertOperator(expression.syntax,
+        //             expression.Update(
+        //                 expression.receiver,
+        //                 expression.index,
+        //                 expression.constantValue,
+        //                 CorLibrary.GetOrCreateNullableType(expression.type)
+        //             ),
+        //             true,
+        //             expression.constantValue,
+        //             expression.type
+        //         ),
+        //         out replacement,
+        //         useKind
+        //     );
 
-            return statements;
-        }
+        //     return statements;
+        // }
 
         return base.ExpandArrayAccessExpression(expression, out replacement, useKind);
     }

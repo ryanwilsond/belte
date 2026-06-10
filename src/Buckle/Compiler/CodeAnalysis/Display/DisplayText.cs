@@ -1235,9 +1235,11 @@ public sealed class DisplayText {
 
     private static void DisplayCastExpression(DisplayText text, BoundCastExpression node) {
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
         SymbolDisplay.DisplayType(text, node.Type(), SymbolDisplayFormat.ObjectCreationFormat);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
         DisplayNode(text, node.operand);
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
 
     private static void DisplayBitCastExpression(DisplayText text, BoundBitCastExpression node) {

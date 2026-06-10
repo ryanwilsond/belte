@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Libraries;
 using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 
@@ -99,10 +100,12 @@ public static class SymbolDisplay {
 
         if (type is ArrayTypeSymbol) {
             var array = (ArrayTypeSymbol)stripped;
+            text.Write(CreateIdentifier("Buffer"));
+            text.Write(CreatePunctuation(SyntaxKind.LessThanToken));
             DisplayType(text, array.elementType, format);
-            text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
-            text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
+            text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));
 
+            // TODO Consider omitting exclamation mark
             if (outerMostType &&
                 (format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0) {
                 text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));
@@ -134,10 +137,15 @@ public static class SymbolDisplay {
                 }
 
                 text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+            } else if (CorLibrary.GetWellKnownType(WellKnownType.Array).Equals(namedType.originalDefinition)) {
+                DisplayType(text, namedType.templateArguments[0].type.type, format);
+                text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
+                text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
             } else {
                 DisplayTypeCore(text, namedType, format);
             }
 
+            // TODO Consider omitting exclamation mark
             if (outerMostType &&
                 (format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0) {
                 text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));

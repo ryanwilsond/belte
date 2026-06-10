@@ -515,6 +515,14 @@ internal partial class Binder {
         return UnwrapAlias(symbol, diagnostics, syntax, basesBeingResolved).typeWithAnnotations;
     }
 
+    internal TypeWithAnnotations BindTypeWithoutBufferRewrite(
+        ExpressionSyntax syntax,
+        BelteDiagnosticQueue diagnostics,
+        ConsList<TypeSymbol> basesBeingResolved = null) {
+        var symbol = BindTypeOrAlias(syntax, diagnostics, basesBeingResolved, false);
+        return UnwrapAlias(symbol, diagnostics, syntax, basesBeingResolved).typeWithAnnotations;
+    }
+
     internal TypeWithAnnotations BindType(
         ExpressionSyntax syntax,
         BelteDiagnosticQueue diagnostics,
@@ -527,8 +535,9 @@ internal partial class Binder {
     internal NamespaceOrTypeOrAliasSymbolWithAnnotations BindTypeOrAlias(
         ExpressionSyntax syntax,
         BelteDiagnosticQueue diagnostics,
-        ConsList<TypeSymbol> basesBeingResolved = null) {
-        var symbol = BindNamespaceOrTypeOrAliasSymbol(syntax, diagnostics, basesBeingResolved);
+        ConsList<TypeSymbol> basesBeingResolved = null,
+        bool rewriteBufferType = true) {
+        var symbol = BindNamespaceOrTypeOrAliasSymbol(syntax, diagnostics, basesBeingResolved, rewriteBufferType);
 
         if (symbol.isType ||
             (symbol.isAlias && UnwrapAliasNoDiagnostics(symbol.symbol, basesBeingResolved) is TypeSymbol)) {
@@ -557,7 +566,8 @@ internal partial class Binder {
     internal NamespaceOrTypeOrAliasSymbolWithAnnotations BindNamespaceOrTypeOrAliasSymbol(
         ExpressionSyntax syntax,
         BelteDiagnosticQueue diagnostics,
-        ConsList<TypeSymbol> basesBeingResolved = null) {
+        ConsList<TypeSymbol> basesBeingResolved = null,
+        bool rewriteBufferType = true) {
         NamespaceOrTypeOrAliasSymbolWithAnnotations namespaceOrNonNullableType;
 
         switch (syntax.kind) {
@@ -662,42 +672,8 @@ internal partial class Binder {
                 return new TypeWithAnnotations(CreateErrorType());
         }
 
-        // TODO Remove
-        // if (namespaceOrNonNullableType.isType || namespaceOrNonNullableType.isAlias) {
-        //     var typeToCheck = namespaceOrNonNullableType.typeWithAnnotations;
-
-        //     if (namespaceOrNonNullableType.isAlias) {
-        //         var unwrappedSymbol = UnwrapAliasNoDiagnostics(namespaceOrNonNullableType.symbol);
-
-        //         if (unwrappedSymbol.kind != SymbolKind.Namespace)
-        //             // The alias target will already be annotated
-        //             return new TypeWithAnnotations((TypeSymbol)unwrappedSymbol);
-        //         else
-        //             return namespaceOrNonNullableType;
-        //     }
-
-        //     if (typeToCheck.specialType == SpecialType.Void ||
-        //         typeToCheck.type.IsStructType() ||
-        //         typeToCheck.isStatic ||
-        //         typeToCheck.type.IsEnumType()) {
-        //         return typeToCheck;
-        //     }
-
-        //     // If we try to resolve hasNotNullConstraint while constraints are being bound we get a loop
-        //     if (typeToCheck.type is TemplateParameterSymbol t &&
-        //         (basesBeingResolved is null || !basesBeingResolved.Contains(t))) {
-        //         // TODO Should we always keep non-nullable because it might be or lift T and use T!
-        //         // if (t.hasNotNullConstraint)
-        //         return typeToCheck;
-        //     }
-
-        //     if (typeToCheck.specialType.IsPrimitiveType() &&
-        //         typeToCheck.specialType is not SpecialType.Array and not SpecialType.Any) {
-        //         return typeToCheck;
-        //     }
-
-        //     return typeToCheck.SetIsAnnotated();
-        // }
+        if (namespaceOrNonNullableType.isType && rewriteBufferType)
+            return new TypeWithAnnotations(RewriteBufferType(namespaceOrNonNullableType.typeWithAnnotations.type));
 
         return namespaceOrNonNullableType;
 
@@ -750,6 +726,13 @@ internal partial class Binder {
 
             return BindSimpleNamespaceOrTypeOrAliasSymbol(node.name, diagnostics, basesBeingResolved, left);
         }
+    }
+
+    private TypeSymbol RewriteBufferType(TypeSymbol type) {
+        if (type.originalDefinition.specialType == SpecialType.Buffer)
+            return ArrayTypeSymbol.CreateSZArray(((NamedTypeSymbol)type).templateArguments[0].type);
+
+        return type;
     }
 
     private TypeSymbol BindTupleType(
@@ -1025,7 +1008,8 @@ internal partial class Binder {
         ArrayTypeSyntax node,
         BelteDiagnosticQueue diagnostics,
         bool permitDimensions,
-        ConsList<TypeSymbol> basesBeingResolved) {
+        ConsList<TypeSymbol> basesBeingResolved,
+        bool useFatArray = true) {
         var type = BindType(node.elementType, diagnostics, basesBeingResolved);
         var jaggedRank = node.rankSpecifiers.Count;
 
@@ -1039,7 +1023,7 @@ internal partial class Binder {
             if (!permitDimensions && dimension is not null)
                 diagnostics.Push(Error.ArraySizeInDeclaration(rankSpecifier.size.location));
 
-            var array = CreateArray(type, 1);
+            var array = CreateArrayOrFatArray(type, 1, diagnostics, useFatArray);
             type = new TypeWithAnnotations(array);
 
             if (i + 1 < jaggedRank)
@@ -1047,25 +1031,27 @@ internal partial class Binder {
         }
 
         return type;
+    }
 
-        TypeSymbol CreateArray(TypeWithAnnotations elementType, int rank) {
-            var element = elementType.type;
+    private TypeSymbol CreateArrayOrFatArray(
+        TypeWithAnnotations elementType,
+        int rank,
+        BelteDiagnosticQueue diagnostics,
+        bool useFatArray = true) {
+        // var element = elementType.type;
 
-            if (flags.Includes(BinderFlags.LowLevelContext) ||
-                rank != 1 ||
-                element.HasDefaultValue() ||
-                element.IsVerifierReference()) {
-                return ArrayTypeSymbol.CreateArray(type, 1);
-            }
+        // TODO Do we want to optimize non-nullable reference type arrays to use null as the sentinel value
+        // instead of a bit vector like the fat array does?
+        //  || (element.IsVerifierReference() && !element.IsNullableType())
+        if (!useFatArray || rank != 1)
+            return ArrayTypeSymbol.CreateArray(elementType, 1);
 
-            var fatArray = CorLibrary.TryGetWellKnownType(WellKnownType.Array, compilation);
+        var fatArray = CorLibrary.TryGetWellKnownType(WellKnownType.Array, compilation);
 
-            // TODO Warn its missing
-            if (fatArray is ErrorTypeSymbol)
-                return ArrayTypeSymbol.CreateArray(type, 1);
+        if (fatArray is ErrorTypeSymbol)
+            diagnostics.Push(Error.PredefinedTypeNotFound(fatArray.name));
 
-            return fatArray.Construct([new TypeOrConstant(elementType)]);
-        }
+        return fatArray.Construct([new TypeOrConstant(elementType)]);
     }
 
     private protected NamespaceOrTypeOrAliasSymbolWithAnnotations BindNonTemplateSimpleNamespaceOrTypeOrAliasSymbol(
@@ -1343,16 +1329,20 @@ internal partial class Binder {
                     : CorLibrary.GetSpecialType(SpecialType.Type))
                 : argument.type;
 
-            var conversion = conversions.ClassifyImplicitConversionFromType(sourceType, targetType);
+            if (sourceType is not null) {
+                var conversion = conversions.ClassifyImplicitConversionFromType(sourceType, targetType);
 
-            if (!conversion.exists) {
-                GenerateImplicitConversionError(
-                    diagnostics,
-                    argument.syntax,
-                    conversion,
-                    argument.type,
-                    targetType
-                );
+                if (!conversion.exists) {
+                    GenerateImplicitConversionError(
+                        diagnostics,
+                        argument.syntax,
+                        conversion,
+                        argument.type,
+                        targetType
+                    );
+                }
+            } else {
+                Debug.Assert(diagnostics.Count > 0);
             }
         }
 
@@ -2034,12 +2024,15 @@ internal partial class Binder {
 
         BoundExpression result;
 
-        if (destinationType.StrippedType().kind == SymbolKind.ArrayType) {
+        var strippedType = destinationType.StrippedType();
+        var fatArray = CorLibrary.GetWellKnownType(WellKnownType.Array);
+
+        if (strippedType.kind == SymbolKind.ArrayType || strippedType.originalDefinition.Equals(fatArray)) {
             result = BindArrayCreationWithInitializer(
                 diagnostics,
                 null,
                 (InitializerListExpressionSyntax)node,
-                (ArrayTypeSymbol)destinationType.StrippedType(),
+                strippedType,
                 []
             );
         } else {
@@ -3257,6 +3250,8 @@ internal partial class Binder {
                 return BindLiteralExpression((LiteralExpressionSyntax)node, diagnostics);
             case SyntaxKind.DefaultLiteralExpression:
                 return BindDefaultLiteralExpression((DefaultLiteralExpressionSyntax)node, diagnostics);
+            case SyntaxKind.DefaultExpression:
+                return BindDefaultExpression((DefaultExpressionSyntax)node, diagnostics);
             case SyntaxKind.ExtendedLiteralExpression:
                 return BindExtendedLiteralExpression((ExtendedLiteralExpressionSyntax)node, diagnostics);
             case SyntaxKind.TupleExpression:
@@ -3833,7 +3828,8 @@ internal partial class Binder {
             arrayTypeSyntax,
             diagnostics,
             permitDimensions: true,
-            basesBeingResolved: null
+            basesBeingResolved: null,
+            useFatArray: false
         ).type;
 
         var elementType = arrayType.elementTypeWithAnnotations;
@@ -4242,6 +4238,12 @@ internal partial class Binder {
         BoundExpression expression,
         AnalyzedArguments analyzedArguments,
         BelteDiagnosticQueue diagnostics) {
+        if (analyzedArguments.arguments.Count != 1) {
+            diagnostics.Push(Error.BadIndexCount(node.location, 1));
+            var errorArguments = BuildArgumentsForErrorRecovery(analyzedArguments);
+            return new BoundErrorExpression(node, default, [], [expression], CreateErrorType(), true);
+        }
+
         var argument = analyzedArguments.arguments[0].expression;
 
         if (expression.hasErrors) {
@@ -4526,8 +4528,9 @@ internal partial class Binder {
         var argument = analyzedArguments.arguments[0];
         var intType = CorLibrary.GetSpecialType(SpecialType.Int);
 
-        if (argument.type is not null && argument.type.IsNullableType())
-            intType = CorLibrary.GetNullableType(SpecialType.Int);
+        // TODO Do we want to allow nullable indexing? Probably not
+        // if (argument.type is not null && argument.type.IsNullableType())
+        //     intType = CorLibrary.GetNullableType(SpecialType.Int);
 
         var conversion = conversions.ClassifyImplicitConversionFromExpression(argument.expression, intType);
 
@@ -4995,46 +4998,90 @@ internal partial class Binder {
         }
     }
 
+    private BoundExpression BindBufferCreation(
+        ObjectCreationExpressionSyntax node,
+        TypeSymbol type,
+        BelteDiagnosticQueue diagnostics) {
+        var arguments = node.argumentList.arguments;
+
+        if (arguments.Count >= 1) {
+            var argument1 = arguments[0];
+
+            if (argument1.kind == SyntaxKind.OmittedArgument)
+                return ReportOmittedArgument(node, argument1, type);
+
+            var normal1 = (ArgumentSyntax)argument1;
+
+            if (normal1.refKindKeyword is not null)
+                return ReportRefKind(node, normal1, type);
+
+            if (normal1.expression is InitializerListExpressionSyntax init1 && arguments.Count == 1)
+                return BindArrayCreationExpressionCore(node, init1, [(null, null)], type, diagnostics);
+
+            ImmutableArray<(TextLocation, ExpressionSyntax)> rankSpecifiers = [(normal1.location, normal1.expression)];
+
+            InitializerListExpressionSyntax initializer = null;
+
+            if (arguments.Count >= 2) {
+                var argument2 = arguments[1];
+
+                if (argument2.kind == SyntaxKind.OmittedArgument)
+                    return ReportOmittedArgument(node, argument2, type);
+
+                var normal2 = (ArgumentSyntax)argument2;
+
+                if (normal2.refKindKeyword is not null)
+                    return ReportRefKind(node, normal2, type);
+
+                if (normal2.expression is not InitializerListExpressionSyntax init2) {
+                    diagnostics.Push(Error.InvalidBufferCreationArgument(normal2.expression.location));
+                    return CreateErrorBufferCreation(node, type);
+                }
+
+                initializer = init2;
+
+                if (arguments.Count > 2)
+                    return ReportWrongArgumentCount(node, type);
+            }
+
+            return BindArrayCreationExpressionCore(node, initializer, rankSpecifiers, type, diagnostics);
+        } else {
+            return ReportWrongArgumentCount(node, type);
+        }
+
+        BoundExpression ReportWrongArgumentCount(SyntaxNode node, TypeSymbol type) {
+            diagnostics.Push(Error.InvalidBufferCreation(node.location));
+            return CreateErrorBufferCreation(node, type);
+        }
+
+        BoundExpression ReportRefKind(SyntaxNode node, BaseArgumentSyntax argumentSyntax, TypeSymbol type) {
+            diagnostics.Push(Error.InvalidRefKindInBufferCreation(argumentSyntax.location));
+            return CreateErrorBufferCreation(node, type);
+        }
+
+        BoundExpression ReportOmittedArgument(SyntaxNode node, BaseArgumentSyntax argumentSyntax, TypeSymbol type) {
+            diagnostics.Push(Error.OmittedArgumentInBufferCreation(argumentSyntax.location));
+            return CreateErrorBufferCreation(node, type);
+        }
+
+        static BoundExpression CreateErrorBufferCreation(SyntaxNode syntax, TypeSymbol type) {
+            return new BoundErrorExpression(syntax, default, [], [], type, true);
+        }
+    }
+
     private BoundExpression BindArrayCreationExpression(
         ArrayCreationExpressionSyntax node,
         BelteDiagnosticQueue diagnostics) {
         var arrayType = GetArrayType(node.type, diagnostics);
         var type = BindArrayType(arrayType, diagnostics, true, null).type;
-        var (rank, _) = GetArrayRankAndElementType(type);
-        var sizes = ArrayBuilder<BoundExpression>.GetInstance();
-        var hasErrors = false;
-        var indexType = CorLibrary.GetSpecialType(SpecialType.Int);
 
-        for (var i = 0; i < rank; i++) {
-            var rankSpecifier = arrayType.rankSpecifiers[i];
-            var size = rankSpecifier.size;
-
-            if (size is not null) {
-                var boundSize = BindExpression(size, diagnostics);
-                var sizeConversion = conversions.ClassifyImplicitConversionFromExpression(boundSize, indexType);
-
-                if (!sizeConversion.exists)
-                    diagnostics.Push(Error.NonIntArraySize(rankSpecifier.location));
-                else
-                    boundSize = CreateConversion(boundSize, sizeConversion, indexType, diagnostics);
-
-                sizes.Add(boundSize);
-            } else if (node.initializer is null && i == 0) {
-                diagnostics.Push(Error.MissingArraySize(rankSpecifier.location));
-                hasErrors = true;
-            }
-        }
-
-        return node.initializer is null
-            ? new BoundArrayCreationExpression(node, sizes.ToImmutable(), null, type, hasErrors)
-            : BindArrayCreationWithInitializer(
-                diagnostics,
-                node,
-                node.initializer,
-                type,
-                sizes.ToImmutable(),
-                hasErrors
-            );
+        return BindArrayCreationExpressionCore(
+            node,
+            node.initializer,
+            arrayType.rankSpecifiers.SelectAsArray(r => (r.location, r.size)),
+            type,
+            diagnostics
+        );
 
         static ArrayTypeSyntax GetArrayType(TypeSyntax syntax, BelteDiagnosticQueue diagnostics) {
             if (syntax is ArrayTypeSyntax a) {
@@ -5053,18 +5100,64 @@ internal partial class Binder {
         }
     }
 
+    private BoundExpression BindArrayCreationExpressionCore(
+        ExpressionSyntax node,
+        InitializerListExpressionSyntax initializer,
+        ImmutableArray<(TextLocation location, ExpressionSyntax size)> rankSpecifiers,
+        TypeSymbol type,
+        BelteDiagnosticQueue diagnostics) {
+        var (rank, _) = GetArrayRankAndElementType(type);
+        var sizes = ArrayBuilder<BoundExpression>.GetInstance();
+        var hasErrors = false;
+        var indexType = CorLibrary.GetSpecialType(SpecialType.Int);
+
+        for (var i = 0; i < rank; i++) {
+            var rankSpecifier = rankSpecifiers[i];
+            var size = rankSpecifier.size;
+
+            if (size is not null) {
+                var boundSize = BindExpression(size, diagnostics);
+                var sizeConversion = conversions.ClassifyImplicitConversionFromExpression(boundSize, indexType);
+
+                if (!sizeConversion.exists)
+                    diagnostics.Push(Error.NonIntArraySize(rankSpecifier.location));
+                else
+                    boundSize = CreateConversion(boundSize, sizeConversion, indexType, diagnostics);
+
+                sizes.Add(boundSize);
+            } else if (initializer is null && i == 0) {
+                diagnostics.Push(Error.MissingArraySize(rankSpecifier.location));
+                hasErrors = true;
+            }
+        }
+
+        return initializer is null
+            ? new BoundArrayCreationExpression(node, sizes.ToImmutable(), null, type, hasErrors)
+            : BindArrayCreationWithInitializer(
+                diagnostics,
+                node,
+                initializer,
+                type,
+                sizes.ToImmutable(),
+                hasErrors
+            );
+    }
+
     private protected BoundExpression BindObjectCreationExpression(
         ObjectCreationExpressionSyntax node,
         BelteDiagnosticQueue diagnostics) {
         if (node.type is null)
             return BindImplicitObjectCreationExpression(node, diagnostics);
 
-        var typeWithAnnotations = BindType(node.type, diagnostics);
+        var typeWithAnnotations = BindTypeWithoutBufferRewrite(node.type, diagnostics);
         var type = typeWithAnnotations.nullableUnderlyingTypeOrSelf;
         var originalType = type;
 
         if (node.type.kind is SyntaxKind.NonNullableType or SyntaxKind.NullableType)
             diagnostics.Push(Error.AnnotationsDisallowedInObjectCreation(node.location));
+
+        if (type.originalDefinition.specialType == SpecialType.Buffer)
+            return BindBufferCreation(node, RewriteBufferType(type), diagnostics);
 
         switch (type.typeKind) {
             case TypeKind.Struct:
@@ -6533,7 +6626,14 @@ internal partial class Binder {
                 }
             case BoundKind.IndexerAccessExpression: {
                     var index = ((BoundIndexerAccessExpression)access).index;
-                    diagnostics.Push(Error.NullableReceiverIndex(syntax.location, receiver, index));
+
+                    if (CorLibrary.GetWellKnownType(WellKnownType.Array)
+                        .Equals(receiver.type.StrippedType().originalDefinition)) {
+                        diagnostics.Push(Error.NullableReceiverArray(syntax.location, receiver, index));
+                    } else {
+                        diagnostics.Push(Error.NullableReceiverIndex(syntax.location, receiver, index));
+                    }
+
                     break;
                 }
             case BoundKind.ErrorExpression:
@@ -8670,6 +8770,23 @@ internal partial class Binder {
             diagnostics.Push(Error.LowLevelDefaultOutsideLowLevelContext(node.location));
 
         return new BoundDefaultLiteral(node, isLowLevel);
+    }
+
+    private BoundExpression BindDefaultExpression(DefaultExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var typeWithAnnotations = BindType(node.type, diagnostics, out var alias);
+        var type = typeWithAnnotations.type;
+        var typeExpression = new BoundTypeExpression(node.type, typeWithAnnotations, alias, type);
+        var isLowLevel = node.lowlevelKeyword is not null;
+
+        ReportDefaultExpressionErrors(node, type, isLowLevel, false, diagnostics);
+
+        return new BoundDefaultExpression(
+            node,
+            isLowLevel,
+            typeExpression,
+            LiteralUtilities.TryGetDefaultValue(type),
+            type
+        );
     }
 
     private BoundExpression BindExtendedLiteralExpression(
@@ -14365,6 +14482,13 @@ symIsHidden:;
                 hasErrors = true;
             }
 
+            if (initializer is not null &&
+                initializer.kind == BoundKind.ArrayCreationExpression &&
+                initializer.type is ArrayTypeSymbol arrayType) {
+                var fatArray = CreateArrayOrFatArray(arrayType.elementTypeWithAnnotations, arrayType.rank, diagnostics);
+                initializer = GenerateConversionForAssignment(fatArray, initializer, diagnostics);
+            }
+
             var initializerType = initializer?.Type();
 
             if (initializerType is not null) {
@@ -15812,12 +15936,7 @@ symIsHidden:;
         if (conversion.kind == ConversionKind.DefaultLiteral) {
             var defaultLiteral = (BoundDefaultLiteral)source;
 
-            if (!destination.HasDefaultValue() && !defaultLiteral.isLowLevel) {
-                if (destination.IsStructType())
-                    diagnostics.Push(Error.StructWithNoDefault(source.syntax.location, destination));
-                else
-                    diagnostics.Push(Error.TypeWithNoDefault(source.syntax.location, destination));
-            }
+            ReportDefaultExpressionErrors(source.syntax, destination, defaultLiteral.isLowLevel, true, diagnostics);
 
             source = new BoundDefaultExpression(
                 source.syntax,
@@ -15842,6 +15961,29 @@ symIsHidden:;
             destination,
             hasErrors
         );
+    }
+
+    private void ReportDefaultExpressionErrors(
+        SyntaxNode syntax,
+        TypeSymbol destination,
+        bool isLowLevel,
+        bool isLiteral,
+        BelteDiagnosticQueue diagnostics) {
+        var typeHasDefaultValue = destination.HasDefaultValue();
+
+        if (!typeHasDefaultValue && !isLowLevel) {
+            if (destination.IsStructType())
+                diagnostics.Push(Error.StructWithNoDefault(syntax.location, destination));
+            else
+                diagnostics.Push(Error.TypeWithNoDefault(syntax.location, destination));
+        }
+
+        if (typeHasDefaultValue && isLowLevel) {
+            if (isLiteral)
+                diagnostics.Push(Warning.UnnecessaryLowLevelDefaultLiteral(syntax.location, destination));
+            else
+                diagnostics.Push(Warning.UnnecessaryLowLevelDefaultExpression(syntax.location, destination));
+        }
     }
 
     private BoundExpression CreateTupleLiteralConversion(

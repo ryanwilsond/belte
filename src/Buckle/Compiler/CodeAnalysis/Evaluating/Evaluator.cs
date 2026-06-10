@@ -46,6 +46,9 @@ internal sealed class Evaluator {
     private bool _insideUpdate;
     private bool _insideExpressionEvaluation;
 
+    private ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder _lazyTypeLayouts;
+    private Dictionary<MethodSymbol, (BoundBlockStatement, EvaluatorSlotManager)> _lazyMethodLayouts;
+
     /// <summary>
     /// Creates an <see cref="Evaluator" /> that can evaluate a <see cref="BoundProgram" /> (provided globals).
     /// </summary>
@@ -114,7 +117,7 @@ internal sealed class Evaluator {
         } else {
             var rootLayout = new EvaluatorSlotManager(programType);
 
-            var argsType = LibraryHelpers.StringArray.knownType;
+            var argsType = LibraryHelpers.StringBuffer.knownType;
             var args = new HeapObject(argsType, _args.Select(a => EvaluatorValue.Literal(a)).ToArray());
 
             var index = _context.heap.Allocate(args, _stack, _context);
@@ -309,7 +312,8 @@ internal sealed class Evaluator {
         else if (ptr.kind == ValueKind.HeapPtr)
             return _context.heap[ptr.ptr].fields[slot];
         else
-            throw ExceptionUtilities.UnexpectedValue(ptr.kind);
+            // throw ExceptionUtilities.UnexpectedValue(ptr.kind);
+            throw new BelteNullReferenceException(null);
     }
 
     private EvaluatorValue GetHeapFieldSlotOrStructFieldSlotRef(EvaluatorValue ptr, int slot) {
@@ -839,6 +843,10 @@ internal sealed class Evaluator {
                 return EvaluateExpression(receiver, used, abort);
             } else {
                 var receiverValue = EvaluateFieldLoadReceiver(receiver, abort);
+
+                if (receiverValue.kind == ValueKind.Int64)
+                    receiverValue = EvaluateFieldLoadReceiver(receiver, abort);
+
                 return GetHeapFieldSlotOrStructFieldSlot(receiverValue, node.slot);
             }
         }
@@ -2641,6 +2649,9 @@ internal sealed class Evaluator {
 
         var thisParameter = EvaluateExpression(receiver, true, abort);
 
+        if (thisParameter.kind == ValueKind.Int64)
+            thisParameter = EvaluateExpression(receiver, true, abort);
+
         if (thisParameter.kind == ValueKind.Null)
             throw new BelteNullReferenceException(receiver.syntax.location);
 
@@ -2738,10 +2749,9 @@ internal sealed class Evaluator {
             throw new BelteInternalException($"Failed to get method body ({method}).");
 
         if (!_program.TryGetMethodLayoutIncludingParents(method, out var layout)) {
-            layout = new EvaluatorSlotManager(method);
-
-            if (!thisParameter.Equals(EvaluatorValue.None))
-                layout.AllocateSlot(method.thisParameter.type, LocalSlotConstraints.None);
+            // This should only happen when calling methods from previous, non-evaluating programs
+            // Instead of requiring all programs to rewrite their bodies to the evaluator format, we compute it on the fly
+            body = CreateMethodLayout(method, body, out layout);
         }
 
         var frame = new StackFrame(layout);
@@ -2776,6 +2786,30 @@ internal sealed class Evaluator {
         _stack.Pop();
 
         return result;
+    }
+
+    private BoundBlockStatement CreateMethodLayout(
+        MethodSymbol method,
+        BoundBlockStatement body,
+        out EvaluatorSlotManager layout) {
+        _lazyTypeLayouts ??= _program.typeLayouts.ToBuilder();
+        _lazyMethodLayouts ??= [];
+
+        if (_lazyMethodLayouts.TryGetValue(method, out var value)) {
+            layout = value.Item2;
+            return value.Item1;
+        }
+
+        body = EvaluatorSlotRewriter.Rewrite(
+            method,
+            body,
+            _lazyTypeLayouts,
+            _program,
+            out layout
+        );
+
+        _lazyMethodLayouts.Add(method, (body, layout));
+        return body;
     }
 
     #endregion
@@ -2913,21 +2947,9 @@ internal sealed class Evaluator {
                     }
 
                     return true;
-                case "LowLevel_Length_T": {
+                case "LowLevel_Length_[": {
                         var argument = EvaluateExpression(arguments[0], true, abort);
-
-                        if (argument.kind != ValueKind.HeapPtr) {
-                            result = 0;
-                            return true;
-                        }
-
                         var array = _context.heap[argument.ptr];
-
-                        if (array.type.kind != SymbolKind.ArrayType) {
-                            result = 0;
-                            return true;
-                        }
-
                         result = array.fields.Length;
                     }
 
@@ -2958,16 +2980,10 @@ internal sealed class Evaluator {
                         result = argument;
                         return true;
                     }
-                case "LowLevel_Sort_T": {
+                case "LowLevel_Sort_[": {
                         var arrayPtr = EvaluateExpression(arguments[0], true, abort);
 
-                        if (arrayPtr.kind != ValueKind.HeapPtr)
-                            return true;
-
                         var array = _context.heap[arrayPtr.ptr];
-
-                        if (array.type.kind != SymbolKind.ArrayType)
-                            return true;
 
                         var elementSpecialType = ((ArrayTypeSymbol)array.type).elementType.StrippedType().specialType;
                         Comparison<EvaluatorValue> comparison;

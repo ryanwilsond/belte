@@ -247,6 +247,15 @@ public sealed class EvaluatorTests {
     [InlineData("intptr a = default; return 0;", 0)]
     [InlineData("int* a = default; return 0;", 0)]
     [InlineData("void(int)* a = default; return 0;", 0)]
+    [InlineData("var a = default(int); return a;", 0)]
+    [InlineData("var a = default(int?); return a;", null)]
+    [InlineData("var a = default(bool); return a;", false)]
+    [InlineData("var a = default(char); return a;", '\0')]
+    [InlineData("var a = default(decimal); return a;", 0)]
+    [InlineData("var a = default(uintptr); return 0;", 0)]
+    [InlineData("var a = default(intptr); return 0;", 0)]
+    [InlineData("var a = default(int*); return 0;", 0)]
+    [InlineData("var a = default(void(int)*); return 0;", 0)]
     [InlineData("int[][]? a; a = new int[][] { { 1 } }; return a![0]![0];", 1)]
     [InlineData("uint64 a = 3; var b = 1 + a; return LowLevel.GetType(b) == typeof(uint64);", true)]
     [InlineData("uint64 a = 3; var b = 1 + a; return LowLevel.GetType(a) == LowLevel.GetType(b);", true)]
@@ -381,7 +390,7 @@ public sealed class EvaluatorTests {
         }
         var c = new A[2];
         c[0] = new A();
-        int? i = 0;
+        int i = 0;
         var f = c[i].f;
         return f;", 1)]
     [InlineData(@"
@@ -415,7 +424,7 @@ public sealed class EvaluatorTests {
     [InlineData("class A { public static int? a = 3; } return A.a;", 3)]
     [InlineData("class A { public static int? a = 3; static constructor() { a = 10; } } return A.a;", 10)]
     [InlineData("class A { public static int[]? a = new int[10]; static constructor() { a![0] = 10; } } return A.a![0];", 10)]
-    [InlineData("class A { public static int[]? a = new int[10]; static constructor() { a![0] = 10; } } return A.a![1];", 0)]
+    [InlineData("class A { public static Buffer<int>? a = new int[10]; static constructor() { a![0] = 10; } } return A.a![1];", 0)]
     [InlineData("class A { public static int? a = 3; } A.a = 20; return A.a;", 20)]
     [InlineData("struct A { public int a; } var a = new A(); return a.a;", 0)]
     [InlineData("struct A { public int? a; } var a = new A(); return a.a;", null)]
@@ -713,7 +722,8 @@ public sealed class EvaluatorTests {
     [InlineData("struct A { } var a = new A(); return a.ToString();", "A")]
     [InlineData("class A { public override string? ToString() { return \"a\"; } } var a = new A(); return a.ToString();", "a")]
     [InlineData("struct A { public override string? ToString() { return \"a\"; } } var a = new A(); return a.ToString();", "a")]
-    [InlineData("any[]? a = {1, 2, 3}; return LowLevel.Length<any[]?>(a);", 3)]
+    [InlineData("any[]? a = {1, 2, 3}; return a!.Length();", 3)]
+    [InlineData("Buffer<any>? a = {1, 2, 3}; return LowLevel.Length<any>(a!);", 3)]
     // TypeOf expressions
     [InlineData("lowlevel { type a = typeof(int[]); }", null)]
     [InlineData("type? a = typeof(string);", null)]
@@ -764,7 +774,7 @@ public sealed class EvaluatorTests {
     [InlineData(@"
         class A {
             public int?[]? a = { 1, 2, 3 };
-            public static ref int? operator[](A a, int? b) {
+            public static ref int? operator[](A a, int b) {
                 return ref a.a![b];
             }
         }

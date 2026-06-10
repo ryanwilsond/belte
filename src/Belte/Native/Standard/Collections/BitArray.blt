@@ -3,7 +3,7 @@ public lowlevel sealed class BitArray {
     private constexpr int32 BitsPerInt32 = 32;
     private constexpr int32 BitsPerByte = 8;
 
-    private uint8[] _array;
+    private Buffer<uint8> _array;
     private int32 _bitLength;
 
     public constructor(int32 length) : this(length, false) { }
@@ -48,7 +48,7 @@ public lowlevel sealed class BitArray {
         (uint32 index, uint32 extraBits) = DivRem((uint32)_bitLength, BitsPerInt32);
 
         if (extraBits != 0) {
-            var ptr = (int32[]*)&_array;
+            var ptr = (Buffer<int32>*)&_array;
             (*ptr)[(int32)index] &= ReverseIfBE((1 << (int32)extraBits) - 1);
         }
     }
@@ -57,9 +57,9 @@ public lowlevel sealed class BitArray {
         return LowLevel.IsLittleEndian() ? value : LowLevel.ReverseEndianness(value);
     }
 
-    private static uint8[] AllocateByteArray(int32 bitLength) {
+    private static Buffer<uint8> AllocateByteArray(int32 bitLength) {
         int32 byteLength = GetAlignedByteArrayLength(bitLength);
-        return bitLength != 0 ? new uint8[byteLength] : new uint8[0];
+        return bitLength != 0 ? new Buffer<uint8>(byteLength) : new Buffer<uint8>(0);
     }
 
     private static int32 GetInt32ArrayLengthFromBitLength(int32 bitLength) {

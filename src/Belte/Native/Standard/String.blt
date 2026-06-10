@@ -14,7 +14,7 @@ public static class String {
 
     public static int! IndexOf(string! text, char! chr);
 
-    public static string![]! Split(string! text, string! separator);
+    public static Buffer<string!>! Split(string! text, string! separator);
 
     public static string! Substring(string! text, int? start, int? length);
 
@@ -26,13 +26,13 @@ public static class String {
 
     public static string! Trim(string! text);
 
-    public static string! Trim(string! text, char![]! trimCharacters);
+    public static string! Trim(string! text, Buffer<char!>! trimCharacters);
 
     public static string! TrimStart(string! text);
 
-    public static string! TrimStart(string! text, char![]! trimCharacters);
+    public static string! TrimStart(string! text, Buffer<char!>! trimCharacters);
 
     public static string! TrimEnd(string! text);
 
-    public static string! TrimEnd(string! text, char![]! trimCharacters);
+    public static string! TrimEnd(string! text, Buffer<char!>! trimCharacters);
 }

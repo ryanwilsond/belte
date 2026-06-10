@@ -295,7 +295,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         if (target.specialType == SpecialType.Any && source.typeKind != TypeKind.Pointer)
             return Implicit;
 
-        if (source.specialType == SpecialType.Any && target.specialType == SpecialType.Array)
+        if (source.specialType == SpecialType.Any && target.typeKind != TypeKind.Pointer)
             return Explicit;
 
         if (source.Equals(target, TypeCompareKind.ConsiderEverything))

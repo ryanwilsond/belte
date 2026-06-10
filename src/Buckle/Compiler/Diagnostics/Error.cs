@@ -2523,6 +2523,26 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_ExpectedVerbatimLiteral, message);
     }
 
+    internal static BelteDiagnostic InvalidBufferCreation(TextLocation location) {
+        var message = $"buffer creation must have exactly 1 or 2 arguments";
+        return CreateError(DiagnosticCode.ERR_InvalidBufferCreation, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidRefKindInBufferCreation(TextLocation location) {
+        var message = $"arguments in buffer creation cannot be by-reference";
+        return CreateError(DiagnosticCode.ERR_InvalidRefKindInBufferCreation, location, message);
+    }
+
+    internal static BelteDiagnostic OmittedArgumentInBufferCreation(TextLocation location) {
+        var message = $"arguments in buffer creation cannot be omitted";
+        return CreateError(DiagnosticCode.ERR_OmittedArgumentInBufferCreation, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidBufferCreationArgument(TextLocation location) {
+        var message = $"second argument in buffer creation must be an initializer list";
+        return CreateError(DiagnosticCode.ERR_InvalidBufferCreationArgument, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }
