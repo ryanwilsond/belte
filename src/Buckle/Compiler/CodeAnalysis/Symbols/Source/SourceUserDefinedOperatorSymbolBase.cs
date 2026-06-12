@@ -307,8 +307,9 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
             this,
             declarationSyntax.parameterList.parameters,
             diagnostics,
-            true,
-            isVirtual || isAbstract
+            allowRef: true,
+            isVirtual || isAbstract,
+            allowConst: true
         ).Cast<SourceParameterSymbol, ParameterSymbol>();
 
         var syntax = returnTypeSyntax.SkipRef(out _);

@@ -243,7 +243,17 @@ internal sealed class CorLibrary {
     private void RegisterWellKnownMembers() {
         var nullableType = GetSpecialTypeCore(SpecialType.Nullable);
 
-        RegisterWellKnownMember(WellKnownMember.Nullable_ctor, new SynthesizedInstanceConstructorSymbol(nullableType));
+        RegisterWellKnownMember(WellKnownMember.Nullable_ctor,
+            new SynthesizedFinishedMethodSymbol(
+                new SynthesizedInstanceConstructorSymbol(nullableType),
+                nullableType,
+                [SynthesizedParameterSymbol.Create(
+                    null,
+                    new TypeWithAnnotations(nullableType.templateParameters[0]),
+                    0,
+                    RefKind.None
+                )
+            ]));
 
         RegisterWellKnownMember(WellKnownMember.Nullable_getValue,
             new SynthesizedFinishedMethodSymbol(

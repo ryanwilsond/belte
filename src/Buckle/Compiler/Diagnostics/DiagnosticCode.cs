@@ -518,6 +518,7 @@ public enum DiagnosticCode : ushort {
     ERR_OmittedArgumentInBufferCreation = 507,
     ERR_InvalidBufferCreationArgument = 508,
     WRN_LocalFunctionUsingEntryPointName = 509,
+    ERR_ArgumentWrongConst = 510,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

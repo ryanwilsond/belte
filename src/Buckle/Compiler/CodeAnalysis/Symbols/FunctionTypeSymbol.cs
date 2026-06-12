@@ -61,9 +61,9 @@ internal sealed class FunctionTypeSymbol : TypeSymbol {
 
     internal FunctionMethodSymbol signature { get; }
 
-    public override bool isObjectType => true;
+    public override bool isReferenceType => true;
 
-    public override bool isPrimitiveType => false;
+    public override bool isValueType => false;
 
     public override TypeKind typeKind => TypeKind.Function;
 

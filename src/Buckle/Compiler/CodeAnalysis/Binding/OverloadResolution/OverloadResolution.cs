@@ -2157,6 +2157,7 @@ internal sealed partial class OverloadResolution {
                 return new EffectiveParameters(
                     member.GetParameterTypes(),
                     parameterRefKinds,
+                    member.GetParameterConstnesses(),
                     firstParamsElementIndex: -1
                 );
             }
@@ -2164,6 +2165,7 @@ internal sealed partial class OverloadResolution {
 
         var types = ArrayBuilder<TypeWithAnnotations>.GetInstance();
         ArrayBuilder<RefKind> refs = null;
+        ArrayBuilder<bool> consts = null;
         var hasAnyRefArg = argumentRefKinds.Any();
 
         for (var arg = 0; arg < argumentCount; ++arg) {
@@ -2186,10 +2188,22 @@ internal sealed partial class OverloadResolution {
             } else {
                 refs.Add(paramRefKind);
             }
+
+            var paramConstness = parameter.isConst;
+
+            if (consts is null) {
+                if (paramConstness) {
+                    consts = ArrayBuilder<bool>.GetInstance(arg, false);
+                    consts.Add(paramConstness);
+                }
+            } else {
+                consts.Add(paramConstness);
+            }
         }
 
         var refKinds = refs is not null ? refs.ToImmutableAndFree() : default;
-        return new EffectiveParameters(types.ToImmutableAndFree(), refKinds, firstParamsElementIndex: -1);
+        var constnesses = consts is not null ? consts.ToImmutableAndFree() : default;
+        return new EffectiveParameters(types.ToImmutableAndFree(), refKinds, constnesses, firstParamsElementIndex: -1);
     }
 
     private MemberResolutionResult<TMember> IsApplicable<TMember>(
@@ -2261,6 +2275,7 @@ internal sealed partial class OverloadResolution {
                 map.SubstituteTypes(constructedFromEffectiveParameters.parameterTypes)
                     .Select(t => t.type).ToImmutableArray(),
                 constructedFromEffectiveParameters.parameterRefKinds,
+                constructedFromEffectiveParameters.parameterConstness,
                 constructedFromEffectiveParameters.firstParamsElementIndex
             );
         } else {
@@ -2339,12 +2354,24 @@ internal sealed partial class OverloadResolution {
                 ? RefKind.None
                 : parameters.parameterRefKinds[argumentPosition];
 
+            var argumentConstness = argument.isExpression
+                // Value types are copied anyway so const doesn't really mean anything
+                ? argument.expression.IsConst() &&
+                  argument.type.isReferenceType &&
+                  !argument.type.specialType.IsKnownToBeImmutable()
+                : false;
+            var parameterConstness = parameters.parameterConstness.IsDefault
+                ? false
+                : parameters.parameterConstness[argumentPosition];
+
             conversion = CheckArgumentForApplicability(
                 candidate,
                 argument.expression,
                 argumentRefKind,
+                argumentConstness,
                 parameters.parameterTypes[argumentPosition].type,
-                parameterRefKind
+                parameterRefKind,
+                parameterConstness
             );
 
             if (!conversion.exists) {
@@ -2386,9 +2413,14 @@ internal sealed partial class OverloadResolution {
         Symbol candidate,
         BoundExpression argument,
         RefKind argRefKind,
+        bool argConstness,
         TypeSymbol parameterType,
-        RefKind parRefKind) {
+        RefKind parRefKind,
+        bool parConstness) {
         if (argRefKind != parRefKind)
+            return Conversion.None;
+
+        if (argConstness && !parConstness)
             return Conversion.None;
 
         var argType = argument.Type();

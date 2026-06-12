@@ -111,10 +111,10 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
     internal override bool hasObjectTypeConstraint
         => (_flags & GenericParameterAttributes.ReferenceTypeConstraint) != 0;
 
-    internal override bool isObjectTypeFromConstraintTypes
+    internal override bool isReferenceTypeFromConstraintTypes
         => CalculateIsObjectTypeFromConstraintTypes(constraintTypes);
 
-    internal override bool isPrimitiveTypeFromConstraintTypes
+    internal override bool isValueTypeFromConstraintTypes
         => CalculateIsPrimitiveTypeFromConstraintTypes(constraintTypes);
 
     internal override bool hasDefaultFromConstraintTypes

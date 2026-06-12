@@ -24,9 +24,9 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
 
     public override int arity => 0;
 
-    public override bool isObjectType => true;
+    public override bool isReferenceType => true;
 
-    public override bool isPrimitiveType => true;
+    public override bool isValueType => true;
 
     internal override bool hasStructDefault => true;
 

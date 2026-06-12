@@ -232,8 +232,9 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             this,
             syntax.parameterList.parameters,
             diagnostics,
-            true,
-            isVirtual || isAbstract
+            allowRef: true,
+            isVirtual || isAbstract,
+            allowConst: true
         ).Cast<SourceParameterSymbol, ParameterSymbol>();
 
         returnTypeSyntax = returnTypeSyntax.SkipRef(out _);

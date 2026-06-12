@@ -803,7 +803,7 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
                 }
             } catch (BadImageFormatException) { }
 
-            if (isPrimitiveType)
+            if (isValueType)
                 names.Add(WellKnownMemberNames.InstanceConstructorName);
 
             Interlocked.CompareExchange(ref _lazyMemberNames, CreateReadOnlyMemberNames(names), null);

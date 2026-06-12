@@ -298,6 +298,13 @@ internal abstract class Symbol : ISymbol {
         };
     }
 
+    internal ImmutableArray<bool> GetParameterConstnesses() {
+        return kind switch {
+            SymbolKind.Method => ((MethodSymbol)this).parameterConstnesses,
+            _ => throw ExceptionUtilities.UnexpectedValue(kind),
+        };
+    }
+
     internal ImmutableArray<ParameterSymbol> GetParameters() {
         return kind switch {
             SymbolKind.Method => ((MethodSymbol)this).parameters,

@@ -25,25 +25,25 @@ internal static class OperatorFacts {
         TypeSymbol rightType,
         bool rightIsNull) {
         if ((leftType is not null) && leftType.IsTemplateParameter()) {
-            if (leftType.isPrimitiveType || (!leftType.isObjectType && !rightIsNull))
+            if (leftType.isValueType || (!leftType.isReferenceType && !rightIsNull))
                 return false;
 
             leftType = ((TemplateParameterSymbol)leftType).effectiveBaseClass;
         }
 
         if ((rightType is not null) && rightType.IsTemplateParameter()) {
-            if (rightType.isPrimitiveType || (!rightType.isObjectType && !leftIsNull))
+            if (rightType.isValueType || (!rightType.isReferenceType && !leftIsNull))
                 return false;
 
             rightType = ((TemplateParameterSymbol)rightType).effectiveBaseClass;
         }
 
-        var leftIsObjectType = (leftType is not null) && leftType.isObjectType;
+        var leftIsObjectType = (leftType is not null) && leftType.isReferenceType;
 
         if (!leftIsObjectType && !leftIsNull)
             return false;
 
-        var rightIsObjectType = (rightType is not null) && rightType.isObjectType;
+        var rightIsObjectType = (rightType is not null) && rightType.isReferenceType;
 
         if (!rightIsObjectType && !rightIsNull)
             return false;

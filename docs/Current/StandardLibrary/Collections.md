@@ -10,4 +10,5 @@
   - [5.7.2.3](Dictionary.md#5723-operators) Operators
   - [5.7.2.4](Dictionary.md#5724-initializer-dictionaries) Initializer Dictionaries
 
-See also [arrays and initializer lists](../LowLevelFeatures.md#63-arrays).
+- See also [arrays and initializer lists](../Data.md#36-arrays).
+- See also [buffers](../LowLevelFeatures.md#63-arrays-and-buffers).

@@ -18,7 +18,7 @@ The List template has one template parameter corresponding to the element type.
 | `new List<type T>()` | Creates an empty list. |
 | `new List<type T>(int!)` | Creates a list of a given length where each element is it's default value. |
 | `new List<type T>(int!, T)` | Creates a list of a given length and fills it with the given value. |
-| `new List<type T>(T[])` | Creates a list of the same length as the given array and copies the values of the given array into it. |
+| `new List<type T>(Buffer<T>>)` | Creates a list of the same length as the given array and copies the values of the given array into it. |
 | `new List<type T>(List<T>)` | Copies the given list. |
 
 For example, to create an empty list where the elements are of type `int`:
@@ -49,7 +49,7 @@ new List<int>();
 | - | - |
 | `static ref T operator[](List<T>, int)` | Gets the value at the given index. |
 | `static int! operator length(List<T>)` | Used in [iterating for loops](../ControlFlow.md#2443-indexed-collections). |
-| `static implicit operator List<T>(T[])` | Creates a list from an array. |
+| `static implicit operator List<T>(BUffer<T>)` | Creates a list from an array. |
 
 For example, to index a list:
 

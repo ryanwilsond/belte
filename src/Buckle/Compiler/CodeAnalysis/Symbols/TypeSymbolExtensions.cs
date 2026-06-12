@@ -51,7 +51,11 @@ internal static class TypeSymbolExtensions {
     }
 
     internal static bool IsValidNullableTypeArgument(this TypeSymbol type) {
-        return type is { isPrimitiveType: true } && !type.IsNullableType();
+        return type is { isValueType: true } && !type.IsNullableType();
+    }
+
+    internal static bool IsKnownToBeImmutable(this TypeSymbol type) {
+        return type.specialType.IsKnownToBeImmutable() || type is NamedTypeSymbol named && named.isKnownToBeImmutable;
     }
 
     public static bool IsNullableType(this TypeSymbol type, out TypeSymbol underlyingType) {

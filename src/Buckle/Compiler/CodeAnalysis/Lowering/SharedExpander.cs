@@ -636,7 +636,7 @@ internal class SharedExpander : BoundTreeExpander {
 
                 if (replacementContent.StrippedType().specialType == SpecialType.String) {
                     right = replacementContent;
-                } else if (replacementContent.Type().IsVerifierValue() && !replacementContent.Type().IsStructType()) {
+                } else if (replacementContent.Type().isValueType && !replacementContent.Type().IsStructType()) {
                     if (!replacementContent.Type().IsNullableType()) {
                         var conversion = Conversion.Classify(replacementContent.Type(), stringType);
 

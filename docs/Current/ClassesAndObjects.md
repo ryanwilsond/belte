@@ -8,7 +8,8 @@
   - [4.2.1](#421-fields) Fields
     - [4.2.1.1](#4211-definite-assignment) Definite Assignment
   - [4.2.2](#422-methods) Methods
-    - [4.2.2.1](#4221-state-and-reverse-clauses) State and Reverse Clauses
+    - [4.2.2.1](#4221-overloading) Overloading
+    - [4.2.2.2](#4222-state-and-reverse-clauses) State and Reverse Clauses
   - [4.2.3](#423-operators) Operators
     - [4.2.3.1](#4231-operator-overloading) Operator Overloading
     - [4.2.3.2](#4232-casts) Casts
@@ -252,7 +253,8 @@ class MyClass {
 
 ### 4.2.2 Methods
 
-Methods are similar to functions. They are declared as such:
+Methods are similar to [functions](ControlFlow.md#21-functions) and generally allow the same features. They are declared
+as such:
 
 ```belte
 class MyClass {
@@ -269,7 +271,33 @@ var myInstance = new MyClass();
 myInstance.MyMethod();
 ```
 
-#### 4.2.2.1 State and Reverse Clauses
+### 4.2.2.1 Overloading
+
+As long as the signatures are different, it is valid to declare multiple methods with the same name (overloads). When
+calling a method with that name, the "best" overload is chosen.
+
+```belte
+class A {
+  public static void MyMethod() { }
+
+  public static void MyMethod(int param) { }
+}
+
+A.MyMethod(3); // This calls the second overload because it expects an argument, while the first overload does not.
+```
+
+The [`const` modifier on a parameter](ControlFlow.md#212-const-parameters) does not affect overload resolution, meaning
+two methods with otherwise the same signature will conflict:
+
+```belte
+class A {
+  public static void M(const List<int> list) { }
+
+  public static void M(List<int> list) { } // Error
+}
+```
+
+#### 4.2.2.2 State and Reverse Clauses
 
 A method with a reverse clause will automatically run that code when exiting a
 [with expression or statement](ControlFlow.md#27-with-expressions-and-statements)

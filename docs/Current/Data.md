@@ -49,6 +49,7 @@ The following is a list of built-in types with links to further information:
 | Function | `void()` | Managed function | [Section 3.1.3](#313-function-type) |
 | Object | `Object` | Anything, class base type | [Section 4.1](ClassesAndObjects.md#41-classes) |
 | Array | `int[]` | Collection of items | [Section 3.6](#36-arrays) |
+| Buffer | `Buffer<int>` | Collection of items | [Section 6.3](LowLevelFeatures.md#63-arrays-and-buffers) |
 | WINBOOL | `winbool` | Boolean that marshals as 4 bytes for interop | [Section 6.7.1](LowLevelFeatures.md#671-winbool) |
 | Signed-Byte | `int8` | | [Section 6.4](LowLevelFeatures.md#64-numerics) |
 | Signed-Short | `int16` | | [Section 6.4](LowLevelFeatures.md#64-numerics) |
@@ -78,7 +79,8 @@ Additionally, there are user-defined types:
 
 Additional information:
 
-- See also [arrays and initializer lists](LowLevelFeatures.md#63-arrays).
+- See also [arrays and initializer lists](#36-arrays).
+- See also [buffers](LowLevelFeatures.md#63-arrays-and-buffers).
 - See also [initializer dictionaries](StandardLibrary/Dictionary.md#5724-initializer-dictionaries).
 - See also [sized numeric types](LowLevelFeatures.md#64-numerics).
 - See also [pointer and function pointer types](LowLevelFeatures.md#65-pointers).
@@ -549,6 +551,9 @@ class A {
 }
 ```
 
+Constants cannot be passed as arguments to [parameters not marked `const`](ControlFlow.md#212-const-parameters) unless
+they are value types or known immutable reference types.
+
 With the `final` modifier, the data container can only be assigned to once, but it can be freely modified:
 
 ```belte
@@ -794,6 +799,17 @@ Arrays prevent reading elements before they a written by throwing at runtime:
 var a = new int[10];
 var b = a[0]; // Exception
 ```
+
+The length of an array can be accessed by calling the constant method `Length()`:
+
+```belte
+var a = new int[10];
+var b = a.Length();
+```
+
+Note that the length returned is the total size of the array regardless of how many elements have been initialized.
+
+In certain contexts, a [`Buffer<T>` may be preferable](LowLevelFeatures.md#63-arrays-and-buffers).
 
 ## 3.7 Compile-Time Expressions
 

@@ -31,8 +31,10 @@ internal sealed class SynthesizedSimpleNamedTypeSymbol : NamedTypeSymbol {
 
         var builder = ArrayBuilder<TemplateParameterSymbol>.GetInstance();
 
-        for (var i = 0; i < templateParameterTypes.Length; i++)
-            builder.Add(new SynthesizedTemplateParameterSymbol(this, templateParameterTypes[i], i));
+        for (var i = 0; i < templateParameterTypes.Length; i++) {
+            var tName = templateParameterTypes.Length == 1 ? "T" : $"T{i + 1}";
+            builder.Add(new SynthesizedTemplateParameterSymbol(this, templateParameterTypes[i], i, tName));
+        }
 
         templateParameters = builder.ToImmutableAndFree();
         arity = templateParameters.Length;

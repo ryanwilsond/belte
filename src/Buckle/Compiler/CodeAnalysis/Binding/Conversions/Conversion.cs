@@ -217,10 +217,8 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         if (target.IsNullableType()) {
             var underlyingConversion = Classify(source.StrippedType(), target.StrippedType());
 
-            if (underlyingConversion.isIdentity && !source.IsEnumType() &&
-                !target.IsEnumType() && !source.IsVerifierValue()) {
+            if (underlyingConversion.isIdentity && source.isReferenceType)
                 return underlyingConversion;
-            }
 
             if (underlyingConversion.exists)
                 return new Conversion(ConversionKind.ImplicitNullable, [underlyingConversion]);
@@ -434,7 +432,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         }
 
         // The rest of the boxing conversions only operate when going from a specific primitive type to the `any` type
-        if (!source.isPrimitiveType || destination.originalDefinition.specialType != SpecialType.Any)
+        if (!source.isValueType || destination.originalDefinition.specialType != SpecialType.Any)
             return false;
 
         if (source.IsNullableType())
@@ -448,7 +446,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         TemplateParameterSymbol source,
         TypeSymbol destination) {
         // TODO Does this conflict with the notion that "boxing" conversions have a destination of `any`?
-        if (source.isObjectType)
+        if (source.isReferenceType)
             return false;
 
         if (HasImplicitEffectiveBaseConversion(source, destination))

@@ -2220,14 +2220,14 @@ internal partial class Binder {
         HashSet<DataContainerSymbol> stackLocals) {
         switch (expression.kind) {
             case BoundKind.ArrayAccessExpression:
-                if (addressKind == AddressKind.ReadOnly && !expression.Type().isPrimitiveType)
+                if (addressKind == AddressKind.ReadOnly && !expression.Type().isValueType)
                     return false;
 
                 return true;
             case BoundKind.ThisExpression:
                 var type = expression.Type();
 
-                if (type.isObjectType)
+                if (type.isReferenceType)
                     return true;
 
                 if (!IsAnyReadOnly(addressKind) && containingSymbol is
@@ -2603,7 +2603,7 @@ internal partial class Binder {
                     return false;
                 }
 
-                var isValueType = ((BoundThisExpression)expression).type.IsVerifierValue();
+                var isValueType = ((BoundThisExpression)expression).type.isValueType;
 
                 if (!isValueType || (RequiresAssignableVariable(valueKind) &&
                     containingMember is MethodSymbol { isEffectivelyConst: true })) {
@@ -2773,12 +2773,26 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics) {
         var parameterSymbol = parameter.parameter;
 
-        if (parameterSymbol.refKind is RefKind.RefConst && RequiresAssignableVariable(valueKind)) {
-            ReportConstantError(parameterSymbol, node, valueKind, checkingReceiver, diagnostics);
-            return false;
-        } else if (parameterSymbol.refKind == RefKind.None && RequiresRefAssignableVariable(valueKind)) {
-            diagnostics.Push(Error.RefLocalOrParameterExpected(node.location));
-            return false;
+        if (RequiresAssignableVariable(valueKind)) {
+            if (parameterSymbol.refKind == RefKind.RefConst) {
+                ReportConstantError(parameterSymbol, node, valueKind, checkingReceiver, diagnostics);
+                return false;
+            } else if (parameterSymbol.refKind == RefKind.RefFinal || parameterSymbol.isConst) {
+                // TODO Why are we calling GetStandardLValueError here but ReportConstantError above?
+                // TODO CheckLocalValueKind combines both into GetStandardLValueError
+                if (!checkingReceiver || parameterSymbol.refKind != RefKind.RefFinal) {
+                    diagnostics.Push(GetStandardLValueError(valueKind, node.location));
+                    return false;
+                }
+            }
+        } else if (RequiresRefAssignableVariable(valueKind)) {
+            if (parameterSymbol.refKind == RefKind.None) {
+                diagnostics.Push(Error.RefLocalOrParameterExpected(node.location));
+                return false;
+            } else if (parameterSymbol.isConst) {
+                diagnostics.Push(GetStandardLValueError(valueKind, node.location));
+                return false;
+            }
         }
 
         return true;
@@ -3000,7 +3014,7 @@ internal partial class Binder {
         }
 
         if (fieldSymbol.isStatic ||
-            (fieldSymbol.containingType.isObjectType && node.parent.kind == SyntaxKind.CascadeExpression)) {
+            (fieldSymbol.containingType.isReferenceType && node.parent.kind == SyntaxKind.CascadeExpression)) {
             return true;
         }
 
@@ -4072,12 +4086,12 @@ internal partial class Binder {
 
         var hasError = false;
 
-        if (typeWithAnnotations.isNullable && type.isObjectType) {
-            // TODO Do we want this restriction?
-            // error: cannot take the `typeof` a nullable reference type.
-            // diagnostics.Add(ErrorCode.ERR_BadNullableTypeof, node.Location);
-            // hasError = true;
-        }
+        // if (typeWithAnnotations.isNullable && type.isReferenceType) {
+        // TODO Do we want this restriction?
+        // error: cannot take the `typeof` a nullable reference type.
+        // diagnostics.Add(ErrorCode.ERR_BadNullableTypeof, node.Location);
+        // hasError = true;
+        // }
 
         var boundType = new BoundTypeExpression(typeSyntax, typeWithAnnotations, null, type, type.IsErrorType());
         return new BoundTypeOfExpression(node, boundType, CorLibrary.GetSpecialType(SpecialType.Type), hasError);
@@ -5552,7 +5566,7 @@ internal partial class Binder {
 
         LookupResultKind resultKind;
 
-        if (type.isAbstract || type.isPrimitiveType)
+        if (type.isAbstract || type.IsPrimitiveType())
             resultKind = LookupResultKind.NotCreatable;
         else if (memberResolutionResult.isValid && !IsConstructorAccessible(memberResolutionResult.member))
             resultKind = LookupResultKind.Inaccessible;
@@ -6986,7 +7000,7 @@ internal partial class Binder {
         if (!hasError && fieldSymbol.isFixedSizeBuffer && !isInsideNameof) {
             var receiverType = receiver.type;
 
-            hasError = receiverType is null || !(receiverType.isPrimitiveType || receiverType.IsStructType());
+            hasError = receiverType is null || !receiverType.isValueType;
 
             // TODO Do we need these errors?
             // if (!hasError) {
@@ -7714,12 +7728,9 @@ internal partial class Binder {
 
             var receiverSymbol = receiver?.expressionSymbol;
 
-            if (receiverSymbol is DataContainerSymbol local && (local.isConst || local.isConstExpr)) {
-                diagnostics.Push(Error.NonConstantCallOnConstant(node.location, methodSymbol));
-                return true;
-            }
-
-            if (receiverSymbol is FieldSymbol field && (field.isConst || field.isConstExpr)) {
+            if ((receiverSymbol is DataContainerSymbol local && (local.isConst || local.isConstExpr)) ||
+                (receiverSymbol is FieldSymbol field && (field.isConst || field.isConstExpr)) ||
+                (receiverSymbol is ParameterSymbol parameter && parameter.isConst)) {
                 diagnostics.Push(Error.NonConstantCallOnConstant(node.location, methodSymbol));
                 return true;
             }
@@ -8984,8 +8995,8 @@ internal partial class Binder {
                 if (!operandType.ContainsTemplateParameter() && !targetType.ContainsTemplateParameter())
                     return false;
 
-                if (operandType.IsVerifierValue() && targetType.IsClassType() && targetType.specialType != SpecialType.Enum ||
-                    targetType.IsVerifierValue() && operandType.IsClassType() && operandType.specialType != SpecialType.Enum) {
+                if (operandType.isValueType && targetType.IsClassType() && targetType.specialType != SpecialType.Enum ||
+                    targetType.isValueType && operandType.IsClassType() && operandType.specialType != SpecialType.Enum) {
                     return false;
                 }
 
@@ -9087,7 +9098,7 @@ internal partial class Binder {
         var sourceType = expressionType.StrippedType();
         var targetType = localSymbol.type.StrippedType();
 
-        if (localSymbol.type.IsNullableType() && targetType.IsVerifierValue()) {
+        if (localSymbol.type.IsNullableType() && targetType.isValueType) {
             diagnostics.Push(Error.CannotAnnotateTypePattern(pattern.type.location, localSymbol.type, targetType));
             hasErrors = true;
         }
@@ -14204,6 +14215,7 @@ symIsHidden:;
                     var boundSymbol = BindType(symbol, diagnostics);
                     CreateParameterListError();
 
+                    // TODO Should this just be normal isValueType instead?
                     if (!boundSymbol.type.IsVerifierValue()) {
                         diagnostics.Push(Error.InvalidILOperandKind(node.location, displayString, operandKind.ToString()));
                         hasErrors = true;
@@ -14484,7 +14496,10 @@ symIsHidden:;
 
             if (initializer is not null &&
                 initializer.kind == BoundKind.ArrayCreationExpression &&
-                initializer.type is ArrayTypeSymbol arrayType) {
+                initializer.type is ArrayTypeSymbol arrayType &&
+                // This node means we have something like `new Buffer...` which is obviously intentionally not a fat array
+                // TODO Just need to double check there aren't any other nodes to not "fatify" on
+                initializer.syntax.kind != SyntaxKind.ObjectCreationExpression) {
                 var fatArray = CreateArrayOrFatArray(arrayType.elementTypeWithAnnotations, arrayType.rank, diagnostics);
                 initializer = GenerateConversionForAssignment(fatArray, initializer, diagnostics);
             }

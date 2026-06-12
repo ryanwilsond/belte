@@ -34,10 +34,37 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
 
     public abstract int arity { get; }
 
-    public override bool isObjectType
-        => !isPrimitiveType && !IsStructType() && !TypeSymbolExtensions.IsPointerOrFunctionPointer(this);
+    public override bool isReferenceType {
+        get {
+            var kind = typeKind;
+            bool result;
 
-    public override bool isPrimitiveType => originalDefinition.specialType.IsPrimitiveType();
+            if (kind == TypeKind.Primitive)
+                result = specialType.IsReferenceType();
+            else if (specialType == SpecialType.Nullable)
+                result = GetNullableUnderlyingType().isReferenceType;
+            else
+                result = kind is not TypeKind.Enum and not TypeKind.Struct and not TypeKind.Error;
+
+            return result;
+        }
+    }
+
+    public override bool isValueType {
+        get {
+            var kind = typeKind;
+            bool result;
+
+            if (kind == TypeKind.Primitive)
+                result = specialType.IsValueType();
+            else if (specialType == SpecialType.Nullable)
+                result = GetNullableUnderlyingType().isValueType;
+            else
+                result = kind is TypeKind.Struct or TypeKind.Enum;
+
+            return result;
+        }
+    }
 
     public bool isTemplateType {
         get {
@@ -95,6 +122,8 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
     internal virtual int? explicitAlignment => null;
 
     internal virtual bool isImplicitClass => false;
+
+    internal virtual bool isKnownToBeImmutable => false;
 
     internal override void Accept(SymbolVisitor visitor) {
         visitor.VisitNamedType(this);
@@ -255,6 +284,17 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
         foreach (var member in GetMembers()) {
             if (member is FieldSymbol f && !f.isStatic) {
                 if (!f.type.hasDefault)
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+    private protected bool CheckKnownToBeImmutable() {
+        foreach (var member in GetMembers()) {
+            if (member is FieldSymbol f && !f.isStatic) {
+                if (!f.isConst && !f.isConstExpr)
                     return false;
             }
         }

@@ -1447,7 +1447,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
     private uint GetFieldRefEscape(BoundFieldAccessExpression fieldAccess, uint scopeOfTheContainingExpression) {
         var fieldSymbol = fieldAccess.field;
 
-        if (fieldSymbol.isStatic || fieldSymbol.containingType.isObjectType)
+        if (fieldSymbol.isStatic || fieldSymbol.containingType.isReferenceType)
             return CallingMethodScope;
 
         if (fieldSymbol.refKind != RefKind.None)
@@ -1464,9 +1464,8 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
         BelteDiagnosticQueue diagnostics) {
         var fieldSymbol = fieldAccess.field;
 
-        if (fieldSymbol.isStatic || fieldSymbol.containingType.isObjectType)
+        if (fieldSymbol.isStatic || fieldSymbol.containingType.isReferenceType)
             return true;
-
 
         if (fieldSymbol.refKind != RefKind.None)
             return CheckValEscape(node, fieldAccess.receiver, escapeFrom, escapeTo, true, diagnostics);

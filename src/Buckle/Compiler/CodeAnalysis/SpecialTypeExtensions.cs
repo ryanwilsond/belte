@@ -3,6 +3,17 @@ using Buckle.CodeAnalysis.Symbols;
 namespace Buckle.CodeAnalysis;
 
 internal static class SpecialTypeExtensions {
+    internal static bool IsKnownToBeImmutable(this SpecialType specialType) {
+        // This is only caring about reference types
+        switch (specialType) {
+            case SpecialType.Type:
+            case SpecialType.String:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     internal static bool IsPrimitiveType(this SpecialType specialType) {
         switch (specialType) {
             case SpecialType.Any:
@@ -31,6 +42,24 @@ internal static class SpecialTypeExtensions {
             default:
                 return false;
         }
+    }
+
+    internal static bool IsReferenceType(this SpecialType specialType) {
+        switch (specialType) {
+            case SpecialType.Array:
+            case SpecialType.String:
+            case SpecialType.Any:
+            case SpecialType.Type:
+            case SpecialType.Object:
+            case SpecialType.Buffer:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    internal static bool IsValueType(this SpecialType specialType) {
+        return !IsReferenceType(specialType);
     }
 
     internal static bool IsValidEnumUnderlyingType(this SpecialType specialType) {

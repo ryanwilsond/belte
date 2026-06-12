@@ -74,43 +74,6 @@ internal sealed partial class CodeGenerator {
         _expressionTemps?.Free();
     }
 
-    internal static bool IsReferenceType(SpecialType type) {
-        return type == SpecialType.String ||
-               type == SpecialType.Array ||
-               type == SpecialType.Any ||
-               type == SpecialType.Type;
-    }
-
-    internal static bool IsValueType(SpecialType type) {
-        return type != SpecialType.String &&
-               type != SpecialType.Array &&
-               type != SpecialType.Any &&
-               type != SpecialType.Type;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static bool IsReferenceType(TypeSymbol type) {
-        var isReferenceType = (type.isObjectType && !type.IsStructType() && !type.IsEnumType() &&
-                              !IsTrueNullable(type)) || IsReferenceType(type.specialType);
-
-        if (type.StrippedType() is TemplateParameterSymbol t)
-            isReferenceType &= t.hasObjectTypeConstraint;
-
-        return isReferenceType;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static bool IsValueType(TypeSymbol type) {
-        var isValueType = (type.isPrimitiveType || type.IsStructType() || type.IsEnumType() ||
-                           IsTrueNullable(type)) && IsValueType(type.specialType);
-
-        // TODO Double check there is no edge case where a primitive constraint can result in a reference type
-        if (type.StrippedType() is TemplateParameterSymbol t)
-            isValueType &= t.hasPrimitiveTypeConstraint;
-
-        return isValueType;
-    }
-
     private VariableDefinition AllocateTemp(
         TypeSymbol type,
         LocalSlotConstraints slotConstraints = LocalSlotConstraints.None) {
@@ -125,8 +88,7 @@ internal sealed partial class CodeGenerator {
         if (((NamedTypeSymbol)type).templateArguments.Length == 0)
             return true;
 
-        var underlyingType = type.GetNullableUnderlyingType();
-        return IsValueType(underlyingType);
+        return type.GetNullableUnderlyingType().isValueType;
     }
 
     internal static bool IsStackLocal(DataContainerSymbol local, HashSet<DataContainerSymbol> stackLocals) {
@@ -166,7 +128,7 @@ internal sealed partial class CodeGenerator {
                 EmitArrayElementAddress((BoundArrayAccessExpression)expression, addressKind);
                 break;
             case BoundKind.ThisExpression:
-                if (IsValueType(expression.type)) {
+                if (expression.type.isValueType) {
                     if (!HasHome(expression, addressKind))
                         goto default;
 
@@ -335,7 +297,7 @@ internal sealed partial class CodeGenerator {
         if (!IsAnyReadOnly(addressKind))
             return false;
 
-        return !IsValueType(arrayAccess.type);
+        return !arrayAccess.type.isValueType;
     }
 
     private void EmitArrayIndex(BoundExpression index) {
@@ -490,7 +452,7 @@ internal sealed partial class CodeGenerator {
         var value = constant.value;
 
         if (value is null) {
-            if (IsReferenceType(type.StrippedType()))
+            if (type.StrippedType().isReferenceType)
                 _builder.Emit(OpCode.Ldnull);
             else
                 EmitInitObj(type, true);
@@ -576,7 +538,7 @@ internal sealed partial class CodeGenerator {
                         ? underlyingType.EnumUnderlyingTypeOrSelf().specialType
                         : underlyingType.specialType;
 
-                    if (IsValueType(underlyingType)) {
+                    if (underlyingType.isValueType) {
                         EmitConstantValue(new ConstantValue(value, underlyingDiscriminator), underlyingType);
                         _builder.EmitNewobjNullable(underlyingType);
                     } else if (underlyingType.specialType is SpecialType.Any or SpecialType.Object) {
@@ -953,7 +915,7 @@ oneMoreTime:
 
                 var conditionType = condition.type;
 
-                if (IsReferenceType(conditionType) && !conditionType.IsVerifierReference())
+                if (conditionType.isReferenceType && !conditionType.IsVerifierReference())
                     EmitBox(conditionType);
 
                 iLCode = sense ? OpCode.Brtrue : OpCode.Brfalse;
@@ -1046,15 +1008,16 @@ oneMoreTime:
         if (ts.IsEnumType())
             return true;
 
-        var st = ts.specialType;
-
-        if (st == SpecialType.Decimal)
-            return false;
-
-        if (!st.IsPrimitiveType())
-            return IsReferenceType(ts);
-
-        return true;
+        switch (ts.specialType) {
+            case SpecialType.Float32:
+            case SpecialType.Float64:
+            case SpecialType.Decimal:
+                return false;
+            case SpecialType.None:
+                return ts.isReferenceType;
+            default:
+                return true;
+        }
     }
 
     private void EmitReturnStatement(BoundReturnStatement statement) {
@@ -1968,7 +1931,7 @@ oneMoreTime:
                     }
                 }
             } else {
-                callKind = IsReferenceType(receiverType) &&
+                callKind = receiverType.isReferenceType &&
                     (!IsRef(receiver) ||
                     (!ReceiverIsKnownToReferToTempIfReferenceType(receiver) &&
                     !IsSafeToDereferenceReceiverRefAfterEvaluatingArguments(call.arguments)))
@@ -2016,10 +1979,8 @@ oneMoreTime:
                 );
             }
 
-            if (callKind == CallKind.ConstrainedCallVirt &&
-                IsValueType(actualMethodTargetedByTheCall.containingType)) {
+            if (callKind == CallKind.ConstrainedCallVirt && actualMethodTargetedByTheCall.containingType.isValueType)
                 callKind = CallKind.Call;
-            }
 
             if (callKind == CallKind.CallVirt) {
                 if (IsThisReceiver(receiver) && actualMethodTargetedByTheCall.containingType.isSealed)
@@ -2054,12 +2015,12 @@ oneMoreTime:
             var receiver = call.receiver;
             var receiverType = receiver.type;
 
-            if (callKind == CallKind.ConstrainedCallVirt && temp is null && !IsValueType(receiverType) &&
+            if (callKind == CallKind.ConstrainedCallVirt && temp is null && !receiverType.isValueType &&
                 !ReceiverIsKnownToReferToTempIfReferenceType(receiver) &&
                 !IsSafeToDereferenceReceiverRefAfterEvaluatingArguments(call.arguments)) {
                 object whenNotNullLabel = null;
 
-                if (!IsReferenceType(receiverType)) {
+                if (!receiverType.isReferenceType) {
                     EmitDefaultValue(receiverType, true, receiver.syntax);
                     EmitBox(receiverType);
                     whenNotNullLabel = new object();
@@ -3071,11 +3032,10 @@ oneMoreTime:
                 _builder.Emit(OpCode.Stelem_I);
                 break;
             default:
-                if (elementType.IsVerifierReference()) {
+                if (elementType.IsVerifierReference())
                     _builder.Emit(OpCode.Stelem_Ref);
-                } else {
+                else
                     _builder.EmitWithSymbolToken(OpCode.Stelem, elementType);
-                }
 
                 break;
         }
@@ -3274,6 +3234,9 @@ oneMoreTime:
                 break;
             case BoundKind.ArrayAccessExpression: {
                     var left = (BoundArrayAccessExpression)assignmentTarget;
+                    // TODO We can't omit this null check even though stelem will throw because that would cause
+                    // TODO executing the index expression when we shouldn't
+                    // ? unless we can prove it has no side effects?
                     EmitExpression(left.receiver, used: true);
                     EmitArrayIndex(left.index);
                     lhsUsesStack = true;
@@ -3340,7 +3303,7 @@ oneMoreTime:
         var rightType = right.type;
 
         if (!rightType.IsTemplateParameter()) {
-            if (IsReferenceType(rightType) || (right.constantValue is not null))
+            if (rightType.isReferenceType || right.constantValue is not null)
                 return false;
         }
 
@@ -3403,7 +3366,7 @@ oneMoreTime:
 
         if (left.kind == BoundKind.ArrayAccessExpression &&
             left.StrippedType().typeKind == TypeKind.TemplateParameter &&
-            !IsValueType(left.type)) {
+            !left.type.isValueType) {
             return false;
         }
 
@@ -3458,8 +3421,11 @@ oneMoreTime:
         } else {
             var fieldType = field.type;
 
-            if (IsValueType(fieldType) && (object)fieldType == (object)receiver.type) {
-                EmitExpressionWithoutNullCheck(receiver, used);
+            if (fieldType.isValueType && (object)fieldType == receiver.type) {
+                // Technically this shouldn't be reachable because it would be a cyclic struct
+                // But mscorlib does this so we might want to as well for predefined types later
+                throw ExceptionUtilities.Unreachable();
+                // EmitExpressionWithoutNullCheck(receiver, used);
             } else {
                 var temp = EmitFieldLoadReceiver(receiver);
 
@@ -3511,7 +3477,7 @@ oneMoreTime:
     }
 
     private bool EmitFieldLoadReceiverAddress(BoundExpression receiver) {
-        if (receiver is null || !IsValueType(receiver.type)) {
+        if (receiver is null || !receiver.type.isValueType) {
             return false;
         } else if (receiver.kind == BoundKind.CastExpression) {
             var conversion = (BoundCastExpression)receiver;
@@ -3645,7 +3611,7 @@ oneMoreTime:
     }
 
     private void EmitCast(BoundCastExpression cast) {
-        if (IsReferenceType(cast.operand.type)) {
+        if (cast.operand.type.isReferenceType) {
             if (cast.type.specialType == SpecialType.Nullable) {
                 return;
             } else if (cast.type.specialType == SpecialType.String) {
@@ -4020,7 +3986,7 @@ oneMoreTime:
         var thisType = _method.containingType;
         _builder.Emit(OpCode.Ldarg_0);
 
-        if (IsValueType(thisType)) {
+        if (thisType.isValueType) {
             EmitLoadIndirect(thisType);
             EmitBox(thisType);
         }
@@ -4030,7 +3996,7 @@ oneMoreTime:
         var thisType = expression.type;
         _builder.Emit(OpCode.Ldarg_0);
 
-        if (IsValueType(thisType))
+        if (thisType.isValueType)
             EmitLoadIndirect(thisType);
     }
 

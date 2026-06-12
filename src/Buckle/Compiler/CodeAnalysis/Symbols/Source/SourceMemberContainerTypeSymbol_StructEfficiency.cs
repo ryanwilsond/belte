@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -165,7 +164,7 @@ internal partial class SourceMemberContainerTypeSymbol {
     private static int GetTypeSize(TypeSymbol type, out int alignment) {
         alignment = PointerSize;
 
-        if (type.IsVerifierReference() || type.IsTemplateParameter())
+        if (type.isReferenceType || type.IsTemplateParameter())
             return PointerSize;
 
         if (type.IsEnumType())

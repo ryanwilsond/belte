@@ -247,8 +247,9 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
             this,
             syntax.parameterList.parameters,
             diagnostics,
-            true,
-            false
+            allowRef: true,
+            addRefConstModifier: false,
+            allowConst: true
         ).Cast<SourceParameterSymbol, ParameterSymbol>();
 
         lock (_declarationDiagnostics) {

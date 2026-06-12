@@ -241,6 +241,44 @@ internal sealed class Lowerer : BoundTreeRewriter {
         ));
     }
 
+    internal override BoundNode VisitLocalDeclarationStatement(BoundLocalDeclarationStatement statement) {
+        /*
+
+        <type> <localSymbol> = <initializer>
+
+        ----> <localSymbol> is nullable and <initializer> is not nullable
+
+        <type> <localSymbol> = new Nullable(<initializer>);
+
+        */
+        var declaration = statement.declaration;
+        var initializer = declaration.initializer;
+
+        // We also rewrite on the case of constant values because them being in constructor form is beneficial for code gen
+        // because it can see the constructor and try and do it in place
+
+        if (declaration.dataContainer.type.IsNullableType() &&
+            (!initializer.Type().IsNullableType() || initializer.constantValue?.value is not null) &&
+            initializer.Type().isValueType) {
+            var syntax = statement.syntax;
+
+            return VisitLocalDeclarationStatement(new BoundLocalDeclarationStatement(syntax,
+                new BoundDataContainerDeclaration(syntax,
+                    declaration.dataContainer,
+                    CreateNullable(
+                        syntax,
+                        initializer,
+                        CorLibrary.GetOrCreateNullableType(initializer.Type())
+                    )
+                ),
+                statement.isScoped,
+                statement.disposeMethod
+            ));
+        }
+
+        return base.VisitLocalDeclarationStatement(statement);
+    }
+
     internal override BoundNode VisitAssignmentOperator(BoundAssignmentOperator expression) {
         /*
 
@@ -260,8 +298,8 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         */
         if (expression.left.Type().IsNullableType() &&
-            !expression.right.Type().IsNullableType() &&
-            CodeGenerator.IsValueType(expression.right.Type())) {
+            (!expression.right.Type().IsNullableType() || expression.right.constantValue?.value is not null) &&
+            expression.right.Type().isValueType) {
             var syntax = expression.syntax;
 
             return VisitAssignmentOperator(
@@ -467,39 +505,6 @@ internal sealed class Lowerer : BoundTreeRewriter {
             sizeOf,
             uintptr
         );
-    }
-
-    internal override BoundNode VisitLocalDeclarationStatement(BoundLocalDeclarationStatement statement) {
-        /*
-
-        <type> <localSymbol> = <initializer>
-
-        ----> <localSymbol> is nullable and <initializer> is not nullable
-
-        <type> <localSymbol> = new Nullable(<initializer>);
-
-        */
-        var declaration = statement.declaration;
-
-        if (declaration.dataContainer.type.IsNullableType() &&
-            !declaration.initializer.Type().IsNullableType() &&
-            CodeGenerator.IsValueType(declaration.initializer.Type())) {
-            var syntax = statement.syntax;
-            return VisitLocalDeclarationStatement(new BoundLocalDeclarationStatement(syntax,
-                new BoundDataContainerDeclaration(syntax,
-                    declaration.dataContainer,
-                    CreateNullable(
-                        syntax,
-                        declaration.initializer,
-                        CorLibrary.GetOrCreateNullableType(declaration.initializer.Type())
-                    )
-                ),
-                statement.isScoped,
-                statement.disposeMethod
-            ));
-        }
-
-        return base.VisitLocalDeclarationStatement(statement);
     }
 
     internal override BoundNode VisitConditionalOperator(BoundConditionalOperator expression) {
@@ -1244,7 +1249,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
     }
 
     internal static bool ShouldBeTreatedAsNullable(TypeSymbol type) {
-        return type.IsNullableType() && CodeGenerator.IsValueType(type.GetNullableUnderlyingType());
+        return type.IsNullableType() && type.GetNullableUnderlyingType().isValueType;
     }
 
     internal static BoundExpression CreateNullable(
@@ -1257,6 +1262,15 @@ internal sealed class Lowerer : BoundTreeRewriter {
         if (expression is BoundObjectCreationExpression creation &&
             creation.type.specialType == SpecialType.Nullable) {
             return expression;
+        }
+
+        if (expression.type.IsNullableType()) {
+            if (expression.constantValue is not null) {
+                Debug.Assert(expression.constantValue.value is not null);
+                expression = Literal(syntax, expression.constantValue.value, expression.type.StrippedType());
+            } else {
+                return expression;
+            }
         }
 
         return new BoundObjectCreationExpression(

@@ -62,9 +62,9 @@ internal abstract partial class ArrayTypeSymbol : TypeSymbol {
 
     public override SpecialType specialType => SpecialType.Array;
 
-    public override bool isObjectType => false;
+    public override bool isReferenceType => true;
 
-    public override bool isPrimitiveType => true;
+    public override bool isValueType => false;
 
     internal override Symbol containingSymbol => null;
 

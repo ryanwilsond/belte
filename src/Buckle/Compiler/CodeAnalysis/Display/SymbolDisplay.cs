@@ -172,7 +172,7 @@ public static class SymbolDisplay {
                     text.Write(CreatePunctuation(", "));
 
                 if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeModifiers) != 0)
-                    DisplayConstExprRef(text, false, false, false, param.refKind);
+                    DisplayConstExprRef(text, param.isConst, false, false, param.refKind);
 
                 DisplayType(text, param.type, format);
 
@@ -202,7 +202,7 @@ public static class SymbolDisplay {
                     text.Write(CreatePunctuation(", "));
 
                 if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeModifiers) != 0)
-                    DisplayConstExprRef(text, false, false, false, param.refKind);
+                    DisplayConstExprRef(text, param.isConst, false, false, param.refKind);
 
                 DisplayType(text, param.type, format);
 
@@ -390,7 +390,7 @@ public static class SymbolDisplay {
         var needSpace = false;
 
         if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeModifiers) != 0)
-            DisplayConstExprRef(text, false, false, false, parameter.refKind);
+            DisplayConstExprRef(text, parameter.isConst, false, false, parameter.refKind);
 
         if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeType) != 0) {
             DisplayType(text, parameter.type, ToMemberTypeFormat(format));

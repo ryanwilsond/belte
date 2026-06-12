@@ -105,6 +105,14 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
         }
     }
 
+    internal ImmutableArray<bool> parameterConstnesses {
+        get {
+            ParameterSignature.PopulateParameterSignature(parameters, ref _lazyParameterSignature);
+            return _lazyParameterSignature.parameterConstnesses;
+        }
+    }
+
+
     internal MethodSymbol overriddenMethod {
         get {
             if (isOverride && ReferenceEquals(constructedFrom, this)) {
@@ -174,7 +182,7 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
 
     internal bool IsDefaultValueTypeConstructor() {
         return isImplicitlyDeclared &&
-            containingType?.isPrimitiveType == true &&
+            containingType?.isValueType == true &&
             IsParameterlessConstructor();
     }
 

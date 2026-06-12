@@ -11,6 +11,7 @@ a lowlevel context.
 - [6.2](#62-structs) Structs
   - [6.2.1](#621-packing) Packing
 - [6.3](#63-arrays-and-buffers) Arrays and Buffers
+  - [6.3.1](#631-alternate-entry-point-signature) Alternate Entry Point Signature
 - [6.4](#64-numerics) Numerics
   - [6.4.1](#641-bit-casts) Bit Casts
 - [6.5](#65-pointers) Pointers
@@ -32,8 +33,9 @@ a lowlevel context.
   - [6.13.1](#6131-messages) Messages
   - [6.13.2](#6132-ordering) Ordering
 - [6.14](#614-c-strings) C-Strings
-- [6.15](#615-lowlevel-fields) Fields
-- [6.16](#616-lowlevel-default-literal) Default Literal
+- [6.15](#615-lowlevel-fields) LowLevel Fields
+- [6.16](#616-lowlevel-default-literal) LowLevel Default Literal
+- [6.17](#617-double-verbatim-identifiers) Double Verbatim Identifiers
 
 Additionally, the
 [Standard Library contains a class named LowLevel that provides various helper methods](StandardLibrary/LowLevel.md).
@@ -121,11 +123,38 @@ The ordinary array syntax `int[]` is shorthand for `Array<int>` which tracks ini
 prevent reading before writing to an element. To use a raw CLR array instead, a `Buffer<T>` can be used:
 
 ```belte
-var a = new Buffer<int>(10);
-var b = a[0]; // Okay
+Buffer<int> a = new Buffer<int>(10);
+int b = a[0]; // Okay
 ```
 
-Each element will be zero-initialized even if the type has no default value.
+The buffer creation can take a size, a size and an initializer, or just an initializer form which the size is inferred:
+
+```belte
+new Buffer<int>(10);
+new Buffer<int>(10, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+new Buffer<int>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+```
+
+In the case that no initializer is given, each element will be zero-initialized even if the type has no default value.
+Buffers should only be used in performance critical code, interop, or if the initialization state of each element is
+tracked separately to prevent corrupting the type system.
+
+The [`LowLevel` helper class](StandardLibrary/LowLevel.md) provides a few methods that operate on buffers, including to
+get the length:
+
+```belte
+Buffer<int> a = new Buffer<int>(10, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+int b = LowLevel.Length<int>(a); // 10
+```
+
+### 6.3.1 Alternate Entry Point Signature
+
+The [`Main` entry point](ControlFlow.md#221-main) can optionally take in a `Buffer<string>` instead of `string[]`:
+
+```belte
+void Main(Buffer<string> args) { }
+int32 Main(Buffer<string> args) { }
+```
 
 ## 6.4 Numerics
 
@@ -729,3 +758,8 @@ Lowlevel default literals can only be used in lowlevel contexts.
 
 This should only be used in cases where read access to a data container is tightly controlled to avoid reading while
 not initialized to a valid value.
+
+## 6.17 Double Verbatim Identifiers
+
+The double verbatim specifier `@@` reads all trailing characters as a part of the identifier terminating at whitespace
+or a subsequent `@`. This could be used to directly reference compiler-generated symbols. Here be dragons.

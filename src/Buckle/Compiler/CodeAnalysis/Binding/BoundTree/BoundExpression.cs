@@ -23,13 +23,19 @@ internal abstract partial class BoundExpression : BoundNode {
     }
 
     internal bool IsConst() {
-        return kind switch {
-            BoundKind.DataContainerExpression => ((BoundDataContainerExpression)this).dataContainer.isConst,
-            BoundKind.ParameterExpression => ((BoundParameterExpression)this).parameter.isConst,
-            BoundKind.FieldAccessExpression => ((BoundFieldAccessExpression)this).field.isConst,
-            BoundKind.CallExpression => ((BoundCallExpression)this).method.isEffectivelyConst,
-            _ => false,
-        };
+        switch (kind) {
+            case BoundKind.DataContainerExpression:
+                return ((BoundDataContainerExpression)this).dataContainer.isConst;
+            case BoundKind.ParameterExpression:
+                return ((BoundParameterExpression)this).parameter.isConst;
+            case BoundKind.FieldAccessExpression:
+                var fieldAccess = (BoundFieldAccessExpression)this;
+                return fieldAccess.field.isConst || (fieldAccess.receiver?.IsConst() == true);
+            // TODO Pretty sure we don't care about calls because their "constness" is not referring to the return value
+            // BoundKind.CallExpression => ((BoundCallExpression)this).method.isEffectivelyConst,
+            default:
+                return false;
+        }
     }
 
     internal TypeSymbol Type() {

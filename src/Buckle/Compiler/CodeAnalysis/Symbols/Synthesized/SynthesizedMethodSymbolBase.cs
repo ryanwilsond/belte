@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
-using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
@@ -132,7 +131,9 @@ internal abstract class SynthesizedMethodSymbolBase : SourceMemberMethodSymbol {
                     this,
                     paramType,
                     ordinal++,
-                    paramType.type.IsVerifierReference() ? RefKind.None : RefKind.Ref,
+                    // TODO What was this check supposed to accomplish?
+                    // paramType.type.IsVerifierReference() ? RefKind.None : RefKind.Ref,
+                    RefKind.Ref,
                     GeneratedNames.MakeSynthedParameterName(ordinal, paramType)
                 ));
             }

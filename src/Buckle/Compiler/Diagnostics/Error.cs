@@ -882,6 +882,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_ArgumentWrongRefConst, location, message);
     }
 
+    internal static BelteDiagnostic ArgumentWrongConst(TextLocation location, int arg) {
+        var message = $"argument {arg}: cannot pass a constant to a parameter expecting a variable";
+        return CreateError(DiagnosticCode.ERR_ArgumentWrongConst, location, message);
+    }
+
     internal static BelteDiagnostic NoCorrespondingArgument(TextLocation location, string parameterName, Symbol member) {
         var message = $"there is no argument given that corresponds to the required parameter '{parameterName}' of '{member}'";
         return CreateError(DiagnosticCode.ERR_NoCorrespondingArgument, location, message);

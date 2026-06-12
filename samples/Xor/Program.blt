@@ -6,7 +6,7 @@
 
 */
 
-int XorList(List<int> arr) {
+int XorList(const List<int> arr) {
     var result = 0;
 
     for (item in arr)
@@ -15,7 +15,7 @@ int XorList(List<int> arr) {
     return result;
 }
 
-List<int> PartitionList(List<int> list, int lsb) {
+List<int> PartitionList(const List<int> list, int lsb) {
     final result = new List<int>();
 
     for (item in list) {
@@ -26,7 +26,7 @@ List<int> PartitionList(List<int> list, int lsb) {
     return result;
 }
 
-List<int> FindDoubleMissing(List<int> given, List<int> total) {
+List<int> FindDoubleMissing(const List<int> given, const List<int> total) {
     const uv = XorList(given) ^ XorList(total);
     const lsb = uv & ~(uv - 1);
     const par0 = PartitionList(given, lsb);

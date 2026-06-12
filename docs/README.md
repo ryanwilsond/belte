@@ -39,7 +39,7 @@
   - [2](Current/ControlFlow.md) Control Flow
     - [2.1](Current/ControlFlow.md#21-functions) Functions
       - [2.1.1](Current/ControlFlow.md#211-nested-functions) Nested Functions
-      - [2.1.2](Current/ControlFlow.md#212-overloads) Overloads
+      - [2.1.2](Current/ControlFlow.md#212-const-parameters) Const Parameters
       - [2.1.3](Current/ControlFlow.md#213-default-arguments) Default Arguments
       - [2.1.4](Current/ControlFlow.md#214-named-arguments) Named Arguments
       - [2.1.5](Current/ControlFlow.md#215-template-arguments) Template Arguments
@@ -114,7 +114,8 @@
     - [4.2](Current/ClassesAndObjects.md#42-members) Members
       - [4.2.1](Current/ClassesAndObjects.md#421-fields) Fields
       - [4.2.2](Current/ClassesAndObjects.md#422-methods) Methods
-        - [4.2.2.1](Current/ClassesAndObjects.md#4221-state-and-reverse-clauses) State and Reverse Clauses
+        - [4.2.2.1](Current/ClassesAndObjects.md#4221-overloading) Overloading
+        - [4.2.2.2](Current/ClassesAndObjects.md#4222-state-and-reverse-clauses) State and Reverse Clauses
       - [4.2.3](Current/ClassesAndObjects.md#423-operators) Operators
         - [4.2.3.1](Current/ClassesAndObjects.md#4231-operator-overloading) Operator Overloading
         - [4.2.3.2](Current/ClassesAndObjects.md#4232-casts) Casts
@@ -163,6 +164,7 @@
     - [6.2](Current/LowLevelFeatures.md#62-structs) Structs
       - [6.2.1](Current/LowLevelFeatures.md#621-packing) Packing
     - [6.3](Current/LowLevelFeatures.md#63-arrays-and-buffers) Arrays and Buffers
+      - [6.3.1](Current/LowLevelFeatures.md#631-alternate-entry-point-signature) Alternate Entry Point Signature
     - [6.4](Current/LowLevelFeatures.md#64-numerics) Numerics
       - [6.4.1](Current/LowLevelFeatures.md#641-bit-casts) Bit Casts
     - [6.5](Current/LowLevelFeatures.md#65-pointers) Pointers
@@ -184,14 +186,18 @@
       - [6.13.1](Current/LowLevelFeatures.md#6131-messages) Messages
       - [6.13.2](Current/LowLevelFeatures.md#6132-ordering) Ordering
     - [6.14](Current/LowLevelFeatures.md#614-c-strings) C-Strings
-    - [6.15](Current/LowLevelFeatures.md#615-lowlevel-fields) Fields
-    - [6.16](Current/LowLevelFeatures.md#616-lowlevel-default-literal) Default Literal
+    - [6.15](Current/LowLevelFeatures.md#615-lowlevel-fields) LowLevel Fields
+    - [6.16](Current/LowLevelFeatures.md#616-lowlevel-default-literal) LowLeve Default Literal
+    - [6.17](Current/LowLevelFeatures.md#617-double-verbatim-identifiers) Double Verbatim Identifiers
   - [7](Current/Preprocessor.md) Preprocessor Directives
     - [7.1](Current/Preprocessor.md#71-defineundef) Define/Undef
     - [7.2](Current/Preprocessor.md#72-control) Control
   - [8](Current/Interop.md) .NET DLL References
     - [8.1](Current/Interop.md#81-referencing-net-dlls) Referencing .NET DLLs
-    - [8.2](Current/Interop.md#82-feature-workarounds) Feature Workarounds
+    - [8.2](Current/Interop.md#82-tips) Tips
+      - [8.2.1](Current/Interop.md#821-properties) Properties
+      - [8.2.2](Current/Interop.md#822-arrays) Arrays
+      - [8.2.3](Current/Interop.md#823-nullability) Nullability
   - [9](Current/GraphicsLibrary.md) Graphics Library
 
 ___

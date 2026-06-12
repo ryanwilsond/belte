@@ -17,7 +17,8 @@ internal static class ParameterHelpers {
         SeparatedSyntaxList<ParameterSyntax> parameterList,
         BelteDiagnosticQueue diagnostics,
         bool allowRef,
-        bool addRefConstModifier) {
+        bool addRefConstModifier,
+        bool allowConst) {
         return MakeParameters(
             withTemplateParametersBinder,
             owner,
@@ -25,6 +26,7 @@ internal static class ParameterHelpers {
             diagnostics,
             allowRef,
             addRefConstModifier,
+            allowConst,
             lastIndex: parameterList.Count - 1,
             parameterCreationFunc: (Symbol owner, TypeWithAnnotations parameterType,
                                     ParameterSyntax syntax, RefKind refKind, bool isConst,
@@ -57,8 +59,9 @@ internal static class ParameterHelpers {
             owner,
             parametersList,
             diagnostics,
-            true,
-            true,
+            allowRef: true,
+            addRefConstModifier: true,
+            allowConst: true,
             parametersList.Count - 1,
             parameterCreationFunc: (FunctionPointerMethodSymbol owner, TypeWithAnnotations parameterType,
                                     FunctionPointerParameterSyntax syntax, RefKind refKind, bool isConst,
@@ -102,8 +105,9 @@ internal static class ParameterHelpers {
             owner,
             parametersList,
             diagnostics,
-            true,
-            true,
+            allowRef: true,
+            addRefConstModifier: true,
+            allowConst: true,
             parametersList.Count - 1,
             parameterCreationFunc: (FunctionMethodSymbol owner, TypeWithAnnotations parameterType,
                                     FunctionPointerParameterSyntax syntax, RefKind refKind, bool isConst,
@@ -279,6 +283,7 @@ internal static class ParameterHelpers {
         BelteDiagnosticQueue diagnostics,
         bool allowRef,
         bool addRefConstModifier,
+        bool allowConst,
         int lastIndex,
         Func<TOwningSymbol, TypeWithAnnotations, TParameterSyntax, RefKind, bool, int, bool, ScopedKind, TParameterSymbol> parameterCreationFunc,
         bool parsingFunctionPointer = false)
@@ -294,7 +299,7 @@ internal static class ParameterHelpers {
         foreach (var parameterSyntax in parametersList) {
             if (parameterIndex > lastIndex) break;
 
-            CheckParameterModifiers(parameterSyntax, diagnostics);
+            CheckParameterModifiers(parameterSyntax, allowConst, diagnostics);
 
             var refKind = GetModifiers(parameterSyntax.modifiers, out var refnessKeyword, out var isConst);
 
@@ -354,11 +359,13 @@ internal static class ParameterHelpers {
         return parameters;
     }
 
-    internal static void CheckParameterModifiers(BaseParameterSyntax parameter, BelteDiagnosticQueue diagnostics) {
+    internal static void CheckParameterModifiers(
+        BaseParameterSyntax parameter,
+        bool allowConst,
+        BelteDiagnosticQueue diagnostics) {
         var seenRef = false;
         var seenOut = false;
         var seenConst = false;
-        var seenFinal = false;
 
         SyntaxToken previousModifier = null;
 
@@ -388,19 +395,16 @@ internal static class ParameterHelpers {
                 case SyntaxKind.ConstKeyword:
                     if (seenConst)
                         AddDupParamMod(diagnostics, modifier);
-                    else if (previousModifier?.kind != SyntaxKind.RefKeyword)
+                    else if (!allowConst && previousModifier?.kind != SyntaxKind.RefKeyword)
+                        // TODO Add this check to template parameters
                         diagnostics.Push(Error.RefConstWrongOrder(modifier.location));
-                    else if (seenRef)
+                    else
                         seenConst = true;
 
                     break;
                 case SyntaxKind.FinalKeyword:
-                    if (seenFinal)
-                        AddDupParamMod(diagnostics, modifier);
-                    else if (previousModifier?.kind != SyntaxKind.RefKeyword)
+                    if (previousModifier?.kind != SyntaxKind.RefKeyword)
                         diagnostics.Push(Error.RefFinalWrongOrder(modifier.location));
-                    else if (seenFinal)
-                        seenConst = true;
 
                     break;
                 default:

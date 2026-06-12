@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Threading;
 using System.Threading.Tasks;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
@@ -87,6 +88,7 @@ internal sealed partial class Executor : ModuleBuilder {
     private volatile bool _reportedGraphicsCall;
 
     private MethodInfo _mainWrapper;
+    private CustomAttributeBuilder _lazyBoolMarshalAttribute;
 
     internal FieldInfo randomField;
     internal FieldInfo graphicsHandlerField;
@@ -309,7 +311,7 @@ internal sealed partial class Executor : ModuleBuilder {
                 var underlyingType = type.GetNullableUnderlyingType();
                 var genericArgumentType = GetType(underlyingType);
 
-                if (!CodeGenerator.IsValueType(underlyingType))
+                if (!underlyingType.isValueType)
                     return genericArgumentType;
 
                 return typeof(Nullable<>).MakeGenericType(genericArgumentType);
@@ -744,49 +746,6 @@ internal sealed partial class Executor : ModuleBuilder {
         var generic = GetType(elementType);
         return MethodInfoCache.Array_Empty.MakeGenericMethod(generic);
     }
-
-    // TODO Confirm we don't need this ever
-    // internal ConstructorInfo GetTupleCtor(NamedTypeSymbol tupleType) {
-    //     var tuple = GetTupleType(tupleType.arity);
-    //     var generics = tupleType.templateArguments.Select(t => GetType(t.type.type)).ToArray();
-    //     var closedType = tuple.MakeGenericType(generics);
-
-    //     if (closedType.ContainsGenericParameters ||
-    //         generics.Any(t => t is TypeBuilder) ||
-    //         generics.Any(t => t is GenericTypeParameterBuilder)) {
-    //         return TypeBuilder.GetConstructor(closedType, GetTupleCtorInfo(tupleType.arity));
-    //     } else {
-    //         return closedType.GetConstructor(generics);
-    //     }
-    // }
-
-    // private static Type GetTupleType(int arity) {
-    //     return arity switch {
-    //         1 => typeof(ValueTuple<>),
-    //         2 => typeof(ValueTuple<,>),
-    //         3 => typeof(ValueTuple<,,>),
-    //         4 => typeof(ValueTuple<,,,>),
-    //         5 => typeof(ValueTuple<,,,,>),
-    //         6 => typeof(ValueTuple<,,,,,>),
-    //         7 => typeof(ValueTuple<,,,,,,>),
-    //         8 => typeof(ValueTuple<,,,,,,,>),
-    //         _ => throw ExceptionUtilities.UnexpectedValue(arity)
-    //     };
-    // }
-
-    // private static ConstructorInfo GetTupleCtorInfo(int arity) {
-    //     return arity switch {
-    //         1 => MethodInfoCache.ValueTuple_T1_ctor,
-    //         2 => MethodInfoCache.ValueTuple_T2_ctor,
-    //         3 => MethodInfoCache.ValueTuple_T3_ctor,
-    //         4 => MethodInfoCache.ValueTuple_T4_ctor,
-    //         5 => MethodInfoCache.ValueTuple_T5_ctor,
-    //         6 => MethodInfoCache.ValueTuple_T6_ctor,
-    //         7 => MethodInfoCache.ValueTuple_T7_ctor,
-    //         8 => MethodInfoCache.ValueTuple_TRest_ctor,
-    //         _ => throw ExceptionUtilities.UnexpectedValue(arity)
-    //     };
-    // }
 
     internal MethodInfo GetSort(TypeSymbol elementType) {
         var generic = GetType(elementType);
@@ -1285,6 +1244,9 @@ internal sealed partial class Executor : ModuleBuilder {
                     GetFieldAttributes(f)
                 );
 
+                if (type.IsStructType() && f.type.specialType == SpecialType.Bool)
+                    fieldBuilder.SetCustomAttribute(GetBoolMarshalAttribute());
+
                 if (type.isUnionStruct)
                     fieldBuilder.SetOffset(0);
 
@@ -1394,17 +1356,17 @@ internal sealed partial class Executor : ModuleBuilder {
         );
 
         if (method.returnType.specialType == SpecialType.Bool) {
-            var marshalAsCtor = typeof(System.Runtime.InteropServices.MarshalAsAttribute)
-                .GetConstructor([typeof(System.Runtime.InteropServices.UnmanagedType)]);
-
-            var attr = new CustomAttributeBuilder(
-                marshalAsCtor,
-                [System.Runtime.InteropServices.UnmanagedType.I1]
-            );
-
             var returnParam = methodBuilder.DefineParameter(0, ParameterAttributes.None, null);
+            var attribute = GetBoolMarshalAttribute();
+            returnParam.SetCustomAttribute(attribute);
+        }
 
-            returnParam.SetCustomAttribute(attr);
+        for (var i = 0; i < method.parameterCount; i++) {
+            if (method.GetParameterType(i).specialType == SpecialType.Bool) {
+                var param = methodBuilder.DefineParameter(i + 1, ParameterAttributes.None, method.parameters[i].name);
+                var attribute = GetBoolMarshalAttribute();
+                param.SetCustomAttribute(attribute);
+            }
         }
 
         SetCustomAttributes(method, methodBuilder);
@@ -1414,6 +1376,22 @@ internal sealed partial class Executor : ModuleBuilder {
         );
 
         _methods.Add(method, methodBuilder);
+    }
+
+    private CustomAttributeBuilder GetBoolMarshalAttribute() {
+        if (_lazyBoolMarshalAttribute is null) {
+            var marshalAsCtor = typeof(System.Runtime.InteropServices.MarshalAsAttribute)
+                .GetConstructor([typeof(System.Runtime.InteropServices.UnmanagedType)]);
+
+            var attribute = new CustomAttributeBuilder(
+                marshalAsCtor,
+                [System.Runtime.InteropServices.UnmanagedType.I1]
+            );
+
+            Interlocked.CompareExchange(ref _lazyBoolMarshalAttribute, attribute, null);
+        }
+
+        return _lazyBoolMarshalAttribute;
     }
 
     private System.Runtime.InteropServices.CallingConvention GetCallingConvention(CallingConvention callingConvention) {
@@ -1513,14 +1491,11 @@ internal sealed partial class Executor : ModuleBuilder {
     private ConstructorInfo CheckConstructorsStandardMap(MethodSymbol method) {
         var mapKey = LibraryHelpers.BuildMapKey(method);
 
-        // if (mapKey.StartsWith("ValueTuple_.ctor_"))
-        //     return GetTupleCtor(method.containingType);
-
         return mapKey switch {
             "Object<>_.ctor" => MethodInfoCache.Object_ctor,
             "Exception_.ctor" => MethodInfoCache.Exception_ctor,
             "Exception_.ctor_S?" => MethodInfoCache.Exception_ctor_S,
-            "Nullable<>_.ctor" => GetNullableCtor(method.containingType.templateArguments[0].type.type),
+            "Nullable<>_.ctor_T" => GetNullableCtor(method.containingType.templateArguments[0].type.type),
             _ => throw ExceptionUtilities.UnexpectedValue(mapKey),
         };
     }

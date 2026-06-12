@@ -10,13 +10,15 @@ internal abstract class SynthesizedParameterSymbolBase : ParameterSymbol {
         int ordinal,
         RefKind refKind,
         ScopedKind scope,
-        string name) {
+        string name,
+        bool isConst) {
         containingSymbol = container;
         typeWithAnnotations = type;
         this.ordinal = ordinal;
         this.refKind = refKind;
         effectiveScope = scope;
         this.name = name;
+        this.isConst = isConst;
     }
 
     public override string name { get; }
@@ -45,7 +47,7 @@ internal abstract class SynthesizedParameterSymbolBase : ParameterSymbol {
 
     internal override bool isImplicitlyDeclared => true;
 
-    internal override bool isConst => false;
+    internal override bool isConst { get; }
 
     // TODO Once actually added, complex/simple implement this separately
     internal override bool hasUnscopedRefAttribute => false;

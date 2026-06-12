@@ -26,9 +26,9 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
 
     public abstract TypeKind typeKind { get; }
 
-    public abstract bool isPrimitiveType { get; }
+    public abstract bool isValueType { get; }
 
-    public abstract bool isObjectType { get; }
+    public abstract bool isReferenceType { get; }
 
     public virtual bool hasDefault => HasDefaultValue();
 

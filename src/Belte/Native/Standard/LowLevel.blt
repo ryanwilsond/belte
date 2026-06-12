@@ -1,10 +1,12 @@
 
 public static class LowLevel {
-    public static int! GetHashCode(Object! object);
+    public static int! GetHashCode(const Object! object);
 
-    public static string! GetTypeName(Object! object);
+    public static string! GetTypeName(const Object! object);
 
-    public static int! Length<type TElem>(Buffer<TElem>! array);
+    public static type! GetType(const any! object);
+
+    public static int! Length<type TElem>(const Buffer<TElem>! array);
 
     public static void Sort<type TElem>(Buffer<TElem>! array);
 

@@ -2,7 +2,7 @@
 
 - [2.1](#21-functions) Functions
   - [2.1.1](#211-nested-functions) Nested Functions
-  - [2.1.2](#212-overloads) Overloads
+  - [2.1.2](#212-const-parameters) Const Parameters
   - [2.1.3](#213-default-arguments) Default Arguments
   - [2.1.4](#214-named-arguments) Named Arguments
   - [2.1.5](#215-template-arguments) Template Arguments
@@ -96,17 +96,16 @@ void TopLevelFunction(int param) {
 
 Nested functions marked `static` cannot access locals of the enclosing scope.
 
-### 2.1.2 Overloads
+### 2.1.2 Const Parameters
 
-As long as the signatures are different, it is valid to declare multiple functions with the same name (overloads). When
-calling a function with that name, the "best" overload is chosen.
+Parameters marked `const` cannot be assigned to or modified within the scope of the function. This is used to encode in
+the function signature whether or not an argument is just read or also written, meaning that parameters should generally
+be marked `const` unless modified:
 
 ```belte
-void MyFunction() { }
-
-void MyFunction(int param) { }
-
-MyFunction(3); // This calls the second overload because it expects an argument, while the first overload does not.
+void F(const List<int> list) {
+  // ...
+}
 ```
 
 ### 2.1.3 Default Arguments
@@ -260,7 +259,7 @@ only allowed if only one file in the compilation contains these top-level statem
 ### 2.2.1 Main
 
 A function named `Main` is treated as the entry point if it is declared otherwise. To support command-line arguments,
-the `Main` function can optionally take in arguments to retrieve them (similar to C).
+the `Main` function can optionally take in arguments to retrieve them.
 
 **Valid** `Main` signatures:
 
@@ -830,7 +829,7 @@ return with (a = 5) with (b = 10) with (c = 0) SomeMethod();
 Using a single `with` where possible is preferred as the compiler can optimize it better.
 
 Apart from assignments,
-[user-defined reversal methods can be defined](ClassesAndObjects.md#4221-state-and-reverse-clauses) to use `with` in
+[user-defined reversal methods can be defined](ClassesAndObjects.md#4222-state-and-reverse-clauses) to use `with` in
 more contexts.
 
 ### 2.7.1 Commit Statements
@@ -1088,7 +1087,7 @@ var value = reversible Token: Method();
 ```
 
 The `reversible` expression uses the format `reversible <token name>: <expression>` where the expression is a call to a
-[reversible method](ClassesAndObjects.md#4221-state-and-reverse-clauses). The expression results in the the return value
+[reversible method](ClassesAndObjects.md#4222-state-and-reverse-clauses). The expression results in the the return value
 of the method. The token can then be used to call the reverse clause of the method:
 
 ```belte

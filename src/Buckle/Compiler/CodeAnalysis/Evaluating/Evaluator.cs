@@ -682,7 +682,7 @@ internal sealed class Evaluator {
     private EvaluatorValue EvaluateThisExpression(BoundThisExpression node) {
         var value = _stack.Peek().values[0];
 
-        if (IsValueType(node.type))
+        if (node.type.isValueType)
             return value.loc[value.ptr];
 
         return value;
@@ -691,7 +691,7 @@ internal sealed class Evaluator {
     private EvaluatorValue EvaluateBaseExpression(BoundBaseExpression node) {
         var value = _stack.Peek().values[0];
 
-        if (IsValueType(node.type))
+        if (node.type.isValueType)
             return value.loc[value.ptr];
 
         return value;
@@ -839,7 +839,7 @@ internal sealed class Evaluator {
             var receiver = node.receiver;
             var fieldType = field.type;
 
-            if (IsValueType(fieldType) && (object)fieldType == receiver.type) {
+            if (fieldType.isValueType && (object)fieldType == receiver.type) {
                 return EvaluateExpression(receiver, used, abort);
             } else {
                 var receiverValue = EvaluateFieldLoadReceiver(receiver, abort);
@@ -866,7 +866,7 @@ internal sealed class Evaluator {
         BoundExpression receiver,
         ValueWrapper<bool> abort,
         out EvaluatorValue expr) {
-        if (receiver is null || !IsValueType(receiver.Type())) {
+        if (receiver is null || !receiver.Type().isValueType) {
             expr = EvaluatorValue.None;
             return false;
         } else if (receiver.kind == BoundKind.CastExpression) {
@@ -931,13 +931,13 @@ internal sealed class Evaluator {
 
         var value = EvaluateExpression(node.operand, true, abort);
 
-        if (IsReferenceType(node.operand.Type())) {
+        if (node.operand.Type().isReferenceType) {
             if (node.Type().specialType == SpecialType.Nullable)
                 return value;
         }
 
-        var isCastable = node.operand.Type().specialType == SpecialType.String && node.Type().isPrimitiveType ||
-            node.Type().specialType == SpecialType.String && node.operand.Type().isPrimitiveType;
+        var isCastable = node.operand.Type().specialType == SpecialType.String && node.Type().isValueType ||
+            node.Type().specialType == SpecialType.String && node.operand.Type().isValueType;
 
         var involvesRefTypes = !isCastable && (node.operand.Type().IsVerifierReference() ||
             (node.Type().IsVerifierReference() && node.Type().specialType != SpecialType.String));
@@ -2384,7 +2384,7 @@ internal sealed class Evaluator {
 
                 return EvaluateArrayElementAddress((BoundArrayAccessExpression)node, abort);
             case BoundKind.ThisExpression:
-                if (IsValueType(node.Type())) {
+                if (node.Type().isValueType) {
                     if (!HasHome(node, addressKind))
                         goto default;
 
@@ -2842,7 +2842,7 @@ internal sealed class Evaluator {
             return HandleGraphicsCall(location, method, arguments, abort, out result);
 
         // TODO If we deem these string checks too slow, we could probably compute unique Int64 mapKeys instead
-        var mapKey = LibraryHelpers.BuildMapKey(method.originalDefinition);
+        var mapKey = LibraryHelpers.BuildMapKey(method);
 
         if ((object)method.containingNamespace == LibraryHelpers.BelteNamespace.originalDefinition) {
             switch (mapKey) {

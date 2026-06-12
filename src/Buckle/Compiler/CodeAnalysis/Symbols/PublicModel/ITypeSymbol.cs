@@ -6,9 +6,9 @@ public interface ITypeSymbol : INamespaceOrTypeSymbol {
 
     INamedTypeSymbol baseType { get; }
 
-    bool isObjectType { get; }
+    bool isReferenceType { get; }
 
-    bool isPrimitiveType { get; }
+    bool isValueType { get; }
 
     SpecialType specialType { get; }
 }

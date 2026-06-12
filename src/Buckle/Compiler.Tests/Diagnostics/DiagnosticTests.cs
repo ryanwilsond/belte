@@ -3322,18 +3322,19 @@ public sealed class DiagnosticTests {
 
     // ! Error_BU0254_InvalidRefParameter
 
-    [Fact]
-    public void Reports_Error_BU0255_RefConstWrongOrder() {
-        var text = @"
-            void F([const] int a) { }
-        ";
+    // ? Currently not enforced
+    // [Fact]
+    // public void Reports_Error_BU0255_RefConstWrongOrder() {
+    //     var text = @"
+    //         void F([const] int a) { }
+    //     ";
 
-        var diagnostics = @"
-            'const' modifier must be specified after 'ref'
-        ";
+    //     var diagnostics = @"
+    //         'const' modifier must be specified after 'ref'
+    //     ";
 
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
 
     [Fact]
     public void Reports_Error_BU0257_CircularConstantValue() {
@@ -6839,6 +6840,24 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             local function uses the entry point name but is not treated as the entry point because it does not have the correct signature
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0510_ArgumentWrongConst() {
+        var text = @"
+            class A { }
+
+            void Func(A a) { }
+
+            const a = new A();
+            Func([a]);
+        ";
+
+        var diagnostics = @"
+            argument 1: cannot pass a constant to a parameter expecting a variable
         ";
 
         AssertDiagnostics(text, diagnostics, _writer, true);

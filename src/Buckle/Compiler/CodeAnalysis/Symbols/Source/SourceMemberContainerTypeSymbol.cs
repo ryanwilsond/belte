@@ -65,6 +65,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     private ThreeState _lazyAnyMemberHasAttributes;
     private int _lazyKnownCircularStruct;
     private int _lazyHasStructDefault;
+    private int _lazyKnownToBeImmutable;
 
     private bool _fieldDefinitionsNoted;
 
@@ -219,6 +220,25 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             }
 
             return _lazyHasStructDefault == (int)ThreeState.True;
+        }
+    }
+
+    internal override bool isKnownToBeImmutable {
+        get {
+            if (_lazyKnownToBeImmutable == (int)ThreeState.Unknown) {
+                if (typeKind != TypeKind.Class) {
+                    Interlocked.CompareExchange(
+                        ref _lazyKnownToBeImmutable,
+                        (int)ThreeState.False,
+                        (int)ThreeState.Unknown
+                    );
+                } else {
+                    var value = (int)CheckKnownToBeImmutable().ToThreeState();
+                    Interlocked.CompareExchange(ref _lazyKnownToBeImmutable, value, (int)ThreeState.Unknown);
+                }
+            }
+
+            return _lazyKnownToBeImmutable == (int)ThreeState.True;
         }
     }
 

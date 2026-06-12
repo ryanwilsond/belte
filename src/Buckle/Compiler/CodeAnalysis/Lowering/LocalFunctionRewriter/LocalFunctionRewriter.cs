@@ -704,7 +704,7 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
 
         var oldInnermostFramePointer = _innermostFramePointer;
 
-        if (!framePointer.type.isPrimitiveType)
+        if (!framePointer.type.isValueType)
             _innermostFramePointer = framePointer;
 
         var addedLocals = ArrayBuilder<DataContainerSymbol>.GetInstance();

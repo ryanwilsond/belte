@@ -4,7 +4,6 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
-using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
@@ -2017,7 +2016,7 @@ internal sealed class Expander : SharedExpander {
             throw ExceptionUtilities.Unreachable();
         }
 
-        if (!trueExpression.Type().IsNullableType() && CodeGenerator.IsValueType(trueExpression.Type()))
+        if (!trueExpression.Type().IsNullableType() && trueExpression.Type().isValueType)
             trueExpression = Lowerer.CreateNullable(syntax, trueExpression, expression.type);
 
         replacement = new BoundConditionalOperator(

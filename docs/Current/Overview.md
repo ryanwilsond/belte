@@ -99,6 +99,7 @@ These keywords are reserved names and cannot be used as identifiers.
 - [class](ClassesAndObjects.md#41-classes)
 - [commit](ControlFlow.md#271-commit-statements)
 - [const](Data.md#331-modifiers) (data container modifier)
+- [const](ControlFlow.md#212-const-parameters) (parameter modifier)
 - [const](ClassesAndObjects.md#434-const) (method modifier)
 - [constexpr](Data.md#331-modifiers) (local and parameter modifier)
 - [constexpr](ClassesAndObjects.md#433-static-and-constexpr) (field modifier)
@@ -147,7 +148,7 @@ These keywords are reserved names and cannot be used as identifiers.
 - [public](ClassesAndObjects.md#431-accessibility-modifiers)
 - [ref](Data.md#35-references)
 - [return](ControlFlow.md#21-functions)
-- [reverse](ClassesAndObjects.md#4221-state-and-reverse-clauses) (method clause)
+- [reverse](ClassesAndObjects.md#4222-state-and-reverse-clauses) (method clause)
 - [reverse](ControlFlow.md#211-reverse-statements) (statement)
 - [reversible](ControlFlow.md#211-reverse-statements)
 - [scoped](ControlFlow.md#29-scoped-statements)
@@ -164,6 +165,7 @@ These keywords are reserved names and cannot be used as identifiers.
 - [true](Data.md#31-data-types)
 - [try](ControlFlow.md#261-trycatchfinally)
 - [typeof](Data.md#32-operators)
+- [union](ClassesAndObjects.md#491-unions)
 - [unreachable](ControlFlow.md#210-unreachable-statements)
 - [using](ClassesAndObjects.md#48-using-directives)
 - [virtual](ClassesAndObjects.md#432-overriding-modifiers)
@@ -192,7 +194,7 @@ These keywords only act as keywords inside specific contexts. As such they can b
 - [operator](ControlFlow.md#244-for-each-loops) (for each operators)
 - [packed](LowLevelFeatures.md#621-packing)
 - [primitive](ClassesAndObjects.md#4512-special-constraints)
-- [state](ClassesAndObjects.md#4221-state-and-reverse-clauses)
+- [state](ClassesAndObjects.md#4222-state-and-reverse-clauses)
 - [undef](Preprocessor.md#71-defineundef)
 
 ## 1.4 Nullability and Types
@@ -494,7 +496,7 @@ most of the differences to make it more clear where the language is unique with 
 - [`destructor` keyword](ControlFlow.md#291-destructors)
 - [User-defined literals](ClassesAndObjects.md#4233-user-defined-literals)
 - [File-scoped classes](ClassesAndObjects.md#411-declaring-and-using-classes)
-- [Reversible methods](ClassesAndObjects.md#4221-state-and-reverse-clauses)
+- [Reversible methods](ClassesAndObjects.md#4222-state-and-reverse-clauses)
 - [Reversible statements](ControlFlow.md#211-reverse-statements)
 - [Arrays prevent reading before writing to elements](#147-arrays)
 - Primitive types (e.g. `int`) don't have members
@@ -561,26 +563,5 @@ illegal because it starts with a digit. Identifiers cannot be the same as any
 is a non-contextual keyword.
 
 The verbatim specifier `@` can be used to treat what would be a keyword as an identifier. For example, `var @class = 3;`
-would be legal.
-
-The double verbatim specifier `@@` can be used to treat any non-whitespace, non-at character as a part of the
-identifier. For example, `var @@my<class> = 3;` would be legal where `my<class>` is the identifier. A third `@` will
-terminate the identifier to avoid capturing unwanted characters: `@@my<class>@.MyMethod()`. Alternatively, whitespace
-could be used: `@@my<class> .MyMethod()`.
-
-The double verbatim specifier can be used to reference compiler-generated symbols in advanced scenarios.
-
-For example, consider this code where the user wants to explicitly call the
-[state clause of a reversible method](ClassesAndObjects.md#4221-state-and-reverse-clauses):
-
-```belte
-(var returnValue, var stateValue) = MyClass.@@<MyMethod>a__Reversible@(10);
-
-class MyClass {
-  public static int MyMethod(int p) {
-    return p + 5;
-  } state (int) {
-    return p - 5;
-  } reverse (int state) { }
-}
-```
+would be legal where `class` is the identifier (note that the `@` is not included, so `myLocal` and `@myLocal` are the
+same identifier).

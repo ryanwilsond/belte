@@ -1,6 +1,5 @@
 using System;
 using Buckle.CodeAnalysis.Binding;
-using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Libraries;
@@ -187,7 +186,7 @@ internal sealed partial class FlowLowerer {
             out BoundExpression testExpression) {
             if (test is BoundDagTypeTest typeDecision &&
                 evaluation is BoundDagTypeEvaluation typeEvaluation1 &&
-                typeDecision.type.IsVerifierReference() &&
+                typeDecision.type.isReferenceType &&
                 typeEvaluation1.type.Equals(typeDecision.type, TypeCompareKind.AllIgnoreOptions) &&
                 typeEvaluation1.input == typeDecision.input) {
                 var input = _tempAllocator.GetTemp(test.input);

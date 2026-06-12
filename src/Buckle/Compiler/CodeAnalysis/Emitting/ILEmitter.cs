@@ -273,12 +273,18 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             indentedTextWriter.WriteLine();
 
             foreach (var method in typeDefinition.Methods) {
-                if (!method.IsAbstract && !IsBelteCompilerGenerated(method)) {
+                if (!method.IsAbstract && !method.IsPInvokeImpl && !IsBelteCompilerGenerated(method)) {
                     using (var methodCurly = new CurlyIndenter(indentedTextWriter, method.ToString())) {
                         foreach (var instruction in method.Body.Instructions)
                             indentedTextWriter.WriteLine(instruction);
                     }
 
+                    indentedTextWriter.WriteLine();
+                } else {
+                    if (method.HasPInvokeInfo)
+                        indentedTextWriter.WriteLine($"[PInvoke(\"{method.PInvokeInfo.Module}\")]");
+
+                    indentedTextWriter.WriteLine(method.ToString());
                     indentedTextWriter.WriteLine();
                 }
             }
@@ -315,7 +321,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 var underlyingType = type.GetNullableUnderlyingType();
                 var genericArgumentType = GetType(underlyingType);
 
-                if (!CodeGenerator.IsValueType(underlyingType))
+                if (!underlyingType.isValueType)
                     return genericArgumentType;
 
                 var typeReference = new GenericInstanceType(NetTypeReference.Nullable);
@@ -1276,6 +1282,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                         : GetType(f.type, f.refKind != RefKind.None)
                 );
 
+                if (type.IsStructType() && f.type.specialType == SpecialType.Bool)
+                    fieldDefinition.MarshalInfo = new MarshalInfo(NativeType.I1);
+
                 if (type.isUnionStruct)
                     fieldDefinition.Offset = 0;
 
@@ -1503,6 +1512,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 ParameterAttributes.None,
                 GetTypeOrIntPtr(parameter.type, parameter.refKind != RefKind.None)
             );
+
+            if (parameter.type.specialType == SpecialType.Bool)
+                parameterDefinition.MarshalInfo = new MarshalInfo(NativeType.I1);
 
             methodDefinition.Parameters.Add(parameterDefinition);
         }
@@ -2017,7 +2029,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             return GetTupleCtor(method.containingType);
 
         return mapKey switch {
-            "Nullable<>_.ctor" => GetNullableCtor(method.containingType.templateArguments[0].type.type),
+            "Nullable<>_.ctor_T" => GetNullableCtor(method.containingType.templateArguments[0].type.type),
             "Nullable<>_get_Value" => GetNullableValue(method.containingType.templateArguments[0].type.type),
             "Nullable<>_get_HasValue" => GetNullableHasValue(method.containingType.templateArguments[0].type.type),
             "Nullable<>_GetValueOrDefault" => GetNullableValueOrDefault(method.containingType.templateArguments[0].type.type),

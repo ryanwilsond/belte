@@ -399,7 +399,13 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
                 diagnostics.Push(Error.ArgumentWrongRef(sourceLocation, "ref", arg + 1));
         } else {
             if (arguments.types[arg] is { } argType) {
-                diagnostics.Push(Error.CannotConvertArgument(sourceLocation, argType, parameter.type, arg + 1));
+                if (!parameter.isConst && argument.isExpression &&
+                    argument.expression.IsConst() && argument.type.isReferenceType &&
+                    !argument.type.specialType.IsKnownToBeImmutable()) {
+                    diagnostics.Push(Error.ArgumentWrongConst(sourceLocation, arg + 1));
+                } else {
+                    diagnostics.Push(Error.CannotConvertArgument(sourceLocation, argType, parameter.type, arg + 1));
+                }
             } else {
                 // TODO Reachable error?
                 throw ExceptionUtilities.Unreachable();

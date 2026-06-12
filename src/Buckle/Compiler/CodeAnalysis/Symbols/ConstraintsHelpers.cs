@@ -581,7 +581,7 @@ internal static partial class ConstraintsHelpers {
             return false;
         }
 
-        if (templateParameter.hasObjectTypeConstraint && !templateArgument.type.type.StrippedType().isObjectType) {
+        if (templateParameter.hasObjectTypeConstraint && !templateArgument.type.type.StrippedType().isReferenceType) {
             diagnostics.Push(Error.ObjectConstraintFailed(
                 location,
                 containingSymbol.ConstructedFrom(),
@@ -601,7 +601,7 @@ internal static partial class ConstraintsHelpers {
             ));
         }
 
-        if (templateParameter.hasPrimitiveTypeConstraint && !templateArgument.type.type.StrippedType().isPrimitiveType) {
+        if (templateParameter.hasPrimitiveTypeConstraint && !templateArgument.type.type.StrippedType().isValueType) {
             diagnostics.Push(Error.PrimitiveConstraintFailed(
                 location,
                 containingSymbol.ConstructedFrom(),

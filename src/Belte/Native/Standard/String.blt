@@ -26,13 +26,13 @@ public static class String {
 
     public static string! Trim(string! text);
 
-    public static string! Trim(string! text, Buffer<char!>! trimCharacters);
+    public static string! Trim(string! text, const Buffer<char!>! trimCharacters);
 
     public static string! TrimStart(string! text);
 
-    public static string! TrimStart(string! text, Buffer<char!>! trimCharacters);
+    public static string! TrimStart(string! text, const Buffer<char!>! trimCharacters);
 
     public static string! TrimEnd(string! text);
 
-    public static string! TrimEnd(string! text, Buffer<char!>! trimCharacters);
+    public static string! TrimEnd(string! text, const Buffer<char!>! trimCharacters);
 }

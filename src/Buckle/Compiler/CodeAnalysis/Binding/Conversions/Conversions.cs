@@ -52,15 +52,14 @@ internal sealed partial class Conversions {
     }
 
     internal bool HasIdentityOrImplicitReferenceConversion(TypeSymbol source, TypeSymbol destination) {
-        if (HasIdentityConversionInternal(source, destination)) {
+        if (HasIdentityConversionInternal(source, destination))
             return true;
-        }
 
         return HasImplicitReferenceConversion(source, destination);
     }
 
     internal bool HasImplicitReferenceConversion(TypeSymbol source, TypeSymbol destination) {
-        if (!source.isObjectType && !source.IsArray())
+        if (!source.isReferenceType && !source.IsArray())
             return false;
 
         if (destination.specialType == SpecialType.Object)

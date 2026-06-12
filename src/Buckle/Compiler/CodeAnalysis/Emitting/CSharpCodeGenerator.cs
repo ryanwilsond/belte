@@ -265,7 +265,7 @@ internal sealed class CSharpCodeGenerator {
 
     private void EmitLocalFunctionStatement(BoundLocalFunctionStatement node) {
         var method = node.symbol;
-        using var curly = new CurlyIndenter(_writer, $"{_module.GetMethodAttributes(method, includeAccessibility: false)}{_module.GetMethodSignature(method)}");
+        using var curly = new CurlyIndenter(_writer, $"{_module.GetMethodAttributes(method, includeAccessibility: false, _writer.Indent)}{_module.GetMethodSignature(method)}");
         EmitStatement(node.body);
     }
 
@@ -468,7 +468,7 @@ internal sealed class CSharpCodeGenerator {
     }
 
     private string EmitNullAssert(string expression, TypeSymbol strippedType, bool throwIfNull = true) {
-        if (strippedType.IsVerifierValue())
+        if (strippedType.isValueType)
             return throwIfNull ? $"{expression}.Value" : $"{expression}.GetValueOrDefault()";
         else
             return throwIfNull ? $"{expression} ?? throw new global::System.NullReferenceException()" : expression;

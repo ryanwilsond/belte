@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Runtime.CompilerServices;
 using System.Threading;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Binding;
@@ -363,11 +364,11 @@ internal static class StandardLibrary {
             StaticMethod("PadRight", SpecialType.String, [("text", SpecialType.String), ("padding", SpecialType.Char), ("totalWidth", SpecialType.Int)]),
             StaticMethod("Replace", SpecialType.String, [("text", SpecialType.String), ("search", SpecialType.String), ("replacement", SpecialType.String)]),
             StaticMethod("Trim", SpecialType.String, [("text", SpecialType.String)]),
-            StaticMethod("Trim", SpecialType.String, [("text", SpecialType.String), ("trimCharacters", CharBuffer)]),
+            StaticMethod("Trim", SpecialType.String, [("text", false, SpecialType.String), ("trimCharacters", true, CharBuffer)]),
             StaticMethod("TrimStart", SpecialType.String, [("text", SpecialType.String)]),
-            StaticMethod("TrimStart", SpecialType.String, [("text", SpecialType.String), ("trimCharacters", CharBuffer)]),
+            StaticMethod("TrimStart", SpecialType.String, [("text", false, SpecialType.String), ("trimCharacters", true, CharBuffer)]),
             StaticMethod("TrimEnd", SpecialType.String, [("text", SpecialType.String)]),
-            StaticMethod("TrimEnd", SpecialType.String, [("text", SpecialType.String), ("trimCharacters", CharBuffer)]),
+            StaticMethod("TrimEnd", SpecialType.String, [("text", false, SpecialType.String), ("trimCharacters", true, CharBuffer)]),
         ]);
     }
 
@@ -498,7 +499,7 @@ internal static class StandardLibrary {
             null,
             new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Int)),
             [lengthT],
-            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(ArrayTypeSymbol.CreateSZArray(new TypeWithAnnotations(lengthT))), 0, RefKind.None, "array")],
+            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(ArrayTypeSymbol.CreateSZArray(new TypeWithAnnotations(lengthT))), 0, RefKind.None, "array", isConst: true)],
             MethodKind.Ordinary,
             DeclarationModifiers.Static
         );
@@ -700,10 +701,10 @@ internal static class StandardLibrary {
         );
 
         return StaticClass("LowLevel", [
-            StaticMethod("GetHashCode", SpecialType.Int32, [("object", SpecialType.Object)]),
+            StaticMethod("GetHashCode", SpecialType.Int32, [("object", true, SpecialType.Object)]),
             StaticMethod("CombineHashCode", SpecialType.Int32, [("hash1", SpecialType.Int32), ("hash2", SpecialType.Int32)]),
-            StaticMethod("GetTypeName", SpecialType.String, [("object", SpecialType.Object)]),
-            StaticMethod("GetType", SpecialType.Type, [("value", SpecialType.Any)]),
+            StaticMethod("GetTypeName", SpecialType.String, [("object", true, SpecialType.Object)]),
+            StaticMethod("GetType", SpecialType.Type, [("value", true, SpecialType.Any)]),
             length,
             sort,
             fill,
@@ -788,12 +789,12 @@ internal static class StandardLibrary {
             StaticMethod("GetHeight", SpecialType.Int),
             StaticMethod("Input", SpecialType.String),
             StaticMethod("PrintLine", SpecialType.Void),
-            StaticMethod("PrintLine", SpecialType.Void, [("message", SpecialType.String, true)]),
-            StaticMethod("PrintLine", SpecialType.Void, [("value", SpecialType.Any, true)]),
-            StaticMethod("PrintLine", SpecialType.Void, [("chars", CharBuffer, true)]),
-            StaticMethod("Print", SpecialType.Void, [("message", SpecialType.String, true)]),
-            StaticMethod("Print", SpecialType.Void, [("value", SpecialType.Any, true)]),
-            StaticMethod("Print", SpecialType.Void, [("chars", CharBuffer, true)]),
+            StaticMethod("PrintLine", SpecialType.Void, [("message", true, SpecialType.String, true)]),
+            StaticMethod("PrintLine", SpecialType.Void, [("value", true, SpecialType.Any, true)]),
+            StaticMethod("PrintLine", SpecialType.Void, [("chars", true, CharBuffer, true)]),
+            StaticMethod("Print", SpecialType.Void, [("message", true, SpecialType.String, true)]),
+            StaticMethod("Print", SpecialType.Void, [("value", true, SpecialType.Any, true)]),
+            StaticMethod("Print", SpecialType.Void, [("chars", true, CharBuffer, true)]),
             StaticMethod("ResetColor", SpecialType.Void),
             StaticMethod("SetForegroundColor", SpecialType.Void, [("color", SpecialType.Int)]),
             StaticMethod("SetBackgroundColor", SpecialType.Void, [("color", SpecialType.Int)]),

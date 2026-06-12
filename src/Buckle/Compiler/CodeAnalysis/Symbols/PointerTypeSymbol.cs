@@ -41,9 +41,9 @@ internal sealed class PointerTypeSymbol : TypeSymbol {
 
     internal override SyntaxReference syntaxReference => null;
 
-    public override bool isObjectType => false;
+    public override bool isReferenceType => false;
 
-    public override bool isPrimitiveType => false;
+    public override bool isValueType => true;
 
     internal override ImmutableArray<Symbol> GetMembers() {
         return [];
