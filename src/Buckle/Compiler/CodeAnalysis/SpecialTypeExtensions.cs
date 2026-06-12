@@ -8,6 +8,8 @@ internal static class SpecialTypeExtensions {
         switch (specialType) {
             case SpecialType.Type:
             case SpecialType.String:
+            // This is correct because this check does not care about derived types and Object has no fields:
+            case SpecialType.Object:
                 return true;
             default:
                 return false;

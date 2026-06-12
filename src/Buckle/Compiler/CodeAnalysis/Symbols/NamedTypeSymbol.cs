@@ -292,6 +292,9 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
     }
 
     private protected bool CheckKnownToBeImmutable() {
+        if (baseType?.IsKnownToBeImmutable() == false)
+            return false;
+
         foreach (var member in GetMembers()) {
             if (member is FieldSymbol f && !f.isStatic) {
                 if (!f.isConst && !f.isConstExpr)

@@ -6848,7 +6848,9 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0510_ArgumentWrongConst() {
         var text = @"
-            class A { }
+            class A {
+                public int f = 0;
+            }
 
             void Func(A a) { }
 

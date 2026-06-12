@@ -1269,4 +1269,20 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Evaluator_Parameter_AcceptsKnownImmutableArgument() {
+        var text = @"
+            class A { }
+
+            void Func(A a) { }
+
+            const a = new A();
+            Func(a);
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
 }

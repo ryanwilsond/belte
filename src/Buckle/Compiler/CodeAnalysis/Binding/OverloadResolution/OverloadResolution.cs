@@ -2358,7 +2358,7 @@ internal sealed partial class OverloadResolution {
                 // Value types are copied anyway so const doesn't really mean anything
                 ? argument.expression.IsConst() &&
                   argument.type.isReferenceType &&
-                  !argument.type.specialType.IsKnownToBeImmutable()
+                  !argument.type.IsKnownToBeImmutable()
                 : false;
             var parameterConstness = parameters.parameterConstness.IsDefault
                 ? false
