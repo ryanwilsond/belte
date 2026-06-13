@@ -7043,4 +7043,32 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0521_NullableReceiverProperty() {
+        var text = @"
+            Buffer<int>? a = {1, 2, 3};
+            var b = [a.Length];
+        ";
+
+        var diagnostics = @"
+            cannot access properties through a nullable receiver; consider using a null assert or conditional access
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0522_NonNullableReceiverProperty() {
+        var text = @"
+            Buffer<int> a = {1, 2, 3};
+            var b = [a?.Length];
+        ";
+
+        var diagnostics = @"
+            cannot use a conditional property access because the receiver is not nullable; consider using a regular property access
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

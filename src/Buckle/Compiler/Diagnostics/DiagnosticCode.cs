@@ -529,6 +529,8 @@ public enum DiagnosticCode : ushort {
     ERR_NonNullableReceiverCall = 518,
     ERR_NonNullableReceiverIndex = 519,
     ERR_CannotNullCheckNonNull = 520,
+    ERR_NullableReceiverProperty = 521,
+    ERR_NonNullableReceiverProperty = 522,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

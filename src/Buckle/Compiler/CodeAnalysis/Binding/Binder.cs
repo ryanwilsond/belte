@@ -6665,6 +6665,15 @@ internal partial class Binder {
 
                     break;
                 }
+            case BoundKind.ArrayLength: {
+                    diagnostics.Push(Error.NullableReceiverProperty(
+                        syntax.location,
+                        receiver,
+                        WellKnownMemberNames.BufferLength
+                    ));
+
+                    break;
+                }
             case BoundKind.ErrorExpression:
                 break;
             default:
@@ -6702,6 +6711,15 @@ internal partial class Binder {
                     } else {
                         diagnostics.Push(Error.NonNullableReceiverIndex(syntax.location, receiver, index));
                     }
+
+                    break;
+                }
+            case BoundKind.ArrayLength: {
+                    diagnostics.Push(Error.NonNullableReceiverProperty(
+                        syntax.location,
+                        receiver,
+                        WellKnownMemberNames.BufferLength
+                    ));
 
                     break;
                 }
@@ -6799,6 +6817,16 @@ internal partial class Binder {
         bool indexed,
         BelteDiagnosticQueue diagnostics) {
         var leftType = boundLeft.StrippedType();
+
+        if (leftType.IsArray() &&
+            rightName == WellKnownMemberNames.BufferLength &&
+            rightArity == 0 &&
+            !called &&
+            !indexed) {
+            // TODO Consider raising an error if the name is correct but is called or has template arguments or something
+            return new BoundArrayLength(node, boundLeft, CorLibrary.GetSpecialType(SpecialType.Int));
+        }
+
         var lookupResult = LookupResult.GetInstance();
 
         try {

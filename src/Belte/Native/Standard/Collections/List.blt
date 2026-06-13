@@ -23,7 +23,7 @@ public lowlevel sealed class List<type T> {
 
     public constructor(Buffer<T> array) {
         TidyInit();
-        ConstructContents(array, LowLevel.Length<T>(array));
+        ConstructContents(array, array.Length);
     }
 
     public constructor(List<T> list) {

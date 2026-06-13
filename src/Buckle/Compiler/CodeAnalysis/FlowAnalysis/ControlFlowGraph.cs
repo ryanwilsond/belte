@@ -335,6 +335,10 @@ internal sealed class ControlFlowGraph {
                 ApplyExpression(arrayAccess.receiver, ref result, diagnostics);
                 ApplyExpression(arrayAccess.index, ref result, diagnostics);
                 break;
+            case BoundKind.ArrayLength:
+                var arrayLength = (BoundArrayLength)expression;
+                ApplyExpression(arrayLength.receiver, ref result, diagnostics);
+                break;
             case BoundKind.IndexerAccessExpression:
                 var indexerAccess = (BoundIndexerAccessExpression)expression;
                 ApplyExpression(indexerAccess.receiver, ref result, diagnostics);

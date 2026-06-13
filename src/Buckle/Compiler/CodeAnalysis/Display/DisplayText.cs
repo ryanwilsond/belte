@@ -399,6 +399,9 @@ public sealed class DisplayText {
             case BoundKind.ValuePlaceholder:
                 DisplayValuePlaceholder(text, (BoundValuePlaceholder)node);
                 break;
+            case BoundKind.ArrayLength:
+                DisplayArrayLength(text, (BoundArrayLength)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -524,6 +527,12 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation("[ "));
         SymbolDisplay.AppendToDisplayText(text, node.type);
         text.Write(CreatePunctuation(" ]"));
+    }
+
+    private static void DisplayArrayLength(DisplayText text, BoundArrayLength node) {
+        DisplayNode(text, node.receiver);
+        text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
+        text.Write(CreateIdentifier(WellKnownMemberNames.BufferLength));
     }
 
     private static void DisplayReverseStatement(DisplayText text, BoundReverseStatement node) {

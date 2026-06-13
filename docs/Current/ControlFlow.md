@@ -547,8 +547,8 @@ class MyClass {
     return inst.arr[index];
   }
 
-  public static int! operator length(MyClass inst) {
-    return LowLevel.Length<int[]>(inst.arr);
+  public static int operator length(MyClass inst) {
+    return inst.arr.Length();
   }
 }
 ```
@@ -600,16 +600,16 @@ public class A {
 
   private class AEnumerator extends Enumerator<int> {
     private A a;
-    private int! count = -1;
+    private int count = -1;
 
     public constructor(A a) {
       this.a = a;
     }
 
-    public override bool! MoveNext() {
+    public override bool MoveNext() {
       count++;
 
-      if (count < LowLevel.Length<int[]>(a.arr))
+      if (count < a.arr.Length())
         return true;
 
       return false;

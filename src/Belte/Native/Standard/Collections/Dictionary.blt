@@ -66,7 +66,7 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
 
     public void Clear() {
         if (_count > 0) {
-            for (int i = 0; i < LowLevel.Length<int!>(_buckets); i++)
+            for (int i = 0; i < _buckets.Length; i++)
                 _buckets[i] = -1;
 
             _freeList = -1;
@@ -80,7 +80,7 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
             throw new ArgumentNullException();
 
         int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
-        int bucket = hashCode % LowLevel.Length<int>(_buckets);
+        int bucket = hashCode % _buckets.Length;
         int last = -1;
 
         for (int i = _buckets[bucket]; i >= 0; last = i) {
@@ -125,7 +125,7 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
 
         int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
 
-        for (int i = _buckets[hashCode % LowLevel.Length<int>(_buckets)]; i >= 0; i = _entries[i].next) {
+        for (int i = _buckets[hashCode % _buckets.Length]; i >= 0; i = _entries[i].next) {
             if (_entries[i].hashCode == hashCode && comparer.Equals(_entries[i].key, key))
                 return i;
         }
@@ -138,7 +138,7 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
             throw new ArgumentNullException();
 
         int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
-        int targetBucket = hashCode % LowLevel.Length<int>(_buckets);
+        int targetBucket = hashCode % _buckets.Length;
 
         for (int i = _buckets[targetBucket]; i >= 0; i = _entries[i].next) {
             if (_entries[i].hashCode == hashCode && comparer.Equals(_entries[i].key, key)) {
@@ -157,9 +157,9 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
             _freeList = _entries[index].next;
             _freeCount--;
         } else {
-            if (_count == LowLevel.Length<Entry>(_entries)) {
+            if (_count == _entries.Length) {
                 Resize();
-                targetBucket = hashCode % LowLevel.Length<int>(_buckets);
+                targetBucket = hashCode % _buckets.Length;
             }
 
             index = _count;
@@ -180,7 +180,7 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
     private void Resize(int newSize, bool forceNewHashCodes) {
         Buffer<int> newBuckets = new Buffer<int>(newSize);
 
-        for (int i = 0; i < LowLevel.Length<int>(newBuckets); i++)
+        for (int i = 0; i < newBuckets.Length; i++)
             newBuckets[i] = -1;
 
         Buffer<Entry> newEntries = new Buffer<Entry>(newSize);
@@ -209,7 +209,7 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
         int size = HashHelpers.GetPrime(capacity);
         _buckets = new Buffer<int>(size);
 
-        for (int i = 0; i < LowLevel.Length<int>(_buckets); i++)
+        for (int i = 0; i < _buckets.Length; i++)
             _buckets[i] = -1;
 
         _entries = new Buffer<Entry>(size);

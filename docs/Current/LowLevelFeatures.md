@@ -139,13 +139,14 @@ In the case that no initializer is given, each element will be zero-initialized 
 Buffers should only be used in performance critical code, interop, or if the initialization state of each element is
 tracked separately to prevent corrupting the type system.
 
-The [`LowLevel` helper class](StandardLibrary/LowLevel.md) provides a few methods that operate on buffers, including to
-get the length:
+To get the length of the buffer, a property access can be used:
 
 ```belte
-Buffer<int> a = new Buffer<int>(10, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
-int b = LowLevel.Length<int>(a); // 10
+Buffer<int> a = new Buffer<int>(10);
+int len = a.Length; // len = 10
 ```
+
+Additionally, the [`LowLevel` helper class](StandardLibrary/LowLevel.md) provides a few methods that operate on buffers.
 
 ### 6.3.1 Alternate Entry Point Signature
 

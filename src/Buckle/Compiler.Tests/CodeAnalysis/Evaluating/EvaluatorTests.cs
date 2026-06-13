@@ -384,6 +384,10 @@ public sealed class EvaluatorTests {
     [InlineData("lowlevel { int?[]? a = {1, 2, null}; return a![2]; }", null)]
     [InlineData("lowlevel { int?[][]? a = { new int?[] { 1 } }; return a![0]![0]; }", 1)]
     [InlineData("lowlevel { var a = new int?[] { 1, 2, 3 }; a = { 4, 5, 6 }; return a[0]; }", 4)]
+    [InlineData("Buffer<int> a = { 1, 2, 3 }; return a.Length;", 3)]
+    [InlineData("Buffer<int> a = new Buffer<int>(10); return a.Length;", 10)]
+    [InlineData("Buffer<int>? a = new Buffer<int>(10); return a?.Length;", 10)]
+    [InlineData("Buffer<int>? a = null; return a?.Length;", null)]
     [InlineData(@"
         class A {
             public decimal? f = 1;

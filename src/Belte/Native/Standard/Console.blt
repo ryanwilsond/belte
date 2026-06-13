@@ -8,12 +8,12 @@ public static class Console {
 
     public static void PrintLine(const string? message);
     public static void PrintLine(const any? value);
-    public static void PrintLine(const Buffer<char?>? chars);
+    public static void PrintLine(const Buffer<char>? chars);
     public static void PrintLine();
 
     public static void Print(const string? message);
     public static void Print(const any? value);
-    public static void Print(const Buffer<char?>? chars);
+    public static void Print(const Buffer<char>? chars);
 
     public static void ResetColor();
 

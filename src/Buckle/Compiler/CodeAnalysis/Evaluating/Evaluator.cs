@@ -576,6 +576,7 @@ internal sealed class Evaluator {
             BoundKind.FunctionPointerLoad => throw new BelteEvaluatorException("Function pointers are not supported in the Evaluator.", node.syntax.location),
             BoundKind.FunctionLoad => EvaluateFunctionLoad((BoundFunctionLoad)node, used),
             BoundKind.SizeOfOperator => EvaluateSizeOfOperator((BoundSizeOfOperator)node, used),
+            BoundKind.ArrayLength => EvaluateArrayLength((BoundArrayLength)node, used, abort),
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
     }
@@ -602,6 +603,16 @@ internal sealed class Evaluator {
             return EvaluatorValue.None;
 
         return GetDefaultValue(node.type, null);
+    }
+
+    private EvaluatorValue EvaluateArrayLength(BoundArrayLength node, bool used, ValueWrapper<bool> abort) {
+        var receiver = EvaluateExpression(node.receiver, used, abort);
+
+        if (!used)
+            return EvaluatorValue.None;
+
+        var array = _context.heap[receiver.ptr];
+        return EvaluatorValue.Literal((long)array.fields.Length);
     }
 
     private EvaluatorValue EvaluateSizeOfOperator(BoundSizeOfOperator node, bool used) {

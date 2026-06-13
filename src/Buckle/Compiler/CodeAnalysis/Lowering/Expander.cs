@@ -1930,6 +1930,11 @@ internal sealed class Expander : SharedExpander {
 
                         return statements;
                     }
+                case BoundKind.ArrayLength: {
+                        var arrayLength = (BoundArrayLength)access;
+                        newReceiver = arrayLength.Update(currentReceiver, arrayLength.type);
+                        return [];
+                    }
                 default:
                     throw ExceptionUtilities.UnexpectedValue(access.kind);
             }
@@ -2061,6 +2066,8 @@ internal sealed class Expander : SharedExpander {
                 null,
                 i.Type()
             );
+        } else if (access is BoundArrayLength l) {
+            trueExpression = l.Update(newReceiver, l.type);
         } else {
             throw ExceptionUtilities.Unreachable();
         }

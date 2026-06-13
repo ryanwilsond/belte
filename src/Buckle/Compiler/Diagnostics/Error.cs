@@ -2592,6 +2592,19 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_CannotNullCheckNonNull, location, message);
     }
 
+    internal static BelteDiagnostic NullableReceiverProperty(TextLocation location, BoundExpression left, string right) {
+        var message = $"cannot access properties through a nullable receiver; consider using a null assert or conditional access";
+        var suggestion1 = $"{left}!.{right}";
+        var suggestion2 = $"{left}?.{right}";
+        return CreateError(DiagnosticCode.ERR_NullableReceiverProperty, location, message, suggestion1, suggestion2);
+    }
+
+    internal static BelteDiagnostic NonNullableReceiverProperty(TextLocation location, BoundExpression left, string right) {
+        var message = $"cannot use a conditional property access because the receiver is not nullable; consider using a regular property access";
+        var suggestion = $"{left}.{right}";
+        return CreateError(DiagnosticCode.ERR_NonNullableReceiverProperty, location, message, suggestion);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

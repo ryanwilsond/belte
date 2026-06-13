@@ -27,7 +27,7 @@ public lowlevel sealed class Array<type T> {
     }
 
     public const int Length() {
-        return LowLevel.Length<T>(_array);
+        return _array.Length;
     }
 
     public static ref T operator[](Array<T> array, int index) {
@@ -35,7 +35,7 @@ public lowlevel sealed class Array<type T> {
     }
 
     public static int operator length(Array<T> array) {
-        return LowLevel.Length<T>(array._array);
+        return array._array.Length;
     }
 
     public static implicit operator Buffer<T>(Array<T> array) {
@@ -43,7 +43,7 @@ public lowlevel sealed class Array<type T> {
     }
 
     public static implicit operator Array<T>(Buffer<T> array) {
-        return new Array<T>(LowLevel.Length<T>(array), array);
+        return new Array<T>(array.Length, array);
     }
 
     public static void Copy(Buffer<T> to, Buffer<T> from, int start, int length) {

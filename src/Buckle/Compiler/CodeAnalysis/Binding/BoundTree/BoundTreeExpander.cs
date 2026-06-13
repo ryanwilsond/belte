@@ -455,8 +455,24 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.TupleBinaryOperator => ExpandTupleBinaryOperator((BoundTupleBinaryOperator)expression, out replacement, useKind),
             BoundKind.DeconstructionAssignmentOperator => ExpandDeconstructionAssignmentOperator((BoundDeconstructionAssignmentOperator)expression, out replacement, useKind),
             BoundKind.ReversibleExpression => ExpandReversibleExpression((BoundReversibleExpression)expression, out replacement, useKind),
+            BoundKind.ArrayLength => ExpandArrayLength((BoundArrayLength)expression, out replacement, useKind),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
+    }
+
+    private protected virtual List<BoundStatement> ExpandArrayLength(
+        BoundArrayLength expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        var statements = ExpandExpression(expression.receiver, out var newReceiver);
+
+        if (statements.Count != 0 || expression.receiver != newReceiver) {
+            replacement = expression.Update(newReceiver, expression.type);
+            return statements;
+        }
+
+        replacement = expression;
+        return [];
     }
 
     private protected virtual List<BoundStatement> ExpandReversibleExpression(

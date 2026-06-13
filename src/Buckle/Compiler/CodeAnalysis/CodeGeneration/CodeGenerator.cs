@@ -1309,6 +1309,9 @@ oneMoreTime:
             case BoundKind.FieldSlotExpression:
                 EmitFieldSlotExpression((BoundFieldSlotExpression)expression, used);
                 break;
+            case BoundKind.ArrayLength:
+                EmitArrayLength((BoundArrayLength)expression, used);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(expression.kind);
         }
@@ -1333,6 +1336,19 @@ oneMoreTime:
             else
                 EmitConstantValue(constant, type);
         }
+    }
+
+    private void EmitArrayLength(BoundArrayLength expression, bool used) {
+        // ldlen will null-check the expression so it must be "used"
+        EmitExpression(expression.receiver, used: true);
+        _builder.Emit(OpCode.Ldlen);
+
+        var typeTo = expression.type.specialType;
+        var typeFrom = typeTo.IsUnsigned() ? SpecialType.UIntPtr : SpecialType.IntPtr;
+
+        EmitNumericConversion(typeFrom, typeTo);
+
+        EmitPopIfUnused(used);
     }
 
     private void EmitMethodGroup(BoundMethodGroup _) {
