@@ -2974,7 +2974,9 @@ internal partial class Binder {
                 return false;
             }
 
-            if (fieldAccess.receiver is not null && fieldAccess.receiver.type.IsNullableType() &&
+            if (fieldAccess.receiver is not null &&
+                (fieldAccess.receiver.type.IsNullableType() ||
+                 fieldAccess.receiver.kind == BoundKind.NullAssertOperator) &&
                 fieldAccess.receiver.type.StrippedType().IsStructType()) {
                 diagnostics.Push(GetStandardLValueError(valueKind, node.location));
                 return false;
@@ -6600,21 +6602,34 @@ internal partial class Binder {
         BoundExpression receiver,
         BoundExpression access,
         BelteDiagnosticQueue diagnostics) {
+        var receiverType = receiver.Type();
+
         if (!isConditional) {
-            if (receiver.Type().IsNullableType())
+            if (receiverType is not null &&
+                (receiverType.IsNullableType() ||
+                (receiverType is TemplateParameterSymbol p && !p.hasNotNullConstraint))) {
                 ReportNullableReceiver(syntax, receiver, access, diagnostics);
+            }
 
             return access;
         }
 
-        return (receiver.hasErrors || access.hasErrors)
-            ? access
-            : new BoundConditionalAccessExpression(
-                syntax,
-                receiver,
-                access,
-                access.Type() is null ? access.Type() : CorLibrary.GetOrCreateNullableType(access.Type())
-            );
+        if (receiver.hasErrors || access.hasErrors)
+            return access;
+
+        if (receiverType is not null &&
+            !receiverType.IsNullableType() &&
+            (receiverType is not TemplateParameterSymbol tp || tp.hasNotNullConstraint)) {
+            ReportNonNullableReceiver(syntax, receiver, access, diagnostics);
+            return access;
+        }
+
+        return new BoundConditionalAccessExpression(
+            syntax,
+            receiver,
+            access,
+            access.Type() is null ? access.Type() : CorLibrary.GetOrCreateNullableType(access.Type())
+        );
     }
 
     private void ReportNullableReceiver(
@@ -6646,6 +6661,46 @@ internal partial class Binder {
                         diagnostics.Push(Error.NullableReceiverArray(syntax.location, receiver, index));
                     } else {
                         diagnostics.Push(Error.NullableReceiverIndex(syntax.location, receiver, index));
+                    }
+
+                    break;
+                }
+            case BoundKind.ErrorExpression:
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(access.kind);
+        }
+    }
+
+    private void ReportNonNullableReceiver(
+        SyntaxNode syntax,
+        BoundExpression receiver,
+        BoundExpression access,
+        BelteDiagnosticQueue diagnostics) {
+        switch (access.kind) {
+            case BoundKind.FieldAccessExpression: {
+                    var field = ((BoundFieldAccessExpression)access).field;
+                    diagnostics.Push(Error.NonNullableReceiver(syntax.location, receiver, field));
+                    break;
+                }
+            case BoundKind.ArrayAccessExpression: {
+                    var index = ((BoundArrayAccessExpression)access).index;
+                    diagnostics.Push(Error.NonNullableReceiverArray(syntax.location, receiver, index));
+                    break;
+                }
+            case BoundKind.MethodGroup: {
+                    var right = ((BoundMethodGroup)access).name;
+                    diagnostics.Push(Error.NonNullableReceiverCall(syntax.location, receiver, right));
+                    break;
+                }
+            case BoundKind.IndexerAccessExpression: {
+                    var index = ((BoundIndexerAccessExpression)access).index;
+
+                    if (CorLibrary.GetWellKnownType(WellKnownType.Array)
+                        .Equals(receiver.type.StrippedType().originalDefinition)) {
+                        diagnostics.Push(Error.NonNullableReceiverArray(syntax.location, receiver, index));
+                    } else {
+                        diagnostics.Push(Error.NonNullableReceiverIndex(syntax.location, receiver, index));
                     }
 
                     break;
@@ -9155,6 +9210,12 @@ internal partial class Binder {
                 );
             }
 
+            if (operand.type is not null &&
+                !operand.type.IsNullableType() &&
+                (operand.type is not TemplateParameterSymbol tp || tp.hasNotNullConstraint)) {
+                diagnostics.Push(Error.CannotNullCheckNonNull(node.location, node.operatorToken.text, operand.type));
+            }
+
             var boundRight = BindLiteralExpression(l, diagnostics);
             var constantValue = ConstantFolding.FoldIs(operand, boundRight, isIsntOperator);
             return new BoundIsOperator(node, operand, boundRight, isIsntOperator, constantValue, resultType);
@@ -9192,7 +9253,7 @@ internal partial class Binder {
         var targetType = targetTypeWithAnnotations.type;
         var targetTypeKind = targetType.typeKind;
         var boundType = new BoundTypeExpression(node.right, targetTypeWithAnnotations, alias, targetType);
-        var resultType = targetType;
+        var resultType = CorLibrary.GetOrCreateNullableType(targetType);
 
         if (operand.hasAnyErrors || targetTypeKind == TypeKind.Error)
             return new BoundAsOperator(node, operand, boundType, null, null, resultType, true);
@@ -9212,7 +9273,7 @@ internal partial class Binder {
                 operandPlaceholder,
                 Conversion.NullLiteral,
                 false,
-                resultType,
+                targetType,
                 diagnostics
             );
 
@@ -9350,7 +9411,7 @@ internal partial class Binder {
         var isLeftNullable = optLeftType is not null && optLeftType.IsNullableType();
         var optLeftType0 = isPropagation ? optLeftType : (isLeftNullable ? optLeftType.GetNullableUnderlyingType() : optLeftType);
 
-        if (leftOperand.kind == BoundKind.MethodGroup)
+        if (leftOperand.kind == BoundKind.MethodGroup || (optLeftType is not null && !optLeftType.IsNullableType()))
             return GenerateNullCoalescingBadBinaryOpsError(node, leftOperand, rightOperand, isPropagation, diagnostics);
 
         if (isLeftNullable) {

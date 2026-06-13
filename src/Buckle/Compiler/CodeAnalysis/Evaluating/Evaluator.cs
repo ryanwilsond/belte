@@ -3208,13 +3208,24 @@ internal sealed class Evaluator {
                 case "Nullable<>_get_Value":
                     result = NullAssertValue(receiver, abort);
                     return true;
-                case "Nullable<>_get_HasValue":
-                    var receiverValue = EvaluateExpression(receiver, true, abort);
-                    result = EvaluatorValue.Literal(receiverValue.kind != ValueKind.Null);
-                    return true;
+                case "Nullable<>_get_HasValue": {
+                        var receiverValue = EvaluateExpression(receiver, true, abort);
+                        result = EvaluatorValue.Literal(receiverValue.kind != ValueKind.Null);
+                        return true;
+                    }
                 case "Nullable<>_GetValueOrDefault":
                     result = EvaluateExpression(receiver, true, abort);
                     return true;
+                case "Nullable<>_GetValueOrDefault_T": {
+                        var receiverValue = EvaluateExpression(receiver, true, abort);
+
+                        if (receiverValue.kind == ValueKind.Null)
+                            result = EvaluateExpression(arguments[0], true, abort);
+                        else
+                            result = receiverValue;
+
+                        return true;
+                    }
                 case "Object<>_ToString":
                     var thisParameter = EvaluateExpression(receiver, true, abort);
 
@@ -3366,7 +3377,7 @@ internal sealed class Evaluator {
                 }
 
                 break;
-            case "Graphics_LoadSprite_SV?V?I?": {
+            case "Graphics_LoadSprite_SVV?I?": {
                     var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, true, abort)).ToArray();
                     var path = GetFilePath(evaluatedArguments[0].@string, location)
                         ?? throw new BelteEvaluatorException("Cannot load sprite: path does not exist.", location);
@@ -3395,7 +3406,7 @@ internal sealed class Evaluator {
                 }
 
                 break;
-            case "Graphics_DrawSprite_S?": {
+            case "Graphics_DrawSprite_S": {
                     var argument = EvaluateExpression(arguments[0], true, abort);
 
                     if (argument.kind == ValueKind.Null)
@@ -3405,7 +3416,7 @@ internal sealed class Evaluator {
                 }
 
                 break;
-            case "Graphics_DrawSprite_S?V?": {
+            case "Graphics_DrawSprite_SV": {
                     var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, true, abort)).ToArray();
                     var spritePtr = evaluatedArguments[0];
 
@@ -3426,7 +3437,7 @@ internal sealed class Evaluator {
                 }
 
                 break;
-            case "Graphics_LoadText_S?SV?DD?I?I?I?": {
+            case "Graphics_LoadText_SSVDD?I?I?I?": {
                     var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, true, abort)).ToArray();
                     var path = GetFilePath(evaluatedArguments[1].@string, location)
                         ?? throw new BelteEvaluatorException("Cannot load text: path does not exist.", location);
@@ -3455,7 +3466,7 @@ internal sealed class Evaluator {
                 }
 
                 break;
-            case "Graphics_DrawText_T?": {
+            case "Graphics_DrawText_T": {
                     var argument = EvaluateExpression(arguments[0], true, abort);
 
                     if (argument.kind == ValueKind.Null)
@@ -3525,10 +3536,10 @@ internal sealed class Evaluator {
                 }
 
                 break;
-            case "Graphics_DrawRect_R?I?I?I?":
+            case "Graphics_DrawRect_RIII":
                 DrawRect(false, out result);
                 break;
-            case "Graphics_DrawRect_R?I?I?I?I?":
+            case "Graphics_DrawRect_RIIII":
                 DrawRect(true, out result);
                 break;
             case "Graphics_Fill_III": {
@@ -3548,7 +3559,7 @@ internal sealed class Evaluator {
                 }
 
                 break;
-            case "Graphics_Draw_T?R?R?I?B?D?": {
+            case "Graphics_Draw_TRRI?B?D?": {
                     var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, true, abort)).ToArray();
                     var texturePtr = evaluatedArguments[0];
 
@@ -3615,8 +3626,8 @@ internal sealed class Evaluator {
             case "Graphics_PlaySound_S": {
                     var argument = EvaluateExpression(arguments[0], true, abort);
                     var fields = H(argument);
-                    double? volume = fields[1].kind == ValueKind.Null ? null : fields[1].@double;
-                    bool? loop = fields[2].kind == ValueKind.Null ? null : fields[2].@bool;
+                    var volume = fields[1].@double;
+                    var loop = fields[2].@bool;
                     var soundInstance = fields[0].data;
                     _context.graphicsHandler.PlaySound((SoundEffect)soundInstance, volume, loop);
                 }

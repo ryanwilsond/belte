@@ -6965,4 +6965,82 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0516_NonNullableReceiver() {
+        var text = @"
+            class A {
+                public int a = 0;
+            }
+
+            var a = new A();
+            [a?.a] = 10;
+        ";
+
+        var diagnostics = @"
+            cannot use a conditional field access because the receiver is not nullable; consider using a regular field access
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0517_NonNullableReceiverArray() {
+        var text = @"
+            var a = new int\[10\];
+            [a?\[0\]] = 10;
+        ";
+
+        var diagnostics = @"
+            cannot use a conditional array access because the receiver is not nullable; consider using a regular array access
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0518_NonNullableReceiverCall() {
+        var text = @"
+            class A {
+                public void M() { }
+            }
+
+            var a = new A();
+            [a?.M]();
+        ";
+
+        var diagnostics = @"
+            cannot use a conditional call because the receiver is not nullable; consider using a regular call
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0519_NonNullableReceiverIndex() {
+        var text = @"
+            var a = ""test"";
+            var b = [a?\[0\]];
+        ";
+
+        var diagnostics = @"
+            cannot use a conditional indexer because the receiver is not nullable; consider using a regular indexer
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0520_CannotNullCheckNonNull() {
+        var text = @"
+            int a = 3;
+            bool b = [a is null];
+        ";
+
+        var diagnostics = @"
+            cannot perform an 'is null' check on an operand of type 'int!' because it is a non-nullable type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

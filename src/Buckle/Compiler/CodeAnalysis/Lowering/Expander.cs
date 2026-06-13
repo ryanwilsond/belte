@@ -106,7 +106,7 @@ internal sealed class Expander : SharedExpander {
 
         <left> = <left> <op> <right>
 
-        ---> UseKind.StableValue, UseKind.Writable
+        ----> UseKind.StableValue, UseKind.Writable
 
         <left> = <left> <op> <right>
         <left>
@@ -161,7 +161,7 @@ internal sealed class Expander : SharedExpander {
 
         <left> = <left> <op> <right>
 
-        ---> <op> is ><=, UseKind.StableValue, UseKind.Writable
+        ----> <op> is ><=, UseKind.StableValue, UseKind.Writable
 
         <left> = <left> <op> <right>
         <left>
@@ -215,15 +215,21 @@ internal sealed class Expander : SharedExpander {
 
         <left> <op> <right>
 
+        ----> <op> is ?? and <left> is a value type and <right> is constant
+
+        <left>.GetValueOrDefault(<right>)
+
         ----> <op> is ??
 
-        temp = <left>
-        goto Break unless temp is null
+        goto Continue unless <left> is null
         temp = <right>
+        goto Break
+        Continue:
+        temp = <left>!
         Break:
         temp
 
-        ---> <op> is ?!
+        ----> <op> is ?!
 
         temp = <left>
         goto Break if temp is null
@@ -236,25 +242,65 @@ internal sealed class Expander : SharedExpander {
 
         var syntax = expression.syntax;
 
-        var statements = ExpandExpression(expression.left, out var newLeft);
-        var temp = GenerateTempLocal(newLeft.type);
-        statements.Add(LocalDeclaration(syntax, temp, newLeft));
+        if (expression.isPropagation) {
+            var statements = ExpandExpression(expression.left, out var newLeft);
+            var temp = GenerateTempLocal(newLeft.type);
+            statements.Add(LocalDeclaration(syntax, temp, newLeft));
 
-        var condition = IsNull(syntax, Local(syntax, temp));
-        var breakLabel = GenerateLabel();
-        statements.Add(
-            expression.isPropagation
-                ? GotoIf(syntax, breakLabel, condition)
-                : GotoIfNot(syntax, breakLabel, condition)
-        );
+            var condition = IsNull(syntax, Local(syntax, temp));
+            var breakLabel = GenerateLabel();
+            statements.Add(GotoIf(syntax, breakLabel, condition));
 
-        statements.AddRange(ExpandExpression(expression.right, out var newRight));
-        var assignment = Assignment(syntax, Local(syntax, temp), newRight, false, expression.type);
-        statements.Add(Statement(syntax, assignment));
-        statements.Add(Label(syntax, breakLabel));
+            statements.AddRange(ExpandExpression(expression.right, out var newRight));
+            var assignment = Assignment(syntax, Local(syntax, temp), newRight, false, expression.type);
+            statements.Add(Statement(syntax, assignment));
+            statements.Add(Label(syntax, breakLabel));
 
-        replacement = Local(syntax, temp);
-        return statements;
+            replacement = Local(syntax, temp);
+            return statements;
+        } else {
+            // TODO We could expand this to any rhs with no side effects, not just constants
+            if (expression.left.type.isValueType &&
+                expression.right.constantValue is not null &&
+                !expression.right.type.IsNullableType()) {
+                var statements = ExpandExpression(expression.left, out var newLeft);
+
+                replacement = Lowerer.CreateNullableGetValueOrDefaultTCall(
+                    syntax,
+                    newLeft,
+                    expression.right,
+                    newLeft.type.StrippedType()
+                );
+
+                return statements;
+            } else {
+                var statements = ExpandExpression(expression.left, out var newLeft, UseKind.StableValue);
+                var temp = GenerateTempLocal(expression.type);
+                var continueLabel = GenerateLabel();
+                var breakLabel = GenerateLabel();
+
+                statements.Add(LocalDeclaration(syntax, temp, null));
+                statements.Add(GotoIfNot(syntax, continueLabel, IsNull(syntax, newLeft)));
+                statements.AddRange(ExpandExpression(expression.right, out var newRight));
+                statements.Add(Statement(syntax, Assignment(syntax, Local(syntax, temp), newRight, false, temp.type)));
+                statements.Add(Goto(syntax, breakLabel));
+                statements.Add(Label(syntax, continueLabel));
+                statements.Add(Statement(syntax,
+                    Assignment(syntax,
+                        Local(syntax, temp),
+                        temp.type.IsNullableType()
+                            ? newLeft
+                            : new BoundNullAssertOperator(syntax, newLeft, false, null, newLeft.StrippedType()),
+                        false,
+                        temp.type
+                    )
+                ));
+                statements.Add(Label(syntax, breakLabel));
+
+                replacement = Local(syntax, temp);
+                return statements;
+            }
+        }
     }
 
     private protected override List<BoundStatement> ExpandNullErasureOperator(
@@ -310,7 +356,7 @@ internal sealed class Expander : SharedExpander {
         Break:
         <left>
 
-        ---> <op> is ?!
+        ----> <op> is ?!
 
         goto Break if <left> is null
         <left> = <right>
@@ -1769,7 +1815,7 @@ internal sealed class Expander : SharedExpander {
                 current = current.receiver as BoundConditionalAccessExpression;
             }
 
-            ExpandExpression(linearChain.Last().receiver, out var newReceiver, UseKind.StableValue);
+            statements.AddRange(ExpandExpression(linearChain.Last().receiver, out var newReceiver, UseKind.StableValue));
             statements.Add(GotoIf(syntax, breakLabel, IsNull(syntax, newReceiver)));
 
             for (var i = linearChain.Count - 1; i > 0; i--) {
@@ -2027,7 +2073,7 @@ internal sealed class Expander : SharedExpander {
             HasValue(syntax, newReceiver),
             false,
             trueExpression,
-            Literal(syntax, null, access.Type()),
+            Literal(syntax, null, expression.type),
             null,
             expression.type
         );

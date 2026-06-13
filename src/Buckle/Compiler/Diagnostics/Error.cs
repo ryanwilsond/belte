@@ -2563,6 +2563,35 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_CannotCreateEntryType, location, message);
     }
 
+    internal static BelteDiagnostic NonNullableReceiver(TextLocation location, BoundExpression left, FieldSymbol right) {
+        var message = $"cannot use a conditional field access because the receiver is not nullable; consider using a regular field access";
+        var suggestion = $"{left}.{right.ToDisplayString(SymbolDisplayFormat.ToStringNameFormat)}";
+        return CreateError(DiagnosticCode.ERR_NonNullableReceiver, location, message, suggestion);
+    }
+
+    internal static BelteDiagnostic NonNullableReceiverArray(TextLocation location, BoundExpression left, BoundExpression index) {
+        var message = $"cannot use a conditional array access because the receiver is not nullable; consider using a regular array access";
+        var suggestion = $"{left}[{index}]";
+        return CreateError(DiagnosticCode.ERR_NonNullableReceiverArray, location, message, suggestion);
+    }
+
+    internal static BelteDiagnostic NonNullableReceiverCall(TextLocation location, BoundExpression left, string name) {
+        var message = $"cannot use a conditional call because the receiver is not nullable; consider using a regular call";
+        var suggestion = $"{left}.{name}";
+        return CreateError(DiagnosticCode.ERR_NonNullableReceiverCall, location, message, suggestion);
+    }
+
+    internal static BelteDiagnostic NonNullableReceiverIndex(TextLocation location, BoundExpression left, BoundExpression index) {
+        var message = $"cannot use a conditional indexer because the receiver is not nullable; consider using a regular indexer";
+        var suggestion = $"{left}[{index}]";
+        return CreateError(DiagnosticCode.ERR_NonNullableReceiverIndex, location, message, suggestion);
+    }
+
+    internal static BelteDiagnostic CannotNullCheckNonNull(TextLocation location, string op, TypeSymbol type) {
+        var message = $"cannot perform an '{op} null' check on an operand of type '{type}' because it is a non-nullable type";
+        return CreateError(DiagnosticCode.ERR_CannotNullCheckNonNull, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

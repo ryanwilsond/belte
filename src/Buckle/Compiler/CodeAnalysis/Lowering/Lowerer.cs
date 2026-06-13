@@ -262,6 +262,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         // because it can see the constructor and try and do it in place
 
         if (declaration.dataContainer.type.IsNullableType() &&
+            initializer is not null &&
             (!initializer.Type().IsNullableType() || initializer.constantValue?.value is not null) &&
             initializer.Type().isValueType) {
             var syntax = statement.syntax;
@@ -518,7 +519,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         ----> <condition> is nullable
 
-        goto <label> if <condition>.get_Value()
+        <condition>! ? <trueExpr> : <falseExpr>
 
         */
         if (!_transpiling) {
@@ -1051,9 +1052,29 @@ internal sealed class Lowerer : BoundTreeRewriter {
         );
     }
 
+    internal static BoundExpression CreateNullableGetValueOrDefaultTCall(
+        SyntaxNode syntax,
+        BoundExpression operand,
+        BoundExpression argument,
+        TypeSymbol genericType) {
+        return InstanceCall(
+            syntax,
+            operand,
+            CreateNullableGetValueOrDefaultTSymbol(genericType),
+            [argument]
+        );
+    }
+
     private static MethodSymbol CreateNullableGetValueOrDefaultSymbol(TypeSymbol genericType) {
         return CreateMethodAsMemberOfNullable(
             CorLibrary.GetWellKnownMethod(WellKnownMember.Nullable_GetValueOrDefault),
+            genericType
+        );
+    }
+
+    private static MethodSymbol CreateNullableGetValueOrDefaultTSymbol(TypeSymbol genericType) {
+        return CreateMethodAsMemberOfNullable(
+            CorLibrary.GetWellKnownMethod(WellKnownMember.Nullable_GetValueOrDefault_T),
             genericType
         );
     }

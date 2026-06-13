@@ -524,6 +524,11 @@ public enum DiagnosticCode : ushort {
     ERR_CantChangeConstOnOverrideParameter = 513,
     WRN_DifferentConstOnOverrideParameter = 514,
     ERR_CannotCreateEntryType = 515,
+    ERR_NonNullableReceiver = 516,
+    ERR_NonNullableReceiverArray = 517,
+    ERR_NonNullableReceiverCall = 518,
+    ERR_NonNullableReceiverIndex = 519,
+    ERR_CannotNullCheckNonNull = 520,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

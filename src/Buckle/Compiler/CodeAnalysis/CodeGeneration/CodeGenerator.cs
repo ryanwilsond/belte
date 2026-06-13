@@ -2093,7 +2093,8 @@ oneMoreTime:
 
             if ((object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_getValue) ||
                 (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_getHasValue) ||
-                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_GetValueOrDefault)) {
+                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_GetValueOrDefault) ||
+                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_GetValueOrDefault_T)) {
                 return true;
             }
         }

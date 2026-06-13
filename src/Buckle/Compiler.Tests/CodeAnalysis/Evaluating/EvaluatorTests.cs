@@ -161,8 +161,8 @@ public sealed class EvaluatorTests {
     [InlineData("return 3 isnt null;", true)]
     [InlineData("return 5 % 2;", 1)]
     [InlineData("return 9 % 5;", 4)]
-    [InlineData("return 5 ?? 2;", 5)]
-    [InlineData("return 5 ?! 2;", 2)]
+    [InlineData("int? a = 5; return a ?? 2;", 5)]
+    [InlineData("int? a = 5; return a ?! 2;", 2)]
     [InlineData("int? a = 3; return a?;", 3)]
     [InlineData("int? a = null; return a?;", 0)]
     [InlineData("bool? a = true; return a?;", true)]
@@ -420,7 +420,7 @@ public sealed class EvaluatorTests {
     [InlineData("class A { public int? a; public int? b; } A myVar = new A(); myVar.a = 3; myVar.b = myVar.a + 3; return myVar.b;", 6)]
     [InlineData("class A { public int? a; public int? b; } A myVar = new A(); myVar.a = 3; myVar.b = myVar.a + 3; return myVar.a;", 3)]
     [InlineData("class A { public int? num; } A? myVar; int? a = myVar?.num; return a;", null)]
-    [InlineData("class A { public int? num; } A myVar = new A(); myVar.num = 7; int? a = myVar?.num; return a;", 7)]
+    [InlineData("class A { public int? num; } A myVar = new A(); myVar.num = 7; int? a = myVar.num; return a;", 7)]
     [InlineData("class A { public static int? a = 3; } return A.a;", 3)]
     [InlineData("class A { public static int? a = 3; static constructor() { a = 10; } } return A.a;", 10)]
     [InlineData("class A { public static int[]? a = new int[10]; static constructor() { a![0] = 10; } } return A.a![0];", 10)]
@@ -1071,7 +1071,7 @@ public sealed class EvaluatorTests {
             public int! Length() { return 4; }
         }
 
-        A a = new A();
+        A? a = new A();
         int! b = a?.Length()?;
         return b;
         ", 4)]
@@ -1089,7 +1089,7 @@ public sealed class EvaluatorTests {
             public int? a;
         }
 
-        A a = new A();
+        A? a = new A();
         a?.a = 3;
         return a?.a;
         ", 3)]
@@ -1100,8 +1100,8 @@ public sealed class EvaluatorTests {
         }
 
         A a = new A();
-        a?.b?.a = 3;
-        return a?.b?.a;
+        a.b?.a = 3;
+        return a.b?.a;
         ", null)]
     [InlineData(@"
         class A {
@@ -1109,8 +1109,9 @@ public sealed class EvaluatorTests {
             public void M() { a = 5; }
         }
 
-        A a = new A()?..M();
-        return a.a;
+        A? a = new A();
+        var b = a?..M();
+        return b?.a;
         ", 5)]
     [InlineData(@"
         class A {
@@ -1128,8 +1129,8 @@ public sealed class EvaluatorTests {
             public A? b;
         }
 
-        var a = new A()?..b = (new A()..a = 4);
-        return a.b!.a;
+        var a = ((A?)new A())?..b = (new A()..a = 4);
+        return a?.b!.a;
         ", 4)]
     [InlineData(@"
         int?[][]? a = null;
@@ -1156,7 +1157,7 @@ public sealed class EvaluatorTests {
             public int c = default;
         }
         var a = new A();
-        return a?.b?.c;", null)]
+        return a.b?.c;", null)]
     // Larger combinatorial tests
     [InlineData(@"
         class Counter {

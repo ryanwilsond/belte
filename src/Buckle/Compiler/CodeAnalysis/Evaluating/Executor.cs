@@ -731,6 +731,17 @@ internal sealed partial class Executor : ModuleBuilder {
             return closedType.GetMethod("GetValueOrDefault", BindingFlags.Public | BindingFlags.Instance, Type.EmptyTypes);
     }
 
+    internal MethodInfo GetNullableValueOrDefaultT(TypeSymbol type) {
+        var generic = GetType(type);
+        var nullable = typeof(Nullable<>);
+        var closedType = nullable.MakeGenericType(generic);
+
+        if (closedType.ContainsGenericParameters || generic is TypeBuilder || generic is GenericTypeParameterBuilder)
+            return TypeBuilder.GetMethod(closedType, MethodInfoCache.Nullable_GetValueOrDefault_T);
+        else
+            return closedType.GetMethod("GetValueOrDefault", BindingFlags.Public | BindingFlags.Instance, [generic]);
+    }
+
     internal MethodInfo GetNullableHasValue(TypeSymbol type) {
         var generic = GetType(type);
         var nullable = typeof(Nullable<>);
@@ -1525,6 +1536,8 @@ internal sealed partial class Executor : ModuleBuilder {
                 return GetNullableHasValue(method.containingType.templateArguments[0].type.type);
             case "Nullable<>_GetValueOrDefault":
                 return GetNullableValueOrDefault(method.containingType.templateArguments[0].type.type);
+            case "Nullable<>_GetValueOrDefault_T":
+                return GetNullableValueOrDefaultT(method.containingType.templateArguments[0].type.type);
             case "Graphics_Initialize_SIIB":
                 _graphicsInitialized = true;
                 goto default;
@@ -1599,12 +1612,12 @@ internal sealed partial class Executor : ModuleBuilder {
         return 0;
     }
 
-    public static long? DrawRect(BRect rect, long? r, long? g, long? b) {
+    public static long? DrawRect(BRect rect, long r, long g, long b) {
         GraphicsHandler.DrawRect((int)rect.x, (int)rect.y, (int)rect.w, (int)rect.h, r, g, b, null);
         return 0;
     }
 
-    public static long? DrawRect(BRect rect, long? r, long? g, long? b, long? a) {
+    public static long? DrawRect(BRect rect, long r, long g, long b, long a) {
         GraphicsHandler.DrawRect((int)rect.x, (int)rect.y, (int)rect.w, (int)rect.h, r, g, b, a);
         return 0;
     }
@@ -1657,7 +1670,7 @@ internal sealed partial class Executor : ModuleBuilder {
         long? g,
         long? b) {
         var mText = GraphicsHandler.LoadText(path, (float)fontSize);
-        return new BText(text, path, position, fontSize, angle, r, g, b, mText);
+        return new BText(text, path, position, fontSize, angle ?? 0, r ?? 0, g ?? 0, b ?? 0, mText);
     }
 
     public static BTexture LoadTexture(string path) {
@@ -1685,7 +1698,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
     public static BSound LoadSound(string path) {
         var mSound = GraphicsHandler.LoadSound(path);
-        return new BSound(null, null, mSound);
+        return new BSound(1, false, mSound);
     }
 
     public static void PlaySound(BSound sound) {
@@ -1898,17 +1911,17 @@ internal sealed partial class Executor : ModuleBuilder {
             { "Graphics_Initialize_SIIB", typeof(Executor).GetMethod("InitializeGraphics", Flags, [typeof(string), typeof(long), typeof(long), typeof(bool)]) },
             { "Graphics_Fill_III", typeof(Executor).GetMethod("Fill", Flags, [typeof(long), typeof(long), typeof(long)]) },
             { "Graphics_GetKey_S", typeof(Executor).GetMethod("GetKey", Flags, [typeof(string)]) },
-            { "Graphics_DrawSprite_S?", typeof(Executor).GetMethod("DrawSprite", Flags, [typeof(BSprite)]) },
-            { "Graphics_DrawText_T?", typeof(Executor).GetMethod("DrawText", Flags, [typeof(BText)]) },
-            { "Graphics_DrawRect_R?I?I?I?", typeof(Executor).GetMethod("DrawRect", Flags, [typeof(BRect), typeof(long?), typeof(long?), typeof(long?)]) },
-            { "Graphics_LoadSprite_SV?V?I?", typeof(Executor).GetMethod("LoadSprite", Flags, [typeof(string), typeof(BVec2), typeof(BVec2), typeof(long?)]) },
-            { "Graphics_LoadText_S?SV?DD?I?I?I?", typeof(Executor).GetMethod("LoadText", Flags, [typeof(string), typeof(string), typeof(BVec2), typeof(double), typeof(double?), typeof(long?), typeof(long?), typeof(long?)]) },
+            { "Graphics_DrawSprite_S", typeof(Executor).GetMethod("DrawSprite", Flags, [typeof(BSprite)]) },
+            { "Graphics_DrawText_T", typeof(Executor).GetMethod("DrawText", Flags, [typeof(BText)]) },
+            { "Graphics_DrawRect_RIII", typeof(Executor).GetMethod("DrawRect", Flags, [typeof(BRect), typeof(long), typeof(long), typeof(long)]) },
+            { "Graphics_LoadSprite_SVV?I?", typeof(Executor).GetMethod("LoadSprite", Flags, [typeof(string), typeof(BVec2), typeof(BVec2), typeof(long?)]) },
+            { "Graphics_LoadText_SSVDD?I?I?I?", typeof(Executor).GetMethod("LoadText", Flags, [typeof(string), typeof(string), typeof(BVec2), typeof(double), typeof(double?), typeof(long?), typeof(long?), typeof(long?)]) },
             { "Graphics_LockFramerate_I", typeof(Executor).GetMethod("LockFramerate", Flags, [typeof(long)]) },
-            { "Graphics_DrawSprite_S?V?", typeof(Executor).GetMethod("DrawSprite", Flags, [typeof(BSprite), typeof(BVec2)]) },
+            { "Graphics_DrawSprite_SV", typeof(Executor).GetMethod("DrawSprite", Flags, [typeof(BSprite), typeof(BVec2)]) },
             { "Graphics_LoadTexture_S", typeof(Executor).GetMethod("LoadTexture", Flags, [typeof(string)]) },
             { "Graphics_LoadTexture_SIII", typeof(Executor).GetMethod("LoadTexture", Flags, [typeof(string), typeof(long), typeof(long), typeof(long)]) },
-            { "Graphics_Draw_T?R?R?I?B?D?", typeof(Executor).GetMethod("Draw", Flags, [typeof(BTexture), typeof(BRect), typeof(BRect), typeof(long?), typeof(bool?), typeof(double?)]) },
-            { "Graphics_DrawRect_R?I?I?I?I?", typeof(Executor).GetMethod("DrawRect", Flags, [typeof(BRect), typeof(long?), typeof(long?), typeof(long?), typeof(long?)]) },
+            { "Graphics_Draw_TRRI?B?D?", typeof(Executor).GetMethod("Draw", Flags, [typeof(BTexture), typeof(BRect), typeof(BRect), typeof(long?), typeof(bool?), typeof(double?)]) },
+            { "Graphics_DrawRect_RIIII", typeof(Executor).GetMethod("DrawRect", Flags, [typeof(BRect), typeof(long), typeof(long), typeof(long), typeof(long)]) },
             { "Graphics_GetMouseButton_S", typeof(Executor).GetMethod("GetMouseButton", Flags, [typeof(string)]) },
             { "Graphics_GetMousePosition", typeof(Executor).GetMethod("GetMousePosition", Flags, Type.EmptyTypes) },
             { "Graphics_GetScroll", typeof(Executor).GetMethod("GetScroll", Flags, Type.EmptyTypes) },

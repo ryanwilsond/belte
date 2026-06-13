@@ -281,6 +281,17 @@ internal sealed class CorLibrary {
                 RefKind.None,
                 DeclarationModifiers.None
             ), nullableType, []));
+
+        RegisterWellKnownMember(WellKnownMember.Nullable_GetValueOrDefault_T,
+            new SynthesizedFinishedMethodSymbol(
+            new SynthesizedSimpleOrdinaryMethodSymbol(
+                "GetValueOrDefault",
+                new TypeWithAnnotations(nullableType.templateParameters[0]),
+                RefKind.None,
+                DeclarationModifiers.None
+            ),
+            nullableType,
+            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(nullableType.templateParameters[0]), 0, RefKind.None, "default")]));
     }
 
     private void CompleteLazyMembers() {

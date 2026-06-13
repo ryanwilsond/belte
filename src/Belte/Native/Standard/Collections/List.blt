@@ -141,12 +141,12 @@ public lowlevel sealed class List<type T> {
         if (_length == 0)
             return "{ }";
 
-        string? representation = "{ ";
+        string representation = "{ ";
 
         for (int i = 0; i < _length - 1; i++)
-            representation += _array[i].ToString() + ", ";
+            representation += (_array[i]?.ToString() ?? "<null>") + ", ";
 
-        return representation + _array[_length - 1].ToString() + " }";
+        return representation + (_array[_length - 1]?.ToString() ?? "<null>") + " }";
     }
 
     public static ref T operator[](List<T> list, int index) {

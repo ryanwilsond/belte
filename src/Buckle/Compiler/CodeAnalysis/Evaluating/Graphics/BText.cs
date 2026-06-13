@@ -7,10 +7,10 @@ public sealed class BText {
     public string fontPath;
     public BVec2 position;
     public double fontSize;
-    public double? angle;
-    public long? r;
-    public long? g;
-    public long? b;
+    public double angle;
+    public long r;
+    public long g;
+    public long b;
 
     internal DynamicSpriteFont mFont;
 
@@ -19,10 +19,10 @@ public sealed class BText {
         string fontPath,
         BVec2 position,
         double fontSize,
-        double? angle,
-        long? r,
-        long? g,
-        long? b,
+        double angle,
+        long r,
+        long g,
+        long b,
         DynamicSpriteFont mFont) {
         this.text = text;
         this.fontPath = fontPath;

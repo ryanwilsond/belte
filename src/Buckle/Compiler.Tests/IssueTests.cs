@@ -995,7 +995,7 @@ public sealed class IssueTests {
     public void Template_TemplatesSeeConstraints() {
         var text = @"
             string? M<type T>(T x) where { T extends Object; } {
-                return x.ToString();
+                return x?.ToString();
             }
         ";
 
@@ -1315,6 +1315,42 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void NullCoalescing_DoesNotAllowNonNull() {
+        var text = @"
+            int a = [3 ?? 5];
+        ";
+
+        var diagnostics = @"
+            binary operator '??' is not defined for operands of types 'int!' and 'int!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void NullAssert_PreventsStructAssignment() {
+        var text = @"
+            class A {
+                public S? b;
+
+                public struct S {
+                    public int? a;
+                }
+            }
+
+            var a = ((A?)new A())?..b = (new A.S()..a = 4);
+            [a?.b!.a] = 10;
+            return a?.b!.a;
+        ";
+
+        var diagnostics = @"
+            left side of assignment operation must be a variable, parameter, field, or indexer
+        ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }

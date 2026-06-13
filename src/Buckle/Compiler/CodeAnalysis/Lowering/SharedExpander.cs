@@ -459,7 +459,7 @@ internal class SharedExpander : BoundTreeExpander {
         out BoundExpression replacement,
         UseKind _) {
         var syntax = expression.syntax;
-        var statements = ExpandExpression(expression.receiver, out var newReceiver, UseKind.Writable);
+        var statements = ExpandExpression(expression.receiver, out var newReceiver, UseKind.StableValue);
         var tempLocal = GenerateTempLocal(expression.Type());
 
         statements.Add(
