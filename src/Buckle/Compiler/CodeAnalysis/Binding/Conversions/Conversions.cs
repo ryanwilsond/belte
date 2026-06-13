@@ -4,6 +4,7 @@ using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -240,6 +241,7 @@ internal sealed partial class Conversions {
                                 BoundUnconvertedNullptrExpression or
                                 BoundUnconvertedExtendedLiteralExpression or
                                 BoundUnconvertedConditionalOperator or
+                                BoundUnconvertedArrayLength or
                                 BoundMethodGroup) {
             // We tried our best. No further built-in conversions for these cases.
             return result;
@@ -348,6 +350,11 @@ internal sealed partial class Conversions {
                 return GetConditionalExpressionConversion(conditionalOperator, target);
             case BoundTupleLiteral tuple:
                 return GetImplicitTupleConversion(tuple, target);
+            case BoundUnconvertedArrayLength length:
+                return GetImplicitArrayLengthConversion(length, target);
+            case BoundConditionalAccessExpression conditionalAccess
+                when conditionalAccess.accessExpression is BoundUnconvertedArrayLength length:
+                return GetImplicitArrayLengthConversion(length, target);
         }
 
         if (sourceExpression.IsLiteralNull()) {
@@ -374,6 +381,18 @@ internal sealed partial class Conversions {
         conversion = GetImplicitUserDefinedConversion(sourceExpression, sourceExpression.Type(), target);
 
         if (conversion.exists)
+            return conversion;
+
+        return Conversion.None;
+    }
+
+    private Conversion GetImplicitArrayLengthConversion(BoundUnconvertedArrayLength length, TypeSymbol destination) {
+        if (destination.specialType is SpecialType.Int32 or SpecialType.Int64 or SpecialType.Int)
+            return Conversion.Identity;
+
+        var conversion = ClassifyConversionFromType(CorLibrary.GetSpecialType(SpecialType.Int), destination);
+
+        if (conversion.isImplicit)
             return conversion;
 
         return Conversion.None;

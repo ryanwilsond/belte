@@ -402,6 +402,9 @@ public sealed class DisplayText {
             case BoundKind.ArrayLength:
                 DisplayArrayLength(text, (BoundArrayLength)node);
                 break;
+            case BoundKind.UnconvertedArrayLength:
+                DisplayUnconvertedArrayLength(text, (BoundUnconvertedArrayLength)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -529,7 +532,13 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(" ]"));
     }
 
-    private static void DisplayArrayLength(DisplayText text, BoundArrayLength node) {
+    private static void DisplayArrayLength(DisplayText text, BoundArrayLength node, bool conditional = false) {
+        DisplayNode(text, node.receiver);
+        text.Write(CreatePunctuation(conditional ? SyntaxKind.QuestionPeriodToken : SyntaxKind.PeriodToken));
+        text.Write(CreateIdentifier(WellKnownMemberNames.BufferLength));
+    }
+
+    private static void DisplayUnconvertedArrayLength(DisplayText text, BoundUnconvertedArrayLength node) {
         DisplayNode(text, node.receiver);
         text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
         text.Write(CreateIdentifier(WellKnownMemberNames.BufferLength));
@@ -1061,9 +1070,12 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
     }
 
-    private static void DisplayIndexerAccessExpression(DisplayText text, BoundIndexerAccessExpression node) {
+    private static void DisplayIndexerAccessExpression(
+        DisplayText text,
+        BoundIndexerAccessExpression node,
+        bool conditional = false) {
         DisplayNode(text, node.receiver);
-        text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
+        text.Write(CreatePunctuation(conditional ? SyntaxKind.QuestionOpenBracketToken : SyntaxKind.OpenBracketToken));
         DisplayNode(text, node.index);
         text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
     }
@@ -1087,6 +1099,12 @@ public sealed class DisplayText {
                 break;
             case BoundCallExpression c:
                 DisplayCallExpression(text, c, true);
+                break;
+            case BoundIndexerAccessExpression i:
+                DisplayIndexerAccessExpression(text, i, true);
+                break;
+            case BoundArrayLength l:
+                DisplayArrayLength(text, l, true);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(accessExpression.kind);

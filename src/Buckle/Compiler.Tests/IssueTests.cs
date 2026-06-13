@@ -1354,4 +1354,19 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Struct_PassesCopy() {
+        var text = @"
+            void Func(int? num) {
+                num = 10;
+            }
+
+            int? a = 5;
+            Func(a);
+            return a!;
+        ";
+
+        AssertValue(text, 5);
+    }
 }

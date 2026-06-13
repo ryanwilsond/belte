@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Immutable;
-using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
