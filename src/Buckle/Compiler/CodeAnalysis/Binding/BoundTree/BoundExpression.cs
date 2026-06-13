@@ -38,6 +38,14 @@ internal abstract partial class BoundExpression : BoundNode {
         }
     }
 
+    internal bool IsEffectivelyConst() {
+        if (type is null)
+            return IsConst();
+
+        // Value types are copied anyway so const doesn't really mean anything
+        return IsConst() && type.isReferenceType && !type.IsKnownToBeImmutable();
+    }
+
     internal TypeSymbol Type() {
         if (type is null)
             return null;
