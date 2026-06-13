@@ -12,5 +12,6 @@ internal sealed partial class LanguageParser {
         NonNullableType,
         NullableType,
         PointerOrMultiplication,
+        TupleType,
     }
 }

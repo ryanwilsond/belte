@@ -4,9 +4,11 @@
 - [Inputs & Outputs](#inputs--outputs)
 - [Build Mode & Output Kind](#build-mode--output-kind)
 - [References](#references)
+- [Dependencies](#dependencies)
 - [Concurrent Builds](#concurrent-builds)
 - [Diagnostics](#diagnostics)
 - [Logging](#logging)
+- [Examples](#examples)
 
 ## Introduction
 
@@ -180,6 +182,53 @@ void Build(Builder builder) {
 }
 ```
 
+## Dependencies
+
+To add dependency files that otherwise the compiler does not use (such as a unmanaged DLL loaded at runtime),
+`Builder.AddDep(path, filter options)` can be used:
+
+```belte
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.AddDep("lib", "*.dll");
+}
+```
+
+In the above example, all files ending in `.dll` found within the `lib` directory (searched recursively by default) will
+be copied directly into the output directory. To not search recursively, `DepOptions.flatSearch` can be set to `true`:
+
+```belte
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.AddDep("lib", "*.dll", new DepOptions()..flatSearch = true);
+}
+```
+
+To place all of the found files into a subdirectory of the output directory, `DepOptions.outSubDir` can be set:
+
+```belte
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.AddDep("lib", "*.dll", new DepOptions()..outSubDir = "libs");
+}
+```
+
+To preserve the structure of the dependency directory, `DepOptions.preserveStructure` can be set to `true`:
+
+```belte
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.AddDep("lib", "*.dll", new DepOptions()..preserveStructure = true);
+}
+```
+
+For example, if the DLL with path `lib/mydir/file.dll` is found with structure preserved, it will be placed in
+`<out>/mydir/file.dll` instead of the default `<out>/file.dll`.
+
 ## Concurrent Builds
 
 By default builds are concurrent. To specify the maximum number of CPU cores to use, use `Builder.SetMaxCores(count)`.
@@ -291,6 +340,31 @@ void Build(Builder builder) {
 In the above example, `src1` and `src3` will both have a diagnostic reporting severity of errors or higher as they were
 both added as inputs while in global diagnostic flag mode. `src2` will have a reporting severity of info or higher.
 
+### Warnings as Errors
+
+To treat all warnings as errors, `Builder.IncludeWarningsAsErrors()` can be used. After that, specific warnings can be
+excluded from this promotion by using `Builder.ExcludeWarningsAsErrors(codes)`:
+
+```belte
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.IncludeWarningsAsErrors();
+  builder.ExcludeWarningsAsErrors({ "BU0447" });
+}
+```
+
+Alternatively, `Builder.IncludeWarningsAsErrors(codes)` can be used to instead default to treating warnings normally,
+but promote a specific list of warnings to errors:
+
+```belte
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.IncludeWarningsAsErrors({ "BU0252", "BU0253", "BU0272" });
+}
+```
+
 ## Logging
 
 To enable verbose logging, `Builder.SetVerboseMode(mode)` can be used.
@@ -323,5 +397,69 @@ using Buckle.Building;
 void Build(Builder builder) {
   builder.SetVerboseMode(.Normal);
   builder.SetVerboseArtifactPath("artifacts");
+}
+```
+
+## Examples
+
+Consider this setup:
+
+```txt
+├─artifacts/
+├─bin/
+├─lib/
+│ └─Raylib/
+│   ├─Raylib.blt
+│   └─raylib.dll
+├─src/
+│ └─Program.blt
+└─Build.blt
+```
+
+In this example, `Program.blt` is the main code. `Raylib.blt` is a library source file defining Belte bindings for
+RayLib. The accompanying `raylib.dll` is the native library (not managed .NET).
+
+This build script uses strict warning settings for the main code but minimal reporting for library code. It puts the
+main outputs into `bin/` including copying `raylib.dll` which is found with `builder.AddDep`.
+
+```belte
+using Buckle;
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.SetDiagnosticFlagMode(.Positional);
+  builder.SetDiagnosticSeverity(.Warning);
+  builder.SetWarningLevel(2);
+  builder.IncludeWarningsAsErrors();
+
+  builder.AddInput("src");
+
+  builder.SetDiagnosticSeverity(.Error);
+  builder.AddInput("lib");
+
+  builder.SetOutput("bin/Game");
+  builder.buildMode = BuildMode.Dotnet;
+  builder.outputKind = OutputKind.ConsoleApplication;
+
+  builder.AddDep("lib", "*.dll");
+
+  builder.SetVerboseMode(.Normal);
+  builder.SetVerboseArtifactPath("artifacts");
+}
+```
+
+Note that some of the above settings are only for clarity and reflect the default values for those fields (e.g.
+`buildMode` and `outputKind`).
+
+A more minimal setup could look like:
+
+```belte
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.AddInput("src");
+  builder.AddInput("lib");
+  builder.SetOutput("bin/Game");
+  builder.AddDep("lib", "*.dll");
 }
 ```

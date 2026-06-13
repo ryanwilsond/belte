@@ -5,13 +5,16 @@
 > To call code in non-.NET (unmanaged) DLLs, consider using [externs](LowLevelFeatures.md#67-extern-methods)
 
 - [8.1](#81-referencing-net-dlls) Referencing .NET DLLs
-- [8.2](#82-feature-workarounds) Feature Workarounds
+- [8.2](#82-tips) Tips
+  - [8.2.1](#821-properties) Properties
+  - [8.2.2](#822-arrays) Arrays
+  - [8.2.3](#823-nullability) Nullability
 
 ## 8.1 Referencing .NET DLLs
 
 .NET DLLs can be referenced in a limited manor. References only work if the imported metadata can be represented in
 native Belte. For example, referencing a C# property from a DLL will not work as Belte does not currently have
-properties. (Though for properties in particular, [workarounds exist](#82-feature-workarounds).)
+properties. (Though for properties in particular, [workarounds exist](#82-tips).)
 
 Because of this limitation, the safest way to interact with imported references is through static methods defined in the
 DLL.
@@ -46,14 +49,11 @@ Output:
 <2, 4, 6, 8>
 ```
 
-## 8.2 Feature Workarounds
-
-There are a few situations where you can still call C# (or other .NET) code even if certain features are not implemented
-yet.
+## 8.2 Tips
 
 ### 8.2.1 Properties
 
-Interacting with properties is very straightforward. Properties define a getter and setter method that can be called
+Interacting with C# properties is very straightforward. Properties define a getter and setter method that can be called
 directly:
 
 ```belte
@@ -67,3 +67,15 @@ a.set_Item(0, 5);
 ```
 
 Where `a.get_Item(0)` is equivalent to `a[0]` and `a.set_Item(0, 5)` is equivalent to `a[0] = 5` in C#.
+
+### 8.2.2 Arrays
+
+.NET/C#'s `T[]` is equivalent to Belte's `Buffer<T>`, but Belte's `T[]`/`Array<T>` does define implicit conversions to
+and from `Buffer<T>`, so either type can be used when interacting with .NET libraries.
+
+### 8.2.3 Nullability
+
+.NET's nullability guarantees are weaker than Belte's, so any reference type `R` will be treated as `R?` in Belte.
+However, `R!` can be passed to `R?` implicitly so it is recommended to still constrain nullability wherever possible.
+
+When it comes to value types `V` and `V?`, they are equivalent in Belte.

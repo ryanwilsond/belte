@@ -17,7 +17,8 @@ internal static class ParameterHelpers {
         SeparatedSyntaxList<ParameterSyntax> parameterList,
         BelteDiagnosticQueue diagnostics,
         bool allowRef,
-        bool addRefConstModifier) {
+        bool addRefConstModifier,
+        bool allowConst) {
         return MakeParameters(
             withTemplateParametersBinder,
             owner,
@@ -25,9 +26,10 @@ internal static class ParameterHelpers {
             diagnostics,
             allowRef,
             addRefConstModifier,
+            allowConst,
             lastIndex: parameterList.Count - 1,
             parameterCreationFunc: (Symbol owner, TypeWithAnnotations parameterType,
-                                    ParameterSyntax syntax, RefKind refKind,
+                                    ParameterSyntax syntax, RefKind refKind, bool isConst,
                                     int ordinal, bool addRefConstModifier, ScopedKind scope) => {
                                         if (parameterType.IsVoidType())
                                             diagnostics.Push(Error.VoidUsedAsType(syntax.type.location));
@@ -37,7 +39,8 @@ internal static class ParameterHelpers {
                                                 parameterType,
                                                 syntax,
                                                 refKind,
-                                                syntax.identifier.text,
+                                                isConst,
+                                                syntax.identifier.valueText,
                                                 ordinal,
                                                 scope
                                             );
@@ -49,26 +52,28 @@ internal static class ParameterHelpers {
         FunctionPointerMethodSymbol owner,
         SeparatedSyntaxList<FunctionPointerParameterSyntax> parametersList,
         BelteDiagnosticQueue diagnostics) {
-        var names = parametersList.Select(p => p.identifier?.text);
+        var names = parametersList.Select(p => p.identifier?.valueText);
 
         return MakeParameters(
             binder,
             owner,
             parametersList,
             diagnostics,
-            true,
-            true,
+            allowRef: true,
+            addRefConstModifier: true,
+            allowConst: true,
             parametersList.Count - 1,
             parameterCreationFunc: (FunctionPointerMethodSymbol owner, TypeWithAnnotations parameterType,
-                                    FunctionPointerParameterSyntax syntax, RefKind refKind, int ordinal,
-                                    bool addRefReadOnlyModifier, ScopedKind scope) => {
+                                    FunctionPointerParameterSyntax syntax, RefKind refKind, bool isConst,
+                                    int ordinal, bool addRefReadOnlyModifier, ScopedKind scope) => {
                                         if (parameterType.IsVoidType())
                                             diagnostics.Push(Error.VoidUsedAsType(syntax.type.location));
 
                                         return new FunctionPointerParameterSymbol(
                                             parameterType,
                                             refKind,
-                                            syntax.identifier?.text ?? MakeDefaultName(ordinal, names),
+                                            isConst,
+                                            syntax.identifier?.valueText ?? MakeDefaultName(ordinal, names),
                                             ordinal,
                                             owner
                                         );
@@ -93,26 +98,28 @@ internal static class ParameterHelpers {
         FunctionMethodSymbol owner,
         SeparatedSyntaxList<FunctionPointerParameterSyntax> parametersList,
         BelteDiagnosticQueue diagnostics) {
-        var names = parametersList.Select(p => p.identifier?.text);
+        var names = parametersList.Select(p => p.identifier?.valueText);
 
         return MakeParameters(
             binder,
             owner,
             parametersList,
             diagnostics,
-            true,
-            true,
+            allowRef: true,
+            addRefConstModifier: true,
+            allowConst: true,
             parametersList.Count - 1,
             parameterCreationFunc: (FunctionMethodSymbol owner, TypeWithAnnotations parameterType,
-                                    FunctionPointerParameterSyntax syntax, RefKind refKind, int ordinal,
-                                    bool addRefReadOnlyModifier, ScopedKind scope) => {
+                                    FunctionPointerParameterSyntax syntax, RefKind refKind, bool isConst,
+                                    int ordinal, bool addRefReadOnlyModifier, ScopedKind scope) => {
                                         if (parameterType.IsVoidType())
                                             diagnostics.Push(Error.VoidUsedAsType(syntax.type.location));
 
                                         return new FunctionParameterSymbol(
                                             parameterType,
                                             refKind,
-                                            syntax.identifier?.text ?? MakeDefaultName(ordinal, names),
+                                            isConst,
+                                            syntax.identifier?.valueText ?? MakeDefaultName(ordinal, names),
                                             ordinal,
                                             owner
                                         );
@@ -133,15 +140,15 @@ internal static class ParameterHelpers {
 
         var parameterType = parameter.type;
         var conversion = binder.conversions.ClassifyImplicitConversionFromExpression(defaultExpression, parameterType);
-        var refKind = GetModifiers(parameterSyntax.modifiers, out var refnessKeyword);
+        var refKind = GetModifiers(parameterSyntax.modifiers, out var refnessKeyword, out var isConst);
 
-        if (refKind is RefKind.Ref) {
+        if (refKind is not RefKind.None and not RefKind.Out) {
             diagnostics.Push(Error.RefDefaultValue(refnessKeyword.location));
             hasErrors = true;
         } else if (!defaultExpression.hasAnyErrors && !IsValidDefaultValue(defaultExpression)) {
             diagnostics.Push(Error.DefaultMustBeConstant(
                 parameterSyntax.defaultValue.value.location,
-                parameterSyntax.identifier.text
+                parameterSyntax.identifier.valueText
             ));
 
             hasErrors = true;
@@ -156,7 +163,7 @@ internal static class ParameterHelpers {
         } else if (conversion.isBoxing) {
             diagnostics.Push(Error.NotNullRefDefaultParameter(
                 parameterSyntax.identifier.location,
-                parameterSyntax.identifier.text,
+                parameterSyntax.identifier.valueText,
                 parameterType
             ));
 
@@ -185,14 +192,7 @@ internal static class ParameterHelpers {
         if (owner.IsOperator()) {
             diagnostics.Push(Warning.DefaultValueNoEffect(
                 parameterSyntax.identifier.location,
-                parameterSyntax.identifier.text
-            ));
-        }
-
-        if (refKind == RefKind.RefConstParameter) {
-            diagnostics.Push(Warning.RefConstParameterDefaultValue(
-                parameterSyntax.defaultValue.value.location,
-                parameterSyntax.identifier.text
+                parameterSyntax.identifier.valueText
             ));
         }
 
@@ -212,8 +212,9 @@ internal static class ParameterHelpers {
         }
     }
 
-    internal static RefKind GetModifiers(SyntaxTokenList modifiers, out SyntaxToken refnessKeyword) {
+    internal static RefKind GetModifiers(SyntaxTokenList modifiers, out SyntaxToken refnessKeyword, out bool isConst) {
         refnessKeyword = null;
+        isConst = false;
 
         if (modifiers is null)
             return RefKind.None;
@@ -236,10 +237,16 @@ internal static class ParameterHelpers {
                     }
 
                     break;
-                // TODO Consider using readonly keyword here instead
                 case SyntaxKind.ConstKeyword:
                     if (refKind == RefKind.Ref && refnessKeyword.GetNextToken() == modifier)
-                        refKind = RefKind.RefConstParameter;
+                        refKind = RefKind.RefConst;
+                    else
+                        isConst = true;
+
+                    break;
+                case SyntaxKind.FinalKeyword:
+                    if (refKind == RefKind.Ref && refnessKeyword.GetNextToken() == modifier)
+                        refKind = RefKind.RefFinal;
 
                     break;
             }
@@ -276,8 +283,9 @@ internal static class ParameterHelpers {
         BelteDiagnosticQueue diagnostics,
         bool allowRef,
         bool addRefConstModifier,
+        bool allowConst,
         int lastIndex,
-        Func<TOwningSymbol, TypeWithAnnotations, TParameterSyntax, RefKind, int, bool, ScopedKind, TParameterSymbol> parameterCreationFunc,
+        Func<TOwningSymbol, TypeWithAnnotations, TParameterSyntax, RefKind, bool, int, bool, ScopedKind, TParameterSymbol> parameterCreationFunc,
         bool parsingFunctionPointer = false)
         where TParameterSyntax : BaseParameterSyntax
         where TParameterSymbol : ParameterSymbol
@@ -291,9 +299,9 @@ internal static class ParameterHelpers {
         foreach (var parameterSyntax in parametersList) {
             if (parameterIndex > lastIndex) break;
 
-            CheckParameterModifiers(parameterSyntax, diagnostics);
+            CheckParameterModifiers(parameterSyntax, allowConst, diagnostics);
 
-            var refKind = GetModifiers(parameterSyntax.modifiers, out var refnessKeyword);
+            var refKind = GetModifiers(parameterSyntax.modifiers, out var refnessKeyword, out var isConst);
 
             if (parameterSyntax is ParameterSyntax concreteParam) {
                 if (concreteParam.defaultValue is not null && firstDefault == -1)
@@ -315,6 +323,7 @@ internal static class ParameterHelpers {
                 parameterType,
                 parameterSyntax,
                 refKind,
+                isConst,
                 parameterIndex,
                 addRefConstModifier,
                 ScopedKind.None
@@ -350,7 +359,10 @@ internal static class ParameterHelpers {
         return parameters;
     }
 
-    internal static void CheckParameterModifiers(BaseParameterSyntax parameter, BelteDiagnosticQueue diagnostics) {
+    internal static void CheckParameterModifiers(
+        BaseParameterSyntax parameter,
+        bool allowConst,
+        BelteDiagnosticQueue diagnostics) {
         var seenRef = false;
         var seenOut = false;
         var seenConst = false;
@@ -383,10 +395,16 @@ internal static class ParameterHelpers {
                 case SyntaxKind.ConstKeyword:
                     if (seenConst)
                         AddDupParamMod(diagnostics, modifier);
-                    else if (previousModifier?.kind != SyntaxKind.RefKeyword)
+                    else if (!allowConst && previousModifier?.kind != SyntaxKind.RefKeyword)
+                        // TODO Add this check to template parameters
                         diagnostics.Push(Error.RefConstWrongOrder(modifier.location));
-                    else if (seenRef)
+                    else
                         seenConst = true;
+
+                    break;
+                case SyntaxKind.FinalKeyword:
+                    if (previousModifier?.kind != SyntaxKind.RefKeyword)
+                        diagnostics.Push(Error.RefFinalWrongOrder(modifier.location));
 
                     break;
                 default:

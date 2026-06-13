@@ -45,7 +45,7 @@ internal static partial class ValueSetFactory {
         }
 
         ConstantValue INumericTC<short>.ToConstantValue(short value) {
-            return new ConstantValue(value, CodeAnalysis.Symbols.SpecialType.Int16);
+            return new ConstantValue(value, SpecialType.Int16);
         }
 
         string INumericTC<short>.ToString(short value) {

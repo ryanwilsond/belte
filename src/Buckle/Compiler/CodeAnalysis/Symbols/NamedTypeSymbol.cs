@@ -10,8 +10,12 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolWithTemplates {
+internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolWithTemplates {
     private protected bool _hasNoBaseCycles;
+
+    internal NamedTypeSymbol(TupleExtraData tupleData = null) {
+        _lazyTupleData = tupleData;
+    }
 
     public abstract override string name { get; }
 
@@ -30,10 +34,37 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
 
     public abstract int arity { get; }
 
-    public override bool isObjectType
-        => !isPrimitiveType && !IsStructType() && !TypeSymbolExtensions.IsPointerOrFunctionPointer(this);
+    public override bool isReferenceType {
+        get {
+            var kind = typeKind;
+            bool result;
 
-    public override bool isPrimitiveType => originalDefinition.specialType.IsPrimitiveType();
+            if (kind == TypeKind.Primitive)
+                result = specialType.IsReferenceType();
+            else if (specialType == SpecialType.Nullable)
+                result = GetNullableUnderlyingType().isReferenceType;
+            else
+                result = kind is not TypeKind.Enum and not TypeKind.Struct and not TypeKind.Error;
+
+            return result;
+        }
+    }
+
+    public override bool isValueType {
+        get {
+            var kind = typeKind;
+            bool result;
+
+            if (kind == TypeKind.Primitive)
+                result = specialType.IsValueType();
+            else if (specialType == SpecialType.Nullable)
+                result = GetNullableUnderlyingType().isValueType;
+            else
+                result = kind is TypeKind.Struct or TypeKind.Enum;
+
+            return result;
+        }
+    }
 
     public bool isTemplateType {
         get {
@@ -80,13 +111,19 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
 
     internal virtual NamedTypeSymbol enumUnderlyingType => null;
 
+    internal virtual bool isLowLevel => false;
+
     internal virtual bool isUnionStruct => false;
 
     internal virtual bool enumFlagsAttribute => false;
 
     internal virtual bool knownCircularStruct => false;
 
+    internal virtual int? explicitAlignment => null;
+
     internal virtual bool isImplicitClass => false;
+
+    internal virtual bool isKnownToBeImmutable => false;
 
     internal override void Accept(SymbolVisitor visitor) {
         visitor.VisitNamedType(this);
@@ -134,6 +171,18 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
 
         foreach (var candidate in candidates) {
             if (candidate is MethodSymbol { methodKind: MethodKind.Operator } method)
+                operators.Add(method);
+        }
+    }
+
+    internal void AddLiteralOperators(string name, ArrayBuilder<MethodSymbol> operators) {
+        var candidates = GetSimpleNonTypeMembers(name);
+
+        if (candidates.IsEmpty)
+            return;
+
+        foreach (var candidate in candidates) {
+            if (candidate is MethodSymbol { methodKind: MethodKind.Literal } method)
                 operators.Add(method);
         }
     }
@@ -228,6 +277,34 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
         return new ConstructedNamedTypeSymbol(this, templateArguments, unbound);
     }
 
+    private protected bool CheckHasStructDefault() {
+        if (knownCircularStruct)
+            return true;
+
+        foreach (var member in GetMembers()) {
+            if (member is FieldSymbol f && !f.isStatic) {
+                if (!f.type.hasDefault)
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
+    private protected bool CheckKnownToBeImmutable() {
+        if (baseType?.IsKnownToBeImmutable() == false)
+            return false;
+
+        foreach (var member in GetMembers()) {
+            if (member is FieldSymbol f && !f.isStatic) {
+                if (!f.isConst && !f.isConstExpr)
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
     internal override bool ApplyNullableTransforms(
         byte defaultTransformFlag,
         ImmutableArray<byte> transforms,
@@ -259,6 +336,46 @@ internal abstract class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, ISymbolW
         result = haveChanges ? WithTypeArguments(allTypeArguments.ToImmutable()) : this;
         allTypeArguments.Free();
         return true;
+    }
+
+    internal static int IsTupleElementNameReserved(string name) {
+        // ? Belte doesn't actually care about any of this, but we enforce it anyways for .NET compatibility
+        if (IsElementNameForbidden(name))
+            return 0;
+
+        return MatchesCanonicalTupleElementName(name);
+
+        static bool IsElementNameForbidden(string name) {
+            switch (name) {
+                case "CompareTo":
+                case WellKnownMemberNames.Deconstruct:
+                case "Equals":
+                case "GetHashCode":
+                case "Rest":
+                case "ToString":
+                    return true;
+
+                default:
+                    return false;
+            }
+        }
+    }
+
+    internal static int MatchesCanonicalTupleElementName(string name) {
+        if (name.StartsWith("Item", StringComparison.Ordinal)) {
+            var tail = name.Substring("Item".Length);
+
+            if (int.TryParse(tail, out var number)) {
+                if (number > 0 && string.Equals(name, TupleMemberName(number), StringComparison.Ordinal))
+                    return number;
+            }
+        }
+
+        return -1;
+    }
+
+    internal static string TupleMemberName(int position) {
+        return "Item" + position;
     }
 
     internal NamedTypeSymbol WithTypeArguments(ImmutableArray<TypeOrConstant> allTypeArguments) {

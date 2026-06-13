@@ -1,0 +1,85 @@
+
+public lowlevel sealed class BitArray {
+    private constexpr int32 BitsPerInt32 = 32;
+    private constexpr int32 BitsPerByte = 8;
+
+    private Buffer<uint8> _array;
+    private int32 _bitLength;
+
+    public constructor(int32 length) : this(length, false) { }
+
+    public constructor(int32 length, bool defaultValue) {
+        if (length < 0)
+            throw new ArgumentOutOfRangeException();
+
+        _bitLength = length;
+        _array = AllocateByteArray(length);
+
+        if (defaultValue) {
+            LowLevel.Fill<uint8>(_array, 0xFF);
+            ClearHighExtraBits();
+        }
+    }
+
+    public const bool Get(int32 index) {
+        if ((uint32)index >= (uint32)_bitLength)
+            throw new ArgumentOutOfRangeException();
+
+        (uint32 byteIndex, uint32 bitOffset) = DivRem((uint32)index, BitsPerByte);
+        return ((_array[byteIndex]) & (1 << (int32)bitOffset)) != 0;
+    }
+
+    public void Set(int32 index, bool value) {
+        if ((uint32)index >= (uint32)_bitLength)
+            throw new ArgumentOutOfRangeException();
+
+        (uint32 byteIndex, uint32 bitOffset) = DivRem((uint32)index, BitsPerByte);
+
+        ref uint8 segment = ref _array[byteIndex];
+        uint8 bitMask = (uint8)(1 << (int32)bitOffset);
+
+        if (value)
+            segment |= bitMask;
+        else
+            segment &= (uint8)~bitMask;
+    }
+
+    private void ClearHighExtraBits() {
+        (uint32 index, uint32 extraBits) = DivRem((uint32)_bitLength, BitsPerInt32);
+
+        if (extraBits != 0) {
+            var ptr = (Buffer<int32>*)&_array;
+            (*ptr)[(int32)index] &= ReverseIfBE((1 << (int32)extraBits) - 1);
+        }
+    }
+
+    private static int32 ReverseIfBE(int32 value) {
+        return LowLevel.IsLittleEndian() ? value : LowLevel.ReverseEndianness(value);
+    }
+
+    private static Buffer<uint8> AllocateByteArray(int32 bitLength) {
+        int32 byteLength = GetAlignedByteArrayLength(bitLength);
+        return bitLength != 0 ? new Buffer<uint8>(byteLength) : new Buffer<uint8>(0);
+    }
+
+    private static int32 GetInt32ArrayLengthFromBitLength(int32 bitLength) {
+        return (int32)(((uint32)bitLength + 31) >> 5);
+    }
+
+    private static int32 GetByteArrayLengthFromBitLength(int32 bitLength) {
+        return (int32)(((uint32)bitLength + 7) >> 3);
+    }
+
+    private static int32 RoundUpToMultipleSizeOfInt32(int32 value) {
+        return (value + (sizeof(int32) - 1)) & ~(sizeof(int32) - 1);
+    }
+
+    private static int32 GetAlignedByteArrayLength(int32 bitLength) {
+        return RoundUpToMultipleSizeOfInt32(GetByteArrayLengthFromBitLength(bitLength));
+    }
+
+    private static (uint32 quotient, uint32 remainder) DivRem(uint32 left, uint32 right) {
+        uint32 quotient = left / right;
+        return (quotient, left - (quotient * right));
+    }
+}

@@ -146,6 +146,7 @@ internal abstract class Symbol : ISymbol {
             switch (kind) {
                 case SymbolKind.Local:
                 case SymbolKind.Label:
+                case SymbolKind.Token:
                 case SymbolKind.Alias:
                     return true;
                 case SymbolKind.Namespace:
@@ -163,6 +164,7 @@ internal abstract class Symbol : ISymbol {
                         case MethodKind.LocalFunction:
                             break;
                         case MethodKind.Destructor:
+                        case MethodKind.Finalizer:
                             return true;
                         default:
                             return false;
@@ -292,6 +294,13 @@ internal abstract class Symbol : ISymbol {
     internal ImmutableArray<RefKind> GetParameterRefKinds() {
         return kind switch {
             SymbolKind.Method => ((MethodSymbol)this).parameterRefKinds,
+            _ => throw ExceptionUtilities.UnexpectedValue(kind),
+        };
+    }
+
+    internal ImmutableArray<bool> GetParameterConstnesses() {
+        return kind switch {
+            SymbolKind.Method => ((MethodSymbol)this).parameterConstnesses,
             _ => throw ExceptionUtilities.UnexpectedValue(kind),
         };
     }

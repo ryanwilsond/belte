@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Linq;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
 using Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -41,7 +42,7 @@ internal abstract partial class SyntaxParser : IDisposable {
             _firstBlender = new Blender(_lexer, oldTree, changes);
             _blendedTokens = BlendedNodesPool.Allocate();
         } else {
-            _firstBlender = null;
+            _firstBlender = default;
             _lexedTokens = new ArrayElement<SyntaxToken>[32];
         }
 
@@ -59,13 +60,13 @@ internal abstract partial class SyntaxParser : IDisposable {
     // Used for reusing nodes from the old tree. Just validate and call EatNode to reuse an old node.
     internal SyntaxNode currentNode {
         get {
-            var node = _currentNode?.node;
+            var node = _currentNode.node;
 
             if (node is not null)
                 return node;
 
             ReadCurrentNode();
-            return _currentNode?.node;
+            return _currentNode.node;
         }
     }
 
@@ -108,7 +109,7 @@ internal abstract partial class SyntaxParser : IDisposable {
         _tokenOffset = resetPoint.position;
         _prevTokenTrailingTrivia = resetPoint.prevTokenTrailingTrivia;
         _currentToken = null;
-        _currentNode = null;
+        _currentNode = default;
 
         if (_blendedTokens is not null) {
             for (var i = _tokenOffset; i < _tokenCount; i++) {
@@ -221,6 +222,10 @@ internal abstract partial class SyntaxParser : IDisposable {
         }
     }
 
+    private protected void AddTrailingSkippedSyntax(SyntaxListBuilder list, GreenNode skippedSyntax) {
+        list[^1] = AddTrailingSkippedSyntax((BelteSyntaxNode)list[^1], skippedSyntax);
+    }
+
     private protected SyntaxToken ConvertToMissingWithTrailingTrivia(SyntaxToken token, SyntaxKind expectedKind) {
         var newToken = SyntaxFactory.Missing(expectedKind);
         newToken = AddTrailingSkippedSyntax(newToken, token);
@@ -319,7 +324,7 @@ internal abstract partial class SyntaxParser : IDisposable {
         _blendedTokens[_tokenOffset++] = _currentNode;
         _tokenCount = _tokenOffset;
 
-        _currentNode = null;
+        _currentNode = default;
         _currentToken = null;
 
         return saved;
@@ -333,6 +338,24 @@ internal abstract partial class SyntaxParser : IDisposable {
 
         MoveToNextToken();
         return saved;
+    }
+
+    private protected SyntaxToken EatToken(SyntaxKind kind, bool stallDiagnostics = false) {
+        var saved = currentToken;
+
+        if (saved.kind == kind) {
+            if (!stallDiagnostics)
+                saved = WithFutureDiagnostics(saved);
+
+            MoveToNextToken();
+            return saved;
+        }
+
+        // Diagnostics handle end of file errors as a special case
+        if (saved.kind == SyntaxKind.EndOfFileToken)
+            return Match(kind);
+
+        return Match(kind, saved.kind);
     }
 
     private protected void ReadCurrentNode() {
@@ -385,7 +408,7 @@ internal abstract partial class SyntaxParser : IDisposable {
             if (_tokenCount > 0) {
                 AddToken(_blendedTokens[_tokenCount - 1].blender.ReadToken());
             } else {
-                if (_currentNode?.token is not null)
+                if (_currentNode.token is not null)
                     AddToken(_currentNode);
                 else
                     AddToken(_firstBlender.ReadToken());
@@ -409,9 +432,14 @@ internal abstract partial class SyntaxParser : IDisposable {
         BlendedNodesPool.ForgetTrackedObject(old, replacement: _blendedTokens);
     }
 
+    private protected SyntaxToken EatIfMatch(SyntaxKind kind) {
+        return currentToken.kind == kind ? EatToken() : null;
+    }
+
     private protected SyntaxToken Match(
         SyntaxKind kind,
         SyntaxKind? nextWanted = null,
+        SyntaxKind? nextWantedAlternative = null,
         bool report = true,
         bool contextual = false) {
         if (contextual && currentToken.contextualKind == kind)
@@ -420,13 +448,17 @@ internal abstract partial class SyntaxParser : IDisposable {
         if (currentToken.kind == kind)
             return EatToken();
 
-        if (nextWanted is not null && currentToken.kind == nextWanted) {
+        if (nextWanted is not null && currentToken.kind == nextWanted ||
+            nextWantedAlternative is not null && currentToken.kind == nextWantedAlternative) {
             if (report) {
+                var missing = WithFutureDiagnostics(SyntaxFactory.Missing(kind));
+                var (offset, width) = GetMissingDiagnosticSpan(missing);
+
                 return AddDiagnostic(
-                    WithFutureDiagnostics(SyntaxFactory.Missing(kind)),
+                    missing,
                     Error.ExpectedToken(kind),
-                    currentToken.GetLeadingTriviaWidth(),
-                    currentToken.width
+                    offset,
+                    width
                 );
             } else {
                 return WithFutureDiagnostics(SyntaxFactory.Missing(kind));
@@ -459,6 +491,58 @@ internal abstract partial class SyntaxParser : IDisposable {
             );
         } else {
             return WithFutureDiagnostics(AddLeadingSkippedSyntax(EatToken(), unexpected));
+        }
+    }
+
+    private (int, int) GetMissingDiagnosticSpan(SyntaxToken missing) {
+        if (!missing.containsSkippedText)
+            return GetOffsetAndWidthBasedOnPriorAndNextTokens();
+        else
+            return GetOffsetAndWidthOfSkippedToken();
+
+        (int offset, int width) GetOffsetAndWidthBasedOnPriorAndNextTokens() {
+            var trivia = _prevTokenTrailingTrivia;
+            var triviaList = new SyntaxList<BelteSyntaxNode>(trivia);
+
+            if (triviaList.Any(SyntaxKind.EndOfLineTrivia)) {
+                return (offset: -missing.GetLeadingTriviaWidth() - trivia.fullWidth, width: 0);
+            } else {
+                var token = currentToken;
+                return (missing.width + missing.GetTrailingTriviaWidth() + token.GetLeadingTriviaWidth(), token.width);
+            }
+        }
+
+        (int offset, int width) GetOffsetAndWidthOfSkippedToken() {
+            var offset = 0;
+
+            foreach (var child in missing.EnumerateNodes()) {
+                if (!child.isToken)
+                    continue;
+
+                var childToken = (SyntaxToken)child;
+
+                if (!child.containsSkippedText) {
+                    offset += child.fullWidth;
+                    continue;
+                }
+
+                var allTrivia = new SyntaxList<GreenNode>(
+                    SyntaxList.Concat(childToken.GetLeadingTrivia(), childToken.GetTrailingTrivia())
+                );
+
+                foreach (var trivia in allTrivia) {
+                    if (trivia.kind != SyntaxKind.SkippedTokensTrivia) {
+                        offset += trivia.fullWidth;
+                        continue;
+                    }
+
+                    return (offset, trivia.width);
+                }
+
+                throw ExceptionUtilities.Unreachable();
+            }
+
+            throw ExceptionUtilities.Unreachable();
         }
     }
 
@@ -520,7 +604,7 @@ internal abstract partial class SyntaxParser : IDisposable {
         _currentToken = null;
 
         if (_blendedTokens is not null)
-            _currentNode = null;
+            _currentNode = default;
 
         _tokenOffset++;
     }

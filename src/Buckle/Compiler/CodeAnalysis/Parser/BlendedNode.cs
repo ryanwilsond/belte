@@ -6,7 +6,7 @@ namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 /// Because tokens are technically types of nodes, this is really an artificial facade and the distinction does not need
 /// to be made. It is designed this way for clarity in the parser.
 /// </summary>
-internal sealed class BlendedNode {
+internal readonly struct BlendedNode {
     /// <summary>
     /// Node to reuse.
     /// </summary>

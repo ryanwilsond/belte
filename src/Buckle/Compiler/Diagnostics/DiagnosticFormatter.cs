@@ -144,11 +144,17 @@ public static partial class DiagnosticFormatter {
             suffix = "";
         }
 
+        var markerPrefix = " " + MyRegex().Replace(prefix, " ");
+
+        if (suggestions.Length > 1 && markerPrefix.Length < 3) {
+            prefix = new string(' ', 3 - markerPrefix.Length) + prefix;
+            markerPrefix = "   ";
+        }
+
         displayParts.Add($" {prefix}", initialColor);
         displayParts.Add(focus, highlightColor);
         displayParts.Add($"{suffix}\n", initialColor);
 
-        var markerPrefix = " " + MyRegex().Replace(prefix, " ");
         var marker = "^";
 
         if (focusLength > 0 && column != lineText.Length)

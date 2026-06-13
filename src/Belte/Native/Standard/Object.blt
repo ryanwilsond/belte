@@ -2,21 +2,21 @@
 public class Object {
     public constructor() { }
 
-    destructor() { }
+    finalizer() { }
 
     public virtual string? ToString() {
         return LowLevel.GetTypeName(this);
     }
 
-    public virtual bool! Equals(Object object) {
+    public virtual bool! Equals(Object? object) {
         return object is null ? false : this == object!!;
     }
 
-    public bool! ReferenceEquals(Object object) {
+    public const bool! ReferenceEquals(const Object? object) {
         return object is null ? false : this == object!!;
     }
 
-    public virtual int! GetHashCode() {
+    public virtual int32! GetHashCode() {
         return LowLevel.GetHashCode(this);
     }
 }

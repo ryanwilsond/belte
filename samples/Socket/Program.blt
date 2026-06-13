@@ -47,7 +47,7 @@ public static class Program {
     constexpr int32 IPPROTO_TCP = 6;
 
     public static void Main() {
-        uint16 version = 0x0202;
+        constexpr uint16 version = 0x0202;
         WSAData wsaData = new WSAData();
 
         if (WSAStartup(version, &wsaData) != 0) {

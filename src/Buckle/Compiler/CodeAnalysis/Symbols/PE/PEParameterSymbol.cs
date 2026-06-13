@@ -80,7 +80,7 @@ internal partial class PEParameterSymbol : ParameterSymbol {
                 if (inOutFlags == ParameterAttributes.Out) {
                     refKind = RefKind.Out;
                 } else if (!isReturn && moduleSymbol.module.HasRequiresLocationAttribute(handle)) {
-                    refKind = RefKind.RefConstParameter;
+                    refKind = RefKind.RefConst;
                 } else if (moduleSymbol.module.HasIsReadOnlyAttribute(handle)) {
                     // refKind = RefKind.In;
                 } else {
@@ -174,6 +174,8 @@ internal partial class PEParameterSymbol : ParameterSymbol {
 
     internal override bool isMetadataOut => (_flags & ParameterAttributes.Out) != 0;
 
+    internal override bool isConst => false;
+
     internal override ConstantValue outDefaultValue => null;
 
     internal override TypeWithAnnotations typeWithAnnotations => _typeWithAnnotations;
@@ -261,7 +263,7 @@ internal partial class PEParameterSymbol : ParameterSymbol {
 
         if (isReturn)
             isBad |= parameter.refKind == RefKind.RefConst != hasInAttributeModifier;
-        else if (parameter.refKind is /*RefKind.In or */RefKind.RefConstParameter)
+        else if (parameter.refKind is /*RefKind.In or */RefKind.RefConst)
             isBad |= isContainingSymbolVirtual != hasInAttributeModifier;
         else if (hasInAttributeModifier)
             isBad = true;

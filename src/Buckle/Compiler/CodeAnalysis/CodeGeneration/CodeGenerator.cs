@@ -74,43 +74,6 @@ internal sealed partial class CodeGenerator {
         _expressionTemps?.Free();
     }
 
-    internal static bool IsReferenceType(SpecialType type) {
-        return type == SpecialType.String ||
-               type == SpecialType.Array ||
-               type == SpecialType.Any ||
-               type == SpecialType.Type;
-    }
-
-    internal static bool IsValueType(SpecialType type) {
-        return type != SpecialType.String &&
-               type != SpecialType.Array &&
-               type != SpecialType.Any &&
-               type != SpecialType.Type;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static bool IsReferenceType(TypeSymbol type) {
-        var isReferenceType = (type.isObjectType && !type.IsStructType() && !type.IsEnumType() &&
-                              !IsTrueNullable(type)) || IsReferenceType(type.specialType);
-
-        if (type.StrippedType() is TemplateParameterSymbol t)
-            isReferenceType &= t.hasObjectTypeConstraint;
-
-        return isReferenceType;
-    }
-
-    [MethodImpl(MethodImplOptions.AggressiveInlining)]
-    internal static bool IsValueType(TypeSymbol type) {
-        var isValueType = (type.isPrimitiveType || type.IsStructType() || type.IsEnumType() ||
-                           IsTrueNullable(type)) && IsValueType(type.specialType);
-
-        // TODO Double check there is no edge case where a primitive constraint can result in a reference type
-        if (type.StrippedType() is TemplateParameterSymbol t)
-            isValueType &= t.hasPrimitiveTypeConstraint;
-
-        return isValueType;
-    }
-
     private VariableDefinition AllocateTemp(
         TypeSymbol type,
         LocalSlotConstraints slotConstraints = LocalSlotConstraints.None) {
@@ -125,8 +88,7 @@ internal sealed partial class CodeGenerator {
         if (((NamedTypeSymbol)type).templateArguments.Length == 0)
             return true;
 
-        var underlyingType = type.GetNullableUnderlyingType();
-        return IsValueType(underlyingType);
+        return type.GetNullableUnderlyingType().isValueType;
     }
 
     internal static bool IsStackLocal(DataContainerSymbol local, HashSet<DataContainerSymbol> stackLocals) {
@@ -166,7 +128,7 @@ internal sealed partial class CodeGenerator {
                 EmitArrayElementAddress((BoundArrayAccessExpression)expression, addressKind);
                 break;
             case BoundKind.ThisExpression:
-                if (IsValueType(expression.type)) {
+                if (expression.type.isValueType) {
                     if (!HasHome(expression, addressKind))
                         goto default;
 
@@ -199,7 +161,7 @@ internal sealed partial class CodeGenerator {
                 var funcPtrRefKind = funcPtrInvocation.functionPointer.signature.refKind;
 
                 if (funcPtrRefKind == RefKind.Ref ||
-                    (IsAnyReadOnly(addressKind) && funcPtrRefKind == RefKind.RefConst)) {
+                    (IsAnyReadOnly(addressKind) && funcPtrRefKind is RefKind.RefConst or RefKind.RefFinal)) {
                     EmitCalli(funcPtrInvocation, UseKind.UsedAsAddress);
                     break;
                 }
@@ -267,7 +229,7 @@ internal sealed partial class CodeGenerator {
     internal static bool UseCallResultAsAddress(BoundCallExpression call, AddressKind addressKind) {
         var methodRefKind = call.method.refKind;
         return methodRefKind == RefKind.Ref ||
-               (IsAnyReadOnly(addressKind) && methodRefKind == RefKind.RefConst);
+               (IsAnyReadOnly(addressKind) && methodRefKind is RefKind.RefConst or RefKind.RefFinal);
     }
 
     private void EmitConditionalOperatorAddress(BoundConditionalOperator expression, AddressKind addressKind) {
@@ -335,7 +297,7 @@ internal sealed partial class CodeGenerator {
         if (!IsAnyReadOnly(addressKind))
             return false;
 
-        return !IsValueType(arrayAccess.type);
+        return !arrayAccess.type.isValueType;
     }
 
     private void EmitArrayIndex(BoundExpression index) {
@@ -490,7 +452,7 @@ internal sealed partial class CodeGenerator {
         var value = constant.value;
 
         if (value is null) {
-            if (IsReferenceType(type.StrippedType()))
+            if (type.StrippedType().isReferenceType)
                 _builder.Emit(OpCode.Ldnull);
             else
                 EmitInitObj(type, true);
@@ -576,7 +538,7 @@ internal sealed partial class CodeGenerator {
                         ? underlyingType.EnumUnderlyingTypeOrSelf().specialType
                         : underlyingType.specialType;
 
-                    if (IsValueType(underlyingType)) {
+                    if (underlyingType.isValueType) {
                         EmitConstantValue(new ConstantValue(value, underlyingDiscriminator), underlyingType);
                         _builder.EmitNewobjNullable(underlyingType);
                     } else if (underlyingType.specialType is SpecialType.Any or SpecialType.Object) {
@@ -953,7 +915,7 @@ oneMoreTime:
 
                 var conditionType = condition.type;
 
-                if (IsReferenceType(conditionType) && !conditionType.IsVerifierReference())
+                if (conditionType.isReferenceType && !conditionType.IsVerifierReference())
                     EmitBox(conditionType);
 
                 iLCode = sense ? OpCode.Brtrue : OpCode.Brfalse;
@@ -1046,15 +1008,16 @@ oneMoreTime:
         if (ts.IsEnumType())
             return true;
 
-        var st = ts.specialType;
-
-        if (st == SpecialType.Decimal)
-            return false;
-
-        if (!st.IsPrimitiveType())
-            return IsReferenceType(ts);
-
-        return true;
+        switch (ts.specialType) {
+            case SpecialType.Float32:
+            case SpecialType.Float64:
+            case SpecialType.Decimal:
+                return false;
+            case SpecialType.None:
+                return ts.isReferenceType;
+            default:
+                return true;
+        }
     }
 
     private void EmitReturnStatement(BoundReturnStatement statement) {
@@ -1065,7 +1028,9 @@ oneMoreTime:
         } else {
             EmitAddress(
                 expression,
-                _method.refKind == RefKind.RefConst ? AddressKind.ReadOnlyStrict : AddressKind.Writeable
+                _method.refKind is RefKind.RefConst or RefKind.RefFinal
+                    ? AddressKind.ReadOnlyStrict
+                    : AddressKind.Writeable
             );
         }
 
@@ -1198,6 +1163,12 @@ oneMoreTime:
             local.isRef ? LocalSlotConstraints.ByRef : LocalSlotConstraints.None,
             false
         );
+
+        if (!_evaluatorProxies.Add(local))
+            throw ExceptionUtilities.Unreachable();
+
+        if (declaration.initializer is null)
+            return;
 
         // Essentially reporting the slot allocation then assigning
         // Could move this rewrite to the lowerer, but then we would need a way to keep track of slot allocation
@@ -1341,6 +1312,14 @@ oneMoreTime:
             default:
                 throw ExceptionUtilities.UnexpectedValue(expression.kind);
         }
+    }
+
+    private void EmitExpressionWithoutNullCheck(BoundExpression expression, bool used) {
+        // We bypass the null assert because the runtime will throw on null anyway
+        if (expression.kind == BoundKind.NullAssertOperator)
+            EmitExpression(((BoundNullAssertOperator)expression).operand, used);
+        else
+            EmitExpression(expression, used);
     }
 
     private void EmitDefaultExpression(BoundDefaultExpression expression, bool used) {
@@ -1508,15 +1487,19 @@ oneMoreTime:
     private void EmitArrayCreationExpression(BoundArrayCreationExpression expression, bool used) {
         var arrayType = (ArrayTypeSymbol)expression.StrippedType();
 
-        EmitArrayIndices(expression.sizes);
+        if (expression.sizes[0].constantValue?.isDefaultValue == true) {
+            _builder.EmitEmptyArray(arrayType.elementType);
+        } else {
+            EmitArrayIndices(expression.sizes);
 
-        if (arrayType.isSZArray)
-            _builder.EmitWithSymbolToken(OpCode.Newarr, arrayType.elementType);
-        else
-            EmitArrayCreation(arrayType);
+            if (arrayType.isSZArray)
+                _builder.EmitWithSymbolToken(OpCode.Newarr, arrayType.elementType);
+            else
+                EmitArrayCreation(arrayType);
 
-        if (expression.initializer is not null)
-            EmitArrayInitializers(arrayType, expression.initializer as BoundInitializerList);
+            if (expression.initializer is not null)
+                EmitArrayInitializers(arrayType, expression.initializer);
+        }
 
         EmitPopIfUnused(used);
     }
@@ -1634,6 +1617,18 @@ oneMoreTime:
         if (originalDef.containingType.specialType == SpecialType.Nullable)
             return true;
 
+        if (originalDef.containingType.name == NamedTypeSymbol.ValueTupleTypeName &&
+           (originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T1_ctor) ||
+            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_ctor) ||
+            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T3_ctor) ||
+            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_ctor) ||
+            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_ctor) ||
+            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_ctor) ||
+            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_ctor) ||
+            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_ctor))) {
+            return true;
+        }
+
         return false;
     }
 
@@ -1655,7 +1650,7 @@ oneMoreTime:
                         _builder.EmitThrowNullCondition();
                         // This is to balance the stack
                         EmitDefaultValue(
-                            CorLibrary.GetSpecialType(SpecialType.Exception),
+                            CorLibrary.GetWellKnownType(WellKnownType.Exception),
                             useKind != UseKind.Unused,
                             expression.syntax
                         );
@@ -1665,6 +1660,13 @@ oneMoreTime:
                 case "Sort": {
                         EmitArguments(arguments, method.parameters, expression.argumentRefKinds);
                         _builder.EmitSort(method.templateArguments[0].type.type);
+                        EmitCallCleanup(method, useKind);
+                    }
+
+                    return;
+                case "Fill": {
+                        EmitArguments(arguments, method.parameters, expression.argumentRefKinds);
+                        _builder.EmitFill(method.templateArguments[0].type.type);
                         EmitCallCleanup(method, useKind);
                     }
 
@@ -1929,7 +1931,7 @@ oneMoreTime:
                     }
                 }
             } else {
-                callKind = IsReferenceType(receiverType) &&
+                callKind = receiverType.isReferenceType &&
                     (!IsRef(receiver) ||
                     (!ReceiverIsKnownToReferToTempIfReferenceType(receiver) &&
                     !IsSafeToDereferenceReceiverRefAfterEvaluatingArguments(call.arguments)))
@@ -1955,7 +1957,7 @@ oneMoreTime:
             temp = null;
 
             if (addressKind is null) {
-                EmitExpression(receiver, used: true);
+                EmitExpressionWithoutNullCheck(receiver, used: true);
 
                 if (box)
                     EmitBox(receiverType);
@@ -1977,10 +1979,8 @@ oneMoreTime:
                 );
             }
 
-            if (callKind == CallKind.ConstrainedCallVirt &&
-                IsValueType(actualMethodTargetedByTheCall.containingType)) {
+            if (callKind == CallKind.ConstrainedCallVirt && actualMethodTargetedByTheCall.containingType.isValueType)
                 callKind = CallKind.Call;
-            }
 
             if (callKind == CallKind.CallVirt) {
                 if (IsThisReceiver(receiver) && actualMethodTargetedByTheCall.containingType.isSealed)
@@ -2015,12 +2015,12 @@ oneMoreTime:
             var receiver = call.receiver;
             var receiverType = receiver.type;
 
-            if (callKind == CallKind.ConstrainedCallVirt && temp is null && !IsValueType(receiverType) &&
+            if (callKind == CallKind.ConstrainedCallVirt && temp is null && !receiverType.isValueType &&
                 !ReceiverIsKnownToReferToTempIfReferenceType(receiver) &&
                 !IsSafeToDereferenceReceiverRefAfterEvaluatingArguments(call.arguments)) {
                 object whenNotNullLabel = null;
 
-                if (!IsReferenceType(receiverType)) {
+                if (!receiverType.isReferenceType) {
                     EmitDefaultValue(receiverType, true, receiver.syntax);
                     EmitBox(receiverType);
                     whenNotNullLabel = new object();
@@ -2091,9 +2091,9 @@ oneMoreTime:
         if (methodContainingType.IsNullableType()) {
             var originalMethod = method.originalDefinition;
 
-            if ((object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getValue) ||
-                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getHasValue) ||
-                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_GetValueOrDefault)) {
+            if ((object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_getValue) ||
+                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_getHasValue) ||
+                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_GetValueOrDefault)) {
                 return true;
             }
         }
@@ -2126,14 +2126,7 @@ oneMoreTime:
             return true;
 
         var containingType = method.containingType;
-        // TODO Why are we even here? Struct's can't have methods, but just in case consider checking for this
-        // Overrides in structs of some special types can be called directly.
-        // We can assume that these special types will not be removing overrides.
-        // This pattern can probably be applied to all special types,
-        // but that would introduce a silent change every time a new special type is added,
-        // so we constrain the check to a fixed range of types
-        // return containingType.SpecialType.CanOptimizeBehavior();
-        return true;
+        return containingType.specialType.CanOptimizeBehavior();
     }
 
     private static bool IsSafeToDereferenceReceiverRefAfterEvaluatingArguments(
@@ -2870,8 +2863,11 @@ oneMoreTime:
     }
 
     private void EmitLocalDeclarationIfApplicable(BoundAssignmentOperator expression) {
-        if (expression.left is BoundStackSlotExpression stackSlot) {
-            var local = stackSlot.symbol as DataContainerSymbol;
+        if (expression.left.kind == BoundKind.StackSlotExpression ||
+            expression.left is BoundDataContainerExpression dataExpr && dataExpr.dataContainer.isGlobal) {
+            var local = expression.left is BoundStackSlotExpression stackSlot
+                ? stackSlot.symbol as DataContainerSymbol
+                : ((BoundDataContainerExpression)expression.left).dataContainer;
 
             if (local is not null && _evaluatorProxies.Add(local)) {
                 _builder.DeclareLocal(
@@ -2912,7 +2908,7 @@ oneMoreTime:
 
             var temp = EmitAddress(
                 assignmentOperator.right,
-                lhs.GetRefKind() is RefKind.RefConst or RefKind.RefConstParameter
+                lhs.GetRefKind() is RefKind.RefConst or RefKind.RefFinal
                     ? AddressKind.ReadOnlyStrict
                     : AddressKind.Writeable
             );
@@ -3036,11 +3032,10 @@ oneMoreTime:
                 _builder.Emit(OpCode.Stelem_I);
                 break;
             default:
-                if (elementType.IsVerifierReference()) {
+                if (elementType.IsVerifierReference())
                     _builder.Emit(OpCode.Stelem_Ref);
-                } else {
+                else
                     _builder.EmitWithSymbolToken(OpCode.Stelem, elementType);
-                }
 
                 break;
         }
@@ -3239,6 +3234,9 @@ oneMoreTime:
                 break;
             case BoundKind.ArrayAccessExpression: {
                     var left = (BoundArrayAccessExpression)assignmentTarget;
+                    // TODO We can't omit this null check even though stelem will throw because that would cause
+                    // TODO executing the index expression when we shouldn't
+                    // ? unless we can prove it has no side effects?
                     EmitExpression(left.receiver, used: true);
                     EmitArrayIndex(left.index);
                     lhsUsesStack = true;
@@ -3305,7 +3303,7 @@ oneMoreTime:
         var rightType = right.type;
 
         if (!rightType.IsTemplateParameter()) {
-            if (IsReferenceType(rightType) || (right.constantValue is not null))
+            if (rightType.isReferenceType || right.constantValue is not null)
                 return false;
         }
 
@@ -3368,7 +3366,7 @@ oneMoreTime:
 
         if (left.kind == BoundKind.ArrayAccessExpression &&
             left.StrippedType().typeKind == TypeKind.TemplateParameter &&
-            !IsValueType(left.type)) {
+            !left.type.isValueType) {
             return false;
         }
 
@@ -3400,7 +3398,7 @@ oneMoreTime:
                 return;
 
             if (!field.isStatic && receiver.type.IsVerifierValue() && field.refKind == RefKind.None) {
-                EmitExpression(receiver, used: false);
+                EmitExpressionWithoutNullCheck(receiver, used: false);
                 return;
             }
         }
@@ -3423,8 +3421,11 @@ oneMoreTime:
         } else {
             var fieldType = field.type;
 
-            if (IsValueType(fieldType) && (object)fieldType == (object)receiver.type) {
-                EmitExpression(receiver, used);
+            if (fieldType.isValueType && (object)fieldType == receiver.type) {
+                // Technically this shouldn't be reachable because it would be a cyclic struct
+                // But mscorlib does this so we might want to as well for predefined types later
+                throw ExceptionUtilities.Unreachable();
+                // EmitExpressionWithoutNullCheck(receiver, used);
             } else {
                 var temp = EmitFieldLoadReceiver(receiver);
 
@@ -3476,7 +3477,7 @@ oneMoreTime:
     }
 
     private bool EmitFieldLoadReceiverAddress(BoundExpression receiver) {
-        if (receiver is null || !IsValueType(receiver.type)) {
+        if (receiver is null || !receiver.type.isValueType) {
             return false;
         } else if (receiver.kind == BoundKind.CastExpression) {
             var conversion = (BoundCastExpression)receiver;
@@ -3610,7 +3611,7 @@ oneMoreTime:
     }
 
     private void EmitCast(BoundCastExpression cast) {
-        if (IsReferenceType(cast.operand.type)) {
+        if (cast.operand.type.isReferenceType) {
             if (cast.type.specialType == SpecialType.Nullable) {
                 return;
             } else if (cast.type.specialType == SpecialType.String) {
@@ -3985,7 +3986,7 @@ oneMoreTime:
         var thisType = _method.containingType;
         _builder.Emit(OpCode.Ldarg_0);
 
-        if (IsValueType(thisType)) {
+        if (thisType.isValueType) {
             EmitLoadIndirect(thisType);
             EmitBox(thisType);
         }
@@ -3995,7 +3996,7 @@ oneMoreTime:
         var thisType = expression.type;
         _builder.Emit(OpCode.Ldarg_0);
 
-        if (IsValueType(thisType))
+        if (thisType.isValueType)
             EmitLoadIndirect(thisType);
     }
 

@@ -2,7 +2,7 @@
 
 - [2.1](#21-functions) Functions
   - [2.1.1](#211-nested-functions) Nested Functions
-  - [2.1.2](#212-overloads) Overloads
+  - [2.1.2](#212-const-parameters) Const Parameters
   - [2.1.3](#213-default-arguments) Default Arguments
   - [2.1.4](#214-named-arguments) Named Arguments
   - [2.1.5](#215-template-arguments) Template Arguments
@@ -31,9 +31,11 @@
 - [2.6](#26-exceptions-and-handling) Exceptions and Handling
   - [2.6.1](#261-trycatchfinally) Try/Catch/Finally
 - [2.7](#27-with-expressions-and-statements) With Expressions and Statements
+  - [2.7.1](#271-commit-statements) Commit Statements
 - [2.8](#28-defer-statements) Defer Statements
-- [2.9](#29-using-statements) Using Statements
+- [2.9](#29-scoped-statements) Scoped Statements
 - [2.10](#210-unreachable-statements) Unreachable Statements
+- [2.11](#211-reverse-statements) Reverse Statements
 
 ## 2.1 Functions
 
@@ -94,17 +96,16 @@ void TopLevelFunction(int param) {
 
 Nested functions marked `static` cannot access locals of the enclosing scope.
 
-### 2.1.2 Overloads
+### 2.1.2 Const Parameters
 
-As long as the signatures are different, it is valid to declare multiple functions with the same name (overloads). When
-calling a function with that name, the "best" overload is chosen.
+Parameters marked `const` cannot be assigned to or modified within the scope of the function. This is used to encode in
+the function signature whether or not an argument is just read or also written, meaning that parameters should generally
+be marked `const` unless modified:
 
 ```belte
-void MyFunction() { }
-
-void MyFunction(int param) { }
-
-MyFunction(3); // This calls the second overload because it expects an argument, while the first overload does not.
+void F(const List<int> list) {
+  // ...
+}
 ```
 
 ### 2.1.3 Default Arguments
@@ -147,7 +148,7 @@ MyFunction(4, param3: 10);
 ### 2.1.5 Template Arguments
 
 Similar to classes, declared functions (or methods) can be templated. The functionality of function templates are
-identical to that of class templates, which can be read about [here](./ClassesAndObjects.md#45-templates). The syntax
+identical to that of class templates, which can be [read about here](./ClassesAndObjects.md#45-templates). The syntax
 for templates and template constraint clauses are as follows:
 `void Func<template parameters...>() where { template constraint clauses... } { }`
 
@@ -258,7 +259,7 @@ only allowed if only one file in the compilation contains these top-level statem
 ### 2.2.1 Main
 
 A function named `Main` is treated as the entry point if it is declared otherwise. To support command-line arguments,
-the `Main` function can optionally take in arguments to retrieve them (similar to C).
+the `Main` function can optionally take in arguments to retrieve them.
 
 **Valid** `Main` signatures:
 
@@ -827,6 +828,21 @@ return with (a = 5) with (b = 10) with (c = 0) SomeMethod();
 
 Using a single `with` where possible is preferred as the compiler can optimize it better.
 
+Apart from assignments,
+[user-defined reversal methods can be defined](ClassesAndObjects.md#4222-state-and-reverse-clauses) to use `with` in
+more contexts.
+
+### 2.7.1 Commit Statements
+
+A `commit` statement can be used to avoid performing the reversal actions of the enclosing `with`:
+
+```belte
+with (a = 10) {
+  if (TrySomething())
+    commit; // If this is reached, 'a' will stay set to 10
+}
+```
+
 ## 2.8 Defer Statements
 
 `defer` statements defer the execution of a statement to the end of the current block, regardless of how the block
@@ -967,20 +983,20 @@ Similar to [finally blocks](#261-trycatchfinally), defer statements cannot retur
 defer return; // Invalid
 ```
 
-## 2.9 Using Statements
+## 2.9 Scoped Statements
 
-Similar to defer statements, using statements imply certain execution on block exit. For using statements, this is the
-calling of a public parameter-less method `void Dispose()` on the local attached to the using. For example:
+Similar to defer statements, scoped statements imply certain execution on block exit. For scoped statements, this is the
+calling of a destructor on the local attached to the scoped block. For example:
 
 ```belte
-using (var a = new A()) {
-  Console.PrintLine("using body");
+scoped (var a = new A()) {
+  Console.PrintLine("scoped body");
 }
 
-Console.PrintLine("outside using");
+Console.PrintLine("outside scoped");
 
 class A {
-  public void Dispose() { /* ... */ }
+  destructor() { /* ... */ }
 }
 ```
 
@@ -990,42 +1006,59 @@ This is equivalent to:
 var a = new A();
 
 try {
-  Console.PrintLine("using body");
+  Console.PrintLine("scoped body");
 } finally {
   a?.Dispose();
 }
 
-Console.PrintLine("outside using");
+Console.PrintLine("outside scoped");
 
 class A {
-  public void Dispose() { /* ... */ }
+  destructor() { /* ... */ }
 }
 ```
 
-Instead of attaching a body to the using, it can be scoped to the enclosing block. This will result in all statements
-after the using local declaration to be wrapped in the try:
+Instead of attaching a body to the scoped statement, it can be scoped to the enclosing block. This will result in all
+statements after the scoped local declaration to be wrapped in the try:
 
 ```belte
-Console.PrintLine("not captured by using");
+Console.PrintLine("not captured by scoped");
 
-using var a = new A();
+scoped var a = new A();
 
-Console.PrintLine("captured by using");
+Console.PrintLine("captured by scoped");
 ```
 
 This is equivalent to:
 
 ```belte
-Console.PrintLine("not captured by using");
+Console.PrintLine("not captured by scoped");
 
 var a = new A();
 
 try {
-  Console.PrintLine("captured by using");
+  Console.PrintLine("captured by scoped");
 } finally {
   a?.Dispose();
 }
 ```
+
+### 2.9.1 Destructors
+
+The `destructor` keyword is used to create a destructor called by scoped statements:
+
+```belte
+class A {
+  destructor() {
+    // ...
+  }
+}
+```
+
+Using the `destructor` keyword ensures the member is public, has not parameters, and returns void.
+
+Note that the destructor creates a method on the class with the signature `public void Dispose()`, which can be called
+by name. This is why the above examples of scoped statements show a call to `Dispose()`.
 
 ## 2.10 Unreachable Statements
 
@@ -1044,3 +1077,43 @@ unreachable;
 This can be used when the compiler cannot prove a method always returns and errs.
 
 Note that because this turns into a [`throw`](#261-trycatchfinally), it will be caught by enclosing catch blocks.
+
+## 2.11 Reverse Statements
+
+A `reversible` expression creates a token that can be referenced later with a `reverse` statement.
+
+```belte
+var value = reversible Token: Method();
+```
+
+The `reversible` expression uses the format `reversible <token name>: <expression>` where the expression is a call to a
+[reversible method](ClassesAndObjects.md#4222-state-and-reverse-clauses). The expression results in the the return value
+of the method. The token can then be used to call the reverse clause of the method:
+
+```belte
+reverse Token;
+```
+
+For cases where the reverse clause is unconditionally called, a
+[`with` statement or expression](#27-with-expressions-and-statements) should be used instead as it doesn't require
+managing a token. Managing a token is required to conditionally reverse a method:
+
+```belte
+if (reversible T: TrySomeOperation()) {
+  // ...
+} else {
+  reverse T;
+}
+
+```
+
+A `reverse defer` statement can be used to avoid naming a token. The following are equivalent:
+
+```belte
+reversible T: Method();
+defer reverse T;
+```
+
+```belte
+reverse defer Method();
+```

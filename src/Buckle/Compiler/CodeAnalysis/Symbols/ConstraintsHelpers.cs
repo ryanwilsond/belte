@@ -415,15 +415,17 @@ internal static partial class ConstraintsHelpers {
         var n = templateParameters.Length;
         var succeeded = true;
 
-        for (var i = 0; i < n; i++) {
-            if (!CheckConstraints(
-                containingSymbol,
-                location,
-                diagnostics,
-                substitution,
-                templateParameters[i],
-                templateArguments[i])) {
-                succeeded = false;
+        if (n > 0 && substitution is not null) {
+            for (var i = 0; i < n; i++) {
+                if (!CheckConstraints(
+                    containingSymbol,
+                    location,
+                    diagnostics,
+                    substitution,
+                    templateParameters[i],
+                    templateArguments[i])) {
+                    succeeded = false;
+                }
             }
         }
 
@@ -579,7 +581,7 @@ internal static partial class ConstraintsHelpers {
             return false;
         }
 
-        if (templateParameter.hasObjectTypeConstraint && !templateArgument.type.type.StrippedType().isObjectType) {
+        if (templateParameter.hasObjectTypeConstraint && !templateArgument.type.type.StrippedType().isReferenceType) {
             diagnostics.Push(Error.ObjectConstraintFailed(
                 location,
                 containingSymbol.ConstructedFrom(),
@@ -599,7 +601,7 @@ internal static partial class ConstraintsHelpers {
             ));
         }
 
-        if (templateParameter.hasPrimitiveTypeConstraint && !templateArgument.type.type.StrippedType().isPrimitiveType) {
+        if (templateParameter.hasPrimitiveTypeConstraint && !templateArgument.type.type.StrippedType().isValueType) {
             diagnostics.Push(Error.PrimitiveConstraintFailed(
                 location,
                 containingSymbol.ConstructedFrom(),
@@ -609,6 +611,9 @@ internal static partial class ConstraintsHelpers {
 
             return false;
         }
+
+        if (templateParameter.hasDefaultConstraint && !templateArgument.type.type.HasDefaultValue())
+            return false;
 
         return true;
     }

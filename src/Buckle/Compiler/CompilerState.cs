@@ -1,5 +1,4 @@
 using System.Collections.Generic;
-using Diagnostics;
 
 namespace Buckle;
 
@@ -28,24 +27,9 @@ public class CompilerState {
     public bool debugMode;
 
     /// <summary>
-    /// Lowest severity to report.
+    /// Default diagnostic options applied to all tasks.
     /// </summary>
-    public DiagnosticSeverity severity;
-
-    /// <summary>
-    /// Highest warning level to report.
-    /// </summary>
-    public int warningLevel;
-
-    /// <summary>
-    /// Warnings to not suppress.
-    /// </summary>
-    public DiagnosticInfo[] includeWarnings;
-
-    /// <summary>
-    /// Warnings to suppress.
-    /// </summary>
-    public DiagnosticInfo[] excludeWarnings;
+    public TaskDiagnosticOptions diagnosticOptions;
 
     /// <summary>
     /// At what point to stop compilation (usually unrestricted).
@@ -121,5 +105,5 @@ public class CompilerState {
     /// <summary>
     /// Specific diagnostic related options on a per-task basis
     /// </summary>
-    public Dictionary<string, (DiagnosticSeverity, int, DiagnosticInfo[], DiagnosticInfo[])> taskDiagnosticOptions;
+    public Dictionary<string, TaskDiagnosticOptions> taskDiagnosticOptions;
 }

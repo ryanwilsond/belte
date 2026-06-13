@@ -25,7 +25,7 @@ internal sealed class ThisParameterSymbol : ThisParameterSymbolBase {
 
             // TODO Double check this is correct
             if (_containingMethod?.isEffectivelyConst == true)
-                return RefKind.RefConstParameter;
+                return RefKind.RefConst;
 
             return RefKind.Ref;
         }

@@ -74,6 +74,10 @@ internal abstract partial class WithUsingAliasesBinder : Binder {
         return null;
     }
 
+    private protected override SourceTokenSymbol LookupToken(SyntaxToken identifier) {
+        return null;
+    }
+
     internal static WithUsingAliasesBinder Create(
         SourceNamespaceSymbol declaringSymbol,
         BelteSyntaxNode declarationSyntax,

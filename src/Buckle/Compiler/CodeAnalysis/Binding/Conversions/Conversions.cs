@@ -52,15 +52,14 @@ internal sealed partial class Conversions {
     }
 
     internal bool HasIdentityOrImplicitReferenceConversion(TypeSymbol source, TypeSymbol destination) {
-        if (HasIdentityConversionInternal(source, destination)) {
+        if (HasIdentityConversionInternal(source, destination))
             return true;
-        }
 
         return HasImplicitReferenceConversion(source, destination);
     }
 
     internal bool HasImplicitReferenceConversion(TypeSymbol source, TypeSymbol destination) {
-        if (!source.isObjectType && !source.IsArray())
+        if (!source.isReferenceType && !source.IsArray())
             return false;
 
         if (destination.specialType == SpecialType.Object)
@@ -108,6 +107,17 @@ internal sealed partial class Conversions {
         return Conversion.None;
     }
 
+    private Conversion GetImplicitExtendedLiteralExpressionConversion(
+        BoundUnconvertedExtendedLiteralExpression extended,
+        TypeSymbol destination) {
+        var extendedConversion = GetExtendedLiteralExpressionConversion(_binder, extended, destination);
+
+        if (extendedConversion.exists)
+            return extendedConversion;
+
+        return Conversion.None;
+    }
+
     private Conversion GetImplicitListExpressionConversion(
         BoundUnconvertedInitializerList listExpression,
         TypeSymbol destination) {
@@ -146,6 +156,32 @@ internal sealed partial class Conversions {
         }
 
         return Conversion.None;
+    }
+
+    internal static Conversion GetExtendedLiteralExpressionConversion(
+        Binder binder,
+        BoundUnconvertedExtendedLiteralExpression node,
+        TypeSymbol targetType) {
+        var candidates = binder.GetExtendedLiteralCandidates(
+            node,
+            targetType,
+            out var analyzedArguments,
+            out _
+        );
+
+        analyzedArguments?.Free();
+
+        if (!candidates.hasAnyApplicableMember)
+            return Conversion.None;
+
+        if (candidates.succeeded) {
+            var method = candidates.bestResult.member;
+            candidates.Free();
+            return new Conversion(ConversionKind.Implicit, method);
+        }
+
+        candidates.Free();
+        return Conversion.Implicit;
     }
 
     internal Conversion GetListExpressionConversion(BoundUnconvertedInitializerList node, TypeSymbol targetType) {
@@ -202,6 +238,8 @@ internal sealed partial class Conversions {
             sourceExpression is BoundUnconvertedInitializerList or
                                 BoundUnconvertedImplicitEnumFieldExpression or
                                 BoundUnconvertedNullptrExpression or
+                                BoundUnconvertedExtendedLiteralExpression or
+                                BoundUnconvertedConditionalOperator or
                                 BoundMethodGroup) {
             // We tried our best. No further built-in conversions for these cases.
             return result;
@@ -250,17 +288,28 @@ internal sealed partial class Conversions {
     }
 
     internal Conversion ClassifyConversionFromType(TypeSymbol source, TypeSymbol target) {
-        var conversion = GetImplicitUserDefinedConversion(source, target);
+        var conversion = FastClassifyConversion(source, target);
+
+        if (conversion.exists) {
+            return conversion;
+        } else {
+            conversion = Conversion.Classify(source, target);
+
+            if (Conversion.CollapseConversion(conversion).isImplicit)
+                return conversion;
+        }
+
+        conversion = GetImplicitUserDefinedConversion(source, target);
 
         if (conversion.exists)
             return conversion;
 
-        conversion = GetExplicitUserDefinedConversion(source, target);
+        conversion = Conversion.Classify(source, target);
 
         if (conversion.exists)
             return conversion;
 
-        return Conversion.Classify(source, target);
+        return GetExplicitUserDefinedConversion(source, target);
     }
 
     internal Conversion ClassifyImplicitConversionFromType(TypeSymbol source, TypeSymbol target) {
@@ -293,8 +342,12 @@ internal sealed partial class Conversions {
                 return Conversion.DefaultLiteral;
             case BoundUnconvertedObjectCreationExpression:
                 return Conversion.ObjectCreation;
+            case BoundUnconvertedExtendedLiteralExpression extended:
+                return GetImplicitExtendedLiteralExpressionConversion(extended, target);
             case BoundUnconvertedConditionalOperator conditionalOperator:
                 return GetConditionalExpressionConversion(conditionalOperator, target);
+            case BoundTupleLiteral tuple:
+                return GetImplicitTupleConversion(tuple, target);
         }
 
         if (sourceExpression.IsLiteralNull()) {
@@ -313,17 +366,57 @@ internal sealed partial class Conversions {
         if (conversion.exists && Conversion.CollapseConversion(conversion).isImplicit)
             return conversion;
 
-        conversion = GetImplicitUserDefinedConversion(sourceExpression, sourceExpression.Type(), target);
-
-        if (conversion.exists)
-            return conversion;
-
         conversion = Conversion.Classify(sourceExpression.Type(), target);
 
         if (Conversion.CollapseConversion(conversion).isImplicit)
             return conversion;
 
+        conversion = GetImplicitUserDefinedConversion(sourceExpression, sourceExpression.Type(), target);
+
+        if (conversion.exists)
+            return conversion;
+
         return Conversion.None;
+    }
+
+    private Conversion GetImplicitTupleConversion(BoundTupleLiteral tuple, TypeSymbol destination) {
+        var conversion = GetTupleConversion(tuple, destination);
+
+        if (conversion.exists)
+            return conversion;
+
+        if (destination.IsNullableType()) {
+            var underlyingConversion = GetTupleConversion(tuple, destination.StrippedType());
+
+            if (underlyingConversion.exists)
+                return new Conversion(ConversionKind.ImplicitNullable, [underlyingConversion]);
+        }
+
+        return Conversion.None;
+    }
+
+    private Conversion GetTupleConversion(BoundTupleLiteral tuple, TypeSymbol destination) {
+        var arguments = tuple.arguments;
+
+        if (!destination.IsTupleTypeOfCardinality(arguments.Length))
+            return Conversion.None;
+
+        var targetElementTypes = destination.tupleElementTypes;
+        var argumentConversions = ArrayBuilder<Conversion>.GetInstance(arguments.Length);
+
+        for (var i = 0; i < arguments.Length; i++) {
+            var argument = arguments[i];
+            var result = ClassifyImplicitConversionFromExpression(argument, targetElementTypes[i].type.type);
+
+            if (!result.exists) {
+                argumentConversions.Free();
+                return Conversion.None;
+            }
+
+            argumentConversions.Add(result);
+        }
+
+        return new Conversion(ConversionKind.ImplicitTupleLiteral, argumentConversions.ToImmutableAndFree());
     }
 
     private Conversion GetMethodGroupConversion(BoundMethodGroup source, TypeSymbol destination) {
@@ -919,10 +1012,14 @@ internal sealed partial class Conversions {
             case ConversionKind.ImplicitNumeric:
             case ConversionKind.ImplicitReference:
             case ConversionKind.ImplicitNullToPointer:
+            case ConversionKind.ImplicitTupleLiteral:
             case ConversionKind.AnyBoxing:
             case ConversionKind.ImplicitConstant:
             case ConversionKind.NullLiteral:
             case ConversionKind.DefaultLiteral:
+                return true;
+            // TODO Should remove Implicit as a conversion kind because its vague
+            case ConversionKind.Implicit:
                 return true;
             default:
                 throw ExceptionUtilities.UnexpectedValue(kind);

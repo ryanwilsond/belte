@@ -1,0 +1,2 @@
+
+public class Buffer<type T> { }

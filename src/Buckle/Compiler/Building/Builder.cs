@@ -18,6 +18,7 @@ public sealed class Builder {
         outputKind = OutputKind.ConsoleApplication;
         inputs = [];
         refs = [];
+        deps = [];
         l = 0;
         maxCores = 0;
         debugBuild = false;
@@ -30,6 +31,8 @@ public sealed class Builder {
     public List<(string, InputOptions, DiagnosticOptions)> inputs { get; }
 
     public List<(string, RefOptions)> refs { get; }
+
+    public List<(string, string, DepOptions)> deps { get; }
 
     public string output { get; private set; }
 
@@ -67,8 +70,16 @@ public sealed class Builder {
         output = path;
     }
 
-    public void AddRef(string path, RefOptions options) {
+    public void AddRef(string path, RefOptions options = RefOptions.Copy) {
         refs.Add((path, options));
+    }
+
+    public void AddDep(string path, DepOptions options = default) {
+        deps.Add((path, null, options));
+    }
+
+    public void AddDep(string path, string filter, DepOptions options = default) {
+        deps.Add((path, filter, options));
     }
 
     public void SetVerboseMode(VerboseMode mode) {
@@ -99,6 +110,30 @@ public sealed class Builder {
             _globalDiagnosticOptions.wincludes.AddRange(codes);
         else
             _currentDiagnosticOptions.wincludes.AddRange(codes);
+    }
+
+    public void ExcludeWarningsAsErrors(string[] codes) {
+        if (_diagnosticFlagMode == DiagnosticFlagMode.Global)
+            _globalDiagnosticOptions.werrexcludes.AddRange(codes);
+        else
+            _currentDiagnosticOptions.werrexcludes.AddRange(codes);
+    }
+
+    public void IncludeWarningsAsErrors(string[] codes) {
+        if (_diagnosticFlagMode == DiagnosticFlagMode.Global)
+            _globalDiagnosticOptions.werrincludes.AddRange(codes);
+        else
+            _currentDiagnosticOptions.werrincludes.AddRange(codes);
+    }
+
+    public void IncludeWarningsAsErrors(int warningLevel = 2) {
+        if (_diagnosticFlagMode == DiagnosticFlagMode.Global) {
+            _globalDiagnosticOptions.warningsAsErrors = true;
+            _globalDiagnosticOptions.wErrorLevel = warningLevel;
+        } else {
+            _currentDiagnosticOptions.warningsAsErrors = true;
+            _currentDiagnosticOptions.warningLevel = warningLevel;
+        }
     }
 
     public void SetWarningLevel(int level) {

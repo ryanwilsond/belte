@@ -157,7 +157,7 @@ internal sealed class TemplateMap {
         if (!changed)
             return previous;
 
-        return newConstructedFrom.ConstructIfGeneric(newTypeArguments.ToImmutableAndFree());
+        return newConstructedFrom.ConstructIfGeneric(newTypeArguments.ToImmutableAndFree()).WithTupleDataFrom(previous);
     }
 
     internal void SubstituteConstraintTypesDistinctWithoutModifiers(

@@ -7,10 +7,10 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Binding;
 
-internal sealed class UsingStatementBinder : LocalScopeBinder {
-    private readonly UsingStatementSyntax _syntax;
+internal sealed class ScopedStatementBinder : LocalScopeBinder {
+    private readonly ScopedStatementSyntax _syntax;
 
-    internal UsingStatementBinder(Binder enclosing, UsingStatementSyntax syntax) : base(enclosing) {
+    internal ScopedStatementBinder(Binder enclosing, ScopedStatementSyntax syntax) : base(enclosing) {
         _syntax = syntax;
     }
 
@@ -29,24 +29,38 @@ internal sealed class UsingStatementBinder : LocalScopeBinder {
         return locals.ToImmutableAndFree();
     }
 
-    internal override BoundStatement BindUsingStatementParts(BelteDiagnosticQueue diagnostics, Binder originalBinder) {
+    private protected override ImmutableArray<TokenSymbol> BuildTokens() {
+        var declarationSyntax = _syntax.declaration;
+
+        var tokens = ArrayBuilder<TokenSymbol>.GetInstance(1);
+
+        declarationSyntax.type.VisitRankSpecifiers((rankSpecifier, args) => {
+            ExpressionTokenFinder.FindExpressionTokens(args.binder, ref args.tokens, rankSpecifier.size);
+        }, (binder: this, tokens: tokens));
+
+        ExpressionTokenFinder.FindExpressionTokens(this, ref tokens, declarationSyntax);
+
+        return tokens.ToImmutableAndFree();
+    }
+
+    internal override BoundStatement BindScopedStatementParts(BelteDiagnosticQueue diagnostics, Binder originalBinder) {
         var declarationSyntax = _syntax;
-        var boundUsingStatement = BindUsingStatementOrDeclarationFromParts(
+        var boundScopedStatement = BindScopedStatementOrDeclarationFromParts(
             declarationSyntax,
-            _syntax.usingKeyword,
+            _syntax.scopedKeyword,
             originalBinder,
             this,
             diagnostics
         );
 
-        return boundUsingStatement;
+        return boundScopedStatement;
     }
 
-    internal static BoundStatement BindUsingStatementOrDeclarationFromParts(
-        UsingStatementSyntax syntax,
-        SyntaxToken usingKeyword,
+    internal static BoundStatement BindScopedStatementOrDeclarationFromParts(
+        ScopedStatementSyntax syntax,
+        SyntaxToken scopedKeyword,
         Binder originalBinder,
-        UsingStatementBinder usingBinderOpt,
+        ScopedStatementBinder scopedBinder,
         BelteDiagnosticQueue diagnostics) {
         var typeSyntax = syntax.declaration.type.SkipRef(out _);
         var isConst = false;
@@ -84,9 +98,9 @@ internal sealed class UsingStatementBinder : LocalScopeBinder {
             syntax
         );
 
-        var body = usingBinderOpt.BindPossibleEmbeddedStatement(syntax.statement, diagnostics);
+        var body = scopedBinder.BindPossibleEmbeddedStatement(syntax.statement, diagnostics);
 
-        return new BoundUsingStatement(syntax, declaration, body);
+        return new BoundScopedStatement(syntax, declaration, body);
     }
 
     internal override ImmutableArray<DataContainerSymbol> GetDeclaredLocalsForScope(SyntaxNode scopeDesignator) {
@@ -98,6 +112,13 @@ internal sealed class UsingStatementBinder : LocalScopeBinder {
 
     internal override ImmutableArray<LocalFunctionSymbol> GetDeclaredLocalFunctionsForScope(
         BelteSyntaxNode scopeDesignator) {
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    internal override ImmutableArray<TokenSymbol> GetDeclaredTokensForScope(SyntaxNode scopeDesignator) {
+        if (_syntax == scopeDesignator)
+            return tokens;
+
         throw ExceptionUtilities.Unreachable();
     }
 

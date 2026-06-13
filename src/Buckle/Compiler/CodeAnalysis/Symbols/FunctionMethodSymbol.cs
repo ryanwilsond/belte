@@ -31,6 +31,7 @@ internal sealed class FunctionMethodSymbol : MethodSymbol {
                 paramsBuilder.Add(new FunctionParameterSymbol(
                     substitutedType.type,
                     originalParam.refKind,
+                    originalParam.isConst,
                     originalParam.name,
                     originalParam.ordinal,
                     containingSymbol: this
@@ -68,7 +69,15 @@ internal sealed class FunctionMethodSymbol : MethodSymbol {
                     var paramType = new TypeWithAnnotations(param.type);
                     // var paramRefKind = getRefKind(param, /*paramRefCustomMods, */RefKind.In, RefKind.Out, requiresLocationAllowed: true);
                     var paramRefKind = param.isByRef ? RefKind.Ref : RefKind.None;
-                    paramsBuilder.Add(new FunctionParameterSymbol(paramType, paramRefKind, null, i, parent/*, paramRefCustomMods*/));
+                    paramsBuilder.Add(new FunctionParameterSymbol(
+                        paramType,
+                        paramRefKind,
+                        false,
+                        null,
+                        i,
+                        parent
+                    /*, paramRefCustomMods*/
+                    ));
                 }
 
                 return paramsBuilder.ToImmutableAndFree();
@@ -115,7 +124,7 @@ internal sealed class FunctionMethodSymbol : MethodSymbol {
 
         _parameters = parameterTypes.ZipAsArray(parameterRefKinds, this,
             (type, refKind, i, arg) => {
-                return new FunctionParameterSymbol(type, refKind, null, i, arg);
+                return new FunctionParameterSymbol(type, refKind, false, null, i, arg);
             }
         );
     }

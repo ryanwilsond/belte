@@ -50,7 +50,7 @@ public sealed partial class BelteRepl : Repl {
     /// <param name="handle"><see cref="Compiler" /> object that represents entirety of compilation.</param>
     /// <param name="errorHandle">Callback to handle Diagnostics.</param>
     public BelteRepl(Compiler handle, DiagnosticHandle errorHandle) : base(handle) {
-        handle.state.warningLevel = 2;
+        handle.state.diagnosticOptions.warningLevel = 2;
 
         state = new BelteReplState();
         _diagnosticHandle = errorHandle;
@@ -258,7 +258,7 @@ public sealed partial class BelteRepl : Repl {
             return true;
 
         UpdateTree();
-        var lastMember = state.tree.GetCompilationUnitRoot().members.LastOrDefault();
+        var lastMember = state.tree.GetCompilationUnitRoot().elements.LastOrDefault();
 
         if (lastMember is null || lastMember.GetLastToken(includeZeroWidth: true).isFabricated)
             return false;

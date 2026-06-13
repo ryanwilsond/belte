@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
-using Buckle.Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Text;
@@ -12,6 +11,7 @@ namespace Buckle.CodeAnalysis.Text;
 /// </summary>
 [DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
 internal sealed partial class TextChangeRange {
+    // TODO Turn this into a readonly struct
     /// <summary>
     /// Creates a <see cref="TextChangeRange" /> instance.
     /// </summary>

@@ -277,6 +277,7 @@ done:
         }
 
         RegisterDeclaredCorTypes(builder);
+        RegisterDeclaredWellKnownTypes(builder);
 
         var result = new Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>>(
             builder.Count,
@@ -396,6 +397,37 @@ done:
         }
     }
 
+    private void RegisterDeclaredWellKnownTypes(PooledDictionary<ReadOnlyMemory<char>, object> members) {
+        if (declaringCompilation.keepLookingForWellKnownTypes) {
+            foreach (var member in members.Values) {
+                if (member is NamedTypeSymbol type) {
+                    if (CheckWellKnownType(type))
+                        return;
+                } else if (member is IEnumerable<NamespaceOrTypeSymbol> enumerable) {
+                    foreach (var m in enumerable) {
+                        if (m is NamedTypeSymbol t) {
+                            if (CheckWellKnownType(t))
+                                return;
+                        }
+                    }
+                }
+            }
+        }
+
+        bool CheckWellKnownType(NamedTypeSymbol type) {
+            var wellKnownType = WellKnownTypes.GetTypeFromMetadataName(type);
+
+            if (wellKnownType != WellKnownType.None) {
+                declaringCompilation.RegisterDeclaredWellKnownType(wellKnownType, type);
+
+                if (!declaringCompilation.keepLookingForWellKnownTypes)
+                    return true;
+            }
+
+            return false;
+        }
+    }
+
     internal bool IsDefinedInSourceTree(SyntaxTree tree, TextSpan definedWithinSpan) {
         if (isGlobalNamespace)
             return true;
@@ -423,13 +455,13 @@ done:
     internal Imports GetImports(BelteSyntaxNode declarationSyntax, ConsList<TypeSymbol> basesBeingResolved) {
         switch (declarationSyntax) {
             case CompilationUnitSyntax compilationUnit:
-                if (!compilationUnit.usings.Any())
+                if (!compilationUnit.elements.Any(e => e is UsingDirectiveSyntax))
                     return GetGlobalUsingImports(basesBeingResolved);
 
                 break;
 
             case BaseNamespaceDeclarationSyntax namespaceDecl:
-                if (!namespaceDecl.usings.Any())
+                if (!namespaceDecl.elements.Any(e => e is UsingDirectiveSyntax))
                     return Imports.Empty;
 
                 break;
@@ -476,12 +508,12 @@ done:
         ConsList<TypeSymbol> basesBeingResolved) {
         switch (declarationSyntax) {
             case CompilationUnitSyntax compilationUnit:
-                if (!compilationUnit.usings.Any())
+                if (!compilationUnit.elements.Any(e => e is UsingDirectiveSyntax))
                     return [];
 
                 break;
             case BaseNamespaceDeclarationSyntax namespaceDecl:
-                if (!namespaceDecl.usings.Any())
+                if (!namespaceDecl.elements.Any(e => e is UsingDirectiveSyntax))
                     return [];
 
                 break;
@@ -497,12 +529,12 @@ done:
         ConsList<TypeSymbol> basesBeingResolved) {
         switch (declarationSyntax) {
             case CompilationUnitSyntax compilationUnit:
-                if (!compilationUnit.usings.Any())
+                if (!compilationUnit.elements.Any(e => e is UsingDirectiveSyntax))
                     return GetGlobalUsingAliasesMap(basesBeingResolved);
 
                 break;
             case BaseNamespaceDeclarationSyntax namespaceDecl:
-                if (!namespaceDecl.usings.Any())
+                if (!namespaceDecl.elements.Any(e => e is UsingDirectiveSyntax))
                     return ImmutableDictionary<string, AliasAndUsingDirective>.Empty;
 
                 break;
@@ -518,12 +550,12 @@ done:
         ConsList<TypeSymbol> basesBeingResolved) {
         switch (declarationSyntax) {
             case CompilationUnitSyntax compilationUnit:
-                if (!compilationUnit.usings.Any())
+                if (!compilationUnit.elements.Any(e => e is UsingDirectiveSyntax))
                     return GetGlobalUsingNamespacesOrTypes(basesBeingResolved);
 
                 break;
             case BaseNamespaceDeclarationSyntax namespaceDecl:
-                if (!namespaceDecl.usings.Any())
+                if (!namespaceDecl.elements.Any(e => e is UsingDirectiveSyntax))
                     return [];
 
                 break;

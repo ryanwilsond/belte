@@ -1,7 +1,21 @@
+using Buckle.CodeAnalysis.Symbols;
 
-namespace Buckle.CodeAnalysis.Symbols;
+namespace Buckle.CodeAnalysis;
 
 internal static class SpecialTypeExtensions {
+    internal static bool IsKnownToBeImmutable(this SpecialType specialType) {
+        // This is only caring about reference types
+        switch (specialType) {
+            case SpecialType.Type:
+            case SpecialType.String:
+            // This is correct because this check does not care about derived types and Object has no fields:
+            case SpecialType.Object:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     internal static bool IsPrimitiveType(this SpecialType specialType) {
         switch (specialType) {
             case SpecialType.Any:
@@ -32,22 +46,30 @@ internal static class SpecialTypeExtensions {
         }
     }
 
-    internal static bool IsValidEnumUnderlyingType(this SpecialType specialType) {
-        return IsIntegral(specialType) || specialType == SpecialType.String || specialType == SpecialType.Char;
-    }
-
-    internal static bool IsObjectType(this SpecialType specialType) {
+    internal static bool IsReferenceType(this SpecialType specialType) {
         switch (specialType) {
+            case SpecialType.Array:
+            case SpecialType.String:
+            case SpecialType.Any:
+            case SpecialType.Type:
             case SpecialType.Object:
-            case SpecialType.Nullable:
-            case SpecialType.List:
-            case SpecialType.Dictionary:
-            case SpecialType.Vec2:
-            case SpecialType.Sprite:
+            case SpecialType.Buffer:
                 return true;
             default:
                 return false;
         }
+    }
+
+    internal static bool IsValueType(this SpecialType specialType) {
+        return !IsReferenceType(specialType);
+    }
+
+    internal static bool IsValidEnumUnderlyingType(this SpecialType specialType) {
+        return IsIntegral(specialType) || specialType == SpecialType.String || specialType == SpecialType.Char;
+    }
+
+    internal static bool CanOptimizeBehavior(this SpecialType specialType) {
+        return specialType >= SpecialType.Object && specialType <= SpecialType.ValueType;
     }
 
     internal static bool IsUnsigned(this SpecialType specialType) {
@@ -237,5 +259,37 @@ internal static class SpecialTypeExtensions {
         }
 
         return false;
+    }
+
+    internal static bool IsValidExtendedLiteral(this SpecialType type) {
+        switch (type) {
+            case SpecialType.Int8:
+            case SpecialType.Int16:
+            case SpecialType.Int32:
+            case SpecialType.Int64:
+            case SpecialType.Int:
+            case SpecialType.UInt8:
+            case SpecialType.UInt16:
+            case SpecialType.UInt32:
+            case SpecialType.UInt64:
+            case SpecialType.Decimal:
+            case SpecialType.Float32:
+            case SpecialType.Float64:
+            case SpecialType.String:
+            case SpecialType.Char:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    internal static bool IsValidPointerExtendedLiteral(this SpecialType type) {
+        switch (type) {
+            case SpecialType.UInt8:
+            case SpecialType.Char:
+                return true;
+            default:
+                return false;
+        }
     }
 }

@@ -144,4 +144,8 @@ internal sealed class ExtendedErrorTypeSymbol : ErrorTypeSymbol {
             _ => 0,
         };
     }
+
+    private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
+        throw ExceptionUtilities.Unreachable();
+    }
 }

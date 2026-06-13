@@ -8,6 +8,38 @@ public static class Utilities {
         return o.GetHashCode();
     }
 
+    public static bool IsLittleEndian() {
+        return BitConverter.IsLittleEndian;
+    }
+
+    public static int HashCodeCombine(int hash1, int hash2) {
+        return HashCode.Combine(hash1, hash2);
+    }
+
+    public static int HashCodeCombine(int hash1, int hash2, int hash3) {
+        return HashCode.Combine(hash1, hash2, hash3);
+    }
+
+    public static int HashCodeCombine(int hash1, int hash2, int hash3, int hash4) {
+        return HashCode.Combine(hash1, hash2, hash3, hash4);
+    }
+
+    public static int HashCodeCombine(int hash1, int hash2, int hash3, int hash4, int hash5) {
+        return HashCode.Combine(hash1, hash2, hash3, hash4, hash5);
+    }
+
+    public static int HashCodeCombine(int hash1, int hash2, int hash3, int hash4, int hash5, int hash6) {
+        return HashCode.Combine(hash1, hash2, hash3, hash4, hash5, hash6);
+    }
+
+    public static int HashCodeCombine(int hash1, int hash2, int hash3, int hash4, int hash5, int hash6, int hash7) {
+        return HashCode.Combine(hash1, hash2, hash3, hash4, hash5, hash6, hash7);
+    }
+
+    public static int HashCodeCombine(int hash1, int hash2, int hash3, int hash4, int hash5, int hash6, int hash7, int hash8) {
+        return HashCode.Combine(hash1, hash2, hash3, hash4, hash5, hash6, hash7, hash8);
+    }
+
     public static string GetTypeName(object o) {
         return o.GetType().Name;
     }
@@ -23,18 +55,12 @@ public static class Utilities {
         return value;
     }
 
-    public static void Sort<T>(T array) {
-        if (array is null)
-            return;
-
-        Array.Sort((Array)(object)array);
+    public static void Sort<T>(T[] array) {
+        Array.Sort(array);
     }
 
-    public static long Length<T>(T array) {
-        if (array is null)
-            return 0;
-
-        return ((Array)(object)array).LongLength;
+    public static long Length<T>(T[] array) {
+        return array.LongLength;
     }
 
     public static long StringLength(string str) {

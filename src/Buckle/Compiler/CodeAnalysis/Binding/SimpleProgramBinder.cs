@@ -36,12 +36,19 @@ internal sealed class SimpleProgramBinder : LocalScopeBinder {
         throw ExceptionUtilities.Unreachable();
     }
 
+    internal override ImmutableArray<TokenSymbol> GetDeclaredTokensForScope(SyntaxNode scopeDesignator) {
+        if (this.scopeDesignator == scopeDesignator)
+            return tokens;
+
+        throw ExceptionUtilities.Unreachable();
+    }
+
     private protected override ImmutableArray<DataContainerSymbol> BuildLocals() {
         var locals = new HashSet<DataContainerSymbol>();
         var localsBuilder = ArrayBuilder<DataContainerSymbol>.GetInstance(DefaultLocalSymbolArrayCapacity);
 
-        foreach (var statement in _entryPoint.compilationUnit.members) {
-            if (statement is GlobalStatementSyntax topLevelStatement)
+        foreach (var element in _entryPoint.compilationUnit.elements) {
+            if (element is GlobalStatementSyntax topLevelStatement)
                 BuildLocals(this, topLevelStatement.statement, localsBuilder);
         }
 
@@ -69,8 +76,8 @@ internal sealed class SimpleProgramBinder : LocalScopeBinder {
         var locals = new HashSet<LocalFunctionSymbol>();
         var localsBuilder = ArrayBuilder<LocalFunctionSymbol>.GetInstance();
 
-        foreach (var statement in _entryPoint.compilationUnit.members) {
-            if (statement is GlobalStatementSyntax topLevelStatement)
+        foreach (var element in _entryPoint.compilationUnit.elements) {
+            if (element is GlobalStatementSyntax topLevelStatement)
                 BuildLocalFunctions(topLevelStatement.statement, ref localsBuilder);
         }
 
@@ -97,11 +104,42 @@ internal sealed class SimpleProgramBinder : LocalScopeBinder {
     private protected override ImmutableArray<LabelSymbol> BuildLabels() {
         ArrayBuilder<LabelSymbol>? labels = null;
 
-        foreach (var statement in _entryPoint.compilationUnit.members) {
-            if (statement is GlobalStatementSyntax topLevelStatement)
+        foreach (var element in _entryPoint.compilationUnit.elements) {
+            if (element is GlobalStatementSyntax topLevelStatement)
                 BuildLabels(_entryPoint, topLevelStatement.statement, ref labels);
         }
 
         return labels?.ToImmutableAndFree() ?? [];
+    }
+
+    private protected override ImmutableArray<TokenSymbol> BuildTokens() {
+        var tokens = new HashSet<TokenSymbol>();
+        ArrayBuilder<TokenSymbol> tokensBuilder = null;
+
+        foreach (var element in _entryPoint.compilationUnit.elements) {
+            if (element is GlobalStatementSyntax topLevelStatement)
+                BuildTokens(this, topLevelStatement.statement, ref tokensBuilder);
+        }
+
+        if (tokensBuilder is not null) {
+            tokens.AddAll(tokensBuilder);
+            tokensBuilder.Free();
+        }
+
+        for (var compilation = _entryPoint.declaringCompilation.previous;
+            compilation is not null;
+            compilation = compilation.previous) {
+            if (compilation.entryPoint is not SynthesizedEntryPoint synthesizedEntryPoint)
+                continue;
+
+            var compilationUnit = synthesizedEntryPoint.compilationUnit;
+            var entryPointBinder = synthesizedEntryPoint
+                .TryGetBodyBinder(null, flags.Includes(BinderFlags.IgnoreAccessibility))
+                .GetBinder(compilationUnit);
+
+            tokens.AddAll(entryPointBinder.GetDeclaredTokensForScope(compilationUnit));
+        }
+
+        return tokens.ToImmutableArray();
     }
 }

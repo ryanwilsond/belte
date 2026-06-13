@@ -6,5 +6,5 @@ public enum RefKind : byte {
     Ref,
     Out,
     RefConst,
-    RefConstParameter,
+    RefFinal,
 }

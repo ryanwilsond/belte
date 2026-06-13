@@ -1,5 +1,7 @@
 
 public class EqualityComparer<type T> {
+    public static EqualityComparer<T> Default = new ();
+
     public const bool! Equals(T x, T y) {
         return x.Equals(y);
     }

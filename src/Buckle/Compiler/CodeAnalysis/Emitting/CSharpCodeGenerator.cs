@@ -265,7 +265,7 @@ internal sealed class CSharpCodeGenerator {
 
     private void EmitLocalFunctionStatement(BoundLocalFunctionStatement node) {
         var method = node.symbol;
-        using var curly = new CurlyIndenter(_writer, $"{_module.GetMethodAttributes(method, includeAccessibility: false)}{_module.GetMethodSignature(method)}");
+        using var curly = new CurlyIndenter(_writer, $"{_module.GetMethodAttributes(method, includeAccessibility: false, _writer.Indent)}{_module.GetMethodSignature(method)}");
         EmitStatement(node.body);
     }
 
@@ -319,6 +319,7 @@ internal sealed class CSharpCodeGenerator {
             BoundKind.UnaryOperator => EmitUnaryOperator((BoundUnaryOperator)expression),
             BoundKind.IncrementOperator => EmitIncrementOperator((BoundIncrementOperator)expression),
             BoundKind.BinaryOperator => EmitBinaryOperator((BoundBinaryOperator)expression),
+            BoundKind.TupleBinaryOperator => EmitTupleBinaryOperator((BoundTupleBinaryOperator)expression),
             BoundKind.AsOperator => EmitAsOperator((BoundAsOperator)expression),
             BoundKind.IsOperator => EmitIsOperator((BoundIsOperator)expression),
             BoundKind.NullCoalescingOperator => EmitNullCoalescingOperator((BoundNullCoalescingOperator)expression),
@@ -355,6 +356,7 @@ internal sealed class CSharpCodeGenerator {
             BoundKind.InterpolatedStringExpression => EmitInterpolatedStringExpression((BoundInterpolatedStringExpression)expression),
             BoundKind.FunctionLoad => EmitFunctionLoad((BoundFunctionLoad)expression),
             BoundKind.IsPatternExpression => EmitIsPatternExpression((BoundIsPatternExpression)expression),
+            BoundKind.DeconstructionAssignmentOperator => EmitDeconstructionAssignmentOperator((BoundDeconstructionAssignmentOperator)expression),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
     }
@@ -435,6 +437,10 @@ internal sealed class CSharpCodeGenerator {
         return $"({EmitExpression(node.left)} {SyntaxFacts.GetText(node.operatorKind.ToSyntaxKind())} {right})";
     }
 
+    private string EmitTupleBinaryOperator(BoundTupleBinaryOperator node) {
+        return $"({EmitExpression(node.left)} {SyntaxFacts.GetText(node.operatorKind.ToSyntaxKind())} {EmitExpression(node.right)})";
+    }
+
     private string EmitAsOperator(BoundAsOperator node) {
         return $"{EmitExpression(node.left)} as {EmitExpression(node.right)}";
     }
@@ -462,7 +468,7 @@ internal sealed class CSharpCodeGenerator {
     }
 
     private string EmitNullAssert(string expression, TypeSymbol strippedType, bool throwIfNull = true) {
-        if (strippedType.IsVerifierValue())
+        if (strippedType.isValueType)
             return throwIfNull ? $"{expression}.Value" : $"{expression}.GetValueOrDefault()";
         else
             return throwIfNull ? $"{expression} ?? throw new global::System.NullReferenceException()" : expression;
@@ -490,12 +496,12 @@ internal sealed class CSharpCodeGenerator {
         var arguments = EmitArguments(node.arguments, node.argumentRefKinds);
 
         if ((object)node.method.originalDefinition ==
-            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getValue).originalDefinition) {
+            CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_getValue).originalDefinition) {
             return $"{EmitExpression(node.receiver)}.Value";
         }
 
         if ((object)node.method.originalDefinition ==
-            CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_getHasValue).originalDefinition) {
+            CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_getHasValue).originalDefinition) {
             return $"{EmitExpression(node.receiver)}.HasValue";
         }
 
@@ -535,7 +541,7 @@ internal sealed class CSharpCodeGenerator {
         var builder = ArrayBuilder<string>.GetInstance();
 
         for (var i = 0; i < arguments.Length; i++) {
-            if (refKinds[i] == RefKind.None)
+            if (refKinds.Length <= i || refKinds[i] == RefKind.None)
                 builder.Add(EmitExpression(arguments[i]));
             else
                 builder.Add($"ref {EmitExpression(arguments[i])}");
@@ -596,6 +602,9 @@ internal sealed class CSharpCodeGenerator {
     }
 
     private string EmitObjectCreationExpression(BoundObjectCreationExpression node) {
+        if (node.type.isTupleType)
+            return $"({EmitArguments(node.arguments, node.argumentRefKinds)})";
+
         return $"new {_module.GetType(node.constructor.containingType)}({EmitArguments(node.arguments, node.argumentRefKinds)})";
     }
 
@@ -707,6 +716,10 @@ internal sealed class CSharpCodeGenerator {
     private string EmitIsPatternExpression(BoundIsPatternExpression node) {
         var local = node.local;
         return $"{EmitExpression(node.expression)} is {_module.GetType(local.type)} {_module.GetSafeName(local.name)}";
+    }
+
+    private string EmitDeconstructionAssignmentOperator(BoundDeconstructionAssignmentOperator node) {
+        return $"{EmitExpression(node.left)} = {EmitExpression(node.right)}";
     }
 
     #endregion

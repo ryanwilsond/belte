@@ -81,7 +81,8 @@ internal abstract class SourceConstructorSymbolBase : SourceMemberMethodSymbol {
             parameterList.parameters,
             diagnostics,
             _allowRef,
-            false
+            addRefConstModifier: false,
+            allowConst: true
         ).Cast<SourceParameterSymbol, ParameterSymbol>();
 
         _lazyReturnType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void));

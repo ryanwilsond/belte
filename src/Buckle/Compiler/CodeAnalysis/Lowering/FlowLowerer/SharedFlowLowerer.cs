@@ -83,7 +83,7 @@ internal partial class SharedFlowLowerer : BoundTreeRewriter {
         var type = node.expression.StrippedType();
         var isString = type.specialType == SpecialType.String;
         var isArray = type.IsArray();
-        var isEnumerator = type.specialType == SpecialType.Enumerator;
+        var isEnumerator = type.originalDefinition.Equals(CorLibrary.GetWellKnownType(WellKnownType.Enumerator));
         var iterOps = type.GetMembers(WellKnownMemberNames.IterOperatorName);
         var lengthOps = type.GetMembers(WellKnownMemberNames.LengthOperatorName);
         var bestIndexOp = type.GetMembers(WellKnownMemberNames.IndexOperatorName)

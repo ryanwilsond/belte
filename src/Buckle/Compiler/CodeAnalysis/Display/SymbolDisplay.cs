@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Libraries;
 using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 
@@ -72,6 +73,9 @@ public static class SymbolDisplay {
             case SymbolKind.Label:
                 DisplayLabel(text, (LabelSymbol)symbol, format);
                 break;
+            case SymbolKind.Token:
+                DisplayToken(text, (TokenSymbol)symbol, format);
+                break;
             case SymbolKind.Alias:
                 DisplayAlias(text, (AliasSymbol)symbol);
                 break;
@@ -96,10 +100,12 @@ public static class SymbolDisplay {
 
         if (type is ArrayTypeSymbol) {
             var array = (ArrayTypeSymbol)stripped;
+            text.Write(CreateIdentifier("Buffer"));
+            text.Write(CreatePunctuation(SyntaxKind.LessThanToken));
             DisplayType(text, array.elementType, format);
-            text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
-            text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
+            text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));
 
+            // TODO Consider omitting exclamation mark
             if (outerMostType &&
                 (format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0) {
                 text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));
@@ -107,23 +113,43 @@ public static class SymbolDisplay {
         } else if (type.specialType == SpecialType.Void) {
             text.Write(CreateKeyword("void"));
         } else if (type is NamedTypeSymbol namedType) {
-            if (namedType.specialType == SpecialType.Nullable &&
-                (format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0) {
+            if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0 &&
+                namedType.specialType == SpecialType.Nullable) {
                 var underlyingType = namedType.GetNullableUnderlyingType();
-
-                if (underlyingType is NamedTypeSymbol namedUnderlying)
-                    DisplayTypeCore(text, namedUnderlying, format);
-                else
-                    DisplayType(text, underlyingType, format, outerMostType: false);
-
+                DisplayType(text, underlyingType, format, outerMostType: false);
                 text.Write(CreatePunctuation(SyntaxKind.QuestionToken));
                 return;
             }
 
-            DisplayTypeCore(text, namedType, format);
+            if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0 &&
+                namedType.isTupleType) {
+                text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
 
-            if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0)
+                var isFirst = true;
+
+                foreach (var elementType in namedType.tupleElementTypes) {
+                    if (isFirst)
+                        isFirst = false;
+                    else
+                        text.Write(CreatePunctuation(", "));
+
+                    DisplayType(text, elementType.type.type, format);
+                }
+
+                text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+            } else if (CorLibrary.GetWellKnownType(WellKnownType.Array).Equals(namedType.originalDefinition)) {
+                DisplayType(text, namedType.templateArguments[0].type.type, format);
+                text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
+                text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
+            } else {
+                DisplayTypeCore(text, namedType, format);
+            }
+
+            // TODO Consider omitting exclamation mark
+            if (outerMostType &&
+                (format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0) {
                 text.Write(CreatePunctuation(SyntaxKind.ExclamationToken));
+            }
         } else if (type is TemplateParameterSymbol templateParameter) {
             if ((format.templateOptions & SymbolDisplayTemplateOptions.IncludeTemplateParameters) != 0 &&
                 !string.IsNullOrEmpty(templateParameter.name)) {
@@ -146,7 +172,7 @@ public static class SymbolDisplay {
                     text.Write(CreatePunctuation(", "));
 
                 if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeModifiers) != 0)
-                    DisplayConstExprRef(text, false, false, param.refKind);
+                    DisplayConstExprRef(text, param.isConst, false, false, param.refKind);
 
                 DisplayType(text, param.type, format);
 
@@ -176,7 +202,7 @@ public static class SymbolDisplay {
                     text.Write(CreatePunctuation(", "));
 
                 if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeModifiers) != 0)
-                    DisplayConstExprRef(text, false, false, param.refKind);
+                    DisplayConstExprRef(text, param.isConst, false, false, param.refKind);
 
                 DisplayType(text, param.type, format);
 
@@ -230,6 +256,14 @@ public static class SymbolDisplay {
 
             if (namedType.enumFlagsAttribute) {
                 text.Write(CreateKeyword(SyntaxKind.FlagsKeyword));
+                text.Write(CreateSpace());
+            }
+
+            if (namedType.explicitAlignment is not null) {
+                text.Write(CreateKeyword(SyntaxKind.PackedKeyword));
+                text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+                text.Write(CreateLiteral(DisplayText.FormatLiteral(namedType.explicitAlignment)));
+                text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
                 text.Write(CreateSpace());
             }
         }
@@ -327,6 +361,10 @@ public static class SymbolDisplay {
         text.Write(CreatePunctuation(SyntaxKind.ColonToken));
     }
 
+    private static void DisplayToken(DisplayText text, TokenSymbol token, SymbolDisplayFormat _) {
+        text.Write(CreateIdentifier(token.name));
+    }
+
     private static void DisplayField(DisplayText text, FieldSymbol field, SymbolDisplayFormat format) {
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeAccessibility) != 0)
             DisplayAccessibility(text, field);
@@ -335,7 +373,7 @@ public static class SymbolDisplay {
             DisplayModifiers(text, field);
 
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeModifiers) != 0)
-            DisplayConstExprRef(text, field.isConst, field.isConstExpr, field.refKind);
+            DisplayConstExprRef(text, field.isConst, field.isFinal, field.isConstExpr, field.refKind);
 
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeType) != 0) {
             DisplayType(text, field.type, ToMemberTypeFormat(format));
@@ -352,7 +390,7 @@ public static class SymbolDisplay {
         var needSpace = false;
 
         if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeModifiers) != 0)
-            DisplayConstExprRef(text, false, false, parameter.refKind);
+            DisplayConstExprRef(text, parameter.isConst, false, false, parameter.refKind);
 
         if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeType) != 0) {
             DisplayType(text, parameter.type, ToMemberTypeFormat(format));
@@ -446,8 +484,15 @@ public static class SymbolDisplay {
         DisplayText text,
         DataContainerSymbol dataContainer,
         SymbolDisplayFormat format) {
-        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeModifiers) != 0)
-            DisplayConstExprRef(text, dataContainer.isConst, dataContainer.isConstExpr, dataContainer.refKind);
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeModifiers) != 0) {
+            DisplayConstExprRef(
+                text,
+                dataContainer.isConst,
+                dataContainer.isFinal,
+                dataContainer.isConstExpr,
+                dataContainer.refKind
+            );
+        }
 
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeType) != 0) {
             DisplayType(text, dataContainer.type, ToMemberTypeFormat(format));
@@ -544,7 +589,7 @@ public static class SymbolDisplay {
             DisplayModifiers(text, method);
 
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeModifiers) != 0)
-            DisplayConstExprRef(text, method.isEffectivelyConst, false, method.refKind);
+            DisplayConstExprRef(text, method.isEffectivelyConst, false, false, method.refKind);
 
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeType) != 0) {
             DisplayType(text, method.returnType, ToMemberTypeFormat(format));
@@ -663,9 +708,19 @@ public static class SymbolDisplay {
         }
     }
 
-    private static void DisplayConstExprRef(DisplayText text, bool isConst, bool isConstExpr, RefKind refKind) {
+    private static void DisplayConstExprRef(
+        DisplayText text,
+        bool isConst,
+        bool isFinal,
+        bool isConstExpr,
+        RefKind refKind) {
         if (isConst) {
             text.Write(CreateKeyword(SyntaxKind.ConstKeyword));
+            text.Write(CreateSpace());
+        }
+
+        if (isFinal) {
+            text.Write(CreateKeyword(SyntaxKind.FinalKeyword));
             text.Write(CreateSpace());
         }
 
@@ -679,8 +734,13 @@ public static class SymbolDisplay {
             text.Write(CreateSpace());
         }
 
-        if (refKind == RefKind.RefConst) {
+        if (refKind is RefKind.RefConst) {
             text.Write(CreateKeyword(SyntaxKind.ConstKeyword));
+            text.Write(CreateSpace());
+        }
+
+        if (refKind is RefKind.RefFinal) {
+            text.Write(CreateKeyword(SyntaxKind.FinalKeyword));
             text.Write(CreateSpace());
         }
     }

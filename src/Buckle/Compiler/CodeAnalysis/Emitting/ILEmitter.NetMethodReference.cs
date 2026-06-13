@@ -61,5 +61,15 @@ internal sealed partial class ILEmitter {
         internal static MethodReference AssertNull;
         internal static MethodReference Marshal_SizeOf;
         internal static MethodReference Unsafe_BitCast;
+        internal static MethodReference ValueTuple_T1_ctor;
+        internal static MethodReference ValueTuple_T2_ctor;
+        internal static MethodReference ValueTuple_T3_ctor;
+        internal static MethodReference ValueTuple_T4_ctor;
+        internal static MethodReference ValueTuple_T5_ctor;
+        internal static MethodReference ValueTuple_T6_ctor;
+        internal static MethodReference ValueTuple_T7_ctor;
+        internal static MethodReference ValueTuple_TRest_ctor;
+        internal static MethodReference Array_Empty;
+        internal static MethodReference Array_Fill;
     }
 }

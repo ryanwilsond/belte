@@ -7,6 +7,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Emit;
+using System.Threading;
 using System.Threading.Tasks;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
@@ -21,6 +22,8 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Evaluating;
 
 internal sealed partial class Executor : ModuleBuilder {
+    private const string MainWrapperName = "<ExecutorMain>";
+
     public static readonly Random Random = new Random();
     public static GraphicsHandler GraphicsHandler;
     public static object Program;
@@ -58,13 +61,6 @@ internal sealed partial class Executor : ModuleBuilder {
         { SpecialType.Void, typeof(void) },
         { SpecialType.Type, typeof(Type) },
         { SpecialType.String, typeof(string) },
-        { SpecialType.Sprite, typeof(BSprite) },
-        { SpecialType.Rect, typeof(BRect) },
-        { SpecialType.Vec2, typeof(BVec2) },
-        { SpecialType.Texture, typeof(BTexture) },
-        { SpecialType.Text, typeof(BText) },
-        { SpecialType.Sound, typeof(BSound) },
-        { SpecialType.Exception, typeof(Exception) },
     };
 
     private readonly Dictionary<TypeSymbol, TypeBuilder> _types = [];
@@ -81,6 +77,7 @@ internal sealed partial class Executor : ModuleBuilder {
     private readonly System.Reflection.Emit.ModuleBuilder _moduleBuilder;
     private readonly bool _graphicsEnabled;
     private readonly string[] _arguments;
+    private readonly MethodSymbol _entryPoint;
     private readonly BelteDiagnosticQueue _diagnostics;
 
     private NamedTypeSymbol _programNamedType;
@@ -89,6 +86,9 @@ internal sealed partial class Executor : ModuleBuilder {
     private bool _graphicsInitialized;
     private StringWriter _logger;
     private volatile bool _reportedGraphicsCall;
+
+    private MethodInfo _mainWrapper;
+    private CustomAttributeBuilder _lazyBoolMarshalAttribute;
 
     internal FieldInfo randomField;
     internal FieldInfo graphicsHandlerField;
@@ -100,7 +100,7 @@ internal sealed partial class Executor : ModuleBuilder {
         _diagnostics = diagnostics;
         _graphicsEnabled = program.compilation.options.outputKind == OutputKind.GraphicsApplication;
 
-        _topLevelTypes = program.GetTypesToEmit();
+        _topLevelTypes = program.GetTypesToEmit(includeGraphicsWellKnownTypes: false);
 
         var assemblyName = new AssemblyName(DynamicAssemblyName);
         var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
@@ -113,13 +113,15 @@ internal sealed partial class Executor : ModuleBuilder {
 
         _linearNestedTypes = linearBuilder.ToImmutable();
         _methodBodies = program.GetAllMethodBodies().ToImmutableDictionary(pair => pair.Item1, pair => pair.Item2);
+
+        _entryPoint = _program.entryPoint;
     }
 
     internal object Execute(bool verbose, bool logTime, string verbosePath, bool noArtifacts) {
         var timer = logTime ? Stopwatch.StartNew() : null;
         _logger = (verbose && !noArtifacts) ? new StringWriter() : null;
 
-        var entryPoint = _program.entryPoint;
+        var entryPoint = _entryPoint;
 
         if (entryPoint is null)
             return null;
@@ -146,12 +148,7 @@ internal sealed partial class Executor : ModuleBuilder {
         if (_graphicsEnabled && _graphicsInitialized)
             GraphicsHandler = new GraphicsHandler(null, false, false);
 
-        var mainMethod = _programType.GetMethod(
-            entryPoint.name,
-            _programNamedType.isStatic
-                ? BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static
-                : BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance
-        );
+        var mainMethod = GetEntryPoint();
 
         if (_graphicsEnabled && _graphicsInitialized && _program.updatePoint is not null) {
             var updateMethod = _programType.GetMethod(
@@ -236,6 +233,53 @@ internal sealed partial class Executor : ModuleBuilder {
         return result;
     }
 
+    private MethodInfo GetEntryPointCore(string name) {
+        return _programType.GetMethod(
+            name,
+            _programNamedType.isStatic
+                ? BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static
+                : BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance
+        );
+    }
+
+    private MethodInfo GetEntryPoint() {
+        return _mainWrapper is null ? GetEntryPointCore(_entryPoint.name) : GetEntryPointCore(MainWrapperName);
+    }
+
+    private void CreateMainWrapperIfApplicable(TypeBuilder typeBuilder) {
+        if (_entryPoint.parameterCount != 1 || _entryPoint.GetParameterType(0).specialType == SpecialType.Array)
+            return;
+
+        Debug.Assert(_mainWrapper is null);
+
+        var main = GetMethod(_entryPoint);
+
+        var isStatic = _entryPoint.isStatic;
+
+        var wrapper = typeBuilder.DefineMethod(MainWrapperName, main.Attributes, main.ReturnType, [typeof(string[])]);
+
+        var il = wrapper.GetILGenerator();
+
+        var arrayTypeSymbol = (NamedTypeSymbol)_entryPoint.GetParameterType(0);
+
+        var ctorSymbol = CorLibrary.GetWellKnownMethod(WellKnownMember.Array_ctor_2).AsMember(arrayTypeSymbol);
+        var ctor = GetConstructor(ctorSymbol);
+
+        il.Emit(OpCodes.Ldarg_0);
+
+        if (!isStatic)
+            il.Emit(OpCodes.Ldarg_1);
+
+        il.Emit(OpCodes.Ldlen);
+        il.Emit(OpCodes.Conv_I8);
+        il.Emit(isStatic ? OpCodes.Ldarg_0 : OpCodes.Ldarg_1);
+        il.Emit(OpCodes.Newobj, ctor);
+        il.Emit(OpCodes.Call, main);
+        il.Emit(OpCodes.Ret);
+
+        _mainWrapper = wrapper;
+    }
+
     internal static Executor CreateForHandler(
         BoundProgram program,
         BelteDiagnosticQueue diagnostics,
@@ -267,7 +311,7 @@ internal sealed partial class Executor : ModuleBuilder {
                 var underlyingType = type.GetNullableUnderlyingType();
                 var genericArgumentType = GetType(underlyingType);
 
-                if (!CodeGenerator.IsValueType(underlyingType))
+                if (!underlyingType.isValueType)
                     return genericArgumentType;
 
                 return typeof(Nullable<>).MakeGenericType(genericArgumentType);
@@ -698,9 +742,21 @@ internal sealed partial class Executor : ModuleBuilder {
             return closedType.GetMethod("get_HasValue", BindingFlags.Public | BindingFlags.Instance, Type.EmptyTypes);
     }
 
+    internal MethodInfo GetArrayEmpty(TypeSymbol elementType) {
+        var generic = GetType(elementType);
+        return MethodInfoCache.Array_Empty.MakeGenericMethod(generic);
+    }
+
     internal MethodInfo GetSort(TypeSymbol elementType) {
         var generic = GetType(elementType);
         var sort = typeof(Belte.Runtime.Utilities).GetMethod("Sort");
+        var closedMethod = sort.MakeGenericMethod(generic);
+        return closedMethod;
+    }
+
+    internal MethodInfo GetFill(TypeSymbol elementType) {
+        var generic = GetType(elementType);
+        var sort = typeof(Array).GetMethods().Single(m => m.Name == "Fill" && m.GetParameters().Length == 2);
         var closedMethod = sort.MakeGenericMethod(generic);
         return closedMethod;
     }
@@ -732,7 +788,7 @@ internal sealed partial class Executor : ModuleBuilder {
         var current = type;
 
         while (current is not null) {
-            if (current.specialType is SpecialType.Object or SpecialType.Exception)
+            if (current.specialType is SpecialType.Object)
                 break;
 
             baseStack.Push(current);
@@ -745,7 +801,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
     private void EmitInternal() {
         GenerateSTLMap();
-        CompleteSpecialTypes();
+        CompleteWellKnownTypes();
 
         foreach (var type in _topLevelTypes)
             CreateTypeBuilderAndBases(type);
@@ -855,6 +911,7 @@ internal sealed partial class Executor : ModuleBuilder {
         foreach (var (type, tb) in _types) {
             if (!type.IsStructType()) {
                 if (type.Equals(_programNamedType.originalDefinition)) {
+                    CreateMainWrapperIfApplicable(tb);
                     _programType = tb.CreateType();
                     continue;
                 }
@@ -865,14 +922,36 @@ internal sealed partial class Executor : ModuleBuilder {
         }
     }
 
-    private void CompleteSpecialTypes() {
+    private void CompleteWellKnownTypes() {
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Exception), typeof(Exception));
+
         if (_program.compilation.options.noStdLib)
             return;
 
-        foreach (var type in new[] { SpecialType.Rect, SpecialType.Text, SpecialType.Sprite,
-                                     SpecialType.Vec2, SpecialType.Texture, SpecialType.Sound }) {
-            var typeSymbol = CorLibrary.GetSpecialType(type);
-            var native = _specialTypes[type];
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Sprite), typeof(BSprite));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Rect), typeof(BRect));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Vec2), typeof(BVec2));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Texture), typeof(BTexture));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Text), typeof(BText));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Sound), typeof(BSound));
+
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T1), typeof(ValueTuple<>));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T2), typeof(ValueTuple<,>));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T3), typeof(ValueTuple<,,>));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T4), typeof(ValueTuple<,,,>));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T5), typeof(ValueTuple<,,,,>));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T6), typeof(ValueTuple<,,,,,>));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T7), typeof(ValueTuple<,,,,,,>));
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_TRest), typeof(ValueTuple<,,,,,,,>));
+
+        foreach (var type in new[] { WellKnownType.Rect, WellKnownType.Text, WellKnownType.Sprite,
+                                     WellKnownType.Vec2, WellKnownType.Texture, WellKnownType.Sound,
+                                     WellKnownType.ValueTuple_T1, WellKnownType.ValueTuple_T2,
+                                     WellKnownType.ValueTuple_T3, WellKnownType.ValueTuple_T4,
+                                     WellKnownType.ValueTuple_T5, WellKnownType.ValueTuple_T6,
+                                     WellKnownType.ValueTuple_T7, WellKnownType.ValueTuple_TRest, }) {
+            var typeSymbol = CorLibrary.GetWellKnownType(type);
+            var native = _bakedTypes[typeSymbol];
 
             foreach (var member in typeSymbol.GetMembers()) {
                 if (member is FieldSymbol f) {
@@ -927,7 +1006,8 @@ internal sealed partial class Executor : ModuleBuilder {
         var typeBuilder = _moduleBuilder.DefineType(
             GetTypeName(type, false),
             GetTypeAttributes(type, false),
-            GetBaseType(type)
+            GetBaseType(type),
+            GetPackSize(type)
         );
 
         _types.Add(type.originalDefinition, typeBuilder);
@@ -950,6 +1030,13 @@ internal sealed partial class Executor : ModuleBuilder {
             return typeof(Enum);
 
         return GetType(type.baseType);
+    }
+
+    private static PackingSize GetPackSize(NamedTypeSymbol type) {
+        if (type.explicitAlignment is null)
+            return PackingSize.Unspecified;
+
+        return (PackingSize)type.explicitAlignment.Value;
     }
 
     private void CreateNestedTypes(NamedTypeSymbol type, TypeBuilder typeBuilder, string[] workingParams) {
@@ -980,7 +1067,8 @@ internal sealed partial class Executor : ModuleBuilder {
                 var nestedBuilder = typeBuilder.DefineNestedType(
                     GetTypeName(nestedType, true),
                     GetTypeAttributes(nestedType, true),
-                    GetBaseType(nestedType)
+                    GetBaseType(nestedType),
+                    GetPackSize(type)
                 );
 
                 workingParams = workingParams.Concat(nestedType.templateParameters.Select(t => t.name)).ToArray();
@@ -1156,6 +1244,9 @@ internal sealed partial class Executor : ModuleBuilder {
                     GetFieldAttributes(f)
                 );
 
+                if (type.IsStructType() && f.type.specialType == SpecialType.Bool)
+                    fieldBuilder.SetCustomAttribute(GetBoolMarshalAttribute());
+
                 if (type.isUnionStruct)
                     fieldBuilder.SetOffset(0);
 
@@ -1265,17 +1356,17 @@ internal sealed partial class Executor : ModuleBuilder {
         );
 
         if (method.returnType.specialType == SpecialType.Bool) {
-            var marshalAsCtor = typeof(System.Runtime.InteropServices.MarshalAsAttribute)
-                .GetConstructor([typeof(System.Runtime.InteropServices.UnmanagedType)]);
-
-            var attr = new CustomAttributeBuilder(
-                marshalAsCtor,
-                [System.Runtime.InteropServices.UnmanagedType.I1]
-            );
-
             var returnParam = methodBuilder.DefineParameter(0, ParameterAttributes.None, null);
+            var attribute = GetBoolMarshalAttribute();
+            returnParam.SetCustomAttribute(attribute);
+        }
 
-            returnParam.SetCustomAttribute(attr);
+        for (var i = 0; i < method.parameterCount; i++) {
+            if (method.GetParameterType(i).specialType == SpecialType.Bool) {
+                var param = methodBuilder.DefineParameter(i + 1, ParameterAttributes.None, method.parameters[i].name);
+                var attribute = GetBoolMarshalAttribute();
+                param.SetCustomAttribute(attribute);
+            }
         }
 
         SetCustomAttributes(method, methodBuilder);
@@ -1285,6 +1376,22 @@ internal sealed partial class Executor : ModuleBuilder {
         );
 
         _methods.Add(method, methodBuilder);
+    }
+
+    private CustomAttributeBuilder GetBoolMarshalAttribute() {
+        if (_lazyBoolMarshalAttribute is null) {
+            var marshalAsCtor = typeof(System.Runtime.InteropServices.MarshalAsAttribute)
+                .GetConstructor([typeof(System.Runtime.InteropServices.UnmanagedType)]);
+
+            var attribute = new CustomAttributeBuilder(
+                marshalAsCtor,
+                [System.Runtime.InteropServices.UnmanagedType.I1]
+            );
+
+            Interlocked.CompareExchange(ref _lazyBoolMarshalAttribute, attribute, null);
+        }
+
+        return _lazyBoolMarshalAttribute;
     }
 
     private System.Runtime.InteropServices.CallingConvention GetCallingConvention(CallingConvention callingConvention) {
@@ -1321,7 +1428,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
         _methods.Add(method, methodBuilder);
 
-        if (method.methodKind == MethodKind.Destructor) {
+        if (method.methodKind == MethodKind.Finalizer) {
             var baseFinalize = GetMethod(MethodCompiler.GetBaseTypeFinalizeMethod(method));
             typeBuilder.DefineMethodOverride(methodBuilder, baseFinalize);
         }
@@ -1386,9 +1493,9 @@ internal sealed partial class Executor : ModuleBuilder {
 
         return mapKey switch {
             "Object<>_.ctor" => MethodInfoCache.Object_ctor,
-            "Exception<>_.ctor" => MethodInfoCache.Exception_ctor,
-            "Exception<>_.ctor_S?" => MethodInfoCache.Exception_ctor_S,
-            "Nullable<>_.ctor" => GetNullableCtor(method.containingType.templateArguments[0].type.type),
+            "Exception_.ctor" => MethodInfoCache.Exception_ctor,
+            "Exception_.ctor_S?" => MethodInfoCache.Exception_ctor_S,
+            "Nullable<>_.ctor_T" => GetNullableCtor(method.containingType.templateArguments[0].type.type),
             _ => throw ExceptionUtilities.UnexpectedValue(mapKey),
         };
     }
@@ -1601,12 +1708,10 @@ internal sealed partial class Executor : ModuleBuilder {
             { "Console_GetHeight", typeof(Belte.Runtime.Console).GetMethod("GetHeight", Flags, Type.EmptyTypes) },
             { "Console_Print_S?", typeof(Console).GetMethod("Write", Flags, [typeof(string)]) },
             { "Console_Print_A?", typeof(Console).GetMethod("Write", Flags, [typeof(object)]) },
-            { "Console_Print_O?", typeof(Console).GetMethod("Write", Flags, [typeof(object)]) },
             { "Console_Print_[?", typeof(Console).GetMethod("Write", Flags, [typeof(char[])]) },
             { "Console_PrintLine", typeof(Console).GetMethod("WriteLine", Flags, Type.EmptyTypes) },
             { "Console_PrintLine_S?", typeof(Console).GetMethod("WriteLine", Flags, [typeof(string)]) },
             { "Console_PrintLine_A?", typeof(Console).GetMethod("WriteLine", Flags, [typeof(object)]) },
-            { "Console_PrintLine_O?", typeof(Console).GetMethod("WriteLine", Flags, [typeof(object)]) },
             { "Console_PrintLine_[?", typeof(Console).GetMethod("WriteLine", Flags, [typeof(char[])]) },
             { "Console_Input", typeof(Console).GetMethod("ReadLine", Flags, Type.EmptyTypes) },
             { "Console_ResetColor", typeof(Console).GetMethod("ResetColor", Flags, Type.EmptyTypes) },
@@ -1742,6 +1847,15 @@ internal sealed partial class Executor : ModuleBuilder {
             { "LowLevel_GetGCPtr_O", typeof(Belte.Runtime.Utilities).GetMethod("GetGCPtr", Flags, [typeof(object)]) },
             { "LowLevel_FreeGCHandle_V*", typeof(Belte.Runtime.Utilities).GetMethod("FreeGCHandle", Flags, [typeof(void*)]) },
             { "LowLevel_GetObject_V*", typeof(Belte.Runtime.Utilities).GetMethod("GetObject", Flags, [typeof(void*)]) },
+            { "LowLevel_IsLittleEndian", typeof(Belte.Runtime.Utilities).GetMethod("IsLittleEndian", Flags, []) },
+            { "LowLevel_ReverseEndianness_I4", typeof(System.Buffers.Binary.BinaryPrimitives).GetMethod("ReverseEndianness", Flags, [typeof(int)]) },
+            { "HashCode_Combine_I4I4", typeof(Belte.Runtime.Utilities).GetMethod("HashCodeCombine", Flags, [typeof(int), typeof(int)]) },
+            { "HashCode_Combine_I4I4I4", typeof(Belte.Runtime.Utilities).GetMethod("HashCodeCombine", Flags, [typeof(int), typeof(int), typeof(int)]) },
+            { "HashCode_Combine_I4I4I4I4", typeof(Belte.Runtime.Utilities).GetMethod("HashCodeCombine", Flags, [typeof(int), typeof(int), typeof(int), typeof(int)]) },
+            { "HashCode_Combine_I4I4I4I4I4", typeof(Belte.Runtime.Utilities).GetMethod("HashCodeCombine", Flags, [typeof(int), typeof(int), typeof(int), typeof(int), typeof(int)]) },
+            { "HashCode_Combine_I4I4I4I4I4I4", typeof(Belte.Runtime.Utilities).GetMethod("HashCodeCombine", Flags, [typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int)]) },
+            { "HashCode_Combine_I4I4I4I4I4I4I4", typeof(Belte.Runtime.Utilities).GetMethod("HashCodeCombine", Flags, [typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int)]) },
+            { "HashCode_Combine_I4I4I4I4I4I4I4I4", typeof(Belte.Runtime.Utilities).GetMethod("HashCodeCombine", Flags, [typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int), typeof(int)]) },
             { "Time_Now", typeof(Belte.Runtime.Utilities).GetMethod("TimeNow", Flags, Type.EmptyTypes) },
             { "Time_Sleep_I", typeof(Belte.Runtime.Utilities).GetMethod("TimeSleep", Flags, [typeof(long)]) },
             { "String_Ascii_S", typeof(Belte.Runtime.Utilities).GetMethod("Ascii", Flags, [typeof(string)]) },

@@ -149,6 +149,65 @@ public partial class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
         }
     }
 
+    internal BelteDiagnosticQueue ApplyTransformations(
+        TaskDiagnosticOptions globalOptions,
+        Dictionary<string, TaskDiagnosticOptions> localOptions) {
+        if (globalOptions is null)
+            return this;
+
+        var length = _diagnostics.Count;
+        var diagnostics = _diagnostics.ToArray();
+        var result = ArrayBuilder<BelteDiagnostic>.GetInstance(length);
+
+        for (var i = 0; i < length; i++) {
+            var diagnostic = diagnostics[i];
+
+            if (diagnostic.info.severity == DiagnosticSeverity.Warning) {
+                var diagnosticOptions = globalOptions;
+
+                if (localOptions is not null &&
+                    diagnostic is BelteDiagnostic diagnosticWithLocation &&
+                    diagnosticWithLocation.location is not null) {
+                    if (localOptions.TryGetValue(diagnosticWithLocation.location.fileName, out var value))
+                        diagnosticOptions = value;
+                }
+
+                var promoteToError = diagnosticOptions.warningsAsErrors;
+                promoteToError &= !WarningInWarningList(diagnosticOptions.excludeWarningsAsErrors, diagnostic.info);
+                promoteToError |= WarningInWarningList(diagnosticOptions.includeWarningsAsErrors, diagnostic.info);
+
+                if (promoteToError) {
+                    var newInfo = diagnostic.info.code.HasValue
+                        ? new DiagnosticInfo(
+                            diagnostic.info.code.Value,
+                            diagnostic.info.module,
+                            DiagnosticSeverity.Error)
+                        : new DiagnosticInfo(DiagnosticSeverity.Error);
+
+                    diagnostic = new BelteDiagnostic(
+                        newInfo,
+                        diagnostic.location,
+                        diagnostic.message,
+                        diagnostic.suggestions
+                    );
+                }
+            }
+
+            result.Add(diagnostic);
+        }
+
+        return new BelteDiagnosticQueue(result.ToArrayAndFree());
+
+        static bool WarningInWarningList(DiagnosticInfo[] warnings, DiagnosticInfo info) {
+            foreach (var warning in warnings) {
+                if (warning.ToString() == info.ToString())
+                    return true;
+            }
+
+            return false;
+        }
+    }
+
     private string GetDebuggerDisplay() {
         return "Count = " + (_diagnostics?.Count ?? 0);
     }

@@ -17,7 +17,8 @@ public static class LibraryHelpers {
     private static readonly string[] ReducedStdLibFiles = [
         "Compiler.Object.blt",
         "Compiler.ReducedEnumerator.blt",
-        "Compiler.Exception.blt"
+        "Compiler.Exception.blt",
+        "Compiler.Buffer.blt",
     ];
 
     private static readonly string[] ReducedStdLibExclude = [
@@ -30,18 +31,18 @@ public static class LibraryHelpers {
 
     private static SynthesizedBelteNamespaceSymbol _belteNamespace;
     private static SpecialOrKnownType.Boxed _lazyStringList;
-    private static SpecialOrKnownType.Boxed _lazyStringArray;
-    private static SpecialOrKnownType.Boxed _lazyAnyArray;
-    private static SpecialOrKnownType.Boxed _lazyCharArray;
+    private static SpecialOrKnownType.Boxed _lazyStringBuffer;
+    private static SpecialOrKnownType.Boxed _lazyAnyBuffer;
+    private static SpecialOrKnownType.Boxed _lazyCharBuffer;
 
     internal static NamespaceSymbol BelteNamespace => _belteNamespace;
 
-    internal static SpecialOrKnownType CharArray {
+    internal static SpecialOrKnownType CharBuffer {
         get {
-            if (_lazyCharArray is null)
-                Interlocked.CompareExchange(ref _lazyCharArray, GenerateArray(SpecialType.Char), null);
+            if (_lazyCharBuffer is null)
+                Interlocked.CompareExchange(ref _lazyCharBuffer, GenerateArray(SpecialType.Char), null);
 
-            return _lazyCharArray.type;
+            return _lazyCharBuffer.type;
         }
     }
 
@@ -54,21 +55,21 @@ public static class LibraryHelpers {
         }
     }
 
-    internal static SpecialOrKnownType StringArray {
+    internal static SpecialOrKnownType StringBuffer {
         get {
-            if (_lazyStringArray is null)
-                Interlocked.CompareExchange(ref _lazyStringArray, GenerateArray(SpecialType.String), null);
+            if (_lazyStringBuffer is null)
+                Interlocked.CompareExchange(ref _lazyStringBuffer, GenerateArray(SpecialType.String), null);
 
-            return _lazyStringArray.type;
+            return _lazyStringBuffer.type;
         }
     }
 
-    internal static SpecialOrKnownType AnyArray {
+    internal static SpecialOrKnownType AnyBuffer {
         get {
-            if (_lazyAnyArray is null)
-                Interlocked.CompareExchange(ref _lazyAnyArray, GenerateArray(SpecialType.Any), null);
+            if (_lazyAnyBuffer is null)
+                Interlocked.CompareExchange(ref _lazyAnyBuffer, GenerateArray(SpecialType.Any), null);
 
-            return _lazyAnyArray.type;
+            return _lazyAnyBuffer.type;
         }
     }
 
@@ -117,7 +118,7 @@ public static class LibraryHelpers {
         if (reducedStdLib)
             CorLibrary.SetReducedState();
 
-        var corLibrary = Compilation.Create("CorLibrary", options, syntaxTrees.ToArray());
+        var corLibrary = Compilation.Create(MetadataHelpers.CorLibraryString, options, syntaxTrees.ToArray());
         CreateBelteNamespace(reducedStdLib);
         corLibrary = corLibrary.AddNamespace(BelteNamespace);
         corLibrary.GetDiagnostics();
@@ -126,6 +127,7 @@ public static class LibraryHelpers {
     }
 
     internal static string BuildMapKey(MethodSymbol method) {
+        method = method.originalDefinition;
         var containingType = method.containingType;
 
         var stringBuilder = new StringBuilder();
@@ -181,7 +183,18 @@ public static class LibraryHelpers {
     }
 
     internal static SynthesizedFieldSymbol ConstExprField(string name, SpecialOrKnownType type, object constantValue) {
-        return new SynthesizedFieldSymbol(null, type.knownType, name, true, false, true, true, true, constantValue);
+        return new SynthesizedFieldSymbol(
+            null,
+            type.knownType,
+            name,
+            isPublic: true,
+            isConst: false,
+            isFinal: false,
+            isConstExpr: true,
+            isStatic: true,
+            hasConstantValue: true,
+            constantValue
+        );
     }
 
     internal static SynthesizedFinishedNamedTypeSymbol StaticClass(string name, ImmutableArray<Symbol> members) {
@@ -218,6 +231,7 @@ public static class LibraryHelpers {
                         field.name,
                         field.declaredAccessibility == Accessibility.Public,
                         field.isConst,
+                        field.isFinal,
                         field.isConstExpr,
                         field.isStatic,
                         field.hasConstantValue,
@@ -241,11 +255,32 @@ public static class LibraryHelpers {
         SpecialOrKnownType type,
         (string name, SpecialOrKnownType type)[] parameters) {
         var length = parameters.Length;
-        var result = new (string, SpecialOrKnownType, bool, object, RefKind)[length];
+        var result = new (string, bool, SpecialOrKnownType, bool, object, RefKind)[length];
 
         for (var i = 0; i < length; i++) {
             var p = parameters[i];
-            result[i] = (p.name, p.type, false, null, RefKind.None);
+            result[i] = (p.name, false, p.type, false, null, RefKind.None);
+        }
+
+        return Method(
+            name,
+            type,
+            false,
+            result,
+            DeclarationModifiers.Static
+        );
+    }
+
+    internal static SynthesizedFinishedMethodSymbol StaticMethod(
+        string name,
+        SpecialOrKnownType type,
+        (string name, bool isConst, SpecialOrKnownType type)[] parameters) {
+        var length = parameters.Length;
+        var result = new (string, bool, SpecialOrKnownType, bool, object, RefKind)[length];
+
+        for (var i = 0; i < length; i++) {
+            var p = parameters[i];
+            result[i] = (p.name, p.isConst, p.type, false, null, RefKind.None);
         }
 
         return Method(
@@ -263,11 +298,11 @@ public static class LibraryHelpers {
         bool isNullable,
         (string name, SpecialOrKnownType type)[] parameters) {
         var length = parameters.Length;
-        var result = new (string, SpecialOrKnownType, bool, object, RefKind)[length];
+        var result = new (string, bool, SpecialOrKnownType, bool, object, RefKind)[length];
 
         for (var i = 0; i < length; i++) {
             var p = parameters[i];
-            result[i] = (p.name, p.type, false, null, RefKind.None);
+            result[i] = (p.name, false, p.type, false, null, RefKind.None);
         }
 
         return Method(
@@ -284,11 +319,32 @@ public static class LibraryHelpers {
         SpecialOrKnownType type,
         (string name, SpecialOrKnownType type, bool isNullable)[] parameters) {
         var length = parameters.Length;
-        var result = new (string, SpecialOrKnownType, bool, object, RefKind)[length];
+        var result = new (string, bool, SpecialOrKnownType, bool, object, RefKind)[length];
 
         for (var i = 0; i < length; i++) {
             var p = parameters[i];
-            result[i] = (p.name, p.type, p.isNullable, null, RefKind.None);
+            result[i] = (p.name, false, p.type, p.isNullable, null, RefKind.None);
+        }
+
+        return Method(
+            name,
+            type,
+            false,
+            result,
+            DeclarationModifiers.Static
+        );
+    }
+
+    internal static SynthesizedFinishedMethodSymbol StaticMethod(
+        string name,
+        SpecialOrKnownType type,
+        (string name, bool isConst, SpecialOrKnownType type, bool isNullable)[] parameters) {
+        var length = parameters.Length;
+        var result = new (string, bool, SpecialOrKnownType, bool, object, RefKind)[length];
+
+        for (var i = 0; i < length; i++) {
+            var p = parameters[i];
+            result[i] = (p.name, p.isConst, p.type, p.isNullable, null, RefKind.None);
         }
 
         return Method(
@@ -305,11 +361,11 @@ public static class LibraryHelpers {
         SpecialOrKnownType type,
         (string name, SpecialOrKnownType type, bool isNullable, object defaultValue)[] parameters) {
         var length = parameters.Length;
-        var result = new (string, SpecialOrKnownType, bool, object, RefKind)[length];
+        var result = new (string, bool, SpecialOrKnownType, bool, object, RefKind)[length];
 
         for (var i = 0; i < length; i++) {
             var p = parameters[i];
-            result[i] = (p.name, p.type, p.isNullable, p.defaultValue, RefKind.None);
+            result[i] = (p.name, false, p.type, p.isNullable, p.defaultValue, RefKind.None);
         }
 
         return Method(
@@ -327,11 +383,11 @@ public static class LibraryHelpers {
         bool isNullable,
         (string name, SpecialOrKnownType type, bool isNullable)[] parameters) {
         var length = parameters.Length;
-        var result = new (string, SpecialOrKnownType, bool, object, RefKind)[length];
+        var result = new (string, bool, SpecialOrKnownType, bool, object, RefKind)[length];
 
         for (var i = 0; i < length; i++) {
             var p = parameters[i];
-            result[i] = (p.name, p.type, p.isNullable, null, RefKind.None);
+            result[i] = (p.name, false, p.type, p.isNullable, null, RefKind.None);
         }
 
         return Method(
@@ -347,13 +403,13 @@ public static class LibraryHelpers {
         string name,
         SpecialOrKnownType type,
         bool isNullable,
-        (string name, SpecialOrKnownType type, bool isNullable, object defaultValue)[] parameters) {
+        (string name, bool isConst, SpecialOrKnownType type, bool isNullable, object defaultValue)[] parameters) {
         var length = parameters.Length;
-        var result = new (string, SpecialOrKnownType, bool, object, RefKind)[length];
+        var result = new (string, bool, SpecialOrKnownType, bool, object, RefKind)[length];
 
         for (var i = 0; i < length; i++) {
             var p = parameters[i];
-            result[i] = (p.name, p.type, p.isNullable, p.defaultValue, RefKind.None);
+            result[i] = (p.name, p.isConst, p.type, p.isNullable, p.defaultValue, RefKind.None);
         }
 
         return Method(
@@ -368,13 +424,13 @@ public static class LibraryHelpers {
     internal static SynthesizedFinishedMethodSymbol Method(
         string name,
         SpecialOrKnownType type,
-        (string name, SpecialOrKnownType type, bool isNullable)[] parameters) {
+        (string name, bool isConst, SpecialOrKnownType type, bool isNullable)[] parameters) {
         var length = parameters.Length;
-        var result = new (string, SpecialOrKnownType, bool, object, RefKind)[length];
+        var result = new (string, bool, SpecialOrKnownType, bool, object, RefKind)[length];
 
         for (var i = 0; i < length; i++) {
             var p = parameters[i];
-            result[i] = (p.name, p.type, p.isNullable, null, RefKind.None);
+            result[i] = (p.name, p.isConst, p.type, p.isNullable, null, RefKind.None);
         }
 
         return Method(
@@ -390,13 +446,13 @@ public static class LibraryHelpers {
         string name,
         SpecialOrKnownType type,
         bool isNullable,
-        (string name, SpecialOrKnownType type, bool isNullable)[] parameters) {
+        (string name, bool isConst, SpecialOrKnownType type, bool isNullable)[] parameters) {
         var length = parameters.Length;
-        var result = new (string, SpecialOrKnownType, bool, object, RefKind)[length];
+        var result = new (string, bool, SpecialOrKnownType, bool, object, RefKind)[length];
 
         for (var i = 0; i < length; i++) {
             var p = parameters[i];
-            result[i] = (p.name, p.type, p.isNullable, null, RefKind.None);
+            result[i] = (p.name, p.isConst, p.type, p.isNullable, null, RefKind.None);
         }
 
         return Method(
@@ -413,11 +469,11 @@ public static class LibraryHelpers {
         SpecialOrKnownType type,
         (string name, SpecialOrKnownType type)[] parameters) {
         var length = parameters.Length;
-        var result = new (string, SpecialOrKnownType, bool, object, RefKind)[length];
+        var result = new (string, bool, SpecialOrKnownType, bool, object, RefKind)[length];
 
         for (var i = 0; i < length; i++) {
             var p = parameters[i];
-            result[i] = (p.name, p.type, false, null, RefKind.None);
+            result[i] = (p.name, false, p.type, false, null, RefKind.None);
         }
 
         return Method(
@@ -433,7 +489,7 @@ public static class LibraryHelpers {
         string name,
         SpecialOrKnownType type,
         bool isNullable,
-        (string name, SpecialOrKnownType type, bool isNullable, object defaultValue, RefKind refKind)[] parameters,
+        (string name, bool isConst, SpecialOrKnownType type, bool isNullable, object defaultValue, RefKind refKind)[] parameters,
         DeclarationModifiers modifiers) {
         var returnTypeWithAnnotations = new TypeWithAnnotations(type.knownType);
 
@@ -466,7 +522,8 @@ public static class LibraryHelpers {
                 i,
                 parameter.refKind,
                 parameter.name,
-                defaultValue: constantValue
+                defaultValue: constantValue,
+                isConst: parameter.isConst
             );
 
             builder.Add(synthesizedParameter);
@@ -477,7 +534,7 @@ public static class LibraryHelpers {
 
     private static SpecialOrKnownType.Boxed GenerateStringList() {
         return new SpecialOrKnownType.Boxed(new ConstructedNamedTypeSymbol(
-            CorLibrary.GetSpecialType(SpecialType.List),
+            CorLibrary.GetWellKnownType(WellKnownType.List),
             [new TypeOrConstant(CorLibrary.GetSpecialType(SpecialType.String))]
         ));
     }

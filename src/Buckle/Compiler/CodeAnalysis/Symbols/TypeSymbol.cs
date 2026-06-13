@@ -26,9 +26,11 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
 
     public abstract TypeKind typeKind { get; }
 
-    public abstract bool isPrimitiveType { get; }
+    public abstract bool isValueType { get; }
 
-    public abstract bool isObjectType { get; }
+    public abstract bool isReferenceType { get; }
+
+    public virtual bool hasDefault => HasDefaultValue();
 
     public virtual SpecialType specialType => SpecialType.None;
 
@@ -41,6 +43,16 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
     internal abstract NamedTypeSymbol baseType { get; }
 
     internal abstract bool isRefLikeType { get; }
+
+    internal virtual bool isTupleType => false;
+
+    internal virtual bool hasStructDefault => IsStructType();
+
+    internal virtual ImmutableArray<string> tupleElementNames => [];
+
+    internal virtual ImmutableArray<TypeOrConstant> tupleElementTypes => [];
+
+    internal virtual ImmutableArray<FieldSymbol> tupleElements => [];
 
     internal ImmutableHashSet<Symbol> abstractMembers {
         get {
@@ -131,15 +143,14 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
     }
 
     internal bool HasDefaultValue() {
-        if (this.IsNullableType() || LiteralUtilities.TypeHasDefaultValue(specialType) || IsStructType())
+        if (this.IsNullableType() || LiteralUtilities.TypeHasDefaultValue(specialType))
             return true;
 
-        if (this is TemplateParameterSymbol t) {
-            if (t.hasNotNullConstraint)
-                return false;
-
+        if (IsStructType() && hasStructDefault)
             return true;
-        }
+
+        if (this is TemplateParameterSymbol t)
+            return t.hasDefault;
 
         if (IsEnumType())
             return this.GetEnumUnderlyingType().HasDefaultValue();
@@ -161,6 +172,13 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
 
     internal bool IsStructType() {
         return typeKind == TypeKind.Struct;
+    }
+
+    internal bool IsTupleTypeOfCardinality(int targetCardinality) {
+        if (isTupleType)
+            return tupleElementTypes.Length == targetCardinality;
+
+        return false;
     }
 
     internal bool IsEnumType() {

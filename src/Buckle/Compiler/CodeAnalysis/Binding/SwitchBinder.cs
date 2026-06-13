@@ -56,7 +56,7 @@ internal class SwitchBinder : LocalScopeBinder {
                 var result = new Dictionary<SyntaxNode, LabelSymbol>();
 
                 foreach (var label in labels) {
-                    var node = ((SourceLabelSymbol)label).identifierNodeOrToken?.AsNode();
+                    var node = ((SourceLabelSymbol)label).identifierNodeOrToken.AsNode();
 
                     if (node is not null)
                         result.TryAdd(node, label);
@@ -91,6 +91,13 @@ internal class SwitchBinder : LocalScopeBinder {
         BelteSyntaxNode scopeDesignator) {
         if (_switchSyntax == scopeDesignator)
             return localFunctions;
+
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    internal override ImmutableArray<TokenSymbol> GetDeclaredTokensForScope(SyntaxNode scopeDesignator) {
+        if (_switchSyntax == scopeDesignator)
+            return tokens;
 
         throw ExceptionUtilities.Unreachable();
     }
@@ -147,6 +154,15 @@ internal class SwitchBinder : LocalScopeBinder {
         return builder.ToImmutableAndFree();
     }
 
+    private protected override ImmutableArray<TokenSymbol> BuildTokens() {
+        ArrayBuilder<TokenSymbol> builder = null;
+
+        foreach (var section in _switchSyntax.sections)
+            BuildTokens(section.statements, GetBinder(section), ref builder);
+
+        return builder is null ? [] : builder.ToImmutableAndFree();
+    }
+
     private protected override ImmutableArray<LabelSymbol> BuildLabels() {
         var labels = ArrayBuilder<LabelSymbol>.GetInstance();
 
@@ -189,7 +205,7 @@ internal class SwitchBinder : LocalScopeBinder {
                         if (boundValue is not BoundTypeExpression)
                             ConvertCaseExpression(labelSyntax, boundValue, out boundLabelConstant, tempDiagnosticBag);
 
-                        labels.Add(new SourceLabelSymbol((MethodSymbol)containingMember, null, boundLabelConstant));
+                        labels.Add(new SourceLabelSymbol((MethodSymbol)containingMember, default, boundLabelConstant));
                     }
 
                     labels.Add(new SourceLabelSymbol((MethodSymbol)containingMember, multiCaseLabel));

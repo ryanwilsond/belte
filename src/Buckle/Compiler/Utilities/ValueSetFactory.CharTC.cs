@@ -50,7 +50,7 @@ internal static partial class ValueSetFactory {
         }
 
         ConstantValue INumericTC<char>.ToConstantValue(char value) {
-            return new ConstantValue(value, CodeAnalysis.Symbols.SpecialType.Char);
+            return new ConstantValue(value, SpecialType.Char);
         }
     }
 }

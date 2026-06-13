@@ -24,6 +24,7 @@ internal sealed class FixedFieldImplementationType : SynthesizedContainer {
             isPublic: true,
             false,
             false,
+            false,
             false
         );
     }

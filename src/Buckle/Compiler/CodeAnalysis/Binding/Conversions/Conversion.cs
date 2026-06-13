@@ -32,6 +32,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
     internal static Conversion ExplicitEnum => new Conversion(ConversionKind.ExplicitEnum);
     internal static Conversion AnyUnboxing => new Conversion(ConversionKind.AnyUnboxing);
     internal static Conversion ObjectCreation => new Conversion(ConversionKind.ObjectCreation);
+    internal static Conversion Deconstruction => new Conversion(ConversionKind.Deconstruction);
     internal static Conversion ImplicitNullableWithIdentityUnderlying
         => new Conversion(ConversionKind.ImplicitNullable, IdentityUnderlying);
     internal static Conversion ExplicitNullableWithIdentityUnderlying
@@ -53,6 +54,14 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
     internal Conversion(ConversionKind castKind, ImmutableArray<Conversion> nestedConversions) {
         kind = castKind;
         _uncommonData = new NestedUncommonData(nestedConversions);
+    }
+
+    internal Conversion(
+        ConversionKind kind,
+        DeconstructMethodInfo deconstructMethodInfo,
+        ImmutableArray<(BoundValuePlaceholder placeholder, BoundExpression conversion)> deconstructConversionInfo) {
+        this.kind = kind;
+        _uncommonData = new DeconstructionUncommonData(deconstructMethodInfo, deconstructConversionInfo);
     }
 
     internal Conversion(UserDefinedConversionResult conversionResult, bool isImplicit) {
@@ -131,9 +140,22 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
                     }
 
                     break;
+                case DeconstructionUncommonData deconstructionUncommonData:
+                    if (deconstructionUncommonData.deconstructMethodInfo.call is BoundCallExpression call)
+                        return call.method;
+
+                    break;
             }
 
             return null;
+        }
+    }
+
+    internal DeconstructMethodInfo deconstructionInfo {
+        get {
+            return _uncommonData is not DeconstructionUncommonData uncommonData
+                ? default
+                : uncommonData.deconstructMethodInfo;
         }
     }
 
@@ -195,10 +217,8 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         if (target.IsNullableType()) {
             var underlyingConversion = Classify(source.StrippedType(), target.StrippedType());
 
-            if (underlyingConversion.isIdentity && !source.IsEnumType() &&
-                !target.IsEnumType() && !source.IsVerifierValue()) {
+            if (underlyingConversion.isIdentity && source.isReferenceType)
                 return underlyingConversion;
-            }
 
             if (underlyingConversion.exists)
                 return new Conversion(ConversionKind.ImplicitNullable, [underlyingConversion]);
@@ -270,12 +290,10 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
             return new Conversion(EasyOut.Classify(source, target));
 
         // Handle conversions with 'any' type that weren't picked up with the EasyOut
-        // ~~We only allow using 'any' with other primitives, so the only type that the EasyOut couldn't pick up was array conversions~~
-        // TODO We changed this to now treat any as a bigger-O Object
         if (target.specialType == SpecialType.Any && source.typeKind != TypeKind.Pointer)
             return Implicit;
 
-        if (source.specialType == SpecialType.Any && target.specialType == SpecialType.Array)
+        if (source.specialType == SpecialType.Any && target.typeKind != TypeKind.Pointer)
             return Explicit;
 
         if (source.Equals(target, TypeCompareKind.ConsiderEverything))
@@ -414,7 +432,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         }
 
         // The rest of the boxing conversions only operate when going from a specific primitive type to the `any` type
-        if (!source.isPrimitiveType || destination.originalDefinition.specialType != SpecialType.Any)
+        if (!source.isValueType || destination.originalDefinition.specialType != SpecialType.Any)
             return false;
 
         if (source.IsNullableType())
@@ -428,7 +446,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         TemplateParameterSymbol source,
         TypeSymbol destination) {
         // TODO Does this conflict with the notion that "boxing" conversions have a destination of `any`?
-        if (source.isObjectType)
+        if (source.isReferenceType)
             return false;
 
         if (HasImplicitEffectiveBaseConversion(source, destination))

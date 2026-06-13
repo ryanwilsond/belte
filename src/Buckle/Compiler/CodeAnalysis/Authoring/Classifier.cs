@@ -27,7 +27,7 @@ public static class Classifier {
         TextSpan span,
         ArrayBuilder<ClassifiedSpan> result,
         bool isTypeName = false) {
-        if (node is null)
+        if (node == default)
             return;
 
         if (node.fullSpan is not null && !node.fullSpan.OverlapsWith(span))
@@ -97,6 +97,7 @@ public static class Classifier {
         var isKeyword = kind.IsKeyword();
         var isLiteral = kind is
             SyntaxKind.NumericLiteralToken or
+            SyntaxKind.ExtendedLiteralToken or
             SyntaxKind.TrueKeyword or
             SyntaxKind.FalseKeyword or
             SyntaxKind.NullKeyword or

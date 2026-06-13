@@ -24,11 +24,6 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_AlwaysValue, location, message);
     }
 
-    internal static BelteDiagnostic NullDereference(TextLocation location) {
-        var message = "dereference of a possibly null value";
-        return CreateWarning(DiagnosticCode.WRN_NullDereference, location, message);
-    }
-
     internal static BelteDiagnostic UnreachableCode(TextLocation location) {
         var message = "unreachable code";
         return CreateWarning(DiagnosticCode.WRN_UnreachableCode, location, message);
@@ -50,33 +45,32 @@ internal static class Warning {
     }
 
     internal static BelteDiagnostic RefConstNotVariable(TextLocation location, int arg) {
-        var message = $"argument {arg} should be a variable because it is passed to a 'ref const' parameter";
-        return CreateWarning(DiagnosticCode.WRN_RefConstNotVariable, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"argument {arg} should be a variable because it is passed to a 'ref const' parameter";
+        // return CreateWarning(DiagnosticCode.WRN_RefConstNotVariable, location, message);
     }
 
     internal static BelteDiagnostic ArgExpectedRef(TextLocation location, int arg) {
-        var message = $"argument {arg} should be passed with the 'ref' keyword";
-        return CreateWarning(DiagnosticCode.WRN_ArgExpectedRef, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"argument {arg} should be passed with the 'ref' keyword";
+        // return CreateWarning(DiagnosticCode.WRN_ArgExpectedRef, location, message);
     }
 
     internal static BelteDiagnostic TemplateParameterSameAsOuterMethod(TextLocation location, string name, Symbol symbol) {
-        var message = $"template parameter '{name}' has the same name as the template parameter from outer method '{symbol}'";
-        return CreateWarning(DiagnosticCode.WRN_TemplateParameterSameAsOuterMethod, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"template parameter '{name}' has the same name as the template parameter from outer method '{symbol}'";
+        // return CreateWarning(DiagnosticCode.WRN_TemplateParameterSameAsOuterMethod, location, message);
     }
 
     internal static BelteDiagnostic TemplateParameterSameAsOuter(TextLocation location, string name, Symbol symbol) {
-        var message = $"template parameter '{name}' has the same name as the template parameter from outer type '{symbol}'";
-        return CreateWarning(DiagnosticCode.WRN_TemplateParameterSameAsOuter, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"template parameter '{name}' has the same name as the template parameter from outer type '{symbol}'";
+        // return CreateWarning(DiagnosticCode.WRN_TemplateParameterSameAsOuter, location, message);
     }
 
     internal static BelteDiagnostic DefaultValueNoEffect(TextLocation location, string name) {
         var message = $"the default value specified for parameter '{name}' will have no effect because it applies to a member that is used in contexts that do not allow optional arguments";
         return CreateWarning(DiagnosticCode.WRN_DefaultValueNoEffect, location, message);
-    }
-
-    internal static BelteDiagnostic RefConstParameterDefaultValue(TextLocation location, string name) {
-        var message = $"a default value is specified for 'ref const' parameter '{name}', but 'ref const' should be used only for references";
-        return CreateWarning(DiagnosticCode.WRN_RefConstParameterDefaultValue, location, message);
     }
 
     internal static BelteDiagnostic EqualsWithoutGetHashCode(TextLocation location, Symbol symbol) {
@@ -110,33 +104,39 @@ internal static class Warning {
     }
 
     internal static BelteDiagnostic HidingDifferentRefness(TextLocation location, ParameterSymbol parameter, ParameterSymbol hiddenParameter) {
-        var message = $"reference kind modifier of parameter '{parameter}' doesn't match the corresponding parameter '{hiddenParameter}' in hidden member";
-        return CreateWarning(DiagnosticCode.WRN_HidingDifferentRefness, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"reference kind modifier of parameter '{parameter}' doesn't match the corresponding parameter '{hiddenParameter}' in hidden member";
+        // return CreateWarning(DiagnosticCode.WRN_HidingDifferentRefness, location, message);
     }
 
     internal static BelteDiagnostic OverridingDifferentRefness(TextLocation location, ParameterSymbol parameter, ParameterSymbol hiddenParameter) {
-        var message = $"reference kind modifier of parameter '{parameter}' doesn't match the corresponding parameter '{hiddenParameter}' in overridden or implemented member";
-        return CreateWarning(DiagnosticCode.WRN_OverridingDifferentRefness, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"reference kind modifier of parameter '{parameter}' doesn't match the corresponding parameter '{hiddenParameter}' in overridden or implemented member";
+        // return CreateWarning(DiagnosticCode.WRN_OverridingDifferentRefness, location, message);
     }
 
     internal static BelteDiagnostic TopLevelNullabilityMismatchInParameterTypeOnOverride(TextLocation location, Symbol symbol) {
-        var message = $"nullability of type of parameter '{symbol}' doesn't match overridden member";
-        return CreateWarning(DiagnosticCode.WRN_TopLevelNullabilityMismatchInParameterTypeOnOverride, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"nullability of type of parameter '{symbol}' doesn't match overridden member";
+        // return CreateWarning(DiagnosticCode.WRN_TopLevelNullabilityMismatchInParameterTypeOnOverride, location, message);
     }
 
     internal static BelteDiagnostic NullabilityMismatchInParameterTypeOnOverride(TextLocation location, Symbol symbol) {
-        var message = $"nullability of reference types in type of parameter '{symbol}' doesn't match overridden member";
-        return CreateWarning(DiagnosticCode.WRN_NullabilityMismatchInParameterTypeOnOverride, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"nullability of reference types in type of parameter '{symbol}' doesn't match overridden member";
+        // return CreateWarning(DiagnosticCode.WRN_NullabilityMismatchInParameterTypeOnOverride, location, message);
     }
 
     internal static BelteDiagnostic TopLevelNullabilityMismatchInReturnTypeOnOverride(TextLocation location) {
-        var message = $"nullability of return type doesn't match overridden member";
-        return CreateWarning(DiagnosticCode.WRN_TopLevelNullabilityMismatchInReturnTypeOnOverride, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"nullability of return type doesn't match overridden member";
+        // return CreateWarning(DiagnosticCode.WRN_TopLevelNullabilityMismatchInReturnTypeOnOverride, location, message);
     }
 
     internal static BelteDiagnostic NullabilityMismatchInReturnTypeOnOverride(TextLocation location) {
-        var message = $"nullability of reference types in return type doesn't match overridden member";
-        return CreateWarning(DiagnosticCode.WRN_NullabilityMismatchInReturnTypeOnOverride, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"nullability of reference types in return type doesn't match overridden member";
+        // return CreateWarning(DiagnosticCode.WRN_NullabilityMismatchInReturnTypeOnOverride, location, message);
     }
 
     internal static BelteDiagnostic LocalUsingTypeName(TextLocation location, string name) {
@@ -151,8 +151,9 @@ internal static class Warning {
 
     // TODO Implement this warning
     internal static BelteDiagnostic ImpliedReference(TextLocation location) {
-        var message = $"implicit types infer reference types making the 'ref' keyword not necessary in this context";
-        return CreateWarning(DiagnosticCode.WRN_ImpliedReference, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"implicit types infer reference types making the 'ref' keyword not necessary in this context";
+        // return CreateWarning(DiagnosticCode.WRN_ImpliedReference, location, message);
     }
 
     internal static BelteDiagnostic NamespaceNameShadowsBelte(TextLocation location, NamespaceSymbol symbol) {
@@ -174,6 +175,53 @@ internal static class Warning {
         var message = $"ignoring return value of method '{method}'; consider using a discard assignment if this is intended";
         var suggestion = "_ = %";
         return CreateWarning(DiagnosticCode.WRN_IgnoringReturnValue, location, message, suggestion);
+    }
+
+    internal static BelteDiagnostic TransientForEachAssignment(TextLocation location) {
+        var message = $"assignment to a for-each iterator local does not modify the element in the source collection";
+        return CreateWarning(DiagnosticCode.WRN_TransientForEachAssignment, location, message);
+    }
+
+    internal static BelteDiagnostic StructInefficiencyCache(TextLocation location, TypeSymbol type, int actualSize, int optimalSize) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': struct crosses an unnecessary cache line; struct layout could be reduced from {actualSize} bytes to {optimalSize} bytes by reordering fields";
+        return CreateWarning(DiagnosticCode.WRN_StructInefficiencyCache, location, message);
+    }
+
+    internal static BelteDiagnostic StructInefficiencyPadding(TextLocation location, TypeSymbol type, int actualSize, int optimalSize) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': struct layout could be reduced from {actualSize} bytes to {optimalSize} bytes by reordering fields";
+        return CreateWarning(DiagnosticCode.WRN_StructInefficiencyPadding, location, message);
+    }
+
+    internal static BelteDiagnostic LongTuple(TextLocation location, int size) {
+        var message = $"long tuple ({size} elements); consider using a named struct";
+        return CreateWarning(DiagnosticCode.WRN_LongTuple, location, message);
+    }
+
+    internal static BelteDiagnostic UnnecessaryLowLevelDefaultLiteral(TextLocation location, TypeSymbol type) {
+        var message = $"lowlevel default literal is unnecessary because the type '{type}' has a default value; consider using a regular default literal";
+        var suggestion = "default";
+        return CreateWarning(DiagnosticCode.WRN_UnnecessaryLowLevelDefaultLiteral, location, message, suggestion);
+    }
+
+    internal static BelteDiagnostic UnnecessaryLowLevelDefaultExpression(TextLocation location, TypeSymbol type) {
+        var message = $"lowlevel default expression is unnecessary because the type '{type}' has a default value; consider using a regular default expression";
+        var suggestion = $"default({type})";
+        return CreateWarning(DiagnosticCode.WRN_UnnecessaryLowLevelDefaultExpression, location, message, suggestion);
+    }
+
+    internal static BelteDiagnostic LocalFunctionUsingEntryPointName(TextLocation location) {
+        var message = $"local function uses the entry point name but is not treated as the entry point because it does not have the correct signature";
+        return CreateWarning(DiagnosticCode.WRN_LocalFunctionUsingEntryPointName, location, message);
+    }
+
+    internal static BelteDiagnostic DifferentConstOnOverride(TextLocation location, Symbol symbol, Symbol hiddenMember) {
+        var message = $"'{symbol}': member is marked 'const' but overridden member '{hiddenMember}' is not";
+        return CreateWarning(DiagnosticCode.WRN_DifferentConstOnOverride, location, message);
+    }
+
+    internal static BelteDiagnostic DifferentConstOnOverrideParameter(TextLocation location, Symbol symbol, Symbol hiddenMember, string name) {
+        var message = $"'{symbol}': parameter '{name}' is marked 'const' but the corresponding parameter on overridden member '{hiddenMember}' is not";
+        return CreateWarning(DiagnosticCode.WRN_DifferentConstOnOverrideParameter, location, message);
     }
 
     private static BelteDiagnostic CreateWarning(DiagnosticCode code, TextLocation location, string message) {

@@ -438,6 +438,8 @@ public abstract partial class Repl : IDisposable {
         AddChange(document, view.currentLine, 0, line.Length, line.Substring(remainingSpaces));
         document[view.currentLine] = line.Substring(remainingSpaces);
         view.currentCharacter -= remainingSpaces;
+        // Don't allow shift tabbing past the leftmost column
+        view.currentCharacter = Math.Max(view.currentCharacter, 0);
 
         view.currentTypingTabbing--;
     }

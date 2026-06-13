@@ -1,5 +1,6 @@
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -8,6 +9,8 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
     public sealed override SymbolKind kind => SymbolKind.Local;
 
     public bool isConst => declarationKind == DataContainerDeclarationKind.Constant;
+
+    public bool isFinal => declarationKind.IsFinal();
 
     public bool isConstExpr => declarationKind == DataContainerDeclarationKind.ConstantExpression;
 
@@ -71,28 +74,32 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
         get {
             switch (declarationKind) {
                 case DataContainerDeclarationKind.Constant:
+                case DataContainerDeclarationKind.Final:
                 case DataContainerDeclarationKind.ConstantExpression:
-                    // TODO Assignment doesn't really make sense but we allow it because assigning to fields does make sense
-                    // TODO We should probably differentiate between local assignment and local modification
-                    // case DataContainerDeclarationKind.ForEachLocal:
-                    // case DataContainerDeclarationKind.NullBindingLocal:
-                    // case DataContainerDeclarationKind.UsingLocal:
+                case DataContainerDeclarationKind.ForEachLocal:
+                case DataContainerDeclarationKind.ScopedLocal:
                     return false;
+                // TODO Should we allow assignment to null binding locals?
+                case DataContainerDeclarationKind.NullBindingLocal:
+                case DataContainerDeclarationKind.Variable:
+                case DataContainerDeclarationKind.PatternLocal:
+                case DataContainerDeclarationKind.OutVariable:
+                case DataContainerDeclarationKind.DeclarationExpressionVariable:
                 default:
                     return true;
             }
         }
     }
 
-    internal virtual SyntaxNode forbiddenZone => null;
-
-    internal virtual BelteDiagnostic forbiddenDiagnostic => Error.LocalUsedBeforeDeclaration(location, this);
-
     internal TypeSymbol type => typeWithAnnotations.type;
 
     internal bool isGlobal => containingSymbol is SynthesizedEntryPoint;
 
     internal abstract SynthesizedLocalKind synthesizedKind { get; }
+
+    internal virtual TypeWithAnnotations GetTypeWithAnnotations(SyntaxNode reference, BelteDiagnosticQueue diagnostics) {
+        return typeWithAnnotations;
+    }
 
     internal sealed override void Accept(SymbolVisitor visitor) {
         visitor.VisitDataContainer(this);
@@ -102,6 +109,10 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
         SymbolVisitor<TArgument, TResult> visitor,
         TArgument argument) {
         return visitor.VisitDataContainer(this, argument);
+    }
+
+    internal virtual BelteDiagnostic GetForbiddenDiagnostic(TextLocation location) {
+        return Error.LocalUsedBeforeDeclaration(location, this);
     }
 
     internal abstract ConstantValue GetConstantValue(

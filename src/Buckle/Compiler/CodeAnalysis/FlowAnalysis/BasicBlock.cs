@@ -9,18 +9,29 @@ namespace Buckle.CodeAnalysis.FlowAnalysis;
 /// Block in the graph, represents a <see cref="BoundStatement" />.
 /// </summary>
 internal sealed class BasicBlock {
-    internal List<BoundStatement> statements { get; } = new List<BoundStatement>();
-    internal List<ControlFlowBranch> incoming { get; } = new List<ControlFlowBranch>();
-    internal List<ControlFlowBranch> outgoing { get; } = new List<ControlFlowBranch>();
-    internal bool isStart { get; }
-    internal bool isEnd { get; }
-
-    internal BasicBlock() { }
+    internal BasicBlock(int capacity) {
+        incomingAssignment = BitVector.AllSet(capacity);
+        outgoingAssignment = BitVector.AllSet(capacity);
+    }
 
     internal BasicBlock(bool isStart) {
         this.isStart = isStart;
         isEnd = !isStart;
     }
+
+    internal List<BoundStatement> statements { get; } = [];
+
+    internal List<ControlFlowBranch> incoming { get; } = [];
+
+    internal List<ControlFlowBranch> outgoing { get; } = [];
+
+    internal BitVector incomingAssignment { get; set; } = BitVector.Empty;
+
+    internal BitVector outgoingAssignment { get; set; } = BitVector.Empty;
+
+    internal bool isStart { get; }
+
+    internal bool isEnd { get; }
 
     public override string ToString() {
         if (isStart)

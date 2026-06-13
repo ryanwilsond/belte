@@ -33,7 +33,7 @@ internal static partial class ValueSetFactory {
 
         ConstantValue IValueSet.sample => new ConstantValue(
             _hasTrue ? true : _hasFalse ? false : throw new ArgumentException(),
-            CodeAnalysis.Symbols.SpecialType.Bool);
+            SpecialType.Bool);
 
         public bool Any(BinaryOperatorKind relation, bool value) {
             switch (relation, value) {

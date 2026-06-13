@@ -90,4 +90,8 @@ internal class InContainerBinder : Binder {
     private protected override LocalFunctionSymbol LookupLocalFunction(SyntaxToken identifier) {
         return null;
     }
+
+    private protected override SourceTokenSymbol LookupToken(SyntaxToken identifier) {
+        return null;
+    }
 }

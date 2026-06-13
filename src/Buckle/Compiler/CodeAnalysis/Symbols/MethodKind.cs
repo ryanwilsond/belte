@@ -5,6 +5,7 @@ public enum MethodKind : byte {
     Constructor,
     StaticConstructor,
     Destructor,
+    Finalizer,
     Ordinary,
     LocalFunction,
     Operator,
@@ -13,4 +14,5 @@ public enum MethodKind : byte {
     FunctionSignature,
     AnonymousFunction,
     Lambda,
+    Literal,
 }

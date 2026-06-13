@@ -12,15 +12,18 @@ internal abstract class SourceParameterSymbol : SourceParameterSymbolBase {
         Symbol owner,
         int ordinal,
         RefKind refKind,
+        bool isConst,
         ScopedKind scope,
         string name,
-        ParameterSyntax syntax)
+        SyntaxReference syntaxReference,
+        TextLocation location)
         : base(owner, ordinal) {
         this.refKind = refKind;
         effectiveScope = scope;
         this.name = name;
-        syntaxReference = new SyntaxReference(syntax);
-        location = syntax.identifier.location;
+        this.isConst = isConst;
+        this.syntaxReference = syntaxReference;
+        this.location = location;
     }
 
     public sealed override string name { get; }
@@ -41,6 +44,8 @@ internal abstract class SourceParameterSymbol : SourceParameterSymbolBase {
 
     internal override bool isMetadataOut => refKind == RefKind.Out;
 
+    internal override bool isConst { get; }
+
     internal abstract SyntaxList<AttributeListSyntax> attributeDeclarationList { get; }
 
     internal static SourceParameterSymbol Create(
@@ -48,20 +53,51 @@ internal abstract class SourceParameterSymbol : SourceParameterSymbolBase {
         TypeWithAnnotations parameterType,
         ParameterSyntax syntax,
         RefKind refKind,
+        bool isConst,
         string name,
         int ordinal,
         ScopedKind scope) {
-        if (syntax.defaultValue is null && scope == ScopedKind.None && syntax.attributeLists.Count == 0)
-            return new SourceSimpleParameterSymbol(owner, parameterType, ordinal, refKind, name, syntax);
+        if (syntax.defaultValue is null && scope == ScopedKind.None && syntax.attributeLists.Count == 0) {
+            return new SourceSimpleParameterSymbol(
+                owner,
+                parameterType,
+                ordinal,
+                refKind,
+                isConst,
+                name,
+                new SyntaxReference(syntax),
+                syntax.identifier.location
+            );
+        }
 
         return new SourceComplexParameterSymbol(
             owner,
             ordinal,
             parameterType,
             refKind,
+            isConst,
             name,
             syntax,
             scope
+        );
+    }
+
+    internal static SourceParameterSymbol CreateReverseParameter(
+        Symbol owner,
+        TypeWithAnnotations parameterType,
+        SyntaxNode syntax,
+        TextLocation location,
+        RefKind refKind,
+        string name) {
+        return new SourceSimpleParameterSymbol(
+            owner,
+            parameterType,
+            0,
+            refKind,
+            false,
+            name,
+            new SyntaxReference(syntax),
+            location
         );
     }
 

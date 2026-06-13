@@ -24,5 +24,14 @@ internal sealed partial class Executor {
         internal static ConstructorInfo NullConditionException_ctor = typeof(NullConditionException).GetConstructor(Type.EmptyTypes);
         internal static ConstructorInfo UnreachableException_ctor = typeof(System.Diagnostics.UnreachableException).GetConstructor(Type.EmptyTypes);
         internal static MethodInfo Type_GetTypeFromHandle = typeof(Type).GetMethod("GetTypeFromHandle", DefaultFlags, [typeof(RuntimeTypeHandle)]);
+        internal static ConstructorInfo ValueTuple_T1_ctor = typeof(ValueTuple<>).GetConstructors().Single();
+        internal static ConstructorInfo ValueTuple_T2_ctor = typeof(ValueTuple<,>).GetConstructors().Single();
+        internal static ConstructorInfo ValueTuple_T3_ctor = typeof(ValueTuple<,,>).GetConstructors().Single();
+        internal static ConstructorInfo ValueTuple_T4_ctor = typeof(ValueTuple<,,,>).GetConstructors().Single();
+        internal static ConstructorInfo ValueTuple_T5_ctor = typeof(ValueTuple<,,,,>).GetConstructors().Single();
+        internal static ConstructorInfo ValueTuple_T6_ctor = typeof(ValueTuple<,,,,,>).GetConstructors().Single();
+        internal static ConstructorInfo ValueTuple_T7_ctor = typeof(ValueTuple<,,,,,>).GetConstructors().Single();
+        internal static ConstructorInfo ValueTuple_TRest_ctor = typeof(ValueTuple<,,,,,,>).GetConstructors().Single();
+        internal static MethodInfo Array_Empty = typeof(Array).GetMethod("Empty", Type.EmptyTypes);
     }
 }

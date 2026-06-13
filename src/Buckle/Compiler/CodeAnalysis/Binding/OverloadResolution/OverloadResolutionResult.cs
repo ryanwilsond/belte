@@ -390,16 +390,27 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
             else
                 diagnostics.Push(Error.CannotConvertArgument(sourceLocation, argument.type, parameter.type, arg + 1));
         } else if (refArg != refParameter &&
-              !(refParameter == RefKind.RefConst && refArg is RefKind.None or RefKind.Ref)) {
-            if (refParameter is RefKind.None or RefKind.RefConst)
+              !(refParameter is RefKind.RefConst or RefKind.RefFinal && refArg is RefKind.None or RefKind.Ref)) {
+            if (refParameter is RefKind.None or RefKind.RefConst or RefKind.RefFinal)
                 diagnostics.Push(Error.ArgumentExtraRef(sourceLocation, "ref", arg + 1));
+            else if (refParameter is RefKind.Ref && refArg is RefKind.RefConst)
+                diagnostics.Push(Error.ArgumentWrongRefConst(sourceLocation, arg + 1));
             else
                 diagnostics.Push(Error.ArgumentWrongRef(sourceLocation, "ref", arg + 1));
         } else {
             if (arguments.types[arg] is { } argType) {
-                diagnostics.Push(Error.CannotConvertArgument(sourceLocation, argType, parameter.type, arg + 1));
+                if (!parameter.isConst &&
+                    argument.isExpression &&
+                    argument.expression.IsConst() &&
+                    argument.type.isReferenceType &&
+                    !argument.type.IsKnownToBeImmutable()) {
+                    diagnostics.Push(Error.ArgumentWrongConst(sourceLocation, arg + 1));
+                } else {
+                    diagnostics.Push(Error.CannotConvertArgument(sourceLocation, argType, parameter.type, arg + 1));
+                }
             } else {
                 // TODO Reachable error?
+                throw ExceptionUtilities.Unreachable();
                 // diagnostics.Add(
                 //     ErrorCode.ERR_BadArgType,
                 //     sourceLocation,

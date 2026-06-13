@@ -12,6 +12,8 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
     internal static readonly ErrorTypeSymbol UnknownResultType = new UnsupportedMetadataTypeSymbol();
 
+    internal ErrorTypeSymbol(TupleExtraData tupleData = null) : base(tupleData) { }
+
     private ImmutableArray<TemplateParameterSymbol> _lazyTemplateParameters;
 
     public override string name => "";
@@ -22,9 +24,11 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
 
     public override int arity => 0;
 
-    public override bool isObjectType => true;
+    public override bool isReferenceType => true;
 
-    public override bool isPrimitiveType => true;
+    public override bool isValueType => true;
+
+    internal override bool hasStructDefault => true;
 
     public override ImmutableArray<TemplateParameterSymbol> templateParameters {
         get {
@@ -74,6 +78,11 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
     internal sealed override bool isRefLikeType => false;
 
     internal override ImmutableArray<Symbol> GetMembers() {
+        if (isTupleType) {
+            var result = MakeSynthesizedTupleMembers([]);
+            return result.ToImmutableAndFree();
+        }
+
         return [];
     }
 

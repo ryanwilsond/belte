@@ -23,7 +23,8 @@ internal abstract partial class MissingMetadataTypeSymbol {
                 mangleName,
                 errorInfo: null,
                 containingNamespace: null,
-                typeId: -1
+                typeId: -1,
+                tupleData: null
             ) {
         }
 
@@ -61,7 +62,8 @@ internal abstract partial class MissingMetadataTypeSymbol {
                 mangleName,
                 errorInfo,
                 containingNamespace: null,
-                typeId
+                typeId,
+                tupleData: null
             ) {
         }
 
@@ -73,8 +75,9 @@ internal abstract partial class MissingMetadataTypeSymbol {
             bool mangleName,
             BelteDiagnostic errorInfo,
             NamespaceSymbol containingNamespace,
-            int typeId)
-            : base(name, arity, mangleName) {
+            int typeId,
+            TupleExtraData tupleData)
+            : base(name, arity, mangleName, tupleData) {
             _namespaceName = @namespace;
             _containingModule = module;
             _lazyErrorInfo = errorInfo;
@@ -149,8 +152,9 @@ internal abstract partial class MissingMetadataTypeSymbol {
                     // var errorInfo = _typeId != (int)SpecialType.None
                     //     ? new CSDiagnosticInfo(ErrorCode.ERR_PredefinedTypeNotFound, MetadataHelpers.BuildQualifiedName(_namespaceName, MetadataName))
                     //     : base.ErrorInfo;
-                    BelteDiagnostic errorInfo = null;
-                    Interlocked.CompareExchange(ref _lazyErrorInfo, errorInfo, null);
+                    throw ExceptionUtilities.Unreachable();
+                    // BelteDiagnostic errorInfo = null;
+                    // Interlocked.CompareExchange(ref _lazyErrorInfo, errorInfo, null);
                 }
 
                 return _lazyErrorInfo;
@@ -175,6 +179,20 @@ internal abstract partial class MissingMetadataTypeSymbol {
                 _arity == other._arity &&
                 string.Equals(_namespaceName, other.namespaceName, StringComparison.Ordinal) &&
                 _containingModule.Equals(other._containingModule);
+        }
+
+        private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
+            return new TopLevel(
+                _containingModule,
+                _namespaceName,
+                name,
+                arity,
+                mangleName,
+                _lazyErrorInfo,
+                _lazyContainingNamespace,
+                _lazyTypeId,
+                newData
+            );
         }
     }
 }

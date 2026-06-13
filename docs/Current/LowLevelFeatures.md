@@ -2,12 +2,16 @@
 
 ~~These features are only enabled in low-level contexts.~~
 
-Currently, all of these features are enabled everywhere for conciseness.
-This may change.
+Currently, most of these features are enabled everywhere for conciseness.
+[Lowlevel fields](#615-lowlevel-fields) and
+[lowlevel default literals](#616-lowlevel-default-literal) still require being inside of
+a lowlevel context.
 
 - [6.1](#61-low-level-contexts) Low-Level Contexts
 - [6.2](#62-structs) Structs
-- [6.3](#63-arrays) Arrays
+  - [6.2.1](#621-packing) Packing
+- [6.3](#63-arrays-and-buffers) Arrays and Buffers
+  - [6.3.1](#631-alternate-entry-point-signature) Alternate Entry Point Signature
 - [6.4](#64-numerics) Numerics
   - [6.4.1](#641-bit-casts) Bit Casts
 - [6.5](#65-pointers) Pointers
@@ -29,6 +33,9 @@ This may change.
   - [6.13.1](#6131-messages) Messages
   - [6.13.2](#6132-ordering) Ordering
 - [6.14](#614-c-strings) C-Strings
+- [6.15](#615-lowlevel-fields) LowLevel Fields
+- [6.16](#616-lowlevel-default-literal) LowLevel Default Literal
+- [6.17](#617-double-verbatim-identifiers) Double Verbatim Identifiers
 
 Additionally, the
 [Standard Library contains a class named LowLevel that provides various helper methods](StandardLibrary/LowLevel.md).
@@ -56,12 +63,98 @@ can use low-level exclusive features.
 Structs may be restricted to [lowlevel contexts](#61-low-level-contexts) in the
 future.
 
-## 6.3 Arrays
+### 6.2.1 Packing
+
+A struct's packing size is it's maximum alignment. Without an explicit packing
+size, a struct's packing size is typically the machine's word size (8 bytes on
+64-bit machines). The `packed` keyword can be used to set the struct's packing
+size to 1 byte (i.e. no padding between fields).
+
+```belte
+// Total size: 24 bytes
+struct A {
+  int8 a;   // Offset 0
+  int64 b;  // Offset 8
+  int8 c;   // Offset 16
+}
+```
+
+```belte
+// Total size: 10 bytes
+struct packed A {
+  int8 a;   // Offset 0
+  int64 b;  // Offset 1
+  int8 c;   // Offset 9
+}
+```
+
+An explicit packing size of 1, 2, 4, 8, 16, 32, 64, or 128 can be specified:
+
+```belte
+// Total size: 12 bytes
+struct packed(2) A {
+  int8 a;   // Offset 0
+  int64 b;  // Offset 2
+  int8 c;   // Offset 10
+}
+```
+
+If the natural alignment of the struct is below the packing size, it will stay
+at the natural alignment. Consider the following example:
+
+```belte
+// Total size: 12 bytes
+struct packed(64) A {
+  int8 a;   // Offset 0
+  int32 b;  // Offset 4
+  int8 c;   // Offset 8
+}
+```
+
+In the above example, the struct's natural alignment is 4 bytes, and because
+that is less that the specified packing size, the struct's actual alignment
+will stay at 4 bytes.
+
+## 6.3 Arrays and Buffers
 
 > [Main array docs](Data.md#36-arrays)
 
-Initializer lists may create a [List](StandardLibrary/List.md) outside of
-[lowlevel contexts](#61-low-level-contexts) in the future.
+The ordinary array syntax `int[]` is shorthand for `Array<int>` which tracks initialization state for each element to
+prevent reading before writing to an element. To use a raw CLR array instead, a `Buffer<T>` can be used:
+
+```belte
+Buffer<int> a = new Buffer<int>(10);
+int b = a[0]; // Okay
+```
+
+The buffer creation can take a size, a size and an initializer, or just an initializer form which the size is inferred:
+
+```belte
+new Buffer<int>(10);
+new Buffer<int>(10, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+new Buffer<int>({1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+```
+
+In the case that no initializer is given, each element will be zero-initialized even if the type has no default value.
+Buffers should only be used in performance critical code, interop, or if the initialization state of each element is
+tracked separately to prevent corrupting the type system.
+
+The [`LowLevel` helper class](StandardLibrary/LowLevel.md) provides a few methods that operate on buffers, including to
+get the length:
+
+```belte
+Buffer<int> a = new Buffer<int>(10, {1, 2, 3, 4, 5, 6, 7, 8, 9, 10});
+int b = LowLevel.Length<int>(a); // 10
+```
+
+### 6.3.1 Alternate Entry Point Signature
+
+The [`Main` entry point](ControlFlow.md#221-main) can optionally take in a `Buffer<string>` instead of `string[]`:
+
+```belte
+void Main(Buffer<string> args) { }
+int32 Main(Buffer<string> args) { }
+```
 
 ## 6.4 Numerics
 
@@ -115,6 +208,9 @@ To allow for better interop, C-style pointers and be used. Pointers are always
 non-nullable and can only point to non-nullable types (unless the pointed at
 type is heap allocated).
 
+Note that when possible, [references](Data.md#35-references) should be used
+instead.
+
 ### 6.5.1 Creating and Dereferencing Pointers
 
 To get the address of a local or field, the `&` operator can be used:
@@ -123,6 +219,10 @@ To get the address of a local or field, the `&` operator can be used:
 int! myInt = 3;
 int* ptr = &myInt;
 ```
+
+The address operator cannot be used on locals or fields that are marked as
+[`const`, `final`, or `constexpr`](Data.md#331-modifiers) to ensure they aren't
+reassigned.
 
 To dereference the pointer, the `*` operator can be used:
 
@@ -607,3 +707,59 @@ char* temp = LowLevel.CreateLPCWSTR("test");
 defer LowLevel.FreeLPCWSTR(temp);
 char* a = temp;
 ```
+
+C-strings can be [interpolated](Data.md#312-string-interpolation):
+
+```belte
+int myNum = 10;
+char* a = wf"num is {myNum}";
+uint8* b = cf"num is {myNum}";
+```
+
+## 6.15 LowLevel Fields
+
+A field marked `lowlevel` has no [definite assignment](ClassesAndObjects.md#4211-definite-assignment) restrictions
+meaning types without a default value can exist as fields without an initializer or constructor assignment:
+
+```belte
+lowlevel class A {
+  lowlevel string a;
+}
+```
+
+The `lowlevel` field modifier can only be used in lowlevel contexts.
+
+This should only be used in cases where [`initialize` annotations](ClassesAndObjects.md#4211-definite-assignment) are
+not sufficient.
+
+## 6.16 LowLevel Default Literal
+
+A `lowlevel default` literal assigns a default value to types that normally don't accept a default value:
+
+```belte
+class A { }
+
+lowlevel {
+  A! a = lowlevel default;
+}
+```
+
+Like normal default literals, they can also be explicitly typed:
+
+```belte
+class A { }
+
+lowlevel {
+  var! a = lowlevel default(A);
+}
+```
+
+Lowlevel default literals can only be used in lowlevel contexts.
+
+This should only be used in cases where read access to a data container is tightly controlled to avoid reading while
+not initialized to a valid value.
+
+## 6.17 Double Verbatim Identifiers
+
+The double verbatim specifier `@@` reads all trailing characters as a part of the identifier terminating at whitespace
+or a subsequent `@`. This could be used to directly reference compiler-generated symbols. Here be dragons.

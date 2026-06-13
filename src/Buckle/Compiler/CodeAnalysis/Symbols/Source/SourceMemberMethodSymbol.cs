@@ -201,7 +201,7 @@ done:
         var underlyingReturnType = returnType.type;
 
         if (!IsNoMoreVisibleThan(underlyingReturnType)) {
-            if (methodKind is MethodKind.Operator or MethodKind.Conversion) {
+            if (methodKind is MethodKind.Operator or MethodKind.Conversion or MethodKind.Literal) {
                 diagnostics.Push(
                     Error.InconsistentAccessibilityOperatorReturn(location, underlyingReturnType.StrippedType(), this)
                 );
@@ -214,7 +214,7 @@ done:
 
         foreach (var parameter in parameters) {
             if (!parameter.typeWithAnnotations.nullableUnderlyingTypeOrSelf.IsAtLeastAsVisibleAs(this)) {
-                if (methodKind is MethodKind.Operator or MethodKind.Conversion) {
+                if (methodKind is MethodKind.Operator or MethodKind.Conversion or MethodKind.Literal) {
                     diagnostics.Push(
                         Error.InconsistentAccessibilityOperatorParameter(location, parameter.type.StrippedType(), this)
                     );

@@ -42,7 +42,12 @@ internal static class WellKnownMemberNames {
     internal const string UpdatePointMethodName = "Update";
     internal const string TopLevelStatementsEntryPointTypeName = "<Program>";
     internal const string EnumBackingFieldName = "value__";
-    internal const string DestructorName = "Finalize";
+    internal const string FinalizerName = "Finalize";
     internal const string Dispose = "Dispose";
+    internal const string Deconstruct = "Deconstruct";
     internal new const string ToString = "ToString";
+
+    internal static string GetLiteralOperatorName(string suffix) {
+        return $"op_Literal_{suffix}";
+    }
 }

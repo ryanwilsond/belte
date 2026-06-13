@@ -40,6 +40,8 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
 
     public bool returnsByRefConst => refKind == RefKind.RefConst;
 
+    public bool returnsByRefFinal => refKind == RefKind.RefFinal;
+
     public bool returnTypeIsNullable => returnTypeWithAnnotations.isNullable;
 
     internal abstract TypeWithAnnotations returnTypeWithAnnotations { get; }
@@ -55,7 +57,7 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
     internal abstract bool isDeclaredConst { get; }
 
     // TODO This will also check if the containing type is const when const structs are added (if they are added)
-    internal virtual bool isEffectivelyConst => isDeclaredConst;
+    internal virtual bool isEffectivelyConst => isDeclaredConst || isStatic;
 
     internal virtual int parameterCount => parameters.Length;
 
@@ -79,8 +81,15 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
 
     internal TypeSymbol returnType => returnTypeWithAnnotations.type;
 
-    internal bool isEntryPointCandidate
-        => isStatic && !isAbstract && !isVirtual && name == WellKnownMemberNames.EntryPointMethodName;
+    internal virtual bool isReversible => false;
+
+    internal virtual MethodSymbol reverseMethod => null;
+
+    internal virtual bool hasReversalState => false;
+
+    internal virtual MethodSymbol stateMethod => null;
+
+    internal virtual ImmutableArray<FieldSymbol> initFields => [];
 
     internal ImmutableArray<TypeWithAnnotations> parameterTypesWithAnnotations {
         get {
@@ -95,6 +104,14 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
             return _lazyParameterSignature.parameterRefKinds;
         }
     }
+
+    internal ImmutableArray<bool> parameterConstnesses {
+        get {
+            ParameterSignature.PopulateParameterSignature(parameters, ref _lazyParameterSignature);
+            return _lazyParameterSignature.parameterConstnesses;
+        }
+    }
+
 
     internal MethodSymbol overriddenMethod {
         get {
@@ -165,7 +182,7 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
 
     internal bool IsDefaultValueTypeConstructor() {
         return isImplicitlyDeclared &&
-            containingType?.isPrimitiveType == true &&
+            containingType?.isValueType == true &&
             IsParameterlessConstructor();
     }
 
@@ -224,9 +241,11 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
             case MethodKind.Constructor:
             case MethodKind.StaticConstructor:
             case MethodKind.Destructor:
+            case MethodKind.Finalizer:
                 return false;
             case MethodKind.LocalFunction:
             case MethodKind.Operator:
+            case MethodKind.Literal:
             case MethodKind.Conversion:
             case MethodKind.Ordinary:
                 return true;

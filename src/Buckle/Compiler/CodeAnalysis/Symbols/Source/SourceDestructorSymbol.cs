@@ -24,7 +24,7 @@ internal sealed class SourceDestructorSymbol : SourceMemberMethodSymbol {
             diagnostics.Push(Error.DestructorInStaticClass(location));
     }
 
-    public override string name => WellKnownMemberNames.DestructorName;
+    public override string name => WellKnownMemberNames.Dispose;
 
     internal override bool isMetadataFinal => false;
 
@@ -111,7 +111,7 @@ internal sealed class SourceDestructorSymbol : SourceMemberMethodSymbol {
             out modifierErrors
         );
 
-        mods = (mods & ~DeclarationModifiers.AccessibilityMask) | DeclarationModifiers.Protected;
+        mods = (mods & ~DeclarationModifiers.AccessibilityMask) | DeclarationModifiers.Public;
 
         return mods;
     }

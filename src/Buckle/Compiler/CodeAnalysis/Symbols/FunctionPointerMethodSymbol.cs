@@ -33,6 +33,7 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
                 paramsBuilder.Add(new FunctionPointerParameterSymbol(
                     substitutedType.type,
                     originalParam.refKind,
+                    originalParam.isConst,
                     originalParam.name,
                     originalParam.ordinal,
                     containingSymbol: this
@@ -75,7 +76,15 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
                     // TODO Out
                     // var paramRefKind = getRefKind(param, /*paramRefCustomMods, */RefKind.In, RefKind.Out, requiresLocationAllowed: true);
                     var paramRefKind = param.isByRef ? RefKind.Ref : RefKind.None;
-                    paramsBuilder.Add(new FunctionPointerParameterSymbol(paramType, paramRefKind, null, i, parent/*, paramRefCustomMods*/));
+                    paramsBuilder.Add(new FunctionPointerParameterSymbol(
+                        paramType,
+                        paramRefKind,
+                        false,
+                        null,
+                        i,
+                        parent
+                    /*, paramRefCustomMods*/
+                    ));
                 }
 
                 return paramsBuilder.ToImmutableAndFree();
@@ -109,7 +118,7 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
         var unmanagedCallingConvention = CallingConvention.Unspecified;
 
         if (syntax.callingConvention is not null) {
-            switch (syntax.callingConvention.text.ToLower()) {
+            switch (syntax.callingConvention.valueText.ToLower()) {
                 case "cdecl":
                     unmanagedCallingConvention = CallingConvention.Cdecl;
                     break;
@@ -126,9 +135,11 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
                     unmanagedCallingConvention = CallingConvention.ThisCall;
                     break;
                 default:
-                    diagnostics.Push(
-                        Error.UnknownCallingConvention(syntax.callingConvention.location, syntax.callingConvention.text)
-                    );
+                    diagnostics.Push(Error.UnknownCallingConvention(
+                        syntax.callingConvention.location,
+                        syntax.callingConvention.valueText
+                    ));
+
                     break;
             }
         }
@@ -156,7 +167,7 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
 
         _parameters = parameterTypes.ZipAsArray(parameterRefKinds, this,
             (type, refKind, i, arg) => {
-                return new FunctionPointerParameterSymbol(type, refKind, null, i, arg);
+                return new FunctionPointerParameterSymbol(type, refKind, false, null, i, arg);
             }
         );
     }

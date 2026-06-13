@@ -49,8 +49,8 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
 
     private ImmutableArray<SingleNamespaceOrTypeDeclaration> VisitNamespaceChildren(
         BelteSyntaxNode node,
-        SyntaxList<MemberDeclarationSyntax> members,
-        CoreInternalSyntax.SyntaxList<CoreInternalSyntax.MemberDeclarationSyntax> internalMembers) {
+        SyntaxList<NamespaceElementSyntax> members,
+        CoreInternalSyntax.SyntaxList<CoreInternalSyntax.NamespaceElementSyntax> internalMembers) {
         if (members.Count == 0)
             return [];
 
@@ -62,6 +62,9 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
 
         var childrenBuilder = ArrayBuilder<SingleNamespaceOrTypeDeclaration>.GetInstance();
         foreach (var member in members) {
+            if (member is UsingDirectiveSyntax)
+                continue;
+
             var namespaceOrType = Visit(member);
 
             if (namespaceOrType is not null) {
@@ -87,7 +90,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
             var diagnostics = ImmutableArray<BelteDiagnostic>.Empty;
 
             if (!hasNonEmptyGlobalStatement) {
-                // TODO error
+                // TODO error?
                 var queue = BelteDiagnosticQueue.GetInstance();
                 // bag.Add(ErrorCode.ERR_SimpleProgramIsEmpty, ((EmptyStatementSyntax)firstGlobalStatement.Statement).SemicolonToken.GetLocation());
                 diagnostics = queue.ToImmutableAndFree();
@@ -156,8 +159,8 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
     internal override SingleNamespaceOrTypeDeclaration VisitCompilationUnit(CompilationUnitSyntax compilationUnit) {
         var children = VisitNamespaceChildren(
             compilationUnit,
-            compilationUnit.members,
-            ((CoreInternalSyntax.CompilationUnitSyntax)compilationUnit.green).members
+            compilationUnit.elements,
+            ((CoreInternalSyntax.CompilationUnitSyntax)compilationUnit.green).elements
         );
 
         return CreateRootSingleNamespaceDeclaration(compilationUnit, children);
@@ -171,17 +174,19 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
 
         var diagnostics = BelteDiagnosticQueue.GetInstance();
 
-        foreach (var directive in compilationUnit.usings) {
-            if (directive.globalKeyword is not null) {
-                hasGlobalUsings = true;
+        foreach (var element in compilationUnit.elements) {
+            if (element is UsingDirectiveSyntax directive) {
+                if (directive.globalKeyword is not null) {
+                    hasGlobalUsings = true;
 
-                // TODO Do we care about this
-                // if (hasUsings && !reportedGlobalUsingOutOfOrder) {
-                //     reportedGlobalUsingOutOfOrder = true;
-                //     diagnostics.Add(ErrorCode.ERR_GlobalUsingOutOfOrder, directive.globalKeyword.GetLocation());
-                // }
-            } else {
-                hasUsings = true;
+                    // TODO Do we care about this
+                    // if (hasUsings && !reportedGlobalUsingOutOfOrder) {
+                    //     reportedGlobalUsingOutOfOrder = true;
+                    //     diagnostics.Add(ErrorCode.ERR_GlobalUsingOutOfOrder, directive.globalKeyword.GetLocation());
+                    // }
+                } else {
+                    hasUsings = true;
+                }
             }
         }
 
@@ -233,15 +238,19 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
     }
 
     private SingleNamespaceDeclaration VisitBaseNamespaceDeclaration(BaseNamespaceDeclarationSyntax node) {
-        var children = VisitNamespaceChildren(node, node.members, ((CoreInternalSyntax.BaseNamespaceDeclarationSyntax)node.green).members);
+        var children = VisitNamespaceChildren(
+            node,
+            node.elements,
+            ((CoreInternalSyntax.BaseNamespaceDeclarationSyntax)node.green).elements
+        );
 
-        var hasUsings = node.usings.Any();
+        var hasUsings = node.elements.Any(e => e is UsingDirectiveSyntax);
         var name = node.name;
         BelteSyntaxNode currentNode = node;
 
         while (name is QualifiedNameSyntax dotted) {
             var ns = SingleNamespaceDeclaration.Create(
-                name: dotted.right.identifier.text,
+                name: dotted.right.identifier.valueText,
                 hasUsings: hasUsings,
                 hasExternAliases: false,
                 syntaxReference: new SyntaxReference(currentNode),
@@ -265,7 +274,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
             } else {
                 var compilationUnit = (CompilationUnitSyntax)node.parent;
 
-                if (node != compilationUnit.members[0])
+                if (node != compilationUnit.FirstMember())
                     diagnostics.Push(Error.FileScopedNamespaceNotFirstMember(node.name.location));
             }
         } else {
@@ -283,17 +292,18 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
             diagnostics.Push(Error.InvalidAttributes(node.attributeLists[0].location));
 
         if ((node.modifiers?.Count ?? 0) > 0)
-            diagnostics.Push(Error.InvalidModifier(node.modifiers[0].location, node.modifiers[0].text));
+            diagnostics.Push(Error.InvalidModifier(node.modifiers[0].location, node.modifiers[0].valueText));
 
-        foreach (var directive in node.usings) {
-            if (directive.globalKeyword?.kind == SyntaxKind.GlobalKeyword) {
+        foreach (var element in node.elements) {
+            if (element is UsingDirectiveSyntax directive &&
+                directive.globalKeyword?.kind == SyntaxKind.GlobalKeyword) {
                 diagnostics.Push(Error.GlobalUsingInNamespace(directive.globalKeyword.location));
                 break;
             }
         }
 
         return SingleNamespaceDeclaration.Create(
-            name: name.GetUnqualifiedName().identifier.text,
+            name: name.GetUnqualifiedName().identifier.valueText,
             hasUsings: hasUsings,
             hasExternAliases: false,
             syntaxReference: new SyntaxReference(currentNode),
@@ -340,7 +350,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
 
         return new SingleTypeDeclaration(
             kind: DeclarationKind.Enum,
-            name: node.identifier.text,
+            name: node.identifier.valueText,
             arity: 0,
             modifiers: modifiers,
             declFlags: declFlags,
@@ -405,10 +415,10 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
 
                 switch (parent.kind) {
                     case SyntaxKind.CompilationUnit:
-                        incorrectNesting = node != ((CompilationUnitSyntax)parent).members[0];
+                        incorrectNesting = node != ((CompilationUnitSyntax)parent).FirstMember();
                         break;
                     case SyntaxKind.FileScopedNamespaceDeclaration:
-                        incorrectNesting = node != ((FileScopedNamespaceDeclarationSyntax)parent).members[0];
+                        incorrectNesting = node != ((FileScopedNamespaceDeclarationSyntax)parent).FirstMember();
                         break;
                     case SyntaxKind.FileScopedClassDeclaration:
                         incorrectNesting = node != ((FileScopedClassDeclarationSyntax)parent).members[0];
@@ -429,7 +439,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
 
         return new SingleTypeDeclaration(
             kind: kind,
-            name: node.identifier?.text,
+            name: node.identifier?.valueText,
             arity: node.arity,
             modifiers: modifiers,
             declFlags: declFlags,
@@ -455,11 +465,12 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         return children.ToImmutableAndFree();
     }
 
-    private BoxedMemberNames GetNonTypeMemberNames(
+    private BoxedMemberNames GetNonTypeMemberNames<TNode>(
         BelteSyntaxNode parent,
-        CoreInternalSyntax.SyntaxList<CoreInternalSyntax.MemberDeclarationSyntax> members,
+        CoreInternalSyntax.SyntaxList<TNode> members,
         ref SingleTypeDeclaration.TypeDeclarationFlags declFlags,
-        bool skipGlobalStatements = false) {
+        bool skipGlobalStatements = false)
+        where TNode : CoreInternalSyntax.BelteSyntaxNode {
         var anyNonTypeMembers = false;
         var anyRequiredMembers = false;
         var anyMemberHasAttributes = false;
@@ -547,8 +558,10 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
                 return ((CoreInternalSyntax.FieldDeclarationSyntax)member).attributeLists.Any();
             case SyntaxKind.MethodDeclaration:
             case SyntaxKind.OperatorDeclaration:
+            case SyntaxKind.LiteralOperatorDeclaration:
             case SyntaxKind.ConstructorDeclaration:
             case SyntaxKind.DestructorDeclaration:
+            case SyntaxKind.FinalizerDeclaration:
                 return ((CoreInternalSyntax.BaseMethodDeclarationSyntax)member).attributeLists.Any();
         }
 
@@ -568,12 +581,20 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
                 set.Add(WellKnownMemberNames.InstanceConstructorName);
                 break;
             case SyntaxKind.DestructorDeclaration:
-                set.Add(WellKnownMemberNames.DestructorName);
+                set.Add(WellKnownMemberNames.Dispose);
+                break;
+            case SyntaxKind.FinalizerDeclaration:
+                set.Add(WellKnownMemberNames.FinalizerName);
                 break;
             case SyntaxKind.OperatorDeclaration:
                 var opDecl = (CoreInternalSyntax.OperatorDeclarationSyntax)member;
                 var name = SyntaxFacts.GetOperatorMemberName(opDecl);
                 set.Add(name);
+                break;
+            case SyntaxKind.LiteralOperatorDeclaration:
+                var litOpDecl = (CoreInternalSyntax.LiteralOperatorDeclarationSyntax)member;
+                var litName = WellKnownMemberNames.GetLiteralOperatorName(litOpDecl.suffix.text);
+                set.Add(litName);
                 break;
             case SyntaxKind.EnumMemberDeclaration:
                 set.Add(((CoreInternalSyntax.EnumMemberDeclarationSyntax)member).identifier.text);
@@ -590,7 +611,9 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
             case SyntaxKind.MethodDeclaration:
             case SyntaxKind.ConstructorDeclaration:
             case SyntaxKind.DestructorDeclaration:
+            case SyntaxKind.FinalizerDeclaration:
             case SyntaxKind.OperatorDeclaration:
+            case SyntaxKind.LiteralOperatorDeclaration:
                 return true;
             case SyntaxKind.GlobalStatement:
                 return !skipGlobalStatements;

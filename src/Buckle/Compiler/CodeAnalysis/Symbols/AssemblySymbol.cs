@@ -91,14 +91,16 @@ internal abstract class AssemblySymbol : Symbol {
         AssemblySymbol destination1,
         AssemblySymbol destination2) {
         // TODO Error
+        throw Utilities.ExceptionUtilities.Unreachable();
         // var diagnosticInfo = new CSDiagnosticInfo(ErrorCode.ERR_TypeForwardedToMultipleAssemblies, forwardingModule, this, emittedName.FullName, destination1, destination2);
-        return new MissingMetadataTypeSymbol.TopLevel(forwardingModule, ref emittedName, null);
+        // return new MissingMetadataTypeSymbol.TopLevel(forwardingModule, ref emittedName, null);
     }
 
     internal ErrorTypeSymbol CreateCycleInTypeForwarderErrorTypeSymbol(ref MetadataTypeName emittedName) {
         // TODO error
+        throw Utilities.ExceptionUtilities.Unreachable();
         // DiagnosticInfo diagnosticInfo = new CSDiagnosticInfo(ErrorCode.ERR_CycleInTypeForwarder, emittedName.FullName, this.Name);
-        return new MissingMetadataTypeSymbol.TopLevel(modules[0], ref emittedName, null);
+        // return new MissingMetadataTypeSymbol.TopLevel(modules[0], ref emittedName, null);
     }
 
     internal NamespaceSymbol GetAssemblyNamespace(NamespaceSymbol namespaceSymbol) {

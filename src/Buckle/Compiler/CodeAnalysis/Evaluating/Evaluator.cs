@@ -1,4 +1,5 @@
 using System;
+using System.Buffers.Binary;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -44,6 +45,9 @@ internal sealed class Evaluator {
     private bool _insideTry;
     private bool _insideUpdate;
     private bool _insideExpressionEvaluation;
+
+    private ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder _lazyTypeLayouts;
+    private Dictionary<MethodSymbol, (BoundBlockStatement, EvaluatorSlotManager)> _lazyMethodLayouts;
 
     /// <summary>
     /// Creates an <see cref="Evaluator" /> that can evaluate a <see cref="BoundProgram" /> (provided globals).
@@ -113,7 +117,7 @@ internal sealed class Evaluator {
         } else {
             var rootLayout = new EvaluatorSlotManager(programType);
 
-            var argsType = LibraryHelpers.StringArray.knownType;
+            var argsType = LibraryHelpers.StringBuffer.knownType;
             var args = new HeapObject(argsType, _args.Select(a => EvaluatorValue.Literal(a)).ToArray());
 
             var index = _context.heap.Allocate(args, _stack, _context);
@@ -282,7 +286,12 @@ internal sealed class Evaluator {
                 var arg = layout.GetLocal(parameter);
 
                 if (argument.isType) {
-                    heapObject.fields[arg.slot] = EvaluatorValue.Type(argument.type.type);
+                    var t = argument.type.type;
+
+                    if (t is TemplateParameterSymbol templateParameter)
+                        t = SubstituteTemplateParameter(templateParameter);
+
+                    heapObject.fields[arg.slot] = EvaluatorValue.Type(t);
                 } else {
                     heapObject.fields[arg.slot] = EvaluatorValue.Literal(
                         argument.constant.value,
@@ -303,7 +312,8 @@ internal sealed class Evaluator {
         else if (ptr.kind == ValueKind.HeapPtr)
             return _context.heap[ptr.ptr].fields[slot];
         else
-            throw ExceptionUtilities.UnexpectedValue(ptr.kind);
+            // throw ExceptionUtilities.UnexpectedValue(ptr.kind);
+            throw new BelteNullReferenceException(null);
     }
 
     private EvaluatorValue GetHeapFieldSlotOrStructFieldSlotRef(EvaluatorValue ptr, int slot) {
@@ -451,7 +461,7 @@ internal sealed class Evaluator {
                             } else {
                                 _lastValue = EvaluateAddress(
                                     expression,
-                                    method.refKind == RefKind.RefConst
+                                    method.refKind is RefKind.RefConst or RefKind.RefFinal
                                         ? AddressKind.ReadOnlyStrict
                                         : AddressKind.Writeable,
                                     abort
@@ -631,6 +641,7 @@ internal sealed class Evaluator {
         if (!_program.TryGetTypeLayoutIncludingParents(namedType, out var layout))
             throw new BelteInternalException($"Failed to get type layout ({namedType}).");
 
+        var typeAlignment = namedType.explicitAlignment ?? PointerSize;
         var fields = layout.LocalsInOrder();
         var size = 0;
 
@@ -649,7 +660,7 @@ internal sealed class Evaluator {
                     continue;
 
                 var fieldSize = GetSizeOf(field.type).int32;
-                var fieldAlignment = Math.Min(fieldSize, PointerSize);
+                var fieldAlignment = Math.Min(fieldSize, typeAlignment);
 
                 alignment = Math.Max(alignment, fieldAlignment);
                 size = Align(size, fieldAlignment);
@@ -671,7 +682,7 @@ internal sealed class Evaluator {
     private EvaluatorValue EvaluateThisExpression(BoundThisExpression node) {
         var value = _stack.Peek().values[0];
 
-        if (IsValueType(node.type))
+        if (node.type.isValueType)
             return value.loc[value.ptr];
 
         return value;
@@ -680,7 +691,7 @@ internal sealed class Evaluator {
     private EvaluatorValue EvaluateBaseExpression(BoundBaseExpression node) {
         var value = _stack.Peek().values[0];
 
-        if (IsValueType(node.type))
+        if (node.type.isValueType)
             return value.loc[value.ptr];
 
         return value;
@@ -828,10 +839,14 @@ internal sealed class Evaluator {
             var receiver = node.receiver;
             var fieldType = field.type;
 
-            if (IsValueType(fieldType) && (object)fieldType == receiver.type) {
+            if (fieldType.isValueType && (object)fieldType == receiver.type) {
                 return EvaluateExpression(receiver, used, abort);
             } else {
                 var receiverValue = EvaluateFieldLoadReceiver(receiver, abort);
+
+                if (receiverValue.kind == ValueKind.Int64)
+                    receiverValue = EvaluateFieldLoadReceiver(receiver, abort);
+
                 return GetHeapFieldSlotOrStructFieldSlot(receiverValue, node.slot);
             }
         }
@@ -851,7 +866,7 @@ internal sealed class Evaluator {
         BoundExpression receiver,
         ValueWrapper<bool> abort,
         out EvaluatorValue expr) {
-        if (receiver is null || !IsValueType(receiver.Type())) {
+        if (receiver is null || !receiver.Type().isValueType) {
             expr = EvaluatorValue.None;
             return false;
         } else if (receiver.kind == BoundKind.CastExpression) {
@@ -916,13 +931,13 @@ internal sealed class Evaluator {
 
         var value = EvaluateExpression(node.operand, true, abort);
 
-        if (IsReferenceType(node.operand.Type())) {
+        if (node.operand.Type().isReferenceType) {
             if (node.Type().specialType == SpecialType.Nullable)
                 return value;
         }
 
-        var isCastable = node.operand.Type().specialType == SpecialType.String && node.Type().IsPrimitiveType() ||
-            node.Type().specialType == SpecialType.String && node.operand.Type().IsPrimitiveType();
+        var isCastable = node.operand.Type().specialType == SpecialType.String && node.Type().isValueType ||
+            node.Type().specialType == SpecialType.String && node.operand.Type().isValueType;
 
         var involvesRefTypes = !isCastable && (node.operand.Type().IsVerifierReference() ||
             (node.Type().IsVerifierReference() && node.Type().specialType != SpecialType.String));
@@ -1308,7 +1323,7 @@ internal sealed class Evaluator {
         BoundObjectCreationExpression node,
         bool used,
         ValueWrapper<bool> abort) {
-        if (node.constructor.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMembers.Nullable_ctor))
+        if (node.constructor.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_ctor))
             return EvaluateExpression(node.arguments[0], used, abort);
 
         var type = (NamedTypeSymbol)node.StrippedType();
@@ -1844,7 +1859,7 @@ internal sealed class Evaluator {
             var lhs = node.left;
             return EvaluateAddress(
                 node.right,
-                lhs.GetRefKind() is RefKind.RefConst or RefKind.RefConstParameter
+                lhs.GetRefKind() is RefKind.RefConst or RefKind.RefFinal
                     ? AddressKind.ReadOnlyStrict
                     : AddressKind.Writeable,
                 abort
@@ -2369,7 +2384,7 @@ internal sealed class Evaluator {
 
                 return EvaluateArrayElementAddress((BoundArrayAccessExpression)node, abort);
             case BoundKind.ThisExpression:
-                if (IsValueType(node.Type())) {
+                if (node.Type().isValueType) {
                     if (!HasHome(node, addressKind))
                         goto default;
 
@@ -2634,6 +2649,9 @@ internal sealed class Evaluator {
 
         var thisParameter = EvaluateExpression(receiver, true, abort);
 
+        if (thisParameter.kind == ValueKind.Int64)
+            thisParameter = EvaluateExpression(receiver, true, abort);
+
         if (thisParameter.kind == ValueKind.Null)
             throw new BelteNullReferenceException(receiver.syntax.location);
 
@@ -2731,10 +2749,9 @@ internal sealed class Evaluator {
             throw new BelteInternalException($"Failed to get method body ({method}).");
 
         if (!_program.TryGetMethodLayoutIncludingParents(method, out var layout)) {
-            layout = new EvaluatorSlotManager(method);
-
-            if (!thisParameter.Equals(EvaluatorValue.None))
-                layout.AllocateSlot(method.thisParameter.type, LocalSlotConstraints.None);
+            // This should only happen when calling methods from previous, non-evaluating programs
+            // Instead of requiring all programs to rewrite their bodies to the evaluator format, we compute it on the fly
+            body = CreateMethodLayout(method, body, out layout);
         }
 
         var frame = new StackFrame(layout);
@@ -2769,6 +2786,30 @@ internal sealed class Evaluator {
         _stack.Pop();
 
         return result;
+    }
+
+    private BoundBlockStatement CreateMethodLayout(
+        MethodSymbol method,
+        BoundBlockStatement body,
+        out EvaluatorSlotManager layout) {
+        _lazyTypeLayouts ??= _program.typeLayouts.ToBuilder();
+        _lazyMethodLayouts ??= [];
+
+        if (_lazyMethodLayouts.TryGetValue(method, out var value)) {
+            layout = value.Item2;
+            return value.Item1;
+        }
+
+        body = EvaluatorSlotRewriter.Rewrite(
+            method,
+            body,
+            _lazyTypeLayouts,
+            _program,
+            out layout
+        );
+
+        _lazyMethodLayouts.Add(method, (body, layout));
+        return body;
     }
 
     #endregion
@@ -2817,16 +2858,22 @@ internal sealed class Evaluator {
                                 case ValueKind.Int8:
                                 case ValueKind.Int16:
                                 case ValueKind.Int32:
-                                case ValueKind.Int64:
                                 case ValueKind.UInt8:
                                 case ValueKind.UInt16:
                                 case ValueKind.UInt32:
-                                case ValueKind.UInt64:
                                 case ValueKind.Float32:
-                                case ValueKind.Float64:
                                 case ValueKind.Bool:
                                 case ValueKind.Char:
-                                    result = argument.int64;
+                                    result = argument.int32;
+                                    break;
+                                case ValueKind.Int64:
+                                    result = argument.int64.GetHashCode();
+                                    break;
+                                case ValueKind.UInt64:
+                                    result = argument.uint64.GetHashCode();
+                                    break;
+                                case ValueKind.Float64:
+                                    result = argument.@double.GetHashCode();
                                     break;
                                 case ValueKind.String:
                                     result = argument.@string.GetHashCode();
@@ -2873,7 +2920,7 @@ internal sealed class Evaluator {
                         var argument = EvaluateExpression(arguments[0], true, abort);
 
                         if (argument.kind == ValueKind.HeapPtr) {
-                            var type = (NamedTypeSymbol)_context.heap[argument.ptr].type;
+                            var type = _context.heap[argument.ptr].type;
                             result = GetTypeName(type);
                         } else if (argument.kind == ValueKind.Struct) {
                             var type = argument.@struct.type;
@@ -2900,22 +2947,9 @@ internal sealed class Evaluator {
                     }
 
                     return true;
-                case "LowLevel_Length_[?":
                 case "LowLevel_Length_[": {
                         var argument = EvaluateExpression(arguments[0], true, abort);
-
-                        if (argument.kind != ValueKind.HeapPtr) {
-                            result = 0;
-                            return true;
-                        }
-
                         var array = _context.heap[argument.ptr];
-
-                        if (array.type.kind != SymbolKind.ArrayType) {
-                            result = 0;
-                            return true;
-                        }
-
                         result = array.fields.Length;
                     }
 
@@ -2937,16 +2971,19 @@ internal sealed class Evaluator {
                     _lazyRandom ??= new Random();
                     result = _lazyRandom.NextDouble();
                     return true;
-                case "LowLevel_Sort_[?": {
+                case "LowLevel_IsLittleEndian":
+                    result = EvaluatorValue.Literal(BitConverter.IsLittleEndian);
+                    return true;
+                case "LowLevel_ReverseEndianness_I4": {
+                        var argument = EvaluateExpression(arguments[0], true, abort);
+                        argument.int32 = BinaryPrimitives.ReverseEndianness(argument.int32);
+                        result = argument;
+                        return true;
+                    }
+                case "LowLevel_Sort_[": {
                         var arrayPtr = EvaluateExpression(arguments[0], true, abort);
 
-                        if (arrayPtr.kind != ValueKind.HeapPtr)
-                            return true;
-
                         var array = _context.heap[arrayPtr.ptr];
-
-                        if (array.type.kind != SymbolKind.ArrayType)
-                            return true;
 
                         var elementSpecialType = ((ArrayTypeSymbol)array.type).elementType.StrippedType().specialType;
                         Comparison<EvaluatorValue> comparison;
@@ -2962,6 +2999,15 @@ internal sealed class Evaluator {
                     }
 
                     return true;
+                case "LowLevel_Fill_[T": {
+                        var arrayPtr = EvaluateExpression(arguments[0], true, abort);
+                        var value = EvaluateExpression(arguments[1], true, abort);
+                        var array = _context.heap[arrayPtr.ptr];
+
+                        Array.Fill(array.fields, value);
+                    }
+
+                    return true;
                 case "String_Split_SS": {
                         var args = arguments.Select(a => EvaluateExpression(a, true, abort).@string).ToArray();
                         var text = args[0];
@@ -2974,19 +3020,19 @@ internal sealed class Evaluator {
                     return true;
                 case "Console_Print_S?":
                 case "Console_Print_A?":
-                case "Console_Print_O?":
                     printed = true;
                     goto case "Console_PrintLine_S?";
                 case "Console_PrintLine_S?":
-                case "Console_PrintLine_A?":
-                case "Console_PrintLine_O?":
-                    if (arguments[0].StrippedType().isObjectType) {
+                case "Console_PrintLine_A?": {
                         var argument = EvaluateExpression(arguments[0], true, abort);
-                        var toStringMethod = ResolveVirtualMethod(_toStringMethod, null, argument);
-                        var toStringResult = InvokeMethod(toStringMethod, argument, [], abort);
-                        var func = StandardLibrary.EvaluatorMap[mapKey];
-                        result = func(toStringResult.@string, null, null);
-                        return true;
+
+                        if (argument.kind is ValueKind.HeapPtr or ValueKind.Struct) {
+                            var toStringMethod = ResolveVirtualMethod(_toStringMethod, null, argument);
+                            var toStringResult = InvokeMethod(toStringMethod, argument, [], abort);
+                            var func = StandardLibrary.EvaluatorMap[mapKey];
+                            result = func(toStringResult.@string, null, null);
+                            return true;
+                        }
                     }
 
                     break;
@@ -3001,6 +3047,118 @@ internal sealed class Evaluator {
                 case "LowLevel_FreeGCHandle_V*":
                 case "LowLevel_GetObject_V*":
                     throw new BelteEvaluatorException($"The method '{method}' is not supported in the Evaluator.", location);
+                case "HashCode_Combine_I4I4": {
+                        var argument1 = EvaluateExpression(arguments[0], true, abort);
+                        var argument2 = EvaluateExpression(arguments[1], true, abort);
+                        result = EvaluatorValue.Literal(HashCode.Combine(
+                            argument1.int32,
+                            argument2.int32
+                        ), SpecialType.Int32);
+                    }
+
+                    return true;
+                case "HashCode_Combine_I4I4I4": {
+                        var argument1 = EvaluateExpression(arguments[0], true, abort);
+                        var argument2 = EvaluateExpression(arguments[1], true, abort);
+                        var argument3 = EvaluateExpression(arguments[2], true, abort);
+                        result = EvaluatorValue.Literal(HashCode.Combine(
+                            argument1.int32,
+                            argument2.int32,
+                            argument3.int32
+                        ), SpecialType.Int32);
+                    }
+
+                    return true;
+                case "HashCode_Combine_I4I4I4I4": {
+                        var argument1 = EvaluateExpression(arguments[0], true, abort);
+                        var argument2 = EvaluateExpression(arguments[1], true, abort);
+                        var argument3 = EvaluateExpression(arguments[2], true, abort);
+                        var argument4 = EvaluateExpression(arguments[3], true, abort);
+                        result = EvaluatorValue.Literal(HashCode.Combine(
+                            argument1.int32,
+                            argument2.int32,
+                            argument3.int32,
+                            argument4.int32
+                        ), SpecialType.Int32);
+                    }
+
+                    return true;
+                case "HashCode_Combine_I4I4I4I4I4": {
+                        var argument1 = EvaluateExpression(arguments[0], true, abort);
+                        var argument2 = EvaluateExpression(arguments[1], true, abort);
+                        var argument3 = EvaluateExpression(arguments[2], true, abort);
+                        var argument4 = EvaluateExpression(arguments[3], true, abort);
+                        var argument5 = EvaluateExpression(arguments[4], true, abort);
+                        result = EvaluatorValue.Literal(HashCode.Combine(
+                            argument1.int32,
+                            argument2.int32,
+                            argument3.int32,
+                            argument4.int32,
+                            argument5.int32
+                        ), SpecialType.Int32);
+                    }
+
+                    return true;
+                case "HashCode_Combine_I4I4I4I4I4I4": {
+                        var argument1 = EvaluateExpression(arguments[0], true, abort);
+                        var argument2 = EvaluateExpression(arguments[1], true, abort);
+                        var argument3 = EvaluateExpression(arguments[2], true, abort);
+                        var argument4 = EvaluateExpression(arguments[3], true, abort);
+                        var argument5 = EvaluateExpression(arguments[4], true, abort);
+                        var argument6 = EvaluateExpression(arguments[5], true, abort);
+                        result = EvaluatorValue.Literal(HashCode.Combine(
+                            argument1.int32,
+                            argument2.int32,
+                            argument3.int32,
+                            argument4.int32,
+                            argument5.int32,
+                            argument6.int32
+                        ), SpecialType.Int32);
+                    }
+
+                    return true;
+                case "HashCode_Combine_I4I4I4I4I4I4I4": {
+                        var argument1 = EvaluateExpression(arguments[0], true, abort);
+                        var argument2 = EvaluateExpression(arguments[1], true, abort);
+                        var argument3 = EvaluateExpression(arguments[2], true, abort);
+                        var argument4 = EvaluateExpression(arguments[3], true, abort);
+                        var argument5 = EvaluateExpression(arguments[4], true, abort);
+                        var argument6 = EvaluateExpression(arguments[5], true, abort);
+                        var argument7 = EvaluateExpression(arguments[6], true, abort);
+                        result = EvaluatorValue.Literal(HashCode.Combine(
+                            argument1.int32,
+                            argument2.int32,
+                            argument3.int32,
+                            argument4.int32,
+                            argument5.int32,
+                            argument6.int32,
+                            argument7.int32
+                        ), SpecialType.Int32);
+                    }
+
+                    return true;
+                case "HashCode_Combine_I4I4I4I4I4I4I4I4": {
+                        var argument1 = EvaluateExpression(arguments[0], true, abort);
+                        var argument2 = EvaluateExpression(arguments[1], true, abort);
+                        var argument3 = EvaluateExpression(arguments[2], true, abort);
+                        var argument4 = EvaluateExpression(arguments[3], true, abort);
+                        var argument5 = EvaluateExpression(arguments[4], true, abort);
+                        var argument6 = EvaluateExpression(arguments[5], true, abort);
+                        var argument7 = EvaluateExpression(arguments[6], true, abort);
+                        var argument8 = EvaluateExpression(arguments[7], true, abort);
+                        result = EvaluatorValue.Literal(HashCode.Combine(
+                            argument1.int32,
+                            argument2.int32,
+                            argument3.int32,
+                            argument4.int32,
+                            argument5.int32,
+                            argument6.int32,
+                            argument7.int32,
+                            argument8.int32
+                        ), SpecialType.Int32);
+                    }
+
+                    return true;
                 default:
                     if (mapKey.StartsWith("LowLevel_BitCast_")) {
                         var argument = EvaluateExpression(arguments[0], true, abort);
@@ -3213,7 +3371,7 @@ internal sealed class Evaluator {
                     var path = GetFilePath(evaluatedArguments[0].@string, location)
                         ?? throw new BelteEvaluatorException("Cannot load sprite: path does not exist.", location);
 
-                    var spriteType = CorLibrary.GetSpecialType(SpecialType.Sprite);
+                    var spriteType = CorLibrary.GetWellKnownType(WellKnownType.Sprite);
                     var sprite = CreateObject(spriteType);
 
                     var temp = AllocateTemp(spriteType);
@@ -3273,7 +3431,7 @@ internal sealed class Evaluator {
                     var path = GetFilePath(evaluatedArguments[1].@string, location)
                         ?? throw new BelteEvaluatorException("Cannot load text: path does not exist.", location);
 
-                    var textType = CorLibrary.GetSpecialType(SpecialType.Text);
+                    var textType = CorLibrary.GetWellKnownType(WellKnownType.Text);
                     var textPtr = CreateObject(textType);
                     var text = H(textPtr);
 
@@ -3345,7 +3503,7 @@ internal sealed class Evaluator {
                 break;
             case "Graphics_GetMousePosition": {
                     var (x, y) = _context.graphicsHandler.GetMousePosition();
-                    var vecType = CorLibrary.GetSpecialType(SpecialType.Vec2);
+                    var vecType = CorLibrary.GetWellKnownType(WellKnownType.Vec2);
                     var vec = CreateObject(vecType);
 
                     var temp = AllocateTemp(vecType);
@@ -3444,7 +3602,7 @@ internal sealed class Evaluator {
                     var path = GetFilePath(EvaluateExpression(arguments[0], true, abort).@string, location)
                         ?? throw new BelteEvaluatorException("Cannot load sound: path does not exist.", location);
 
-                    var soundType = CorLibrary.GetSpecialType(SpecialType.Sound);
+                    var soundType = CorLibrary.GetWellKnownType(WellKnownType.Sound);
                     var soundPtr = CreateObject(soundType);
                     var sound = H(soundPtr);
 
@@ -3506,7 +3664,7 @@ internal sealed class Evaluator {
         }
 
         EvaluatorValue LoadTexture(string path, bool useColorKey = false, long r = 255, long g = 255, long b = 255) {
-            var textureType = CorLibrary.GetSpecialType(SpecialType.Texture);
+            var textureType = CorLibrary.GetWellKnownType(WellKnownType.Texture);
             var texturePointer = CreateObject(textureType);
             var texture = _context.heap[texturePointer.ptr];
             var texture2D = (_context.graphicsHandler?.LoadTexture(path, useColorKey, r, g, b))

@@ -1,9 +1,9 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
-using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
@@ -112,6 +112,7 @@ internal sealed class Expander : SharedExpander {
         <left>
 
         */
+        Debug.Assert(useKind != UseKind.Writable);
         var syntax = expression.syntax;
 
         var statements = ExpandExpression(expression.left, out var newLeft, UseKind.Writable);
@@ -166,6 +167,8 @@ internal sealed class Expander : SharedExpander {
         <left>
 
         */
+        Debug.Assert(useKind != UseKind.Writable);
+
         if (!expression.isAssignment)
             return base.ExpandClampOperator(expression, out replacement, useKind);
 
@@ -207,7 +210,7 @@ internal sealed class Expander : SharedExpander {
     private protected override List<BoundStatement> ExpandNullCoalescingOperator(
         BoundNullCoalescingOperator expression,
         out BoundExpression replacement,
-        UseKind _) {
+        UseKind useKind) {
         /*
 
         <left> <op> <right>
@@ -229,6 +232,8 @@ internal sealed class Expander : SharedExpander {
         temp
 
         */
+        Debug.Assert(useKind != UseKind.Writable);
+
         var syntax = expression.syntax;
 
         var statements = ExpandExpression(expression.left, out var newLeft);
@@ -255,7 +260,7 @@ internal sealed class Expander : SharedExpander {
     private protected override List<BoundStatement> ExpandNullErasureOperator(
         BoundNullErasureOperator expression,
         out BoundExpression replacement,
-        UseKind _) {
+        UseKind useKind) {
         /*
 
         <operand>?
@@ -269,6 +274,8 @@ internal sealed class Expander : SharedExpander {
         temp!
 
         */
+        Debug.Assert(useKind != UseKind.Writable);
+
         var syntax = expression.syntax;
 
         var statements = ExpandExpression(expression.operand, out var newOperand);
@@ -291,7 +298,7 @@ internal sealed class Expander : SharedExpander {
     private protected override List<BoundStatement> ExpandNullCoalescingAssignmentOperator(
         BoundNullCoalescingAssignmentOperator expression,
         out BoundExpression replacement,
-        UseKind _) {
+        UseKind useKind) {
         /*
 
         <left> <op>= <right>
@@ -311,6 +318,8 @@ internal sealed class Expander : SharedExpander {
         <left>
 
         */
+        Debug.Assert(useKind != UseKind.Writable);
+
         var syntax = expression.syntax;
 
         var statements = ExpandExpression(expression.left, out var newLeft, UseKind.Writable);
@@ -343,7 +352,12 @@ internal sealed class Expander : SharedExpander {
                 statements.Add(LocalDeclaration(
                     d.syntax,
                     d.dataContainer,
-                    new BoundDefaultExpression(d.syntax, null, LiteralUtilities.TryGetDefaultValue(d.type), d.type)
+                    new BoundDefaultExpression(d.syntax,
+                        false,
+                        null,
+                        LiteralUtilities.TryGetDefaultValue(d.type),
+                        d.type
+                    )
                 ));
 
                 replacementExpressions.Add(expression);
@@ -354,7 +368,12 @@ internal sealed class Expander : SharedExpander {
 
                 statements.Add(LocalDeclaration(syntax,
                     temp,
-                    new BoundDefaultExpression(syntax, null, LiteralUtilities.TryGetDefaultValue(type), type)
+                    new BoundDefaultExpression(syntax,
+                        false,
+                        null,
+                        LiteralUtilities.TryGetDefaultValue(type),
+                        type
+                    )
                 ));
 
                 replacementExpressions.Add(Local(syntax, temp));
@@ -398,6 +417,190 @@ internal sealed class Expander : SharedExpander {
         } else {
             return StabilizeIfNecessary(syntax, useKind, statements, tentativeReplacement, out replacement);
         }
+    }
+
+    private protected override List<BoundStatement> ExpandDeconstructionAssignmentOperator(
+        BoundDeconstructionAssignmentOperator expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        /*
+
+        (<var>...) = (<item>...)
+
+        ---->
+
+        <var> = <item>
+        ...
+
+        */
+        Debug.Assert(useKind != UseKind.Writable);
+
+        var syntax = expression.syntax;
+
+        BoundExpression newRight;
+        List<BoundStatement> statements;
+
+        if (expression.right.conversion.method is not null) {
+            var call = (BoundCallExpression)expression.right.conversion.deconstructionInfo.call;
+
+            statements = ExpandExpression(
+                call.Update(
+                    null,
+                    call.method,
+                    [expression.right.operand],
+                    [],
+                    call.defaultArguments,
+                    call.resultKind,
+                    call.type
+                ),
+                out newRight,
+                UseKind.StableValue
+            );
+        } else {
+            statements = ExpandExpression(expression.right.operand, out newRight, UseKind.StableValue);
+        }
+
+        var arguments = expression.left.arguments;
+
+        for (var i = 0; i < arguments.Length; i++) {
+            var local = ((BoundDataContainerExpression)arguments[i]).dataContainer;
+            var field = GetTupleField(syntax, i, expression.right.type, local.type, newRight);
+            statements.Add(LocalDeclaration(syntax, local, field));
+        }
+
+        if (useKind == UseKind.None) {
+            replacement = null;
+            return statements;
+        }
+
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    private protected override List<BoundStatement> ExpandTupleBinaryOperator(
+        BoundTupleBinaryOperator expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        /*
+
+        <left> <op> <right>
+
+        ---->
+
+        <left.Item1> <op> <right.Item1> && <left.Item2> <op> <right.Item2> && ...
+
+        */
+        Debug.Assert(useKind != UseKind.Writable);
+
+        var syntax = expression.syntax;
+        var boolType = CorLibrary.GetSpecialType(SpecialType.Bool);
+        var statements = new List<BoundStatement>();
+
+        replacement = null;
+
+        CreateTupleComparison(
+            syntax,
+            expression.left,
+            expression.right,
+            expression.operators,
+            boolType,
+            statements,
+            ref replacement
+        );
+
+        statements.AddRange(ExpandExpression(replacement, out replacement));
+
+        return StabilizeIfNecessary(syntax, useKind, statements, replacement, out replacement);
+
+        void CreateTupleComparison(
+            SyntaxNode syntax,
+            BoundExpression left,
+            BoundExpression right,
+            TupleBinaryOperatorInfo.Multiple operators,
+            NamedTypeSymbol boolType,
+            List<BoundStatement> statements,
+            ref BoundExpression replacement) {
+            var leftType = operators.leftConvertedType as NamedTypeSymbol;
+            var rightType = operators.rightConvertedType as NamedTypeSymbol;
+
+            statements.AddRange(ExpandExpression(left, out var newLeft, UseKind.StableValue));
+            statements.AddRange(ExpandExpression(right, out var newRight, UseKind.StableValue));
+
+            for (var i = 0; i < operators.operators.Length; i++) {
+                var ops = operators.operators[i];
+
+                var leftField = GetTupleField(syntax, i, leftType, ops.leftConvertedType, newLeft);
+                var rightField = GetTupleField(syntax, i, rightType, ops.rightConvertedType, newRight);
+
+                if (ops is TupleBinaryOperatorInfo.Multiple multiple) {
+                    CreateTupleComparison(
+                        syntax,
+                        leftField,
+                        rightField,
+                        multiple,
+                        boolType,
+                        statements,
+                        ref replacement
+                    );
+
+                    continue;
+                }
+
+                var op = (TupleBinaryOperatorInfo.Single)ops;
+
+                var comparison = Binary(syntax,
+                    leftField,
+                    op.kind,
+                    rightField,
+                    boolType
+                );
+
+                if (replacement is null) {
+                    replacement = comparison;
+                    continue;
+                }
+
+                var joinOp = op.kind.Operator() == BinaryOperatorKind.Equal
+                    ? BinaryOperatorKind.BoolConditionalAnd
+                    : BinaryOperatorKind.BoolConditionalOr;
+
+                replacement = Binary(syntax,
+                    replacement,
+                    joinOp,
+                    comparison,
+                    boolType
+                );
+            }
+        }
+    }
+
+    private BoundExpression GetTupleField(
+        SyntaxNode syntax,
+        int i,
+        TypeSymbol receiverType,
+        TypeSymbol elementType,
+        BoundExpression receiver) {
+        if (receiver is BoundConvertedTupleLiteral tuple)
+            return tuple.arguments[i];
+
+        var namedReceiver = (NamedTypeSymbol)receiverType;
+        var chain = receiver;
+
+        do {
+            var position = Math.Min(i + 1, 8);
+            i -= 7;
+
+            var field = ((FieldSymbol)CorLibrary.GetWellKnownMember(
+                NamedTypeSymbol.GetTupleTypeMember(namedReceiver.arity, position)
+            )).AsMember(namedReceiver);
+
+            var elemType = position < 8 ? elementType : field.type;
+
+            chain = new BoundFieldAccessExpression(syntax, chain, field, null, elemType);
+
+            namedReceiver = field.type as NamedTypeSymbol;
+        } while (i >= 0);
+
+        return chain;
     }
 
     private protected override List<BoundStatement> ExpandBinaryOperator(
@@ -444,6 +647,8 @@ internal sealed class Expander : SharedExpander {
         (<right> isnt null ? new Nullable( <left> <op> Value(<right>) ) : null)
 
         */
+        Debug.Assert(useKind != UseKind.Writable);
+
         var op = expression.operatorKind;
 
         if (op.IsConditional()) {
@@ -630,8 +835,8 @@ internal sealed class Expander : SharedExpander {
 
         ---->
 
-        result = <left>
-        goto break if result == false
+        result = false
+        goto break if <left> == false
         result = <right>
         break:
         result
@@ -639,8 +844,6 @@ internal sealed class Expander : SharedExpander {
         */
         var syntax = expression.syntax;
         var boolType = CorLibrary.GetSpecialType(SpecialType.Bool);
-
-        // TODO There is probably potential for short cutting if left and right are "simple" (e.g. `a && b`)
 
         if (expression.left.Type().IsNullableType() && expression.right.Type().IsNullableType()) {
             var statements = ExpandExpression(expression.left, out var newLeft, UseKind.StableValue);
@@ -737,7 +940,7 @@ internal sealed class Expander : SharedExpander {
             var statements = ExpandExpression(expression.left, out var newLeft);
             var temp = GenerateTempLocal(boolType);
             var breakLabel = GenerateLabel();
-            statements.Add(LocalDeclaration(syntax, temp, newLeft));
+            statements.Add(LocalDeclaration(syntax, temp, Literal(syntax, false, boolType)));
             statements.Add(GotoIf(syntax, breakLabel,
                 Binary(syntax,
                     newLeft,
@@ -765,7 +968,7 @@ internal sealed class Expander : SharedExpander {
     private protected override List<BoundStatement> ExpandIsPatternExpression(
         BoundIsPatternExpression expression,
         out BoundExpression replacement,
-        UseKind _) {
+        UseKind useKind) {
         /*
 
         Note that these lowerings violate normal language nullability rules but it's fine because we verify they aren't null
@@ -806,6 +1009,8 @@ internal sealed class Expander : SharedExpander {
         result
 
         */
+        Debug.Assert(useKind != UseKind.Writable);
+
         var syntax = expression.syntax;
         var local = expression.local;
         var type = local.type;
@@ -863,7 +1068,8 @@ internal sealed class Expander : SharedExpander {
                     false,
                     null,
                     expression.type
-                )
+                ),
+                assignedOnFallthrough: [temp]
             ));
             statements.AddRange(ExpandExpression(CreateCast(syntax, local.type, newOperand), out var cast));
             statements.Add(LocalDeclaration(syntax, local, cast));
@@ -1116,6 +1322,8 @@ internal sealed class Expander : SharedExpander {
         (HasValue(<operand>) ? new Nullable( <op> Value(<operand>) ) : null)
 
         */
+        Debug.Assert(useKind != UseKind.Writable);
+
         var syntax = expression.syntax;
         var operand = expression.operand;
         var method = expression.method;
@@ -1191,6 +1399,8 @@ internal sealed class Expander : SharedExpander {
         <operand>
 
         */
+        Debug.Assert(useKind != UseKind.Writable);
+
         var syntax = expression.syntax;
         var operand = expression.operand;
         var method = expression.conversion.method;
@@ -1207,6 +1417,7 @@ internal sealed class Expander : SharedExpander {
         if (expression.conversion.kind == ConversionKind.DefaultLiteral) {
             replacement = new BoundDefaultExpression(
                 syntax,
+                false,
                 null,
                 LiteralUtilities.TryGetDefaultValue(expression.type),
                 expression.type
@@ -1315,6 +1526,8 @@ internal sealed class Expander : SharedExpander {
         <operand> -= 1
 
         */
+        Debug.Assert(useKind != UseKind.Writable);
+
         var syntax = expression.syntax;
         var operand = expression.operand;
         var method = expression.method;
@@ -1364,14 +1577,19 @@ internal sealed class Expander : SharedExpander {
         BoundConditionalOperator expression,
         out BoundExpression replacement,
         UseKind useKind) {
-        var statements = base.ExpandConditionalOperator(expression, out replacement, UseKind.Value);
-        return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
+        var statements = base.ExpandConditionalOperator(expression, out replacement, useKind);
+
+        if (useKind == UseKind.Writable)
+            return statements;
+        else
+            return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
     }
 
     private protected override List<BoundStatement> ExpandInitializerList(
         BoundInitializerList expression,
         out BoundExpression replacement,
         UseKind useKind) {
+        Debug.Assert(useKind != UseKind.Writable);
         var statements = base.ExpandInitializerList(expression, out replacement, UseKind.Value);
         return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
     }
@@ -1380,6 +1598,7 @@ internal sealed class Expander : SharedExpander {
         BoundAsOperator expression,
         out BoundExpression replacement,
         UseKind useKind) {
+        Debug.Assert(useKind != UseKind.Writable);
         var statements = base.ExpandAsOperator(expression, out replacement, UseKind.Value);
         return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
     }
@@ -1388,31 +1607,73 @@ internal sealed class Expander : SharedExpander {
         BoundIsOperator expression,
         out BoundExpression replacement,
         UseKind useKind) {
+        Debug.Assert(useKind != UseKind.Writable);
         var statements = base.ExpandIsOperator(expression, out replacement, UseKind.Value);
         return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
+    }
+
+    private protected override List<BoundStatement> ExpandIndexerAccessExpression(
+        BoundIndexerAccessExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        var statements = base.ExpandIndexerAccessExpression(expression, out replacement, useKind);
+
+        if (useKind == UseKind.Writable)
+            return statements;
+        else
+            return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
+    }
+
+    private protected override List<BoundStatement> ExpandArrayAccessExpression(
+        BoundArrayAccessExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        var statements = base.ExpandArrayAccessExpression(expression, out replacement, useKind);
+
+        if (useKind == UseKind.Writable)
+            return statements;
+        else
+            return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
     }
 
     private protected override List<BoundStatement> ExpandNullAssertOperator(
         BoundNullAssertOperator expression,
         out BoundExpression replacement,
         UseKind useKind) {
-        var statements = base.ExpandNullAssertOperator(expression, out replacement, UseKind.Value);
-        return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
+        var statements = base.ExpandNullAssertOperator(expression, out replacement, useKind);
+
+        if (useKind == UseKind.Writable)
+            return statements;
+        else
+            return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
     }
 
     private protected override List<BoundStatement> ExpandAddressOfOperator(
         BoundAddressOfOperator expression,
         out BoundExpression replacement,
         UseKind useKind) {
+        Debug.Assert(useKind != UseKind.Writable);
         var statements = base.ExpandAddressOfOperator(expression, out replacement, UseKind.Value);
         return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
+    }
+
+    private protected override List<BoundStatement> ExpandPointerIndexAccessExpression(
+        BoundPointerIndexAccessExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        var statements = base.ExpandPointerIndexAccessExpression(expression, out replacement, UseKind.Value);
+
+        if (useKind == UseKind.Writable)
+            return statements;
+        else
+            return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
     }
 
     private protected override List<BoundStatement> ExpandPointerIndirectionOperator(
         BoundPointerIndirectionOperator expression,
         out BoundExpression replacement,
         UseKind useKind) {
-        var statements = base.ExpandPointerIndirectionOperator(expression, out replacement, UseKind.Value);
+        var statements = base.ExpandPointerIndirectionOperator(expression, out replacement, useKind);
 
         if (useKind == UseKind.Writable)
             return statements;
@@ -1424,6 +1685,7 @@ internal sealed class Expander : SharedExpander {
         BoundArrayCreationExpression expression,
         out BoundExpression replacement,
         UseKind useKind) {
+        Debug.Assert(useKind != UseKind.Writable);
         var statements = base.ExpandArrayCreationExpression(expression, out replacement, UseKind.Value);
         return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
     }
@@ -1432,6 +1694,7 @@ internal sealed class Expander : SharedExpander {
         BoundFunctionPointerLoad expression,
         out BoundExpression replacement,
         UseKind useKind) {
+        Debug.Assert(useKind != UseKind.Writable);
         var statements = base.ExpandFunctionPointerLoad(expression, out replacement, UseKind.Value);
         return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
     }
@@ -1440,6 +1703,7 @@ internal sealed class Expander : SharedExpander {
         BoundFunctionPointerCallExpression expression,
         out BoundExpression replacement,
         UseKind useKind) {
+        Debug.Assert(useKind != UseKind.Writable);
         var statements = base.ExpandFunctionPointerCallExpression(expression, out replacement, UseKind.Value);
         return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
     }
@@ -1448,6 +1712,7 @@ internal sealed class Expander : SharedExpander {
         BoundStackAllocExpression expression,
         out BoundExpression replacement,
         UseKind useKind) {
+        Debug.Assert(useKind != UseKind.Writable);
         var statements = base.ExpandStackAllocExpression(expression, out replacement, UseKind.Value);
         return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
     }
@@ -1456,6 +1721,7 @@ internal sealed class Expander : SharedExpander {
         BoundConvertedStackAllocExpression expression,
         out BoundExpression replacement,
         UseKind useKind) {
+        Debug.Assert(useKind != UseKind.Writable);
         var statements = base.ExpandConvertedStackAllocExpression(expression, out replacement, UseKind.Value);
         return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
     }
@@ -1483,6 +1749,8 @@ internal sealed class Expander : SharedExpander {
         break:
 
         */
+        Debug.Assert(useKind != UseKind.Writable);
+
         if (expression.left is BoundConditionalAccessExpression condAccess) {
             var syntax = expression.syntax;
             List<BoundStatement> statements = [];
@@ -1573,6 +1841,7 @@ internal sealed class Expander : SharedExpander {
                 case BoundKind.ArrayAccessExpression: {
                         var arrayAccess = (BoundArrayAccessExpression)access;
                         var statements = ExpandExpression(arrayAccess.index, out var newIndex);
+
                         newReceiver = new BoundArrayAccessExpression(
                             access.syntax,
                             currentReceiver,
@@ -1580,11 +1849,28 @@ internal sealed class Expander : SharedExpander {
                             arrayAccess.constantValue,
                             arrayAccess.type
                         );
+
+                        return statements;
+                    }
+                case BoundKind.IndexerAccessExpression: {
+                        var indexerAccess = (BoundIndexerAccessExpression)access;
+                        var statements = ExpandExpression(indexerAccess.index, out var newIndex);
+
+                        newReceiver = new BoundIndexerAccessExpression(
+                            access.syntax,
+                            currentReceiver,
+                            newIndex,
+                            indexerAccess.method,
+                            indexerAccess.constantValue,
+                            indexerAccess.type
+                        );
+
                         return statements;
                     }
                 case BoundKind.CallExpression: {
                         var call = (BoundCallExpression)access;
                         var statements = ExpandArgumentList(call.arguments, out var newArguments);
+
                         newReceiver = new BoundCallExpression(
                             access.syntax,
                             currentReceiver,
@@ -1595,6 +1881,7 @@ internal sealed class Expander : SharedExpander {
                             call.resultKind,
                             call.type
                         );
+
                         return statements;
                     }
                 default:
@@ -1656,11 +1943,16 @@ internal sealed class Expander : SharedExpander {
 
         <receiver>?.<operand>
 
-        ----> <operand> is a field
+        ----> <operand> is a field, UseKind.Value, UseKind.Writable
 
         <receiver> isnt null ? <receiver>.<field> : null
 
-        ----> <operand> is an index, UseKind.Value
+        ----> <operand> is a field, UseKind.StableValue
+
+        temp = <receiver> isnt null ? <receiver>.<field> : null
+        temp
+
+        ----> <operand> is an index, UseKind.Value, UseKind.Writable
 
         <receiver> isnt null ? <receiver>[<index>] : null
 
@@ -1669,7 +1961,7 @@ internal sealed class Expander : SharedExpander {
         temp = <receiver> isnt null ? <receiver>[<index>] : null
         temp
 
-        ----> <operand> is a method call, UseKind.Value
+        ----> <operand> is a method call, UseKind.Value, UseKind.Writable
 
         <receiver> isnt null ? <receiver>.<call> : null
 
@@ -1713,11 +2005,21 @@ internal sealed class Expander : SharedExpander {
                 c.resultKind,
                 c.Type()
             );
+        } else if (access is BoundIndexerAccessExpression i) {
+            statements.AddRange(ExpandExpression(i.index, out var indexReplacement));
+            trueExpression = new BoundIndexerAccessExpression(
+                syntax,
+                newReceiver,
+                indexReplacement,
+                i.method,
+                null,
+                i.Type()
+            );
         } else {
             throw ExceptionUtilities.Unreachable();
         }
 
-        if (!trueExpression.Type().IsNullableType() && CodeGenerator.IsValueType(trueExpression.Type()))
+        if (!trueExpression.Type().IsNullableType() && trueExpression.Type().isValueType)
             trueExpression = Lowerer.CreateNullable(syntax, trueExpression, expression.type);
 
         replacement = new BoundConditionalOperator(
@@ -1730,12 +2032,14 @@ internal sealed class Expander : SharedExpander {
             expression.type
         );
 
-        if (access is BoundFieldAccessExpression fa &&
-            !(fa.receiver is not null && fa.receiver.Type().IsNullableType() &&
-                fa.receiver.StrippedType().IsStructType())) {
+        // TODO This struct check is subsumed by the writable check, yes?
+        // if (access is BoundFieldAccessExpression fa &&
+        //     !(fa.receiver is not null && fa.receiver.Type().IsNullableType() &&
+        //         fa.receiver.StrippedType().IsStructType())) {
+        //     return statements;
+        if (useKind == UseKind.Writable)
             return statements;
-        } else {
+        else
             return StabilizeIfNecessary(syntax, useKind, statements, replacement, out replacement);
-        }
     }
 }

@@ -42,16 +42,17 @@ internal static class ConstantValueHelpers {
             if (typeSymbol.typeKind == TypeKind.TemplateParameter) {
                 // diagnostics.Add(ErrorCode.ERR_InvalidConstantDeclarationType, initValueNode.Location, thisSymbol, typeSymbol);
                 // TODO implement this error
+                throw ExceptionUtilities.Unreachable();
             } else {
-                var unconvertedBoundValue = boundValue;
+                // var unconvertedBoundValue = boundValue;
                 var constantValue = boundValue.constantValue;
-                var unconvertedConstantValue = unconvertedBoundValue.constantValue;
+                // var unconvertedConstantValue = unconvertedBoundValue.constantValue;
 
-                if (ConstantValue.IsNotNull(unconvertedConstantValue) && typeSymbol.isObjectType) {
-                    // diagnostics.Add(ErrorCode.ERR_NotNullConstRefField, initValueNode.Location, thisSymbol, typeSymbol);
-                    // TODO Confirm this error should be raised
-                    constantValue ??= unconvertedConstantValue;
-                }
+                // TODO Almost certain we don't want this error
+                // if (ConstantValue.IsNotNull(unconvertedConstantValue) && typeSymbol.IsVerifierReference()) {
+                // diagnostics.Add(ErrorCode.ERR_NotNullConstRefField, initValueNode.Location, thisSymbol, typeSymbol);
+                // constantValue ??= unconvertedConstantValue;
+                // }
 
                 if (constantValue is not null)
                     value = constantValue;

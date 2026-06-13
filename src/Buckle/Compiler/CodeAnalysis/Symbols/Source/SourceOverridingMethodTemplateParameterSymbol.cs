@@ -22,15 +22,6 @@ internal sealed class SourceOverridingMethodTemplateParameterSymbol : SourceTemp
 
     internal override Symbol containingSymbol => owner;
 
-    // TODO Do we need this?
-    // internal override bool hasConstructorConstraint
-
-    internal override bool hasNotNullConstraint {
-        get {
-            return _overriddenTemplateParameter?.hasNotNullConstraint == true;
-        }
-    }
-
     internal override bool allowsRefLikeType {
         get {
             var typeParameter = _overriddenTemplateParameter;
@@ -38,16 +29,28 @@ internal sealed class SourceOverridingMethodTemplateParameterSymbol : SourceTemp
         }
     }
 
+    internal override bool hasNotNullConstraint => _overriddenTemplateParameter?.hasNotNullConstraint == true;
+
     internal override bool hasPrimitiveTypeConstraint
         => _overriddenTemplateParameter?.hasPrimitiveTypeConstraint == true;
 
     internal override bool hasObjectTypeConstraint => _overriddenTemplateParameter?.hasObjectTypeConstraint == true;
 
-    internal override bool isPrimitiveTypeFromConstraintTypes
-        => _overriddenTemplateParameter?.isPrimitiveTypeFromConstraintTypes == true;
+    internal override bool hasDefaultConstraint => _overriddenTemplateParameter?.hasDefaultConstraint == true;
 
-    internal override bool isObjectTypeFromConstraintTypes
-        => _overriddenTemplateParameter?.isObjectTypeFromConstraintTypes == true;
+    internal override bool hasConstructorConstraint => _overriddenTemplateParameter?.hasConstructorConstraint == true;
+
+    internal override bool isValueTypeFromConstraintTypes
+        => _overriddenTemplateParameter?.isValueTypeFromConstraintTypes == true;
+
+    internal override bool isReferenceTypeFromConstraintTypes
+        => _overriddenTemplateParameter?.isReferenceTypeFromConstraintTypes == true;
+
+    internal override bool hasDefaultFromConstraintTypes
+        => _overriddenTemplateParameter?.hasDefaultFromConstraintTypes == true;
+
+    internal override bool hasConstructorFromConstraintTypes
+        => _overriddenTemplateParameter?.hasConstructorFromConstraintTypes == true;
 
     private protected override ImmutableArray<TemplateParameterSymbol> _containerTemplateParameters
         => owner.templateParameters;

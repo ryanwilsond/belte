@@ -8,8 +8,8 @@ using Buckle.Utilities;
 namespace Buckle.CodeAnalysis.Syntax;
 
 /// <summary>
-/// Basic syntax facts references by the <see cref="InternalSyntax.LanguageParser" /> and the
-/// <see cref="InternalSyntax.Lexer" />.
+/// Basic syntax facts references by the <see cref="LanguageParser" /> and the
+/// <see cref="Lexer" />.
 /// </summary>
 public static class SyntaxFacts {
     /// <summary>
@@ -36,21 +36,21 @@ public static class SyntaxFacts {
             case SyntaxKind.GreaterThanGreaterThanToken:
             case SyntaxKind.GreaterThanGreaterThanGreaterThanToken:
                 return 11;
+            case SyntaxKind.AmpersandToken:
+                return 10;
+            case SyntaxKind.CaretToken:
+                return 9;
+            case SyntaxKind.PipeToken:
+                return 8;
             case SyntaxKind.LessThanToken:
             case SyntaxKind.GreaterThanToken:
             case SyntaxKind.LessThanEqualsToken:
             case SyntaxKind.GreaterThanEqualsToken:
             case SyntaxKind.SlashBackslashToken:
             case SyntaxKind.BackslashSlashToken:
-                return 10;
+                return 7;
             case SyntaxKind.EqualsEqualsToken:
             case SyntaxKind.ExclamationEqualsToken:
-                return 9;
-            case SyntaxKind.AmpersandToken:
-                return 8;
-            case SyntaxKind.CaretToken:
-                return 7;
-            case SyntaxKind.PipeToken:
                 return 6;
             case SyntaxKind.AmpersandAmpersandToken:
                 return 5;
@@ -238,8 +238,19 @@ public static class SyntaxFacts {
             "union" => SyntaxKind.UnionKeyword,
             "with" => SyntaxKind.WithKeyword,
             "destructor" => SyntaxKind.DestructorKeyword,
+            "finalizer" => SyntaxKind.FinalizerKeyword,
             "defer" => SyntaxKind.DeferKeyword,
+            "scoped" => SyntaxKind.ScopedKeyword,
+            "final" => SyntaxKind.FinalKeyword,
+            "literal" => SyntaxKind.LiteralKeyword,
+            "packed" => SyntaxKind.PackedKeyword,
+            "reverse" => SyntaxKind.ReverseKeyword,
+            "reversible" => SyntaxKind.ReversibleKeyword,
+            "state" => SyntaxKind.StateKeyword,
+            "has" => SyntaxKind.HasKeyword,
             "unreachable" => SyntaxKind.UnreachableKeyword,
+            "initializes" => SyntaxKind.InitializesKeyword,
+            "commit" => SyntaxKind.CommitKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -252,10 +263,16 @@ public static class SyntaxFacts {
             case SyntaxKind.ExplicitKeyword:
             case SyntaxKind.FlagsKeyword:
             case SyntaxKind.HandleKeyword:
+            case SyntaxKind.HasKeyword:
             case SyntaxKind.ImplicitKeyword:
+            case SyntaxKind.InitializesKeyword:
+            case SyntaxKind.LiteralKeyword:
             case SyntaxKind.NotnullKeyword:
             case SyntaxKind.NoVerifyKeyword:
+            case SyntaxKind.OperatorKeyword:
+            case SyntaxKind.PackedKeyword:
             case SyntaxKind.PrimitiveKeyword:
+            case SyntaxKind.StateKeyword:
             case SyntaxKind.UndefKeyword:
                 return true;
             default:
@@ -410,8 +427,19 @@ public static class SyntaxFacts {
             SyntaxKind.UnionKeyword => "union",
             SyntaxKind.WithKeyword => "with",
             SyntaxKind.DestructorKeyword => "destructor",
+            SyntaxKind.FinalizerKeyword => "finalizer",
             SyntaxKind.DeferKeyword => "defer",
+            SyntaxKind.ScopedKeyword => "scoped",
+            SyntaxKind.FinalKeyword => "final",
+            SyntaxKind.LiteralKeyword => "literal",
+            SyntaxKind.PackedKeyword => "packed",
+            SyntaxKind.ReverseKeyword => "reverse",
+            SyntaxKind.ReversibleKeyword => "reversible",
+            SyntaxKind.StateKeyword => "state",
+            SyntaxKind.HasKeyword => "has",
             SyntaxKind.UnreachableKeyword => "unreachable",
+            SyntaxKind.InitializesKeyword => "initializes",
+            SyntaxKind.CommitKeyword => "commit",
             _ => null,
         };
     }
@@ -826,5 +854,30 @@ public static class SyntaxFacts {
             return false;
 
         return true;
+    }
+
+    internal static bool IsAssignmentOperatorToken(SyntaxKind kind) {
+        switch (kind) {
+            case SyntaxKind.PlusEqualsToken:
+            case SyntaxKind.MinusEqualsToken:
+            case SyntaxKind.AsteriskEqualsToken:
+            case SyntaxKind.SlashEqualsToken:
+            case SyntaxKind.AmpersandEqualsToken:
+            case SyntaxKind.PipeEqualsToken:
+            case SyntaxKind.AsteriskAsteriskEqualsToken:
+            case SyntaxKind.CaretEqualsToken:
+            case SyntaxKind.LessThanLessThanEqualsToken:
+            case SyntaxKind.GreaterThanGreaterThanEqualsToken:
+            case SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken:
+            case SyntaxKind.PercentEqualsToken:
+            case SyntaxKind.QuestionQuestionEqualsToken:
+            case SyntaxKind.QuestionExclamationEqualsToken:
+            case SyntaxKind.SlashBackslashEqualsToken:
+            case SyntaxKind.BackslashSlashEqualsToken:
+            case SyntaxKind.EqualsToken:
+                return true;
+            default:
+                return false;
+        }
     }
 }

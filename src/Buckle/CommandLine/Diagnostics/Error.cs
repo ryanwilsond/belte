@@ -86,6 +86,11 @@ internal static class Error {
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingWarningLevel), message);
     }
 
+    internal static Diagnostic MissingWarningLevelAfterWError(string arg) {
+        var message = $"missing warning level after '{arg}' (usage: '--werror=<warning level>')";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingWarningLevelAfterWError), message);
+    }
+
     internal static Diagnostic InvalidWarningLevel(string warningLevel) {
         var message = $"invalid warning level '{warningLevel}'; warning level must be a number between 0 and 3";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidWarningLevel), message);
@@ -99,6 +104,16 @@ internal static class Error {
     internal static Diagnostic MissingWIncludeCode(string arg) {
         var message = $"missing warning code after '{arg}' (usage: '--winclude=<[BU|RE|CL]<code>,...>')";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingWIncludeCode), message);
+    }
+
+    internal static Diagnostic MissingWErrIgnoreCode(string arg) {
+        var message = $"missing warning code after '{arg}' (usage: '--werrignore=<[BU|RE|CL]<code>,...>')";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingWErrIgnoreCode), message);
+    }
+
+    internal static Diagnostic MissingWErrIncludeCode(string arg) {
+        var message = $"missing warning code after '{arg}' (usage: '--werrinclude=<[BU|RE|CL]<code>,...>')";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingWErrIncludeCode), message);
     }
 
     internal static Diagnostic CodeIsNotWarning(string code) {

@@ -704,7 +704,7 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
 
         var oldInnermostFramePointer = _innermostFramePointer;
 
-        if (!framePointer.type.isPrimitiveType)
+        if (!framePointer.type.isValueType)
             _innermostFramePointer = framePointer;
 
         var addedLocals = ArrayBuilder<DataContainerSymbol>.GetInstance();
@@ -882,9 +882,12 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
 
             // The main lowering passes happen while the local function body is still present in the enclosing method
             body = Lowerer.Flatten(synthesizedMethod, body);
-            body = Optimizer.RemoveDeadCode(body, _diagnostics);
+            body = Optimizer.RemoveDeadCode(synthesizedMethod, body, _diagnostics);
 
-            if (!ControlFlowGraph.AllPathsReturn(body))
+            var controlFlowGraph = ControlFlowGraph.Create(synthesizedMethod, body);
+            controlFlowGraph.CheckDefiniteAssignment(_diagnostics);
+
+            if (!controlFlowGraph.AllPathsReturn())
                 _diagnostics.Push(Error.NotAllPathsReturn(node.symbol.location));
 
             if (_compilationState.compilation.options.buildMode.Evaluating()) {

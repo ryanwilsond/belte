@@ -21,9 +21,9 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
     }
 
     internal override void VisitCompilationUnit(CompilationUnitSyntax node) {
-        foreach (var member in node.members) {
-            if (member.kind == SyntaxKind.GlobalStatement)
-                Visit(member);
+        foreach (var element in node.elements) {
+            if (element.kind == SyntaxKind.GlobalStatement)
+                Visit(element);
         }
     }
 
@@ -103,6 +103,7 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
             case SyntaxKind.NullBindingStatement:
             case SyntaxKind.ReturnStatement:
             case SyntaxKind.WithStatement:
+            case SyntaxKind.DeferStatement:
                 embeddedScopeDesignator = statement;
                 return new EmbeddedStatementBinder(enclosing, statement);
             case SyntaxKind.SwitchStatement:
@@ -127,6 +128,16 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
 
     internal override void VisitMethodDeclaration(MethodDeclarationSyntax node) {
         Visit(node.body);
+        Visit(node.stateClause);
+        Visit(node.reverseClause);
+    }
+
+    internal override void VisitReverseClause(ReverseClauseSyntax node) {
+        Visit(node.body);
+    }
+
+    internal override void VisitStateClause(StateClauseSyntax node) {
+        Visit(node.body);
     }
 
     internal override void VisitConstructorDeclaration(ConstructorDeclarationSyntax node) {
@@ -148,6 +159,10 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
     private void VisitTypeDeclaration(TypeDeclarationSyntax node) { }
 
     internal override void VisitOperatorDeclaration(OperatorDeclarationSyntax node) {
+        Visit(node.body);
+    }
+
+    internal override void VisitLiteralOperatorDeclaration(LiteralOperatorDeclarationSyntax node) {
         Visit(node.body);
     }
 
@@ -189,8 +204,8 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
         }
     }
 
-    internal override void VisitUsingStatement(UsingStatementSyntax node) {
-        var usingBinder = new UsingStatementBinder(_enclosing, node);
+    internal override void VisitScopedStatement(ScopedStatementSyntax node) {
+        var usingBinder = new ScopedStatementBinder(_enclosing, node);
         AddToMap(node, usingBinder);
 
         var declarationSyntax = node.declaration;
@@ -337,15 +352,12 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
     }
 
     internal override void VisitWithStatement(WithStatementSyntax node) {
-        Binder enclosing;
+        Binder enclosing = new WithBinder(_enclosing, node);
 
-        if (node.tryKeyword is null) {
-            enclosing = _enclosing.WithAdditionalFlags(BinderFlags.InWithBody);
-            AddToMap(node, enclosing);
-        } else {
-            enclosing = _enclosing;
-        }
+        if (node.tryKeyword is null)
+            enclosing = enclosing.WithAdditionalFlags(BinderFlags.InWithTryBody);
 
+        AddToMap(node, enclosing);
         VisitPossibleEmbeddedStatement(node.body, enclosing);
     }
 

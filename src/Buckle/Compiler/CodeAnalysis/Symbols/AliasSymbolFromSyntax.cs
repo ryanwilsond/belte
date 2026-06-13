@@ -12,7 +12,12 @@ internal sealed class AliasSymbolFromSyntax : AliasSymbol {
     private BelteDiagnosticQueue _aliasTargetDiagnostics;
 
     internal AliasSymbolFromSyntax(SourceNamespaceSymbol containingSymbol, UsingDirectiveSyntax syntax)
-        : base(syntax.alias.name.identifier.text, containingSymbol, [syntax.alias.name.identifier.location], false) {
+        : base(
+            syntax.alias.name.identifier.valueText,
+            containingSymbol,
+            [syntax.alias.name.identifier.location],
+            false
+        ) {
         _directive = new SyntaxReference(syntax);
     }
 

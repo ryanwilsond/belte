@@ -1,4 +1,6 @@
 
+using Buckle.Utilities;
+
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
 internal partial class SyntaxRewriter : SyntaxVisitor<BelteSyntaxNode> {
@@ -11,16 +13,20 @@ internal partial class SyntaxRewriter : SyntaxVisitor<BelteSyntaxNode> {
     internal override BelteSyntaxNode VisitToken(SyntaxToken token) {
         var leading = VisitList(token.leadingTrivia);
         var trailing = VisitList(token.trailingTrivia);
+        var newToken = token;
 
         if (leading != token.leadingTrivia || trailing != token.trailingTrivia) {
             if (leading != token.leadingTrivia)
-                token = token.TokenWithLeadingTrivia(leading.node);
+                newToken = token.TokenWithLeadingTrivia(leading.node);
 
             if (trailing != token.trailingTrivia)
-                token = token.TokenWithTrailingTrivia(trailing.node);
+                newToken = token.TokenWithTrailingTrivia(trailing.node);
         }
 
-        return token;
+        if (newToken.kind != token.kind)
+            throw ExceptionUtilities.Unreachable();
+
+        return newToken;
     }
 
     internal SyntaxList<T> VisitList<T>(SyntaxList<T> list) where T : BelteSyntaxNode {

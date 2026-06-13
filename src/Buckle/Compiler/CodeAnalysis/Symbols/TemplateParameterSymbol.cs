@@ -9,21 +9,30 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
 
     public sealed override TypeKind typeKind => TypeKind.TemplateParameter;
 
-    public sealed override bool isObjectType {
+    public sealed override bool isReferenceType {
         get {
             if (hasObjectTypeConstraint)
                 return true;
 
-            return isObjectTypeFromConstraintTypes;
+            return isReferenceTypeFromConstraintTypes;
         }
     }
 
-    public sealed override bool isPrimitiveType {
+    public sealed override bool isValueType {
         get {
             if (hasPrimitiveTypeConstraint)
                 return true;
 
-            return isPrimitiveTypeFromConstraintTypes;
+            return isValueTypeFromConstraintTypes;
+        }
+    }
+
+    public sealed override bool hasDefault {
+        get {
+            if (hasDefaultConstraint)
+                return true;
+
+            return hasDefaultFromConstraintTypes;
         }
     }
 
@@ -53,9 +62,17 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
 
     internal abstract bool hasObjectTypeConstraint { get; }
 
-    internal abstract bool isPrimitiveTypeFromConstraintTypes { get; }
+    internal abstract bool hasDefaultConstraint { get; }
 
-    internal abstract bool isObjectTypeFromConstraintTypes { get; }
+    internal abstract bool hasConstructorConstraint { get; }
+
+    internal abstract bool isValueTypeFromConstraintTypes { get; }
+
+    internal abstract bool isReferenceTypeFromConstraintTypes { get; }
+
+    internal abstract bool hasDefaultFromConstraintTypes { get; }
+
+    internal abstract bool hasConstructorFromConstraintTypes { get; }
 
     internal abstract TypeOrConstant defaultValue { get; }
 
@@ -133,8 +150,34 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
     internal static bool CalculateIsPrimitiveTypeFromConstraintTypes(
         ImmutableArray<TypeWithAnnotations> constraintTypes) {
         foreach (var constraintType in constraintTypes) {
-            if (constraintType.type.StrippedType().isPrimitiveType)
+            if (constraintType.type.StrippedType().isValueType)
                 return true;
+        }
+
+        return false;
+    }
+
+    internal static bool CalculateHasDefaultFromConstraintTypes(
+        ImmutableArray<TypeWithAnnotations> constraintTypes) {
+        foreach (var constraintType in constraintTypes) {
+            if (constraintType.type.hasDefault)
+                return true;
+        }
+
+        return false;
+    }
+
+    internal static bool CalculateHasConstructorFromConstraintTypes(
+        ImmutableArray<TypeWithAnnotations> constraintTypes) {
+        foreach (var constraintType in constraintTypes) {
+            if (constraintType.type is NamedTypeSymbol n) {
+                var instanceConstructors = n.instanceConstructors;
+
+                foreach (var instanceConstructor in instanceConstructors) {
+                    if (instanceConstructor.parameterCount == 0)
+                        return true;
+                }
+            }
         }
 
         return false;
@@ -150,7 +193,7 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
     }
 
     internal static bool NonTypeParameterConstraintImpliesObjectType(TypeSymbol constraint) {
-        if (!constraint.isObjectType) {
+        if (!constraint.isReferenceType) {
             return false;
         } else {
             if (constraint.typeKind == TypeKind.Error)
@@ -183,7 +226,7 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
 
     private static bool ConstraintImpliesObjectType(TypeSymbol constraint) {
         if (constraint.typeKind == TypeKind.TemplateParameter)
-            return ((TemplateParameterSymbol)constraint).isObjectTypeFromConstraintTypes;
+            return ((TemplateParameterSymbol)constraint).isReferenceTypeFromConstraintTypes;
 
         return NonTypeParameterConstraintImpliesObjectType(constraint);
     }

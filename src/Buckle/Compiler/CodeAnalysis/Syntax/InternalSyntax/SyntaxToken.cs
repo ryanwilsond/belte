@@ -142,6 +142,8 @@ internal partial class SyntaxToken : BelteSyntaxNode {
     /// </summary>
     internal virtual object value { get; }
 
+    internal string valueText => GetValueText() ?? "";
+
     internal override int width => text.Length;
 
     internal override bool isToken => true;
@@ -182,6 +184,10 @@ internal partial class SyntaxToken : BelteSyntaxNode {
 
     internal override object GetValue() {
         return value;
+    }
+
+    internal override string GetValueText() {
+        return value as string;
     }
 
     internal override GreenNode GetSlot(int index) {

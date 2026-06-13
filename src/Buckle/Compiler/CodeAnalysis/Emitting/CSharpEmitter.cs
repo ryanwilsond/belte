@@ -4,7 +4,6 @@ using System.IO;
 using System.Linq;
 using System.Text;
 using Buckle.CodeAnalysis.Binding;
-using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
@@ -216,7 +215,11 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
         return builder.ToString();
     }
 
-    internal string GetMethodAttributes(MethodSymbol method, bool includeAccessibility = true) {
+    private static string GetIndentString(int indent) {
+        return new string(' ', indent);
+    }
+
+    internal string GetMethodAttributes(MethodSymbol method, bool includeAccessibility, int indent) {
         var builder = new StringBuilder();
 
         if (method.isExtern) {
@@ -226,20 +229,18 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
             var charSet = GetCharSet(dllImportData.characterSet);
 
             if (charSet is null)
-                builder.Append($"[global::System.Runtime.InteropServices.DllImport(\"{moduleName}\", CallingConvention = {callingConvention})]");
+                builder.Append($"[global::System.Runtime.InteropServices.DllImport(\"{moduleName}\", CallingConvention = {callingConvention})]\n{GetIndentString(indent)}");
             else
-                builder.Append($"[global::System.Runtime.InteropServices.DllImport(\"{moduleName}\", CallingConvention = {callingConvention}, CharSet = {charSet})]");
+                builder.Append($"[global::System.Runtime.InteropServices.DllImport(\"{moduleName}\", CallingConvention = {callingConvention}, CharSet = {charSet})]\n{GetIndentString(indent)}");
 
-            if (method.returnType.specialType == SpecialType.Bool) {
-                builder.Append("[return: global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.I1)]");
-            }
+            if (method.returnType.specialType == SpecialType.Bool)
+                builder.Append($"[return: {GetBoolMarshalAttribute()}]\n{GetIndentString(indent)}");
         }
 
         var unmanagedAttribute = method.GetUnmanagedCallersOnlyAttributeData(true);
 
-        if (unmanagedAttribute is not null && unmanagedAttribute != UnmanagedCallersOnlyAttributeData.Uninitialized) {
-            builder.Append("[global::System.Runtime.InteropServices.UnmanagedCallersOnly([typeof(global::System.Runtime.CompilerServices.CallConvCdecl)])]");
-        }
+        if (unmanagedAttribute is not null && unmanagedAttribute != UnmanagedCallersOnlyAttributeData.Uninitialized)
+            builder.Append("[global::System.Runtime.InteropServices.UnmanagedCallersOnly([typeof(global::System.Runtime.CompilerServices.CallConvCdecl)])]\n");
 
         if (includeAccessibility) {
             builder.Append(method.declaredAccessibility switch {
@@ -287,6 +288,10 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
         }
     }
 
+    private static string GetBoolMarshalAttribute() {
+        return "global::System.Runtime.InteropServices.MarshalAs(global::System.Runtime.InteropServices.UnmanagedType.I1)";
+    }
+
     internal string GetMethodSignature(
         MethodSymbol method,
         BoundStatement initializer = null,
@@ -327,7 +332,12 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
     }
 
     private string GetParameterSignature(ParameterSymbol parameter) {
-        return $"{GetType(parameter.type, parameter.refKind != RefKind.None)} {GetSafeName(parameter.name)}";
+        var signature = $"{GetType(parameter.type, parameter.refKind != RefKind.None)} {GetSafeName(parameter.name)}";
+
+        if (parameter.containingSymbol.isExtern && parameter.type.specialType == SpecialType.Bool)
+            return $"[{GetBoolMarshalAttribute()}]{signature}";
+
+        return signature;
     }
 
     private string GetFieldSignature(FieldSymbol field) {
@@ -354,7 +364,7 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
                 var underlyingType = type.GetNullableUnderlyingType();
                 var genericArgumentType = GetType(underlyingType);
 
-                if (!CodeGenerator.IsValueType(underlyingType))
+                if (!underlyingType.isValueType)
                     return genericArgumentType;
 
                 return $"{_specialTypes[SpecialType.Nullable]}<{genericArgumentType}>";
@@ -381,6 +391,9 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
 
             if (type is TemplateParameterSymbol t)
                 return GetSafeName(t.name);
+
+            if (type.isTupleType)
+                return GetTupleType((NamedTypeSymbol)type);
 
             return GetTypeWithContainingGenerics((NamedTypeSymbol)type);
         }
@@ -440,6 +453,10 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
         }
     }
 
+    private string GetTupleType(NamedTypeSymbol type) {
+        return $"({string.Join(", ", type.tupleElementTypes.Select(t => GetType(t.type.type)))})";
+    }
+
     internal override object VisitNamespace(NamespaceSymbol symbol, IndentedTextWriter argument) {
         using var curly = new CurlyIndenter(argument, $"namespace {GetSafeName(symbol.name)}");
 
@@ -450,7 +467,7 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
     }
 
     internal override object VisitNamedType(NamedTypeSymbol symbol, IndentedTextWriter argument) {
-        if (symbol.specialType is SpecialType.Object or SpecialType.Exception)
+        if (symbol.specialType is SpecialType.Object)
             return null;
 
         if (symbol is PENamedTypeSymbol or SynthesizedFinishedNamedTypeSymbol)
@@ -475,13 +492,16 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
     }
 
     internal override object VisitField(FieldSymbol symbol, IndentedTextWriter argument) {
+        if (symbol.containingType.IsStructType() && symbol.type.specialType == SpecialType.Bool)
+            argument.WriteLine($"[{GetBoolMarshalAttribute()}]");
+
         argument.WriteLine($"{GetFieldAttributes(symbol)}{GetFieldSignature(symbol)};");
         return null;
     }
 
     internal override object VisitMethod(MethodSymbol symbol, IndentedTextWriter argument) {
         if (symbol.isAbstract || symbol.isExtern) {
-            argument.WriteLine($"{GetMethodAttributes(symbol)}{GetMethodSignature(symbol)};");
+            argument.WriteLine($"{GetMethodAttributes(symbol, true, argument.Indent)}{GetMethodSignature(symbol)};");
             return null;
         }
 
@@ -490,7 +510,7 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
         var includeAccessibility = symbol.methodKind != MethodKind.StaticConstructor;
 
         var initializer = body.statements.Length > 0 ? body.statements[0] : null;
-        using var curly = new CurlyIndenter(argument, $"{GetMethodAttributes(symbol, includeAccessibility)}{GetMethodSignature(symbol, initializer, generator)}");
+        using var curly = new CurlyIndenter(argument, $"{GetMethodAttributes(symbol, includeAccessibility, argument.Indent)}{GetMethodSignature(symbol, initializer, generator)}");
 
         generator.Generate();
 
@@ -504,12 +524,10 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
             { "Console_GetHeight", "global::Belte.Runtime.Console.GetHeight" },
             { "Console_Print_S?", "global::System.Console.Write" },
             { "Console_Print_A?", "global::System.Console.Write" },
-            { "Console_Print_O?", "global::System.Console.Write" },
             { "Console_Print_[?", "global::System.Console.Write" },
             { "Console_PrintLine", "global::System.Console.WriteLine" },
             { "Console_PrintLine_S?", "global::System.Console.WriteLine" },
             { "Console_PrintLine_A?", "global::System.Console.WriteLine" },
-            { "Console_PrintLine_O?", "global::System.Console.WriteLine" },
             { "Console_PrintLine_[?", "global::System.Console.WriteLine" },
             { "Console_Input", "global::System.Console.ReadLine" },
             { "Console_ResetColor", "global::System.Console.ResetColor" },
@@ -612,8 +630,17 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
             { "LowLevel_GetObject_V*", "global::Belte.Runtime.Utilities.GetObject" },
             { "LowLevel_ThrowNullConditionException", "throw new global::Belte.Runtime.NullConditionException" },
             { "LowLevel_Length_[", "global::Belte.Runtime.Utilities.Length" },
-            { "LowLevel_Length_[?", "global::Belte.Runtime.Utilities.Length" },
-            { "LowLevel_Sort_[?", "global::Belte.Runtime.Utilities.Sort" },
+            { "LowLevel_Sort_[", "global::Belte.Runtime.Utilities.Sort" },
+            { "LowLevel_Fill_[T", "global::System.Array.Fill" },
+            { "LowLevel_IsLittleEndian", "global::Belte.Runtime.Utilities.IsLittleEndian" },
+            { "LowLevel_ReverseEndianness_I4", "global::System.Buffers.Binary.BinaryPrimitives.ReverseEndianness" },
+            { "HashCode_Combine_I4I4", "global::Belte.Runtime.Utilities.HashCodeCombine" },
+            { "HashCode_Combine_I4I4I4", "global::Belte.Runtime.Utilities.HashCodeCombine" },
+            { "HashCode_Combine_I4I4I4I4", "global::Belte.Runtime.Utilities.HashCodeCombine" },
+            { "HashCode_Combine_I4I4I4I4I4", "global::Belte.Runtime.Utilities.HashCodeCombine" },
+            { "HashCode_Combine_I4I4I4I4I4I4", "global::Belte.Runtime.Utilities.HashCodeCombine" },
+            { "HashCode_Combine_I4I4I4I4I4I4I4", "global::Belte.Runtime.Utilities.HashCodeCombine" },
+            { "HashCode_Combine_I4I4I4I4I4I4I4I4", "global::Belte.Runtime.Utilities.HashCodeCombine" },
             { "Time_Now", "global::Belte.Runtime.Utilities.TimeNow" },
             { "Time_Sleep_I", "global::Belte.Runtime.Utilities.TimeSleep" },
             { "String_Ascii_S", "global::Belte.Runtime.Utilities.Ascii" },
@@ -656,7 +683,6 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
             { SpecialType.Void, "void" },
             { SpecialType.Type, "global::System.Type" },
             { SpecialType.String, "global::System.String" },
-            { SpecialType.Exception, "global::System.Exception" },
         };
 
         // This is just for readability

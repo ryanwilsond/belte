@@ -67,7 +67,7 @@ internal abstract class NamespaceSymbol : NamespaceOrTypeSymbol, INamespaceSymbo
         switch (name.kind) {
             case SyntaxKind.TemplateName:
             case SyntaxKind.IdentifierName:
-                return GetNestedNamespace(((SimpleNameSyntax)name).identifier.text);
+                return GetNestedNamespace(((SimpleNameSyntax)name).identifier.valueText);
             case SyntaxKind.QualifiedName:
                 var qn = (QualifiedNameSyntax)name;
                 var leftNs = GetNestedNamespace(qn.left);
@@ -77,7 +77,7 @@ internal abstract class NamespaceSymbol : NamespaceOrTypeSymbol, INamespaceSymbo
 
                 break;
             case SyntaxKind.AliasQualifiedName:
-                return GetNestedNamespace(name.GetUnqualifiedName().identifier.text);
+                return GetNestedNamespace(name.GetUnqualifiedName().identifier.valueText);
         }
 
         return null;

@@ -1,4 +1,5 @@
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -8,9 +9,11 @@ internal sealed class SourceSimpleParameterSymbol : SourceParameterSymbol {
         TypeWithAnnotations type,
         int ordinal,
         RefKind refKind,
+        bool isConst,
         string name,
-        ParameterSyntax syntax)
-        : base(owner, ordinal, refKind, ScopedKind.None, name, syntax) {
+        SyntaxReference syntaxReference,
+        TextLocation location)
+        : base(owner, ordinal, refKind, isConst, ScopedKind.None, name, syntaxReference, location) {
         typeWithAnnotations = type;
     }
 

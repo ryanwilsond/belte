@@ -19,4 +19,8 @@ internal sealed class UnsupportedMetadataTypeSymbol : ErrorTypeSymbol {
     }
 
     internal override bool mangleName => false;
+
+    private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
+        return this;
+    }
 }

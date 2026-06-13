@@ -5,6 +5,8 @@
   - [3.1.2](#312-string-interpolation) String Interpolation
   - [3.1.3](#313-function-type) Function Type
   - [3.1.4](#314-default-literal) Default Literal
+  - [3.1.5](#315-tuples) Tuples
+    - [3.1.5.1](#3151-user-defined-deconstruction) User-Defined Deconstruction
 - [3.2](#32-operators) Operators
   - [3.2.1](#321-operator-precedence) Operator Precedence
   - [3.2.2](#322-uncommon-operators) Uncommon Operators
@@ -21,9 +23,10 @@
     - [3.2.2.11](#32211-x--y) `x \/ y`
     - [3.2.2.12](#32212-x--y-z) `x >< [y, z]`
   - [3.2.3](#323-isisntas-operators) Is/Isnt/As Operators
-- [3.3](#33-variables-and-constants) Variables and Constants
-  - [3.3.1](#331-implicit-typing) Implicit Typing
-- [3.4](#34-attributes-and-modifiers) Attributes and Modifiers
+- [3.3](#33-data-containers) Data Containers
+  - [3.3.1](#331-modifiers) Modifiers
+  - [3.3.2](#332-implicit-typing) Implicit Typing
+- [3.4](#34-annotations) Annotations
 - [3.5](#35-references) References
 - [3.6](#36-arrays) Arrays
 - [3.7](#37-compile-time-expressions) Compile-Time Expressions
@@ -46,6 +49,7 @@ The following is a list of built-in types with links to further information:
 | Function | `void()` | Managed function | [Section 3.1.3](#313-function-type) |
 | Object | `Object` | Anything, class base type | [Section 4.1](ClassesAndObjects.md#41-classes) |
 | Array | `int[]` | Collection of items | [Section 3.6](#36-arrays) |
+| Buffer | `Buffer<int>` | Collection of items | [Section 6.3](LowLevelFeatures.md#63-arrays-and-buffers) |
 | WINBOOL | `winbool` | Boolean that marshals as 4 bytes for interop | [Section 6.7.1](LowLevelFeatures.md#671-winbool) |
 | Signed-Byte | `int8` | | [Section 6.4](LowLevelFeatures.md#64-numerics) |
 | Signed-Short | `int16` | | [Section 6.4](LowLevelFeatures.md#64-numerics) |
@@ -62,7 +66,7 @@ The following is a list of built-in types with links to further information:
 | Integer Pointer | `intptr` | Used for .NET interop | |
 | Unsigned Integer Pointer | `uintptr` | Used for .NET interop | |
 
-Most primitive types are non-nullable by default, which can be [read about here](Overview.md#14-nullability-and-types).
+All types are non-nullable by default, which can be [read about here](Overview.md#14-nullability-and-types).
 
 Additionally, there are user-defined types:
 
@@ -75,7 +79,8 @@ Additionally, there are user-defined types:
 
 Additional information:
 
-- See also [arrays and initializer lists](LowLevelFeatures.md#63-arrays).
+- See also [arrays and initializer lists](#36-arrays).
+- See also [buffers](LowLevelFeatures.md#63-arrays-and-buffers).
 - See also [initializer dictionaries](StandardLibrary/Dictionary.md#5724-initializer-dictionaries).
 - See also [sized numeric types](LowLevelFeatures.md#64-numerics).
 - See also [pointer and function pointer types](LowLevelFeatures.md#65-pointers).
@@ -203,7 +208,7 @@ functionality, use function pointers instead.
 
 ### 3.1.4 Default Literal
 
-The `default` literal can be used to indicate `null` for nullable types or the default value for primitives.
+The `default` literal can be used to indicate `null` for nullable types or the default value for others.
 
 For example:
 
@@ -212,7 +217,74 @@ int a = default; // a = 0
 int? a = default; // a = null
 ```
 
+The default literal can be explicitly typed when the type cannot be inferred from usage:
+
+```belte
+var a = default(int);
+```
+
 Types with no default value (non-nullable class types) cannot use the `default` literal.
+
+### 3.1.5 Tuples
+
+Tuples are value types (structs) that contain fields are varying types. They act as small containers.
+
+```belte
+ValueTuple<int, bool> a = new ValueTuple<int, bool>(3, true);
+int b = a.Item1;
+bool c = a.Item2;
+```
+
+Tuples have their own syntax for brevity. The above example could equivalently be written:
+
+```belte
+var a = (3, true);
+var b = a.Item1;
+var c = a.Item2;
+```
+
+Tuples also support custom item names:
+
+```belte
+(int f1, bool f2) a = (3, true);
+var b = a.f1;
+var c = a.f2;
+```
+
+Tuples can be used to return multiple values from a function:
+
+```belte
+(int, int) Func(int a, int b) {
+  return (a + b, a - b);
+}
+```
+
+Tuples can be deconstructed into multiple locals. The following are equivalent:
+
+```belte
+var t = (3, true); var a = t.Item1; var b = t.Item2;
+(int a, bool b) = (3, true);
+(var a, var b) = (3, true);
+```
+
+#### 3.1.5.1 User-Defined Deconstruction
+
+User-defined deconstruction can be done by [defining an implicit cast](ClassesAndObjects.md#4232-casts) to a tuple type:
+
+```belte
+var myClass = new MyClass();
+// ...
+(var a, var b) = myClass;
+
+class MyClass {
+  private int a;
+  private int b;
+
+  public static implicit operator (int, int)(MyClass obj) {
+    return (obj.a, obj.b);
+  }
+}
+```
 
 ## 3.2 Operators
 
@@ -244,11 +316,11 @@ strict order of precedence:
 | x * y, x / y, x % y | Multiplicative |
 | x + y, x - y | Additive |
 | x << y, x >> y, x >>> y | Shift |
-| x < y, x > y, x <= y, x >= y, x /\ y, x \/ y | Relational |
-| x == y, x != y | Equality |
 | x & y | Bitwise Logical AND |
 | x ^ y | Bitwise Logical XOR |
 | x \| y | Bitwise Logical OR |
+| x < y, x > y, x <= y, x >= y, x /\ y, x \/ y | Relational |
+| x == y, x != y | Equality |
 | x && y | Conditional AND |
 | x \|\| y | Conditional OR |
 | x ?? y, x ?! y | Null-Coalescing |
@@ -395,24 +467,139 @@ if (a is int t) {
 }
 ```
 
-## 3.3 Variables and Constants
+## 3.3 Data Containers
 
-Variables and constants both hold data. Variables can change, while constants cannot be modified after assigned.
+Data containers describes, locals, fields, and parameters, where locals and parameters belong to method or function and
+fields belong to classes or similar types. They are both declared `<type> <name> = <initializer>`, where the
+initializer is optional, required, or disallowed in certain contexts.
 
-Declaring a variable takes the format `<type> <name>;` or `<type> <name> = <initializer>;`. The former declares a
-variable with no value, making it `null` until later defined. The latter gives the variable an initial value.
+For example:
 
-### 3.3.1 Implicit Typing
+```belte
+void MyFunc(int p) { // parameter `p`
+  int a = 3; // local `a`
+}
 
-Instead of using type-names to declare, implicit keywords `var`, `const`, and `constexpr` can be used if the initializer
-is distinct.
+class MyClass {
+  int a = 3; // field `a`
+}
+```
+
+Fields can be [read more about here](ClassesAndObjects.md#421-fields).
+
+After being declared, data containers are referenced by just their name. As such, they must have unique names within
+their scope to prevent ambiguity:
+
+```belte
+void MyFunc() {
+  int a = 3;
+  string a = "text"; // Invalid, name `a` is already used in this scope
+}
+```
+
+```belte
+void MyFunc(int param) {
+  int param = 3; // Invalid, name `param` is already used in this scope (by the parameter)
+}
+```
+
+When it comes to nested scopes, shadowing takes place where the innermost definition takes precedence:
+
+```belte
+class A {
+  int a = 4;
+
+  int Method() {
+    int a = 10;
+    return a; // Refers to the local, not the field
+  }
+}
+```
+
+### 3.3.1 Modifiers
+
+Locals and fields can be marked `const`, `final`, and `constexpr`. Without any of these modifiers, they are variable
+meaning they can be assigned, reassigned, and modified freely:
+
+```belte
+int a = 3;
+a = 10;
+a += 4;
+```
+
+With the `const` modifier, the data container can only be assigned to once where it is then immutable, meaning it cannot
+be reassigned and its data cannot be change. "Data" in this case meaning fields or array elements.
+
+```belte
+const int a = 10;
+a = 5; // Invalid, cannot reassign
+```
+
+```belte
+const int[] a = { 1, 2, 3 };
+a = { 4, 5, 6 }; // Invalid, cannot reassign
+a[0] = 10; // Invalid, cannot modify data
+```
+
+```belte
+const A a = new A();
+a = new A(); // Invalid, cannot reassign
+a.f = 4; // Invalid, cannot modify data
+
+class A {
+  int f;
+}
+```
+
+Constants cannot be passed as arguments to [parameters not marked `const`](ControlFlow.md#212-const-parameters) unless
+they are value types or known immutable reference types. Value types (primitives and structs) can be passed freely
+because they are copied anyway. A "known immutable reference type" is a reference type (class) that comprises of no
+fields or where every non-static field is const or constexpr. As such, any instance cannot be modified anyway so they
+also can be passed freely.
+
+With the `final` modifier, the data container can only be assigned to once, but it can be freely modified:
+
+```belte
+final int a = 10;
+a = 5; // Invalid, cannot reassign
+```
+
+```belte
+final int[] a = { 1, 2, 3 };
+a = { 4, 5, 6 }; // Invalid, cannot reassign
+a[0] = 10; // OK, can modify data
+```
+
+```belte
+final A a = new A();
+a = new A(); // Invalid, cannot reassign
+a.f = 4; // OK, can modify data
+
+class A {
+  int f;
+}
+```
+
+With the `constexpr` modifier, the data container must be initialized with a value that is a compile-time constant,
+where it then is immutable similar to a constant.
+
+```belte
+constexpr int a = 3; // OK
+constexpr int b = MyFunc(); // Invalid, value is not known at compile-time
+```
+
+### 3.3.2 Implicit Typing
+
+Instead of using type-names to declare, implicit keywords `var`, `const`, `final`, and `constexpr` can be used if the
+initializer is distinct.
 
 Examples:
 
 ```belte
 var a = 3; // Same as 'int a = 3;'
 const b = 3; // Same as 'const int b = 3;'
-constexpr c = 3; // Same as `constexpr int c = 3;`
+final c = 3; // Same as `final int c = 3;`
+constexpr d = 3; // Same as `constexpr int d = 3;`
 ```
 
 Implicit typing supports normal nullable annotations:
@@ -425,68 +612,157 @@ var? a = 3; // Same as `int? a = 3;`
 var! a = new MyClass(); // Same as `MyClass! a = new MyClass();`
 ```
 
-## 3.4 Attributes and Modifiers
+## 3.4 Annotations
 
-Reference-type data is nullable by default. To disable this, an exclamation mark can be used:
-
-```belte
-MyType! a = new MyType();
-```
-
-Value-type data is non-nullable by default. To enable nullability, a question mark can be used:
+Data is non-nullable by default. To enable nullability, a question mark can be used:
 
 ```belte
 int? a = null;
 ```
 
-Both of these annotations are allowed in situations where they are redundant for clarity purposes:
+An exclamation mark annotation can also be used to signify non-nullability for clarity:
 
 ```belte
-int! a = 3;
-MyType? b = new MyType();
+int! a = 0;
+```
+
+The [null-assert (`!`) operator](#3221-x) can be used to pass nullable data into a non-nullable context:
+
+```belte
+int? a = 3;
+int! b = a!;
 ```
 
 ## 3.5 References
 
-All variables and constants are by-value by default, meaning they directly contain data. Alternatively, data can be
-stored as a reference to data somewhere else. This is achieved using the `ref` keyword.
+All data containers are passed by-value by default, meaning they copy their data when passed as arguments to methods or
+when assigning to another data container:
 
 ```belte
-int a = 3;
+int a = 10;
+int b = a;
+b = 5;
+Console.PrintLine(a); // 10
+Console.PrintLine(b); // 5
+```
+
+This is true for reference types (classes) as well, except what is copied is the pointer to the data, so when a
+parameter is modified the passed argument will also be modified, but if the parameter is reassigned the passed argument
+is unchanged:
+
+```belte
+MyClass a = new ();
+MyClass b = a;
+b.f = 10;
+Console.PrintLine(a.f); // 10
+Console.PrintLine(b.f); // 10
+
+class MyClass {
+  int f = 5;
+}
+```
+
+```belte
+MyClass a = new ();
+MyClass b = a;
+b = new ();
+b.f = 10;
+Console.PrintLine(a.f); // 5
+Console.PrintLine(b.f); // 10
+
+class MyClass {
+  int f = 5;
+}
+```
+
+To pass a value by reference means to pass a pointer to the value instead of the value itself. This means that
+reassignments will affect the passed argument for example.
+
+```belte
+int a = 5;
 ref int b = ref a;
+b = 10;
+Console.PrintLine(a); // 10
+Console.PrintLine(b); // 10
 ```
 
-In the above example, if `a` is changed, `b` reflects those changes, and vice versa. Note that the type of the
-reference must match the type of what it is referencing including if it is constant or not.
-
-Valid references:
-
 ```belte
-int a = 3;
-ref int b = ref a;
+int a = 5;
+MyFunc(ref a);
+Console.PrintLine(a); // 10
 
-const string! a = "test";
-ref const string! b = ref a;
-
-bool a;
-ref bool b = ref a;
+void MyFunc(ref int param) {
+  param = 10;
+}
 ```
 
-A constant reference is a reference that cannot change what it is referencing:
+This means for reference types that modifications are the same as when passed by-value, but reassignments now affect
+the passed argument:
 
 ```belte
-int a = 3;
-const ref int b = ref a;
+MyClass a = new ();
+ref MyClass b = ref a;
+b = new ();
+b.f = 10;
+Console.PrintLine(a.f); // 10
+Console.PrintLine(b.f); // 10
+
+class MyClass {
+  int f = 5;
+}
 ```
 
-Meaning a constant reference to a constant may look like:
+The reference by default pointers to a variable so that it can be modified freely. This means that taking a reference
+of a constant is not allowed, but a constant reference can be taken instead:
 
 ```belte
-const int a = 3;
+const int a = 10;
+ref int b = ref a; // Invalid
+ref const int c = ref a; // OK
+```
+
+The reference itself can also have modifiers:
+
+```belte
+const int a = 10;
 const ref const int b = ref a;
 ```
 
-Note that the first `const` keyword makes it a constant reference, and the second means it is referencing a constant.
+In the above example, `b` references the constant `a`, but `b` itself is also constant meaning it cannot be reassigned
+to a new reference.
+
+```belte
+const int a = 10;
+const int b = 5;
+
+ref const int c = ref a;
+c = ref b; // OK
+
+const ref const int d = ref a;
+d = ref b; // Invalid
+```
+
+Similarly, a final reference can be used:
+
+```belte
+final int a = 10;
+ref final int b = ref a;
+```
+
+Because `const` is more restrictive than `final`, the following also works:
+
+```belte
+final int a = 10;
+ref const int b = ref a;
+```
+
+Where `b` uses the restrictiveness of `const`.
+
+References cannot be made on data containers marked `constexpr`.
+
+References are a safer form of pointer and should be used when possible, but to ensure safety references have many rules
+about when they can be passed. If more flexibility is needed, consider using a
+[raw pointer](LowLevelFeatures.md#65-pointers).
 
 ## 3.6 Arrays
 
@@ -519,6 +795,24 @@ F(new int[] {1, 2, 3});
 
 void F(int[] arr) { /* ... */}
 ```
+
+Arrays prevent reading elements before they a written by throwing at runtime:
+
+```belte
+var a = new int[10];
+var b = a[0]; // Exception
+```
+
+The length of an array can be accessed by calling the constant method `Length()`:
+
+```belte
+var a = new int[10];
+var b = a.Length();
+```
+
+Note that the length returned is the total size of the array regardless of how many elements have been initialized.
+
+In certain contexts, a [`Buffer<T>` may be preferable](LowLevelFeatures.md#63-arrays-and-buffers).
 
 ## 3.7 Compile-Time Expressions
 

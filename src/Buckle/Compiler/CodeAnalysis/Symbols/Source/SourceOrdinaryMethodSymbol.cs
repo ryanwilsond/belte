@@ -1,12 +1,22 @@
 using System.Collections.Immutable;
+using System.Linq;
+using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMethodSymbolBase {
+    private readonly MethodDeclarationSyntax _syntax;
+
+    private MethodSymbol _lazyReverseMethod;
+    private MethodSymbol _lazyStateMethod;
+    private ImmutableArray<FieldSymbol> _lazyInitFields;
+
     private SourceOrdinaryMethodSymbol(
         NamedTypeSymbol containingType,
         string name,
@@ -23,6 +33,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         this.hasExplicitAccessModifier = hasExplicitAccessModifier;
         var hasAnyBody = syntax.body is not null;
         location = syntax.identifier.location;
+        _syntax = syntax;
 
         if (hasAnyBody)
             CheckModifiersForBody(location, diagnostics);
@@ -41,6 +52,44 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
 
     private bool _hasAnyBody => _flags.hasAnyBody;
 
+    internal override bool isReversible => _syntax.reverseClause is not null;
+
+    internal override bool hasReversalState => _syntax.stateClause is not null;
+
+    internal override MethodSymbol reverseMethod {
+        get {
+            if (isReversible && _lazyReverseMethod is null)
+                Interlocked.CompareExchange(ref _lazyReverseMethod, MakeReverseMethod(_syntax.reverseClause), null);
+
+            return _lazyReverseMethod;
+        }
+    }
+
+    internal override MethodSymbol stateMethod {
+        get {
+            if (hasReversalState && _lazyStateMethod is null)
+                Interlocked.CompareExchange(ref _lazyStateMethod, MakeStateMethod(_syntax.stateClause), null);
+
+            return _lazyStateMethod;
+        }
+    }
+
+    internal override ImmutableArray<FieldSymbol> initFields {
+        get {
+            if (_lazyInitFields == default) {
+                var diagnostics = BelteDiagnosticQueue.GetInstance();
+                var initFields = MakeInitFields(_syntax.initConstraintClauseSyntax, diagnostics);
+
+                if (ImmutableInterlocked.InterlockedInitialize(ref _lazyInitFields, initFields)) {
+                    AddDeclarationDiagnostics(diagnostics);
+                    diagnostics.Free();
+                }
+            }
+
+            return _lazyInitFields;
+        }
+    }
+
     private SyntaxList<AttributeListSyntax> _attributeDeclarationSyntaxList {
         get {
             if (containingType is SourceMemberContainerTypeSymbol sourceContainer &&
@@ -56,7 +105,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         NamedTypeSymbol containingType,
         MethodDeclarationSyntax syntax,
         BelteDiagnosticQueue diagnostics) {
-        var name = syntax.identifier.text;
+        var name = syntax.identifier.valueText;
 
         return syntax.templateParameterList is null
             ? new SourceSimpleOrdinaryMethodSymbol(containingType, name, syntax, MethodKind.Ordinary, diagnostics)
@@ -90,6 +139,8 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         }
 
         CheckModifiers(GetSyntax().identifier.location, diagnostics);
+
+        _ = initFields;
     }
 
     private static (DeclarationModifiers, Flags) MakeModifiersAndFlags(
@@ -181,8 +232,9 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             this,
             syntax.parameterList.parameters,
             diagnostics,
-            true,
-            isVirtual || isAbstract
+            allowRef: true,
+            isVirtual || isAbstract,
+            allowConst: true
         ).Cast<SourceParameterSymbol, ParameterSymbol>();
 
         returnTypeSyntax = returnTypeSyntax.SkipRef(out _);
@@ -252,5 +304,46 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             diagnostics.Push(Warning.ProtectedInSealed(location, this));
         else if (containingType.isStatic && !isStatic)
             diagnostics.Push(Error.InstanceMemberInStatic(location, this));
+    }
+
+    private SourceReverseMethodSymbol MakeReverseMethod(ReverseClauseSyntax syntax) {
+        return new SourceReverseMethodSymbol(syntax, containingType, this, stateMethod);
+    }
+
+    private SourceStateMethodSymbol MakeStateMethod(StateClauseSyntax syntax) {
+        return new SourceStateMethodSymbol(syntax, containingType, this);
+    }
+
+    private ImmutableArray<FieldSymbol> MakeInitFields(
+        InitConstraintClauseSyntax syntax,
+        BelteDiagnosticQueue diagnostics) {
+        if (syntax is null)
+            return [];
+
+        var members = containingType.GetMembers();
+        var fields = members.Where(m => m is FieldSymbol).Select(m => m as FieldSymbol).ToImmutableArray();
+
+        var builder = ArrayBuilder<FieldSymbol>.GetInstance();
+
+        foreach (var identifier in syntax.names) {
+            var name = identifier.identifier.valueText;
+
+            if (!members.Any(m => m.name == name)) {
+                diagnostics.Push(Error.NoSuchMember(identifier.location, containingType, name));
+                continue;
+            }
+
+            var candidates = fields.WhereAsArray(f => f.name == name);
+
+            if (candidates.Length == 0)
+                diagnostics.Push(Error.NoSuchField(identifier.location, containingType, name));
+            else if (candidates.Length == 1)
+                builder.Add(candidates[0]);
+            else
+                // Pretty sure this is unreachable, but if not we can make use of some of the unused errors around ambiguous members
+                throw ExceptionUtilities.Unreachable();
+        }
+
+        return builder.ToImmutableAndFree();
     }
 }

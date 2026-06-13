@@ -1,11 +1,13 @@
 
-namespace Buckle.CodeAnalysis.Symbols;
+namespace Buckle.CodeAnalysis;
 
 /// <summary>
 /// Special type of symbol, if any.
 /// </summary>
 public enum SpecialType : byte {
     None,
+
+    // Cor Types
     Object,
     Array,
     Enum,
@@ -31,18 +33,11 @@ public enum SpecialType : byte {
     Type,
     Nullable,
     Void,
-    List,
-    Dictionary,
-    Pointer,
-    FunctionPointer,
-    Exception,
-    Vec2,
-    Sprite,
-    Text,
-    Rect,
-    Texture,
-    Sound,
     ValueType,
     TypedReference,
-    Enumerator,
+    Buffer,
+
+    // Superficial special types
+    Pointer,
+    FunctionPointer,
 }

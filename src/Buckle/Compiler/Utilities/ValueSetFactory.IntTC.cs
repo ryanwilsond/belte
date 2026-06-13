@@ -51,7 +51,7 @@ internal static partial class ValueSetFactory {
             if (constantValue is null)
                 return 0;
 
-            var int32 = CodeAnalysis.Symbols.SpecialType.Int32;
+            var int32 = SpecialType.Int32;
 
             if (constantValue.specialType == int32)
                 return (int)constantValue.value;
@@ -64,7 +64,7 @@ internal static partial class ValueSetFactory {
         }
 
         public ConstantValue ToConstantValue(int value) {
-            return new ConstantValue(value, CodeAnalysis.Symbols.SpecialType.Int32);
+            return new ConstantValue(value, SpecialType.Int32);
         }
 
         string INumericTC<int>.ToString(int value) {

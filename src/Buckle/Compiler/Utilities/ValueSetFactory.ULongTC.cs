@@ -45,7 +45,7 @@ internal static partial class ValueSetFactory {
         }
 
         ConstantValue INumericTC<ulong>.ToConstantValue(ulong value) {
-            return new ConstantValue(value, CodeAnalysis.Symbols.SpecialType.UInt64);
+            return new ConstantValue(value, SpecialType.UInt64);
         }
 
         string INumericTC<ulong>.ToString(ulong value) {

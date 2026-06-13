@@ -14,8 +14,9 @@ internal sealed class SynthesizedComplexParameterSymbol : SynthesizedParameterSy
         ScopedKind scope,
         ConstantValue defaultValue,
         string name,
-        SourceComplexParameterSymbolBase baseParameter)
-        : base(container, type, ordinal, refKind, scope, name) {
+        SourceComplexParameterSymbolBase baseParameter,
+        bool isConst)
+        : base(container, type, ordinal, refKind, scope, name, isConst) {
         _defaultValue = defaultValue;
         _baseParameter = baseParameter;
     }

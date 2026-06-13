@@ -101,7 +101,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol {
                 var parameter = templateParameters[ordinal];
                 var identifier = parameter.identifier;
                 var location = identifier.location;
-                var name = identifier.text;
+                var name = identifier.valueText;
 
                 for (var i = 0; i < result.Count; i++) {
                     if (name == result[i].name) {

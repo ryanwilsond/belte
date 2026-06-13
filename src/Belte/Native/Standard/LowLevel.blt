@@ -1,12 +1,16 @@
 
 public static class LowLevel {
-    public static int! GetHashCode(Object! object);
+    public static int! GetHashCode(const Object! object);
 
-    public static string! GetTypeName(Object! object);
+    public static string! GetTypeName(const Object! object);
 
-    public static int! Length<type T>(T! array);
+    public static type! GetType(const any! object);
 
-    public static void Sort<type T>(T! array);
+    public static int! Length<type TElem>(const Buffer<TElem>! array);
+
+    public static void Sort<type TElem>(Buffer<TElem>! array);
+
+    public static void Fill<type TElem>(Buffer<TElem>! array, TElem value);
 
     public static int32 SizeOf<type T>();
 
@@ -33,4 +37,8 @@ public static class LowLevel {
     public static Object! GetObject(void* ptr);
 
     public static void ThrowNullConditionException();
+
+    public static bool IsLittleEndian();
+
+    public static int32 ReverseEndianness(int32 value);
 }

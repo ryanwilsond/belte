@@ -11,18 +11,23 @@ internal sealed class LambdaCapturedVariable : SynthesizedFieldSymbolBase {
         SynthesizedClosureEnvironment frame,
         TypeWithAnnotations type,
         string fieldName,
-        bool isThisParameter)
+        bool isThisParameter,
+        Symbol captured)
         : base(frame,
                fieldName,
                isPublic: true,
                isConst: false,
+               isFinal: false,
                isStatic: false,
                isConstExpr: false) {
         _type = type;
         _isThis = isThisParameter;
+        this.captured = captured;
     }
 
     internal SynthesizedClosureEnvironment frame => (SynthesizedClosureEnvironment)containingType;
+
+    internal Symbol captured { get; }
 
     internal static LambdaCapturedVariable Create(
         SynthesizedClosureEnvironment frame,
@@ -30,7 +35,7 @@ internal sealed class LambdaCapturedVariable : SynthesizedFieldSymbolBase {
         ref int uniqueId) {
         var fieldName = GetCapturedVariableFieldName(captured, ref uniqueId);
         var type = GetCapturedVariableFieldType(frame, captured);
-        return new LambdaCapturedVariable(frame, new TypeWithAnnotations(type), fieldName, IsThis(captured));
+        return new LambdaCapturedVariable(frame, new TypeWithAnnotations(type), fieldName, IsThis(captured), captured);
     }
 
     private static bool IsThis(Symbol captured) {

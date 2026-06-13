@@ -43,6 +43,9 @@ Options:
   --warnlevel=<warning level> Specify a warning reporting level; defaults to 1.
   --wignore=<[BU|RE|CL]<code>,...>        Specify a specific warning to suppress.
   --winclude=<[BU|RE|CL]<code>,...>       Specify a specific warning to report.
+  --werror=<warning level>    Promote all warnings of a warning reporting level to errors; defaults to 2 when used.
+  --werrignore=<[BU|RE|CL]<code>,...>     Specify a specific warning to not promote to an error.
+  --werrinclude=<[BU|RE|CL]<code>,...>    Specify a specific warning to promote to an error.
 
   --time                      Display timing information for each compilation stage.
   --verbose                   Display additional information about the compilation process.

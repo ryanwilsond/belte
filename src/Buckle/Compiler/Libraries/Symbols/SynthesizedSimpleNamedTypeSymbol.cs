@@ -6,6 +6,7 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
+using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.Libraries;
@@ -30,8 +31,10 @@ internal sealed class SynthesizedSimpleNamedTypeSymbol : NamedTypeSymbol {
 
         var builder = ArrayBuilder<TemplateParameterSymbol>.GetInstance();
 
-        for (var i = 0; i < templateParameterTypes.Length; i++)
-            builder.Add(new SynthesizedTemplateParameterSymbol(this, templateParameterTypes[i], i));
+        for (var i = 0; i < templateParameterTypes.Length; i++) {
+            var tName = templateParameterTypes.Length == 1 ? "T" : $"T{i + 1}";
+            builder.Add(new SynthesizedTemplateParameterSymbol(this, templateParameterTypes[i], i, tName));
+        }
 
         templateParameters = builder.ToImmutableAndFree();
         arity = templateParameters.Length;
@@ -93,5 +96,9 @@ internal sealed class SynthesizedSimpleNamedTypeSymbol : NamedTypeSymbol {
 
     internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers(ReadOnlyMemory<char> name) {
         return [];
+    }
+
+    private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
+        throw ExceptionUtilities.Unreachable();
     }
 }

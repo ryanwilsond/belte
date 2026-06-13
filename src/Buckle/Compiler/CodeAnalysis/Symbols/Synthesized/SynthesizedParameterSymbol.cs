@@ -9,8 +9,9 @@ internal sealed class SynthesizedParameterSymbol : SynthesizedParameterSymbolBas
         int ordinal,
         RefKind refKind,
         ScopedKind scope,
-        string name)
-        : base(container, type, ordinal, refKind, scope, name) { }
+        string name,
+        bool isConst)
+        : base(container, type, ordinal, refKind, scope, name, isConst) { }
 
     internal static ParameterSymbol Create(
         Symbol container,
@@ -20,9 +21,10 @@ internal sealed class SynthesizedParameterSymbol : SynthesizedParameterSymbolBas
         string name = "",
         ScopedKind scope = ScopedKind.None,
         ConstantValue defaultValue = null,
-        SourceComplexParameterSymbolBase baseParameter = null) {
+        SourceComplexParameterSymbolBase baseParameter = null,
+        bool isConst = false) {
         if (defaultValue is null && baseParameter is null)
-            return new SynthesizedParameterSymbol(container, type, ordinal, refKind, scope, name);
+            return new SynthesizedParameterSymbol(container, type, ordinal, refKind, scope, name, isConst);
 
         return new SynthesizedComplexParameterSymbol(
             container,
@@ -32,7 +34,8 @@ internal sealed class SynthesizedParameterSymbol : SynthesizedParameterSymbolBas
             scope,
             defaultValue,
             name,
-            baseParameter
+            baseParameter,
+            isConst
         );
     }
 

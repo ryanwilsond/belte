@@ -61,14 +61,16 @@ public sealed partial class Compilation {
         Compilation previous,
         SyntaxAndDeclarationManager syntax,
         ReferenceManager referenceManager,
-        NamespaceSymbol namespaceOpt = null) {
+        NamespaceSymbol namespaceOpt = null,
+        bool forwardDiagnostics = false) {
         this.assemblyName = assemblyName;
         this.options = options;
         this.previous = previous;
         _syntax = syntax;
         _specialNamespace = namespaceOpt;
 
-        if (previous?.declarationDiagnostics is not null)
+        // TODO When do we want to forward diagnostics? (Something to do with handles?)
+        if (forwardDiagnostics && previous?.declarationDiagnostics is not null)
             declarationDiagnostics.PushRange(previous.declarationDiagnostics);
 
         _referenceManager = referenceManager ?? new ReferenceManager(options.references, declarationDiagnostics);
@@ -112,6 +114,8 @@ public sealed partial class Compilation {
     internal ImmutableArray<SyntaxTree> syntaxTrees => _syntax.state.syntaxTrees;
 
     internal bool keepLookingForCorTypes => CorLibrary.StillLookingForSpecialTypes();
+
+    internal bool keepLookingForWellKnownTypes => CorLibrary.StillLookingForWellKnownTypes();
 
     internal MergedNamespaceDeclaration mergedRootDeclaration => _syntax.state.declarationTable.GetMergedRoot(this);
 
@@ -209,6 +213,38 @@ public sealed partial class Compilation {
                 InterlockedOperations.Initialize(ref _lazyTreeToUsedImportDirectivesMap, new());
 
             return _lazyTreeToUsedImportDirectivesMap;
+        }
+    }
+
+    internal ExtendedErrorTypeSymbol implicitlyTypedVariableUsedInForbiddenZoneType {
+        get {
+            if (field is null) {
+                Interlocked.CompareExchange(ref field, new ExtendedErrorTypeSymbol(
+                    this,
+                    name: "var",
+                    arity: 0,
+                    error: null,
+                    variableUsedBeforeDeclaration: true
+                ), null);
+            }
+
+            return field;
+        }
+    }
+
+    internal ExtendedErrorTypeSymbol implicitlyTypedVariableInferenceFailedType {
+        get {
+            if (field is null) {
+                Interlocked.CompareExchange(ref field, new ExtendedErrorTypeSymbol(
+                    this,
+                    name: "var",
+                    arity: 0,
+                    error: null,
+                    unreported: false
+                ), null);
+            }
+
+            return field;
         }
     }
 
@@ -348,7 +384,8 @@ public sealed partial class Compilation {
         string verbosePath = null,
         bool noArtifacts = false) {
         var timer = logTime ? Stopwatch.StartNew() : null;
-        var diagnostics = GetDiagnostics();
+        var diagnostics = GetDiagnostics()
+            .ApplyTransformations(options.globalDiagnosticOptions, options.localDiagnosticOptions);
         var program = boundProgram;
 
         Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
@@ -419,7 +456,8 @@ public sealed partial class Compilation {
         }
 
         var timer = logTime ? Stopwatch.StartNew() : null;
-        var diagnostics = GetDiagnostics();
+        var diagnostics = GetDiagnostics()
+            .ApplyTransformations(options.globalDiagnosticOptions, options.localDiagnosticOptions);
         var program = boundProgram;
 
         Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
@@ -461,7 +499,8 @@ public sealed partial class Compilation {
         bool noArtifacts,
         out object result) {
         var timer = logTime ? Stopwatch.StartNew() : null;
-        var diagnostics = GetDiagnostics();
+        var diagnostics = GetDiagnostics()
+            .ApplyTransformations(options.globalDiagnosticOptions, options.localDiagnosticOptions);
         var program = boundProgram;
 
         Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
@@ -497,7 +536,8 @@ public sealed partial class Compilation {
         BuildMode? alternateBuildMode = null,
         bool programOnly = false) {
         var buildMode = alternateBuildMode ?? options.buildMode;
-        diagnostics = GetDiagnostics();
+        diagnostics = GetDiagnostics()
+            .ApplyTransformations(options.globalDiagnosticOptions, options.localDiagnosticOptions);
         var program = boundProgram;
 
         if (diagnostics.AnyErrors())
@@ -594,6 +634,10 @@ public sealed partial class Compilation {
     internal void RegisterDeclaredSpecialType(NamedTypeSymbol type) {
         // TODO Maybe make the CorLibrary not static?
         CorLibrary.RegisterDeclaredSpecialType(type);
+    }
+
+    internal void RegisterDeclaredWellKnownType(WellKnownType wellKnownType, NamedTypeSymbol type) {
+        CorLibrary.RegisterDeclaredWellKnownType(wellKnownType, type);
     }
 
     internal Binder GetBinder(BelteSyntaxNode syntax) {
@@ -832,8 +876,10 @@ public sealed partial class Compilation {
             if (methods.Length > expectedCount)
                 diagnostics.Push(Error.MultipleMains(methods[0].location));
 
-            if (methods.Length > 1 && simpleEntryPoint is not null)
+            if (methods.Length > 1 && simpleEntryPoint is not null) {
+                diagnostics.Push(Error.MainAndGlobals(simpleEntryPoint.firstLocation));
                 diagnostics.Push(Error.MainAndGlobals(methods[0].location));
+            }
         }
 
         if (entryPoint is not null && !entryPoint.isStatic) {
@@ -851,7 +897,7 @@ public sealed partial class Compilation {
     }
 
     internal static bool HasEntryPointSignature(MethodSymbol method) {
-        if (!method.name.Equals("main", StringComparison.CurrentCultureIgnoreCase))
+        if (!method.name.Equals(WellKnownMemberNames.EntryPointMethodName))
             return false;
 
         var returnType = method.returnType;
@@ -877,8 +923,15 @@ public sealed partial class Compilation {
 
         var firstType = method.parameters[0].type;
 
-        if (firstType.specialType != SpecialType.Array)
-            return false;
+        if (firstType.specialType != SpecialType.Array) {
+            if (!firstType.originalDefinition.Equals(CorLibrary.GetWellKnownType(WellKnownType.Array)))
+                return false;
+
+            if (((NamedTypeSymbol)firstType).templateArguments[0].type.type.specialType != SpecialType.String)
+                return false;
+
+            return true;
+        }
 
         var elementType = ((ArrayTypeSymbol)firstType).elementType;
 
@@ -1100,7 +1153,7 @@ public sealed partial class Compilation {
         var cfgStatement = program.entryPoint is null ? null : program.methodBodies[program.entryPoint];
 
         if (cfgStatement is not null) {
-            var cfg = ControlFlowGraph.Create(cfgStatement);
+            var cfg = ControlFlowGraph.Create(program.entryPoint, cfgStatement);
 
             using var streamWriter = new StreamWriter(cfgPath);
             cfg.WriteTo(streamWriter);

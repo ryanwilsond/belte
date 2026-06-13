@@ -43,7 +43,9 @@ internal sealed partial class PEFieldSymbol : FieldSymbol {
         }
     }
 
-    public override bool isConst => (_flags & FieldAttributes.InitOnly) != 0;
+    public override bool isConst => false;
+
+    public override bool isFinal => (_flags & FieldAttributes.InitOnly) != 0;
 
     public override bool isConstExpr {
         get {
@@ -109,7 +111,7 @@ internal sealed partial class PEFieldSymbol : FieldSymbol {
             );
 
             var refKind = fieldInfo.isByRef
-                ? moduleSymbol.module.HasIsReadOnlyAttribute(_handle) ? RefKind.RefConst : RefKind.Ref
+                ? moduleSymbol.module.HasIsReadOnlyAttribute(_handle) ? RefKind.RefFinal : RefKind.Ref
                 : RefKind.None;
 
             _packedFlags.SetRefKind(refKind);

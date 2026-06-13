@@ -18,7 +18,7 @@ internal enum BinderFlags : uint {
     ConstructorInitializer = 1 << 7,
     ObjectInitializerMember = 1 << 8,
     ConstContext = 1 << 9,
-    InWithBody = 1 << 10,
+    InWithTryBody = 1 << 10,
     InDeferBody = 1 << 11,
 
     InCatchBlock = 1 << 12,

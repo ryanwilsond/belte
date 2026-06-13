@@ -15,6 +15,10 @@
 
   - [github.com/ryanwilsond/belte/main/samples](https://github.com/ryanwilsond/belte/blob/main/samples).
 
+- #### Future Planned Features
+
+  - [0](Future.md) Future Features Overview
+
 - #### Belte Language Docs in Its Current State
 
   - [1](Current/Overview.md) Overview
@@ -31,10 +35,11 @@
       - [1.4.5](Current/Overview.md#145-implicit-typing) Implicit Typing
       - [1.4.6](Current/Overview.md#146-null-flow-analysis) Null-Flow Analysis
     - [1.5](Current/Overview.md#15-differences-from-c) **Differences from C#**
+    - [1.6](Current/Overview.md#16-identifiers) Identifiers
   - [2](Current/ControlFlow.md) Control Flow
     - [2.1](Current/ControlFlow.md#21-functions) Functions
       - [2.1.1](Current/ControlFlow.md#211-nested-functions) Nested Functions
-      - [2.1.2](Current/ControlFlow.md#212-overloads) Overloads
+      - [2.1.2](Current/ControlFlow.md#212-const-parameters) Const Parameters
       - [2.1.3](Current/ControlFlow.md#213-default-arguments) Default Arguments
       - [2.1.4](Current/ControlFlow.md#214-named-arguments) Named Arguments
       - [2.1.5](Current/ControlFlow.md#215-template-arguments) Template Arguments
@@ -63,15 +68,19 @@
     - [2.6](Current/ControlFlow.md#26-exceptions-and-handling) Exceptions and Handling
       - [2.6.1](Current/ControlFlow.md#261-trycatchfinally) Try/Catch/Finally
     - [2.7](Current/ControlFlow.md#27-with-expressions-and-statements) With Expressions and Statements
+      - [2.7.1](Current/ControlFlow.md#271-commit-statements) Commit Statements
     - [2.8](Current/ControlFlow.md#28-defer-statements) Defer Statements
-    - [2.9](Current/ControlFlow.md#29-using-statements) Using Statements
+    - [2.9](Current/ControlFlow.md#29-scoped-statements) Scoped Statements
     - [2.10](Current/ControlFlow.md#210-unreachable-statements) Unreachable Statements
+    - [2.11](Current/ControlFlow.md#211-reverse-statements) Reverse Statements
   - [3](Current/Data.md) Data
     - [3.1](Current/Data.md#31-data-types) Data Types
       - [3.1.1](Current/Data.md#311-casts) Casts
       - [3.1.2](Current/Data.md#312-string-interpolation) String Interpolation
       - [3.1.3](Current/Data.md#313-function-type) Function Type
       - [3.1.4](Current/Data.md#314-default-literal) Default Literal
+      - [3.1.5](Current/Data.md#315-tuples) Tuples
+        - [3.1.5.1](Current/Data.md#3151-user-defined-deconstruction) User-Defined Deconstruction
     - [3.2](Current/Data.md#32-operators) Operators
       - [3.2.1](Current/Data.md#321-operator-precedence) Operator Precedence
       - [3.2.2](Current/Data.md#322-uncommon-operators) Uncommon Operators
@@ -88,9 +97,10 @@
         - [3.2.2.11](Current/Data.md#32211-x--y) `x \/ y`
         - [3.2.2.12](Current/Data.md#32212-x--y-z) `x >< [y, z]`
       - [3.2.3](Current/Data.md#323-isisntas-operators) Is/Isnt/As Operators
-    - [3.3](Current/Data.md#33-variables-and-constants) Variables and Constants
-      - [3.3.1](Current/Data.md#331-implicit-typing) Implicit Typing
-    - [3.4](Current/Data.md#34-attributes-and-modifiers) Attributes and Modifiers
+    - [3.3](Current/Data.md#33-data-containers) Data Containers
+      - [3.3.1](Current/Data.md#331-modifiers) Modifiers
+      - [3.3.1](Current/Data.md#332-implicit-typing) Implicit Typing
+    - [3.4](Current/Data.md#34-annotations) Annotations
     - [3.5](Current/Data.md#35-references) References
     - [3.6](Current/Data.md#36-arrays) Arrays
     - [3.7](Current/Data.md#37-compile-time-expressions) Compile-Time Expressions
@@ -104,16 +114,19 @@
     - [4.2](Current/ClassesAndObjects.md#42-members) Members
       - [4.2.1](Current/ClassesAndObjects.md#421-fields) Fields
       - [4.2.2](Current/ClassesAndObjects.md#422-methods) Methods
+        - [4.2.2.1](Current/ClassesAndObjects.md#4221-overloading) Overloading
+        - [4.2.2.2](Current/ClassesAndObjects.md#4222-state-and-reverse-clauses) State and Reverse Clauses
       - [4.2.3](Current/ClassesAndObjects.md#423-operators) Operators
         - [4.2.3.1](Current/ClassesAndObjects.md#4231-operator-overloading) Operator Overloading
         - [4.2.3.2](Current/ClassesAndObjects.md#4232-casts) Casts
+        - [4.2.3.3](Current/ClassesAndObjects.md#4233-user-defined-literals) User-Defined Literals
     - [4.3](Current/ClassesAndObjects.md#43-modifiers) Modifiers
       - [4.3.1](Current/ClassesAndObjects.md#431-accessibility-modifiers) Accessibility Modifiers
       - [4.3.2](Current/ClassesAndObjects.md#432-overriding-modifiers) Overriding Modifiers
-      - [4.3.3](Current/ClassesAndObjects.md#433-static--constexpr) Static & ConstExpr
+      - [4.3.3](Current/ClassesAndObjects.md#433-static-and-constexpr) Static and ConstExpr
       - [4.3.4](Current/ClassesAndObjects.md#434-const) Const
-      - [4.3.5](Current/ClassesAndObjects.md#435-sealed--abstract) Sealed & Abstract
-    - [4.4](Current/ClassesAndObjects.md#44-constructors--destructors) Constructors & Destructors
+      - [4.3.5](Current/ClassesAndObjects.md#435-sealed-and-abstract) Sealed and Abstract
+    - [4.4](Current/ClassesAndObjects.md#44-constructors-and-finalizers) Constructors and Finalizers
     - [4.5](Current/ClassesAndObjects.md#45-templates) Templates
       - [4.5.1](Current/ClassesAndObjects.md#451-constraint-clauses) Constraint Clauses
         - [4.5.1.1](Current/ClassesAndObjects.md#4511-expression-constraints) Expression Constraints
@@ -144,12 +157,14 @@
       - [5.7.1](Current/StandardLibrary/List.md) List
       - [5.7.2](Current/StandardLibrary/Dictionary.md) Dictionary
     - [5.8](Current/StandardLibrary/LowLevel.md) LowLevel
-    - [5.9](Current/StandardLibrary/Int.md) Int
+    - [5.9](Current/StandardLibrary/Int.md) Int and Other Numerics
     - [5.10](Current/StandardLibrary/Decimal.md) Decimal, Float64, and Float32
   - [6](Current/LowLevelFeatures.md) Low-Level Features
     - [6.1](Current/LowLevelFeatures.md#61-low-level-contexts) Low-Level Contexts
     - [6.2](Current/LowLevelFeatures.md#62-structs) Structs
-    - [6.3](Current/LowLevelFeatures.md#63-arrays) Arrays
+      - [6.2.1](Current/LowLevelFeatures.md#621-packing) Packing
+    - [6.3](Current/LowLevelFeatures.md#63-arrays-and-buffers) Arrays and Buffers
+      - [6.3.1](Current/LowLevelFeatures.md#631-alternate-entry-point-signature) Alternate Entry Point Signature
     - [6.4](Current/LowLevelFeatures.md#64-numerics) Numerics
       - [6.4.1](Current/LowLevelFeatures.md#641-bit-casts) Bit Casts
     - [6.5](Current/LowLevelFeatures.md#65-pointers) Pointers
@@ -171,12 +186,18 @@
       - [6.13.1](Current/LowLevelFeatures.md#6131-messages) Messages
       - [6.13.2](Current/LowLevelFeatures.md#6132-ordering) Ordering
     - [6.14](Current/LowLevelFeatures.md#614-c-strings) C-Strings
+    - [6.15](Current/LowLevelFeatures.md#615-lowlevel-fields) LowLevel Fields
+    - [6.16](Current/LowLevelFeatures.md#616-lowlevel-default-literal) LowLeve Default Literal
+    - [6.17](Current/LowLevelFeatures.md#617-double-verbatim-identifiers) Double Verbatim Identifiers
   - [7](Current/Preprocessor.md) Preprocessor Directives
     - [7.1](Current/Preprocessor.md#71-defineundef) Define/Undef
     - [7.2](Current/Preprocessor.md#72-control) Control
   - [8](Current/Interop.md) .NET DLL References
     - [8.1](Current/Interop.md#81-referencing-net-dlls) Referencing .NET DLLs
-    - [8.2](Current/Interop.md#82-feature-workarounds) Feature Workarounds
+    - [8.2](Current/Interop.md#82-tips) Tips
+      - [8.2.1](Current/Interop.md#821-properties) Properties
+      - [8.2.2](Current/Interop.md#822-arrays) Arrays
+      - [8.2.3](Current/Interop.md#823-nullability) Nullability
   - [9](Current/GraphicsLibrary.md) Graphics Library
 
 ___

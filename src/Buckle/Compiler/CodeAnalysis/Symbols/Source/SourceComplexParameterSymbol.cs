@@ -8,10 +8,11 @@ internal sealed class SourceComplexParameterSymbol : SourceComplexParameterSymbo
         int ordinal,
         TypeWithAnnotations type,
         RefKind refKind,
+        bool isConst,
         string name,
         ParameterSyntax syntax,
         ScopedKind scope)
-        : base(owner, ordinal, refKind, name, syntax, scope) {
+        : base(owner, ordinal, refKind, isConst, name, syntax, scope) {
         typeWithAnnotations = type;
     }
 

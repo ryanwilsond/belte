@@ -254,8 +254,9 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic ReferenceToConstant(TextLocation location) {
-        var message = $"cannot assign a reference to a constant to a by-reference data container expecting a reference to a data container";
-        return CreateError(DiagnosticCode.ERR_ReferenceToConstant, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"cannot assign a reference to a constant to a by-reference data container expecting a reference to a data container";
+        // return CreateError(DiagnosticCode.ERR_ReferenceToConstant, location, message);
     }
 
     internal static BelteDiagnostic VoidUsedAsType(TextLocation location) {
@@ -299,6 +300,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NoSuchMember, location, message);
     }
 
+    internal static BelteDiagnostic NoSuchField(TextLocation location, TypeSymbol operand, string text) {
+        var message = $"'{operand.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' contains no such field '{text}'";
+        return CreateError(DiagnosticCode.ERR_NoSuchField, location, message);
+    }
+
     internal static BelteDiagnostic NoSuchMember(TextLocation location, BoundExpression operand, string text) {
         var message = $"'{operand}' contains no such member '{text}'";
         return CreateError(DiagnosticCode.ERR_NoSuchMember, location, message);
@@ -310,13 +316,13 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic ConstantToNonConstantReference(TextLocation location) {
-        var message = $"cannot assign a reference to a data container to a by-reference data container expecting a reference to a constant";
-        return CreateError(DiagnosticCode.ERR_ConstantToNonConstantReference, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"cannot assign a reference to a data container to a by-reference data container expecting a reference to a constant";
+        // return CreateError(DiagnosticCode.ERR_ConstantToNonConstantReference, location, message);
     }
 
     internal static BelteDiagnostic ParameterAlreadySpecified(TextLocation location, string name) {
-        var message = $"named argument '{name}' specifies a parameter for which a positional argument has already " +
-            "been given";
+        var message = $"named argument '{name}' specifies a parameter for which a positional argument has already been given";
         return CreateError(DiagnosticCode.ERR_ParameterAlreadySpecified, location, message);
     }
 
@@ -371,13 +377,15 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic CannotUseStruct(TextLocation location) {
-        var message = "cannot use structs outside of low-level contexts";
-        return CreateError(DiagnosticCode.ERR_CannotUseStruct, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = "cannot use structs outside of low-level contexts";
+        // return CreateError(DiagnosticCode.ERR_CannotUseStruct, location, message);
     }
 
     internal static BelteDiagnostic CannotUseThis(TextLocation location) {
-        var message = "cannot use 'this' in the current context";
-        return CreateError(DiagnosticCode.ERR_CannotUseThis, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = "cannot use 'this' in the current context";
+        // return CreateError(DiagnosticCode.ERR_CannotUseThis, location, message);
     }
 
     internal static BelteDiagnostic MemberIsInaccessible(TextLocation location, Symbol symbol) {
@@ -393,11 +401,6 @@ internal static class Error {
     internal static BelteDiagnostic InvalidModifier(TextLocation location, string name) {
         var message = $"modifier '{name}' is not valid for this item";
         return CreateError(DiagnosticCode.ERR_InvalidModifier, location, message);
-    }
-
-    internal static Diagnostic InvalidModifier(string name) {
-        var message = $"modifier '{name}' is not valid for this item";
-        return CreateError(DiagnosticCode.ERR_InvalidModifier, message);
     }
 
     internal static BelteDiagnostic NoInstanceRequired(TextLocation location, string name, Symbol symbol) {
@@ -419,11 +422,6 @@ internal static class Error {
     internal static BelteDiagnostic MultipleMains(TextLocation location) {
         var message = "cannot have multiple 'Main' entry points";
         return CreateError(DiagnosticCode.ERR_MultipleMains, location, message);
-    }
-
-    internal static Diagnostic InvalidAttributes() {
-        var message = "attributes are not valid in this context";
-        return CreateError(DiagnosticCode.ERR_InvalidAttributes, message);
     }
 
     internal static BelteDiagnostic InvalidAttributes(TextLocation location) {
@@ -498,8 +496,9 @@ internal static class Error {
 
     // TODO implement error
     internal static BelteDiagnostic ArrayOutsideOfLowLevelContext(TextLocation location) {
-        var message = $"cannot use arrays outside of low-level contexts";
-        return CreateError(DiagnosticCode.ERR_ArrayOutsideOfLowLevelContext, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"cannot use arrays outside of low-level contexts";
+        // return CreateError(DiagnosticCode.ERR_ArrayOutsideOfLowLevelContext, location, message);
     }
 
     internal static Diagnostic EmptyCharacterLiteral() {
@@ -510,11 +509,6 @@ internal static class Error {
     internal static Diagnostic CharacterLiteralTooLong() {
         var message = $"character literal cannot be more than one character";
         return CreateError(DiagnosticCode.ERR_CharacterLiteralTooLong, message);
-    }
-
-    internal static BelteDiagnostic NoInitOnNonNullable(TextLocation location) {
-        var message = $"non-nullable locals and class fields must have an initializer";
-        return CreateError(DiagnosticCode.ERR_NoInitOnNonNullable, location, message);
     }
 
     internal static BelteDiagnostic CannotBePrivateAndVirtualOrAbstract(TextLocation location, Symbol symbol) {
@@ -573,8 +567,9 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic CannotUseBase(TextLocation location) {
-        var message = "cannot use 'base' in the current context";
-        return CreateError(DiagnosticCode.ERR_CannotUseBase, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = "cannot use 'base' in the current context";
+        // return CreateError(DiagnosticCode.ERR_CannotUseBase, location, message);
     }
 
     internal static BelteDiagnostic CannotCreateAbstract(TextLocation location, TypeSymbol type) {
@@ -738,13 +733,15 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic AmbiguousMember(TextLocation location, Symbol first, Symbol second) {
-        var message = $"Ambiguity between '{first}' and '{second}'";
-        return CreateError(DiagnosticCode.ERR_AmbiguousMember, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"Ambiguity between '{first}' and '{second}'";
+        // return CreateError(DiagnosticCode.ERR_AmbiguousMember, location, message);
     }
 
     internal static BelteDiagnostic InvalidProtectedAccess(TextLocation location, Symbol symbol, Symbol throughType, Symbol containingType) {
-        var message = $"cannot access protected member '{symbol}' via a qualifier of type '{throughType}'; the qualifier must be of type '{containingType}' (or derive from it)";
-        return CreateError(DiagnosticCode.ERR_InvalidProtectedAccess, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"cannot access protected member '{symbol}' via a qualifier of type '{throughType}'; the qualifier must be of type '{containingType}' (or derive from it)";
+        // return CreateError(DiagnosticCode.ERR_InvalidProtectedAccess, location, message);
     }
 
     internal static BelteDiagnostic CannotInitializeVarWithStaticClass(TextLocation location, TypeSymbol type) {
@@ -808,13 +805,15 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic AmbiguousUnaryOperator(TextLocation location, string op, TypeSymbol operandType) {
-        var message = $"unary operator '{op}' is ambiguous for operands with type '{operandType.ToNullOrString()}'";
-        return CreateError(DiagnosticCode.ERR_AmbiguousUnaryOperator, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"unary operator '{op}' is ambiguous for operands with type '{operandType.ToNullOrString()}'";
+        // return CreateError(DiagnosticCode.ERR_AmbiguousUnaryOperator, location, message);
     }
 
     internal static BelteDiagnostic RefConditionalNeedsTwoRefs(TextLocation location) {
-        var message = $"both conditional operator operands must be ref expressions or neither may be a ref expressions";
-        return CreateError(DiagnosticCode.ERR_RefConditionalNeedsTwoRefs, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"both conditional operator operands must be ref expressions or neither may be a ref expressions";
+        // return CreateError(DiagnosticCode.ERR_RefConditionalNeedsTwoRefs, location, message);
     }
 
     internal static BelteDiagnostic NullAssertAlwaysThrows(TextLocation location) {
@@ -833,13 +832,15 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic ArraySizeInDeclaration(TextLocation location) {
-        var message = $"cannot specify array size in a declaration";
-        return CreateError(DiagnosticCode.ERR_ArraySizeInDeclaration, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"cannot specify array size in a declaration";
+        // return CreateError(DiagnosticCode.ERR_ArraySizeInDeclaration, location, message);
     }
 
     internal static BelteDiagnostic ListNoTargetType(TextLocation location) {
-        var message = $"there is no target type for the initializer list";
-        return CreateError(DiagnosticCode.ERR_ListNoTargetType, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"there is no target type for the initializer list";
+        // return CreateError(DiagnosticCode.ERR_ListNoTargetType, location, message);
     }
 
     internal static BelteDiagnostic NullptrNoTargetType(TextLocation location) {
@@ -847,6 +848,10 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NullptrNoTargetType, location, message);
     }
 
+    internal static BelteDiagnostic ExtendedLiteralNoTargetType(TextLocation location, string suffix) {
+        var message = $"there is no target type for the literal with suffix '{suffix}'";
+        return CreateError(DiagnosticCode.ERR_ExtendedLiteralNoTargetType, location, message);
+    }
     internal static BelteDiagnostic EnumFieldNoTargetType(TextLocation location) {
         var message = $"there is no target type for the implicit enum field";
         return CreateError(DiagnosticCode.ERR_EnumFieldNoTargetType, location, message);
@@ -872,6 +877,16 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_ArgumentWrongRef, location, message);
     }
 
+    internal static BelteDiagnostic ArgumentWrongRefConst(TextLocation location, int arg) {
+        var message = $"argument {arg}: cannot pass a reference to a constant to a parameter expecting a reference to a variable";
+        return CreateError(DiagnosticCode.ERR_ArgumentWrongRefConst, location, message);
+    }
+
+    internal static BelteDiagnostic ArgumentWrongConst(TextLocation location, int arg) {
+        var message = $"argument {arg}: cannot pass a constant to a parameter expecting a variable";
+        return CreateError(DiagnosticCode.ERR_ArgumentWrongConst, location, message);
+    }
+
     internal static BelteDiagnostic NoCorrespondingArgument(TextLocation location, string parameterName, Symbol member) {
         var message = $"there is no argument given that corresponds to the required parameter '{parameterName}' of '{member}'";
         return CreateError(DiagnosticCode.ERR_NoCorrespondingArgument, location, message);
@@ -890,6 +905,11 @@ internal static class Error {
     internal static BelteDiagnostic BadEmbeddedStatement(TextLocation location) {
         var message = $"embedded statement cannot be a declaration";
         return CreateError(DiagnosticCode.ERR_BadEmbeddedStatement, location, message);
+    }
+
+    internal static BelteDiagnostic BadEmbeddedStatementDefer(TextLocation location) {
+        var message = $"embedded statement cannot be a defer";
+        return CreateError(DiagnosticCode.ERR_BadEmbeddedStatementDefer, location, message);
     }
 
     internal static BelteDiagnostic IncrementableLValueExpected(TextLocation location) {
@@ -913,8 +933,9 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic InternalError(TextLocation location) {
-        var message = "internal non-fatal compiler error";
-        return CreateError(DiagnosticCode.ERR_InternalError, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = "internal non-fatal compiler error";
+        // return CreateError(DiagnosticCode.ERR_InternalError, location, message);
     }
 
     internal static BelteDiagnostic BadSKKnown(Symbol symbol, string kind1, string kind2) {
@@ -938,18 +959,21 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic BadSKUnknown(TextLocation location, Symbol symbol, string kind) {
-        var message = $"'{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is a {kind}, which is not valid in the given context";
-        return CreateError(DiagnosticCode.ERR_BadSKUnknown, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"'{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is a {kind}, which is not valid in the given context";
+        // return CreateError(DiagnosticCode.ERR_BadSKUnknown, location, message);
     }
 
-    internal static BelteDiagnostic RefConstThis(TextLocation location) {
-        var message = "cannot use 'this' as a ref value because it is constant";
-        return CreateError(DiagnosticCode.ERR_RefConstLocal, location, message);
+    internal static BelteDiagnostic RefConstLocal(TextLocation location) {
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = "cannot use 'this' as a ref value because it is constant";
+        // return CreateError(DiagnosticCode.ERR_RefConstLocal, location, message);
     }
 
     internal static BelteDiagnostic RefReturnThis(TextLocation location) {
-        var message = "cannot return 'this' by reference";
-        return CreateError(DiagnosticCode.ERR_RefReturnThis, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = "cannot return 'this' by reference";
+        // return CreateError(DiagnosticCode.ERR_RefReturnThis, location, message);
     }
 
     internal static BelteDiagnostic ConstantAssignmentThis(TextLocation location) {
@@ -958,38 +982,45 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic ReturnNotLValue(TextLocation location, MethodSymbol symbol) {
-        var message = $"cannot modify the return value of '{symbol}' because it is not variable";
-        return CreateError(DiagnosticCode.ERR_ReturnNotLValue, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"cannot modify the return value of '{symbol}' because it is not variable";
+        // return CreateError(DiagnosticCode.ERR_ReturnNotLValue, location, message);
     }
 
     internal static BelteDiagnostic RefReturnConstNotField(TextLocation location, string kind, Symbol symbol) {
-        var message = $"cannot return {kind} '{symbol}' by writable reference because it is constant";
-        return CreateError(DiagnosticCode.ERR_RefReturnConstNotField, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"cannot return {kind} '{symbol}' by writable reference because it is constant";
+        // return CreateError(DiagnosticCode.ERR_RefReturnConstNotField, location, message);
     }
 
     internal static BelteDiagnostic RefReturnConstNotField2(TextLocation location, string kind, Symbol symbol) {
-        var message = $"members of {kind} '{symbol}' cannot be returned by writable reference because it is constant";
-        return CreateError(DiagnosticCode.ERR_RefReturnConstNotField2, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"members of {kind} '{symbol}' cannot be returned by writable reference because it is constant";
+        // return CreateError(DiagnosticCode.ERR_RefReturnConstNotField2, location, message);
     }
 
     internal static BelteDiagnostic RefConstNotField(TextLocation location, string kind, Symbol symbol) {
-        var message = $"cannot use {kind} '{symbol}' as a ref value because it is constant";
-        return CreateError(DiagnosticCode.ERR_RefConstNotField, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"cannot use {kind} '{symbol}' as a ref value because it is constant";
+        // return CreateError(DiagnosticCode.ERR_RefConstNotField, location, message);
     }
 
     internal static BelteDiagnostic RefConstNotField2(TextLocation location, string kind, Symbol symbol) {
-        var message = $"members of {kind} '{symbol}' cannot be used as a ref value because it is constant";
-        return CreateError(DiagnosticCode.ERR_RefConstNotField2, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"members of {kind} '{symbol}' cannot be used as a ref value because it is constant";
+        // return CreateError(DiagnosticCode.ERR_RefConstNotField2, location, message);
     }
 
     internal static BelteDiagnostic ConstantAssignmentNotField(TextLocation location, string kind, Symbol symbol) {
-        var message = $"cannot assign to {kind} '{symbol}' or use it as the right hand side of a ref assignment because it is constant";
-        return CreateError(DiagnosticCode.ERR_ConstantAssignmentNotField, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"cannot assign to {kind} '{symbol}' or use it as the right hand side of a ref assignment because it is constant";
+        // return CreateError(DiagnosticCode.ERR_ConstantAssignmentNotField, location, message);
     }
 
     internal static BelteDiagnostic ConstantAssignmentNotField2(TextLocation location, string kind, Symbol symbol) {
-        var message = $"cannot assign to a member of {kind} '{symbol}' or use it as the right hand side of a ref assignment because it is constant";
-        return CreateError(DiagnosticCode.ERR_ConstantAssignmentNotField2, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"cannot assign to a member of {kind} '{symbol}' or use it as the right hand side of a ref assignment because it is constant";
+        // return CreateError(DiagnosticCode.ERR_ConstantAssignmentNotField2, location, message);
     }
 
     internal static BelteDiagnostic RefReturnConstant(TextLocation location) {
@@ -998,7 +1029,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic RefConstant(TextLocation location) {
-        var message = "a constant field cannot be used as a ref value (except in a constructor)";
+        var message = "a constant field cannot be used as a ref value (except in a constructor); consider using 'ref const'";
         return CreateError(DiagnosticCode.ERR_RefConstant, location, message);
     }
 
@@ -1008,52 +1039,61 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic RefReturnConstantStatic(TextLocation location) {
-        var message = "a static constant field cannot be returned by writable reference";
-        return CreateError(DiagnosticCode.ERR_RefReturnConstantStatic, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = "a static constant field cannot be returned by writable reference";
+        // return CreateError(DiagnosticCode.ERR_RefReturnConstantStatic, location, message);
     }
 
     internal static BelteDiagnostic RefConstantStatic(TextLocation location) {
-        var message = "a static constant field cannot be used as a ref value";
-        return CreateError(DiagnosticCode.ERR_RefConstantStatic, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = "a static constant field cannot be used as a ref value";
+        // return CreateError(DiagnosticCode.ERR_RefConstantStatic, location, message);
     }
 
     internal static BelteDiagnostic AssignmentConstantStatic(TextLocation location) {
-        var message = "a static constant field cannot be assigned to";
-        return CreateError(DiagnosticCode.ERR_AssignmentConstantStatic, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = "a static constant field cannot be assigned to";
+        // return CreateError(DiagnosticCode.ERR_AssignmentConstantStatic, location, message);
     }
     internal static BelteDiagnostic RefReturnConstant2(TextLocation location, Symbol field) {
-        var message = $"members of constant field '{field}' cannot be returned by writable reference";
-        return CreateError(DiagnosticCode.ERR_RefReturnConstant2, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"members of constant field '{field}' cannot be returned by writable reference";
+        // return CreateError(DiagnosticCode.ERR_RefReturnConstant2, location, message);
     }
 
     internal static BelteDiagnostic RefConstant2(TextLocation location, Symbol field) {
-        var message = $"members of constant field '{field}' cannot be used as a ref value (except in a constructor)";
+        var message = $"members of constant field '{field}' cannot be used as a ref value (except in a constructor); consider using 'ref const'";
         return CreateError(DiagnosticCode.ERR_RefConstant2, location, message);
     }
 
     internal static BelteDiagnostic AssignmentConstantField2(TextLocation location, Symbol field) {
-        var message = $"members of constant field '{field}' cannot be modified (except in a constructor)";
-        return CreateError(DiagnosticCode.ERR_AssignmentConstantField2, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"members of constant field '{field}' cannot be modified (except in a constructor)";
+        // return CreateError(DiagnosticCode.ERR_AssignmentConstantField2, location, message);
     }
 
     internal static BelteDiagnostic RefReturnConstantStatic2(TextLocation location, Symbol field) {
-        var message = $"fields of static constant field '{field}' cannot be returned by writable reference";
-        return CreateError(DiagnosticCode.ERR_RefReturnConstantStatic2, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"fields of static constant field '{field}' cannot be returned by writable reference";
+        // return CreateError(DiagnosticCode.ERR_RefReturnConstantStatic2, location, message);
     }
 
     internal static BelteDiagnostic RefConstantStatic2(TextLocation location, Symbol field) {
-        var message = $"fields of static constant field '{field}' cannot be used as a ref value";
-        return CreateError(DiagnosticCode.ERR_RefConstantStatic2, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"fields of static constant field '{field}' cannot be used as a ref value";
+        // return CreateError(DiagnosticCode.ERR_RefConstantStatic2, location, message);
     }
 
     internal static BelteDiagnostic AssignmentConstantStatic2(TextLocation location, Symbol field) {
-        var message = $"fields of static constant field '{field}' cannot be assigned to";
-        return CreateError(DiagnosticCode.ERR_AssignmentConstantStatic2, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"fields of static constant field '{field}' cannot be assigned to";
+        // return CreateError(DiagnosticCode.ERR_AssignmentConstantStatic2, location, message);
     }
 
     internal static BelteDiagnostic RefConstantLocalCause(TextLocation location, string name, string kind) {
-        var message = $"cannot use '{name}' as a ref value because it is a {kind}";
-        return CreateError(DiagnosticCode.ERR_RefConstantLocalCause, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"cannot use '{name}' as a ref value because it is a {kind}";
+        // return CreateError(DiagnosticCode.ERR_RefConstantLocalCause, location, message);
     }
 
     internal static BelteDiagnostic AssignmentConstantLocalCause(TextLocation location, string name, string kind) {
@@ -1062,8 +1102,9 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic PossibleBadNegativeCast(TextLocation location) {
-        var message = $"to cast a negative value it must be enclosed in parentheses";
-        return CreateError(DiagnosticCode.ERR_PossibleBadNegativeCast, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"to cast a negative value it must be enclosed in parentheses";
+        // return CreateError(DiagnosticCode.ERR_PossibleBadNegativeCast, location, message);
     }
 
     internal static BelteDiagnostic RefReturnMustHaveIdentityConversion(TextLocation location, TypeSymbol type) {
@@ -1072,7 +1113,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic RefAssignmentMustHaveIdentityConversion(TextLocation location, TypeSymbol type) {
-        var message = $"ehe expression must be of type '{type}' because it is being assigned by reference";
+        var message = $"the expression must be of type '{type}' because it is being assigned by reference";
         return CreateError(DiagnosticCode.ERR_RefAssignmentMustHaveIdentityConversion, location, message);
     }
 
@@ -1092,8 +1133,9 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic NewTemplateWithArguments(TextLocation location, TemplateParameterSymbol symbol) {
-        var message = $"'{symbol}': cannot provide arguments when creating an instance of a variable type";
-        return CreateError(DiagnosticCode.ERR_NewTemplateWithArguments, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"'{symbol}': cannot provide arguments when creating an instance of a variable type";
+        // return CreateError(DiagnosticCode.ERR_NewTemplateWithArguments, location, message);
     }
 
     internal static BelteDiagnostic LookupInTemplateVariable(TextLocation location, TypeSymbol type) {
@@ -1107,13 +1149,15 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic StaticMemberInObjectInitializer(TextLocation location, Symbol symbol) {
-        var message = $"static field '{symbol}' cannot be assigned in an object initializer";
-        return CreateError(DiagnosticCode.ERR_StaticMemberInObjectInitializer, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"static field '{symbol}' cannot be assigned in an object initializer";
+        // return CreateError(DiagnosticCode.ERR_StaticMemberInObjectInitializer, location, message);
     }
 
     internal static BelteDiagnostic RefConditionalDifferentTypes(TextLocation location, TypeSymbol type) {
-        var message = $"the expression must be of type '{type}' to match the alternative ref value";
-        return CreateError(DiagnosticCode.ERR_RefConditionalDifferentTypes, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"the expression must be of type '{type}' to match the alternative ref value";
+        // return CreateError(DiagnosticCode.ERR_RefConditionalDifferentTypes, location, message);
     }
 
     internal static BelteDiagnostic DuplicateTemplateParameter(TextLocation location, string name) {
@@ -1132,18 +1176,25 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic NotNullRefDefaultParameter(TextLocation location, string name, TypeSymbol type) {
-        var message = $"parameter '{name}' is of type '{type}'; a default parameter value of a reference type can only be initialized with 'null'";
-        return CreateError(DiagnosticCode.ERR_NotNullRefDefaultParameter, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"parameter '{name}' is of type '{type}'; a default parameter value of a reference type can only be initialized with 'null'";
+        // return CreateError(DiagnosticCode.ERR_NotNullRefDefaultParameter, location, message);
     }
 
     internal static BelteDiagnostic InvalidRefParameter(TextLocation location) {
-        var message = $"'ref' is not valid in this context";
-        return CreateError(DiagnosticCode.ERR_InvalidRefParameter, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"'ref' is not valid in this context";
+        // return CreateError(DiagnosticCode.ERR_InvalidRefParameter, location, message);
     }
 
     internal static BelteDiagnostic RefConstWrongOrder(TextLocation location) {
         var message = "'const' modifier must be specified after 'ref'";
         return CreateError(DiagnosticCode.ERR_RefConstWrongOrder, location, message);
+    }
+
+    internal static BelteDiagnostic RefFinalWrongOrder(TextLocation location) {
+        var message = "'final' modifier must be specified after 'ref'";
+        return CreateError(DiagnosticCode.ERR_RefFinalWrongOrder, location, message);
     }
 
     internal static BelteDiagnostic ParameterIsStatic(TextLocation location, TypeSymbol type) {
@@ -1162,8 +1213,9 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic OverloadRefKind(TextLocation location, Symbol type, string methodKind, string refKind1, string refKind2) {
-        var message = $"'{type}' cannot define an overloaded {methodKind} that differs only on parameter modifiers '{refKind1}' and '{refKind2}'";
-        return CreateError(DiagnosticCode.ERR_OverloadRefKind, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"'{type}' cannot define an overloaded {methodKind} that differs only on parameter modifiers '{refKind1}' and '{refKind2}'";
+        // return CreateError(DiagnosticCode.ERR_OverloadRefKind, location, message);
     }
 
     internal static BelteDiagnostic ConstructorAlreadyExists(TextLocation location, Symbol type) {
@@ -1212,13 +1264,15 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic HidingAbstractMember(TextLocation location, Symbol symbol, Symbol hiddenMember) {
-        var message = $"'{symbol}' hides inherited abstract member '{hiddenMember}'";
-        return CreateError(DiagnosticCode.ERR_HidingAbstractMember, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"'{symbol}' hides inherited abstract member '{hiddenMember}'";
+        // return CreateError(DiagnosticCode.ERR_HidingAbstractMember, location, message);
     }
 
     internal static BelteDiagnostic CantOverrideNonMethod(TextLocation location, Symbol symbol, Symbol hiddenMember) {
-        var message = $"'{symbol}': cannot override because '{hiddenMember}' is not a method";
-        return CreateError(DiagnosticCode.ERR_CantOverrideNonMethod, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"'{symbol}': cannot override because '{hiddenMember}' is not a method";
+        // return CreateError(DiagnosticCode.ERR_CantOverrideNonMethod, location, message);
     }
 
     internal static BelteDiagnostic OverrideNotExpected(TextLocation location, Symbol symbol) {
@@ -1227,8 +1281,9 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic AmbiguousOverride(TextLocation location, Symbol symbol1, Symbol symbol2, TypeSymbol type) {
-        var message = $"the inherited members '{symbol1}' and '{symbol2}' have the same signature in type '{type}', so they cannot be overridden";
-        return CreateError(DiagnosticCode.ERR_AmbiguousOverride, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"the inherited members '{symbol1}' and '{symbol2}' have the same signature in type '{type}', so they cannot be overridden";
+        // return CreateError(DiagnosticCode.ERR_AmbiguousOverride, location, message);
     }
 
     internal static BelteDiagnostic CantOverrideNonVirtual(TextLocation location, Symbol symbol, Symbol hiddenMember) {
@@ -1244,6 +1299,16 @@ internal static class Error {
     internal static BelteDiagnostic CantChangeAccessOnOverride(TextLocation location, Symbol symbol, string accessibility, Symbol hiddenMember) {
         var message = $"'{symbol}': cannot change access modifiers when overriding '{accessibility}' inherited member '{hiddenMember}'";
         return CreateError(DiagnosticCode.ERR_CantChangeAccessOnOverride, location, message);
+    }
+
+    internal static BelteDiagnostic CantChangeConstOnOverride(TextLocation location, Symbol symbol, Symbol hiddenMember) {
+        var message = $"'{symbol}': member must be marked 'const' when overriding inherited member '{hiddenMember}' because it is marked 'const'";
+        return CreateError(DiagnosticCode.ERR_CantChangeConstOnOverride, location, message);
+    }
+
+    internal static BelteDiagnostic CantChangeConstOnOverrideParameter(TextLocation location, Symbol symbol, Symbol hiddenMember, string name) {
+        var message = $"'{symbol}': parameter '{name}' must be marked 'const' when overriding inherited member '{hiddenMember}' because the corresponding parameter is marked 'const'";
+        return CreateError(DiagnosticCode.ERR_CantChangeConstOnOverrideParameter, location, message);
     }
 
     internal static BelteDiagnostic CantChangeRefReturnOnOverride(TextLocation location, Symbol symbol, Symbol hiddenMember) {
@@ -1267,8 +1332,9 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic BadAbstractUnaryOperatorSignature(TextLocation location) {
-        var message = $"the parameter of a unary operator must be the containing type, or its type parameter constrained to it";
-        return CreateError(DiagnosticCode.ERR_BadAbstractUnaryOperatorSignature, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"the parameter of a unary operator must be the containing type, or its type parameter constrained to it";
+        // return CreateError(DiagnosticCode.ERR_BadAbstractUnaryOperatorSignature, location, message);
     }
 
     internal static BelteDiagnostic BadShiftOperatorSignature(TextLocation location) {
@@ -1277,8 +1343,9 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic BadAbstractShiftOperatorSignature(TextLocation location) {
-        var message = $"the first operand of an overloaded shift operator must have the same type as the containing type or its type parameter constrained to it";
-        return CreateError(DiagnosticCode.ERR_BadAbstractShiftOperatorSignature, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"the first operand of an overloaded shift operator must have the same type as the containing type or its type parameter constrained to it";
+        // return CreateError(DiagnosticCode.ERR_BadAbstractShiftOperatorSignature, location, message);
     }
 
     internal static BelteDiagnostic BadBinaryOperatorSignature(TextLocation location) {
@@ -1287,13 +1354,15 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic BadAbstractBinaryOperatorSignature(TextLocation location) {
-        var message = $"one of the parameters of a binary operator must be the containing type, or its type parameter constrained to it";
-        return CreateError(DiagnosticCode.ERR_BadAbstractBinaryOperatorSignature, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"one of the parameters of a binary operator must be the containing type, or its type parameter constrained to it";
+        // return CreateError(DiagnosticCode.ERR_BadAbstractBinaryOperatorSignature, location, message);
     }
 
     internal static BelteDiagnostic BadAbstractEqualityOperatorSignature(TextLocation location, TypeSymbol type) {
-        var message = $"one of the parameters of an equality, or inequality operator declared in interface '{type}' must be a type parameter on '{type}' constrained to '{type}'";
-        return CreateError(DiagnosticCode.ERR_BadAbstractEqualityOperatorSignature, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"one of the parameters of an equality, or inequality operator declared in interface '{type}' must be a type parameter on '{type}' constrained to '{type}'";
+        // return CreateError(DiagnosticCode.ERR_BadAbstractEqualityOperatorSignature, location, message);
     }
 
     internal static BelteDiagnostic BadIncrementOperatorSignature(TextLocation location) {
@@ -1302,8 +1371,9 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic BadAbstractIncrementOperatorSignature(TextLocation location) {
-        var message = $"the parameter type for ++ or -- operator must be the containing type, or its type parameter constrained to it";
-        return CreateError(DiagnosticCode.ERR_BadAbstractIncrementOperatorSignature, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"the parameter type for ++ or -- operator must be the containing type, or its type parameter constrained to it";
+        // return CreateError(DiagnosticCode.ERR_BadAbstractIncrementOperatorSignature, location, message);
     }
 
     internal static BelteDiagnostic BadIncrementReturnType(TextLocation location) {
@@ -1311,9 +1381,15 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_BadIncrementReturnType, location, message);
     }
 
+    internal static BelteDiagnostic BadLiteralOperatorReturnType(TextLocation location) {
+        var message = $"the return type for literal operators must match the containing type or be derived from the containing type";
+        return CreateError(DiagnosticCode.ERR_BadLiteralOperatorReturnType, location, message);
+    }
+
     internal static BelteDiagnostic BadAbstractIncrementReturnType(TextLocation location) {
-        var message = $"the return type for ++ or -- operator must either match the parameter type, or be derived from the parameter type, or be the containing type's type parameter constrained to it unless the parameter type is a different type parameter";
-        return CreateError(DiagnosticCode.ERR_BadAbstractIncrementReturnType, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"the return type for ++ or -- operator must either match the parameter type, or be derived from the parameter type, or be the containing type's type parameter constrained to it unless the parameter type is a different type parameter";
+        // return CreateError(DiagnosticCode.ERR_BadAbstractIncrementReturnType, location, message);
     }
 
     internal static BelteDiagnostic BadIndexCount(TextLocation location, int rank) {
@@ -1365,8 +1441,9 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic EscapeLocal(TextLocation location, Symbol symbol) {
-        var message = $"use of local '{symbol}' in this context may expose referenced locals outside of their declaration scope";
-        return CreateError(DiagnosticCode.ERR_EscapeLocal, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"use of local '{symbol}' in this context may expose referenced locals outside of their declaration scope";
+        // return CreateError(DiagnosticCode.ERR_EscapeLocal, location, message);
     }
 
     internal static BelteDiagnostic RefAssignReturnOnly(TextLocation location, object name, SyntaxNode syntax) {
@@ -1380,18 +1457,21 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic RefAssignValEscapeWider(TextLocation location, object name, SyntaxNode syntax) {
-        var message = $"cannot ref-assign '{syntax}' to '{name}' because '{syntax}' has a wider value escape scope than '{name}' allowing assignment through '{name}' of values with narrower escapes scopes than '{syntax}'";
-        return CreateError(DiagnosticCode.ERR_RefAssignValEscapeWider, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"cannot ref-assign '{syntax}' to '{name}' because '{syntax}' has a wider value escape scope than '{name}' allowing assignment through '{name}' of values with narrower escapes scopes than '{syntax}'";
+        // return CreateError(DiagnosticCode.ERR_RefAssignValEscapeWider, location, message);
     }
 
     internal static BelteDiagnostic CallArgMixing(TextLocation location, Symbol symbol, string name) {
-        var message = $"this combination of arguments to '{symbol}' is disallowed because it may expose variables referenced by parameter '{name}' outside of their declaration scope";
-        return CreateError(DiagnosticCode.ERR_CallArgMixing, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"this combination of arguments to '{symbol}' is disallowed because it may expose variables referenced by parameter '{name}' outside of their declaration scope";
+        // return CreateError(DiagnosticCode.ERR_CallArgMixing, location, message);
     }
 
     internal static BelteDiagnostic MismatchedRefEscapeInTernary(TextLocation location) {
-        var message = $"branches of a ref conditional operator cannot refer to variables with incompatible declaration scopes";
-        return CreateError(DiagnosticCode.ERR_MismatchedRefEscapeInTernary, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"branches of a ref conditional operator cannot refer to variables with incompatible declaration scopes";
+        // return CreateError(DiagnosticCode.ERR_MismatchedRefEscapeInTernary, location, message);
     }
 
     internal static BelteDiagnostic RefReturnLocal(TextLocation location, Symbol symbol) {
@@ -1415,8 +1495,9 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic EscapeOther(TextLocation location) {
-        var message = $"expression cannot be used in this context because it may indirectly expose variables outside of their declaration scope";
-        return CreateError(DiagnosticCode.ERR_EscapeOther, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"expression cannot be used in this context because it may indirectly expose variables outside of their declaration scope";
+        // return CreateError(DiagnosticCode.ERR_EscapeOther, location, message);
     }
 
     internal static BelteDiagnostic RefReturnParameter(TextLocation location, string name) {
@@ -1430,28 +1511,33 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic RefReturnOnlyParameter(TextLocation location, string name) {
-        var message = $"cannot return a parameter by reference '{name}' through a ref parameter; it can only be returned in a return statement";
-        return CreateError(DiagnosticCode.ERR_RefReturnOnlyParameter, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"cannot return a parameter by reference '{name}' through a ref parameter; it can only be returned in a return statement";
+        // return CreateError(DiagnosticCode.ERR_RefReturnOnlyParameter, location, message);
     }
 
     internal static BelteDiagnostic RefReturnOnlyParameter2(TextLocation location, string name) {
-        var message = $"cannot return by reference a member of parameter '{name}' through a ref parameter; it can only be returned in a return statement";
-        return CreateError(DiagnosticCode.ERR_RefReturnOnlyParameter2, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"cannot return by reference a member of parameter '{name}' through a ref parameter; it can only be returned in a return statement";
+        // return CreateError(DiagnosticCode.ERR_RefReturnOnlyParameter2, location, message);
     }
 
     internal static BelteDiagnostic RefReturnScopedParameter(TextLocation location, string name) {
-        var message = $"cannot return a parameter by reference '{name}' because it is scoped to the current method";
-        return CreateError(DiagnosticCode.ERR_RefReturnScopedParameter, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"cannot return a parameter by reference '{name}' because it is scoped to the current method";
+        // return CreateError(DiagnosticCode.ERR_RefReturnScopedParameter, location, message);
     }
 
     internal static BelteDiagnostic RefReturnScopedParameter2(TextLocation location, string name) {
-        var message = $"cannot return by reference a member of parameter '{name}' because it is scoped to the current method";
-        return CreateError(DiagnosticCode.ERR_RefReturnScopedParameter2, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"cannot return by reference a member of parameter '{name}' because it is scoped to the current method";
+        // return CreateError(DiagnosticCode.ERR_RefReturnScopedParameter2, location, message);
     }
 
     internal static BelteDiagnostic UnexpectedTemplateName(TextLocation location) {
-        var message = $"unexpected use of a templated name";
-        return CreateError(DiagnosticCode.ERR_UnexpectedTemplateName, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"unexpected use of a templated name";
+        // return CreateError(DiagnosticCode.ERR_UnexpectedTemplateName, location, message);
     }
 
     internal static BelteDiagnostic UnexpectedAliasName(TextLocation location) {
@@ -1515,13 +1601,15 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic ArrayInitToNonArrayType(TextLocation location) {
-        var message = $"can only use array initializer expressions to assign to array types; try using a new expression instead";
-        return CreateError(DiagnosticCode.ERR_ArrayInitToNonArrayType, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"can only use array initializer expressions to assign to array types; try using a new expression instead";
+        // return CreateError(DiagnosticCode.ERR_ArrayInitToNonArrayType, location, message);
     }
 
     internal static BelteDiagnostic ArrayInitExpected(TextLocation location) {
-        var message = $"a nested initializer list is expected";
-        return CreateError(DiagnosticCode.ERR_ArrayInitExpected, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"a nested initializer list is expected";
+        // return CreateError(DiagnosticCode.ERR_ArrayInitExpected, location, message);
     }
 
     internal static BelteDiagnostic ArrayInitWrongLength(TextLocation location, long length) {
@@ -1540,18 +1628,8 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic AnnotationsDisallowedInObjectCreation(TextLocation location) {
-        var message = $"cannot use a non-nullable annotation in object creation";
+        var message = $"cannot use a nullability annotation in object or array creation";
         return CreateError(DiagnosticCode.ERR_AnnotationsDisallowedInObjectCreation, location, message);
-    }
-
-    internal static BelteDiagnostic AnnotationsDisallowedInTemplateArgument(TextLocation location) {
-        var message = $"cannot use a non-nullable annotation in template arguments";
-        return CreateError(DiagnosticCode.ERR_AnnotationsDisallowedInTemplateArgument, location, message);
-    }
-
-    internal static BelteDiagnostic CannotAnnotateStruct(TextLocation location) {
-        var message = $"cannot use a nullable or non-nullable annotation on a struct type";
-        return CreateError(DiagnosticCode.ERR_CannotAnnotateStruct, location, message);
     }
 
     internal static BelteDiagnostic MissingArraySize(TextLocation location) {
@@ -1595,8 +1673,9 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic ConflictingAliasAndMember(TextLocation location, string alias, NamespaceOrTypeSymbol container) {
-        var message = $"namespace '{container}' contains a definition conflicting with alias '{alias}'";
-        return CreateError(DiagnosticCode.ERR_ConflictingAliasAndMember, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"namespace '{container}' contains a definition conflicting with alias '{alias}'";
+        // return CreateError(DiagnosticCode.ERR_ConflictingAliasAndMember, location, message);
     }
 
     internal static BelteDiagnostic UnexpectedUnboundTemplateName(TextLocation location) {
@@ -1610,8 +1689,9 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic TemplateNotAllowed(TextLocation location, Symbol symbol, string text) {
-        var message = $"the {text} '{symbol}' cannot be used with template arguments";
-        return CreateError(DiagnosticCode.ERR_HasNoTemplate, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"the {text} '{symbol}' cannot be used with template arguments";
+        // return CreateError(DiagnosticCode.ERR_HasNoTemplate, location, message);
     }
 
     internal static BelteDiagnostic BadTemplateArgument(TextLocation location, Symbol symbol) {
@@ -1635,8 +1715,9 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic NotNullableConstraintFailed(TextLocation location, Symbol constructed, string parameter, TypeSymbol type) {
-        var message = $"the type '{type}' must be a non-nullable type in order to use it as parameter '{parameter}' in the template type or method '{constructed.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
-        return CreateError(DiagnosticCode.ERR_NotNullableConstraintFailed, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"the type '{type}' must be a non-nullable type in order to use it as parameter '{parameter}' in the template type or method '{constructed.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        // return CreateError(DiagnosticCode.ERR_NotNullableConstraintFailed, location, message);
     }
 
     internal static BelteDiagnostic DuplicateConstraint(TextLocation location, string parameter) {
@@ -1660,13 +1741,15 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic RefReturnGlobal(TextLocation location) {
-        var message = $"cannot return a global by reference";
-        return CreateError(DiagnosticCode.ERR_RefReturnGlobal, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"cannot return a global by reference";
+        // return CreateError(DiagnosticCode.ERR_RefReturnGlobal, location, message);
     }
 
     internal static BelteDiagnostic CannotPassGlobalByRef(TextLocation location) {
-        var message = $"cannot pass a global by reference";
-        return CreateError(DiagnosticCode.ERR_CannotPassGlobalByRef, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"cannot pass a global by reference";
+        // return CreateError(DiagnosticCode.ERR_CannotPassGlobalByRef, location, message);
     }
 
     internal static BelteDiagnostic ThrowMisplaced(TextLocation location) {
@@ -1730,18 +1813,21 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic DllImportOnInvalidMethod(TextLocation location) {
-        var message = $"the DllImport attribute must be specified on a method marked 'static' and 'extern'";
-        return CreateError(DiagnosticCode.ERR_DllImportOnInvalidMethod, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"the DllImport attribute must be specified on a method marked 'static' and 'extern'";
+        // return CreateError(DiagnosticCode.ERR_DllImportOnInvalidMethod, location, message);
     }
 
     internal static BelteDiagnostic DllImportOnTemplateMethod(TextLocation location) {
-        var message = $"the DllImport attribute cannot be applied to a method that is template or contained in a template method or type";
-        return CreateError(DiagnosticCode.ERR_DllImportOnTemplateMethod, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"the DllImport attribute cannot be applied to a method that is template or contained in a template method or type";
+        // return CreateError(DiagnosticCode.ERR_DllImportOnTemplateMethod, location, message);
     }
 
     internal static BelteDiagnostic InvalidAttributeArgument(TextLocation location, string name) {
-        var message = $"invalid value for argument to '{name}' attribute";
-        return CreateError(DiagnosticCode.ERR_InvalidAttributeArgument, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"invalid value for argument to '{name}' attribute";
+        // return CreateError(DiagnosticCode.ERR_InvalidAttributeArgument, location, message);
     }
 
     internal static BelteDiagnostic FixedBufferTooManyDimensions(TextLocation location) {
@@ -1780,8 +1866,9 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic FixedNeedsLValue(TextLocation location) {
-        var message = $"fixed size buffers can only be accessed through locals or fields";
-        return CreateError(DiagnosticCode.ERR_FixedNeedsLValue, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"fixed size buffers can only be accessed through locals or fields";
+        // return CreateError(DiagnosticCode.ERR_FixedNeedsLValue, location, message);
     }
 
     internal static BelteDiagnostic InvalidCascadeExpression(TextLocation location) {
@@ -1855,8 +1942,9 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic SwitchCaseSubsumed(TextLocation location) {
-        var message = $"the switch case is unreachable";
-        return CreateError(DiagnosticCode.ERR_SwitchCaseSubsumed, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"the switch case is unreachable";
+        // return CreateError(DiagnosticCode.ERR_SwitchCaseSubsumed, location, message);
     }
 
     internal static BelteDiagnostic InvalidEnumType(TextLocation location) {
@@ -2009,9 +2097,9 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_OutNoDefaultValue, location, message);
     }
 
-    internal static BelteDiagnostic FieldNoDefaultValue(TextLocation location, TypeSymbol type) {
-        var message = $"cannot declare a field without an initializer with type '{type}' because it has no default value";
-        return CreateError(DiagnosticCode.ERR_FieldNoDefaultValue, location, message);
+    internal static BelteDiagnostic StructWithNoDefault(TextLocation location, TypeSymbol type) {
+        var message = $"cannot use a default literal for struct type '{type}' because it has fields with no default value";
+        return CreateError(DiagnosticCode.ERR_StructWithNoDefault, location, message);
     }
 
     internal static BelteDiagnostic NullErasureOnNull(TextLocation location) {
@@ -2055,6 +2143,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_FunctionRefMismatch, location, message);
     }
 
+    internal static BelteDiagnostic ReverseRefMismatch(TextLocation location, Symbol method, ParameterSymbol parameter) {
+        var message = $"ref mismatch between '{method}' and parameter '{parameter.ToDisplayString(SymbolDisplayFormat.ErrorMessageExtendedFormat)}'";
+        return CreateError(DiagnosticCode.ERR_ReverseRefMismatch, location, message);
+    }
+
     internal static BelteDiagnostic UnknownCallingConvention(TextLocation location, string text) {
         var message = $"unrecognized calling convention '{text}'; valid calling conventions are 'stdcall', 'winapi', 'fastcall', 'cdecl', and 'thiscall'";
         return CreateError(DiagnosticCode.ERR_UnknownCallingConvention, location, message);
@@ -2081,8 +2174,14 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic TypeInferenceFailedForOut(TextLocation location, string text) {
-        var message = $"cannot infer the type of implicitly-typed out data container '{text}'";
-        return CreateError(DiagnosticCode.ERR_TypeInferenceFailedForOut, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"cannot infer the type of implicitly-typed out data container '{text}'";
+        // return CreateError(DiagnosticCode.ERR_TypeInferenceFailedForOut, location, message);
+    }
+
+    internal static BelteDiagnostic TypeInferenceFailedForDeconstruction(TextLocation location, string text) {
+        var message = $"cannot infer the type of implicitly-typed deconstruction variable '{text}'";
+        return CreateError(DiagnosticCode.ERR_TypeInferenceFailedForDeconstruction, location, message);
     }
 
     internal static BelteDiagnostic OutVarAnnotated(TextLocation location) {
@@ -2112,13 +2211,15 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic UnmanagedRequiresStatic(TextLocation location) {
-        var message = $"'Unmanaged' can only be applied to ordinary static non-abstract, non-virtual methods or static local functions";
-        return CreateError(DiagnosticCode.ERR_UnmanagedRequiresStatic, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"'Unmanaged' can only be applied to ordinary static non-abstract, non-virtual methods or static local functions";
+        // return CreateError(DiagnosticCode.ERR_UnmanagedRequiresStatic, location, message);
     }
 
     internal static BelteDiagnostic UnmanagedCannotBeTemplate(TextLocation location) {
-        var message = $"methods attributed with 'Unmanaged' cannot have template parameters and cannot be declared in a template type";
-        return CreateError(DiagnosticCode.ERR_UnmanagedCannotBeTemplate, location, message);
+        throw Utilities.ExceptionUtilities.Unreachable();
+        // var message = $"methods attributed with 'Unmanaged' cannot have template parameters and cannot be declared in a template type";
+        // return CreateError(DiagnosticCode.ERR_UnmanagedCannotBeTemplate, location, message);
     }
 
     internal static BelteDiagnostic DestructorInStaticClass(TextLocation location) {
@@ -2126,9 +2227,14 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_DestructorInStaticClass, location, message);
     }
 
-    internal static BelteDiagnostic UsingWithoutDispose(TextLocation location, TypeSymbol type) {
-        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': type used in a using statement must define a public parameterless instance method named 'Dispose'";
-        return CreateError(DiagnosticCode.ERR_UsingWithoutDispose, location, message);
+    internal static BelteDiagnostic FinalizerInStaticClass(TextLocation location) {
+        var message = $"static classes cannot contain finalizers";
+        return CreateError(DiagnosticCode.ERR_FinalizerInStaticClass, location, message);
+    }
+
+    internal static BelteDiagnostic ScopedWithoutDispose(TextLocation location, TypeSymbol type) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': type used in a scoped statement must define a destructor";
+        return CreateError(DiagnosticCode.ERR_ScopedWithoutDispose, location, message);
     }
 
     internal static BelteDiagnostic ObjectCreationIllegalTargetType(TextLocation location, TypeSymbol type) {
@@ -2200,6 +2306,256 @@ internal static class Error {
     internal static BelteDiagnostic DiscardTypeInferenceFailed(TextLocation location) {
         var message = $"cannot infer the type of implicitly-typed discard";
         return CreateError(DiagnosticCode.ERR_DiscardTypeInferenceFailed, location, message);
+    }
+
+    internal static Diagnostic TupleTooFewElements() {
+        var message = $"tuple must contain at least 2 elements";
+        return CreateError(DiagnosticCode.ERR_TupleTooFewElements, message);
+    }
+
+    internal static BelteDiagnostic TupleReservedElementNameAnyPosition(TextLocation location, string name) {
+        var message = $"tuple element name '{name}' is disallowed";
+        return CreateError(DiagnosticCode.ERR_TupleReservedElementNameAnyPosition, location, message);
+    }
+
+    internal static BelteDiagnostic TupleReservedElementName(TextLocation location, string name, int position) {
+        var message = $"tuple element name '{name}' is only allowed at position {position}";
+        return CreateError(DiagnosticCode.ERR_TupleReservedElementName, location, message);
+    }
+
+    internal static BelteDiagnostic TupleDuplicateElementName(TextLocation location, string name) {
+        var message = $"'{name}': tuple element names must be unique";
+        return CreateError(DiagnosticCode.ERR_TupleDuplicateElementName, location, message);
+    }
+
+    internal static BelteDiagnostic CannotCreateTuple(TextLocation location, SyntaxNode arguments) {
+        var message = $"'new' cannot be used with tuple types; use a tuple literal instead";
+        var suggestion = arguments.ToString();
+        return CreateError(DiagnosticCode.ERR_CannotCreateTuple, location, message, suggestion);
+    }
+
+    internal static Diagnostic InvalidMemberDeclarationToken(string text) {
+        var message = $"invalid token '{text}' in a member declaration";
+        return CreateError(DiagnosticCode.ERR_InvalidMemberDeclarationToken, message);
+    }
+
+    internal static Diagnostic UsingAfterMembers() {
+        var message = $"using directive must precede all other namespace members";
+        return CreateError(DiagnosticCode.ERR_UsingAfterMembers, message);
+    }
+
+    internal static BelteDiagnostic NoExtendedLiteralConversion(TextLocation location, TypeSymbol type, TypeSymbol type2, string suffix) {
+        var message = $"type '{type}' has no definition for literals of type '{type2}' with the suffix '{suffix}'";
+        return CreateError(DiagnosticCode.ERR_NoExtendedLiteralConversion, location, message);
+    }
+
+    internal static BelteDiagnostic LiteralOperatorMustHaveSingleParameter(TextLocation location) {
+        var message = $"literal operators must have exactly 1 parameter";
+        return CreateError(DiagnosticCode.ERR_LiteralOperatorMustHaveSingleParameter, location, message);
+    }
+
+    internal static BelteDiagnostic BadLiteralOperatorParameterType(TextLocation location) {
+        var message = $"literal operator parameter must be a type represented by a literal";
+        return CreateError(DiagnosticCode.ERR_BadLiteralOperatorParameterType, location, message);
+    }
+
+    internal static BelteDiagnostic VoidInTuple(TextLocation location) {
+        var message = $"a tuple may not contain a value of type 'void'";
+        return CreateError(DiagnosticCode.ERR_VoidInTuple, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidPackedAlignment(TextLocation location) {
+        var message = $"struct pack alignment must be 1, 2, 4, 8, 16, 32, 64, or 128";
+        return CreateError(DiagnosticCode.ERR_InvalidPackedAlignment, location, message);
+    }
+
+    internal static Diagnostic PredefinedTypeNotFound(string name) {
+        var message = $"predefined type '{name}' is not defined (are you using '--nostdlib'?)";
+        return CreateError(DiagnosticCode.ERR_PredefinedTypeNotFound, message);
+    }
+
+    internal static BelteDiagnostic InvalidDeclarationExpression(TextLocation location) {
+        var message = $"a declaration is not allowed in this context";
+        return CreateError(DiagnosticCode.ERR_InvalidDeclarationExpression, location, message);
+    }
+
+    internal static BelteDiagnostic DeconstructVariableCannotBeRef(TextLocation location) {
+        var message = $"a deconstruction variable cannot be declared as a ref local";
+        return CreateError(DiagnosticCode.ERR_DeconstructVariableCannotBeRef, location, message);
+    }
+
+    internal static BelteDiagnostic DeconstructWrongCardinality(TextLocation location, int num1, int num2) {
+        var message = $"cannot deconstruct a tuple of '{num1}' elements into '{num2}' variables";
+        return CreateError(DiagnosticCode.ERR_DeconstructWrongCardinality, location, message);
+    }
+
+    internal static BelteDiagnostic DeconstructTooFewElements(TextLocation location) {
+        var message = $"deconstruction must contain at least 2 variables";
+        return CreateError(DiagnosticCode.ERR_DeconstructTooFewElements, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidReverseParameter(TextLocation location) {
+        var message = $"reverse clause cannot take a parameter because the target method returns void";
+        return CreateError(DiagnosticCode.ERR_InvalidReverseParameter, location, message);
+    }
+
+    internal static BelteDiagnostic RefReverseMustHaveIdentityConversion(TextLocation location, TypeSymbol type) {
+        var message = $"the reverse clause parameter must be of type '{type}' because it is being assigned by reference";
+        return CreateError(DiagnosticCode.ERR_RefReverseMustHaveIdentityConversion, location, message);
+    }
+
+    internal static BelteDiagnostic ReversibleCannotBeRef(TextLocation location, MethodSymbol method) {
+        var message = $"a method with a state clause cannot return by reference";
+        return CreateError(DiagnosticCode.ERR_ReversibleCannotBeRef, location, message);
+    }
+
+    internal static BelteDiagnostic StateClauseWithoutReverseClause(TextLocation location, MethodSymbol method) {
+        var message = $"a method with a state clause must have a reverse clause";
+        return CreateError(DiagnosticCode.ERR_StateClauseWithoutReverseClause, location, message);
+    }
+
+    internal static BelteDiagnostic UseOfUnassignedField(TextLocation location, FieldSymbol field) {
+        var message = $"use of unassigned field '{field}'";
+        return CreateError(DiagnosticCode.ERR_UseOfUnassignedField, location, message);
+    }
+
+    internal static BelteDiagnostic FieldNoDefiniteAssignment(TextLocation location, TypeSymbol type) {
+        var message = $"cannot declare a class field without an initializer or definite constructor assignment with type '{type}' because it is non-nullable";
+        return CreateError(DiagnosticCode.ERR_FieldNoDefiniteAssignment, location, message);
+    }
+
+    internal static BelteDiagnostic FieldNoDefiniteAssignmentStruct(TextLocation location, TypeSymbol type) {
+        var message = $"cannot declare a struct field without definite constructor assignment with type '{type}' because it has no default value";
+        return CreateError(DiagnosticCode.ERR_FieldNoDefiniteAssignmentStruct, location, message);
+    }
+
+    internal static BelteDiagnostic UseOfUnassignedLocal(TextLocation location, Symbol local) {
+        var message = $"use of unassigned local '{local}'";
+        return CreateError(DiagnosticCode.ERR_UseOfUnassignedLocal, location, message);
+    }
+
+    internal static BelteDiagnostic NoInitOnNonNullable(TextLocation location) {
+        var message = $"non-nullable globals and const or final locals must have an initializer";
+        return CreateError(DiagnosticCode.ERR_NoInitOnNonNullable, location, message);
+    }
+
+    internal static BelteDiagnostic NoNewTypeVar(TextLocation location, TemplateParameterSymbol symbol) {
+        var message = $"cannot create an instance of the type '{symbol}' because it does not have the constructor constraint";
+        return CreateError(DiagnosticCode.ERR_NoInitOnNonNullable, location, message);
+    }
+
+    internal static BelteDiagnostic MissingFieldInit(TextLocation location, FieldSymbol symbol) {
+        var message = $"not all code paths initialize field '{symbol}'";
+        return CreateError(DiagnosticCode.ERR_MissingFieldInit, location, message);
+    }
+
+    internal static BelteDiagnostic LowLevelDefaultOutsideLowLevelContext(TextLocation location) {
+        var message = $"cannot use a lowlevel default literal outside of a lowlevel context";
+        return CreateError(DiagnosticCode.ERR_LowLevelDefaultOutsideLowLevelContext, location, message);
+    }
+
+    internal static BelteDiagnostic LowLevelFieldInNonLowLevelType(TextLocation location) {
+        var message = $"cannot declare a lowlevel field inside of a non-lowlevel type";
+        return CreateError(DiagnosticCode.ERR_LowLevelFieldInNonLowLevelType, location, message);
+    }
+
+    internal static BelteDiagnostic NullableReceiver(TextLocation location, BoundExpression left, FieldSymbol right) {
+        var message = $"cannot access fields through a nullable receiver; consider using a null assert or conditional access";
+        var suggestion1 = $"{left}!.{right.ToDisplayString(SymbolDisplayFormat.ToStringNameFormat)}";
+        var suggestion2 = $"{left}?.{right.ToDisplayString(SymbolDisplayFormat.ToStringNameFormat)}";
+        return CreateError(DiagnosticCode.ERR_NullableReceiver, location, message, suggestion1, suggestion2);
+    }
+
+    internal static BelteDiagnostic NullableReceiverArray(TextLocation location, BoundExpression left, BoundExpression index) {
+        var message = $"cannot access arrays through a nullable receiver; consider using a null assert or conditional access";
+        var suggestion1 = $"{left}![{index}]";
+        var suggestion2 = $"{left}?[{index}]";
+        return CreateError(DiagnosticCode.ERR_NullableReceiverArray, location, message, suggestion1, suggestion2);
+    }
+
+    internal static BelteDiagnostic NullableReceiverCall(TextLocation location, BoundExpression left, string name) {
+        var message = $"cannot call methods through a nullable receiver; consider using a null assert or conditional access";
+        var suggestion1 = $"{left}!.{name}";
+        var suggestion2 = $"{left}?.{name}";
+        return CreateError(DiagnosticCode.ERR_NullableReceiverCall, location, message, suggestion1, suggestion2);
+    }
+
+    internal static BelteDiagnostic NullableReceiverIndex(TextLocation location, BoundExpression left, BoundExpression index) {
+        var message = $"cannot index a nullable receiver; consider using a null assert or conditional access";
+        var suggestion1 = $"{left}![{index}]";
+        var suggestion2 = $"{left}?[{index}]";
+        return CreateError(DiagnosticCode.ERR_NullableReceiverIndex, location, message, suggestion1, suggestion2);
+    }
+
+    internal static BelteDiagnostic ReverseDoesNotTakeState(TextLocation location, TypeSymbol type) {
+        var message = $"reverse clause must have a parameter that matches the type of the state clause";
+        var suggestion = $"% ({type} state)";
+        return CreateError(DiagnosticCode.ERR_ReverseDoesNotTakeState, location, message, suggestion);
+    }
+
+    internal static BelteDiagnostic UndefinedToken(TextLocation location, string name) {
+        var message = $"undefined token '{name}'";
+        return CreateError(DiagnosticCode.ERR_UndefinedToken, location, message);
+    }
+
+    internal static BelteDiagnostic TokenAlreadyDeclared(TextLocation location, string name) {
+        var message = $"a token with the name '{name}' has already been declared in this scope";
+        return CreateError(DiagnosticCode.ERR_TokenAlreadyDeclared, location, message);
+    }
+
+    internal static BelteDiagnostic ReversibleExpressionNotReversible(TextLocation location) {
+        var message = $"the target expression of a reversible expression must be a call to a reversible method";
+        return CreateError(DiagnosticCode.ERR_ReversibleExpressionNotReversible, location, message);
+    }
+
+    internal static BelteDiagnostic ReverseDeferExpressionNotReversible(TextLocation location) {
+        var message = $"the target expression of a reverse defer statement must be a call to a reversible method";
+        return CreateError(DiagnosticCode.ERR_ReverseDeferExpressionNotReversible, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidCommit(TextLocation location) {
+        var message = $"commit statements can only be used within a with statement";
+        return CreateError(DiagnosticCode.ERR_InvalidCommit, location, message);
+    }
+
+    internal static BelteDiagnostic MissingDeconstruct(TextLocation location, TypeSymbol type, int cardinality) {
+        var message = $"type '{type}' has no implicit conversion to a tuple of cardinality {cardinality}";
+        return CreateError(DiagnosticCode.ERR_MissingDeconstruct, location, message);
+    }
+
+    internal static BelteDiagnostic DeconstructRequiresExpression(TextLocation location) {
+        var message = $"deconstruct assignment requires an expression with a type on the right-hand-side";
+        return CreateError(DiagnosticCode.ERR_DeconstructRequiresExpression, location, message);
+    }
+
+    internal static BelteDiagnostic AmbiguousDeconstruct(TextLocation location, TypeSymbol type) {
+        var message = $"deconstruction of type '{type}' is ambiguous; consider explicitly typing deconstruction variables";
+        return CreateError(DiagnosticCode.ERR_AmbiguousDeconstruct, location, message);
+    }
+
+    internal static Diagnostic ExpectedVerbatimLiteral(string specifier) {
+        var message = $"expected identifier after verbatim specifier: {specifier}";
+        return CreateError(DiagnosticCode.ERR_ExpectedVerbatimLiteral, message);
+    }
+
+    internal static BelteDiagnostic InvalidBufferCreation(TextLocation location) {
+        var message = $"buffer creation must have exactly 1 or 2 arguments";
+        return CreateError(DiagnosticCode.ERR_InvalidBufferCreation, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidRefKindInBufferCreation(TextLocation location) {
+        var message = $"arguments in buffer creation cannot be by-reference";
+        return CreateError(DiagnosticCode.ERR_InvalidRefKindInBufferCreation, location, message);
+    }
+
+    internal static BelteDiagnostic OmittedArgumentInBufferCreation(TextLocation location) {
+        var message = $"arguments in buffer creation cannot be omitted";
+        return CreateError(DiagnosticCode.ERR_OmittedArgumentInBufferCreation, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidBufferCreationArgument(TextLocation location) {
+        var message = $"second argument in buffer creation must be an initializer list";
+        return CreateError(DiagnosticCode.ERR_InvalidBufferCreationArgument, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

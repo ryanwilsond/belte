@@ -118,12 +118,16 @@ internal static class ModifierHelpers {
             DeclarationModifiers.Private => SyntaxFacts.GetText(SyntaxKind.PrivateKeyword),
             DeclarationModifiers.ConstExpr => SyntaxFacts.GetText(SyntaxKind.ConstexprKeyword),
             DeclarationModifiers.LowLevel => SyntaxFacts.GetText(SyntaxKind.LowlevelKeyword),
-            DeclarationModifiers.Const or DeclarationModifiers.ConstRef => SyntaxFacts.GetText(SyntaxKind.ConstKeyword),
+            DeclarationModifiers.Const or
+            DeclarationModifiers.ConstRef => SyntaxFacts.GetText(SyntaxKind.ConstKeyword),
             DeclarationModifiers.Virtual => SyntaxFacts.GetText(SyntaxKind.VirtualKeyword),
             DeclarationModifiers.Override => SyntaxFacts.GetText(SyntaxKind.OverrideKeyword),
             DeclarationModifiers.Ref => SyntaxFacts.GetText(SyntaxKind.RefKeyword),
             DeclarationModifiers.Extern => SyntaxFacts.GetText(SyntaxKind.ExternKeyword),
             DeclarationModifiers.Pinned => SyntaxFacts.GetText(SyntaxKind.PinnedKeyword),
+            DeclarationModifiers.Out => SyntaxFacts.GetText(SyntaxKind.OutKeyword),
+            DeclarationModifiers.Final or
+            DeclarationModifiers.FinalRef => SyntaxFacts.GetText(SyntaxKind.FinalKeyword),
             _ => throw ExceptionUtilities.UnexpectedValue(modifier),
         };
     }
@@ -164,6 +168,7 @@ internal static class ModifierHelpers {
             SyntaxKind.RefKeyword => DeclarationModifiers.Ref,
             SyntaxKind.ExternKeyword => DeclarationModifiers.Extern,
             SyntaxKind.PinnedKeyword => DeclarationModifiers.Pinned,
+            SyntaxKind.FinalKeyword => DeclarationModifiers.Final,
             _ => throw ExceptionUtilities.UnexpectedValue(kind),
         };
     }

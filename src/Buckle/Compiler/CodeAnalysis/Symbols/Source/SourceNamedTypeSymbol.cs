@@ -24,8 +24,9 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
     internal SourceNamedTypeSymbol(
         NamespaceOrTypeSymbol containingSymbol,
         MergedTypeDeclaration declaration,
-        BelteDiagnosticQueue diagnostics)
-        : base(containingSymbol, declaration, diagnostics) { }
+        BelteDiagnosticQueue diagnostics,
+        TupleExtraData tupleData = null)
+        : base(containingSymbol, declaration, diagnostics, tupleData) { }
 
     private TemplateParameterInfo _templateParameterInfo {
         get {
@@ -392,7 +393,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
         foreach (var templateSyntax in syntax.templateParameterList.parameters) {
             var identifier = templateSyntax.identifier;
-            var name = identifier.text;
+            var name = identifier.valueText;
 
             var result = new SourceTemplateParameterSymbol(
                 this,
@@ -612,5 +613,9 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
+    }
+
+    private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
+        return new SourceNamedTypeSymbol(containingType, _declaration, BelteDiagnosticQueue.Discarded, newData);
     }
 }

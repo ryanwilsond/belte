@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Reflection.Metadata;
+using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -106,6 +107,10 @@ internal abstract partial class PENamedTypeSymbol {
             }
 
             return true;
+        }
+
+        private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
+            throw ExceptionUtilities.Unreachable();
         }
     }
 }

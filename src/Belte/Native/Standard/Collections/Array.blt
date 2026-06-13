@@ -1,6 +1,52 @@
 
-public lowlevel static class Array<type T> {
-    public static void Copy(T[] to, T[] from, int! start, int! length) {
+public lowlevel sealed class Array<type T> {
+    private Buffer<T> _array;
+    private BitArray _bitArray;
+
+    public constructor(int length) {
+        _array = new Buffer<T>((int32)length);
+        _bitArray = new BitArray((int32)length);
+    }
+
+    public constructor(int length, Buffer<T> initializer) {
+        _array = initializer;
+        _bitArray = new BitArray((int32)length, true);
+    }
+
+    public ref T Get(int index) {
+        if (_bitArray.Get((int32)index))
+            return ref _array[(int32)index];
+
+        throw new InvalidOperationException();
+    }
+
+    public T Set(int index, T value) {
+        _array[(int32)index] = value;
+        _bitArray.Set((int32)index, true);
+        return value;
+    }
+
+    public const int Length() {
+        return LowLevel.Length<T>(_array);
+    }
+
+    public static ref T operator[](Array<T> array, int index) {
+        return ref array._array[index];
+    }
+
+    public static int operator length(Array<T> array) {
+        return LowLevel.Length<T>(array._array);
+    }
+
+    public static implicit operator Buffer<T>(Array<T> array) {
+        return array._array;
+    }
+
+    public static implicit operator Array<T>(Buffer<T> array) {
+        return new Array<T>(LowLevel.Length<T>(array), array);
+    }
+
+    public static void Copy(Buffer<T> to, Buffer<T> from, int! start, int! length) {
         for (int! i = 0; i < length; i++)
             to[i + start] = from[i];
     }

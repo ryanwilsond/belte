@@ -57,11 +57,18 @@ public sealed class LexerTests {
         untestedTokenTypes.Remove(SyntaxKind.EndifKeyword);
         untestedTokenTypes.Remove(SyntaxKind.ExplicitKeyword);
         untestedTokenTypes.Remove(SyntaxKind.ImplicitKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.InitializesKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.OperatorKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.LiteralKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.ExtendedLiteralToken);
         untestedTokenTypes.Remove(SyntaxKind.FlagsKeyword);
         untestedTokenTypes.Remove(SyntaxKind.HandleKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.HasKeyword);
         untestedTokenTypes.Remove(SyntaxKind.NotnullKeyword);
         untestedTokenTypes.Remove(SyntaxKind.NoVerifyKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.PackedKeyword);
         untestedTokenTypes.Remove(SyntaxKind.PrimitiveKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.StateKeyword);
         untestedTokenTypes.Remove(SyntaxKind.UndefKeyword);
         untestedTokenTypes.ExceptWith(testedTokenTypes);
 
@@ -94,8 +101,9 @@ public sealed class LexerTests {
 
     [Theory]
     [MemberData(nameof(GetTokenPairsData))]
+    [Trait("Category", "Slow")]
     internal void Lexer_Lexes_TokenPairs(SyntaxKind t1Kind, string t1Text,
-                                        SyntaxKind t2Kind, string t2Text) {
+                                         SyntaxKind t2Kind, string t2Text) {
         var text = t1Text + t2Text;
         var tokens = SyntaxTreeExtensions.ParseTokens(text);
 
@@ -108,6 +116,7 @@ public sealed class LexerTests {
 
     [Theory]
     [MemberData(nameof(GetTokenPairsWithSeparatorData))]
+    [Trait("Category", "Slow")]
     internal void Lexer_Lexes_TokenPairs_WithSeparators(SyntaxKind t1Kind, string t1Text,
                                                         SyntaxKind separatorKind, string separatorText,
                                                         SyntaxKind t2Kind, string t2Text) {
@@ -339,6 +348,9 @@ public sealed class LexerTests {
         if (t1Kind == SyntaxKind.SlashToken && t2Kind == SyntaxKind.BackslashSlashEqualsToken) return true;
         if (t1Kind == SyntaxKind.SlashToken && t2Kind == SyntaxKind.SlashBackslashToken) return true;
         if (t1Kind == SyntaxKind.SlashToken && t2Kind == SyntaxKind.SlashBackslashEqualsToken) return true;
+        if (t1Kind == SyntaxKind.StringLiteralToken && t2Kind == SyntaxKind.IdentifierToken) return true;
+        if (t1Kind == SyntaxKind.NumericLiteralToken && t2Kind == SyntaxKind.IdentifierToken) return true;
+        if (t1Kind == SyntaxKind.CharacterLiteralToken && t2Kind == SyntaxKind.IdentifierToken) return true;
 
         return false;
     }

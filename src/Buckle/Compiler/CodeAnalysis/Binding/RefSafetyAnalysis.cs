@@ -5,6 +5,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -482,6 +483,38 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                 //     return CheckRefEscape(node, conversion.Operand, escapeFrom, escapeTo, checkingReceiver, diagnostics);
                 // }
                 break;
+
+            case BoundKind.IndexerAccessExpression: {
+                    var indexerAccess = (BoundIndexerAccessExpression)expression;
+
+                    if (CorLibrary.GetWellKnownType(WellKnownType.Array)
+                        .Equals(indexerAccess.receiver.StrippedType().originalDefinition)) {
+                        return true;
+                    }
+
+                    var method = indexerAccess.method;
+
+                    if (method is null || method.refKind == RefKind.None)
+                        break;
+
+                    return CheckInvocationEscape(
+                        indexerAccess.syntax,
+                        MethodInfo.Create(method),
+                        indexerAccess.receiver,
+                        // call.InitialBindingReceiverIsSubjectToCloning,
+                        ThreeState.Unknown,
+                        method.parameters,
+                        [indexerAccess.index],
+                        [indexerAccess.index.GetRefKind()],
+                        // call.argsToParams,
+                        default,
+                        checkingReceiver,
+                        escapeFrom,
+                        escapeTo,
+                        diagnostics,
+                        isRefEscape: true
+                    );
+                }
             case BoundKind.ThrowExpression:
                 return true;
             case BoundKind.DiscardExpression:
@@ -1226,10 +1259,8 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                 if (!argRefKindsOpt.IsDefault)
                     refKind = argRefKindsOpt[argIndex];
 
-                if (refKind == RefKind.None &&
-                    parameter?.refKind is RefKind.RefConstParameter) {
+                if (refKind == RefKind.None && parameter?.refKind is RefKind.RefConst)
                     refKind = parameter.refKind;
-                }
 
                 escapeArguments.Add(new EscapeArgument(parameter, argument, refKind));
             }
@@ -1333,8 +1364,9 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
 
             if (parameter is BoundThisExpression) {
                 // TODO Reachable?
+                throw ExceptionUtilities.Unreachable();
                 // Error(diagnostics, ErrorCode.ERR_RefReturnStructThis, node);
-                return false;
+                // return false;
             }
 
             switch ((checkingReceiver, isRefScoped, refSafeToEscape)) {
@@ -1415,7 +1447,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
     private uint GetFieldRefEscape(BoundFieldAccessExpression fieldAccess, uint scopeOfTheContainingExpression) {
         var fieldSymbol = fieldAccess.field;
 
-        if (fieldSymbol.isStatic || fieldSymbol.containingType.isObjectType)
+        if (fieldSymbol.isStatic || fieldSymbol.containingType.isReferenceType)
             return CallingMethodScope;
 
         if (fieldSymbol.refKind != RefKind.None)
@@ -1432,9 +1464,8 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
         BelteDiagnosticQueue diagnostics) {
         var fieldSymbol = fieldAccess.field;
 
-        if (fieldSymbol.isStatic || fieldSymbol.containingType.isObjectType)
+        if (fieldSymbol.isStatic || fieldSymbol.containingType.isReferenceType)
             return true;
-
 
         if (fieldSymbol.refKind != RefKind.None)
             return CheckValEscape(node, fieldAccess.receiver, escapeFrom, escapeTo, true, diagnostics);

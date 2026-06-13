@@ -20,6 +20,9 @@ internal sealed class TypeCompilationState {
     private Dictionary<MethodSymbol, MethodSymbol> _constructorInitializers;
     private Dictionary<MethodSymbol, MethodSymbol> _wrappers;
 
+    private HashSet<Symbol> _instanceDefiniteAssignments;
+    private HashSet<Symbol> _staticDefiniteAssignments;
+
     internal ImportChain currentImportChain;
 
     internal TypeCompilationState(
@@ -73,6 +76,46 @@ internal sealed class TypeCompilationState {
         synthesizedMethods.Add((symbol, body));
     }
 
+    internal void AddConstructorDefiniteAssignments(bool isStatic, HashSet<Symbol> symbols) {
+        if (isStatic) {
+            if (_staticDefiniteAssignments is null)
+                _staticDefiniteAssignments = symbols;
+            else
+                _staticDefiniteAssignments.IntersectWith(symbols);
+        } else {
+            if (_instanceDefiniteAssignments is null)
+                _instanceDefiniteAssignments = symbols;
+            else
+                _instanceDefiniteAssignments.IntersectWith(symbols);
+        }
+    }
+
+    internal void OrConstructorDefiniteAssignments(bool isStatic, HashSet<Symbol> symbols) {
+        if (isStatic) {
+            if (_staticDefiniteAssignments is null)
+                _staticDefiniteAssignments = symbols;
+            else
+                _staticDefiniteAssignments.UnionWith(symbols);
+        } else {
+            if (_instanceDefiniteAssignments is null)
+                _instanceDefiniteAssignments = symbols;
+            else
+                _instanceDefiniteAssignments.UnionWith(symbols);
+        }
+    }
+
+    internal void ReportFieldsRequiringAssignment(ArrayBuilder<FieldSymbol> fields, BelteDiagnosticQueue diagnostics) {
+        foreach (var field in fields) {
+            if (field.isStatic) {
+                if (_staticDefiniteAssignments is null || !_staticDefiniteAssignments.Contains(field))
+                    diagnostics.Push(field.definiteAssignmentError);
+            } else {
+                if (_instanceDefiniteAssignments is null || !_instanceDefiniteAssignments.Contains(field))
+                    diagnostics.Push(field.definiteAssignmentError);
+            }
+        }
+    }
+
     internal void ReportConstructorInitializerCycles(
         MethodSymbol method1,
         MethodSymbol method2,
@@ -95,7 +138,8 @@ internal sealed class TypeCompilationState {
             if (_constructorInitializers.TryGetValue(next, out next)) {
                 if (method1 == next) {
                     // TODO Initializer recursive cycle error
-                    return;
+                    throw ExceptionUtilities.Unreachable();
+                    // return;
                 }
             } else {
                 _constructorInitializers.Add(method1, method2);

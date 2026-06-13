@@ -1,29 +1,29 @@
 
 public lowlevel sealed class List<type T> {
-    private T[] _array;
-    private int! _length = 0;
-    private int! _res = 0;
+    private Buffer<T> _array;
+    private int! _length;
+    private int! _res;
 
     public constructor() {
         TidyInit();
     }
 
     public constructor(int! length) {
-        _array = new T[length];
+        _array = new Buffer<T>(length);
         _length = length;
         _res = length;
     }
 
     public constructor(int! length, T value) {
-        _array = new T[length];
+        _array = new Buffer<T>(length);
         _length = length;
         _res = length;
         Fill(value);
     }
 
-    public constructor(T[] array) {
+    public constructor(Buffer<T> array) {
         TidyInit();
-        ConstructContents(array, LowLevel.Length<T[]>(array!));
+        ConstructContents(array, LowLevel.Length<T>(array));
     }
 
     public constructor(List<T> list) {
@@ -54,10 +54,10 @@ public lowlevel sealed class List<type T> {
         return subset;
     }
 
-    public const T[]! ToArray() {
-        T[]! copy = new T[_length];
+    public const Array<T>! ToArray() {
+        Buffer<T>! copy = new Buffer<T>(_length);
         Array<T>.Copy(copy, _array, 0, _length);
-        return copy;
+        return new Array<T>((int32)_length, copy);
     }
 
     public void Append(T value) {
@@ -68,13 +68,17 @@ public lowlevel sealed class List<type T> {
         }
 
         int! newCapacity = _length * 2;
-        T[] newArray = new T[newCapacity];
+        Buffer<T> newArray = new Buffer<T>(newCapacity);
         Array<T>.Copy(newArray, _array, 0, _length);
         _array = newArray;
         _array[_length] = value;
 
         _length++;
         _res = newCapacity;
+    } state (int!) {
+        return _length - 1;
+    } reverse (int! index) {
+        RemoveAt(index);
     }
 
     public void AppendRange(List<T> list) {
@@ -85,7 +89,7 @@ public lowlevel sealed class List<type T> {
         }
 
         int! newCapacity = _length + list._length * 2;
-        T[] newArray = new T[newCapacity];
+        Buffer<T> newArray = new Buffer<T>(newCapacity);
         Array<T>.Copy(newArray, _array, 0, _length);
         Array<T>.Copy(newArray, list._array, _length, list._length);
         _array = newArray;
@@ -145,11 +149,8 @@ public lowlevel sealed class List<type T> {
         return representation + _array[_length - 1].ToString() + " }";
     }
 
-    public static ref T operator[](List<T> list, int? index) {
-        if (index is null)
-            throw new ArgumentNullException();
-
-        index = list.PosIndex(index!);
+    public static ref T operator[](List<T> list, int! index) {
+        index = list.PosIndex(index);
 
         if (index < 0 || index >= list._length)
             throw new ArgumentOutOfRangeException();
@@ -161,7 +162,7 @@ public lowlevel sealed class List<type T> {
         return list._length;
     }
 
-    public static implicit operator List<T>(T[] array) {
+    public static implicit operator List<T>(Buffer<T> array) {
         return new List<T>(array);
     }
 
@@ -172,7 +173,7 @@ public lowlevel sealed class List<type T> {
         return index;
     }
 
-    private void ConstructContents(T[] array, int! length) {
+    private void ConstructContents(Buffer<T> array, int! length) {
         if (_res > length) {
             Array<T>.Copy(_array, array, 0, length);
             _length = length;
@@ -180,15 +181,15 @@ public lowlevel sealed class List<type T> {
         }
 
         int! newCapacity = length + 10;
-        _array = new T[newCapacity];
+        _array = new Buffer<T>(newCapacity);
         Array<T>.Copy(_array, array, 0, length);
 
         _length = length;
         _res = newCapacity;
     }
 
-    private void TidyInit() {
-        _array = new T[10];
+    private void TidyInit() initializes(_array, _length, _res) {
+        _array = new Buffer<T>(10);
         _length = 0;
         _res = 10;
     }

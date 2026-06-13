@@ -74,7 +74,7 @@ internal static partial class ValueSetFactory {
         }
 
         ConstantValue INumericTC<float>.ToConstantValue(float value) {
-            return new ConstantValue(value, CodeAnalysis.Symbols.SpecialType.Float32);
+            return new ConstantValue(value, SpecialType.Float32);
         }
 
         string INumericTC<float>.ToString(float value) {

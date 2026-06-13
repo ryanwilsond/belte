@@ -626,6 +626,14 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
             members.Sort(membersCount, DeclarationOrderTypeSymbolComparer.Instance);
             var membersInDeclarationOrder = members.ToImmutable();
 
+            if (isTupleType) {
+                var originalCount = members.Count;
+                var peMembers = members.ToImmutableAndFree();
+                members = MakeSynthesizedTupleMembers(peMembers);
+                membersCount += members.Count;
+                members.AddRange(peMembers);
+            }
+
             if (!ImmutableInterlocked.InterlockedInitialize(ref _lazyMembersInDeclarationOrder, membersInDeclarationOrder)) {
                 members.Free();
                 members = null;
@@ -795,7 +803,7 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
                 }
             } catch (BadImageFormatException) { }
 
-            if (isPrimitiveType)
+            if (isValueType)
                 names.Add(WellKnownMemberNames.InstanceConstructorName);
 
             Interlocked.CompareExchange(ref _lazyMemberNames, CreateReadOnlyMemberNames(names), null);

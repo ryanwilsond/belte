@@ -52,15 +52,19 @@ internal abstract partial class ArrayTypeSymbol : TypeSymbol {
         return new SZArray(elementType, CorLibrary.GetSpecialType(SpecialType.Array));
     }
 
+    internal static ArrayTypeSymbol FromFatArray(NamedTypeSymbol fatArray) {
+        return CreateSZArray(fatArray.templateArguments[0].type);
+    }
+
     public override SymbolKind kind => SymbolKind.ArrayType;
 
     public override TypeKind typeKind => TypeKind.Array;
 
     public override SpecialType specialType => SpecialType.Array;
 
-    public override bool isObjectType => false;
+    public override bool isReferenceType => true;
 
-    public override bool isPrimitiveType => true;
+    public override bool isValueType => false;
 
     internal override Symbol containingSymbol => null;
 

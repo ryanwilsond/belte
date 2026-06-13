@@ -60,7 +60,7 @@ internal abstract class ModuleSymbol : Symbol {
 
         // TODO confirm condition
         // if ((object)assembly != assembly.CorLibrary) {
-        if (assembly.declaringCompilation.assemblyName != "CorLibrary")
+        if (assembly.declaringCompilation.assemblyName != MetadataHelpers.CorLibraryString)
             throw new ArgumentOutOfRangeException(nameof(referencedAssemblyIndex));
 
         return null;

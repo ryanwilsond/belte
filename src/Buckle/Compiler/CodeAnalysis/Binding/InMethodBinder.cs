@@ -96,6 +96,10 @@ internal sealed class InMethodBinder : LocalScopeBinder {
         return null;
     }
 
+    private protected override SourceTokenSymbol LookupToken(SyntaxToken identifier) {
+        return null;
+    }
+
     private static bool ReportConflictWithParameter(
         Symbol parameter,
         Symbol newSymbol,

@@ -301,7 +301,7 @@ dotnet_diagnostic.IDE0060.severity = warning
 dotnet_diagnostic.IDE0063.severity = warning
 
 # IDE0066: Use switch expression
-dotnet_diagnostic.IDE0066.severity = warning
+dotnet_diagnostic.IDE0066.severity = suggestion
 
 # IDE0090: Simplify new expression
 dotnet_diagnostic.IDE0090.severity = none

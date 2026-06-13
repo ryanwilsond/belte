@@ -12,12 +12,24 @@ public class DiagnosticOptions {
 
     public List<string> wexcludes = [];
 
+    public bool warningsAsErrors = false;
+
+    public int wErrorLevel = 2;
+
+    public List<string> werrincludes = [];
+
+    public List<string> werrexcludes = [];
+
     public DiagnosticOptions Copy() {
         return new DiagnosticOptions() {
             severity = severity,
             warningLevel = warningLevel,
             wincludes = new List<string>(wincludes),
             wexcludes = new List<string>(wexcludes),
+            warningsAsErrors = warningsAsErrors,
+            wErrorLevel = wErrorLevel,
+            werrincludes = new List<string>(werrincludes),
+            werrexcludes = new List<string>(werrexcludes),
         };
     }
 }

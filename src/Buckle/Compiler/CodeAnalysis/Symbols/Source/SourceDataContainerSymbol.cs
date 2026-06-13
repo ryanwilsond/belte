@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Immutable;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
@@ -5,6 +6,7 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -15,13 +17,17 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
     private TypeWithAnnotations _type;
     private CustomAttributesBag<AttributeData> _lazyAttributeBag;
 
+    [ThreadStatic] private static PooledHashSet<LocalTypeInferenceInProgressKey> LocalTypeInferenceInProgress;
+    private ConcurrentSet<SyntaxNode> _forbiddenReferences;
+
     private SourceDataContainerSymbol(
         Symbol containingSymbol,
         Binder scopeBinder,
         bool allowRefKind,
         TypeSyntax typeSyntax,
         SyntaxToken identifierToken,
-        SyntaxTokenList modifiers) {
+        SyntaxTokenList modifiers,
+        DataContainerDeclarationKind? kind = null) {
         this.containingSymbol = containingSymbol;
         this.scopeBinder = scopeBinder;
         this.identifierToken = identifierToken;
@@ -36,11 +42,15 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
         scope = refKind == RefKind.None ? ScopedKind.Value : ScopedKind.Ref;
 
         declarationKind = MakeModifiers(modifiers, _declarationDiagnostics, out var isPinned);
+
+        if (kind is not null)
+            declarationKind = kind.Value;
+
         this.isPinned = isPinned;
         GetAttributes();
     }
 
-    public override string name => identifierToken.text;
+    public override string name => identifierToken.valueText;
 
     public override RefKind refKind { get; }
 
@@ -72,16 +82,8 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
 
     AttributeLocation IAttributeTargetSymbol.allowedAttributeLocations => AttributeLocation.Parameter;
 
-    internal override TypeWithAnnotations typeWithAnnotations {
-        get {
-            if (_type is null) {
-                var localType = GetTypeSymbol();
-                SetTypeWithAnnotations(localType);
-            }
-
-            return _type;
-        }
-    }
+    internal override TypeWithAnnotations typeWithAnnotations
+        => GetTypeWithAnnotations(SyntaxTree.Dummy.GetRoot(), BelteDiagnosticQueue.Discarded);
 
     internal override SynthesizedLocalKind synthesizedKind => SynthesizedLocalKind.UserDefined;
 
@@ -118,8 +120,7 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
         SyntaxTokenList modifiers,
         Binder initializerBinder = null,
         Binder nodeBinder = null,
-        SyntaxNode nodeToBind = null,
-        SyntaxNode forbiddenZone = null) {
+        SyntaxNode nodeToBind = null) {
         if (nodeBinder is not null) {
             return new LocalSymbolWithEnclosingContext(
                 containingSymbol,
@@ -128,8 +129,7 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
                 typeSyntax,
                 identifierToken,
                 modifiers,
-                nodeToBind,
-                forbiddenZone
+                nodeToBind
             );
         }
 
@@ -144,6 +144,27 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
             initializerBinder ?? scopeBinder
         );
     }
+
+    internal static SourceDataContainerSymbol MakeLocalSymbolWithEnclosingContext(
+        Symbol containingSymbol,
+        Binder scopeBinder,
+        Binder nodeBinder,
+        TypeSyntax typeSyntax,
+        SyntaxToken identifierToken,
+        DataContainerDeclarationKind kind,
+        SyntaxNode nodeToBind) {
+        return new LocalSymbolWithEnclosingContext(
+            containingSymbol,
+            scopeBinder,
+            nodeBinder,
+            typeSyntax,
+            identifierToken,
+            null,
+            nodeToBind,
+            kind
+        );
+    }
+
     internal static SourceDataContainerSymbol MakeDeconstructionLocal(
         Symbol containingSymbol,
         Binder scopeBinder,
@@ -168,6 +189,96 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
                 closestTypeSyntax,
                 identifierToken,
                 SyntaxTokenList.Empty);
+    }
+
+    internal override TypeWithAnnotations GetTypeWithAnnotations(
+        SyntaxNode reference,
+        BelteDiagnosticQueue diagnostics) {
+        if (_forbiddenReferences?.Contains(reference) == true) {
+            diagnostics.Push(GetForbiddenDiagnostic(reference.location));
+            return new TypeWithAnnotations(declaringCompilation.implicitlyTypedVariableUsedInForbiddenZoneType);
+        }
+
+        if (_type is null) {
+            bool isImplicitlyTyped;
+            bool isNonNullable;
+            bool isNullable;
+            TypeWithAnnotations declarationType;
+
+            if (_typeSyntax is null) {
+                isImplicitlyTyped = true;
+                isNonNullable = false;
+                isNullable = false;
+                declarationType = default;
+            } else {
+                declarationType = scopeBinder.BindTypeOrImplicitType(
+                    _typeSyntax.SkipRef(out _),
+                    diagnostics,
+                    out isImplicitlyTyped,
+                    out isNonNullable,
+                    out isNullable
+                );
+            }
+
+            if (isImplicitlyTyped) {
+                var free = false;
+                var localTypeInferenceInProgress = LocalTypeInferenceInProgress;
+
+                if (localTypeInferenceInProgress is null) {
+                    free = true;
+                    localTypeInferenceInProgress =
+                        LocalTypeInferenceInProgress = PooledHashSet<LocalTypeInferenceInProgressKey>.GetInstance();
+                }
+
+                var key = new LocalTypeInferenceInProgressKey(this, reference);
+
+                if (!localTypeInferenceInProgress.Add(key)) {
+                    if (_forbiddenReferences is null)
+                        Interlocked.CompareExchange(ref _forbiddenReferences, [], null);
+
+                    _forbiddenReferences.Add(reference);
+                    diagnostics.Push(GetForbiddenDiagnostic(reference.location));
+                    return new TypeWithAnnotations(declaringCompilation.implicitlyTypedVariableUsedInForbiddenZoneType);
+                }
+
+                TypeWithAnnotations inferredType;
+
+                try {
+                    inferredType = InferTypeOfImplicit();
+                } finally {
+                    localTypeInferenceInProgress.Remove(key);
+
+                    if (free) {
+                        LocalTypeInferenceInProgress = null;
+                        localTypeInferenceInProgress.Free();
+                    }
+                }
+
+                if (_forbiddenReferences?.Contains(reference) == true) {
+                    diagnostics.Push(GetForbiddenDiagnostic(reference.location));
+                    return new TypeWithAnnotations(declaringCompilation.implicitlyTypedVariableUsedInForbiddenZoneType);
+                }
+
+                if (inferredType.hasType && !inferredType.IsVoidType()) {
+                    if (isNonNullable && inferredType.IsNullableType())
+                        inferredType = new TypeWithAnnotations(inferredType.nullableUnderlyingTypeOrSelf);
+
+                    if (isNullable && !inferredType.IsNullableType())
+                        inferredType = inferredType.SetIsAnnotated();
+
+                    declarationType = inferredType;
+                } else {
+                    declarationType = new TypeWithAnnotations(
+                        declaringCompilation.implicitlyTypedVariableInferenceFailedType
+                    );
+                }
+            }
+
+            SetTypeWithAnnotations(declarationType);
+            return _type ?? declarationType;
+        }
+
+        return _type;
     }
 
     internal sealed override ImmutableArray<AttributeData> GetAttributes() {
@@ -212,11 +323,14 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
     }
 
     internal void SetTypeWithAnnotations(TypeWithAnnotations newType) {
-        if (_type is null)
+        if (_type is null &&
+            (newType.type != (object)declaringCompilation.implicitlyTypedVariableInferenceFailedType ||
+                 (LocalTypeInferenceInProgress?.Any(static (key, @this) => key.local == (object)@this, this) != true))) {
             Interlocked.CompareExchange(ref _type, newType, null);
+        }
     }
 
-    private protected virtual TypeWithAnnotations InferTypeOfImplicit(BelteDiagnosticQueue diagnostics) {
+    private protected virtual TypeWithAnnotations InferTypeOfImplicit() {
         return _type;
     }
 
@@ -249,54 +363,13 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
               );
     }
 
-    private TypeWithAnnotations GetTypeSymbol() {
-        var diagnostics = BelteDiagnosticQueue.Discarded;
-
-        bool isImplicitlyTyped;
-        bool isNonNullable;
-        bool isNullable;
-        TypeWithAnnotations declarationType;
-
-        if (_typeSyntax is null) {
-            isImplicitlyTyped = true;
-            isNonNullable = false;
-            isNullable = false;
-            declarationType = default;
-        } else {
-            declarationType = scopeBinder.BindTypeOrImplicitType(
-                _typeSyntax.SkipRef(out _),
-                diagnostics,
-                out isImplicitlyTyped,
-                out isNonNullable,
-                out isNullable
-            );
-        }
-
-        if (isImplicitlyTyped) {
-            var inferredType = InferTypeOfImplicit(diagnostics);
-
-            if (inferredType.hasType && !inferredType.IsVoidType()) {
-                if (isNonNullable && inferredType.IsNullableType())
-                    inferredType = new TypeWithAnnotations(inferredType.nullableUnderlyingTypeOrSelf);
-
-                if (isNullable && !inferredType.IsNullableType())
-                    inferredType = inferredType.SetIsAnnotated();
-
-                declarationType = inferredType;
-            } else {
-                declarationType = new TypeWithAnnotations(scopeBinder.CreateErrorType("var"));
-            }
-        }
-
-        return declarationType;
-    }
-
     private DataContainerDeclarationKind MakeModifiers(
         SyntaxTokenList modifiers,
         BelteDiagnosticQueue diagnostics,
         out bool isPinned) {
         var allowedModifiers = DeclarationModifiers.Const |
                                DeclarationModifiers.ConstExpr |
+                               DeclarationModifiers.Final |
                                DeclarationModifiers.Pinned;
 
         var result = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
@@ -310,12 +383,15 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
 
         isPinned = (result & DeclarationModifiers.Pinned) != 0;
         var isConst = (result & DeclarationModifiers.Const) != 0;
+        var isFinal = (result & DeclarationModifiers.Final) != 0;
         var isConstExpr = (result & DeclarationModifiers.ConstExpr) != 0;
         var declarationKind = isConstExpr
             ? DataContainerDeclarationKind.ConstantExpression
             : (isConst
                 ? DataContainerDeclarationKind.Constant
-                : DataContainerDeclarationKind.Variable);
+                : (isFinal
+                    ? DataContainerDeclarationKind.Final
+                    : DataContainerDeclarationKind.Variable));
 
         if (hasErrors)
             return declarationKind;

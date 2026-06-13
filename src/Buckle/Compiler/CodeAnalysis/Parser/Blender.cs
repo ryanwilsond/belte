@@ -8,7 +8,7 @@ namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 /// <summary>
 /// Blends nodes from an old and new tree, following the given changes.
 /// </summary>
-internal sealed partial class Blender {
+internal readonly partial struct Blender {
     private readonly Lexer _lexer;
     private readonly Cursor _oldTreeCursor;
     private readonly ImmutableStack<TextChangeRange> _changes;

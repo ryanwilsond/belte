@@ -84,7 +84,7 @@ internal sealed class TypeParameterConstraintClause {
                             result = true;
                             break;
                         }
-                    } else if (type.isPrimitiveType) {
+                    } else if (type.isValueType) {
                         result = true;
                         break;
                     }
@@ -133,7 +133,7 @@ internal sealed class TypeParameterConstraintClause {
                             result = true;
                             break;
                         }
-                    } else if (typeParameter.isObjectTypeFromConstraintTypes) {
+                    } else if (typeParameter.isReferenceTypeFromConstraintTypes) {
                         result = true;
                         break;
                     }

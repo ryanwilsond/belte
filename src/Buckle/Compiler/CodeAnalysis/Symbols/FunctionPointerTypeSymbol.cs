@@ -71,9 +71,9 @@ internal sealed class FunctionPointerTypeSymbol : TypeSymbol {
 
     internal FunctionPointerMethodSymbol signature { get; }
 
-    public override bool isObjectType => false;
+    public override bool isReferenceType => false;
 
-    public override bool isPrimitiveType => true;
+    public override bool isValueType => true;
 
     public override TypeKind typeKind => TypeKind.FunctionPointer;
 
