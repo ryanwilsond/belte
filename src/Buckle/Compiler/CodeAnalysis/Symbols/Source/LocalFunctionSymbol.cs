@@ -102,6 +102,8 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
 
     internal override bool isDeclaredConst => false;
 
+    internal override bool isEffectivelyConst => true;
+
     internal override bool requiresInstanceReceiver => false;
 
     internal override CallingConvention callingConvention => CallingConvention.Default;

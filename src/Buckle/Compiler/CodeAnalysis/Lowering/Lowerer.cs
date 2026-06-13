@@ -26,6 +26,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
     private readonly bool _transpiling;
     private readonly MethodCompiler _methodCompiler;
     private readonly MethodSymbol _method;
+    private readonly NamedTypeSymbol _entryType;
     private readonly BelteDiagnosticQueue _diagnostics;
 
     private bool _sawCompileTimeExpression;
@@ -33,9 +34,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
     private Lowerer(
         MethodCompiler methodCompiler,
         MethodSymbol container,
+        NamedTypeSymbol entryType,
         BelteDiagnosticQueue diagnostics,
         bool transpiling) {
         _methodCompiler = methodCompiler;
+        _entryType = entryType;
         _diagnostics = diagnostics;
         _expander = transpiling ? new SharedExpander(container, diagnostics) : new Expander(container, diagnostics);
         _transpiling = transpiling;
@@ -47,10 +50,11 @@ internal sealed class Lowerer : BoundTreeRewriter {
         OptimizationLevel optimizationLevel,
         MethodSymbol method,
         BoundBlockStatement statement,
+        NamedTypeSymbol entryType,
         BelteDiagnosticQueue diagnostics,
         bool transpiling,
         out bool sawCompileTimeExpression) {
-        var lowerer = new Lowerer(methodCompiler, method, diagnostics, transpiling);
+        var lowerer = new Lowerer(methodCompiler, method, entryType, diagnostics, transpiling);
         var optimize = optimizationLevel == OptimizationLevel.Release && !transpiling;
 
         var rewrittenStatement = statement;
@@ -1107,6 +1111,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         if (type.IsStructType() && node.constructor is SynthesizedInstanceConstructorSymbol)
             return new BoundDefaultExpression(node.syntax, false, null, null, type);
+
+        if (_entryType is not null && type.Equals(_entryType))
+            _diagnostics.Push(Error.CannotCreateEntryType(node.syntax.location));
 
         return base.VisitObjectCreationExpression(node);
     }

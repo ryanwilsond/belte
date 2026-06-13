@@ -546,7 +546,7 @@ most of the differences to make it more clear where the language is unique with 
 - Struct layout efficiency analysis
 - [`packed` keyword instead of StructLayout attribute](LowLevelFeatures.md#621-packing)
 - [User-defined deconstruction uses same syntax as user-defined casts](Data.md#3151-user-defined-deconstruction)
-- [Verbatim identifier can use any non-whitespace characters](#16-identifiers)
+- Numeric literals automatically shrink/expand to fit the context (i.e. `f` suffix for float literals is unnecessary)
 - [Experimental: Non-numeric enum underlying types](ClassesAndObjects.md#463-experimental-underlying-types)
 - [Experimental: Non-type generics/templates](ClassesAndObjects.md#45-templates)
 - Experimental: Integrated graphics support with `Update()` point

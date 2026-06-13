@@ -98,6 +98,10 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
         return [];
     }
 
+    internal TypeOrConstant Substitute(TemplateMap templateMap) {
+        return new TypeOrConstant(templateMap.SubstituteNamedType(this));
+    }
+
     internal override TResult Accept<TArgument, TResult>(
         SymbolVisitor<TArgument, TResult> visitor,
         TArgument argument) {

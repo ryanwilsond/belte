@@ -2558,6 +2558,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_InvalidBufferCreationArgument, location, message);
     }
 
+    internal static BelteDiagnostic CannotCreateEntryType(TextLocation location) {
+        var message = $"invalid object creation; cannot construct the type containing the entry point";
+        return CreateError(DiagnosticCode.ERR_CannotCreateEntryType, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

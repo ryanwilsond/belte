@@ -6948,4 +6948,21 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer, true);
     }
+
+    [Fact]
+    public void Reports_Error_BU0515_CannotCreateEntryType() {
+        var text = @"
+            class Program;
+
+            void Main() {
+                var p = [new Program()];
+            }
+        ";
+
+        var diagnostics = @"
+            invalid object creation; cannot construct the type containing the entry point
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

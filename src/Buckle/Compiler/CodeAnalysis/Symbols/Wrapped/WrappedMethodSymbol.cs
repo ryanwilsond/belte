@@ -52,6 +52,8 @@ internal abstract class WrappedMethodSymbol : MethodSymbol {
 
     internal override bool isDeclaredConst => underlyingMethod.isDeclaredConst;
 
+    internal override bool isEffectivelyConst => underlyingMethod.isEffectivelyConst;
+
     internal override CallingConvention callingConvention => underlyingMethod.callingConvention;
 
     internal sealed override bool hasUnscopedRefAttribute => underlyingMethod.hasUnscopedRefAttribute;

@@ -104,7 +104,7 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
         rewriter.SynthesizeClosureEnvironments();
         rewriter.SynthesizeClosureMethods();
 
-        if (entryPoint is LocalFunctionSymbol) {
+        if (entryPoint is LocalFunctionSymbol && entryPoint.containingSymbol == method) {
             ImmutableArray<BoundExpression> _1 = [];
             ImmutableArray<RefKind> _2 = [];
 
@@ -449,9 +449,8 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
             totalTemplateArgumentCount - originalMethod.arity
         );
 
-        if (!templateArguments.IsDefault) {
+        if (!templateArguments.IsDefault)
             realTemplateArguments = realTemplateArguments.Concat(templateArguments);
-        }
 
         if (containerAsFrame is not null && containerAsFrame.arity != 0) {
             var containerTemplateArguments = ImmutableArray.Create(realTemplateArguments, 0, containerAsFrame.arity);

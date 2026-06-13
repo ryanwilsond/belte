@@ -16,7 +16,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_NullCoalescing_Report_NoDefinedForNullOperand() {
+    public void NullCoalescing_NotDefinedForNullOperand() {
         var text = @"
             [null ?? 2];
         ";
@@ -29,7 +29,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_ConditionalOr_Report_NoDefinedForNullOperand() {
+    public void ConditionalOr_NotDefinedForNullOperand() {
         var text = @"
             [null || true];
         ";
@@ -42,7 +42,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_VariableDeclaration_Reports_UndefinedSymbol() {
+    public void VariableDeclaration_UndefinedSymbol() {
         var text = @"
             ref int? a = ref [b];
         ";
@@ -55,7 +55,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_InitializerList_AllowsNull() {
+    public void InitializerList_AllowsNull() {
         var text = @"
             lowlevel {
                 var! a = { 1, 2, 3 };
@@ -71,7 +71,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_TernaryExpression_AllowsNull() {
+    public void TernaryExpression_AllowsNull() {
         var text = @"
             null ? 3 : 5;
         ";
@@ -80,7 +80,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_CastExpression_NonNullableOnNull() {
+    public void CastExpression_NonNullableOnNull() {
         var text = @"
             [(int!)null];
         ";
@@ -93,7 +93,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_CastExpression_Versus_ParenthesizedExpression() {
+    public void CastExpression_Versus_ParenthesizedExpression() {
         var text = @"
             int? x = 3;
             int? y = (x) + 1;
@@ -107,7 +107,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_ReferenceExpression_Reports_CannotConvert() {
+    public void ReferenceExpression_CannotConvert() {
         var text = @"
             class A {
                 public int? num;
@@ -131,7 +131,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_AssignmentExpression_Reports_CannotAssignConstReference() {
+    public void AssignmentExpression_CannotAssignConstReference() {
         var text = @"
             int? x = 3;
             const ref int? y = ref x;
@@ -146,7 +146,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_AssignmentExpression_Reports_CannotAssignConst() {
+    public void AssignmentExpression_CannotAssignConst() {
         var text = @"
             const x = 3;
             [x] = 56;
@@ -160,7 +160,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Classes_Reports_NoImplicitTyping() {
+    public void Classes_NoImplicitTyping() {
         var text = @"
             class A {
                 [var] num;
@@ -175,7 +175,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Classes_ReassignNull() {
+    public void Classes_ReassignNull() {
         var text = @"
             class A {
                 public int? num;
@@ -191,7 +191,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_IfStatement_AllowsNull() {
+    public void IfStatement_AllowsNull() {
         var text = @"
             if (null) {
                 Console.PrintLine(3);
@@ -202,7 +202,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_CompoundExpression_Reports_Undefined() {
+    public void CompoundExpression_Undefined() {
         var text = @"
             var? x = 10;
             [x += false];
@@ -216,7 +216,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_CompoundExpression_Assignment_NonDefinedVariable_Reports_Undefined() {
+    public void CompoundExpression_Assignment_NonDefinedVariable_Undefined() {
         var text = @"
             [x] += 10;
         ";
@@ -229,7 +229,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_CompoundDeclarationExpression_Reports_CannotAssign() {
+    public void CompoundDeclarationExpression_CannotAssign() {
         var text = @"
             {
                 const int? x = 10;
@@ -245,7 +245,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_InvokeFunctionArguments_NoInfiniteLoop() {
+    public void InvokeFunctionArguments_NoInfiniteLoop() {
         var text = @"Console.PrintLine(""Hi""[=]);";
 
         var diagnostics = @"
@@ -256,7 +256,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_InvokeFunctionArguments_Missing() {
+    public void InvokeFunctionArguments_Missing() {
         var text = @"
             void myFunc(int? a) { }
             [myFunc]();
@@ -270,7 +270,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_InvokeFunctionArguments_Exceeding() {
+    public void InvokeFunctionArguments_Exceeding() {
         var text = @"
             void myFunc(int? a) { }
             [myFunc](1, 2, 3);
@@ -284,7 +284,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_FunctionParameters_NoInfiniteLoop() {
+    public void FunctionParameters_NoInfiniteLoop() {
         var text = @"
             void hi(string? name=[)] {
                 Console.PrintLine(""Hi "" + name + ""!"");
@@ -299,7 +299,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_FunctionReturn_Missing() {
+    public void FunctionReturn_Missing() {
         var text = @"
             int? [add](int? a, int? b) {
             }
@@ -313,7 +313,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Block_NoInfiniteLoop() {
+    public void Block_NoInfiniteLoop() {
         var text = @"
             {[]
             )[]
@@ -328,7 +328,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Block_MinimalDiagnostics() {
+    public void Block_MinimalDiagnostics() {
         var text = @"
             {[]
             )
@@ -343,7 +343,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_IfStatement_Reports_CannotConvert() {
+    public void IfStatement_CannotConvert() {
         var text = @"
             var x = 0;
             if ([10])
@@ -358,7 +358,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_WhileStatement_Reports_CannotConvert() {
+    public void WhileStatement_CannotConvert() {
         var text = @"
             var x = 0;
             while ([10]) { x = 10; }
@@ -372,7 +372,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_DoWhileStatement_Reports_CannotConvert() {
+    public void DoWhileStatement_CannotConvert() {
         var text = @"
             var x = 0;
             do { x = 10; } while ([10]);
@@ -386,7 +386,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_ForStatement_Reports_CannotConvert() {
+    public void ForStatement_CannotConvert() {
         var text = @"
             for (int? i = 0; [i]; i++) {}
         ";
@@ -399,7 +399,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_VariableDeclaration_Reports_Redeclaration() {
+    public void VariableDeclaration_Redeclaration() {
         var text = @"
             var x = 10;
             var y = 100;
@@ -418,7 +418,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_NameExpression_Reports_Undefined() {
+    public void NameExpression_Undefined() {
         var text = @"
             [x] * 10;
         ";
@@ -431,12 +431,12 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_NameExpression_Reports_NoErrorForInsertedToken() {
+    public void NameExpression_NoErrorForInsertedToken() {
         AssertDiagnostics("", "", _writer);
     }
 
     [Fact]
-    public void Evaluator_AssignmentExpression_Reports_Undefined() {
+    public void AssignmentExpression_Undefined() {
         var text = @"
             [x] = 10;
         ";
@@ -449,7 +449,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_AssignmentExpression_Reports_Readonly() {
+    public void AssignmentExpression_Readonly() {
         var text = @"
             const int? x = 10;
             [x] = 0;
@@ -463,7 +463,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_AssignmentExpression_Reports_CannotConvert() {
+    public void AssignmentExpression_CannotConvert() {
         var text = @"
             var? x = 10;
             x = [false];
@@ -477,7 +477,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_CallExpression_Reports_Undefined() {
+    public void CallExpression_Undefined() {
         var text = @"
             [foo]();
         ";
@@ -490,7 +490,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_CallExpression_Reports_CannotCall() {
+    public void CallExpression_CannotCall() {
         var text = @"
             var foo = 4;
             [foo]();
@@ -504,7 +504,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Function_ShouldNotReturnValue() {
+    public void Function_ShouldNotReturnValue() {
         var text = @"
             void func() {
                 [return] 5;
@@ -519,7 +519,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Function_ShouldNotReturnVoid() {
+    public void Function_ShouldNotReturnVoid() {
         var text = @"
             int? func() {
                 [return];
@@ -534,7 +534,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Script_Return() {
+    public void Script_Return() {
         var text = @"
             return;
         ";
@@ -543,7 +543,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Expression_MustHaveValue() {
+    public void Expression_MustHaveValue() {
         var text = @"
             void func() {}
             [var x = func()];
@@ -557,7 +557,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Break_Invalid() {
+    public void Break_Invalid() {
         var text = @"
             [break;]
         ";
@@ -570,7 +570,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Parameter_AlreadyDeclared() {
+    public void Parameter_AlreadyDeclared() {
         var text = @"
             void func(int? a, int? [a]) {}
         ";
@@ -583,7 +583,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Function_WrongArgumentType() {
+    public void Function_WrongArgumentType() {
         var text = @"
             void func(int? a) {}
             func([false]);
@@ -597,7 +597,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_InvalidType() {
+    public void InvalidType() {
         var text = @"
             void func([invalidType] a) {}
         ";
@@ -610,7 +610,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_UnaryOperator_Reports_Undefined() {
+    public void UnaryOperator_Undefined() {
         var text = @"
             [+true];
         ";
@@ -623,7 +623,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_BinaryOperator_Reports_Undefined() {
+    public void BinaryOperator_Undefined() {
         var text = @"
             [10+true];
         ";
@@ -636,7 +636,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Function_CanDeclare() {
+    public void Function_CanDeclare() {
         var text = @"
             void myFunction(int? num1, int? num2) {
                 Console.Print(num1 + num2 / 3.14159);
@@ -650,7 +650,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Function_CanCall() {
+    public void Function_CanCall() {
         var text = @"
             void myFunction(int? num) {
                 Console.Print(num ** 2);
@@ -664,7 +664,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_CallExpression_ExpectedTokens() {
+    public void CallExpression_ExpectedTokens() {
         var text = @"
             Console.Print(num ** 2 ([][][]
         ";
@@ -679,7 +679,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_MethodInvoke_DoNotPopLocalsInStatic() {
+    public void MethodInvoke_DoNotPopLocalsInStatic() {
         var text = @"
             class A {
                 public static void Util() {
@@ -700,7 +700,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_ClassDefinition_SeeSubClasses() {
+    public void ClassDefinition_SeeSubClasses() {
         var text = @"
             class A {
                 class B { }
@@ -714,7 +714,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_IndexExpression_NotTreatedAsTypeClause() {
+    public void IndexExpression_NotTreatedAsTypeClause() {
         var text = @"
             lowlevel {
                 int a = 1;
@@ -729,7 +729,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_MemberAccessExpression_NestedCalls() {
+    public void MemberAccessExpression_NestedCalls() {
         var text = @"
             class A {
                 public void Test() { }
@@ -747,7 +747,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_CallExpression_ExceedingArgumentsOnZero() {
+    public void CallExpression_ExceedingArgumentsOnZero() {
         var text = @"
             void Test() {}
             [Test](,);
@@ -761,7 +761,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_PostfixExpression_AllowedOnRef() {
+    public void PostfixExpression_AllowedOnRef() {
         var text = @"
             int? x = 3;
             ref var y = ref x;
@@ -774,7 +774,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_CallExpression_CorrectErrorFormattingOnNonMethod() {
+    public void CallExpression_CorrectErrorFormattingOnNonMethod() {
         var text = @"
             [3]();
         ";
@@ -787,7 +787,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_FieldDeclaration_CorrectErrorOnInvalidType() {
+    public void FieldDeclaration_CorrectErrorOnInvalidType() {
         var text = @"
             class A {
                 [coasdf] G = 4;
@@ -802,7 +802,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Cast_CannotConvertConstRefToRef() {
+    public void Cast_CannotConvertConstRefToRef() {
         var text = @"
             void Test(ref int? a) { a++; }
             const int? a = 3;
@@ -817,7 +817,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Assignment_HonorsConstantMemberAccess() {
+    public void Assignment_HonorsConstantMemberAccess() {
         var text = @"
             class A {
                 public int? a = 3;
@@ -834,7 +834,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_MethodBody_StaticMethodCannotAccessMembers() {
+    public void MethodBody_StaticMethodCannotAccessMembers() {
         var text = @"
             class A {
                 int? a;
@@ -850,7 +850,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_MethodBody_StaticMethodCannotAccessMethods() {
+    public void MethodBody_StaticMethodCannotAccessMethods() {
         var text = @"
             class A {
                 int? Test() { return 3; }
@@ -866,7 +866,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Constexpr_AllowsImplicitTyping() {
+    public void Constexpr_AllowsImplicitTyping() {
         var text = @"
             constexpr y = 3;
         ";
@@ -877,7 +877,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_ReferenceExpression_NoInfiniteLoop() {
+    public void ReferenceExpression_NoInfiniteLoop() {
         var text = @"
             ref int? y;
             y = ref y;
@@ -889,7 +889,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_TypeExpression_NotAllowedInContext() {
+    public void TypeExpression_NotAllowedInContext() {
         var text = @"
             static class A { }
             return [A];
@@ -903,7 +903,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_CallExpression_NonInvocableType() {
+    public void CallExpression_NonInvocableType() {
         var text = @"
             static class A { }
             return [A]();
@@ -917,7 +917,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_ClassDeclaration_StaticCanSeeTemplates() {
+    public void ClassDeclaration_StaticCanSeeTemplates() {
         var text = @"
             class A<int? a> {
                 public static A<a> operator~(A<a> a) {
@@ -932,7 +932,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_OperatorOverloading_ReturnsCorrectType() {
+    public void OperatorOverloading_ReturnsCorrectType() {
         var text = @"
             class A<type t> {
                 public int? v = 3;
@@ -953,7 +953,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Structs_InitializesProperly() {
+    public void Structs_InitializesProperly() {
         var text = @"
             lowlevel struct A<type T> where { T has default; } {
                 T a;
@@ -969,7 +969,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Casts_CorrectlyParses() {
+    public void Casts_CorrectlyParses() {
         var text = @"
             class A { }
             A a = (A)new A();
@@ -981,7 +981,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Function_ParametersCanUseTemplates() {
+    public void Function_ParametersCanUseTemplates() {
         var text = @"
             void M<type T>(T x) { }
         ";
@@ -992,7 +992,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Template_TemplatesSeeConstraints() {
+    public void Template_TemplatesSeeConstraints() {
         var text = @"
             string? M<type T>(T x) where { T extends Object; } {
                 return x.ToString();
@@ -1005,7 +1005,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_ElseStatement_Reports_NotReachableCode_Warning() {
+    public void ElseStatement_NotReachableCode_Warning() {
         var text = @"
             int test() {
                 if (true)
@@ -1023,7 +1023,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_WhileStatement_Reports_NotReachableCode_Warning() {
+    public void WhileStatement_NotReachableCode_Warning() {
         var text = @"
             void test() {
                 while (false) {
@@ -1040,7 +1040,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_IfStatement_Reports_NotReachableCode_Warning() {
+    public void IfStatement_NotReachableCode_Warning() {
         var text = @"
             void test() {
                 constexpr int x = 4 * 3;
@@ -1060,7 +1060,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Enum_ArgumentAllowsImplicitField() {
+    public void Enum_ArgumentAllowsImplicitField() {
         var text = @"
             M(.B);
             void M(A a) { }
@@ -1073,7 +1073,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_BinaryExpression_DoesNotParseAsTemplate() {
+    public void BinaryExpression_DoesNotParseAsTemplate() {
         var text = @"
             var ch = '0';
             var b = ((ch < 'A' || ch > 'Z') && (ch < 'a' || ch > 'z'));
@@ -1085,7 +1085,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_BinaryExpression_DoesNotParseAsTemplate2() {
+    public void BinaryExpression_DoesNotParseAsTemplate2() {
         var text = @"
             struct A { int f; }
             var a = new A();
@@ -1099,7 +1099,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_BinaryExpression_DoesNotParseAsTemplate3() {
+    public void BinaryExpression_DoesNotParseAsTemplate3() {
         var text = @"
             struct A { int f; }
             var a = new A();
@@ -1112,7 +1112,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_ConditionalOperator_GetsTargetTyped() {
+    public void ConditionalOperator_GetsTargetTyped() {
         var text = @"
             int? M() {
                 var cond = true;
@@ -1126,7 +1126,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_ImplicitTyping_CannotConvert() {
+    public void ImplicitTyping_CannotConvert() {
         var text = @"
             int? M() {
                 int a = 3;
@@ -1142,7 +1142,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Assignment_NoInfiniteLoop() {
+    public void Assignment_NoInfiniteLoop() {
         var text = @"
             var a = [a];
         ";
@@ -1155,7 +1155,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_IndexExpression_NoCrashOnNoIndex() {
+    public void IndexExpression_NoCrashOnNoIndex() {
         var text = @"
             int\[\] a = { 1 };
             var b = [a\[\]];
@@ -1169,7 +1169,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_StackallocLocal_NoCrashOnNoIndex() {
+    public void StackallocLocal_NoCrashOnNoIndex() {
         var text = @"
             int a[\[\]];
         ";
@@ -1182,7 +1182,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_TypeDeclaration_MissingClosingBraceMinimalDiagnostics() {
+    public void TypeDeclaration_MissingClosingBraceMinimalDiagnostics() {
         var text = @"
             class A {
                 public int M() {
@@ -1202,7 +1202,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_UsingDirective_AllowsPlacementBetweenMembers() {
+    public void UsingDirective_AllowsPlacementBetweenMembers() {
         var text = @"
             using static A;
 
@@ -1221,7 +1221,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_ForEach_AllowsModification() {
+    public void ForEach_AllowsModification() {
         var text = @"
             class Elem {
                 public int e;
@@ -1243,7 +1243,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_MisplacedKeyword_MinimalDiagnostics() {
+    public void MisplacedKeyword_MinimalDiagnostics() {
         var text = @"
             var [out] = 3;
         ";
@@ -1257,7 +1257,7 @@ public sealed class IssueTests {
 
     // TODO It would be more ideal if this actually mentioned the issue of using `a` before being declared
     [Fact]
-    public void Evaluator_DeconstructAssignment_NoInfiniteLoop() {
+    public void DeconstructAssignment_NoInfiniteLoop() {
         var text = @"
             (var [a], var [b]) = a;
         ";
@@ -1271,7 +1271,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Parameter_AcceptsKnownImmutableArgument() {
+    public void Parameter_AcceptsKnownImmutableArgument() {
         var text = @"
             class A { }
 
@@ -1283,6 +1283,39 @@ public sealed class IssueTests {
 
         var diagnostics = @"";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void NestedStruct_BakesWithoutCrashing() {
+        var text = @"
+            class C {
+                struct S {
+                    int32 f\[10\];
+                }
+            }
+            ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void LocalFunction_CanCallInConstMethod() {
+        var text = @"
+            class C {
+                public const void M() {
+                    F();
+                    void F() { }
+                }
+            }
+            ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 }

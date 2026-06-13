@@ -617,6 +617,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             state.compilation.options.optimizationLevel,
             method,
             body,
+            entryPoint?.containingType,
             currentDiagnostics,
             transpiling,
             out sawCompileTimeExpression

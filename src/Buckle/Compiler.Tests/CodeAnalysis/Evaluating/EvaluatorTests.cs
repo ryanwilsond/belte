@@ -582,48 +582,47 @@ public sealed class EvaluatorTests {
         var a = new A<int>();
         var b = with (a.M(10)) 10;
         return a.c;", 10)]
-    // TODO These tests succeed when done manually but fail as tests for some reason?
-    // [InlineData(@"
-    //     class A {
-    //         public static int s = 0;
+    [InlineData(@"
+        class A {
+            public static int s = 0;
 
-    //         public static int M(int p) {
-    //             return p;
-    //         } state(bool) {
-    //             return p > 4;
-    //         } reverse(bool b) {
-    //             s = b ? 50 : 30;
-    //         }
-    //     }
-    //     return with(A.M(10)) A.s;", 0)]
-    // [InlineData(@"
-    //     class A {
-    //         public static int s = 0;
+            public static int M(int p) {
+                return p;
+            } state(bool) {
+                return p > 4;
+            } reverse(bool b) {
+                s = b ? 50 : 30;
+            }
+        }
+        return with(A.M(10)) A.s;", 0)]
+    [InlineData(@"
+        class A {
+            public static int s = 0;
 
-    //         public static int M(int p) {
-    //             return p;
-    //         } state(bool) {
-    //             return p > 4;
-    //         } reverse(bool b) {
-    //             s = b ? 50 : 30;
-    //         }
-    //     }
-    //     with (A.M(10)) ;
-    //     return A.s;", 50)]
-    // [InlineData(@"
-    //     class A {
-    //         public static int s = 0;
+            public static int M(int p) {
+                return p;
+            } state(bool) {
+                return p > 4;
+            } reverse(bool b) {
+                s = b ? 50 : 30;
+            }
+        }
+        with (A.M(10)) ;
+        return A.s;", 50)]
+    [InlineData(@"
+        class A {
+            public static int s = 0;
 
-    //         public static int M(int p) {
-    //             return p;
-    //         } state(bool) {
-    //             return p > 4;
-    //         } reverse(bool b) {
-    //             s = b ? 50 : 30;
-    //         }
-    //     }
-    //     with (A.M(3)) ;
-    //     return A.s;", 30)]
+            public static int M(int p) {
+                return p;
+            } state(bool) {
+                return p > 4;
+            } reverse(bool b) {
+                s = b ? 50 : 30;
+            }
+        }
+        with (A.M(3)) ;
+        return A.s;", 30)]
     // Compile-time expressions
     [InlineData("int a = $3; return a;", 3)]
     [InlineData("constexpr int? a = 3; int b = $a?; return b;", 3)]
@@ -1030,27 +1029,27 @@ public sealed class EvaluatorTests {
     [InlineData("class P { public static T M<type T>() where { T has default; } { T a = default; return a; } } return P.M<int?>();", null)]
     [InlineData("static class P { [DllImport(\"kernel32.dll\")]static extern int64* GetModuleHandle(string? lpModuleName); } return null;", null)]
     [InlineData("static class P { [DllImport(\"msvcrt.dll\", CallingConvention: CallingConvention.Cdecl)]static extern void* memcpy(void* dest, void* src, uint64 count); } return null;", null)]
-    // TODO
-    // [InlineData(@"
-    //     class P {
-    //         public static T M<type T>(T b) {
-    //             T a = b;
-    //             L();
-    //             return a;
-    //             void L() { a = default; }
-    //         }
-    //     }
-    //     return P.M<int>(3);", 0)]
-    // [InlineData(@"
-    //     class P {
-    //         public static T M<type T>(T b) {
-    //             T a = b;
-    //             L<bool>();
-    //             return a;
-    //             void L<type T2>() { a = default; }
-    //         }
-    //     }
-    //     return P.M<int>(3);", 0)]
+    [InlineData("class P { struct S { int32 f[10]; } } return null;", null)]
+    [InlineData(@"
+        class P {
+            public static T M<type T>(T b) where { T has default; }  {
+                T a = b;
+                L();
+                return a;
+                void L() { a = default; }
+            }
+        }
+        return P.M<int>(3);", 0)]
+    [InlineData(@"
+        class P {
+            public static T M<type T>(T b) where { T has default; } {
+                T a = b;
+                L<bool>();
+                return a;
+                void L<type T2>() { a = default; }
+            }
+        }
+        return P.M<int>(3);", 0)]
     [InlineData(@"
         var? a = true;
         var? b = false;
@@ -1213,26 +1212,25 @@ public sealed class EvaluatorTests {
         }
 
         return sum;", 6)]
-    // TODO
-    // [InlineData(@"
-    //     class Box<type T> {
-    //         public T value;
+    [InlineData(@"
+        class Box<type T> {
+            public T value;
 
-    //         public constructor(T value) {
-    //             this.value = value;
-    //         }
+            public constructor(T value) {
+                this.value = value;
+            }
 
-    //         public T Map(T(T) mapper) {
-    //             return mapper(value);
-    //         }
-    //     }
+            public T Map(T(T) mapper) {
+                return mapper(value);
+            }
+        }
 
-    //     int AddOne(int x) {
-    //         return x + 1;
-    //     }
+        int AddOne(int x) {
+            return x + 1;
+        }
 
-    //     var b = new Box<int>(4);
-    //     return b.Map(AddOne);", 5)]
+        var b = new Box<int>(4);
+        return b.Map(AddOne);", 5)]
     [InlineData(@"
         struct Point {
             public int x;

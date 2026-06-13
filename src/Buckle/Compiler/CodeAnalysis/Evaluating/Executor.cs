@@ -877,6 +877,9 @@ internal sealed partial class Executor : ModuleBuilder {
                     list.Add(nestedType.originalDefinition);
             }
 
+            if (namedType.containingType?.IsClassType() == true)
+                list.Add(namedType.containingType);
+
             deps[type.originalDefinition] = list;
         }
 

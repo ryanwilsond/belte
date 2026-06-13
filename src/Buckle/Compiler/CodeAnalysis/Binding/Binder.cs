@@ -7720,7 +7720,7 @@ internal partial class Binder {
         if (MemberGroupFinalValidationAccessibilityChecks(receiver, methodSymbol, node, diagnostics))
             return true;
 
-        if (!methodSymbol.isEffectivelyConst && methodSymbol is not LocalFunctionSymbol) {
+        if (!methodSymbol.isEffectivelyConst) {
             if (flags.Includes(BinderFlags.ConstContext) && IsThisInstanceAccess(receiver)) {
                 diagnostics.Push(Error.NonConstantCallInConstant(node.location, methodSymbol));
                 return true;

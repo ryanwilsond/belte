@@ -4,7 +4,7 @@ public static class Console {
 
     public static int? GetHeight();
 
-    public static string! Input();
+    public static string Input();
 
     public static void PrintLine(const string? message);
     public static void PrintLine(const any? value);
@@ -17,30 +17,30 @@ public static class Console {
 
     public static void ResetColor();
 
-    public static void SetForegroundColor(int! color);
+    public static void SetForegroundColor(int color);
 
-    public static void SetBackgroundColor(int! color);
+    public static void SetBackgroundColor(int color);
 
     public static void SetCursorPosition(int? left, int? top);
 
-    public static void SetCursorVisibility(bool! visible);
+    public static void SetCursorVisibility(bool visible);
 
     public static class Color {
-        public constexpr! Black = 0;
-        public constexpr! DarkBlue = 1;
-        public constexpr! DarkGreen = 2;
-        public constexpr! DarkCyan = 3;
-        public constexpr! DarkRed = 4;
-        public constexpr! DarkMagenta = 5;
-        public constexpr! DarkYellow = 6;
-        public constexpr! Gray = 7;
-        public constexpr! DarkGray = 8;
-        public constexpr! Blue = 9;
-        public constexpr! Green = 10;
-        public constexpr! Cyan = 11;
-        public constexpr! Red = 12;
-        public constexpr! Magenta = 13;
-        public constexpr! Yellow = 14;
-        public constexpr! White = 15;
+        public constexpr Black = 0;
+        public constexpr DarkBlue = 1;
+        public constexpr DarkGreen = 2;
+        public constexpr DarkCyan = 3;
+        public constexpr DarkRed = 4;
+        public constexpr DarkMagenta = 5;
+        public constexpr DarkYellow = 6;
+        public constexpr Gray = 7;
+        public constexpr DarkGray = 8;
+        public constexpr Blue = 9;
+        public constexpr Green = 10;
+        public constexpr Cyan = 11;
+        public constexpr Red = 12;
+        public constexpr Magenta = 13;
+        public constexpr Yellow = 14;
+        public constexpr White = 15;
     }
 }
