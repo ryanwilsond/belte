@@ -552,7 +552,10 @@ class A {
 ```
 
 Constants cannot be passed as arguments to [parameters not marked `const`](ControlFlow.md#212-const-parameters) unless
-they are value types or known immutable reference types.
+they are value types or known immutable reference types. Value types (primitives and structs) can be passed freely
+because they are copied anyway. A "known immutable reference type" is a reference type (class) that comprises of no
+fields or where every non-static field is const or constexpr. As such, any instance cannot be modified anyway so they
+also can be passed freely.
 
 With the `final` modifier, the data container can only be assigned to once, but it can be freely modified:
 

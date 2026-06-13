@@ -808,12 +808,59 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 static (diagnostics, _, _, overridingParameter, _, arg) => {
                     var (overriddenParameter, location) = arg;
                     diagnostics.Push(
-                        Warning.OverridingDifferentRefness(location, overriddenParameter, overriddenParameter)
+                        Warning.OverridingDifferentRefness(location, overridingParameter, overriddenParameter)
                     );
                 },
                 overridingMemberLocation,
                 invokedAsExtensionMethod: false
             );
+
+            CheckConstMismatch(overridingMemberLocation, overriddenMethod, overridingMethod, diagnostics);
+        }
+    }
+
+    private static void CheckConstMismatch(
+        TextLocation overridingMemberLocation,
+        MethodSymbol overriddenMethod,
+        MethodSymbol overridingMethod,
+        BelteDiagnosticQueue diagnostics) {
+        if (overriddenMethod.isDeclaredConst != overridingMethod.isDeclaredConst) {
+            if (overriddenMethod.isDeclaredConst) {
+                diagnostics.Push(Error.CantChangeConstOnOverride(
+                    overridingMemberLocation,
+                    overridingMethod,
+                    overriddenMethod
+                ));
+            } else {
+                diagnostics.Push(Warning.DifferentConstOnOverride(
+                    overridingMemberLocation,
+                    overridingMethod,
+                    overriddenMethod
+                ));
+            }
+        }
+
+        for (var i = 0; i < overridingMethod.parameterCount; i++) {
+            var overriddenParameter = overriddenMethod.parameters[i];
+            var overridingParameter = overridingMethod.parameters[i];
+
+            if (overriddenParameter.isConst != overridingParameter.isConst) {
+                if (overriddenParameter.isConst) {
+                    diagnostics.Push(Error.CantChangeConstOnOverrideParameter(
+                        overridingParameter.location,
+                        overridingMethod,
+                        overriddenMethod,
+                        overridingParameter.name
+                    ));
+                } else {
+                    diagnostics.Push(Warning.DifferentConstOnOverrideParameter(
+                        overridingParameter.location,
+                        overridingMethod,
+                        overriddenMethod,
+                        overridingParameter.name
+                    ));
+                }
+            }
         }
     }
 

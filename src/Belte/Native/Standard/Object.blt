@@ -8,7 +8,7 @@ public class Object {
         return LowLevel.GetTypeName(this);
     }
 
-    public virtual bool! Equals(const Object? object) {
+    public virtual bool! Equals(Object? object) {
         return object is null ? false : this == object!!;
     }
 

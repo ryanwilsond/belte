@@ -6862,6 +6862,90 @@ public sealed class DiagnosticTests {
             argument 1: cannot pass a constant to a parameter expecting a variable
         ";
 
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0511_CantChangeConstOnOverride() {
+        var text = @"
+            class A {
+                public virtual const void M() { }
+            }
+
+            class B extends A {
+                public override void [M]() { }
+            }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            'B.M()': member must be marked 'const' when overriding inherited member 'A.M()' because it is marked 'const'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0512_DifferentConstOnOverride() {
+        var text = @"
+            class A {
+                public virtual void M() { }
+            }
+
+            class B extends A {
+                public override const void [M]() { }
+            }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            'B.M()': member is marked 'const' but overridden member 'A.M()' is not
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0513_CantChangeConstOnOverrideParameter() {
+        var text = @"
+            class A {
+                public virtual void M(const int a) { }
+            }
+
+            class B extends A {
+                public override void M(int [a]) { }
+            }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            'B.M(int!)': parameter 'a' must be marked 'const' when overriding inherited member 'A.M(const int!)' because the corresponding parameter is marked 'const'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0514_DifferentConstOnOverrideParameter() {
+        var text = @"
+            class A {
+                public virtual void M(int a) { }
+            }
+
+            class B extends A {
+                public override void M(const int [a]) { }
+            }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            'B.M(const int!)': parameter 'a' is marked 'const' but the corresponding parameter on overridden member 'A.M(int!)' is not
+        ";
+
         AssertDiagnostics(text, diagnostics, _writer, true);
     }
 }

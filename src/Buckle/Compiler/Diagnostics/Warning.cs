@@ -214,6 +214,16 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_LocalFunctionUsingEntryPointName, location, message);
     }
 
+    internal static BelteDiagnostic DifferentConstOnOverride(TextLocation location, Symbol symbol, Symbol hiddenMember) {
+        var message = $"'{symbol}': member is marked 'const' but overridden member '{hiddenMember}' is not";
+        return CreateWarning(DiagnosticCode.WRN_DifferentConstOnOverride, location, message);
+    }
+
+    internal static BelteDiagnostic DifferentConstOnOverrideParameter(TextLocation location, Symbol symbol, Symbol hiddenMember, string name) {
+        var message = $"'{symbol}': parameter '{name}' is marked 'const' but the corresponding parameter on overridden member '{hiddenMember}' is not";
+        return CreateWarning(DiagnosticCode.WRN_DifferentConstOnOverrideParameter, location, message);
+    }
+
     private static BelteDiagnostic CreateWarning(DiagnosticCode code, TextLocation location, string message) {
         return CreateWarning(code, location, message, []);
     }

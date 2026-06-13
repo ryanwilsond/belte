@@ -1301,6 +1301,16 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_CantChangeAccessOnOverride, location, message);
     }
 
+    internal static BelteDiagnostic CantChangeConstOnOverride(TextLocation location, Symbol symbol, Symbol hiddenMember) {
+        var message = $"'{symbol}': member must be marked 'const' when overriding inherited member '{hiddenMember}' because it is marked 'const'";
+        return CreateError(DiagnosticCode.ERR_CantChangeConstOnOverride, location, message);
+    }
+
+    internal static BelteDiagnostic CantChangeConstOnOverrideParameter(TextLocation location, Symbol symbol, Symbol hiddenMember, string name) {
+        var message = $"'{symbol}': parameter '{name}' must be marked 'const' when overriding inherited member '{hiddenMember}' because the corresponding parameter is marked 'const'";
+        return CreateError(DiagnosticCode.ERR_CantChangeConstOnOverrideParameter, location, message);
+    }
+
     internal static BelteDiagnostic CantChangeRefReturnOnOverride(TextLocation location, Symbol symbol, Symbol hiddenMember) {
         var message = $"'{symbol}' must match by reference return of overridden member '{hiddenMember}'";
         return CreateError(DiagnosticCode.ERR_CantChangeRefReturnOnOverride, location, message);

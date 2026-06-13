@@ -1661,9 +1661,12 @@ internal sealed class Expander : SharedExpander {
         BoundPointerIndexAccessExpression expression,
         out BoundExpression replacement,
         UseKind useKind) {
-        Debug.Assert(useKind != UseKind.Writable);
         var statements = base.ExpandPointerIndexAccessExpression(expression, out replacement, UseKind.Value);
-        return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
+
+        if (useKind == UseKind.Writable)
+            return statements;
+        else
+            return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
     }
 
     private protected override List<BoundStatement> ExpandPointerIndirectionOperator(
