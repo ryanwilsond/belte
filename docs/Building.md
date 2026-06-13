@@ -11,7 +11,8 @@
 
 ## Building for Windows
 
-After cloning the repository, run the following command to set up the build directories:
+After cloning the [repository](https://github.com/ryanwilsond/belte/), run the following command to set up the build
+directories:
 
 ```bash
 make setup
