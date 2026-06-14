@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -23,6 +24,7 @@ namespace Buckle.CodeAnalysis.Emitting;
 
 internal sealed partial class ILEmitter : ModuleBuilder {
     internal readonly static Lock GlobalCecilLock = new();
+    internal readonly static ConcurrentSet<TypeReference> Imports = [];
 
     private readonly MethodReference _belteCompilerGeneratedAttributeCtor;
     private readonly TypeReference _belteCompilerGeneratedAttribute;
@@ -403,6 +405,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                     typeReference.GenericArguments.Add(generic);
 
                 _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(typeReference));
+                // TODO Resolving may be unnecessary here?
+                // _assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeReference);
                 return typeReference;
             }
 
@@ -410,8 +414,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
 
         TypeReference GetTypeCoreInternal(NamedTypeSymbol type) {
-            if (type.originalDefinition is PENamedTypeSymbol pe)
-                return ResolveType(pe);
+            if (type.originalDefinition is PENamedTypeSymbol or MissingMetadataTypeSymbol)
+                return ResolveType(type.originalDefinition);
 
             if (_types.TryGetValue(type.originalDefinition, out var found))
                 return found;
@@ -422,6 +426,11 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     private TypeDefinition Resolve(TypeReference reference) {
+        if (reference is TypeDefinition td) {
+            Debug.Print($"Unnecessary resolve call: {td}");
+            return td;
+        }
+
         lock (GlobalCecilLock)
             return reference.Resolve();
     }
@@ -447,6 +456,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         if (signature.returnsVoid && signature.parameterCount == 0) {
             var typeRef = ResolveType(null, "System.Action");
             _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(typeRef));
+            // TODO Resolving may be unnecessary here?
+            // _assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeRef);
             return typeRef;
         } else if (signature.returnsVoid) {
             var typeRef = ResolveType(null, $"System.Action`{signature.parameterCount}");
@@ -456,6 +467,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 genericRef.GenericArguments.Add(GetType(p.type));
 
             _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(genericRef));
+            // TODO Resolving may be unnecessary here?
+            // _assemblyDefinition.MainModule.ImportReferenceThreadSafe(genericRef);
             return genericRef;
         } else {
             var typeRef = ResolveType(null, $"System.Func`{signature.parameterCount + 1}");
@@ -467,6 +480,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             genericRef.GenericArguments.Add(GetType(signature.returnType));
 
             _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(genericRef));
+            // TODO Resolving may be unnecessary here?
+            // _assemblyDefinition.MainModule.ImportReferenceThreadSafe(genericRef);
             return genericRef;
         }
     }
@@ -480,7 +495,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 (PENamedTypeSymbol)m.containingType,
                 m.metadataName,
                 m.GetParameterTypes()
-                    .Select(p => p.type.ContainsTemplateParameter() ? null : GetType(p.type).ToString())
+                    .Select(p => p.type.ContainsTemplateParameter() ? null : GetType(p.type, import: false).ToString())
                     .ToArray()
             );
 
@@ -515,6 +530,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
             if (method.arity > 0) {
                 var def = _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(value));
+                // TODO Resolving may be unnecessary here?
+                // var def = _assemblyDefinition.MainModule.ImportReferenceThreadSafe(value);
                 var generic = new GenericInstanceMethod(def);
                 // TODO Not necessary?
                 // {
@@ -1865,56 +1882,68 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
     }
 
-    private TypeReference ResolveType(PENamedTypeSymbol typeSymbol) {
-        var stack = new Stack<PENamedTypeSymbol>();
-        var current = typeSymbol;
+    private TypeReference ResolveType(NamedTypeSymbol peTypeSymbol) {
+        var stack = new Stack<NamedTypeSymbol>();
+        var current = peTypeSymbol;
 
         while (current is not null) {
             stack.Push(current);
-            current = current.containingType as PENamedTypeSymbol;
+            current = (NamedTypeSymbol)(current.containingType as PENamedTypeSymbol) ??
+                (current.containingType as MissingMetadataTypeSymbol);
         }
 
         var topType = stack.Pop();
         var displayName = topType.ToDisplayString(SymbolDisplayFormat.NetNamespaceQualifiedNameFormat);
         var currentFoundType = ResolveType(null, displayName);
         _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(currentFoundType));
+        // TODO Resolving may be unnecessary here?
+        // _assemblyDefinition.MainModule.ImportReferenceThreadSafe(currentFoundType);
 
         while (stack.Count > 0) {
             var nestedType = stack.Pop();
             currentFoundType = Resolve(currentFoundType).NestedTypes.First(t => t.Name == nestedType.name);
             _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(currentFoundType));
+            // TODO Resolving may be unnecessary here?
+            // _assemblyDefinition.MainModule.ImportReferenceThreadSafe(currentFoundType);
         }
 
         return currentFoundType;
     }
 
     private TypeReference ResolveType(string name, string metadataName) {
-        var foundTypes = new List<TypeDefinition>(1);
-
-        for (var i = 0; i < _assemblies.Count; i++) {
-            var modules = _assemblies[i].Modules;
-
-            for (var j = 0; j < modules.Count; j++) {
-                var types = modules[j].Types;
-
-                for (var k = 0; k < types.Count; k++) {
-                    var type = types[k];
-
-                    if (type.FullName == metadataName)
-                        foundTypes.Add(type);
-                }
-            }
-        }
+        var foundTypes = FastPath();
 
         // TODO Do we actually care about ambiguity
         if (foundTypes.Count >= 1) {
-            return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(foundTypes[0]);
+            // return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(foundTypes[0]);
+            return foundTypes[0];
         } else if (foundTypes.Count == 0) {
             throw new BelteInternalException($"Required type not found: {name} ({metadataName})");
         } else {
             throw new BelteInternalException(
                 $"Required type ambiguous: {name} ({metadataName}); found {foundTypes.Count} candidates"
             );
+        }
+
+        List<TypeDefinition> FastPath() {
+            var foundTypes = new List<TypeDefinition>(1);
+
+            for (var i = 0; i < _assemblies.Count; i++) {
+                var modules = _assemblies[i].Modules;
+
+                for (var j = 0; j < modules.Count; j++) {
+                    var types = modules[j].Types;
+
+                    for (var k = 0; k < types.Count; k++) {
+                        var type = types[k];
+
+                        if (type.FullName == metadataName)
+                            foundTypes.Add(type);
+                    }
+                }
+            }
+
+            return foundTypes;
         }
     }
 

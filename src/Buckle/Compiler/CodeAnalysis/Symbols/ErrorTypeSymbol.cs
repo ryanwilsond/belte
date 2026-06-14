@@ -112,6 +112,12 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
         return newOwner.isDefinition ? this : new SubstitutedNestedErrorTypeSymbol(newOwner, this);
     }
 
+    private protected override NamedTypeSymbol ConstructCore(
+        ImmutableArray<TypeOrConstant> typeArguments,
+        bool unbound) {
+        return new ConstructedErrorTypeSymbol(this, typeArguments);
+    }
+
     internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {
         return null;
     }

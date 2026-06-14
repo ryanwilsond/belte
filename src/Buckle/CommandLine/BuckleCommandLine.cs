@@ -247,9 +247,10 @@ void Build(Builder builder) {{
                 programContent =
 @$"
 namespace {name};
+
 static class Program;
 
-void Main(string[]! args) {{
+void Main(string[] args) {{
     Console.PrintLine(""Hello, world!"");
 }}
 ";
@@ -259,9 +260,10 @@ void Main(string[]! args) {{
                 programContent =
 @$"
 namespace {name};
+
 class Program;
 
-void Main(string[]! args) {{
+void Main(string[] args) {{
     Graphics.Initialize(""{name}"", 1280, 720, false);
 }}
 

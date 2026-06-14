@@ -405,8 +405,8 @@ internal sealed partial class Executor : ModuleBuilder {
         }
 
         Type GetTypeCoreInternal(NamedTypeSymbol type) {
-            if (type.originalDefinition is PENamedTypeSymbol t)
-                return ResolveType(t);
+            if (type.originalDefinition is PENamedTypeSymbol or MissingMetadataTypeSymbol)
+                return ResolveType(type.originalDefinition);
 
             if (_bakedTypes.TryGetValue(type.originalDefinition, out var baked))
                 return baked;
@@ -461,7 +461,7 @@ internal sealed partial class Executor : ModuleBuilder {
             return Type.GetType($"System.Func`{signature.parameterCount + 1}", throwOnError: true);
     }
 
-    internal static Type ResolveType(PENamedTypeSymbol type) {
+    internal static Type ResolveType(NamedTypeSymbol type) {
         var metadata = (type.containingAssembly as PEAssemblySymbol).@assembly;
 
         if (!AssemblyCache.TryGetValue(metadata.location, out var assembly)) {
@@ -476,12 +476,13 @@ internal sealed partial class Executor : ModuleBuilder {
                 AssemblyCache.TryAdd(metadata.location, assembly);
         }
 
-        var stack = new Stack<PENamedTypeSymbol>();
+        var stack = new Stack<NamedTypeSymbol>();
         var current = type;
 
         while (current is not null) {
             stack.Push(current);
-            current = current.containingType as PENamedTypeSymbol;
+            current = (NamedTypeSymbol)(current.containingType as PENamedTypeSymbol) ??
+                (current.containingType as MissingMetadataTypeSymbol);
         }
 
         var topType = stack.Pop();
@@ -1020,11 +1021,12 @@ internal sealed partial class Executor : ModuleBuilder {
         var typeBuilder = _moduleBuilder.DefineType(
             GetTypeName(type, false),
             GetTypeAttributes(type, false),
-            GetBaseType(type),
+            typeof(object),
             GetPackSize(type)
         );
 
         _types.Add(type.originalDefinition, typeBuilder);
+        typeBuilder.SetParent(GetBaseType(type));
 
         string[] workingParams = [];
 
@@ -1081,7 +1083,7 @@ internal sealed partial class Executor : ModuleBuilder {
                 var nestedBuilder = typeBuilder.DefineNestedType(
                     GetTypeName(nestedType, true),
                     GetTypeAttributes(nestedType, true),
-                    GetBaseType(nestedType),
+                    typeof(object),
                     GetPackSize(type)
                 );
 
@@ -1090,8 +1092,9 @@ internal sealed partial class Executor : ModuleBuilder {
                 if (workingParams.Length > 0)
                     nestedBuilder.DefineGenericParameters(workingParams);
 
-                CreateNestedTypes(nestedType, nestedBuilder, workingParams);
                 _types.Add(nestedType.originalDefinition, nestedBuilder);
+                nestedBuilder.SetParent(GetBaseType(nestedType));
+                CreateNestedTypes(nestedType, nestedBuilder, workingParams);
             }
         }
     }

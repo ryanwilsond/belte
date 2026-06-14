@@ -190,6 +190,15 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
     private TypeWithAnnotations MakeUnderlyingType(BelteDiagnosticQueue diagnostics) {
         var syntax = (ParameterSyntax)syntaxReference.node;
         var binder = declaringCompilation.GetBinder(syntax);
+
+        // ! TODO THIS SHOULD BE TEMPORARY
+        // There is an issue with `class A<Cl<T> T> { }` that crashes
+        // This will take significant work to deduce, so we just only allow type right now
+        if (syntax.type is not IdentifierNameSyntax ident || ident.identifier.text != "type") {
+            diagnostics.Push(Error.Unsupported.NonTypeTemplate(syntax.location));
+            return new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type));
+        }
+
         var type = binder.BindType(syntax.type, diagnostics);
         var underlying = type.nullableUnderlyingTypeOrSelf;
 

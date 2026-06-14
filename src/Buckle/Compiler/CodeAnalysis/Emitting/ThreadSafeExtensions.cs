@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using Mono.Cecil;
 
 namespace Buckle.CodeAnalysis.Emitting;
@@ -7,6 +8,11 @@ internal static class ThreadSafeExtensions {
     internal static TypeReference ImportReferenceThreadSafe(
         this ModuleDefinition module,
         TypeReference typeReference) {
+        if (!ILEmitter.Imports.Add(typeReference)) {
+            Debug.Print($"Type already imported: {typeReference}");
+            return typeReference;
+        }
+
         lock (ILEmitter.GlobalCecilLock)
             return module.ImportReference(typeReference);
     }
