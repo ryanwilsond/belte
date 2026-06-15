@@ -958,10 +958,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             TypeSymbol targetType) {
             switch (refKind) {
                 case RefKind.Ref:
-                    return sourceType.Equals(
-                        targetType,
-                        TypeCompareKind.AllIgnoreOptions & ~TypeCompareKind.IgnoreNullability
-                    );
+                    return sourceType.Equals(targetType, TypeCompareKind.AllIgnoreOptions);
                 default:
                     break;
             }
@@ -2408,7 +2405,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         var tOriginal = t.originalDefinition;
 
         if (instanceMap.TryGetValue(tOriginal, out var oldInstance)) {
-            return (!Equals(oldInstance, t, TypeCompareKind.IgnoreNullability)) && ReferenceEquals(tOriginal, top);
+            return (!Equals(oldInstance, t)) && ReferenceEquals(tOriginal, top);
         } else {
             instanceMap.Add(tOriginal, t);
 

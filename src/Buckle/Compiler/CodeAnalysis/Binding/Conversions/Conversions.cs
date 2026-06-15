@@ -83,7 +83,7 @@ internal sealed partial class Conversions {
     }
 
     private static bool HasIdentityConversionInternal(TypeSymbol type1, TypeSymbol type2) {
-        return type1.Equals(type2, TypeCompareKind.IgnoreArraySizesAndLowerBounds);
+        return type1.Equals(type2, TypeCompareKind.AllIgnoreOptions);
     }
 
     private Conversion GetImplicitNullptrExpressionConversion(
@@ -224,12 +224,8 @@ internal sealed partial class Conversions {
         );
     }
 
-    internal static bool HasIdentityConversion(TypeSymbol source, TypeSymbol target, bool includeNullability = true) {
-        var compareKind = includeNullability
-            ? TypeCompareKind.AllIgnoreOptions & ~TypeCompareKind.IgnoreNullability
-            : TypeCompareKind.AllIgnoreOptions;
-
-        return source.Equals(target, compareKind);
+    internal static bool HasIdentityConversion(TypeSymbol source, TypeSymbol target) {
+        return source.Equals(target, TypeCompareKind.AllIgnoreOptions);
     }
 
     internal Conversion ClassifyConversionFromExpression(BoundExpression sourceExpression, TypeSymbol target) {
@@ -567,7 +563,7 @@ internal sealed partial class Conversions {
         BoundExpression sourceExpression,
         TypeSymbol source,
         TypeSymbol target) {
-        var d = ArrayBuilder<(NamedTypeSymbol ParticipatingType, TemplateParameterSymbol ConstrainedToTypeOpt)>
+        var d = ArrayBuilder<(NamedTypeSymbol participatingType, TemplateParameterSymbol constrainedToType)>
             .GetInstance();
 
         ComputeUserDefinedExplicitConversionTypeSet(source, target, d);
@@ -601,7 +597,7 @@ internal sealed partial class Conversions {
     private static void ComputeUserDefinedExplicitConversionTypeSet(
         TypeSymbol source,
         TypeSymbol target,
-        ArrayBuilder<(NamedTypeSymbol ParticipatingType, TemplateParameterSymbol ConstrainedToTypeOpt)> d) {
+        ArrayBuilder<(NamedTypeSymbol participatingType, TemplateParameterSymbol constrainedToType)> d) {
         AddTypesParticipatingInUserDefinedConversion(d, source, includeBaseTypes: true);
         AddTypesParticipatingInUserDefinedConversion(d, target, includeBaseTypes: true);
     }
@@ -610,7 +606,7 @@ internal sealed partial class Conversions {
         BoundExpression sourceExpression,
         TypeSymbol source,
         TypeSymbol target,
-        ArrayBuilder<(NamedTypeSymbol ParticipatingType, TemplateParameterSymbol ConstrainedToTypeOpt)> d,
+        ArrayBuilder<(NamedTypeSymbol participatingType, TemplateParameterSymbol constrainedToType)> d,
         ArrayBuilder<UserDefinedConversionAnalysis> u) {
         foreach ((var declaringType, var constrainedToTypeOpt) in d) {
             AddCandidatesFromType(null, declaringType, sourceExpression, source, target, u);
@@ -769,7 +765,7 @@ internal sealed partial class Conversions {
         BoundExpression sourceExpression,
         TypeSymbol source,
         TypeSymbol target) {
-        var d = ArrayBuilder<(NamedTypeSymbol ParticipatingType, TemplateParameterSymbol ConstrainedToTypeOpt)>
+        var d = ArrayBuilder<(NamedTypeSymbol participatingType, TemplateParameterSymbol constrainedToType)>
             .GetInstance();
         ComputeUserDefinedImplicitConversionTypeSet(source, target, d);
 
@@ -801,7 +797,7 @@ internal sealed partial class Conversions {
     private static void ComputeUserDefinedImplicitConversionTypeSet(
         TypeSymbol s,
         TypeSymbol t,
-        ArrayBuilder<(NamedTypeSymbol ParticipatingType, TemplateParameterSymbol ConstrainedToTypeOpt)> d) {
+        ArrayBuilder<(NamedTypeSymbol participatingType, TemplateParameterSymbol constrainedToType)> d) {
         AddTypesParticipatingInUserDefinedConversion(d, s, includeBaseTypes: true);
         AddTypesParticipatingInUserDefinedConversion(d, t, includeBaseTypes: false);
     }
@@ -810,7 +806,7 @@ internal sealed partial class Conversions {
         BoundExpression sourceExpression,
         TypeSymbol source,
         TypeSymbol target,
-        ArrayBuilder<(NamedTypeSymbol ParticipatingType, TemplateParameterSymbol ConstrainedToTypeOpt)> d,
+        ArrayBuilder<(NamedTypeSymbol participatingType, TemplateParameterSymbol constrainedToType)> d,
         ArrayBuilder<UserDefinedConversionAnalysis> u,
         bool allowAnyTarget = false) {
         if (source is not null && false || target is not null && false)
@@ -1182,7 +1178,7 @@ internal sealed partial class Conversions {
 
     private UserDefinedConversionResult AnalyzeImplicitUserDefinedConversionForSwitchGoverningType(
         TypeSymbol source) {
-        var d = ArrayBuilder<(NamedTypeSymbol ParticipatingType, TemplateParameterSymbol ConstrainedToTypeOpt)>.GetInstance();
+        var d = ArrayBuilder<(NamedTypeSymbol participatingType, TemplateParameterSymbol constrainedToType)>.GetInstance();
         ComputeUserDefinedImplicitConversionTypeSet(source, t: null, d: d);
 
         var ubuild = ArrayBuilder<UserDefinedConversionAnalysis>.GetInstance();
@@ -1208,7 +1204,7 @@ internal sealed partial class Conversions {
     }
 
     internal static void AddTypesParticipatingInUserDefinedConversion(
-        ArrayBuilder<(NamedTypeSymbol ParticipatingType, TemplateParameterSymbol ConstrainedToTypeOpt)> result,
+        ArrayBuilder<(NamedTypeSymbol participatingType, TemplateParameterSymbol constrainedToType)> result,
         TypeSymbol type,
         bool includeBaseTypes) {
         if (type is null)
@@ -1226,7 +1222,7 @@ internal sealed partial class Conversions {
         }
 
         static void AddFromClassOrStruct(
-            ArrayBuilder<(NamedTypeSymbol ParticipatingType, TemplateParameterSymbol ConstrainedToTypeOpt)> result,
+            ArrayBuilder<(NamedTypeSymbol participatingType, TemplateParameterSymbol constrainedToType)> result,
             bool excludeExisting,
             TypeSymbol type,
             bool includeBaseTypes) {
@@ -1253,9 +1249,9 @@ internal sealed partial class Conversions {
 
     private static bool HasIdentityConversionToAny(
         NamedTypeSymbol type,
-        ArrayBuilder<(NamedTypeSymbol ParticipatingType, TemplateParameterSymbol ConstrainedToTypeOpt)> targetTypes) {
-        foreach (var (ParticipatingType, ConstrainedToTypeOpt) in targetTypes) {
-            if (HasIdentityConversion(type, ParticipatingType, includeNullability: false))
+        ArrayBuilder<(NamedTypeSymbol participatingType, TemplateParameterSymbol constrainedToType)> targetTypes) {
+        foreach (var (participatingType, _) in targetTypes) {
+            if (HasIdentityConversion(type, participatingType))
                 return true;
         }
 

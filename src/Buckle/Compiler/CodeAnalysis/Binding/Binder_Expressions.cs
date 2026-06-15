@@ -6836,7 +6836,7 @@ internal partial class Binder {
                         candidateType = parameterType;
                     } else if (!candidateType.Equals(
                         parameterType,
-                        TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreNullability)) {
+                        TypeCompareKind.IgnoreArraySizesAndLowerBounds)) {
                         candidateType = null;
                         break;
                     }

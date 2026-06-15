@@ -458,9 +458,6 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
     }
 
     internal override bool Equals(TypeSymbol other, TypeCompareKind compareKind) {
-        if ((compareKind & TypeCompareKind.IgnoreNullability) != 0 && !this.IsNullableType())
-            other = other.StrippedType();
-
         if ((object)other == this)
             return true;
 
@@ -487,12 +484,9 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
         }
 
         if ((thisIsOriginalDefinition || otherIsOriginalDefinition) &&
-            (compareKind & (TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreNullability)) == 0) {
+            (compareKind & (TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreTupleNames)) == 0) {
             return false;
         }
-
-        if ((compareKind & TypeCompareKind.IgnoreNullability) != 0 && this.IsNullableType())
-            return Equals(StrippedType(), other, compareKind);
 
         if (!Equals(thisOriginalDefinition, otherOriginalDefinition, compareKind))
             return false;
@@ -545,7 +539,7 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
             return false;
 
         if ((thisIsNotConstructed || otherIsNotConstructed) &&
-            (compareKind & (TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreNullability)) == 0) {
+            (compareKind & (TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreTupleNames)) == 0) {
             return false;
         }
 
@@ -561,7 +555,23 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
                 return false;
         }
 
+        if (isTupleType && !TupleNamesEquals(other, compareKind))
+            return false;
+
         return true;
+
+        bool TupleNamesEquals(NamedTypeSymbol other, TypeCompareKind comparison) {
+            if ((comparison & TypeCompareKind.IgnoreTupleNames) == 0) {
+                var elementNames = tupleElementNames;
+                var otherElementNames = other.tupleElementNames;
+
+                return elementNames.IsDefault
+                    ? otherElementNames.IsDefault
+                    : !otherElementNames.IsDefault && elementNames.SequenceEqual(otherElementNames);
+            }
+
+            return true;
+        }
     }
 
     ImmutableArray<IMethodSymbol> INamedTypeSymbol.constructors

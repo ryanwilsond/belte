@@ -21,7 +21,16 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
         considerTemplateConstraints: false,
         considerCallingConvention: false,
         considerRefKind: true,
-        typeComparison: TypeCompareKind.IgnoreNullability
+        typeComparison: TypeCompareKind.IgnoreTupleNames
+    );
+
+    internal static readonly MemberSignatureComparer RuntimeOverrideComparerWithReturn = new MemberSignatureComparer(
+        considerName: true,
+        considerReturnType: true,
+        considerTemplateConstraints: false,
+        considerCallingConvention: false,
+        considerRefKind: true,
+        typeComparison: TypeCompareKind.IgnoreTupleNames
     );
 
     internal static readonly MemberSignatureComparer SloppyOverrideComparer = new MemberSignatureComparer(
@@ -30,16 +39,16 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
         considerTemplateConstraints: false,
         considerCallingConvention: false,
         considerRefKind: false,
-        typeComparison: TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreNullability
+        typeComparison: TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreTupleNames
     );
 
-    internal static readonly MemberSignatureComparer IgnoreRefComparer = new MemberSignatureComparer(
+    internal static readonly MemberSignatureComparer RuntimeIgnoreRefComparer = new MemberSignatureComparer(
         considerName: true,
         considerReturnType: true,
         considerTemplateConstraints: false,
         considerCallingConvention: true,
         considerRefKind: false,
-        typeComparison: TypeCompareKind.IgnoreNullability
+        typeComparison: TypeCompareKind.IgnoreTupleNames
     );
 
     public static readonly MemberSignatureComparer DuplicateSourceComparer = new MemberSignatureComparer(
@@ -235,7 +244,7 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
             templateMap1,
             templateParameters2,
             templateMap2,
-            SymbolEqualityComparer.IgnoringNullable
+            SymbolEqualityComparer.IgnoreTupleNames
         );
     }
 

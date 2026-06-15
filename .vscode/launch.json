@@ -8,11 +8,10 @@
             "preLaunchTask": "build compiler debug",
             "program": "${workspaceFolder}/src/Buckle/CommandLine/bin/Debug/net10.0/CommandLine.dll",
             "args": [
-                // "-r",
-                // "--clearsubmissions",
-                "run"
+                "-r",
+                "--clearsubmissions",
             ],
-            "cwd": "${workspaceFolder}/../../belte/c2blt",
+            "cwd": "${workspaceFolder}",
             "console": "externalTerminal",
             "stopAtEntry": false,
         },

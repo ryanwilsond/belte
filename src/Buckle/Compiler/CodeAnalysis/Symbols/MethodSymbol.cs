@@ -291,7 +291,8 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
 
             if (overridden is null ||
                 (accessingType is not null && !AccessCheck.IsSymbolAccessible(overridden, accessingType)) ||
-                (requireSameReturnType && returnType.Equals(overridden.returnType, TypeCompareKind.AllIgnoreOptions))) {
+                (requireSameReturnType &&
+                    returnType.Equals(overridden.returnType, TypeCompareKind.IgnoreArraySizesAndLowerBounds))) {
                 break;
             }
 

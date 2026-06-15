@@ -10,7 +10,7 @@ public struct ValueTuple<type T1> {
         return f"({Item1?.ToString()})";
     }
 
-    public override bool Equals(Object object) {
+    public override bool Equals(Object? object) {
         return object is ValueTuple<T1> tuple && Equals(tuple);
     }
 
@@ -36,7 +36,7 @@ public struct ValueTuple<type T1, type T2> {
         return f"({Item1?.ToString()}, {Item2?.ToString()})";
     }
 
-    public override bool Equals(Object object) {
+    public override bool Equals(Object? object) {
         return object is ValueTuple<T1, T2> tuple && Equals(tuple);
     }
 
@@ -66,7 +66,7 @@ public struct ValueTuple<type T1, type T2, type T3> {
         return f"({Item1?.ToString()}, {Item2?.ToString()}, {Item3?.ToString()})";
     }
 
-    public override bool Equals(Object object) {
+    public override bool Equals(Object? object) {
         return object is ValueTuple<T1, T2, T3> tuple && Equals(tuple);
     }
 
@@ -100,7 +100,7 @@ public struct ValueTuple<type T1, type T2, type T3, type T4> {
         return f"({Item1?.ToString()}, {Item2?.ToString()}, {Item3?.ToString()}, {Item4?.ToString()})";
     }
 
-    public override bool Equals(Object object) {
+    public override bool Equals(Object? object) {
         return object is ValueTuple<T1, T2, T3, T4> tuple && Equals(tuple);
     }
 
@@ -138,7 +138,7 @@ public struct ValueTuple<type T1, type T2, type T3, type T4, type T5> {
         return f"({Item1?.ToString()}, {Item2?.ToString()}, {Item3?.ToString()}, {Item4?.ToString()}, {Item5?.ToString()})";
     }
 
-    public override bool Equals(Object object) {
+    public override bool Equals(Object? object) {
         return object is ValueTuple<T1, T2, T3, T4, T5> tuple && Equals(tuple);
     }
 
@@ -180,7 +180,7 @@ public struct ValueTuple<type T1, type T2, type T3, type T4, type T5, type T6> {
         return f"({Item1?.ToString()}, {Item2?.ToString()}, {Item3?.ToString()}, {Item4?.ToString()}, {Item5?.ToString()}, {Item6?.ToString()})";
     }
 
-    public override bool Equals(Object object) {
+    public override bool Equals(Object? object) {
         return object is ValueTuple<T1, T2, T3, T4, T5, T6> tuple && Equals(tuple);
     }
 
@@ -226,7 +226,7 @@ public struct ValueTuple<type T1, type T2, type T3, type T4, type T5, type T6, t
         return f"({Item1?.ToString()}, {Item2?.ToString()}, {Item3?.ToString()}, {Item4?.ToString()}, {Item5?.ToString()}, {Item6?.ToString()}, {Item7?.ToString()})";
     }
 
-    public override bool Equals(Object object) {
+    public override bool Equals(Object? object) {
         return object is ValueTuple<T1, T2, T3, T4, T5, T6, T7> tuple && Equals(tuple);
     }
 
@@ -276,7 +276,7 @@ public struct ValueTuple<type T1, type T2, type T3, type T4, type T5, type T6, t
         return f"({Item1?.ToString()}, {Item2?.ToString()}, {Item3?.ToString()}, {Item4?.ToString()}, {Item5?.ToString()}, {Item6?.ToString()}, {Item7?.ToString()}, {Rest?.ToString()})";
     }
 
-    public override bool Equals(Object object) {
+    public override bool Equals(Object? object) {
         return object is ValueTuple<T1, T2, T3, T4, T5, T6, T7, TRest> tuple && Equals(tuple);
     }
 

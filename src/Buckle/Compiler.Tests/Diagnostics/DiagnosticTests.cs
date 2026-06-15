@@ -3424,7 +3424,7 @@ public sealed class DiagnosticTests {
     public void Reports_Warning_BU0263_EqualsWithoutGetHashCode() {
         var text = @"
             class [A] {
-                public override bool! Equals(Object o) { return true; }
+                public override bool! Equals(Object? o) { return true; }
             }
         ";
 
@@ -6081,7 +6081,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0462_LiteralOperatorMustHaveSingleParameter() {
         var text = @"
             class A {
-                public static A? [literal] s() { return null; }
+                public static A [literal] s() { return new(); }
             }
         ";
 

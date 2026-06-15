@@ -465,7 +465,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
             return false;
 
         if (source.isNullable != destination.isNullable &&
-            HasIdentityConversionInternal(source.type, destination.type, includeNullability: true)) {
+            HasIdentityConversionInternal(source.type, destination.type)) {
             return true;
         }
 
@@ -511,14 +511,6 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
     }
 
     private static bool HasIdentityConversionInternal(TypeSymbol type1, TypeSymbol type2) {
-        return HasIdentityConversionInternal(type1, type2, includeNullability: false);
-    }
-
-    private static bool HasIdentityConversionInternal(TypeSymbol type1, TypeSymbol type2, bool includeNullability) {
-        var compareKind = includeNullability
-            ? TypeCompareKind.AllIgnoreOptions & ~TypeCompareKind.IgnoreNullability
-            : TypeCompareKind.AllIgnoreOptions;
-
-        return type1.Equals(type2, compareKind);
+        return type1.Equals(type2, TypeCompareKind.AllIgnoreOptions);
     }
 }

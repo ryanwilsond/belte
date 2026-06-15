@@ -8,7 +8,7 @@ using Buckle.Libraries;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMethodOrUserDefinedOperatorSymbol {
-    private const TypeCompareKind ComparisonForUserDefinedOperators = TypeCompareKind.IgnoreNullability;
+    private const TypeCompareKind ComparisonForUserDefinedOperators = TypeCompareKind.IgnoreTupleNames;
 
     private protected SourceUserDefinedOperatorSymbolBase(
         MethodKind methodKind,

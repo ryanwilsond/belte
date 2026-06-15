@@ -3184,7 +3184,7 @@ internal partial class Binder {
         var falseType = falseExpr.Type();
 
         TypeSymbol type;
-        if (!Conversions.HasIdentityConversion(trueType, falseType, includeNullability: false)) {
+        if (!Conversions.HasIdentityConversion(trueType, falseType)) {
             if (!hasErrors)
                 diagnostics.Push(Error.RefConditionalDifferentTypes(falseExpr.syntax.location, trueType));
 
@@ -6660,7 +6660,7 @@ symIsHidden:;
 
             if (!isCast &&
                 (source.IsLiteralNull() ||
-                (source.type is not null && source.Type().Equals(destination, TypeCompareKind.IgnoreNullability)))) {
+                (source.type is not null && source.Type().Equals(destination)))) {
                 return source;
             }
         }

@@ -941,12 +941,10 @@ internal sealed partial class OverloadResolution {
                 var existingSignature = result[i].signature;
 
                 if (op.signature.kind == existingSignature.kind &&
-                    EqualsIgnoringNullable(op.signature.returnType, existingSignature.returnType) &&
-                    EqualsIgnoringNullable(op.signature.leftType, existingSignature.leftType) &&
-                    EqualsIgnoringNullable(op.signature.rightType, existingSignature.rightType) &&
-                    EqualsIgnoringNullable(
-                        op.signature.method.containingType,
-                        existingSignature.method.containingType)) {
+                    op.signature.returnType.Equals(existingSignature.returnType) &&
+                    op.signature.leftType.Equals(existingSignature.leftType) &&
+                    op.signature.rightType.Equals(existingSignature.rightType) &&
+                    op.signature.method.containingType.Equals(existingSignature.method.containingType)) {
                     equivalentToExisting = true;
                     break;
                 }
@@ -955,9 +953,6 @@ internal sealed partial class OverloadResolution {
             if (!equivalentToExisting)
                 result.Add(op);
         }
-
-        static bool EqualsIgnoringNullable(TypeSymbol a, TypeSymbol b)
-            => a.Equals(b, TypeCompareKind.IgnoreNullability);
     }
 
     private void PerformObjectCreationOverloadResolution(
@@ -2435,7 +2430,7 @@ internal sealed partial class OverloadResolution {
             return conversion;
         }
 
-        if (argType is not null && Conversions.HasIdentityConversion(argType, parameterType, includeNullability: false))
+        if (argType is not null && Conversions.HasIdentityConversion(argType, parameterType))
             return Conversion.Identity;
         else
             return Conversion.None;

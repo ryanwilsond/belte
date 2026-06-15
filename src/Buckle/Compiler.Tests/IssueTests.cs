@@ -1418,4 +1418,42 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Override_ReturnIsNullabilitySensitive() {
+        var text = @"
+            class A {
+                public virtual bool M() { return false; }
+            }
+            class B extends  A {
+                public override bool? [M]() { return false; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'B.M()': return type must be 'bool!' to match overridden member 'A.M()'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Override_ParametersAreNullabilitySensitive() {
+        var text = @"
+            class A {
+                public virtual void M(bool b) { }
+            }
+            class B extends  A {
+                public override void [M](bool? b) { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'B.M(bool?)': no suitable method found to override
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

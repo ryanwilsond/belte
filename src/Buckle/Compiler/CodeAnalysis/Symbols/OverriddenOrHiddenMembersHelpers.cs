@@ -73,10 +73,12 @@ internal static class OverriddenOrHiddenMembersHelpers {
         hiddenBuilder = null;
 
         var currentTypeHasExactMatch = false;
-        var exactMatchComparer = MemberSignatureComparer.OverrideComparerWithReturn;
+        var exactMatchComparer = memberIsFromSomeCompilation
+            ? MemberSignatureComparer.OverrideComparerWithReturn
+            : MemberSignatureComparer.RuntimeOverrideComparerWithReturn;
         var fallbackComparer = memberIsFromSomeCompilation
             ? MemberSignatureComparer.OverrideComparer
-            : MemberSignatureComparer.IgnoreRefComparer;
+            : MemberSignatureComparer.RuntimeIgnoreRefComparer;
 
         var memberKind = member.kind;
         var memberArity = member.GetMemberArity();

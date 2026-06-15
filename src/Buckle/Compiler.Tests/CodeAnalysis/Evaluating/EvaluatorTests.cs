@@ -1012,8 +1012,8 @@ public sealed class EvaluatorTests {
     [InlineData("int? a = null; return f\"a is {a}\";", "a is ")]
     [InlineData("return f\"a is {null}\";", "a is ")]
     [InlineData("List<int>? a = null; return f\"a is {a}\";", "a is ")]
-    [InlineData("class A { public override string ToString() { return \"text\"; } } A a = new A(); return f\"a is {a}\";", "a is text")]
-    [InlineData("struct A { public override string ToString() { return \"text\"; } } A a = new A(); return f\"a is {a}\";", "a is text")]
+    [InlineData("class A { public override string? ToString() { return \"text\"; } } A a = new A(); return f\"a is {a}\";", "a is text")]
+    [InlineData("struct A { public override string? ToString() { return \"text\"; } } A a = new A(); return f\"a is {a}\";", "a is text")]
     [InlineData("return f\"{1}{2}{3}\";", "123")]
     [InlineData("return f\"{true} {false}\";", "True False")]
     // Templates
