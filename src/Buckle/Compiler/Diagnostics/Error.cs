@@ -2605,6 +2605,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NonNullableReceiverProperty, location, message, suggestion);
     }
 
+    internal static BelteDiagnostic SameFullNameAggAgg(AssemblySymbol assembly1, Symbol symbol, AssemblySymbol assembly2) {
+        var message = $"the type '{symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedNameFormat)}' exists in both '{assembly1}' and '{assembly2}'";
+        return CreateError(DiagnosticCode.ERR_NonNullableReceiverProperty, null, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

@@ -531,6 +531,9 @@ public enum DiagnosticCode : ushort {
     ERR_CannotNullCheckNonNull = 520,
     ERR_NullableReceiverProperty = 521,
     ERR_NonNullableReceiverProperty = 522,
+    ERR_SameFullNameAggAgg = 523,
+    WRN_DuplicateReference = 524,
+    WRN_DuplicateAssembly = 525,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

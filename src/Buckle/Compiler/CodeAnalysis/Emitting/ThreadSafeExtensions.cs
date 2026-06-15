@@ -8,10 +8,8 @@ internal static class ThreadSafeExtensions {
     internal static TypeReference ImportReferenceThreadSafe(
         this ModuleDefinition module,
         TypeReference typeReference) {
-        if (!ILEmitter.Imports.Add(typeReference)) {
+        if (!ILEmitter.Imports.Add(typeReference))
             Debug.Print($"Type already imported: {typeReference}");
-            return typeReference;
-        }
 
         lock (ILEmitter.GlobalCecilLock)
             return module.ImportReference(typeReference);

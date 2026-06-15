@@ -59,6 +59,8 @@ public static partial class BuckleCommandLine {
         new DiagnosticInfo(0509, "BU"),
         new DiagnosticInfo(0512, "BU"),
         new DiagnosticInfo(0514, "BU"),
+        new DiagnosticInfo(0524, "BU"),
+        new DiagnosticInfo(0525, "BU"),
     ];
 
     private static readonly DiagnosticInfo[] WarningLevel2 = [
@@ -684,7 +686,7 @@ public class {name} {{
                 if (state.showInfo)
                     Console.WriteLine("    Existing cache data is malformed: clearing and recreating");
 
-                Directory.Delete(cacheDirectory);
+                Directory.Delete(cacheDirectory, true);
                 reuse = false;
             } else {
                 UpdateLastAccess(

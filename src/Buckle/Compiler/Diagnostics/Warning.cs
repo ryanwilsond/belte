@@ -1,3 +1,4 @@
+using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Text;
@@ -222,6 +223,16 @@ internal static class Warning {
     internal static BelteDiagnostic DifferentConstOnOverrideParameter(TextLocation location, Symbol symbol, Symbol hiddenMember, string name) {
         var message = $"'{symbol}': parameter '{name}' is marked 'const' but the corresponding parameter on overridden member '{hiddenMember}' is not";
         return CreateWarning(DiagnosticCode.WRN_DifferentConstOnOverrideParameter, location, message);
+    }
+
+    internal static BelteDiagnostic DuplicateReference(string reference) {
+        var message = $"\"{reference}\": reference has already been added to the compilation";
+        return CreateWarning(DiagnosticCode.WRN_DuplicateReference, null, message);
+    }
+
+    internal static BelteDiagnostic DuplicateAssembly(AssemblyIdentity assembly) {
+        var message = $"\"{assembly.GetDisplayName()}\": assembly has already been added to the compilation";
+        return CreateWarning(DiagnosticCode.WRN_DuplicateAssembly, null, message);
     }
 
     private static BelteDiagnostic CreateWarning(DiagnosticCode code, TextLocation location, string message) {

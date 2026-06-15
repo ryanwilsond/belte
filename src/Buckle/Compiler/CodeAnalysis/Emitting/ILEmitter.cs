@@ -66,7 +66,6 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private ILEmitter(
         BoundProgram program,
         string assemblySimpleName,
-        string[] references,
         bool debugMode,
         bool reduced,
         BelteDiagnosticQueue diagnostics) {
@@ -111,6 +110,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 #if !DEBUG
 #pragma warning restore IL3000
 #endif
+
+        var references = program.compilation.referenceManager.assemblies.Select(a => a.location);
 
         foreach (var reference in references) {
             try {
@@ -160,12 +161,11 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     internal static void Emit(
         BoundProgram program,
         string moduleName,
-        string[] references,
         string outputPath,
         BelteDiagnosticQueue diagnostics) {
         var debugMode = program.compilation.options.optimizationLevel == OptimizationLevel.Debug;
         var reduced = program.compilation.options.noStdLib;
-        var emitter = new ILEmitter(program, moduleName, references, debugMode, reduced, diagnostics);
+        var emitter = new ILEmitter(program, moduleName, debugMode, reduced, diagnostics);
 
         if (SupportedProjectType(program, diagnostics))
             emitter.EmitToFile(outputPath, debugMode);
@@ -175,9 +175,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         BoundProgram program,
         string moduleName,
         bool programOnly,
-        string[] references,
         BelteDiagnosticQueue diagnostics) {
-        var emitter = new ILEmitter(program, moduleName, references, false, false, diagnostics);
+        var emitter = new ILEmitter(program, moduleName, false, false, diagnostics);
 
         if (SupportedProjectType(program, diagnostics))
             return emitter.EmitToString(programOnly);
@@ -426,10 +425,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     private TypeDefinition Resolve(TypeReference reference) {
-        if (reference is TypeDefinition td) {
+        if (reference is TypeDefinition td)
             Debug.Print($"Unnecessary resolve call: {td}");
-            return td;
-        }
 
         lock (GlobalCecilLock)
             return reference.Resolve();
@@ -454,13 +451,13 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
     private TypeReference GetFuncType(FunctionMethodSymbol signature) {
         if (signature.returnsVoid && signature.parameterCount == 0) {
-            var typeRef = ResolveType(null, "System.Action");
+            var typeRef = ImportType("System.Action");
             _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(typeRef));
             // TODO Resolving may be unnecessary here?
             // _assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeRef);
             return typeRef;
         } else if (signature.returnsVoid) {
-            var typeRef = ResolveType(null, $"System.Action`{signature.parameterCount}");
+            var typeRef = ImportType($"System.Action`{signature.parameterCount}");
             var genericRef = new GenericInstanceType(typeRef);
 
             foreach (var p in signature.GetParameterTypes())
@@ -471,7 +468,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             // _assemblyDefinition.MainModule.ImportReferenceThreadSafe(genericRef);
             return genericRef;
         } else {
-            var typeRef = ResolveType(null, $"System.Func`{signature.parameterCount + 1}");
+            var typeRef = ImportType($"System.Func`{signature.parameterCount + 1}");
             var genericRef = new GenericInstanceType(typeRef);
 
             foreach (var p in signature.GetParameterTypes())
@@ -495,7 +492,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 (PENamedTypeSymbol)m.containingType,
                 m.metadataName,
                 m.GetParameterTypes()
-                    .Select(p => p.type.ContainsTemplateParameter() ? null : GetType(p.type, import: false).ToString())
+                    .Select(p => p.type.ContainsTemplateParameter() ? null : GetType(p.type).ToString())
                     .ToArray()
             );
 
@@ -783,20 +780,30 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             var peType = GetType(field.containingType);
             var peField = Resolve(peType).Fields.Single(e => e.Name == f.name);
 
+            // TODO Might not need to always import here
+            // var fieldType = peField.ContainsGenericParameter
+            //     ? _assemblyDefinition.MainModule.ImportReferenceThreadSafe(peField.FieldType, peType)
+            //     : peField.FieldType;
+
             return new FieldReference(
                 peField.Name,
                 _assemblyDefinition.MainModule.ImportReferenceThreadSafe(peField.FieldType, peType),
+                // fieldType,
                 peType
             );
         } else {
             var fieldRef = _fields[field.originalDefinition];
             var constructedType = GetType(GetFieldContainingType(field));
 
+            // TODO Might not need to always import here
+            // var fieldType = fieldRef.ContainsGenericParameter
+            //     ? _assemblyDefinition.MainModule.ImportReferenceThreadSafe(fieldRef.FieldType, constructedType)
+            //     : fieldRef.FieldType;
+
             return new FieldReference(
                 fieldRef.Name,
                 _assemblyDefinition.MainModule.ImportReferenceThreadSafe(fieldRef.FieldType, constructedType),
-                // TODO Importing may be unnecessary here?
-                // fieldRef.FieldType,
+                // fieldType,
                 constructedType
             );
         }
@@ -1706,7 +1713,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         _c9__0_0 = new FieldDefinition(
             "<>9__0_0",
             FieldAttributes.InitOnly | FieldAttributes.Static | FieldAttributes.Public,
-            ResolveType(null, "System.ResolveEventHandler")
+            ImportType("System.ResolveEventHandler")
         );
 
         cDefinition.Fields.Add(_c9);
@@ -1733,7 +1740,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         var methodDefinition = new MethodDefinition(
             "<Main>AssemblyResolver",
             MethodAttributes.HideBySig | MethodAttributes.Assembly,
-            ResolveType(null, "System.Reflection.Assembly")
+            ImportType("System.Reflection.Assembly")
         );
 
         methodDefinition.CustomAttributes.Add(new CustomAttribute(_belteCompilerGeneratedAttributeCtor));
@@ -1750,7 +1757,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             new Mono.Cecil.ParameterDefinition(
                 "e",
                 ParameterAttributes.None,
-                ResolveType(null, "System.ResolveEventArgs")
+                ImportType("System.ResolveEventArgs")
             )
         );
 
@@ -1882,7 +1889,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
     }
 
-    private TypeReference ResolveType(NamedTypeSymbol peTypeSymbol) {
+    private TypeDefinition ResolveType(NamedTypeSymbol peTypeSymbol) {
         var stack = new Stack<NamedTypeSymbol>();
         var current = peTypeSymbol;
 
@@ -1895,14 +1902,14 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         var topType = stack.Pop();
         var displayName = topType.ToDisplayString(SymbolDisplayFormat.NetNamespaceQualifiedNameFormat);
         var currentFoundType = ResolveType(null, displayName);
-        _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(currentFoundType));
+        // _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(currentFoundType));
         // TODO Resolving may be unnecessary here?
         // _assemblyDefinition.MainModule.ImportReferenceThreadSafe(currentFoundType);
 
         while (stack.Count > 0) {
             var nestedType = stack.Pop();
             currentFoundType = Resolve(currentFoundType).NestedTypes.First(t => t.Name == nestedType.name);
-            _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(currentFoundType));
+            // _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(currentFoundType));
             // TODO Resolving may be unnecessary here?
             // _assemblyDefinition.MainModule.ImportReferenceThreadSafe(currentFoundType);
         }
@@ -1910,12 +1917,37 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         return currentFoundType;
     }
 
-    private TypeReference ResolveType(string name, string metadataName) {
-        var foundTypes = FastPath();
+    private TypeReference ImportType(string metadataName) {
+        return ImportType(displayName: null, metadataName);
+    }
+
+    private TypeReference ImportType(string displayName, string metadataName) {
+        return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(ResolveType(displayName, metadataName));
+    }
+
+    private TypeDefinition ResolveType(string name, string metadataName) {
+        var foundTypes = new List<TypeDefinition>(1);
+
+        for (var i = 0; i < _assemblies.Count; i++) {
+            var modules = _assemblies[i].Modules;
+
+            for (var j = 0; j < modules.Count; j++) {
+                var types = modules[j].Types;
+
+                for (var k = 0; k < types.Count; k++) {
+                    var type = types[k];
+
+                    if (type.FullName == metadataName)
+                        foundTypes.Add(type);
+                }
+            }
+        }
 
         // TODO Do we actually care about ambiguity
         if (foundTypes.Count >= 1) {
-            // return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(foundTypes[0]);
+            // if (import)
+            //     return Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(foundTypes[0]));
+
             return foundTypes[0];
         } else if (foundTypes.Count == 0) {
             throw new BelteInternalException($"Required type not found: {name} ({metadataName})");
@@ -1923,27 +1955,6 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             throw new BelteInternalException(
                 $"Required type ambiguous: {name} ({metadataName}); found {foundTypes.Count} candidates"
             );
-        }
-
-        List<TypeDefinition> FastPath() {
-            var foundTypes = new List<TypeDefinition>(1);
-
-            for (var i = 0; i < _assemblies.Count; i++) {
-                var modules = _assemblies[i].Modules;
-
-                for (var j = 0; j < modules.Count; j++) {
-                    var types = modules[j].Types;
-
-                    for (var k = 0; k < types.Count; k++) {
-                        var type = types[k];
-
-                        if (type.FullName == metadataName)
-                            foundTypes.Add(type);
-                    }
-                }
-            }
-
-            return foundTypes;
         }
     }
 
@@ -2048,23 +2059,23 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         };
 
         foreach (var (type, metadataName) in builtInTypes) {
-            var typeReference = ResolveType(CorLibrary.GetSpecialType(type).name, metadataName);
+            var typeReference = ImportType(CorLibrary.GetSpecialType(type).name, metadataName);
             _specialTypes.Add(type, typeReference);
         }
 
-        NetTypeReference.Random = ResolveType(null, "System.Random");
-        NetTypeReference.Nullable = ResolveType(null, "System.Nullable`1");
-        NetTypeReference.ValueType = ResolveType(null, "System.ValueType");
-        NetTypeReference.Enum = ResolveType(null, "System.Enum");
+        NetTypeReference.Random = ImportType("System.Random");
+        NetTypeReference.Nullable = ImportType("System.Nullable`1");
+        NetTypeReference.ValueType = ImportType("System.ValueType");
+        NetTypeReference.Enum = ImportType("System.Enum");
 
-        NetTypeReference.ValueTuple_T1 = ResolveType(null, "System.ValueTuple`1");
-        NetTypeReference.ValueTuple_T2 = ResolveType(null, "System.ValueTuple`2");
-        NetTypeReference.ValueTuple_T3 = ResolveType(null, "System.ValueTuple`3");
-        NetTypeReference.ValueTuple_T4 = ResolveType(null, "System.ValueTuple`4");
-        NetTypeReference.ValueTuple_T5 = ResolveType(null, "System.ValueTuple`5");
-        NetTypeReference.ValueTuple_T6 = ResolveType(null, "System.ValueTuple`6");
-        NetTypeReference.ValueTuple_T7 = ResolveType(null, "System.ValueTuple`7");
-        NetTypeReference.ValueTuple_TRest = ResolveType(null, "System.ValueTuple`8");
+        NetTypeReference.ValueTuple_T1 = ImportType("System.ValueTuple`1");
+        NetTypeReference.ValueTuple_T2 = ImportType("System.ValueTuple`2");
+        NetTypeReference.ValueTuple_T3 = ImportType("System.ValueTuple`3");
+        NetTypeReference.ValueTuple_T4 = ImportType("System.ValueTuple`4");
+        NetTypeReference.ValueTuple_T5 = ImportType("System.ValueTuple`5");
+        NetTypeReference.ValueTuple_T6 = ImportType("System.ValueTuple`6");
+        NetTypeReference.ValueTuple_T7 = ImportType("System.ValueTuple`7");
+        NetTypeReference.ValueTuple_TRest = ImportType("System.ValueTuple`8");
     }
 
     private MethodReference CheckStandardMap(MethodSymbol method) {

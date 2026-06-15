@@ -1,5 +1,7 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.IO;
 using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
@@ -17,8 +19,14 @@ public sealed partial class Compilation {
 
         internal ReferenceManager(string[] references, BelteDiagnosticQueue diagnostics) {
             var builder = ArrayBuilder<AssemblyMetadata>.GetInstance();
+            var uniqueReferences = new HashSet<string>();
 
             foreach (var reference in references) {
+                // We check strings first to avoid constructing a pe assembly unnecessarily, but we have to do second
+                // check on assembly identity later
+                if (IsDuplicateReferenceByString(reference, uniqueReferences, diagnostics))
+                    continue;
+
                 var assembly = AssemblyMetadata.CreateFromFile(reference);
 
                 try {
@@ -37,9 +45,14 @@ public sealed partial class Compilation {
             _referencedModulesReferences = [];
 
             var assemblyBuilder = ArrayBuilder<PEAssemblySymbol>.GetInstance();
+            var uniqueIdentities = new HashSet<AssemblyIdentity>();
 
             foreach (var assembly in _assemblies) {
                 var assemblySymbol = CreatePEAssemblyForAssemblyMetadataFirstPass(assembly, MetadataImportOptions.All);
+
+                if (IsDuplicateReferenceByIdentity(assemblySymbol.identity, uniqueIdentities, diagnostics))
+                    continue;
+
                 assemblyBuilder.Add(assemblySymbol);
             }
 
@@ -49,6 +62,8 @@ public sealed partial class Compilation {
             foreach (var assemblySymbol in _assemblySymbols)
                 CreatePEAssemblyForAssemblyMetadataSecondPass(assemblySymbol, assemblySymbol.assembly, out _);
         }
+
+        internal ImmutableArray<AssemblyMetadata> assemblies => _assemblies;
 
         internal NamespaceSymbol[] GetGlobalNamespaces() {
             return _assemblySymbols.Select(a => a.globalNamespace).ToArray();
@@ -93,6 +108,38 @@ public sealed partial class Compilation {
 
             if (assembly.ContainsNoPiaLocalTypes())
                 assemblySymbol.SetNoPiaResolutionAssemblies(_referencedAssemblies);
+        }
+
+        private static bool IsDuplicateReferenceByString(
+            string reference,
+            HashSet<string> unique,
+            BelteDiagnosticQueue diagnostics) {
+            if (unique.Contains(reference)) {
+                diagnostics.Push(Warning.DuplicateReference(reference));
+                return true;
+            }
+
+            foreach (var uniqueReference in unique) {
+                if (Path.GetRelativePath(uniqueReference, reference) == ".") {
+                    diagnostics.Push(Warning.DuplicateReference(reference));
+                    return true;
+                }
+            }
+
+            unique.Add(reference);
+            return false;
+        }
+
+        private static bool IsDuplicateReferenceByIdentity(
+            AssemblyIdentity identity,
+            HashSet<AssemblyIdentity> unique,
+            BelteDiagnosticQueue diagnostics) {
+            if (!unique.Add(identity)) {
+                diagnostics.Push(Warning.DuplicateAssembly(identity));
+                return true;
+            }
+
+            return false;
         }
 
         private static AssemblySymbol MapAssemblyIdentityToResolvedSymbol(

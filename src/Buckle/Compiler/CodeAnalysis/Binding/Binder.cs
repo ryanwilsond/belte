@@ -892,6 +892,14 @@ internal partial class Binder {
         return symbol;
     }
 
+    private Symbol UnwrapAlias(
+        Symbol symbol,
+        BelteDiagnosticQueue diagnostics,
+        SyntaxNode syntax,
+        ConsList<TypeSymbol> basesBeingResolved = null) {
+        return UnwrapAlias(symbol, out _, diagnostics, syntax, basesBeingResolved);
+    }
+
     private NamespaceOrTypeOrAliasSymbolWithAnnotations UnwrapAlias(
         in NamespaceOrTypeOrAliasSymbolWithAnnotations symbol,
         BelteDiagnosticQueue diagnostics,
@@ -4541,8 +4549,57 @@ internal partial class Binder {
                 symbols.Sort(ConsistentSymbolOrder.Instance);
                 var originalSymbols = symbols.ToImmutable();
 
+                for (var i = 0; i < symbols.Count; i++)
+                    symbols[i] = UnwrapAlias(symbols[i], diagnostics, where);
+
                 var best = GetBestSymbolInfo(symbols, out var secondBest);
-                // TODO Could check for conflicting imports here
+
+                if (best.isFromCompilation && !secondBest.isFromCompilation) {
+                    var srcSymbol = symbols[best.index];
+                    var mdSymbol = symbols[secondBest.index];
+
+                    object arg0;
+
+                    if (best.isFromSourceModule)
+                        arg0 = srcSymbol.location.fileName;
+                    else
+                        arg0 = srcSymbol.containingModule;
+
+                    if (NameAndArityMatchRecursively(srcSymbol, mdSymbol)) {
+                        if (srcSymbol.kind == SymbolKind.Namespace && mdSymbol.kind == SymbolKind.NamedType) {
+                            throw ExceptionUtilities.Unreachable();
+                            // ErrorCode.WRN_SameFullNameThisNsAgg: The namespace '{1}' in '{0}' conflicts with the imported type '{3}' in '{2}'. Using the namespace defined in '{0}'.
+                            // diagnostics.Add(ErrorCode.WRN_SameFullNameThisNsAgg, where.Location, originalSymbols,
+                            //     arg0,
+                            //     srcSymbol,
+                            //     mdSymbol.ContainingAssembly,
+                            //     mdSymbol);
+
+                            // return originalSymbols[best.Index];
+                        } else if (srcSymbol.kind == SymbolKind.NamedType && mdSymbol.kind == SymbolKind.Namespace) {
+                            throw ExceptionUtilities.Unreachable();
+                            // ErrorCode.WRN_SameFullNameThisAggNs: The type '{1}' in '{0}' conflicts with the imported namespace '{3}' in '{2}'. Using the type defined in '{0}'.
+                            // diagnostics.Add(ErrorCode.WRN_SameFullNameThisAggNs, where.Location, originalSymbols,
+                            //     arg0,
+                            //     srcSymbol,
+                            //     GetContainingAssembly(mdSymbol),
+                            //     mdSymbol);
+
+                            // return originalSymbols[best.Index];
+                        } else if (srcSymbol.kind == SymbolKind.NamedType && mdSymbol.kind == SymbolKind.NamedType) {
+                            throw ExceptionUtilities.Unreachable();
+                            // WRN_SameFullNameThisAggAgg: The type '{1}' in '{0}' conflicts with the imported type '{3}' in '{2}'. Using the type defined in '{0}'.
+                            // diagnostics.Add(ErrorCode.WRN_SameFullNameThisAggAgg, where.Location, originalSymbols,
+                            //     arg0,
+                            //     srcSymbol,
+                            //     mdSymbol.ContainingAssembly,
+                            //     mdSymbol);
+
+                            // return originalSymbols[best.Index];
+                        }
+                    }
+                }
+
                 var first = symbols[best.index];
                 var second = symbols[secondBest.index];
 
@@ -4566,15 +4623,14 @@ internal partial class Binder {
                                 second
                             );
                         } else {
-                            // TODO is this a reachable error?
-                            throw ExceptionUtilities.Unreachable();
-                            // ErrorCode.ERR_SameFullNameAggAgg: The type '{1}' exists in both '{0}' and '{2}'
-                            // info = new CSDiagnosticInfo(ErrorCode.ERR_SameFullNameAggAgg, originalSymbols,
-                            //     new object[] { first.ContainingAssembly, first, second.ContainingAssembly });
+                            error = Error.SameFullNameAggAgg(
+                                first.containingAssembly,
+                                first,
+                                second.containingAssembly
+                            );
 
-                            // if (secondBest.isFromAddedModule) {
-                            //     reportError = false;
-                            // }
+                            if (secondBest.isFromAddedModule)
+                                reportError = false;
                         }
                     } else if (first.kind == SymbolKind.Namespace && second.kind == SymbolKind.NamedType) {
                         // TODO is this a reachable error?

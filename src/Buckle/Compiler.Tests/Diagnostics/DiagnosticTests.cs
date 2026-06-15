@@ -7079,4 +7079,13 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    // ! Reports_Error_BU0523_SameFullNameAggAgg
+    // ? Requires references (i.e. command-line args)
+
+    // ! Reports_Warning_BU0524_DuplicateReference
+    // ? Requires references (i.e. command-line args)
+
+    // ! Reports_Warning_BU0525_DuplicateAssembly
+    // ? Requires references (i.e. command-line args)
 }

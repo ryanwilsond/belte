@@ -335,9 +335,7 @@ public static class SymbolDisplay {
     }
 
     private static void DisplayAssembly(DisplayText text, AssemblySymbol assembly) {
-        text.Write(CreateKeyword("assembly"));
-        text.Write(CreateSpace());
-        text.Write(CreateIdentifier(assembly.name));
+        text.Write(CreateIdentifier(assembly.identity.GetDisplayName()));
     }
 
     private static void DisplayAlias(DisplayText text, AliasSymbol alias) {
