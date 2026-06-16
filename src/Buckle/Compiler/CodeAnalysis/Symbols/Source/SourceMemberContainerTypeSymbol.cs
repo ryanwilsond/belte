@@ -615,11 +615,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         // TODO Do we care about this error
                         // MethodSymbol overridden = method.GetFirstRuntimeOverriddenMethodIgnoringNewSlot(out _);
 
-                        // // NOTE: Dev11 doesn't expose symbols, so it can treat destructors as override and let them go through the normal
-                        // // checks.  Roslyn can't, since the language says they are not virtual/override and that's what we need to expose
-                        // // in the symbol model.  Having said that, Dev11 doesn't seem to produce override errors other than this one
-                        // // (see SymbolPreparer::prepareOperator).
-                        // if ((object)overridden != null && overridden.IsMetadataFinal) {
+                        // if (overridden is not null && overridden.isMetadataFinal) {
                         //     diagnostics.Add(ErrorCode.ERR_CantOverrideSealed, method.GetFirstLocation(), method, overridden);
                         // }
                     }
@@ -1348,7 +1344,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             var refKind2 = method2.parameters[i].refKind;
 
             if (refKind1 != refKind2) {
-                var methodKind = method1.methodKind == MethodKind.Constructor ? MessageID.IDS_SK_CONSTRUCTOR : MessageID.IDS_SK_METHOD;
+                var methodKind = method1.methodKind == MethodKind.Constructor
+                    ? MessageID.IDS_SK_CONSTRUCTOR
+                    : MessageID.IDS_SK_METHOD;
 
                 diagnostics.Push(Error.OverloadRefKind(
                     method1.location,
@@ -2398,7 +2396,10 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         }
     }
 
-    private static bool InfiniteFlatteningGraph(SourceMemberContainerTypeSymbol top, NamedTypeSymbol t, Dictionary<NamedTypeSymbol, NamedTypeSymbol> instanceMap) {
+    private static bool InfiniteFlatteningGraph(
+        SourceMemberContainerTypeSymbol top,
+        NamedTypeSymbol t,
+        Dictionary<NamedTypeSymbol, NamedTypeSymbol> instanceMap) {
         if (!t.ContainsTemplateParameter())
             return false;
 

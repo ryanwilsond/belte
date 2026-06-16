@@ -1456,4 +1456,18 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Method_AllowsConstRefConstParameter() {
+        var text = @"
+            class A {
+                public void M(const ref const bool b) { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

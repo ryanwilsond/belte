@@ -393,7 +393,7 @@ internal static class ParameterHelpers {
 
                     break;
                 case SyntaxKind.ConstKeyword:
-                    if (seenConst)
+                    if (seenConst && previousModifier?.kind != SyntaxKind.RefKeyword)
                         AddDupParamMod(diagnostics, modifier);
                     else if (!allowConst && previousModifier?.kind != SyntaxKind.RefKeyword)
                         // TODO Add this check to template parameters
