@@ -374,6 +374,7 @@ done:
             case DeclarationKind.Struct:
             case DeclarationKind.Enum:
             case DeclarationKind.Class:
+            case DeclarationKind.Interface:
                 return new SourceNamedTypeSymbol(this, (MergedTypeDeclaration)declaration, diagnostics);
             case DeclarationKind.Script:
             case DeclarationKind.Submission:

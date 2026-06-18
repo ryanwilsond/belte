@@ -156,6 +156,13 @@
     </Field>
     <Field Name="type" Type="SimpleNameSyntax"/>
   </Node>
+  <Node Name="InterfaceListSyntax" Base="SyntaxNode">
+    <Kind Name="InterfaceList"/>
+    <Field Name="implementsKeyword" Type="SyntaxToken">
+      <Kind Name="ImplementsKeyword"/>
+    </Field>
+    <Field Name="types" Type="SeparatedSyntaxList&lt;SimpleNameSyntax&gt;"/>
+  </Node>
   <Node Name="TemplateConstraintClauseListSyntax" Base="SyntaxNode">
     <Kind Name="TemplateConstraintClauseList"/>
     <Field Name="whereKeyword" Type="SyntaxToken">
@@ -605,6 +612,7 @@
     </Field>
     <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Override="true" Optional="true"/>
     <Field Name="baseType" Type="BaseTypeSyntax" Optional="true"/>
+    <Field Name="interfaceList" Type="InterfaceListSyntax" Optional="true"/>
     <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Override="true" Optional="true"/>
     <Field Name="openBrace" Type="SyntaxToken" Override="true">
       <Kind Name="OpenBraceToken"/>
@@ -626,6 +634,7 @@
     </Field>
     <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Override="true" Optional="true"/>
     <Field Name="baseType" Type="BaseTypeSyntax" Optional="true"/>
+    <Field Name="interfaceList" Type="InterfaceListSyntax" Optional="true"/>
     <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Override="true" Optional="true"/>
     <Field Name="semicolon" Type="SyntaxToken">
       <Kind Name="SemicolonToken"/>
@@ -635,6 +644,27 @@
     </Field>
     <Field Name="members" Type="SyntaxList&lt;MemberDeclarationSyntax&gt;" Override="true" Optional="true"/>
     <Field Name="closeBrace" Type="SyntaxToken" Override="true" Optional="true">
+      <Kind Name="CloseBraceToken"/>
+    </Field>
+  </Node>
+  <Node Name="InterfaceDeclarationSyntax" Base="TypeDeclarationSyntax">
+    <Kind Name="InterfaceDeclaration"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
+    <Field Name="keyword" Type="SyntaxToken" Override="true">
+      <Kind Name="InterfaceKeyword"/>
+    </Field>
+    <Field Name="identifier" Type="SyntaxToken" Override="true">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Override="true" Optional="true"/>
+    <Field Name="interfaceList" Type="InterfaceListSyntax" Optional="true"/>
+    <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Override="true" Optional="true"/>
+    <Field Name="openBrace" Type="SyntaxToken" Override="true">
+      <Kind Name="OpenBraceToken"/>
+    </Field>
+    <Field Name="members" Type="SyntaxList&lt;MemberDeclarationSyntax&gt;" Override="true" Optional="true"/>
+    <Field Name="closeBrace" Type="SyntaxToken" Override="true">
       <Kind Name="CloseBraceToken"/>
     </Field>
   </Node>
@@ -650,6 +680,7 @@
       <Kind Name="IdentifierToken"/>
     </Field>
     <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Override="true" Optional="true"/>
+    <Field Name="interfaceList" Type="InterfaceListSyntax" Optional="true"/>
     <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Override="true" Optional="true"/>
     <Field Name="openBrace" Type="SyntaxToken" Override="true">
       <Kind Name="OpenBraceToken"/>

@@ -77,6 +77,8 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
 
     internal sealed override bool isRefLikeType => false;
 
+    internal override bool isInterface => false;
+
     internal override ImmutableArray<Symbol> GetMembers() {
         if (isTupleType) {
             var result = MakeSynthesizedTupleMembers([]);
@@ -95,6 +97,10 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
     }
 
     internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers(ReadOnlyMemory<char> name) {
+        return [];
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> GetDeclaredInterfaces(ConsList<TypeSymbol> basesBeingResolved) {
         return [];
     }
 

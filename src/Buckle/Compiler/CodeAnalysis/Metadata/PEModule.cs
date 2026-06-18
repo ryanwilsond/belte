@@ -9,7 +9,6 @@ using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
 using System.Threading;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.Diagnostics;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 using TypeAttributes = System.Reflection.TypeAttributes;
@@ -1144,6 +1143,10 @@ internal sealed partial class PEModule : IDisposable {
 
     internal MethodImplementationHandleCollection GetMethodImplementationsOrThrow(TypeDefinitionHandle typeDef) {
         return metadataReader.GetTypeDefinition(typeDef).GetMethodImplementations();
+    }
+
+    internal InterfaceImplementationHandleCollection GetInterfaceImplementationsOrThrow(TypeDefinitionHandle typeDef) {
+        return metadataReader.GetTypeDefinition(typeDef).GetInterfaceImplementations();
     }
 
     internal string GetFieldDefNameOrThrow(FieldDefinitionHandle fieldDef) {

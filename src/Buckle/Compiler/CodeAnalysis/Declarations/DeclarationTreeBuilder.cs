@@ -237,6 +237,10 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         return VisitBaseNamespaceDeclaration(node);
     }
 
+    internal override SingleNamespaceOrTypeDeclaration VisitInterfaceDeclaration(InterfaceDeclarationSyntax node) {
+        return VisitTypeDeclaration(node, DeclarationKind.Interface);
+    }
+
     private SingleNamespaceDeclaration VisitBaseNamespaceDeclaration(BaseNamespaceDeclarationSyntax node) {
         var children = VisitNamespaceChildren(
             node,
@@ -553,6 +557,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
             case SyntaxKind.FileScopedClassDeclaration:
             case SyntaxKind.StructDeclaration:
             case SyntaxKind.UnionDeclaration:
+            case SyntaxKind.InterfaceDeclaration:
                 return ((CoreInternalSyntax.TypeDeclarationSyntax)member).attributeLists.Any();
             case SyntaxKind.FieldDeclaration:
                 return ((CoreInternalSyntax.FieldDeclarationSyntax)member).attributeLists.Any();

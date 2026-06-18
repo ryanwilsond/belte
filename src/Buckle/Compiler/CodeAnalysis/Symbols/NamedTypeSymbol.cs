@@ -125,6 +125,8 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
 
     internal virtual bool isKnownToBeImmutable => false;
 
+    internal abstract bool isInterface { get; }
+
     internal override void Accept(SymbolVisitor visitor) {
         visitor.VisitNamedType(this);
     }
@@ -134,6 +136,8 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
         TArgument argument) {
         return visitor.VisitNamedType(this, argument);
     }
+
+    internal abstract ImmutableArray<NamedTypeSymbol> GetDeclaredInterfaces(ConsList<TypeSymbol> basesBeingResolved);
 
     internal virtual NamedTypeSymbol AsMember(NamedTypeSymbol newOwner) {
         return newOwner.isDefinition

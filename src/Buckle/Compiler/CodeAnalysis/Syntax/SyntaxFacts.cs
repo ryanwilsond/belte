@@ -251,6 +251,8 @@ public static class SyntaxFacts {
             "unreachable" => SyntaxKind.UnreachableKeyword,
             "initializes" => SyntaxKind.InitializesKeyword,
             "commit" => SyntaxKind.CommitKeyword,
+            "implements" => SyntaxKind.ImplementsKeyword,
+            "interface" => SyntaxKind.InterfaceKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -440,6 +442,8 @@ public static class SyntaxFacts {
             SyntaxKind.UnreachableKeyword => "unreachable",
             SyntaxKind.InitializesKeyword => "initializes",
             SyntaxKind.CommitKeyword => "commit",
+            SyntaxKind.ImplementsKeyword => "implements",
+            SyntaxKind.InterfaceKeyword => "interface",
             _ => null,
         };
     }

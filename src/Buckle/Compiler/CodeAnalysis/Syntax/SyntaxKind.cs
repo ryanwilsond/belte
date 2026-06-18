@@ -177,6 +177,8 @@ public enum SyntaxKind : ushort {
     HasKeyword,
     InitializesKeyword,
     CommitKeyword,
+    ImplementsKeyword,
+    InterfaceKeyword,
     HandleKeyword,
 
     // Trivia
@@ -299,6 +301,7 @@ public enum SyntaxKind : ushort {
     PackedArgument,
     ClassDeclaration,
     FileScopedClassDeclaration,
+    InterfaceDeclaration,
     UnionDeclaration,
     EnumDeclaration,
     EnumMemberDeclaration,
@@ -331,6 +334,7 @@ public enum SyntaxKind : ushort {
     TupleType,
     TupleElement,
     BaseType,
+    InterfaceList,
     NameEquals,
 
     // Lists

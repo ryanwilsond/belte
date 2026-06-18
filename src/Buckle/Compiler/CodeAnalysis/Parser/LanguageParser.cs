@@ -138,6 +138,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         switch (kind) {
             case SyntaxKind.EnumKeyword:
             case SyntaxKind.ClassKeyword:
+            case SyntaxKind.InterfaceKeyword:
             case SyntaxKind.UnionKeyword:
             case SyntaxKind.StructKeyword:
             case SyntaxKind.AbstractKeyword:
@@ -158,6 +159,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         switch (kind) {
             case SyntaxKind.AbstractKeyword:
             case SyntaxKind.ClassKeyword:
+            case SyntaxKind.InterfaceKeyword:
             case SyntaxKind.ConstKeyword:
             case SyntaxKind.EnumKeyword:
             case SyntaxKind.ExternKeyword:
@@ -399,6 +401,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseStructDeclaration(attributeLists, modifiers);
             case SyntaxKind.ClassKeyword:
                 return ParseClassDeclaration(attributeLists, modifiers);
+            case SyntaxKind.InterfaceKeyword:
+                return ParseInterfaceDeclaration(attributeLists, modifiers);
             case SyntaxKind.EnumKeyword:
                 return ParseEnumDeclaration(attributeLists, modifiers);
             case SyntaxKind.UnionKeyword:
@@ -488,6 +492,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.StructDeclaration:
             case SyntaxKind.UnionDeclaration:
             case SyntaxKind.EnumDeclaration:
+            case SyntaxKind.InterfaceDeclaration:
             case SyntaxKind.OperatorDeclaration:
             case SyntaxKind.LiteralOperatorDeclaration:
             case SyntaxKind.ConstructorDeclaration:
@@ -552,6 +557,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var templateParameterList = currentToken.kind == SyntaxKind.LessThanToken
             ? ParseTemplateParameterList()
             : null;
+        var interfaceList = currentToken.kind == SyntaxKind.ImplementsKeyword
+            ? ParseInterfaceList()
+            : null;
         var constraintClauseList = currentToken.kind == SyntaxKind.WhereKeyword
             ? ParseTemplateConstraintClauseList()
             : null;
@@ -570,6 +578,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             packedArgument,
             identifier,
             templateParameterList,
+            interfaceList,
             constraintClauseList,
             openBrace,
             members,
@@ -722,6 +731,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var baseType = currentToken.kind == SyntaxKind.ExtendsKeyword
             ? ParseBaseType()
             : null;
+        var interfaceList = currentToken.kind == SyntaxKind.ImplementsKeyword
+            ? ParseInterfaceList()
+            : null;
         var constraintClauseList = currentToken.kind == SyntaxKind.WhereKeyword
             ? ParseTemplateConstraintClauseList()
             : null;
@@ -740,6 +752,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 identifier,
                 templateParameterList,
                 baseType,
+                interfaceList,
                 constraintClauseList,
                 semicolon,
                 null,
@@ -761,6 +774,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 identifier,
                 templateParameterList,
                 baseType,
+                interfaceList,
                 constraintClauseList,
                 openBrace,
                 members,
@@ -769,10 +783,61 @@ internal sealed partial class LanguageParser : SyntaxParser {
         }
     }
 
+    private InterfaceDeclarationSyntax ParseInterfaceDeclaration(
+        SyntaxList<AttributeListSyntax> attributeLists,
+        SyntaxList<SyntaxToken> modifiers) {
+        var keyword = EatToken();
+        var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenBraceToken);
+        var templateParameterList = currentToken.kind == SyntaxKind.LessThanToken
+            ? ParseTemplateParameterList()
+            : null;
+        var interfaceList = currentToken.kind == SyntaxKind.ImplementsKeyword
+            ? ParseInterfaceList()
+            : null;
+        var constraintClauseList = currentToken.kind == SyntaxKind.WhereKeyword
+            ? ParseTemplateConstraintClauseList()
+            : null;
+
+        var openBrace = MatchOpenBrace();
+        var members = ParseTypeMembers(ref openBrace);
+        var closeBrace = MatchCloseBrace();
+
+        return SyntaxFactory.InterfaceDeclaration(
+            attributeLists,
+            modifiers,
+            keyword,
+            identifier,
+            templateParameterList,
+            interfaceList,
+            constraintClauseList,
+            openBrace,
+            members,
+            closeBrace
+        );
+    }
+
     private BaseTypeSyntax ParseBaseType() {
         var extendsKeyword = Match(SyntaxKind.ExtendsKeyword, SyntaxKind.IdentifierToken, SyntaxKind.GlobalKeyword);
         var baseType = ParseSimpleName();
         return SyntaxFactory.BaseType(extendsKeyword, baseType);
+    }
+
+    private InterfaceListSyntax ParseInterfaceList() {
+        var keyword = Match(SyntaxKind.ImplementsKeyword, SyntaxKind.IdentifierToken, SyntaxKind.GlobalKeyword);
+        var interfaces = ParseSimpleNameList();
+        return SyntaxFactory.InterfaceList(keyword, interfaces);
+    }
+
+    private SeparatedSyntaxList<SimpleNameSyntax> ParseSimpleNameList() {
+        var nodesAndSeparators = _pool.Allocate<BelteSyntaxNode>();
+        nodesAndSeparators.Add(ParseSimpleName());
+
+        while (currentToken.kind == SyntaxKind.CommaToken) {
+            nodesAndSeparators.Add(EatToken());
+            nodesAndSeparators.Add(ParseSimpleName());
+        }
+
+        return _pool.ToSeparatedListAndFree<SimpleNameSyntax>(nodesAndSeparators);
     }
 
     private TemplateConstraintClauseListSyntax ParseTemplateConstraintClauseList() {

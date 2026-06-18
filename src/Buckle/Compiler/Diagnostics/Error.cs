@@ -577,6 +577,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_CannotCreateAbstract, location, message);
     }
 
+    internal static BelteDiagnostic CannotCreateInterface(TextLocation location, TypeSymbol type) {
+        var message = $"cannot create an instance of the interface '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        return CreateError(DiagnosticCode.ERR_CannotCreateInterface, location, message);
+    }
+
     internal static BelteDiagnostic NonAbstractMustHaveBody(TextLocation location, MethodSymbol method) {
         var message = $"'{method}' must declare a body because it is not marked abstract or extern";
         return CreateError(DiagnosticCode.ERR_NonAbstractMustHaveBody, location, message);

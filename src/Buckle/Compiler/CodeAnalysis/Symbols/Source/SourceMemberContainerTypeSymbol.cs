@@ -242,6 +242,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         }
     }
 
+    internal sealed override bool isInterface => typeKind == TypeKind.Interface;
+
     internal sealed override ImmutableArray<Symbol> GetMembers() {
         if (!_lazyMembersFlattened.IsDefault)
             return _lazyMembersFlattened;
@@ -1615,6 +1617,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             case SyntaxKind.NamespaceDeclaration:
             case SyntaxKind.FileScopedNamespaceDeclaration:
                 AddNonTypeMembers(builder, ((BaseNamespaceDeclarationSyntax)syntax).elements, diagnostics);
+                break;
+            case SyntaxKind.InterfaceDeclaration:
+                AddNonTypeMembers(builder, ((InterfaceDeclarationSyntax)syntax).members, diagnostics);
                 break;
             case SyntaxKind.ClassDeclaration:
             case SyntaxKind.FileScopedClassDeclaration:

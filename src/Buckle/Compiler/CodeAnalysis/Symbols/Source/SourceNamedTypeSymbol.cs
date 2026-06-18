@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
@@ -15,7 +16,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
     private ImmutableArray<ExpressionSyntax> _unboundConstraints;
     private ImmutableArray<BoundExpression> _lazyTemplateConstraints;
     private CustomAttributesBag<AttributeData> _lazyAttributesBag;
-    private NamedTypeSymbol _lazyDeclaredBase;
+    private Tuple<NamedTypeSymbol, ImmutableArray<NamedTypeSymbol>> _lazyDeclaredBases;
     private NamedTypeSymbol _lazyBaseType = ErrorTypeSymbol.UnknownResultType;
     private TemplateParameterInfo _lazyTemplateParameterInfo;
     private SynthesizedEnumValueFieldSymbol _lazyEnumValueField;
@@ -156,20 +157,29 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
     internal bool isSimpleProgram => _declaration.declarations.Any(static d => d.isSimpleProgram);
 
-    internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {
-        if (_lazyDeclaredBase is null) {
+    internal Tuple<NamedTypeSymbol, ImmutableArray<NamedTypeSymbol>> GetDeclaredBases(
+        ConsList<TypeSymbol> basesBeingResolved) {
+        if (_lazyDeclaredBases is null) {
             var diagnostics = BelteDiagnosticQueue.GetInstance();
 
             if (Interlocked.CompareExchange(
-                ref _lazyDeclaredBase,
-                MakeDeclaredBase(basesBeingResolved, diagnostics), null) is null) {
+                ref _lazyDeclaredBases,
+                MakeDeclaredBases(basesBeingResolved, diagnostics), null) is null) {
                 AddDeclarationDiagnostics(diagnostics);
             }
 
             diagnostics.Free();
         }
 
-        return _lazyDeclaredBase;
+        return _lazyDeclaredBases;
+    }
+
+    internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {
+        return GetDeclaredBases(basesBeingResolved).Item1;
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> GetDeclaredInterfaces(ConsList<TypeSymbol> basesBeingResolved) {
+        return GetDeclaredBases(basesBeingResolved).Item2;
     }
 
     private CustomAttributesBag<AttributeData> GetAttributesBag() {
@@ -295,14 +305,17 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
         return binder.BindExpressionConstraints(_unboundConstraints, templateParameters, diagnostics);
     }
 
-    private NamedTypeSymbol MakeDeclaredBase(
+    private Tuple<NamedTypeSymbol, ImmutableArray<NamedTypeSymbol>> MakeDeclaredBase(
         ConsList<TypeSymbol> basesBeingResolved,
         BelteDiagnosticQueue diagnostics) {
         if (typeKind == TypeKind.Enum)
-            return null;
+            return new(null, []);
 
         var decl = _declaration.declarations[0];
         var newBasesBeingResolved = basesBeingResolved.Prepend(originalDefinition);
+
+        var baseInterfaces = ArrayBuilder<NamedTypeSymbol>.GetInstance();
+
         var baseType = MakeOneDeclaredBase(newBasesBeingResolved, decl, diagnostics);
         var baseTypeLocation = decl.nameLocation;
 
@@ -607,6 +620,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
             case SyntaxKind.FileScopedClassDeclaration:
             case SyntaxKind.StructDeclaration:
             case SyntaxKind.UnionDeclaration:
+            case SyntaxKind.InterfaceDeclaration:
                 var typeDeclaration = (TypeDeclarationSyntax)node;
                 templateParameterList = typeDeclaration.templateParameterList;
                 return typeDeclaration.constraintClauseList?.constraintClauses;

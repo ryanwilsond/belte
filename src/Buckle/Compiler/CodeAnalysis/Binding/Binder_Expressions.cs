@@ -2656,6 +2656,7 @@ internal partial class Binder {
                 }
             case TypeKind.Class:
             case TypeKind.Struct:
+            case TypeKind.Interface:
             case TypeKind.Primitive:
             case TypeKind.TemplateParameter: {
                     var access = BindIndexerAccess(node, expression, analyzedArguments, diagnostics);
@@ -3656,6 +3657,8 @@ internal partial class Binder {
                 );
             case TypeKind.TemplateParameter:
                 return BindTemplateParameterCreationExpression(node, (TemplateParameterSymbol)type, diagnostics);
+            case TypeKind.Interface:
+                return BindInterfaceCreationExpression(node, (NamedTypeSymbol)type, diagnostics);
             case TypeKind.Pointer:
             case TypeKind.FunctionPointer:
             case TypeKind.Array: {
@@ -3676,6 +3679,26 @@ internal partial class Binder {
             default:
                 throw ExceptionUtilities.UnexpectedValue(type.typeKind);
         }
+    }
+
+    private BoundExpression BindInterfaceCreationExpression(
+        ObjectCreationExpressionSyntax node,
+        NamedTypeSymbol type,
+        BelteDiagnosticQueue diagnostics) {
+        var analyzedArguments = AnalyzedArguments.GetInstance();
+        BindArgumentsAndNames(node.argumentList, diagnostics, analyzedArguments);
+
+        var result = BindInterfaceCreationExpression(
+            node,
+            type,
+            diagnostics,
+            node.type,
+            analyzedArguments,
+            wasTargetTyped: false
+        );
+
+        analyzedArguments.Free();
+        return result;
     }
 
     private BoundExpression BindImplicitObjectCreationExpression(

@@ -534,6 +534,7 @@ public enum DiagnosticCode : ushort {
     ERR_SameFullNameAggAgg = 523,
     WRN_DuplicateReference = 524,
     WRN_DuplicateAssembly = 525,
+    ERR_CannotCreateInterface = 526,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

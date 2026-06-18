@@ -231,6 +231,9 @@ public static class SymbolDisplay {
                 case TypeKind.Class:
                     text.Write(CreateKeyword(SyntaxKind.ClassKeyword));
                     break;
+                case TypeKind.Interface:
+                    text.Write(CreateKeyword(SyntaxKind.InterfaceKeyword));
+                    break;
                 case TypeKind.Struct:
                     if (namedType.isUnionStruct) {
                         text.Write(CreateKeyword(SyntaxKind.UnionKeyword));
@@ -282,12 +285,13 @@ public static class SymbolDisplay {
         else
             DisplayTemplateArguments(text, namedType.templateArguments, format);
 
-        if (namedType.baseType is not null &&
-            (format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.IncludeBaseList) != 0) {
-            text.Write(CreateSpace());
-            text.Write(CreateKeyword(SyntaxKind.ExtendsKeyword));
-            text.Write(CreateSpace());
-            DisplayType(text, namedType.baseType, SymbolDisplayFormat.ObjectCreationFormat);
+        if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.IncludeBaseList) != 0) {
+            if (namedType.baseType is not null) {
+                text.Write(CreateSpace());
+                text.Write(CreateKeyword(SyntaxKind.ExtendsKeyword));
+                text.Write(CreateSpace());
+                DisplayType(text, namedType.baseType, SymbolDisplayFormat.ObjectCreationFormat);
+            }
         }
 
         DisplayTemplateConstraints(text, namedType.templateConstraints, format);

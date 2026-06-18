@@ -89,6 +89,8 @@ internal abstract class SynthesizedContainer : NamedTypeSymbol {
 
     internal override bool mangleName => arity > 0;
 
+    internal sealed override bool isInterface => typeKind == TypeKind.Interface;
+
     internal override bool isImplicitlyDeclared => true;
 
     internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {

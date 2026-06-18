@@ -616,6 +616,10 @@ internal sealed partial class BinderFactory {
             return VisitTypeDeclarationCore(node);
         }
 
+        internal override Binder VisitInterfaceDeclaration(InterfaceDeclarationSyntax node) {
+            return VisitTypeDeclarationCore(node);
+        }
+
         internal override Binder VisitStructDeclaration(StructDeclarationSyntax node) {
             return VisitTypeDeclarationCore(node);
         }

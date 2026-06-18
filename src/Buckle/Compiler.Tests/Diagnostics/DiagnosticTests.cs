@@ -7088,4 +7088,18 @@ public sealed class DiagnosticTests {
 
     // ! Reports_Warning_BU0525_DuplicateAssembly
     // ? Requires references (i.e. command-line args)
+
+    [Fact]
+    public void Reports_Error_BU0526_CannotCreateInterface() {
+        var text = @"
+            interface A { }
+            var a = [new A()];
+        ";
+
+        var diagnostics = @"
+            cannot create an instance of the interface 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }
