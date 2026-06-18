@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Runtime.InteropServices;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -118,6 +119,28 @@ internal sealed class TemplateMap {
 
     internal TypeOrConstant SubstituteType(TypeWithAnnotations previous) {
         return previous.SubstituteType(this);
+    }
+
+    internal ImmutableArray<NamedTypeSymbol> SubstituteNamedTypes(ImmutableArray<NamedTypeSymbol> original) {
+        NamedTypeSymbol[] result = null;
+
+        for (var i = 0; i < original.Length; i++) {
+            var t = original[i];
+            var substituted = SubstituteNamedType(t);
+
+            if (!ReferenceEquals(substituted, t)) {
+                if (result is null) {
+                    result = new NamedTypeSymbol[original.Length];
+
+                    for (var j = 0; j < i; j++)
+                        result[j] = original[j];
+                }
+            }
+
+            result?[i] = substituted;
+        }
+
+        return result is not null ? ImmutableCollectionsMarshal.AsImmutableArray(result) : original;
     }
 
     internal ArrayTypeSymbol SubstituteArrayType(ArrayTypeSymbol previous) {

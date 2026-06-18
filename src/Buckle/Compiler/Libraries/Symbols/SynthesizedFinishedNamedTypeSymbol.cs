@@ -49,6 +49,14 @@ internal sealed class SynthesizedFinishedNamedTypeSymbol : WrappedNamedTypeSymbo
         return baseType;
     }
 
+    internal override ImmutableArray<NamedTypeSymbol> GetDeclaredInterfaces(ConsList<TypeSymbol> basesBeingResolved) {
+        return [];
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> Interfaces(ConsList<TypeSymbol> basesBeingResolved = null) {
+        return [];
+    }
+
     internal override ImmutableArray<Symbol> GetMembers() {
         return _allMembers;
     }

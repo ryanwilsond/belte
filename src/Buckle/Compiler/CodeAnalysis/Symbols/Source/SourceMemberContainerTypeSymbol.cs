@@ -737,6 +737,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                     );
                 }
 
+                if (overridingMethod.isSealed && overridingType.isSealed)
+                    diagnostics.Push(Warning.SealedInSealed(overridingMemberLocation, overridingMember));
+
                 if (overridingMethod.refKind != overriddenMethod.refKind) {
                     diagnostics.Push(Error.CantChangeRefReturnOnOverride(
                         overridingMemberLocation,

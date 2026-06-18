@@ -2371,20 +2371,35 @@ internal partial class Binder {
         var leftNull = left.IsLiteralNull();
         var rightNull = right.IsLiteralNull();
         var isEquality = kind == BinaryOperatorKind.Equal || kind == BinaryOperatorKind.NotEqual;
+        var isEqual = kind == BinaryOperatorKind.Equal;
 
-        if (isEquality && (leftNull || rightNull)) {
-            var type = CorLibrary.GetNullableType(SpecialType.Bool);
-            return new BoundLiteralExpression(
-                node,
-                new ConstantValue(leftNull == rightNull == (kind == BinaryOperatorKind.Equal), SpecialType.Bool),
-                type
-            );
+        if (isEquality) {
+            var boolType = CorLibrary.GetSpecialType(SpecialType.Bool); ;
+
+            if (leftNull && rightNull) {
+                return new BoundLiteralExpression(
+                    node,
+                    new ConstantValue(isEqual, SpecialType.Bool),
+                    boolType
+                );
+            }
+
+            if ((leftNull && !right.type.IsNullableType()) || (rightNull && !left.type.IsNullableType())) {
+                diagnostics.Push(Warning.AlwaysValue(node.location, !isEqual));
+
+                return new BoundLiteralExpression(
+                    node,
+                    new ConstantValue(!isEqual, SpecialType.Bool),
+                    boolType
+                );
+            }
+
+            if (rightNull)
+                diagnostics.Push(Warning.NullBinaryEquality(node.location, !isEqual, left));
         }
 
-        if (IsTupleBinaryOperation(left, right) &&
-            (kind == BinaryOperatorKind.Equal || kind == BinaryOperatorKind.NotEqual)) {
+        if (IsTupleBinaryOperation(left, right) && isEquality)
             return BindTupleBinaryOperator(node, kind, left, right, diagnostics);
-        }
 
         var foundOperator = BindSimpleBinaryOperatorParts(
             node,
@@ -5024,6 +5039,7 @@ internal partial class Binder {
                     basesBeingResolved,
                     options,
                     originalBinder,
+                    errorLocation,
                     diagnose
                 );
 
@@ -5130,6 +5146,7 @@ internal partial class Binder {
         ConsList<TypeSymbol> basesBeingResolved,
         LookupOptions options,
         Binder originalBinder,
+        TextLocation errorLocation,
         bool diagnose) {
         LookupMembersInInterfaceOnly(
             current,
@@ -5139,6 +5156,7 @@ internal partial class Binder {
             basesBeingResolved,
             options,
             originalBinder,
+            errorLocation,
             type,
             diagnose
         );
@@ -5169,6 +5187,7 @@ internal partial class Binder {
         ConsList<TypeSymbol> basesBeingResolved,
         LookupOptions options,
         Binder originalBinder,
+        TextLocation errorLocation,
         TypeSymbol accessThroughType,
         bool diagnose) {
         LookupMembersWithoutInheritance(
@@ -5178,6 +5197,7 @@ internal partial class Binder {
             arity,
             options,
             originalBinder,
+            errorLocation,
             accessThroughType,
             diagnose,
             basesBeingResolved
@@ -5198,6 +5218,7 @@ internal partial class Binder {
                 basesBeingResolved,
                 options,
                 originalBinder,
+                errorLocation,
                 accessThroughType,
                 diagnose
             );
@@ -5207,56 +5228,58 @@ internal partial class Binder {
     private static ImmutableArray<NamedTypeSymbol> GetBaseInterfaces(
         NamedTypeSymbol type,
         ConsList<TypeSymbol> basesBeingResolved) {
-        if (basesBeingResolved?.Any() != true) {
-            return type.AllInterfacesWithDefinitionUseSiteDiagnostics(ref useSiteInfo);
-        }
+        // TODO
+        throw ExceptionUtilities.Unreachable();
+        // if (basesBeingResolved?.Any() != true) {
+        //     return type.AllInterfacesWithDefinitionUseSiteDiagnostics(ref useSiteInfo);
+        // }
 
-        if (basesBeingResolved.ContainsReference(type.originalDefinition))
-            return [];
+        // if (basesBeingResolved.ContainsReference(type.originalDefinition))
+        //     return [];
 
-        var interfaces = type.GetDeclaredInterfaces(basesBeingResolved);
+        // var interfaces = type.GetDeclaredInterfaces(basesBeingResolved);
 
-        if (interfaces.IsEmpty)
-            return [];
+        // if (interfaces.IsEmpty)
+        //     return [];
 
-        var cycleGuard = ConsList<NamedTypeSymbol>.Empty.Prepend(type.originalDefinition);
+        // var cycleGuard = ConsList<NamedTypeSymbol>.Empty.Prepend(type.originalDefinition);
 
-        var result = ArrayBuilder<NamedTypeSymbol>.GetInstance();
-        var visited = new HashSet<NamedTypeSymbol>(SymbolEqualityComparer.ConsiderEverything);
+        // var result = ArrayBuilder<NamedTypeSymbol>.GetInstance();
+        // var visited = new HashSet<NamedTypeSymbol>(SymbolEqualityComparer.ConsiderEverything);
 
-        for (int i = interfaces.Length - 1; i >= 0; i--)
-            AddAllInterfaces(interfaces[i], visited, result, basesBeingResolved, cycleGuard);
+        // for (int i = interfaces.Length - 1; i >= 0; i--)
+        //     AddAllInterfaces(interfaces[i], visited, result, basesBeingResolved, cycleGuard);
 
-        result.ReverseContents();
-        return result.ToImmutableAndFree();
+        // result.ReverseContents();
+        // return result.ToImmutableAndFree();
 
-        static void AddAllInterfaces(
-            NamedTypeSymbol @interface,
-            HashSet<NamedTypeSymbol> visited,
-            ArrayBuilder<NamedTypeSymbol> result,
-            ConsList<TypeSymbol> basesBeingResolved,
-            ConsList<NamedTypeSymbol> cycleGuard) {
-            NamedTypeSymbol originalDefinition;
+        // static void AddAllInterfaces(
+        //     NamedTypeSymbol @interface,
+        //     HashSet<NamedTypeSymbol> visited,
+        //     ArrayBuilder<NamedTypeSymbol> result,
+        //     ConsList<TypeSymbol> basesBeingResolved,
+        //     ConsList<NamedTypeSymbol> cycleGuard) {
+        //     NamedTypeSymbol originalDefinition;
 
-            if (@interface.isInterface &&
-                !cycleGuard.ContainsReference(originalDefinition = @interface.originalDefinition) &&
-                visited.Add(@interface)) {
-                if (!basesBeingResolved.ContainsReference(originalDefinition)) {
-                    var baseInterfaces = @interface.GetDeclaredInterfaces(basesBeingResolved);
+        //     if (@interface.isInterface &&
+        //         !cycleGuard.ContainsReference(originalDefinition = @interface.originalDefinition) &&
+        //         visited.Add(@interface)) {
+        //         if (!basesBeingResolved.ContainsReference(originalDefinition)) {
+        //             var baseInterfaces = @interface.GetDeclaredInterfaces(basesBeingResolved);
 
-                    if (!baseInterfaces.IsEmpty) {
-                        cycleGuard = cycleGuard.Prepend(originalDefinition);
+        //             if (!baseInterfaces.IsEmpty) {
+        //                 cycleGuard = cycleGuard.Prepend(originalDefinition);
 
-                        for (var i = baseInterfaces.Length - 1; i >= 0; i--) {
-                            var baseInterface = baseInterfaces[i];
-                            AddAllInterfaces(baseInterface, visited, result, basesBeingResolved, cycleGuard);
-                        }
-                    }
-                }
+        //                 for (var i = baseInterfaces.Length - 1; i >= 0; i--) {
+        //                     var baseInterface = baseInterfaces[i];
+        //                     AddAllInterfaces(baseInterface, visited, result, basesBeingResolved, cycleGuard);
+        //                 }
+        //             }
+        //         }
 
-                result.Add(@interface);
-            }
-        }
+        //         result.Add(@interface);
+        //     }
+        // }
     }
 
     private void LookupMembersInInterfacesWithoutInheritance(
@@ -5267,23 +5290,35 @@ internal partial class Binder {
         ConsList<TypeSymbol> basesBeingResolved,
         LookupOptions options,
         Binder originalBinder,
+        TextLocation errorLocation,
         TypeSymbol accessThroughType,
-        bool diagnose,
-        ref CompoundUseSiteInfo<AssemblySymbol> useSiteInfo) {
+        bool diagnose) {
         if (interfaces.Length > 0) {
             var tmp = LookupResult.GetInstance();
             HashSet<NamedTypeSymbol> seenInterfaces = null;
-            if (interfaces.Length > 1) {
-                seenInterfaces = new HashSet<NamedTypeSymbol>(Symbols.SymbolEqualityComparer.IgnoringNullable);
-            }
+            if (interfaces.Length > 1)
+                seenInterfaces = new HashSet<NamedTypeSymbol>(SymbolEqualityComparer.Default);
 
-            foreach (NamedTypeSymbol baseInterface in interfaces) {
+            foreach (var baseInterface in interfaces) {
                 if (seenInterfaces is null || seenInterfaces.Add(baseInterface)) {
-                    LookupMembersWithoutInheritance(tmp, baseInterface, name, arity, options, originalBinder, accessThroughType, diagnose, ref useSiteInfo, basesBeingResolved);
-                    MergeHidingLookupResults(current, tmp, basesBeingResolved, ref useSiteInfo);
+                    LookupMembersWithoutInheritance(
+                        tmp,
+                        baseInterface,
+                        name,
+                        arity,
+                        options,
+                        originalBinder,
+                        errorLocation,
+                        accessThroughType,
+                        diagnose,
+                        basesBeingResolved
+                    );
+
+                    MergeHidingLookupResults(current, tmp, basesBeingResolved);
                     tmp.Clear();
                 }
             }
+
             tmp.Free();
         }
     }

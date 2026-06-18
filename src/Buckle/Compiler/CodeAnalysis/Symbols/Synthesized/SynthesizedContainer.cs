@@ -97,6 +97,14 @@ internal abstract class SynthesizedContainer : NamedTypeSymbol {
         return baseType;
     }
 
+    internal override ImmutableArray<NamedTypeSymbol> GetDeclaredInterfaces(ConsList<TypeSymbol> basesBeingResolved) {
+        return Interfaces(basesBeingResolved);
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> Interfaces(ConsList<TypeSymbol> basesBeingResolved) {
+        return [];
+    }
+
     internal override ImmutableArray<Symbol> GetMembers() {
         Symbol constructor = this.constructor;
         return constructor is null ? [] : [constructor];

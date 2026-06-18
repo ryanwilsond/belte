@@ -21,6 +21,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
     private TemplateParameterInfo _lazyTemplateParameterInfo;
     private SynthesizedEnumValueFieldSymbol _lazyEnumValueField;
     private NamedTypeSymbol _lazyEnumUnderlyingType = ErrorTypeSymbol.UnknownResultType;
+    private ImmutableArray<NamedTypeSymbol> _lazyInterfaces;
 
     internal SourceNamedTypeSymbol(
         NamespaceOrTypeSymbol containingSymbol,
@@ -305,7 +306,31 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
         return binder.BindExpressionConstraints(_unboundConstraints, templateParameters, diagnostics);
     }
 
-    private Tuple<NamedTypeSymbol, ImmutableArray<NamedTypeSymbol>> MakeDeclaredBase(
+    internal sealed override ImmutableArray<NamedTypeSymbol> Interfaces(ConsList<TypeSymbol> basesBeingResolved) {
+        if (_lazyInterfaces.IsDefault) {
+            if (basesBeingResolved is not null && basesBeingResolved.ContainsReference(originalDefinition))
+                return [];
+
+            var diagnostics = BelteDiagnosticQueue.GetInstance();
+            var acyclicInterfaces = MakeAcyclicInterfaces(basesBeingResolved, diagnostics);
+
+            if (ImmutableInterlocked.InterlockedCompareExchange(ref _lazyInterfaces, acyclicInterfaces, default).IsDefault)
+                AddDeclarationDiagnostics(diagnostics);
+
+            diagnostics.Free();
+        }
+
+        return _lazyInterfaces;
+    }
+
+    private ImmutableArray<NamedTypeSymbol> MakeAcyclicInterfaces(
+        ConsList<TypeSymbol> basesBeingResolved,
+        BelteDiagnosticQueue diagnostics) {
+        // TODO interfaces
+        return [];
+    }
+
+    private Tuple<NamedTypeSymbol, ImmutableArray<NamedTypeSymbol>> MakeDeclaredBases(
         ConsList<TypeSymbol> basesBeingResolved,
         BelteDiagnosticQueue diagnostics) {
         if (typeKind == TypeKind.Enum)
@@ -314,7 +339,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
         var decl = _declaration.declarations[0];
         var newBasesBeingResolved = basesBeingResolved.Prepend(originalDefinition);
 
-        var baseInterfaces = ArrayBuilder<NamedTypeSymbol>.GetInstance();
+        // var baseInterfaces = ArrayBuilder<NamedTypeSymbol>.GetInstance();
 
         var baseType = MakeOneDeclaredBase(newBasesBeingResolved, decl, diagnostics);
         var baseTypeLocation = decl.nameLocation;
@@ -327,7 +352,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
                 diagnostics.Push(Error.InconsistentAccessibilityClass(baseTypeLocation, baseType, this));
         }
 
-        return baseType;
+        return new(baseType, []);
     }
 
     private NamedTypeSymbol MakeOneDeclaredBase(

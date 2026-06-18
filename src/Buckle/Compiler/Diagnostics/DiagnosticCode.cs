@@ -535,6 +535,8 @@ public enum DiagnosticCode : ushort {
     WRN_DuplicateReference = 524,
     WRN_DuplicateAssembly = 525,
     ERR_CannotCreateInterface = 526,
+    WRN_SealedInSealed = 527,
+    WRN_NullBinaryEquality = 528,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

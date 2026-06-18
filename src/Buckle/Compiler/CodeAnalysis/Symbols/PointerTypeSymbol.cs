@@ -65,6 +65,10 @@ internal sealed class PointerTypeSymbol : TypeSymbol {
         return [];
     }
 
+    internal override ImmutableArray<NamedTypeSymbol> Interfaces(ConsList<TypeSymbol> basesBeingResolved = null) {
+        return [];
+    }
+
     internal override void Accept(SymbolVisitor visitor) {
         visitor.VisitPointerType(this);
     }

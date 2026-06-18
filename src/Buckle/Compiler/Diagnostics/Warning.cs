@@ -1,4 +1,5 @@
 using Buckle.CodeAnalysis;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Text;
@@ -150,6 +151,11 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_ProtectedInSealed, location, message);
     }
 
+    internal static BelteDiagnostic SealedInSealed(TextLocation location, Symbol symbol) {
+        var message = $"'{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': sealed member declared in sealed type; no different than non-sealed override";
+        return CreateWarning(DiagnosticCode.WRN_SealedInSealed, location, message);
+    }
+
     // TODO Implement this warning
     internal static BelteDiagnostic ImpliedReference(TextLocation location) {
         throw Utilities.ExceptionUtilities.Unreachable();
@@ -233,6 +239,12 @@ internal static class Warning {
     internal static BelteDiagnostic DuplicateAssembly(AssemblyIdentity assembly) {
         var message = $"\"{assembly.GetDisplayName()}\": assembly has already been added to the compilation";
         return CreateWarning(DiagnosticCode.WRN_DuplicateAssembly, null, message);
+    }
+
+    internal static BelteDiagnostic NullBinaryEquality(TextLocation location, bool isNot, BoundExpression left) {
+        var message = $"null checks should use the 'is' or 'isnt' operator";
+        var suggestion = $"{left} {(isNot ? "isnt" : "is")} null";
+        return CreateWarning(DiagnosticCode.WRN_NullBinaryEquality, location, message, suggestion);
     }
 
     private static BelteDiagnostic CreateWarning(DiagnosticCode code, TextLocation location, string message) {

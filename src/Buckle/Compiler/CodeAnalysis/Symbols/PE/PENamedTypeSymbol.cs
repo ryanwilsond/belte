@@ -37,6 +37,7 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
     private NamedTypeSymbol _lazyDeclaredBaseType = ErrorTypeSymbol.UnknownResultType;
     private UncommonProperties _lazyUncommonProperties;
     private ImmutableArray<NamedTypeSymbol> _lazyDeclaredInterfaces = default;
+    private ImmutableArray<NamedTypeSymbol> _lazyInterfaces = default;
 
     private PENamedTypeSymbol(
         PEModuleSymbol moduleSymbol,
@@ -306,6 +307,18 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
         }
     }
 
+    internal override ImmutableArray<NamedTypeSymbol> Interfaces(ConsList<TypeSymbol> basesBeingResolved = null) {
+        if (_lazyInterfaces.IsDefault) {
+            ImmutableInterlocked.InterlockedCompareExchange(
+                ref _lazyInterfaces,
+                MakeAcyclicInterfaces(),
+                default
+            );
+        }
+
+        return _lazyInterfaces;
+    }
+
     internal override ImmutableArray<AttributeData> GetAttributes() {
         // TODO
         return [];
@@ -521,6 +534,16 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
 
         SetKnownToHaveNoDeclaredBaseCycles();
         return declaredBase;
+    }
+
+    private ImmutableArray<NamedTypeSymbol> MakeAcyclicInterfaces() {
+        var declaredInterfaces = GetDeclaredInterfaces(null);
+
+        if (!isInterface)
+            return declaredInterfaces;
+
+        return declaredInterfaces
+            .SelectAsArray(t => BaseTypeAnalysis.TypeDependsOn(t, this) ? CyclicInheritanceError(t) : t);
     }
 
     private static void GetGenericInfo(

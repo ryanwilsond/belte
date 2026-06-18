@@ -109,6 +109,7 @@ internal sealed class FunctionPointerTypeSymbol : TypeSymbol {
     internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers() => [];
     internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers(ReadOnlyMemory<char> name) => [];
     internal override TResult Accept<TArgument, TResult>(SymbolVisitor<TArgument, TResult> visitor, TArgument a) => visitor.VisitFunctionPointerType(this, a);
+    internal override ImmutableArray<NamedTypeSymbol> Interfaces(ConsList<TypeSymbol> basesBeingResolved = null) => [];
 
     internal override bool ApplyNullableTransforms(
         byte defaultTransformFlag,

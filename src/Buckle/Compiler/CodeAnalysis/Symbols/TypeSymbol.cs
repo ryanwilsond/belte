@@ -83,6 +83,8 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
         return false;
     }
 
+    internal abstract ImmutableArray<NamedTypeSymbol> Interfaces(ConsList<TypeSymbol> basesBeingResolved = null);
+
     internal bool IsEqualToOrDerivedFrom(TypeSymbol type, TypeCompareKind compareKind) {
         return Equals(type, compareKind) || IsDerivedFrom(type, compareKind);
     }

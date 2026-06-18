@@ -38,6 +38,7 @@
   - [4.8.3](#483-global-using-directive) Global Using Directive
 - [4.9](#49-structs) Structs
   - [4.9.1](#491-unions) Unions
+- [4.10](#410-interfaces) Interfaces
 
 ## 4.1 Classes
 
@@ -127,6 +128,24 @@ class B extends A { }
 Members can interact with inheritance through [certain modifiers](#432-overriding-modifiers).
 
 Classes can restrict or necessitate inheritance through the [sealed and abstract modifiers](#435-sealed-and-abstract).
+
+Classes can also implement interfaces with an interface list following the `implements` keyword which must be placed
+between the base type and constraints list:
+
+```belte
+class A implements I { }
+class A extends B implements I { }
+class A<type T> extends B implements I { }
+class A<type T> extends B implements I where { /* ... */ } { }
+```
+
+When implementing multiple interfaces they are comma separated:
+
+```belte
+class A implements I1, I2, I3 { }
+```
+
+See also [interfaces](#410-interfaces).
 
 ### 4.1.3 Base Access
 
@@ -1129,6 +1148,12 @@ struct A {
 }
 ```
 
+Structs can implement [interfaces](#410-interfaces) but cannot explicitly inherit:
+
+```belte
+struct A implements I1, I2 { /* ... */ }
+```
+
 ### 4.9.1 Unions
 
 A union struct is a struct where all of the fields overlap in memory. Because of this, assigning to any field in the
@@ -1165,3 +1190,38 @@ struct A {
 ```
 
 In this example, the fields `b` and `c` are overlapping with each other but not with `a`.
+
+## 4.10 Interfaces
+
+Interfaces can be used to compose functionality in classes by defining methods that the derived classes must implement:
+
+```belte
+interface MyInterface {
+  void Method();
+}
+
+class Class1 implements MyInterface {
+  public override void Method() {
+    // ...
+  }
+}
+
+class Class2 implements MyInterface {
+  public override void Method() {
+    // ...
+  }
+}
+```
+
+Unlike [abstract classes](#435-sealed-and-abstract), an interface cannot define behavior. Additionally, a class can
+implement (derive from) multiple interfaces while it can only extend (inherit) one class. Structs can implement
+interfaces but cannot explicitly inherit.
+
+A data container can be typed to an interface:
+
+```belte
+MyInterface a = new Class1();
+```
+
+The [`is`, `isnt`, and `as` operators](Data.md#323-isisntas-operators) also work with interfaces the same way they work
+with classes.

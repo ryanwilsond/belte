@@ -104,6 +104,11 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
         return [];
     }
 
+    internal sealed override ImmutableArray<NamedTypeSymbol> Interfaces(
+        ConsList<TypeSymbol> basesBeingResolved = null) {
+        return [];
+    }
+
     internal TypeOrConstant Substitute(TemplateMap templateMap) {
         return new TypeOrConstant(templateMap.SubstituteNamedType(this));
     }

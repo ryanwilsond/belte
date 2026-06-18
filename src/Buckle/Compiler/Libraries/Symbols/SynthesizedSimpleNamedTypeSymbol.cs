@@ -78,8 +78,18 @@ internal sealed class SynthesizedSimpleNamedTypeSymbol : NamedTypeSymbol {
 
     internal override bool isRefLikeType => false;
 
+    internal override bool isInterface => false;
+
     internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {
         return baseType;
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> Interfaces(ConsList<TypeSymbol> basesBeingResolved = null) {
+        return [];
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> GetDeclaredInterfaces(ConsList<TypeSymbol> basesBeingResolved) {
+        return [];
     }
 
     internal override ImmutableArray<Symbol> GetMembers() {

@@ -128,9 +128,9 @@ These keywords are reserved names and cannot be used as identifiers.
 - [if](ControlFlow.md#23-conditionals) (conditional)
 - [if](Preprocessor.md#72-control) (preprocessor)
 - [il](LowLevelFeatures.md#611-inline-il)
-- implements
+- [implements](ClassesAndObjects.md#412-inheritance)
 - [in](ControlFlow.md#244-for-each-loops)
-- interface
+- [interface](ClassesAndObjects.md#410-interfaces)
 - [is](Data.md#32-operators)
 - [isnt](Data.md#32-operators)
 - [lowlevel](LowLevelFeatures.md#61-low-level-contexts) (scope modifier)

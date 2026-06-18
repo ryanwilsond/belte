@@ -62,6 +62,8 @@ internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
 
     internal override bool isRefLikeType => false;
 
+    internal override bool isInterface => false;
+
     internal override NamedTypeSymbol baseType {
         get {
             if (_lazyBaseType is null)
@@ -81,6 +83,15 @@ internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
 
     internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {
         throw new InvalidOperationException();
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> GetDeclaredInterfaces(ConsList<TypeSymbol> basesBeingResolved) {
+        throw new InvalidOperationException();
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> Interfaces(ConsList<TypeSymbol> basesBeingResolved = null) {
+        // TODO interfaces: This should actually be something
+        return [];
     }
 
     internal override ImmutableArray<Symbol> GetMembers() {

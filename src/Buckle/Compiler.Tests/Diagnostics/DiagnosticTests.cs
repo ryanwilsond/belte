@@ -7089,17 +7089,51 @@ public sealed class DiagnosticTests {
     // ! Reports_Warning_BU0525_DuplicateAssembly
     // ? Requires references (i.e. command-line args)
 
+    // ! Interfaces not implemented yet
+    // [Fact]
+    // public void Reports_Error_BU0526_CannotCreateInterface() {
+    //     var text = @"
+    //         interface A { }
+    //         var a = [new A()];
+    //     ";
+
+    //     var diagnostics = @"
+    //         cannot create an instance of the interface 'A'
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
     [Fact]
-    public void Reports_Error_BU0526_CannotCreateInterface() {
+    public void Reports_Warning_BU0527_SealedInSealed() {
         var text = @"
-            interface A { }
-            var a = [new A()];
+            class A {
+                public virtual void M() { }
+            }
+            sealed class B extends A {
+                public sealed override void [M]() { }
+            }
+            ;
         ";
 
         var diagnostics = @"
-            cannot create an instance of the interface 'A'
+            'B.M': sealed member declared in sealed type; no different than non-sealed override
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer);
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0528_NullBinaryEquality() {
+        var text = @"
+            int? a = 3;
+            bool b = [a == null];
+        ";
+
+        var diagnostics = @"
+            null checks should use the 'is' or 'isnt' operator
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
     }
 }

@@ -32,6 +32,10 @@ internal sealed class ImplicitNamedTypeSymbol : SourceMemberContainerTypeSymbol 
         return [];
     }
 
+    internal override ImmutableArray<NamedTypeSymbol> Interfaces(ConsList<TypeSymbol> basesBeingResolved = null) {
+        return [];
+    }
+
     public override ImmutableArray<TemplateParameterSymbol> templateParameters => [];
 
     public override ImmutableArray<TypeOrConstant> templateArguments => [];

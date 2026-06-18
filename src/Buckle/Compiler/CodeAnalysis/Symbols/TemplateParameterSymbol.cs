@@ -128,6 +128,10 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
         return [];
     }
 
+    internal override ImmutableArray<NamedTypeSymbol> Interfaces(ConsList<TypeSymbol> basesBeingResolved = null) {
+        return [];
+    }
+
     internal override bool ApplyNullableTransforms(
         byte defaultTransformFlag,
         ImmutableArray<byte> transforms,
