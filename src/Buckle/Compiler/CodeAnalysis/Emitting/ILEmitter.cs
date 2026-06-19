@@ -491,8 +491,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             value = ResolveMethod(
                 (PENamedTypeSymbol)m.containingType,
                 m.metadataName,
-                m.GetParameterTypes()
-                    .Select(p => p.type.ContainsTemplateParameter() ? null : GetType(p.type).ToString())
+                m.GetParameters()
+                    .Select(p => p.type.ContainsTemplateParameter()
+                        ? null
+                        : GetType(p.type, p.refKind != RefKind.None).ToString())
                     .ToArray()
             );
 
@@ -2244,6 +2246,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 { "String_TrimStart_S[", ResolveMethod("Belte.Runtime.Utilities", "StringTrimStart", ["System.String", "System.Char[]"]) },
                 { "String_TrimEnd_S", ResolveMethod("Belte.Runtime.Utilities", "StringTrimEnd", ["System.String"]) },
                 { "String_TrimEnd_S[", ResolveMethod("Belte.Runtime.Utilities", "StringTrimEnd", ["System.String", "System.Char[]"]) },
+                { "String_Contains_SS", ResolveMethod("Belte.Runtime.Utilities", "StringContains", ["System.String", "System.String"]) },
                 { "Int_Parse_S?", ResolveMethod("Belte.Runtime.Utilities", "IntParse", ["System.String"]) },
                 { "Int_ToString_IS", ResolveMethod("Belte.Runtime.Utilities", "IntToString", ["System.Int64", "System.String"]) },
                 { "Decimal_IsNaN_F4", ResolveMethod("System.Single", "IsNaN", ["System.Single"]) },

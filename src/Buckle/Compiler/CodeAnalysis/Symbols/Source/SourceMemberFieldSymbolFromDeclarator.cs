@@ -106,7 +106,7 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
             var location = typeOnly is IdentifierNameSyntax
                 ? typeOnly.location
                 : ((FieldDeclarationSyntax)syntaxNode.parent).modifiers
-                    ?.Last(m => m.kind is SyntaxKind.ConstexprKeyword or SyntaxKind.ConstKeyword)?.location
+                    ?.LastOrDefault(m => m.kind is SyntaxKind.ConstexprKeyword or SyntaxKind.ConstKeyword)?.location
                         ?? typeOnly.location;
 
             diagnostics.Push(Error.FieldsCannotBeImplicitlyTyped(location));

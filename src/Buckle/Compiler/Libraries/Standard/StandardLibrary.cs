@@ -369,6 +369,7 @@ internal static class StandardLibrary {
             StaticMethod("TrimStart", SpecialType.String, [("text", false, SpecialType.String), ("trimCharacters", true, CharBuffer)]),
             StaticMethod("TrimEnd", SpecialType.String, [("text", SpecialType.String)]),
             StaticMethod("TrimEnd", SpecialType.String, [("text", false, SpecialType.String), ("trimCharacters", true, CharBuffer)]),
+            StaticMethod("Contains", SpecialType.Bool, [("text", SpecialType.String), ("substring", SpecialType.String)]),
         ]);
     }
 
@@ -1218,6 +1219,8 @@ internal static class StandardLibrary {
                 => { return ((string)a).TrimEnd(); }) },
             { "String_TrimEnd_S[", new Func<object, object, object, object>((a, b, c)
                 => { return ((string)a).TrimEnd(Array.ConvertAll((object[])b, i => (char)i)); }) },
+            { "String_Contains_SS", new Func<object, object, object, object>((a, b, c)
+                => { return ((string)a).Contains((string)b); }) },
             { "Int_Parse_S?", new Func<object, object, object, object>((a, b, c)
                 => { if (a is null) return null;
                      if (long.TryParse((string)a, out var result)) return result;

@@ -1345,7 +1345,7 @@ internal sealed partial class Lexer : IDisposable {
         var identifierOrKeywordText = text.ToString(new TextSpan(_start, length));
         _kind = SyntaxFacts.GetKeywordType(identifierOrKeywordText);
 
-        if (_kind == SyntaxKind.IdentifierToken)
+        if (_kind == SyntaxKind.IdentifierToken || SyntaxFacts.IsContextualKeyword(_kind))
             _value = identifierOrKeywordText;
     }
 

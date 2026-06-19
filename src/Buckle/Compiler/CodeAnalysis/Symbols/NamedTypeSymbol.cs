@@ -286,7 +286,7 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
             return true;
 
         foreach (var member in GetMembers()) {
-            if (member is FieldSymbol f && !f.isStatic) {
+            if (member is FieldSymbol f && !f.isStatic && f.originalDefinition is not PEFieldSymbol) {
                 if (!f.type.hasDefault)
                     return false;
             }

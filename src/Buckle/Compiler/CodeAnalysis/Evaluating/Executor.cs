@@ -1895,6 +1895,7 @@ internal sealed partial class Executor : ModuleBuilder {
             { "String_TrimStart_S[", typeof(Belte.Runtime.Utilities).GetMethod("StringTrimStart", Flags, [typeof(string), typeof(char[])]) },
             { "String_TrimEnd_S", typeof(Belte.Runtime.Utilities).GetMethod("StringTrimEnd", Flags, [typeof(string)]) },
             { "String_TrimEnd_S[", typeof(Belte.Runtime.Utilities).GetMethod("StringTrimEnd", Flags, [typeof(string), typeof(char[])]) },
+            { "String_Contains_SS", typeof(Belte.Runtime.Utilities).GetMethod("StringContains", Flags, [typeof(string), typeof(string)]) },
             { "Int_Parse_S?", typeof(Belte.Runtime.Utilities).GetMethod("IntParse", Flags, [typeof(string)]) },
             { "Int_ToString_IS", typeof(Belte.Runtime.Utilities).GetMethod("IntToString", Flags, [typeof(long), typeof(string)]) },
             { "Decimal_IsNaN_F4", typeof(float).GetMethod("IsNaN", Flags, [typeof(float)]) },
