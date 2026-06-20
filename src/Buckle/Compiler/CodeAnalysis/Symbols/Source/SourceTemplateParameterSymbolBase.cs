@@ -157,6 +157,11 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
         return CorLibrary.GetSpecialType(SpecialType.Object);
     }
 
+    internal override ImmutableArray<NamedTypeSymbol> GetInterfaces(ConsList<TemplateParameterSymbol> inProgress) {
+        var bounds = GetBounds(inProgress);
+        return (bounds is not null) ? bounds.interfaces : [];
+    }
+
     private TypeParameterBounds GetBounds(ConsList<TemplateParameterSymbol> inProgress) {
         if (!_lazyBounds.IsSet()) {
             var diagnostics = BelteDiagnosticQueue.GetInstance();

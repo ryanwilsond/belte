@@ -69,6 +69,10 @@ internal abstract partial class ErrorTypeSymbol {
             return null;
         }
 
+        internal override ImmutableArray<NamedTypeSymbol> GetInterfaces(ConsList<TemplateParameterSymbol> inProgress) {
+            return [];
+        }
+
         internal override TypeSymbol GetDeducedBaseType(ConsList<TemplateParameterSymbol> inProgress) {
             return null;
         }

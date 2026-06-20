@@ -72,14 +72,166 @@ internal sealed partial class Conversions {
                     return true;
 
                 return false;
-                // TODO These types:
-                // case TypeKind.TypeParameter:
-                //     return HasImplicitReferenceTypeParameterConversion((TypeParameterSymbol)source, destination);
-                // case TypeKind.Array:
-                //     return HasImplicitConversionFromArray(source, destination);
+            case TypeKind.Interface:
+                return HasImplicitConversionToInterface(source, destination);
+            case TypeKind.TemplateParameter:
+                return HasImplicitReferenceTemplateParameterConversion((TemplateParameterSymbol)source, destination);
+            case TypeKind.Array:
+                // TODO Again, we probably don't want covariance
+                // return HasImplicitConversionFromArray(source, destination);
+                return false;
         }
 
         return false;
+    }
+
+    private bool HasImplicitReferenceTemplateParameterConversion(
+        TemplateParameterSymbol source,
+        TypeSymbol destination) {
+        if (source.isValueType)
+            return false;
+
+        // if (source.AllowsRefLikeType) {
+        //     return false;
+        // }
+
+        if (HasImplicitEffectiveBaseConversion(source, destination))
+            return true;
+
+        if (HasImplicitEffectiveInterfaceSetConversion(source, destination))
+            return true;
+
+        if (destination is TemplateParameterSymbol { allowsRefLikeType: false } &&
+            source.DependsOn((TemplateParameterSymbol)destination)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool HasImplicitEffectiveInterfaceSetConversion(TemplateParameterSymbol source, TypeSymbol destination) {
+        return HasVarianceCompatibleInterfaceInEffectiveInterfaceSet(source, destination);
+    }
+
+    private bool HasVarianceCompatibleInterfaceInEffectiveInterfaceSet(
+        TemplateParameterSymbol source,
+        TypeSymbol destination) {
+        if (!destination.IsInterfaceType())
+            return false;
+
+        foreach (var i in source.allEffectiveInterfaces) {
+            if (HasInterfaceVarianceConversion(i, destination))
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool HasImplicitEffectiveBaseConversion(TemplateParameterSymbol source, TypeSymbol destination) {
+        var effectiveBaseClass = source.effectiveBaseClass;
+
+        if (HasIdentityConversionInternal(effectiveBaseClass, destination))
+            return true;
+
+        if (IsBaseClass(effectiveBaseClass, destination))
+            return true;
+
+        if (HasAnyBaseInterfaceConversion(effectiveBaseClass, destination))
+            return true;
+
+        return false;
+    }
+
+    internal bool IsBaseClass(TypeSymbol derivedType, TypeSymbol baseType) {
+        if (!baseType.IsClassType())
+            return false;
+
+        for (TypeSymbol b = derivedType.baseType; b is not null; b = b.baseType) {
+            if (HasIdentityConversionInternal(b, baseType))
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool HasImplicitConversionToInterface(TypeSymbol source, TypeSymbol destination) {
+        if (!destination.IsInterfaceType())
+            return false;
+
+        if (source.IsClassType())
+            return HasAnyBaseInterfaceConversion(source, destination);
+
+        if (source.IsInterfaceType()) {
+            if (HasAnyBaseInterfaceConversion(source, destination))
+                return true;
+
+            if (!HasIdentityConversionInternal(source, destination) &&
+                HasInterfaceVarianceConversion(source, destination)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool HasAnyBaseInterfaceConversion(TypeSymbol derivedType, TypeSymbol baseType) {
+        return ImplementsVarianceCompatibleInterface(derivedType, baseType);
+    }
+
+    private bool ImplementsVarianceCompatibleInterface(TypeSymbol derivedType, TypeSymbol baseType) {
+        if (!baseType.IsInterfaceType())
+            return false;
+
+        if (derivedType is not NamedTypeSymbol d)
+            return false;
+
+        foreach (var i in d.allInterfaces) {
+            if (HasInterfaceVarianceConversion(i, baseType))
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool HasInterfaceVarianceConversion(TypeSymbol source, TypeSymbol destination) {
+        if (source is not NamedTypeSymbol s || destination is not NamedTypeSymbol d)
+            return false;
+
+        if (!s.IsInterfaceType() || !d.IsInterfaceType())
+            return false;
+
+        return HasVariantConversion(s, d);
+    }
+
+    private bool HasVariantConversion(NamedTypeSymbol source, NamedTypeSymbol destination) {
+        // TODO Recursion guard
+        // if (currentRecursionDepth >= MaximumRecursionDepth)
+        //     return false;
+
+        var quickResult = HasVariantConversionQuick(source, destination);
+
+        if (quickResult.HasValue())
+            return quickResult.Value();
+
+        // return this.CreateInstance(currentRecursionDepth + 1).
+        return HasVariantConversionNoCycleCheck(source, destination);
+    }
+
+    private bool HasVariantConversionNoCycleCheck(NamedTypeSymbol source, NamedTypeSymbol destination) {
+        // TODO We probably don't want covariance or contravariance, but this is where we would do some checks for it
+        return true;
+    }
+
+    private ThreeState HasVariantConversionQuick(NamedTypeSymbol source, NamedTypeSymbol destination) {
+        if (HasIdentityConversionInternal(source, destination))
+            return ThreeState.True;
+
+        var typeSymbol = source.originalDefinition;
+
+        if (!TypeSymbol.Equals(typeSymbol, destination.originalDefinition, TypeCompareKind.ConsiderEverything))
+            return ThreeState.False;
+
+        return ThreeState.Unknown;
     }
 
     private static bool HasIdentityConversionInternal(TypeSymbol type1, TypeSymbol type2) {
@@ -649,6 +801,9 @@ internal sealed partial class Conversions {
         TemplateParameterSymbol constrainedToTypeOpt,
         NamedTypeSymbol declaringType,
         bool isExplicit) {
+        if (source is not null && source.IsInterfaceType() || target.IsInterfaceType())
+            return;
+
         var operators = declaringType.GetOperators(
             isExplicit ? WellKnownMemberNames.ExplicitConversionName : WellKnownMemberNames.ImplicitConversionName);
 
@@ -809,6 +964,9 @@ internal sealed partial class Conversions {
         ArrayBuilder<(NamedTypeSymbol participatingType, TemplateParameterSymbol constrainedToType)> d,
         ArrayBuilder<UserDefinedConversionAnalysis> u,
         bool allowAnyTarget = false) {
+        if (source is not null && source.IsInterfaceType() || target is not null && target.IsInterfaceType())
+            return;
+
         if (source is not null && false || target is not null && false)
             return;
 

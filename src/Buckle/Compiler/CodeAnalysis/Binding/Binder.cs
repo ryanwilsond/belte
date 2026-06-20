@@ -5205,7 +5205,7 @@ internal partial class Binder {
 
         if ((options & LookupOptions.NamespaceAliasesOnly) == 0 &&
             ((options & LookupOptions.NamespacesOrTypesOnly) == 0 ||
-                !(current.isMultiViable &&
+                !(current.isSingleViable &&
                     TypeSymbol.Equals(
                         current.singleSymbolOrDefault.containingType,
                         type,
@@ -5228,58 +5228,55 @@ internal partial class Binder {
     private static ImmutableArray<NamedTypeSymbol> GetBaseInterfaces(
         NamedTypeSymbol type,
         ConsList<TypeSymbol> basesBeingResolved) {
-        // TODO
-        throw ExceptionUtilities.Unreachable();
-        // if (basesBeingResolved?.Any() != true) {
-        //     return type.AllInterfacesWithDefinitionUseSiteDiagnostics(ref useSiteInfo);
-        // }
+        if (basesBeingResolved?.Any() != true)
+            return type.allInterfaces;
 
-        // if (basesBeingResolved.ContainsReference(type.originalDefinition))
-        //     return [];
+        if (basesBeingResolved.ContainsReference(type.originalDefinition))
+            return [];
 
-        // var interfaces = type.GetDeclaredInterfaces(basesBeingResolved);
+        var interfaces = type.GetDeclaredInterfaces(basesBeingResolved);
 
-        // if (interfaces.IsEmpty)
-        //     return [];
+        if (interfaces.IsEmpty)
+            return [];
 
-        // var cycleGuard = ConsList<NamedTypeSymbol>.Empty.Prepend(type.originalDefinition);
+        var cycleGuard = ConsList<NamedTypeSymbol>.Empty.Prepend(type.originalDefinition);
 
-        // var result = ArrayBuilder<NamedTypeSymbol>.GetInstance();
-        // var visited = new HashSet<NamedTypeSymbol>(SymbolEqualityComparer.ConsiderEverything);
+        var result = ArrayBuilder<NamedTypeSymbol>.GetInstance();
+        var visited = new HashSet<NamedTypeSymbol>(SymbolEqualityComparer.ConsiderEverything);
 
-        // for (int i = interfaces.Length - 1; i >= 0; i--)
-        //     AddAllInterfaces(interfaces[i], visited, result, basesBeingResolved, cycleGuard);
+        for (var i = interfaces.Length - 1; i >= 0; i--)
+            AddAllInterfaces(interfaces[i], visited, result, basesBeingResolved, cycleGuard);
 
-        // result.ReverseContents();
-        // return result.ToImmutableAndFree();
+        result.ReverseContents();
+        return result.ToImmutableAndFree();
 
-        // static void AddAllInterfaces(
-        //     NamedTypeSymbol @interface,
-        //     HashSet<NamedTypeSymbol> visited,
-        //     ArrayBuilder<NamedTypeSymbol> result,
-        //     ConsList<TypeSymbol> basesBeingResolved,
-        //     ConsList<NamedTypeSymbol> cycleGuard) {
-        //     NamedTypeSymbol originalDefinition;
+        static void AddAllInterfaces(
+            NamedTypeSymbol @interface,
+            HashSet<NamedTypeSymbol> visited,
+            ArrayBuilder<NamedTypeSymbol> result,
+            ConsList<TypeSymbol> basesBeingResolved,
+            ConsList<NamedTypeSymbol> cycleGuard) {
+            NamedTypeSymbol originalDefinition;
 
-        //     if (@interface.isInterface &&
-        //         !cycleGuard.ContainsReference(originalDefinition = @interface.originalDefinition) &&
-        //         visited.Add(@interface)) {
-        //         if (!basesBeingResolved.ContainsReference(originalDefinition)) {
-        //             var baseInterfaces = @interface.GetDeclaredInterfaces(basesBeingResolved);
+            if (@interface.isInterface &&
+                !cycleGuard.ContainsReference(originalDefinition = @interface.originalDefinition) &&
+                visited.Add(@interface)) {
+                if (!basesBeingResolved.ContainsReference(originalDefinition)) {
+                    var baseInterfaces = @interface.GetDeclaredInterfaces(basesBeingResolved);
 
-        //             if (!baseInterfaces.IsEmpty) {
-        //                 cycleGuard = cycleGuard.Prepend(originalDefinition);
+                    if (!baseInterfaces.IsEmpty) {
+                        cycleGuard = cycleGuard.Prepend(originalDefinition);
 
-        //                 for (var i = baseInterfaces.Length - 1; i >= 0; i--) {
-        //                     var baseInterface = baseInterfaces[i];
-        //                     AddAllInterfaces(baseInterface, visited, result, basesBeingResolved, cycleGuard);
-        //                 }
-        //             }
-        //         }
+                        for (var i = baseInterfaces.Length - 1; i >= 0; i--) {
+                            var baseInterface = baseInterfaces[i];
+                            AddAllInterfaces(baseInterface, visited, result, basesBeingResolved, cycleGuard);
+                        }
+                    }
+                }
 
-        //         result.Add(@interface);
-        //     }
-        // }
+                result.Add(@interface);
+            }
+        }
     }
 
     private void LookupMembersInInterfacesWithoutInheritance(
@@ -5729,6 +5726,9 @@ symIsHidden:;
                 );
 
                 break;
+            case TypeKind.Interface:
+                AddMemberLookupSymbolsInfoInInterface(result, type, options, originalBinder, type);
+                break;
             case TypeKind.Class:
             case TypeKind.Enum:
             case TypeKind.Struct:
@@ -5736,6 +5736,33 @@ symIsHidden:;
                 AddMemberLookupSymbolsInfoInClass(result, type, options, originalBinder, type);
                 break;
         }
+    }
+
+    private void AddMemberLookupSymbolsInfoInInterface(
+        LookupSymbolsInfo result,
+        TypeSymbol type,
+        LookupOptions options,
+        Binder originalBinder,
+        TypeSymbol accessThroughType) {
+        AddMemberLookupSymbolsInfoWithoutInheritance(result, type, options, originalBinder, accessThroughType);
+
+        foreach (var baseInterface in type.allInterfaces) {
+            AddMemberLookupSymbolsInfoWithoutInheritance(
+                result,
+                baseInterface,
+                options,
+                originalBinder,
+                accessThroughType
+            );
+        }
+
+        AddMemberLookupSymbolsInfoInClass(
+            result,
+            CorLibrary.GetSpecialType(SpecialType.Object),
+            options,
+            originalBinder,
+            accessThroughType
+        );
     }
 
     private void AddMemberLookupSymbolsInfoInTemplateParameter(

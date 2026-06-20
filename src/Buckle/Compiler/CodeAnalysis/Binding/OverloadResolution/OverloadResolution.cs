@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
@@ -1243,6 +1244,8 @@ internal sealed partial class OverloadResolution {
 
     private static void RemoveLessDerivedMembers<TMember>(ArrayBuilder<MemberResolutionResult<TMember>> results)
         where TMember : Symbol {
+        RemoveAllInterfaceMembers(results);
+
         for (var f = 0; f < results.Count; f++) {
             var result = results[f];
 
@@ -1250,6 +1253,42 @@ internal sealed partial class OverloadResolution {
                 continue;
 
             if (IsLessDerivedThanAny(index: f, result.leastOverriddenMember.containingType, results))
+                results[f] = result.WithResult(MemberAnalysisResult.LessDerived());
+        }
+    }
+
+    private static void RemoveAllInterfaceMembers<TMember>(ArrayBuilder<MemberResolutionResult<TMember>> results)
+        where TMember : Symbol {
+        var anyClassOtherThanObject = false;
+
+        for (var f = 0; f < results.Count; f++) {
+            var result = results[f];
+
+            if (!result.result.isValid)
+                continue;
+
+            var type = result.leastOverriddenMember.containingType;
+
+            Debug.Assert(type is not null || result.leastOverriddenMember is FunctionMethodSymbol);
+
+            if (type is not null && type.IsClassType() && type.GetSpecialTypeSafe() != SpecialType.Object) {
+                anyClassOtherThanObject = true;
+                break;
+            }
+        }
+
+        if (!anyClassOtherThanObject)
+            return;
+
+        for (var f = 0; f < results.Count; f++) {
+            var result = results[f];
+
+            if (!result.result.isValid)
+                continue;
+
+            var member = result.member;
+
+            if (member.containingType.IsInterfaceType())
                 results[f] = result.WithResult(MemberAnalysisResult.LessDerived());
         }
     }
@@ -1272,6 +1311,11 @@ internal sealed partial class OverloadResolution {
 
             if (type.specialType == SpecialType.Object && currentType.specialType != SpecialType.Object)
                 return true;
+
+            if (currentType.IsInterfaceType() && type.IsInterfaceType() &&
+                currentType.allInterfaces.Contains((NamedTypeSymbol)type)) {
+                return true;
+            }
 
             if (currentType.IsClassType() &&
                 type.IsClassType() &&

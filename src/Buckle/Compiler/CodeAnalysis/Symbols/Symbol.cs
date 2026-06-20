@@ -39,12 +39,13 @@ internal abstract class Symbol : ISymbol {
     /// </summary>
     internal virtual NamedTypeSymbol containingType {
         get {
-            var containerAsType = containingSymbol as NamedTypeSymbol;
+            var container = containingSymbol;
+            var containerAsType = container as NamedTypeSymbol;
 
-            if ((object)containerAsType == containingSymbol)
+            if ((object)containerAsType == container)
                 return containerAsType;
 
-            return containingSymbol.containingType;
+            return container.containingType;
         }
     }
 

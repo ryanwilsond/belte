@@ -12,6 +12,7 @@ internal static class OperatorFacts {
             case TypeKind.Struct:
             case TypeKind.Enum:
             case TypeKind.TemplateParameter:
+            case TypeKind.Interface:
                 return false;
             default:
                 return true;

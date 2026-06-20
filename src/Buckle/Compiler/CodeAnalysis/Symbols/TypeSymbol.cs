@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -13,7 +14,10 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// <summary>
 /// A type symbol. This is just the base type name, not a full <see cref="Binding.BoundType" />.
 /// </summary>
-internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
+internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
+    private static readonly InterfaceInfo NoInterfaces = new InterfaceInfo();
+    private InterfaceInfo _lazyInterfaceInfo;
+
     internal const string ImplicitTypeName = "<invalid-global-code>";
 
     private static readonly Func<TypeSymbol, TemplateParameterSymbol, bool, bool> ContainsTemplateParameterPredicate =
@@ -60,6 +64,111 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
                 Interlocked.CompareExchange(ref _lazyAbstractMembers, ComputeAbstractMembers(), null);
 
             return _lazyAbstractMembers;
+        }
+    }
+
+    internal ImmutableArray<NamedTypeSymbol> allInterfaces => GetAllInterfaces();
+
+    internal MultiDictionary<NamedTypeSymbol, NamedTypeSymbol> interfacesAndTheirBaseInterfaces {
+        get {
+            var info = GetInterfaceInfo();
+
+            if (info == NoInterfaces)
+                return InterfaceInfo.EmptyInterfacesAndTheirBaseInterfaces;
+
+            if (info.interfacesAndTheirBaseInterfaces is null) {
+                Interlocked.CompareExchange(
+                    ref info.interfacesAndTheirBaseInterfaces,
+                    MakeInterfacesAndTheirBaseInterfaces(Interfaces()),
+                    null
+                );
+            }
+
+            return info.interfacesAndTheirBaseInterfaces;
+        }
+    }
+
+    private static MultiDictionary<NamedTypeSymbol, NamedTypeSymbol> MakeInterfacesAndTheirBaseInterfaces(
+        ImmutableArray<NamedTypeSymbol> declaredInterfaces) {
+        var resultBuilder = new MultiDictionary<NamedTypeSymbol, NamedTypeSymbol>(
+            declaredInterfaces.Length,
+            SymbolEqualityComparer.CLRSignature,
+            SymbolEqualityComparer.ConsiderEverything
+        );
+
+        foreach (var @interface in declaredInterfaces) {
+            if (resultBuilder.Add(@interface, @interface)) {
+                foreach (var baseInterface in @interface.allInterfaces)
+                    resultBuilder.Add(baseInterface, baseInterface);
+            }
+        }
+
+        return resultBuilder;
+    }
+
+    private protected virtual ImmutableArray<NamedTypeSymbol> GetAllInterfaces() {
+        var info = GetInterfaceInfo();
+
+        if (info == NoInterfaces)
+            return [];
+
+        if (info.allInterfaces.IsDefault)
+            ImmutableInterlocked.InterlockedInitialize(ref info.allInterfaces, MakeAllInterfaces());
+
+        return info.allInterfaces;
+    }
+
+    private InterfaceInfo GetInterfaceInfo() {
+        var info = _lazyInterfaceInfo;
+
+        if (info is not null)
+            return info;
+
+        for (var baseType = this; baseType is not null; baseType = baseType.baseType) {
+            var interfaces = (baseType.typeKind == TypeKind.TemplateParameter)
+                ? ((TemplateParameterSymbol)baseType).effectiveInterfaces
+                : baseType.Interfaces();
+
+            if (!interfaces.IsEmpty) {
+                info = new InterfaceInfo();
+                return Interlocked.CompareExchange(ref _lazyInterfaceInfo, info, null) ?? info;
+            }
+        }
+
+        _lazyInterfaceInfo = info = NoInterfaces;
+        return info;
+    }
+
+    private protected virtual ImmutableArray<NamedTypeSymbol> MakeAllInterfaces() {
+        var result = ArrayBuilder<NamedTypeSymbol>.GetInstance();
+        var visited = new HashSet<NamedTypeSymbol>(SymbolEqualityComparer.ConsiderEverything);
+
+        for (var baseType = this; baseType is not null; baseType = baseType.baseType) {
+            var interfaces = (baseType.typeKind == TypeKind.TemplateParameter)
+                ? ((TemplateParameterSymbol)baseType).effectiveInterfaces
+                : baseType.Interfaces();
+
+            for (var i = interfaces.Length - 1; i >= 0; i--)
+                AddAllInterfaces(interfaces[i], visited, result);
+        }
+
+        result.ReverseContents();
+        return result.ToImmutableAndFree();
+
+        static void AddAllInterfaces(
+            NamedTypeSymbol @interface,
+            HashSet<NamedTypeSymbol> visited,
+            ArrayBuilder<NamedTypeSymbol> result) {
+            if (visited.Add(@interface)) {
+                var baseInterfaces = @interface.Interfaces();
+
+                for (var i = baseInterfaces.Length - 1; i >= 0; i--) {
+                    var baseInterface = baseInterfaces[i];
+                    AddAllInterfaces(baseInterface, visited, result);
+                }
+
+                result.Add(@interface);
+            }
         }
     }
 
@@ -265,6 +374,7 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
             case TypeKind.Class:
             case TypeKind.Struct:
             case TypeKind.Error:
+            case TypeKind.Interface:
                 return GetNextDeclaredBase((NamedTypeSymbol)this, basesBeingResolved, ref visited);
             case TypeKind.Array:
             case TypeKind.Enum:
@@ -294,19 +404,93 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
         return this.IsNullableType() ? GetNullableUnderlyingType() : this;
     }
 
-    internal bool InheritsFromIgnoringConstruction(NamedTypeSymbol baseType) {
-        var current = this;
+    internal bool InheritsFromIgnoringConstruction(
+        NamedTypeSymbol baseType,
+        ConsList<TypeSymbol> basesBeingResolved = null) {
+        PooledHashSet<NamedTypeSymbol> interfacesLookedAt = null;
+        ArrayBuilder<NamedTypeSymbol> baseInterfaces = null;
 
-        while (current is not null) {
-            if ((object)current == baseType)
-                return true;
+        var baseTypeIsInterface = baseType.isInterface;
 
-            current = current.baseType?.originalDefinition;
+        if (baseTypeIsInterface) {
+            interfacesLookedAt = PooledHashSet<NamedTypeSymbol>.GetInstance();
+            baseInterfaces = ArrayBuilder<NamedTypeSymbol>.GetInstance();
         }
 
-        return false;
-    }
+        PooledHashSet<NamedTypeSymbol> visited = null;
+        var current = this;
+        var result = false;
 
+        while (current is not null) {
+            if (baseTypeIsInterface == current.IsInterfaceType() &&
+                current == (object)baseType) {
+                result = true;
+                break;
+            }
+
+            if (baseTypeIsInterface)
+                GetBaseInterfaces(current, baseInterfaces, interfacesLookedAt, basesBeingResolved);
+
+            var next = current.GetNextBaseType(basesBeingResolved, ref visited);
+
+            if (next is null)
+                current = null;
+            else
+                current = next.originalDefinition;
+        }
+
+        visited?.Free();
+
+        if (!result && baseTypeIsInterface) {
+            while (baseInterfaces.Count != 0) {
+                var currentBase = baseInterfaces.Pop();
+
+                if (!currentBase.isInterface)
+                    continue;
+
+                if (currentBase == (object)baseType) {
+                    result = true;
+                    break;
+                }
+
+                GetBaseInterfaces(currentBase, baseInterfaces, interfacesLookedAt, basesBeingResolved);
+            }
+        }
+
+        interfacesLookedAt?.Free();
+        baseInterfaces?.Free();
+        return result;
+
+        static void GetBaseInterfaces(
+            TypeSymbol derived,
+            ArrayBuilder<NamedTypeSymbol> baseInterfaces,
+            PooledHashSet<NamedTypeSymbol> interfacesLookedAt,
+            ConsList<TypeSymbol> basesBeingResolved) {
+            if (basesBeingResolved is not null && basesBeingResolved.ContainsReference(derived))
+                return;
+
+            ImmutableArray<NamedTypeSymbol> declaredInterfaces;
+
+            switch (derived) {
+                case TemplateParameterSymbol typeParameter:
+                    declaredInterfaces = typeParameter.allEffectiveInterfaces;
+                    break;
+                case NamedTypeSymbol namedType:
+                    declaredInterfaces = namedType.GetDeclaredInterfaces(basesBeingResolved);
+                    break;
+                default:
+                    declaredInterfaces = derived.Interfaces(basesBeingResolved);
+                    break;
+            }
+
+            foreach (var @interface in declaredInterfaces) {
+                var definition = @interface.originalDefinition;
+
+                if (interfacesLookedAt.Add(definition))
+                    baseInterfaces.Add(definition);
+            }
+        }
+    }
 
     private static TypeSymbol GetNextDeclaredBase(
         NamedTypeSymbol type,
@@ -357,6 +541,8 @@ internal abstract class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol {
             case TypeKind.Class:
             case TypeKind.Error:
                 return CorLibrary.GetSpecialType(SpecialType.Object);
+            case TypeKind.Interface:
+                return null;
             case TypeKind.Struct:
                 return CorLibrary.GetSpecialType(SpecialType.ValueType);
             default:

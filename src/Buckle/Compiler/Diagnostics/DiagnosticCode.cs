@@ -537,6 +537,17 @@ public enum DiagnosticCode : ushort {
     ERR_CannotCreateInterface = 526,
     WRN_SealedInSealed = 527,
     WRN_NullBinaryEquality = 528,
+    ERR_CycleInInterfaceInheritance = 529,
+    ERR_InconsistentAccessibilityInterface = 530,
+    ERR_DuplicateInterfaceInInterfaceList = 531,
+    ERR_StaticClassInterfaceImpl = 532,
+    ERR_NonInterfaceInInterfaceList = 533,
+    ERR_ConversionWithInterface = 534,
+    ERR_AbstractConversionNotInvolvingContainedType = 535,
+    ERR_ConversionNotInvolvingContainedType = 536,
+    ERR_IdentityConversion = 537,
+    ERR_ConversionWithBase = 538,
+    ERR_ConversionWithDerived = 539,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

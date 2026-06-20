@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
@@ -216,6 +218,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
     }
 
     private protected override void CheckBase(BelteDiagnosticQueue diagnostics) {
+        // TODO interfaces
         var localBase = baseType;
 
         if (localBase is null)
@@ -229,32 +232,91 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
         }
     }
 
+    private protected override void CheckInterfaces(BelteDiagnosticQueue diagnostics) {
+        // TODO interfaces
+        // Check declared interfaces and all base interfaces. This is necessary
+        // since references to all interfaces will be emitted to metadata
+        // and it's possible to define derived interfaces with weaker
+        // constraints than the base interfaces, at least in metadata.
+        // var interfaces = this.InterfacesAndTheirBaseInterfacesNoUseSiteDiagnostics;
+
+        // if (interfaces.IsEmpty) {
+        //     // nothing to verify
+        //     return;
+        // }
+
+        // // Check constraints on the first declaration with explicit bases.
+        // var singleDeclaration = this.FirstDeclarationWithExplicitBases();
+        // if (singleDeclaration != null) {
+        //     var corLibrary = this.ContainingAssembly.CorLibrary;
+        //     var conversions = corLibrary.TypeConversions;
+        //     var location = singleDeclaration.NameLocation;
+
+        //     foreach (var pair in interfaces) {
+        //         MultiDictionary<NamedTypeSymbol, NamedTypeSymbol>.ValueSet set = pair.Value;
+
+        //         foreach (var @interface in set) {
+        //             @interface.CheckAllConstraints(DeclaringCompilation, conversions, location, diagnostics);
+        //         }
+
+        //         if (set.Count > 1) {
+        //             NamedTypeSymbol other = pair.Key;
+        //             foreach (var @interface in set) {
+        //                 if ((object)other == @interface) {
+        //                     continue;
+        //                 }
+
+        //                 // InterfacesAndTheirBaseInterfacesNoUseSiteDiagnostics populates the set with interfaces that match by CLR signature.
+        //                 Debug.Assert(!other.Equals(@interface, TypeCompareKind.ConsiderEverything));
+        //                 Debug.Assert(other.Equals(@interface, TypeCompareKind.CLRSignatureCompareOptions));
+
+        //                 if (other.Equals(@interface, TypeCompareKind.IgnoreNullableModifiersForReferenceTypes)) {
+        //                     if (!other.Equals(@interface, TypeCompareKind.ObliviousNullableModifierMatchesAny)) {
+        //                         diagnostics.Add(ErrorCode.WRN_DuplicateInterfaceWithNullabilityMismatchInBaseList, location, @interface, this);
+        //                     }
+        //                 } else if (other.Equals(@interface, TypeCompareKind.IgnoreTupleNames | TypeCompareKind.IgnoreNullableModifiersForReferenceTypes)) {
+        //                     diagnostics.Add(ErrorCode.ERR_DuplicateInterfaceWithTupleNamesInBaseList, location, @interface, other, this);
+        //                 } else {
+        //                     diagnostics.Add(ErrorCode.ERR_DuplicateInterfaceWithDifferencesInBaseList, location, @interface, other, this);
+        //                 }
+        //             }
+        //         }
+        //     }
+        // }
+    }
+
     private SingleTypeDeclaration FirstDeclarationWithExplicitBases() {
         foreach (var singleDeclaration in _declaration.declarations) {
-            var bases = GetBaseListOpt(singleDeclaration);
+            var (baseSyntax, interfacesSyntax) = GetBaseListOpt(singleDeclaration);
 
-            if (bases is not null)
+            if (baseSyntax is not null || interfacesSyntax is not null)
                 return singleDeclaration;
         }
 
         return null;
     }
 
-    private static BaseTypeSyntax GetBaseListOpt(SingleTypeDeclaration decl) {
+    private static (BaseTypeSyntax, InterfaceListSyntax) GetBaseListOpt(SingleTypeDeclaration decl) {
         if (decl.hasBaseDeclarations) {
             switch (decl.syntaxReference.node.kind) {
-                case SyntaxKind.ClassDeclaration:
-                    return ((ClassDeclarationSyntax)decl.syntaxReference.node).baseType;
-                case SyntaxKind.FileScopedClassDeclaration:
-                    return ((FileScopedClassDeclarationSyntax)decl.syntaxReference.node).baseType;
+                case SyntaxKind.ClassDeclaration: {
+                        var node = (ClassDeclarationSyntax)decl.syntaxReference.node;
+                        return (node.baseType, node.interfaceList);
+                    }
+                case SyntaxKind.FileScopedClassDeclaration: {
+                        var node = (FileScopedClassDeclarationSyntax)decl.syntaxReference.node;
+                        return (node.baseType, node.interfaceList);
+                    }
                 case SyntaxKind.EnumDeclaration:
-                    return ((EnumDeclarationSyntax)decl.syntaxReference.node).baseType;
+                    return (((EnumDeclarationSyntax)decl.syntaxReference.node).baseType, null);
+                case SyntaxKind.StructDeclaration:
+                    return (null, ((StructDeclarationSyntax)decl.syntaxReference.node).interfaceList);
                 default:
                     throw ExceptionUtilities.UnexpectedValue(decl.syntaxReference.node.kind);
             }
         }
 
-        return null;
+        return (null, null);
     }
 
     private NamedTypeSymbol MakeAcyclicBaseType(BelteDiagnosticQueue diagnostics) {
@@ -274,6 +336,8 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
                 case TypeKind.Struct:
                     declaredBase = CorLibrary.GetSpecialType(SpecialType.ValueType);
                     break;
+                case TypeKind.Interface:
+                    return null;
                 default:
                     throw ExceptionUtilities.UnexpectedValue(typeKind);
             }
@@ -326,8 +390,29 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
     private ImmutableArray<NamedTypeSymbol> MakeAcyclicInterfaces(
         ConsList<TypeSymbol> basesBeingResolved,
         BelteDiagnosticQueue diagnostics) {
-        // TODO interfaces
-        return [];
+        var typeKind = this.typeKind;
+
+        if (typeKind == TypeKind.Enum)
+            return [];
+
+        var declaredInterfaces = GetDeclaredInterfaces(basesBeingResolved: basesBeingResolved);
+        var isInterface = typeKind == TypeKind.Interface;
+        var result = isInterface ? ArrayBuilder<NamedTypeSymbol>.GetInstance() : null;
+
+        foreach (var t in declaredInterfaces) {
+            if (isInterface) {
+                if (BaseTypeAnalysis.TypeDependsOn(depends: t, on: this)) {
+                    var error = Error.CycleInInterfaceInheritance(location, this, t);
+                    diagnostics.Push(error);
+                    result.Add(new ExtendedErrorTypeSymbol(t, LookupResultKind.NotReferencable, error));
+                    continue;
+                } else {
+                    result.Add(t);
+                }
+            }
+        }
+
+        return isInterface ? result.ToImmutableAndFree() : declaredInterfaces;
     }
 
     private Tuple<NamedTypeSymbol, ImmutableArray<NamedTypeSymbol>> MakeDeclaredBases(
@@ -338,11 +423,20 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
         var decl = _declaration.declarations[0];
         var newBasesBeingResolved = basesBeingResolved.Prepend(originalDefinition);
+        var baseInterfaces = ArrayBuilder<NamedTypeSymbol>.GetInstance();
 
-        // var baseInterfaces = ArrayBuilder<NamedTypeSymbol>.GetInstance();
+        var interfaceLocations = SpecializedSymbolCollections
+            .GetPooledSymbolDictionaryInstance<NamedTypeSymbol, TextLocation>();
 
-        var baseType = MakeOneDeclaredBase(newBasesBeingResolved, decl, diagnostics);
+        var (baseType, partInterfaces) = MakeOneDeclaredBases(newBasesBeingResolved, decl, diagnostics);
         var baseTypeLocation = decl.nameLocation;
+
+        foreach (var t in partInterfaces) {
+            if (!interfaceLocations.ContainsKey(t)) {
+                baseInterfaces.Add(t);
+                interfaceLocations.Add(t, decl.nameLocation);
+            }
+        }
 
         if (baseType is not null) {
             if (baseType.isStatic)
@@ -352,28 +446,40 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
                 diagnostics.Push(Error.InconsistentAccessibilityClass(baseTypeLocation, baseType, this));
         }
 
-        return new(baseType, []);
+        var baseInterfacesImmutable = baseInterfaces.ToImmutableAndFree();
+
+        if (declaredAccessibility != Accessibility.Private && isInterface) {
+            foreach (var i in baseInterfacesImmutable) {
+                if (!i.IsAtLeastAsVisibleAs(this))
+                    diagnostics.Push(Error.InconsistentAccessibilityInterface(interfaceLocations[i], this, i));
+            }
+        }
+
+        interfaceLocations.Free();
+        return new(baseType, baseInterfacesImmutable);
     }
 
-    private NamedTypeSymbol MakeOneDeclaredBase(
+    private Tuple<NamedTypeSymbol, ImmutableArray<NamedTypeSymbol>> MakeOneDeclaredBases(
         ConsList<TypeSymbol> newBasesBeingResolved,
         SingleTypeDeclaration decl,
         BelteDiagnosticQueue diagnostics) {
-        var baseSyntax = GetBaseListOpt(decl);
+        var (baseSyntax, interfacesSyntax) = GetBaseListOpt(decl);
 
-        if (baseSyntax is null)
-            return null;
+        if (baseSyntax is null && interfacesSyntax is null)
+            return new(null, []);
 
         NamedTypeSymbol localBase = null;
-        var baseBinder = declaringCompilation.GetBinder(baseSyntax);
+        var localInterfaces = ArrayBuilder<NamedTypeSymbol>.GetInstance();
+        var baseBinder = declaringCompilation.GetBinder((BelteSyntaxNode)baseSyntax ?? interfacesSyntax);
         baseBinder = baseBinder.WithAdditionalFlagsAndContainingMember(BinderFlags.SuppressConstraintChecks, this);
-        var typeSyntax = baseSyntax.type;
-        var location = typeSyntax.location;
+        var baseTypeSyntax = baseSyntax?.type;
+        var location = baseTypeSyntax?.location;
 
-        TypeSymbol baseType;
+        TypeSymbol baseType = null;
 
-        if (typeKind == TypeKind.Class) {
-            baseType = baseBinder.BindType(typeSyntax, diagnostics, newBasesBeingResolved).type.StrippedType();
+        if (baseTypeSyntax is not null) {
+            Debug.Assert(typeKind == TypeKind.Class);
+            baseType = baseBinder.BindType(baseTypeSyntax, diagnostics, newBasesBeingResolved).type.StrippedType();
             var baseSpecialType = baseType.specialType;
 
             if (IsRestrictedBaseType(baseSpecialType))
@@ -392,14 +498,38 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
                     localBase = new ExtendedErrorTypeSymbol(localBase, LookupResultKind.NotReferencable, error);
                 }
             }
-        } else {
-            baseType = baseBinder.BindType(typeSyntax, diagnostics, newBasesBeingResolved).type;
         }
 
-        if (baseType.typeKind == TypeKind.TemplateParameter)
+        if (interfacesSyntax is not null) {
+            foreach (var interfaceSyntax in interfacesSyntax.types) {
+                baseType = baseBinder.BindType(interfaceSyntax, diagnostics, newBasesBeingResolved).type;
+
+                switch (baseType.typeKind) {
+                    case TypeKind.Interface:
+                        foreach (var t in localInterfaces) {
+                            if (t.Equals(baseType, TypeCompareKind.ConsiderEverything))
+                                diagnostics.Push(Error.DuplicateInterfaceInInterfaceList(location, baseType));
+                        }
+
+                        if (isStatic)
+                            diagnostics.Push(Error.StaticClassInterfaceImpl(location, this));
+
+                        localInterfaces.Add((NamedTypeSymbol)baseType);
+                        continue;
+                    case TypeKind.Error:
+                        localInterfaces.Add((NamedTypeSymbol)baseType);
+                        continue;
+                    default:
+                        diagnostics.Push(Error.NonInterfaceInInterfaceList(location, baseType));
+                        continue;
+                }
+            }
+        }
+
+        if (baseType?.typeKind == TypeKind.TemplateParameter)
             diagnostics.Push(Error.CannotDeriveTemplate(location, baseType));
 
-        return localBase;
+        return new(localBase, localInterfaces.ToImmutableAndFree());
 
         static bool IsRestrictedBaseType(SpecialType specialType) {
             if (specialType.IsNumeric())
@@ -457,12 +587,13 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
         var compilation = declaringCompilation;
         var decl = _declaration.declarations[0];
-        var bases = GetBaseListOpt(decl);
+        var (baseSyntax, interfacesSyntax) = GetBaseListOpt(decl);
+        Debug.Assert(interfacesSyntax is null);
 
-        if (bases is not null) {
-            var typeSyntax = bases.type;
+        if (baseSyntax is not null) {
+            var typeSyntax = baseSyntax.type;
 
-            var baseBinder = compilation.GetBinder(bases);
+            var baseBinder = compilation.GetBinder(baseSyntax);
             var type = baseBinder.BindType(typeSyntax, diagnostics).type.StrippedType();
 
             if (!type.specialType.IsValidEnumUnderlyingType()) {

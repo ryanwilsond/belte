@@ -23,6 +23,8 @@ internal sealed class LookupResult {
 
     internal bool isMultiViable => kind == LookupResultKind.Viable;
 
+    internal bool isSingleViable => kind == LookupResultKind.Viable && symbols.Count == 1;
+
     internal BelteDiagnostic error { get; private set; }
 
     internal bool isClear => kind == LookupResultKind.Empty && error is null && symbols.Count == 0;

@@ -84,6 +84,10 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
             return;
 
         switch (name) {
+            case WellKnownMemberNames.ImplicitConversionName:
+            case WellKnownMemberNames.ExplicitConversionName:
+                CheckUserDefinedConversionSignature(diagnostics);
+                break;
             case WellKnownMemberNames.UnaryNegationOperatorName:
             case WellKnownMemberNames.UnaryPlusOperatorName:
             case WellKnownMemberNames.LogicalNotOperatorName:
@@ -117,6 +121,61 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
                 CheckBinarySignature(diagnostics);
                 break;
         }
+    }
+
+    private void CheckUserDefinedConversionSignature(BelteDiagnosticQueue diagnostics) {
+        CheckReturnIsNotVoid(diagnostics);
+
+        var source = GetParameterType(0);
+        var target = returnType;
+        var source0 = source.StrippedType();
+        var target0 = target.StrippedType();
+
+        if (source0.IsInterfaceType() || target0.IsInterfaceType()) {
+            diagnostics.Push(Error.ConversionWithInterface(location, this));
+            return;
+        }
+
+        if (!MatchesContainingType(source0) &&
+            !MatchesContainingType(target0) &&
+            !MatchesContainingType(source) &&
+            !MatchesContainingType(target)) {
+            if (IsInInterfaceAndAbstractOrVirtual())
+                diagnostics.Push(Error.AbstractConversionNotInvolvingContainedType(location));
+            else
+                diagnostics.Push(Error.ConversionNotInvolvingContainedType(location));
+
+            return;
+        }
+
+        if ((containingType.specialType == SpecialType.Nullable)
+                ? source.Equals(target, ComparisonForUserDefinedOperators)
+                : source0.Equals(target0, ComparisonForUserDefinedOperators)) {
+            diagnostics.Push(Error.IdentityConversion(location));
+            return;
+        }
+
+        TypeSymbol same;
+        TypeSymbol different;
+
+        if (MatchesContainingType(source0)) {
+            same = source;
+            different = target;
+        } else {
+            same = target;
+            different = source;
+        }
+
+        if (different.IsClassType() && !same.IsTemplateParameter()) {
+            if (same.IsDerivedFrom(different, ComparisonForUserDefinedOperators))
+                diagnostics.Push(Error.ConversionWithBase(location, this));
+            else if (different.IsDerivedFrom(same, ComparisonForUserDefinedOperators))
+                diagnostics.Push(Error.ConversionWithDerived(location, this));
+        }
+    }
+
+    private bool IsInInterfaceAndAbstractOrVirtual() {
+        return containingType.isInterface && (isAbstract || isVirtual);
     }
 
     private void CheckLiteralOperatorSignature(BelteDiagnosticQueue diagnostics) {
@@ -269,6 +328,8 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
             case WellKnownMemberNames.BitwiseNotOperatorName:
             case WellKnownMemberNames.LengthOperatorName:
             case WellKnownMemberNames.IterOperatorName:
+            case WellKnownMemberNames.ImplicitConversionName:
+            case WellKnownMemberNames.ExplicitConversionName:
                 return parameterCount == 1;
             default:
                 return parameterCount == 2;

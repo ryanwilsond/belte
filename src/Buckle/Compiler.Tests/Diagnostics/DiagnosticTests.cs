@@ -2098,18 +2098,19 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0150_TemplateBaseBothObjectAndPrimitive() {
-        var text = @"
-            class A<[type T]> where { T is primitive; T extends Object; } { }
-        ";
+    // ! TODO See comment on ObjectConstraintFailed
+    // [Fact]
+    // public void Reports_Error_BU0150_TemplateBaseBothObjectAndPrimitive() {
+    //     var text = @"
+    //         class A<[type T]> where { T is primitive; T extends Object; } { }
+    //     ";
 
-        var diagnostics = @"
-            template parameter 'T' cannot be constrained as both an object type and a primitive type
-        ";
+    //     var diagnostics = @"
+    //         template parameter 'T' cannot be constrained as both an object type and a primitive type
+    //     ";
 
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
 
     [Fact]
     public void Reports_Error_BU0151_MemberNameSameAsType() {
@@ -4190,19 +4191,20 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0330_ObjectConstraintFailed() {
-        var text = @"
-            class A<type T> where { T extends Object; } {}
-            var a = new [A<int?>]();
-        ";
+    // ! TODO int -> ValueType -> Object so technically we can't use this diagnostic
+    // [Fact]
+    // public void Reports_Error_BU0330_ObjectConstraintFailed() {
+    //     var text = @"
+    //         class A<type T> where { T extends Object; } {}
+    //         var a = new [A<int?>]();
+    //     ";
 
-        var diagnostics = @"
-            the type 'int?' must be an object type in order to use it as parameter 'T' in the template type or method 'A<type! T>'
-        ";
+    //     var diagnostics = @"
+    //         the type 'int?' must be an object type in order to use it as parameter 'T' in the template type or method 'A<type! T>'
+    //     ";
 
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
 
     [Fact]
     public void Reports_Error_BU0331_PrimitiveConstraintFailed() {
@@ -7090,6 +7092,7 @@ public sealed class DiagnosticTests {
     // ? Requires references (i.e. command-line args)
 
     // ! Interfaces not implemented yet
+    // TODO interfaces
     // [Fact]
     // public void Reports_Error_BU0526_CannotCreateInterface() {
     //     var text = @"
@@ -7135,5 +7138,186 @@ public sealed class DiagnosticTests {
         ";
 
         AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    // ! Interfaces not implemented yet
+    // TODO interfaces
+    // [Fact]
+    // public void Reports_Error_BU0529_CycleInInterfaceInheritance() {
+    //     var text = @"
+    //         interface A implements B { }
+    //         interface B implements A { }
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // ! Interfaces not implemented yet
+    // TODO interfaces
+    // [Fact]
+    // public void Reports_Error_BU0530_InconsistentAccessibilityInterface() {
+    //     var text = @"
+    //         private interface A { }
+    //         public interface B implements [A] { }
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // ! Interfaces not implemented yet
+    // TODO interfaces
+    // [Fact]
+    // public void Reports_Error_BU0531_DuplicateInterfaceInInterfaceList() {
+    //     var text = @"
+    //         interface A { }
+    //         class B implements A, [A] { }
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // ! Interfaces not implemented yet
+    // TODO interfaces
+    // [Fact]
+    // public void Reports_Error_BU0532_StaticClassInterfaceImpl() {
+    //     var text = @"
+    //         interface A { }
+    //         static class B implements [A] { }
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // ! Interfaces not implemented yet
+    // TODO interfaces
+    // [Fact]
+    // public void Reports_Error_BU0533_NonInterfaceInInterfaceList() {
+    //     var text = @"
+    //         class B implements [int] { }
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // ! Interfaces not implemented yet
+    // TODO interfaces
+    // [Fact]
+    // public void Reports_Error_BU0534_ConversionWithInterface() {
+    //     var text = @"
+    //         interface A { }
+    //
+    //     ";
+
+    //     var diagnostics = @"
+
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // ! Interfaces not implemented yet
+    // TODO interfaces
+    // [Fact]
+    // public void Reports_Error_BU0535_AbstractConversionNotInvolvingContainedType() {
+    //     var text = @"
+    //         interface A { }
+    //
+    //     ";
+
+    //     var diagnostics = @"
+
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    [Fact]
+    public void Reports_Error_BU0536_ConversionNotInvolvingContainedType() {
+        var text = @"
+            class A {
+                public static implicit [operator] int(int a) { return a; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            user-defined conversion must convert to or from the enclosing type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0537_IdentityConversion() {
+        var text = @"
+            class A {
+                public static implicit [operator] A(A a) { return a; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            user-defined conversion cannot convert a type to itself
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0538_ConversionWithBase() {
+        var text = @"
+            class A {
+                public static implicit [operator] Object(A a) { return a; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'A.op_Implicit(A!)': user-defined conversions to or from a base type are not allowed
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0539_ConversionWithDerived() {
+        var text = @"
+            class B extends A { }
+            class A {
+                public static implicit [operator] B(A a) { return (B)a; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 }

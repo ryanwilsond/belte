@@ -91,6 +91,13 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
         }
     }
 
+    internal ImmutableArray<NamedTypeSymbol> effectiveInterfaces {
+        get {
+            EnsureConstraintsAreResolved();
+            return GetInterfaces(ConsList<TemplateParameterSymbol>.Empty);
+        }
+    }
+
     internal ImmutableArray<TypeWithAnnotations> constraintTypes {
         get {
             EnsureConstraintsAreResolved();
@@ -98,9 +105,13 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
         }
     }
 
+    internal ImmutableArray<NamedTypeSymbol> allEffectiveInterfaces => base.GetAllInterfaces();
+
     internal abstract ImmutableArray<TypeWithAnnotations> GetConstraintTypes(ConsList<TemplateParameterSymbol> inProgress);
 
     internal abstract NamedTypeSymbol GetEffectiveBaseClass(ConsList<TemplateParameterSymbol> inProgress);
+
+    internal abstract ImmutableArray<NamedTypeSymbol> GetInterfaces(ConsList<TemplateParameterSymbol> inProgress);
 
     // TODO Ensure this is needed
     internal abstract TypeSymbol GetDeducedBaseType(ConsList<TemplateParameterSymbol> inProgress);
@@ -129,6 +140,10 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
     }
 
     internal override ImmutableArray<NamedTypeSymbol> Interfaces(ConsList<TypeSymbol> basesBeingResolved = null) {
+        return [];
+    }
+
+    private protected sealed override ImmutableArray<NamedTypeSymbol> GetAllInterfaces() {
         return [];
     }
 
@@ -200,8 +215,21 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
         if (!constraint.isReferenceType) {
             return false;
         } else {
-            if (constraint.typeKind == TypeKind.Error)
-                return false;
+            switch (constraint.typeKind) {
+                case TypeKind.Interface:
+                    return false;
+                case TypeKind.Error:
+                    return false;
+            }
+
+            if (constraint is NamedTypeSymbol named) {
+                switch (named.specialType) {
+                    case SpecialType.Object:
+                    case SpecialType.ValueType:
+                    case SpecialType.Enum:
+                        return false;
+                }
+            }
 
             return true;
         }

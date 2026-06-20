@@ -657,6 +657,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_InconsistentAccessibilityClass, location, message);
     }
 
+    internal static BelteDiagnostic InconsistentAccessibilityInterface(TextLocation location, NamedTypeSymbol type1, NamedTypeSymbol type2) {
+        var message = $"inconsistent accessibility: interface '{type1.name}' is less accessible than interface '{type2.name}'";
+        return CreateError(DiagnosticCode.ERR_InconsistentAccessibilityInterface, location, message);
+    }
+
     internal static BelteDiagnostic StaticDeriveFromNotObject(TextLocation location, TypeSymbol type, TypeSymbol baseType) {
         var message = $"static class '{type.name}' cannot derive from type '{baseType.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'; static classes must derive from Object";
         return CreateError(DiagnosticCode.ERR_StaticDeriveFromNotObject, location, message);
@@ -2612,7 +2617,57 @@ internal static class Error {
 
     internal static BelteDiagnostic SameFullNameAggAgg(AssemblySymbol assembly1, Symbol symbol, AssemblySymbol assembly2) {
         var message = $"the type '{symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedNameFormat)}' exists in both '{assembly1}' and '{assembly2}'";
-        return CreateError(DiagnosticCode.ERR_NonNullableReceiverProperty, null, message);
+        return CreateError(DiagnosticCode.ERR_SameFullNameAggAgg, null, message);
+    }
+
+    internal static BelteDiagnostic CycleInInterfaceInheritance(TextLocation location, TypeSymbol type1, TypeSymbol type2) {
+        var message = $"inherited interface '{type2.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' causes a cycle in the interface hierarchy of '{type1.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        return CreateError(DiagnosticCode.ERR_CycleInInterfaceInheritance, location, message);
+    }
+
+    internal static BelteDiagnostic DuplicateInterfaceInInterfaceList(TextLocation location, TypeSymbol type) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is already listed in the interface list";
+        return CreateError(DiagnosticCode.ERR_DuplicateInterfaceInInterfaceList, location, message);
+    }
+
+    internal static BelteDiagnostic StaticClassInterfaceImpl(TextLocation location, TypeSymbol type) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': static classes cannot implement interfaces";
+        return CreateError(DiagnosticCode.ERR_StaticClassInterfaceImpl, location, message);
+    }
+
+    internal static BelteDiagnostic NonInterfaceInInterfaceList(TextLocation location, TypeSymbol type) {
+        var message = $"type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' in interface list is not an interface";
+        return CreateError(DiagnosticCode.ERR_NonInterfaceInInterfaceList, location, message);
+    }
+
+    internal static BelteDiagnostic AbstractConversionNotInvolvingContainedType(TextLocation location) {
+        var message = $"user-defined conversion in an interface must convert to or from a type template parameter on the enclosing type constrained to the enclosing type";
+        return CreateError(DiagnosticCode.ERR_AbstractConversionNotInvolvingContainedType, location, message);
+    }
+
+    internal static BelteDiagnostic ConversionWithInterface(TextLocation location, MethodSymbol method) {
+        var message = $"'{method}': user-defined conversions to or from an interface are not allowed";
+        return CreateError(DiagnosticCode.ERR_ConversionWithInterface, location, message);
+    }
+
+    internal static BelteDiagnostic ConversionNotInvolvingContainedType(TextLocation location) {
+        var message = $"user-defined conversion must convert to or from the enclosing type";
+        return CreateError(DiagnosticCode.ERR_ConversionNotInvolvingContainedType, location, message);
+    }
+
+    internal static BelteDiagnostic IdentityConversion(TextLocation location) {
+        var message = $"user-defined conversion cannot convert a type to itself";
+        return CreateError(DiagnosticCode.ERR_IdentityConversion, location, message);
+    }
+
+    internal static BelteDiagnostic ConversionWithBase(TextLocation location, MethodSymbol method) {
+        var message = $"'{method}': user-defined conversions to or from a base type are not allowed";
+        return CreateError(DiagnosticCode.ERR_ConversionWithBase, location, message);
+    }
+
+    internal static BelteDiagnostic ConversionWithDerived(TextLocation location, MethodSymbol method) {
+        var message = $"'{method}': user-defined conversions to or from a derived type are not allowed";
+        return CreateError(DiagnosticCode.ERR_ConversionWithDerived, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

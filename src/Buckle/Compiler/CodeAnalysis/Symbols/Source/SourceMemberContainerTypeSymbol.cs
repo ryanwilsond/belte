@@ -449,6 +449,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
     private protected abstract void CheckBase(BelteDiagnosticQueue diagnostics);
 
+    private protected abstract void CheckInterfaces(BelteDiagnosticQueue diagnostics);
+
     private protected virtual void AfterMembersCompletedChecks(BelteDiagnosticQueue diagnostics) { }
 
     private protected void AfterMembersChecks(BelteDiagnosticQueue diagnostics) {
@@ -568,6 +570,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     }
 
     private void CheckForEqualityAndGetHashCode(BelteDiagnosticQueue diagnostics) {
+        if (this.IsInterfaceType())
+            return;
+
         var hasOp = GetOperators(WellKnownMemberNames.EqualityOperatorName).Any() ||
             GetOperators(WellKnownMemberNames.InequalityOperatorName).Any();
 
@@ -596,6 +601,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 return;
             case TypeKind.Class:
             case TypeKind.Struct:
+            case TypeKind.Interface:
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(typeKind);
@@ -1530,10 +1536,18 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         switch (typeKind) {
             case TypeKind.Class:
             case TypeKind.Struct:
-                if (member.name == name)
-                    diagnostics.Push(Error.MemberNameSameAsType(member.location, name));
+                CheckContainingTypeName(member, name, diagnostics);
+                break;
+            case TypeKind.Interface:
+                if (member.isStatic)
+                    CheckContainingTypeName(member, name, diagnostics);
 
                 break;
+        }
+
+        static void CheckContainingTypeName(Symbol member, string typeName, BelteDiagnosticQueue diagnostics) {
+            if (member.name == typeName)
+                diagnostics.Push(Error.MemberNameSameAsType(member.location, typeName));
         }
     }
 
@@ -1962,6 +1976,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             case TypeKind.Struct:
             case TypeKind.Enum:
             case TypeKind.Class:
+            case TypeKind.Interface:
                 AddSynthesizedConstructorsIfNecessary(builder, declaredMembersAndInitializers);
                 break;
             default:
@@ -2076,8 +2091,13 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
         switch (typeKind) {
             case TypeKind.Class:
-                allowedModifiers |= DeclarationModifiers.Sealed | DeclarationModifiers.Abstract
-                    | DeclarationModifiers.LowLevel | DeclarationModifiers.Static;
+                allowedModifiers |= DeclarationModifiers.Sealed
+                                 | DeclarationModifiers.Abstract
+                                 | DeclarationModifiers.LowLevel
+                                 | DeclarationModifiers.Static;
+                break;
+            case TypeKind.Interface:
+                allowedModifiers |= DeclarationModifiers.LowLevel;
                 break;
             case TypeKind.Struct:
                 allowedModifiers |= DeclarationModifiers.LowLevel;
@@ -2104,8 +2124,15 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             diagnostics.Push(Error.ConflictingModifiers(location, "sealed", "static"));
         }
 
-        if (typeKind is TypeKind.Struct or TypeKind.Enum)
-            mods |= DeclarationModifiers.Sealed;
+        switch (typeKind) {
+            case TypeKind.Interface:
+                mods |= DeclarationModifiers.Abstract;
+                break;
+            case TypeKind.Struct:
+            case TypeKind.Enum:
+                mods |= DeclarationModifiers.Sealed;
+                break;
+        }
 
         return mods;
     }

@@ -4581,7 +4581,7 @@ internal partial class Binder {
         var lookupResult = LookupResult.GetInstance();
         LookupIdentifier(lookupResult, left, called: false);
 
-        var leftSymbol = lookupResult.singleSymbolOrDefault;
+        var leftSymbol = lookupResult.isSingleViable ? lookupResult.symbols[0] : null;
         lookupResult.Free();
 
         if (leftSymbol is null)

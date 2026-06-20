@@ -1316,9 +1316,7 @@ internal sealed partial class PEModule : IDisposable {
     }
 
     internal bool IsInterfaceOrThrow(TypeDefinitionHandle typeDef) {
-        // TODO interfaces
-        // return metadataReader.GetTypeDefinition(typeDef).Attributes.IsInterface();
-        return false;
+        return (metadataReader.GetTypeDefinition(typeDef).Attributes & TypeAttributes.Interface) != 0;
     }
 
     internal bool IsNoPiaLocalType(

@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
@@ -30,6 +31,8 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
         MethodSymbol originalDefinition,
         MethodSymbol constructedFrom)
         : base(originalDefinition) {
+        Debug.Assert(originalDefinition is not null);
+        Debug.Assert(containingType is not null);
         this.containingType = containingType;
         _inputMap = map;
 

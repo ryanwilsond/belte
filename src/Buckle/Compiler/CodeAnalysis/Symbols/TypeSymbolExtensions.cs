@@ -30,6 +30,10 @@ internal static class TypeSymbolExtensions {
         return type?.originalDefinition.specialType == SpecialType.Nullable;
     }
 
+    internal static bool IsInterfaceType(this TypeSymbol type) {
+        return type.kind == SymbolKind.NamedType && ((NamedTypeSymbol)type).isInterface;
+    }
+
     internal static bool IsFileScoped(this TypeSymbol type) {
         if (type is SourceMemberContainerTypeSymbol source && source.isFileScoped)
             return true;
