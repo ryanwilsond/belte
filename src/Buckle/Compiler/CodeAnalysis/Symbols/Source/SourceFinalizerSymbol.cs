@@ -17,7 +17,7 @@ internal sealed class SourceFinalizerSymbol : SourceMemberMethodSymbol {
         : base(
             containingType,
             new SyntaxReference(syntax),
-            MakeModifiersAndFlags(syntax, diagnostics, out _)) {
+            MakeModifiersAndFlags(containingType, syntax, diagnostics, out _)) {
         location = syntax.finalizerKeyword.location;
 
         if (containingType.isStatic)
@@ -58,10 +58,18 @@ internal sealed class SourceFinalizerSymbol : SourceMemberMethodSymbol {
     }
 
     private static (DeclarationModifiers, Flags) MakeModifiersAndFlags(
+        NamedTypeSymbol containingType,
         FinalizerDeclarationSyntax syntax,
         BelteDiagnosticQueue diagnostics,
         out bool modifierErrors) {
-        var declarationModifiers = MakeModifiers(syntax, syntax.modifiers, diagnostics, out modifierErrors);
+        var declarationModifiers = MakeModifiers(
+            containingType,
+            syntax,
+            syntax.modifiers,
+            diagnostics,
+            out modifierErrors
+        );
+
         var flags = MakeFlags(
             MethodKind.Finalizer,
             RefKind.None,
@@ -98,12 +106,14 @@ internal sealed class SourceFinalizerSymbol : SourceMemberMethodSymbol {
     }
 
     private static DeclarationModifiers MakeModifiers(
+        NamedTypeSymbol containingType,
         FinalizerDeclarationSyntax syntax,
         SyntaxTokenList modifiers,
         BelteDiagnosticQueue diagnostics,
         out bool modifierErrors) {
         var mods = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
             modifiers,
+            containingType.isInterface,
             DeclarationModifiers.None,
             0,
             syntax.finalizerKeyword.location,

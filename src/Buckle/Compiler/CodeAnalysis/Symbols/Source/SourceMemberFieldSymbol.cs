@@ -43,6 +43,7 @@ internal abstract class SourceMemberFieldSymbol : SourceFieldSymbolWithSyntaxRef
         SyntaxTokenList modifiers,
         BelteDiagnosticQueue diagnostics,
         out bool hasErrors) {
+        var isInterface = containingSymbol.isInterface;
         var allowedModifiers =
             DeclarationModifiers.AccessibilityMask |
             DeclarationModifiers.Const |
@@ -54,6 +55,7 @@ internal abstract class SourceMemberFieldSymbol : SourceFieldSymbolWithSyntaxRef
 
         var result = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
             modifiers,
+            isInterface,
             (containingSymbol.IsStructType() || containingSymbol.IsFileScoped())
                 ? DeclarationModifiers.Public
                 : DeclarationModifiers.Private,

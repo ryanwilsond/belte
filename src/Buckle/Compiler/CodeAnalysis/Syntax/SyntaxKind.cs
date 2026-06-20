@@ -306,6 +306,7 @@ public enum SyntaxKind : ushort {
     EnumDeclaration,
     EnumMemberDeclaration,
     FieldDeclaration,
+    ExplicitInterfaceSpecifier,
     MethodDeclaration,
     ReverseClause,
     StateClause,

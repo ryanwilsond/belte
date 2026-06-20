@@ -218,7 +218,6 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
     }
 
     private protected override void CheckBase(BelteDiagnosticQueue diagnostics) {
-        // TODO interfaces
         var localBase = baseType;
 
         if (localBase is null)
@@ -233,56 +232,39 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
     }
 
     private protected override void CheckInterfaces(BelteDiagnosticQueue diagnostics) {
-        // TODO interfaces
-        // Check declared interfaces and all base interfaces. This is necessary
-        // since references to all interfaces will be emitted to metadata
-        // and it's possible to define derived interfaces with weaker
-        // constraints than the base interfaces, at least in metadata.
-        // var interfaces = this.InterfacesAndTheirBaseInterfacesNoUseSiteDiagnostics;
+        var interfaces = interfacesAndTheirBaseInterfaces;
 
-        // if (interfaces.IsEmpty) {
-        //     // nothing to verify
-        //     return;
-        // }
+        if (interfaces.IsEmpty)
+            return;
 
-        // // Check constraints on the first declaration with explicit bases.
-        // var singleDeclaration = this.FirstDeclarationWithExplicitBases();
-        // if (singleDeclaration != null) {
-        //     var corLibrary = this.ContainingAssembly.CorLibrary;
-        //     var conversions = corLibrary.TypeConversions;
-        //     var location = singleDeclaration.NameLocation;
+        var singleDeclaration = FirstDeclarationWithExplicitBases();
 
-        //     foreach (var pair in interfaces) {
-        //         MultiDictionary<NamedTypeSymbol, NamedTypeSymbol>.ValueSet set = pair.Value;
+        if (singleDeclaration is not null) {
+            var location = singleDeclaration.nameLocation;
 
-        //         foreach (var @interface in set) {
-        //             @interface.CheckAllConstraints(DeclaringCompilation, conversions, location, diagnostics);
-        //         }
+            foreach (var pair in interfaces) {
+                var set = pair.Value;
 
-        //         if (set.Count > 1) {
-        //             NamedTypeSymbol other = pair.Key;
-        //             foreach (var @interface in set) {
-        //                 if ((object)other == @interface) {
-        //                     continue;
-        //                 }
+                foreach (var @interface in set)
+                    @interface.CheckAllConstraints(location, diagnostics);
 
-        //                 // InterfacesAndTheirBaseInterfacesNoUseSiteDiagnostics populates the set with interfaces that match by CLR signature.
-        //                 Debug.Assert(!other.Equals(@interface, TypeCompareKind.ConsiderEverything));
-        //                 Debug.Assert(other.Equals(@interface, TypeCompareKind.CLRSignatureCompareOptions));
+                if (set.Count > 1) {
+                    var other = pair.Key;
 
-        //                 if (other.Equals(@interface, TypeCompareKind.IgnoreNullableModifiersForReferenceTypes)) {
-        //                     if (!other.Equals(@interface, TypeCompareKind.ObliviousNullableModifierMatchesAny)) {
-        //                         diagnostics.Add(ErrorCode.WRN_DuplicateInterfaceWithNullabilityMismatchInBaseList, location, @interface, this);
-        //                     }
-        //                 } else if (other.Equals(@interface, TypeCompareKind.IgnoreTupleNames | TypeCompareKind.IgnoreNullableModifiersForReferenceTypes)) {
-        //                     diagnostics.Add(ErrorCode.ERR_DuplicateInterfaceWithTupleNamesInBaseList, location, @interface, other, this);
-        //                 } else {
-        //                     diagnostics.Add(ErrorCode.ERR_DuplicateInterfaceWithDifferencesInBaseList, location, @interface, other, this);
-        //                 }
-        //             }
-        //         }
-        //     }
-        // }
+                    foreach (var @interface in set) {
+                        if ((object)other == @interface)
+                            continue;
+
+                        if (other.Equals(@interface, TypeCompareKind.ConsiderEverything)) {
+                        } else if (other.Equals(@interface, TypeCompareKind.IgnoreTupleNames)) {
+                            diagnostics.Push(Error.DuplicateInterfaceWithTupleNamesInBaseList(location, @interface, other, this));
+                        } else {
+                            diagnostics.Push(Error.DuplicateInterfaceWithDifferencesInBaseList(location, @interface, other, this));
+                        }
+                    }
+                }
+            }
+        }
     }
 
     private SingleTypeDeclaration FirstDeclarationWithExplicitBases() {

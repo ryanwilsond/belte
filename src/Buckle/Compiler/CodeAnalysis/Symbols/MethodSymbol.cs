@@ -91,6 +91,10 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
 
     internal virtual ImmutableArray<FieldSymbol> initFields => [];
 
+    internal virtual bool isExplicitInterfaceImplementation => explicitInterfaceImplementations.Any();
+
+    internal abstract ImmutableArray<MethodSymbol> explicitInterfaceImplementations { get; }
+
     internal ImmutableArray<TypeWithAnnotations> parameterTypesWithAnnotations {
         get {
             ParameterSignature.PopulateParameterSignature(parameters, ref _lazyParameterSignature);

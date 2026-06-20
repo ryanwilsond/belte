@@ -808,11 +808,19 @@
       <Kind Name="SemicolonToken"/>
     </Field>
   </Node>
+  <Node Name="ExplicitInterfaceSpecifierSyntax" Base="SyntaxNode">
+    <Kind Name="ExplicitInterfaceSpecifier"/>
+    <Field Name="name" Type="NameSyntax"/>
+    <Field Name="period" Type="SyntaxToken">
+      <Kind Name="PeriodToken"/>
+    </Field>
+  </Node>
   <Node Name="MethodDeclarationSyntax" Base="BaseMethodDeclarationSyntax">
     <Kind Name="MethodDeclaration"/>
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
     <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
     <Field Name="returnType" Type="TypeSyntax"/>
+    <Field Name="explicitInterfaceSpecifier" Type="ExplicitInterfaceSpecifierSyntax" Optional="true"/>
     <Field Name="identifier" Type="SyntaxToken">
       <Kind Name="IdentifierToken"/>
     </Field>
@@ -879,6 +887,7 @@
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
     <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
     <Field Name="implicitOrExplicitKeyword" Type="SyntaxToken"/>
+    <Field Name="explicitInterfaceSpecifier" Type="ExplicitInterfaceSpecifierSyntax" Optional="true"/>
     <Field Name="operatorKeyword" Type="SyntaxToken">
       <Kind Name="OperatorKeyword"/>
     </Field>
@@ -894,6 +903,7 @@
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
     <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
     <Field Name="returnType" Type="TypeSyntax"/>
+    <Field Name="explicitInterfaceSpecifier" Type="ExplicitInterfaceSpecifierSyntax" Optional="true"/>
     <Field Name="operatorKeyword" Type="SyntaxToken">
       <Kind Name="OperatorKeyword"/>
     </Field>

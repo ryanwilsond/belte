@@ -76,6 +76,10 @@ internal sealed class ErrorMethodSymbol : MethodSymbol {
 
     internal override bool isMetadataFinal => false;
 
+    internal override bool isExplicitInterfaceImplementation => false;
+
+    internal override ImmutableArray<MethodSymbol> explicitInterfaceImplementations => [];
+
     internal override bool IsMetadataVirtual(bool forceComplete = false) => false;
 
     internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {

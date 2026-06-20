@@ -100,10 +100,12 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
                 ? DeclarationModifiers.Public
                 : DeclarationModifiers.Private;
 
+        var isInterface = containingType.isInterface;
         var allowedModifiers = DeclarationModifiers.AccessibilityMask | DeclarationModifiers.Static;
 
         var mods = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
             syntax.modifiers,
+            isInterface,
             defaultAccess,
             allowedModifiers,
             syntax.constructorKeyword.location,

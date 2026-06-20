@@ -853,6 +853,10 @@ internal sealed partial class PEModule : IDisposable {
         return metadataReader.GetMemberReference(memberRef).Signature;
     }
 
+    internal BlobHandle GetSignatureOrThrow(MemberReferenceHandle memberRef) {
+        return GetSignatureOrThrow(metadataReader, memberRef);
+    }
+
     internal bool ContainsNoPiaLocalTypes() {
         if (_lazyContainsNoPiaLocalTypes == ThreeState.Unknown) {
             try {
@@ -1305,6 +1309,18 @@ internal sealed partial class PEModule : IDisposable {
 
     internal TypeDefinitionHandle GetContainingTypeOrThrow(TypeDefinitionHandle typeDef) {
         return metadataReader.GetTypeDefinition(typeDef).GetDeclaringType();
+    }
+
+    internal EntityHandle GetContainingTypeOrThrow(MemberReferenceHandle memberRef) {
+        return metadataReader.GetMemberReference(memberRef).Parent;
+    }
+
+    internal string GetMemberRefNameOrThrow(MemberReferenceHandle memberRef) {
+        return GetMemberRefNameOrThrow(metadataReader, memberRef);
+    }
+
+    private static string GetMemberRefNameOrThrow(MetadataReader metadataReader, MemberReferenceHandle memberRef) {
+        return metadataReader.GetString(metadataReader.GetMemberReference(memberRef).Name);
     }
 
     internal string GetTypeDefNamespaceOrThrow(TypeDefinitionHandle typeDef) {

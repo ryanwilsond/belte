@@ -1027,6 +1027,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
         _types.Add(type.originalDefinition, typeBuilder);
         typeBuilder.SetParent(GetBaseType(type));
+        AddInterfaceImplementations(type, typeBuilder);
 
         string[] workingParams = [];
 
@@ -1036,6 +1037,11 @@ internal sealed partial class Executor : ModuleBuilder {
         }
 
         CreateNestedTypes(type, typeBuilder, workingParams);
+    }
+
+    private void AddInterfaceImplementations(NamedTypeSymbol type, TypeBuilder typeBuilder) {
+        foreach (var @interface in type.Interfaces())
+            typeBuilder.AddInterfaceImplementation(GetType(@interface));
     }
 
     private Type GetBaseType(NamedTypeSymbol type) {
@@ -1094,6 +1100,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
                 _types.Add(nestedType.originalDefinition, nestedBuilder);
                 nestedBuilder.SetParent(GetBaseType(nestedType));
+                AddInterfaceImplementations(nestedType, nestedBuilder);
                 CreateNestedTypes(nestedType, nestedBuilder, workingParams);
             }
         }
@@ -1119,6 +1126,8 @@ internal sealed partial class Executor : ModuleBuilder {
             attributes |= TypeAttributes.Abstract;
         if (type.isSealed)
             attributes |= TypeAttributes.Sealed;
+        if (type.isInterface)
+            attributes |= TypeAttributes.Interface;
 
         if (type.IsStructType())
             attributes |= type.isUnionStruct ? TypeAttributes.ExplicitLayout : TypeAttributes.SequentialLayout;

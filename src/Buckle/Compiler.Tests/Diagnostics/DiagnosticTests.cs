@@ -3488,8 +3488,11 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0267_AbstractAndSealed() {
         var text = @"
-            class A {
-                public sealed abstract void [F]();
+            class B {
+                public virtual void F() { }
+            }
+            class A extends B {
+                public sealed abstract override void [F]();
             }
         ";
 
@@ -7091,21 +7094,19 @@ public sealed class DiagnosticTests {
     // ! Reports_Warning_BU0525_DuplicateAssembly
     // ? Requires references (i.e. command-line args)
 
-    // ! Interfaces not implemented yet
-    // TODO interfaces
-    // [Fact]
-    // public void Reports_Error_BU0526_CannotCreateInterface() {
-    //     var text = @"
-    //         interface A { }
-    //         var a = [new A()];
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0526_CannotCreateInterface() {
+        var text = @"
+            interface A { }
+            var a = [new A()];
+        ";
 
-    //     var diagnostics = @"
-    //         cannot create an instance of the interface 'A'
-    //     ";
+        var diagnostics = @"
+            cannot create an instance of the interface 'A'
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Warning_BU0527_SealedInSealed() {
@@ -7320,4 +7321,261 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    // !
+    // TODO interfaces
+    // [Fact]
+    // public void Reports_Error_BU0540_DuplicateInterfaceWithTupleNamesInBaseList() {
+    //     var text = @"
+
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // !
+    // TODO interfaces
+    // [Fact]
+    // public void Reports_Error_BU0541_DuplicateInterfaceWithDifferencesInBaseList() {
+    //     var text = @"
+
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // !
+    // TODO interfaces
+    // [Fact]
+    // public void Reports_Error_BU0542_DefaultInterfaceImplementation() {
+    //     var text = @"
+
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // !
+    // TODO interfaces
+    // [Fact]
+    // public void Reports_Error_BU0543_InterfacesCantContainConstructors() {
+    //     var text = @"
+
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // !
+    // TODO interfaces
+    // TODO Do 2 tests, one for interfaces one for structs
+    // [Fact]
+    // public void Reports_Error_BU0544_OnlyClassesCanContainDestructors() {
+    //     var text = @"
+
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // !
+    // TODO interfaces
+    // [Fact]
+    // public void Reports_Error_BU0545_InterfacesCantContainFields() {
+    //     var text = @"
+
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // !
+    // TODO interfaces
+    // [Fact]
+    // public void Reports_Error_BU0546_InterfacesCantContainConversionOrEqualityOperators() {
+    //     var text = @"
+
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // !
+    // TODO interfaces
+    // [Fact]
+    // public void Reports_Error_BU0547_ExplicitImplementationOfOperatorsMustBeStatic() {
+    //     var text = @"
+
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // !
+    // TODO interfaces
+    // [Fact]
+    // public void Reports_Error_BU0548_ExplicitInterfaceImplementationInNonClassOrStruct() {
+    //     var text = @"
+
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // !
+    // TODO interfaces
+    // [Fact]
+    // public void Reports_Error_BU0549_ExplicitInterfaceImplementationNotInterface() {
+    //     var text = @"
+
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // !
+    // TODO interfaces
+    // [Fact]
+    // public void Reports_Error_BU0550_ClassDoesntImplementInterface() {
+    //     var text = @"
+
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // !
+    // TODO interfaces
+    // [Fact]
+    // public void Reports_Error_BU0551_ExplicitInterfaceMemberReturnTypeMismatch() {
+    //     var text = @"
+
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // !
+    // TODO interfaces
+    // [Fact]
+    // public void Reports_Error_BU0552_ExplicitInterfaceMemberTypeMismatch() {
+    //     var text = @"
+
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // !
+    // TODO interfaces
+    // [Fact]
+    // public void Reports_Error_BU0553_InterfaceMemberNotFound() {
+    //     var text = @"
+
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // !
+    // TODO interfaces
+    // [Fact]
+    // public void Reports_Error_BU0554_ImplBadTupleNames() {
+    //     var text = @"
+
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // !
+    // TODO interfaces
+    // [Fact]
+    // public void Reports_Error_BU0555_ExplicitImplCollisionOnRefOut() {
+    //     var text = @"
+
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
 }

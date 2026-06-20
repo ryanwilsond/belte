@@ -254,7 +254,7 @@ internal class MetadataDecoder : TypeNameDecoder<PEModuleSymbol, TypeSymbol> {
         }
     }
 
-    private FieldInfo<TypeSymbol> DecodeFieldSignature(ref BlobReader signatureReader) {
+    private protected FieldInfo<TypeSymbol> DecodeFieldSignature(ref BlobReader signatureReader) {
         try {
             var isByRef = false;
             ImmutableArray<ModifierInfo<TypeSymbol>> refCustomModifiers = default;
@@ -513,7 +513,7 @@ tryAgain:
         return typeSymbol;
     }
 
-    private TypeSymbol GetGenericTypeParamSymbol(int position) {
+    private protected virtual TypeSymbol GetGenericTypeParamSymbol(int position) {
         var type = _typeContextOpt;
 
         while (type is not null && (type.metadataArity - type.arity) > position)
@@ -526,7 +526,7 @@ tryAgain:
         return type.templateParameters[position];
     }
 
-    private TypeSymbol GetGenericMethodTypeParamSymbol(int position) {
+    private protected virtual TypeSymbol GetGenericMethodTypeParamSymbol(int position) {
         if (_methodContextOpt is null)
             return new UnsupportedMetadataTypeSymbol();
 
@@ -1008,7 +1008,7 @@ tryAgain:
         return paramInfo;
     }
 
-    private ParamInfo<TypeSymbol>[] DecodeSignatureParametersOrThrow(
+    private protected ParamInfo<TypeSymbol>[] DecodeSignatureParametersOrThrow(
         ref BlobReader signatureReader,
         SignatureHeader signatureHeader,
         out int typeParameterCount,
@@ -1048,5 +1048,215 @@ tryAgain:
         }
 
         info.type = DecodeTypeOrThrow(ref signatureReader, typeCode, out _);
+    }
+
+    internal ImmutableArray<MethodSymbol> GetExplicitlyOverriddenMethods(
+        TypeDefinitionHandle implementingTypeDef,
+        MethodDefinitionHandle implementingMethodDef,
+        TypeSymbol implementingTypeSymbol) {
+        var resultBuilder = ArrayBuilder<MethodSymbol>.GetInstance();
+
+        try {
+            foreach (var methodImpl in module.GetMethodImplementationsOrThrow(implementingTypeDef)) {
+                module.GetMethodImplPropsOrThrow(
+                    methodImpl,
+                    out var methodDebugHandle,
+                    out var implementedMethodHandle
+                );
+
+                if (methodDebugHandle.Kind == HandleKind.MemberReference) {
+                    var methodBodySymbol = GetMethodSymbolForMemberRef(
+                        (MemberReferenceHandle)methodDebugHandle,
+                        implementingTypeSymbol
+                    );
+
+                    if (methodBodySymbol is not null)
+                        methodDebugHandle = GetMethodHandle(methodBodySymbol);
+                }
+
+                if (methodDebugHandle == implementingMethodDef) {
+                    if (!implementedMethodHandle.IsNil) {
+                        var implementedMethodTokenType = implementedMethodHandle.Kind;
+                        MethodSymbol methodSymbol = null;
+
+                        if (implementedMethodTokenType == HandleKind.MethodDefinition) {
+                            methodSymbol = FindMethodSymbolInSuperType(
+                                implementingTypeDef,
+                                (MethodDefinitionHandle)implementedMethodHandle
+                            );
+                        } else if (implementedMethodTokenType == HandleKind.MemberReference) {
+                            methodSymbol = GetMethodSymbolForMemberRef(
+                                (MemberReferenceHandle)implementedMethodHandle,
+                                implementingTypeSymbol
+                            );
+                        }
+
+                        if (methodSymbol is not null)
+                            resultBuilder.Add(methodSymbol);
+                    }
+                }
+            }
+        } catch (BadImageFormatException) { }
+
+        return resultBuilder.ToImmutableAndFree();
+    }
+
+    internal MethodSymbol GetMethodSymbolForMemberRef(MemberReferenceHandle methodRef, TypeSymbol implementingTypeSymbol) {
+        return (MethodSymbol)GetSymbolForMemberRef(methodRef, implementingTypeSymbol, methodsOnly: true);
+    }
+
+    internal Symbol GetSymbolForMemberRef(
+        MemberReferenceHandle memberRef,
+        TypeSymbol scope = null,
+        bool methodsOnly = false) {
+        var targetTypeSymbol = GetMemberRefTypeSymbol(memberRef);
+
+        if (targetTypeSymbol is null)
+            return null;
+
+        if (scope is not null) {
+            if (!TypeSymbol.Equals(scope, targetTypeSymbol, TypeCompareKind.ConsiderEverything) &&
+                !(targetTypeSymbol.IsInterfaceType()
+                    ? scope.allInterfaces.IndexOf(
+                        (NamedTypeSymbol)targetTypeSymbol,
+                        0,
+                        SymbolEqualityComparer.CLRSignature) != -1
+                    : scope.IsDerivedFrom(
+                        targetTypeSymbol,
+                        TypeCompareKind.CLRSignatureCompareOptions
+                    ))) {
+                return null;
+            }
+        }
+
+        if (!targetTypeSymbol.isTupleType) {
+            // TODO tuples
+            // targetTypeSymbol = TupleTypeDecoder.DecodeTupleTypesIfApplicable(targetTypeSymbol, elementNames: default);
+        }
+
+        var memberRefDecoder = new MemberRefMetadataDecoder(moduleSymbol, targetTypeSymbol.originalDefinition);
+        var definition = memberRefDecoder.FindMember(memberRef, methodsOnly);
+
+        if (definition is not null && !targetTypeSymbol.isDefinition)
+            return definition.SymbolAsMember((NamedTypeSymbol)targetTypeSymbol);
+
+        return definition;
+    }
+
+    internal TypeSymbol GetMemberRefTypeSymbol(MemberReferenceHandle memberRef) {
+        try {
+            var container = module.GetContainingTypeOrThrow(memberRef);
+            var containerType = container.Kind;
+
+            if (containerType != HandleKind.TypeDefinition &&
+                containerType != HandleKind.TypeReference &&
+                containerType != HandleKind.TypeSpecification) {
+                return null;
+            }
+
+            return GetTypeOfToken(container);
+        } catch (BadImageFormatException) {
+            return null;
+        }
+    }
+
+    private MethodSymbol FindMethodSymbolInSuperType(TypeDefinitionHandle searchTypeDef, MethodDefinitionHandle targetMethodDef) {
+        try {
+            var typeDefsToSearch = new Queue<TypeDefinitionHandle>();
+            var typeSymbolsToSearch = new Queue<TypeSymbol>();
+
+            EnqueueTypeDefInterfacesAndBaseTypeOrThrow(typeDefsToSearch, typeSymbolsToSearch, searchTypeDef);
+
+            var visitedTypeDefTokens = new HashSet<TypeDefinitionHandle>();
+            var visitedTypeSymbols = new HashSet<TypeSymbol>();
+
+            bool hasMoreTypeDefs;
+
+            while ((hasMoreTypeDefs = typeDefsToSearch.Count > 0) || typeSymbolsToSearch.Count > 0) {
+                if (hasMoreTypeDefs) {
+                    var typeDef = typeDefsToSearch.Dequeue();
+
+                    if (visitedTypeDefTokens.Add(typeDef)) {
+                        foreach (var methodDef in module.GetMethodsOfTypeOrThrow(typeDef)) {
+                            if (methodDef == targetMethodDef) {
+                                var typeSymbol = GetTypeOfToken(typeDef);
+                                return FindMethodSymbolInType(typeSymbol, targetMethodDef);
+                            }
+                        }
+
+                        EnqueueTypeDefInterfacesAndBaseTypeOrThrow(typeDefsToSearch, typeSymbolsToSearch, typeDef);
+                    }
+                } else {
+                    var typeSymbol = typeSymbolsToSearch.Dequeue();
+
+                    if (visitedTypeSymbols.Add(typeSymbol))
+                        EnqueueTypeSymbolInterfacesAndBaseTypes(typeDefsToSearch, typeSymbolsToSearch, typeSymbol);
+                }
+            }
+        } catch (BadImageFormatException) { }
+
+        return null;
+    }
+
+    private void EnqueueTypeDefInterfacesAndBaseTypeOrThrow(
+        Queue<TypeDefinitionHandle> typeDefsToSearch,
+        Queue<TypeSymbol> typeSymbolsToSearch,
+        TypeDefinitionHandle searchTypeDef) {
+        foreach (var interfaceImplHandle in module.GetInterfaceImplementationsOrThrow(searchTypeDef)) {
+            var interfaceImpl = module.metadataReader.GetInterfaceImplementation(interfaceImplHandle);
+            EnqueueTypeToken(typeDefsToSearch, typeSymbolsToSearch, interfaceImpl.Interface);
+        }
+
+        EnqueueTypeToken(typeDefsToSearch, typeSymbolsToSearch, module.GetBaseTypeOfTypeOrThrow(searchTypeDef));
+    }
+
+    private void EnqueueTypeToken(
+        Queue<TypeDefinitionHandle> typeDefsToSearch,
+        Queue<TypeSymbol> typeSymbolsToSearch,
+        EntityHandle typeToken) {
+        if (!typeToken.IsNil) {
+            if (typeToken.Kind == HandleKind.TypeDefinition)
+                typeDefsToSearch.Enqueue((TypeDefinitionHandle)typeToken);
+            else
+                EnqueueTypeSymbol(typeDefsToSearch, typeSymbolsToSearch, GetTypeOfToken(typeToken));
+        }
+    }
+
+    private MethodSymbol FindMethodSymbolInType(TypeSymbol typeSymbol, MethodDefinitionHandle targetMethodDef) {
+        if (typeSymbol is PENamedTypeSymbol peTypeSymbol && ReferenceEquals(peTypeSymbol.containingPEModule, moduleSymbol)) {
+            foreach (var member in typeSymbol.GetMembersUnordered()) {
+                if (member is PEMethodSymbol method && method.handle == targetMethodDef)
+                    return method;
+            }
+        } else if (typeSymbol is not ErrorTypeSymbol) {
+            var memberRefDecoder = new MemberRefMetadataDecoder(moduleSymbol, typeSymbol);
+            return (MethodSymbol)memberRefDecoder.FindMember(targetMethodDef, methodsOnly: true);
+        }
+
+        return null;
+    }
+
+    private void EnqueueTypeSymbol(
+        Queue<TypeDefinitionHandle> typeDefsToSearch,
+        Queue<TypeSymbol> typeSymbolsToSearch,
+        TypeSymbol typeSymbol) {
+        if (typeSymbol is not null) {
+            if (typeSymbol is PENamedTypeSymbol peTypeSymbol &&
+                ReferenceEquals(peTypeSymbol.containingPEModule, moduleSymbol)) {
+                typeDefsToSearch.Enqueue(peTypeSymbol.handle);
+            } else {
+                typeSymbolsToSearch.Enqueue(typeSymbol);
+            }
+        }
+    }
+
+    private void EnqueueTypeSymbolInterfacesAndBaseTypes(
+        Queue<TypeDefinitionHandle> typeDefsToSearch,
+        Queue<TypeSymbol> typeSymbolsToSearch,
+        TypeSymbol typeSymbol) {
+        foreach (var @interface in typeSymbol.Interfaces())
+            EnqueueTypeSymbol(typeDefsToSearch, typeSymbolsToSearch, @interface);
+
+        EnqueueTypeSymbol(typeDefsToSearch, typeSymbolsToSearch, typeSymbol.baseType);
     }
 }

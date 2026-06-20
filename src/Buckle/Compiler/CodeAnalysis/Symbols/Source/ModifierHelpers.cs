@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
@@ -8,13 +9,24 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal static class ModifierHelpers {
     internal static DeclarationModifiers CreateAndCheckNonTypeMemberModifiers(
         SyntaxTokenList modifiers,
+        bool isForInterfaceMember,
         DeclarationModifiers defaultAccess,
         DeclarationModifiers allowedModifiers,
         TextLocation errorLocation,
         BelteDiagnosticQueue diagnostics,
         out bool hasErrors) {
         var result = CreateModifiers(modifiers, diagnostics, out var creationErrors);
-        result = CheckModifiers(false, result, allowedModifiers, errorLocation, diagnostics, out var checkErrors);
+
+        result = CheckModifiers(
+            false,
+            isForInterfaceMember,
+            result,
+            allowedModifiers,
+            errorLocation,
+            diagnostics,
+            out var checkErrors
+        );
+
         hasErrors = creationErrors | checkErrors;
 
         if ((result & DeclarationModifiers.AccessibilityMask) == 0)
@@ -52,6 +64,7 @@ internal static class ModifierHelpers {
 
     internal static DeclarationModifiers CheckModifiers(
         bool isForTypeDeclaration,
+        bool isForInterfaceMember,
         DeclarationModifiers modifiers,
         DeclarationModifiers allowedModifiers,
         TextLocation errorLocation,
@@ -61,9 +74,16 @@ internal static class ModifierHelpers {
 
         var reportStaticNotVirtualForModifiers = DeclarationModifiers.None;
 
-        if (!isForTypeDeclaration && ((modifiers & allowedModifiers & DeclarationModifiers.Static) != 0)) {
-            reportStaticNotVirtualForModifiers = allowedModifiers &
-                (DeclarationModifiers.Abstract | DeclarationModifiers.Override | DeclarationModifiers.Virtual);
+        if (isForTypeDeclaration) {
+            Debug.Assert((allowedModifiers & (DeclarationModifiers.Override | DeclarationModifiers.Virtual)) == 0);
+        } else if ((modifiers & allowedModifiers & DeclarationModifiers.Static) != 0) {
+            if (isForInterfaceMember) {
+                reportStaticNotVirtualForModifiers = allowedModifiers & DeclarationModifiers.Override;
+            } else {
+                reportStaticNotVirtualForModifiers = allowedModifiers &
+                    (DeclarationModifiers.Abstract | DeclarationModifiers.Override | DeclarationModifiers.Virtual);
+            }
+
             allowedModifiers &= ~reportStaticNotVirtualForModifiers;
         }
 

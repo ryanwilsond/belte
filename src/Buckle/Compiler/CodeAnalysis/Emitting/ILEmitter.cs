@@ -1182,6 +1182,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             GetBaseType(type)
         );
 
+        AddInterfaceImplementations(type, typeDefinition);
+
         if (type.explicitAlignment is not null)
             typeDefinition.PackingSize = (short)type.explicitAlignment;
 
@@ -1210,6 +1212,11 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             CreateNestedTypes(type, typeDefinition, workingParams);
 
         return typeDefinition;
+    }
+
+    private void AddInterfaceImplementations(NamedTypeSymbol type, TypeDefinition typeDefinition) {
+        foreach (var @interface in type.Interfaces())
+            typeDefinition.Interfaces.Add(new InterfaceImplementation(GetType(@interface)));
     }
 
     private TypeReference GetBaseType(NamedTypeSymbol type) {
@@ -1606,6 +1613,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             attributes |= TypeAttributes.Abstract;
         if (type.isSealed)
             attributes |= TypeAttributes.Sealed;
+        if (type.isInterface)
+            attributes |= TypeAttributes.Interface;
 
         if (type.IsStructType())
             attributes |= type.isUnionStruct ? TypeAttributes.ExplicitLayout : TypeAttributes.SequentialLayout;

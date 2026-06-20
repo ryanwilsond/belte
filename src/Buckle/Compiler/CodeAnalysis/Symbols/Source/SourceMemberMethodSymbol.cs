@@ -96,6 +96,8 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol, I
 
     internal bool isNew => (_modifiers & DeclarationModifiers.New) != 0;
 
+    internal override ImmutableArray<MethodSymbol> explicitInterfaceImplementations => [];
+
     internal BlockStatementSyntax body => syntaxNode switch {
         BaseMethodDeclarationSyntax method => method.body,
         _ => null,

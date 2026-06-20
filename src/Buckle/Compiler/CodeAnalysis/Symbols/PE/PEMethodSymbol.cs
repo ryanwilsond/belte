@@ -2,10 +2,12 @@ using System;
 using System.Collections.Immutable;
 using System.Reflection;
 using System.Reflection.Metadata;
+using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -18,7 +20,7 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
     private readonly ushort _implFlags;
     private ImmutableArray<TemplateParameterSymbol> _lazyTypeParameters;
     private SignatureData _lazySignature;
-    // private ImmutableArray<MethodSymbol> _lazyExplicitMethodImplementations;
+    private ImmutableArray<MethodSymbol> _lazyExplicitMethodImplementations;
     private UncommonFields _uncommonFields;
 
     internal PEMethodSymbol(
@@ -122,18 +124,106 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
 
     internal override bool isAbstract => HasFlag(MethodAttributes.Abstract);
 
-    internal override bool isVirtual => IsMetadataVirtual() && !isMetadataFinal && !isAbstract && !isOverride;
+    internal override bool isVirtual
+        => IsMetadataVirtual() && !_isFinalizer && !isMetadataFinal && !isAbstract &&
+            (_containingType.isInterface ? (isStatic || IsMetadataNewSlot()) : !isOverride);
 
     internal override bool isOverride
-        => IsMetadataVirtual() &&
-            !IsMetadataNewSlot() && _containingType.baseType is not null || _isExplicitClassOverride;
+        => !_containingType.isInterface &&
+            IsMetadataVirtual() && !_isFinalizer &&
+            ((!IsMetadataNewSlot() && _containingType.baseType is not null) || _isExplicitClassOverride);
 
     internal override bool isStatic => HasFlag(MethodAttributes.Static);
+
+    private bool _isExplicitClassOverride {
+        get {
+            if (!_packedFlags.isExplicitOverrideIsPopulated)
+                _ = explicitInterfaceImplementations;
+
+            return _packedFlags.isExplicitClassOverride;
+        }
+    }
+
+    internal override ImmutableArray<MethodSymbol> explicitInterfaceImplementations {
+        get {
+            var explicitInterfaceImplementations = _lazyExplicitMethodImplementations;
+
+            if (!explicitInterfaceImplementations.IsDefault)
+                return explicitInterfaceImplementations;
+
+            var moduleSymbol = _containingType.containingPEModule;
+
+            var explicitlyOverriddenMethods = new MetadataDecoder(moduleSymbol, _containingType)
+                .GetExplicitlyOverriddenMethods(_containingType.handle, _handle, containingType);
+
+            var anyToRemove = false;
+            var sawObjectFinalize = false;
+
+            foreach (var method in explicitlyOverriddenMethods) {
+                if (!method.containingType.isInterface) {
+                    anyToRemove = true;
+                    sawObjectFinalize =
+                       method.containingType.specialType == SpecialType.Object &&
+                        method.name == WellKnownMemberNames.FinalizerName &&
+                        method.methodKind == MethodKind.Finalizer;
+                }
+
+                if (anyToRemove && sawObjectFinalize)
+                    break;
+            }
+
+            explicitInterfaceImplementations = explicitlyOverriddenMethods;
+
+            if (anyToRemove) {
+                var explicitInterfaceImplementationsBuilder = ArrayBuilder<MethodSymbol>.GetInstance();
+
+                foreach (var method in explicitlyOverriddenMethods) {
+                    if (method.containingType.isInterface)
+                        explicitInterfaceImplementationsBuilder.Add(method);
+                }
+
+                explicitInterfaceImplementations = explicitInterfaceImplementationsBuilder.ToImmutableAndFree();
+
+                MethodSymbol uniqueClassOverride = null;
+
+                foreach (var method in explicitlyOverriddenMethods) {
+                    if (method.containingType.IsClassType()) {
+                        if (uniqueClassOverride is { }) {
+                            uniqueClassOverride = null;
+                            break;
+                        }
+
+                        uniqueClassOverride = method;
+                    }
+                }
+
+                if (uniqueClassOverride is { }) {
+                    Interlocked.CompareExchange(
+                        ref AccessUncommonFields()._lazyExplicitClassOverride,
+                        uniqueClassOverride,
+                        null
+                    );
+                }
+            }
+
+            _packedFlags.InitializeIsExplicitOverride(
+                isExplicitFinalizerOverride: sawObjectFinalize,
+                isExplicitClassOverride: anyToRemove
+            );
+
+            return InterlockedOperations.Initialize(
+                ref _lazyExplicitMethodImplementations,
+                explicitInterfaceImplementations
+            );
+        }
+    }
 
     internal override bool hidesBaseMethodsByName => !HasFlag(MethodAttributes.HideBySig);
 
     // TODO Correct?
     internal override CallingConvention callingConvention => (CallingConvention)signature.header.RawValue;
+
+    private bool _isFinalizer => methodKind == MethodKind.Finalizer;
 
     internal override Accessibility declaredAccessibility {
         get {
@@ -206,7 +296,11 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
         }
     }
 
-    internal override bool isSealed => isMetadataFinal && !isAbstract && isOverride;
+    internal override bool isSealed
+        => isMetadataFinal &&
+            (_containingType.isInterface
+                ? isAbstract && IsMetadataVirtual() && !IsMetadataNewSlot()
+                : !isAbstract && isOverride);
 
     internal override bool isMetadataFinal => HasFlag(MethodAttributes.Final);
 
@@ -227,16 +321,6 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
             } catch (BadImageFormatException) {
                 return parameters.Length;
             }
-        }
-    }
-
-    private bool _isExplicitClassOverride {
-        get {
-            if (!_packedFlags.isExplicitOverrideIsPopulated) {
-                // var unused = this.explicitInterfaceImplementations;
-            }
-
-            return _packedFlags.isExplicitClassOverride;
         }
     }
 

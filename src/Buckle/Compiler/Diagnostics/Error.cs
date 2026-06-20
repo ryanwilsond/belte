@@ -2670,6 +2670,86 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_ConversionWithDerived, location, message);
     }
 
+    internal static BelteDiagnostic DuplicateInterfaceWithTupleNamesInBaseList(TextLocation location, TypeSymbol type1, TypeSymbol type2, TypeSymbol type3) {
+        var message = $"'{type1.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is already listed in the interface list on type '{type3.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' with different tuple element names, as '{type2.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        return CreateError(DiagnosticCode.ERR_DuplicateInterfaceWithTupleNamesInBaseList, location, message);
+    }
+
+    internal static BelteDiagnostic DuplicateInterfaceWithDifferencesInBaseList(TextLocation location, TypeSymbol type1, TypeSymbol type2, TypeSymbol type3) {
+        var message = $"'{type1.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is already listed in the interface list on type '{type3.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' as '{type2.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        return CreateError(DiagnosticCode.ERR_DuplicateInterfaceWithDifferencesInBaseList, location, message);
+    }
+
+    internal static BelteDiagnostic DefaultInterfaceImplementation(TextLocation location) {
+        var message = $"interface members cannot define an implementation";
+        return CreateError(DiagnosticCode.ERR_DefaultInterfaceImplementation, location, message);
+    }
+
+    internal static BelteDiagnostic InterfacesCantContainConstructors(TextLocation location) {
+        var message = $"interfaces cannot contain constructors";
+        return CreateError(DiagnosticCode.ERR_InterfacesCantContainConstructors, location, message);
+    }
+
+    internal static BelteDiagnostic OnlyClassesCanContainFinalizers(TextLocation location) {
+        var message = $"only class types can contain finalizers";
+        return CreateError(DiagnosticCode.ERR_OnlyClassesCanContainFinalizers, location, message);
+    }
+
+    internal static BelteDiagnostic InterfacesCantContainFields(TextLocation location) {
+        var message = $"interfaces cannot contain fields";
+        return CreateError(DiagnosticCode.ERR_InterfacesCantContainFields, location, message);
+    }
+
+    internal static BelteDiagnostic InterfacesCantContainConversionOrEqualityOperators(TextLocation location) {
+        var message = $"conversion, equality, or inequality operators declared in interfaces must be abstract";
+        return CreateError(DiagnosticCode.ERR_InterfacesCantContainConversionOrEqualityOperators, location, message);
+    }
+
+    internal static BelteDiagnostic ExplicitImplementationOfOperatorsMustBeStatic(TextLocation location, MethodSymbol method) {
+        var message = $"explicit implementation of a user-defined operator '{method}' must be declared static";
+        return CreateError(DiagnosticCode.ERR_ExplicitImplementationOfOperatorsMustBeStatic, location, message);
+    }
+
+    internal static BelteDiagnostic ExplicitInterfaceImplementationInNonClassOrStruct(TextLocation location, Symbol member) {
+        var message = $"'{member}': explicit interface declaration can only be declared in a class, struct or interface";
+        return CreateError(DiagnosticCode.ERR_ExplicitInterfaceImplementationInNonClassOrStruct, location, message);
+    }
+
+    internal static BelteDiagnostic ExplicitInterfaceImplementationNotInterface(TextLocation location, Symbol member) {
+        var message = $"'{member}' in explicit interface declaration is not an interface";
+        return CreateError(DiagnosticCode.ERR_ExplicitInterfaceImplementationNotInterface, location, message);
+    }
+
+    internal static BelteDiagnostic ClassDoesntImplementInterface(TextLocation location, Symbol symbol1, Symbol symbol2) {
+        var message = $"'{symbol1.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': containing type does not implement interface '{symbol2.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        return CreateError(DiagnosticCode.ERR_ClassDoesntImplementInterface, location, message);
+    }
+
+    internal static BelteDiagnostic ExplicitInterfaceMemberReturnTypeMismatch(TextLocation location, Symbol member1, TypeWithAnnotations type, Symbol member2) {
+        var message = $"'{member1}': return type must be '{type}' to match implemented member '{member2}'";
+        return CreateError(DiagnosticCode.ERR_ExplicitInterfaceMemberReturnTypeMismatch, location, message);
+    }
+
+    internal static BelteDiagnostic ExplicitInterfaceMemberTypeMismatch(TextLocation location, Symbol member1, TypeWithAnnotations type, Symbol member2) {
+        var message = $"'{member1}': type must be '{type}' to match implemented member '{member2}'";
+        return CreateError(DiagnosticCode.ERR_ExplicitInterfaceMemberTypeMismatch, location, message);
+    }
+
+    internal static BelteDiagnostic InterfaceMemberNotFound(TextLocation location, Symbol member) {
+        var message = $"'{member}' in explicit interface declaration is not found among members of the interface that can be implemented";
+        return CreateError(DiagnosticCode.ERR_InterfaceMemberNotFound, location, message);
+    }
+
+    internal static BelteDiagnostic ImplBadTupleNames(TextLocation location, Symbol member1, Symbol member2) {
+        var message = $"the tuple element names in the signature of method '{member1}' must match the tuple element names of interface method '{member2}' (including on the return type)";
+        return CreateError(DiagnosticCode.ERR_ImplBadTupleNames, location, message);
+    }
+
+    internal static BelteDiagnostic ExplicitImplCollisionOnRefOut(TextLocation location, Symbol member1, Symbol member2) {
+        var message = $"cannot inherit interface '{member1}' with the specified template parameters because it causes method '{member2}' to contain overloads which differ only on ref and out";
+        return CreateError(DiagnosticCode.ERR_ExplicitImplCollisionOnRefOut, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

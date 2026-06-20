@@ -992,7 +992,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         SyntaxList<AttributeListSyntax> attributeLists,
         SyntaxList<SyntaxToken> modifiers,
         TypeSyntax returnType) {
-        var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenParenToken, SyntaxKind.LessThanToken);
+        var (explicitInterfaceSpecifier, identifier) = ParseMemberName();
         var templateParameterList = currentToken.kind == SyntaxKind.LessThanToken
             ? ParseTemplateParameterList()
             : null;
@@ -1022,6 +1022,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             attributeLists,
             modifiers,
             returnType,
+            explicitInterfaceSpecifier,
             identifier,
             templateParameterList,
             parameterList,
@@ -1033,6 +1034,63 @@ internal sealed partial class LanguageParser : SyntaxParser {
             stateClause,
             reverseClause
         );
+    }
+
+    private (ExplicitInterfaceSpecifierSyntax, SyntaxToken) ParseMemberName() {
+        if (currentToken.kind != SyntaxKind.IdentifierToken) {
+            var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenParenToken);
+            return (null, identifier);
+        }
+
+        // TODO Allow any other kinds of names?
+        var name = ParseSimpleName();
+
+        if (name is IdentifierNameSyntax identifierName && currentToken.kind != SyntaxKind.PeriodToken)
+            return (null, identifierName.identifier);
+
+        var period = Match(SyntaxKind.PeriodToken, SyntaxKind.IdentifierToken);
+        var actualIdentifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenParenToken);
+
+        return (SyntaxFactory.ExplicitInterfaceSpecifier(name, period), actualIdentifier);
+    }
+
+    private (ExplicitInterfaceSpecifierSyntax, SyntaxToken) ParseOperatorMemberName(SyntaxKind? nextWanted = null) {
+        if (currentToken.contextualKind == SyntaxKind.OperatorKeyword) {
+            // Allow `operator.operator` where the first one is the interface name
+            // Allow `operator<type>.operator` where the first one is the interface name
+            if (Peek(1).kind == SyntaxKind.LessThanToken ||
+                (Peek(1).kind == SyntaxKind.PeriodToken && Peek(2).contextualKind == SyntaxKind.OperatorKeyword)) {
+                NameSyntax specifierIdentifier;
+
+                if (Peek(1).kind == SyntaxKind.PeriodToken)
+                    specifierIdentifier = SyntaxFactory.IdentifierName(EatToken());
+                else
+                    specifierIdentifier = ParseSimpleName();
+
+                var explicitInterfaceSpecifier = SyntaxFactory.ExplicitInterfaceSpecifier(
+                    specifierIdentifier,
+                    Match(SyntaxKind.PeriodToken)
+                );
+
+                var operatorKeyword = Match(SyntaxKind.OperatorKeyword, nextWanted, contextual: true);
+
+                return (explicitInterfaceSpecifier, operatorKeyword);
+            }
+
+            return (null, ConvertToKeyword(EatToken()));
+        }
+
+        if (currentToken.kind != SyntaxKind.IdentifierToken) {
+            var operatorKeyword = Match(SyntaxKind.OperatorKeyword, nextWanted, contextual: true);
+            return (null, operatorKeyword);
+        }
+
+        // TODO Allow any other kinds of names?
+        var name = ParseSimpleName();
+        var period = Match(SyntaxKind.PeriodToken, SyntaxKind.IdentifierToken);
+        var actualKeyword = Match(SyntaxKind.OperatorKeyword, nextWanted, contextual: true);
+
+        return (SyntaxFactory.ExplicitInterfaceSpecifier(name, period), actualKeyword);
     }
 
     private InitConstraintClauseSyntax ParseInitConstraintClause() {
@@ -1116,7 +1174,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         SyntaxList<AttributeListSyntax> attributeLists,
         SyntaxList<SyntaxToken> modifiers,
         TypeSyntax returnType) {
-        var operatorKeyword = Match(SyntaxKind.OperatorKeyword, contextual: true);
+        var (explicitInterfaceSpecifier, operatorKeyword) = ParseOperatorMemberName();
         var operatorToken = EatToken();
         var opKind = operatorToken.kind;
 
@@ -1178,6 +1236,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             attributeLists,
             modifiers,
             returnType,
+            explicitInterfaceSpecifier,
             operatorKeyword,
             operatorToken,
             rightOperatorToken,
@@ -1196,7 +1255,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             contextual: true
         );
 
-        var operatorKeyword = Match(SyntaxKind.OperatorKeyword, SyntaxKind.IdentifierToken, contextual: true);
+        var (explicitInterfaceSpecifier, operatorKeyword) = ParseOperatorMemberName(SyntaxKind.IdentifierToken);
         var type = ParseType(false);
         var parameterList = ParseParameterList();
         var body = ParseBlockStatement();
@@ -1212,6 +1271,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             attributeLists,
             modifiers,
             implicitOrExplicitKeyword,
+            explicitInterfaceSpecifier,
             operatorKeyword,
             type,
             parameterList,

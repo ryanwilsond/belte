@@ -19,6 +19,8 @@ internal enum CompletionParts : uint {
     // For named type symbols
     StartBaseType = 1 << 4,
     FinishBaseType = 1 << 5,
+    StartInterfaces = 1 << 6,
+    FinishInterfaces = 1 << 7,
     EnumUnderlyingType = 1 << 8,
     TemplateArguments = 1 << 9,
     TemplateParameters = 1 << 10,
@@ -32,8 +34,9 @@ internal enum CompletionParts : uint {
 
     All = (1 << 18) - 1,
 
-    NamedTypeSymbolWithLocationAll = Attributes | StartBaseType | FinishBaseType | TemplateArguments | TemplateParameters |
-        Members | TypeMembers | SynthesizedExplicitImplementations | StartMemberChecks | FinishMemberChecks | EnumUnderlyingType,
+    NamedTypeSymbolWithLocationAll = Attributes | StartBaseType | FinishBaseType | StartInterfaces | FinishInterfaces |
+        TemplateArguments | TemplateParameters | Members | TypeMembers | SynthesizedExplicitImplementations |
+        StartMemberChecks | FinishMemberChecks | EnumUnderlyingType,
 
     NamedTypeSymbolAll = NamedTypeSymbolWithLocationAll | MembersCompletedChecksStarted | MembersCompleted,
 

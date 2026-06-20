@@ -760,8 +760,29 @@ internal sealed partial class Conversions {
         TypeSymbol target,
         ArrayBuilder<(NamedTypeSymbol participatingType, TemplateParameterSymbol constrainedToType)> d,
         ArrayBuilder<UserDefinedConversionAnalysis> u) {
+        var haveInterfaces = false;
+
         foreach ((var declaringType, var constrainedToTypeOpt) in d) {
-            AddCandidatesFromType(null, declaringType, sourceExpression, source, target, u);
+            if (declaringType.isInterface) {
+                haveInterfaces = true;
+            } else {
+                AddCandidatesFromType(null, declaringType, sourceExpression, source, target, u);
+            }
+        }
+
+        if (u.Count == 0 && haveInterfaces) {
+            foreach ((var declaringType, var constrainedToTypeOpt) in d) {
+                if (declaringType.isInterface) {
+                    AddCandidatesFromType(
+                        constrainedToTypeOpt: constrainedToTypeOpt,
+                        declaringType,
+                        sourceExpression,
+                        source,
+                        target,
+                        u
+                    );
+                }
+            }
         }
 
         void AddCandidatesFromType(
@@ -967,19 +988,38 @@ internal sealed partial class Conversions {
         if (source is not null && source.IsInterfaceType() || target is not null && target.IsInterfaceType())
             return;
 
-        if (source is not null && false || target is not null && false)
-            return;
+        var haveInterfaces = false;
 
         foreach ((var declaringType, var constrainedToTypeOpt) in d) {
-            AddCandidatesFromType(
-                constrainedToTypeOpt: null,
-                declaringType,
-                sourceExpression,
-                source,
-                target,
-                u,
-                allowAnyTarget
-            );
+            if (declaringType.isInterface) {
+                haveInterfaces = true;
+            } else {
+                AddCandidatesFromType(
+                    constrainedToTypeOpt: null,
+                    declaringType,
+                    sourceExpression,
+                    source,
+                    target,
+                    u,
+                    allowAnyTarget
+                );
+            }
+        }
+
+        if (u.Count == 0 && haveInterfaces) {
+            foreach ((var declaringType, var constrainedToTypeOpt) in d) {
+                if (declaringType.isInterface) {
+                    AddCandidatesFromType(
+                        constrainedToTypeOpt: constrainedToTypeOpt,
+                        declaringType,
+                        sourceExpression,
+                        source,
+                        target,
+                        u,
+                        allowAnyTarget
+                    );
+                }
+            }
         }
 
         void AddCandidatesFromType(

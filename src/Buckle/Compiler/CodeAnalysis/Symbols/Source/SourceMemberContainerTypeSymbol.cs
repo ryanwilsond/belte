@@ -311,6 +311,17 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                     }
 
                     break;
+                case CompletionParts.StartInterfaces:
+                case CompletionParts.FinishInterfaces:
+                    if (_state.NotePartComplete(CompletionParts.StartInterfaces)) {
+                        var diagnostics = BelteDiagnosticQueue.GetInstance();
+                        CheckInterfaces(diagnostics);
+                        AddDeclarationDiagnostics(diagnostics);
+                        _state.NotePartComplete(CompletionParts.FinishInterfaces);
+                        diagnostics.Free();
+                    }
+
+                    break;
                 case CompletionParts.EnumUnderlyingType:
                     _ = enumUnderlyingType;
                     break;
@@ -454,6 +465,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     private protected virtual void AfterMembersCompletedChecks(BelteDiagnosticQueue diagnostics) { }
 
     private protected void AfterMembersChecks(BelteDiagnosticQueue diagnostics) {
+        if (isInterface)
+            CheckInterfaceMembers(GetMembersAndInitializers().nonTypeMembers, diagnostics);
+
         CheckMemberNamesDistinctFromType(diagnostics);
         CheckMemberNameConflicts(diagnostics);
         CheckSpecialMemberErrors(diagnostics);
@@ -466,6 +480,45 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         CheckUnionIsNonEmpty(diagnostics);
 
         CheckStructLayoutEfficiency(diagnostics);
+    }
+
+    private static void CheckInterfaceMembers(ImmutableArray<Symbol> nonTypeMembers, BelteDiagnosticQueue diagnostics) {
+        foreach (var member in nonTypeMembers)
+            CheckInterfaceMember(member, diagnostics);
+    }
+
+    private static void CheckInterfaceMember(Symbol member, BelteDiagnosticQueue diagnostics) {
+        switch (member.kind) {
+            case SymbolKind.Field:
+                break;
+            case SymbolKind.Method:
+                var meth = (MethodSymbol)member;
+
+                switch (meth.methodKind) {
+                    case MethodKind.Constructor:
+                        diagnostics.Push(Error.InterfacesCantContainConstructors(member.location));
+                        break;
+                    case MethodKind.Conversion:
+                        break;
+                    case MethodKind.Operator:
+                        break;
+                    case MethodKind.Finalizer:
+                        diagnostics.Push(Error.OnlyClassesCanContainFinalizers(member.location));
+                        break;
+                    case MethodKind.ExplicitInterfaceImplementation:
+                    case MethodKind.Ordinary:
+                    case MethodKind.LocalFunction:
+                    case MethodKind.StaticConstructor:
+                    case MethodKind.Destructor:
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(meth.methodKind);
+                }
+
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(member.kind);
+        }
     }
 
     private void CheckUnionIsNonEmpty(BelteDiagnosticQueue diagnostics) {
@@ -1524,6 +1577,11 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 symbols.Add(t);
             }
 
+            if (isInterface) {
+                foreach (var t in symbols)
+                    diagnostics.Push(Error.DefaultInterfaceImplementation(t.location));
+            }
+
             return symbols.Count > 0
                 ? symbols.ToDictionary(s => s.name.AsMemory(), ReadOnlyMemoryOfCharComparer.Instance)
                 : EmptyTypeMembers;
@@ -1713,6 +1771,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         if (members.Count == 0)
             return;
 
+        var firstMember = members[0];
+        var bodyBinder = GetBinder(firstMember);
+
         ArrayBuilder<FieldInitializer>? instanceInitializers = null;
         ArrayBuilder<FieldInitializer>? staticInitializers = null;
 
@@ -1760,6 +1821,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                         var method = SourceOrdinaryMethodSymbol.CreateMethodSymbol(
                             this,
+                            bodyBinder,
                             methodSyntax,
                             diagnostics
                         );
@@ -1820,6 +1882,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                         var method = SourceUserDefinedOperatorSymbol.CreateUserDefinedOperatorSymbol(
                             this,
+                            bodyBinder,
                             operatorSyntax,
                             diagnostics
                         );
@@ -1852,6 +1915,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                         var method = SourceUserDefinedConversionSymbol.CreateUserDefinedConversionSymbol(
                             this,
+                            bodyBinder,
                             conversionSyntax,
                             diagnostics
                         );
@@ -2015,7 +2079,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     private void AddSynthesizedConstructorsIfNecessary(
         MembersAndInitializersBuilder builder,
         DeclaredMembersAndInitializers declaredMembersAndInitializers) {
-        var hasConstructor = false;
+        var hasInstanceConstructor = false;
         var hasParameterlessConstructor = false;
         var hasStaticConstructor = false;
 
@@ -2027,7 +2091,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                 switch (method.methodKind) {
                     case MethodKind.Constructor:
-                        hasConstructor = true;
+                        hasInstanceConstructor = true;
                         hasParameterlessConstructor = hasParameterlessConstructor || method.parameters.Length == 0;
                         break;
                     case MethodKind.StaticConstructor:
@@ -2036,7 +2100,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 }
             }
 
-            if (hasConstructor && hasParameterlessConstructor)
+            if (hasInstanceConstructor && hasParameterlessConstructor)
                 break;
         }
 
@@ -2045,7 +2109,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
         // TODO Do we want to have structs a parameterless constructor always?
         // if ((!hasParameterlessConstructor && IsStructType()) || (!hasConstructor && !isStatic))
-        if (!hasConstructor && !isStatic)
+        if (!hasInstanceConstructor && !isStatic && !isInterface)
             builder.AddNonTypeMember(new SynthesizedInstanceConstructorSymbol(this), declaredMembersAndInitializers);
 
         static bool HasNonConstExprInitializer(ImmutableArray<ImmutableArray<FieldInitializer>> initializers) {
@@ -2088,6 +2152,17 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             : DeclarationModifiers.Private;
 
         var allowedModifiers = DeclarationModifiers.AccessibilityMask;
+
+        if (containingSymbol.kind == SymbolKind.Namespace) {
+            // defaultAccess = DeclarationModifiers.Internal;
+        } else {
+            allowedModifiers |= DeclarationModifiers.New;
+
+            if (((NamedTypeSymbol)containingSymbol).isInterface)
+                defaultAccess = DeclarationModifiers.Public;
+            else
+                defaultAccess = DeclarationModifiers.Private;
+        }
 
         switch (typeKind) {
             case TypeKind.Class:
@@ -2147,6 +2222,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
         modifiers = ModifierHelpers.CheckModifiers(
             true,
+            false,
             modifiers,
             allowedModifiers,
             location,

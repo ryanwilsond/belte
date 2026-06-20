@@ -4,6 +4,8 @@ using System.Threading;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
+#pragma warning disable CS0660
+
 internal abstract partial class TypeSymbol {
     private class InterfaceInfo {
         internal ImmutableArray<NamedTypeSymbol> allInterfaces;

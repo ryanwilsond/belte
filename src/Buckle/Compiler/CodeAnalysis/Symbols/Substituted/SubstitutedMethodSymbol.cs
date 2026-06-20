@@ -17,7 +17,7 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
     private MethodSymbol _lazyStateMethod;
     private TemplateMap _lazyMap;
     private ImmutableArray<TemplateParameterSymbol> _lazyTemplateParameters;
-
+    private ImmutableArray<MethodSymbol> _lazyExplicitInterfaceImplementations;
     private OverriddenOrHiddenMembersResult _lazyOverriddenOrHiddenMembers;
 
     private int _hashCode;
@@ -89,6 +89,29 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
                 ImmutableInterlocked.InterlockedInitialize(ref _lazyParameters, SubstituteParameters());
 
             return _lazyParameters;
+        }
+    }
+
+    internal sealed override bool isExplicitInterfaceImplementation
+        => originalDefinition.isExplicitInterfaceImplementation;
+
+    internal sealed override ImmutableArray<MethodSymbol> explicitInterfaceImplementations {
+        get {
+            if (!ReferenceEquals(constructedFrom, this))
+                return [];
+
+            if (_lazyExplicitInterfaceImplementations.IsDefault) {
+                ImmutableInterlocked.InterlockedCompareExchange(
+                    ref _lazyExplicitInterfaceImplementations,
+                    ExplicitInterfaceHelpers.SubstituteExplicitInterfaceImplementations(
+                        originalDefinition.explicitInterfaceImplementations,
+                        templateSubstitution
+                    ),
+                    default
+                );
+            }
+
+            return _lazyExplicitInterfaceImplementations;
         }
     }
 

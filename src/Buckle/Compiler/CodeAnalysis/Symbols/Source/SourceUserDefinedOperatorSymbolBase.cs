@@ -4,14 +4,17 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMethodOrUserDefinedOperatorSymbol {
     private const TypeCompareKind ComparisonForUserDefinedOperators = TypeCompareKind.IgnoreTupleNames;
+    private readonly TypeSymbol _fieldExplicitInterfaceType;
 
     private protected SourceUserDefinedOperatorSymbolBase(
         MethodKind methodKind,
+        TypeSymbol explicitInterfaceType,
         string name,
         SourceMemberContainerTypeSymbol containingType,
         TextLocation location,
@@ -25,21 +28,52 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
             new SyntaxReference(syntax),
             (modifiers, new Flags(methodKind, refKind, modifiers, false, false, hasAnyBody, false))
         ) {
+        _fieldExplicitInterfaceType = explicitInterfaceType;
         this.name = name;
+
+        if (this.containingType.isInterface &&
+            !(isAbstract || isVirtual) && !isExplicitInterfaceImplementation &&
+            !(syntax is OperatorDeclarationSyntax { operatorToken: var opToken } &&
+                opToken.kind is not (SyntaxKind.EqualsEqualsToken or SyntaxKind.ExclamationEqualsToken))) {
+            diagnostics.Push(Error.InterfacesCantContainConversionOrEqualityOperators(location));
+            return;
+        }
 
         if (containingType.isStatic) {
             diagnostics.Push(Error.OperatorInStaticClass(location));
             return;
         }
 
-        if (declaredAccessibility != Accessibility.Public || !isStatic)
+        if (isExplicitInterfaceImplementation) {
+            if (!isStatic)
+                diagnostics.Push(Error.ExplicitImplementationOfOperatorsMustBeStatic(location, this));
+        } else if (declaredAccessibility != Accessibility.Public || !isStatic) {
             diagnostics.Push(Error.OperatorMustBePublicAndStatic(location));
+        }
 
-        if (hasAnyBody && isAbstract)
-            diagnostics.Push(Error.AbstractCannotHaveBody(location, this));
-
-        if (!hasAnyBody && !isAbstract)
+        if (isAbstract && isExtern) {
+            diagnostics.Push(Error.AbstractAndExtern(location, this));
+        } else if (isAbstract && isVirtual) {
+            diagnostics.Push(Error.AbstractAndVirtual(location, kind.Localize(), this));
+        } else if (hasAnyBody && (isExtern || isAbstract)) {
+            if (isExtern)
+                diagnostics.Push(Error.ExternCannotHaveBody(location, this));
+            else
+                diagnostics.Push(Error.AbstractCannotHaveBody(location, this));
+        } else if (!hasAnyBody && !isAbstract && !isExtern) {
             diagnostics.Push(Error.NonAbstractMustHaveBody(location, this));
+        } else if (isOverride && (isNew || isVirtual)) {
+            diagnostics.Push(Error.ConflictingOverrideModifiers(location, this));
+        } else if (isSealed && !isOverride &&
+            !(isExplicitInterfaceImplementation && containingType.isInterface && isAbstract)) {
+            diagnostics.Push(Error.SealedNonOverride(location, this));
+        } else if (isAbstract && isSealed && !isExplicitInterfaceImplementation) {
+            diagnostics.Push(Error.AbstractAndSealed(location, this));
+        } else if (isAbstract && !containingType.isAbstract && !containingType.isInterface) {
+            diagnostics.Push(Error.AbstractInNonAbstractType(location, this, containingType));
+        } else if (isVirtual && containingType.isSealed) {
+            diagnostics.Push(Error.VirtualInSealedType(location, this, containingType));
+        }
 
         ModifierHelpers.CheckAccessibility(_modifiers, diagnostics, location);
     }
@@ -49,6 +83,8 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
     public sealed override ImmutableArray<TemplateParameterSymbol> templateParameters => [];
 
     public sealed override ImmutableArray<BoundExpression> templateConstraints => [];
+
+    private protected sealed override TypeSymbol _explicitInterfaceType => _fieldExplicitInterfaceType;
 
     internal sealed override ImmutableArray<TypeParameterConstraintKinds> GetTypeParameterConstraintKinds() {
         return [];
@@ -121,6 +157,36 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
                 CheckBinarySignature(diagnostics);
                 break;
         }
+    }
+
+    private protected sealed override MethodSymbol FindExplicitlyImplementedMethod(BelteDiagnosticQueue diagnostics) {
+        if (_explicitInterfaceType is object) {
+            string interfaceMethodName;
+            ExplicitInterfaceSpecifierSyntax explicitInterfaceSpecifier;
+
+            switch (syntaxReference.node) {
+                case OperatorDeclarationSyntax operatorDeclaration:
+                    interfaceMethodName = SyntaxFacts.GetOperatorMemberName(operatorDeclaration);
+                    explicitInterfaceSpecifier = operatorDeclaration.explicitInterfaceSpecifier;
+                    break;
+                case ConversionDeclarationSyntax conversionDeclaration:
+                    interfaceMethodName = SyntaxFacts.GetOperatorMemberName(conversionDeclaration);
+                    explicitInterfaceSpecifier = conversionDeclaration.explicitInterfaceSpecifier;
+                    break;
+                default:
+                    throw ExceptionUtilities.Unreachable();
+            }
+
+            return this.FindExplicitlyImplementedMethod(
+                isOperator: true,
+                _explicitInterfaceType,
+                interfaceMethodName,
+                explicitInterfaceSpecifier,
+                diagnostics
+            );
+        }
+
+        return null;
     }
 
     private void CheckUserDefinedConversionSignature(BelteDiagnosticQueue diagnostics) {
@@ -381,18 +447,41 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
 
     private protected static DeclarationModifiers MakeDeclarationModifiers(
         NamedTypeSymbol containingType,
+        MethodKind methodKind,
         BaseMethodDeclarationSyntax syntax,
         TextLocation location,
         BelteDiagnosticQueue diagnostics) {
-        var defaultAccess = (containingType.IsStructType() || containingType.IsFileScoped())
+        var inInterface = containingType.isInterface;
+        var isExplicitInterfaceImplementation = methodKind == MethodKind.ExplicitInterfaceImplementation;
+
+        var defaultAccess = inInterface && !isExplicitInterfaceImplementation
             ? DeclarationModifiers.Public
-            : DeclarationModifiers.Private;
-        var allowedModifiers = DeclarationModifiers.Static
-            | DeclarationModifiers.LowLevel
-            | DeclarationModifiers.AccessibilityMask;
+            : (containingType.IsStructType() || containingType.IsFileScoped())
+                ? DeclarationModifiers.Public
+                : DeclarationModifiers.Private;
+
+        var allowedModifiers = DeclarationModifiers.Extern
+                             | DeclarationModifiers.LowLevel
+                             | DeclarationModifiers.Static;
+
+        if (!isExplicitInterfaceImplementation) {
+            allowedModifiers |= DeclarationModifiers.AccessibilityMask;
+
+            if (inInterface) {
+                allowedModifiers |= DeclarationModifiers.Abstract | DeclarationModifiers.Virtual;
+
+                if (syntax is OperatorDeclarationSyntax { operatorToken: var opToken } &&
+                    opToken.kind is not (SyntaxKind.EqualsEqualsToken or SyntaxKind.ExclamationEqualsToken)) {
+                    allowedModifiers |= DeclarationModifiers.Sealed;
+                }
+            }
+        } else if (inInterface) {
+            allowedModifiers |= DeclarationModifiers.Abstract;
+        }
 
         var result = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
             syntax.modifiers,
+            inInterface,
             defaultAccess,
             allowedModifiers,
             location,

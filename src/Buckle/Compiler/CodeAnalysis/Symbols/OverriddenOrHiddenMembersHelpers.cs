@@ -15,6 +15,10 @@ internal static class OverriddenOrHiddenMembersHelpers {
             return OverriddenOrHiddenMembersResult.Empty;
 
         var containingType = member.containingType;
+        var memberIsFromSomeCompilation = member.declaringCompilation is not null;
+
+        if (containingType.isInterface)
+            return MakeInterfaceOverriddenOrHiddenMembers(member, memberIsFromSomeCompilation);
 
         FindOverriddenOrHiddenMembers(
             member,
@@ -23,6 +27,85 @@ internal static class OverriddenOrHiddenMembersHelpers {
             out var hiddenBuilder,
             out var overriddenMembers
         );
+
+        var hiddenMembers = hiddenBuilder is null ? [] : hiddenBuilder.ToImmutableAndFree();
+        return OverriddenOrHiddenMembersResult.Create(overriddenMembers, hiddenMembers);
+    }
+
+    internal static OverriddenOrHiddenMembersResult MakeInterfaceOverriddenOrHiddenMembers(
+        Symbol member,
+        bool memberIsFromSomeCompilation) {
+        var containingType = member.containingType;
+
+        var membersOfOtherKindsHidden = PooledHashSet<NamedTypeSymbol>.GetInstance();
+        var allMembersHidden = PooledHashSet<NamedTypeSymbol>.GetInstance();
+
+        ArrayBuilder<Symbol> hiddenBuilder = null;
+
+        foreach (var currType in containingType.allInterfaces) {
+            if (allMembersHidden.Contains(currType))
+                continue;
+
+
+            FindOverriddenOrHiddenMembersInType(
+                member,
+                memberIsFromSomeCompilation,
+                containingType,
+                currType,
+                out var currTypeBestMatch,
+                out var currTypeHasSameKindNonMatch,
+                out var currTypeHiddenBuilder
+            );
+
+            var haveBestMatch = currTypeBestMatch is not null;
+
+            if (haveBestMatch) {
+                foreach (var hidden in currType.allInterfaces)
+                    allMembersHidden.Add(hidden);
+
+                AccessOrGetInstance(ref hiddenBuilder).Add(currTypeBestMatch);
+            }
+
+            if (currTypeHiddenBuilder is not null) {
+                if (!membersOfOtherKindsHidden.Contains(currType)) {
+                    if (!haveBestMatch) {
+                        foreach (var hidden in currType.allInterfaces)
+                            allMembersHidden.Add(hidden);
+                    }
+
+                    AccessOrGetInstance(ref hiddenBuilder).AddRange(currTypeHiddenBuilder);
+                }
+
+                currTypeHiddenBuilder.Free();
+            } else if (currTypeHasSameKindNonMatch && !haveBestMatch) {
+                foreach (var hidden in currType.allInterfaces)
+                    membersOfOtherKindsHidden.Add(hidden);
+            }
+        }
+
+        membersOfOtherKindsHidden.Free();
+        allMembersHidden.Free();
+
+        ImmutableArray<Symbol> overriddenMembers = [];
+
+        if (hiddenBuilder is not null) {
+            ArrayBuilder<Symbol> hiddenAndRelatedBuilder = null;
+
+            foreach (var hidden in hiddenBuilder) {
+                FindRelatedMembers(
+                    member.isOverride,
+                    memberIsFromSomeCompilation,
+                    // TODO Pass entire member instead of only kind instead?
+                    member.kind,
+                    hidden,
+                    out overriddenMembers,
+                    ref hiddenAndRelatedBuilder
+                );
+            }
+
+            hiddenBuilder.Free();
+            hiddenBuilder = hiddenAndRelatedBuilder;
+        }
 
         var hiddenMembers = hiddenBuilder is null ? [] : hiddenBuilder.ToImmutableAndFree();
         return OverriddenOrHiddenMembersResult.Create(overriddenMembers, hiddenMembers);

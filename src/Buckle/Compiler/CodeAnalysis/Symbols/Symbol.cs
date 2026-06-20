@@ -201,6 +201,29 @@ internal abstract class Symbol : ISymbol {
         return true;
     }
 
+    internal bool IsImplementableInterfaceMember() {
+        return !isSealed && (isAbstract || isVirtual) && (containingType?.isInterface ?? false);
+    }
+
+    internal bool ContainsTupleNames() {
+        switch (kind) {
+            case SymbolKind.Method:
+                var method = (MethodSymbol)this;
+                return method.returnType.ContainsTupleNames() ||
+                    method.parameters.Any(static p => p.type.ContainsTupleNames());
+            default:
+                throw ExceptionUtilities.UnexpectedValue(kind);
+        }
+    }
+
+    internal bool MustCallMethodsDirectly() {
+        switch (kind) {
+            // TODO This gets more interesting with events and properties
+            default:
+                return false;
+        }
+    }
+
     internal virtual void AfterAddingTypeMembersChecks(BelteDiagnosticQueue diagnostics) { }
 
     internal virtual ImmutableArray<AttributeData> GetAttributes() {

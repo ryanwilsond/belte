@@ -378,6 +378,8 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
 
     internal override bool hasSpecialName => false;
 
+    internal override ImmutableArray<MethodSymbol> explicitInterfaceImplementations => [];
+
     internal override DllImportData GetDllImportData() {
         throw ExceptionUtilities.Unreachable();
     }

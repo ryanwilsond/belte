@@ -42,6 +42,7 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
         typeComparison: TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreTupleNames
     );
 
+    // ? AKA RuntimeSignatureComparer
     internal static readonly MemberSignatureComparer RuntimeIgnoreRefComparer = new MemberSignatureComparer(
         considerName: true,
         considerReturnType: true,
@@ -51,12 +52,48 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
         typeComparison: TypeCompareKind.IgnoreTupleNames
     );
 
-    public static readonly MemberSignatureComparer DuplicateSourceComparer = new MemberSignatureComparer(
+    internal static readonly MemberSignatureComparer DuplicateSourceComparer = new MemberSignatureComparer(
         considerName: true,
         considerReturnType: false,
         considerTemplateConstraints: false,
         considerCallingConvention: false,
         considerRefKind: false,
+        typeComparison: TypeCompareKind.AllIgnoreOptions
+    );
+
+    internal static readonly MemberSignatureComparer ExplicitImplementationWithoutReturnTypeComparer = new MemberSignatureComparer(
+        considerName: false,
+        considerReturnType: false,
+        considerTemplateConstraints: false,
+        considerRefKind: true,
+        considerCallingConvention: true,
+        typeComparison: TypeCompareKind.AllIgnoreOptions
+    );
+
+    internal static readonly MemberSignatureComparer ExplicitImplementationComparer = new MemberSignatureComparer(
+        considerName: false,
+        considerTemplateConstraints: false,
+        considerReturnType: true,
+        considerRefKind: true,
+        considerCallingConvention: true,
+        typeComparison: TypeCompareKind.AllIgnoreOptions
+    );
+
+    private static readonly MemberSignatureComparer WithTupleNamesComparer = new MemberSignatureComparer(
+        considerName: true,
+        considerReturnType: true,
+        considerTemplateConstraints: false,
+        considerCallingConvention: false,
+        considerRefKind: true,
+        typeComparison: TypeCompareKind.AllIgnoreOptions & ~TypeCompareKind.IgnoreTupleNames
+    );
+
+    private static readonly MemberSignatureComparer WithoutTupleNamesComparer = new MemberSignatureComparer(
+        considerName: true,
+        considerReturnType: true,
+        considerTemplateConstraints: false,
+        considerCallingConvention: false,
+        considerRefKind: true,
         typeComparison: TypeCompareKind.AllIgnoreOptions
     );
 
@@ -148,6 +185,11 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
         }
 
         return hash;
+    }
+
+    internal static bool ConsideringTupleNamesCreatesDifference(Symbol member1, Symbol member2) {
+        return !WithTupleNamesComparer.Equals(member1, member2) &&
+            WithoutTupleNamesComparer.Equals(member1, member2);
     }
 
     internal static bool HaveSameReturnTypes(
@@ -318,7 +360,7 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
         return templateMap is null ? type : type.SubstituteType(templateMap).type;
     }
 
-    private static TemplateMap GetTemplateMap(Symbol member) {
+    internal static TemplateMap GetTemplateMap(Symbol member) {
         var templateParameters = member.GetMemberTemplateParameters();
         return templateParameters.IsEmpty
             ? null

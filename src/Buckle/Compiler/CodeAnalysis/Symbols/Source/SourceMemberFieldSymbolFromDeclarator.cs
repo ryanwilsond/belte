@@ -24,6 +24,13 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
 
         if (!modifierErrors)
             ReportModifiersDiagnostics(diagnostics);
+
+        if (containingType.isInterface) {
+            if (isStatic)
+                diagnostics.Push(Error.DefaultInterfaceImplementation(errorLocation));
+            else
+                diagnostics.Push(Error.InterfacesCantContainFields(errorLocation));
+        }
     }
 
     public sealed override RefKind refKind => GetTypeAndRefKind(ConsList<FieldSymbol>.Empty).refKind;

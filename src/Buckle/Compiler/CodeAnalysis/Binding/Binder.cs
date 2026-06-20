@@ -5404,9 +5404,22 @@ internal partial class Binder {
 
             for (var i = 0; i < hiddenCount; i++) {
                 var sym = hiddenSymbols[i];
+                var hiddenContainer = sym.containingType;
 
                 for (var j = 0; j < hidingCount; j++) {
                     var hidingSym = hidingSymbols[j];
+                    var hidingContainer = hidingSym.containingType;
+                    var hidingContainerIsInterface = hidingContainer.isInterface;
+
+                    if (hidingContainerIsInterface) {
+                        if (!IsDerivedType(
+                                baseType: hiddenContainer,
+                                derivedType: hidingSym.containingType,
+                                basesBeingResolved) &&
+                            hiddenContainer.specialType != SpecialType.Object) {
+                            continue;
+                        }
+                    }
 
                     if (hidingSym.kind != SymbolKind.Method || sym.kind != SymbolKind.Method)
                         goto symIsHidden;
@@ -5418,6 +5431,33 @@ symIsHidden:;
         } else {
             resultHiding.MergePrioritized(resultHidden);
         }
+    }
+
+    private static bool IsDerivedType(
+        NamedTypeSymbol baseType,
+        NamedTypeSymbol derivedType,
+        ConsList<TypeSymbol> basesBeingResolved) {
+        if (basesBeingResolved?.Any() != true) {
+            for (var b = derivedType.baseType; b is not null; b = b.baseType) {
+                if (TypeSymbol.Equals(b, baseType, TypeCompareKind.ConsiderEverything))
+                    return true;
+            }
+        } else {
+            PooledHashSet<NamedTypeSymbol> visited = null;
+
+            for (var b = (NamedTypeSymbol)derivedType.GetNextBaseType(basesBeingResolved, ref visited);
+                 b is not null;
+                 b = (NamedTypeSymbol)b.GetNextBaseType(basesBeingResolved, ref visited)) {
+                if (TypeSymbol.Equals(b, baseType, TypeCompareKind.ConsiderEverything)) {
+                    visited?.Free();
+                    return true;
+                }
+            }
+
+            visited?.Free();
+        }
+
+        return baseType.isInterface && GetBaseInterfaces(derivedType, basesBeingResolved).Contains(baseType);
     }
 
     private protected static void LookupMembersWithoutInheritance(

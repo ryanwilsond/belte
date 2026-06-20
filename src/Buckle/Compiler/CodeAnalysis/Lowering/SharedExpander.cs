@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
-using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;

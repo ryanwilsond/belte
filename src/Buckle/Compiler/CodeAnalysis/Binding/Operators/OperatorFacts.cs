@@ -65,13 +65,6 @@ internal static class OperatorFacts {
         return false;
     }
 
-    internal static string OperatorNameFromDeclaration(ConversionDeclarationSyntax declaration) {
-        return declaration.implicitOrExplicitKeyword.kind switch {
-            SyntaxKind.ImplicitKeyword => WellKnownMemberNames.ImplicitConversionName,
-            _ => WellKnownMemberNames.ExplicitConversionName,
-        };
-    }
-
     internal static string GetBinaryOperatorNameFromKind(BinaryOperatorKind kind) {
         return (kind & BinaryOperatorKind.OpMask) switch {
             BinaryOperatorKind.Addition => WellKnownMemberNames.AdditionOperatorName,
