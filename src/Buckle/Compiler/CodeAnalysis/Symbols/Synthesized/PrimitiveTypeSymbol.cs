@@ -94,6 +94,10 @@ internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
         return [];
     }
 
+    internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
+        return SpecializedCollections.EmptyEnumerable<(MethodSymbol Body, MethodSymbol Implemented)>();
+    }
+
     internal override ImmutableArray<Symbol> GetMembers() {
         return [];
     }

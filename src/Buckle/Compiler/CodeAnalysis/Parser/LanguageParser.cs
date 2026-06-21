@@ -378,9 +378,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var modifiers = ParseModifiers();
         var anyModifiers = modifiers.Count > 0;
 
-        var inStructOrClass = (_context & (ParserContext.InClassDefinition | ParserContext.InStructDefinition)) != 0;
+        var inStructOrClassOrInterface = (_context & (ParserContext.InClassDefinition |
+                                                      ParserContext.InStructDefinition |
+                                                      ParserContext.InInterfaceDefinition)) != 0;
 
-        if (inStructOrClass) {
+        if (inStructOrClassOrInterface) {
             if (currentToken.kind == SyntaxKind.ConstructorKeyword)
                 return ParseConstructorDeclaration(attributeLists, modifiers);
 
@@ -462,7 +464,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private bool PeekIsPostReturnFunction() {
         if (currentToken.kind == SyntaxKind.IdentifierToken) {
             var innerResetPoint = GetResetPoint();
-            EatToken();
+            ParseMemberName();
 
             if (currentToken.kind == SyntaxKind.OpenParenToken ||
                 ScanPossibleTemplateParameterList(out _, out _) == ScanTypeFlags.TemplateTypeOrMethod) {
@@ -799,7 +801,10 @@ internal sealed partial class LanguageParser : SyntaxParser {
             : null;
 
         var openBrace = MatchOpenBrace();
+        var saved = _context;
+        _context |= ParserContext.InInterfaceDefinition;
         var members = ParseTypeMembers(ref openBrace);
+        _context = saved;
         var closeBrace = MatchCloseBrace();
 
         return SyntaxFactory.InterfaceDeclaration(

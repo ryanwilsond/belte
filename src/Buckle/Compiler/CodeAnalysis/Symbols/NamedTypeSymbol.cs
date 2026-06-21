@@ -212,6 +212,27 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
         return GetMembers(name);
     }
 
+    private protected ImmutableArray<NamedTypeSymbol> CalculateInterfacesToEmit() {
+        var builder = ArrayBuilder<NamedTypeSymbol>.GetInstance();
+        HashSet<NamedTypeSymbol> seen = null;
+        InterfacesVisit(this, builder, ref seen);
+        return builder.ToImmutableAndFree();
+    }
+
+    private static void InterfacesVisit(
+        NamedTypeSymbol namedType,
+        ArrayBuilder<NamedTypeSymbol> builder,
+        ref HashSet<NamedTypeSymbol> seen) {
+        foreach (var @interface in namedType.Interfaces()) {
+            seen ??= new HashSet<NamedTypeSymbol>(SymbolEqualityComparer.CLRSignature);
+
+            if (seen.Add(@interface)) {
+                builder.Add(@interface);
+                InterfacesVisit(@interface, builder, ref seen);
+            }
+        }
+    }
+
     internal ImmutableArray<MethodSymbol> GetOperators(string name) {
         var candidates = GetSimpleNonTypeMembers(name);
 

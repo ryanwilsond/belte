@@ -35,6 +35,38 @@ internal static class ModifierHelpers {
         return result;
     }
 
+    internal static DeclarationModifiers AdjustModifiersForAnInterfaceMember(
+        DeclarationModifiers mods,
+        bool hasBody,
+        bool isExplicitInterfaceImplementation,
+        bool forMethod) {
+        if ((mods & DeclarationModifiers.AccessibilityMask) == 0) {
+            if (!isExplicitInterfaceImplementation)
+                mods |= DeclarationModifiers.Public;
+            else
+                mods |= DeclarationModifiers.Private;
+        }
+
+        if (isExplicitInterfaceImplementation) {
+            if ((mods & DeclarationModifiers.Abstract) != 0)
+                mods |= DeclarationModifiers.Sealed;
+        } else if ((mods & DeclarationModifiers.Static) != 0) {
+            mods &= ~DeclarationModifiers.Sealed;
+        } else if ((mods &
+            (DeclarationModifiers.Private | DeclarationModifiers.Virtual | DeclarationModifiers.Abstract)) == 0) {
+            if (hasBody || (mods & (DeclarationModifiers.Extern | DeclarationModifiers.Sealed)) != 0) {
+                if ((mods & DeclarationModifiers.Sealed) == 0)
+                    mods |= DeclarationModifiers.Virtual;
+                else
+                    mods &= ~DeclarationModifiers.Sealed;
+            } else {
+                mods |= DeclarationModifiers.Abstract;
+            }
+        }
+
+        return mods;
+    }
+
     internal static DeclarationModifiers CreateModifiers(
         SyntaxTokenList modifierTokens,
         BelteDiagnosticQueue diagnostics,

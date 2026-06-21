@@ -395,9 +395,27 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
             ? SingleTypeDeclaration.TypeDeclarationFlags.HasAnyAttributes
             : SingleTypeDeclaration.TypeDeclarationFlags.None;
 
-        if ((node is ClassDeclarationSyntax cds && cds.baseType is not null) ||
-            (node is FileScopedClassDeclarationSyntax fds && fds.baseType is not null)) {
-            declFlags |= SingleTypeDeclaration.TypeDeclarationFlags.HasBaseDeclarations;
+        switch (node) {
+            case ClassDeclarationSyntax cds:
+                if (cds.baseType is not null || cds.interfaceList is not null)
+                    declFlags |= SingleTypeDeclaration.TypeDeclarationFlags.HasBaseDeclarations;
+
+                break;
+            case FileScopedClassDeclarationSyntax fds:
+                if (fds.baseType is not null || fds.interfaceList is not null)
+                    declFlags |= SingleTypeDeclaration.TypeDeclarationFlags.HasBaseDeclarations;
+
+                break;
+            case StructDeclarationSyntax sds:
+                if (sds.interfaceList is not null)
+                    declFlags |= SingleTypeDeclaration.TypeDeclarationFlags.HasBaseDeclarations;
+
+                break;
+            case InterfaceDeclarationSyntax ids:
+                if (ids.interfaceList is not null)
+                    declFlags |= SingleTypeDeclaration.TypeDeclarationFlags.HasBaseDeclarations;
+
+                break;
         }
 
         var diagnostics = BelteDiagnosticQueue.GetInstance();

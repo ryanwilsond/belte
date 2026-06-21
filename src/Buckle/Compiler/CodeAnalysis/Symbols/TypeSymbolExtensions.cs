@@ -34,6 +34,10 @@ internal static class TypeSymbolExtensions {
         return type.kind == SymbolKind.NamedType && ((NamedTypeSymbol)type).isInterface;
     }
 
+    internal static bool ContainsTupleNames(this TypeSymbol type) {
+        return type.VisitType((TypeSymbol t, object _1, bool _2) => !t.tupleElementNames.IsDefault, null) is not null;
+    }
+
     internal static bool IsFileScoped(this TypeSymbol type) {
         if (type is SourceMemberContainerTypeSymbol source && source.isFileScoped)
             return true;

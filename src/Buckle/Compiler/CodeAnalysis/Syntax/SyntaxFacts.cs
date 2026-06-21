@@ -598,6 +598,10 @@ public static class SyntaxFacts {
         );
     }
 
+    internal static bool HasAnyBody(this BaseMethodDeclarationSyntax declaration) {
+        return declaration.body is not null;
+    }
+
     private static string GetOperatorMemberNameCore(int parameterCount, SyntaxKind kind, string text) {
         if (kind == SyntaxKind.IdentifierToken) {
             return text switch {

@@ -298,14 +298,21 @@ internal static partial class ConstraintsHelpers {
         this TypeSymbol type,
         TextLocation location,
         BelteDiagnosticQueue diagnostics) {
+        // TODO This is probably wrong, I don't think this is exhaustive of all types
         while (true) {
             var current = type;
 
             switch (type.typeKind) {
                 case TypeKind.Class:
                 case TypeKind.Struct:
-                    CheckConstraintsSingleType((NamedTypeSymbol)type, location, diagnostics);
-                    return;
+                case TypeKind.Interface:
+
+                    var containingType = current.containingType;
+
+                    if (containingType is not null)
+                        CheckConstraintsSingleType(containingType, location, diagnostics);
+
+                    break;
             }
 
             TypeWithAnnotations next;
@@ -316,6 +323,7 @@ internal static partial class ConstraintsHelpers {
                     return;
                 case TypeKind.Error:
                 case TypeKind.Class:
+                case TypeKind.Interface:
                 case TypeKind.Enum:
                 case TypeKind.Struct:
                     var typeArguments = ((NamedTypeSymbol)current).templateArguments;
@@ -324,7 +332,10 @@ internal static partial class ConstraintsHelpers {
                         return;
 
                     var nextType = typeArguments[0].type.nullableUnderlyingTypeOrSelf;
-                    CheckConstraintsSingleType((NamedTypeSymbol)nextType, location, diagnostics);
+
+                    if (nextType is NamedTypeSymbol namedNext)
+                        CheckConstraintsSingleType(namedNext, location, diagnostics);
+
                     return;
                 case TypeKind.Array:
                     next = ((ArrayTypeSymbol)current).elementTypeWithAnnotations;

@@ -104,6 +104,10 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
         return [];
     }
 
+    internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
+        return SpecializedCollections.EmptyEnumerable<(MethodSymbol Body, MethodSymbol Implemented)>();
+    }
+
     internal sealed override ImmutableArray<NamedTypeSymbol> Interfaces(
         ConsList<TypeSymbol> basesBeingResolved = null) {
         return [];

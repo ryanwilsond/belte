@@ -21,6 +21,11 @@ internal static class ExplicitInterfaceHelpers {
         return builder.ToImmutableAndFree();
     }
 
+    internal static string GetMemberNameWithoutInterfaceName(string fullName) {
+        var idx = fullName.LastIndexOf('.');
+        return (idx > 0) ? fullName.Substring(idx + 1) : fullName;
+    }
+
     internal static string GetMemberNameAndInterfaceSymbol(
         Binder binder,
         SyntaxTokenList modifiers,
@@ -277,14 +282,14 @@ internal static class ExplicitInterfaceHelpers {
                     diagnostics.Push(Error.ExplicitInterfaceMemberReturnTypeMismatch(
                         memberLocation,
                         implementingMember,
-                        returnType,
+                        returnType.type,
                         matchingMemberWithoutReturnTypeComparer
                     ));
                 } else {
                     diagnostics.Push(Error.ExplicitInterfaceMemberTypeMismatch(
                         memberLocation,
                         implementingMember,
-                        returnType,
+                        returnType.type,
                         matchingMemberWithoutReturnTypeComparer
                     ));
                 }

@@ -22,6 +22,8 @@ internal sealed class SourceFinalizerSymbol : SourceMemberMethodSymbol {
 
         if (containingType.isStatic)
             diagnostics.Push(Error.FinalizerInStaticClass(location));
+        else if (!containingType.isReferenceType)
+            diagnostics.Push(Error.OnlyClassesCanContainFinalizers(location));
     }
 
     public override string name => WellKnownMemberNames.FinalizerName;

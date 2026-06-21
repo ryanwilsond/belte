@@ -35,6 +35,8 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         location = syntax.identifier.location;
         _syntax = syntax;
 
+        ReportDefaultInterfaceImplementation(location, hasAnyBody, diagnostics);
+
         if (hasAnyBody)
             CheckModifiersForBody(location, diagnostics);
 
@@ -161,7 +163,11 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             // TODO constraints
         }
 
-        CheckModifiers(GetSyntax().identifier.location, diagnostics);
+        CheckModifiers(
+            methodKind == MethodKind.ExplicitInterfaceImplementation,
+            GetSyntax().identifier.location,
+            diagnostics
+        );
 
         _ = initFields;
     }
@@ -175,6 +181,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         (var declarationModifiers, hasExplicitAccessMod) = MakeModifiers(
             containingType,
             methodKind,
+            syntax.HasAnyBody(),
             syntax,
             diagnostics
         );
@@ -195,6 +202,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
     private static (DeclarationModifiers mods, bool hasExplicitAccessMod) MakeModifiers(
         NamedTypeSymbol containingType,
         MethodKind methodKind,
+        bool hasBody,
         MethodDeclarationSyntax syntax,
         BelteDiagnosticQueue diagnostics) {
         var isInterface = containingType.isInterface;
@@ -249,7 +257,27 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             hasExplicitAccessMod = true;
         }
 
+        mods = AddImpliedModifiers(mods, isInterface, methodKind, hasBody);
         return (mods, hasExplicitAccessMod);
+    }
+
+    private static DeclarationModifiers AddImpliedModifiers(
+        DeclarationModifiers mods,
+        bool containingTypeIsInterface,
+        MethodKind methodKind,
+        bool hasBody) {
+        if (containingTypeIsInterface) {
+            mods = ModifierHelpers.AdjustModifiersForAnInterfaceMember(
+                mods,
+                hasBody,
+                methodKind == MethodKind.ExplicitInterfaceImplementation,
+                forMethod: true
+            );
+        } else if (methodKind == MethodKind.ExplicitInterfaceImplementation) {
+            mods = (mods & ~DeclarationModifiers.AccessibilityMask) | DeclarationModifiers.Private;
+        }
+
+        return mods;
     }
 
     private static DeclarationModifiers MakeDeclarationModifiers(
@@ -335,7 +363,10 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         }
     }
 
-    private void CheckModifiers(TextLocation location, BelteDiagnosticQueue diagnostics) {
+    private void CheckModifiers(
+        bool isExplicitInterfaceImplementation,
+        TextLocation location,
+        BelteDiagnosticQueue diagnostics) {
         var isExplicitInterfaceImplementationInInterface = isExplicitInterfaceImplementation &&
             containingType.isInterface;
 

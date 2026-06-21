@@ -7141,113 +7141,107 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer, true);
     }
 
-    // ! Interfaces not implemented yet
-    // TODO interfaces
-    // [Fact]
-    // public void Reports_Error_BU0529_CycleInInterfaceInheritance() {
-    //     var text = @"
-    //         interface A implements B { }
-    //         interface B implements A { }
-    //         ;
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0529_CycleInInterfaceInheritance() {
+        var text = @"
+            interface [A] implements B { }
+            interface [B] implements A { }
+            ;
+        ";
 
-    //     var diagnostics = @"
+        var diagnostics = @"
+            inherited interface 'B' causes a cycle in the interface hierarchy of 'A'
+            inherited interface 'A' causes a cycle in the interface hierarchy of 'B'
+        ";
 
-    //     ";
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+    [Fact]
+    public void Reports_Error_BU0530_InconsistentAccessibilityInterface() {
+        var text = @"
+            class Outer {
+                private interface A { }
+                public interface [B] implements A { }
+            }
+            ;
+        ";
 
-    // ! Interfaces not implemented yet
-    // TODO interfaces
-    // [Fact]
-    // public void Reports_Error_BU0530_InconsistentAccessibilityInterface() {
-    //     var text = @"
-    //         private interface A { }
-    //         public interface B implements [A] { }
-    //         ;
-    //     ";
+        var diagnostics = @"
+            inconsistent accessibility: interface 'B' is less accessible than interface 'A'
+        ";
 
-    //     var diagnostics = @"
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0531_DuplicateInterfaceInInterfaceList() {
+        var text = @"
+            interface A { }
+            class B implements A, [A] { }
+            ;
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        var diagnostics = @"
+            'A' is already listed in the interface list
+        ";
 
-    // ! Interfaces not implemented yet
-    // TODO interfaces
-    // [Fact]
-    // public void Reports_Error_BU0531_DuplicateInterfaceInInterfaceList() {
-    //     var text = @"
-    //         interface A { }
-    //         class B implements A, [A] { }
-    //         ;
-    //     ";
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
-    //     var diagnostics = @"
+    [Fact]
+    public void Reports_Error_BU0532_StaticClassInterfaceImpl() {
+        var text = @"
+            interface A { }
+            static class B implements [A] { }
+            ;
+        ";
 
-    //     ";
+        var diagnostics = @"
+            'B': static classes cannot implement interfaces
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
-    // ! Interfaces not implemented yet
-    // TODO interfaces
-    // [Fact]
-    // public void Reports_Error_BU0532_StaticClassInterfaceImpl() {
-    //     var text = @"
-    //         interface A { }
-    //         static class B implements [A] { }
-    //         ;
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0533_NonInterfaceInInterfaceList() {
+        var text = @"
+            class B implements [int] { }
+            ;
+        ";
 
-    //     var diagnostics = @"
+        var diagnostics = @"
+            type 'int' in interface list is not an interface
+        ";
 
-    //     ";
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+    [Fact]
+    public void Reports_Error_BU0534_ConversionWithInterface() {
+        var text = @"
+            interface A { }
+            class B {
+                public static implicit [operator] B?(A a) { return null; }
+            }
+            ;
+        ";
 
-    // ! Interfaces not implemented yet
-    // TODO interfaces
-    // [Fact]
-    // public void Reports_Error_BU0533_NonInterfaceInInterfaceList() {
-    //     var text = @"
-    //         class B implements [int] { }
-    //         ;
-    //     ";
+        var diagnostics = @"
+            'B.op_Implicit(A!)': user-defined conversions to or from an interface are not allowed
+        ";
 
-    //     var diagnostics = @"
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
-    //     ";
-
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
-
-    // ! Interfaces not implemented yet
-    // TODO interfaces
-    // [Fact]
-    // public void Reports_Error_BU0534_ConversionWithInterface() {
-    //     var text = @"
-    //         interface A { }
-    //
-    //     ";
-
-    //     var diagnostics = @"
-
-    //     ";
-
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
-
-    // ! Interfaces not implemented yet
-    // TODO interfaces
+    // !
+    // TODO Haven't added interface operators yet
     // [Fact]
     // public void Reports_Error_BU0535_AbstractConversionNotInvolvingContainedType() {
     //     var text = @"
     //         interface A { }
-    //
+
     //     ";
 
     //     var diagnostics = @"
@@ -7322,24 +7316,23 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
+    [Fact]
+    public void Reports_Error_BU0540_DuplicateInterfaceWithTupleNamesInBaseList() {
+        var text = @"
+            interface A<type T> { }
+            class [B] implements A<(int a, int b)>, A<(int c, int d)> { }
+            ;
+        ";
+
+        var diagnostics = @"
+            'A<(int c, int d)>' is already listed in the interface list on type 'B' with different tuple element names, as 'A<(int a, int b)>'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
     // !
-    // TODO interfaces
-    // [Fact]
-    // public void Reports_Error_BU0540_DuplicateInterfaceWithTupleNamesInBaseList() {
-    //     var text = @"
-
-    //         ;
-    //     ";
-
-    //     var diagnostics = @"
-    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
-    //     ";
-
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
-
-    // !
-    // TODO interfaces
+    // ? Not sure how to trigger this
     // [Fact]
     // public void Reports_Error_BU0541_DuplicateInterfaceWithDifferencesInBaseList() {
     //     var text = @"
@@ -7354,73 +7347,88 @@ public sealed class DiagnosticTests {
     //     AssertDiagnostics(text, diagnostics, _writer);
     // }
 
+    [Fact]
+    public void Reports_Error_BU0542_DefaultInterfaceImplementation() {
+        var text = @"
+            interface A {
+                void [M]() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            interface members cannot define an implementation
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0543_InterfacesCantContainConstructors() {
+        var text = @"
+            interface A {
+                [constructor]() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            interfaces cannot contain constructors
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0544_OnlyClassesCanContainFinalizers() {
+        var text = @"
+            interface A {
+                [finalizer]() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            only class types can contain finalizers
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0544_OnlyClassesCanContainFinalizers2() {
+        var text = @"
+            struct A {
+                [finalizer]() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            only class types can contain finalizers
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0545_InterfacesCantContainFields() {
+        var text = @"
+            interface A {
+                [int a];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            interfaces cannot contain fields
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
     // !
-    // TODO interfaces
-    // [Fact]
-    // public void Reports_Error_BU0542_DefaultInterfaceImplementation() {
-    //     var text = @"
-
-    //         ;
-    //     ";
-
-    //     var diagnostics = @"
-    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
-    //     ";
-
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
-
-    // !
-    // TODO interfaces
-    // [Fact]
-    // public void Reports_Error_BU0543_InterfacesCantContainConstructors() {
-    //     var text = @"
-
-    //         ;
-    //     ";
-
-    //     var diagnostics = @"
-    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
-    //     ";
-
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
-
-    // !
-    // TODO interfaces
-    // TODO Do 2 tests, one for interfaces one for structs
-    // [Fact]
-    // public void Reports_Error_BU0544_OnlyClassesCanContainDestructors() {
-    //     var text = @"
-
-    //         ;
-    //     ";
-
-    //     var diagnostics = @"
-    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
-    //     ";
-
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
-
-    // !
-    // TODO interfaces
-    // [Fact]
-    // public void Reports_Error_BU0545_InterfacesCantContainFields() {
-    //     var text = @"
-
-    //         ;
-    //     ";
-
-    //     var diagnostics = @"
-    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
-    //     ";
-
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
-
-    // !
-    // TODO interfaces
+    // TODO Haven't added interface operators yet
     // [Fact]
     // public void Reports_Error_BU0546_InterfacesCantContainConversionOrEqualityOperators() {
     //     var text = @"
@@ -7436,7 +7444,7 @@ public sealed class DiagnosticTests {
     // }
 
     // !
-    // TODO interfaces
+    // TODO Haven't added interface operators yet
     // [Fact]
     // public void Reports_Error_BU0547_ExplicitImplementationOfOperatorsMustBeStatic() {
     //     var text = @"
@@ -7452,7 +7460,7 @@ public sealed class DiagnosticTests {
     // }
 
     // !
-    // TODO interfaces
+    // ? Not sure this is reachable right now
     // [Fact]
     // public void Reports_Error_BU0548_ExplicitInterfaceImplementationInNonClassOrStruct() {
     //     var text = @"
@@ -7467,56 +7475,63 @@ public sealed class DiagnosticTests {
     //     AssertDiagnostics(text, diagnostics, _writer);
     // }
 
+    [Fact]
+    public void Reports_Error_BU0549_ExplicitInterfaceImplementationNotInterface() {
+        var text = @"
+            class A {
+                void [int].B() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'int' in explicit interface declaration is not an interface
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0550_ClassDoesntImplementInterface() {
+        var text = @"
+            interface A {
+                void B();
+            }
+            class C {
+                void [A].B() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'C.A.B': containing type does not implement interface 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0551_ExplicitInterfaceMemberReturnTypeMismatch() {
+        var text = @"
+            interface A {
+                void B();
+            }
+            class B implements [A] {
+                int A.[B]() { return 1; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'B' does not implement interface member 'A.B()'
+            'B.A.B()': return type must be 'void' to match implemented member 'A.B()'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
     // !
-    // TODO interfaces
-    // [Fact]
-    // public void Reports_Error_BU0549_ExplicitInterfaceImplementationNotInterface() {
-    //     var text = @"
-
-    //         ;
-    //     ";
-
-    //     var diagnostics = @"
-    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
-    //     ";
-
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
-
-    // !
-    // TODO interfaces
-    // [Fact]
-    // public void Reports_Error_BU0550_ClassDoesntImplementInterface() {
-    //     var text = @"
-
-    //         ;
-    //     ";
-
-    //     var diagnostics = @"
-    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
-    //     ";
-
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
-
-    // !
-    // TODO interfaces
-    // [Fact]
-    // public void Reports_Error_BU0551_ExplicitInterfaceMemberReturnTypeMismatch() {
-    //     var text = @"
-
-    //         ;
-    //     ";
-
-    //     var diagnostics = @"
-    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
-    //     ";
-
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
-
-    // !
-    // TODO interfaces
+    // ? We don't have non-method interface members
     // [Fact]
     // public void Reports_Error_BU0552_ExplicitInterfaceMemberTypeMismatch() {
     //     var text = @"
@@ -7531,37 +7546,41 @@ public sealed class DiagnosticTests {
     //     AssertDiagnostics(text, diagnostics, _writer);
     // }
 
-    // !
-    // TODO interfaces
-    // [Fact]
-    // public void Reports_Error_BU0553_InterfaceMemberNotFound() {
-    //     var text = @"
+    [Fact]
+    public void Reports_Error_BU0553_InterfaceMemberNotFound() {
+        var text = @"
+            interface A { }
+            class C implements A {
+                void A.[B]() { }
+            }
+            ;
+        ";
 
-    //         ;
-    //     ";
+        var diagnostics = @"
+            'C.A.B()' in explicit interface declaration is not found among members of the interface that can be implemented
+        ";
 
-    //     var diagnostics = @"
-    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
-    //     ";
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+    [Fact]
+    public void Reports_Error_BU0554_ImplBadTupleNames() {
+        var text = @"
+            interface A {
+                (int a, int b) B();
+            }
+            class B implements A {
+                (int c, int d) A.[B]() { return (1, 2); }
+            }
+            ;
+        ";
 
-    // !
-    // TODO interfaces
-    // [Fact]
-    // public void Reports_Error_BU0554_ImplBadTupleNames() {
-    //     var text = @"
+        var diagnostics = @"
+            the tuple element names in the signature of method 'B.A.B()' must match the tuple element names of interface method 'A.B()' (including on the return type)
+        ";
 
-    //         ;
-    //     ";
-
-    //     var diagnostics = @"
-    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
-    //     ";
-
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     // !
     // TODO interfaces
@@ -7574,6 +7593,74 @@ public sealed class DiagnosticTests {
 
     //     var diagnostics = @"
     //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    [Fact]
+    public void Reports_Error_BU0556_DuplicateExplicitImpl() {
+        var text = @"
+            interface A {
+                void B();
+            }
+            class [C] implements A {
+                void A.B() { }
+                void A.[B]() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'A.B()' is explicitly implemented more than once
+            type 'C' already defines a member called 'A.B' with the same parameter types
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0557_UnimplementedInterfaceMember() {
+        var text = @"
+            interface A {
+                void B();
+            }
+            class B implements [A] { }
+            ;
+        ";
+
+        var diagnostics = @"
+            'B' does not implement interface member 'A.B()'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0558_UnifyingInterfaceInstantiations() {
+        var text = @"
+            interface A<type T> { }
+            class [C]<type T1, type T2> implements A<T1>, A<T2> { }
+            ;
+        ";
+
+        var diagnostics = @"
+            'C<type! T1, type! T2>' cannot implement both 'A<type T1>' and 'A<type T2>' because they may unify for some type template parameter substitutions
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // !
+    // ? Unsure how to trigger this
+    // [Fact]
+    // public void Reports_Error_BU0559_MostSpecificImplementationIsNotFound() {
+    //     var text = @"
+
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
     //     ";
 
     //     AssertDiagnostics(text, diagnostics, _writer);

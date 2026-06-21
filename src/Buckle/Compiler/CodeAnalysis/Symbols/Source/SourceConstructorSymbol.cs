@@ -25,6 +25,11 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
         ) {
         location = syntax.constructorKeyword.location;
 
+        var hasAnyBody = syntax.HasAnyBody();
+
+        if (methodKind == MethodKind.StaticConstructor)
+            ReportDefaultInterfaceImplementation(location, hasAnyBody, diagnostics);
+
         ModifierHelpers.CheckAccessibility(_modifiers, diagnostics, location);
 
         if (!hasErrors)

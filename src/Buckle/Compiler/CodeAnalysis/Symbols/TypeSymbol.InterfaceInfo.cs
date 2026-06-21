@@ -13,16 +13,16 @@ internal abstract partial class TypeSymbol {
         internal static readonly MultiDictionary<NamedTypeSymbol, NamedTypeSymbol> EmptyInterfacesAndTheirBaseInterfaces =
             new MultiDictionary<NamedTypeSymbol, NamedTypeSymbol>(0, SymbolEqualityComparer.CLRSignature);
 
-        private ConcurrentDictionary<Symbol, Symbol> _implementationForInterfaceMemberMap;
+        private ConcurrentDictionary<Symbol, SymbolAndDiagnostics> _implementationForInterfaceMemberMap;
 
-        public ConcurrentDictionary<Symbol, Symbol> implementationForInterfaceMemberMap {
+        public ConcurrentDictionary<Symbol, SymbolAndDiagnostics> implementationForInterfaceMemberMap {
             get {
                 var map = _implementationForInterfaceMemberMap;
 
                 if (map is not null)
                     return map;
 
-                map = new ConcurrentDictionary<Symbol, Symbol>(
+                map = new ConcurrentDictionary<Symbol, SymbolAndDiagnostics>(
                     concurrencyLevel: 1,
                     capacity: 1,
                     comparer: SymbolEqualityComparer.ConsiderEverything

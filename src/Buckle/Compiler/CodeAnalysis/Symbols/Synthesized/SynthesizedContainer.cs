@@ -105,6 +105,10 @@ internal abstract class SynthesizedContainer : NamedTypeSymbol {
         return [];
     }
 
+    internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
+        return SpecializedCollections.EmptyEnumerable<(MethodSymbol Body, MethodSymbol Implemented)>();
+    }
+
     internal override ImmutableArray<Symbol> GetMembers() {
         Symbol constructor = this.constructor;
         return constructor is null ? [] : [constructor];

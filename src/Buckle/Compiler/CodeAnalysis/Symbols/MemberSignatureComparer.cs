@@ -97,6 +97,50 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
         typeComparison: TypeCompareKind.AllIgnoreOptions
     );
 
+    internal static readonly MemberSignatureComparer RuntimeImplicitImplementationComparer = new MemberSignatureComparer(
+        considerName: true,
+        // TODO interfaces
+        // considerExplicitlyImplementedInterfaces: true,
+        considerReturnType: true,
+        considerTemplateConstraints: false,
+        considerCallingConvention: true,
+        considerRefKind: true,
+        typeComparison: TypeCompareKind.IgnoreTupleNames
+    );
+
+    internal static readonly MemberSignatureComparer RuntimeExplicitImplementationSignatureComparer = new MemberSignatureComparer(
+        considerName: false,
+        // TODO interfaces
+        // considerExplicitlyImplementedInterfaces: false,
+        considerReturnType: true,
+        considerTemplateConstraints: false,
+        considerCallingConvention: true,
+        considerRefKind: true,
+        typeComparison: TypeCompareKind.IgnoreTupleNames
+    );
+
+    internal static readonly MemberSignatureComparer ImplicitImplementationComparer = new MemberSignatureComparer(
+        considerName: true,
+        // TODO interfaces
+        // considerExplicitlyImplementedInterfaces: true,
+        considerReturnType: true,
+        considerCallingConvention: true,
+        considerTemplateConstraints: false,
+        considerRefKind: true,
+        typeComparison: TypeCompareKind.AllIgnoreOptions
+    );
+
+    internal static readonly MemberSignatureComparer CloseImplicitImplementationComparer = new MemberSignatureComparer(
+        considerName: true,
+        // TODO interfaces
+        // considerExplicitlyImplementedInterfaces: true,
+        considerReturnType: false,
+        considerTemplateConstraints: false,
+        considerCallingConvention: false,
+        considerRefKind: true,
+        typeComparison: TypeCompareKind.AllIgnoreOptions
+    );
+
     private readonly bool _considerName;
     private readonly bool _considerReturnType;
     private readonly bool _considerTemplateConstraints;
@@ -129,8 +173,19 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
         if (member1 is null || member2 is null || member1.kind != member2.kind)
             return false;
 
-        if (_considerName && member1.name != member2.name)
-            return false;
+        var sawInterfaceInName1 = false;
+        var sawInterfaceInName2 = false;
+
+        if (_considerName) {
+            var name1 = ExplicitInterfaceHelpers.GetMemberNameWithoutInterfaceName(member1.name);
+            var name2 = ExplicitInterfaceHelpers.GetMemberNameWithoutInterfaceName(member2.name);
+
+            sawInterfaceInName1 = name1 != member1.name;
+            sawInterfaceInName2 = name2 != member2.name;
+
+            if (name1 != name2)
+                return false;
+        }
 
         if (_considerArity && (member1.GetMemberArity() != member2.GetMemberArity()))
             return false;

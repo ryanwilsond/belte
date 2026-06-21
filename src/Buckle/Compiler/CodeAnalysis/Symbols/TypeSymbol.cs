@@ -1,8 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
+using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Text;
+using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -198,8 +202,12 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
         return Equals(type, compareKind) || IsDerivedFrom(type, compareKind);
     }
 
+    internal bool CanUnifyWith(TypeSymbol otherType) {
+        return TypeUnification.CanUnify(this, otherType);
+    }
+
     internal bool IsRefLikeOrAllowsRefLikeType() {
-        return isRefLikeType/* || this is TemplateParameterSymbol { allowsRefLikeType: true }*/;
+        return isRefLikeType || this is TemplateParameterSymbol { allowsRefLikeType: true };
     }
 
     internal int TypeToIndex() {
@@ -355,7 +363,7 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
 
     internal bool IsAtLeastAsVisibleAs(Symbol symbol) {
         return typeKind switch {
-            TypeKind.Class or TypeKind.Struct => symbol.declaredAccessibility switch {
+            TypeKind.Class or TypeKind.Struct or TypeKind.Interface => symbol.declaredAccessibility switch {
                 Accessibility.Public => declaredAccessibility is Accessibility.Public or Accessibility.NotApplicable,
                 Accessibility.Protected => declaredAccessibility is
                     Accessibility.Public or Accessibility.Protected or Accessibility.NotApplicable,
@@ -403,6 +411,500 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
     internal TypeSymbol StrippedType() {
         return this.IsNullableType() ? GetNullableUnderlyingType() : this;
     }
+
+    private protected MultiDictionary<Symbol, Symbol>.ValueSet GetExplicitImplementationForInterfaceMember(
+        Symbol interfaceMember) {
+        var info = GetInterfaceInfo();
+
+        if (info == NoInterfaces)
+            return default;
+
+        if (info.explicitInterfaceImplementationMap is null) {
+            Interlocked.CompareExchange(
+                ref info.explicitInterfaceImplementationMap,
+                MakeExplicitInterfaceImplementationMap(),
+                null
+            );
+        }
+
+        return info.explicitInterfaceImplementationMap[interfaceMember];
+    }
+
+    private MultiDictionary<Symbol, Symbol> MakeExplicitInterfaceImplementationMap() {
+        var map = new MultiDictionary<Symbol, Symbol>(ExplicitInterfaceImplementationTargetMemberEqualityComparer.Instance);
+
+        foreach (var member in GetMembersUnordered()) {
+            foreach (var interfaceMember in member.GetExplicitInterfaceImplementations())
+                map.Add(interfaceMember, member);
+        }
+
+        return map;
+    }
+
+    internal SymbolAndDiagnostics FindImplementationForInterfaceMemberInNonInterface(
+        Symbol interfaceMember,
+        bool ignoreImplementationInInterfacesIfResultIsNotReady = false) {
+        if (this.IsInterfaceType())
+            return SymbolAndDiagnostics.Empty;
+
+        var interfaceType = interfaceMember.containingType;
+
+        if (interfaceType is null || !interfaceType.isInterface)
+            return SymbolAndDiagnostics.Empty;
+
+        switch (interfaceMember.kind) {
+            case SymbolKind.Method:
+                var info = GetInterfaceInfo();
+
+                if (info == NoInterfaces)
+                    return SymbolAndDiagnostics.Empty;
+
+                var map = info.implementationForInterfaceMemberMap;
+                SymbolAndDiagnostics result;
+
+                if (map.TryGetValue(interfaceMember, out result))
+                    return result;
+
+                result = ComputeImplementationAndDiagnosticsForInterfaceMember(
+                    interfaceMember,
+                    ignoreImplementationInInterfaces: ignoreImplementationInInterfacesIfResultIsNotReady,
+                    out var implementationInInterfacesMightChangeResult
+                );
+
+                if (!implementationInInterfacesMightChangeResult)
+                    map.TryAdd(interfaceMember, result);
+
+                return result;
+            default:
+                return SymbolAndDiagnostics.Empty;
+        }
+    }
+
+    private SymbolAndDiagnostics ComputeImplementationAndDiagnosticsForInterfaceMember(
+        Symbol interfaceMember,
+        bool ignoreImplementationInInterfaces,
+        out bool implementationInInterfacesMightChangeResult) {
+        var diagnostics = new BelteDiagnosticQueue();
+
+        var implementingMember = ComputeImplementationForInterfaceMember(
+            interfaceMember,
+            this,
+            diagnostics,
+            ignoreImplementationInInterfaces,
+            out implementationInInterfacesMightChangeResult
+        );
+
+        var implementingMemberAndDiagnostics = new SymbolAndDiagnostics(implementingMember, diagnostics);
+        return implementingMemberAndDiagnostics;
+    }
+
+    private static Symbol ComputeImplementationForInterfaceMember(
+        Symbol interfaceMember,
+        TypeSymbol implementingType,
+        BelteDiagnosticQueue diagnostics,
+        bool ignoreImplementationInInterfaces,
+        out bool implementationInInterfacesMightChangeResult) {
+        var interfaceType = interfaceMember.containingType;
+        var seenTypeDeclaringInterface = false;
+        var implementingTypeIsFromSomeCompilation = false;
+
+        Symbol implicitImpl = null;
+        Symbol closestMismatch = null;
+        var canBeImplementedImplicitly = interfaceMember.declaredAccessibility == Accessibility.Public;
+        TypeSymbol implementingBaseOpt = null;
+        var implementingTypeImplementsInterface = false;
+
+        for (var currType = implementingType; currType is not null; currType = currType.baseType) {
+            var explicitImpl = currType.GetExplicitImplementationForInterfaceMember(interfaceMember);
+
+            if (explicitImpl.Count == 1) {
+                implementationInInterfacesMightChangeResult = false;
+                return explicitImpl.Single();
+            } else if (explicitImpl.Count > 1) {
+                if ((object)currType == implementingType || implementingTypeImplementsInterface)
+                    diagnostics.Push(Error.DuplicateExplicitImpl(implementingType.location, interfaceMember));
+
+                implementationInInterfacesMightChangeResult = false;
+                return null;
+            }
+
+            var checkPendingExplicitImplementations = (object)currType != implementingType || !currType.isDefinition;
+
+            if (checkPendingExplicitImplementations &&
+                interfaceMember is MethodSymbol interfaceMethod &&
+                currType.interfacesAndTheirBaseInterfaces.ContainsKey(interfaceType)) {
+                var bodyOfSynthesizedMethodImpl = currType.GetBodyOfSynthesizedInterfaceMethodImpl(interfaceMethod);
+
+                if (bodyOfSynthesizedMethodImpl is not null) {
+                    implementationInInterfacesMightChangeResult = false;
+                    return bodyOfSynthesizedMethodImpl;
+                }
+            }
+
+            if (!seenTypeDeclaringInterface || (!canBeImplementedImplicitly && implementingBaseOpt is null)) {
+                if (currType.interfacesAndTheirBaseInterfaces.ContainsKey(interfaceType)) {
+                    if (!seenTypeDeclaringInterface) {
+                        implementingTypeIsFromSomeCompilation =
+                            currType.originalDefinition.containingModule is not PEModuleSymbol;
+                        seenTypeDeclaringInterface = true;
+                    }
+
+                    if ((object)currType == implementingType)
+                        implementingTypeImplementsInterface = true;
+                    else if (!canBeImplementedImplicitly && implementingBaseOpt is null)
+                        implementingBaseOpt = currType;
+                }
+            }
+
+            if (seenTypeDeclaringInterface && (!interfaceMember.isStatic || implementingTypeIsFromSomeCompilation)) {
+                FindPotentialImplicitImplementationMemberDeclaredInType(
+                    interfaceMember,
+                    implementingTypeIsFromSomeCompilation,
+                    currType,
+                    out var currTypeImplicitImpl,
+                    out var currTypeCloseMismatch);
+
+                if (currTypeImplicitImpl is not null) {
+                    implicitImpl = currTypeImplicitImpl;
+                    break;
+                }
+
+                closestMismatch ??= currTypeCloseMismatch;
+            }
+        }
+
+        var tryDefaultInterfaceImplementation = true;
+
+        if (implementingTypeIsFromSomeCompilation && implicitImpl is MethodSymbol implicitImplMethod &&
+            implicitImplMethod.IsOperator() != ((MethodSymbol)interfaceMember).IsOperator()) {
+            closestMismatch = implicitImpl;
+            implicitImpl = null;
+            tryDefaultInterfaceImplementation = false;
+        }
+
+        Symbol defaultImpl = null;
+
+        if (implicitImpl is null && seenTypeDeclaringInterface && tryDefaultInterfaceImplementation) {
+            if (ignoreImplementationInInterfaces) {
+                implementationInInterfacesMightChangeResult = true;
+            } else {
+                defaultImpl = FindMostSpecificImplementationInInterfaces(
+                    interfaceMember,
+                    implementingType,
+                    diagnostics
+                );
+
+                implementationInInterfacesMightChangeResult = false;
+            }
+        } else {
+            implementationInInterfacesMightChangeResult = false;
+        }
+
+        if (defaultImpl is not null) {
+            if (implementingTypeImplementsInterface) {
+                // TODO Interfaces error
+                // ReportDefaultInterfaceImplementationMatchDiagnostics(
+                //     interfaceMember,
+                //     implementingType,
+                //     defaultImpl,
+                //     diagnostics
+                // );
+            }
+
+            return defaultImpl;
+        }
+
+        if (implementingTypeImplementsInterface) {
+            if (implicitImpl is not null) {
+                var suppressRegularValidation = false;
+
+                if (!canBeImplementedImplicitly && interfaceMember.kind == SymbolKind.Method &&
+                    implementingBaseOpt is null) {
+                    if (implementingType is NamedTypeSymbol named &&
+                        !AccessCheck.IsSymbolAccessible(interfaceMember, named, throughType: null)) {
+                        // TODO Interfaces error
+                        // diagnostics.Add(ErrorCode.ERR_ImplicitImplementationOfInaccessibleInterfaceMember, GetImplicitImplementationDiagnosticLocation(interfaceMember, implementingType, implicitImpl), implementingType, interfaceMember, implicitImpl);
+                        suppressRegularValidation = true;
+                    }
+                }
+
+                if (!suppressRegularValidation) {
+                    // TODO Interfaces error
+                    // ReportImplicitImplementationMatchDiagnostics(
+                    //     interfaceMember,
+                    //     implementingType,
+                    //     implicitImpl,
+                    //     diagnostics
+                    // );
+                }
+            } else if (closestMismatch is not null) {
+                // TODO Interfaces error
+                // ReportImplicitImplementationMismatchDiagnostics(
+                //     interfaceMember,
+                //     implementingType,
+                //     closestMismatch,
+                //     diagnostics
+                // );
+            }
+        }
+
+        return implicitImpl;
+    }
+
+    private static Symbol FindMostSpecificImplementationInInterfaces(
+        Symbol interfaceMember,
+        TypeSymbol implementingType,
+        BelteDiagnosticQueue diagnostics) {
+        var defaultImpl = FindMostSpecificImplementationInBases(
+            interfaceMember,
+            implementingType,
+            out var conflict1,
+            out var conflict2
+        );
+
+        if (conflict1 is not null) {
+            diagnostics.Push(Error.MostSpecificImplementationIsNotFound(
+                GetInterfaceLocation(interfaceMember, implementingType),
+                interfaceMember,
+                conflict1,
+                conflict2
+            ));
+        }
+
+        return defaultImpl;
+    }
+
+    private static TextLocation GetInterfaceLocation(Symbol interfaceMember, TypeSymbol implementingType) {
+        var @interface = interfaceMember.containingType;
+
+        SourceMemberContainerTypeSymbol snt = null;
+
+        if (implementingType.interfacesAndTheirBaseInterfaces[@interface].Contains(@interface))
+            snt = implementingType as SourceMemberContainerTypeSymbol;
+
+        return snt?.GetImplementsLocation(@interface) ?? implementingType.location;
+    }
+
+    private static Symbol FindMostSpecificImplementationInBases(
+        Symbol interfaceMember,
+        TypeSymbol implementingType,
+        out Symbol conflictingImplementation1,
+        out Symbol conflictingImplementation2) {
+        var allInterfaces = implementingType.allInterfaces;
+
+        if (allInterfaces.IsEmpty) {
+            conflictingImplementation1 = null;
+            conflictingImplementation2 = null;
+            return null;
+        }
+
+        return FindMostSpecificImplementationInBasesCore(
+            interfaceMember,
+            allInterfaces,
+            out conflictingImplementation1,
+            out conflictingImplementation2
+        );
+
+        static Symbol FindMostSpecificImplementationInBasesCore(
+            Symbol interfaceMember,
+            ImmutableArray<NamedTypeSymbol> allInterfaces,
+            out Symbol conflictingImplementation1,
+            out Symbol conflictingImplementation2) {
+            var implementations = ArrayBuilder<(MultiDictionary<Symbol, Symbol>.ValueSet MethodSet, MultiDictionary<NamedTypeSymbol, NamedTypeSymbol> Bases)>
+                .GetInstance();
+
+            foreach (var interfaceType in allInterfaces) {
+                if (!interfaceType.isInterface)
+                    continue;
+
+                var candidate = FindImplementationInInterface(interfaceMember, interfaceType);
+
+                if (candidate.Count == 0)
+                    continue;
+
+                for (var i = 0; i < implementations.Count; i++) {
+                    var (methodSet, bases) = implementations[i];
+                    var previous = methodSet.First();
+                    var previousContainingType = previous.containingType;
+
+                    if (previousContainingType.Equals(interfaceType, TypeCompareKind.CLRSignatureCompareOptions)) {
+                        implementations[i] = (candidate, bases);
+                        candidate = default;
+                        break;
+                    }
+
+                    if (bases is null) {
+                        bases = previousContainingType.interfacesAndTheirBaseInterfaces;
+                        implementations[i] = (methodSet, bases);
+                    }
+
+                    if (bases.ContainsKey(interfaceType)) {
+                        candidate = default;
+                        break;
+                    }
+                }
+
+                if (candidate.Count == 0)
+                    continue;
+
+                if (implementations.Count != 0) {
+                    var bases = interfaceType.interfacesAndTheirBaseInterfaces;
+
+                    for (var i = implementations.Count - 1; i >= 0; i--) {
+                        if (bases.ContainsKey(implementations[i].MethodSet.First().containingType))
+                            implementations.RemoveAt(i);
+                    }
+
+                    implementations.Add((candidate, bases));
+                } else {
+                    implementations.Add((candidate, null));
+                }
+            }
+
+            Symbol result;
+
+            switch (implementations.Count) {
+                case 0:
+                    result = null;
+                    conflictingImplementation1 = null;
+                    conflictingImplementation2 = null;
+                    break;
+                case 1:
+                    var methodSet = implementations[0].MethodSet;
+
+                    switch (methodSet.Count) {
+                        case 1:
+                            result = methodSet.Single();
+
+                            if (result.isAbstract)
+                                result = null;
+
+                            break;
+                        default:
+                            result = null;
+                            break;
+                    }
+
+                    conflictingImplementation1 = null;
+                    conflictingImplementation2 = null;
+                    break;
+                default:
+                    result = null;
+                    conflictingImplementation1 = implementations[0].MethodSet.First();
+                    conflictingImplementation2 = implementations[1].MethodSet.First();
+                    break;
+            }
+
+            implementations.Free();
+            return result;
+        }
+    }
+
+    internal static MultiDictionary<Symbol, Symbol>.ValueSet FindImplementationInInterface(
+        Symbol interfaceMember,
+        NamedTypeSymbol interfaceType) {
+        var containingType = interfaceMember.containingType;
+
+        if (containingType.Equals(interfaceType, TypeCompareKind.CLRSignatureCompareOptions)) {
+            if (!interfaceMember.isAbstract) {
+                if (!containingType.Equals(interfaceType, TypeCompareKind.ConsiderEverything))
+                    interfaceMember = interfaceMember.originalDefinition.SymbolAsMember(interfaceType);
+
+                return new MultiDictionary<Symbol, Symbol>.ValueSet(interfaceMember);
+            }
+
+            return default;
+        }
+
+        return interfaceType.GetExplicitImplementationForInterfaceMember(interfaceMember);
+    }
+
+    private static void FindPotentialImplicitImplementationMemberDeclaredInType(
+        Symbol interfaceMember,
+        bool implementingTypeIsFromSomeCompilation,
+        TypeSymbol currType,
+        out Symbol implicitImpl,
+        out Symbol closeMismatch) {
+        implicitImpl = null;
+        closeMismatch = null;
+
+        bool? isOperator = null;
+
+        if (interfaceMember is MethodSymbol { isStatic: true } interfaceMethod)
+            isOperator = interfaceMethod.methodKind is MethodKind.Operator or MethodKind.Conversion;
+
+        foreach (var member in currType.GetMembers(interfaceMember.name)) {
+            if (member.kind == interfaceMember.kind) {
+                if (isOperator.HasValue &&
+                    (((MethodSymbol)member).methodKind is MethodKind.Operator or MethodKind.Conversion)
+                        != isOperator.GetValueOrDefault()) {
+                    continue;
+                }
+
+                if (IsInterfaceMemberImplementation(member, interfaceMember, implementingTypeIsFromSomeCompilation)) {
+                    implicitImpl = member;
+                    return;
+                } else if (closeMismatch is null && implementingTypeIsFromSomeCompilation) {
+                    if (MemberSignatureComparer.CloseImplicitImplementationComparer.Equals(interfaceMember, member))
+                        closeMismatch = member;
+                }
+            }
+        }
+    }
+
+    private static bool IsInterfaceMemberImplementation(
+        Symbol candidateMember,
+        Symbol interfaceMember,
+        bool implementingTypeIsFromSomeCompilation) {
+        if (candidateMember.declaredAccessibility != Accessibility.Public
+            || candidateMember.isStatic != interfaceMember.isStatic) {
+            return false;
+            // } else if (HaveInitOnlyMismatch(candidateMember, interfaceMember)) {
+            //     return false;
+        } else if (implementingTypeIsFromSomeCompilation) {
+            return MemberSignatureComparer.ImplicitImplementationComparer
+                .Equals(interfaceMember, candidateMember);
+        } else {
+            return MemberSignatureComparer.RuntimeImplicitImplementationComparer
+                .Equals(interfaceMember, candidateMember);
+        }
+    }
+
+    private protected MethodSymbol GetBodyOfSynthesizedInterfaceMethodImpl(MethodSymbol interfaceMethod) {
+        var info = GetInterfaceInfo();
+
+        if (info == NoInterfaces)
+            return null;
+
+        if (info.synthesizedMethodImplMap == null)
+            Interlocked.CompareExchange(ref info.synthesizedMethodImplMap, MakeSynthesizedMethodImplMap(), null);
+
+        if (info.synthesizedMethodImplMap.TryGetValue(interfaceMethod, out var result))
+            return result;
+
+        return null;
+
+        ImmutableDictionary<MethodSymbol, MethodSymbol> MakeSynthesizedMethodImplMap() {
+            var map = ImmutableDictionary.CreateBuilder<MethodSymbol, MethodSymbol>(
+                ExplicitInterfaceImplementationTargetMemberEqualityComparer.Instance);
+
+            foreach ((var body, var implemented) in SynthesizedInterfaceMethodImpls())
+                map.Add(implemented, body);
+
+            return map.ToImmutable();
+        }
+    }
+
+    internal bool ImplementsInterface(TypeSymbol superInterface) {
+        foreach (var @interface in allInterfaces) {
+            if (@interface.isInterface && Equals(@interface, superInterface, TypeCompareKind.ConsiderEverything))
+                return true;
+        }
+
+        return false;
+    }
+
+    internal abstract IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls();
 
     internal bool InheritsFromIgnoringConstruction(
         NamedTypeSymbol baseType,

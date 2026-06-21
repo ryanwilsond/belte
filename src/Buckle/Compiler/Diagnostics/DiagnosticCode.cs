@@ -564,6 +564,10 @@ public enum DiagnosticCode : ushort {
     ERR_InterfaceMemberNotFound = 553,
     ERR_ImplBadTupleNames = 554,
     ERR_ExplicitImplCollisionOnRefOut = 555,
+    ERR_DuplicateExplicitImpl = 556,
+    ERR_UnimplementedInterfaceMember = 557,
+    ERR_UnifyingInterfaceInstantiations = 558,
+    ERR_MostSpecificImplementationIsNotFound = 559,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

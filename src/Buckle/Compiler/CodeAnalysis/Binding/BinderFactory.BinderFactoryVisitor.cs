@@ -374,7 +374,7 @@ internal sealed partial class BinderFactory {
                     method ??= GetMethodSymbol(node, resultBinder);
                     resultBinder = new InMethodBinder(method, resultBinder);
 
-                    if (method.isEffectivelyConst)
+                    if (method?.isEffectivelyConst == true)
                         resultBinder = resultBinder.WithAdditionalFlags(BinderFlags.ConstContext);
                 }
 

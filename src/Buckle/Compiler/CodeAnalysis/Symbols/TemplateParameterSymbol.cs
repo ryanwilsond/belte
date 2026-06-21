@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.Utilities;
 
@@ -164,6 +165,10 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
         SymbolVisitor<TArgument, TResult> visitor,
         TArgument argument) {
         return visitor.VisitTemplateParameter(this, argument);
+    }
+
+    internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
+        return SpecializedCollections.EmptyEnumerable<(MethodSymbol Body, MethodSymbol Implemented)>();
     }
 
     internal static bool CalculateIsPrimitiveTypeFromConstraintTypes(

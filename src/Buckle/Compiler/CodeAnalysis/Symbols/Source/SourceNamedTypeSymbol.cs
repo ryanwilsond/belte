@@ -257,14 +257,85 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
                         if (other.Equals(@interface, TypeCompareKind.ConsiderEverything)) {
                         } else if (other.Equals(@interface, TypeCompareKind.IgnoreTupleNames)) {
-                            diagnostics.Push(Error.DuplicateInterfaceWithTupleNamesInBaseList(location, @interface, other, this));
+                            diagnostics.Push(Error.DuplicateInterfaceWithTupleNamesInBaseList(
+                                location,
+                                @interface,
+                                other,
+                                this
+                            ));
                         } else {
-                            diagnostics.Push(Error.DuplicateInterfaceWithDifferencesInBaseList(location, @interface, other, this));
+                            diagnostics.Push(Error.DuplicateInterfaceWithDifferencesInBaseList(
+                                location,
+                                @interface,
+                                other,
+                                this
+                            ));
                         }
                     }
                 }
             }
         }
+    }
+
+    private protected override TextLocation GetCorrespondingBaseListLocation(NamedTypeSymbol @base) {
+        TextLocation backupLocation = null;
+
+        foreach (var part in declaringSyntaxReferences) {
+            var typeBlock = (TypeDeclarationSyntax)part.node;
+
+            BaseTypeSyntax baseTypeSyntax = null;
+            InterfaceListSyntax interfaceListSyntax;
+
+            switch (typeBlock.kind) {
+                case SyntaxKind.ClassDeclaration:
+                    var classDecl = (ClassDeclarationSyntax)typeBlock;
+                    baseTypeSyntax = classDecl.baseType;
+                    interfaceListSyntax = classDecl.interfaceList;
+                    break;
+                case SyntaxKind.FileScopedClassDeclaration:
+                    var fileScopedClassDecl = (FileScopedClassDeclarationSyntax)typeBlock;
+                    baseTypeSyntax = fileScopedClassDecl.baseType;
+                    interfaceListSyntax = fileScopedClassDecl.interfaceList;
+                    break;
+                case SyntaxKind.InterfaceDeclaration:
+                    var interfaceDecl = (InterfaceDeclarationSyntax)typeBlock;
+                    interfaceListSyntax = interfaceDecl.interfaceList;
+                    break;
+                case SyntaxKind.StructDeclaration:
+                    var structDecl = (StructDeclarationSyntax)typeBlock;
+                    interfaceListSyntax = structDecl.interfaceList;
+                    break;
+                default:
+                    continue;
+            }
+
+            if (interfaceListSyntax is null && baseTypeSyntax is null)
+                continue;
+
+            var baseBinder = declaringCompilation.GetBinder((BelteSyntaxNode)baseTypeSyntax ?? interfaceListSyntax);
+            baseBinder = baseBinder.WithAdditionalFlagsAndContainingMember(BinderFlags.SuppressConstraintChecks, this);
+
+            backupLocation ??= interfaceListSyntax?.types?[0]?.location ?? baseTypeSyntax.location;
+
+            if (baseTypeSyntax is not null) {
+                var t = baseTypeSyntax.type;
+                var bt = baseBinder.BindType(t, BelteDiagnosticQueue.Discarded).type;
+
+                if (Equals(bt, @base, TypeCompareKind.ConsiderEverything))
+                    return t.location;
+            }
+
+            if (interfaceListSyntax is not null) {
+                foreach (var t in interfaceListSyntax.types) {
+                    var bt = baseBinder.BindType(t, BelteDiagnosticQueue.Discarded).type;
+
+                    if (Equals(bt, @base, TypeCompareKind.ConsiderEverything))
+                        return t.location;
+                }
+            }
+        }
+
+        return backupLocation;
     }
 
     private SingleTypeDeclaration FirstDeclarationWithExplicitBases() {
@@ -293,6 +364,8 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
                     return (((EnumDeclarationSyntax)decl.syntaxReference.node).baseType, null);
                 case SyntaxKind.StructDeclaration:
                     return (null, ((StructDeclarationSyntax)decl.syntaxReference.node).interfaceList);
+                case SyntaxKind.InterfaceDeclaration:
+                    return (null, ((InterfaceDeclarationSyntax)decl.syntaxReference.node).interfaceList);
                 default:
                     throw ExceptionUtilities.UnexpectedValue(decl.syntaxReference.node.kind);
             }
@@ -484,6 +557,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
         if (interfacesSyntax is not null) {
             foreach (var interfaceSyntax in interfacesSyntax.types) {
+                location = interfaceSyntax.location;
                 baseType = baseBinder.BindType(interfaceSyntax, diagnostics, newBasesBeingResolved).type;
 
                 switch (baseType.typeKind) {

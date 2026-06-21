@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
@@ -108,6 +109,10 @@ internal sealed class FunctionTypeSymbol : TypeSymbol {
         var madeChanges = (object)signature != newSignature;
         result = madeChanges ? new FunctionTypeSymbol(newSignature) : this;
         return madeChanges;
+    }
+
+    internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
+        return SpecializedCollections.EmptyEnumerable<(MethodSymbol Body, MethodSymbol Implemented)>();
     }
 
     internal override bool Equals(TypeSymbol t2, TypeCompareKind compareKind) {

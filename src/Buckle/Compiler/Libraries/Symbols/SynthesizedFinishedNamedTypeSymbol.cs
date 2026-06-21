@@ -73,6 +73,10 @@ internal sealed class SynthesizedFinishedNamedTypeSymbol : WrappedNamedTypeSymbo
         return GetNameToTypeMembersMap().TryGetValue(name, out var members) ? members : [];
     }
 
+    internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
+        return SpecializedCollections.EmptyEnumerable<(MethodSymbol Body, MethodSymbol Implemented)>();
+    }
+
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> GetNameToMembersMap() {
         if (_nameToMembersMap is null)
             Interlocked.CompareExchange(ref _nameToMembersMap, MakeNameToMembersMap(), null);

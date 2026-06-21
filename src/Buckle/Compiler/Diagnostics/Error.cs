@@ -2716,7 +2716,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic ExplicitInterfaceImplementationNotInterface(TextLocation location, Symbol member) {
-        var message = $"'{member}' in explicit interface declaration is not an interface";
+        var message = $"'{member.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' in explicit interface declaration is not an interface";
         return CreateError(DiagnosticCode.ERR_ExplicitInterfaceImplementationNotInterface, location, message);
     }
 
@@ -2725,12 +2725,12 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_ClassDoesntImplementInterface, location, message);
     }
 
-    internal static BelteDiagnostic ExplicitInterfaceMemberReturnTypeMismatch(TextLocation location, Symbol member1, TypeWithAnnotations type, Symbol member2) {
+    internal static BelteDiagnostic ExplicitInterfaceMemberReturnTypeMismatch(TextLocation location, Symbol member1, TypeSymbol type, Symbol member2) {
         var message = $"'{member1}': return type must be '{type}' to match implemented member '{member2}'";
         return CreateError(DiagnosticCode.ERR_ExplicitInterfaceMemberReturnTypeMismatch, location, message);
     }
 
-    internal static BelteDiagnostic ExplicitInterfaceMemberTypeMismatch(TextLocation location, Symbol member1, TypeWithAnnotations type, Symbol member2) {
+    internal static BelteDiagnostic ExplicitInterfaceMemberTypeMismatch(TextLocation location, Symbol member1, TypeSymbol type, Symbol member2) {
         var message = $"'{member1}': type must be '{type}' to match implemented member '{member2}'";
         return CreateError(DiagnosticCode.ERR_ExplicitInterfaceMemberTypeMismatch, location, message);
     }
@@ -2748,6 +2748,26 @@ internal static class Error {
     internal static BelteDiagnostic ExplicitImplCollisionOnRefOut(TextLocation location, Symbol member1, Symbol member2) {
         var message = $"cannot inherit interface '{member1}' with the specified template parameters because it causes method '{member2}' to contain overloads which differ only on ref and out";
         return CreateError(DiagnosticCode.ERR_ExplicitImplCollisionOnRefOut, location, message);
+    }
+
+    internal static BelteDiagnostic DuplicateExplicitImpl(TextLocation location, Symbol member) {
+        var message = $"'{member}' is explicitly implemented more than once";
+        return CreateError(DiagnosticCode.ERR_DuplicateExplicitImpl, location, message);
+    }
+
+    internal static BelteDiagnostic UnimplementedInterfaceMember(TextLocation location, TypeSymbol type, Symbol member) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' does not implement interface member '{member}'";
+        return CreateError(DiagnosticCode.ERR_UnimplementedInterfaceMember, location, message);
+    }
+
+    internal static BelteDiagnostic UnifyingInterfaceInstantiations(TextLocation location, TypeSymbol type, TypeSymbol interface1, TypeSymbol interface2) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' cannot implement both '{interface1.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' and '{interface2.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' because they may unify for some type template parameter substitutions";
+        return CreateError(DiagnosticCode.ERR_UnifyingInterfaceInstantiations, location, message);
+    }
+
+    internal static BelteDiagnostic MostSpecificImplementationIsNotFound(TextLocation location, Symbol member, Symbol candidate1, Symbol candidate2) {
+        var message = $"interface member '{member}' does not have a most specific implementation; neither '{candidate1}', nor '{candidate2}' are most specific";
+        return CreateError(DiagnosticCode.ERR_MostSpecificImplementationIsNotFound, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

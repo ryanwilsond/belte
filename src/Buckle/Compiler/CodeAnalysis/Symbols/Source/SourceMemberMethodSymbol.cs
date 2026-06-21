@@ -103,6 +103,10 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol, I
         _ => null,
     };
 
+    internal void EnsureMetadataVirtual() {
+        _flags.EnsureMetadataVirtual();
+    }
+
     // This allows synthesized methods to also perform method checks without having a conflicting lock
     // TODO This could probably be removed because there are no synthesized event methods or anything similar
     private protected virtual object _methodChecksLockObject => syntaxReference;
@@ -154,6 +158,30 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol, I
 
 done:
         _state.SpinWaitComplete(CompletionParts.MethodSymbolAll);
+    }
+
+    private protected void ReportDefaultInterfaceImplementation(
+        TextLocation location,
+        bool hasBody,
+        BelteDiagnosticQueue diagnostics) {
+        // TODO Eventually we will support all of these
+        if (containingType.isInterface) {
+            if ((!isStatic || methodKind is MethodKind.StaticConstructor) &&
+                (hasBody || isExplicitInterfaceImplementation)) {
+                diagnostics.Push(Error.DefaultInterfaceImplementation(location));
+                return;
+            }
+
+            if (((hasBody || isExtern) && !(isStatic && isVirtual)) || isExplicitInterfaceImplementation) {
+                diagnostics.Push(Error.DefaultInterfaceImplementation(location));
+                return;
+            }
+
+            if (((!hasBody && isAbstract) || isVirtual) && !isExplicitInterfaceImplementation && isStatic) {
+                // TODO Do we support static abstract interface members?
+                // diagnostics.Add(ErrorCode.ERR_RuntimeDoesNotSupportStaticAbstractMembersInInterfaces, location);
+            }
+        }
     }
 
     private protected sealed override void NoteAttributesComplete(bool forReturnType) {

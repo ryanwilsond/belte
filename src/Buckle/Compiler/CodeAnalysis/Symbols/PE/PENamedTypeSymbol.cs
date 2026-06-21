@@ -567,6 +567,10 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
         return GetDeclaredBaseType(skipTransformsIfNecessary: false);
     }
 
+    internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
+        return SpecializedCollections.EmptyEnumerable<(MethodSymbol Body, MethodSymbol Implemented)>();
+    }
+
     internal override byte? GetNullableContextValue() {
         if (!_lazyNullableContextValue.TryGetByte(out var value)) {
             value = containingPEModule.module.HasNullableContextAttribute(_handle, out byte arg)

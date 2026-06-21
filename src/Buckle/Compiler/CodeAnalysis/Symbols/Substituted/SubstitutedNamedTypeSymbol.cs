@@ -176,6 +176,25 @@ internal abstract class SubstitutedNamedTypeSymbol : WrappedNamedTypeSymbol {
             : templateSubstitution.SubstituteNamedTypes(originalDefinition.Interfaces(basesBeingResolved));
     }
 
+    internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
+        if (isUnboundTemplateType)
+            yield break;
+
+        foreach ((var body, var implemented) in originalDefinition.SynthesizedInterfaceMethodImpls()) {
+            var newBody = ExplicitInterfaceHelpers.SubstituteExplicitInterfaceImplementation(
+                body,
+                templateSubstitution
+            );
+
+            var newImplemented = ExplicitInterfaceHelpers.SubstituteExplicitInterfaceImplementation(
+                implemented,
+                templateSubstitution
+            );
+
+            yield return (newBody, newImplemented);
+        }
+    }
+
     public override int GetHashCode() {
         if (_hashCode == 0)
             _hashCode = ComputeHashCode();

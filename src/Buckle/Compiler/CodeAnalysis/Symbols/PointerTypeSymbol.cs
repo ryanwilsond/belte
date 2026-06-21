@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -87,6 +88,10 @@ internal sealed class PointerTypeSymbol : TypeSymbol {
         }
 
         return Hash.Combine(current, indirections);
+    }
+
+    internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
+        return SpecializedCollections.EmptyEnumerable<(MethodSymbol Body, MethodSymbol Implemented)>();
     }
 
     internal override bool ApplyNullableTransforms(

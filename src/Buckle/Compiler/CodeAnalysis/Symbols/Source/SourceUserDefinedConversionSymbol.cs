@@ -24,7 +24,10 @@ internal sealed class SourceUserDefinedConversionSymbol : SourceUserDefinedOpera
             RefKind.None,
             MakeDeclarationModifiers(containingType, methodKind, syntax, syntax.operatorKeyword.location, diagnostics),
             hasAnyBody: syntax.body is not null,
-            diagnostics) { }
+            diagnostics) {
+        if (isStatic && (isAbstract || isVirtual))
+            ReportDefaultInterfaceImplementation(location, syntax.body is not null, diagnostics);
+    }
 
     internal override TextLocation location => GetSyntax().operatorKeyword.location;
 
