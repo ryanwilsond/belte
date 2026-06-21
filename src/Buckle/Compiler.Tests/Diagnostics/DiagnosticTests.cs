@@ -4426,42 +4426,56 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // !
-    // Unreachable currently, attributes not implemented yet
-    // [Fact]
-    // public void Reports_Error_BU0347_DllImportOnInvalidMethod() {
-    //     var text = @"
-    //         class A {
-    //             \[[DllImport](""d3d12.dll"")\]
-    //             public static void M() { }
-    //         }
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0347_DllImportOnInvalidMethod() {
+        var text = @"
+            class A {
+                \[[DllImport](""d3d12.dll"")\]
+                public static void M() { }
+            }
+            ;
+        ";
 
-    //     var diagnostics = @"
-    //         the DllImport attribute must be specified on a method marked 'static' and 'extern'
-    //     ";
+        var diagnostics = @"
+            the 'DllImport' attribute must be specified on a method marked 'static' and 'extern'
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
-    // [Fact]
-    // public void Reports_Error_BU0348_DllImportOnTemplateMethod() {
-    //     var text = @"
-    //         class A {
-    //             \[[DllImport](""d3d12.dll"")\]
-    //             public static void M<type T>() { }
-    //         }
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0348_DllImportOnTemplateMethod() {
+        var text = @"
+            class A {
+                \[[DllImport](""d3d12.dll"")\]
+                public static extern void M<type T>();
+            }
+            ;
+        ";
 
-    //     var diagnostics = @"
-    //         the DllImport attribute cannot be applied to a method that is template or contained in a template method or type
-    //     ";
+        var diagnostics = @"
+            the 'DllImport' attribute cannot be applied to a method that is template or contained in a template method or type
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
-    // ! Error_BU0349_InvalidAttributeArgument
-    // Unreachable currently, attributes not implemented yet
+    [Fact]
+    public void Reports_Error_BU0349_InvalidAttributeArgument() {
+        var text = @"
+            class A {
+                \[DllImport([""""])\]
+                public static extern void M();
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            invalid value for argument to 'DllImport' attribute
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0350_FixedBufferTooManyDimensions() {
@@ -5556,38 +5570,37 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer, true);
     }
 
-    // ! We don't error check attributes right now
-    // [Fact]
-    // public void Reports_Error_BU0426_UnmanagedRequiresStatic() {
-    //     var text = @"
-    //         public class A {
-    //             \[Unmanaged\]
-    //             public void M() { }
-    //         }
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0426_UnmanagedRequiresStatic() {
+        var text = @"
+            public class A {
+                \[[Unmanaged]\]
+                public void M() { }
+            }
+        ";
 
-    //     var diagnostics = @"
-    //         'Unmanaged' can only be applied to ordinary static non-abstract, non-virtual methods or static local functions
-    //     ";
+        var diagnostics = @"
+            'Unmanaged' can only be applied to ordinary static non-abstract, non-virtual methods or static local functions
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
-    // [Fact]
-    // public void Reports_Error_BU0427_UnmanagedCannotBeTemplate() {
-    //     var text = @"
-    //         public class A<type T> {
-    //             \[Unmanaged\]
-    //             public void M() { }
-    //         }
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0427_UnmanagedCannotBeTemplate() {
+        var text = @"
+            public class A<type T> {
+                \[[Unmanaged]\]
+                public static void M() { }
+            }
+        ";
 
-    //     var diagnostics = @"
-    //         methods attributed with 'Unmanaged' cannot have template parameters and cannot be declared in a template type
-    //     ";
+        var diagnostics = @"
+            methods attributed with 'Unmanaged' cannot have template parameters and cannot be declared in a template type
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0428_DestructorInStaticClass() {
@@ -7583,7 +7596,7 @@ public sealed class DiagnosticTests {
     }
 
     // !
-    // TODO interfaces
+    // TODO How do we trigger this
     // [Fact]
     // public void Reports_Error_BU0555_ExplicitImplCollisionOnRefOut() {
     //     var text = @"
@@ -7665,4 +7678,198 @@ public sealed class DiagnosticTests {
 
     //     AssertDiagnostics(text, diagnostics, _writer);
     // }
+
+    // !
+    // ? Unsure how to trigger this (might require another accessibility like internal)
+    // [Fact]
+    // public void Reports_Error_BU0560_ImplicitImplementationOfInaccessibleInterfaceMember() {
+    //     var text = @"
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         ;
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    [Fact]
+    public void Reports_Error_BU0561_InterfaceImplementedByUnmanagedCallersOnlyMethod() {
+        var text = @"
+            interface A {
+                abstract static void B();
+            }
+            class C implements A {
+                \[Unmanaged\]
+                public static void [B]() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'Unmanaged' method 'C.B()' cannot implement interface member 'A.B()' in type 'C'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0562_ImplBadConstraints() {
+        var text = @"
+            interface A {
+                void B<type T>() where { T has default; };
+            }
+            class C implements A {
+                public void [B]<type T>() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            the constraints for type template parameter 'T' of method 'C.B<type! T>()' must match the constraints for type template parameter 'T' of interface method 'A.B<type! T>()'; consider using an explicit interface implementation instead
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0563_CloseUnimplementedInterfaceMemberStatic() {
+        var text = @"
+            interface A {
+                void B();
+            }
+            class C implements [A] {
+                public static void B() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'C' does not implement instance interface member 'A.B()'; 'C.B()' cannot implement the interface member because it is static
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0564_CloseUnimplementedInterfaceMemberNotStatic() {
+        var text = @"
+            interface A {
+                static abstract void B();
+            }
+            class C implements [A] {
+                public void B() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'C' does not implement static interface member 'A.B()'; 'C.B()' cannot implement the interface member because it is not static
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0565_CloseUnimplementedInterfaceMemberNotPublic() {
+        var text = @"
+            interface A {
+                void B();
+            }
+            class C implements [A] {
+                void B() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'C' does not implement interface member 'A.B()'; 'C.B()' cannot implement the interface member because it is not public
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0566_CloseUnimplementedInterfaceMemberWrongRefReturn() {
+        var text = @"
+            interface A {
+                ref int B();
+            }
+            class C implements [A] {
+                public int B() { return 3; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'C' does not implement interface member 'A.B()'; 'C.B()' cannot implement 'A.B()' because it does not have matching return by reference
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // !
+    // TODO Haven't added interface operators yet
+    // [Fact]
+    // public void Reports_Error_BU0567_CloseUnimplementedInterfaceMemberOperatorMismatch() {
+    //     var text = @"
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         ;
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    [Fact]
+    public void Reports_Error_BU0568_CloseUnimplementedInterfaceMemberWrongReturnType() {
+        var text = @"
+            interface A {
+                int B();
+            }
+            class C implements [A] {
+                public void B() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'C' does not implement interface member 'A.B()'; 'C.B()' cannot implement 'A.B()' because it does not have the matching return type of 'int!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0569_AbstractAttributeClass() {
+        var text = @"
+            \[[Attribute]\]
+            class A { }
+            ;
+        ";
+
+        var diagnostics = @"
+             cannot apply attribute class 'Attribute' because it is abstract
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0570_NotAnAttributeClass() {
+        var text = @"
+            \[[A]\]
+            class A { }
+            ;
+        ";
+
+        var diagnostics = @"
+            'A' is not an attribute class
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

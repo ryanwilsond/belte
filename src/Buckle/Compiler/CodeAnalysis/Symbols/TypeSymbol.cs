@@ -602,13 +602,12 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
 
         if (defaultImpl is not null) {
             if (implementingTypeImplementsInterface) {
-                // TODO Interfaces error
-                // ReportDefaultInterfaceImplementationMatchDiagnostics(
-                //     interfaceMember,
-                //     implementingType,
-                //     defaultImpl,
-                //     diagnostics
-                // );
+                ReportDefaultInterfaceImplementationMatchDiagnostics(
+                    interfaceMember,
+                    implementingType,
+                    defaultImpl,
+                    diagnostics
+                );
             }
 
             return defaultImpl;
@@ -622,33 +621,342 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
                     implementingBaseOpt is null) {
                     if (implementingType is NamedTypeSymbol named &&
                         !AccessCheck.IsSymbolAccessible(interfaceMember, named, throughType: null)) {
-                        // TODO Interfaces error
-                        // diagnostics.Add(ErrorCode.ERR_ImplicitImplementationOfInaccessibleInterfaceMember, GetImplicitImplementationDiagnosticLocation(interfaceMember, implementingType, implicitImpl), implementingType, interfaceMember, implicitImpl);
+                        diagnostics.Push(Error.ImplicitImplementationOfInaccessibleInterfaceMember(
+                            GetImplicitImplementationDiagnosticLocation(interfaceMember, implementingType, implicitImpl),
+                            implementingType,
+                            interfaceMember,
+                            implicitImpl
+                        ));
+
                         suppressRegularValidation = true;
                     }
                 }
 
                 if (!suppressRegularValidation) {
-                    // TODO Interfaces error
-                    // ReportImplicitImplementationMatchDiagnostics(
-                    //     interfaceMember,
-                    //     implementingType,
-                    //     implicitImpl,
-                    //     diagnostics
-                    // );
+                    ReportImplicitImplementationMatchDiagnostics(
+                        interfaceMember,
+                        implementingType,
+                        implicitImpl,
+                        diagnostics
+                    );
                 }
             } else if (closestMismatch is not null) {
-                // TODO Interfaces error
-                // ReportImplicitImplementationMismatchDiagnostics(
-                //     interfaceMember,
-                //     implementingType,
-                //     closestMismatch,
-                //     diagnostics
-                // );
+                ReportImplicitImplementationMismatchDiagnostics(
+                    interfaceMember,
+                    implementingType,
+                    closestMismatch,
+                    diagnostics
+                );
             }
         }
 
         return implicitImpl;
+    }
+
+    internal static TextLocation GetImplicitImplementationDiagnosticLocation(
+        Symbol interfaceMember,
+        TypeSymbol implementingType,
+        Symbol member) {
+        if (Equals(member.containingType, implementingType, TypeCompareKind.ConsiderEverything)) {
+            return member.location;
+        } else {
+            var @interface = interfaceMember.containingType;
+            var snt = implementingType as SourceMemberContainerTypeSymbol;
+            return snt?.GetImplementsLocation(@interface) ?? implementingType.location;
+        }
+    }
+
+    private static void ReportImplicitImplementationMismatchDiagnostics(
+        Symbol interfaceMember,
+        TypeSymbol implementingType,
+        Symbol closestMismatch,
+        BelteDiagnosticQueue diagnostics) {
+        var interfaceLocation = GetInterfaceLocation(interfaceMember, implementingType);
+
+        if (closestMismatch.isStatic != interfaceMember.isStatic) {
+            if (closestMismatch.isStatic) {
+                diagnostics.Push(Error.CloseUnimplementedInterfaceMemberStatic(
+                    interfaceLocation,
+                    implementingType,
+                    interfaceMember,
+                    closestMismatch
+                ));
+            } else {
+                diagnostics.Push(Error.CloseUnimplementedInterfaceMemberNotStatic(
+                    interfaceLocation,
+                    implementingType,
+                    interfaceMember,
+                    closestMismatch
+                ));
+            }
+        } else if (closestMismatch.declaredAccessibility != Accessibility.Public) {
+            diagnostics.Push(Error.CloseUnimplementedInterfaceMemberNotPublic(
+                interfaceLocation,
+                implementingType,
+                interfaceMember,
+                closestMismatch
+            ));
+            // } else if (HaveInitOnlyMismatch(interfaceMember, closestMismatch)) {
+            //     diagnostics.Add(ErrorCode.ERR_CloseUnimplementedInterfaceMemberWrongInitOnly, interfaceLocation, implementingType, interfaceMember, closestMismatch);
+        } else {
+            var interfaceMemberRefKind = RefKind.None;
+            TypeSymbol interfaceMemberReturnType;
+
+            switch (interfaceMember.kind) {
+                case SymbolKind.Method:
+                    var method = (MethodSymbol)interfaceMember;
+                    interfaceMemberRefKind = method.refKind;
+                    interfaceMemberReturnType = method.returnType;
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(interfaceMember.kind);
+            }
+
+            var hasRefReturnMismatch = false;
+
+            switch (closestMismatch.kind) {
+                case SymbolKind.Method:
+                    hasRefReturnMismatch = ((MethodSymbol)closestMismatch).refKind != interfaceMemberRefKind;
+                    break;
+            }
+
+            if (hasRefReturnMismatch) {
+                diagnostics.Push(Error.CloseUnimplementedInterfaceMemberWrongRefReturn(
+                    interfaceLocation,
+                    implementingType,
+                    interfaceMember,
+                    closestMismatch
+                ));
+            } else if (interfaceMember is MethodSymbol interfaceMethod &&
+                interfaceMethod.IsOperator() != ((MethodSymbol)closestMismatch).IsOperator()) {
+                diagnostics.Push(Error.CloseUnimplementedInterfaceMemberOperatorMismatch(
+                    interfaceLocation,
+                    implementingType,
+                    interfaceMember,
+                    closestMismatch
+                ));
+            } else {
+                diagnostics.Push(Error.CloseUnimplementedInterfaceMemberWrongReturnType(
+                    interfaceLocation,
+                    implementingType,
+                    interfaceMember,
+                    closestMismatch,
+                    interfaceMemberReturnType
+                ));
+            }
+        }
+    }
+
+    private static void ReportDefaultInterfaceImplementationMatchDiagnostics(
+        Symbol interfaceMember,
+        TypeSymbol implementingType,
+        Symbol implicitImpl,
+        BelteDiagnosticQueue diagnostics) {
+        if (interfaceMember.kind == SymbolKind.Method) {
+            var isStatic = implicitImpl.isStatic;
+
+            if (!isStatic && implementingType.isRefLikeType) {
+                throw ExceptionUtilities.Unreachable();
+                // diagnostics.Add(ErrorCode.ERR_RefStructDoesNotSupportDefaultInterfaceImplementationForMember,
+                //                 GetInterfaceLocation(interfaceMember, implementingType),
+                //                 implicitImpl, interfaceMember, implementingType);
+            } else if (implementingType.containingModule != implicitImpl.containingModule) {
+                // The default implementation is coming from a different module, which means that we probably didn't check
+                // for the required runtime capability or language version
+                // TODO Do we need any of this checking
+                // var feature = isStatic ? MessageID.IDS_FeatureStaticAbstractMembersInInterfaces : MessageID.IDS_DefaultInterfaceImplementation;
+
+                // LanguageVersion requiredVersion = feature.RequiredVersion();
+                // LanguageVersion? availableVersion = implementingType.DeclaringCompilation?.LanguageVersion;
+                // if (requiredVersion > availableVersion) {
+                //     diagnostics.Add(ErrorCode.ERR_LanguageVersionDoesNotSupportInterfaceImplementationForMember,
+                //                     GetInterfaceLocation(interfaceMember, implementingType),
+                //                     implicitImpl, interfaceMember, implementingType,
+                //                     feature.Localize(),
+                //                     availableVersion.GetValueOrDefault().ToDisplayString(),
+                //                     new CSharpRequiredLanguageVersion(requiredVersion));
+                // }
+
+                // if (!(isStatic ?
+                //           implementingType.ContainingAssembly.RuntimeSupportsStaticAbstractMembersInInterfaces :
+                //           implementingType.ContainingAssembly.RuntimeSupportsDefaultInterfaceImplementation)) {
+                //     diagnostics.Add(isStatic ?
+                //                         ErrorCode.ERR_RuntimeDoesNotSupportStaticAbstractMembersInInterfacesForMember :
+                //                         ErrorCode.ERR_RuntimeDoesNotSupportDefaultInterfaceImplementationForMember,
+                //                     GetInterfaceLocation(interfaceMember, implementingType),
+                //                     implicitImpl, interfaceMember, implementingType);
+                // }
+            }
+        }
+    }
+
+    private static void ReportImplicitImplementationMatchDiagnostics(
+        Symbol interfaceMember,
+        TypeSymbol implementingType,
+        Symbol implicitImpl,
+        BelteDiagnosticQueue diagnostics) {
+        var reportedAnError = false;
+
+        if (interfaceMember.kind == SymbolKind.Method) {
+            var interfaceMethod = (MethodSymbol)interfaceMember;
+
+            var implicitImplMethod = (MethodSymbol)implicitImpl;
+
+            // if (implicitImplMethod.isConditional) {
+            // CS0629: Conditional member '{0}' cannot implement interface member '{1}' in type '{2}'
+            // diagnostics.Add(ErrorCode.ERR_InterfaceImplementedByConditional, GetImplicitImplementationDiagnosticLocation(interfaceMember, implementingType, implicitImpl), implicitImpl, interfaceMethod, implementingType);
+            // } else
+            if (implicitImplMethod.isStatic && implicitImplMethod.methodKind == MethodKind.Ordinary &&
+                implicitImplMethod.GetUnmanagedCallersOnlyAttributeData(forceComplete: true) is not null) {
+                diagnostics.Push(Error.InterfaceImplementedByUnmanagedCallersOnlyMethod(
+                    GetImplicitImplementationDiagnosticLocation(interfaceMember, implementingType, implicitImpl),
+                    implicitImpl,
+                    interfaceMethod,
+                    implementingType
+                ));
+            } else if (ReportAnyMismatchedConstraints(
+                interfaceMethod,
+                implementingType,
+                implicitImplMethod,
+                diagnostics)) {
+                reportedAnError = true;
+            }
+        }
+
+        if (implicitImpl.ContainsTupleNames() &&
+            MemberSignatureComparer.ConsideringTupleNamesCreatesDifference(implicitImpl, interfaceMember)) {
+            diagnostics.Push(Error.ImplBadTupleNames(
+                GetImplicitImplementationDiagnosticLocation(interfaceMember, implementingType, implicitImpl),
+                implicitImpl,
+                interfaceMember
+            ));
+
+            reportedAnError = true;
+        }
+
+        if (!reportedAnError && implementingType.declaringCompilation is not null) {
+            CheckModifierMismatchOnImplementingMember(
+                implementingType,
+                implicitImpl,
+                interfaceMember,
+                isExplicit: false,
+                diagnostics
+            );
+        }
+
+        // TODO Interfaces warning
+        // if (!implicitImpl.containingType.isDefinition) {
+        //     foreach (Symbol member in implicitImpl.containingType.GetMembers(implicitImpl.name)) {
+        //         if (member.DeclaredAccessibility != Accessibility.Public || member == implicitImpl) {
+        //             //do nothing - not an ambiguous implementation
+        //         } else if (MemberSignatureComparer.RuntimeImplicitImplementationComparer.Equals(interfaceMember, member) && !member.IsAccessor()) {
+        //             // CONSIDER: Dev10 does not seem to report this for indexers or their accessors.
+        //             diagnostics.Add(ErrorCode.WRN_MultipleRuntimeImplementationMatches, GetImplicitImplementationDiagnosticLocation(interfaceMember, implementingType, member), member, interfaceMember, implementingType);
+        //         }
+        //     }
+        // }
+
+        if (implicitImpl.isStatic && interfaceMember.containingModule != implementingType.containingModule) {
+            // TODO Interfaces do we need this error checking
+            // LanguageVersion requiredVersion = MessageID.IDS_FeatureStaticAbstractMembersInInterfaces.RequiredVersion();
+            // LanguageVersion? availableVersion = implementingType.DeclaringCompilation?.LanguageVersion;
+            // if (requiredVersion > availableVersion) {
+            //     diagnostics.Add(ErrorCode.ERR_LanguageVersionDoesNotSupportInterfaceImplementationForMember,
+            //                     GetImplicitImplementationDiagnosticLocation(interfaceMember, implementingType, implicitImpl),
+            //                     implicitImpl, interfaceMember, implementingType,
+            //                     MessageID.IDS_FeatureStaticAbstractMembersInInterfaces.Localize(),
+            //                     availableVersion.GetValueOrDefault().ToDisplayString(),
+            //                     new CSharpRequiredLanguageVersion(requiredVersion));
+            // }
+
+            // if (!implementingType.ContainingAssembly.RuntimeSupportsStaticAbstractMembersInInterfaces) {
+            //     diagnostics.Add(ErrorCode.ERR_RuntimeDoesNotSupportStaticAbstractMembersInInterfacesForMember,
+            //                     GetImplicitImplementationDiagnosticLocation(interfaceMember, implementingType, implicitImpl),
+            //                     implicitImpl, interfaceMember, implementingType);
+            // }
+        }
+    }
+
+    internal static void CheckModifierMismatchOnImplementingMember(
+        TypeSymbol implementingType,
+        Symbol implementingMember,
+        Symbol interfaceMember,
+        bool isExplicit,
+        BelteDiagnosticQueue diagnostics) {
+        if (!implementingMember.isImplicitlyDeclared) {
+            // TODO Bunch of random modifier warnings we could have here
+            switch (interfaceMember.kind) {
+                case SymbolKind.Method:
+                    var implementingMethod = (MethodSymbol)implementingMember;
+                    var implementedMethod = (MethodSymbol)interfaceMember;
+
+                    if (implementedMethod.isTemplateMethod) {
+                        implementedMethod = implementedMethod.Construct(
+                            TemplateMap.TemplateParametersAsTypeOrConstants(implementingMethod.templateParameters)
+                        );
+                    }
+
+                    // CheckMethodOverride(
+                    //     implementingType,
+                    //     implementedMethod,
+                    //     implementingMethod,
+                    //     isExplicit: isExplicit,
+                    //     diagnostics
+                    // );
+
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(interfaceMember.kind);
+            }
+        }
+    }
+
+    private static bool ReportAnyMismatchedConstraints(
+        MethodSymbol interfaceMethod,
+        TypeSymbol implementingType,
+        MethodSymbol implicitImpl,
+        BelteDiagnosticQueue diagnostics) {
+        var result = false;
+        var arity = interfaceMethod.arity;
+
+        if (arity > 0) {
+            var typeParameters1 = interfaceMethod.templateParameters;
+            var typeParameters2 = implicitImpl.templateParameters;
+            var indexedTypeParameters = IndexedTemplateParameterSymbol.Take(arity);
+
+            var typeMap1 = new TemplateMap(typeParameters1, indexedTypeParameters);
+            var typeMap2 = new TemplateMap(typeParameters2, indexedTypeParameters);
+
+            var compareKind = TypeCompareKind.IgnoreTupleNames;
+
+            for (var i = 0; i < arity; i++) {
+                var typeParameter1 = typeParameters1[i];
+                var typeParameter2 = typeParameters2[i];
+
+                if (!MemberSignatureComparer.HaveSameConstraints(
+                    typeParameter1,
+                    typeMap1,
+                    typeParameter2,
+                    typeMap2,
+                    compareKind)) {
+                    diagnostics.Push(Error.ImplBadConstraints(
+                        GetImplicitImplementationDiagnosticLocation(interfaceMethod, implementingType, implicitImpl),
+                        typeParameter2.name,
+                        implicitImpl,
+                        typeParameter1.name,
+                        interfaceMethod,
+                        interfaceMethod.containingType.name
+                    ));
+                }
+                // TODO This is useless, correct? :
+                //  else if (!MemberSignatureComparer.HaveSameNullabilityInConstraints(typeParameter1, typeMap1, typeParameter2, typeMap2)) {
+                //     diagnostics.Add(ErrorCode.WRN_NullabilityMismatchInConstraintsOnImplicitImplementation, GetImplicitImplementationDiagnosticLocation(interfaceMethod, implementingType, implicitImpl),
+                //                     typeParameter2.Name, implicitImpl, typeParameter1.Name, interfaceMethod);
+                // }
+            }
+        }
+
+        return result;
     }
 
     private static Symbol FindMostSpecificImplementationInInterfaces(

@@ -568,6 +568,17 @@ public enum DiagnosticCode : ushort {
     ERR_UnimplementedInterfaceMember = 557,
     ERR_UnifyingInterfaceInstantiations = 558,
     ERR_MostSpecificImplementationIsNotFound = 559,
+    ERR_ImplicitImplementationOfInaccessibleInterfaceMember = 560,
+    ERR_InterfaceImplementedByUnmanagedCallersOnlyMethod = 561,
+    ERR_ImplBadConstraints = 562,
+    ERR_CloseUnimplementedInterfaceMemberStatic = 563,
+    ERR_CloseUnimplementedInterfaceMemberNotStatic = 564,
+    ERR_CloseUnimplementedInterfaceMemberNotPublic = 565,
+    ERR_CloseUnimplementedInterfaceMemberWrongRefReturn = 566,
+    ERR_CloseUnimplementedInterfaceMemberOperatorMismatch = 567,
+    ERR_CloseUnimplementedInterfaceMemberWrongReturnType = 568,
+    ERR_AbstractAttributeClass = 569,
+    ERR_NotAnAttributeClass = 570,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

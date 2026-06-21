@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Runtime.CompilerServices;
 using System.Threading;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Binding;
@@ -478,6 +477,14 @@ internal static class StandardLibrary {
             ConstExprField("Winapi", SpecialType.UInt32, (uint)1),
             ConstExprField("Cdecl", SpecialType.UInt32, (uint)2),
         ]);
+    }
+
+    private static SynthesizedFinishedNamedTypeSymbol GenerateUnmanagedAttribute() {
+        return Class("UnmanagedAttribute", CorLibrary.GetWellKnownType(WellKnownType.Attribute), []);
+    }
+
+    private static SynthesizedFinishedNamedTypeSymbol GenerateDllImportAttribute() {
+        return Class("DllImportAttribute", CorLibrary.GetWellKnownType(WellKnownType.Attribute), []);
     }
 
     private static SynthesizedFinishedNamedTypeSymbol GenerateTime() {

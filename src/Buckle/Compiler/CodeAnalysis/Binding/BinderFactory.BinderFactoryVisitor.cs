@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -367,11 +368,13 @@ internal sealed partial class BinderFactory {
 
                 if (nodeUsage != NodeUsage.Normal && node.templateParameterList is not null) {
                     method = GetMethodSymbol(node, resultBinder);
+                    Debug.Assert(method is not null);
                     resultBinder = new WithMethodTemplateParametersBinder(method, resultBinder);
                 }
 
                 if (nodeUsage == NodeUsage.MethodBody) {
                     method ??= GetMethodSymbol(node, resultBinder);
+                    Debug.Assert(method is not null);
                     resultBinder = new InMethodBinder(method, resultBinder);
 
                     if (method?.isEffectivelyConst == true)
@@ -469,7 +472,7 @@ internal sealed partial class BinderFactory {
             if (container is null)
                 return null;
 
-            var methodName = GetMethodName(baseMethodDeclarationSyntax);
+            var methodName = GetMethodName(baseMethodDeclarationSyntax, outerBinder);
             return (SourceMemberMethodSymbol)GetMemberSymbol(methodName, baseMethodDeclarationSyntax.fullSpan, container, SymbolKind.Method);
         }
 
@@ -521,7 +524,7 @@ internal sealed partial class BinderFactory {
             return (firstSyntaxTree == secondSyntaxTree) && span.Contains(location.span);
         }
 
-        private static string GetMethodName(BaseMethodDeclarationSyntax syntax) {
+        private static string GetMethodName(BaseMethodDeclarationSyntax syntax, Binder outerBinder) {
             switch (syntax.kind) {
                 case SyntaxKind.ConstructorDeclaration:
                     return WellKnownMemberNames.InstanceConstructorName;
@@ -531,16 +534,36 @@ internal sealed partial class BinderFactory {
                     return WellKnownMemberNames.FinalizerName;
                 case SyntaxKind.OperatorDeclaration:
                     var operatorDeclaration = (OperatorDeclarationSyntax)syntax;
-                    return SyntaxFacts.GetOperatorMemberName(operatorDeclaration);
+                    var operatorName = SyntaxFacts.GetOperatorMemberName(operatorDeclaration);
+
+                    return ExplicitInterfaceHelpers.GetMemberName(
+                        outerBinder,
+                        syntax.modifiers,
+                        operatorDeclaration.explicitInterfaceSpecifier,
+                        operatorName
+                    );
                 case SyntaxKind.LiteralOperatorDeclaration:
                     var literalOperatorDeclaration = (LiteralOperatorDeclarationSyntax)syntax;
                     return WellKnownMemberNames.GetLiteralOperatorName(literalOperatorDeclaration.suffix.valueText);
                 case SyntaxKind.ConversionDeclaration:
                     var conversionDeclaration = (ConversionDeclarationSyntax)syntax;
-                    return SyntaxFacts.GetOperatorMemberName(conversionDeclaration);
+                    var conversionName = SyntaxFacts.GetOperatorMemberName(conversionDeclaration);
+
+                    return ExplicitInterfaceHelpers.GetMemberName(
+                        outerBinder,
+                        syntax.modifiers,
+                        conversionDeclaration.explicitInterfaceSpecifier,
+                        conversionName
+                    );
                 case SyntaxKind.MethodDeclaration:
                     var methodDeclSyntax = (MethodDeclarationSyntax)syntax;
-                    return methodDeclSyntax.identifier.valueText;
+
+                    return ExplicitInterfaceHelpers.GetMemberName(
+                        outerBinder,
+                        syntax.modifiers,
+                        methodDeclSyntax.explicitInterfaceSpecifier,
+                        methodDeclSyntax.identifier.valueText
+                    );
                 default:
                     throw ExceptionUtilities.UnexpectedValue(syntax.kind);
             }

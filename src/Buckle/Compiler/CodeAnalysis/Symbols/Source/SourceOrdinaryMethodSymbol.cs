@@ -121,7 +121,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             aliasQualifier: out _
         );
 
-        var methodKind = interfaceSpecifier == null
+        var methodKind = interfaceSpecifier is null
             ? MethodKind.Ordinary
             : MethodKind.ExplicitInterfaceImplementation;
 

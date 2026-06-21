@@ -487,7 +487,6 @@ most of the differences to make it more clear where the language is unique with 
 - [Extremely flexible meta-programming](LowLevelFeatures.md#613-compiler-handle)
 - [Compile-time expressions](Data.md#37-compile-time-expressions)
 - [Optional build scripts instead of project files](../Build.md)
-- No interfaces
 - No properties
 - No extension methods (yet)
 - No array covariance

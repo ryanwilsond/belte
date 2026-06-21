@@ -172,6 +172,10 @@ internal static class SyntaxNodeExtensions {
         return syntax;
     }
 
+    internal static bool IsVerbatimIdentifier(this SyntaxToken token) {
+        return token.kind == SyntaxKind.IdentifierToken && token.text.Length > 0 && token.text[0] == '@';
+    }
+
     internal static bool IsOutVarDeclaration(this DeclarationExpressionSyntax p) {
         return p.parent?.kind == SyntaxKind.Argument
             && ((ArgumentSyntax)p.parent).refKindKeyword.kind == SyntaxKind.OutKeyword;

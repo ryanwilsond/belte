@@ -27,7 +27,9 @@ internal abstract partial class SourceOrdinaryMethodSymbol {
         }
 
         public sealed override ImmutableArray<TemplateParameterSymbol> templateParameters
-            => _templateParameterInfo.lazyTemplateParameters;
+            // TODO This is only null when displaying this symbol for a diagnostic produced by the base constructor
+            // Perhaps there is a way to fix this so the template parameters aren't just gone in some error messages
+            => _templateParameterInfo?.lazyTemplateParameters ?? [];
 
         // TODO This should be something. _templateParameterInfo.lazyTemplateConstraints?
         // If so, rename TemplateParameterInfo => TemplateInfo to make more sense

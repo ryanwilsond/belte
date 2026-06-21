@@ -9,6 +9,24 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal static class ExplicitInterfaceHelpers {
+    internal static string GetMemberName(
+        Binder binder,
+        SyntaxTokenList modifiers,
+        ExplicitInterfaceSpecifierSyntax explicitInterfaceSpecifierOpt,
+        string name) {
+        var methodName = GetMemberNameAndInterfaceSymbol(
+            binder,
+            modifiers,
+            explicitInterfaceSpecifierOpt,
+            name,
+            BelteDiagnosticQueue.Discarded,
+            out var discardedExplicitInterfaceType,
+            out var discardedAliasOpt
+        );
+
+        return methodName;
+    }
+
     internal static ImmutableArray<T> SubstituteExplicitInterfaceImplementations<T>(
         ImmutableArray<T> unsubstitutedExplicitInterfaceImplementations,
         TemplateMap map)

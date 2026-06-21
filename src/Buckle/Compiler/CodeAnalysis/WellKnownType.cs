@@ -36,4 +36,8 @@ internal enum WellKnownType : byte {
     Sound,
 
     Array,
+
+    Attribute,
+    DllImportAttribute,
+    UnmanagedAttribute,
 }

@@ -217,6 +217,29 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
         return !_considerTemplateConstraints || HaveSameConstraints(member1, templateMap1, member2, templateMap2);
     }
 
+    internal static bool HaveSameConstraints(
+        TemplateParameterSymbol typeParameter1,
+        TemplateMap typeMap1,
+        TemplateParameterSymbol typeParameter2,
+        TemplateMap typeMap2,
+        TypeCompareKind typeComparison) {
+        if ((typeParameter1.hasConstructorConstraint != typeParameter2.hasConstructorConstraint) ||
+            (typeParameter1.hasObjectTypeConstraint != typeParameter2.hasObjectTypeConstraint) ||
+            (typeParameter1.hasPrimitiveTypeConstraint != typeParameter2.hasPrimitiveTypeConstraint) ||
+            (typeParameter1.allowsRefLikeType != typeParameter2.allowsRefLikeType) ||
+            (typeParameter1.hasDefaultConstraint != typeParameter2.hasDefaultConstraint)) {
+            return false;
+        }
+
+        return HaveSameTypeConstraints(
+            typeParameter1,
+            typeMap1,
+            typeParameter2,
+            typeMap2,
+            new SymbolEqualityComparer(typeComparison)
+        );
+    }
+
     public int GetHashCode(Symbol member) {
         var hash = 1;
 

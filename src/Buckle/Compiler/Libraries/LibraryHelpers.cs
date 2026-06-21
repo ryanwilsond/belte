@@ -197,6 +197,17 @@ public static class LibraryHelpers {
         );
     }
 
+    internal static SynthesizedFinishedNamedTypeSymbol Class(string name, ImmutableArray<Symbol> members) {
+        return Class(name, members, DeclarationModifiers.None);
+    }
+
+    internal static SynthesizedFinishedNamedTypeSymbol Class(
+        string name,
+        NamedTypeSymbol baseType,
+        ImmutableArray<Symbol> members) {
+        return Class(name, members, DeclarationModifiers.None, baseType);
+    }
+
     internal static SynthesizedFinishedNamedTypeSymbol StaticClass(string name, ImmutableArray<Symbol> members) {
         return Class(name, members, DeclarationModifiers.Static);
     }
@@ -204,11 +215,12 @@ public static class LibraryHelpers {
     internal static SynthesizedFinishedNamedTypeSymbol Class(
         string name,
         ImmutableArray<Symbol> members,
-        DeclarationModifiers modifiers) {
+        DeclarationModifiers modifiers,
+        NamedTypeSymbol baseType = null) {
         var namedType = new SynthesizedSimpleNamedTypeSymbol(
             name,
             TypeKind.Class,
-            CorLibrary.GetSpecialType(SpecialType.Object),
+            baseType ?? CorLibrary.GetSpecialType(SpecialType.Object),
             DeclarationModifiers.Public | modifiers,
             BelteNamespace,
             []

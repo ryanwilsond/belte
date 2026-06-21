@@ -959,12 +959,15 @@ internal sealed partial class Executor : ModuleBuilder {
         _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T7), typeof(ValueTuple<,,,,,,>));
         _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_TRest), typeof(ValueTuple<,,,,,,,>));
 
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Attribute), typeof(Attribute));
+
         foreach (var type in new[] { WellKnownType.Rect, WellKnownType.Text, WellKnownType.Sprite,
                                      WellKnownType.Vec2, WellKnownType.Texture, WellKnownType.Sound,
                                      WellKnownType.ValueTuple_T1, WellKnownType.ValueTuple_T2,
                                      WellKnownType.ValueTuple_T3, WellKnownType.ValueTuple_T4,
                                      WellKnownType.ValueTuple_T5, WellKnownType.ValueTuple_T6,
-                                     WellKnownType.ValueTuple_T7, WellKnownType.ValueTuple_TRest, }) {
+                                     WellKnownType.ValueTuple_T7, WellKnownType.ValueTuple_TRest,
+                                     WellKnownType.Attribute }) {
             var typeSymbol = CorLibrary.GetWellKnownType(type);
             var native = _bakedTypes[typeSymbol];
 

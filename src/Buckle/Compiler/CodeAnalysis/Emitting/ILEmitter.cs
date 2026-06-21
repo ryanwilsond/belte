@@ -1084,6 +1084,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         _fields.Add(
             (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Rest),
             Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,,,>).GetField("Rest"))));
+        _types.Add(
+            CorLibrary.GetWellKnownType(WellKnownType.Attribute),
+            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(Attribute))));
     }
 
     private MethodDefinition CreateEntryWrapperIfApplicable(MethodSymbol entrySymbol) {

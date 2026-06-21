@@ -61,6 +61,10 @@ internal sealed class LookupResult {
         return new SingleLookupResult(LookupResultKind.Inaccessible, symbol, error);
     }
 
+    internal static SingleLookupResult NotAnAttributeType(Symbol symbol, BelteDiagnostic error) {
+        return new SingleLookupResult(LookupResultKind.NotAnAttributeType, symbol, error);
+    }
+
     internal static SingleLookupResult NotInvocable(
         Symbol unwrappedSymbol,
         Symbol symbol,

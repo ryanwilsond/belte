@@ -1470,4 +1470,21 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Interface_SeesTemplateSubstitution() {
+        var text = @"
+            interface A<type T> {
+                void B(T t);
+            }
+            class C implements A<int> {
+                public void B(int t) { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

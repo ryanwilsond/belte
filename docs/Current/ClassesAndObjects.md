@@ -1225,3 +1225,29 @@ MyInterface a = new Class1();
 
 The [`is`, `isnt`, and `as` operators](Data.md#323-isisntas-operators) also work with interfaces the same way they work
 with classes.
+
+### 4.10.1 Explicit Implementations
+
+In cases when implementing multiple interfaces with members with the same signature, or in cases where copying down all
+type template parameter constraint clauses is verbose, an explicit interface specifier can be used. The following are
+equivalent (note that with explicit interface specifiers, accessibility modifiers become disallowed):
+
+```belte
+interface A {
+  void M<type T>(T t) where { T has constructor; };
+}
+
+class C implements A {
+  public void M<type T>(T t) where { T has constructor; } { }
+}
+```
+
+```belte
+interface A {
+  void M<type T>(T t) where { T has constructor; };
+}
+
+class C implements A {
+  void A.M<type T>(T t) { }
+}
+```

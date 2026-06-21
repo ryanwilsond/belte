@@ -543,24 +543,24 @@ internal abstract class Symbol : ISymbol {
         var lazyAttributesStoredOnThisThread = false;
 
         if (lazyAttributesBag.SetAttributes(boundAttributes)) {
-            // if (attributeMatchesOpt is null) {
-            // this.PostDecodeWellKnownAttributes(boundAttributes, attributesToBind, diagnostics, symbolPart, wellKnownAttributeData);
-            // this.RecordPresenceOfBadAttributes(boundAttributes);
+            if (attributeMatchesOpt is null) {
+                // this.PostDecodeWellKnownAttributes(boundAttributes, attributesToBind, diagnostics, symbolPart, wellKnownAttributeData);
+                // this.RecordPresenceOfBadAttributes(boundAttributes);
 
-            //     if (totalAttributesCount != 0) {
-            //         for (var i = 0; i < totalAttributesCount; i++) {
-            //             var boundAttribute = boundAttributeArray[i];
-            //             Binder attributeBinder = binders[i];
+                // if (totalAttributesCount != 0) {
+                //     for (var i = 0; i < totalAttributesCount; i++) {
+                //         var boundAttribute = boundAttributeArray[i];
+                //         Binder attributeBinder = binders[i];
 
-            //             if (boundAttribute.Constructor is { } ctor) {
-            //                 Binder.CheckRequiredMembersInObjectInitializer(ctor, ImmutableArray<BoundExpression>.CastUp(boundAttribute.NamedArguments), boundAttribute.Syntax, diagnostics);
-            //                 attributeBinder.ReportDiagnosticsIfObsolete(diagnostics, ctor, boundAttribute.Syntax, hasBaseReceiver: false);
-            //             }
-            //         }
-            //     }
+                //         if (boundAttribute.Constructor is { } ctor) {
+                //             Binder.CheckRequiredMembersInObjectInitializer(ctor, ImmutableArray<BoundExpression>.CastUp(boundAttribute.NamedArguments), boundAttribute.Syntax, diagnostics);
+                //             attributeBinder.ReportDiagnosticsIfObsolete(diagnostics, ctor, boundAttribute.Syntax, hasBaseReceiver: false);
+                //         }
+                //     }
+                // }
 
-            //     AddDeclarationDiagnostics(diagnostics);
-            // }
+                AddDeclarationDiagnostics(diagnostics);
+            }
 
             lazyAttributesStoredOnThisThread = true;
 

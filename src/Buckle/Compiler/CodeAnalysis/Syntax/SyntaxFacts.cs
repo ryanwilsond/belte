@@ -602,6 +602,36 @@ public static class SyntaxFacts {
         return declaration.body is not null;
     }
 
+    internal static bool IsAttributeName(SyntaxNode node) {
+        var parent = node.parent;
+
+        if (parent is null || !IsName(node.kind))
+            return false;
+
+        switch (parent.kind) {
+            case SyntaxKind.QualifiedName:
+                var qn = (QualifiedNameSyntax)parent;
+                return qn.right == node && IsAttributeName(parent);
+            case SyntaxKind.AliasQualifiedName:
+                var an = (AliasQualifiedNameSyntax)parent;
+                return an.name == node && IsAttributeName(parent);
+        }
+
+        return node.parent is AttributeSyntax p && p.name == node;
+    }
+
+    internal static bool IsName(SyntaxKind kind) {
+        switch (kind) {
+            case SyntaxKind.IdentifierName:
+            case SyntaxKind.TemplateName:
+            case SyntaxKind.QualifiedName:
+            case SyntaxKind.AliasQualifiedName:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     private static string GetOperatorMemberNameCore(int parameterCount, SyntaxKind kind, string text) {
         if (kind == SyntaxKind.IdentifierToken) {
             return text switch {

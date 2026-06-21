@@ -21,6 +21,7 @@ a lowlevel context.
   - [6.6.1](#661-calling-conventions) Calling Conventions
 - [6.7](#67-extern-methods) Extern Methods
   - [6.7.1](#671-winbool) WinBool
+  - [6.7.2](#672-unmanaged-methods) Unmanaged Methods
 - [6.8](#68-fixed-size-buffers) Fixed Size Buffers
 - [6.9](#69-sizeof-operator) Sizeof Operator
 - [6.10](#610-stackalloc-operator) Stackalloc Operator
@@ -410,6 +411,21 @@ which is 4 bytes instead of 1. For such cases, use the primitive `winbool`:
 ```belte
 [DllImport("user32.dll")]
 static extern winbool! UpdateWindow(int64* hWnd);
+```
+
+### 6.7.2 Unmanaged Methods
+
+To pass methods as callbacks to unmanaged libraries, they must be marked with the `[Unmanaged]` attribute. Unmanaged
+methods cannot be called in a managed context. Unmanaged methods must be non-templated, static, and non-virtual.
+
+```belte
+[DllImport("lib.dll")]
+public static extern void SomeFunc(void(int) callback);
+
+[Unmanaged]
+public static void MyMethod(int param) { /* ... */ }
+
+SomeFunc(MyMethod);
 ```
 
 ## 6.8 Fixed Size Buffers
