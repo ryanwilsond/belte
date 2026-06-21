@@ -322,14 +322,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         if (target.isStatic)
             return None;
 
-        if (source.kind is SymbolKind.NamedType or SymbolKind.TemplateParameter &&
-            target.kind is SymbolKind.NamedType or SymbolKind.TemplateParameter) {
-            if (IsBaseClass(source, target))
-                return Implicit;
-
-            if (IsBaseClass(target, source))
-                return Explicit;
-        }
+        // Reference conversions are handled by Conversions
 
         return None;
     }

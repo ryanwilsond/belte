@@ -2706,6 +2706,12 @@ internal sealed class Evaluator {
 
             if (newMethod is not null)
                 return newMethod;
+
+            // Last try lookup for interface members
+            newMethod = typeToLookup.FindImplementationForInterfaceMemberInNonInterface(method).symbol as MethodSymbol;
+
+            if (newMethod is not null)
+                return newMethod;
         }
 
         return method;
