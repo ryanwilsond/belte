@@ -1377,30 +1377,56 @@ public sealed class EvaluatorTests {
 
         return Run();", 6)]
     // Interfaces
-    // [InlineData(@"
-    //     interface A {
-    //         int B();
-    //     }
-    //     class C implements A {
-    //         public int B() { return 5; }
-    //     }
-    //     class D implements A {
-    //         public int B() { return 10; }
-    //     }
-    //     A a = new C();
-    //     return a.B();", 5)]
-    // [InlineData(@"
-    //     interface A {
-    //         int B();
-    //     }
-    //     class C implements A {
-    //         public int B() { return 5; }
-    //     }
-    //     class D implements A {
-    //         public int B() { return 10; }
-    //     }
-    //     A a = new D();
-    //     return a.B();", 10)]
+    [InlineData(@"
+        interface A {
+            int B();
+        }
+        class C implements A {
+            public int B() { return 5; }
+        }
+        class D implements A {
+            public int B() { return 10; }
+        }
+        A a = new C();
+        return a.B();", 5)]
+    [InlineData(@"
+        interface A {
+            int B();
+        }
+        class C implements A {
+            public int B() { return 5; }
+        }
+        class D implements A {
+            public int B() { return 10; }
+        }
+        A a = new D();
+        return a.B();", 10)]
+    [InlineData(@"
+        interface A {
+            int B();
+        }
+        class C implements A {
+            public int B() { return 5; }
+        }
+        class D implements A {
+            public int B() { return 10; }
+        }
+        A a = new C();
+        C c = (C)a;
+        return c.B();", 5)]
+    [InlineData(@"
+        interface A {
+            int B();
+        }
+        class C implements A {
+            public int B() { return 5; }
+        }
+        class D implements A {
+            public int B() { return 10; }
+        }
+        A a = new D();
+        D d = (D)a;
+        return d.B();", 10)]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue, evaluator: true, executor: true);
     }

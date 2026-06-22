@@ -395,8 +395,40 @@ internal sealed partial class Conversions {
             return result;
         }
 
+        return ClassifyExplicitOnlyConversionFromExpression(sourceExpression, target);
+    }
+
+    private Conversion ClassifyExplicitOnlyConversionFromExpression(
+        BoundExpression sourceExpression,
+        TypeSymbol target) {
+        // TODO explicit tuple literal conversion
+        // if (sourceExpression.kind == BoundKind.TupleLiteral) {
+        //     Conversion tupleConversion = ClassifyExplicitTupleLiteralConversion(
+        //         (BoundTupleLiteral)sourceExpression,
+        //         target
+        //     );
+
+        //     if (tupleConversion.exists)
+        //         return tupleConversion;
+        // }
+
         sourceExpression = Binder.ReduceNumericIfApplicable(target, sourceExpression);
-        return Conversion.Classify(sourceExpression.Type(), target);
+        var sourceType = sourceExpression.Type();
+
+        if (sourceType is not null) {
+            var fastConversion = FastClassifyConversion(sourceType, target);
+
+            if (fastConversion.exists) {
+                return fastConversion;
+            } else {
+                var conversion = ClassifyExplicitBuiltInConversion(sourceType, target);
+
+                if (conversion.exists)
+                    return conversion;
+            }
+        }
+
+        return GetExplicitUserDefinedConversion(sourceExpression, sourceType, target);
     }
 
     private Conversion GetImplicitUserDefinedConversion(

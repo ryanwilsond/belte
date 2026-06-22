@@ -1021,15 +1021,27 @@ internal sealed partial class Executor : ModuleBuilder {
         if (_types.ContainsKey(type.originalDefinition))
             return;
 
-        var typeBuilder = _moduleBuilder.DefineType(
-            GetTypeName(type, false),
-            GetTypeAttributes(type, false),
-            typeof(object),
-            GetPackSize(type)
-        );
+        TypeBuilder typeBuilder;
+
+        if (type.isInterface) {
+            typeBuilder = _moduleBuilder.DefineType(
+                GetTypeName(type, false),
+                GetTypeAttributes(type, false)
+            );
+        } else {
+            typeBuilder = _moduleBuilder.DefineType(
+                GetTypeName(type, false),
+                GetTypeAttributes(type, false),
+                typeof(object),
+                GetPackSize(type)
+            );
+        }
 
         _types.Add(type.originalDefinition, typeBuilder);
-        typeBuilder.SetParent(GetBaseType(type));
+
+        if (!type.isInterface)
+            typeBuilder.SetParent(GetBaseType(type));
+
         AddInterfaceImplementations(type, typeBuilder);
 
         string[] workingParams = [];
@@ -1044,16 +1056,17 @@ internal sealed partial class Executor : ModuleBuilder {
 
     private void AddInterfaceImplementations(NamedTypeSymbol type, TypeBuilder typeBuilder) {
         foreach (var @interface in type.Interfaces())
-            typeBuilder.AddInterfaceImplementation(GetType(@interface));
+            typeBuilder.AddInterfaceImplementation(_types[@interface]);
     }
 
     private Type GetBaseType(NamedTypeSymbol type) {
-        if (type.baseType is null || type.IsStructType())
+        if (type.IsStructType())
             return typeof(ValueType);
 
         if (type.IsEnumType())
             return typeof(Enum);
 
+        Debug.Assert(type.baseType is not null);
         return GetType(type.baseType);
     }
 
@@ -1089,12 +1102,21 @@ internal sealed partial class Executor : ModuleBuilder {
 
                 _workingNestedEnums.TryAdd(nestedType, nestedBuilder);
             } else {
-                var nestedBuilder = typeBuilder.DefineNestedType(
-                    GetTypeName(nestedType, true),
-                    GetTypeAttributes(nestedType, true),
-                    typeof(object),
-                    GetPackSize(type)
-                );
+                TypeBuilder nestedBuilder;
+
+                if (nestedType.isInterface) {
+                    nestedBuilder = typeBuilder.DefineNestedType(
+                        GetTypeName(nestedType, true),
+                        GetTypeAttributes(nestedType, true)
+                    );
+                } else {
+                    nestedBuilder = typeBuilder.DefineNestedType(
+                        GetTypeName(nestedType, true),
+                        GetTypeAttributes(nestedType, true),
+                        typeof(object),
+                        GetPackSize(type)
+                    );
+                }
 
                 workingParams = workingParams.Concat(nestedType.templateParameters.Select(t => t.name)).ToArray();
 
@@ -1102,7 +1124,10 @@ internal sealed partial class Executor : ModuleBuilder {
                     nestedBuilder.DefineGenericParameters(workingParams);
 
                 _types.Add(nestedType.originalDefinition, nestedBuilder);
-                nestedBuilder.SetParent(GetBaseType(nestedType));
+
+                if (!nestedType.isInterface)
+                    nestedBuilder.SetParent(GetBaseType(nestedType));
+
                 AddInterfaceImplementations(nestedType, nestedBuilder);
                 CreateNestedTypes(nestedType, nestedBuilder, workingParams);
             }
@@ -1121,7 +1146,8 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private TypeAttributes GetTypeAttributes(NamedTypeSymbol type, bool isNested) {
-        var attributes = TypeAttributes.Class;
+        // Structs use TypeAttributes.Class
+        var attributes = type.isInterface ? TypeAttributes.Interface : TypeAttributes.Class;
 
         if (type.isStatic)
             attributes |= TypeAttributes.Abstract | TypeAttributes.Sealed;
@@ -1129,8 +1155,6 @@ internal sealed partial class Executor : ModuleBuilder {
             attributes |= TypeAttributes.Abstract;
         if (type.isSealed)
             attributes |= TypeAttributes.Sealed;
-        if (type.isInterface)
-            attributes |= TypeAttributes.Interface;
 
         if (type.IsStructType())
             attributes |= type.isUnionStruct ? TypeAttributes.ExplicitLayout : TypeAttributes.SequentialLayout;

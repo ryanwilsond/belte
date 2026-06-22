@@ -1178,12 +1178,22 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     private TypeDefinition CreateNamedTypeDefinition(NamedTypeSymbol type, bool isNested = false) {
-        var typeDefinition = new TypeDefinition(
-            GetNamespaceName(type),
-            type.name,
-            GetTypeAttributes(type, isNested),
-            GetBaseType(type)
-        );
+        TypeDefinition typeDefinition;
+
+        if (type.isInterface) {
+            typeDefinition = new TypeDefinition(
+                GetNamespaceName(type),
+                type.name,
+                GetTypeAttributes(type, isNested)
+            );
+        } else {
+            typeDefinition = new TypeDefinition(
+                GetNamespaceName(type),
+                type.name,
+                GetTypeAttributes(type, isNested),
+                GetBaseType(type)
+            );
+        }
 
         AddInterfaceImplementations(type, typeDefinition);
 
@@ -1223,12 +1233,13 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     private TypeReference GetBaseType(NamedTypeSymbol type) {
-        if (type.baseType is null || type.IsStructType())
+        if (type.IsStructType())
             return NetTypeReference.ValueType;
 
         if (type.IsEnumType())
             return NetTypeReference.Enum;
 
+        Debug.Assert(type.baseType is not null);
         return GetType(type.baseType);
     }
 
@@ -1608,7 +1619,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     private static TypeAttributes GetTypeAttributes(NamedTypeSymbol type, bool isNested) {
-        var attributes = TypeAttributes.Class;
+        // Structs use TypeAttributes.Class
+        var attributes = type.isInterface ? TypeAttributes.Interface : TypeAttributes.Class;
 
         if (type.isStatic)
             attributes |= TypeAttributes.Abstract | TypeAttributes.Sealed;
@@ -1616,8 +1628,6 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             attributes |= TypeAttributes.Abstract;
         if (type.isSealed)
             attributes |= TypeAttributes.Sealed;
-        if (type.isInterface)
-            attributes |= TypeAttributes.Interface;
 
         if (type.IsStructType())
             attributes |= type.isUnionStruct ? TypeAttributes.ExplicitLayout : TypeAttributes.SequentialLayout;
