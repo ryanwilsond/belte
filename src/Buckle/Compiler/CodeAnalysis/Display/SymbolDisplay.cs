@@ -693,6 +693,11 @@ public static class SymbolDisplay {
     }
 
     private static void DisplayModifiers(DisplayText text, Symbol symbol) {
+        if (symbol.IsLowLevel()) {
+            text.Write(CreateKeyword(SyntaxKind.LowlevelKeyword));
+            text.Write(CreateSpace());
+        }
+
         if (symbol.isStatic) {
             text.Write(CreateKeyword(SyntaxKind.StaticKeyword));
             text.Write(CreateSpace());

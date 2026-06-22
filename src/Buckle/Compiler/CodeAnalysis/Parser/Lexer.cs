@@ -93,14 +93,20 @@ internal sealed partial class Lexer : IDisposable {
             }
 
             if (_badTokensCache.Count > 0) {
-                var leadingTrivia = new SyntaxListBuilder(token.leadingTrivia.Count + 10);
+                var leadingTrivia = new SyntaxListBuilder(_badTokensCache.Count + token.leadingTrivia.Count);
 
-                foreach (var badToken in _badTokensCache) {
-                    leadingTrivia.AddRange(badToken.leadingTrivia);
-                    var trivia = SyntaxFactory.SkippedTokensTrivia(badToken);
-                    leadingTrivia.Add(trivia);
-                    leadingTrivia.AddRange(badToken.trailingTrivia);
-                }
+                foreach (var badToken in _badTokensCache)
+                    leadingTrivia.Add(SyntaxFactory.SkippedTokensTrivia(badToken));
+
+                // TODO Here is the original code here:
+                /* foreach (var badToken in _badTokensCache) {
+                       leadingTrivia.AddRange(badToken.leadingTrivia);
+                       var trivia = SyntaxFactory.SkippedTokensTrivia(badToken);
+                       leadingTrivia.Add(trivia);
+                       leadingTrivia.AddRange(badToken.trailingTrivia);
+                   } */
+                // Perhaps we should bundle the bad tokens into a single skipped tokens trivia?
+                // Or perhaps this LexNext-being-a-loop approach is flawed
 
                 leadingTrivia.AddRange(token.leadingTrivia);
                 token = token.TokenWithLeadingTrivia(leadingTrivia.ToListNode());

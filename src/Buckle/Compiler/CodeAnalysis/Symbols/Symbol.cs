@@ -407,6 +407,15 @@ internal abstract class Symbol : ISymbol {
         };
     }
 
+    internal bool IsLowLevel() {
+        return this switch {
+            FieldSymbol f => f.isLowLevel,
+            NamedTypeSymbol n => n.isLowLevel,
+            SourceMemberMethodSymbol s => s.isLowLevel,
+            _ => false
+        };
+    }
+
     internal bool IsOperator() {
         return this is MethodSymbol m && m.IsOperator();
     }
