@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
@@ -2514,6 +2515,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.CStringLiteralToken:
             case SyntaxKind.CWStringLiteralToken:
             case SyntaxKind.InterpolatedStringLiteralToken:
+            case SyntaxKind.MultilineStringLiteralToken:
             case SyntaxKind.CharacterLiteralToken:
             case SyntaxKind.NullKeyword:
             case SyntaxKind.NullptrKeyword:
@@ -2976,6 +2978,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseExtendedLiteral();
             case SyntaxKind.StringLiteralToken:
                 return ParseStringLiteral();
+            case SyntaxKind.MultilineStringLiteralToken:
+                return ParseMultilineStringLiteral();
             case SyntaxKind.CStringLiteralToken:
                 return ParseCStringLiteral();
             case SyntaxKind.CWStringLiteralToken:
@@ -4076,6 +4080,136 @@ done:
         return SyntaxFactory.Literal(stringToken);
     }
 
+    private static readonly string[] MultilineStringSeparator = ["\r\n", "\r"];
+
+    private ExpressionSyntax ParseMultilineStringLiteral() {
+        var token = Match(SyntaxKind.MultilineStringLiteralToken);
+        var lines = token.valueText.Split(MultilineStringSeparator, StringSplitOptions.None);
+        var lastLine = lines[^1];
+
+        if (lines.Length < 3 || !lastLine.IsWhiteSpace())
+            return CreateStringLiteral(token, token.value);
+
+        return ParseMultilineStringCore(
+            token,
+            lines,
+            lastLine.Length,
+            diagnose: true,
+            containsStart: true,
+            containsEnd: true,
+            CreateStringLiteral,
+            out _
+        );
+
+        static ExpressionSyntax CreateStringLiteral(SyntaxToken token, object value) {
+            var stringToken = SyntaxFactory.Token(
+                SyntaxKind.StringLiteralToken,
+                token.text,
+                value,
+                token.GetLeadingTrivia(),
+                token.GetTrailingTrivia(),
+                token.GetDiagnostics()
+            );
+
+            return SyntaxFactory.Literal(stringToken);
+        }
+    }
+
+    private TNode ParseMultilineStringCore<TNode>(
+        SyntaxToken token,
+        string[] lines,
+        int leadingWhitespace,
+        bool diagnose,
+        bool containsStart,
+        bool containsEnd,
+        Func<SyntaxToken, object, TNode> nodeCreatorFunc,
+        out bool hadError)
+        where TNode : BelteSyntaxNode {
+        hadError = false;
+
+        // We preserve whatever line breaks were found during lexing
+        var lineBreaks = GetTextLineBreaks(token.text, lines.Length);
+
+        StringBuilder stringBuilder;
+
+        // Only include the start line if its non-empty
+        if (string.IsNullOrEmpty(lines[0]) && containsStart)
+            stringBuilder = new StringBuilder(token.text.Length);
+        else if (!containsEnd || !token.text.StartsWith(lineBreaks[0]))
+            stringBuilder = new StringBuilder(lines[0] + lineBreaks[0], token.text.Length);
+        else
+            stringBuilder = new StringBuilder(token.text.Length);
+
+        var failed = false;
+        var offset = 3 + lines[0].Length + lineBreaks[0].Length;
+        var width = 0;
+
+        // Skip the last line if its just the quotations and whitespace
+        var endIter = containsEnd ? lines.Length - 1 : lines.Length;
+
+        for (var i = 1; i < endIter; i++) {
+            var line = lines[i];
+            var length = line.Length;
+
+            if (line.TrimStart().Length + leadingWhitespace > length) {
+                if (string.IsNullOrWhiteSpace(line)) {
+                    if (i + 1 < endIter) {
+                        var lineBreak = lineBreaks[i];
+                        stringBuilder.Append(lineBreak);
+                        offset = lineBreak.Length;
+                    }
+
+                    continue;
+                }
+
+                failed = true;
+                width = line.Length;
+                break;
+            }
+
+            stringBuilder.Append(line[leadingWhitespace..]);
+            offset += length;
+
+            if (i + 1 < endIter) {
+                var lineBreak = lineBreaks[i];
+                stringBuilder.Append(lineBreak);
+                offset = lineBreak.Length;
+            }
+        }
+
+        if (failed) {
+            var fallback = nodeCreatorFunc(token, token.value);
+            hadError = true;
+
+            if (diagnose)
+                return AddDiagnostic(fallback, Error.InvalidMultilineString(), offset, width);
+
+            return fallback;
+        }
+
+        return nodeCreatorFunc(token, stringBuilder.ToString());
+
+        static string[] GetTextLineBreaks(string text, int lineCount) {
+            var lineBreaks = new string[lineCount - 1];
+            var currentLine = 0;
+
+            for (var i = 0; i < text.Length; i++) {
+                if (text[i] == '\r') {
+                    if (i + 1 < text.Length && text[i + 1] == '\n') {
+                        lineBreaks[currentLine++] = "\r\n";
+                        i++;
+                    } else {
+                        lineBreaks[currentLine++] = "\r";
+                    }
+                } else if (text[i] == '\n') {
+                    lineBreaks[currentLine++] = "\n";
+                }
+            }
+
+            return lineBreaks;
+        }
+    }
+
     private ExpressionSyntax ParseInterpolatedStringLiteral() {
         return ParseInterpolatedStringLiteralCore(EatToken());
     }
@@ -4085,17 +4219,50 @@ done:
         var interpolations = _pool.Allocate<InterpolatedStringContentSyntax>();
 
         var tempLexer = new Lexer(SourceText.From(originalText), options, allowPreprocessorDirectives: false);
-        var groups = tempLexer.RereadInterpolatedString(out var hasCloseQuote, out var isCString);
+        var groups = tempLexer.RereadInterpolatedString(out var hasCloseQuote, out var isCString, out var isMultiline);
 
-        foreach (var group in groups) {
-            if (group.Length == 1 && group[0].kind == SyntaxKind.StringLiteralToken)
-                interpolations.Add(SyntaxFactory.InterpolatedStringText(group[0]));
-            else
-                interpolations.Add(ParseInterpolation(group));
+        var shouldTreatAsMultiline = false;
+        var leadingWhitespace = 0;
+
+        if (hasCloseQuote && groups.Length > 1) {
+            var lastGroups = groups[^1];
+
+            if (lastGroups.Length == 1 && lastGroups[0].kind == SyntaxKind.StringLiteralToken) {
+                var lines = lastGroups[0].text.Split(MultilineStringSeparator, StringSplitOptions.None);
+
+                if (lines[^1].IsWhiteSpace()) {
+                    shouldTreatAsMultiline = true;
+                    leadingWhitespace = lines[^1].Length;
+                }
+            }
         }
 
+        var diagnose = true;
+
+        for (var i = 0; i < groups.Length; i++) {
+            var group = groups[i];
+
+            if (group.Length == 1 && group[0].kind == SyntaxKind.StringLiteralToken) {
+                interpolations.Add(ParseInterpolatedStringText(
+                    group[0],
+                    shouldTreatAsMultiline,
+                    diagnose: diagnose,
+                    containsStart: i == 0,
+                    containsEnd: i + 1 == groups.Length,
+                    leadingWhitespace,
+                    out var hadError
+                ));
+
+                if (hadError)
+                    diagnose = false;
+            } else {
+                interpolations.Add(ParseInterpolation(group));
+            }
+        }
+
+        var (startTokenWidth, endTokenWidth) = GetStartAndEndWidth(isCString, isMultiline);
+
         var leading = originalToken.GetLeadingTrivia();
-        var startTokenWidth = isCString ? 3 : 2;
         var openQuote = SyntaxFactory.Token(
             SyntaxKind.InterpolatedStringStartToken,
             startTokenWidth + (leading?.fullWidth ?? 0),
@@ -4109,8 +4276,8 @@ done:
         var closeQuote = hasCloseQuote
             ? SyntaxFactory.Token(
                 SyntaxKind.InterpolatedStringEndToken,
-                1 + (trailing?.fullWidth ?? 0),
-                originalText[^1].ToString(),
+                endTokenWidth + (trailing?.fullWidth ?? 0),
+                originalText[^endTokenWidth..].ToString(),
                 null,
                 null,
                 trailing)
@@ -4120,6 +4287,61 @@ done:
                 trailing);
 
         return SyntaxFactory.InterpolatedStringExpression(openQuote, _pool.ToListAndFree(interpolations), closeQuote);
+
+        static (int, int) GetStartAndEndWidth(bool isCString, bool isMultiline) {
+            var startTokenToken = 2;
+            var endTokenWidth = 1;
+
+            if (isCString)
+                startTokenToken++;
+
+            if (isMultiline) {
+                startTokenToken += 2;
+                endTokenWidth += 2;
+            }
+
+            return (startTokenToken, endTokenWidth);
+        }
+    }
+
+    private InterpolatedStringContentSyntax ParseInterpolatedStringText(
+        SyntaxToken token,
+        bool shouldTreatAsMultiline,
+        bool diagnose,
+        bool containsStart,
+        bool containsEnd,
+        int leadingWhitespace,
+        out bool hadError) {
+        hadError = false;
+
+        if (!shouldTreatAsMultiline)
+            return SyntaxFactory.InterpolatedStringText(token);
+
+        var lines = token.valueText.Split(MultilineStringSeparator, StringSplitOptions.None);
+
+        return ParseMultilineStringCore(
+            token,
+            lines,
+            leadingWhitespace,
+            diagnose: diagnose,
+            containsStart: containsStart,
+            containsEnd: containsEnd,
+            CreateStringContent,
+            out hadError
+        );
+
+        static InterpolatedStringContentSyntax CreateStringContent(SyntaxToken token, object value) {
+            var stringToken = SyntaxFactory.Token(
+                SyntaxKind.StringLiteralToken,
+                token.text,
+                value,
+                token.GetLeadingTrivia(),
+                token.GetTrailingTrivia(),
+                token.GetDiagnostics()
+            );
+
+            return SyntaxFactory.InterpolatedStringText(stringToken);
+        }
     }
 
     private InterpolationSyntax ParseInterpolation(SyntaxToken[] tokens) {

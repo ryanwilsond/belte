@@ -75,12 +75,15 @@
     - [2.11](Current/ControlFlow.md#211-reverse-statements) Reverse Statements
   - [3](Current/Data.md) Data
     - [3.1](Current/Data.md#31-data-types) Data Types
-      - [3.1.1](Current/Data.md#311-casts) Casts
-      - [3.1.2](Current/Data.md#312-string-interpolation) String Interpolation
-      - [3.1.3](Current/Data.md#313-function-type) Function Type
-      - [3.1.4](Current/Data.md#314-default-literal) Default Literal
-      - [3.1.5](Current/Data.md#315-tuples) Tuples
-        - [3.1.5.1](Current/Data.md#3151-user-defined-deconstruction) User-Defined Deconstruction
+      - [3.1.1](Current/Data.md#311-numerics) Numerics
+      - [3.1.2](Current/Data.md#312-strings) Strings
+        - [3.1.2.1](Current/Data.md#3121-multiline-strings) Multiline Strings
+        - [3.1.2.2](Current/Data.md#3122-string-interpolation) String Interpolation
+      - [3.1.3](Current/Data.md#313-casts) Casts
+      - [3.1.4](Current/Data.md#314-function-type) Function Type
+      - [3.1.5](Current/Data.md#315-default-literal) Default Literal
+      - [3.1.6](Current/Data.md#316-tuples) Tuples
+        - [3.1.6.1](Current/Data.md#3161-user-defined-deconstruction) User-Defined Deconstruction
     - [3.2](Current/Data.md#32-operators) Operators
       - [3.2.1](Current/Data.md#321-operator-precedence) Operator Precedence
       - [3.2.2](Current/Data.md#322-uncommon-operators) Uncommon Operators

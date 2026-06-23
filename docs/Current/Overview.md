@@ -105,7 +105,7 @@ These keywords are reserved names and cannot be used as identifiers.
 - [constexpr](ClassesAndObjects.md#433-static-and-constexpr) (field modifier)
 - [constructor](ClassesAndObjects.md#44-constructors-and-finalizers)
 - [continue](ControlFlow.md#246-continue)
-- [default](Data.md#314-default-literal) (literal)
+- [default](Data.md#315-default-literal) (literal)
 - [default](ControlFlow.md#25-switch) (switch label)
 - [defer](ControlFlow.md#28-defer-statements) (defer)
 - [defer](ControlFlow.md#211-reverse-statements) (reverse defer)
@@ -523,7 +523,7 @@ most of the differences to make it more clear where the language is unique with 
 - [Conditionals accept expressions of type `bool?` instead of `bool`](ControlFlow.md#231-null-conditions)
 - [Null-binding contracts](ControlFlow.md#232-null-binding-contracts)
 - Pointers and other low-level features don't require `unsafe` contexts
-- [More concise function and function pointer type syntax](Data.md#313-function-type)
+- [More concise function and function pointer type syntax](Data.md#314-function-type)
 - [More concise unmanaged function pointer type syntax](LowLevelFeatures.md#66-function-pointers)
 - [More concise calling convention syntax](LowLevelFeatures.md#661-calling-conventions)
 - [Fixed fields don't require a `fixed` keyword](LowLevelFeatures.md#68-fixed-size-buffers)
@@ -531,7 +531,7 @@ most of the differences to make it more clear where the language is unique with 
 - [Explicitly-named sized numerics (e.g. `uint16`)](LowLevelFeatures.md#64-numerics)
 - [`winbool` type instead of marshalling `bool` as 4-bytes in `extern`s](LowLevelFeatures.md#671-winbool)
 - `bool` marshals as 1 byte in `extern`s
-- [String interpolation uses `f""` instead of `$""`](Data.md#312-string-interpolation)
+- [String interpolation uses `f""` instead of `$""`](Data.md#3122-string-interpolation)
 - [More expressive implicit typing allowing with `var`, `const`, and `constexpr` and nullable annotations](Data.md#332-implicit-typing)
 - [Argument coercion with `implicit` keyword](ControlFlow.md#217-argument-coercion)
 - [More operators (`x!`, `x!!`, `x?`, `x /\ y`, `x \/ y`, `x >< [y, z]`, `x ?! y`, `x..y`, `x?..y`)](Data.md#322-uncommon-operators)
@@ -546,7 +546,7 @@ most of the differences to make it more clear where the language is unique with 
 - [`using` aliases can be placed anywhere instead of only before all members](ClassesAndObjects.md#481-aliasing)
 - Struct layout efficiency analysis
 - [`packed` keyword instead of StructLayout attribute](LowLevelFeatures.md#621-packing)
-- [User-defined deconstruction uses same syntax as user-defined casts](Data.md#3151-user-defined-deconstruction)
+- [User-defined deconstruction uses same syntax as user-defined casts](Data.md#3161-user-defined-deconstruction)
 - Numeric literals automatically shrink/expand to fit the context (i.e. `f` suffix for float literals is unnecessary)
 - [Experimental: Non-numeric enum underlying types](ClassesAndObjects.md#463-experimental-underlying-types)
 - [Experimental: Non-type generics/templates](ClassesAndObjects.md#45-templates)

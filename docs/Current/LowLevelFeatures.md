@@ -725,12 +725,22 @@ defer LowLevel.FreeLPCWSTR(temp);
 char* a = temp;
 ```
 
-C-strings can be [interpolated](Data.md#312-string-interpolation):
+C-strings can be [interpolated](Data.md#3122-string-interpolation):
 
 ```belte
 int myNum = 10;
 char* a = wf"num is {myNum}";
 uint8* b = cf"num is {myNum}";
+```
+
+C-strings can also be [multiline](Data.md#3121-multiline-strings):
+
+```belte
+int myNum = 10;
+char* a = wf"""
+  num is
+    {myNum}
+  """;
 ```
 
 ## 6.15 LowLevel Fields

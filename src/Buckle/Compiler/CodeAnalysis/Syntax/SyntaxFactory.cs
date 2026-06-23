@@ -38,23 +38,6 @@ public static partial class SyntaxFactory {
     }
 
     /// <summary>
-    /// Creates a <see cref="LiteralExpressionSyntax"/>.
-    /// </summary>
-    public static LiteralExpressionSyntax Literal(object value) {
-        if (value is long or double) {
-            return LiteralExpression(Token(SyntaxKind.NumericLiteralToken, value.ToString(), value));
-        } else if (value is bool b) {
-            return LiteralExpression(
-                Token(b ? SyntaxKind.TrueKeyword : SyntaxKind.FalseKeyword, b ? "true" : "false", b)
-            );
-        } else if (value is string s) {
-            return LiteralExpression(Token(SyntaxKind.StringLiteralToken, s, s));
-        } else {
-            throw ExceptionUtilities.Unreachable();
-        }
-    }
-
-    /// <summary>
     /// Creates an <see cref="IdentifierNameSyntax" />.
     /// </summary>
     public static IdentifierNameSyntax IdentifierName(string name) {

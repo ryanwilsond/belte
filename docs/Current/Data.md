@@ -1,12 +1,15 @@
 # 3 Data
 
 - [3.1](#31-data-types) Data Types
-  - [3.1.1](#311-casts) Casts
-  - [3.1.2](#312-string-interpolation) String Interpolation
-  - [3.1.3](#313-function-type) Function Type
-  - [3.1.4](#314-default-literal) Default Literal
-  - [3.1.5](#315-tuples) Tuples
-    - [3.1.5.1](#3151-user-defined-deconstruction) User-Defined Deconstruction
+  - [3.1.1](#311-numerics) Numerics
+  - [3.1.2](#312-strings) Strings
+    - [3.1.2.1](#3121-multiline-strings) Multiline Strings
+    - [3.1.2.2](#3122-string-interpolation) String Interpolation
+  - [3.1.3](#313-casts) Casts
+  - [3.1.4](#314-function-type) Function Type
+  - [3.1.5](#315-default-literal) Default Literal
+  - [3.1.6](#316-tuples) Tuples
+    - [3.1.6.1](#3161-user-defined-deconstruction) User-Defined Deconstruction
 - [3.2](#32-operators) Operators
   - [3.2.1](#321-operator-precedence) Operator Precedence
   - [3.2.2](#322-uncommon-operators) Uncommon Operators
@@ -39,14 +42,14 @@ The following is a list of built-in types with links to further information:
 
 | Name | Example | Value | More Info |
 | - | - | - | - |
-| Integer | `int` | Whole number | |
-| Decimal | `decimal` | Number with a decimal point | |
+| Integer | `int` | Whole number | [Section 3.1.1](#311-numerics) |
+| Decimal | `decimal` | Number with a decimal point | [Section 3.1.1](#311-numerics) |
 | Boolean | `bool` | `true` or `false` | |
-| String | `string` | Span of characters | |
-| Character | `char` | Single unicode character | |
+| String | `string` | Span of characters | [Section 3.1.2](#312-strings) |
+| Character | `char` | Single unicode character | [Section 3.1.2](#312-strings) |
 | Type | `type` | Represents another type (e.g. `typeof(int)`) | |
 | Any | `any` | Anything | |
-| Function | `void()` | Managed function | [Section 3.1.3](#313-function-type) |
+| Function | `void()` | Managed function | [Section 3.1.4](#314-function-type) |
 | Object | `Object` | Anything, class base type | [Section 4.1](ClassesAndObjects.md#41-classes) |
 | Array | `int[]` | Collection of items | [Section 3.6](#36-arrays) |
 | Buffer | `Buffer<int>` | Collection of items | [Section 6.3](LowLevelFeatures.md#63-arrays-and-buffers) |
@@ -85,7 +88,116 @@ Additional information:
 - See also [sized numeric types](LowLevelFeatures.md#64-numerics).
 - See also [pointer and function pointer types](LowLevelFeatures.md#65-pointers).
 
-### 3.1.1 Casts
+### 3.1.1 Numerics
+
+Integer types support binary and hexadecimal representations and underscores. The following are all equivalent:
+
+```belte
+123456
+123_456
+0x1E240
+0X1_E240
+0b00011110001001000000
+0B0001_1110_0010_0100_0000
+```
+
+Decimal types support scientific notation. The following are all equivalent:
+
+```belte
+45600000000
+4.56e+10
+4.56E10
+```
+
+All numeric literals will shrink/expand to fit the context if applicable. For example, a floating-point literal will
+default to the `decimal` type, but will shrink to `float32` if possible:
+
+```belte
+float32 a = 3.4;
+```
+
+For integer literals, they default to `int` but can shrink:
+
+```belte
+uint8 a = 45;
+```
+
+### 3.1.2 Strings
+
+Strings are, by default, single line. String literals are surrounded by single quotations:
+
+```belte
+"some text"
+```
+
+Strings support escape sequences. Two consecutive quotations inside of a string literal are treated as an escape of the
+quotation. The following are equivalent:
+
+```belte
+" \" "
+" "" "
+```
+
+Character literals use single-quotes and contain exactly one character:
+
+```belte
+'c'
+```
+
+- See also [C strings](LowLevelFeatures.md#614-c-strings).
+
+### 3.1.2.1 Multiline Strings
+
+Multiline strings use three consecutive double quotes to start and end the string. The start and end lines are ignored
+if they are otherwise empty. The following are equivalent:
+
+```belte
+"""
+some
+text
+""";
+```
+
+```belte
+"some\r\ntext"
+```
+
+If the ending delimiter is on its own line, its leading whitespace is stripped from all lines in the string. The
+following are equivalent:
+
+```belte
+"""
+    some
+      text
+    """
+```
+
+```belte
+"some\r\n  text"
+```
+
+Multiline strings can be [interpolated](#3122-string-interpolation).
+
+### 3.1.2.2 String Interpolation
+
+Prefixing a string literal with `f` allows expressions to be embedded into the string, denoted by enclosing brace pairs.
+
+The expressions within a string will automatically be casted to a string if they are a primitive. Otherwise
+`Object.ToString()` is called on the expression.
+
+For example:
+
+```belte
+var a = 3;
+var b = f"A equals {a}"; // b = "A equals 3"
+```
+
+```belte
+var a = new List<int>({ 1, 2, 3 });
+var b = f"A equals {a}"; // b = "A equals { 1, 2, 3 }"
+```
+
+### 3.1.3 Casts
 
 To convert from one data type to another, a cast can be used. If a cast is implicit, it can happen automatically. If a
 cast is explicit, it requires a cast expression (e.g. `(int)"123"`).
@@ -160,26 +272,7 @@ Additional information:
 - See also [user-defined casts](ClassesAndObjects.md#4232-casts).
 - See also [bit casts](LowLevelFeatures.md#641-bit-casts)
 
-### 3.1.2 String Interpolation
-
-Prefixing a string literal with `f` allows expressions to be embedded into the string, denoted by enclosing brace pairs.
-
-The expressions within a string will automatically be casted to a string if they are a primitive. Otherwise
-`Object.ToString()` is called on the expression.
-
-For example:
-
-```belte
-var a = 3;
-var b = f"A equals {a}"; // b = "A equals 3"
-```
-
-```belte
-var a = new List<int>({ 1, 2, 3 });
-var b = f"A equals {a}"; // b = "A equals { 1, 2, 3 }"
-```
-
-### 3.1.3 Function Type
+### 3.1.4 Function Type
 
 Similar to [function pointers](LowLevelFeatures.md#66-function-pointers), a data container can have a function type and
 then be assigned with unambiguous method groups.
@@ -206,7 +299,7 @@ This is to allow [named arguments](ControlFlow.md#214-named-arguments) when call
 Function types cannot include pointer types in the return value or parameter list. For cases where you need this
 functionality, use function pointers instead.
 
-### 3.1.4 Default Literal
+### 3.1.5 Default Literal
 
 The `default` literal can be used to indicate `null` for nullable types or the default value for others.
 
@@ -225,7 +318,7 @@ var a = default(int);
 
 Types with no default value (non-nullable class types) cannot use the `default` literal.
 
-### 3.1.5 Tuples
+### 3.1.6 Tuples
 
 Tuples are value types (structs) that contain fields are varying types. They act as small containers.
 
@@ -267,7 +360,7 @@ var t = (3, true); var a = t.Item1; var b = t.Item2;
 (var a, var b) = (3, true);
 ```
 
-#### 3.1.5.1 User-Defined Deconstruction
+#### 3.1.6.1 User-Defined Deconstruction
 
 User-defined deconstruction can be done by [defining an implicit cast](ClassesAndObjects.md#4232-casts) to a tuple type:
 

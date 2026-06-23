@@ -7872,4 +7872,19 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0571_InvalidMultilineString() {
+        var text = @"
+var text = """"""
+[asdf]
+    """""";
+        ";
+
+        var diagnostics = @"
+            all lines must start with the same whitespace as the closing line of the multiline string; place the closing quotations on a non-isolated line if this is intentional
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

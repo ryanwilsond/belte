@@ -92,6 +92,7 @@ public enum SyntaxKind : ushort {
     CharacterLiteralToken,
     ExtendedLiteralToken,
     InterpolatedStringLiteralToken,
+    MultilineStringLiteralToken,
 
     // Keywords
     TypeOfKeyword,

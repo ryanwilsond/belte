@@ -759,7 +759,7 @@ are disallowed on type template parameters, so this constraint is required for t
 parameter is a non-nullable type.
 
 A `T has default` constraint ensures template parameter `T` has a default value (i.e. can use the
-[`default` literal](Data.md#314-default-literal) on it).
+[`default` literal](Data.md#315-default-literal) on it).
 
 A `T has constructor` constraint ensures template parameter `T` has a parameterless constructor.
 

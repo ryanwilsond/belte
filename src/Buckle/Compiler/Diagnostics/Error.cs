@@ -2821,6 +2821,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NotAnAttributeClass, location, message);
     }
 
+    internal static Diagnostic InvalidMultilineString() {
+        var message = $"all lines must start with the same whitespace as the closing line of the multiline string; place the closing quotations on a non-isolated line if this is intentional";
+        return CreateError(DiagnosticCode.ERR_InvalidMultilineString, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

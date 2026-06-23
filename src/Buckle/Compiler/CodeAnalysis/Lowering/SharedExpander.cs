@@ -626,7 +626,12 @@ internal class SharedExpander : BoundTreeExpander {
             BoundExpression right;
 
             if (content.constantValue?.specialType == SpecialType.String) {
-                right = Literal(syntax, content.constantValue.value, stringType);
+                var value = content.constantValue.value;
+
+                if (string.IsNullOrEmpty((string)value))
+                    continue;
+
+                right = Literal(syntax, value, stringType);
             } else {
                 if (content.IsLiteralNull())
                     continue;
