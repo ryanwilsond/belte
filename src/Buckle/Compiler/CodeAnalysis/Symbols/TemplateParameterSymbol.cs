@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.Utilities;
 
@@ -91,6 +92,13 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
         }
     }
 
+    internal ImmutableArray<NamedTypeSymbol> effectiveInterfaces {
+        get {
+            EnsureConstraintsAreResolved();
+            return GetInterfaces(ConsList<TemplateParameterSymbol>.Empty);
+        }
+    }
+
     internal ImmutableArray<TypeWithAnnotations> constraintTypes {
         get {
             EnsureConstraintsAreResolved();
@@ -98,9 +106,13 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
         }
     }
 
+    internal ImmutableArray<NamedTypeSymbol> allEffectiveInterfaces => base.GetAllInterfaces();
+
     internal abstract ImmutableArray<TypeWithAnnotations> GetConstraintTypes(ConsList<TemplateParameterSymbol> inProgress);
 
     internal abstract NamedTypeSymbol GetEffectiveBaseClass(ConsList<TemplateParameterSymbol> inProgress);
+
+    internal abstract ImmutableArray<NamedTypeSymbol> GetInterfaces(ConsList<TemplateParameterSymbol> inProgress);
 
     // TODO Ensure this is needed
     internal abstract TypeSymbol GetDeducedBaseType(ConsList<TemplateParameterSymbol> inProgress);
@@ -128,6 +140,14 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
         return [];
     }
 
+    internal override ImmutableArray<NamedTypeSymbol> Interfaces(ConsList<TypeSymbol> basesBeingResolved = null) {
+        return [];
+    }
+
+    private protected sealed override ImmutableArray<NamedTypeSymbol> GetAllInterfaces() {
+        return [];
+    }
+
     internal override bool ApplyNullableTransforms(
         byte defaultTransformFlag,
         ImmutableArray<byte> transforms,
@@ -145,6 +165,10 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
         SymbolVisitor<TArgument, TResult> visitor,
         TArgument argument) {
         return visitor.VisitTemplateParameter(this, argument);
+    }
+
+    internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
+        return SpecializedCollections.EmptyEnumerable<(MethodSymbol Body, MethodSymbol Implemented)>();
     }
 
     internal static bool CalculateIsPrimitiveTypeFromConstraintTypes(
@@ -196,8 +220,21 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
         if (!constraint.isReferenceType) {
             return false;
         } else {
-            if (constraint.typeKind == TypeKind.Error)
-                return false;
+            switch (constraint.typeKind) {
+                case TypeKind.Interface:
+                    return false;
+                case TypeKind.Error:
+                    return false;
+            }
+
+            if (constraint is NamedTypeSymbol named) {
+                switch (named.specialType) {
+                    case SpecialType.Object:
+                    case SpecialType.ValueType:
+                    case SpecialType.Enum:
+                        return false;
+                }
+            }
 
             return true;
         }

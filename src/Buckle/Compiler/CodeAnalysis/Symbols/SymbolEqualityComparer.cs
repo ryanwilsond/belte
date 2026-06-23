@@ -7,6 +7,8 @@ internal sealed class SymbolEqualityComparer : IEqualityComparer<Symbol> {
         = new SymbolEqualityComparer(TypeCompareKind.ConsiderEverything);
     internal static readonly SymbolEqualityComparer IgnoreTupleNames
         = new SymbolEqualityComparer(TypeCompareKind.IgnoreTupleNames);
+    internal static readonly SymbolEqualityComparer CLRSignature
+        = new SymbolEqualityComparer(TypeCompareKind.CLRSignatureCompareOptions);
 
     internal static readonly SymbolEqualityComparer Default = ConsiderEverything;
 

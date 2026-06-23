@@ -152,7 +152,8 @@ internal abstract class SubstitutedNamedTypeSymbol : WrappedNamedTypeSymbol {
     }
 
     internal sealed override ImmutableArray<Symbol> GetMembers(string name) {
-        if (isUnboundTemplateType) return StaticCast<Symbol>.From(GetTypeMembers(name));
+        if (isUnboundTemplateType)
+            return StaticCast<Symbol>.From(GetTypeMembers(name));
 
         var cache = _lazyMembersByNameCache;
 
@@ -160,6 +161,38 @@ internal abstract class SubstitutedNamedTypeSymbol : WrappedNamedTypeSymbol {
             return result;
 
         return GetMembersWorker(name);
+    }
+
+    internal sealed override ImmutableArray<NamedTypeSymbol> GetDeclaredInterfaces(
+        ConsList<TypeSymbol> basesBeingResolved) {
+        return isUnboundTemplateType
+            ? []
+            : templateSubstitution.SubstituteNamedTypes(originalDefinition.GetDeclaredInterfaces(basesBeingResolved));
+    }
+
+    internal sealed override ImmutableArray<NamedTypeSymbol> Interfaces(ConsList<TypeSymbol> basesBeingResolved) {
+        return isUnboundTemplateType
+            ? []
+            : templateSubstitution.SubstituteNamedTypes(originalDefinition.Interfaces(basesBeingResolved));
+    }
+
+    internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
+        if (isUnboundTemplateType)
+            yield break;
+
+        foreach ((var body, var implemented) in originalDefinition.SynthesizedInterfaceMethodImpls()) {
+            var newBody = ExplicitInterfaceHelpers.SubstituteExplicitInterfaceImplementation(
+                body,
+                templateSubstitution
+            );
+
+            var newImplemented = ExplicitInterfaceHelpers.SubstituteExplicitInterfaceImplementation(
+                implemented,
+                templateSubstitution
+            );
+
+            yield return (newBody, newImplemented);
+        }
     }
 
     public override int GetHashCode() {

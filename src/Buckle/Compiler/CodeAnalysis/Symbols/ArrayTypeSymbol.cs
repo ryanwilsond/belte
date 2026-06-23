@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Syntax;
@@ -165,6 +166,10 @@ internal abstract partial class ArrayTypeSymbol : TypeSymbol {
         }
 
         return false;
+    }
+
+    internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
+        return SpecializedCollections.EmptyEnumerable<(MethodSymbol Body, MethodSymbol Implemented)>();
     }
 
     internal override bool Equals(TypeSymbol other, TypeCompareKind compareKind) {

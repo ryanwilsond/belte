@@ -2706,6 +2706,12 @@ internal sealed class Evaluator {
 
             if (newMethod is not null)
                 return newMethod;
+
+            // Last try lookup for interface members
+            newMethod = typeToLookup.FindImplementationForInterfaceMemberInNonInterface(method).symbol as MethodSymbol;
+
+            if (newMethod is not null)
+                return newMethod;
         }
 
         return method;
@@ -3396,8 +3402,9 @@ internal sealed class Evaluator {
                     var spriteType = CorLibrary.GetWellKnownType(WellKnownType.Sprite);
                     var sprite = CreateObject(spriteType);
 
-                    var temp = AllocateTemp(spriteType);
-                    _stack.Peek().values[temp.slot] = sprite;
+                    // TODO Pretty sure creating a temp to ensure the heap doesn't clear the value is unnecessary here
+                    // var temp = AllocateTemp(spriteType);
+                    // _stack.Peek().values[temp.slot] = sprite;
 
                     InvokeMethod(
                         spriteType.instanceConstructors[0],
@@ -3411,7 +3418,7 @@ internal sealed class Evaluator {
                         abort
                     );
 
-                    _stack.Peek().layout.FreeSlot(temp);
+                    // _stack.Peek().layout.FreeSlot(temp);
 
                     result = sprite;
                 }
@@ -3528,8 +3535,9 @@ internal sealed class Evaluator {
                     var vecType = CorLibrary.GetWellKnownType(WellKnownType.Vec2);
                     var vec = CreateObject(vecType);
 
-                    var temp = AllocateTemp(vecType);
-                    _stack.Peek().values[temp.slot] = vec;
+                    // TODO Pretty sure creating a temp to ensure the heap doesn't clear the value is unnecessary here
+                    // var temp = AllocateTemp(vecType);
+                    // _stack.Peek().values[temp.slot] = vec;
 
                     InvokeMethod(
                         vecType.instanceConstructors[0],
@@ -3541,7 +3549,7 @@ internal sealed class Evaluator {
                         abort
                     );
 
-                    _stack.Peek().layout.FreeSlot(temp);
+                    // _stack.Peek().layout.FreeSlot(temp);
 
                     result = vec;
                 }

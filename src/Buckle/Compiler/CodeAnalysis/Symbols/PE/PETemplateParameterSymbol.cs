@@ -274,6 +274,11 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
         return null;
     }
 
+    internal override ImmutableArray<NamedTypeSymbol> GetInterfaces(ConsList<TemplateParameterSymbol> inProgress) {
+        var bounds = GetBounds(inProgress);
+        return (bounds is not null) ? bounds.interfaces : [];
+    }
+
     private GenericParameterConstraintHandleCollection GetConstraintHandleCollection(PEModule module) {
         GenericParameterConstraintHandleCollection constraints;
 

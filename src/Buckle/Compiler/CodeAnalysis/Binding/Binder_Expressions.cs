@@ -2656,6 +2656,7 @@ internal partial class Binder {
                 }
             case TypeKind.Class:
             case TypeKind.Struct:
+            case TypeKind.Interface:
             case TypeKind.Primitive:
             case TypeKind.TemplateParameter: {
                     var access = BindIndexerAccess(node, expression, analyzedArguments, diagnostics);
@@ -3656,6 +3657,8 @@ internal partial class Binder {
                 );
             case TypeKind.TemplateParameter:
                 return BindTemplateParameterCreationExpression(node, (TemplateParameterSymbol)type, diagnostics);
+            case TypeKind.Interface:
+                return BindInterfaceCreationExpression(node, (NamedTypeSymbol)type, diagnostics);
             case TypeKind.Pointer:
             case TypeKind.FunctionPointer:
             case TypeKind.Array: {
@@ -3676,6 +3679,26 @@ internal partial class Binder {
             default:
                 throw ExceptionUtilities.UnexpectedValue(type.typeKind);
         }
+    }
+
+    private BoundExpression BindInterfaceCreationExpression(
+        ObjectCreationExpressionSyntax node,
+        NamedTypeSymbol type,
+        BelteDiagnosticQueue diagnostics) {
+        var analyzedArguments = AnalyzedArguments.GetInstance();
+        BindArgumentsAndNames(node.argumentList, diagnostics, analyzedArguments);
+
+        var result = BindInterfaceCreationExpression(
+            node,
+            type,
+            diagnostics,
+            node.type,
+            analyzedArguments,
+            wasTargetTyped: false
+        );
+
+        analyzedArguments.Free();
+        return result;
     }
 
     private BoundExpression BindImplicitObjectCreationExpression(
@@ -4314,8 +4337,11 @@ internal partial class Binder {
 
         var declaringType = members[0].containingType;
 
-        if (currentType.IsEqualToOrDerivedFrom(declaringType, TypeCompareKind.ConsiderEverything))
+        if (currentType.IsEqualToOrDerivedFrom(declaringType, TypeCompareKind.ConsiderEverything) ||
+            (currentType.isInterface &&
+            (declaringType.specialType == SpecialType.Object || currentType.allInterfaces.Contains(declaringType)))) {
             return new BoundThisExpression(syntax, currentType);
+        }
 
         return null;
     }
@@ -4417,7 +4443,9 @@ internal partial class Binder {
         var currentType = containingType;
         var declaringType = member.containingType;
 
-        if (currentType.IsEqualToOrDerivedFrom(declaringType, TypeCompareKind.ConsiderEverything)) {
+        if (currentType.IsEqualToOrDerivedFrom(declaringType, TypeCompareKind.ConsiderEverything) ||
+            (currentType.isInterface &&
+            (declaringType.specialType == SpecialType.Object || currentType.allInterfaces.Contains(declaringType)))) {
             var hasErrors = false;
 
             if (!isInsideNameof) {
@@ -4558,7 +4586,7 @@ internal partial class Binder {
         var lookupResult = LookupResult.GetInstance();
         LookupIdentifier(lookupResult, left, called: false);
 
-        var leftSymbol = lookupResult.singleSymbolOrDefault;
+        var leftSymbol = lookupResult.isSingleViable ? lookupResult.symbols[0] : null;
         lookupResult.Free();
 
         if (leftSymbol is null)
@@ -5589,7 +5617,8 @@ internal partial class Binder {
             // TODO warning?
         }
 
-        IsBadBaseAccess(node, receiver, fieldSymbol, diagnostics);
+        if (!IsBadBaseAccess(node, receiver, fieldSymbol, diagnostics))
+            CheckReceiverAndRuntimeSupportForSymbolAccess(node, receiver, fieldSymbol, diagnostics);
 
         var fieldType = (isEnumField && IsInstanceReceiver(receiver))
             ? CorLibrary.GetSpecialType(SpecialType.Bool)
@@ -5624,6 +5653,45 @@ internal partial class Binder {
         }
 
         return expr;
+    }
+
+    private void CheckReceiverAndRuntimeSupportForSymbolAccess(
+        SyntaxNode node,
+        BoundExpression receiver,
+        Symbol symbol,
+        BelteDiagnosticQueue diagnostics) {
+        // TODO interfaces
+        // if (symbol.containingType?.isInterface == true) {
+        //     if (symbol.isStatic && (symbol.isAbstract || symbol.isVirtual)) {
+        //         if (receiver is not BoundTypeExpression { type: { typeKind: TypeKind.TemplateParameter } }) {
+        //             Error(diagnostics, ErrorCode.ERR_BadAbstractStaticMemberAccess, node);
+        //             return;
+        //         }
+        //     }
+
+        //     if (receiver is { type: TemplateParameterSymbol { allowsRefLikeType: true } } &&
+        //         IsNotImplementableInstanceMember(symbol)) {
+        //         Error(diagnostics, ErrorCode.ERR_BadNonVirtualInterfaceMemberAccessOnAllowsRefLike, node);
+        //     } else if (!Compilation.Assembly.RuntimeSupportsDefaultInterfaceImplementation && Compilation.SourceModule != symbol.ContainingModule) {
+        //         if (IsNotImplementableInstanceMember(symbol)) {
+        //             Error(diagnostics, ErrorCode.ERR_RuntimeDoesNotSupportDefaultInterfaceImplementation, node);
+        //         } else {
+        //             switch (symbol.DeclaredAccessibility) {
+        //                 case Accessibility.Protected:
+        //                 case Accessibility.ProtectedOrInternal:
+        //                 case Accessibility.ProtectedAndInternal:
+
+        //                     Error(diagnostics, ErrorCode.ERR_RuntimeDoesNotSupportProtectedAccessForInterfaceMember, node);
+        //                     break;
+        //             }
+        //         }
+        //     }
+        // }
+
+        // static bool IsNotImplementableInstanceMember(Symbol symbol) {
+        //     return !symbol.isStatic && !(symbol is TypeSymbol) &&
+        //            !symbol.IsImplementableInterfaceMember();
+        // }
     }
 
     private bool InEnumMemberInitializer() {

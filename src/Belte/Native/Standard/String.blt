@@ -35,4 +35,6 @@ public static class String {
     public static string TrimEnd(string text);
 
     public static string TrimEnd(string text, const Buffer<char> trimCharacters);
+
+    public static bool Contains(string text, string substring);
 }

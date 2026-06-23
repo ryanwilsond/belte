@@ -959,12 +959,15 @@ internal sealed partial class Executor : ModuleBuilder {
         _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T7), typeof(ValueTuple<,,,,,,>));
         _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_TRest), typeof(ValueTuple<,,,,,,,>));
 
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Attribute), typeof(Attribute));
+
         foreach (var type in new[] { WellKnownType.Rect, WellKnownType.Text, WellKnownType.Sprite,
                                      WellKnownType.Vec2, WellKnownType.Texture, WellKnownType.Sound,
                                      WellKnownType.ValueTuple_T1, WellKnownType.ValueTuple_T2,
                                      WellKnownType.ValueTuple_T3, WellKnownType.ValueTuple_T4,
                                      WellKnownType.ValueTuple_T5, WellKnownType.ValueTuple_T6,
-                                     WellKnownType.ValueTuple_T7, WellKnownType.ValueTuple_TRest, }) {
+                                     WellKnownType.ValueTuple_T7, WellKnownType.ValueTuple_TRest,
+                                     WellKnownType.Attribute }) {
             var typeSymbol = CorLibrary.GetWellKnownType(type);
             var native = _bakedTypes[typeSymbol];
 
@@ -1018,15 +1021,28 @@ internal sealed partial class Executor : ModuleBuilder {
         if (_types.ContainsKey(type.originalDefinition))
             return;
 
-        var typeBuilder = _moduleBuilder.DefineType(
-            GetTypeName(type, false),
-            GetTypeAttributes(type, false),
-            typeof(object),
-            GetPackSize(type)
-        );
+        TypeBuilder typeBuilder;
+
+        if (type.isInterface) {
+            typeBuilder = _moduleBuilder.DefineType(
+                GetTypeName(type, false),
+                GetTypeAttributes(type, false)
+            );
+        } else {
+            typeBuilder = _moduleBuilder.DefineType(
+                GetTypeName(type, false),
+                GetTypeAttributes(type, false),
+                typeof(object),
+                GetPackSize(type)
+            );
+        }
 
         _types.Add(type.originalDefinition, typeBuilder);
-        typeBuilder.SetParent(GetBaseType(type));
+
+        if (!type.isInterface)
+            typeBuilder.SetParent(GetBaseType(type));
+
+        AddInterfaceImplementations(type, typeBuilder);
 
         string[] workingParams = [];
 
@@ -1038,13 +1054,19 @@ internal sealed partial class Executor : ModuleBuilder {
         CreateNestedTypes(type, typeBuilder, workingParams);
     }
 
+    private void AddInterfaceImplementations(NamedTypeSymbol type, TypeBuilder typeBuilder) {
+        foreach (var @interface in type.Interfaces())
+            typeBuilder.AddInterfaceImplementation(_types[@interface]);
+    }
+
     private Type GetBaseType(NamedTypeSymbol type) {
-        if (type.baseType is null || type.IsStructType())
+        if (type.IsStructType())
             return typeof(ValueType);
 
         if (type.IsEnumType())
             return typeof(Enum);
 
+        Debug.Assert(type.baseType is not null);
         return GetType(type.baseType);
     }
 
@@ -1080,12 +1102,21 @@ internal sealed partial class Executor : ModuleBuilder {
 
                 _workingNestedEnums.TryAdd(nestedType, nestedBuilder);
             } else {
-                var nestedBuilder = typeBuilder.DefineNestedType(
-                    GetTypeName(nestedType, true),
-                    GetTypeAttributes(nestedType, true),
-                    typeof(object),
-                    GetPackSize(type)
-                );
+                TypeBuilder nestedBuilder;
+
+                if (nestedType.isInterface) {
+                    nestedBuilder = typeBuilder.DefineNestedType(
+                        GetTypeName(nestedType, true),
+                        GetTypeAttributes(nestedType, true)
+                    );
+                } else {
+                    nestedBuilder = typeBuilder.DefineNestedType(
+                        GetTypeName(nestedType, true),
+                        GetTypeAttributes(nestedType, true),
+                        typeof(object),
+                        GetPackSize(type)
+                    );
+                }
 
                 workingParams = workingParams.Concat(nestedType.templateParameters.Select(t => t.name)).ToArray();
 
@@ -1093,7 +1124,11 @@ internal sealed partial class Executor : ModuleBuilder {
                     nestedBuilder.DefineGenericParameters(workingParams);
 
                 _types.Add(nestedType.originalDefinition, nestedBuilder);
-                nestedBuilder.SetParent(GetBaseType(nestedType));
+
+                if (!nestedType.isInterface)
+                    nestedBuilder.SetParent(GetBaseType(nestedType));
+
+                AddInterfaceImplementations(nestedType, nestedBuilder);
                 CreateNestedTypes(nestedType, nestedBuilder, workingParams);
             }
         }
@@ -1111,7 +1146,8 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private TypeAttributes GetTypeAttributes(NamedTypeSymbol type, bool isNested) {
-        var attributes = TypeAttributes.Class;
+        // Structs use TypeAttributes.Class
+        var attributes = type.isInterface ? TypeAttributes.Interface : TypeAttributes.Class;
 
         if (type.isStatic)
             attributes |= TypeAttributes.Abstract | TypeAttributes.Sealed;
@@ -1895,6 +1931,7 @@ internal sealed partial class Executor : ModuleBuilder {
             { "String_TrimStart_S[", typeof(Belte.Runtime.Utilities).GetMethod("StringTrimStart", Flags, [typeof(string), typeof(char[])]) },
             { "String_TrimEnd_S", typeof(Belte.Runtime.Utilities).GetMethod("StringTrimEnd", Flags, [typeof(string)]) },
             { "String_TrimEnd_S[", typeof(Belte.Runtime.Utilities).GetMethod("StringTrimEnd", Flags, [typeof(string), typeof(char[])]) },
+            { "String_Contains_SS", typeof(Belte.Runtime.Utilities).GetMethod("StringContains", Flags, [typeof(string), typeof(string)]) },
             { "Int_Parse_S?", typeof(Belte.Runtime.Utilities).GetMethod("IntParse", Flags, [typeof(string)]) },
             { "Int_ToString_IS", typeof(Belte.Runtime.Utilities).GetMethod("IntToString", Flags, [typeof(long), typeof(string)]) },
             { "Decimal_IsNaN_F4", typeof(float).GetMethod("IsNaN", Flags, [typeof(float)]) },

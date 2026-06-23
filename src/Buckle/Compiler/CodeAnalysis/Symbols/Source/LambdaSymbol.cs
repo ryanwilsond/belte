@@ -122,6 +122,10 @@ internal sealed class LambdaSymbol : SourceMethodSymbol {
 
     internal override bool isDeclaredConst => false;
 
+    internal override bool isExplicitInterfaceImplementation => false;
+
+    internal override ImmutableArray<MethodSymbol> explicitInterfaceImplementations => [];
+
     internal override OneOrMany<SyntaxList<AttributeListSyntax>> GetAttributeDeclarations() {
         return _syntax is LambdaExpressionSyntax lambdaSyntax
             ? OneOrMany.Create(lambdaSyntax.attributeLists)

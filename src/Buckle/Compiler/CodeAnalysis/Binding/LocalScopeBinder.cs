@@ -127,6 +127,7 @@ internal class LocalScopeBinder : Binder {
         SyntaxList<StatementSyntax> statements,
         Binder enclosingBinder) {
         var locals = ArrayBuilder<DataContainerSymbol>.GetInstance(DefaultLocalSymbolArrayCapacity);
+
         foreach (var statement in statements)
             BuildLocals(enclosingBinder, statement, locals);
 
@@ -158,6 +159,7 @@ internal class LocalScopeBinder : Binder {
                         localDeclarationBinder
                     );
                 }
+
                 break;
             case SyntaxKind.LocalFunctionStatement: {
                     var localFunctionDeclarationBinder = enclosingBinder.GetBinder(innerStatement) ?? enclosingBinder;
@@ -181,6 +183,7 @@ internal class LocalScopeBinder : Binder {
                         }
                     }
                 }
+
                 break;
             case SyntaxKind.ExpressionStatement:
             case SyntaxKind.IfStatement:

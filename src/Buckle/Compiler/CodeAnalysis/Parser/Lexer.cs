@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
@@ -93,14 +94,20 @@ internal sealed partial class Lexer : IDisposable {
             }
 
             if (_badTokensCache.Count > 0) {
-                var leadingTrivia = new SyntaxListBuilder(token.leadingTrivia.Count + 10);
+                var leadingTrivia = new SyntaxListBuilder(_badTokensCache.Count + token.leadingTrivia.Count);
 
-                foreach (var badToken in _badTokensCache) {
-                    leadingTrivia.AddRange(badToken.leadingTrivia);
-                    var trivia = SyntaxFactory.SkippedTokensTrivia(badToken);
-                    leadingTrivia.Add(trivia);
-                    leadingTrivia.AddRange(badToken.trailingTrivia);
-                }
+                foreach (var badToken in _badTokensCache)
+                    leadingTrivia.Add(SyntaxFactory.SkippedTokensTrivia(badToken));
+
+                // TODO Here is the original code here:
+                /* foreach (var badToken in _badTokensCache) {
+                       leadingTrivia.AddRange(badToken.leadingTrivia);
+                       var trivia = SyntaxFactory.SkippedTokensTrivia(badToken);
+                       leadingTrivia.Add(trivia);
+                       leadingTrivia.AddRange(badToken.trailingTrivia);
+                   } */
+                // Perhaps we should bundle the bad tokens into a single skipped tokens trivia?
+                // Or perhaps this LexNext-being-a-loop approach is flawed
 
                 leadingTrivia.AddRange(token.leadingTrivia);
                 token = token.TokenWithLeadingTrivia(leadingTrivia.ToListNode());
@@ -589,10 +596,10 @@ internal sealed partial class Lexer : IDisposable {
 
                 break;
             case '"':
-                ReadStringLiteral(false);
+                ReadStringLiteral(StringReadOptions.Normal);
                 break;
             case '\'':
-                ReadStringLiteral(true);
+                ReadStringLiteral(StringReadOptions.Character);
                 break;
             case 'f':
                 if (TryReadInterpolatedString())
@@ -696,15 +703,26 @@ internal sealed partial class Lexer : IDisposable {
         _kind = SyntaxKind.MultiLineCommentTrivia;
     }
 
+    private StringReadOptions ScanMultilineStringStart(int offset = 0) {
+        return ScanIsMultilineStringDelimiter(offset) ? StringReadOptions.Multiline : StringReadOptions.Normal;
+    }
+
+    private bool ScanIsMultilineStringDelimiter(int offset = 0) {
+        if (Peek(0 + offset) == '"' && Peek(1 + offset) == '"' && Peek(2 + offset) == '"')
+            return true;
+
+        return false;
+    }
+
     private bool TryReadCString() {
         if (Peek(1) == '"') {
-            ReadCOrCWString(isWide: false);
+            ReadCOrCWString(ScanMultilineStringStart(offset: 1), isWide: false);
             return true;
         }
 
         if (Peek(1) == 'f' && Peek(2) == '"') {
             _position++;
-            ReadInterpolatedString();
+            ReadInterpolatedString(ScanMultilineStringStart(offset: 1));
             return true;
         }
 
@@ -713,32 +731,45 @@ internal sealed partial class Lexer : IDisposable {
 
     private bool TryReadCWString() {
         if (Peek(1) == '"') {
-            ReadCOrCWString(isWide: true);
+            ReadCOrCWString(ScanMultilineStringStart(offset: 1), isWide: true);
             return true;
         }
 
         if (Peek(1) == 'f' && Peek(2) == '"') {
             _position++;
-            ReadInterpolatedString();
+            ReadInterpolatedString(ScanMultilineStringStart(offset: 1));
             return true;
         }
 
         return false;
     }
 
-    private void ReadCOrCWString(bool isWide) {
+    private void ReadCOrCWString(StringReadOptions options, bool isWide) {
         _position++;
-        ReadStringLiteral(false);
+        ReadStringLiteral(options);
         _kind = isWide ? SyntaxKind.CWStringLiteralToken : SyntaxKind.CStringLiteralToken;
     }
 
-    private void ReadStringLiteral(bool isCharacter) {
+    private void ReadStringLiteral(StringReadOptions options) {
         var saved = _position;
-        _position++;
 
-        var sb = ReadStringContent(isCharacter, false, true, out _);
+        // TODO If in a directive we should not read multiline strings
+        if (((options |= ScanMultilineStringStart()) & StringReadOptions.Multiline) != 0) {
+            Debug.Assert((options & StringReadOptions.Character) == 0);
+            _position += 3;
+        } else {
+            _position++;
+        }
 
-        _kind = isCharacter ? SyntaxKind.CharacterLiteralToken : SyntaxKind.StringLiteralToken;
+        var sb = ReadStringContent(options | StringReadOptions.ConsumeEndQuote, out _);
+        var isCharacter = (options & StringReadOptions.Character) != 0;
+        var isMultiline = (options & StringReadOptions.Multiline) != 0;
+
+        _kind = isCharacter
+            ? SyntaxKind.CharacterLiteralToken
+            : isMultiline
+                ? SyntaxKind.MultilineStringLiteralToken
+                : SyntaxKind.StringLiteralToken;
 
         if (isCharacter) {
             if (isCharacter && sb.Length == 0) {
@@ -758,23 +789,42 @@ internal sealed partial class Lexer : IDisposable {
     }
 
     private StringBuilder ReadStringContent(
-        bool isCharacter,
-        bool isInterpolation,
-        bool consumeEndQuote,
+        StringReadOptions options,
         out bool normalEnd) {
         var sb = new StringBuilder();
         var done = false;
         normalEnd = false;
+
+        var isCharacter = (options & StringReadOptions.Character) != 0;
+        var isInterpolation = (options & StringReadOptions.Interpolation) != 0;
+        var consumeEndQuote = (options & StringReadOptions.ConsumeEndQuote) != 0;
+        var isMultiline = (options & StringReadOptions.Multiline) != 0;
 
         while (!done) {
             switch (_current) {
                 case '\0':
                 case '\r':
                 case '\n':
+                    if (isMultiline && _current != '\0')
+                        goto default;
+
                     AddDiagnostic(Error.UnterminatedString(), _start, 1);
                     done = true;
                     break;
                 case '"' when !isCharacter:
+                    if (isMultiline) {
+                        if (ScanIsMultilineStringDelimiter()) {
+                            if (consumeEndQuote)
+                                _position += 3;
+
+                            done = true;
+                            normalEnd = true;
+                            break;
+                        } else {
+                            goto default;
+                        }
+                    }
+
                     if (_lookahead == '"') {
                         sb.Append(_current);
                         _position += 2;
@@ -873,20 +923,23 @@ internal sealed partial class Lexer : IDisposable {
 
     private bool TryReadInterpolatedString() {
         if (Peek(1) == '"') {
-            ReadInterpolatedString();
+            ReadInterpolatedString(ScanMultilineStringStart(offset: 1));
             return true;
         }
 
         return false;
     }
 
-    private void ReadInterpolatedString() {
-        _position += 2;
+    private void ReadInterpolatedString(StringReadOptions options) {
+        options |= StringReadOptions.Interpolation | StringReadOptions.ConsumeEndQuote;
+        _position++; // f prefix
+        _position += (options & StringReadOptions.Multiline) != 0 ? 3 : 1; // quotes
 
         var sb = new StringBuilder();
 
         while (true) {
-            var inner = ReadStringContent(false, true, true, out var normalEnd);
+            var inner = ReadStringContent(options, out var normalEnd);
+
             sb.Append(inner);
 
             if (normalEnd || _current != '{')
@@ -929,9 +982,13 @@ internal sealed partial class Lexer : IDisposable {
         );
     }
 
-    internal SyntaxToken[][] RereadInterpolatedString(out bool hasCloseQuote, out bool isCString) {
+    internal SyntaxToken[][] RereadInterpolatedString(
+        out bool hasCloseQuote,
+        out bool isCString,
+        out bool isMultiline) {
         hasCloseQuote = false;
         var groups = ArrayBuilder<SyntaxToken[]>.GetInstance();
+        var readOptions = StringReadOptions.Interpolation;
 
         if (_current == 'c' || _current == 'w') {
             _position++;
@@ -940,12 +997,23 @@ internal sealed partial class Lexer : IDisposable {
             isCString = false;
         }
 
-        _position += 2;
+        _position++; // f prefix
+
+        // quotes
+        if (ScanIsMultilineStringDelimiter()) {
+            _position += 3;
+            isMultiline = true;
+            readOptions |= StringReadOptions.Multiline;
+        } else {
+            _position++;
+            isMultiline = false;
+        }
+
         var startPosition = _position;
 
         while (_current != '\0') {
             _start = _position;
-            var inner = ReadStringContent(false, true, false, out var normalEnd);
+            var inner = ReadStringContent(readOptions, out var normalEnd);
             hasCloseQuote = normalEnd;
             var tokenWidth = _position - _start;
 
@@ -1345,7 +1413,7 @@ internal sealed partial class Lexer : IDisposable {
         var identifierOrKeywordText = text.ToString(new TextSpan(_start, length));
         _kind = SyntaxFacts.GetKeywordType(identifierOrKeywordText);
 
-        if (_kind == SyntaxKind.IdentifierToken)
+        if (_kind == SyntaxKind.IdentifierToken || SyntaxFacts.IsContextualKeyword(_kind))
             _value = identifierOrKeywordText;
     }
 

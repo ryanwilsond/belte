@@ -24,6 +24,9 @@ internal static class WellKnownTypes {
         { "global::ValueTuple`7", WellKnownType.ValueTuple_T7 },
         { "global::ValueTuple`8", WellKnownType.ValueTuple_TRest },
         { "global::Array`1", WellKnownType.Array },
+        { "global::Attribute", WellKnownType.Attribute },
+        { "global::DllImportAttribute", WellKnownType.DllImportAttribute },
+        { "global::UnmanagedAttribute", WellKnownType.UnmanagedAttribute },
     };
 
     internal static WellKnownType GetTypeFromMetadataName(string metadataName) {

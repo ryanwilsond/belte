@@ -143,6 +143,14 @@ public sealed class EvaluatorTests {
     [InlineData("return 3 is null;", false)]
     [InlineData("return null == null;", true)]
     [InlineData("return 3 == null;", false)]
+    [InlineData("int? a = null; return a == null;", true)]
+    [InlineData("int? a = null; return a is null;", true)]
+    [InlineData("int? a = null; return a != null;", false)]
+    [InlineData("int? a = null; return a isnt null;", false)]
+    [InlineData("int? a = null; var b = a == null; return LowLevel.GetType(b) == typeof(bool);", true)]
+    [InlineData("int? a = null; var b = a == null; return LowLevel.GetType(b) == typeof(bool?);", false)]
+    [InlineData("int a = 3; var b = a == null; return LowLevel.GetType(b) == typeof(bool);", true)]
+    [InlineData("int a = 3; var b = a == null; return LowLevel.GetType(b) == typeof(bool?);", false)]
     [InlineData("bool? a = true; bool? b = null; return a || b;", true)]
     [InlineData("bool? a = true; bool? b = null; return a && b;", false)]
     [InlineData("bool? a = null; bool? b = null; return a || b;", false)]
@@ -1368,6 +1376,57 @@ public sealed class EvaluatorTests {
         }
 
         return Run();", 6)]
+    // Interfaces
+    [InlineData(@"
+        interface A {
+            int B();
+        }
+        class C implements A {
+            public int B() { return 5; }
+        }
+        class D implements A {
+            public int B() { return 10; }
+        }
+        A a = new C();
+        return a.B();", 5)]
+    [InlineData(@"
+        interface A {
+            int B();
+        }
+        class C implements A {
+            public int B() { return 5; }
+        }
+        class D implements A {
+            public int B() { return 10; }
+        }
+        A a = new D();
+        return a.B();", 10)]
+    [InlineData(@"
+        interface A {
+            int B();
+        }
+        class C implements A {
+            public int B() { return 5; }
+        }
+        class D implements A {
+            public int B() { return 10; }
+        }
+        A a = new C();
+        C c = (C)a;
+        return c.B();", 5)]
+    [InlineData(@"
+        interface A {
+            int B();
+        }
+        class C implements A {
+            public int B() { return 5; }
+        }
+        class D implements A {
+            public int B() { return 10; }
+        }
+        A a = new D();
+        D d = (D)a;
+        return d.B();", 10)]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue, evaluator: true, executor: true);
     }

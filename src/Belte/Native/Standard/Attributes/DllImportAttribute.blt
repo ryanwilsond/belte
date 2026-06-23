@@ -1,0 +1,6 @@
+
+public sealed class DllImportAttribute extends Attribute {
+    public constructor(string libraryName) { }
+
+    public constructor(string libraryName, uint32 CallingConvention) { }
+}

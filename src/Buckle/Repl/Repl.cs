@@ -605,7 +605,7 @@ public abstract partial class Repl : IDisposable {
             }
 
             return offset;
-        } else if (char.IsPunctuation(current)) {
+        } else if (IsOther(current)) {
             while (GetPos() <= maxLength) {
                 offset++;
 
@@ -614,12 +614,16 @@ public abstract partial class Repl : IDisposable {
 
                 current = GetChar();
 
-                if (!char.IsPunctuation(current))
+                if (!IsOther(current))
                     break;
             }
         }
 
         return offset;
+
+        static bool IsOther(char chr) {
+            return !char.IsWhiteSpace(chr) && !char.IsLetterOrDigit(chr);
+        }
     }
 
     private int GetWordBoundaryBack(ObservableCollection<string> document, SubmissionView view, bool strict = false) {
@@ -701,7 +705,7 @@ public abstract partial class Repl : IDisposable {
             }
 
             return offset;
-        } else if (char.IsPunctuation(current)) {
+        } else if (IsOther(current)) {
             while (GetPos() > 0) {
                 offset++;
 
@@ -710,12 +714,16 @@ public abstract partial class Repl : IDisposable {
 
                 var previous = GetChar(1);
 
-                if (!char.IsPunctuation(previous))
+                if (!IsOther(previous))
                     break;
             }
         }
 
         return offset;
+
+        static bool IsOther(char chr) {
+            return !char.IsWhiteSpace(chr) && !char.IsLetterOrDigit(chr);
+        }
     }
 
     private void HandlePageDown(ObservableCollection<string> document, SubmissionView view) {

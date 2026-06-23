@@ -156,6 +156,13 @@
     </Field>
     <Field Name="type" Type="SimpleNameSyntax"/>
   </Node>
+  <Node Name="InterfaceListSyntax" Base="SyntaxNode">
+    <Kind Name="InterfaceList"/>
+    <Field Name="implementsKeyword" Type="SyntaxToken">
+      <Kind Name="ImplementsKeyword"/>
+    </Field>
+    <Field Name="types" Type="SeparatedSyntaxList&lt;SimpleNameSyntax&gt;"/>
+  </Node>
   <Node Name="TemplateConstraintClauseListSyntax" Base="SyntaxNode">
     <Kind Name="TemplateConstraintClauseList"/>
     <Field Name="whereKeyword" Type="SyntaxToken">
@@ -605,6 +612,7 @@
     </Field>
     <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Override="true" Optional="true"/>
     <Field Name="baseType" Type="BaseTypeSyntax" Optional="true"/>
+    <Field Name="interfaceList" Type="InterfaceListSyntax" Optional="true"/>
     <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Override="true" Optional="true"/>
     <Field Name="openBrace" Type="SyntaxToken" Override="true">
       <Kind Name="OpenBraceToken"/>
@@ -626,6 +634,7 @@
     </Field>
     <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Override="true" Optional="true"/>
     <Field Name="baseType" Type="BaseTypeSyntax" Optional="true"/>
+    <Field Name="interfaceList" Type="InterfaceListSyntax" Optional="true"/>
     <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Override="true" Optional="true"/>
     <Field Name="semicolon" Type="SyntaxToken">
       <Kind Name="SemicolonToken"/>
@@ -635,6 +644,27 @@
     </Field>
     <Field Name="members" Type="SyntaxList&lt;MemberDeclarationSyntax&gt;" Override="true" Optional="true"/>
     <Field Name="closeBrace" Type="SyntaxToken" Override="true" Optional="true">
+      <Kind Name="CloseBraceToken"/>
+    </Field>
+  </Node>
+  <Node Name="InterfaceDeclarationSyntax" Base="TypeDeclarationSyntax">
+    <Kind Name="InterfaceDeclaration"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
+    <Field Name="keyword" Type="SyntaxToken" Override="true">
+      <Kind Name="InterfaceKeyword"/>
+    </Field>
+    <Field Name="identifier" Type="SyntaxToken" Override="true">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Override="true" Optional="true"/>
+    <Field Name="interfaceList" Type="InterfaceListSyntax" Optional="true"/>
+    <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Override="true" Optional="true"/>
+    <Field Name="openBrace" Type="SyntaxToken" Override="true">
+      <Kind Name="OpenBraceToken"/>
+    </Field>
+    <Field Name="members" Type="SyntaxList&lt;MemberDeclarationSyntax&gt;" Override="true" Optional="true"/>
+    <Field Name="closeBrace" Type="SyntaxToken" Override="true">
       <Kind Name="CloseBraceToken"/>
     </Field>
   </Node>
@@ -650,6 +680,7 @@
       <Kind Name="IdentifierToken"/>
     </Field>
     <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Override="true" Optional="true"/>
+    <Field Name="interfaceList" Type="InterfaceListSyntax" Optional="true"/>
     <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Override="true" Optional="true"/>
     <Field Name="openBrace" Type="SyntaxToken" Override="true">
       <Kind Name="OpenBraceToken"/>
@@ -728,6 +759,21 @@
       <Kind Name="CommaToken"/>
     </Field>
   </Node>
+  <Node Name="ExternBlockDeclarationSyntax" Base="MemberDeclarationSyntax">
+    <Kind Name="ExternBlockDeclaration"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="ExternKeyword"/>
+    </Field>
+    <Field Name="openBrace" Type="SyntaxToken">
+      <Kind Name="OpenBraceToken"/>
+    </Field>
+    <Field Name="members" Type="SyntaxList&lt;MemberDeclarationSyntax&gt;" Optional="true"/>
+    <Field Name="closeBrace" Type="SyntaxToken">
+      <Kind Name="CloseBraceToken"/>
+    </Field>
+  </Node>
   <Node Name="ConstructorDeclarationSyntax" Base="BaseMethodDeclarationSyntax">
     <Kind Name="ConstructorDeclaration"/>
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
@@ -777,11 +823,19 @@
       <Kind Name="SemicolonToken"/>
     </Field>
   </Node>
+  <Node Name="ExplicitInterfaceSpecifierSyntax" Base="SyntaxNode">
+    <Kind Name="ExplicitInterfaceSpecifier"/>
+    <Field Name="name" Type="NameSyntax"/>
+    <Field Name="period" Type="SyntaxToken">
+      <Kind Name="PeriodToken"/>
+    </Field>
+  </Node>
   <Node Name="MethodDeclarationSyntax" Base="BaseMethodDeclarationSyntax">
     <Kind Name="MethodDeclaration"/>
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
     <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
     <Field Name="returnType" Type="TypeSyntax"/>
+    <Field Name="explicitInterfaceSpecifier" Type="ExplicitInterfaceSpecifierSyntax" Optional="true"/>
     <Field Name="identifier" Type="SyntaxToken">
       <Kind Name="IdentifierToken"/>
     </Field>
@@ -848,6 +902,7 @@
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
     <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
     <Field Name="implicitOrExplicitKeyword" Type="SyntaxToken"/>
+    <Field Name="explicitInterfaceSpecifier" Type="ExplicitInterfaceSpecifierSyntax" Optional="true"/>
     <Field Name="operatorKeyword" Type="SyntaxToken">
       <Kind Name="OperatorKeyword"/>
     </Field>
@@ -863,6 +918,7 @@
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
     <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
     <Field Name="returnType" Type="TypeSyntax"/>
+    <Field Name="explicitInterfaceSpecifier" Type="ExplicitInterfaceSpecifierSyntax" Optional="true"/>
     <Field Name="operatorKeyword" Type="SyntaxToken">
       <Kind Name="OperatorKeyword"/>
     </Field>

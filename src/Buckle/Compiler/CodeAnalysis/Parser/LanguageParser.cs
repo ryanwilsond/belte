@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Text;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
@@ -138,6 +139,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         switch (kind) {
             case SyntaxKind.EnumKeyword:
             case SyntaxKind.ClassKeyword:
+            case SyntaxKind.InterfaceKeyword:
             case SyntaxKind.UnionKeyword:
             case SyntaxKind.StructKeyword:
             case SyntaxKind.AbstractKeyword:
@@ -158,6 +160,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         switch (kind) {
             case SyntaxKind.AbstractKeyword:
             case SyntaxKind.ClassKeyword:
+            case SyntaxKind.InterfaceKeyword:
             case SyntaxKind.ConstKeyword:
             case SyntaxKind.EnumKeyword:
             case SyntaxKind.ExternKeyword:
@@ -376,9 +379,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var modifiers = ParseModifiers();
         var anyModifiers = modifiers.Count > 0;
 
-        var inStructOrClass = (_context & (ParserContext.InClassDefinition | ParserContext.InStructDefinition)) != 0;
+        var inStructOrClassOrInterface = (_context & (ParserContext.InClassDefinition |
+                                                      ParserContext.InStructDefinition |
+                                                      ParserContext.InInterfaceDefinition)) != 0;
 
-        if (inStructOrClass) {
+        if (inStructOrClassOrInterface) {
             if (currentToken.kind == SyntaxKind.ConstructorKeyword)
                 return ParseConstructorDeclaration(attributeLists, modifiers);
 
@@ -390,6 +395,18 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
             if (currentToken.contextualKind is SyntaxKind.ImplicitKeyword or SyntaxKind.ExplicitKeyword)
                 return ParseConversionDeclaration(attributeLists, modifiers);
+
+            if (anyModifiers && modifiers.last.kind == SyntaxKind.ExternKeyword &&
+                currentToken.kind == SyntaxKind.OpenBraceToken) {
+                var newModifiersBuilder = _pool.Allocate<SyntaxToken>();
+
+                for (var i = 0; i < modifiers.Count - 1; i++)
+                    newModifiersBuilder.Add(modifiers[i]);
+
+                var newModifiers = _pool.ToListAndFree(newModifiersBuilder);
+
+                return ParseExternBlockDeclaration(attributeLists, newModifiers, modifiers.last);
+            }
         }
 
         switch (currentToken.kind) {
@@ -399,6 +416,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseStructDeclaration(attributeLists, modifiers);
             case SyntaxKind.ClassKeyword:
                 return ParseClassDeclaration(attributeLists, modifiers);
+            case SyntaxKind.InterfaceKeyword:
+                return ParseInterfaceDeclaration(attributeLists, modifiers);
             case SyntaxKind.EnumKeyword:
                 return ParseEnumDeclaration(attributeLists, modifiers);
             case SyntaxKind.UnionKeyword:
@@ -455,10 +474,28 @@ internal sealed partial class LanguageParser : SyntaxParser {
             return ParseFieldDeclaration(attributeLists, modifiers);
     }
 
+    private MemberDeclarationSyntax ParseExternBlockDeclaration(
+        SyntaxList<AttributeListSyntax> attributeLists,
+        SyntaxList<SyntaxToken> modifiers,
+        SyntaxToken externKeyword) {
+        var openBrace = MatchOpenBrace();
+        var members = ParseTypeMembers(ref openBrace);
+        var closeBrace = MatchCloseBrace();
+
+        return SyntaxFactory.ExternBlockDeclaration(
+            attributeLists,
+            modifiers,
+            externKeyword,
+            openBrace,
+            members,
+            closeBrace
+        );
+    }
+
     private bool PeekIsPostReturnFunction() {
         if (currentToken.kind == SyntaxKind.IdentifierToken) {
             var innerResetPoint = GetResetPoint();
-            EatToken();
+            ParseMemberName();
 
             if (currentToken.kind == SyntaxKind.OpenParenToken ||
                 ScanPossibleTemplateParameterList(out _, out _) == ScanTypeFlags.TemplateTypeOrMethod) {
@@ -488,12 +525,14 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.StructDeclaration:
             case SyntaxKind.UnionDeclaration:
             case SyntaxKind.EnumDeclaration:
+            case SyntaxKind.InterfaceDeclaration:
             case SyntaxKind.OperatorDeclaration:
             case SyntaxKind.LiteralOperatorDeclaration:
             case SyntaxKind.ConstructorDeclaration:
             case SyntaxKind.DestructorDeclaration:
             case SyntaxKind.NamespaceDeclaration:
             case SyntaxKind.FileScopedNamespaceDeclaration:
+            case SyntaxKind.ExternBlockDeclaration:
                 return true;
             case SyntaxKind.FieldDeclaration:
             case SyntaxKind.MethodDeclaration:
@@ -552,6 +591,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var templateParameterList = currentToken.kind == SyntaxKind.LessThanToken
             ? ParseTemplateParameterList()
             : null;
+        var interfaceList = currentToken.kind == SyntaxKind.ImplementsKeyword
+            ? ParseInterfaceList()
+            : null;
         var constraintClauseList = currentToken.kind == SyntaxKind.WhereKeyword
             ? ParseTemplateConstraintClauseList()
             : null;
@@ -570,6 +612,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             packedArgument,
             identifier,
             templateParameterList,
+            interfaceList,
             constraintClauseList,
             openBrace,
             members,
@@ -722,6 +765,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var baseType = currentToken.kind == SyntaxKind.ExtendsKeyword
             ? ParseBaseType()
             : null;
+        var interfaceList = currentToken.kind == SyntaxKind.ImplementsKeyword
+            ? ParseInterfaceList()
+            : null;
         var constraintClauseList = currentToken.kind == SyntaxKind.WhereKeyword
             ? ParseTemplateConstraintClauseList()
             : null;
@@ -740,6 +786,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 identifier,
                 templateParameterList,
                 baseType,
+                interfaceList,
                 constraintClauseList,
                 semicolon,
                 null,
@@ -761,6 +808,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 identifier,
                 templateParameterList,
                 baseType,
+                interfaceList,
                 constraintClauseList,
                 openBrace,
                 members,
@@ -769,10 +817,64 @@ internal sealed partial class LanguageParser : SyntaxParser {
         }
     }
 
+    private InterfaceDeclarationSyntax ParseInterfaceDeclaration(
+        SyntaxList<AttributeListSyntax> attributeLists,
+        SyntaxList<SyntaxToken> modifiers) {
+        var keyword = EatToken();
+        var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenBraceToken);
+        var templateParameterList = currentToken.kind == SyntaxKind.LessThanToken
+            ? ParseTemplateParameterList()
+            : null;
+        var interfaceList = currentToken.kind == SyntaxKind.ImplementsKeyword
+            ? ParseInterfaceList()
+            : null;
+        var constraintClauseList = currentToken.kind == SyntaxKind.WhereKeyword
+            ? ParseTemplateConstraintClauseList()
+            : null;
+
+        var openBrace = MatchOpenBrace();
+        var saved = _context;
+        _context |= ParserContext.InInterfaceDefinition;
+        var members = ParseTypeMembers(ref openBrace);
+        _context = saved;
+        var closeBrace = MatchCloseBrace();
+
+        return SyntaxFactory.InterfaceDeclaration(
+            attributeLists,
+            modifiers,
+            keyword,
+            identifier,
+            templateParameterList,
+            interfaceList,
+            constraintClauseList,
+            openBrace,
+            members,
+            closeBrace
+        );
+    }
+
     private BaseTypeSyntax ParseBaseType() {
         var extendsKeyword = Match(SyntaxKind.ExtendsKeyword, SyntaxKind.IdentifierToken, SyntaxKind.GlobalKeyword);
         var baseType = ParseSimpleName();
         return SyntaxFactory.BaseType(extendsKeyword, baseType);
+    }
+
+    private InterfaceListSyntax ParseInterfaceList() {
+        var keyword = Match(SyntaxKind.ImplementsKeyword, SyntaxKind.IdentifierToken, SyntaxKind.GlobalKeyword);
+        var interfaces = ParseSimpleNameList();
+        return SyntaxFactory.InterfaceList(keyword, interfaces);
+    }
+
+    private SeparatedSyntaxList<SimpleNameSyntax> ParseSimpleNameList() {
+        var nodesAndSeparators = _pool.Allocate<BelteSyntaxNode>();
+        nodesAndSeparators.Add(ParseSimpleName());
+
+        while (currentToken.kind == SyntaxKind.CommaToken) {
+            nodesAndSeparators.Add(EatToken());
+            nodesAndSeparators.Add(ParseSimpleName());
+        }
+
+        return _pool.ToSeparatedListAndFree<SimpleNameSyntax>(nodesAndSeparators);
     }
 
     private TemplateConstraintClauseListSyntax ParseTemplateConstraintClauseList() {
@@ -927,7 +1029,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         SyntaxList<AttributeListSyntax> attributeLists,
         SyntaxList<SyntaxToken> modifiers,
         TypeSyntax returnType) {
-        var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenParenToken, SyntaxKind.LessThanToken);
+        var (explicitInterfaceSpecifier, identifier) = ParseMemberName();
         var templateParameterList = currentToken.kind == SyntaxKind.LessThanToken
             ? ParseTemplateParameterList()
             : null;
@@ -957,6 +1059,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             attributeLists,
             modifiers,
             returnType,
+            explicitInterfaceSpecifier,
             identifier,
             templateParameterList,
             parameterList,
@@ -968,6 +1071,63 @@ internal sealed partial class LanguageParser : SyntaxParser {
             stateClause,
             reverseClause
         );
+    }
+
+    private (ExplicitInterfaceSpecifierSyntax, SyntaxToken) ParseMemberName() {
+        if (currentToken.kind != SyntaxKind.IdentifierToken) {
+            var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenParenToken);
+            return (null, identifier);
+        }
+
+        // TODO Allow any other kinds of names?
+        var name = ParseSimpleName();
+
+        if (name is IdentifierNameSyntax identifierName && currentToken.kind != SyntaxKind.PeriodToken)
+            return (null, identifierName.identifier);
+
+        var period = Match(SyntaxKind.PeriodToken, SyntaxKind.IdentifierToken);
+        var actualIdentifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenParenToken);
+
+        return (SyntaxFactory.ExplicitInterfaceSpecifier(name, period), actualIdentifier);
+    }
+
+    private (ExplicitInterfaceSpecifierSyntax, SyntaxToken) ParseOperatorMemberName(SyntaxKind? nextWanted = null) {
+        if (currentToken.contextualKind == SyntaxKind.OperatorKeyword) {
+            // Allow `operator.operator` where the first one is the interface name
+            // Allow `operator<type>.operator` where the first one is the interface name
+            if (Peek(1).kind == SyntaxKind.LessThanToken ||
+                (Peek(1).kind == SyntaxKind.PeriodToken && Peek(2).contextualKind == SyntaxKind.OperatorKeyword)) {
+                NameSyntax specifierIdentifier;
+
+                if (Peek(1).kind == SyntaxKind.PeriodToken)
+                    specifierIdentifier = SyntaxFactory.IdentifierName(EatToken());
+                else
+                    specifierIdentifier = ParseSimpleName();
+
+                var explicitInterfaceSpecifier = SyntaxFactory.ExplicitInterfaceSpecifier(
+                    specifierIdentifier,
+                    Match(SyntaxKind.PeriodToken)
+                );
+
+                var operatorKeyword = Match(SyntaxKind.OperatorKeyword, nextWanted, contextual: true);
+
+                return (explicitInterfaceSpecifier, operatorKeyword);
+            }
+
+            return (null, ConvertToKeyword(EatToken()));
+        }
+
+        if (currentToken.kind != SyntaxKind.IdentifierToken) {
+            var operatorKeyword = Match(SyntaxKind.OperatorKeyword, nextWanted, contextual: true);
+            return (null, operatorKeyword);
+        }
+
+        // TODO Allow any other kinds of names?
+        var name = ParseSimpleName();
+        var period = Match(SyntaxKind.PeriodToken, SyntaxKind.IdentifierToken);
+        var actualKeyword = Match(SyntaxKind.OperatorKeyword, nextWanted, contextual: true);
+
+        return (SyntaxFactory.ExplicitInterfaceSpecifier(name, period), actualKeyword);
     }
 
     private InitConstraintClauseSyntax ParseInitConstraintClause() {
@@ -1051,7 +1211,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         SyntaxList<AttributeListSyntax> attributeLists,
         SyntaxList<SyntaxToken> modifiers,
         TypeSyntax returnType) {
-        var operatorKeyword = Match(SyntaxKind.OperatorKeyword, contextual: true);
+        var (explicitInterfaceSpecifier, operatorKeyword) = ParseOperatorMemberName();
         var operatorToken = EatToken();
         var opKind = operatorToken.kind;
 
@@ -1113,6 +1273,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             attributeLists,
             modifiers,
             returnType,
+            explicitInterfaceSpecifier,
             operatorKeyword,
             operatorToken,
             rightOperatorToken,
@@ -1131,7 +1292,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             contextual: true
         );
 
-        var operatorKeyword = Match(SyntaxKind.OperatorKeyword, SyntaxKind.IdentifierToken, contextual: true);
+        var (explicitInterfaceSpecifier, operatorKeyword) = ParseOperatorMemberName(SyntaxKind.IdentifierToken);
         var type = ParseType(false);
         var parameterList = ParseParameterList();
         var body = ParseBlockStatement();
@@ -1147,6 +1308,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             attributeLists,
             modifiers,
             implicitOrExplicitKeyword,
+            explicitInterfaceSpecifier,
             operatorKeyword,
             type,
             parameterList,
@@ -2384,6 +2546,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.CStringLiteralToken:
             case SyntaxKind.CWStringLiteralToken:
             case SyntaxKind.InterpolatedStringLiteralToken:
+            case SyntaxKind.MultilineStringLiteralToken:
             case SyntaxKind.CharacterLiteralToken:
             case SyntaxKind.NullKeyword:
             case SyntaxKind.NullptrKeyword:
@@ -2846,6 +3009,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseExtendedLiteral();
             case SyntaxKind.StringLiteralToken:
                 return ParseStringLiteral();
+            case SyntaxKind.MultilineStringLiteralToken:
+                return ParseMultilineStringLiteral();
             case SyntaxKind.CStringLiteralToken:
                 return ParseCStringLiteral();
             case SyntaxKind.CWStringLiteralToken:
@@ -3946,6 +4111,136 @@ done:
         return SyntaxFactory.Literal(stringToken);
     }
 
+    private static readonly string[] MultilineStringSeparator = ["\r\n", "\r"];
+
+    private ExpressionSyntax ParseMultilineStringLiteral() {
+        var token = Match(SyntaxKind.MultilineStringLiteralToken);
+        var lines = token.valueText.Split(MultilineStringSeparator, StringSplitOptions.None);
+        var lastLine = lines[^1];
+
+        if (lines.Length < 3 || !lastLine.IsWhiteSpace())
+            return CreateStringLiteral(token, token.value);
+
+        return ParseMultilineStringCore(
+            token,
+            lines,
+            lastLine.Length,
+            diagnose: true,
+            containsStart: true,
+            containsEnd: true,
+            CreateStringLiteral,
+            out _
+        );
+
+        static ExpressionSyntax CreateStringLiteral(SyntaxToken token, object value) {
+            var stringToken = SyntaxFactory.Token(
+                SyntaxKind.StringLiteralToken,
+                token.text,
+                value,
+                token.GetLeadingTrivia(),
+                token.GetTrailingTrivia(),
+                token.GetDiagnostics()
+            );
+
+            return SyntaxFactory.Literal(stringToken);
+        }
+    }
+
+    private TNode ParseMultilineStringCore<TNode>(
+        SyntaxToken token,
+        string[] lines,
+        int leadingWhitespace,
+        bool diagnose,
+        bool containsStart,
+        bool containsEnd,
+        Func<SyntaxToken, object, TNode> nodeCreatorFunc,
+        out bool hadError)
+        where TNode : BelteSyntaxNode {
+        hadError = false;
+
+        // We preserve whatever line breaks were found during lexing
+        var lineBreaks = GetTextLineBreaks(token.text, lines.Length);
+
+        StringBuilder stringBuilder;
+
+        // Only include the start line if its non-empty
+        if (string.IsNullOrEmpty(lines[0]) && containsStart)
+            stringBuilder = new StringBuilder(token.text.Length);
+        else if (!containsEnd || !token.text.StartsWith(lineBreaks[0]))
+            stringBuilder = new StringBuilder(lines[0] + lineBreaks[0], token.text.Length);
+        else
+            stringBuilder = new StringBuilder(token.text.Length);
+
+        var failed = false;
+        var offset = 3 + lines[0].Length + lineBreaks[0].Length;
+        var width = 0;
+
+        // Skip the last line if its just the quotations and whitespace
+        var endIter = containsEnd ? lines.Length - 1 : lines.Length;
+
+        for (var i = 1; i < endIter; i++) {
+            var line = lines[i];
+            var length = line.Length;
+
+            if (line.TrimStart().Length + leadingWhitespace > length) {
+                if (string.IsNullOrWhiteSpace(line)) {
+                    if (i + 1 < endIter) {
+                        var lineBreak = lineBreaks[i];
+                        stringBuilder.Append(lineBreak);
+                        offset = lineBreak.Length;
+                    }
+
+                    continue;
+                }
+
+                failed = true;
+                width = line.Length;
+                break;
+            }
+
+            stringBuilder.Append(line[leadingWhitespace..]);
+            offset += length;
+
+            if (i + 1 < endIter) {
+                var lineBreak = lineBreaks[i];
+                stringBuilder.Append(lineBreak);
+                offset = lineBreak.Length;
+            }
+        }
+
+        if (failed) {
+            var fallback = nodeCreatorFunc(token, token.value);
+            hadError = true;
+
+            if (diagnose)
+                return AddDiagnostic(fallback, Error.InvalidMultilineString(), offset, width);
+
+            return fallback;
+        }
+
+        return nodeCreatorFunc(token, stringBuilder.ToString());
+
+        static string[] GetTextLineBreaks(string text, int lineCount) {
+            var lineBreaks = new string[lineCount - 1];
+            var currentLine = 0;
+
+            for (var i = 0; i < text.Length; i++) {
+                if (text[i] == '\r') {
+                    if (i + 1 < text.Length && text[i + 1] == '\n') {
+                        lineBreaks[currentLine++] = "\r\n";
+                        i++;
+                    } else {
+                        lineBreaks[currentLine++] = "\r";
+                    }
+                } else if (text[i] == '\n') {
+                    lineBreaks[currentLine++] = "\n";
+                }
+            }
+
+            return lineBreaks;
+        }
+    }
+
     private ExpressionSyntax ParseInterpolatedStringLiteral() {
         return ParseInterpolatedStringLiteralCore(EatToken());
     }
@@ -3955,17 +4250,50 @@ done:
         var interpolations = _pool.Allocate<InterpolatedStringContentSyntax>();
 
         var tempLexer = new Lexer(SourceText.From(originalText), options, allowPreprocessorDirectives: false);
-        var groups = tempLexer.RereadInterpolatedString(out var hasCloseQuote, out var isCString);
+        var groups = tempLexer.RereadInterpolatedString(out var hasCloseQuote, out var isCString, out var isMultiline);
 
-        foreach (var group in groups) {
-            if (group.Length == 1 && group[0].kind == SyntaxKind.StringLiteralToken)
-                interpolations.Add(SyntaxFactory.InterpolatedStringText(group[0]));
-            else
-                interpolations.Add(ParseInterpolation(group));
+        var shouldTreatAsMultiline = false;
+        var leadingWhitespace = 0;
+
+        if (hasCloseQuote && groups.Length > 1) {
+            var lastGroups = groups[^1];
+
+            if (lastGroups.Length == 1 && lastGroups[0].kind == SyntaxKind.StringLiteralToken) {
+                var lines = lastGroups[0].text.Split(MultilineStringSeparator, StringSplitOptions.None);
+
+                if (lines[^1].IsWhiteSpace()) {
+                    shouldTreatAsMultiline = true;
+                    leadingWhitespace = lines[^1].Length;
+                }
+            }
         }
 
+        var diagnose = true;
+
+        for (var i = 0; i < groups.Length; i++) {
+            var group = groups[i];
+
+            if (group.Length == 1 && group[0].kind == SyntaxKind.StringLiteralToken) {
+                interpolations.Add(ParseInterpolatedStringText(
+                    group[0],
+                    shouldTreatAsMultiline,
+                    diagnose: diagnose,
+                    containsStart: i == 0,
+                    containsEnd: i + 1 == groups.Length,
+                    leadingWhitespace,
+                    out var hadError
+                ));
+
+                if (hadError)
+                    diagnose = false;
+            } else {
+                interpolations.Add(ParseInterpolation(group));
+            }
+        }
+
+        var (startTokenWidth, endTokenWidth) = GetStartAndEndWidth(isCString, isMultiline);
+
         var leading = originalToken.GetLeadingTrivia();
-        var startTokenWidth = isCString ? 3 : 2;
         var openQuote = SyntaxFactory.Token(
             SyntaxKind.InterpolatedStringStartToken,
             startTokenWidth + (leading?.fullWidth ?? 0),
@@ -3979,8 +4307,8 @@ done:
         var closeQuote = hasCloseQuote
             ? SyntaxFactory.Token(
                 SyntaxKind.InterpolatedStringEndToken,
-                1 + (trailing?.fullWidth ?? 0),
-                originalText[^1].ToString(),
+                endTokenWidth + (trailing?.fullWidth ?? 0),
+                originalText[^endTokenWidth..].ToString(),
                 null,
                 null,
                 trailing)
@@ -3990,6 +4318,61 @@ done:
                 trailing);
 
         return SyntaxFactory.InterpolatedStringExpression(openQuote, _pool.ToListAndFree(interpolations), closeQuote);
+
+        static (int, int) GetStartAndEndWidth(bool isCString, bool isMultiline) {
+            var startTokenToken = 2;
+            var endTokenWidth = 1;
+
+            if (isCString)
+                startTokenToken++;
+
+            if (isMultiline) {
+                startTokenToken += 2;
+                endTokenWidth += 2;
+            }
+
+            return (startTokenToken, endTokenWidth);
+        }
+    }
+
+    private InterpolatedStringContentSyntax ParseInterpolatedStringText(
+        SyntaxToken token,
+        bool shouldTreatAsMultiline,
+        bool diagnose,
+        bool containsStart,
+        bool containsEnd,
+        int leadingWhitespace,
+        out bool hadError) {
+        hadError = false;
+
+        if (!shouldTreatAsMultiline)
+            return SyntaxFactory.InterpolatedStringText(token);
+
+        var lines = token.valueText.Split(MultilineStringSeparator, StringSplitOptions.None);
+
+        return ParseMultilineStringCore(
+            token,
+            lines,
+            leadingWhitespace,
+            diagnose: diagnose,
+            containsStart: containsStart,
+            containsEnd: containsEnd,
+            CreateStringContent,
+            out hadError
+        );
+
+        static InterpolatedStringContentSyntax CreateStringContent(SyntaxToken token, object value) {
+            var stringToken = SyntaxFactory.Token(
+                SyntaxKind.StringLiteralToken,
+                token.text,
+                value,
+                token.GetLeadingTrivia(),
+                token.GetTrailingTrivia(),
+                token.GetDiagnostics()
+            );
+
+            return SyntaxFactory.InterpolatedStringText(stringToken);
+        }
     }
 
     private InterpolationSyntax ParseInterpolation(SyntaxToken[] tokens) {

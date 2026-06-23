@@ -1,20 +1,25 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Runtime.InteropServices;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal sealed class TemplateMap {
+internal class TemplateMap {
     private static readonly TemplateMap _empty = new TemplateMap();
     private static Dictionary<TemplateParameterSymbol, TypeOrConstant> _emptyDictionary
         => new Dictionary<TemplateParameterSymbol, TypeOrConstant>(ReferenceEqualityComparer.Instance);
 
     internal static TemplateMap Empty => _empty;
 
-    private readonly Dictionary<TemplateParameterSymbol, TypeOrConstant> _mapping;
+    private protected readonly Dictionary<TemplateParameterSymbol, TypeOrConstant> _mapping;
 
     private TemplateMap() {
         _mapping = _emptyDictionary;
+    }
+
+    private protected TemplateMap(Dictionary<TemplateParameterSymbol, TypeOrConstant> mapping) {
+        _mapping = new Dictionary<TemplateParameterSymbol, TypeOrConstant>(mapping, ReferenceEqualityComparer.Instance);
     }
 
     internal TemplateMap(ImmutableArray<TemplateParameterSymbol> from, ImmutableArray<TypeOrConstant> to) {
@@ -50,10 +55,6 @@ internal sealed class TemplateMap {
             ? new Dictionary<TemplateParameterSymbol, TypeOrConstant>(
                 substituted.templateSubstitution._mapping, ReferenceEqualityComparer.Instance)
             : new Dictionary<TemplateParameterSymbol, TypeOrConstant>(ReferenceEqualityComparer.Instance);
-    }
-
-    private TemplateMap(Dictionary<TemplateParameterSymbol, TypeOrConstant> mapping) {
-        _mapping = new Dictionary<TemplateParameterSymbol, TypeOrConstant>(mapping, ReferenceEqualityComparer.Instance);
     }
 
     internal ImmutableArray<TemplateParameterSymbol> SubstituteTemplateParameters(
@@ -118,6 +119,28 @@ internal sealed class TemplateMap {
 
     internal TypeOrConstant SubstituteType(TypeWithAnnotations previous) {
         return previous.SubstituteType(this);
+    }
+
+    internal ImmutableArray<NamedTypeSymbol> SubstituteNamedTypes(ImmutableArray<NamedTypeSymbol> original) {
+        NamedTypeSymbol[] result = null;
+
+        for (var i = 0; i < original.Length; i++) {
+            var t = original[i];
+            var substituted = SubstituteNamedType(t);
+
+            if (!ReferenceEquals(substituted, t)) {
+                if (result is null) {
+                    result = new NamedTypeSymbol[original.Length];
+
+                    for (var j = 0; j < i; j++)
+                        result[j] = original[j];
+                }
+            }
+
+            result?[i] = substituted;
+        }
+
+        return result is not null ? ImmutableCollectionsMarshal.AsImmutableArray(result) : original;
     }
 
     internal ArrayTypeSymbol SubstituteArrayType(ArrayTypeSymbol previous) {

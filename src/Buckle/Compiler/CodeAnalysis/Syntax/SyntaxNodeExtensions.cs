@@ -148,6 +148,13 @@ internal static class SyntaxNodeExtensions {
         return syntax;
     }
 
+    internal static SyntaxNode SkipExtern(this SyntaxNode node) {
+        if (node.kind == SyntaxKind.ExternBlockDeclaration)
+            return SkipExtern(node.parent);
+
+        return node;
+    }
+
     internal static RefKind GetRefKind(this TypeSyntax syntax) {
         syntax.SkipRef(out var refKind);
         return refKind;
@@ -170,6 +177,10 @@ internal static class SyntaxNodeExtensions {
             syntax = refType;
 
         return syntax;
+    }
+
+    internal static bool IsVerbatimIdentifier(this SyntaxToken token) {
+        return token.kind == SyntaxKind.IdentifierToken && token.text.Length > 0 && token.text[0] == '@';
     }
 
     internal static bool IsOutVarDeclaration(this DeclarationExpressionSyntax p) {

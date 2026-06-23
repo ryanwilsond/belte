@@ -10,19 +10,24 @@ internal sealed class SourceUserDefinedConversionSymbol : SourceUserDefinedOpera
     private SourceUserDefinedConversionSymbol(
         MethodKind methodKind,
         SourceMemberContainerTypeSymbol containingType,
+        TypeSymbol explicitInterfaceType,
         string name,
         ConversionDeclarationSyntax syntax,
         BelteDiagnosticQueue diagnostics)
         : base(
             methodKind,
+            explicitInterfaceType,
             name,
             containingType,
             syntax.type.location,
             syntax,
             RefKind.None,
-            MakeDeclarationModifiers(containingType, syntax, syntax.operatorKeyword.location, diagnostics),
+            MakeDeclarationModifiers(containingType, methodKind, syntax, syntax.operatorKeyword.location, diagnostics),
             hasAnyBody: syntax.body is not null,
-            diagnostics) { }
+            diagnostics) {
+        if (isStatic && (isAbstract || isVirtual))
+            ReportDefaultInterfaceImplementation(location, syntax.body is not null, diagnostics);
+    }
 
     internal override TextLocation location => GetSyntax().operatorKeyword.location;
 
@@ -30,13 +35,30 @@ internal sealed class SourceUserDefinedConversionSymbol : SourceUserDefinedOpera
 
     internal static SourceUserDefinedConversionSymbol CreateUserDefinedConversionSymbol(
         SourceMemberContainerTypeSymbol containingType,
+        Binder bodyBinder,
         ConversionDeclarationSyntax syntax,
         BelteDiagnosticQueue diagnostics) {
-        var name = OperatorFacts.OperatorNameFromDeclaration(syntax);
+        var name = SyntaxFacts.GetOperatorMemberName(syntax);
+        var interfaceSpecifier = syntax.explicitInterfaceSpecifier;
+
+        name = ExplicitInterfaceHelpers.GetMemberNameAndInterfaceSymbol(
+            bodyBinder,
+            syntax.modifiers,
+            interfaceSpecifier,
+            name,
+            diagnostics,
+            out var explicitInterfaceType,
+            aliasQualifier: out _
+        );
+
+        var methodKind = interfaceSpecifier is null
+                ? MethodKind.Conversion
+                : MethodKind.ExplicitInterfaceImplementation;
 
         return new SourceUserDefinedConversionSymbol(
-            MethodKind.Conversion,
+            methodKind,
             containingType,
+            explicitInterfaceType,
             name,
             syntax,
             diagnostics

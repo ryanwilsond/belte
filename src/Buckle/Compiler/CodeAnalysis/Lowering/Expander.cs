@@ -780,6 +780,32 @@ internal sealed class Expander : SharedExpander {
             }
         }
 
+        if (op == BinaryOperatorKind.NullableNullEqual) {
+            if (left.IsLiteralNull()) {
+                var statements = ExpandExpression(right, out var newRight);
+                replacement = IsNull(syntax, newRight);
+                return statements;
+            } else {
+                Debug.Assert(right.IsLiteralNull());
+                var statements = ExpandExpression(left, out var newLeft);
+                replacement = IsNull(syntax, newLeft);
+                return statements;
+            }
+        }
+
+        if (op == BinaryOperatorKind.NullableNullNotEqual) {
+            if (left.IsLiteralNull()) {
+                var statements = ExpandExpression(right, out var newRight);
+                replacement = HasValue(syntax, newRight);
+                return statements;
+            } else {
+                Debug.Assert(right.IsLiteralNull());
+                var statements = ExpandExpression(left, out var newLeft);
+                replacement = HasValue(syntax, newLeft);
+                return statements;
+            }
+        }
+
         var leftIsNullable = left.Type().IsNullableType();
         var rightIsNullable = right.Type().IsNullableType();
 

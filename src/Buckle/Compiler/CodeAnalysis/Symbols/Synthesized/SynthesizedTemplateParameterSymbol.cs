@@ -69,4 +69,8 @@ internal sealed class SynthesizedTemplateParameterSymbol : TemplateParameterSymb
     internal override NamedTypeSymbol GetEffectiveBaseClass(ConsList<TemplateParameterSymbol> inProgress) {
         return CorLibrary.GetSpecialType(SpecialType.Object);
     }
+
+    internal override ImmutableArray<NamedTypeSymbol> GetInterfaces(ConsList<TemplateParameterSymbol> inProgress) {
+        return [];
+    }
 }

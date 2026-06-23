@@ -22,8 +22,11 @@ internal static partial class ConstraintsHelpers {
         var effectiveBaseClass = CorLibrary.GetSpecialType(SpecialType.Object);
         TypeSymbol deducedBaseType = effectiveBaseClass;
 
+        ImmutableArray<NamedTypeSymbol> interfaces;
+
         if (constraintTypes.Length != 0) {
             var constraintTypesBuilder = ArrayBuilder<TypeWithAnnotations>.GetInstance();
+            var interfacesBuilder = ArrayBuilder<NamedTypeSymbol>.GetInstance();
 
             foreach (var constraintType in constraintTypes) {
                 NamedTypeSymbol constraintEffectiveBase;
@@ -58,6 +61,7 @@ internal static partial class ConstraintsHelpers {
 
                         constraintEffectiveBase = constraintTypeParameter.GetEffectiveBaseClass(constraintsInProgress);
                         constraintDeducedBase = constraintTypeParameter.GetDeducedBaseType(constraintsInProgress);
+                        AddInterfaces(interfacesBuilder, constraintTypeParameter.GetInterfaces(constraintsInProgress));
 
                         if (!inherited &&
                             currentCompilation is not null &&
@@ -76,6 +80,17 @@ internal static partial class ConstraintsHelpers {
                         }
 
                         break;
+                    case TypeKind.Class:
+                    case TypeKind.Interface:
+                        if (constraintType.type.IsInterfaceType()) {
+                            AddInterface(interfacesBuilder, (NamedTypeSymbol)constraintType.type);
+                            constraintTypesBuilder.Add(constraintType);
+                            continue;
+                        } else {
+                            constraintEffectiveBase = (NamedTypeSymbol)constraintType.type;
+                            constraintDeducedBase = constraintType.type;
+                            break;
+                        }
                     case TypeKind.Struct:
                         if (constraintType.IsNullableType()) {
                             var underlyingType = constraintType.type.GetNullableUnderlyingType();
@@ -111,7 +126,6 @@ internal static partial class ConstraintsHelpers {
                         constraintDeducedBase = constraintType.type;
                         break;
                     case TypeKind.Error:
-                    case TypeKind.Class:
                         constraintEffectiveBase = (NamedTypeSymbol)constraintType.type;
                         constraintDeducedBase = constraintType.type;
                         break;
@@ -142,18 +156,33 @@ internal static partial class ConstraintsHelpers {
             }
 
             constraintTypes = constraintTypesBuilder.ToImmutableAndFree();
+            interfaces = interfacesBuilder.ToImmutableAndFree();
+        } else {
+            interfaces = [];
         }
 
         if ((constraintTypes.Length == 0) && (deducedBaseType.specialType == SpecialType.Object))
             return null;
 
-        var bounds = new TypeParameterBounds(constraintTypes, effectiveBaseClass, deducedBaseType);
+        var bounds = new TypeParameterBounds(constraintTypes, interfaces, effectiveBaseClass, deducedBaseType);
 
         // TODO We always want to check this, right?
         // if (inherited)
         CheckOverrideConstraints(templateParameter, bounds, diagnostics, errorLocation);
 
         return bounds;
+    }
+
+    private static void AddInterface(ArrayBuilder<NamedTypeSymbol> builder, NamedTypeSymbol @interface) {
+        if (!builder.Contains(@interface))
+            builder.Add(@interface);
+    }
+
+    private static void AddInterfaces(
+        ArrayBuilder<NamedTypeSymbol> builder,
+        ImmutableArray<NamedTypeSymbol> interfaces) {
+        foreach (var @interface in interfaces)
+            AddInterface(builder, @interface);
     }
 
     internal static ImmutableArray<ImmutableArray<TypeWithAnnotations>> MakeTypeParameterConstraintTypes(
@@ -269,14 +298,21 @@ internal static partial class ConstraintsHelpers {
         this TypeSymbol type,
         TextLocation location,
         BelteDiagnosticQueue diagnostics) {
+        // TODO This is probably wrong, I don't think this is exhaustive of all types
         while (true) {
             var current = type;
 
             switch (type.typeKind) {
                 case TypeKind.Class:
                 case TypeKind.Struct:
-                    CheckConstraintsSingleType((NamedTypeSymbol)type, location, diagnostics);
-                    return;
+                case TypeKind.Interface:
+
+                    var containingType = current.containingType;
+
+                    if (containingType is not null)
+                        CheckConstraintsSingleType(containingType, location, diagnostics);
+
+                    break;
             }
 
             TypeWithAnnotations next;
@@ -287,6 +323,7 @@ internal static partial class ConstraintsHelpers {
                     return;
                 case TypeKind.Error:
                 case TypeKind.Class:
+                case TypeKind.Interface:
                 case TypeKind.Enum:
                 case TypeKind.Struct:
                     var typeArguments = ((NamedTypeSymbol)current).templateArguments;
@@ -295,7 +332,10 @@ internal static partial class ConstraintsHelpers {
                         return;
 
                     var nextType = typeArguments[0].type.nullableUnderlyingTypeOrSelf;
-                    CheckConstraintsSingleType((NamedTypeSymbol)nextType, location, diagnostics);
+
+                    if (nextType is NamedTypeSymbol namedNext)
+                        CheckConstraintsSingleType(namedNext, location, diagnostics);
+
                     return;
                 case TypeKind.Array:
                     next = ((ArrayTypeSymbol)current).elementTypeWithAnnotations;

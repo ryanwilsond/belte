@@ -577,6 +577,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_CannotCreateAbstract, location, message);
     }
 
+    internal static BelteDiagnostic CannotCreateInterface(TextLocation location, TypeSymbol type) {
+        var message = $"cannot create an instance of the interface '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        return CreateError(DiagnosticCode.ERR_CannotCreateInterface, location, message);
+    }
+
     internal static BelteDiagnostic NonAbstractMustHaveBody(TextLocation location, MethodSymbol method) {
         var message = $"'{method}' must declare a body because it is not marked abstract or extern";
         return CreateError(DiagnosticCode.ERR_NonAbstractMustHaveBody, location, message);
@@ -650,6 +655,11 @@ internal static class Error {
     internal static BelteDiagnostic InconsistentAccessibilityClass(TextLocation location, NamedTypeSymbol type1, NamedTypeSymbol type2) {
         var message = $"inconsistent accessibility: class '{type1.name}' is less accessible than class '{type2.name}'";
         return CreateError(DiagnosticCode.ERR_InconsistentAccessibilityClass, location, message);
+    }
+
+    internal static BelteDiagnostic InconsistentAccessibilityInterface(TextLocation location, NamedTypeSymbol type1, NamedTypeSymbol type2) {
+        var message = $"inconsistent accessibility: interface '{type1.name}' is less accessible than interface '{type2.name}'";
+        return CreateError(DiagnosticCode.ERR_InconsistentAccessibilityInterface, location, message);
     }
 
     internal static BelteDiagnostic StaticDeriveFromNotObject(TextLocation location, TypeSymbol type, TypeSymbol baseType) {
@@ -1813,21 +1823,18 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic DllImportOnInvalidMethod(TextLocation location) {
-        throw Utilities.ExceptionUtilities.Unreachable();
-        // var message = $"the DllImport attribute must be specified on a method marked 'static' and 'extern'";
-        // return CreateError(DiagnosticCode.ERR_DllImportOnInvalidMethod, location, message);
+        var message = $"the 'DllImport' attribute must be specified on a method marked 'static' and 'extern'";
+        return CreateError(DiagnosticCode.ERR_DllImportOnInvalidMethod, location, message);
     }
 
     internal static BelteDiagnostic DllImportOnTemplateMethod(TextLocation location) {
-        throw Utilities.ExceptionUtilities.Unreachable();
-        // var message = $"the DllImport attribute cannot be applied to a method that is template or contained in a template method or type";
-        // return CreateError(DiagnosticCode.ERR_DllImportOnTemplateMethod, location, message);
+        var message = $"the 'DllImport' attribute cannot be applied to a method that is template or contained in a template method or type";
+        return CreateError(DiagnosticCode.ERR_DllImportOnTemplateMethod, location, message);
     }
 
     internal static BelteDiagnostic InvalidAttributeArgument(TextLocation location, string name) {
-        throw Utilities.ExceptionUtilities.Unreachable();
-        // var message = $"invalid value for argument to '{name}' attribute";
-        // return CreateError(DiagnosticCode.ERR_InvalidAttributeArgument, location, message);
+        var message = $"invalid value for argument to '{name}' attribute";
+        return CreateError(DiagnosticCode.ERR_InvalidAttributeArgument, location, message);
     }
 
     internal static BelteDiagnostic FixedBufferTooManyDimensions(TextLocation location) {
@@ -2211,15 +2218,13 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic UnmanagedRequiresStatic(TextLocation location) {
-        throw Utilities.ExceptionUtilities.Unreachable();
-        // var message = $"'Unmanaged' can only be applied to ordinary static non-abstract, non-virtual methods or static local functions";
-        // return CreateError(DiagnosticCode.ERR_UnmanagedRequiresStatic, location, message);
+        var message = $"'Unmanaged' can only be applied to ordinary static non-abstract, non-virtual methods or static local functions";
+        return CreateError(DiagnosticCode.ERR_UnmanagedRequiresStatic, location, message);
     }
 
     internal static BelteDiagnostic UnmanagedCannotBeTemplate(TextLocation location) {
-        throw Utilities.ExceptionUtilities.Unreachable();
-        // var message = $"methods attributed with 'Unmanaged' cannot have template parameters and cannot be declared in a template type";
-        // return CreateError(DiagnosticCode.ERR_UnmanagedCannotBeTemplate, location, message);
+        var message = $"methods attributed with 'Unmanaged' cannot have template parameters and cannot be declared in a template type";
+        return CreateError(DiagnosticCode.ERR_UnmanagedCannotBeTemplate, location, message);
     }
 
     internal static BelteDiagnostic DestructorInStaticClass(TextLocation location) {
@@ -2607,7 +2612,218 @@ internal static class Error {
 
     internal static BelteDiagnostic SameFullNameAggAgg(AssemblySymbol assembly1, Symbol symbol, AssemblySymbol assembly2) {
         var message = $"the type '{symbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedNameFormat)}' exists in both '{assembly1}' and '{assembly2}'";
-        return CreateError(DiagnosticCode.ERR_NonNullableReceiverProperty, null, message);
+        return CreateError(DiagnosticCode.ERR_SameFullNameAggAgg, null, message);
+    }
+
+    internal static BelteDiagnostic CycleInInterfaceInheritance(TextLocation location, TypeSymbol type1, TypeSymbol type2) {
+        var message = $"inherited interface '{type2.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' causes a cycle in the interface hierarchy of '{type1.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        return CreateError(DiagnosticCode.ERR_CycleInInterfaceInheritance, location, message);
+    }
+
+    internal static BelteDiagnostic DuplicateInterfaceInInterfaceList(TextLocation location, TypeSymbol type) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is already listed in the interface list";
+        return CreateError(DiagnosticCode.ERR_DuplicateInterfaceInInterfaceList, location, message);
+    }
+
+    internal static BelteDiagnostic StaticClassInterfaceImpl(TextLocation location, TypeSymbol type) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': static classes cannot implement interfaces";
+        return CreateError(DiagnosticCode.ERR_StaticClassInterfaceImpl, location, message);
+    }
+
+    internal static BelteDiagnostic NonInterfaceInInterfaceList(TextLocation location, TypeSymbol type) {
+        var message = $"type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' in interface list is not an interface";
+        return CreateError(DiagnosticCode.ERR_NonInterfaceInInterfaceList, location, message);
+    }
+
+    internal static BelteDiagnostic AbstractConversionNotInvolvingContainedType(TextLocation location) {
+        var message = $"user-defined conversion in an interface must convert to or from a type template parameter on the enclosing type constrained to the enclosing type";
+        return CreateError(DiagnosticCode.ERR_AbstractConversionNotInvolvingContainedType, location, message);
+    }
+
+    internal static BelteDiagnostic ConversionWithInterface(TextLocation location, MethodSymbol method) {
+        var message = $"'{method}': user-defined conversions to or from an interface are not allowed";
+        return CreateError(DiagnosticCode.ERR_ConversionWithInterface, location, message);
+    }
+
+    internal static BelteDiagnostic ConversionNotInvolvingContainedType(TextLocation location) {
+        var message = $"user-defined conversion must convert to or from the enclosing type";
+        return CreateError(DiagnosticCode.ERR_ConversionNotInvolvingContainedType, location, message);
+    }
+
+    internal static BelteDiagnostic IdentityConversion(TextLocation location) {
+        var message = $"user-defined conversion cannot convert a type to itself";
+        return CreateError(DiagnosticCode.ERR_IdentityConversion, location, message);
+    }
+
+    internal static BelteDiagnostic ConversionWithBase(TextLocation location, MethodSymbol method) {
+        var message = $"'{method}': user-defined conversions to or from a base type are not allowed";
+        return CreateError(DiagnosticCode.ERR_ConversionWithBase, location, message);
+    }
+
+    internal static BelteDiagnostic ConversionWithDerived(TextLocation location, MethodSymbol method) {
+        var message = $"'{method}': user-defined conversions to or from a derived type are not allowed";
+        return CreateError(DiagnosticCode.ERR_ConversionWithDerived, location, message);
+    }
+
+    internal static BelteDiagnostic DuplicateInterfaceWithTupleNamesInBaseList(TextLocation location, TypeSymbol type1, TypeSymbol type2, TypeSymbol type3) {
+        var message = $"'{type1.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is already listed in the interface list on type '{type3.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' with different tuple element names, as '{type2.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        return CreateError(DiagnosticCode.ERR_DuplicateInterfaceWithTupleNamesInBaseList, location, message);
+    }
+
+    internal static BelteDiagnostic DuplicateInterfaceWithDifferencesInBaseList(TextLocation location, TypeSymbol type1, TypeSymbol type2, TypeSymbol type3) {
+        var message = $"'{type1.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is already listed in the interface list on type '{type3.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' as '{type2.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        return CreateError(DiagnosticCode.ERR_DuplicateInterfaceWithDifferencesInBaseList, location, message);
+    }
+
+    internal static BelteDiagnostic DefaultInterfaceImplementation(TextLocation location) {
+        var message = $"interface members cannot define an implementation";
+        return CreateError(DiagnosticCode.ERR_DefaultInterfaceImplementation, location, message);
+    }
+
+    internal static BelteDiagnostic InterfacesCantContainConstructors(TextLocation location) {
+        var message = $"interfaces cannot contain constructors";
+        return CreateError(DiagnosticCode.ERR_InterfacesCantContainConstructors, location, message);
+    }
+
+    internal static BelteDiagnostic OnlyClassesCanContainFinalizers(TextLocation location) {
+        var message = $"only class types can contain finalizers";
+        return CreateError(DiagnosticCode.ERR_OnlyClassesCanContainFinalizers, location, message);
+    }
+
+    internal static BelteDiagnostic InterfacesCantContainFields(TextLocation location) {
+        var message = $"interfaces cannot contain fields";
+        return CreateError(DiagnosticCode.ERR_InterfacesCantContainFields, location, message);
+    }
+
+    internal static BelteDiagnostic InterfacesCantContainConversionOrEqualityOperators(TextLocation location) {
+        var message = $"conversion, equality, or inequality operators declared in interfaces must be abstract";
+        return CreateError(DiagnosticCode.ERR_InterfacesCantContainConversionOrEqualityOperators, location, message);
+    }
+
+    internal static BelteDiagnostic ExplicitImplementationOfOperatorsMustBeStatic(TextLocation location, MethodSymbol method) {
+        var message = $"explicit implementation of a user-defined operator '{method}' must be declared static";
+        return CreateError(DiagnosticCode.ERR_ExplicitImplementationOfOperatorsMustBeStatic, location, message);
+    }
+
+    internal static BelteDiagnostic ExplicitInterfaceImplementationInNonClassOrStruct(TextLocation location, Symbol member) {
+        var message = $"'{member}': explicit interface declaration can only be declared in a class, struct or interface";
+        return CreateError(DiagnosticCode.ERR_ExplicitInterfaceImplementationInNonClassOrStruct, location, message);
+    }
+
+    internal static BelteDiagnostic ExplicitInterfaceImplementationNotInterface(TextLocation location, Symbol member) {
+        var message = $"'{member.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' in explicit interface declaration is not an interface";
+        return CreateError(DiagnosticCode.ERR_ExplicitInterfaceImplementationNotInterface, location, message);
+    }
+
+    internal static BelteDiagnostic ClassDoesntImplementInterface(TextLocation location, Symbol symbol1, Symbol symbol2) {
+        var message = $"'{symbol1.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': containing type does not implement interface '{symbol2.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        return CreateError(DiagnosticCode.ERR_ClassDoesntImplementInterface, location, message);
+    }
+
+    internal static BelteDiagnostic ExplicitInterfaceMemberReturnTypeMismatch(TextLocation location, Symbol member1, TypeSymbol type, Symbol member2) {
+        var message = $"'{member1}': return type must be '{type}' to match implemented member '{member2}'";
+        return CreateError(DiagnosticCode.ERR_ExplicitInterfaceMemberReturnTypeMismatch, location, message);
+    }
+
+    internal static BelteDiagnostic ExplicitInterfaceMemberTypeMismatch(TextLocation location, Symbol member1, TypeSymbol type, Symbol member2) {
+        var message = $"'{member1}': type must be '{type}' to match implemented member '{member2}'";
+        return CreateError(DiagnosticCode.ERR_ExplicitInterfaceMemberTypeMismatch, location, message);
+    }
+
+    internal static BelteDiagnostic InterfaceMemberNotFound(TextLocation location, Symbol member) {
+        var message = $"'{member}' in explicit interface declaration is not found among members of the interface that can be implemented";
+        return CreateError(DiagnosticCode.ERR_InterfaceMemberNotFound, location, message);
+    }
+
+    internal static BelteDiagnostic ImplBadTupleNames(TextLocation location, Symbol member1, Symbol member2) {
+        var message = $"the tuple element names in the signature of method '{member1}' must match the tuple element names of interface method '{member2}' (including on the return type)";
+        return CreateError(DiagnosticCode.ERR_ImplBadTupleNames, location, message);
+    }
+
+    internal static BelteDiagnostic ExplicitImplCollisionOnRefOut(TextLocation location, Symbol member1, Symbol member2) {
+        var message = $"cannot inherit interface '{member1}' with the specified template parameters because it causes method '{member2}' to contain overloads which differ only on ref and out";
+        return CreateError(DiagnosticCode.ERR_ExplicitImplCollisionOnRefOut, location, message);
+    }
+
+    internal static BelteDiagnostic DuplicateExplicitImpl(TextLocation location, Symbol member) {
+        var message = $"'{member}' is explicitly implemented more than once";
+        return CreateError(DiagnosticCode.ERR_DuplicateExplicitImpl, location, message);
+    }
+
+    internal static BelteDiagnostic UnimplementedInterfaceMember(TextLocation location, TypeSymbol type, Symbol member) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' does not implement interface member '{member}'";
+        return CreateError(DiagnosticCode.ERR_UnimplementedInterfaceMember, location, message);
+    }
+
+    internal static BelteDiagnostic UnifyingInterfaceInstantiations(TextLocation location, TypeSymbol type, TypeSymbol interface1, TypeSymbol interface2) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' cannot implement both '{interface1.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' and '{interface2.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' because they may unify for some type template parameter substitutions";
+        return CreateError(DiagnosticCode.ERR_UnifyingInterfaceInstantiations, location, message);
+    }
+
+    internal static BelteDiagnostic MostSpecificImplementationIsNotFound(TextLocation location, Symbol member, Symbol candidate1, Symbol candidate2) {
+        var message = $"interface member '{member}' does not have a most specific implementation; neither '{candidate1}', nor '{candidate2}' are most specific";
+        return CreateError(DiagnosticCode.ERR_MostSpecificImplementationIsNotFound, location, message);
+    }
+
+    internal static BelteDiagnostic ImplicitImplementationOfInaccessibleInterfaceMember(TextLocation location, TypeSymbol type, Symbol member1, Symbol member2) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' does not implement interface member '{member1}'; '{member2}' cannot implicitly implement an inaccessible member";
+        return CreateError(DiagnosticCode.ERR_ImplicitImplementationOfInaccessibleInterfaceMember, location, message);
+    }
+
+    internal static BelteDiagnostic InterfaceImplementedByUnmanagedCallersOnlyMethod(TextLocation location, Symbol method, Symbol member, TypeSymbol type) {
+        var message = $"'Unmanaged' method '{method}' cannot implement interface member '{member}' in type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        return CreateError(DiagnosticCode.ERR_InterfaceImplementedByUnmanagedCallersOnlyMethod, location, message);
+    }
+
+    internal static BelteDiagnostic ImplBadConstraints(TextLocation location, string name1, MethodSymbol method1, string name2, MethodSymbol method2, string interfaceName) {
+        var message = $"the constraints for type template parameter '{name1}' of method '{method1}' must match the constraints for type template parameter '{name2}' of interface method '{method2}'; consider using an explicit interface implementation instead";
+        var suggestion = $"{interfaceName}.%";
+        return CreateError(DiagnosticCode.ERR_ImplBadConstraints, location, message, suggestion);
+    }
+
+    internal static BelteDiagnostic CloseUnimplementedInterfaceMemberStatic(TextLocation location, TypeSymbol type, Symbol member1, Symbol member2) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' does not implement instance interface member '{member1}'; '{member2}' cannot implement the interface member because it is static";
+        return CreateError(DiagnosticCode.ERR_CloseUnimplementedInterfaceMemberStatic, location, message);
+    }
+
+    internal static BelteDiagnostic CloseUnimplementedInterfaceMemberNotStatic(TextLocation location, TypeSymbol type, Symbol member1, Symbol member2) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' does not implement static interface member '{member1}'; '{member2}' cannot implement the interface member because it is not static";
+        return CreateError(DiagnosticCode.ERR_CloseUnimplementedInterfaceMemberNotStatic, location, message);
+    }
+
+    internal static BelteDiagnostic CloseUnimplementedInterfaceMemberNotPublic(TextLocation location, TypeSymbol type, Symbol member1, Symbol member2) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' does not implement interface member '{member1}'; '{member2}' cannot implement the interface member because it is not public";
+        return CreateError(DiagnosticCode.ERR_CloseUnimplementedInterfaceMemberNotPublic, location, message);
+    }
+
+    internal static BelteDiagnostic CloseUnimplementedInterfaceMemberWrongRefReturn(TextLocation location, TypeSymbol type, Symbol member1, Symbol member2) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' does not implement interface member '{member1}'; '{member2}' cannot implement '{member1}' because it does not have matching return by reference";
+        return CreateError(DiagnosticCode.ERR_CloseUnimplementedInterfaceMemberWrongRefReturn, location, message);
+    }
+
+    internal static BelteDiagnostic CloseUnimplementedInterfaceMemberOperatorMismatch(TextLocation location, TypeSymbol type, Symbol member1, Symbol member2) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' does not implement interface member '{member1}'; '{member2}' cannot implement '{member1}' because one of them is not an operator";
+        return CreateError(DiagnosticCode.ERR_CloseUnimplementedInterfaceMemberOperatorMismatch, location, message);
+    }
+
+    internal static BelteDiagnostic CloseUnimplementedInterfaceMemberWrongReturnType(TextLocation location, TypeSymbol type, Symbol member1, Symbol member2, TypeSymbol returnType) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' does not implement interface member '{member1}'; '{member2}' cannot implement '{member1}' because it does not have the matching return type of '{returnType}'";
+        return CreateError(DiagnosticCode.ERR_CloseUnimplementedInterfaceMemberWrongReturnType, location, message);
+    }
+
+    internal static BelteDiagnostic AbstractAttributeClass(TextLocation location, Symbol symbol) {
+        var message = $"cannot apply attribute class '{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' because it is abstract";
+        return CreateError(DiagnosticCode.ERR_AbstractAttributeClass, location, message);
+    }
+
+    internal static BelteDiagnostic NotAnAttributeClass(TextLocation location, Symbol symbol) {
+        var message = $"'{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is not an attribute class";
+        return CreateError(DiagnosticCode.ERR_NotAnAttributeClass, location, message);
+    }
+
+    internal static Diagnostic InvalidMultilineString() {
+        var message = $"all lines must start with the same whitespace as the closing line of the multiline string; place the closing quotations on a non-isolated line if this is intentional";
+        return CreateError(DiagnosticCode.ERR_InvalidMultilineString, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

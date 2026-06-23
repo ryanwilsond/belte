@@ -2307,6 +2307,9 @@ oneMoreTime:
             if (IsVarianceCast(expression.type, mergeTypeOfAlternative)) {
                 EmitStaticCast(expression.type);
                 mergeTypeOfAlternative = expression.type;
+            } else if (expression.type.IsInterfaceType() &&
+                !TypeSymbol.Equals(expression.type, mergeTypeOfAlternative, TypeCompareKind.ConsiderEverything)) {
+                EmitStaticCast(expression.type);
             }
         }
 
@@ -2321,6 +2324,9 @@ oneMoreTime:
             if (IsVarianceCast(expression.type, mergeTypeOfConsequence)) {
                 EmitStaticCast(expression.type);
                 mergeTypeOfConsequence = expression.type;
+            } else if (expression.type.IsInterfaceType() &&
+                !TypeSymbol.Equals(expression.type, mergeTypeOfConsequence, TypeCompareKind.ConsiderEverything)) {
+                EmitStaticCast(expression.type);
             }
         }
 
@@ -2328,8 +2334,42 @@ oneMoreTime:
     }
 
     private TypeSymbol StackMergeType(BoundExpression expr) {
+        if (!expr.type.IsInterfaceType())
+            return expr.type;
+
+        switch (expr.kind) {
+            case BoundKind.CastExpression:
+                var conversion = (BoundCastExpression)expr;
+                var conversionKind = conversion.conversion.kind;
+
+                if (conversionKind.IsImplicitCast() &&
+                    conversionKind != ConversionKind.MethodGroup &&
+                    conversionKind != ConversionKind.NullLiteral &&
+                    conversionKind != ConversionKind.DefaultLiteral) {
+                    return StackMergeType(conversion.operand);
+                }
+
+                break;
+            case BoundKind.AssignmentOperator:
+                var assignment = (BoundAssignmentOperator)expr;
+                return StackMergeType(assignment.right);
+            case BoundKind.DataContainerExpression:
+                var local = (BoundDataContainerExpression)expr;
+
+                if (IsStackLocal(local.dataContainer))
+                    return null;
+
+                break;
+            case BoundKind.StackSlotExpression:
+                var slot = (BoundStackSlotExpression)expr;
+
+                if (slot.symbol is DataContainerSymbol dataContainer && IsStackLocal(dataContainer))
+                    return null;
+
+                break;
+        }
+
         return expr.type;
-        // TODO Need to do some extra work with interface or delegate types
     }
 
     private static bool IsVarianceCast(TypeSymbol to, TypeSymbol from) {
@@ -2339,12 +2379,12 @@ oneMoreTime:
         if (from is null)
             return true;
 
-        if (to.IsArray()) {
+        if (to.IsArray())
             return IsVarianceCast(((ArrayTypeSymbol)to).elementType, ((ArrayTypeSymbol)from).elementType);
-        }
 
-        // TODO This becomes more interesting with delegate or interface types:
-        return false;
+        return to.IsInterfaceType() &&
+            from.IsInterfaceType() &&
+            !from.interfacesAndTheirBaseInterfaces.ContainsKey((NamedTypeSymbol)to);
     }
 
     private void EmitIsOperator(BoundIsOperator expression, bool used, bool omitBooleanConversion) {

@@ -1,5 +1,7 @@
 using System.Collections.Immutable;
+using System.Linq;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -79,5 +81,16 @@ internal static class SymbolExtensions {
     private static TISymbol GetPublicSymbol<TISymbol, TSymbol>(this TSymbol symbol)
         where TISymbol : class, ISymbol where TSymbol : TISymbol {
         return symbol;
+    }
+
+    internal static bool ContainsTupleNames(this Symbol member) {
+        switch (member.kind) {
+            case SymbolKind.Method:
+                var method = (MethodSymbol)member;
+                return method.returnType.ContainsTupleNames() ||
+                    method.parameters.Any(static p => p.type.ContainsTupleNames());
+            default:
+                throw ExceptionUtilities.UnexpectedValue(member.kind);
+        }
     }
 }

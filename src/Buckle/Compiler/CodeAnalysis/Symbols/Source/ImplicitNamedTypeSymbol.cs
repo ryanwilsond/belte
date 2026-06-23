@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
@@ -28,6 +29,16 @@ internal sealed class ImplicitNamedTypeSymbol : SourceMemberContainerTypeSymbol 
         return baseType;
     }
 
+    internal override ImmutableArray<NamedTypeSymbol> GetDeclaredInterfaces(ConsList<TypeSymbol> basesBeingResolved) {
+        return [];
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> Interfaces(ConsList<TypeSymbol> basesBeingResolved = null) {
+        return [];
+    }
+
+    private protected override void CheckInterfaces(BelteDiagnosticQueue diagnostics) { }
+
     public override ImmutableArray<TemplateParameterSymbol> templateParameters => [];
 
     public override ImmutableArray<TypeOrConstant> templateArguments => [];
@@ -36,5 +47,9 @@ internal sealed class ImplicitNamedTypeSymbol : SourceMemberContainerTypeSymbol 
 
     private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
         throw ExceptionUtilities.Unreachable();
+    }
+
+    private protected override TextLocation GetCorrespondingBaseListLocation(NamedTypeSymbol @base) {
+        return null;
     }
 }

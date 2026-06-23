@@ -75,12 +75,15 @@
     - [2.11](Current/ControlFlow.md#211-reverse-statements) Reverse Statements
   - [3](Current/Data.md) Data
     - [3.1](Current/Data.md#31-data-types) Data Types
-      - [3.1.1](Current/Data.md#311-casts) Casts
-      - [3.1.2](Current/Data.md#312-string-interpolation) String Interpolation
-      - [3.1.3](Current/Data.md#313-function-type) Function Type
-      - [3.1.4](Current/Data.md#314-default-literal) Default Literal
-      - [3.1.5](Current/Data.md#315-tuples) Tuples
-        - [3.1.5.1](Current/Data.md#3151-user-defined-deconstruction) User-Defined Deconstruction
+      - [3.1.1](Current/Data.md#311-numerics) Numerics
+      - [3.1.2](Current/Data.md#312-strings) Strings
+        - [3.1.2.1](Current/Data.md#3121-multiline-strings) Multiline Strings
+        - [3.1.2.2](Current/Data.md#3122-string-interpolation) String Interpolation
+      - [3.1.3](Current/Data.md#313-casts) Casts
+      - [3.1.4](Current/Data.md#314-function-type) Function Type
+      - [3.1.5](Current/Data.md#315-default-literal) Default Literal
+      - [3.1.6](Current/Data.md#316-tuples) Tuples
+        - [3.1.6.1](Current/Data.md#3161-user-defined-deconstruction) User-Defined Deconstruction
     - [3.2](Current/Data.md#32-operators) Operators
       - [3.2.1](Current/Data.md#321-operator-precedence) Operator Precedence
       - [3.2.2](Current/Data.md#322-uncommon-operators) Uncommon Operators
@@ -144,6 +147,7 @@
       - [4.8.3](Current/ClassesAndObjects.md#483-global-using-directive) Global Using Directive
     - [4.9](Current/ClassesAndObjects.md#49-structs) Structs
       - [4.9.1](Current/ClassesAndObjects.md#491-unions) Unions
+    - [4.10](Current/ClassesAndObjects.md#410-interfaces) Interfaces
   - [5](Current/StandardLibrary.md) The Standard Library
     - [5.1](Current/StandardLibrary/Console.md) Console
     - [5.2](Current/StandardLibrary/Math.md) Math
@@ -174,6 +178,8 @@
       - [6.6.1](Current/LowLevelFeatures.md#661-calling-conventions) Calling Conventions
     - [6.7](Current/LowLevelFeatures.md#67-extern-methods) Extern Methods
       - [6.7.1](Current/LowLevelFeatures.md#671-winbool) WinBool
+      - [6.7.2](Current/LowLevelFeatures.md#672-unmanaged-methods) Unmanaged Methods
+      - [6.7.3](Current/LowLevelFeatures.md#673-extern-blocks) Extern Blocks
     - [6.8](Current/LowLevelFeatures.md#68-fixed-size-buffers) Fixed Size Buffers
     - [6.9](Current/LowLevelFeatures.md#69-sizeof-operator) Sizeof Operator
     - [6.10](Current/LowLevelFeatures.md#610-stackalloc-operator) Stackalloc Operator

@@ -21,6 +21,8 @@ a lowlevel context.
   - [6.6.1](#661-calling-conventions) Calling Conventions
 - [6.7](#67-extern-methods) Extern Methods
   - [6.7.1](#671-winbool) WinBool
+  - [6.7.2](#672-unmanaged-methods) Unmanaged Methods
+  - [6.7.3](#673-extern-blocks) Extern Blocks
 - [6.8](#68-fixed-size-buffers) Fixed Size Buffers
 - [6.9](#69-sizeof-operator) Sizeof Operator
 - [6.10](#610-stackalloc-operator) Stackalloc Operator
@@ -412,6 +414,57 @@ which is 4 bytes instead of 1. For such cases, use the primitive `winbool`:
 static extern winbool! UpdateWindow(int64* hWnd);
 ```
 
+### 6.7.2 Unmanaged Methods
+
+To pass methods as callbacks to unmanaged libraries, they must be marked with the `[Unmanaged]` attribute. Unmanaged
+methods cannot be called in a managed context. Unmanaged methods must be non-templated, static, and non-virtual.
+
+```belte
+[DllImport("lib.dll")]
+public static extern void SomeFunc(void(int) callback);
+
+[Unmanaged]
+public static void MyMethod(int param) { /* ... */ }
+
+SomeFunc(MyMethod);
+```
+
+### 6.7.3 Extern Blocks
+
+If declaring many extern methods from the same library, a extern block declaration can be used. Every member inside the
+block is implicitly marked static and extern and defaults to the block's accessibility if set.
+
+Consider this example where many methods are being imported:
+
+```belte
+[DllImport("ws2_32.dll")]
+public static extern int32 recv(int32 s, uint8* buf, int32 len, int32 flags);
+
+[DllImport("ws2_32.dll")]
+public static extern uint16 htons(uint16 hostshort);
+
+[DllImport("ws2_32.dll")]
+public static extern uint32 inet_addr(uint8* cp);
+
+[DllImport("ws2_32.dll")]
+public static extern int32 closesocket(int32 s);]
+```
+
+The above example could be instead written:
+
+```belte
+[DllImport("ws2_32.dll")]
+public extern {
+  int32 recv(int32 s, uint8* buf, int32 len, int32 flags);
+  uint16 htons(uint16 hostshort);
+  uint32 inet_addr(uint8* cp);
+  int32 closesocket(int32 s);
+}
+```
+
+The attributes on the extern block are treated as though each member independently declared them, meaning an error in
+the attribute will produce a diagnostic per member as different member kinds may treat some attributes differently.
+
 ## 6.8 Fixed Size Buffers
 
 Arbitrary blobs of memory can be reserved with fixed size buffers. Fixed size
@@ -709,12 +762,22 @@ defer LowLevel.FreeLPCWSTR(temp);
 char* a = temp;
 ```
 
-C-strings can be [interpolated](Data.md#312-string-interpolation):
+C-strings can be [interpolated](Data.md#3122-string-interpolation):
 
 ```belte
 int myNum = 10;
 char* a = wf"num is {myNum}";
 uint8* b = cf"num is {myNum}";
+```
+
+C-strings can also be [multiline](Data.md#3121-multiline-strings):
+
+```belte
+int myNum = 10;
+char* a = wf"""
+  num is
+    {myNum}
+  """;
 ```
 
 ## 6.15 LowLevel Fields

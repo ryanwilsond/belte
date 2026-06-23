@@ -71,15 +71,167 @@ internal sealed partial class Conversions {
                 if (destination.IsClassType() && Conversion.IsBaseClass(source, destination))
                     return true;
 
+                return HasImplicitConversionToInterface(source, destination);
+            case TypeKind.Interface:
+                return HasImplicitConversionToInterface(source, destination);
+            case TypeKind.TemplateParameter:
+                return HasImplicitReferenceTemplateParameterConversion((TemplateParameterSymbol)source, destination);
+            case TypeKind.Array:
+                // TODO Again, we probably don't want covariance
+                // return HasImplicitConversionFromArray(source, destination);
                 return false;
-                // TODO These types:
-                // case TypeKind.TypeParameter:
-                //     return HasImplicitReferenceTypeParameterConversion((TypeParameterSymbol)source, destination);
-                // case TypeKind.Array:
-                //     return HasImplicitConversionFromArray(source, destination);
         }
 
         return false;
+    }
+
+    private bool HasImplicitReferenceTemplateParameterConversion(
+        TemplateParameterSymbol source,
+        TypeSymbol destination) {
+        if (source.isValueType)
+            return false;
+
+        // if (source.AllowsRefLikeType) {
+        //     return false;
+        // }
+
+        if (HasImplicitEffectiveBaseConversion(source, destination))
+            return true;
+
+        if (HasImplicitEffectiveInterfaceSetConversion(source, destination))
+            return true;
+
+        if (destination is TemplateParameterSymbol { allowsRefLikeType: false } &&
+            source.DependsOn((TemplateParameterSymbol)destination)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private bool HasImplicitEffectiveInterfaceSetConversion(TemplateParameterSymbol source, TypeSymbol destination) {
+        return HasVarianceCompatibleInterfaceInEffectiveInterfaceSet(source, destination);
+    }
+
+    private bool HasVarianceCompatibleInterfaceInEffectiveInterfaceSet(
+        TemplateParameterSymbol source,
+        TypeSymbol destination) {
+        if (!destination.IsInterfaceType())
+            return false;
+
+        foreach (var i in source.allEffectiveInterfaces) {
+            if (HasInterfaceVarianceConversion(i, destination))
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool HasImplicitEffectiveBaseConversion(TemplateParameterSymbol source, TypeSymbol destination) {
+        var effectiveBaseClass = source.effectiveBaseClass;
+
+        if (HasIdentityConversionInternal(effectiveBaseClass, destination))
+            return true;
+
+        if (IsBaseClass(effectiveBaseClass, destination))
+            return true;
+
+        if (HasAnyBaseInterfaceConversion(effectiveBaseClass, destination))
+            return true;
+
+        return false;
+    }
+
+    internal bool IsBaseClass(TypeSymbol derivedType, TypeSymbol baseType) {
+        if (!baseType.IsClassType())
+            return false;
+
+        for (TypeSymbol b = derivedType.baseType; b is not null; b = b.baseType) {
+            if (HasIdentityConversionInternal(b, baseType))
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool HasImplicitConversionToInterface(TypeSymbol source, TypeSymbol destination) {
+        if (!destination.IsInterfaceType())
+            return false;
+
+        if (source.IsClassType())
+            return HasAnyBaseInterfaceConversion(source, destination);
+
+        if (source.IsInterfaceType()) {
+            if (HasAnyBaseInterfaceConversion(source, destination))
+                return true;
+
+            if (!HasIdentityConversionInternal(source, destination) &&
+                HasInterfaceVarianceConversion(source, destination)) {
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private bool HasAnyBaseInterfaceConversion(TypeSymbol derivedType, TypeSymbol baseType) {
+        return ImplementsVarianceCompatibleInterface(derivedType, baseType);
+    }
+
+    private bool ImplementsVarianceCompatibleInterface(TypeSymbol derivedType, TypeSymbol baseType) {
+        if (!baseType.IsInterfaceType())
+            return false;
+
+        if (derivedType is not NamedTypeSymbol d)
+            return false;
+
+        foreach (var i in d.allInterfaces) {
+            if (HasInterfaceVarianceConversion(i, baseType))
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool HasInterfaceVarianceConversion(TypeSymbol source, TypeSymbol destination) {
+        if (source is not NamedTypeSymbol s || destination is not NamedTypeSymbol d)
+            return false;
+
+        if (!s.IsInterfaceType() || !d.IsInterfaceType())
+            return false;
+
+        return HasVariantConversion(s, d);
+    }
+
+    private bool HasVariantConversion(NamedTypeSymbol source, NamedTypeSymbol destination) {
+        // TODO Recursion guard
+        // if (currentRecursionDepth >= MaximumRecursionDepth)
+        //     return false;
+
+        var quickResult = HasVariantConversionQuick(source, destination);
+
+        if (quickResult.HasValue())
+            return quickResult.Value();
+
+        // return this.CreateInstance(currentRecursionDepth + 1).
+        return HasVariantConversionNoCycleCheck(source, destination);
+    }
+
+    private bool HasVariantConversionNoCycleCheck(NamedTypeSymbol source, NamedTypeSymbol destination) {
+        // TODO We probably don't want covariance or contravariance, but this is where we would do some checks for it
+        return true;
+    }
+
+    private ThreeState HasVariantConversionQuick(NamedTypeSymbol source, NamedTypeSymbol destination) {
+        if (HasIdentityConversionInternal(source, destination))
+            return ThreeState.True;
+
+        var typeSymbol = source.originalDefinition;
+
+        if (!TypeSymbol.Equals(typeSymbol, destination.originalDefinition, TypeCompareKind.ConsiderEverything))
+            return ThreeState.False;
+
+        return ThreeState.Unknown;
     }
 
     private static bool HasIdentityConversionInternal(TypeSymbol type1, TypeSymbol type2) {
@@ -243,8 +395,40 @@ internal sealed partial class Conversions {
             return result;
         }
 
+        return ClassifyExplicitOnlyConversionFromExpression(sourceExpression, target);
+    }
+
+    private Conversion ClassifyExplicitOnlyConversionFromExpression(
+        BoundExpression sourceExpression,
+        TypeSymbol target) {
+        // TODO explicit tuple literal conversion
+        // if (sourceExpression.kind == BoundKind.TupleLiteral) {
+        //     Conversion tupleConversion = ClassifyExplicitTupleLiteralConversion(
+        //         (BoundTupleLiteral)sourceExpression,
+        //         target
+        //     );
+
+        //     if (tupleConversion.exists)
+        //         return tupleConversion;
+        // }
+
         sourceExpression = Binder.ReduceNumericIfApplicable(target, sourceExpression);
-        return Conversion.Classify(sourceExpression.Type(), target);
+        var sourceType = sourceExpression.Type();
+
+        if (sourceType is not null) {
+            var fastConversion = FastClassifyConversion(sourceType, target);
+
+            if (fastConversion.exists) {
+                return fastConversion;
+            } else {
+                var conversion = ClassifyExplicitBuiltInConversion(sourceType, target);
+
+                if (conversion.exists)
+                    return conversion;
+            }
+        }
+
+        return GetExplicitUserDefinedConversion(sourceExpression, sourceType, target);
     }
 
     private Conversion GetImplicitUserDefinedConversion(
@@ -291,7 +475,7 @@ internal sealed partial class Conversions {
         if (conversion.exists) {
             return conversion;
         } else {
-            conversion = Conversion.Classify(source, target);
+            conversion = ClassifyImplicitBuiltInConversionSlow(source, target);
 
             if (Conversion.CollapseConversion(conversion).isImplicit)
                 return conversion;
@@ -302,12 +486,244 @@ internal sealed partial class Conversions {
         if (conversion.exists)
             return conversion;
 
-        conversion = Conversion.Classify(source, target);
+        conversion = ClassifyExplicitBuiltInConversion(source, target);
 
         if (conversion.exists)
             return conversion;
 
         return GetExplicitUserDefinedConversion(source, target);
+    }
+
+    private Conversion ClassifyImplicitBuiltInConversionSlow(TypeSymbol source, TypeSymbol target) {
+        var conversion = Conversion.Classify(source, target);
+
+        if (conversion.isImplicit)
+            return conversion;
+
+        if (HasIdentityConversionInternal(source, target))
+            return Conversion.Identity;
+
+        var nullableConversion = ClassifyImplicitNullableConversion(source, target);
+
+        if (nullableConversion.exists)
+            return nullableConversion;
+
+        if (HasImplicitReferenceConversion(source, target))
+            return Conversion.ImplicitReference;
+
+        if (HasBoxingConversion(source, target))
+            return Conversion.AnyBoxing;
+
+        return Conversion.None;
+    }
+
+    private Conversion ClassifyImplicitNullableConversion(TypeSymbol source, TypeSymbol target) {
+        if (target.IsNullableType()) {
+            var underlyingConversion = ClassifyImplicitConversionFromType(source.StrippedType(), target.StrippedType());
+
+            if (underlyingConversion.isIdentity && source.isReferenceType)
+                return underlyingConversion;
+
+            if (underlyingConversion.exists)
+                return new Conversion(ConversionKind.ImplicitNullable, [underlyingConversion]);
+        }
+
+        return Conversion.None;
+    }
+
+    private Conversion ClassifyExplicitNullableConversion(TypeSymbol source, TypeSymbol target) {
+        if (source.IsNullableType() && !target.IsNullableType()) {
+            var underlyingConversion = ClassifyImplicitConversionFromType(source.StrippedType(), target);
+
+            if (underlyingConversion.exists)
+                return new Conversion(ConversionKind.ExplicitNullable, [underlyingConversion]);
+        }
+
+        return Conversion.None;
+    }
+
+    internal bool HasBoxingConversion(TypeSymbol source, TypeSymbol destination) {
+        if ((source.typeKind == TypeKind.TemplateParameter) &&
+            HasImplicitBoxingTemplateParameterConversion((TemplateParameterSymbol)source, destination)) {
+            return true;
+        }
+
+        if (!source.isValueType || !destination.isReferenceType)
+            return false;
+
+        if (source.IsNullableType())
+            return HasBoxingConversion(source.GetNullableUnderlyingType(), destination);
+
+        if (IsBaseClass(source, destination))
+            return true;
+
+        if (HasAnyBaseInterfaceConversion(source, destination))
+            return true;
+
+        return false;
+    }
+
+    private bool HasImplicitBoxingTemplateParameterConversion(TemplateParameterSymbol source, TypeSymbol destination) {
+        if (source.isReferenceType)
+            return false;
+
+        if (source.allowsRefLikeType)
+            return false;
+
+        if (HasImplicitEffectiveBaseConversion(source, destination))
+            return true;
+
+        if (HasImplicitEffectiveInterfaceSetConversion(source, destination))
+            return true;
+
+        if (destination is TemplateParameterSymbol { allowsRefLikeType: false } d && source.DependsOn(d))
+            return true;
+
+        return false;
+    }
+
+    private Conversion ClassifyExplicitBuiltInConversion(TypeSymbol source, TypeSymbol target) {
+        var conversion = Conversion.Classify(source, target);
+
+        if (conversion.exists)
+            return conversion;
+
+        var nullableConversion = ClassifyExplicitNullableConversion(source, target);
+
+        if (nullableConversion.exists)
+            return nullableConversion;
+
+        if (HasExplicitReferenceConversion(source, target))
+            return Conversion.ExplicitReference;
+
+        if (HasUnboxingConversion(source, target))
+            return Conversion.AnyUnboxing;
+
+        return Conversion.None;
+    }
+
+    private bool HasUnboxingConversion(TypeSymbol source, TypeSymbol destination) {
+        if (destination.IsPointerOrFunctionPointer())
+            return false;
+
+        var specialTypeSource = source.specialType;
+
+        if (specialTypeSource == SpecialType.Object || specialTypeSource == SpecialType.ValueType) {
+            if (destination.isValueType && !destination.IsNullableType())
+                return true;
+        }
+
+        if (source.IsInterfaceType() &&
+            destination.isValueType &&
+            !destination.IsNullableType() &&
+            HasBoxingConversion(destination, source)) {
+            return true;
+        }
+
+        if (source.specialType == SpecialType.Enum && destination.IsEnumType())
+            return true;
+
+        if (source.isReferenceType &&
+            destination.IsNullableType() &&
+            HasUnboxingConversion(source, destination.GetNullableUnderlyingType())) {
+            return true;
+        }
+
+        if (HasUnboxingTemplateParameterConversion(source, destination))
+            return true;
+
+        return false;
+    }
+
+    private bool HasUnboxingTemplateParameterConversion(TypeSymbol source, TypeSymbol destination) {
+        var s = source as TemplateParameterSymbol;
+        var t = destination as TemplateParameterSymbol;
+
+        if (s?.allowsRefLikeType == true || t?.allowsRefLikeType == true)
+            return false;
+
+        if (t is not null && !t.isReferenceType) {
+            for (var type = t.effectiveBaseClass; type is not null; type = type.baseType) {
+                if (TypeSymbol.Equals(type, source, TypeCompareKind.ConsiderEverything))
+                    return true;
+            }
+        }
+
+        if (source.IsInterfaceType() && t is not null && !t.isReferenceType)
+            return true;
+
+        if (s is not null && !s.isReferenceType && destination.IsInterfaceType() &&
+            !HasImplicitReferenceTemplateParameterConversion(s, destination)) {
+            return true;
+        }
+
+        if (s is not null && t is not null && !t.isReferenceType && t.DependsOn(s))
+            return true;
+
+        return false;
+    }
+
+    private bool HasExplicitReferenceConversion(TypeSymbol source, TypeSymbol destination) {
+        if (source.specialType == SpecialType.Object) {
+            if (destination.isReferenceType)
+                return true;
+        }
+
+        if (destination.IsClassType() && IsBaseClass(destination, source))
+            return true;
+
+        if (source.IsClassType() && destination.IsInterfaceType() && !source.isSealed &&
+            !HasAnyBaseInterfaceConversion(source, destination)) {
+            return true;
+        }
+
+        if (source.IsInterfaceType() && destination.IsClassType() &&
+            (!destination.isSealed || HasAnyBaseInterfaceConversion(destination, source))) {
+            return true;
+        }
+
+        if (source.IsInterfaceType() && destination.IsInterfaceType() &&
+            !HasImplicitConversionToInterface(source, destination)) {
+            return true;
+        }
+
+        // TODO
+        // if (HasExplicitArrayConversion(source, destination)) {
+        //     return true;
+        // }
+
+        if (HasExplicitReferenceTemplateParameterConversion(source, destination))
+            return true;
+
+        return false;
+    }
+
+    private bool HasExplicitReferenceTemplateParameterConversion(TypeSymbol source, TypeSymbol destination) {
+        var s = source as TemplateParameterSymbol;
+        var t = destination as TemplateParameterSymbol;
+
+        if (s?.allowsRefLikeType == true || t?.allowsRefLikeType == true)
+            return false;
+
+        if (t is not null && t.isReferenceType) {
+            for (var type = t.effectiveBaseClass; type is not null; type = type.baseType) {
+                if (HasIdentityConversionInternal(type, source))
+                    return true;
+            }
+        }
+
+        if (t is not null && source.IsInterfaceType() && t.isReferenceType)
+            return true;
+
+        if (s is not null && s.isReferenceType && destination.IsInterfaceType() &&
+            !HasImplicitReferenceTemplateParameterConversion(s, destination)) {
+            return true;
+        }
+
+        if (s is not null && t is not null && t.isReferenceType && t.DependsOn(s))
+            return true;
+
+        return false;
     }
 
     internal Conversion ClassifyImplicitConversionFromType(TypeSymbol source, TypeSymbol target) {
@@ -319,7 +735,10 @@ internal sealed partial class Conversions {
         return Conversion.None;
     }
 
-    internal Conversion ClassifyImplicitConversionFromExpression(BoundExpression sourceExpression, TypeSymbol target) {
+    private Conversion ClassifyImplicitBuiltInConversionFromExpression(
+        BoundExpression sourceExpression,
+        TypeSymbol source,
+        TypeSymbol target) {
         switch (sourceExpression) {
             case BoundUnconvertedInitializerList list:
                 var listExpressionConversion = GetImplicitListExpressionConversion(list, target);
@@ -362,17 +781,35 @@ internal sealed partial class Conversions {
                 return Conversion.None;
         }
 
-        sourceExpression = Binder.ReduceNumericIfApplicable(target, sourceExpression);
+        return Conversion.None;
+    }
 
-        var conversion = FastClassifyConversion(sourceExpression.Type(), target);
+    internal Conversion ClassifyImplicitConversionFromExpression(BoundExpression sourceExpression, TypeSymbol target) {
+        sourceExpression = Binder.ReduceNumericIfApplicable(target, sourceExpression);
+        var sourceType = sourceExpression.Type();
+
+        if (sourceType is not null && HasIdentityConversionInternal(sourceType, target))
+            return Conversion.Identity;
+
+        var conversion = ClassifyImplicitBuiltInConversionFromExpression(sourceExpression, sourceType, target);
 
         if (conversion.exists && Conversion.CollapseConversion(conversion).isImplicit)
             return conversion;
 
-        conversion = Conversion.Classify(sourceExpression.Type(), target);
+        if (sourceType is not null) {
+            var fastConversion = FastClassifyConversion(sourceType, target);
 
-        if (Conversion.CollapseConversion(conversion).isImplicit)
-            return conversion;
+            if (fastConversion.exists) {
+                if (Conversion.CollapseConversion(fastConversion).isImplicit)
+                    return fastConversion;
+            } else {
+                conversion = ClassifyImplicitBuiltInConversionSlow(sourceType, target);
+
+                if (conversion.exists && Conversion.CollapseConversion(conversion).isImplicit)
+                    return conversion;
+            }
+        }
+        // TODO Handle function types here?
 
         conversion = GetImplicitUserDefinedConversion(sourceExpression, sourceExpression.Type(), target);
 
@@ -608,8 +1045,29 @@ internal sealed partial class Conversions {
         TypeSymbol target,
         ArrayBuilder<(NamedTypeSymbol participatingType, TemplateParameterSymbol constrainedToType)> d,
         ArrayBuilder<UserDefinedConversionAnalysis> u) {
+        var haveInterfaces = false;
+
         foreach ((var declaringType, var constrainedToTypeOpt) in d) {
-            AddCandidatesFromType(null, declaringType, sourceExpression, source, target, u);
+            if (declaringType.isInterface) {
+                haveInterfaces = true;
+            } else {
+                AddCandidatesFromType(null, declaringType, sourceExpression, source, target, u);
+            }
+        }
+
+        if (u.Count == 0 && haveInterfaces) {
+            foreach ((var declaringType, var constrainedToTypeOpt) in d) {
+                if (declaringType.isInterface) {
+                    AddCandidatesFromType(
+                        constrainedToTypeOpt: constrainedToTypeOpt,
+                        declaringType,
+                        sourceExpression,
+                        source,
+                        target,
+                        u
+                    );
+                }
+            }
         }
 
         void AddCandidatesFromType(
@@ -649,6 +1107,9 @@ internal sealed partial class Conversions {
         TemplateParameterSymbol constrainedToTypeOpt,
         NamedTypeSymbol declaringType,
         bool isExplicit) {
+        if (source is not null && source.IsInterfaceType() || target.IsInterfaceType())
+            return;
+
         var operators = declaringType.GetOperators(
             isExplicit ? WellKnownMemberNames.ExplicitConversionName : WellKnownMemberNames.ImplicitConversionName);
 
@@ -809,19 +1270,41 @@ internal sealed partial class Conversions {
         ArrayBuilder<(NamedTypeSymbol participatingType, TemplateParameterSymbol constrainedToType)> d,
         ArrayBuilder<UserDefinedConversionAnalysis> u,
         bool allowAnyTarget = false) {
-        if (source is not null && false || target is not null && false)
+        if (source is not null && source.IsInterfaceType() || target is not null && target.IsInterfaceType())
             return;
 
+        var haveInterfaces = false;
+
         foreach ((var declaringType, var constrainedToTypeOpt) in d) {
-            AddCandidatesFromType(
-                constrainedToTypeOpt: null,
-                declaringType,
-                sourceExpression,
-                source,
-                target,
-                u,
-                allowAnyTarget
-            );
+            if (declaringType.isInterface) {
+                haveInterfaces = true;
+            } else {
+                AddCandidatesFromType(
+                    constrainedToTypeOpt: null,
+                    declaringType,
+                    sourceExpression,
+                    source,
+                    target,
+                    u,
+                    allowAnyTarget
+                );
+            }
+        }
+
+        if (u.Count == 0 && haveInterfaces) {
+            foreach ((var declaringType, var constrainedToTypeOpt) in d) {
+                if (declaringType.isInterface) {
+                    AddCandidatesFromType(
+                        constrainedToTypeOpt: constrainedToTypeOpt,
+                        declaringType,
+                        sourceExpression,
+                        source,
+                        target,
+                        u,
+                        allowAnyTarget
+                    );
+                }
+            }
         }
 
         void AddCandidatesFromType(

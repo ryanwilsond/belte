@@ -16,7 +16,7 @@ internal sealed class CorLibrary {
 
     private const int TotalSpecialTypes = (int)SpecialType.Buffer;
     private const int TotalWellKnownMembers = (int)WellKnownMember.Array_Set;
-    private const int TotalWellKnownTypes = (int)WellKnownType.Array;
+    private const int TotalWellKnownTypes = (int)WellKnownType.UnmanagedAttribute;
 
     private readonly ConcurrentDictionary<SpecialType, NamedTypeSymbol> _specialTypes = [];
     private readonly ConcurrentDictionary<WellKnownMember, Symbol> _wellKnownMembers = [];
@@ -37,7 +37,7 @@ internal sealed class CorLibrary {
     }
 
     internal static void SetReducedState() {
-        Instance._registeredWellKnownTypes += (int)WellKnownType.Sound - (int)WellKnownType.Exception;
+        Instance._registeredWellKnownTypes += (int)WellKnownType.UnmanagedAttribute - (int)WellKnownType.Exception;
     }
 
     #region Public Model

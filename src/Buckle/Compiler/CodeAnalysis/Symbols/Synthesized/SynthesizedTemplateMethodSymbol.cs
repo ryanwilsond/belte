@@ -78,6 +78,10 @@ internal sealed class SynthesizedTemplateMethodSymbol : MethodSymbol {
 
     internal override CallingConvention callingConvention => CallingConvention.Template;
 
+    internal override bool isExplicitInterfaceImplementation => false;
+
+    internal override ImmutableArray<MethodSymbol> explicitInterfaceImplementations => [];
+
     internal override bool IsMetadataVirtual(bool forceComplete = false) => false;
 
     internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {

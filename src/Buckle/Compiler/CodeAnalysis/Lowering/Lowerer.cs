@@ -35,14 +35,15 @@ internal sealed class Lowerer : BoundTreeRewriter {
         MethodCompiler methodCompiler,
         MethodSymbol container,
         NamedTypeSymbol entryType,
-        BelteDiagnosticQueue diagnostics,
-        bool transpiling) {
+        BelteDiagnosticQueue diagnostics) {
         _methodCompiler = methodCompiler;
         _entryType = entryType;
         _diagnostics = diagnostics;
-        _expander = transpiling ? new SharedExpander(container, diagnostics) : new Expander(container, diagnostics);
-        _transpiling = transpiling;
+        _expander = methodCompiler.transpiling
+            ? new SharedExpander(container, diagnostics)
+            : new Expander(container, diagnostics);
         _method = container;
+        _transpiling = methodCompiler.transpiling;
     }
 
     internal static BoundBlockStatement Lower(
@@ -52,17 +53,16 @@ internal sealed class Lowerer : BoundTreeRewriter {
         BoundBlockStatement statement,
         NamedTypeSymbol entryType,
         BelteDiagnosticQueue diagnostics,
-        bool transpiling,
         out bool sawCompileTimeExpression) {
-        var lowerer = new Lowerer(methodCompiler, method, entryType, diagnostics, transpiling);
-        var optimize = optimizationLevel == OptimizationLevel.Release && !transpiling;
+        var lowerer = new Lowerer(methodCompiler, method, entryType, diagnostics);
+        var optimize = optimizationLevel == OptimizationLevel.Release && !methodCompiler.transpiling;
 
         var rewrittenStatement = statement;
 
         if (optimize)
             rewrittenStatement = (BoundBlockStatement)Optimizer.Optimize(rewrittenStatement);
 
-        if (transpiling) {
+        if (methodCompiler.transpiling) {
             rewrittenStatement = SharedFlowLowerer.Lower(method, rewrittenStatement, diagnostics);
             rewrittenStatement = lowerer._expander.Expand(rewrittenStatement);
             rewrittenStatement = (BoundBlockStatement)lowerer.Visit(rewrittenStatement);

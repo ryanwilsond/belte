@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Text;
 using Buckle.CodeAnalysis.Authoring;
 using Buckle.CodeAnalysis.Binding;
@@ -817,6 +818,13 @@ public sealed class DisplayText {
 
     private static void DisplayReturnStatement(DisplayText text, BoundReturnStatement node) {
         text.Write(CreateKeyword(SyntaxKind.ReturnKeyword));
+
+        if (node.refKind != RefKind.None) {
+            text.Write(CreateSpace());
+            Debug.Assert(node.refKind == RefKind.Ref);
+            Debug.Assert(node.expression is not null);
+            text.Write(CreateKeyword(SyntaxKind.RefKeyword));
+        }
 
         if (node.expression is not null) {
             text.Write(CreateSpace());

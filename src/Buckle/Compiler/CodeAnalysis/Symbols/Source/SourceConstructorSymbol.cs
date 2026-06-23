@@ -25,6 +25,11 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
         ) {
         location = syntax.constructorKeyword.location;
 
+        var hasAnyBody = syntax.HasAnyBody();
+
+        if (methodKind == MethodKind.StaticConstructor)
+            ReportDefaultInterfaceImplementation(location, hasAnyBody, diagnostics);
+
         ModifierHelpers.CheckAccessibility(_modifiers, diagnostics, location);
 
         if (!hasErrors)
@@ -100,10 +105,12 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
                 ? DeclarationModifiers.Public
                 : DeclarationModifiers.Private;
 
+        var isInterface = containingType.isInterface;
         var allowedModifiers = DeclarationModifiers.AccessibilityMask | DeclarationModifiers.Static;
 
         var mods = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
             syntax.modifiers,
+            isInterface,
             defaultAccess,
             allowedModifiers,
             syntax.constructorKeyword.location,

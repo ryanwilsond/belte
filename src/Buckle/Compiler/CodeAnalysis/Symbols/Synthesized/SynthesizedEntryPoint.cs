@@ -74,6 +74,10 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
         }
     }
 
+    internal override bool isExplicitInterfaceImplementation => false;
+
+    internal override ImmutableArray<MethodSymbol> explicitInterfaceImplementations => [];
+
     internal override ImmutableArray<TypeParameterConstraintKinds> GetTypeParameterConstraintKinds() {
         return [];
     }

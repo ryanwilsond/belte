@@ -491,8 +491,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             value = ResolveMethod(
                 (PENamedTypeSymbol)m.containingType,
                 m.metadataName,
-                m.GetParameterTypes()
-                    .Select(p => p.type.ContainsTemplateParameter() ? null : GetType(p.type).ToString())
+                m.GetParameters()
+                    .Select(p => p.type.ContainsTemplateParameter()
+                        ? null
+                        : GetType(p.type, p.refKind != RefKind.None).ToString())
                     .ToArray()
             );
 
@@ -1082,6 +1084,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         _fields.Add(
             (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Rest),
             Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,,,>).GetField("Rest"))));
+        _types.Add(
+            CorLibrary.GetWellKnownType(WellKnownType.Attribute),
+            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(Attribute))));
     }
 
     private MethodDefinition CreateEntryWrapperIfApplicable(MethodSymbol entrySymbol) {
@@ -1173,12 +1178,24 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     private TypeDefinition CreateNamedTypeDefinition(NamedTypeSymbol type, bool isNested = false) {
-        var typeDefinition = new TypeDefinition(
-            GetNamespaceName(type),
-            type.name,
-            GetTypeAttributes(type, isNested),
-            GetBaseType(type)
-        );
+        TypeDefinition typeDefinition;
+
+        if (type.isInterface) {
+            typeDefinition = new TypeDefinition(
+                GetNamespaceName(type),
+                type.name,
+                GetTypeAttributes(type, isNested)
+            );
+        } else {
+            typeDefinition = new TypeDefinition(
+                GetNamespaceName(type),
+                type.name,
+                GetTypeAttributes(type, isNested),
+                GetBaseType(type)
+            );
+        }
+
+        AddInterfaceImplementations(type, typeDefinition);
 
         if (type.explicitAlignment is not null)
             typeDefinition.PackingSize = (short)type.explicitAlignment;
@@ -1210,13 +1227,19 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         return typeDefinition;
     }
 
+    private void AddInterfaceImplementations(NamedTypeSymbol type, TypeDefinition typeDefinition) {
+        foreach (var @interface in type.Interfaces())
+            typeDefinition.Interfaces.Add(new InterfaceImplementation(GetType(@interface)));
+    }
+
     private TypeReference GetBaseType(NamedTypeSymbol type) {
-        if (type.baseType is null || type.IsStructType())
+        if (type.IsStructType())
             return NetTypeReference.ValueType;
 
         if (type.IsEnumType())
             return NetTypeReference.Enum;
 
+        Debug.Assert(type.baseType is not null);
         return GetType(type.baseType);
     }
 
@@ -1596,7 +1619,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     private static TypeAttributes GetTypeAttributes(NamedTypeSymbol type, bool isNested) {
-        var attributes = TypeAttributes.Class;
+        // Structs use TypeAttributes.Class
+        var attributes = type.isInterface ? TypeAttributes.Interface : TypeAttributes.Class;
 
         if (type.isStatic)
             attributes |= TypeAttributes.Abstract | TypeAttributes.Sealed;
@@ -2244,6 +2268,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 { "String_TrimStart_S[", ResolveMethod("Belte.Runtime.Utilities", "StringTrimStart", ["System.String", "System.Char[]"]) },
                 { "String_TrimEnd_S", ResolveMethod("Belte.Runtime.Utilities", "StringTrimEnd", ["System.String"]) },
                 { "String_TrimEnd_S[", ResolveMethod("Belte.Runtime.Utilities", "StringTrimEnd", ["System.String", "System.Char[]"]) },
+                { "String_Contains_SS", ResolveMethod("Belte.Runtime.Utilities", "StringContains", ["System.String", "System.String"]) },
                 { "Int_Parse_S?", ResolveMethod("Belte.Runtime.Utilities", "IntParse", ["System.String"]) },
                 { "Int_ToString_IS", ResolveMethod("Belte.Runtime.Utilities", "IntToString", ["System.Int64", "System.String"]) },
                 { "Decimal_IsNaN_F4", ResolveMethod("System.Single", "IsNaN", ["System.Single"]) },

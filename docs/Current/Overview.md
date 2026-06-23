@@ -105,7 +105,7 @@ These keywords are reserved names and cannot be used as identifiers.
 - [constexpr](ClassesAndObjects.md#433-static-and-constexpr) (field modifier)
 - [constructor](ClassesAndObjects.md#44-constructors-and-finalizers)
 - [continue](ControlFlow.md#246-continue)
-- [default](Data.md#314-default-literal) (literal)
+- [default](Data.md#315-default-literal) (literal)
 - [default](ControlFlow.md#25-switch) (switch label)
 - [defer](ControlFlow.md#28-defer-statements) (defer)
 - [defer](ControlFlow.md#211-reverse-statements) (reverse defer)
@@ -115,7 +115,8 @@ These keywords are reserved names and cannot be used as identifiers.
 - [enum](ClassesAndObjects.md#46-enums)
 - [extends](ClassesAndObjects.md#412-inheritance) (inheritance)
 - [extends](ClassesAndObjects.md#4512-special-constraints) (template constraint)
-- [extern](LowLevelFeatures.md#67-extern-methods)
+- [extern](LowLevelFeatures.md#67-extern-methods) (modifier)
+- [extern](LowLevelFeatures.md#673-extern-blocks) (member block)
 - [false](Data.md#31-data-types)
 - [final](Data.md#331-modifiers)
 - [finalizer](ClassesAndObjects.md#44-constructors-and-finalizers)
@@ -128,7 +129,9 @@ These keywords are reserved names and cannot be used as identifiers.
 - [if](ControlFlow.md#23-conditionals) (conditional)
 - [if](Preprocessor.md#72-control) (preprocessor)
 - [il](LowLevelFeatures.md#611-inline-il)
+- [implements](ClassesAndObjects.md#412-inheritance)
 - [in](ControlFlow.md#244-for-each-loops)
+- [interface](ClassesAndObjects.md#410-interfaces)
 - [is](Data.md#32-operators)
 - [isnt](Data.md#32-operators)
 - [lowlevel](LowLevelFeatures.md#61-low-level-contexts) (scope modifier)
@@ -485,7 +488,6 @@ most of the differences to make it more clear where the language is unique with 
 - [Extremely flexible meta-programming](LowLevelFeatures.md#613-compiler-handle)
 - [Compile-time expressions](Data.md#37-compile-time-expressions)
 - [Optional build scripts instead of project files](../Build.md)
-- No interfaces
 - No properties
 - No extension methods (yet)
 - No array covariance
@@ -522,7 +524,7 @@ most of the differences to make it more clear where the language is unique with 
 - [Conditionals accept expressions of type `bool?` instead of `bool`](ControlFlow.md#231-null-conditions)
 - [Null-binding contracts](ControlFlow.md#232-null-binding-contracts)
 - Pointers and other low-level features don't require `unsafe` contexts
-- [More concise function and function pointer type syntax](Data.md#313-function-type)
+- [More concise function and function pointer type syntax](Data.md#314-function-type)
 - [More concise unmanaged function pointer type syntax](LowLevelFeatures.md#66-function-pointers)
 - [More concise calling convention syntax](LowLevelFeatures.md#661-calling-conventions)
 - [Fixed fields don't require a `fixed` keyword](LowLevelFeatures.md#68-fixed-size-buffers)
@@ -530,7 +532,7 @@ most of the differences to make it more clear where the language is unique with 
 - [Explicitly-named sized numerics (e.g. `uint16`)](LowLevelFeatures.md#64-numerics)
 - [`winbool` type instead of marshalling `bool` as 4-bytes in `extern`s](LowLevelFeatures.md#671-winbool)
 - `bool` marshals as 1 byte in `extern`s
-- [String interpolation uses `f""` instead of `$""`](Data.md#312-string-interpolation)
+- [String interpolation uses `f""` instead of `$""`](Data.md#3122-string-interpolation)
 - [More expressive implicit typing allowing with `var`, `const`, and `constexpr` and nullable annotations](Data.md#332-implicit-typing)
 - [Argument coercion with `implicit` keyword](ControlFlow.md#217-argument-coercion)
 - [More operators (`x!`, `x!!`, `x?`, `x /\ y`, `x \/ y`, `x >< [y, z]`, `x ?! y`, `x..y`, `x?..y`)](Data.md#322-uncommon-operators)
@@ -545,8 +547,9 @@ most of the differences to make it more clear where the language is unique with 
 - [`using` aliases can be placed anywhere instead of only before all members](ClassesAndObjects.md#481-aliasing)
 - Struct layout efficiency analysis
 - [`packed` keyword instead of StructLayout attribute](LowLevelFeatures.md#621-packing)
-- [User-defined deconstruction uses same syntax as user-defined casts](Data.md#3151-user-defined-deconstruction)
+- [User-defined deconstruction uses same syntax as user-defined casts](Data.md#3161-user-defined-deconstruction)
 - Numeric literals automatically shrink/expand to fit the context (i.e. `f` suffix for float literals is unnecessary)
+- [Extern block declarations to share modifiers/attributes across members](LowLevelFeatures.md#673-extern-blocks)
 - [Experimental: Non-numeric enum underlying types](ClassesAndObjects.md#463-experimental-underlying-types)
 - [Experimental: Non-type generics/templates](ClassesAndObjects.md#45-templates)
 - Experimental: Integrated graphics support with `Update()` point

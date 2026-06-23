@@ -107,6 +107,10 @@ public static class Utilities {
         return str.TrimEnd(trimChars);
     }
 
+    public static bool StringContains(string str, string substring) {
+        return str.Contains(substring);
+    }
+
     public static void CreateDirectory(string path) {
         System.IO.Directory.CreateDirectory(path);
     }

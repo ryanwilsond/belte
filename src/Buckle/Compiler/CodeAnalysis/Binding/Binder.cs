@@ -1081,7 +1081,7 @@ internal partial class Binder {
             return new TypeWithAnnotations(errorResult);
 
         var result = LookupResult.GetInstance();
-        var options = LookupOptions.NamespacesOrTypesOnly;
+        var options = GetSimpleNameLookupOptions(node, node.identifier.IsVerbatimIdentifier());
 
         var performedLookup = false;
 
@@ -1145,8 +1145,9 @@ internal partial class Binder {
         NamespaceOrTypeSymbol qualifier) {
         var plainName = node.identifier.valueText;
         var templateArguments = node.templateArgumentList.arguments;
-        var options = LookupOptions.NamespacesOrTypesOnly;
         var isUnboundTypeExpr = node.isUnboundTemplateName;
+
+        var options = GetSimpleNameLookupOptions(node, isVerbatimIdentifier: false);
 
         var unconstructedType = LookupTemplateTypeName(
             diagnostics,
@@ -1194,6 +1195,13 @@ internal partial class Binder {
         }
 
         return new TypeWithAnnotations(resultType);
+    }
+
+    private static LookupOptions GetSimpleNameLookupOptions(NameSyntax node, bool isVerbatimIdentifier) {
+        if (SyntaxFacts.IsAttributeName(node))
+            return isVerbatimIdentifier ? LookupOptions.VerbatimNameAttributeTypeOnly : LookupOptions.AttributeTypeOnly;
+        else
+            return LookupOptions.NamespacesOrTypesOnly;
     }
 
     private NamedTypeSymbol LookupTemplateTypeName(
@@ -2371,20 +2379,35 @@ internal partial class Binder {
         var leftNull = left.IsLiteralNull();
         var rightNull = right.IsLiteralNull();
         var isEquality = kind == BinaryOperatorKind.Equal || kind == BinaryOperatorKind.NotEqual;
+        var isEqual = kind == BinaryOperatorKind.Equal;
 
-        if (isEquality && (leftNull || rightNull)) {
-            var type = CorLibrary.GetNullableType(SpecialType.Bool);
-            return new BoundLiteralExpression(
-                node,
-                new ConstantValue(leftNull == rightNull == (kind == BinaryOperatorKind.Equal), SpecialType.Bool),
-                type
-            );
+        if (isEquality) {
+            var boolType = CorLibrary.GetSpecialType(SpecialType.Bool); ;
+
+            if (leftNull && rightNull) {
+                return new BoundLiteralExpression(
+                    node,
+                    new ConstantValue(isEqual, SpecialType.Bool),
+                    boolType
+                );
+            }
+
+            if ((leftNull && !right.type.IsNullableType()) || (rightNull && !left.type.IsNullableType())) {
+                diagnostics.Push(Warning.AlwaysValue(node.location, !isEqual));
+
+                return new BoundLiteralExpression(
+                    node,
+                    new ConstantValue(!isEqual, SpecialType.Bool),
+                    boolType
+                );
+            }
+
+            if (rightNull)
+                diagnostics.Push(Warning.NullBinaryEquality(node.location, !isEqual, left));
         }
 
-        if (IsTupleBinaryOperation(left, right) &&
-            (kind == BinaryOperatorKind.Equal || kind == BinaryOperatorKind.NotEqual)) {
+        if (IsTupleBinaryOperation(left, right) && isEquality)
             return BindTupleBinaryOperator(node, kind, left, right, diagnostics);
-        }
 
         var foundOperator = BindSimpleBinaryOperatorParts(
             node,
@@ -4785,7 +4808,8 @@ internal partial class Binder {
         if (result.error is not null && (qualifier is null || qualifier.kind != SymbolKind.ErrorType))
             diagnostics.Push(result.error);
 
-        if ((symbols.Count > 1) || (symbols[0] is NamespaceOrTypeSymbol) || result.kind == LookupResultKind.NotATypeOrNamespace) {
+        if ((symbols.Count > 1) || (symbols[0] is NamespaceOrTypeSymbol) ||
+            result.kind == LookupResultKind.NotATypeOrNamespace || result.kind == LookupResultKind.NotAnAttributeType) {
             return new ExtendedErrorTypeSymbol(
                 GetContainingNamespaceOrType(symbols[0]),
                 symbols.ToImmutable(),
@@ -4893,6 +4917,213 @@ internal partial class Binder {
     }
 
     internal void LookupSymbolsSimpleName(
+        LookupResult result,
+        NamespaceOrTypeSymbol qualifier,
+        string plainName,
+        int arity,
+        ConsList<TypeSymbol> basesBeingResolved,
+        LookupOptions options,
+        TextLocation errorLocation,
+        bool diagnose) {
+        if (options.IsAttributeTypeLookup()) {
+            LookupAttributeType(
+                result,
+                qualifier,
+                plainName,
+                arity,
+                basesBeingResolved,
+                options,
+                errorLocation,
+                diagnose
+            );
+        } else {
+            LookupSymbolsOrMembersInternal(
+                result,
+                qualifier,
+                plainName,
+                arity,
+                basesBeingResolved,
+                options,
+                errorLocation,
+                diagnose
+            );
+        }
+    }
+
+    private void LookupAttributeType(
+        LookupResult result,
+        NamespaceOrTypeSymbol qualifierOpt,
+        string name,
+        int arity,
+        ConsList<TypeSymbol> basesBeingResolved,
+        LookupOptions options,
+        TextLocation errorLocation,
+        bool diagnose) {
+        LookupSymbolsOrMembersInternal(
+            result,
+            qualifierOpt,
+            name,
+            arity,
+            basesBeingResolved,
+            options,
+            errorLocation,
+            diagnose
+        );
+
+        var resultWithoutSuffixIsViable = IsSingleViableAttributeType(
+            result,
+            errorLocation,
+            out var symbolWithoutSuffix
+        );
+
+        LookupResult resultWithSuffix = null;
+        Symbol symbolWithSuffix = null;
+        var resultWithSuffixIsViable = false;
+
+        if (!options.IsVerbatimNameAttributeTypeLookup()) {
+            resultWithSuffix = LookupResult.GetInstance();
+
+            LookupSymbolsOrMembersInternal(
+                resultWithSuffix,
+                qualifierOpt,
+                name + "Attribute",
+                arity,
+                basesBeingResolved,
+                options,
+                errorLocation,
+                diagnose
+            );
+
+            resultWithSuffixIsViable = IsSingleViableAttributeType(
+                resultWithSuffix,
+                errorLocation,
+                out symbolWithSuffix
+            );
+        }
+
+        if (resultWithoutSuffixIsViable && resultWithSuffixIsViable) {
+            result.MergeEqual(resultWithSuffix);
+        } else if (resultWithoutSuffixIsViable) {
+        } else if (resultWithSuffixIsViable) {
+            result.SetFrom(resultWithSuffix);
+        } else {
+            if (!result.isClear) {
+                if (symbolWithoutSuffix is not null) {
+                    result.SetFrom(GenerateNonViableAttributeTypeResult(
+                        symbolWithoutSuffix,
+                        result.error,
+                        errorLocation,
+                        diagnose
+                    ));
+                }
+            }
+
+            if (resultWithSuffix is not null) {
+                if (!resultWithSuffix.isClear) {
+                    if (symbolWithSuffix is not null) {
+                        resultWithSuffix.SetFrom(GenerateNonViableAttributeTypeResult(
+                            symbolWithSuffix,
+                            resultWithSuffix.error,
+                            errorLocation,
+                            diagnose
+                        ));
+                    }
+                }
+
+                result.MergePrioritized(resultWithSuffix);
+            }
+        }
+
+        resultWithSuffix?.Free();
+    }
+
+    private SingleLookupResult GenerateNonViableAttributeTypeResult(
+        Symbol symbol,
+        BelteDiagnostic error,
+        TextLocation errorLocation,
+        bool diagnose) {
+        symbol = UnwrapAliasNoDiagnostics(symbol);
+        CheckAttributeTypeViability(symbol, diagnose, errorLocation, ref error);
+        return LookupResult.NotAnAttributeType(symbol, error);
+    }
+
+    private bool IsSingleViableAttributeType(
+        LookupResult result,
+        TextLocation errorLocation,
+        out Symbol symbol) {
+        if (IsAmbiguousResult(result, out symbol))
+            return false;
+
+        if (result is null || result.kind != LookupResultKind.Viable || symbol is null)
+            return false;
+
+        BelteDiagnostic discarded = null;
+        return CheckAttributeTypeViability(
+            UnwrapAliasNoDiagnostics(symbol),
+            diagnose: false,
+            errorLocation: errorLocation,
+            error: ref discarded
+        );
+    }
+
+    private bool CheckAttributeTypeViability(
+        Symbol symbol,
+        bool diagnose,
+        TextLocation errorLocation,
+        ref BelteDiagnostic error) {
+        if (symbol.kind == SymbolKind.NamedType) {
+            var namedType = (NamedTypeSymbol)symbol;
+
+            if (namedType.isAbstract) {
+                error = diagnose ? Error.AbstractAttributeClass(errorLocation, symbol) : null;
+                return false;
+            } else {
+                if (compilation.IsEqualOrDerivedFromWellKnownClass(namedType, WellKnownType.Attribute)) {
+                    return true;
+                }
+            }
+        }
+
+        error = diagnose ? Error.NotAnAttributeClass(errorLocation, symbol) : null;
+        return false;
+    }
+
+    private bool IsAmbiguousResult(LookupResult result, out Symbol resultSymbol) {
+        resultSymbol = null;
+        var symbols = result.symbols;
+
+        switch (symbols.Count) {
+            case 0:
+                return false;
+            case 1:
+                resultSymbol = symbols[0];
+                return false;
+            default:
+                resultSymbol = ResolveMultipleSymbolsInAttributeTypeLookup(symbols);
+                return resultSymbol is null;
+        }
+    }
+
+    private Symbol ResolveMultipleSymbolsInAttributeTypeLookup(ArrayBuilder<Symbol> symbols) {
+        var originalSymbols = symbols.ToImmutable();
+
+        for (var i = 0; i < symbols.Count; i++)
+            symbols[i] = UnwrapAliasNoDiagnostics(symbols[i]);
+
+        var best = GetBestSymbolInfo(symbols, out var secondBest);
+
+        if (best.isFromCompilation && !secondBest.isFromCompilation) {
+            var srcSymbol = symbols[best.index];
+            var mdSymbol = symbols[secondBest.index];
+
+            if (NameAndArityMatchRecursively(srcSymbol, mdSymbol))
+                return originalSymbols[best.index];
+        }
+
+        return null;
+    }
+
+    internal void LookupSymbolsOrMembersInternal(
         LookupResult result,
         NamespaceOrTypeSymbol qualifier,
         string plainName,
@@ -5015,6 +5246,20 @@ internal partial class Binder {
                 );
 
                 break;
+            case TypeKind.Interface:
+                LookupMembersInInterface(
+                    result,
+                    (NamedTypeSymbol)type,
+                    name,
+                    arity,
+                    basesBeingResolved,
+                    options,
+                    originalBinder,
+                    errorLocation,
+                    diagnose
+                );
+
+                break;
             case TypeKind.Class:
             case TypeKind.Struct:
             case TypeKind.Enum:
@@ -5109,6 +5354,188 @@ internal partial class Binder {
         );
     }
 
+    private void LookupMembersInInterface(
+        LookupResult current,
+        NamedTypeSymbol type,
+        string name,
+        int arity,
+        ConsList<TypeSymbol> basesBeingResolved,
+        LookupOptions options,
+        Binder originalBinder,
+        TextLocation errorLocation,
+        bool diagnose) {
+        LookupMembersInInterfaceOnly(
+            current,
+            type,
+            name,
+            arity,
+            basesBeingResolved,
+            options,
+            originalBinder,
+            errorLocation,
+            type,
+            diagnose
+        );
+
+        var tmp = LookupResult.GetInstance();
+
+        LookupMembersInClass(
+            tmp,
+            CorLibrary.GetSpecialType(SpecialType.Object),
+            name,
+            arity,
+            basesBeingResolved,
+            options,
+            originalBinder,
+            type.location,
+            diagnose
+        );
+
+        MergeHidingLookupResults(current, tmp, basesBeingResolved);
+        tmp.Free();
+    }
+
+    private void LookupMembersInInterfaceOnly(
+        LookupResult current,
+        NamedTypeSymbol type,
+        string name,
+        int arity,
+        ConsList<TypeSymbol> basesBeingResolved,
+        LookupOptions options,
+        Binder originalBinder,
+        TextLocation errorLocation,
+        TypeSymbol accessThroughType,
+        bool diagnose) {
+        LookupMembersWithoutInheritance(
+            current,
+            type,
+            name,
+            arity,
+            options,
+            originalBinder,
+            errorLocation,
+            accessThroughType,
+            diagnose,
+            basesBeingResolved
+        );
+
+        if ((options & LookupOptions.NamespaceAliasesOnly) == 0 &&
+            ((options & LookupOptions.NamespacesOrTypesOnly) == 0 ||
+                !(current.isSingleViable &&
+                    TypeSymbol.Equals(
+                        current.singleSymbolOrDefault.containingType,
+                        type,
+                        TypeCompareKind.AllIgnoreOptions)))) {
+            LookupMembersInInterfacesWithoutInheritance(
+                current,
+                GetBaseInterfaces(type, basesBeingResolved),
+                name,
+                arity,
+                basesBeingResolved,
+                options,
+                originalBinder,
+                errorLocation,
+                accessThroughType,
+                diagnose
+            );
+        }
+    }
+
+    private static ImmutableArray<NamedTypeSymbol> GetBaseInterfaces(
+        NamedTypeSymbol type,
+        ConsList<TypeSymbol> basesBeingResolved) {
+        if (basesBeingResolved?.Any() != true)
+            return type.allInterfaces;
+
+        if (basesBeingResolved.ContainsReference(type.originalDefinition))
+            return [];
+
+        var interfaces = type.GetDeclaredInterfaces(basesBeingResolved);
+
+        if (interfaces.IsEmpty)
+            return [];
+
+        var cycleGuard = ConsList<NamedTypeSymbol>.Empty.Prepend(type.originalDefinition);
+
+        var result = ArrayBuilder<NamedTypeSymbol>.GetInstance();
+        var visited = new HashSet<NamedTypeSymbol>(SymbolEqualityComparer.ConsiderEverything);
+
+        for (var i = interfaces.Length - 1; i >= 0; i--)
+            AddAllInterfaces(interfaces[i], visited, result, basesBeingResolved, cycleGuard);
+
+        result.ReverseContents();
+        return result.ToImmutableAndFree();
+
+        static void AddAllInterfaces(
+            NamedTypeSymbol @interface,
+            HashSet<NamedTypeSymbol> visited,
+            ArrayBuilder<NamedTypeSymbol> result,
+            ConsList<TypeSymbol> basesBeingResolved,
+            ConsList<NamedTypeSymbol> cycleGuard) {
+            NamedTypeSymbol originalDefinition;
+
+            if (@interface.isInterface &&
+                !cycleGuard.ContainsReference(originalDefinition = @interface.originalDefinition) &&
+                visited.Add(@interface)) {
+                if (!basesBeingResolved.ContainsReference(originalDefinition)) {
+                    var baseInterfaces = @interface.GetDeclaredInterfaces(basesBeingResolved);
+
+                    if (!baseInterfaces.IsEmpty) {
+                        cycleGuard = cycleGuard.Prepend(originalDefinition);
+
+                        for (var i = baseInterfaces.Length - 1; i >= 0; i--) {
+                            var baseInterface = baseInterfaces[i];
+                            AddAllInterfaces(baseInterface, visited, result, basesBeingResolved, cycleGuard);
+                        }
+                    }
+                }
+
+                result.Add(@interface);
+            }
+        }
+    }
+
+    private void LookupMembersInInterfacesWithoutInheritance(
+        LookupResult current,
+        ImmutableArray<NamedTypeSymbol> interfaces,
+        string name,
+        int arity,
+        ConsList<TypeSymbol> basesBeingResolved,
+        LookupOptions options,
+        Binder originalBinder,
+        TextLocation errorLocation,
+        TypeSymbol accessThroughType,
+        bool diagnose) {
+        if (interfaces.Length > 0) {
+            var tmp = LookupResult.GetInstance();
+            HashSet<NamedTypeSymbol> seenInterfaces = null;
+            if (interfaces.Length > 1)
+                seenInterfaces = new HashSet<NamedTypeSymbol>(SymbolEqualityComparer.Default);
+
+            foreach (var baseInterface in interfaces) {
+                if (seenInterfaces is null || seenInterfaces.Add(baseInterface)) {
+                    LookupMembersWithoutInheritance(
+                        tmp,
+                        baseInterface,
+                        name,
+                        arity,
+                        options,
+                        originalBinder,
+                        errorLocation,
+                        accessThroughType,
+                        diagnose,
+                        basesBeingResolved
+                    );
+
+                    MergeHidingLookupResults(current, tmp, basesBeingResolved);
+                    tmp.Clear();
+                }
+            }
+
+            tmp.Free();
+        }
+    }
+
     private void LookupMembersInClass(
         LookupResult result,
         TypeSymbol type,
@@ -5193,9 +5620,22 @@ internal partial class Binder {
 
             for (var i = 0; i < hiddenCount; i++) {
                 var sym = hiddenSymbols[i];
+                var hiddenContainer = sym.containingType;
 
                 for (var j = 0; j < hidingCount; j++) {
                     var hidingSym = hidingSymbols[j];
+                    var hidingContainer = hidingSym.containingType;
+                    var hidingContainerIsInterface = hidingContainer.isInterface;
+
+                    if (hidingContainerIsInterface) {
+                        if (!IsDerivedType(
+                                baseType: hiddenContainer,
+                                derivedType: hidingSym.containingType,
+                                basesBeingResolved) &&
+                            hiddenContainer.specialType != SpecialType.Object) {
+                            continue;
+                        }
+                    }
 
                     if (hidingSym.kind != SymbolKind.Method || sym.kind != SymbolKind.Method)
                         goto symIsHidden;
@@ -5207,6 +5647,33 @@ symIsHidden:;
         } else {
             resultHiding.MergePrioritized(resultHidden);
         }
+    }
+
+    private static bool IsDerivedType(
+        NamedTypeSymbol baseType,
+        NamedTypeSymbol derivedType,
+        ConsList<TypeSymbol> basesBeingResolved) {
+        if (basesBeingResolved?.Any() != true) {
+            for (var b = derivedType.baseType; b is not null; b = b.baseType) {
+                if (TypeSymbol.Equals(b, baseType, TypeCompareKind.ConsiderEverything))
+                    return true;
+            }
+        } else {
+            PooledHashSet<NamedTypeSymbol> visited = null;
+
+            for (var b = (NamedTypeSymbol)derivedType.GetNextBaseType(basesBeingResolved, ref visited);
+                 b is not null;
+                 b = (NamedTypeSymbol)b.GetNextBaseType(basesBeingResolved, ref visited)) {
+                if (TypeSymbol.Equals(b, baseType, TypeCompareKind.ConsiderEverything)) {
+                    visited?.Free();
+                    return true;
+                }
+            }
+
+            visited?.Free();
+        }
+
+        return baseType.isInterface && GetBaseInterfaces(derivedType, basesBeingResolved).Contains(baseType);
     }
 
     private protected static void LookupMembersWithoutInheritance(
@@ -5515,6 +5982,9 @@ symIsHidden:;
                 );
 
                 break;
+            case TypeKind.Interface:
+                AddMemberLookupSymbolsInfoInInterface(result, type, options, originalBinder, type);
+                break;
             case TypeKind.Class:
             case TypeKind.Enum:
             case TypeKind.Struct:
@@ -5522,6 +5992,33 @@ symIsHidden:;
                 AddMemberLookupSymbolsInfoInClass(result, type, options, originalBinder, type);
                 break;
         }
+    }
+
+    private void AddMemberLookupSymbolsInfoInInterface(
+        LookupSymbolsInfo result,
+        TypeSymbol type,
+        LookupOptions options,
+        Binder originalBinder,
+        TypeSymbol accessThroughType) {
+        AddMemberLookupSymbolsInfoWithoutInheritance(result, type, options, originalBinder, accessThroughType);
+
+        foreach (var baseInterface in type.allInterfaces) {
+            AddMemberLookupSymbolsInfoWithoutInheritance(
+                result,
+                baseInterface,
+                options,
+                originalBinder,
+                accessThroughType
+            );
+        }
+
+        AddMemberLookupSymbolsInfoInClass(
+            result,
+            CorLibrary.GetSpecialType(SpecialType.Object),
+            options,
+            originalBinder,
+            accessThroughType
+        );
     }
 
     private void AddMemberLookupSymbolsInfoInTemplateParameter(
@@ -6929,6 +7426,15 @@ symIsHidden:;
                         wasTargetTyped: true,
                         diagnostics
                     );
+                case TypeKind.Interface:
+                    return binder.BindInterfaceCreationExpression(
+                        syntax,
+                        (NamedTypeSymbol)type,
+                        diagnostics,
+                        typeNode: syntax,
+                        arguments,
+                        wasTargetTyped: true
+                    );
                 case TypeKind.Array:
                 case TypeKind.Pointer:
                 case TypeKind.FunctionPointer:
@@ -6941,6 +7447,17 @@ symIsHidden:;
                     throw ExceptionUtilities.UnexpectedValue(type.typeKind);
             }
         }
+    }
+
+    private BoundExpression BindInterfaceCreationExpression(
+        SyntaxNode node,
+        NamedTypeSymbol type,
+        BelteDiagnosticQueue diagnostics,
+        SyntaxNode typeNode,
+        AnalyzedArguments analyzedArguments,
+        bool wasTargetTyped) {
+        diagnostics.Push(Error.CannotCreateInterface(node.location, type));
+        return MakeErrorExpressionForObjectCreation(node, type, analyzedArguments, typeNode, diagnostics);
     }
 
     private BoundExpression ConvertExtendedLiteralExpression(
