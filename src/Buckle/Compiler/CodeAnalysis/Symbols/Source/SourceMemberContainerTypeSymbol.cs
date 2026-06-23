@@ -65,6 +65,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     private ImmutableArray<Symbol> _lazyMembersFlattened;
     private SynthesizedExplicitImplementations _lazySynthesizedExplicitImplementations;
     private ThreeState _lazyAnyMemberHasAttributes;
+    private Dictionary<SyntaxNode, ScopeInheritorInfo> _lazyScopeInheritorInfo;
     private int _lazyKnownCircularStruct;
     private int _lazyHasStructDefault;
     private int _lazyKnownToBeImmutable;
@@ -2164,6 +2165,17 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 case SyntaxKind.FieldDeclaration:
                     AddFieldMember((FieldDeclarationSyntax)m, reportMisplacedGlobalCode);
                     break;
+                case SyntaxKind.ExternBlockDeclaration: {
+                        var externSyntax = (ExternBlockDeclarationSyntax)m;
+
+                        if (isImplicitClass && reportMisplacedGlobalCode)
+                            diagnostics.Push(Error.NamespaceUnexpected(externSyntax.keyword.location));
+
+                        AddScopeInheritorInfo(externSyntax, diagnostics);
+                        AddNonTypeMembers(builder, externSyntax.members, diagnostics);
+                    }
+
+                    break;
                 case SyntaxKind.MethodDeclaration: {
                         var methodSyntax = (MethodDeclarationSyntax)m;
 
@@ -2364,6 +2376,47 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 _lazyAnonymousUnionFields.Add(result, field);
             }
         }
+
+        void AddScopeInheritorInfo(ExternBlockDeclarationSyntax syntax, BelteDiagnosticQueue diagnostics) {
+            var modifiers = ModifierHelpers.CreateModifiers(syntax.modifiers, diagnostics, out _);
+            modifiers |= DeclarationModifiers.Extern | DeclarationModifiers.Static;
+
+            var scopeInfo = new ScopeInheritorInfo(modifiers, syntax.attributeLists);
+
+            if (_lazyScopeInheritorInfo is null)
+                Interlocked.CompareExchange(ref _lazyScopeInheritorInfo, [], null);
+
+            lock (_lazyScopeInheritorInfo) {
+                if (_lazyScopeInheritorInfo.TryGetValue(syntax, out _))
+                    return;
+
+                _lazyScopeInheritorInfo.Add(syntax, scopeInfo);
+            }
+        }
+    }
+
+    internal DeclarationModifiers GetInheritedModifiersForMember(SyntaxNode syntax) {
+        if (_lazyScopeInheritorInfo is null)
+            return DeclarationModifiers.None;
+
+        foreach (var (key, value) in _lazyScopeInheritorInfo) {
+            if (key.Contains(syntax))
+                return value.modifiers;
+        }
+
+        return DeclarationModifiers.None;
+    }
+
+    internal SyntaxList<AttributeListSyntax> GetInheritedAttributeListsForMember(SyntaxNode syntax) {
+        if (_lazyScopeInheritorInfo is null)
+            return null;
+
+        foreach (var (key, value) in _lazyScopeInheritorInfo) {
+            if (key.Contains(syntax))
+                return value.attributeLists;
+        }
+
+        return null;
     }
 
     private static void AddInitializer(

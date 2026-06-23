@@ -148,6 +148,13 @@ internal static class SyntaxNodeExtensions {
         return syntax;
     }
 
+    internal static SyntaxNode SkipExtern(this SyntaxNode node) {
+        if (node.kind == SyntaxKind.ExternBlockDeclaration)
+            return SkipExtern(node.parent);
+
+        return node;
+    }
+
     internal static RefKind GetRefKind(this TypeSyntax syntax) {
         syntax.SkipRef(out var refKind);
         return refKind;

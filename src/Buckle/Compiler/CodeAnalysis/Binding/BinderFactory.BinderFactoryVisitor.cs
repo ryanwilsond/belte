@@ -322,6 +322,10 @@ internal sealed partial class BinderFactory {
             return resultBinder;
         }
 
+        internal override Binder VisitExternBlockDeclaration(ExternBlockDeclarationSyntax node) {
+            return Visit(node.parent);
+        }
+
         internal override Binder VisitMethodDeclaration(MethodDeclarationSyntax node) {
             if (!LookupPosition.IsInMethodDeclaration(_position, node)) {
                 var reverseClause = node.reverseClause;
@@ -357,7 +361,7 @@ internal sealed partial class BinderFactory {
             var key = CreateBinderCacheKey(node, nodeUsage);
 
             if (!_binderCache.TryGetValue(key, out var resultBinder)) {
-                var parentType = node.parent as TypeDeclarationSyntax;
+                var parentType = node.parent.SkipExtern() as TypeDeclarationSyntax;
 
                 if (parentType is not null)
                     resultBinder = VisitTypeDeclarationCore(parentType, NodeUsage.NamedTypeBodyOrTemplateParameters);
@@ -392,7 +396,7 @@ internal sealed partial class BinderFactory {
             var key = CreateBinderCacheKey(node, usage);
 
             if (!_binderCache.TryGetValue(key, out var resultBinder)) {
-                var grandParentType = node.parent.parent as TypeDeclarationSyntax;
+                var grandParentType = node.parent.parent.SkipExtern() as TypeDeclarationSyntax;
 
                 if (grandParentType is not null) {
                     resultBinder = VisitTypeDeclarationCore(

@@ -302,6 +302,7 @@ public enum SyntaxKind : ushort {
     PackedArgument,
     ClassDeclaration,
     FileScopedClassDeclaration,
+    ExternBlockDeclaration,
     InterfaceDeclaration,
     UnionDeclaration,
     EnumDeclaration,

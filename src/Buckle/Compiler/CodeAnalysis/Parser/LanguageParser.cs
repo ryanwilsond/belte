@@ -395,6 +395,18 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
             if (currentToken.contextualKind is SyntaxKind.ImplicitKeyword or SyntaxKind.ExplicitKeyword)
                 return ParseConversionDeclaration(attributeLists, modifiers);
+
+            if (anyModifiers && modifiers.last.kind == SyntaxKind.ExternKeyword &&
+                currentToken.kind == SyntaxKind.OpenBraceToken) {
+                var newModifiersBuilder = _pool.Allocate<SyntaxToken>();
+
+                for (var i = 0; i < modifiers.Count - 1; i++)
+                    newModifiersBuilder.Add(modifiers[i]);
+
+                var newModifiers = _pool.ToListAndFree(newModifiersBuilder);
+
+                return ParseExternBlockDeclaration(attributeLists, newModifiers, modifiers.last);
+            }
         }
 
         switch (currentToken.kind) {
@@ -462,6 +474,24 @@ internal sealed partial class LanguageParser : SyntaxParser {
             return ParseFieldDeclaration(attributeLists, modifiers);
     }
 
+    private MemberDeclarationSyntax ParseExternBlockDeclaration(
+        SyntaxList<AttributeListSyntax> attributeLists,
+        SyntaxList<SyntaxToken> modifiers,
+        SyntaxToken externKeyword) {
+        var openBrace = MatchOpenBrace();
+        var members = ParseTypeMembers(ref openBrace);
+        var closeBrace = MatchCloseBrace();
+
+        return SyntaxFactory.ExternBlockDeclaration(
+            attributeLists,
+            modifiers,
+            externKeyword,
+            openBrace,
+            members,
+            closeBrace
+        );
+    }
+
     private bool PeekIsPostReturnFunction() {
         if (currentToken.kind == SyntaxKind.IdentifierToken) {
             var innerResetPoint = GetResetPoint();
@@ -502,6 +532,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.DestructorDeclaration:
             case SyntaxKind.NamespaceDeclaration:
             case SyntaxKind.FileScopedNamespaceDeclaration:
+            case SyntaxKind.ExternBlockDeclaration:
                 return true;
             case SyntaxKind.FieldDeclaration:
             case SyntaxKind.MethodDeclaration:

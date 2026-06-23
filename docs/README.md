@@ -179,6 +179,7 @@
     - [6.7](Current/LowLevelFeatures.md#67-extern-methods) Extern Methods
       - [6.7.1](Current/LowLevelFeatures.md#671-winbool) WinBool
       - [6.7.2](Current/LowLevelFeatures.md#672-unmanaged-methods) Unmanaged Methods
+      - [6.7.3](Current/LowLevelFeatures.md#673-extern-blocks) Extern Blocks
     - [6.8](Current/LowLevelFeatures.md#68-fixed-size-buffers) Fixed Size Buffers
     - [6.9](Current/LowLevelFeatures.md#69-sizeof-operator) Sizeof Operator
     - [6.10](Current/LowLevelFeatures.md#610-stackalloc-operator) Stackalloc Operator

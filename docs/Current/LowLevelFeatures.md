@@ -22,6 +22,7 @@ a lowlevel context.
 - [6.7](#67-extern-methods) Extern Methods
   - [6.7.1](#671-winbool) WinBool
   - [6.7.2](#672-unmanaged-methods) Unmanaged Methods
+  - [6.7.3](#673-extern-blocks) Extern Blocks
 - [6.8](#68-fixed-size-buffers) Fixed Size Buffers
 - [6.9](#69-sizeof-operator) Sizeof Operator
 - [6.10](#610-stackalloc-operator) Stackalloc Operator
@@ -427,6 +428,42 @@ public static void MyMethod(int param) { /* ... */ }
 
 SomeFunc(MyMethod);
 ```
+
+### 6.7.3 Extern Blocks
+
+If declaring many extern methods from the same library, a extern block declaration can be used. Every member inside the
+block is implicitly marked static and extern and defaults to the block's accessibility if set.
+
+Consider this example where many methods are being imported:
+
+```belte
+[DllImport("ws2_32.dll")]
+public static extern int32 recv(int32 s, uint8* buf, int32 len, int32 flags);
+
+[DllImport("ws2_32.dll")]
+public static extern uint16 htons(uint16 hostshort);
+
+[DllImport("ws2_32.dll")]
+public static extern uint32 inet_addr(uint8* cp);
+
+[DllImport("ws2_32.dll")]
+public static extern int32 closesocket(int32 s);]
+```
+
+The above example could be instead written:
+
+```belte
+[DllImport("ws2_32.dll")]
+public extern {
+  int32 recv(int32 s, uint8* buf, int32 len, int32 flags);
+  uint16 htons(uint16 hostshort);
+  uint32 inet_addr(uint8* cp);
+  int32 closesocket(int32 s);
+}
+```
+
+The attributes on the extern block are treated as though each member independently declared them, meaning an error in
+the attribute will produce a diagnostic per member as different member kinds may treat some attributes differently.
 
 ## 6.8 Fixed Size Buffers
 

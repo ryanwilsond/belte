@@ -115,7 +115,8 @@ These keywords are reserved names and cannot be used as identifiers.
 - [enum](ClassesAndObjects.md#46-enums)
 - [extends](ClassesAndObjects.md#412-inheritance) (inheritance)
 - [extends](ClassesAndObjects.md#4512-special-constraints) (template constraint)
-- [extern](LowLevelFeatures.md#67-extern-methods)
+- [extern](LowLevelFeatures.md#67-extern-methods) (modifier)
+- [extern](LowLevelFeatures.md#673-extern-blocks) (member block)
 - [false](Data.md#31-data-types)
 - [final](Data.md#331-modifiers)
 - [finalizer](ClassesAndObjects.md#44-constructors-and-finalizers)
@@ -548,6 +549,7 @@ most of the differences to make it more clear where the language is unique with 
 - [`packed` keyword instead of StructLayout attribute](LowLevelFeatures.md#621-packing)
 - [User-defined deconstruction uses same syntax as user-defined casts](Data.md#3161-user-defined-deconstruction)
 - Numeric literals automatically shrink/expand to fit the context (i.e. `f` suffix for float literals is unnecessary)
+- [Extern block declarations to share modifiers/attributes across members](LowLevelFeatures.md#673-extern-blocks)
 - [Experimental: Non-numeric enum underlying types](ClassesAndObjects.md#463-experimental-underlying-types)
 - [Experimental: Non-type generics/templates](ClassesAndObjects.md#45-templates)
 - Experimental: Integrated graphics support with `Update()` point

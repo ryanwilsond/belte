@@ -144,6 +144,13 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
     }
 
     internal sealed override OneOrMany<SyntaxList<AttributeListSyntax>> GetAttributeDeclarations() {
+        if (containingType is SourceMemberContainerTypeSymbol sourceType) {
+            var inheritedAttributes = sourceType.GetInheritedAttributeListsForMember(_syntax);
+
+            if (inheritedAttributes is not null)
+                return OneOrMany.Create(_attributeDeclarationSyntaxList, inheritedAttributes);
+        }
+
         return OneOrMany.Create(_attributeDeclarationSyntaxList);
     }
 
@@ -208,9 +215,17 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         var isInterface = containingType.isInterface;
         var isExplicitInterfaceImplementation = methodKind == MethodKind.ExplicitInterfaceImplementation;
 
+        var inheritedModifiers = containingType is SourceMemberContainerTypeSymbol sourceType
+            ? sourceType.GetInheritedModifiersForMember(syntax)
+            : DeclarationModifiers.None;
+
+        var inheritedAccess = inheritedModifiers & DeclarationModifiers.AccessibilityMask;
+
         var defaultAccess = isInterface && !isExplicitInterfaceImplementation
             ? DeclarationModifiers.None
-            : DeclarationModifiers.Private;
+            : inheritedAccess != DeclarationModifiers.None
+                ? inheritedAccess
+                : DeclarationModifiers.Private;
 
         var allowedModifiers =
               DeclarationModifiers.LowLevel
@@ -258,6 +273,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         }
 
         mods = AddImpliedModifiers(mods, isInterface, methodKind, hasBody);
+        mods |= inheritedModifiers;
         return (mods, hasExplicitAccessMod);
     }
 
