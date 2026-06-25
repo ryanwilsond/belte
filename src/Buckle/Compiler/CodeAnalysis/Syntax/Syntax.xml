@@ -862,6 +862,52 @@
       <Kind Name="PeriodToken"/>
     </Field>
   </Node>
+  <Node Name="PropertyDeclarationSyntax" Base="MemberDeclarationSyntax">
+    <Kind Name="PropertyDeclaration"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
+    <Field Name="propertyKeyword" Type="SyntaxToken">
+      <Kind Name="PropertyKeyword"/>
+    </Field>
+    <Field Name="type" Type="TypeSyntax"/>
+    <Field Name="explicitInterfaceSpecifier" Type="ExplicitInterfaceSpecifierSyntax" Optional="true"/>
+    <Field Name="identifier" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="accessorList" Type="AccessorListSyntax" Optional="true"/>
+    <Field Name="expressionBody" Type="ArrowExpressionClauseSyntax" Optional="true"/>
+    <Field Name="semicolonToken" Type="SyntaxToken" Optional="true">
+      <Kind Name="SemicolonToken" />
+    </Field>
+  </Node>
+  <Node Name="ArrowExpressionClauseSyntax" Base="SyntaxNode">
+    <Kind Name="ArrowExpressionClause" />
+    <Field Name="arrowToken" Type="SyntaxToken">
+      <Kind Name="EqualsGreaterThanToken"/>
+    </Field>
+    <Field Name="expression" Type="ExpressionSyntax"/>
+  </Node>
+  <Node Name="AccessorListSyntax" Base="SyntaxNode">
+    <Kind Name="AccessorList"/>
+    <Field Name="openBraceToken" Type="SyntaxToken">
+      <Kind Name="OpenBraceToken"/>
+    </Field>
+    <Field Name="accessors" Type="SyntaxList&lt;AccessorDeclarationSyntax&gt;"/>
+    <Field Name="closeBraceToken" Type="SyntaxToken">
+      <Kind Name="CloseBraceToken"/>
+    </Field>
+  </Node>
+  <Node Name="AccessorDeclarationSyntax" Base="SyntaxNode">
+    <Kind Name="AccessorDeclaration"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;"/>
+    <Field Name="keyword" Type="SyntaxToken"/>
+    <Field Name="body" Type="BlockStatementSyntax" Optional="true"/>
+    <Field Name="expressionBody" Type="ArrowExpressionClauseSyntax" Optional="true"/>
+    <Field Name="semicolonToken" Type="SyntaxToken" Optional="true">
+      <Kind Name="SemicolonToken"/>
+    </Field>
+  </Node>
   <Node Name="MethodDeclarationSyntax" Base="BaseMethodDeclarationSyntax">
     <Kind Name="MethodDeclaration"/>
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>

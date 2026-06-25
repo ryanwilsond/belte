@@ -252,6 +252,9 @@ public static class SyntaxFacts {
             "commit" => SyntaxKind.CommitKeyword,
             "implements" => SyntaxKind.ImplementsKeyword,
             "interface" => SyntaxKind.InterfaceKeyword,
+            "property" => SyntaxKind.PropertyKeyword,
+            "set" => SyntaxKind.SetKeyword,
+            "get" => SyntaxKind.GetKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -263,6 +266,7 @@ public static class SyntaxFacts {
             case SyntaxKind.EndifKeyword:
             case SyntaxKind.ExplicitKeyword:
             case SyntaxKind.FlagsKeyword:
+            case SyntaxKind.GetKeyword:
             case SyntaxKind.HandleKeyword:
             case SyntaxKind.HasKeyword:
             case SyntaxKind.ImplicitKeyword:
@@ -272,6 +276,8 @@ public static class SyntaxFacts {
             case SyntaxKind.NoVerifyKeyword:
             case SyntaxKind.OperatorKeyword:
             case SyntaxKind.PackedKeyword:
+            case SyntaxKind.PropertyKeyword:
+            case SyntaxKind.SetKeyword:
             case SyntaxKind.StateKeyword:
             case SyntaxKind.UndefKeyword:
                 return true;
@@ -441,6 +447,9 @@ public static class SyntaxFacts {
             SyntaxKind.CommitKeyword => "commit",
             SyntaxKind.ImplementsKeyword => "implements",
             SyntaxKind.InterfaceKeyword => "interface",
+            SyntaxKind.PropertyKeyword => "property",
+            SyntaxKind.SetKeyword => "set",
+            SyntaxKind.GetKeyword => "get",
             _ => null,
         };
     }

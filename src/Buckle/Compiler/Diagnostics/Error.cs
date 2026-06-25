@@ -2871,6 +2871,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_MustUseReturnValueAttributeOnVoid, location, message);
     }
 
+    internal static Diagnostic GetOrSetExpected() {
+        var message = $"a get or set accessor expected";
+        return CreateError(DiagnosticCode.ERR_GetOrSetExpected, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

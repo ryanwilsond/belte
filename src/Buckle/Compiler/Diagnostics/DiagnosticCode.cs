@@ -588,6 +588,7 @@ public enum DiagnosticCode : ushort {
     ERR_BadAbstractStaticMemberAccess = 577,
     ERR_IgnoringRequiredReturnValue = 578,
     ERR_MustUseReturnValueAttributeOnVoid = 579,
+    ERR_GetOrSetExpected = 580,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,
