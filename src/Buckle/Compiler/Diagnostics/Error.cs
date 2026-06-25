@@ -542,13 +542,18 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic ConstraintWasNull(TextLocation location, string constraint) {
-        var message = $"template constraint fails: constraint results in null ({constraint})";
+        var message = $"template constraint fails: constraint results in null ('{constraint}')";
         return CreateError(DiagnosticCode.ERR_ConstraintWasNull, location, message);
     }
 
     internal static BelteDiagnostic ConstraintFailed(TextLocation location, string constraint) {
-        var message = $"template constraint fails ({constraint})";
+        var message = $"template constraint fails ('{constraint}')";
         return CreateError(DiagnosticCode.ERR_ConstraintFailed, location, message);
+    }
+
+    internal static BelteDiagnostic ConstraintFailedToEvaluate(TextLocation location, string constraint) {
+        var message = $"template constraint fails to evaluate ('{constraint}')";
+        return CreateError(DiagnosticCode.ERR_ConstraintFailedToEvaluate, location, message);
     }
 
     internal static BelteDiagnostic ConflictingOverrideModifiers(TextLocation location, Symbol symbol) {
@@ -1734,7 +1739,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic CannotIsCheckNonType(TextLocation location, string name) {
-        var message = $"template '{name}' is not a type; cannot is check a non-type";
+        var message = $"template '{name}' is not a type; cannot use 'is' constraints a non-type template parameter";
         return CreateError(DiagnosticCode.ERR_CannotIsCheckNonType, location, message);
     }
 
@@ -2832,6 +2837,11 @@ internal static class Error {
     internal static Diagnostic InsufficientStack() {
         var message = $"expression is too long or complex to compile";
         return CreateError(DiagnosticCode.ERR_InsufficientStack, message);
+    }
+
+    internal static BelteDiagnostic NonPrimitiveTemplate(TextLocation location) {
+        var message = $"template parameter underlying type must be 'type' or a primitive";
+        return CreateError(DiagnosticCode.ERR_NonPrimitiveTemplate, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

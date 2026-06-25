@@ -1739,33 +1739,31 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! TODO
-    // [Fact]
-    // public void Reports_Error_BU0123_CannotExtendCheckNonType() {
-    //     var text = @"
-    //         class A<int? [T]> where { T extends Object; } { }
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0123_CannotExtendCheckNonType() {
+        var text = @"
+            class A<int? [T]> where { T extends Object; } { }
+        ";
 
-    //     var diagnostics = @"
-    //         template 'T' is not a type; cannot extension check a non-type
-    //     ";
+        var diagnostics = @"
+            template 'T' is not a type; cannot extension check a non-type
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
-    // ! TODO
-    // [Fact]
-    // public void Reports_Error_BU0124_ConstraintIsNotConstant() {
-    //     var text = @"
-    //         class A<string? a> where { [a == Console.Input()]; } { }
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0124_ConstraintIsNotConstant() {
+        var text = @"
+            class A<string? a> where { [a == Console.Input()]; } { }
+        ";
 
-    //     var diagnostics = @"
-    //         template constraint is not a compile-time constant
-    //     ";
+        var diagnostics = @"
+            template constraint is not a compile-time constant
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0125_RefReturnNonreturnableLocal2() {
@@ -1801,35 +1799,33 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! TODO
-    // [Fact]
-    // public void Reports_Error_BU0127_ConstraintWasNull() {
-    //     var text = @"
-    //         class A<int? a> where { a == 3; } { }
-    //         var a = new [A<null>]();
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0127_ConstraintWasNull() {
+        var text = @"
+            class A<int? a> where { (a is null ? null : a == 3); } { }
+            var a = new [A<null>]();
+        ";
 
-    //     var diagnostics = @"
-    //         template constraint fails: constraint results in null (a == 3)
-    //     ";
+        var diagnostics = @"
+            template constraint fails: constraint results in null ('a is null ? null : a == 3')
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
-    // ! TODO
-    // [Fact]
-    // public void Reports_Error_BU0128_ConstraintFailed() {
-    //     var text = @"
-    //         class A<int? a> where { a == 3; } { }
-    //         var a = new [A<4>]();
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0128_ConstraintFailed() {
+        var text = @"
+            class A<int? a> where { a == 3; } { }
+            var a = new [A<4>]();
+        ";
 
-    //     var diagnostics = @"
-    //         template constraint fails (a == 3)
-    //     ";
+        var diagnostics = @"
+            template constraint fails ('a == 3')
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0129_RefReturnNonreturnableLocal() {
@@ -2183,19 +2179,18 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! TODO
-    // [Fact]
-    // public void Reports_Error_BU0155_CannotDeriveTemplate2() {
-    //     var text = @"
-    //         class A<[type T], int? T2> where { T extends T2; } { }
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0155_CannotDeriveTemplate2() {
+        var text = @"
+            class A<[type T], int? T2> where { T extends T2; } { }
+        ";
 
-    //     var diagnostics = @"
-    //         cannot derive from template parameter 'int? T2'
-    //     ";
+        var diagnostics = @"
+            cannot derive from template parameter 'int? T2'
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0156_InconsistentAccessibilityField() {
@@ -4006,20 +4001,19 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! TODO
-    // [Fact]
-    // public void Reports_Error_BU0309_BadArity2() {
-    //     var text = @"
-    //         class A<int? t> { }
-    //         var a = new [A]();
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0309_BadArity2() {
+        var text = @"
+            class A<int? t> { }
+            var a = new [A]();
+        ";
 
-    //     var diagnostics = @"
-    //         the template type 'A<int? t>' requires 1 template arguments
-    //     ";
+        var diagnostics = @"
+            the template type 'A<int? t>' requires 1 template arguments
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0310_ProtectedInStruct() {
@@ -4329,19 +4323,18 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! TODO
-    // [Fact]
-    // public void Reports_Error_BU0334_CannotIsCheckNonType() {
-    //     var text = @"
-    //         class A<int? [T]> where { T is primitive; } { }
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0334_CannotIsCheckNonType() {
+        var text = @"
+            class A<int? [T]> where { T is struct; } { }
+        ";
 
-    //     var diagnostics = @"
-    //         template 'T' is not a type; cannot is check a non-type
-    //     ";
+        var diagnostics = @"
+            template 'T' is not a type; cannot use 'is' constraints a non-type template parameter
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     // !
     // ? Error not currently enforced
@@ -5441,19 +5434,18 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! TODO
-    // [Fact]
-    // public void Reports_Error_BU0412_CannotAnnotateTypeTemplate() {
-    //     var text = @"
-    //         class A<[type?] T> { }
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0412_CannotAnnotateTypeTemplate() {
+        var text = @"
+            class A<[type?] T> { }
+        ";
 
-    //     var diagnostics = @"
-    //         type template parameters cannot be nullable
-    //     ";
+        var diagnostics = @"
+            type template parameters cannot be nullable
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0413_CannotAnnotateTemplate() {
@@ -8082,5 +8074,47 @@ var text = """"""
         ";
 
         AssertDiagnostics(text, diagnostics, _writer, checkLocations: false);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0575_NonPrimitiveTemplate() {
+        var text = @"
+            class A<[T T]> { }
+            ;
+        ";
+
+        var diagnostics = @"
+            template parameter underlying type must be 'type' or a primitive
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0575_NonPrimitiveTemplate2() {
+        var text = @"
+            class A<[Object T]> { }
+            ;
+        ";
+
+        var diagnostics = @"
+            template parameter underlying type must be 'type' or a primitive
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0576_ConstraintFailedToEvaluate() {
+        var text = @"
+            class A<int? a> where { a! == 3; } { }
+            var a = new [A<null>]();
+        ";
+
+        var diagnostics = @"
+            template constraint fails to evaluate ('a! == 3')
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 }

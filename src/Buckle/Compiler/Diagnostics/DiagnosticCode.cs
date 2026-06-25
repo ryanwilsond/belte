@@ -583,6 +583,8 @@ public enum DiagnosticCode : ushort {
     ERR_DefaultConstraintFailed = 572,
     WRN_AssignmentToSelf = 573,
     ERR_InsufficientStack = 574,
+    ERR_NonPrimitiveTemplate = 575,
+    ERR_ConstraintFailedToEvaluate = 576,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

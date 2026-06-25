@@ -196,12 +196,20 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
         var syntax = (ParameterSyntax)syntaxReference.node;
         var binder = declaringCompilation.GetBinder(syntax);
 
-        // ! TODO THIS SHOULD BE TEMPORARY
-        // There is an issue with `class A<Cl<T> T> { }` that crashes
-        // This will take significant work to deduce, so we just only allow type right now
-        if (syntax.type is not IdentifierNameSyntax ident || ident.identifier.text != "type") {
-            diagnostics.Push(Error.Unsupported.NonTypeTemplate(syntax.location));
+        // Template underlying types are a special case that doesn't allow aliasing
+        // This is to avoid calling Binder.BindType to prevent potential recursive overflows in cases like `class A<T<T> T> { }`
+        if (syntax.type.SkipNullable() is not IdentifierNameSyntax ident) {
+            diagnostics.Push(Error.NonPrimitiveTemplate(syntax.location));
             return new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type));
+        } else {
+            var specialType = SpecialTypes.GetTypeFromMetadataName(
+                string.Concat("global::", ident.identifier.valueText)
+            );
+
+            if (!specialType.IsPrimitiveType()) {
+                diagnostics.Push(Error.NonPrimitiveTemplate(syntax.location));
+                return new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type));
+            }
         }
 
         var type = binder.BindType(syntax.type, diagnostics);
@@ -220,6 +228,7 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
             diagnostics.Push(Error.Unsupported.NonTypeTemplate(syntax.location));
         }
 
+        // TODO This seems wrong/unnecessary:
         if (hasNotNullConstraint)
             return new TypeWithAnnotations(underlying);
 

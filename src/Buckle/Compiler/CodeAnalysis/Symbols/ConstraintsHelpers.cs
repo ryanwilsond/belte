@@ -557,7 +557,9 @@ hasRelatedInterfaces:
 
         var result = EvaluateConstraintCore(constraint, names, templateArguments, diagnostics);
 
-        if (result.value is null)
+        if (result is null)
+            diagnostics.Push(Error.ConstraintFailedToEvaluate(location, constraint.syntax.ToString()));
+        else if (result.value is null)
             diagnostics.Push(Error.ConstraintWasNull(location, constraint.syntax.ToString()));
         else if (!(bool)result.value)
             diagnostics.Push(Error.ConstraintFailed(location, constraint.syntax.ToString()));

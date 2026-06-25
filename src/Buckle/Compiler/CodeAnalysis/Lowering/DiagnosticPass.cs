@@ -3,6 +3,7 @@ using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
+// TODO Many more warnings we could check for here
 internal sealed class DiagnosticPass : BoundTreeWalkerWithStackGuard {
     private readonly BelteDiagnosticQueue _diagnostics;
 

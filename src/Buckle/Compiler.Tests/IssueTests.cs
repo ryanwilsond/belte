@@ -916,21 +916,20 @@ public sealed class IssueTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! TODO
-    // [Fact]
-    // public void ClassDeclaration_StaticCanSeeTemplates() {
-    //     var text = @"
-    //         class A<int? a> {
-    //             public static A<a> operator~(A<a> a) {
-    //                 return a;
-    //             }
-    //         }
-    //     ";
+    [Fact]
+    public void ClassDeclaration_StaticCanSeeTemplates() {
+        var text = @"
+            class A<int? a> {
+                public static A<a> operator~(A<a> a) {
+                    return a;
+                }
+            }
+        ";
 
-    //     var diagnostics = @"";
+        var diagnostics = @"";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void OperatorOverloading_ReturnsCorrectType() {
@@ -1413,7 +1412,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            unsupported: cannot declare a non-type template when building for .NET, transpiling to C#, or executing
+            template parameter underlying type must be 'type' or a primitive
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1530,6 +1529,20 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void TemplateParameter_BindsSelfReferentialTypeWithoutOverflow() {
+        var text = @"
+            class A<[T<T> T]> { }
+            ;
+        ";
+
+        var diagnostics = @"
+            template parameter underlying type must be 'type' or a primitive
+        ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }

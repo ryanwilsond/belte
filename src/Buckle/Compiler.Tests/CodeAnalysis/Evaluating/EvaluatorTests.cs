@@ -1433,10 +1433,9 @@ public sealed class EvaluatorTests {
 
     [Theory]
     // Non-Type Templates
-    // TODO See TODO commend in SourceTemplateParameterSymbolBase
-    // [InlineData("class A<int a, int b> { public static int Test() { return a + b; } } return A<2,3>.Test();", 5)]
-    // [InlineData("int Test<int a, int b>() { return a + b; } return Test<2, 3>();", 5)]
-    // [InlineData("string Test<string a>() { return a; } return Test<\"test\">();", "test")]
+    [InlineData("class A<int a, int b> { public static int Test() { return a + b; } } return A<2,3>.Test();", 5)]
+    [InlineData("int Test<int a, int b>() { return a + b; } return Test<2, 3>();", 5)]
+    [InlineData("string Test<string a>() { return a; } return Test<\"test\">();", "test")]
     // Runtime Defined SizeOf
     [InlineData("struct A { int32 a; bool b; } return sizeof(A);", 8)]
     [InlineData("class A { int32 a = default; bool b = default; } return sizeof(A);", 8)]
