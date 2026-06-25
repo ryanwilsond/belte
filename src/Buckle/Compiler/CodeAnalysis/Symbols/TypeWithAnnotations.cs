@@ -175,10 +175,7 @@ internal sealed class TypeWithAnnotations {
             return false;
         }
 
-        if ((compareKind & TypeCompareKind.IgnoreNullability) == 0)
-            return isNullable == other.isNullable;
-
-        return true;
+        return isNullable == other.isNullable;
     }
 
     public override int GetHashCode() {

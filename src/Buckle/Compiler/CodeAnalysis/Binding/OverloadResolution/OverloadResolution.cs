@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
@@ -70,11 +71,14 @@ internal sealed partial class OverloadResolution {
             BoundExpression left,
             BoundExpression right,
             BinaryOperatorOverloadResolutionResult result) {
-            var hadApplicableCandidates = false;
             var leftOperatorSource = left.Type()?.StrippedType();
             var rightOperatorSource = right.Type()?.StrippedType();
+            var leftSourceIsInterface = leftOperatorSource?.IsInterfaceType() == true;
+            var rightSourceIsInterface = rightOperatorSource?.IsInterfaceType() == true;
 
-            if (leftOperatorSource is not null) {
+            var hadApplicableCandidates = false;
+
+            if (leftOperatorSource is not null && !leftSourceIsInterface) {
                 hadApplicableCandidates = GetUserDefinedOperators(
                     kind,
                     leftOperatorSource,
@@ -89,7 +93,10 @@ internal sealed partial class OverloadResolution {
 
             var isShift = kind.IsShift();
 
-            if (!isShift && rightOperatorSource is not null && !rightOperatorSource.Equals(leftOperatorSource)) {
+            if (!isShift &&
+                rightOperatorSource is not null &&
+                !rightSourceIsInterface &&
+                !rightOperatorSource.Equals(leftOperatorSource)) {
                 var rightOperators = ArrayBuilder<BinaryOperatorAnalysisResult>.GetInstance();
 
                 if (GetUserDefinedOperators(kind, rightOperatorSource, left, right, rightOperators)) {
@@ -98,6 +105,64 @@ internal sealed partial class OverloadResolution {
                 }
 
                 rightOperators.Free();
+            }
+
+            if (!hadApplicableCandidates) {
+                result.results.Clear();
+
+                var lookedInInterfaces = PooledDictionary<TypeSymbol, bool>.GetInstance();
+
+                TypeSymbol firstOperatorSourceOpt;
+                TypeSymbol secondOperatorSourceOpt;
+                bool firstSourceIsInterface;
+                bool secondSourceIsInterface;
+
+                if (!isShift && (leftOperatorSource is null ||
+                    (leftOperatorSource is not TemplateParameterSymbol && rightOperatorSource is TemplateParameterSymbol))) {
+                    firstOperatorSourceOpt = rightOperatorSource;
+                    secondOperatorSourceOpt = leftOperatorSource;
+                    firstSourceIsInterface = rightSourceIsInterface;
+                    secondSourceIsInterface = leftSourceIsInterface;
+                } else {
+                    firstOperatorSourceOpt = leftOperatorSource;
+                    secondOperatorSourceOpt = rightOperatorSource;
+                    firstSourceIsInterface = leftSourceIsInterface;
+                    secondSourceIsInterface = rightSourceIsInterface;
+                }
+
+                hadApplicableCandidates = GetUserDefinedBinaryOperatorsFromInterfaces(
+                    kind,
+                    firstOperatorSourceOpt,
+                    firstSourceIsInterface,
+                    left,
+                    right,
+                    lookedInInterfaces,
+                    result.results
+                );
+
+                if (!hadApplicableCandidates)
+                    result.results.Clear();
+
+                if (!isShift && secondOperatorSourceOpt is not null &&
+                    !secondOperatorSourceOpt.Equals(firstOperatorSourceOpt)) {
+                    var rightOperators = ArrayBuilder<BinaryOperatorAnalysisResult>.GetInstance();
+                    if (GetUserDefinedBinaryOperatorsFromInterfaces(
+                            kind,
+                            secondOperatorSourceOpt,
+                            secondSourceIsInterface,
+                            left,
+                            right,
+                            lookedInInterfaces,
+                            rightOperators
+                        )) {
+                        hadApplicableCandidates = true;
+                        AddDistinctOperators(result.results, rightOperators);
+                    }
+
+                    rightOperators.Free();
+                }
+
+                lookedInInterfaces.Free();
             }
 
             if (!hadApplicableCandidates) {
@@ -112,6 +177,82 @@ internal sealed partial class OverloadResolution {
 
             BinaryOperatorOverloadResolution(left, right, result);
         }
+    }
+
+    private bool GetUserDefinedBinaryOperatorsFromInterfaces(
+        BinaryOperatorKind kind,
+        TypeSymbol operatorSourceOpt,
+        bool sourceIsInterface,
+        BoundExpression left,
+        BoundExpression right,
+        Dictionary<TypeSymbol, bool> lookedInInterfaces,
+        ArrayBuilder<BinaryOperatorAnalysisResult> candidates) {
+        if (operatorSourceOpt is null)
+            return false;
+
+        var hadUserDefinedCandidateFromInterfaces = false;
+        ImmutableArray<NamedTypeSymbol> interfaces = default;
+        TypeSymbol constrainedToTypeOpt = null;
+
+        if (sourceIsInterface) {
+            if (!lookedInInterfaces.TryGetValue(operatorSourceOpt, out _)) {
+                var operators = ArrayBuilder<BinaryOperatorSignature>.GetInstance();
+                GetUserDefinedBinaryOperatorsFromType(constrainedToTypeOpt, (NamedTypeSymbol)operatorSourceOpt, kind, operators);
+                hadUserDefinedCandidateFromInterfaces = CandidateOperators(operators, left, right, candidates);
+                operators.Free();
+                Debug.Assert(hadUserDefinedCandidateFromInterfaces == candidates.Any(r => r.isValid));
+
+                lookedInInterfaces.Add(operatorSourceOpt, hadUserDefinedCandidateFromInterfaces);
+
+                if (!hadUserDefinedCandidateFromInterfaces) {
+                    candidates.Clear();
+                    interfaces = operatorSourceOpt.allInterfaces;
+                }
+            }
+        } else if (operatorSourceOpt.IsTemplateParameter()) {
+            interfaces = ((TemplateParameterSymbol)operatorSourceOpt).allEffectiveInterfaces;
+            constrainedToTypeOpt = operatorSourceOpt;
+        }
+
+        if (!interfaces.IsDefaultOrEmpty) {
+            var operators = ArrayBuilder<BinaryOperatorSignature>.GetInstance();
+            var results = ArrayBuilder<BinaryOperatorAnalysisResult>.GetInstance();
+            var shadowedInterfaces = PooledHashSet<NamedTypeSymbol>.GetInstance();
+
+            foreach (var @interface in interfaces) {
+                if (!@interface.isInterface)
+                    continue;
+
+                if (shadowedInterfaces.Contains(@interface))
+                    continue;
+
+                if (lookedInInterfaces.TryGetValue(@interface, out var hadUserDefinedCandidate)) {
+                    if (hadUserDefinedCandidate)
+                        shadowedInterfaces.AddAll(@interface.allInterfaces);
+
+                    continue;
+                }
+
+                operators.Clear();
+                results.Clear();
+                GetUserDefinedBinaryOperatorsFromType(constrainedToTypeOpt, @interface, kind, operators);
+                hadUserDefinedCandidate = CandidateOperators(operators, left, right, results);
+                Debug.Assert(hadUserDefinedCandidate == results.Any(r => r.isValid));
+                lookedInInterfaces.Add(@interface, hadUserDefinedCandidate);
+
+                if (hadUserDefinedCandidate) {
+                    hadUserDefinedCandidateFromInterfaces = true;
+                    candidates.AddRange(results);
+                    shadowedInterfaces.AddAll(@interface.allInterfaces);
+                }
+            }
+
+            operators.Free();
+            results.Free();
+            shadowedInterfaces.Free();
+        }
+
+        return hadUserDefinedCandidateFromInterfaces;
     }
 
     internal void UnaryOperatorOverloadResolution(
@@ -129,7 +270,12 @@ internal sealed partial class OverloadResolution {
             UnaryOperatorKind kind,
             BoundExpression operand,
             UnaryOperatorOverloadResolutionResult result) {
-            var hadApplicableCandidates = GetUserDefinedOperators(kind, operand, result.results);
+            var hadApplicableCandidates = GetUserDefinedOperators(
+                operand.type.StrippedType(),
+                kind,
+                operand,
+                result.results
+            );
 
             if (!hadApplicableCandidates) {
                 result.results.Clear();
@@ -551,6 +697,7 @@ internal sealed partial class OverloadResolution {
     }
 
     private bool GetUserDefinedOperators(
+        TypeSymbol declaringTypeOrTemplateParameter,
         UnaryOperatorKind kind,
         BoundExpression operand,
         ArrayBuilder<UnaryOperatorAnalysisResult> results) {
@@ -582,6 +729,42 @@ internal sealed partial class OverloadResolution {
             if (CandidateOperators(operators, operand, results)) {
                 hadApplicableCandidates = true;
                 break;
+            }
+        }
+
+        if (!hadApplicableCandidates) {
+            ImmutableArray<NamedTypeSymbol> interfaces = default;
+
+            if (declaringTypeOrTemplateParameter.IsInterfaceType())
+                interfaces = declaringTypeOrTemplateParameter.allInterfaces;
+            else if (declaringTypeOrTemplateParameter.IsTemplateParameter())
+                interfaces = ((TemplateParameterSymbol)declaringTypeOrTemplateParameter).allEffectiveInterfaces;
+
+            if (!interfaces.IsDefaultOrEmpty) {
+                var shadowedInterfaces = PooledHashSet<NamedTypeSymbol>.GetInstance();
+                var resultsFromInterface = ArrayBuilder<UnaryOperatorAnalysisResult>.GetInstance();
+                results.Clear();
+
+                foreach (var @interface in interfaces) {
+                    if (!@interface.isInterface)
+                        continue;
+
+                    if (shadowedInterfaces.Contains(@interface))
+                        continue;
+
+                    operators.Clear();
+                    resultsFromInterface.Clear();
+                    GetUserDefinedUnaryOperatorsFromType(constrainedToTypeOpt, @interface, kind, operators);
+
+                    if (CandidateOperators(operators, operand, resultsFromInterface)) {
+                        hadApplicableCandidates = true;
+                        results.AddRange(resultsFromInterface);
+                        shadowedInterfaces.AddAll(@interface.allInterfaces);
+                    }
+                }
+
+                shadowedInterfaces.Free();
+                resultsFromInterface.Free();
             }
         }
 
@@ -941,12 +1124,10 @@ internal sealed partial class OverloadResolution {
                 var existingSignature = result[i].signature;
 
                 if (op.signature.kind == existingSignature.kind &&
-                    EqualsIgnoringNullable(op.signature.returnType, existingSignature.returnType) &&
-                    EqualsIgnoringNullable(op.signature.leftType, existingSignature.leftType) &&
-                    EqualsIgnoringNullable(op.signature.rightType, existingSignature.rightType) &&
-                    EqualsIgnoringNullable(
-                        op.signature.method.containingType,
-                        existingSignature.method.containingType)) {
+                    op.signature.returnType.Equals(existingSignature.returnType) &&
+                    op.signature.leftType.Equals(existingSignature.leftType) &&
+                    op.signature.rightType.Equals(existingSignature.rightType) &&
+                    op.signature.method.containingType.Equals(existingSignature.method.containingType)) {
                     equivalentToExisting = true;
                     break;
                 }
@@ -955,9 +1136,6 @@ internal sealed partial class OverloadResolution {
             if (!equivalentToExisting)
                 result.Add(op);
         }
-
-        static bool EqualsIgnoringNullable(TypeSymbol a, TypeSymbol b)
-            => a.Equals(b, TypeCompareKind.IgnoreNullability);
     }
 
     private void PerformObjectCreationOverloadResolution(
@@ -1248,6 +1426,8 @@ internal sealed partial class OverloadResolution {
 
     private static void RemoveLessDerivedMembers<TMember>(ArrayBuilder<MemberResolutionResult<TMember>> results)
         where TMember : Symbol {
+        RemoveAllInterfaceMembers(results);
+
         for (var f = 0; f < results.Count; f++) {
             var result = results[f];
 
@@ -1255,6 +1435,42 @@ internal sealed partial class OverloadResolution {
                 continue;
 
             if (IsLessDerivedThanAny(index: f, result.leastOverriddenMember.containingType, results))
+                results[f] = result.WithResult(MemberAnalysisResult.LessDerived());
+        }
+    }
+
+    private static void RemoveAllInterfaceMembers<TMember>(ArrayBuilder<MemberResolutionResult<TMember>> results)
+        where TMember : Symbol {
+        var anyClassOtherThanObject = false;
+
+        for (var f = 0; f < results.Count; f++) {
+            var result = results[f];
+
+            if (!result.result.isValid)
+                continue;
+
+            var type = result.leastOverriddenMember.containingType;
+
+            Debug.Assert(type is not null || result.leastOverriddenMember is FunctionMethodSymbol);
+
+            if (type is not null && type.IsClassType() && type.GetSpecialTypeSafe() != SpecialType.Object) {
+                anyClassOtherThanObject = true;
+                break;
+            }
+        }
+
+        if (!anyClassOtherThanObject)
+            return;
+
+        for (var f = 0; f < results.Count; f++) {
+            var result = results[f];
+
+            if (!result.result.isValid)
+                continue;
+
+            var member = result.member;
+
+            if (member.containingType.IsInterfaceType())
                 results[f] = result.WithResult(MemberAnalysisResult.LessDerived());
         }
     }
@@ -1277,6 +1493,11 @@ internal sealed partial class OverloadResolution {
 
             if (type.specialType == SpecialType.Object && currentType.specialType != SpecialType.Object)
                 return true;
+
+            if (currentType.IsInterfaceType() && type.IsInterfaceType() &&
+                currentType.allInterfaces.Contains((NamedTypeSymbol)type)) {
+                return true;
+            }
 
             if (currentType.IsClassType() &&
                 type.IsClassType() &&
@@ -2355,10 +2576,7 @@ internal sealed partial class OverloadResolution {
                 : parameters.parameterRefKinds[argumentPosition];
 
             var argumentConstness = argument.isExpression
-                // Value types are copied anyway so const doesn't really mean anything
-                ? argument.expression.IsConst() &&
-                  argument.type.isReferenceType &&
-                  !argument.type.IsKnownToBeImmutable()
+                ? argument.expression.IsEffectivelyConst()
                 : false;
             var parameterConstness = parameters.parameterConstness.IsDefault
                 ? false
@@ -2438,7 +2656,7 @@ internal sealed partial class OverloadResolution {
             return conversion;
         }
 
-        if (argType is not null && Conversions.HasIdentityConversion(argType, parameterType, includeNullability: false))
+        if (argType is not null && Conversions.HasIdentityConversion(argType, parameterType))
             return Conversion.Identity;
         else
             return Conversion.None;

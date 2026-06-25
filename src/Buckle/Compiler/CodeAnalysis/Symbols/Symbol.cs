@@ -39,12 +39,13 @@ internal abstract class Symbol : ISymbol {
     /// </summary>
     internal virtual NamedTypeSymbol containingType {
         get {
-            var containerAsType = containingSymbol as NamedTypeSymbol;
+            var container = containingSymbol;
+            var containerAsType = container as NamedTypeSymbol;
 
-            if ((object)containerAsType == containingSymbol)
+            if ((object)containerAsType == container)
                 return containerAsType;
 
-            return containingSymbol.containingType;
+            return container.containingType;
         }
     }
 
@@ -200,6 +201,27 @@ internal abstract class Symbol : ISymbol {
         return true;
     }
 
+    internal bool IsImplementableInterfaceMember() {
+        return !isSealed && (isAbstract || isVirtual) && (containingType?.isInterface ?? false);
+    }
+
+    internal bool MustCallMethodsDirectly() {
+        switch (kind) {
+            // TODO This gets more interesting with events and properties
+            default:
+                return false;
+        }
+    }
+
+    internal ImmutableArray<Symbol> GetExplicitInterfaceImplementations() {
+        switch (kind) {
+            case SymbolKind.Method:
+                return ((MethodSymbol)this).explicitInterfaceImplementations.Cast<MethodSymbol, Symbol>();
+            default:
+                return [];
+        }
+    }
+
     internal virtual void AfterAddingTypeMembersChecks(BelteDiagnosticQueue diagnostics) { }
 
     internal virtual ImmutableArray<AttributeData> GetAttributes() {
@@ -233,6 +255,15 @@ internal abstract class Symbol : ISymbol {
         }
 
         return null;
+    }
+
+    internal bool IsExplicitInterfaceImplementation() {
+        switch (kind) {
+            case SymbolKind.Method:
+                return ((MethodSymbol)this).isExplicitInterfaceImplementation;
+            default:
+                return false;
+        }
     }
 
     internal NamespaceOrTypeSymbol ContainingNamespaceOrType() {
@@ -385,6 +416,15 @@ internal abstract class Symbol : ISymbol {
         };
     }
 
+    internal bool IsLowLevel() {
+        return this switch {
+            FieldSymbol f => f.isLowLevel,
+            NamedTypeSymbol n => n.isLowLevel,
+            SourceMemberMethodSymbol s => s.isLowLevel,
+            _ => false
+        };
+    }
+
     internal bool IsOperator() {
         return this is MethodSymbol m && m.IsOperator();
     }
@@ -521,24 +561,24 @@ internal abstract class Symbol : ISymbol {
         var lazyAttributesStoredOnThisThread = false;
 
         if (lazyAttributesBag.SetAttributes(boundAttributes)) {
-            // if (attributeMatchesOpt is null) {
-            // this.PostDecodeWellKnownAttributes(boundAttributes, attributesToBind, diagnostics, symbolPart, wellKnownAttributeData);
-            // this.RecordPresenceOfBadAttributes(boundAttributes);
+            if (attributeMatchesOpt is null) {
+                // this.PostDecodeWellKnownAttributes(boundAttributes, attributesToBind, diagnostics, symbolPart, wellKnownAttributeData);
+                // this.RecordPresenceOfBadAttributes(boundAttributes);
 
-            //     if (totalAttributesCount != 0) {
-            //         for (var i = 0; i < totalAttributesCount; i++) {
-            //             var boundAttribute = boundAttributeArray[i];
-            //             Binder attributeBinder = binders[i];
+                // if (totalAttributesCount != 0) {
+                //     for (var i = 0; i < totalAttributesCount; i++) {
+                //         var boundAttribute = boundAttributeArray[i];
+                //         Binder attributeBinder = binders[i];
 
-            //             if (boundAttribute.Constructor is { } ctor) {
-            //                 Binder.CheckRequiredMembersInObjectInitializer(ctor, ImmutableArray<BoundExpression>.CastUp(boundAttribute.NamedArguments), boundAttribute.Syntax, diagnostics);
-            //                 attributeBinder.ReportDiagnosticsIfObsolete(diagnostics, ctor, boundAttribute.Syntax, hasBaseReceiver: false);
-            //             }
-            //         }
-            //     }
+                //         if (boundAttribute.Constructor is { } ctor) {
+                //             Binder.CheckRequiredMembersInObjectInitializer(ctor, ImmutableArray<BoundExpression>.CastUp(boundAttribute.NamedArguments), boundAttribute.Syntax, diagnostics);
+                //             attributeBinder.ReportDiagnosticsIfObsolete(diagnostics, ctor, boundAttribute.Syntax, hasBaseReceiver: false);
+                //         }
+                //     }
+                // }
 
-            //     AddDeclarationDiagnostics(diagnostics);
-            // }
+                AddDeclarationDiagnostics(diagnostics);
+            }
 
             lazyAttributesStoredOnThisThread = true;
 

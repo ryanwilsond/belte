@@ -67,9 +67,15 @@ internal class SynthesizedInstanceConstructorSymbol : SynthesizedInstanceMethodS
 
     internal override CallingConvention callingConvention => CallingConvention.HasThis;
 
+    internal override bool hasMustUseReturnValueAttribute => false;
+
     internal override bool hasUnscopedRefAttribute => false;
 
     internal override bool isMetadataFinal => false;
+
+    internal sealed override bool isExplicitInterfaceImplementation => false;
+
+    internal sealed override ImmutableArray<MethodSymbol> explicitInterfaceImplementations => [];
 
     internal override LexicalSortKey GetLexicalSortKey() {
         return LexicalSortKey.SynthesizedCtor;

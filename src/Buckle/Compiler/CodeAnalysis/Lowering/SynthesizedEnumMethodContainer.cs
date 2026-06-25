@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Libraries;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Lowering;
@@ -34,7 +35,7 @@ internal sealed class SynthesizedEnumMethodContainer : SynthesizedContainer {
 
     internal override Accessibility declaredAccessibility => Accessibility.Public;
 
-    internal override NamedTypeSymbol baseType => null;
+    internal override NamedTypeSymbol baseType => CorLibrary.GetSpecialType(SpecialType.Object);
 
     internal override IEnumerable<string> memberNames => GetMembers().Select(m => m.name);
 

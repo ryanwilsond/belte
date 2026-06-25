@@ -2,11 +2,11 @@
 public class EqualityComparer<type T> {
     public static EqualityComparer<T> Default = new ();
 
-    public const bool! Equals(T x, T y) {
-        return x.Equals(y);
+    public const bool Equals(T x, T y) {
+        return x?.Equals(y) ?? false;
     }
 
-    public const int! GetHashCode(T obj) {
-        return obj.GetHashCode();
+    public const int GetHashCode(T obj) {
+        return obj?.GetHashCode() ?? 0;
     }
 }

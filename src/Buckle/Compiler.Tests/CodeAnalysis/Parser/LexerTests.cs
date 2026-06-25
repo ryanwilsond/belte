@@ -52,6 +52,7 @@ public sealed class LexerTests {
         untestedTokenTypes.Remove(SyntaxKind.InterpolatedStringLiteralToken);
         untestedTokenTypes.Remove(SyntaxKind.InterpolatedStringStartToken);
         untestedTokenTypes.Remove(SyntaxKind.InterpolatedStringEndToken);
+        untestedTokenTypes.Remove(SyntaxKind.MultilineStringLiteralToken);
         untestedTokenTypes.Remove(SyntaxKind.DefineKeyword);
         untestedTokenTypes.Remove(SyntaxKind.ElifKeyword);
         untestedTokenTypes.Remove(SyntaxKind.EndifKeyword);
@@ -67,7 +68,6 @@ public sealed class LexerTests {
         untestedTokenTypes.Remove(SyntaxKind.NotnullKeyword);
         untestedTokenTypes.Remove(SyntaxKind.NoVerifyKeyword);
         untestedTokenTypes.Remove(SyntaxKind.PackedKeyword);
-        untestedTokenTypes.Remove(SyntaxKind.PrimitiveKeyword);
         untestedTokenTypes.Remove(SyntaxKind.StateKeyword);
         untestedTokenTypes.Remove(SyntaxKind.UndefKeyword);
         untestedTokenTypes.ExceptWith(testedTokenTypes);

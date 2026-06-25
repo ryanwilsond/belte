@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
@@ -8,19 +9,62 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal static class ModifierHelpers {
     internal static DeclarationModifiers CreateAndCheckNonTypeMemberModifiers(
         SyntaxTokenList modifiers,
+        bool isForInterfaceMember,
         DeclarationModifiers defaultAccess,
         DeclarationModifiers allowedModifiers,
         TextLocation errorLocation,
         BelteDiagnosticQueue diagnostics,
         out bool hasErrors) {
         var result = CreateModifiers(modifiers, diagnostics, out var creationErrors);
-        result = CheckModifiers(false, result, allowedModifiers, errorLocation, diagnostics, out var checkErrors);
+
+        result = CheckModifiers(
+            false,
+            isForInterfaceMember,
+            result,
+            allowedModifiers,
+            errorLocation,
+            diagnostics,
+            out var checkErrors
+        );
+
         hasErrors = creationErrors | checkErrors;
 
         if ((result & DeclarationModifiers.AccessibilityMask) == 0)
             result |= defaultAccess;
 
         return result;
+    }
+
+    internal static DeclarationModifiers AdjustModifiersForAnInterfaceMember(
+        DeclarationModifiers mods,
+        bool hasBody,
+        bool isExplicitInterfaceImplementation,
+        bool forMethod) {
+        if ((mods & DeclarationModifiers.AccessibilityMask) == 0) {
+            if (!isExplicitInterfaceImplementation)
+                mods |= DeclarationModifiers.Public;
+            else
+                mods |= DeclarationModifiers.Private;
+        }
+
+        if (isExplicitInterfaceImplementation) {
+            if ((mods & DeclarationModifiers.Abstract) != 0)
+                mods |= DeclarationModifiers.Sealed;
+        } else if ((mods & DeclarationModifiers.Static) != 0) {
+            mods &= ~DeclarationModifiers.Sealed;
+        } else if ((mods &
+            (DeclarationModifiers.Private | DeclarationModifiers.Virtual | DeclarationModifiers.Abstract)) == 0) {
+            if (hasBody || (mods & (DeclarationModifiers.Extern | DeclarationModifiers.Sealed)) != 0) {
+                if ((mods & DeclarationModifiers.Sealed) == 0)
+                    mods |= DeclarationModifiers.Virtual;
+                else
+                    mods &= ~DeclarationModifiers.Sealed;
+            } else {
+                mods |= DeclarationModifiers.Abstract;
+            }
+        }
+
+        return mods;
     }
 
     internal static DeclarationModifiers CreateModifiers(
@@ -52,6 +96,7 @@ internal static class ModifierHelpers {
 
     internal static DeclarationModifiers CheckModifiers(
         bool isForTypeDeclaration,
+        bool isForInterfaceMember,
         DeclarationModifiers modifiers,
         DeclarationModifiers allowedModifiers,
         TextLocation errorLocation,
@@ -61,9 +106,16 @@ internal static class ModifierHelpers {
 
         var reportStaticNotVirtualForModifiers = DeclarationModifiers.None;
 
-        if (!isForTypeDeclaration && ((modifiers & allowedModifiers & DeclarationModifiers.Static) != 0)) {
-            reportStaticNotVirtualForModifiers = allowedModifiers &
-                (DeclarationModifiers.Abstract | DeclarationModifiers.Override | DeclarationModifiers.Virtual);
+        if (isForTypeDeclaration) {
+            Debug.Assert((allowedModifiers & (DeclarationModifiers.Override | DeclarationModifiers.Virtual)) == 0);
+        } else if ((modifiers & allowedModifiers & DeclarationModifiers.Static) != 0) {
+            if (isForInterfaceMember) {
+                reportStaticNotVirtualForModifiers = allowedModifiers & DeclarationModifiers.Override;
+            } else {
+                reportStaticNotVirtualForModifiers = allowedModifiers &
+                    (DeclarationModifiers.Abstract | DeclarationModifiers.Override | DeclarationModifiers.Virtual);
+            }
+
             allowedModifiers &= ~reportStaticNotVirtualForModifiers;
         }
 

@@ -105,6 +105,15 @@ public sealed class ExecutorTests {
         var str = LowLevel.ReadLPCWSTR(text);
         return str;
     ", "num is 10")]
+    [InlineData(@"
+        var myNum = 10;
+        var text = wf""""""
+            num is
+                {myNum}
+            """""";
+        var str = LowLevel.ReadLPCWSTR(text);
+        return str;
+    ", "num is\r\n    10")]
     public void Executor_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue, evaluator: false, executor: true);
     }

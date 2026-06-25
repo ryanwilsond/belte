@@ -4,14 +4,17 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMethodOrUserDefinedOperatorSymbol {
-    private const TypeCompareKind ComparisonForUserDefinedOperators = TypeCompareKind.IgnoreNullability;
+    private const TypeCompareKind ComparisonForUserDefinedOperators = TypeCompareKind.IgnoreTupleNames;
+    private readonly TypeSymbol _fieldExplicitInterfaceType;
 
     private protected SourceUserDefinedOperatorSymbolBase(
         MethodKind methodKind,
+        TypeSymbol explicitInterfaceType,
         string name,
         SourceMemberContainerTypeSymbol containingType,
         TextLocation location,
@@ -23,23 +26,55 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
         : base(
             containingType,
             new SyntaxReference(syntax),
+            location,
             (modifiers, new Flags(methodKind, refKind, modifiers, false, false, hasAnyBody, false))
         ) {
+        _fieldExplicitInterfaceType = explicitInterfaceType;
         this.name = name;
+
+        if (this.containingType.isInterface &&
+            !(isAbstract || isVirtual) && !isExplicitInterfaceImplementation &&
+            !(syntax is OperatorDeclarationSyntax { operatorToken: var opToken } &&
+                opToken.kind is not (SyntaxKind.EqualsEqualsToken or SyntaxKind.ExclamationEqualsToken))) {
+            diagnostics.Push(Error.InterfacesCantContainConversionOrEqualityOperators(location));
+            return;
+        }
 
         if (containingType.isStatic) {
             diagnostics.Push(Error.OperatorInStaticClass(location));
             return;
         }
 
-        if (declaredAccessibility != Accessibility.Public || !isStatic)
+        if (isExplicitInterfaceImplementation) {
+            if (!isStatic)
+                diagnostics.Push(Error.ExplicitImplementationOfOperatorsMustBeStatic(location, this));
+        } else if (declaredAccessibility != Accessibility.Public || !isStatic) {
             diagnostics.Push(Error.OperatorMustBePublicAndStatic(location));
+        }
 
-        if (hasAnyBody && isAbstract)
-            diagnostics.Push(Error.AbstractCannotHaveBody(location, this));
-
-        if (!hasAnyBody && !isAbstract)
+        if (isAbstract && isExtern) {
+            diagnostics.Push(Error.AbstractAndExtern(location, this));
+        } else if (isAbstract && isVirtual) {
+            diagnostics.Push(Error.AbstractAndVirtual(location, kind.Localize(), this));
+        } else if (hasAnyBody && (isExtern || isAbstract)) {
+            if (isExtern)
+                diagnostics.Push(Error.ExternCannotHaveBody(location, this));
+            else
+                diagnostics.Push(Error.AbstractCannotHaveBody(location, this));
+        } else if (!hasAnyBody && !isAbstract && !isExtern) {
             diagnostics.Push(Error.NonAbstractMustHaveBody(location, this));
+        } else if (isOverride && (isNew || isVirtual)) {
+            diagnostics.Push(Error.ConflictingOverrideModifiers(location, this));
+        } else if (isSealed && !isOverride &&
+            !(isExplicitInterfaceImplementation && containingType.isInterface && isAbstract)) {
+            diagnostics.Push(Error.SealedNonOverride(location, this));
+        } else if (isAbstract && isSealed && !isExplicitInterfaceImplementation) {
+            diagnostics.Push(Error.AbstractAndSealed(location, this));
+        } else if (isAbstract && !containingType.isAbstract && !containingType.isInterface) {
+            diagnostics.Push(Error.AbstractInNonAbstractType(location, this, containingType));
+        } else if (isVirtual && containingType.isSealed) {
+            diagnostics.Push(Error.VirtualInSealedType(location, this, containingType));
+        }
 
         ModifierHelpers.CheckAccessibility(_modifiers, diagnostics, location);
     }
@@ -49,6 +84,8 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
     public sealed override ImmutableArray<TemplateParameterSymbol> templateParameters => [];
 
     public sealed override ImmutableArray<BoundExpression> templateConstraints => [];
+
+    private protected sealed override TypeSymbol _explicitInterfaceType => _fieldExplicitInterfaceType;
 
     internal sealed override ImmutableArray<TypeParameterConstraintKinds> GetTypeParameterConstraintKinds() {
         return [];
@@ -84,6 +121,10 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
             return;
 
         switch (name) {
+            case WellKnownMemberNames.ImplicitConversionName:
+            case WellKnownMemberNames.ExplicitConversionName:
+                CheckUserDefinedConversionSignature(diagnostics);
+                break;
             case WellKnownMemberNames.UnaryNegationOperatorName:
             case WellKnownMemberNames.UnaryPlusOperatorName:
             case WellKnownMemberNames.LogicalNotOperatorName:
@@ -107,7 +148,7 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
                 break;
             case WellKnownMemberNames.EqualityOperatorName:
             case WellKnownMemberNames.InequalityOperatorName:
-                if (isAbstract || isVirtual)
+                if (IsInInterfaceAndAbstractOrVirtual())
                     CheckAbstractEqualitySignature(diagnostics);
                 else
                     CheckBinarySignature(diagnostics);
@@ -117,6 +158,91 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
                 CheckBinarySignature(diagnostics);
                 break;
         }
+    }
+
+    private protected sealed override MethodSymbol FindExplicitlyImplementedMethod(BelteDiagnosticQueue diagnostics) {
+        if (_explicitInterfaceType is object) {
+            string interfaceMethodName;
+            ExplicitInterfaceSpecifierSyntax explicitInterfaceSpecifier;
+
+            switch (syntaxReference.node) {
+                case OperatorDeclarationSyntax operatorDeclaration:
+                    interfaceMethodName = SyntaxFacts.GetOperatorMemberName(operatorDeclaration);
+                    explicitInterfaceSpecifier = operatorDeclaration.explicitInterfaceSpecifier;
+                    break;
+                case ConversionDeclarationSyntax conversionDeclaration:
+                    interfaceMethodName = SyntaxFacts.GetOperatorMemberName(conversionDeclaration);
+                    explicitInterfaceSpecifier = conversionDeclaration.explicitInterfaceSpecifier;
+                    break;
+                default:
+                    throw ExceptionUtilities.Unreachable();
+            }
+
+            return this.FindExplicitlyImplementedMethod(
+                isOperator: true,
+                _explicitInterfaceType,
+                interfaceMethodName,
+                explicitInterfaceSpecifier,
+                diagnostics
+            );
+        }
+
+        return null;
+    }
+
+    private void CheckUserDefinedConversionSignature(BelteDiagnosticQueue diagnostics) {
+        CheckReturnIsNotVoid(diagnostics);
+
+        var source = GetParameterType(0);
+        var target = returnType;
+        var source0 = source.StrippedType();
+        var target0 = target.StrippedType();
+
+        if (source0.IsInterfaceType() || target0.IsInterfaceType()) {
+            diagnostics.Push(Error.ConversionWithInterface(location, this));
+            return;
+        }
+
+        if (!MatchesContainingType(source0) &&
+            !MatchesContainingType(target0) &&
+            !MatchesContainingType(source) &&
+            !MatchesContainingType(target)) {
+            if (IsInInterfaceAndAbstractOrVirtual())
+                diagnostics.Push(Error.AbstractConversionNotInvolvingContainedType(location));
+            else
+                diagnostics.Push(Error.ConversionNotInvolvingContainedType(location));
+
+            return;
+        }
+
+        if ((containingType.specialType == SpecialType.Nullable)
+                ? source.Equals(target, ComparisonForUserDefinedOperators)
+                : source0.Equals(target0, ComparisonForUserDefinedOperators)) {
+            diagnostics.Push(Error.IdentityConversion(location));
+            return;
+        }
+
+        TypeSymbol same;
+        TypeSymbol different;
+
+        if (MatchesContainingType(source0)) {
+            same = source;
+            different = target;
+        } else {
+            same = target;
+            different = source;
+        }
+
+        if (different.IsClassType() && !same.IsTemplateParameter()) {
+            if (same.IsDerivedFrom(different, ComparisonForUserDefinedOperators))
+                diagnostics.Push(Error.ConversionWithBase(location, this));
+            else if (different.IsDerivedFrom(same, ComparisonForUserDefinedOperators))
+                diagnostics.Push(Error.ConversionWithDerived(location, this));
+        }
+    }
+
+    private bool IsInInterfaceAndAbstractOrVirtual() {
+        return containingType.isInterface && (isAbstract || isVirtual);
     }
 
     private void CheckLiteralOperatorSignature(BelteDiagnosticQueue diagnostics) {
@@ -269,6 +395,8 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
             case WellKnownMemberNames.BitwiseNotOperatorName:
             case WellKnownMemberNames.LengthOperatorName:
             case WellKnownMemberNames.IterOperatorName:
+            case WellKnownMemberNames.ImplicitConversionName:
+            case WellKnownMemberNames.ExplicitConversionName:
                 return parameterCount == 1;
             default:
                 return parameterCount == 2;
@@ -320,24 +448,66 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
 
     private protected static DeclarationModifiers MakeDeclarationModifiers(
         NamedTypeSymbol containingType,
+        MethodKind methodKind,
         BaseMethodDeclarationSyntax syntax,
         TextLocation location,
         BelteDiagnosticQueue diagnostics) {
-        var defaultAccess = (containingType.IsStructType() || containingType.IsFileScoped())
+        var inInterface = containingType.isInterface;
+        var isExplicitInterfaceImplementation = methodKind == MethodKind.ExplicitInterfaceImplementation;
+
+        var defaultAccess = inInterface && !isExplicitInterfaceImplementation
             ? DeclarationModifiers.Public
-            : DeclarationModifiers.Private;
-        var allowedModifiers = DeclarationModifiers.Static
-            | DeclarationModifiers.LowLevel
-            | DeclarationModifiers.AccessibilityMask;
+            : (containingType.IsStructType() || containingType.IsFileScoped())
+                ? DeclarationModifiers.Public
+                : DeclarationModifiers.Private;
+
+        var allowedModifiers = DeclarationModifiers.Extern
+                             | DeclarationModifiers.LowLevel
+                             | DeclarationModifiers.Static;
+
+        if (!isExplicitInterfaceImplementation) {
+            allowedModifiers |= DeclarationModifiers.AccessibilityMask;
+
+            if (inInterface) {
+                allowedModifiers |= DeclarationModifiers.Abstract | DeclarationModifiers.Virtual;
+
+                if (syntax is OperatorDeclarationSyntax { operatorToken: var opToken } &&
+                    opToken.kind is not (SyntaxKind.EqualsEqualsToken or SyntaxKind.ExclamationEqualsToken)) {
+                    allowedModifiers |= DeclarationModifiers.Sealed;
+                }
+            }
+        } else if (inInterface) {
+            allowedModifiers |= DeclarationModifiers.Abstract;
+        }
 
         var result = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
             syntax.modifiers,
+            inInterface,
             defaultAccess,
             allowedModifiers,
             location,
             diagnostics,
             out _
         );
+
+        if (inInterface) {
+            if ((result & (DeclarationModifiers.Abstract | DeclarationModifiers.Virtual | DeclarationModifiers.Sealed)) != 0) {
+                if ((result & DeclarationModifiers.Sealed) != 0 &&
+                    (result & (DeclarationModifiers.Abstract | DeclarationModifiers.Virtual)) != 0) {
+                    diagnostics.Push(Error.InvalidModifier(
+                        location,
+                        ModifierHelpers.ConvertSingleModifierToSyntaxText(DeclarationModifiers.Sealed)
+                    ));
+                }
+
+                result &= ~DeclarationModifiers.Sealed;
+            }
+        }
+
+        if (isExplicitInterfaceImplementation) {
+            if ((result & DeclarationModifiers.Abstract) != 0)
+                result |= DeclarationModifiers.Sealed;
+        }
 
         return result;
     }

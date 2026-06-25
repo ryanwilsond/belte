@@ -49,6 +49,14 @@ internal sealed class SynthesizedFinishedNamedTypeSymbol : WrappedNamedTypeSymbo
         return baseType;
     }
 
+    internal override ImmutableArray<NamedTypeSymbol> GetDeclaredInterfaces(ConsList<TypeSymbol> basesBeingResolved) {
+        return [];
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> Interfaces(ConsList<TypeSymbol> basesBeingResolved = null) {
+        return [];
+    }
+
     internal override ImmutableArray<Symbol> GetMembers() {
         return _allMembers;
     }
@@ -63,6 +71,10 @@ internal sealed class SynthesizedFinishedNamedTypeSymbol : WrappedNamedTypeSymbo
 
     internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers(ReadOnlyMemory<char> name) {
         return GetNameToTypeMembersMap().TryGetValue(name, out var members) ? members : [];
+    }
+
+    internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
+        return SpecializedCollections.EmptyEnumerable<(MethodSymbol Body, MethodSymbol Implemented)>();
     }
 
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> GetNameToMembersMap() {

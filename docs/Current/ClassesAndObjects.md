@@ -38,6 +38,8 @@
   - [4.8.3](#483-global-using-directive) Global Using Directive
 - [4.9](#49-structs) Structs
   - [4.9.1](#491-unions) Unions
+- [4.10](#410-interfaces) Interfaces
+- [4.11](#411-attributes) Attributes
 
 ## 4.1 Classes
 
@@ -127,6 +129,24 @@ class B extends A { }
 Members can interact with inheritance through [certain modifiers](#432-overriding-modifiers).
 
 Classes can restrict or necessitate inheritance through the [sealed and abstract modifiers](#435-sealed-and-abstract).
+
+Classes can also implement interfaces with an interface list following the `implements` keyword which must be placed
+between the base type and constraints list:
+
+```belte
+class A implements I { }
+class A extends B implements I { }
+class A<type T> extends B implements I { }
+class A<type T> extends B implements I where { /* ... */ } { }
+```
+
+When implementing multiple interfaces they are comma separated:
+
+```belte
+class A implements I1, I2, I3 { }
+```
+
+See also [interfaces](#410-interfaces).
 
 ### 4.1.3 Base Access
 
@@ -731,18 +751,43 @@ Int<10, 0> // Compile error
 
 The following constraints only apply to type template parameters:
 
-A `T extends Y` constraint ensures template parameter `T` is or derives from `Y`.
+A `T extends C` constraint ensures template parameter `T` is or derives from class `C`.
 
-A `T is primitive` constraint ensures template parameter `T` is a primitive type.
+A `T implements I` constraint ensures template parameter `T` implements interface `I`. This constraint can include
+multiple interface types, i.e. `T implements I1, I2, I3` ensures template parameter `T` implements interfaces `I1`,
+`I2`, and `I3`.
+
+A `T has default` constraint ensures template parameter `T` has a default value (i.e. can use the
+[`default` literal](Data.md#315-default-literal) on it).
+
+A `T has constructor` constraint ensures template parameter `T` has a parameterless constructor.
+
+A `T is struct` constraint ensures template parameter `T` is a value type (struct or primitive).
+
+A `T is class` constraint ensures template parameter `T` is a reference type (class).
 
 A `T is notnull` constraint constrains the template parameter `T` to being a non-nullable type. Non-nullable annotations
 are disallowed on type template parameters, so this constraint is required for the template class to know the template
 parameter is a non-nullable type.
 
-A `T has default` constraint ensures template parameter `T` has a default value (i.e. can use the
-[`default` literal](Data.md#314-default-literal) on it).
+These constraints can usually be combined, which the exception that a template parameter cannot be constrained to both
+a reference type and a value type, and cannot have conflicting extend constraints. For an example of combining
+constraints:
 
-A `T has constructor` constraint ensures template parameter `T` has a parameterless constructor.
+```belte
+class A<type T> where { T is struct; T has default; T is notnull; } {
+  public static T GetDefault() {
+    return default;
+  }
+}
+
+var s = A<S>.GetDefault();
+Console.PrintLine(s.a); // 0
+
+struct S {
+  int a;
+}
+```
 
 ## 4.6 Enums
 
@@ -1129,6 +1174,12 @@ struct A {
 }
 ```
 
+Structs can implement [interfaces](#410-interfaces) but cannot explicitly inherit:
+
+```belte
+struct A implements I1, I2 { /* ... */ }
+```
+
 ### 4.9.1 Unions
 
 A union struct is a struct where all of the fields overlap in memory. Because of this, assigning to any field in the
@@ -1165,3 +1216,87 @@ struct A {
 ```
 
 In this example, the fields `b` and `c` are overlapping with each other but not with `a`.
+
+## 4.10 Interfaces
+
+Interfaces can be used to compose functionality in classes by defining methods that the derived classes must implement:
+
+```belte
+interface MyInterface {
+  void Method();
+}
+
+class Class1 implements MyInterface {
+  public override void Method() {
+    // ...
+  }
+}
+
+class Class2 implements MyInterface {
+  public override void Method() {
+    // ...
+  }
+}
+```
+
+Unlike [abstract classes](#435-sealed-and-abstract), an interface cannot define behavior. Additionally, a class can
+implement (derive from) multiple interfaces while it can only extend (inherit) one class. Structs can implement
+interfaces but cannot explicitly inherit.
+
+A data container can be typed to an interface:
+
+```belte
+MyInterface a = new Class1();
+```
+
+The [`is`, `isnt`, and `as` operators](Data.md#323-isisntas-operators) also work with interfaces the same way they work
+with classes.
+
+### 4.10.1 Explicit Implementations
+
+In cases when implementing multiple interfaces with members with the same signature, or in cases where copying down all
+type template parameter constraint clauses is verbose, an explicit interface specifier can be used. The following are
+equivalent (note that with explicit interface specifiers, accessibility modifiers become disallowed):
+
+```belte
+interface A {
+  void M<type T>(T t) where { T has constructor; };
+}
+
+class C implements A {
+  public void M<type T>(T t) where { T has constructor; } { }
+}
+```
+
+```belte
+interface A {
+  void M<type T>(T t) where { T has constructor; };
+}
+
+class C implements A {
+  void A.M<type T>(T t) { }
+}
+```
+
+## 4.11 Attributes
+
+There are currently a small number of attributes recognized by the compiler: `DllImport`, `Unmanaged`, and
+`MustUseReturnValue`.
+
+The `MustUseReturnValue` attribute causes calls of target method to raise an error if the return value is completely
+ignored. Discarding the return value is still permitted:
+
+```belte
+class A {
+  [MustUseReturnValue]
+  public static bool M() { /* ... */ }
+}
+
+A.M(); // Error
+_ = A.M(); // Okay
+```
+
+Methods returning void cannot use the `MustUseReturnValue` attribute.
+
+- See also [`DllImport` attribute](LowLevelFeatures.md#67-extern-methods).
+- See also [`Unmanaged` attribute](LowLevelFeatures.md#672-unmanaged-methods).

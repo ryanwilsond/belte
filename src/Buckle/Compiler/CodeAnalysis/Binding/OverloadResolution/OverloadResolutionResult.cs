@@ -401,9 +401,7 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
             if (arguments.types[arg] is { } argType) {
                 if (!parameter.isConst &&
                     argument.isExpression &&
-                    argument.expression.IsConst() &&
-                    argument.type.isReferenceType &&
-                    !argument.type.IsKnownToBeImmutable()) {
+                    argument.expression.IsEffectivelyConst()) {
                     diagnostics.Push(Error.ArgumentWrongConst(sourceLocation, arg + 1));
                 } else {
                     diagnostics.Push(Error.CannotConvertArgument(sourceLocation, argType, parameter.type, arg + 1));

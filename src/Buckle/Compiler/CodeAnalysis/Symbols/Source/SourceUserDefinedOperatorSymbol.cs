@@ -10,36 +10,57 @@ internal sealed class SourceUserDefinedOperatorSymbol : SourceUserDefinedOperato
     private SourceUserDefinedOperatorSymbol(
         MethodKind methodKind,
         SourceMemberContainerTypeSymbol containingType,
+        TypeSymbol explicitInterfaceType,
         string name,
         OperatorDeclarationSyntax syntax,
         BelteDiagnosticQueue diagnostics)
         : base(
             methodKind,
+            explicitInterfaceType,
             name,
             containingType,
             syntax.operatorToken.location,
             syntax,
             syntax.returnType.GetRefKind(),
-            MakeDeclarationModifiers(containingType, syntax, syntax.operatorToken.location, diagnostics),
+            MakeDeclarationModifiers(containingType, methodKind, syntax, syntax.operatorToken.location, diagnostics),
             syntax.body is not null,
             diagnostics
         ) {
-        location = syntax.operatorKeyword.location;
+        if (isAbstract || isVirtual ||
+            (name != WellKnownMemberNames.EqualityOperatorName &&
+             name != WellKnownMemberNames.InequalityOperatorName)) {
+            ReportDefaultInterfaceImplementation(location, syntax.body is not null, diagnostics);
+        }
     }
-
-    internal override TextLocation location { get; }
 
     private protected override TextLocation _returnTypeLocation => GetSyntax().returnType.location;
 
     internal static SourceUserDefinedOperatorSymbol CreateUserDefinedOperatorSymbol(
         SourceMemberContainerTypeSymbol containingType,
+        Binder bodyBinder,
         OperatorDeclarationSyntax syntax,
         BelteDiagnosticQueue diagnostics) {
         var name = SyntaxFacts.GetOperatorMemberName(syntax);
+        var interfaceSpecifier = syntax.explicitInterfaceSpecifier;
+
+        name = ExplicitInterfaceHelpers.GetMemberNameAndInterfaceSymbol(
+            bodyBinder,
+            syntax.modifiers,
+            interfaceSpecifier,
+            name,
+            diagnostics,
+            out var explicitInterfaceType,
+            aliasQualifier: out _
+        );
+
+        var methodKind = interfaceSpecifier is null
+            ? MethodKind.Operator
+            : MethodKind.ExplicitInterfaceImplementation;
 
         return new SourceUserDefinedOperatorSymbol(
-            MethodKind.Operator,
+            methodKind,
             containingType,
+            explicitInterfaceType,
             name,
             syntax,
             diagnostics

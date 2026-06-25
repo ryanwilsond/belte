@@ -12,6 +12,7 @@ internal static class OperatorFacts {
             case TypeKind.Struct:
             case TypeKind.Enum:
             case TypeKind.TemplateParameter:
+            case TypeKind.Interface:
                 return false;
             default:
                 return true;
@@ -62,13 +63,6 @@ internal static class OperatorFacts {
             return true;
 
         return false;
-    }
-
-    internal static string OperatorNameFromDeclaration(ConversionDeclarationSyntax declaration) {
-        return declaration.implicitOrExplicitKeyword.kind switch {
-            SyntaxKind.ImplicitKeyword => WellKnownMemberNames.ImplicitConversionName,
-            _ => WellKnownMemberNames.ExplicitConversionName,
-        };
     }
 
     internal static string GetBinaryOperatorNameFromKind(BinaryOperatorKind kind) {

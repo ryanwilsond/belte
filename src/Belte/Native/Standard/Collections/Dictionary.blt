@@ -1,18 +1,18 @@
 
 public lowlevel sealed class Dictionary<type TKey, type TValue> {
-    private Buffer<int!>! _buckets = { };
+    private Buffer<int> _buckets = { };
     private Buffer<Entry> _entries;
-    private int! _count = 0;
-    private int! _freeList = -1;
-    private int! _freeCount = 0;
+    private int _count = 0;
+    private int _freeList = -1;
+    private int _freeCount = 0;
 
     public constructor() : this(0, null) { }
 
-    public constructor(int! capacity) : this(capacity, null) { }
+    public constructor(int capacity) : this(capacity, null) { }
 
     public constructor(EqualityComparer<TKey>? comparer) : this(0, comparer) { }
 
-    public constructor(int! capacity, EqualityComparer<TKey>? comparer) {
+    public constructor(int capacity, EqualityComparer<TKey>? comparer) {
         if (capacity < 0)
             throw new ArgumentOutOfRangeException();
 
@@ -23,11 +23,8 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
     public constructor(Dictionary<TKey, TValue> dictionary) : this(dictionary, null) { }
 
     public constructor(Dictionary<TKey, TValue> dictionary, EqualityComparer<TKey>? comparer)
-        : this(dictionary?.Length()?, comparer) {
-        if (dictionary is null)
-            throw new ArgumentNullException();
-
-        for (int! i = 0; i < dictionary._count; i++) {
+        : this(dictionary.Length(), comparer) {
+        for (int i = 0; i < dictionary._count; i++) {
             Entry entry = dictionary._entries[i];
 
             if (entry.hashCode >= 0)
@@ -37,11 +34,11 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
 
     public EqualityComparer<TKey> comparer;
 
-    public const bool! ContainsKey(TKey key) {
+    public const bool ContainsKey(TKey key) {
         return FindEntry(key) >= 0;
     }
 
-    public const bool! ContainsValue(TValue value) {
+    public const bool ContainsValue(TValue value) {
         if (value is null) {
             for (int i = 0; i < _count; i++) {
                 if (_entries[i].hashCode >= 0 && _entries[i].value is null)
@@ -59,7 +56,7 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
         return false;
     }
 
-    public const int! Length() {
+    public const int Length() {
         return _count - _freeCount;
     }
 
@@ -69,7 +66,7 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
 
     public void Clear() {
         if (_count > 0) {
-            for (int i = 0; i < LowLevel.Length<int!>(_buckets); i++)
+            for (int i = 0; i < _buckets.Length; i++)
                 _buckets[i] = -1;
 
             _freeList = -1;
@@ -82,30 +79,28 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
         if (key is null)
             throw new ArgumentNullException();
 
-        if (_buckets isnt null) {
-            int! hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
-            int! bucket = hashCode % LowLevel.Length<int!>(_buckets);
-            int! last = -1;
+        int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
+        int bucket = hashCode % _buckets.Length;
+        int last = -1;
 
-            for (int! i = _buckets[bucket]; i >= 0; last = i) {
-                if (_entries[i].hashCode == hashCode && comparer.Equals(_entries[i].key, key)) {
-                    if (last < 0)
-                        _buckets[bucket] = _entries[i].next;
-                    else
-                        _entries[last].next = _entries[i].next;
+        for (int i = _buckets[bucket]; i >= 0; last = i) {
+            if (_entries[i].hashCode == hashCode && comparer.Equals(_entries[i].key, key)) {
+                if (last < 0)
+                    _buckets[bucket] = _entries[i].next;
+                else
+                    _entries[last].next = _entries[i].next;
 
-                    _entries[i].hashCode = -1;
-                    _entries[i].next = _freeList;
-                    _entries[i].key = lowlevel default;
-                    _entries[i].value = lowlevel default;
-                    _freeList = i;
-                    _freeCount++;
+                _entries[i].hashCode = -1;
+                _entries[i].next = _freeList;
+                _entries[i].key = lowlevel default;
+                _entries[i].value = lowlevel default;
+                _freeList = i;
+                _freeCount++;
 
-                    return true;
-                }
-
-                i = _entries[i].next;
+                return true;
             }
+
+            i = _entries[i].next;
         }
 
         return false;
@@ -120,37 +115,32 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
         throw new KeyNotFoundException();
     }
 
-    public static Enumerator<KeyValuePair<TKey, TValue>>! operator iter(Dictionary<TKey, TValue> dictionary) {
+    public static Enumerator<KeyValuePair<TKey, TValue>> operator iter(Dictionary<TKey, TValue> dictionary) {
         return new DictionaryEnumerator(dictionary);
     }
 
-    private const int! FindEntry(TKey key) {
+    private const int FindEntry(TKey key) {
         if (key is null)
             throw new ArgumentNullException();
 
-        if (_buckets isnt null) {
-            int! hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
+        int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
 
-            for (int! i = _buckets[hashCode % LowLevel.Length<int!>(_buckets)]; i >= 0; i = _entries[i].next) {
-                if (_entries[i].hashCode == hashCode && comparer.Equals(_entries[i].key, key))
-                    return i;
-            }
+        for (int i = _buckets[hashCode % _buckets.Length]; i >= 0; i = _entries[i].next) {
+            if (_entries[i].hashCode == hashCode && comparer.Equals(_entries[i].key, key))
+                return i;
         }
 
         return -1;
     }
 
-    private void Insert(TKey key, TValue value, bool! add) {
+    private void Insert(TKey key, TValue value, bool add) {
         if (key is null)
             throw new ArgumentNullException();
 
-        if (_buckets is null)
-            Initialize(0);
+        int hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
+        int targetBucket = hashCode % _buckets.Length;
 
-        int! hashCode = comparer.GetHashCode(key) & 0x7FFFFFFF;
-        int! targetBucket = hashCode % LowLevel.Length<int!>(_buckets);
-
-        for (int! i = _buckets[targetBucket]; i >= 0; i = _entries[i].next) {
+        for (int i = _buckets[targetBucket]; i >= 0; i = _entries[i].next) {
             if (_entries[i].hashCode == hashCode && comparer.Equals(_entries[i].key, key)) {
                 if (add)
                     throw new ArgumentNullException();
@@ -160,16 +150,16 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
             }
         }
 
-        int! index = 0;
+        int index = 0;
 
         if (_freeCount > 0) {
             index = _freeList;
             _freeList = _entries[index].next;
             _freeCount--;
         } else {
-            if (_count == LowLevel.Length<Entry>(_entries)) {
+            if (_count == _entries.Length) {
                 Resize();
-                targetBucket = hashCode % LowLevel.Length<int!>(_buckets);
+                targetBucket = hashCode % _buckets.Length;
             }
 
             index = _count;
@@ -187,25 +177,25 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
         Resize(HashHelpers.ExpandPrime(_count), false);
     }
 
-    private void Resize(int! newSize, bool! forceNewHashCodes) {
-        Buffer<int!>! newBuckets = new Buffer<int!>(newSize);
+    private void Resize(int newSize, bool forceNewHashCodes) {
+        Buffer<int> newBuckets = new Buffer<int>(newSize);
 
-        for (int! i = 0; i < LowLevel.Length<int!>(newBuckets); i++)
+        for (int i = 0; i < newBuckets.Length; i++)
             newBuckets[i] = -1;
 
         Buffer<Entry> newEntries = new Buffer<Entry>(newSize);
         Array<Entry>.Copy(newEntries, _entries, 0, _count);
 
         if (forceNewHashCodes) {
-            for (int! i = 0; i < _count; i++) {
+            for (int i = 0; i < _count; i++) {
                 if (newEntries[i].hashCode != -1)
                     newEntries[i].hashCode = (comparer.GetHashCode(newEntries[i].key) & 0x7FFFFFFF);
             }
         }
 
-        for (int! i = 0; i < _count; i++) {
+        for (int i = 0; i < _count; i++) {
             if (newEntries[i].hashCode >= 0) {
-                int! bucket = newEntries[i].hashCode % newSize;
+                int bucket = newEntries[i].hashCode % newSize;
                 newEntries[i].next = newBuckets[bucket];
                 newBuckets[bucket] = i;
             }
@@ -215,11 +205,11 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
         _entries = newEntries;
     }
 
-    private void Initialize(int! capacity) initializes(_entries, _buckets, _freeList) {
-        int! size = HashHelpers.GetPrime(capacity);
-        _buckets = new Buffer<int!>(size);
+    private void Initialize(int capacity) initializes(_entries, _buckets, _freeList) {
+        int size = HashHelpers.GetPrime(capacity);
+        _buckets = new Buffer<int>(size);
 
-        for (int! i = 0; i < LowLevel.Length<int!>(_buckets); i++)
+        for (int i = 0; i < _buckets.Length; i++)
             _buckets[i] = -1;
 
         _entries = new Buffer<Entry>(size);
@@ -227,15 +217,15 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
     }
 
     private struct Entry {
-        public int! hashCode;
-        public int! next;
+        public int hashCode;
+        public int next;
         public lowlevel TKey key;
         public lowlevel TValue value;
     }
 
     private class DictionaryEnumerator extends Enumerator<KeyValuePair<TKey, TValue>> {
         private const Dictionary<TKey, TValue> _dictionary;
-        private int! _index = 0;
+        private int _index = 0;
         private KeyValuePair<TKey, TValue> _current = lowlevel default;
 
         public constructor(Dictionary<TKey, TValue> dictionary) {
@@ -250,7 +240,7 @@ public lowlevel sealed class Dictionary<type TKey, type TValue> {
             _index = 0;
         }
 
-        public override bool! MoveNext() {
+        public override bool MoveNext() {
             while ((uint32)_index < (uint32)_dictionary._count) {
                 ref const Entry reference = ref _dictionary._entries[_index++];
 

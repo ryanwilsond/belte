@@ -24,6 +24,13 @@
     <Field Name="breakLabel" Type="SynthesizedLabelSymbol"/>
     <Field Name="continueLabel" Type="SynthesizedLabelSymbol"/>
   </AbstractNode>
+  <Node Name="BoundArrayLength" Base="BoundExpression">
+    <Field Name="receiver" Type="BoundExpression"/>
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+  </Node>
+  <Node Name="BoundUnconvertedArrayLength" Base="BoundExpression">
+    <Field Name="receiver" Type="BoundExpression"/>
+  </Node>
   <AbstractNode Name="BoundObjectCreationExpressionBase" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
   </AbstractNode>
@@ -445,9 +452,15 @@
     <Field Name="resultKind" Type="LookupResultKind" PropertyOverrides="true"/>
     <Field Name="originalUserDefinedOperators" Type="ImmutableArray&lt;MethodSymbol&gt;" Null="allow"/>
   </Node>
+  <Node Name="BoundConsumeStackValue" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+  </Node>
   <!-- Statements -->
   <Node Name="BoundErrorStatement" Base="BoundStatement">
     <Field Name="childBoundNodes" Type="ImmutableArray&lt;BoundNode&gt;"/>
+  </Node>
+  <Node Name="BoundStackValue" Base="BoundStatement">
+    <Field Name="value" Type="BoundExpression"/>
   </Node>
   <Node Name="BoundBreakStatement" Base="BoundStatement">
     <Field Name="label" Type="SynthesizedLabelSymbol"/>

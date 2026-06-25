@@ -14,7 +14,6 @@ internal static partial class BoundFactory {
 
     internal static BoundLiteralExpression Literal(SyntaxNode syntax, object value, TypeSymbol type) {
         if (type is not null) {
-
             if (type.StrippedType().IsEnumType())
                 type = ((NamedTypeSymbol)type).StrippedType().GetEnumUnderlyingType();
 

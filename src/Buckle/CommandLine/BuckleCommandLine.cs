@@ -59,6 +59,10 @@ public static partial class BuckleCommandLine {
         new DiagnosticInfo(0509, "BU"),
         new DiagnosticInfo(0512, "BU"),
         new DiagnosticInfo(0514, "BU"),
+        new DiagnosticInfo(0524, "BU"),
+        new DiagnosticInfo(0525, "BU"),
+        new DiagnosticInfo(0528, "BU"),
+        new DiagnosticInfo(0573, "BU"),
     ];
 
     private static readonly DiagnosticInfo[] WarningLevel2 = [
@@ -72,6 +76,7 @@ public static partial class BuckleCommandLine {
         new DiagnosticInfo(0447, "BU"),
         new DiagnosticInfo(0467, "BU"),
         new DiagnosticInfo(0471, "BU"),
+        new DiagnosticInfo(0527, "BU"),
     ];
 
     private static readonly DiagnosticInfo[] WarningLevel3 = [];
@@ -247,9 +252,10 @@ void Build(Builder builder) {{
                 programContent =
 @$"
 namespace {name};
+
 static class Program;
 
-void Main(string[]! args) {{
+void Main(string[] args) {{
     Console.PrintLine(""Hello, world!"");
 }}
 ";
@@ -259,9 +265,10 @@ void Main(string[]! args) {{
                 programContent =
 @$"
 namespace {name};
+
 class Program;
 
-void Main(string[]! args) {{
+void Main(string[] args) {{
     Graphics.Initialize(""{name}"", 1280, 720, false);
 }}
 
@@ -529,9 +536,11 @@ public class {name} {{
         var copies = new List<string>();
 
         foreach (var (reference, options) in builder.refs) {
-            if (Directory.Exists(reference)) {
+            var foundPath = SearchPathFileOrDir(reference);
+
+            if (Directory.Exists(foundPath)) {
                 var files = Directory.GetFiles(
-                    reference,
+                    foundPath,
                     "*.dll",
                     ((options & RefOptions.Flat) != 0) ? SearchOption.TopDirectoryOnly : SearchOption.AllDirectories
                 );
@@ -540,13 +549,13 @@ public class {name} {{
 
                 if ((options & RefOptions.Copy) != 0)
                     copies.AddRange(files);
-            } else if (File.Exists(reference)) {
-                references.Add(reference);
+            } else if (File.Exists(foundPath)) {
+                references.Add(foundPath);
 
                 if ((options & RefOptions.Copy) != 0)
-                    copies.Add(reference);
+                    copies.Add(foundPath);
             } else {
-                diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(reference));
+                diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(foundPath));
             }
         }
 
@@ -556,9 +565,11 @@ public class {name} {{
         var depsDest = new List<string>();
 
         foreach (var (path, filter, options) in builder.deps) {
-            if (Directory.Exists(path)) {
+            var foundPath = SearchPathFileOrDir(path);
+
+            if (Directory.Exists(foundPath)) {
                 var searchOption = options.flatSearch ? SearchOption.TopDirectoryOnly : SearchOption.AllDirectories;
-                var files = Directory.GetFiles(path, filter ?? "*", searchOption);
+                var files = Directory.GetFiles(foundPath, filter ?? "*", searchOption);
 
                 foreach (var file in files) {
                     depsSource.Add(file);
@@ -567,17 +578,17 @@ public class {name} {{
 
                     if (options.preserveStructure) {
                         dest = dest is null
-                            ? Path.GetRelativePath(path, Path.GetDirectoryName(file))
-                            : Path.Join(dest, Path.GetRelativePath(path, Path.GetDirectoryName(file)));
+                            ? Path.GetRelativePath(foundPath, Path.GetDirectoryName(file))
+                            : Path.Join(dest, Path.GetRelativePath(foundPath, Path.GetDirectoryName(file)));
                     }
 
                     depsDest.Add(dest);
                 }
-            } else if (File.Exists(path)) {
-                depsSource.Add(path);
+            } else if (File.Exists(foundPath)) {
+                depsSource.Add(foundPath);
                 depsDest.Add(options.outSubDir);
             } else {
-                diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(path));
+                diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(foundPath));
             }
         }
 
@@ -638,6 +649,23 @@ public class {name} {{
         };
     }
 
+    private static string SearchPathFileOrDir(string path) {
+        if (Directory.Exists(path) || File.Exists(path))
+            return path;
+
+        var pathEnv = Environment.GetEnvironmentVariable("PATH");
+
+        if (string.IsNullOrEmpty(pathEnv))
+            return path;
+
+        var directories = pathEnv.Split(Path.PathSeparator);
+
+        return directories
+            .Select(dir => Path.Combine(dir.Trim(), path))
+            .FirstOrDefault(File.Exists)
+            ?? path;
+    }
+
     private static TaskDiagnosticOptions TranslateDiagnosticOptions(
         DiagnosticQueue<Diagnostic> diagnostics, DiagnosticOptions diagnosticOptions) {
         var excludeWarningsAsErrors = ParseAndVerifyWarningCodes(diagnosticOptions.werrexcludes.ToArray(), diagnostics);
@@ -682,7 +710,7 @@ public class {name} {{
                 if (state.showInfo)
                     Console.WriteLine("    Existing cache data is malformed: clearing and recreating");
 
-                Directory.Delete(cacheDirectory);
+                Directory.Delete(cacheDirectory, true);
                 reuse = false;
             } else {
                 UpdateLastAccess(
@@ -890,6 +918,7 @@ public class {name} {{
 
     private static void ShowVersionDialog() {
         Console.WriteLine($"Version: Buckle {GetVersionString()}");
+        Console.WriteLine($"Installed Dir: {AppContext.BaseDirectory}");
     }
 
     private static string GetVersionString() {

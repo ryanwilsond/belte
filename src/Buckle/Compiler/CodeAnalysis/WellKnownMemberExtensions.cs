@@ -8,6 +8,7 @@ internal static class WellKnownMemberExtensions {
         "get_Value",
         "get_HasValue",
         "GetValueOrDefault",
+        "GetValueOrDefault",
 
         "Item1",
 

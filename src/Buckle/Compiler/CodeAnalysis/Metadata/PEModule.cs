@@ -9,7 +9,6 @@ using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
 using System.Threading;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.Diagnostics;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 using TypeAttributes = System.Reflection.TypeAttributes;
@@ -854,6 +853,10 @@ internal sealed partial class PEModule : IDisposable {
         return metadataReader.GetMemberReference(memberRef).Signature;
     }
 
+    internal BlobHandle GetSignatureOrThrow(MemberReferenceHandle memberRef) {
+        return GetSignatureOrThrow(metadataReader, memberRef);
+    }
+
     internal bool ContainsNoPiaLocalTypes() {
         if (_lazyContainsNoPiaLocalTypes == ThreeState.Unknown) {
             try {
@@ -1146,6 +1149,10 @@ internal sealed partial class PEModule : IDisposable {
         return metadataReader.GetTypeDefinition(typeDef).GetMethodImplementations();
     }
 
+    internal InterfaceImplementationHandleCollection GetInterfaceImplementationsOrThrow(TypeDefinitionHandle typeDef) {
+        return metadataReader.GetTypeDefinition(typeDef).GetInterfaceImplementations();
+    }
+
     internal string GetFieldDefNameOrThrow(FieldDefinitionHandle fieldDef) {
         return metadataReader.GetString(metadataReader.GetFieldDefinition(fieldDef).Name);
     }
@@ -1304,6 +1311,18 @@ internal sealed partial class PEModule : IDisposable {
         return metadataReader.GetTypeDefinition(typeDef).GetDeclaringType();
     }
 
+    internal EntityHandle GetContainingTypeOrThrow(MemberReferenceHandle memberRef) {
+        return metadataReader.GetMemberReference(memberRef).Parent;
+    }
+
+    internal string GetMemberRefNameOrThrow(MemberReferenceHandle memberRef) {
+        return GetMemberRefNameOrThrow(metadataReader, memberRef);
+    }
+
+    private static string GetMemberRefNameOrThrow(MetadataReader metadataReader, MemberReferenceHandle memberRef) {
+        return metadataReader.GetString(metadataReader.GetMemberReference(memberRef).Name);
+    }
+
     internal string GetTypeDefNamespaceOrThrow(TypeDefinitionHandle typeDef) {
         return metadataReader.GetString(metadataReader.GetTypeDefinition(typeDef).Namespace);
     }
@@ -1313,9 +1332,7 @@ internal sealed partial class PEModule : IDisposable {
     }
 
     internal bool IsInterfaceOrThrow(TypeDefinitionHandle typeDef) {
-        // TODO interfaces
-        // return metadataReader.GetTypeDefinition(typeDef).Attributes.IsInterface();
-        return false;
+        return (metadataReader.GetTypeDefinition(typeDef).Attributes & TypeAttributes.Interface) != 0;
     }
 
     internal bool IsNoPiaLocalType(

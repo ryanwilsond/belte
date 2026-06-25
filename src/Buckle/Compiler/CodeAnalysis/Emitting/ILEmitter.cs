@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Threading;
@@ -23,6 +24,7 @@ namespace Buckle.CodeAnalysis.Emitting;
 
 internal sealed partial class ILEmitter : ModuleBuilder {
     internal readonly static Lock GlobalCecilLock = new();
+    internal readonly static ConcurrentSet<TypeReference> Imports = [];
 
     private readonly MethodReference _belteCompilerGeneratedAttributeCtor;
     private readonly TypeReference _belteCompilerGeneratedAttribute;
@@ -64,7 +66,6 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private ILEmitter(
         BoundProgram program,
         string assemblySimpleName,
-        string[] references,
         bool debugMode,
         bool reduced,
         BelteDiagnosticQueue diagnostics) {
@@ -109,6 +110,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 #if !DEBUG
 #pragma warning restore IL3000
 #endif
+
+        var references = program.compilation.referenceManager.assemblies.Select(a => a.location);
 
         foreach (var reference in references) {
             try {
@@ -158,12 +161,11 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     internal static void Emit(
         BoundProgram program,
         string moduleName,
-        string[] references,
         string outputPath,
         BelteDiagnosticQueue diagnostics) {
         var debugMode = program.compilation.options.optimizationLevel == OptimizationLevel.Debug;
         var reduced = program.compilation.options.noStdLib;
-        var emitter = new ILEmitter(program, moduleName, references, debugMode, reduced, diagnostics);
+        var emitter = new ILEmitter(program, moduleName, debugMode, reduced, diagnostics);
 
         if (SupportedProjectType(program, diagnostics))
             emitter.EmitToFile(outputPath, debugMode);
@@ -173,9 +175,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         BoundProgram program,
         string moduleName,
         bool programOnly,
-        string[] references,
         BelteDiagnosticQueue diagnostics) {
-        var emitter = new ILEmitter(program, moduleName, references, false, false, diagnostics);
+        var emitter = new ILEmitter(program, moduleName, false, false, diagnostics);
 
         if (SupportedProjectType(program, diagnostics))
             return emitter.EmitToString(programOnly);
@@ -403,6 +404,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                     typeReference.GenericArguments.Add(generic);
 
                 _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(typeReference));
+                // TODO Resolving may be unnecessary here?
+                // _assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeReference);
                 return typeReference;
             }
 
@@ -410,8 +413,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
 
         TypeReference GetTypeCoreInternal(NamedTypeSymbol type) {
-            if (type.originalDefinition is PENamedTypeSymbol pe)
-                return ResolveType(pe);
+            if (type.originalDefinition is PENamedTypeSymbol or MissingMetadataTypeSymbol)
+                return ResolveType(type.originalDefinition);
 
             if (_types.TryGetValue(type.originalDefinition, out var found))
                 return found;
@@ -422,6 +425,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     private TypeDefinition Resolve(TypeReference reference) {
+        if (reference is TypeDefinition td)
+            Debug.Print($"Unnecessary resolve call: {td}");
+
         lock (GlobalCecilLock)
             return reference.Resolve();
     }
@@ -445,20 +451,24 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
     private TypeReference GetFuncType(FunctionMethodSymbol signature) {
         if (signature.returnsVoid && signature.parameterCount == 0) {
-            var typeRef = ResolveType(null, "System.Action");
+            var typeRef = ImportType("System.Action");
             _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(typeRef));
+            // TODO Resolving may be unnecessary here?
+            // _assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeRef);
             return typeRef;
         } else if (signature.returnsVoid) {
-            var typeRef = ResolveType(null, $"System.Action`{signature.parameterCount}");
+            var typeRef = ImportType($"System.Action`{signature.parameterCount}");
             var genericRef = new GenericInstanceType(typeRef);
 
             foreach (var p in signature.GetParameterTypes())
                 genericRef.GenericArguments.Add(GetType(p.type));
 
             _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(genericRef));
+            // TODO Resolving may be unnecessary here?
+            // _assemblyDefinition.MainModule.ImportReferenceThreadSafe(genericRef);
             return genericRef;
         } else {
-            var typeRef = ResolveType(null, $"System.Func`{signature.parameterCount + 1}");
+            var typeRef = ImportType($"System.Func`{signature.parameterCount + 1}");
             var genericRef = new GenericInstanceType(typeRef);
 
             foreach (var p in signature.GetParameterTypes())
@@ -467,6 +477,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             genericRef.GenericArguments.Add(GetType(signature.returnType));
 
             _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(genericRef));
+            // TODO Resolving may be unnecessary here?
+            // _assemblyDefinition.MainModule.ImportReferenceThreadSafe(genericRef);
             return genericRef;
         }
     }
@@ -479,8 +491,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             value = ResolveMethod(
                 (PENamedTypeSymbol)m.containingType,
                 m.metadataName,
-                m.GetParameterTypes()
-                    .Select(p => p.type.ContainsTemplateParameter() ? null : GetType(p.type).ToString())
+                m.GetParameters()
+                    .Select(p => p.type.ContainsTemplateParameter()
+                        ? null
+                        : GetType(p.type, p.refKind != RefKind.None).ToString())
                     .ToArray()
             );
 
@@ -515,6 +529,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
             if (method.arity > 0) {
                 var def = _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(value));
+                // TODO Resolving may be unnecessary here?
+                // var def = _assemblyDefinition.MainModule.ImportReferenceThreadSafe(value);
                 var generic = new GenericInstanceMethod(def);
                 // TODO Not necessary?
                 // {
@@ -667,6 +683,22 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(genericGetValue);
     }
 
+    internal MethodReference GetNullableValueOrDefaultT(TypeSymbol genericType) {
+        var typeReference = new GenericInstanceType(NetTypeReference.Nullable);
+        var genericArgumentType = GetType(genericType);
+        typeReference.GenericArguments.Add(genericArgumentType);
+
+        var getValueDef = NetMethodReference.Nullable_GetValueOrDefault_T;
+        var getValueRef = _assemblyDefinition.MainModule.ImportReferenceThreadSafe(getValueDef);
+        var genericGetValue = new MethodReference(getValueRef.Name, getValueRef.ReturnType, typeReference) {
+            HasThis = getValueRef.HasThis,
+            ExplicitThis = getValueRef.ExplicitThis,
+            CallingConvention = getValueRef.CallingConvention,
+        };
+
+        return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(genericGetValue);
+    }
+
     internal MethodReference GetSort(TypeSymbol elementType) {
         var genericArgumentType = GetType(elementType);
 
@@ -750,20 +782,30 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             var peType = GetType(field.containingType);
             var peField = Resolve(peType).Fields.Single(e => e.Name == f.name);
 
+            // TODO Might not need to always import here
+            // var fieldType = peField.ContainsGenericParameter
+            //     ? _assemblyDefinition.MainModule.ImportReferenceThreadSafe(peField.FieldType, peType)
+            //     : peField.FieldType;
+
             return new FieldReference(
                 peField.Name,
                 _assemblyDefinition.MainModule.ImportReferenceThreadSafe(peField.FieldType, peType),
+                // fieldType,
                 peType
             );
         } else {
             var fieldRef = _fields[field.originalDefinition];
             var constructedType = GetType(GetFieldContainingType(field));
 
+            // TODO Might not need to always import here
+            // var fieldType = fieldRef.ContainsGenericParameter
+            //     ? _assemblyDefinition.MainModule.ImportReferenceThreadSafe(fieldRef.FieldType, constructedType)
+            //     : fieldRef.FieldType;
+
             return new FieldReference(
                 fieldRef.Name,
                 _assemblyDefinition.MainModule.ImportReferenceThreadSafe(fieldRef.FieldType, constructedType),
-                // TODO Importing may be unnecessary here?
-                // fieldRef.FieldType,
+                // fieldType,
                 constructedType
             );
         }
@@ -1042,6 +1084,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         _fields.Add(
             (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Rest),
             Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,,,>).GetField("Rest"))));
+        _types.Add(
+            CorLibrary.GetWellKnownType(WellKnownType.Attribute),
+            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(Attribute))));
     }
 
     private MethodDefinition CreateEntryWrapperIfApplicable(MethodSymbol entrySymbol) {
@@ -1133,12 +1178,24 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     private TypeDefinition CreateNamedTypeDefinition(NamedTypeSymbol type, bool isNested = false) {
-        var typeDefinition = new TypeDefinition(
-            GetNamespaceName(type),
-            type.name,
-            GetTypeAttributes(type, isNested),
-            GetBaseType(type)
-        );
+        TypeDefinition typeDefinition;
+
+        if (type.isInterface) {
+            typeDefinition = new TypeDefinition(
+                GetNamespaceName(type),
+                type.name,
+                GetTypeAttributes(type, isNested)
+            );
+        } else {
+            typeDefinition = new TypeDefinition(
+                GetNamespaceName(type),
+                type.name,
+                GetTypeAttributes(type, isNested),
+                GetBaseType(type)
+            );
+        }
+
+        AddInterfaceImplementations(type, typeDefinition);
 
         if (type.explicitAlignment is not null)
             typeDefinition.PackingSize = (short)type.explicitAlignment;
@@ -1170,13 +1227,19 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         return typeDefinition;
     }
 
+    private void AddInterfaceImplementations(NamedTypeSymbol type, TypeDefinition typeDefinition) {
+        foreach (var @interface in type.Interfaces())
+            typeDefinition.Interfaces.Add(new InterfaceImplementation(GetType(@interface)));
+    }
+
     private TypeReference GetBaseType(NamedTypeSymbol type) {
-        if (type.baseType is null || type.IsStructType())
+        if (type.IsStructType())
             return NetTypeReference.ValueType;
 
         if (type.IsEnumType())
             return NetTypeReference.Enum;
 
+        Debug.Assert(type.baseType is not null);
         return GetType(type.baseType);
     }
 
@@ -1556,7 +1619,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     private static TypeAttributes GetTypeAttributes(NamedTypeSymbol type, bool isNested) {
-        var attributes = TypeAttributes.Class;
+        // Structs use TypeAttributes.Class
+        var attributes = type.isInterface ? TypeAttributes.Interface : TypeAttributes.Class;
 
         if (type.isStatic)
             attributes |= TypeAttributes.Abstract | TypeAttributes.Sealed;
@@ -1626,7 +1690,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         var (method, body) = _methodBodyMap[methodDefinition];
         var ilBuilder = new CecilILBuilder(method, this, methodDefinition);
-        var codeGen = new CodeGenerator(this, method, body, ilBuilder, _debugMode);
+        var codeGen = new CodeGenerator(this, method, body, ilBuilder, _debugMode, _diagnostics);
 
         if (_program.entryPoint == method)
             EmitAssemblyResolver(methodDefinition);
@@ -1673,7 +1737,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         _c9__0_0 = new FieldDefinition(
             "<>9__0_0",
             FieldAttributes.InitOnly | FieldAttributes.Static | FieldAttributes.Public,
-            ResolveType(null, "System.ResolveEventHandler")
+            ImportType("System.ResolveEventHandler")
         );
 
         cDefinition.Fields.Add(_c9);
@@ -1700,7 +1764,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         var methodDefinition = new MethodDefinition(
             "<Main>AssemblyResolver",
             MethodAttributes.HideBySig | MethodAttributes.Assembly,
-            ResolveType(null, "System.Reflection.Assembly")
+            ImportType("System.Reflection.Assembly")
         );
 
         methodDefinition.CustomAttributes.Add(new CustomAttribute(_belteCompilerGeneratedAttributeCtor));
@@ -1717,7 +1781,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             new Mono.Cecil.ParameterDefinition(
                 "e",
                 ParameterAttributes.None,
-                ResolveType(null, "System.ResolveEventArgs")
+                ImportType("System.ResolveEventArgs")
             )
         );
 
@@ -1849,30 +1913,43 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
     }
 
-    private TypeReference ResolveType(PENamedTypeSymbol typeSymbol) {
-        var stack = new Stack<PENamedTypeSymbol>();
-        var current = typeSymbol;
+    private TypeDefinition ResolveType(NamedTypeSymbol peTypeSymbol) {
+        var stack = new Stack<NamedTypeSymbol>();
+        var current = peTypeSymbol;
 
         while (current is not null) {
             stack.Push(current);
-            current = current.containingType as PENamedTypeSymbol;
+            current = (NamedTypeSymbol)(current.containingType as PENamedTypeSymbol) ??
+                (current.containingType as MissingMetadataTypeSymbol);
         }
 
         var topType = stack.Pop();
         var displayName = topType.ToDisplayString(SymbolDisplayFormat.NetNamespaceQualifiedNameFormat);
         var currentFoundType = ResolveType(null, displayName);
-        _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(currentFoundType));
+        // _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(currentFoundType));
+        // TODO Resolving may be unnecessary here?
+        // _assemblyDefinition.MainModule.ImportReferenceThreadSafe(currentFoundType);
 
         while (stack.Count > 0) {
             var nestedType = stack.Pop();
             currentFoundType = Resolve(currentFoundType).NestedTypes.First(t => t.Name == nestedType.name);
-            _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(currentFoundType));
+            // _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(currentFoundType));
+            // TODO Resolving may be unnecessary here?
+            // _assemblyDefinition.MainModule.ImportReferenceThreadSafe(currentFoundType);
         }
 
         return currentFoundType;
     }
 
-    private TypeReference ResolveType(string name, string metadataName) {
+    private TypeReference ImportType(string metadataName) {
+        return ImportType(displayName: null, metadataName);
+    }
+
+    private TypeReference ImportType(string displayName, string metadataName) {
+        return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(ResolveType(displayName, metadataName));
+    }
+
+    private TypeDefinition ResolveType(string name, string metadataName) {
         var foundTypes = new List<TypeDefinition>(1);
 
         for (var i = 0; i < _assemblies.Count; i++) {
@@ -1892,7 +1969,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         // TODO Do we actually care about ambiguity
         if (foundTypes.Count >= 1) {
-            return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(foundTypes[0]);
+            // if (import)
+            //     return Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(foundTypes[0]));
+
+            return foundTypes[0];
         } else if (foundTypes.Count == 0) {
             throw new BelteInternalException($"Required type not found: {name} ({metadataName})");
         } else {
@@ -2003,23 +2083,23 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         };
 
         foreach (var (type, metadataName) in builtInTypes) {
-            var typeReference = ResolveType(CorLibrary.GetSpecialType(type).name, metadataName);
+            var typeReference = ImportType(CorLibrary.GetSpecialType(type).name, metadataName);
             _specialTypes.Add(type, typeReference);
         }
 
-        NetTypeReference.Random = ResolveType(null, "System.Random");
-        NetTypeReference.Nullable = ResolveType(null, "System.Nullable`1");
-        NetTypeReference.ValueType = ResolveType(null, "System.ValueType");
-        NetTypeReference.Enum = ResolveType(null, "System.Enum");
+        NetTypeReference.Random = ImportType("System.Random");
+        NetTypeReference.Nullable = ImportType("System.Nullable`1");
+        NetTypeReference.ValueType = ImportType("System.ValueType");
+        NetTypeReference.Enum = ImportType("System.Enum");
 
-        NetTypeReference.ValueTuple_T1 = ResolveType(null, "System.ValueTuple`1");
-        NetTypeReference.ValueTuple_T2 = ResolveType(null, "System.ValueTuple`2");
-        NetTypeReference.ValueTuple_T3 = ResolveType(null, "System.ValueTuple`3");
-        NetTypeReference.ValueTuple_T4 = ResolveType(null, "System.ValueTuple`4");
-        NetTypeReference.ValueTuple_T5 = ResolveType(null, "System.ValueTuple`5");
-        NetTypeReference.ValueTuple_T6 = ResolveType(null, "System.ValueTuple`6");
-        NetTypeReference.ValueTuple_T7 = ResolveType(null, "System.ValueTuple`7");
-        NetTypeReference.ValueTuple_TRest = ResolveType(null, "System.ValueTuple`8");
+        NetTypeReference.ValueTuple_T1 = ImportType("System.ValueTuple`1");
+        NetTypeReference.ValueTuple_T2 = ImportType("System.ValueTuple`2");
+        NetTypeReference.ValueTuple_T3 = ImportType("System.ValueTuple`3");
+        NetTypeReference.ValueTuple_T4 = ImportType("System.ValueTuple`4");
+        NetTypeReference.ValueTuple_T5 = ImportType("System.ValueTuple`5");
+        NetTypeReference.ValueTuple_T6 = ImportType("System.ValueTuple`6");
+        NetTypeReference.ValueTuple_T7 = ImportType("System.ValueTuple`7");
+        NetTypeReference.ValueTuple_TRest = ImportType("System.ValueTuple`8");
     }
 
     private MethodReference CheckStandardMap(MethodSymbol method) {
@@ -2033,6 +2113,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             "Nullable<>_get_Value" => GetNullableValue(method.containingType.templateArguments[0].type.type),
             "Nullable<>_get_HasValue" => GetNullableHasValue(method.containingType.templateArguments[0].type.type),
             "Nullable<>_GetValueOrDefault" => GetNullableValueOrDefault(method.containingType.templateArguments[0].type.type),
+            "Nullable<>_GetValueOrDefault_T" => GetNullableValueOrDefaultT(method.containingType.templateArguments[0].type.type),
             _ => _stlMap[mapKey],
         };
     }
@@ -2084,6 +2165,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         NetMethodReference.Nullable_Value = ResolveMethod("System.Nullable`1", "get_Value", []);
         NetMethodReference.Nullable_HasValue = ResolveMethod("System.Nullable`1", "get_HasValue", []);
         NetMethodReference.Nullable_GetValueOrDefault = ResolveMethod("System.Nullable`1", "GetValueOrDefault", []);
+        NetMethodReference.Nullable_GetValueOrDefault_T = ResolveMethod("System.Nullable`1", "GetValueOrDefault", ["T"]);
         NetMethodReference.Type_GetTypeFromHandle = ResolveMethod("System.Type", "GetTypeFromHandle", ["System.RuntimeTypeHandle"]);
         NetMethodReference.NullReferenceException_ctor = ResolveMethod("System.NullReferenceException", ".ctor", []);
         NetMethodReference.NullConditionException_ctor = ResolveMethod("Belte.Runtime.NullConditionException", ".ctor", []);
@@ -2186,6 +2268,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 { "String_TrimStart_S[", ResolveMethod("Belte.Runtime.Utilities", "StringTrimStart", ["System.String", "System.Char[]"]) },
                 { "String_TrimEnd_S", ResolveMethod("Belte.Runtime.Utilities", "StringTrimEnd", ["System.String"]) },
                 { "String_TrimEnd_S[", ResolveMethod("Belte.Runtime.Utilities", "StringTrimEnd", ["System.String", "System.Char[]"]) },
+                { "String_Contains_SS", ResolveMethod("Belte.Runtime.Utilities", "StringContains", ["System.String", "System.String"]) },
                 { "Int_Parse_S?", ResolveMethod("Belte.Runtime.Utilities", "IntParse", ["System.String"]) },
                 { "Int_ToString_IS", ResolveMethod("Belte.Runtime.Utilities", "IntToString", ["System.Int64", "System.String"]) },
                 { "Decimal_IsNaN_F4", ResolveMethod("System.Single", "IsNaN", ["System.Single"]) },

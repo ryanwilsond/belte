@@ -8,7 +8,7 @@ using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
-internal partial class SharedFlowLowerer : BoundTreeRewriter {
+internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
     private readonly List<string> _localNames = [];
     private int _tempCount = 0;
     private int _labelCount;
@@ -44,7 +44,7 @@ internal partial class SharedFlowLowerer : BoundTreeRewriter {
 
         {
             var temp = <collection>
-            var length = LowLevel.Length<>(temp)
+            var length = temp.Length
             <index> = 0;
 
             for (; <index> < length; index++) {
@@ -99,11 +99,8 @@ internal partial class SharedFlowLowerer : BoundTreeRewriter {
             ? GenerateTempLocal(CorLibrary.GetSpecialType(SpecialType.Int))
             : GenerateTempLocal(((MethodSymbol)iterOps[0]).returnType);
 
-        var lengthOrIterInit = isEnumerator ? null : isArray
-            ? Call(syntax,
-                StandardLibrary.GetWellKnownMember(STLWellKnownMembers.LowLevel_Length)
-                    .Construct([new TypeOrConstant(node.expression.type)]),
-                Local(syntax, temp))
+        BoundExpression lengthOrIterInit = isEnumerator ? null : isArray
+            ? new BoundArrayLength(syntax, Local(syntax, temp), CorLibrary.GetSpecialType(SpecialType.Int))
             : isString
                 ? Call(syntax,
                     StandardLibrary.GetWellKnownMember(STLWellKnownMembers.String_Length),

@@ -31,10 +31,11 @@ internal sealed class SourceOverridingMethodTemplateParameterSymbol : SourceTemp
 
     internal override bool hasNotNullConstraint => _overriddenTemplateParameter?.hasNotNullConstraint == true;
 
-    internal override bool hasPrimitiveTypeConstraint
-        => _overriddenTemplateParameter?.hasPrimitiveTypeConstraint == true;
+    internal override bool hasValueTypeConstraint
+        => _overriddenTemplateParameter?.hasValueTypeConstraint == true;
 
-    internal override bool hasObjectTypeConstraint => _overriddenTemplateParameter?.hasObjectTypeConstraint == true;
+    internal override bool hasReferenceTypeConstraint
+        => _overriddenTemplateParameter?.hasReferenceTypeConstraint == true;
 
     internal override bool hasDefaultConstraint => _overriddenTemplateParameter?.hasDefaultConstraint == true;
 

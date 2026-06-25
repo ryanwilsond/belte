@@ -21,11 +21,12 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// In a case where a child must be used more than once, the Expander should handle that node instead to create a temp.
 /// Nodes may be visited multiple times.
 /// </summary>
-internal sealed class Lowerer : BoundTreeRewriter {
+internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
     private readonly SharedExpander _expander;
     private readonly bool _transpiling;
     private readonly MethodCompiler _methodCompiler;
     private readonly MethodSymbol _method;
+    private readonly NamedTypeSymbol _entryType;
     private readonly BelteDiagnosticQueue _diagnostics;
 
     private bool _sawCompileTimeExpression;
@@ -33,13 +34,16 @@ internal sealed class Lowerer : BoundTreeRewriter {
     private Lowerer(
         MethodCompiler methodCompiler,
         MethodSymbol container,
-        BelteDiagnosticQueue diagnostics,
-        bool transpiling) {
+        NamedTypeSymbol entryType,
+        BelteDiagnosticQueue diagnostics) {
         _methodCompiler = methodCompiler;
+        _entryType = entryType;
         _diagnostics = diagnostics;
-        _expander = transpiling ? new SharedExpander(container, diagnostics) : new Expander(container, diagnostics);
-        _transpiling = transpiling;
+        _expander = methodCompiler.transpiling
+            ? new SharedExpander(container, diagnostics)
+            : new Expander(container, diagnostics);
         _method = container;
+        _transpiling = methodCompiler.transpiling;
     }
 
     internal static BoundBlockStatement Lower(
@@ -47,18 +51,18 @@ internal sealed class Lowerer : BoundTreeRewriter {
         OptimizationLevel optimizationLevel,
         MethodSymbol method,
         BoundBlockStatement statement,
+        NamedTypeSymbol entryType,
         BelteDiagnosticQueue diagnostics,
-        bool transpiling,
         out bool sawCompileTimeExpression) {
-        var lowerer = new Lowerer(methodCompiler, method, diagnostics, transpiling);
-        var optimize = optimizationLevel == OptimizationLevel.Release && !transpiling;
+        var lowerer = new Lowerer(methodCompiler, method, entryType, diagnostics);
+        var optimize = optimizationLevel == OptimizationLevel.Release && !methodCompiler.transpiling;
 
         var rewrittenStatement = statement;
 
         if (optimize)
             rewrittenStatement = (BoundBlockStatement)Optimizer.Optimize(rewrittenStatement);
 
-        if (transpiling) {
+        if (methodCompiler.transpiling) {
             rewrittenStatement = SharedFlowLowerer.Lower(method, rewrittenStatement, diagnostics);
             rewrittenStatement = lowerer._expander.Expand(rewrittenStatement);
             rewrittenStatement = (BoundBlockStatement)lowerer.Visit(rewrittenStatement);
@@ -144,8 +148,12 @@ internal sealed class Lowerer : BoundTreeRewriter {
     }
 
     internal override BoundNode VisitExpressionStatement(BoundExpressionStatement node) {
+        // TODO This is the kind of thing that should probably go in DiagnosticPass instead of Lowerer
         if (node.expression is BoundCallExpression call && !call.method.returnsVoid) {
-            _diagnostics.Push(Warning.IgnoringReturnValue(call.syntax.location, call.method));
+            if (call.method.hasMustUseReturnValueAttribute)
+                _diagnostics.Push(Error.IgnoringRequiredReturnValue(call.syntax.location, call.method));
+            else
+                _diagnostics.Push(Warning.IgnoringReturnValue(call.syntax.location, call.method));
         } else if (node.expression is BoundFunctionPointerCallExpression pCall &&
             !pCall.functionPointer.signature.returnsVoid) {
             _diagnostics.Push(Warning.IgnoringReturnValue(pCall.syntax.location, pCall.functionPointer.signature));
@@ -258,6 +266,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
         // because it can see the constructor and try and do it in place
 
         if (declaration.dataContainer.type.IsNullableType() &&
+            initializer is not null &&
             (!initializer.Type().IsNullableType() || initializer.constantValue?.value is not null) &&
             initializer.Type().isValueType) {
             var syntax = statement.syntax;
@@ -514,7 +523,7 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         ----> <condition> is nullable
 
-        goto <label> if <condition>.get_Value()
+        <condition>! ? <trueExpr> : <falseExpr>
 
         */
         if (!_transpiling) {
@@ -1047,9 +1056,29 @@ internal sealed class Lowerer : BoundTreeRewriter {
         );
     }
 
+    internal static BoundExpression CreateNullableGetValueOrDefaultTCall(
+        SyntaxNode syntax,
+        BoundExpression operand,
+        BoundExpression argument,
+        TypeSymbol genericType) {
+        return InstanceCall(
+            syntax,
+            operand,
+            CreateNullableGetValueOrDefaultTSymbol(genericType),
+            [argument]
+        );
+    }
+
     private static MethodSymbol CreateNullableGetValueOrDefaultSymbol(TypeSymbol genericType) {
         return CreateMethodAsMemberOfNullable(
             CorLibrary.GetWellKnownMethod(WellKnownMember.Nullable_GetValueOrDefault),
+            genericType
+        );
+    }
+
+    private static MethodSymbol CreateNullableGetValueOrDefaultTSymbol(TypeSymbol genericType) {
+        return CreateMethodAsMemberOfNullable(
+            CorLibrary.GetWellKnownMethod(WellKnownMember.Nullable_GetValueOrDefault_T),
             genericType
         );
     }
@@ -1107,6 +1136,9 @@ internal sealed class Lowerer : BoundTreeRewriter {
 
         if (type.IsStructType() && node.constructor is SynthesizedInstanceConstructorSymbol)
             return new BoundDefaultExpression(node.syntax, false, null, null, type);
+
+        if (_entryType is not null && type.Equals(_entryType))
+            _diagnostics.Push(Error.CannotCreateEntryType(node.syntax.location));
 
         return base.VisitObjectCreationExpression(node);
     }

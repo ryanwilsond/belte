@@ -25,9 +25,9 @@ internal sealed class SynthesizedTemplateParameterSymbol : TemplateParameterSymb
 
     internal override int ordinal { get; }
 
-    internal override bool hasPrimitiveTypeConstraint => false;
+    internal override bool hasValueTypeConstraint => false;
 
-    internal override bool hasObjectTypeConstraint => false;
+    internal override bool hasReferenceTypeConstraint => false;
 
     internal override bool hasDefaultConstraint => false;
 
@@ -68,5 +68,9 @@ internal sealed class SynthesizedTemplateParameterSymbol : TemplateParameterSymb
 
     internal override NamedTypeSymbol GetEffectiveBaseClass(ConsList<TemplateParameterSymbol> inProgress) {
         return CorLibrary.GetSpecialType(SpecialType.Object);
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> GetInterfaces(ConsList<TemplateParameterSymbol> inProgress) {
+        return [];
     }
 }

@@ -77,6 +77,8 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
 
     internal sealed override bool isRefLikeType => false;
 
+    internal override bool isInterface => false;
+
     internal override ImmutableArray<Symbol> GetMembers() {
         if (isTupleType) {
             var result = MakeSynthesizedTupleMembers([]);
@@ -98,6 +100,23 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
         return [];
     }
 
+    internal override ImmutableArray<NamedTypeSymbol> GetDeclaredInterfaces(ConsList<TypeSymbol> basesBeingResolved) {
+        return [];
+    }
+
+    internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
+        return SpecializedCollections.EmptyEnumerable<(MethodSymbol Body, MethodSymbol Implemented)>();
+    }
+
+    internal sealed override ImmutableArray<NamedTypeSymbol> Interfaces(
+        ConsList<TypeSymbol> basesBeingResolved = null) {
+        return [];
+    }
+
+    internal TypeOrConstant Substitute(TemplateMap templateMap) {
+        return new TypeOrConstant(templateMap.SubstituteNamedType(this));
+    }
+
     internal override TResult Accept<TArgument, TResult>(
         SymbolVisitor<TArgument, TResult> visitor,
         TArgument argument) {
@@ -106,6 +125,12 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
 
     internal override NamedTypeSymbol AsMember(NamedTypeSymbol newOwner) {
         return newOwner.isDefinition ? this : new SubstitutedNestedErrorTypeSymbol(newOwner, this);
+    }
+
+    private protected override NamedTypeSymbol ConstructCore(
+        ImmutableArray<TypeOrConstant> typeArguments,
+        bool unbound) {
+        return new ConstructedErrorTypeSymbol(this, typeArguments);
     }
 
     internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {

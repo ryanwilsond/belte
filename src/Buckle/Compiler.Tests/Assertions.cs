@@ -135,7 +135,8 @@ internal static class Assertions {
         string diagnosticText,
         ITestOutputHelper writer,
         bool assertWarnings = false,
-        bool script = true) {
+        bool script = true,
+        bool checkLocations = true) {
         var annotatedText = AnnotatedText.Parse(text);
         var syntaxTree = SyntaxTree.Parse(annotatedText.text);
 
@@ -160,7 +161,7 @@ internal static class Assertions {
 
         var expectedDiagnostics = AnnotatedText.UnindentLines(diagnosticText);
 
-        if (annotatedText.spans.Length != expectedDiagnostics.Length)
+        if (checkLocations && annotatedText.spans.Length != expectedDiagnostics.Length)
             throw new Exception("must mark as many spans as there are diagnostics");
 
         var diagnostics = assertWarnings
@@ -169,9 +170,17 @@ internal static class Assertions {
 
         if (expectedDiagnostics.Length != diagnostics.Count) {
             writer.WriteLine($"Input: {annotatedText.text}");
+            var list = diagnostics.ToList();
 
-            foreach (var diagnostic in diagnostics.ToList())
+            for (var i = 0; i < list.Count; i++) {
+                var diagnostic = list[i];
                 writer.WriteLine($"Diagnostic ({diagnostic.info.severity}): {diagnostic.message}");
+
+                if (i > 10) {
+                    writer.WriteLine($"... ({list.Count - i} more)");
+                    break;
+                }
+            }
         }
 
         Assert.Equal(expectedDiagnostics.Length, diagnostics.Count);
@@ -185,6 +194,9 @@ internal static class Assertions {
             var expectedMessage = expectedDiagnostics[i];
             var actualMessage = diagnostic.message;
             Assert.Equal(expectedMessage, actualMessage);
+
+            if (!checkLocations)
+                continue;
 
             var expectedSpan = annotatedText.spans[i];
             var actualSpan = diagnostic.location?.span

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
@@ -109,6 +110,7 @@ internal sealed class FunctionPointerTypeSymbol : TypeSymbol {
     internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers() => [];
     internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers(ReadOnlyMemory<char> name) => [];
     internal override TResult Accept<TArgument, TResult>(SymbolVisitor<TArgument, TResult> visitor, TArgument a) => visitor.VisitFunctionPointerType(this, a);
+    internal override ImmutableArray<NamedTypeSymbol> Interfaces(ConsList<TypeSymbol> basesBeingResolved = null) => [];
 
     internal override bool ApplyNullableTransforms(
         byte defaultTransformFlag,
@@ -119,6 +121,10 @@ internal sealed class FunctionPointerTypeSymbol : TypeSymbol {
         var madeChanges = (object)signature != newSignature;
         result = madeChanges ? new FunctionPointerTypeSymbol(newSignature) : this;
         return madeChanges;
+    }
+
+    internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
+        return SpecializedCollections.EmptyEnumerable<(MethodSymbol Body, MethodSymbol Implemented)>();
     }
 
     internal override bool Equals(TypeSymbol t2, TypeCompareKind compareKind) {

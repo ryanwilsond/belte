@@ -91,6 +91,10 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
 
     internal virtual ImmutableArray<FieldSymbol> initFields => [];
 
+    internal virtual bool isExplicitInterfaceImplementation => explicitInterfaceImplementations.Any();
+
+    internal abstract ImmutableArray<MethodSymbol> explicitInterfaceImplementations { get; }
+
     internal ImmutableArray<TypeWithAnnotations> parameterTypesWithAnnotations {
         get {
             ParameterSignature.PopulateParameterSignature(parameters, ref _lazyParameterSignature);
@@ -137,6 +141,8 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
             return thisParameter;
         }
     }
+
+    internal abstract bool hasMustUseReturnValueAttribute { get; }
 
     internal abstract bool hasUnscopedRefAttribute { get; }
 
@@ -242,6 +248,7 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
             case MethodKind.StaticConstructor:
             case MethodKind.Destructor:
             case MethodKind.Finalizer:
+            case MethodKind.ExplicitInterfaceImplementation:
                 return false;
             case MethodKind.LocalFunction:
             case MethodKind.Operator:
@@ -291,7 +298,8 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
 
             if (overridden is null ||
                 (accessingType is not null && !AccessCheck.IsSymbolAccessible(overridden, accessingType)) ||
-                (requireSameReturnType && returnType.Equals(overridden.returnType, TypeCompareKind.AllIgnoreOptions))) {
+                (requireSameReturnType &&
+                    returnType.Equals(overridden.returnType, TypeCompareKind.IgnoreArraySizesAndLowerBounds))) {
                 break;
             }
 

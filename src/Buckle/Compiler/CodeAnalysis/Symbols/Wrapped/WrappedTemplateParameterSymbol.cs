@@ -17,9 +17,9 @@ internal abstract class WrappedTemplateParameterSymbol : TemplateParameterSymbol
 
     internal override int ordinal => underlyingTemplateParameter.ordinal;
 
-    internal override bool hasPrimitiveTypeConstraint => underlyingTemplateParameter.hasPrimitiveTypeConstraint;
+    internal override bool hasValueTypeConstraint => underlyingTemplateParameter.hasValueTypeConstraint;
 
-    internal override bool hasObjectTypeConstraint => underlyingTemplateParameter.hasObjectTypeConstraint;
+    internal override bool hasReferenceTypeConstraint => underlyingTemplateParameter.hasReferenceTypeConstraint;
 
     internal override bool hasDefaultConstraint => underlyingTemplateParameter.hasDefaultConstraint;
 
@@ -33,11 +33,11 @@ internal abstract class WrappedTemplateParameterSymbol : TemplateParameterSymbol
 
     internal override bool isValueTypeFromConstraintTypes
         => underlyingTemplateParameter.isValueTypeFromConstraintTypes ||
-            CalculateIsPrimitiveTypeFromConstraintTypes(constraintTypes);
+            CalculateIsValueTypeFromConstraintTypes(constraintTypes);
 
     internal override bool isReferenceTypeFromConstraintTypes
         => underlyingTemplateParameter.isReferenceTypeFromConstraintTypes ||
-            CalculateIsObjectTypeFromConstraintTypes(constraintTypes);
+            CalculateIsReferenceTypeFromConstraintTypes(constraintTypes);
 
     internal override bool hasDefaultFromConstraintTypes
         => underlyingTemplateParameter.hasDefaultConstraint ||

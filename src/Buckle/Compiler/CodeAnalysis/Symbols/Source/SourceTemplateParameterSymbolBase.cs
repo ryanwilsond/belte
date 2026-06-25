@@ -157,6 +157,11 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
         return CorLibrary.GetSpecialType(SpecialType.Object);
     }
 
+    internal override ImmutableArray<NamedTypeSymbol> GetInterfaces(ConsList<TemplateParameterSymbol> inProgress) {
+        var bounds = GetBounds(inProgress);
+        return (bounds is not null) ? bounds.interfaces : [];
+    }
+
     private TypeParameterBounds GetBounds(ConsList<TemplateParameterSymbol> inProgress) {
         if (!_lazyBounds.IsSet()) {
             var diagnostics = BelteDiagnosticQueue.GetInstance();
@@ -179,7 +184,7 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
 
     private void CheckConstraintTypeConstraints(BelteDiagnosticQueue diagnostics) {
         if (underlyingType.specialType != SpecialType.Type) {
-            if (hasPrimitiveTypeConstraint || hasNotNullConstraint)
+            if (hasValueTypeConstraint || hasNotNullConstraint)
                 diagnostics.Push(Error.CannotIsCheckNonType(location, name));
 
             if (constraintTypes.Length > 0)
@@ -190,6 +195,23 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
     private TypeWithAnnotations MakeUnderlyingType(BelteDiagnosticQueue diagnostics) {
         var syntax = (ParameterSyntax)syntaxReference.node;
         var binder = declaringCompilation.GetBinder(syntax);
+
+        // Template underlying types are a special case that doesn't allow aliasing
+        // This is to avoid calling Binder.BindType to prevent potential recursive overflows in cases like `class A<T<T> T> { }`
+        if (syntax.type.SkipNullable() is not IdentifierNameSyntax ident) {
+            diagnostics.Push(Error.NonPrimitiveTemplate(syntax.location));
+            return new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type));
+        } else {
+            var specialType = SpecialTypes.GetTypeFromMetadataName(
+                string.Concat("global::", ident.identifier.valueText)
+            );
+
+            if (!specialType.IsPrimitiveType()) {
+                diagnostics.Push(Error.NonPrimitiveTemplate(syntax.location));
+                return new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type));
+            }
+        }
+
         var type = binder.BindType(syntax.type, diagnostics);
         var underlying = type.nullableUnderlyingTypeOrSelf;
 
@@ -206,6 +228,7 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
             diagnostics.Push(Error.Unsupported.NonTypeTemplate(syntax.location));
         }
 
+        // TODO This seems wrong/unnecessary:
         if (hasNotNullConstraint)
             return new TypeWithAnnotations(underlying);
 

@@ -45,6 +45,7 @@ internal static class WellKnownMemberNames {
     internal const string FinalizerName = "Finalize";
     internal const string Dispose = "Dispose";
     internal const string Deconstruct = "Deconstruct";
+    internal const string BufferLength = "Length";
     internal new const string ToString = "ToString";
 
     internal static string GetLiteralOperatorName(string suffix) {

@@ -14,6 +14,7 @@ internal sealed partial class Executor {
         internal static MethodInfo Nullable_get_Value = typeof(Nullable<>).GetMethod("get_Value");
         internal static MethodInfo Nullable_get_HasValue = typeof(Nullable<>).GetMethod("get_HasValue");
         internal static MethodInfo Nullable_GetValueOrDefault = typeof(Nullable<>).GetMethod("GetValueOrDefault", Type.EmptyTypes);
+        internal static MethodInfo Nullable_GetValueOrDefault_T = typeof(Nullable<>).GetMethods().Single(m => m.Name == "GetValueOrDefault" && m.GetParameters().Length == 1);
         internal static ConstructorInfo Exception_ctor = typeof(Exception).GetConstructor(Type.EmptyTypes);
         internal static ConstructorInfo Exception_ctor_S = typeof(Exception).GetConstructor([typeof(string)]);
         internal static MethodInfo Object_ToString = typeof(object).GetMethod("ToString", InstFlags, Type.EmptyTypes);

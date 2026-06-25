@@ -12,7 +12,7 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// <summary>
 /// Optimizes BoundExpressions and BoundStatements. Can be run multiple times.
 /// </summary>
-internal sealed class Optimizer : BoundTreeRewriter {
+internal sealed class Optimizer : BoundTreeRewriterWithStackGuard {
     private Optimizer() { }
 
     internal static BoundStatement Optimize(BoundStatement statement) {

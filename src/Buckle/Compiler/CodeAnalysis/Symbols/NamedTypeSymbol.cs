@@ -125,6 +125,8 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
 
     internal virtual bool isKnownToBeImmutable => false;
 
+    internal abstract bool isInterface { get; }
+
     internal override void Accept(SymbolVisitor visitor) {
         visitor.VisitNamedType(this);
     }
@@ -134,6 +136,8 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
         TArgument argument) {
         return visitor.VisitNamedType(this, argument);
     }
+
+    internal abstract ImmutableArray<NamedTypeSymbol> GetDeclaredInterfaces(ConsList<TypeSymbol> basesBeingResolved);
 
     internal virtual NamedTypeSymbol AsMember(NamedTypeSymbol newOwner) {
         return newOwner.isDefinition
@@ -206,6 +210,27 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
 
     internal virtual ImmutableArray<Symbol> GetSimpleNonTypeMembers(string name) {
         return GetMembers(name);
+    }
+
+    private protected ImmutableArray<NamedTypeSymbol> CalculateInterfacesToEmit() {
+        var builder = ArrayBuilder<NamedTypeSymbol>.GetInstance();
+        HashSet<NamedTypeSymbol> seen = null;
+        InterfacesVisit(this, builder, ref seen);
+        return builder.ToImmutableAndFree();
+    }
+
+    private static void InterfacesVisit(
+        NamedTypeSymbol namedType,
+        ArrayBuilder<NamedTypeSymbol> builder,
+        ref HashSet<NamedTypeSymbol> seen) {
+        foreach (var @interface in namedType.Interfaces()) {
+            seen ??= new HashSet<NamedTypeSymbol>(SymbolEqualityComparer.CLRSignature);
+
+            if (seen.Add(@interface)) {
+                builder.Add(@interface);
+                InterfacesVisit(@interface, builder, ref seen);
+            }
+        }
     }
 
     internal ImmutableArray<MethodSymbol> GetOperators(string name) {
@@ -282,7 +307,7 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
             return true;
 
         foreach (var member in GetMembers()) {
-            if (member is FieldSymbol f && !f.isStatic) {
+            if (member is FieldSymbol f && !f.isStatic && f.originalDefinition is not PEFieldSymbol) {
                 if (!f.type.hasDefault)
                     return false;
             }
@@ -458,9 +483,6 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
     }
 
     internal override bool Equals(TypeSymbol other, TypeCompareKind compareKind) {
-        if ((compareKind & TypeCompareKind.IgnoreNullability) != 0 && !this.IsNullableType())
-            other = other.StrippedType();
-
         if ((object)other == this)
             return true;
 
@@ -487,12 +509,9 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
         }
 
         if ((thisIsOriginalDefinition || otherIsOriginalDefinition) &&
-            (compareKind & (TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreNullability)) == 0) {
+            (compareKind & (TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreTupleNames)) == 0) {
             return false;
         }
-
-        if ((compareKind & TypeCompareKind.IgnoreNullability) != 0 && this.IsNullableType())
-            return Equals(StrippedType(), other, compareKind);
 
         if (!Equals(thisOriginalDefinition, otherOriginalDefinition, compareKind))
             return false;
@@ -545,7 +564,7 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
             return false;
 
         if ((thisIsNotConstructed || otherIsNotConstructed) &&
-            (compareKind & (TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreNullability)) == 0) {
+            (compareKind & (TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreTupleNames)) == 0) {
             return false;
         }
 
@@ -561,7 +580,23 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
                 return false;
         }
 
+        if (isTupleType && !TupleNamesEquals(other, compareKind))
+            return false;
+
         return true;
+
+        bool TupleNamesEquals(NamedTypeSymbol other, TypeCompareKind comparison) {
+            if ((comparison & TypeCompareKind.IgnoreTupleNames) == 0) {
+                var elementNames = tupleElementNames;
+                var otherElementNames = other.tupleElementNames;
+
+                return elementNames.IsDefault
+                    ? otherElementNames.IsDefault
+                    : !otherElementNames.IsDefault && elementNames.SequenceEqual(otherElementNames);
+            }
+
+            return true;
+        }
     }
 
     ImmutableArray<IMethodSymbol> INamedTypeSymbol.constructors

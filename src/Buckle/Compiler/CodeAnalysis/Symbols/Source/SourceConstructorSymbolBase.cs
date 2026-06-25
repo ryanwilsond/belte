@@ -15,8 +15,9 @@ internal abstract class SourceConstructorSymbolBase : SourceMemberMethodSymbol {
     private protected SourceConstructorSymbolBase(
         SourceMemberContainerTypeSymbol containingType,
         BelteSyntaxNode syntax,
+        TextLocation location,
         (DeclarationModifiers declarationModifiers, Flags flags) modifiersAndFlags)
-        : base(containingType, new SyntaxReference(syntax), modifiersAndFlags) { }
+        : base(containingType, new SyntaxReference(syntax), location, modifiersAndFlags) { }
 
     public sealed override string name
         => isStatic ? WellKnownMemberNames.StaticConstructorName : WellKnownMemberNames.InstanceConstructorName;

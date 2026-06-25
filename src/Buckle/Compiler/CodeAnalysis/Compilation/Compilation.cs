@@ -207,6 +207,8 @@ public sealed partial class Compilation {
         }
     }
 
+    internal ReferenceManager referenceManager => _referenceManager;
+
     private ConcurrentDictionary<SyntaxTree, SmallConcurrentSetOfInts> treeToUsedImportDirectivesMap {
         get {
             if (_lazyTreeToUsedImportDirectivesMap is null)
@@ -473,7 +475,7 @@ public sealed partial class Compilation {
         }
 
         if (options.buildMode == BuildMode.Dotnet)
-            ILEmitter.Emit(program, assemblyName, options.references, outputPath, diagnostics);
+            ILEmitter.Emit(program, assemblyName, outputPath, diagnostics);
         else if (options.buildMode == BuildMode.CSharpTranspile)
             CSharpEmitter.Emit(program, outputPath, diagnostics);
 
@@ -543,17 +545,10 @@ public sealed partial class Compilation {
         if (diagnostics.AnyErrors())
             return null;
 
-        if (buildMode == BuildMode.CSharpTranspile) {
+        if (buildMode == BuildMode.CSharpTranspile)
             return CSharpEmitter.EmitToString(program, programOnly, diagnostics);
-        } else if (buildMode == BuildMode.Dotnet) {
-            return ILEmitter.EmitToString(
-                program,
-                assemblyName,
-                programOnly,
-                options.references,
-                diagnostics
-            );
-        }
+        else if (buildMode == BuildMode.Dotnet)
+            return ILEmitter.EmitToString(program, assemblyName, programOnly, diagnostics);
 
         return null;
     }
@@ -741,6 +736,21 @@ public sealed partial class Compilation {
                 }
             }
         }
+    }
+
+    internal bool IsEqualOrDerivedFromWellKnownClass(TypeSymbol type, WellKnownType wellKnownType) {
+        // TODO We don't use this method to check for exceptions, we create a conversion instead
+        // Technically this is correct but unnecessary, we should use this method instead to check
+        Debug.Assert(wellKnownType == WellKnownType.Attribute ||
+                     wellKnownType == WellKnownType.Exception);
+
+        if (type.kind != SymbolKind.NamedType || type.typeKind != TypeKind.Class)
+            return false;
+
+        var wkType = CorLibrary.GetWellKnownType(wellKnownType);
+
+        return type.Equals(wkType, TypeCompareKind.ConsiderEverything) ||
+            type.IsDerivedFrom(wkType, TypeCompareKind.ConsiderEverything);
     }
 
     private static MethodSymbol FindLateScriptUpdatePoint(

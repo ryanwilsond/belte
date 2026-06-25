@@ -11,6 +11,7 @@ using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
+using Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -62,7 +63,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     private Dictionary<FieldSymbol, AnonymousUnionType> _lazyAnonymousUnionTypes;
     private Dictionary<AnonymousUnionType, FieldSymbol> _lazyAnonymousUnionFields;
     private ImmutableArray<Symbol> _lazyMembersFlattened;
+    private SynthesizedExplicitImplementations _lazySynthesizedExplicitImplementations;
     private ThreeState _lazyAnyMemberHasAttributes;
+    private Dictionary<SyntaxNode, ScopeInheritorInfo> _lazyScopeInheritorInfo;
     private int _lazyKnownCircularStruct;
     private int _lazyHasStructDefault;
     private int _lazyKnownToBeImmutable;
@@ -242,6 +245,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         }
     }
 
+    internal sealed override bool isInterface => typeKind == TypeKind.Interface;
+
     internal sealed override ImmutableArray<Symbol> GetMembers() {
         if (!_lazyMembersFlattened.IsDefault)
             return _lazyMembersFlattened;
@@ -305,6 +310,17 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         CheckBase(diagnostics);
                         AddDeclarationDiagnostics(diagnostics);
                         _state.NotePartComplete(CompletionParts.FinishBaseType);
+                        diagnostics.Free();
+                    }
+
+                    break;
+                case CompletionParts.StartInterfaces:
+                case CompletionParts.FinishInterfaces:
+                    if (_state.NotePartComplete(CompletionParts.StartInterfaces)) {
+                        var diagnostics = BelteDiagnosticQueue.GetInstance();
+                        CheckInterfaces(diagnostics);
+                        AddDeclarationDiagnostics(diagnostics);
+                        _state.NotePartComplete(CompletionParts.FinishInterfaces);
                         diagnostics.Free();
                     }
 
@@ -430,26 +446,338 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         }
     }
 
-    // TODO This is being pseudo implemented for error checking; eventually this will actually return something useful
-    internal void GetSynthesizedExplicitImplementations() {
-        var diagnostics = BelteDiagnosticQueue.GetInstance();
+    internal SynthesizedExplicitImplementations GetSynthesizedExplicitImplementations() {
+        if (_lazySynthesizedExplicitImplementations is null) {
+            var diagnostics = BelteDiagnosticQueue.GetInstance();
 
-        try {
-            CheckMembersAgainstBaseType(diagnostics);
-            CheckAbstractClassImplementations(diagnostics);
+            try {
+                CheckMembersAgainstBaseType(diagnostics);
+                CheckAbstractClassImplementations(diagnostics);
+                CheckInterfaceUnification(diagnostics);
 
-            AddDeclarationDiagnostics(diagnostics);
-            _state.NotePartComplete(CompletionParts.SynthesizedExplicitImplementations);
-        } finally {
-            diagnostics.Free();
+                // TODO Do we need this?
+                // if (isInterface)
+                //     CheckInterfaceVarianceSafety(diagnostics);
+
+                AddDeclarationDiagnostics(diagnostics);
+
+                if (Interlocked.CompareExchange(
+                    ref _lazySynthesizedExplicitImplementations,
+                    ComputeInterfaceImplementations(diagnostics),
+                    null) is null) {
+                    AddDeclarationDiagnostics(diagnostics);
+                    _state.NotePartComplete(CompletionParts.SynthesizedExplicitImplementations);
+                }
+            } finally {
+                diagnostics.Free();
+            }
         }
+
+        return _lazySynthesizedExplicitImplementations;
+    }
+
+    internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
+        var synthesizedImplementations = GetSynthesizedExplicitImplementations();
+
+        foreach (var methodImpl in synthesizedImplementations.methodImpls)
+            yield return methodImpl;
+
+        foreach (var forwardingMethod in synthesizedImplementations.forwardingMethods) {
+            yield return (
+                forwardingMethod.implementingMethod,
+                forwardingMethod.explicitInterfaceImplementations.Single()
+            );
+        }
+    }
+
+    private SynthesizedExplicitImplementations ComputeInterfaceImplementations(BelteDiagnosticQueue diagnostics) {
+        var forwardingMethods = ArrayBuilder<SynthesizedExplicitImplementationForwardingMethod>.GetInstance();
+        var methodImpls = ArrayBuilder<(MethodSymbol Body, MethodSymbol Implemented)>.GetInstance();
+
+        var interfacesAndTheirBases = interfacesAndTheirBaseInterfaces;
+
+        foreach (var @interface in allInterfaces) {
+            if (!interfacesAndTheirBases[@interface].Contains(@interface))
+                continue;
+
+            bool? hasBaseClassDeclaringInterface = null;
+
+            foreach (var interfaceMember in @interface.GetMembers()) {
+                var interfaceMemberKind = interfaceMember.kind;
+
+                switch (interfaceMemberKind) {
+                    case SymbolKind.Method:
+                        if (!interfaceMember.IsImplementableInterfaceMember())
+                            continue;
+
+                        break;
+                    default:
+                        continue;
+                }
+
+                SymbolAndDiagnostics implementingMemberAndDiagnostics;
+
+                if (isInterface) {
+                    var explicitImpl = GetExplicitImplementationForInterfaceMember(interfaceMember);
+
+                    switch (explicitImpl.Count) {
+                        case 0:
+                            continue;
+                        case 1:
+                            implementingMemberAndDiagnostics = new SymbolAndDiagnostics(
+                                explicitImpl.Single(),
+                                BelteDiagnosticQueue.Discarded
+                            );
+
+                            break;
+                        default:
+                            var error = Error.DuplicateExplicitImpl(location, interfaceMember);
+
+                            implementingMemberAndDiagnostics = new SymbolAndDiagnostics(
+                                null,
+                                new BelteDiagnosticQueue([error])
+                            );
+
+                            break;
+                    }
+                } else {
+                    implementingMemberAndDiagnostics = FindImplementationForInterfaceMemberInNonInterface(
+                        interfaceMember
+                    );
+                }
+
+                var implementingMember = implementingMemberAndDiagnostics.symbol;
+                var synthesizedImplementation = SynthesizeInterfaceMemberImplementation(
+                    implementingMemberAndDiagnostics,
+                    interfaceMember
+                );
+
+                var wasImplementingMemberFound = implementingMember is not null;
+
+                if (synthesizedImplementation.ForwardingMethod is
+                    SynthesizedExplicitImplementationForwardingMethod forwardingMethod) {
+                    forwardingMethods.Add(forwardingMethod);
+                }
+
+                if (synthesizedImplementation.MethodImpl is { } methodImpl)
+                    methodImpls.Add(methodImpl);
+
+                var reportedAnError = false;
+
+                if (implementingMemberAndDiagnostics.diagnostics.Any()) {
+                    diagnostics.PushRange(implementingMemberAndDiagnostics.diagnostics);
+                    reportedAnError = implementingMemberAndDiagnostics.diagnostics.ToArray()
+                        .Any(static d => d.info.severity == DiagnosticSeverity.Error);
+                }
+
+                if (!reportedAnError) {
+                    if (!wasImplementingMemberFound ||
+                        (!implementingMember.containingType.Equals(this, TypeCompareKind.ConsiderEverything) &&
+                        implementingMember.GetExplicitInterfaceImplementations()
+                            .Contains(interfaceMember, ExplicitInterfaceImplementationTargetMemberEqualityComparer.Instance))) {
+                        hasBaseClassDeclaringInterface ??= HasBaseClassDeclaringInterface(@interface);
+
+                        var matchResult = hasBaseClassDeclaringInterface.GetValueOrDefault();
+
+                        if (matchResult != true &&
+                            wasImplementingMemberFound && implementingMember.containingType.isInterface) {
+                            HasBaseInterfaceDeclaringInterface(
+                                implementingMember.containingType,
+                                @interface,
+                                ref matchResult
+                            );
+                        }
+
+                        switch (matchResult) {
+                            case false: {
+                                    if (!interfaceMember.MustCallMethodsDirectly()) {
+                                        diagnostics.Push(Error.UnimplementedInterfaceMember(
+                                            GetImplementsLocationOrFallback(@interface),
+                                            this,
+                                            interfaceMember
+                                        ));
+                                    }
+                                }
+
+                                break;
+                            case true:
+                                break;
+                        }
+                    }
+                }
+            }
+        }
+
+        return SynthesizedExplicitImplementations.Create(
+            forwardingMethods.ToImmutableAndFree(),
+            methodImpls.ToImmutableAndFree()
+        );
+    }
+
+    private void HasBaseInterfaceDeclaringInterface(
+        NamedTypeSymbol baseInterface,
+        NamedTypeSymbol @interface,
+        ref bool matchResult) {
+        if (DeclaresBaseInterface(baseInterface, @interface, ref matchResult))
+            return;
+
+        foreach (var interfaceType in allInterfaces) {
+            if ((object)interfaceType == baseInterface)
+                continue;
+
+            if (interfaceType.Equals(baseInterface, TypeCompareKind.CLRSignatureCompareOptions) &&
+                DeclaresBaseInterface(interfaceType, @interface, ref matchResult)) {
+                return;
+            }
+        }
+    }
+
+    private TextLocation GetImplementsLocationOrFallback(NamedTypeSymbol implementedInterface) {
+        return GetImplementsLocation(implementedInterface) ?? location;
+    }
+
+    internal TextLocation GetImplementsLocation(NamedTypeSymbol implementedInterface) {
+        NamedTypeSymbol directInterface = null;
+
+        foreach (var iface in Interfaces()) {
+            if (Equals(iface, implementedInterface, TypeCompareKind.ConsiderEverything)) {
+                directInterface = iface;
+                break;
+            } else if (directInterface is null && iface.ImplementsInterface(implementedInterface)) {
+                directInterface = iface;
+            }
+        }
+
+        return GetCorrespondingBaseListLocation(directInterface);
+    }
+
+    private protected abstract TextLocation GetCorrespondingBaseListLocation(NamedTypeSymbol @base);
+
+    private bool HasBaseClassDeclaringInterface(NamedTypeSymbol @interface) {
+        var result = false;
+
+        for (var currType = baseType; currType is not null; currType = currType.baseType) {
+            if (DeclaresBaseInterface(currType, @interface, ref result))
+                break;
+        }
+
+        return result;
+    }
+
+    private static bool DeclaresBaseInterface(
+        NamedTypeSymbol currType,
+        NamedTypeSymbol @interface,
+        ref bool result) {
+        var set = currType.interfacesAndTheirBaseInterfaces[@interface];
+
+        if (set.Count != 0) {
+            if (set.Contains(@interface)) {
+                result = true;
+                return true;
+            }
+        }
+
+        return false;
+    }
+
+    private (SynthesizedExplicitImplementationForwardingMethod ForwardingMethod, (MethodSymbol Body, MethodSymbol Implemented)? MethodImpl) SynthesizeInterfaceMemberImplementation(
+        SymbolAndDiagnostics implementingMemberAndDiagnostics,
+        Symbol interfaceMember) {
+        foreach (var diagnostic in implementingMemberAndDiagnostics.diagnostics) {
+            // if (diagnostic.info.severity == DiagnosticSeverity.Error && diagnostic.info.code is not ((int)DiagnosticCode.ERR_ImplicitImplementationOfNonPublicInterfaceMember or (int)DiagnosticCode.ERR_ImplicitImplementationOfInaccessibleInterfaceMember)) {
+            return default;
+            // }
+        }
+
+        var implementingMember = implementingMemberAndDiagnostics.symbol;
+
+        if (implementingMember is null || implementingMember.kind != SymbolKind.Method)
+            return default;
+
+        var interfaceMethod = (MethodSymbol)interfaceMember;
+        var implementingMethod = (MethodSymbol)implementingMember;
+
+        if (implementingMethod.explicitInterfaceImplementations
+            .Contains(interfaceMethod, ExplicitInterfaceImplementationTargetMemberEqualityComparer.Instance)) {
+            return default;
+        }
+
+        if (!interfaceMethod.isStatic) {
+            var implementingMethodOriginalDefinition = implementingMethod.originalDefinition;
+            var needSynthesizedImplementation = true;
+
+            if (MemberSignatureComparer.RuntimeImplicitImplementationComparer.Equals(implementingMethod, interfaceMethod) &&
+                IsOverrideOfPossibleImplementationUnderRuntimeRules(implementingMethod, @interfaceMethod.containingType)) {
+                if (ReferenceEquals(containingModule, implementingMethodOriginalDefinition.containingModule)) {
+                    if (implementingMethodOriginalDefinition is SourceMemberMethodSymbol sourceImplementMethodOriginalDefinition) {
+                        sourceImplementMethodOriginalDefinition.EnsureMetadataVirtual();
+                        needSynthesizedImplementation = false;
+                    }
+                }
+                // TODO interfaces
+                // else if (implementingMethod.IsMetadataVirtual(MethodSymbol.IsMetadataVirtualOption.IgnoreInterfaceImplementationChanges)) {
+                //     // If the signatures match and the implementation method is definitely virtual, then we're set.
+                //     needSynthesizedImplementation = false;
+                // }
+            }
+
+            if (!needSynthesizedImplementation)
+                return default;
+        } else {
+            if (implementingMethod.containingType != (object)this) {
+                if (implementingMethod.containingType.isInterface ||
+                    implementingMethod.Equals(
+                        baseType?.FindImplementationForInterfaceMemberInNonInterface(interfaceMethod).symbol,
+                        TypeCompareKind.CLRSignatureCompareOptions)) {
+                    return default;
+                }
+            } else if (MemberSignatureComparer.RuntimeExplicitImplementationSignatureComparer.Equals(
+                    implementingMethod,
+                    interfaceMethod)) {
+                return (null, (implementingMethod, interfaceMethod));
+            }
+        }
+
+        return (new SynthesizedExplicitImplementationForwardingMethod(interfaceMethod, implementingMethod, this), null);
+    }
+
+    private static bool IsOverrideOfPossibleImplementationUnderRuntimeRules(
+        MethodSymbol implementingMethod,
+        NamedTypeSymbol @interface) {
+        var curr = implementingMethod;
+
+        while (curr is not null) {
+            if (IsPossibleImplementationUnderRuntimeRules(curr, @interface))
+                return true;
+
+            curr = curr.overriddenMethod;
+        }
+
+        return false;
+    }
+
+    private static bool IsPossibleImplementationUnderRuntimeRules(
+        MethodSymbol implementingMethod,
+        NamedTypeSymbol @interface) {
+        var type = implementingMethod.containingType;
+
+        if (type.interfacesAndTheirBaseInterfaces.ContainsKey(@interface))
+            return true;
+
+        var baseType = type.baseType;
+        return baseType is null || !baseType.allInterfaces.Contains(@interface);
     }
 
     private protected abstract void CheckBase(BelteDiagnosticQueue diagnostics);
 
+    private protected abstract void CheckInterfaces(BelteDiagnosticQueue diagnostics);
+
     private protected virtual void AfterMembersCompletedChecks(BelteDiagnosticQueue diagnostics) { }
 
     private protected void AfterMembersChecks(BelteDiagnosticQueue diagnostics) {
+        if (isInterface)
+            CheckInterfaceMembers(GetMembersAndInitializers().nonTypeMembers, diagnostics);
+
         CheckMemberNamesDistinctFromType(diagnostics);
         CheckMemberNameConflicts(diagnostics);
         CheckSpecialMemberErrors(diagnostics);
@@ -461,7 +789,88 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         CheckForUnmatchedOperators(diagnostics);
         CheckUnionIsNonEmpty(diagnostics);
 
+        _ = baseType;
+
+        // TODO We don't actually use a symbol adapter to get members to emit (i.e. GetInterfacesToEmit)
+        // But we will still use this useless calculation as an excuse to visit everything for diagnostic collection
+        // Eventually we will probably use a proper adapter where this calculation will actually be useful
+
+        // var interfaces = GetInterfacesToEmit();
+        _ = CalculateInterfacesToEmit();
+
         CheckStructLayoutEfficiency(diagnostics);
+    }
+
+    private void CheckInterfaceUnification(BelteDiagnosticQueue diagnostics) {
+        if (!isTemplateType)
+            return;
+
+        var numInterfaces = interfacesAndTheirBaseInterfaces.Count;
+
+        if (numInterfaces < 2)
+            return;
+
+        var interfaces = interfacesAndTheirBaseInterfaces.Keys.ToArray();
+
+        for (var i1 = 0; i1 < numInterfaces; i1++) {
+            for (var i2 = i1 + 1; i2 < numInterfaces; i2++) {
+                var interface1 = interfaces[i1];
+                var interface2 = interfaces[i2];
+
+                if (interface1.isTemplateType && interface2.isTemplateType &&
+                    Equals(
+                        interface1.originalDefinition,
+                        interface2.originalDefinition,
+                        TypeCompareKind.ConsiderEverything) &&
+                    interface1.CanUnifyWith(interface2)) {
+                    if (GetImplementsLocationOrFallback(interface1).span.start >
+                        GetImplementsLocationOrFallback(interface2).span.start) {
+                        (interface2, interface1) = (interface1, interface2);
+                    }
+
+                    diagnostics.Push(Error.UnifyingInterfaceInstantiations(location, this, interface1, interface2));
+                }
+            }
+        }
+    }
+
+    private static void CheckInterfaceMembers(ImmutableArray<Symbol> nonTypeMembers, BelteDiagnosticQueue diagnostics) {
+        foreach (var member in nonTypeMembers)
+            CheckInterfaceMember(member, diagnostics);
+    }
+
+    private static void CheckInterfaceMember(Symbol member, BelteDiagnosticQueue diagnostics) {
+        switch (member.kind) {
+            case SymbolKind.Field:
+                break;
+            case SymbolKind.Method:
+                var meth = (MethodSymbol)member;
+
+                switch (meth.methodKind) {
+                    case MethodKind.Constructor:
+                        diagnostics.Push(Error.InterfacesCantContainConstructors(member.location));
+                        break;
+                    case MethodKind.Conversion:
+                        break;
+                    case MethodKind.Operator:
+                        break;
+                    case MethodKind.Finalizer:
+                        diagnostics.Push(Error.OnlyClassesCanContainFinalizers(member.location));
+                        break;
+                    case MethodKind.ExplicitInterfaceImplementation:
+                    case MethodKind.Ordinary:
+                    case MethodKind.LocalFunction:
+                    case MethodKind.StaticConstructor:
+                    case MethodKind.Destructor:
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(meth.methodKind);
+                }
+
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(member.kind);
+        }
     }
 
     private void CheckUnionIsNonEmpty(BelteDiagnosticQueue diagnostics) {
@@ -566,6 +975,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     }
 
     private void CheckForEqualityAndGetHashCode(BelteDiagnosticQueue diagnostics) {
+        if (this.IsInterfaceType())
+            return;
+
         var hasOp = GetOperators(WellKnownMemberNames.EqualityOperatorName).Any() ||
             GetOperators(WellKnownMemberNames.InequalityOperatorName).Any();
 
@@ -594,6 +1006,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 return;
             case TypeKind.Class:
             case TypeKind.Struct:
+            case TypeKind.Interface:
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(typeKind);
@@ -615,11 +1028,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         // TODO Do we care about this error
                         // MethodSymbol overridden = method.GetFirstRuntimeOverriddenMethodIgnoringNewSlot(out _);
 
-                        // // NOTE: Dev11 doesn't expose symbols, so it can treat destructors as override and let them go through the normal
-                        // // checks.  Roslyn can't, since the language says they are not virtual/override and that's what we need to expose
-                        // // in the symbol model.  Having said that, Dev11 doesn't seem to produce override errors other than this one
-                        // // (see SymbolPreparer::prepareOperator).
-                        // if ((object)overridden != null && overridden.IsMetadataFinal) {
+                        // if (overridden is not null && overridden.isMetadataFinal) {
                         //     diagnostics.Add(ErrorCode.ERR_CantOverrideSealed, method.GetFirstLocation(), method, overridden);
                         // }
                     }
@@ -738,6 +1147,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         TemplateMap.TemplateParametersAsTypeOrConstants(overridingMethod.templateParameters)
                     );
                 }
+
+                if (overridingMethod.isSealed && overridingType.isSealed)
+                    diagnostics.Push(Warning.SealedInSealed(overridingMemberLocation, overridingMember));
 
                 if (overridingMethod.refKind != overriddenMethod.refKind) {
                     diagnostics.Push(Error.CantChangeRefReturnOnOverride(
@@ -958,10 +1370,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             TypeSymbol targetType) {
             switch (refKind) {
                 case RefKind.Ref:
-                    return sourceType.Equals(
-                        targetType,
-                        TypeCompareKind.AllIgnoreOptions & ~TypeCompareKind.IgnoreNullability
-                    );
+                    return sourceType.Equals(targetType, TypeCompareKind.AllIgnoreOptions);
                 default:
                     break;
             }
@@ -1351,7 +1760,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             var refKind2 = method2.parameters[i].refKind;
 
             if (refKind1 != refKind2) {
-                var methodKind = method1.methodKind == MethodKind.Constructor ? MessageID.IDS_SK_CONSTRUCTOR : MessageID.IDS_SK_METHOD;
+                var methodKind = method1.methodKind == MethodKind.Constructor
+                    ? MessageID.IDS_SK_CONSTRUCTOR
+                    : MessageID.IDS_SK_METHOD;
 
                 diagnostics.Push(Error.OverloadRefKind(
                     method1.location,
@@ -1518,6 +1929,11 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 symbols.Add(t);
             }
 
+            if (isInterface) {
+                foreach (var t in symbols)
+                    diagnostics.Push(Error.DefaultInterfaceImplementation(t.location));
+            }
+
             return symbols.Count > 0
                 ? symbols.ToDictionary(s => s.name.AsMemory(), ReadOnlyMemoryOfCharComparer.Instance)
                 : EmptyTypeMembers;
@@ -1530,10 +1946,18 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         switch (typeKind) {
             case TypeKind.Class:
             case TypeKind.Struct:
-                if (member.name == name)
-                    diagnostics.Push(Error.MemberNameSameAsType(member.location, name));
+                CheckContainingTypeName(member, name, diagnostics);
+                break;
+            case TypeKind.Interface:
+                if (member.isStatic)
+                    CheckContainingTypeName(member, name, diagnostics);
 
                 break;
+        }
+
+        static void CheckContainingTypeName(Symbol member, string typeName, BelteDiagnosticQueue diagnostics) {
+            if (member.name == typeName)
+                diagnostics.Push(Error.MemberNameSameAsType(member.location, typeName));
         }
     }
 
@@ -1621,6 +2045,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             case SyntaxKind.FileScopedNamespaceDeclaration:
                 AddNonTypeMembers(builder, ((BaseNamespaceDeclarationSyntax)syntax).elements, diagnostics);
                 break;
+            case SyntaxKind.InterfaceDeclaration:
+                AddNonTypeMembers(builder, ((InterfaceDeclarationSyntax)syntax).members, diagnostics);
+                break;
             case SyntaxKind.ClassDeclaration:
             case SyntaxKind.FileScopedClassDeclaration:
             case SyntaxKind.StructDeclaration:
@@ -1696,6 +2123,9 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         if (members.Count == 0)
             return;
 
+        var firstMember = members[0];
+        var bodyBinder = GetBinder(firstMember);
+
         ArrayBuilder<FieldInitializer>? instanceInitializers = null;
         ArrayBuilder<FieldInitializer>? staticInitializers = null;
 
@@ -1735,6 +2165,17 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 case SyntaxKind.FieldDeclaration:
                     AddFieldMember((FieldDeclarationSyntax)m, reportMisplacedGlobalCode);
                     break;
+                case SyntaxKind.ExternBlockDeclaration: {
+                        var externSyntax = (ExternBlockDeclarationSyntax)m;
+
+                        if (isImplicitClass && reportMisplacedGlobalCode)
+                            diagnostics.Push(Error.NamespaceUnexpected(externSyntax.keyword.location));
+
+                        AddScopeInheritorInfo(externSyntax, diagnostics);
+                        AddNonTypeMembers(builder, externSyntax.members, diagnostics);
+                    }
+
+                    break;
                 case SyntaxKind.MethodDeclaration: {
                         var methodSyntax = (MethodDeclarationSyntax)m;
 
@@ -1743,6 +2184,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                         var method = SourceOrdinaryMethodSymbol.CreateMethodSymbol(
                             this,
+                            bodyBinder,
                             methodSyntax,
                             diagnostics
                         );
@@ -1803,6 +2245,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                         var method = SourceUserDefinedOperatorSymbol.CreateUserDefinedOperatorSymbol(
                             this,
+                            bodyBinder,
                             operatorSyntax,
                             diagnostics
                         );
@@ -1835,6 +2278,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                         var method = SourceUserDefinedConversionSymbol.CreateUserDefinedConversionSymbol(
                             this,
+                            bodyBinder,
                             conversionSyntax,
                             diagnostics
                         );
@@ -1932,6 +2376,47 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 _lazyAnonymousUnionFields.Add(result, field);
             }
         }
+
+        void AddScopeInheritorInfo(ExternBlockDeclarationSyntax syntax, BelteDiagnosticQueue diagnostics) {
+            var modifiers = ModifierHelpers.CreateModifiers(syntax.modifiers, diagnostics, out _);
+            modifiers |= DeclarationModifiers.Extern | DeclarationModifiers.Static;
+
+            var scopeInfo = new ScopeInheritorInfo(modifiers, syntax.attributeLists);
+
+            if (_lazyScopeInheritorInfo is null)
+                Interlocked.CompareExchange(ref _lazyScopeInheritorInfo, [], null);
+
+            lock (_lazyScopeInheritorInfo) {
+                if (_lazyScopeInheritorInfo.TryGetValue(syntax, out _))
+                    return;
+
+                _lazyScopeInheritorInfo.Add(syntax, scopeInfo);
+            }
+        }
+    }
+
+    internal DeclarationModifiers GetInheritedModifiersForMember(SyntaxNode syntax) {
+        if (_lazyScopeInheritorInfo is null)
+            return DeclarationModifiers.None;
+
+        foreach (var (key, value) in _lazyScopeInheritorInfo) {
+            if (key.Contains(syntax))
+                return value.modifiers;
+        }
+
+        return DeclarationModifiers.None;
+    }
+
+    internal SyntaxList<AttributeListSyntax> GetInheritedAttributeListsForMember(SyntaxNode syntax) {
+        if (_lazyScopeInheritorInfo is null)
+            return null;
+
+        foreach (var (key, value) in _lazyScopeInheritorInfo) {
+            if (key.Contains(syntax))
+                return value.attributeLists;
+        }
+
+        return null;
     }
 
     private static void AddInitializer(
@@ -1959,6 +2444,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             case TypeKind.Struct:
             case TypeKind.Enum:
             case TypeKind.Class:
+            case TypeKind.Interface:
                 AddSynthesizedConstructorsIfNecessary(builder, declaredMembersAndInitializers);
                 break;
             default:
@@ -1997,7 +2483,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     private void AddSynthesizedConstructorsIfNecessary(
         MembersAndInitializersBuilder builder,
         DeclaredMembersAndInitializers declaredMembersAndInitializers) {
-        var hasConstructor = false;
+        var hasInstanceConstructor = false;
         var hasParameterlessConstructor = false;
         var hasStaticConstructor = false;
 
@@ -2009,7 +2495,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                 switch (method.methodKind) {
                     case MethodKind.Constructor:
-                        hasConstructor = true;
+                        hasInstanceConstructor = true;
                         hasParameterlessConstructor = hasParameterlessConstructor || method.parameters.Length == 0;
                         break;
                     case MethodKind.StaticConstructor:
@@ -2018,7 +2504,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 }
             }
 
-            if (hasConstructor && hasParameterlessConstructor)
+            if (hasInstanceConstructor && hasParameterlessConstructor)
                 break;
         }
 
@@ -2027,7 +2513,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
         // TODO Do we want to have structs a parameterless constructor always?
         // if ((!hasParameterlessConstructor && IsStructType()) || (!hasConstructor && !isStatic))
-        if (!hasConstructor && !isStatic)
+        if (!hasInstanceConstructor && !isStatic && !isInterface)
             builder.AddNonTypeMember(new SynthesizedInstanceConstructorSymbol(this), declaredMembersAndInitializers);
 
         static bool HasNonConstExprInitializer(ImmutableArray<ImmutableArray<FieldInitializer>> initializers) {
@@ -2071,10 +2557,26 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
         var allowedModifiers = DeclarationModifiers.AccessibilityMask;
 
+        if (containingSymbol.kind == SymbolKind.Namespace) {
+            // defaultAccess = DeclarationModifiers.Internal;
+        } else {
+            allowedModifiers |= DeclarationModifiers.New;
+
+            if (((NamedTypeSymbol)containingSymbol).isInterface)
+                defaultAccess = DeclarationModifiers.Public;
+            else
+                defaultAccess = DeclarationModifiers.Private;
+        }
+
         switch (typeKind) {
             case TypeKind.Class:
-                allowedModifiers |= DeclarationModifiers.Sealed | DeclarationModifiers.Abstract
-                    | DeclarationModifiers.LowLevel | DeclarationModifiers.Static;
+                allowedModifiers |= DeclarationModifiers.Sealed
+                                 | DeclarationModifiers.Abstract
+                                 | DeclarationModifiers.LowLevel
+                                 | DeclarationModifiers.Static;
+                break;
+            case TypeKind.Interface:
+                allowedModifiers |= DeclarationModifiers.LowLevel;
                 break;
             case TypeKind.Struct:
                 allowedModifiers |= DeclarationModifiers.LowLevel;
@@ -2101,8 +2603,15 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             diagnostics.Push(Error.ConflictingModifiers(location, "sealed", "static"));
         }
 
-        if (typeKind is TypeKind.Struct or TypeKind.Enum)
-            mods |= DeclarationModifiers.Sealed;
+        switch (typeKind) {
+            case TypeKind.Interface:
+                mods |= DeclarationModifiers.Abstract;
+                break;
+            case TypeKind.Struct:
+            case TypeKind.Enum:
+                mods |= DeclarationModifiers.Sealed;
+                break;
+        }
 
         return mods;
     }
@@ -2117,6 +2626,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
         modifiers = ModifierHelpers.CheckModifiers(
             true,
+            false,
             modifiers,
             allowedModifiers,
             location,
@@ -2401,14 +2911,17 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         }
     }
 
-    private static bool InfiniteFlatteningGraph(SourceMemberContainerTypeSymbol top, NamedTypeSymbol t, Dictionary<NamedTypeSymbol, NamedTypeSymbol> instanceMap) {
+    private static bool InfiniteFlatteningGraph(
+        SourceMemberContainerTypeSymbol top,
+        NamedTypeSymbol t,
+        Dictionary<NamedTypeSymbol, NamedTypeSymbol> instanceMap) {
         if (!t.ContainsTemplateParameter())
             return false;
 
         var tOriginal = t.originalDefinition;
 
         if (instanceMap.TryGetValue(tOriginal, out var oldInstance)) {
-            return (!Equals(oldInstance, t, TypeCompareKind.IgnoreNullability)) && ReferenceEquals(tOriginal, top);
+            return (!Equals(oldInstance, t)) && ReferenceEquals(tOriginal, top);
         } else {
             instanceMap.Add(tOriginal, t);
 

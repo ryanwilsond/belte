@@ -86,7 +86,7 @@ internal static class BestTypeInferrer {
 
             var better = Better(best, type, conversions);
 
-            if (!best.Equals(better, TypeCompareKind.IgnoreNullability))
+            if (!best.Equals(better))
                 return null;
         }
 
@@ -107,7 +107,7 @@ internal static class BestTypeInferrer {
         var t2tot1 = conversionsWithoutNullability.ClassifyImplicitConversionFromType(type2, type1).exists;
 
         if (t1tot2 && t2tot1) {
-            if (type1.Equals(type2, TypeCompareKind.IgnoreNullability)) {
+            if (type1.Equals(type2, TypeCompareKind.IgnoreTupleNames)) {
                 // TODO confirm this doesn't do anything else we want
                 // return type1.MergeEquivalentTypes(type2, VarianceKind.Out);
                 return type1.IsNullableType() ? type1 : type2;

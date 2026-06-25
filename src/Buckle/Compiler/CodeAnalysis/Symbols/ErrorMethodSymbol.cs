@@ -72,9 +72,15 @@ internal sealed class ErrorMethodSymbol : MethodSymbol {
 
     internal override CallingConvention callingConvention => CallingConvention.Default;
 
+    internal sealed override bool hasMustUseReturnValueAttribute => false;
+
     internal sealed override bool hasUnscopedRefAttribute => false;
 
     internal override bool isMetadataFinal => false;
+
+    internal override bool isExplicitInterfaceImplementation => false;
+
+    internal override ImmutableArray<MethodSymbol> explicitInterfaceImplementations => [];
 
     internal override bool IsMetadataVirtual(bool forceComplete = false) => false;
 

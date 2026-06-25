@@ -78,8 +78,18 @@ internal sealed class SynthesizedSimpleNamedTypeSymbol : NamedTypeSymbol {
 
     internal override bool isRefLikeType => false;
 
+    internal override bool isInterface => false;
+
     internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {
         return baseType;
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> Interfaces(ConsList<TypeSymbol> basesBeingResolved = null) {
+        return [];
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> GetDeclaredInterfaces(ConsList<TypeSymbol> basesBeingResolved) {
+        return [];
     }
 
     internal override ImmutableArray<Symbol> GetMembers() {
@@ -100,5 +110,9 @@ internal sealed class SynthesizedSimpleNamedTypeSymbol : NamedTypeSymbol {
 
     private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
         throw ExceptionUtilities.Unreachable();
+    }
+
+    internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
+        return SpecializedCollections.EmptyEnumerable<(MethodSymbol Body, MethodSymbol Implemented)>();
     }
 }

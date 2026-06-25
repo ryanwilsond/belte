@@ -319,11 +319,15 @@ internal sealed class FunctionMethodSymbol : MethodSymbol {
 
     internal override bool isDeclaredConst => false;
 
+    internal override bool hasMustUseReturnValueAttribute => false;
+
     internal override bool hasUnscopedRefAttribute => false;
 
     public override ImmutableArray<TypeOrConstant> templateArguments => [];
 
     internal override bool hasSpecialName => false;
+
+    internal override ImmutableArray<MethodSymbol> explicitInterfaceImplementations => [];
 
     internal override DllImportData GetDllImportData() {
         throw ExceptionUtilities.Unreachable();

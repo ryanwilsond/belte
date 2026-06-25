@@ -37,4 +37,6 @@ internal abstract class WrappedNamedTypeSymbol : NamedTypeSymbol {
     internal override bool isRefLikeType => underlyingNamedType.isRefLikeType;
 
     internal override bool hasStructDefault => underlyingNamedType.hasStructDefault;
+
+    internal override bool isInterface => underlyingNamedType.isInterface;
 }

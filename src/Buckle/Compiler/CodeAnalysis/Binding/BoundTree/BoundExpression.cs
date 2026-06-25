@@ -38,6 +38,14 @@ internal abstract partial class BoundExpression : BoundNode {
         }
     }
 
+    internal bool IsEffectivelyConst() {
+        if (type is null)
+            return IsConst();
+
+        // Value types are copied anyway so const doesn't really mean anything
+        return IsConst() && type.isReferenceType && !type.IsKnownToBeImmutable();
+    }
+
     internal TypeSymbol Type() {
         if (type is null)
             return null;
@@ -77,6 +85,8 @@ internal abstract partial class BoundExpression : BoundNode {
             case BoundKind.UnconvertedObjectCreationExpression:
             case BoundKind.UnconvertedConditionalOperator:
             case BoundKind.UnconvertedExtendedLiteralExpression:
+            case BoundKind.UnconvertedArrayLength:
+            case BoundKind.ConditionalAccessExpression:
                 return true;
             default:
                 return false;

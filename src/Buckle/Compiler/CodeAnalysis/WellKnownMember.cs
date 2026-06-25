@@ -8,6 +8,7 @@ internal enum WellKnownMember : byte {
     Nullable_getValue,
     Nullable_getHasValue,
     Nullable_GetValueOrDefault,
+    Nullable_GetValueOrDefault_T,
 
     ValueTuple_T1_Item1,
 

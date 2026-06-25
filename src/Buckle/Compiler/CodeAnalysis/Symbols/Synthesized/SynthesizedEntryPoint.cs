@@ -19,7 +19,12 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
     private WeakReference<ExecutableCodeBinder> _weakIgnoreAccessibilityBodyBinder;
 
     internal SynthesizedEntryPoint(SourceMemberContainerTypeSymbol containingType, SingleTypeDeclaration declaration)
-        : base(containingType, declaration.syntaxReference, MakeModifiersAndFlags(containingType, declaration)) {
+        : base(
+            containingType,
+            declaration.syntaxReference,
+            declaration.syntaxReference.location,
+            MakeModifiersAndFlags(containingType, declaration)
+        ) {
         _returnType = declaration.hasReturnWithExpression
             ? CorLibrary.GetNullableType(SpecialType.Any)
             : CorLibrary.GetSpecialType(SpecialType.Void);
@@ -40,8 +45,6 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
     internal override ImmutableArray<ParameterSymbol> parameters => [];
 
     internal override int parameterCount => 0;
-
-    internal override TextLocation location => _declaration.syntaxReference.location;
 
     internal CompilationUnitSyntax compilationUnit => (CompilationUnitSyntax)syntaxNode;
 
@@ -73,6 +76,10 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
             }
         }
     }
+
+    internal override bool isExplicitInterfaceImplementation => false;
+
+    internal override ImmutableArray<MethodSymbol> explicitInterfaceImplementations => [];
 
     internal override ImmutableArray<TypeParameterConstraintKinds> GetTypeParameterConstraintKinds() {
         return [];

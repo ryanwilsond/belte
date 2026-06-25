@@ -50,23 +50,19 @@ internal sealed class SynthesizedClosureMethod : SynthesizedMethodSymbolBase {
         switch (closureKind) {
             case ClosureKind.Singleton:
             case ClosureKind.General:
-                templateMap = lambdaFrame.templateMap.WithConcatAlphaRename(
-                    originalMethod,
+                templateMap = lambdaFrame.templateMap.WithAlphaRename(
+                    TemplateMap.ConcatMethodTemplateParameters(originalMethod, stopAt: lambdaFrame.originalContainingMethod),
                     this,
-                    out templateParameters,
-                    out _,
-                    lambdaFrame.originalContainingMethod
+                    out templateParameters
                 );
 
                 break;
             case ClosureKind.ThisOnly:
             case ClosureKind.Static:
-                templateMap = TemplateMap.Empty.WithConcatAlphaRename(
-                    originalMethod,
+                templateMap = TemplateMap.Empty.WithAlphaRename(
+                    TemplateMap.ConcatMethodTemplateParameters(originalMethod, stopAt: null),
                     this,
-                    out templateParameters,
-                    out _,
-                    stopAt: null
+                    out templateParameters
                 );
 
                 break;

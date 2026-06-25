@@ -18,7 +18,6 @@ namespace Buckle.CodeAnalysis;
 
 internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationState, object> {
     private readonly Compilation _compilation;
-    private readonly bool _emitting;
     private readonly BelteDiagnosticQueue _diagnostics;
     private readonly ConcurrentDictionary<MethodSymbol, BoundBlockStatement> _methodBodies;
     private readonly ConcurrentDictionary<MethodSymbol, EvaluatorSlotManager> _methodLayouts;
@@ -50,14 +49,12 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder typeLayouts,
         Dictionary<NamedTypeSymbol, SynthesizedEnumMethodContainer> enumMethodContainerTypes,
         Predicate<Symbol> filter,
-        bool emitting,
         bool collectSymbols) {
         _compilation = compilation;
         _diagnostics = diagnostics;
         _entryPoint = entryPoint;
         _updatePoint = updatePoint;
         _filter = filter;
-        _emitting = emitting;
         _types = ArrayBuilder<NamedTypeSymbol>.GetInstance();
         _methodBodies = [];
         _methodLayouts = [];
@@ -67,6 +64,12 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         _enumMethodContainerTypes = enumMethodContainerTypes;
     }
 
+    internal bool transpiling => _compilation.options.buildMode == BuildMode.CSharpTranspile;
+
+    internal bool emitting => _compilation.options.buildMode.Emitting();
+
+    internal bool evaluating => _compilation.options.buildMode.Evaluating();
+
     internal static BoundProgram CompileMethodBodies(
         Compilation compilation,
         BelteDiagnosticQueue diagnostics,
@@ -74,8 +77,6 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         bool skipEntryPoint = false,
         bool collectSymbols = false) {
         var emittingToDll = compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
-        var transpiling = compilation.options.buildMode == BuildMode.CSharpTranspile;
-
         var globalNamespace = compilation.globalNamespaceInternal;
 
         var typeLayouts = ImmutableDictionary.CreateBuilder<NamedTypeSymbol, EvaluatorSlotManager>();
@@ -124,7 +125,6 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             typeLayouts,
             enumMethodContainerTypes,
             filter,
-            !transpiling,
             collectSymbols
         );
 
@@ -528,6 +528,12 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         importChain ??= processedInitializers.firstImportChain;
         state.currentImportChain = importChain;
 
+        if (body is not null)
+            DiagnosticPass.ReportDiagnostics(body, currentDiagnostics);
+
+        if (currentDiagnostics.AnyErrors())
+            return currentDiagnostics;
+
         var loweredBody = LowerBody(
             method,
             methodOrdinal,
@@ -535,7 +541,6 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             state,
             _compilation.previousAnalyses,
             currentDiagnostics,
-            !_emitting,
             ref _entryPoint,
             out var sawCompileTimeExpression
         );
@@ -576,7 +581,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             );
         }
 
-        if (_emitting) {
+        if (!transpiling) {
             if (!controlFlowGraph.AllPathsReturn())
                 currentDiagnostics.Push(Error.NotAllPathsReturn(method.location));
 
@@ -609,37 +614,49 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         TypeCompilationState state,
         List<LocalFunctionRewriter.Analysis> previousAnalyses,
         BelteDiagnosticQueue currentDiagnostics,
-        bool transpiling,
         ref MethodSymbol entryPoint,
         out bool sawCompileTimeExpression) {
-        var loweredBody = Lowerer.Lower(
-            this,
-            state.compilation.options.optimizationLevel,
-            method,
-            body,
-            currentDiagnostics,
-            transpiling,
-            out sawCompileTimeExpression
-        );
-
-        if (!transpiling) {
-            loweredBody = LocalFunctionRewriter.Rewrite(
-                loweredBody,
-                state.type,
+        try {
+            var loweredBody = Lowerer.Lower(
+                this,
+                state.compilation.options.optimizationLevel,
                 method,
-                methodOrdinal,
-                null,
-                state,
-                previousAnalyses,
+                body,
+                entryPoint?.containingType,
                 currentDiagnostics,
-                null, // TODO When do we want to use this?
-                ref entryPoint
+                out sawCompileTimeExpression
             );
 
-            loweredBody = Optimizer.RemoveDeadCode(method, loweredBody, currentDiagnostics);
-        }
+            if (!transpiling) {
+                loweredBody = LocalFunctionRewriter.Rewrite(
+                    loweredBody,
+                    state.type,
+                    method,
+                    methodOrdinal,
+                    null,
+                    state,
+                    previousAnalyses,
+                    currentDiagnostics,
+                    null, // TODO When do we want to use this?
+                    ref entryPoint
+                );
 
-        return loweredBody;
+                loweredBody = Optimizer.RemoveDeadCode(method, loweredBody, currentDiagnostics);
+            }
+
+            return loweredBody;
+        } catch (BoundTreeVisitor.CancelledByStackGuardException ex) {
+            ex.AddAnError(currentDiagnostics);
+            sawCompileTimeExpression = false;
+
+            return new BoundBlockStatement(
+                body.syntax,
+                [new BoundErrorStatement(body.syntax, [body], hasErrors: true)],
+                [],
+                [],
+                hasErrors: true
+            );
+        }
     }
 
     internal static BoundBlockStatement BindSynthesizedMethodBody(

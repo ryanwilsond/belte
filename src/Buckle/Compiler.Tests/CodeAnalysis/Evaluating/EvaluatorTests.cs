@@ -143,6 +143,14 @@ public sealed class EvaluatorTests {
     [InlineData("return 3 is null;", false)]
     [InlineData("return null == null;", true)]
     [InlineData("return 3 == null;", false)]
+    [InlineData("int? a = null; return a == null;", true)]
+    [InlineData("int? a = null; return a is null;", true)]
+    [InlineData("int? a = null; return a != null;", false)]
+    [InlineData("int? a = null; return a isnt null;", false)]
+    [InlineData("int? a = null; var b = a == null; return LowLevel.GetType(b) == typeof(bool);", true)]
+    [InlineData("int? a = null; var b = a == null; return LowLevel.GetType(b) == typeof(bool?);", false)]
+    [InlineData("int a = 3; var b = a == null; return LowLevel.GetType(b) == typeof(bool);", true)]
+    [InlineData("int a = 3; var b = a == null; return LowLevel.GetType(b) == typeof(bool?);", false)]
     [InlineData("bool? a = true; bool? b = null; return a || b;", true)]
     [InlineData("bool? a = true; bool? b = null; return a && b;", false)]
     [InlineData("bool? a = null; bool? b = null; return a || b;", false)]
@@ -161,8 +169,8 @@ public sealed class EvaluatorTests {
     [InlineData("return 3 isnt null;", true)]
     [InlineData("return 5 % 2;", 1)]
     [InlineData("return 9 % 5;", 4)]
-    [InlineData("return 5 ?? 2;", 5)]
-    [InlineData("return 5 ?! 2;", 2)]
+    [InlineData("int? a = 5; return a ?? 2;", 5)]
+    [InlineData("int? a = 5; return a ?! 2;", 2)]
     [InlineData("int? a = 3; return a?;", 3)]
     [InlineData("int? a = null; return a?;", 0)]
     [InlineData("bool? a = true; return a?;", true)]
@@ -384,6 +392,10 @@ public sealed class EvaluatorTests {
     [InlineData("lowlevel { int?[]? a = {1, 2, null}; return a![2]; }", null)]
     [InlineData("lowlevel { int?[][]? a = { new int?[] { 1 } }; return a![0]![0]; }", 1)]
     [InlineData("lowlevel { var a = new int?[] { 1, 2, 3 }; a = { 4, 5, 6 }; return a[0]; }", 4)]
+    [InlineData("Buffer<int> a = { 1, 2, 3 }; return a.Length;", 3)]
+    [InlineData("Buffer<int> a = new Buffer<int>(10); return a.Length;", 10)]
+    [InlineData("Buffer<int>? a = new Buffer<int>(10); return a?.Length;", 10)]
+    [InlineData("Buffer<int>? a = null; return a?.Length;", null)]
     [InlineData(@"
         class A {
             public decimal? f = 1;
@@ -420,7 +432,7 @@ public sealed class EvaluatorTests {
     [InlineData("class A { public int? a; public int? b; } A myVar = new A(); myVar.a = 3; myVar.b = myVar.a + 3; return myVar.b;", 6)]
     [InlineData("class A { public int? a; public int? b; } A myVar = new A(); myVar.a = 3; myVar.b = myVar.a + 3; return myVar.a;", 3)]
     [InlineData("class A { public int? num; } A? myVar; int? a = myVar?.num; return a;", null)]
-    [InlineData("class A { public int? num; } A myVar = new A(); myVar.num = 7; int? a = myVar?.num; return a;", 7)]
+    [InlineData("class A { public int? num; } A myVar = new A(); myVar.num = 7; int? a = myVar.num; return a;", 7)]
     [InlineData("class A { public static int? a = 3; } return A.a;", 3)]
     [InlineData("class A { public static int? a = 3; static constructor() { a = 10; } } return A.a;", 10)]
     [InlineData("class A { public static int[]? a = new int[10]; static constructor() { a![0] = 10; } } return A.a![0];", 10)]
@@ -582,48 +594,47 @@ public sealed class EvaluatorTests {
         var a = new A<int>();
         var b = with (a.M(10)) 10;
         return a.c;", 10)]
-    // TODO These tests succeed when done manually but fail as tests for some reason?
-    // [InlineData(@"
-    //     class A {
-    //         public static int s = 0;
+    [InlineData(@"
+        class A {
+            public static int s = 0;
 
-    //         public static int M(int p) {
-    //             return p;
-    //         } state(bool) {
-    //             return p > 4;
-    //         } reverse(bool b) {
-    //             s = b ? 50 : 30;
-    //         }
-    //     }
-    //     return with(A.M(10)) A.s;", 0)]
-    // [InlineData(@"
-    //     class A {
-    //         public static int s = 0;
+            public static int M(int p) {
+                return p;
+            } state(bool) {
+                return p > 4;
+            } reverse(bool b) {
+                s = b ? 50 : 30;
+            }
+        }
+        return with(A.M(10)) A.s;", 0)]
+    [InlineData(@"
+        class A {
+            public static int s = 0;
 
-    //         public static int M(int p) {
-    //             return p;
-    //         } state(bool) {
-    //             return p > 4;
-    //         } reverse(bool b) {
-    //             s = b ? 50 : 30;
-    //         }
-    //     }
-    //     with (A.M(10)) ;
-    //     return A.s;", 50)]
-    // [InlineData(@"
-    //     class A {
-    //         public static int s = 0;
+            public static int M(int p) {
+                return p;
+            } state(bool) {
+                return p > 4;
+            } reverse(bool b) {
+                s = b ? 50 : 30;
+            }
+        }
+        with (A.M(10)) ;
+        return A.s;", 50)]
+    [InlineData(@"
+        class A {
+            public static int s = 0;
 
-    //         public static int M(int p) {
-    //             return p;
-    //         } state(bool) {
-    //             return p > 4;
-    //         } reverse(bool b) {
-    //             s = b ? 50 : 30;
-    //         }
-    //     }
-    //     with (A.M(3)) ;
-    //     return A.s;", 30)]
+            public static int M(int p) {
+                return p;
+            } state(bool) {
+                return p > 4;
+            } reverse(bool b) {
+                s = b ? 50 : 30;
+            }
+        }
+        with (A.M(3)) ;
+        return A.s;", 30)]
     // Compile-time expressions
     [InlineData("int a = $3; return a;", 3)]
     [InlineData("constexpr int? a = 3; int b = $a?; return b;", 3)]
@@ -736,7 +747,7 @@ public sealed class EvaluatorTests {
     [InlineData("return typeof(int) == typeof(bool);", false)]
     [InlineData("return typeof(int*) == typeof(int64*);", true)]
     [InlineData("class C<type T> { public bool? M() { return typeof(T) == typeof(int?); } } var c = new C<int?>(); return c.M();", true)]
-    [InlineData("class C<type T> where { T is notnull; } { public bool? M() { return typeof(T) == typeof(int?); } } var c = new C<int?>(); return c.M();", false)]
+    [InlineData("class C<type T> where { T is notnull; } { public bool? M() { return typeof(T) == typeof(int?); } } var c = new C<int>(); return c.M();", false)]
     [InlineData("class C<type T> { public bool? M() { return typeof(T) == typeof(int?); } } var c = new C<bool?>(); return c.M();", false)]
     [InlineData("bool? C<type T>() { return typeof(T) == typeof(int?); } return C<int?>();", true)]
     [InlineData("bool? C<type T>() { return typeof(T) == typeof(int?); } return C<bool?>();", false)]
@@ -1009,13 +1020,13 @@ public sealed class EvaluatorTests {
     [InlineData("int? a = null; return f\"a is {a}\";", "a is ")]
     [InlineData("return f\"a is {null}\";", "a is ")]
     [InlineData("List<int>? a = null; return f\"a is {a}\";", "a is ")]
-    [InlineData("class A { public override string ToString() { return \"text\"; } } A a = new A(); return f\"a is {a}\";", "a is text")]
-    [InlineData("struct A { public override string ToString() { return \"text\"; } } A a = new A(); return f\"a is {a}\";", "a is text")]
+    [InlineData("class A { public override string? ToString() { return \"text\"; } } A a = new A(); return f\"a is {a}\";", "a is text")]
+    [InlineData("struct A { public override string? ToString() { return \"text\"; } } A a = new A(); return f\"a is {a}\";", "a is text")]
     [InlineData("return f\"{1}{2}{3}\";", "123")]
     [InlineData("return f\"{true} {false}\";", "True False")]
     // Templates
     [InlineData("class A<type t> where { t has default; } { public t a = default; } var a = new A<string?>(); a.a = \"test\"; return a.a;", "test")]
-    [InlineData("class A<type t> where { t has default; } { public t a = default; } lowlevel { var a = new A<int?[]>(); a.a = new int?[] {1, 2, 3}; return a.a[1]; }", 2)]
+    [InlineData("class A<type t> where { t has default; } { public t a = default; } lowlevel { var a = new A<int?[]?>(); a.a = new int?[] {1, 2, 3}; return a.a![1]; }", 2)]
     [InlineData("class A<type t> { }; var a = new A<A<int?>>();", null)]
     [InlineData("T Test<type T>(T a) { return a; } return Test<int?>(3);", 3)]
     [InlineData("T Test<type T>() where { T has default; } { return default; } return Test<int?>();", null)]
@@ -1030,27 +1041,27 @@ public sealed class EvaluatorTests {
     [InlineData("class P { public static T M<type T>() where { T has default; } { T a = default; return a; } } return P.M<int?>();", null)]
     [InlineData("static class P { [DllImport(\"kernel32.dll\")]static extern int64* GetModuleHandle(string? lpModuleName); } return null;", null)]
     [InlineData("static class P { [DllImport(\"msvcrt.dll\", CallingConvention: CallingConvention.Cdecl)]static extern void* memcpy(void* dest, void* src, uint64 count); } return null;", null)]
-    // TODO
-    // [InlineData(@"
-    //     class P {
-    //         public static T M<type T>(T b) {
-    //             T a = b;
-    //             L();
-    //             return a;
-    //             void L() { a = default; }
-    //         }
-    //     }
-    //     return P.M<int>(3);", 0)]
-    // [InlineData(@"
-    //     class P {
-    //         public static T M<type T>(T b) {
-    //             T a = b;
-    //             L<bool>();
-    //             return a;
-    //             void L<type T2>() { a = default; }
-    //         }
-    //     }
-    //     return P.M<int>(3);", 0)]
+    [InlineData("class P { struct S { int32 f[10]; } } return null;", null)]
+    [InlineData(@"
+        class P {
+            public static T M<type T>(T b) where { T has default; }  {
+                T a = b;
+                L();
+                return a;
+                void L() { a = default; }
+            }
+        }
+        return P.M<int>(3);", 0)]
+    [InlineData(@"
+        class P {
+            public static T M<type T>(T b) where { T has default; } {
+                T a = b;
+                L<bool>();
+                return a;
+                void L<type T2>() { a = default; }
+            }
+        }
+        return P.M<int>(3);", 0)]
     [InlineData(@"
         var? a = true;
         var? b = false;
@@ -1072,7 +1083,7 @@ public sealed class EvaluatorTests {
             public int! Length() { return 4; }
         }
 
-        A a = new A();
+        A? a = new A();
         int! b = a?.Length()?;
         return b;
         ", 4)]
@@ -1090,7 +1101,7 @@ public sealed class EvaluatorTests {
             public int? a;
         }
 
-        A a = new A();
+        A? a = new A();
         a?.a = 3;
         return a?.a;
         ", 3)]
@@ -1101,8 +1112,8 @@ public sealed class EvaluatorTests {
         }
 
         A a = new A();
-        a?.b?.a = 3;
-        return a?.b?.a;
+        a.b?.a = 3;
+        return a.b?.a;
         ", null)]
     [InlineData(@"
         class A {
@@ -1110,8 +1121,9 @@ public sealed class EvaluatorTests {
             public void M() { a = 5; }
         }
 
-        A a = new A()?..M();
-        return a.a;
+        A? a = new A();
+        var b = a?..M();
+        return b?.a;
         ", 5)]
     [InlineData(@"
         class A {
@@ -1129,8 +1141,8 @@ public sealed class EvaluatorTests {
             public A? b;
         }
 
-        var a = new A()?..b = (new A()..a = 4);
-        return a.b!.a;
+        var a = ((A?)new A())?..b = (new A()..a = 4);
+        return a?.b!.a;
         ", 4)]
     [InlineData(@"
         int?[][]? a = null;
@@ -1157,7 +1169,7 @@ public sealed class EvaluatorTests {
             public int c = default;
         }
         var a = new A();
-        return a?.b?.c;", null)]
+        return a.b?.c;", null)]
     // Larger combinatorial tests
     [InlineData(@"
         class Counter {
@@ -1213,26 +1225,25 @@ public sealed class EvaluatorTests {
         }
 
         return sum;", 6)]
-    // TODO
-    // [InlineData(@"
-    //     class Box<type T> {
-    //         public T value;
+    [InlineData(@"
+        class Box<type T> {
+            public T value;
 
-    //         public constructor(T value) {
-    //             this.value = value;
-    //         }
+            public constructor(T value) {
+                this.value = value;
+            }
 
-    //         public T Map(T(T) mapper) {
-    //             return mapper(value);
-    //         }
-    //     }
+            public T Map(T(T) mapper) {
+                return mapper(value);
+            }
+        }
 
-    //     int AddOne(int x) {
-    //         return x + 1;
-    //     }
+        int AddOne(int x) {
+            return x + 1;
+        }
 
-    //     var b = new Box<int>(4);
-    //     return b.Map(AddOne);", 5)]
+        var b = new Box<int>(4);
+        return b.Map(AddOne);", 5)]
     [InlineData(@"
         struct Point {
             public int x;
@@ -1365,6 +1376,57 @@ public sealed class EvaluatorTests {
         }
 
         return Run();", 6)]
+    // Interfaces
+    [InlineData(@"
+        interface A {
+            int B();
+        }
+        class C implements A {
+            public int B() { return 5; }
+        }
+        class D implements A {
+            public int B() { return 10; }
+        }
+        A a = new C();
+        return a.B();", 5)]
+    [InlineData(@"
+        interface A {
+            int B();
+        }
+        class C implements A {
+            public int B() { return 5; }
+        }
+        class D implements A {
+            public int B() { return 10; }
+        }
+        A a = new D();
+        return a.B();", 10)]
+    [InlineData(@"
+        interface A {
+            int B();
+        }
+        class C implements A {
+            public int B() { return 5; }
+        }
+        class D implements A {
+            public int B() { return 10; }
+        }
+        A a = new C();
+        C c = (C)a;
+        return c.B();", 5)]
+    [InlineData(@"
+        interface A {
+            int B();
+        }
+        class C implements A {
+            public int B() { return 5; }
+        }
+        class D implements A {
+            public int B() { return 10; }
+        }
+        A a = new D();
+        D d = (D)a;
+        return d.B();", 10)]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue, evaluator: true, executor: true);
     }

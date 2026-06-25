@@ -6,14 +6,16 @@ using Buckle.Diagnostics;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class SourceOrdinaryMethodOrUserDefinedOperatorSymbol : SourceMemberMethodSymbol {
+    private ImmutableArray<MethodSymbol> _lazyExplicitInterfaceImplementations;
     private ImmutableArray<ParameterSymbol> _lazyParameters;
     private TypeWithAnnotations _lazyReturnType;
 
     private protected SourceOrdinaryMethodOrUserDefinedOperatorSymbol(
         NamedTypeSymbol containingType,
         SyntaxReference syntaxReference,
+        TextLocation location,
         (DeclarationModifiers modifiers, Flags flags) modifiersAndFlags)
-        : base(containingType, syntaxReference, modifiersAndFlags) { }
+        : base(containingType, syntaxReference, location, modifiersAndFlags) { }
 
     public sealed override bool returnsVoid {
         get {
@@ -45,7 +47,21 @@ internal abstract class SourceOrdinaryMethodOrUserDefinedOperatorSymbol : Source
         }
     }
 
+    internal sealed override bool isExplicitInterfaceImplementation
+        => methodKind == MethodKind.ExplicitInterfaceImplementation;
+
+    internal sealed override ImmutableArray<MethodSymbol> explicitInterfaceImplementations {
+        get {
+            LazyMethodChecks();
+            return _lazyExplicitInterfaceImplementations;
+        }
+    }
+
+    private protected abstract TypeSymbol _explicitInterfaceType { get; }
+
     private protected abstract TextLocation _returnTypeLocation { get; }
+
+    private protected abstract MethodSymbol FindExplicitlyImplementedMethod(BelteDiagnosticQueue diagnostics);
 
     internal override void AfterAddingTypeMembersChecks(BelteDiagnosticQueue diagnostics) {
         base.AfterAddingTypeMembersChecks(diagnostics);
@@ -69,9 +85,36 @@ internal abstract class SourceOrdinaryMethodOrUserDefinedOperatorSymbol : Source
 
         CheckEffectiveAccessibility(_lazyReturnType, _lazyParameters, diagnostics);
 
-        if (isOverride)
-            return overriddenMethod;
+        // TODO Warn if explicitly defining a destructor or finalizer signature?
 
-        return null;
+        MethodSymbol overriddenOrExplicitlyImplementedMethod = null;
+
+        if (methodKind != MethodKind.ExplicitInterfaceImplementation) {
+            _lazyExplicitInterfaceImplementations = [];
+
+            if (isOverride)
+                overriddenOrExplicitlyImplementedMethod = overriddenMethod;
+            // TODO Some runtime in attribute thing might need to go here
+        } else if (_explicitInterfaceType is not null) {
+            overriddenOrExplicitlyImplementedMethod = FindExplicitlyImplementedMethod(diagnostics);
+
+            if (overriddenOrExplicitlyImplementedMethod is not null) {
+                _lazyExplicitInterfaceImplementations = [overriddenOrExplicitlyImplementedMethod];
+
+                this.FindExplicitlyImplementedMemberVerification(overriddenOrExplicitlyImplementedMethod, diagnostics);
+
+                TypeSymbol.CheckModifierMismatchOnImplementingMember(
+                    containingType,
+                    this,
+                    overriddenOrExplicitlyImplementedMethod,
+                    isExplicit: true,
+                    diagnostics
+                );
+            } else {
+                _lazyExplicitInterfaceImplementations = [];
+            }
+        }
+
+        return overriddenOrExplicitlyImplementedMethod;
     }
 }

@@ -16,7 +16,7 @@ internal sealed class CorLibrary {
 
     private const int TotalSpecialTypes = (int)SpecialType.Buffer;
     private const int TotalWellKnownMembers = (int)WellKnownMember.Array_Set;
-    private const int TotalWellKnownTypes = (int)WellKnownType.Array;
+    private const int TotalWellKnownTypes = (int)WellKnownType.MustUseReturnValueAttribute;
 
     private readonly ConcurrentDictionary<SpecialType, NamedTypeSymbol> _specialTypes = [];
     private readonly ConcurrentDictionary<WellKnownMember, Symbol> _wellKnownMembers = [];
@@ -37,7 +37,7 @@ internal sealed class CorLibrary {
     }
 
     internal static void SetReducedState() {
-        Instance._registeredWellKnownTypes += (int)WellKnownType.Sound - (int)WellKnownType.Exception;
+        Instance._registeredWellKnownTypes += (int)WellKnownType.MustUseReturnValueAttribute - (int)WellKnownType.Exception;
     }
 
     #region Public Model
@@ -281,6 +281,17 @@ internal sealed class CorLibrary {
                 RefKind.None,
                 DeclarationModifiers.None
             ), nullableType, []));
+
+        RegisterWellKnownMember(WellKnownMember.Nullable_GetValueOrDefault_T,
+            new SynthesizedFinishedMethodSymbol(
+            new SynthesizedSimpleOrdinaryMethodSymbol(
+                "GetValueOrDefault",
+                new TypeWithAnnotations(nullableType.templateParameters[0]),
+                RefKind.None,
+                DeclarationModifiers.None
+            ),
+            nullableType,
+            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(nullableType.templateParameters[0]), 0, RefKind.None, "default")]));
     }
 
     private void CompleteLazyMembers() {

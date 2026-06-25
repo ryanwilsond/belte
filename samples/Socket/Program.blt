@@ -10,37 +10,19 @@ public static class Program {
     constexpr uint16 PORT = 8080;
 
     [DllImport("ws2_32.dll")]
-    static extern int32 WSAStartup(uint16 wVersionRequested, void* lpWSAData);
-
-    [DllImport("ws2_32.dll")]
-    static extern int32 WSAGetLastError();
-
-    [DllImport("ws2_32.dll")]
-    static extern int32 socket(int32 af, int32 type_, int32 protocol);
-
-    [DllImport("ws2_32.dll")]
-    static extern int32 bind(int32 s, sockaddr_in* addr, int32 namelen);
-
-    [DllImport("ws2_32.dll")]
-    static extern int32 listen(int32 s, int32 backlog);
-
-    [DllImport("ws2_32.dll")]
-    static extern int32 accept(int32 s, void* addr, void* addrlen);
-
-    [DllImport("ws2_32.dll")]
-    static extern int32 send(int32 s, uint8* buf, int32 len, int32 flags);
-
-    [DllImport("ws2_32.dll")]
-    static extern int32 recv(int32 s, uint8* buf, int32 len, int32 flags);
-
-    [DllImport("ws2_32.dll")]
-    static extern uint16 htons(uint16 hostshort);
-
-    [DllImport("ws2_32.dll")]
-    static extern uint32 inet_addr(uint8* cp);
-
-    [DllImport("ws2_32.dll")]
-    static extern int32 closesocket(int32 s);
+    extern {
+        int32 WSAStartup(uint16 wVersionRequested, void* lpWSAData);
+        int32 WSAGetLastError();
+        int32 socket(int32 af, int32 type_, int32 protocol);
+        int32 bind(int32 s, sockaddr_in* addr, int32 namelen);
+        int32 listen(int32 s, int32 backlog);
+        int32 accept(int32 s, void* addr, void* addrlen);
+        int32 send(int32 s, uint8* buf, int32 len, int32 flags);
+        int32 recv(int32 s, uint8* buf, int32 len, int32 flags);
+        uint16 htons(uint16 hostshort);
+        uint32 inet_addr(uint8* cp);
+        int32 closesocket(int32 s);
+    }
 
     constexpr int16 AF_INET = 2;
     constexpr int32 SOCK_STREAM = 1;
@@ -81,13 +63,14 @@ public static class Program {
 
         Console.PrintLine("Listening on 127.0.0.1:" + ((string)PORT) + "...");
 
-        constexpr string! response =
-            "HTTP/1.1 200 OK\r\n" +
-            "Content-Type: text/plain; charset=utf-8\r\n" +
-            "Content-Length: 13\r\n" +
-            "Connection: close\r\n" +
-            "\r\n" +
-            "Hello, world!";
+        constexpr string! response = """
+            HTTP/1.1 200 OK
+            Content-Type: text/plain; charset=utf-8
+            Content-Length: 13
+            Connection: close
+
+            Hello, world!
+            """;
 
         const int32 length = $(int32)String.Length(response);
 
@@ -103,8 +86,9 @@ public static class Program {
                 return;
             }
 
-            var buffer = new Buffer();
-            if (recv(client, buffer.buffer, 1024, 0) <= 0) {
+            uint8 buffer[1024];
+
+            if (recv(client, buffer, 1024, 0) <= 0) {
                 _ = closesocket(client);
                 return;
             }
@@ -115,10 +99,6 @@ public static class Program {
             Console.PrintLine("Sent message");
         }
     }
-}
-
-public struct Buffer {
-    public uint8 buffer[1024];
 }
 
 public struct in_addr {

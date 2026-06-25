@@ -89,10 +89,24 @@ internal abstract class SynthesizedContainer : NamedTypeSymbol {
 
     internal override bool mangleName => arity > 0;
 
+    internal sealed override bool isInterface => typeKind == TypeKind.Interface;
+
     internal override bool isImplicitlyDeclared => true;
 
     internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {
         return baseType;
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> GetDeclaredInterfaces(ConsList<TypeSymbol> basesBeingResolved) {
+        return Interfaces(basesBeingResolved);
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> Interfaces(ConsList<TypeSymbol> basesBeingResolved) {
+        return [];
+    }
+
+    internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
+        return SpecializedCollections.EmptyEnumerable<(MethodSymbol Body, MethodSymbol Implemented)>();
     }
 
     internal override ImmutableArray<Symbol> GetMembers() {

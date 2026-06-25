@@ -405,8 +405,8 @@ internal sealed partial class Executor : ModuleBuilder {
         }
 
         Type GetTypeCoreInternal(NamedTypeSymbol type) {
-            if (type.originalDefinition is PENamedTypeSymbol t)
-                return ResolveType(t);
+            if (type.originalDefinition is PENamedTypeSymbol or MissingMetadataTypeSymbol)
+                return ResolveType(type.originalDefinition);
 
             if (_bakedTypes.TryGetValue(type.originalDefinition, out var baked))
                 return baked;
@@ -461,7 +461,7 @@ internal sealed partial class Executor : ModuleBuilder {
             return Type.GetType($"System.Func`{signature.parameterCount + 1}", throwOnError: true);
     }
 
-    internal static Type ResolveType(PENamedTypeSymbol type) {
+    internal static Type ResolveType(NamedTypeSymbol type) {
         var metadata = (type.containingAssembly as PEAssemblySymbol).@assembly;
 
         if (!AssemblyCache.TryGetValue(metadata.location, out var assembly)) {
@@ -476,12 +476,13 @@ internal sealed partial class Executor : ModuleBuilder {
                 AssemblyCache.TryAdd(metadata.location, assembly);
         }
 
-        var stack = new Stack<PENamedTypeSymbol>();
+        var stack = new Stack<NamedTypeSymbol>();
         var current = type;
 
         while (current is not null) {
             stack.Push(current);
-            current = current.containingType as PENamedTypeSymbol;
+            current = (NamedTypeSymbol)(current.containingType as PENamedTypeSymbol) ??
+                (current.containingType as MissingMetadataTypeSymbol);
         }
 
         var topType = stack.Pop();
@@ -731,6 +732,17 @@ internal sealed partial class Executor : ModuleBuilder {
             return closedType.GetMethod("GetValueOrDefault", BindingFlags.Public | BindingFlags.Instance, Type.EmptyTypes);
     }
 
+    internal MethodInfo GetNullableValueOrDefaultT(TypeSymbol type) {
+        var generic = GetType(type);
+        var nullable = typeof(Nullable<>);
+        var closedType = nullable.MakeGenericType(generic);
+
+        if (closedType.ContainsGenericParameters || generic is TypeBuilder || generic is GenericTypeParameterBuilder)
+            return TypeBuilder.GetMethod(closedType, MethodInfoCache.Nullable_GetValueOrDefault_T);
+        else
+            return closedType.GetMethod("GetValueOrDefault", BindingFlags.Public | BindingFlags.Instance, [generic]);
+    }
+
     internal MethodInfo GetNullableHasValue(TypeSymbol type) {
         var generic = GetType(type);
         var nullable = typeof(Nullable<>);
@@ -849,7 +861,7 @@ internal sealed partial class Executor : ModuleBuilder {
     private void BakeTypes() {
         // Topologically sorts struct types tracking dependencies (field types) so that when the struct is created it's
         // layout is fully known
-        var deps = new Dictionary<TypeSymbol, List<NamedTypeSymbol>>();
+        var deps = new Dictionary<NamedTypeSymbol, List<NamedTypeSymbol>>();
 
         foreach (var type in _types.Keys) {
             if (!type.IsStructType())
@@ -877,13 +889,16 @@ internal sealed partial class Executor : ModuleBuilder {
                     list.Add(nestedType.originalDefinition);
             }
 
-            deps[type.originalDefinition] = list;
+            if (namedType.containingType?.IsClassType() == true)
+                list.Add(namedType.containingType);
+
+            deps[namedType.originalDefinition] = list;
         }
 
-        var result = new List<TypeSymbol>();
-        var visited = new List<TypeSymbol>();
+        var result = new List<NamedTypeSymbol>();
+        var visited = new List<NamedTypeSymbol>();
 
-        void Visit(TypeSymbol t) {
+        void Visit(NamedTypeSymbol t) {
             if (visited.Contains(t))
                 return;
 
@@ -898,27 +913,51 @@ internal sealed partial class Executor : ModuleBuilder {
 
         foreach (var type in _types.Keys) {
             if (type.IsStructType())
-                Visit(type.originalDefinition);
+                Visit((NamedTypeSymbol)type.originalDefinition);
         }
 
-        // TODO Crashes on struct with fixed buffers that is nested in class
         foreach (var type in result) {
             var tb = _types[type];
-            var baked = tb.CreateType();
-            _bakedTypes[(NamedTypeSymbol)type] = baked;
+
+            if (type.IsStructType()) {
+                AddInterfaceImplementations(type, tb);
+                var baked = tb.CreateType();
+                _bakedTypes.Add(type, baked);
+            } else {
+                BakeNonStructType(type, tb);
+            }
         }
 
         foreach (var (type, tb) in _types) {
             if (!type.IsStructType()) {
-                if (type.Equals(_programNamedType.originalDefinition)) {
-                    CreateMainWrapperIfApplicable(tb);
-                    _programType = tb.CreateType();
-                    continue;
-                }
-
-                var baked = tb.CreateType();
-                _bakedTypes[(NamedTypeSymbol)type] = baked;
+                var namedType = (NamedTypeSymbol)type;
+                BakeNonStructType(namedType, tb);
+            } else {
+                Debug.Assert(_bakedTypes.ContainsKey((NamedTypeSymbol)type));
             }
+        }
+
+        void BakeNonStructType(NamedTypeSymbol type, TypeBuilder typeBuilder) {
+            Debug.Assert(!type.IsStructType());
+
+            if (_bakedTypes.ContainsKey(type)) {
+                Debug.Assert(WellKnownTypes.GetTypeFromMetadataName(type) != WellKnownType.None ||
+                    result.Contains(type));
+
+                return;
+            }
+
+            AddInterfaceImplementations(type, typeBuilder);
+
+            if (type.Equals(_programNamedType.originalDefinition)) {
+                CreateMainWrapperIfApplicable(typeBuilder);
+                _programType = typeBuilder.CreateType();
+                _bakedTypes.Add(type, _programType);
+                return;
+            }
+
+            var baked = typeBuilder.CreateType();
+            _bakedTypes.Add(type, baked);
         }
     }
 
@@ -944,12 +983,15 @@ internal sealed partial class Executor : ModuleBuilder {
         _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T7), typeof(ValueTuple<,,,,,,>));
         _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_TRest), typeof(ValueTuple<,,,,,,,>));
 
+        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Attribute), typeof(Attribute));
+
         foreach (var type in new[] { WellKnownType.Rect, WellKnownType.Text, WellKnownType.Sprite,
                                      WellKnownType.Vec2, WellKnownType.Texture, WellKnownType.Sound,
                                      WellKnownType.ValueTuple_T1, WellKnownType.ValueTuple_T2,
                                      WellKnownType.ValueTuple_T3, WellKnownType.ValueTuple_T4,
                                      WellKnownType.ValueTuple_T5, WellKnownType.ValueTuple_T6,
-                                     WellKnownType.ValueTuple_T7, WellKnownType.ValueTuple_TRest, }) {
+                                     WellKnownType.ValueTuple_T7, WellKnownType.ValueTuple_TRest,
+                                     WellKnownType.Attribute }) {
             var typeSymbol = CorLibrary.GetWellKnownType(type);
             var native = _bakedTypes[typeSymbol];
 
@@ -1003,14 +1045,28 @@ internal sealed partial class Executor : ModuleBuilder {
         if (_types.ContainsKey(type.originalDefinition))
             return;
 
-        var typeBuilder = _moduleBuilder.DefineType(
-            GetTypeName(type, false),
-            GetTypeAttributes(type, false),
-            GetBaseType(type),
-            GetPackSize(type)
-        );
+        TypeBuilder typeBuilder;
+
+        if (type.isInterface) {
+            typeBuilder = _moduleBuilder.DefineType(
+                GetTypeName(type, false),
+                GetTypeAttributes(type, false)
+            );
+        } else {
+            typeBuilder = _moduleBuilder.DefineType(
+                GetTypeName(type, false),
+                GetTypeAttributes(type, false),
+                typeof(object),
+                GetPackSize(type)
+            );
+        }
 
         _types.Add(type.originalDefinition, typeBuilder);
+
+        if (!type.isInterface)
+            typeBuilder.SetParent(GetBaseType(type));
+
+        AddInterfaceImplementations(type, typeBuilder);
 
         string[] workingParams = [];
 
@@ -1022,13 +1078,19 @@ internal sealed partial class Executor : ModuleBuilder {
         CreateNestedTypes(type, typeBuilder, workingParams);
     }
 
+    private void AddInterfaceImplementations(NamedTypeSymbol type, TypeBuilder typeBuilder) {
+        foreach (var @interface in type.Interfaces())
+            typeBuilder.AddInterfaceImplementation(_types[@interface]);
+    }
+
     private Type GetBaseType(NamedTypeSymbol type) {
-        if (type.baseType is null || type.IsStructType())
+        if (type.IsStructType())
             return typeof(ValueType);
 
         if (type.IsEnumType())
             return typeof(Enum);
 
+        Debug.Assert(type.baseType is not null);
         return GetType(type.baseType);
     }
 
@@ -1064,20 +1126,34 @@ internal sealed partial class Executor : ModuleBuilder {
 
                 _workingNestedEnums.TryAdd(nestedType, nestedBuilder);
             } else {
-                var nestedBuilder = typeBuilder.DefineNestedType(
-                    GetTypeName(nestedType, true),
-                    GetTypeAttributes(nestedType, true),
-                    GetBaseType(nestedType),
-                    GetPackSize(type)
-                );
+                TypeBuilder nestedBuilder;
+
+                if (nestedType.isInterface) {
+                    nestedBuilder = typeBuilder.DefineNestedType(
+                        GetTypeName(nestedType, true),
+                        GetTypeAttributes(nestedType, true)
+                    );
+                } else {
+                    nestedBuilder = typeBuilder.DefineNestedType(
+                        GetTypeName(nestedType, true),
+                        GetTypeAttributes(nestedType, true),
+                        typeof(object),
+                        GetPackSize(type)
+                    );
+                }
 
                 workingParams = workingParams.Concat(nestedType.templateParameters.Select(t => t.name)).ToArray();
 
                 if (workingParams.Length > 0)
                     nestedBuilder.DefineGenericParameters(workingParams);
 
-                CreateNestedTypes(nestedType, nestedBuilder, workingParams);
                 _types.Add(nestedType.originalDefinition, nestedBuilder);
+
+                if (!nestedType.isInterface)
+                    nestedBuilder.SetParent(GetBaseType(nestedType));
+
+                AddInterfaceImplementations(nestedType, nestedBuilder);
+                CreateNestedTypes(nestedType, nestedBuilder, workingParams);
             }
         }
     }
@@ -1094,7 +1170,8 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private TypeAttributes GetTypeAttributes(NamedTypeSymbol type, bool isNested) {
-        var attributes = TypeAttributes.Class;
+        // Structs use TypeAttributes.Class
+        var attributes = type.isInterface ? TypeAttributes.Interface : TypeAttributes.Class;
 
         if (type.isStatic)
             attributes |= TypeAttributes.Abstract | TypeAttributes.Sealed;
@@ -1474,7 +1551,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
         var body = _methodBodies[method];
         var ilBuilder = new RefILBuilder(method, this, methodBuilder.GetILGenerator(), _logger);
-        var codeGen = new CodeGenerator(this, method, body, ilBuilder, false);
+        var codeGen = new CodeGenerator(this, method, body, ilBuilder, false, _diagnostics);
         codeGen.Generate();
     }
 
@@ -1484,7 +1561,7 @@ internal sealed partial class Executor : ModuleBuilder {
         if (_logger is not null) lock (_logger) _logger.WriteLine($"Emitting constructor {constructor}");
 
         var ilBuilder = new RefILBuilder(constructor, this, constructorBuilder.GetILGenerator(), _logger);
-        var codeGen = new CodeGenerator(this, constructor, body, ilBuilder, false);
+        var codeGen = new CodeGenerator(this, constructor, body, ilBuilder, false, _diagnostics);
         codeGen.Generate();
     }
 
@@ -1522,6 +1599,8 @@ internal sealed partial class Executor : ModuleBuilder {
                 return GetNullableHasValue(method.containingType.templateArguments[0].type.type);
             case "Nullable<>_GetValueOrDefault":
                 return GetNullableValueOrDefault(method.containingType.templateArguments[0].type.type);
+            case "Nullable<>_GetValueOrDefault_T":
+                return GetNullableValueOrDefaultT(method.containingType.templateArguments[0].type.type);
             case "Graphics_Initialize_SIIB":
                 _graphicsInitialized = true;
                 goto default;
@@ -1596,12 +1675,12 @@ internal sealed partial class Executor : ModuleBuilder {
         return 0;
     }
 
-    public static long? DrawRect(BRect rect, long? r, long? g, long? b) {
+    public static long? DrawRect(BRect rect, long r, long g, long b) {
         GraphicsHandler.DrawRect((int)rect.x, (int)rect.y, (int)rect.w, (int)rect.h, r, g, b, null);
         return 0;
     }
 
-    public static long? DrawRect(BRect rect, long? r, long? g, long? b, long? a) {
+    public static long? DrawRect(BRect rect, long r, long g, long b, long a) {
         GraphicsHandler.DrawRect((int)rect.x, (int)rect.y, (int)rect.w, (int)rect.h, r, g, b, a);
         return 0;
     }
@@ -1654,7 +1733,7 @@ internal sealed partial class Executor : ModuleBuilder {
         long? g,
         long? b) {
         var mText = GraphicsHandler.LoadText(path, (float)fontSize);
-        return new BText(text, path, position, fontSize, angle, r, g, b, mText);
+        return new BText(text, path, position, fontSize, angle ?? 0, r ?? 0, g ?? 0, b ?? 0, mText);
     }
 
     public static BTexture LoadTexture(string path) {
@@ -1682,7 +1761,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
     public static BSound LoadSound(string path) {
         var mSound = GraphicsHandler.LoadSound(path);
-        return new BSound(null, null, mSound);
+        return new BSound(1, false, mSound);
     }
 
     public static void PlaySound(BSound sound) {
@@ -1876,6 +1955,7 @@ internal sealed partial class Executor : ModuleBuilder {
             { "String_TrimStart_S[", typeof(Belte.Runtime.Utilities).GetMethod("StringTrimStart", Flags, [typeof(string), typeof(char[])]) },
             { "String_TrimEnd_S", typeof(Belte.Runtime.Utilities).GetMethod("StringTrimEnd", Flags, [typeof(string)]) },
             { "String_TrimEnd_S[", typeof(Belte.Runtime.Utilities).GetMethod("StringTrimEnd", Flags, [typeof(string), typeof(char[])]) },
+            { "String_Contains_SS", typeof(Belte.Runtime.Utilities).GetMethod("StringContains", Flags, [typeof(string), typeof(string)]) },
             { "Int_Parse_S?", typeof(Belte.Runtime.Utilities).GetMethod("IntParse", Flags, [typeof(string)]) },
             { "Int_ToString_IS", typeof(Belte.Runtime.Utilities).GetMethod("IntToString", Flags, [typeof(long), typeof(string)]) },
             { "Decimal_IsNaN_F4", typeof(float).GetMethod("IsNaN", Flags, [typeof(float)]) },
@@ -1895,17 +1975,17 @@ internal sealed partial class Executor : ModuleBuilder {
             { "Graphics_Initialize_SIIB", typeof(Executor).GetMethod("InitializeGraphics", Flags, [typeof(string), typeof(long), typeof(long), typeof(bool)]) },
             { "Graphics_Fill_III", typeof(Executor).GetMethod("Fill", Flags, [typeof(long), typeof(long), typeof(long)]) },
             { "Graphics_GetKey_S", typeof(Executor).GetMethod("GetKey", Flags, [typeof(string)]) },
-            { "Graphics_DrawSprite_S?", typeof(Executor).GetMethod("DrawSprite", Flags, [typeof(BSprite)]) },
-            { "Graphics_DrawText_T?", typeof(Executor).GetMethod("DrawText", Flags, [typeof(BText)]) },
-            { "Graphics_DrawRect_R?I?I?I?", typeof(Executor).GetMethod("DrawRect", Flags, [typeof(BRect), typeof(long?), typeof(long?), typeof(long?)]) },
-            { "Graphics_LoadSprite_SV?V?I?", typeof(Executor).GetMethod("LoadSprite", Flags, [typeof(string), typeof(BVec2), typeof(BVec2), typeof(long?)]) },
-            { "Graphics_LoadText_S?SV?DD?I?I?I?", typeof(Executor).GetMethod("LoadText", Flags, [typeof(string), typeof(string), typeof(BVec2), typeof(double), typeof(double?), typeof(long?), typeof(long?), typeof(long?)]) },
+            { "Graphics_DrawSprite_S", typeof(Executor).GetMethod("DrawSprite", Flags, [typeof(BSprite)]) },
+            { "Graphics_DrawText_T", typeof(Executor).GetMethod("DrawText", Flags, [typeof(BText)]) },
+            { "Graphics_DrawRect_RIII", typeof(Executor).GetMethod("DrawRect", Flags, [typeof(BRect), typeof(long), typeof(long), typeof(long)]) },
+            { "Graphics_LoadSprite_SVV?I?", typeof(Executor).GetMethod("LoadSprite", Flags, [typeof(string), typeof(BVec2), typeof(BVec2), typeof(long?)]) },
+            { "Graphics_LoadText_SSVDD?I?I?I?", typeof(Executor).GetMethod("LoadText", Flags, [typeof(string), typeof(string), typeof(BVec2), typeof(double), typeof(double?), typeof(long?), typeof(long?), typeof(long?)]) },
             { "Graphics_LockFramerate_I", typeof(Executor).GetMethod("LockFramerate", Flags, [typeof(long)]) },
-            { "Graphics_DrawSprite_S?V?", typeof(Executor).GetMethod("DrawSprite", Flags, [typeof(BSprite), typeof(BVec2)]) },
+            { "Graphics_DrawSprite_SV", typeof(Executor).GetMethod("DrawSprite", Flags, [typeof(BSprite), typeof(BVec2)]) },
             { "Graphics_LoadTexture_S", typeof(Executor).GetMethod("LoadTexture", Flags, [typeof(string)]) },
             { "Graphics_LoadTexture_SIII", typeof(Executor).GetMethod("LoadTexture", Flags, [typeof(string), typeof(long), typeof(long), typeof(long)]) },
-            { "Graphics_Draw_T?R?R?I?B?D?", typeof(Executor).GetMethod("Draw", Flags, [typeof(BTexture), typeof(BRect), typeof(BRect), typeof(long?), typeof(bool?), typeof(double?)]) },
-            { "Graphics_DrawRect_R?I?I?I?I?", typeof(Executor).GetMethod("DrawRect", Flags, [typeof(BRect), typeof(long?), typeof(long?), typeof(long?), typeof(long?)]) },
+            { "Graphics_Draw_TRRI?B?D?", typeof(Executor).GetMethod("Draw", Flags, [typeof(BTexture), typeof(BRect), typeof(BRect), typeof(long?), typeof(bool?), typeof(double?)]) },
+            { "Graphics_DrawRect_RIIII", typeof(Executor).GetMethod("DrawRect", Flags, [typeof(BRect), typeof(long), typeof(long), typeof(long), typeof(long)]) },
             { "Graphics_GetMouseButton_S", typeof(Executor).GetMethod("GetMouseButton", Flags, [typeof(string)]) },
             { "Graphics_GetMousePosition", typeof(Executor).GetMethod("GetMousePosition", Flags, Type.EmptyTypes) },
             { "Graphics_GetScroll", typeof(Executor).GetMethod("GetScroll", Flags, Type.EmptyTypes) },

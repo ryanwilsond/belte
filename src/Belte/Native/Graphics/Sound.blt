@@ -1,6 +1,6 @@
 
 public class Sound {
-    private int? ptr;
-    public decimal? volume;
-    public bool? loop;
+    private intptr ptr = nullptr;
+    public decimal volume = 1;
+    public bool loop = false;
 }

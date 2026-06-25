@@ -22,6 +22,10 @@ internal static class WellKnownTypeExtensions {
         "Texture",
         "Sound",
         "Array`1",
+        "Attribute",
+        "DllImportAttribute",
+        "UnmanagedAttribute",
+        "MustUseReturnValueAttribute",
     ];
 
     internal static bool ShouldEmit(this WellKnownType wellKnownType, bool includeGraphicsTypes) {
@@ -48,6 +52,12 @@ internal static class WellKnownTypeExtensions {
             case WellKnownType.ValueTuple_T6:
             case WellKnownType.ValueTuple_T7:
             case WellKnownType.ValueTuple_TRest:
+            case WellKnownType.Attribute:
+            case WellKnownType.UnmanagedAttribute:
+            case WellKnownType.DllImportAttribute:
+                return false;
+            case WellKnownType.MustUseReturnValueAttribute:
+                return false;
             default:
                 return false;
         }

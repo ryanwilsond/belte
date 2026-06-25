@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
-using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
@@ -459,7 +458,7 @@ internal class SharedExpander : BoundTreeExpander {
         out BoundExpression replacement,
         UseKind _) {
         var syntax = expression.syntax;
-        var statements = ExpandExpression(expression.receiver, out var newReceiver, UseKind.Writable);
+        var statements = ExpandExpression(expression.receiver, out var newReceiver, UseKind.StableValue);
         var tempLocal = GenerateTempLocal(expression.Type());
 
         statements.Add(
@@ -627,7 +626,12 @@ internal class SharedExpander : BoundTreeExpander {
             BoundExpression right;
 
             if (content.constantValue?.specialType == SpecialType.String) {
-                right = Literal(syntax, content.constantValue.value, stringType);
+                var value = content.constantValue.value;
+
+                if (string.IsNullOrEmpty((string)value))
+                    continue;
+
+                right = Literal(syntax, value, stringType);
             } else {
                 if (content.IsLiteralNull())
                     continue;

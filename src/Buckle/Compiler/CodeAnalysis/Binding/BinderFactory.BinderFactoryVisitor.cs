@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -321,6 +322,10 @@ internal sealed partial class BinderFactory {
             return resultBinder;
         }
 
+        internal override Binder VisitExternBlockDeclaration(ExternBlockDeclarationSyntax node) {
+            return Visit(node.parent);
+        }
+
         internal override Binder VisitMethodDeclaration(MethodDeclarationSyntax node) {
             if (!LookupPosition.IsInMethodDeclaration(_position, node)) {
                 var reverseClause = node.reverseClause;
@@ -356,7 +361,7 @@ internal sealed partial class BinderFactory {
             var key = CreateBinderCacheKey(node, nodeUsage);
 
             if (!_binderCache.TryGetValue(key, out var resultBinder)) {
-                var parentType = node.parent as TypeDeclarationSyntax;
+                var parentType = node.parent.SkipExtern() as TypeDeclarationSyntax;
 
                 if (parentType is not null)
                     resultBinder = VisitTypeDeclarationCore(parentType, NodeUsage.NamedTypeBodyOrTemplateParameters);
@@ -367,14 +372,16 @@ internal sealed partial class BinderFactory {
 
                 if (nodeUsage != NodeUsage.Normal && node.templateParameterList is not null) {
                     method = GetMethodSymbol(node, resultBinder);
+                    Debug.Assert(method is not null);
                     resultBinder = new WithMethodTemplateParametersBinder(method, resultBinder);
                 }
 
                 if (nodeUsage == NodeUsage.MethodBody) {
                     method ??= GetMethodSymbol(node, resultBinder);
+                    Debug.Assert(method is not null);
                     resultBinder = new InMethodBinder(method, resultBinder);
 
-                    if (method.isEffectivelyConst)
+                    if (method?.isEffectivelyConst == true)
                         resultBinder = resultBinder.WithAdditionalFlags(BinderFlags.ConstContext);
                 }
 
@@ -389,7 +396,7 @@ internal sealed partial class BinderFactory {
             var key = CreateBinderCacheKey(node, usage);
 
             if (!_binderCache.TryGetValue(key, out var resultBinder)) {
-                var grandParentType = node.parent.parent as TypeDeclarationSyntax;
+                var grandParentType = node.parent.parent.SkipExtern() as TypeDeclarationSyntax;
 
                 if (grandParentType is not null) {
                     resultBinder = VisitTypeDeclarationCore(
@@ -469,7 +476,7 @@ internal sealed partial class BinderFactory {
             if (container is null)
                 return null;
 
-            var methodName = GetMethodName(baseMethodDeclarationSyntax);
+            var methodName = GetMethodName(baseMethodDeclarationSyntax, outerBinder);
             return (SourceMemberMethodSymbol)GetMemberSymbol(methodName, baseMethodDeclarationSyntax.fullSpan, container, SymbolKind.Method);
         }
 
@@ -521,7 +528,7 @@ internal sealed partial class BinderFactory {
             return (firstSyntaxTree == secondSyntaxTree) && span.Contains(location.span);
         }
 
-        private static string GetMethodName(BaseMethodDeclarationSyntax syntax) {
+        private static string GetMethodName(BaseMethodDeclarationSyntax syntax, Binder outerBinder) {
             switch (syntax.kind) {
                 case SyntaxKind.ConstructorDeclaration:
                     return WellKnownMemberNames.InstanceConstructorName;
@@ -531,16 +538,36 @@ internal sealed partial class BinderFactory {
                     return WellKnownMemberNames.FinalizerName;
                 case SyntaxKind.OperatorDeclaration:
                     var operatorDeclaration = (OperatorDeclarationSyntax)syntax;
-                    return SyntaxFacts.GetOperatorMemberName(operatorDeclaration);
+                    var operatorName = SyntaxFacts.GetOperatorMemberName(operatorDeclaration);
+
+                    return ExplicitInterfaceHelpers.GetMemberName(
+                        outerBinder,
+                        syntax.modifiers,
+                        operatorDeclaration.explicitInterfaceSpecifier,
+                        operatorName
+                    );
                 case SyntaxKind.LiteralOperatorDeclaration:
                     var literalOperatorDeclaration = (LiteralOperatorDeclarationSyntax)syntax;
                     return WellKnownMemberNames.GetLiteralOperatorName(literalOperatorDeclaration.suffix.valueText);
                 case SyntaxKind.ConversionDeclaration:
                     var conversionDeclaration = (ConversionDeclarationSyntax)syntax;
-                    return SyntaxFacts.GetOperatorMemberName(conversionDeclaration);
+                    var conversionName = SyntaxFacts.GetOperatorMemberName(conversionDeclaration);
+
+                    return ExplicitInterfaceHelpers.GetMemberName(
+                        outerBinder,
+                        syntax.modifiers,
+                        conversionDeclaration.explicitInterfaceSpecifier,
+                        conversionName
+                    );
                 case SyntaxKind.MethodDeclaration:
                     var methodDeclSyntax = (MethodDeclarationSyntax)syntax;
-                    return methodDeclSyntax.identifier.valueText;
+
+                    return ExplicitInterfaceHelpers.GetMemberName(
+                        outerBinder,
+                        syntax.modifiers,
+                        methodDeclSyntax.explicitInterfaceSpecifier,
+                        methodDeclSyntax.identifier.valueText
+                    );
                 default:
                     throw ExceptionUtilities.UnexpectedValue(syntax.kind);
             }
@@ -613,6 +640,10 @@ internal sealed partial class BinderFactory {
         }
 
         internal override Binder VisitFileScopedClassDeclaration(FileScopedClassDeclarationSyntax node) {
+            return VisitTypeDeclarationCore(node);
+        }
+
+        internal override Binder VisitInterfaceDeclaration(InterfaceDeclarationSyntax node) {
             return VisitTypeDeclarationCore(node);
         }
 

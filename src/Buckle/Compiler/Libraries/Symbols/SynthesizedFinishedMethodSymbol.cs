@@ -30,6 +30,10 @@ internal sealed class SynthesizedFinishedMethodSymbol : WrappedMethodSymbol {
 
     internal override Symbol containingSymbol { get; }
 
+    internal override bool isExplicitInterfaceImplementation => false;
+
+    internal override ImmutableArray<MethodSymbol> explicitInterfaceImplementations => [];
+
     internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
         throw ExceptionUtilities.Unreachable();
     }

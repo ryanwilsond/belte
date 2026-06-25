@@ -24,6 +24,7 @@ internal abstract class SynthesizedMethodSymbolBase : SourceMemberMethodSymbol {
         : base(
             containingType,
             syntaxReference,
+            location,
             (declarationModifiers, MakeFlags(
                 methodKind: MethodKind.Ordinary,
                 refKind: baseMethod.refKind,
@@ -36,7 +37,6 @@ internal abstract class SynthesizedMethodSymbolBase : SourceMemberMethodSymbol {
         ) {
         this.baseMethod = baseMethod;
         _name = name;
-        this.location = location;
     }
 
     private protected void AssignTemplateMapAndTemplateParameters(
@@ -63,8 +63,6 @@ internal abstract class SynthesizedMethodSymbolBase : SourceMemberMethodSymbol {
     internal sealed override ImmutableArray<TypeParameterConstraintKinds> GetTypeParameterConstraintKinds() => [];
 
     internal override int parameterCount => parameters.Length;
-
-    internal override TextLocation location { get; }
 
     internal sealed override ImmutableArray<ParameterSymbol> parameters {
         get {

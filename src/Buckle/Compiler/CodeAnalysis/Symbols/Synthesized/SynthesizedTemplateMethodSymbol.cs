@@ -74,9 +74,15 @@ internal sealed class SynthesizedTemplateMethodSymbol : MethodSymbol {
 
     internal override bool hasSpecialName => true;
 
+    internal override bool hasMustUseReturnValueAttribute => false;
+
     internal override bool hasUnscopedRefAttribute => false;
 
     internal override CallingConvention callingConvention => CallingConvention.Template;
+
+    internal override bool isExplicitInterfaceImplementation => false;
+
+    internal override ImmutableArray<MethodSymbol> explicitInterfaceImplementations => [];
 
     internal override bool IsMetadataVirtual(bool forceComplete = false) => false;
 

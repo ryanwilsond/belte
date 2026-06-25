@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Immutable;
-using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -323,14 +322,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         if (target.isStatic)
             return None;
 
-        if (source.kind is SymbolKind.NamedType or SymbolKind.TemplateParameter &&
-            target.kind is SymbolKind.NamedType or SymbolKind.TemplateParameter) {
-            if (IsBaseClass(source, target))
-                return Implicit;
-
-            if (IsBaseClass(target, source))
-                return Explicit;
-        }
+        // Reference conversions are handled by Conversions
 
         return None;
     }
@@ -466,7 +458,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
             return false;
 
         if (source.isNullable != destination.isNullable &&
-            HasIdentityConversionInternal(source.type, destination.type, includeNullability: true)) {
+            HasIdentityConversionInternal(source.type, destination.type)) {
             return true;
         }
 
@@ -512,14 +504,6 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
     }
 
     private static bool HasIdentityConversionInternal(TypeSymbol type1, TypeSymbol type2) {
-        return HasIdentityConversionInternal(type1, type2, includeNullability: false);
-    }
-
-    private static bool HasIdentityConversionInternal(TypeSymbol type1, TypeSymbol type2, bool includeNullability) {
-        var compareKind = includeNullability
-            ? TypeCompareKind.AllIgnoreOptions & ~TypeCompareKind.IgnoreNullability
-            : TypeCompareKind.AllIgnoreOptions;
-
-        return type1.Equals(type2, compareKind);
+        return type1.Equals(type2, TypeCompareKind.AllIgnoreOptions);
     }
 }

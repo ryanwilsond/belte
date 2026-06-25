@@ -210,7 +210,6 @@ public static class SyntaxFacts {
             "as" => SyntaxKind.AsKeyword,
             "where" => SyntaxKind.WhereKeyword,
             "throw" => SyntaxKind.ThrowKeyword,
-            "primitive" => SyntaxKind.PrimitiveKeyword,
             "notnull" => SyntaxKind.NotnullKeyword,
             "using" => SyntaxKind.UsingKeyword,
             "namespace" => SyntaxKind.NamespaceKeyword,
@@ -251,6 +250,8 @@ public static class SyntaxFacts {
             "unreachable" => SyntaxKind.UnreachableKeyword,
             "initializes" => SyntaxKind.InitializesKeyword,
             "commit" => SyntaxKind.CommitKeyword,
+            "implements" => SyntaxKind.ImplementsKeyword,
+            "interface" => SyntaxKind.InterfaceKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -271,7 +272,6 @@ public static class SyntaxFacts {
             case SyntaxKind.NoVerifyKeyword:
             case SyntaxKind.OperatorKeyword:
             case SyntaxKind.PackedKeyword:
-            case SyntaxKind.PrimitiveKeyword:
             case SyntaxKind.StateKeyword:
             case SyntaxKind.UndefKeyword:
                 return true;
@@ -399,7 +399,6 @@ public static class SyntaxFacts {
             SyntaxKind.AsKeyword => "as",
             SyntaxKind.WhereKeyword => "where",
             SyntaxKind.ThrowKeyword => "throw",
-            SyntaxKind.PrimitiveKeyword => "primitive",
             SyntaxKind.NotnullKeyword => "notnull",
             SyntaxKind.UsingKeyword => "using",
             SyntaxKind.NamespaceKeyword => "namespace",
@@ -440,6 +439,8 @@ public static class SyntaxFacts {
             SyntaxKind.UnreachableKeyword => "unreachable",
             SyntaxKind.InitializesKeyword => "initializes",
             SyntaxKind.CommitKeyword => "commit",
+            SyntaxKind.ImplementsKeyword => "implements",
+            SyntaxKind.InterfaceKeyword => "interface",
             _ => null,
         };
     }
@@ -592,6 +593,40 @@ public static class SyntaxFacts {
             syntax.operatorToken.kind,
             syntax.operatorToken.text
         );
+    }
+
+    internal static bool HasAnyBody(this BaseMethodDeclarationSyntax declaration) {
+        return declaration.body is not null;
+    }
+
+    internal static bool IsAttributeName(SyntaxNode node) {
+        var parent = node.parent;
+
+        if (parent is null || !IsName(node.kind))
+            return false;
+
+        switch (parent.kind) {
+            case SyntaxKind.QualifiedName:
+                var qn = (QualifiedNameSyntax)parent;
+                return qn.right == node && IsAttributeName(parent);
+            case SyntaxKind.AliasQualifiedName:
+                var an = (AliasQualifiedNameSyntax)parent;
+                return an.name == node && IsAttributeName(parent);
+        }
+
+        return node.parent is AttributeSyntax p && p.name == node;
+    }
+
+    internal static bool IsName(SyntaxKind kind) {
+        switch (kind) {
+            case SyntaxKind.IdentifierName:
+            case SyntaxKind.TemplateName:
+            case SyntaxKind.QualifiedName:
+            case SyntaxKind.AliasQualifiedName:
+                return true;
+            default:
+                return false;
+        }
     }
 
     private static string GetOperatorMemberNameCore(int parameterCount, SyntaxKind kind, string text) {

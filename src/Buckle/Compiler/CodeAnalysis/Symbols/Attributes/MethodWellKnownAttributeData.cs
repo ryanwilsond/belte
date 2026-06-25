@@ -10,6 +10,8 @@ internal sealed class MethodWellKnownAttributeData : CommonMethodWellKnownAttrib
 
     internal bool hasUnscopedRefAttribute { get; set; }
 
+    internal bool hasMustUseReturnValueAttribute { get; set; }
+
     internal UnmanagedCallersOnlyAttributeData? unmanagedCallersOnlyAttributeData { get; set; }
 
     internal ImmutableArray<string> notNullMembers { get; private set; } = [];

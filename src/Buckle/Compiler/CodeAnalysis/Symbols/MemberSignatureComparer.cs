@@ -1,78 +1,181 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
+internal sealed partial class MemberSignatureComparer : IEqualityComparer<Symbol> {
+    // ? AKA CSharpOverrideComparer
     internal static readonly MemberSignatureComparer OverrideComparer = new MemberSignatureComparer(
         considerName: true,
+        considerExplicitlyImplementedInterfaces: false,
         considerReturnType: false,
         considerTemplateConstraints: false,
         considerCallingConvention: false,
-        considerRefKind: true,
+        refKindCompareMode: RefKindCompareMode.ConsiderDifferences,
         typeComparison: TypeCompareKind.AllIgnoreOptions
     );
 
+    // ? AKA CSharpCustomModifierOverrideComparer
     internal static readonly MemberSignatureComparer OverrideComparerWithReturn = new MemberSignatureComparer(
         considerName: true,
+        considerExplicitlyImplementedInterfaces: false,
         considerReturnType: true,
         considerTemplateConstraints: false,
         considerCallingConvention: false,
-        considerRefKind: true,
-        typeComparison: TypeCompareKind.IgnoreNullability
+        refKindCompareMode: RefKindCompareMode.ConsiderDifferences,
+        typeComparison: TypeCompareKind.IgnoreTupleNames
+    );
+
+    // ? AKA RuntimePlusRefOutSignatureComparer
+    internal static readonly MemberSignatureComparer RuntimeOverrideComparerWithReturn = new MemberSignatureComparer(
+        considerName: true,
+        considerExplicitlyImplementedInterfaces: false,
+        considerReturnType: true,
+        considerTemplateConstraints: false,
+        considerCallingConvention: false,
+        refKindCompareMode: RefKindCompareMode.ConsiderDifferences,
+        typeComparison: TypeCompareKind.IgnoreTupleNames
     );
 
     internal static readonly MemberSignatureComparer SloppyOverrideComparer = new MemberSignatureComparer(
         considerName: false,
+        considerExplicitlyImplementedInterfaces: false,
         considerReturnType: false,
         considerTemplateConstraints: false,
         considerCallingConvention: false,
-        considerRefKind: false,
-        typeComparison: TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreNullability
+        refKindCompareMode: RefKindCompareMode.TreatAllRefAsEquivalent,
+        typeComparison: TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreTupleNames
     );
 
-    internal static readonly MemberSignatureComparer IgnoreRefComparer = new MemberSignatureComparer(
+    // ? AKA RuntimeSignatureComparer
+    internal static readonly MemberSignatureComparer RuntimeIgnoreRefComparer = new MemberSignatureComparer(
         considerName: true,
+        considerExplicitlyImplementedInterfaces: false,
         considerReturnType: true,
         considerTemplateConstraints: false,
         considerCallingConvention: true,
-        considerRefKind: false,
-        typeComparison: TypeCompareKind.IgnoreNullability
+        refKindCompareMode: RefKindCompareMode.TreatAllRefAsEquivalent,
+        typeComparison: TypeCompareKind.IgnoreTupleNames
     );
 
-    public static readonly MemberSignatureComparer DuplicateSourceComparer = new MemberSignatureComparer(
+    internal static readonly MemberSignatureComparer DuplicateSourceComparer = new MemberSignatureComparer(
         considerName: true,
+        considerExplicitlyImplementedInterfaces: true,
         considerReturnType: false,
         considerTemplateConstraints: false,
         considerCallingConvention: false,
-        considerRefKind: false,
+        refKindCompareMode: RefKindCompareMode.TreatAllRefAsEquivalent,
+        typeComparison: TypeCompareKind.AllIgnoreOptions
+    );
+
+    internal static readonly MemberSignatureComparer ExplicitImplementationWithoutReturnTypeComparer = new MemberSignatureComparer(
+        considerName: false,
+        considerExplicitlyImplementedInterfaces: false,
+        considerReturnType: false,
+        considerTemplateConstraints: false,
+        considerCallingConvention: true,
+        refKindCompareMode: RefKindCompareMode.ConsiderDifferences,
+        typeComparison: TypeCompareKind.AllIgnoreOptions
+    );
+
+    internal static readonly MemberSignatureComparer ExplicitImplementationComparer = new MemberSignatureComparer(
+        considerName: false,
+        considerExplicitlyImplementedInterfaces: false,
+        considerTemplateConstraints: false,
+        considerReturnType: true,
+        considerCallingConvention: true,
+        refKindCompareMode: RefKindCompareMode.ConsiderDifferences,
+        typeComparison: TypeCompareKind.AllIgnoreOptions
+    );
+
+    private static readonly MemberSignatureComparer WithTupleNamesComparer = new MemberSignatureComparer(
+        considerName: true,
+        considerExplicitlyImplementedInterfaces: false,
+        considerReturnType: true,
+        considerTemplateConstraints: false,
+        considerCallingConvention: false,
+        refKindCompareMode: RefKindCompareMode.TreatAllRefAsEquivalent,
+        typeComparison: TypeCompareKind.AllIgnoreOptions & ~TypeCompareKind.IgnoreTupleNames
+    );
+
+    private static readonly MemberSignatureComparer WithoutTupleNamesComparer = new MemberSignatureComparer(
+        considerName: true,
+        considerExplicitlyImplementedInterfaces: false,
+        considerReturnType: true,
+        considerTemplateConstraints: false,
+        considerCallingConvention: false,
+        refKindCompareMode: RefKindCompareMode.TreatAllRefAsEquivalent,
+        typeComparison: TypeCompareKind.AllIgnoreOptions
+    );
+
+    internal static readonly MemberSignatureComparer RuntimeImplicitImplementationComparer = new MemberSignatureComparer(
+        considerName: true,
+        considerExplicitlyImplementedInterfaces: true,
+        considerReturnType: true,
+        considerTemplateConstraints: false,
+        considerCallingConvention: true,
+        refKindCompareMode: RefKindCompareMode.TreatAllRefAsEquivalent,
+        typeComparison: TypeCompareKind.IgnoreTupleNames
+    );
+
+    internal static readonly MemberSignatureComparer RuntimeExplicitImplementationSignatureComparer = new MemberSignatureComparer(
+        considerName: false,
+        considerExplicitlyImplementedInterfaces: false,
+        considerReturnType: true,
+        considerTemplateConstraints: false,
+        considerCallingConvention: true,
+        refKindCompareMode: RefKindCompareMode.TreatAllRefAsEquivalent,
+        typeComparison: TypeCompareKind.IgnoreTupleNames
+    );
+
+    internal static readonly MemberSignatureComparer ImplicitImplementationComparer = new MemberSignatureComparer(
+        considerName: true,
+        considerExplicitlyImplementedInterfaces: true,
+        considerReturnType: true,
+        considerCallingConvention: true,
+        considerTemplateConstraints: false,
+        refKindCompareMode: RefKindCompareMode.TreatAllRefAsEquivalent,
+        typeComparison: TypeCompareKind.AllIgnoreOptions
+    );
+
+    internal static readonly MemberSignatureComparer CloseImplicitImplementationComparer = new MemberSignatureComparer(
+        considerName: true,
+        considerExplicitlyImplementedInterfaces: true,
+        considerReturnType: false,
+        considerTemplateConstraints: false,
+        considerCallingConvention: false,
+        refKindCompareMode: RefKindCompareMode.ConsiderDifferences,
         typeComparison: TypeCompareKind.AllIgnoreOptions
     );
 
     private readonly bool _considerName;
+    private readonly bool _considerExplicitlyImplementedInterfaces;
     private readonly bool _considerReturnType;
     private readonly bool _considerTemplateConstraints;
     private readonly bool _considerCallingConvention;
     private readonly bool _considerArity;
-    private readonly bool _considerRefKind;
+    private readonly RefKindCompareMode _refKindCompareMode;
     private readonly TypeCompareKind _typeComparison;
 
     private MemberSignatureComparer(
         bool considerName,
+        bool considerExplicitlyImplementedInterfaces,
         bool considerReturnType,
         bool considerTemplateConstraints,
         bool considerCallingConvention,
-        bool considerRefKind,
+        RefKindCompareMode refKindCompareMode,
         bool considerArity = true,
         TypeCompareKind typeComparison = TypeCompareKind.ConsiderEverything) {
         _considerName = considerName;
+        _considerExplicitlyImplementedInterfaces = considerExplicitlyImplementedInterfaces;
         _considerReturnType = considerReturnType;
         _considerTemplateConstraints = considerTemplateConstraints;
         _considerCallingConvention = considerCallingConvention;
         _considerArity = considerArity;
-        _considerRefKind = considerRefKind;
+        _refKindCompareMode = refKindCompareMode;
         _typeComparison = typeComparison;
     }
 
@@ -83,8 +186,19 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
         if (member1 is null || member2 is null || member1.kind != member2.kind)
             return false;
 
-        if (_considerName && member1.name != member2.name)
-            return false;
+        var sawInterfaceInName1 = false;
+        var sawInterfaceInName2 = false;
+
+        if (_considerName) {
+            var name1 = ExplicitInterfaceHelpers.GetMemberNameWithoutInterfaceName(member1.name);
+            var name2 = ExplicitInterfaceHelpers.GetMemberNameWithoutInterfaceName(member2.name);
+
+            sawInterfaceInName1 = name1 != member1.name;
+            sawInterfaceInName2 = name2 != member2.name;
+
+            if (name1 != name2)
+                return false;
+        }
 
         if (_considerArity && (member1.GetMemberArity() != member2.GetMemberArity()))
             return false;
@@ -107,13 +221,57 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
                 templateMap1,
                 member2.GetParameters().AsSpan(),
                 templateMap2,
-                _considerRefKind,
+                _refKindCompareMode,
                 _typeComparison
             )) {
             return false;
         }
 
+        if (_considerExplicitlyImplementedInterfaces) {
+            if (sawInterfaceInName1 != sawInterfaceInName2)
+                return false;
+
+            if (sawInterfaceInName1) {
+                Debug.Assert(sawInterfaceInName2);
+
+                if (member1.IsExplicitInterfaceImplementation() != member2.IsExplicitInterfaceImplementation()) {
+                    return false;
+                }
+
+                var explicitInterfaceImplementations1 = member1.GetExplicitInterfaceImplementations();
+                var explicitInterfaceImplementations2 = member2.GetExplicitInterfaceImplementations();
+
+                if (!explicitInterfaceImplementations1
+                    .SetEquals(explicitInterfaceImplementations2, SymbolEqualityComparer.ConsiderEverything)) {
+                    return false;
+                }
+            }
+        }
+
         return !_considerTemplateConstraints || HaveSameConstraints(member1, templateMap1, member2, templateMap2);
+    }
+
+    internal static bool HaveSameConstraints(
+        TemplateParameterSymbol typeParameter1,
+        TemplateMap typeMap1,
+        TemplateParameterSymbol typeParameter2,
+        TemplateMap typeMap2,
+        TypeCompareKind typeComparison) {
+        if ((typeParameter1.hasConstructorConstraint != typeParameter2.hasConstructorConstraint) ||
+            (typeParameter1.hasReferenceTypeConstraint != typeParameter2.hasReferenceTypeConstraint) ||
+            (typeParameter1.hasValueTypeConstraint != typeParameter2.hasValueTypeConstraint) ||
+            (typeParameter1.allowsRefLikeType != typeParameter2.allowsRefLikeType) ||
+            (typeParameter1.hasDefaultConstraint != typeParameter2.hasDefaultConstraint)) {
+            return false;
+        }
+
+        return HaveSameTypeConstraints(
+            typeParameter1,
+            typeMap1,
+            typeParameter2,
+            typeMap2,
+            new SymbolEqualityComparer(typeComparison)
+        );
     }
 
     public int GetHashCode(Symbol member) {
@@ -139,6 +297,11 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
         }
 
         return hash;
+    }
+
+    internal static bool ConsideringTupleNamesCreatesDifference(Symbol member1, Symbol member2) {
+        return !WithTupleNamesComparer.Equals(member1, member2) &&
+            WithoutTupleNamesComparer.Equals(member1, member2);
     }
 
     internal static bool HaveSameReturnTypes(
@@ -176,7 +339,7 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
         TemplateMap templateMap1,
         ReadOnlySpan<ParameterSymbol> parameters2,
         TemplateMap templateMap2,
-        bool considerRefKind,
+        RefKindCompareMode refKindCompareMode,
         TypeCompareKind typeComparison) {
         var parametersCount = parameters1.Length;
 
@@ -193,12 +356,16 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
             var refKind1 = parameter1.refKind;
             var refKind2 = parameter2.refKind;
 
-            if (considerRefKind) {
-                if (refKind1 != refKind2)
-                    return false;
-            } else {
-                if (refKind1 == RefKind.None != (refKind2 == RefKind.None))
-                    return false;
+            if (refKindCompareMode != RefKindCompareMode.IgnoreRefKind) {
+                if ((refKindCompareMode & RefKindCompareMode.ConsiderDifferences) != 0) {
+                    if (refKind1 != refKind2)
+                        return false;
+                } else {
+                    Debug.Assert(refKindCompareMode == RefKindCompareMode.TreatAllRefAsEquivalent);
+
+                    if (refKind1 == RefKind.None != (refKind2 == RefKind.None))
+                        return false;
+                }
             }
         }
 
@@ -225,8 +392,8 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
         TemplateMap templateMap1,
         TemplateParameterSymbol templateParameters2,
         TemplateMap templateMap2) {
-        if ((templateParameters1.hasObjectTypeConstraint != templateParameters2.hasObjectTypeConstraint) ||
-            (templateParameters1.hasPrimitiveTypeConstraint != templateParameters2.hasPrimitiveTypeConstraint)) {
+        if ((templateParameters1.hasReferenceTypeConstraint != templateParameters2.hasReferenceTypeConstraint) ||
+            (templateParameters1.hasValueTypeConstraint != templateParameters2.hasValueTypeConstraint)) {
             return false;
         }
 
@@ -235,7 +402,7 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
             templateMap1,
             templateParameters2,
             templateMap2,
-            SymbolEqualityComparer.IgnoringNullable
+            SymbolEqualityComparer.IgnoreTupleNames
         );
     }
 
@@ -288,7 +455,7 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
             if (constraintTypes2.Contains(constraintType))
                 continue;
 
-            if (constraintType.IsPrimitiveType() && templateParameter2.hasPrimitiveTypeConstraint)
+            if (constraintType.specialType == SpecialType.ValueType && templateParameter2.hasValueTypeConstraint)
                 continue;
 
             return false;
@@ -309,7 +476,7 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
         return templateMap is null ? type : type.SubstituteType(templateMap).type;
     }
 
-    private static TemplateMap GetTemplateMap(Symbol member) {
+    internal static TemplateMap GetTemplateMap(Symbol member) {
         var templateParameters = member.GetMemberTemplateParameters();
         return templateParameters.IsEmpty
             ? null

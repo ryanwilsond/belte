@@ -105,17 +105,17 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
 
     internal override bool hasDefaultConstraint => false;
 
-    internal override bool hasPrimitiveTypeConstraint
+    internal override bool hasValueTypeConstraint
         => (_flags & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0;
 
-    internal override bool hasObjectTypeConstraint
+    internal override bool hasReferenceTypeConstraint
         => (_flags & GenericParameterAttributes.ReferenceTypeConstraint) != 0;
 
     internal override bool isReferenceTypeFromConstraintTypes
-        => CalculateIsObjectTypeFromConstraintTypes(constraintTypes);
+        => CalculateIsReferenceTypeFromConstraintTypes(constraintTypes);
 
     internal override bool isValueTypeFromConstraintTypes
-        => CalculateIsPrimitiveTypeFromConstraintTypes(constraintTypes);
+        => CalculateIsValueTypeFromConstraintTypes(constraintTypes);
 
     internal override bool hasDefaultFromConstraintTypes
         => CalculateHasDefaultFromConstraintTypes(constraintTypes);
@@ -272,6 +272,11 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
         // return type;
         // TODO
         return null;
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> GetInterfaces(ConsList<TemplateParameterSymbol> inProgress) {
+        var bounds = GetBounds(inProgress);
+        return (bounds is not null) ? bounds.interfaces : [];
     }
 
     private GenericParameterConstraintHandleCollection GetConstraintHandleCollection(PEModule module) {

@@ -102,9 +102,13 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
 
     internal override bool isDeclaredConst => false;
 
+    internal override bool isEffectivelyConst => true;
+
     internal override bool requiresInstanceReceiver => false;
 
     internal override CallingConvention callingConvention => CallingConvention.Default;
+
+    internal override ImmutableArray<MethodSymbol> explicitInterfaceImplementations => [];
 
     internal override void AddDeclarationDiagnostics(BelteDiagnosticQueue diagnostics) {
         _declarationDiagnostics.PushRange(diagnostics);
@@ -216,6 +220,7 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
 
         var result = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
             modifiers,
+            false,
             DeclarationModifiers.None,
             allowedModifiers,
             location,

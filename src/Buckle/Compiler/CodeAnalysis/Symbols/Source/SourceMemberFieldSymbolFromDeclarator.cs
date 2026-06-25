@@ -24,6 +24,13 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
 
         if (!modifierErrors)
             ReportModifiersDiagnostics(diagnostics);
+
+        if (containingType.isInterface) {
+            if (isStatic)
+                diagnostics.Push(Error.DefaultInterfaceImplementation(errorLocation));
+            else
+                diagnostics.Push(Error.InterfacesCantContainFields(errorLocation));
+        }
     }
 
     public sealed override RefKind refKind => GetTypeAndRefKind(ConsList<FieldSymbol>.Empty).refKind;
@@ -106,7 +113,7 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
             var location = typeOnly is IdentifierNameSyntax
                 ? typeOnly.location
                 : ((FieldDeclarationSyntax)syntaxNode.parent).modifiers
-                    ?.Last(m => m.kind is SyntaxKind.ConstexprKeyword or SyntaxKind.ConstKeyword)?.location
+                    ?.LastOrDefault(m => m.kind is SyntaxKind.ConstexprKeyword or SyntaxKind.ConstKeyword)?.location
                         ?? typeOnly.location;
 
             diagnostics.Push(Error.FieldsCannotBeImplicitlyTyped(location));

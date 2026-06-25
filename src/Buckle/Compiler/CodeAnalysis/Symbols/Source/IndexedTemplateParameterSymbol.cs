@@ -22,11 +22,11 @@ internal sealed class IndexedTemplateParameterSymbol : TemplateParameterSymbol {
 
     internal override int ordinal => _index;
 
-    internal override bool hasPrimitiveTypeConstraint => false;
+    internal override bool hasValueTypeConstraint => false;
 
     internal override bool isValueTypeFromConstraintTypes => false;
 
-    internal override bool hasObjectTypeConstraint => false;
+    internal override bool hasReferenceTypeConstraint => false;
 
     internal override bool isReferenceTypeFromConstraintTypes => false;
 
@@ -82,6 +82,10 @@ internal sealed class IndexedTemplateParameterSymbol : TemplateParameterSymbol {
 
     internal override NamedTypeSymbol GetEffectiveBaseClass(ConsList<TemplateParameterSymbol> inProgress) {
         return null;
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> GetInterfaces(ConsList<TemplateParameterSymbol> inProgress) {
+        return [];
     }
 
     internal override TypeSymbol GetDeducedBaseType(ConsList<TemplateParameterSymbol> inProgress) {

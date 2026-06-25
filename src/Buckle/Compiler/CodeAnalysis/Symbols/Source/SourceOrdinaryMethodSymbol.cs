@@ -27,13 +27,15 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             containingType,
             name,
             syntax,
+            syntax.identifier.location,
             MakeModifiersAndFlags(containingType, syntax, methodKind, diagnostics, out var hasExplicitAccessModifier)) {
         // TODO Eventually will want to have Symbol.CompilationAllowsUnsafe()
         // CheckLowlevelModifier(_modifiers, diagnostics);
         this.hasExplicitAccessModifier = hasExplicitAccessModifier;
         var hasAnyBody = syntax.body is not null;
-        location = syntax.identifier.location;
         _syntax = syntax;
+
+        ReportDefaultInterfaceImplementation(location, hasAnyBody, diagnostics);
 
         if (hasAnyBody)
             CheckModifiersForBody(location, diagnostics);
@@ -43,8 +45,6 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         if (syntax.templateParameterList is null)
             ReportErrorIfHasConstraints(syntax.constraintClauseList, diagnostics);
     }
-
-    internal override TextLocation location { get; }
 
     internal bool hasExplicitAccessModifier { get; }
 
@@ -103,13 +103,36 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
 
     internal static SourceOrdinaryMethodSymbol CreateMethodSymbol(
         NamedTypeSymbol containingType,
+        Binder bodyBinder,
         MethodDeclarationSyntax syntax,
         BelteDiagnosticQueue diagnostics) {
-        var name = syntax.identifier.valueText;
+        var interfaceSpecifier = syntax.explicitInterfaceSpecifier;
+        var nameToken = syntax.identifier;
 
-        return syntax.templateParameterList is null
-            ? new SourceSimpleOrdinaryMethodSymbol(containingType, name, syntax, MethodKind.Ordinary, diagnostics)
-            : new SourceComplexOrdinaryMethodSymbol(containingType, name, syntax, MethodKind.Ordinary, diagnostics);
+        var name = ExplicitInterfaceHelpers.GetMemberNameAndInterfaceSymbol(
+            bodyBinder,
+            syntax.modifiers,
+            interfaceSpecifier,
+            nameToken.valueText,
+            diagnostics,
+            out var explicitInterfaceType,
+            aliasQualifier: out _
+        );
+
+        var methodKind = interfaceSpecifier is null
+            ? MethodKind.Ordinary
+            : MethodKind.ExplicitInterfaceImplementation;
+
+        return syntax.templateParameterList is null && explicitInterfaceType is null
+            ? new SourceSimpleOrdinaryMethodSymbol(containingType, name, syntax, methodKind, diagnostics)
+            : new SourceComplexOrdinaryMethodSymbol(
+                containingType,
+                explicitInterfaceType,
+                name,
+                syntax,
+                methodKind,
+                diagnostics
+            );
     }
 
     internal sealed override ExecutableCodeBinder TryGetBodyBinder(
@@ -119,6 +142,13 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
     }
 
     internal sealed override OneOrMany<SyntaxList<AttributeListSyntax>> GetAttributeDeclarations() {
+        if (containingType is SourceMemberContainerTypeSymbol sourceType) {
+            var inheritedAttributes = sourceType.GetInheritedAttributeListsForMember(_syntax);
+
+            if (inheritedAttributes is not null)
+                return OneOrMany.Create(_attributeDeclarationSyntaxList, inheritedAttributes);
+        }
+
         return OneOrMany.Create(_attributeDeclarationSyntaxList);
     }
 
@@ -138,7 +168,11 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             // TODO constraints
         }
 
-        CheckModifiers(GetSyntax().identifier.location, diagnostics);
+        CheckModifiers(
+            methodKind == MethodKind.ExplicitInterfaceImplementation,
+            GetSyntax().identifier.location,
+            diagnostics
+        );
 
         _ = initFields;
     }
@@ -149,7 +183,13 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         MethodKind methodKind,
         BelteDiagnosticQueue diagnostics,
         out bool hasExplicitAccessMod) {
-        (var declarationModifiers, hasExplicitAccessMod) = MakeModifiers(containingType, syntax, diagnostics);
+        (var declarationModifiers, hasExplicitAccessMod) = MakeModifiers(
+            containingType,
+            methodKind,
+            syntax.HasAnyBody(),
+            syntax,
+            diagnostics
+        );
 
         var flags = new Flags(
             methodKind,
@@ -166,21 +206,61 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
 
     private static (DeclarationModifiers mods, bool hasExplicitAccessMod) MakeModifiers(
         NamedTypeSymbol containingType,
+        MethodKind methodKind,
+        bool hasBody,
         MethodDeclarationSyntax syntax,
         BelteDiagnosticQueue diagnostics) {
-        var defaultAccess = DeclarationModifiers.Private;
+        var isInterface = containingType.isInterface;
+        var isExplicitInterfaceImplementation = methodKind == MethodKind.ExplicitInterfaceImplementation;
 
-        var allowedModifiers = DeclarationModifiers.LowLevel
-            | DeclarationModifiers.New
-            | DeclarationModifiers.Sealed
-            | DeclarationModifiers.Abstract
-            | DeclarationModifiers.Static
-            | DeclarationModifiers.Virtual
-            | DeclarationModifiers.Const
-            | DeclarationModifiers.AccessibilityMask
-            | DeclarationModifiers.Ref
+        var inheritedModifiers = containingType is SourceMemberContainerTypeSymbol sourceType
+            ? sourceType.GetInheritedModifiersForMember(syntax)
+            : DeclarationModifiers.None;
+
+        var inheritedAccess = inheritedModifiers & DeclarationModifiers.AccessibilityMask;
+
+        var defaultAccess = isInterface && !isExplicitInterfaceImplementation
+            ? DeclarationModifiers.None
+            : inheritedAccess != DeclarationModifiers.None
+                ? inheritedAccess
+                : (containingType.IsStructType() || containingType.IsFileScoped())
+                    ? DeclarationModifiers.Public
+                    : DeclarationModifiers.Private;
+
+        var allowedModifiers =
+              DeclarationModifiers.LowLevel
             | DeclarationModifiers.Extern
-            | DeclarationModifiers.Override;
+            | DeclarationModifiers.Ref
+            | DeclarationModifiers.Const;
+
+        var defaultInterfaceImplementationModifiers = DeclarationModifiers.None;
+
+        if (!isExplicitInterfaceImplementation) {
+            allowedModifiers |= DeclarationModifiers.Static |
+                                DeclarationModifiers.AccessibilityMask |
+                                DeclarationModifiers.New |
+                                DeclarationModifiers.Sealed |
+                                DeclarationModifiers.Abstract |
+                                DeclarationModifiers.Virtual;
+
+            if (!isInterface) {
+                allowedModifiers |= DeclarationModifiers.Override;
+            } else {
+                defaultInterfaceImplementationModifiers |= DeclarationModifiers.Sealed |
+                                                           DeclarationModifiers.Abstract |
+                                                           DeclarationModifiers.Static |
+                                                           DeclarationModifiers.Virtual |
+                                                           DeclarationModifiers.Extern |
+                                                           DeclarationModifiers.AccessibilityMask;
+            }
+        } else {
+            if (isInterface)
+                allowedModifiers |= DeclarationModifiers.Abstract;
+
+            allowedModifiers |= DeclarationModifiers.Static;
+        }
+
+        // TODO Use defaultInterfaceImplementationModifiers
 
         bool hasExplicitAccessMod;
         var mods = MakeDeclarationModifiers(containingType, syntax, allowedModifiers, diagnostics);
@@ -192,7 +272,28 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             hasExplicitAccessMod = true;
         }
 
+        mods = AddImpliedModifiers(mods, isInterface, methodKind, hasBody);
+        mods |= inheritedModifiers;
         return (mods, hasExplicitAccessMod);
+    }
+
+    private static DeclarationModifiers AddImpliedModifiers(
+        DeclarationModifiers mods,
+        bool containingTypeIsInterface,
+        MethodKind methodKind,
+        bool hasBody) {
+        if (containingTypeIsInterface) {
+            mods = ModifierHelpers.AdjustModifiersForAnInterfaceMember(
+                mods,
+                hasBody,
+                methodKind == MethodKind.ExplicitInterfaceImplementation,
+                forMethod: true
+            );
+        } else if (methodKind == MethodKind.ExplicitInterfaceImplementation) {
+            mods = (mods & ~DeclarationModifiers.AccessibilityMask) | DeclarationModifiers.Private;
+        }
+
+        return mods;
     }
 
     private static DeclarationModifiers MakeDeclarationModifiers(
@@ -202,6 +303,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         BelteDiagnosticQueue diagnostics) {
         return ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
             syntax.modifiers,
+            containingType.isInterface,
             (containingType.IsStructType() || containingType.IsFileScoped())
                 ? DeclarationModifiers.Public
                 : DeclarationModifiers.None,
@@ -269,7 +371,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             ImmutableArray<TypeParameterConstraintClause> declaredConstraints) {
             if (type.type is TemplateParameterSymbol t && (object)t.declaringMethod == method) {
                 var asPrimitive = declaredConstraints.IsDefault ||
-                    (declaredConstraints[t.ordinal].constraints & (TypeParameterConstraintKinds.Object)) == 0;
+                    (declaredConstraints[t.ordinal].constraints & (TypeParameterConstraintKinds.ReferenceType)) == 0;
 
                 // TODO Add this if Nullable<T> becomes the way to handle nullable types
                 // type.TryForceResolve(asPrimitive);
@@ -277,16 +379,23 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         }
     }
 
-    private void CheckModifiers(TextLocation location, BelteDiagnosticQueue diagnostics) {
-        if (declaredAccessibility == Accessibility.Private && (isVirtual || isAbstract || isOverride))
+    private void CheckModifiers(
+        bool isExplicitInterfaceImplementation,
+        TextLocation location,
+        BelteDiagnosticQueue diagnostics) {
+        var isExplicitInterfaceImplementationInInterface = isExplicitInterfaceImplementation &&
+            containingType.isInterface;
+
+        if (declaredAccessibility == Accessibility.Private &&
+            (isVirtual || (isAbstract && !isExplicitInterfaceImplementationInInterface) || isOverride))
             diagnostics.Push(Error.CannotBePrivateAndVirtualOrAbstract(location, this));
         else if (isOverride && (isNew || isVirtual))
             diagnostics.Push(Error.ConflictingOverrideModifiers(location, this));
-        else if (isSealed && !isOverride && !isAbstract)
+        else if (isSealed && !isOverride && !(isExplicitInterfaceImplementationInInterface && isAbstract))
             diagnostics.Push(Error.SealedNonOverride(location, this));
         else if (returnType.StrippedType().isStatic)
             diagnostics.Push(Error.CannotReturnStatic(location, returnType));
-        else if (isAbstract && isSealed)
+        else if (isAbstract && isSealed && !isExplicitInterfaceImplementationInInterface)
             diagnostics.Push(Error.AbstractAndSealed(location, this));
         else if (isAbstract && isExtern)
             diagnostics.Push(Error.AbstractAndExtern(location, this));

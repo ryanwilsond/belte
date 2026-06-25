@@ -17,4 +17,6 @@ internal enum LookupOptions : int {
     MustBeAbstractOrVirtual = 1 << 10,
     MustNotBeParameter = 1 << 11,
     NamespaceAliasesOnly = 1 << 12,
+    AttributeTypeOnly = (1 << 13) | NamespacesOrTypesOnly,
+    VerbatimNameAttributeTypeOnly = (1 << 14) | AttributeTypeOnly,
 }

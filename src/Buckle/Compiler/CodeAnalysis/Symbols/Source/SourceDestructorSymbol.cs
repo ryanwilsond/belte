@@ -17,9 +17,8 @@ internal sealed class SourceDestructorSymbol : SourceMemberMethodSymbol {
         : base(
             containingType,
             new SyntaxReference(syntax),
-            MakeModifiersAndFlags(syntax, diagnostics, out _)) {
-        location = syntax.destructorKeyword.location;
-
+            syntax.destructorKeyword.location,
+            MakeModifiersAndFlags(containingType, syntax, diagnostics, out _)) {
         if (containingType.isStatic)
             diagnostics.Push(Error.DestructorInStaticClass(location));
     }
@@ -43,8 +42,6 @@ internal sealed class SourceDestructorSymbol : SourceMemberMethodSymbol {
         }
     }
 
-    internal override TextLocation location { get; }
-
     internal override ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes() {
         return [];
     }
@@ -58,10 +55,18 @@ internal sealed class SourceDestructorSymbol : SourceMemberMethodSymbol {
     }
 
     private static (DeclarationModifiers, Flags) MakeModifiersAndFlags(
+        NamedTypeSymbol containingType,
         DestructorDeclarationSyntax syntax,
         BelteDiagnosticQueue diagnostics,
         out bool modifierErrors) {
-        var declarationModifiers = MakeModifiers(syntax, syntax.modifiers, diagnostics, out modifierErrors);
+        var declarationModifiers = MakeModifiers(
+            containingType,
+            syntax,
+            syntax.modifiers,
+            diagnostics,
+            out modifierErrors
+        );
+
         var flags = MakeFlags(
             MethodKind.Destructor,
             RefKind.None,
@@ -98,12 +103,14 @@ internal sealed class SourceDestructorSymbol : SourceMemberMethodSymbol {
     }
 
     private static DeclarationModifiers MakeModifiers(
+        NamedTypeSymbol containingType,
         DestructorDeclarationSyntax syntax,
         SyntaxTokenList modifiers,
         BelteDiagnosticQueue diagnostics,
         out bool modifierErrors) {
         var mods = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
             modifiers,
+            containingType.isInterface,
             DeclarationModifiers.None,
             0,
             syntax.destructorKeyword.location,

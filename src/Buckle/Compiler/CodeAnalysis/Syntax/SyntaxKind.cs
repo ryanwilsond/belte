@@ -92,6 +92,7 @@ public enum SyntaxKind : ushort {
     CharacterLiteralToken,
     ExtendedLiteralToken,
     InterpolatedStringLiteralToken,
+    MultilineStringLiteralToken,
 
     // Keywords
     TypeOfKeyword,
@@ -140,7 +141,6 @@ public enum SyntaxKind : ushort {
     AsKeyword,
     WhereKeyword,
     ThrowKeyword,
-    PrimitiveKeyword,
     NotnullKeyword,
     UsingKeyword,
     NamespaceKeyword,
@@ -177,6 +177,8 @@ public enum SyntaxKind : ushort {
     HasKeyword,
     InitializesKeyword,
     CommitKeyword,
+    ImplementsKeyword,
+    InterfaceKeyword,
     HandleKeyword,
 
     // Trivia
@@ -291,6 +293,7 @@ public enum SyntaxKind : ushort {
     // Declarations
     CompilationUnit,
     GlobalStatement,
+    IncompleteMember,
     NamespaceDeclaration,
     FileScopedNamespaceDeclaration,
     VariableDeclaration,
@@ -299,10 +302,13 @@ public enum SyntaxKind : ushort {
     PackedArgument,
     ClassDeclaration,
     FileScopedClassDeclaration,
+    ExternBlockDeclaration,
+    InterfaceDeclaration,
     UnionDeclaration,
     EnumDeclaration,
     EnumMemberDeclaration,
     FieldDeclaration,
+    ExplicitInterfaceSpecifier,
     MethodDeclaration,
     ReverseClause,
     StateClause,
@@ -331,6 +337,7 @@ public enum SyntaxKind : ushort {
     TupleType,
     TupleElement,
     BaseType,
+    InterfaceList,
     NameEquals,
 
     // Lists
@@ -350,6 +357,7 @@ public enum SyntaxKind : ushort {
     AttributeList,
     TemplateConstraintClause,
     TemplateExtendsConstraintClause,
+    TemplateImplementsConstraintClause,
     TemplateIsConstraintClause,
     TemplateHasConstraintClause,
     TemplateConstraintClauseList,

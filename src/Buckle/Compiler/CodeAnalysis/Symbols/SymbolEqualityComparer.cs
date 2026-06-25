@@ -3,11 +3,14 @@ using System.Collections.Generic;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class SymbolEqualityComparer : IEqualityComparer<Symbol> {
-    internal static readonly SymbolEqualityComparer IgnoringNullable
-        = new SymbolEqualityComparer(TypeCompareKind.IgnoreNullability);
     internal static readonly SymbolEqualityComparer ConsiderEverything
         = new SymbolEqualityComparer(TypeCompareKind.ConsiderEverything);
-    internal static readonly SymbolEqualityComparer Default = IgnoringNullable;
+    internal static readonly SymbolEqualityComparer IgnoreTupleNames
+        = new SymbolEqualityComparer(TypeCompareKind.IgnoreTupleNames);
+    internal static readonly SymbolEqualityComparer CLRSignature
+        = new SymbolEqualityComparer(TypeCompareKind.CLRSignatureCompareOptions);
+
+    internal static readonly SymbolEqualityComparer Default = ConsiderEverything;
 
     internal SymbolEqualityComparer(TypeCompareKind compareKind) {
         this.compareKind = compareKind;
