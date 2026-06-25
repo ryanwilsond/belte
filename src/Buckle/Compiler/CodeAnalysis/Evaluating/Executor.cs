@@ -861,7 +861,7 @@ internal sealed partial class Executor : ModuleBuilder {
     private void BakeTypes() {
         // Topologically sorts struct types tracking dependencies (field types) so that when the struct is created it's
         // layout is fully known
-        var deps = new Dictionary<TypeSymbol, List<NamedTypeSymbol>>();
+        var deps = new Dictionary<NamedTypeSymbol, List<NamedTypeSymbol>>();
 
         foreach (var type in _types.Keys) {
             if (!type.IsStructType())
@@ -892,13 +892,13 @@ internal sealed partial class Executor : ModuleBuilder {
             if (namedType.containingType?.IsClassType() == true)
                 list.Add(namedType.containingType);
 
-            deps[type.originalDefinition] = list;
+            deps[namedType.originalDefinition] = list;
         }
 
-        var result = new List<TypeSymbol>();
-        var visited = new List<TypeSymbol>();
+        var result = new List<NamedTypeSymbol>();
+        var visited = new List<NamedTypeSymbol>();
 
-        void Visit(TypeSymbol t) {
+        void Visit(NamedTypeSymbol t) {
             if (visited.Contains(t))
                 return;
 
@@ -913,27 +913,51 @@ internal sealed partial class Executor : ModuleBuilder {
 
         foreach (var type in _types.Keys) {
             if (type.IsStructType())
-                Visit(type.originalDefinition);
+                Visit((NamedTypeSymbol)type.originalDefinition);
         }
 
-        // TODO Crashes on struct with fixed buffers that is nested in class
         foreach (var type in result) {
             var tb = _types[type];
-            var baked = tb.CreateType();
-            _bakedTypes[(NamedTypeSymbol)type] = baked;
+
+            if (type.IsStructType()) {
+                AddInterfaceImplementations(type, tb);
+                var baked = tb.CreateType();
+                _bakedTypes.Add(type, baked);
+            } else {
+                BakeNonStructType(type, tb);
+            }
         }
 
         foreach (var (type, tb) in _types) {
             if (!type.IsStructType()) {
-                if (type.Equals(_programNamedType.originalDefinition)) {
-                    CreateMainWrapperIfApplicable(tb);
-                    _programType = tb.CreateType();
-                    continue;
-                }
-
-                var baked = tb.CreateType();
-                _bakedTypes[(NamedTypeSymbol)type] = baked;
+                var namedType = (NamedTypeSymbol)type;
+                BakeNonStructType(namedType, tb);
+            } else {
+                Debug.Assert(_bakedTypes.ContainsKey((NamedTypeSymbol)type));
             }
+        }
+
+        void BakeNonStructType(NamedTypeSymbol type, TypeBuilder typeBuilder) {
+            Debug.Assert(!type.IsStructType());
+
+            if (_bakedTypes.ContainsKey(type)) {
+                Debug.Assert(WellKnownTypes.GetTypeFromMetadataName(type) != WellKnownType.None ||
+                    result.Contains(type));
+
+                return;
+            }
+
+            AddInterfaceImplementations(type, typeBuilder);
+
+            if (type.Equals(_programNamedType.originalDefinition)) {
+                CreateMainWrapperIfApplicable(typeBuilder);
+                _programType = typeBuilder.CreateType();
+                _bakedTypes.Add(type, _programType);
+                return;
+            }
+
+            var baked = typeBuilder.CreateType();
+            _bakedTypes.Add(type, baked);
         }
     }
 

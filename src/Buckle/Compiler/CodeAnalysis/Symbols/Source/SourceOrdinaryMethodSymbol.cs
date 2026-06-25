@@ -27,12 +27,12 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             containingType,
             name,
             syntax,
+            syntax.identifier.location,
             MakeModifiersAndFlags(containingType, syntax, methodKind, diagnostics, out var hasExplicitAccessModifier)) {
         // TODO Eventually will want to have Symbol.CompilationAllowsUnsafe()
         // CheckLowlevelModifier(_modifiers, diagnostics);
         this.hasExplicitAccessModifier = hasExplicitAccessModifier;
         var hasAnyBody = syntax.body is not null;
-        location = syntax.identifier.location;
         _syntax = syntax;
 
         ReportDefaultInterfaceImplementation(location, hasAnyBody, diagnostics);
@@ -45,8 +45,6 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         if (syntax.templateParameterList is null)
             ReportErrorIfHasConstraints(syntax.constraintClauseList, diagnostics);
     }
-
-    internal override TextLocation location { get; }
 
     internal bool hasExplicitAccessModifier { get; }
 
@@ -225,7 +223,9 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             ? DeclarationModifiers.None
             : inheritedAccess != DeclarationModifiers.None
                 ? inheritedAccess
-                : DeclarationModifiers.Private;
+                : (containingType.IsStructType() || containingType.IsFileScoped())
+                    ? DeclarationModifiers.Public
+                    : DeclarationModifiers.Private;
 
         var allowedModifiers =
               DeclarationModifiers.LowLevel
@@ -371,7 +371,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             ImmutableArray<TypeParameterConstraintClause> declaredConstraints) {
             if (type.type is TemplateParameterSymbol t && (object)t.declaringMethod == method) {
                 var asPrimitive = declaredConstraints.IsDefault ||
-                    (declaredConstraints[t.ordinal].constraints & (TypeParameterConstraintKinds.Object)) == 0;
+                    (declaredConstraints[t.ordinal].constraints & (TypeParameterConstraintKinds.ReferenceType)) == 0;
 
                 // TODO Add this if Nullable<T> becomes the way to handle nullable types
                 // type.TryForceResolve(asPrimitive);

@@ -224,8 +224,8 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
         TemplateMap typeMap2,
         TypeCompareKind typeComparison) {
         if ((typeParameter1.hasConstructorConstraint != typeParameter2.hasConstructorConstraint) ||
-            (typeParameter1.hasObjectTypeConstraint != typeParameter2.hasObjectTypeConstraint) ||
-            (typeParameter1.hasPrimitiveTypeConstraint != typeParameter2.hasPrimitiveTypeConstraint) ||
+            (typeParameter1.hasReferenceTypeConstraint != typeParameter2.hasReferenceTypeConstraint) ||
+            (typeParameter1.hasValueTypeConstraint != typeParameter2.hasValueTypeConstraint) ||
             (typeParameter1.allowsRefLikeType != typeParameter2.allowsRefLikeType) ||
             (typeParameter1.hasDefaultConstraint != typeParameter2.hasDefaultConstraint)) {
             return false;
@@ -354,8 +354,8 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
         TemplateMap templateMap1,
         TemplateParameterSymbol templateParameters2,
         TemplateMap templateMap2) {
-        if ((templateParameters1.hasObjectTypeConstraint != templateParameters2.hasObjectTypeConstraint) ||
-            (templateParameters1.hasPrimitiveTypeConstraint != templateParameters2.hasPrimitiveTypeConstraint)) {
+        if ((templateParameters1.hasReferenceTypeConstraint != templateParameters2.hasReferenceTypeConstraint) ||
+            (templateParameters1.hasValueTypeConstraint != templateParameters2.hasValueTypeConstraint)) {
             return false;
         }
 
@@ -417,7 +417,7 @@ internal sealed class MemberSignatureComparer : IEqualityComparer<Symbol> {
             if (constraintTypes2.Contains(constraintType))
                 continue;
 
-            if (constraintType.IsPrimitiveType() && templateParameter2.hasPrimitiveTypeConstraint)
+            if (constraintType.specialType == SpecialType.ValueType && templateParameter2.hasValueTypeConstraint)
                 continue;
 
             return false;

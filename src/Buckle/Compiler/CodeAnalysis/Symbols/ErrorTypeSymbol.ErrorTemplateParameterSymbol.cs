@@ -36,9 +36,9 @@ internal abstract partial class ErrorTypeSymbol {
 
         internal override TypeOrConstant defaultValue => null;
 
-        internal override bool hasObjectTypeConstraint => false;
+        internal override bool hasReferenceTypeConstraint => false;
 
-        internal override bool hasPrimitiveTypeConstraint => false;
+        internal override bool hasValueTypeConstraint => false;
 
         internal override bool hasDefaultConstraint => false;
 

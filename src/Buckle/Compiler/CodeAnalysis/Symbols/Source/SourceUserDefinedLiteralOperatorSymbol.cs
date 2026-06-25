@@ -24,11 +24,7 @@ internal sealed class SourceUserDefinedLiteralOperatorSymbol : SourceUserDefined
             MakeDeclarationModifiers(containingType, methodKind, syntax, syntax.literalKeyword.location, diagnostics),
             syntax.body is not null,
             diagnostics
-        ) {
-        location = syntax.literalKeyword.location;
-    }
-
-    internal override TextLocation location { get; }
+        ) { }
 
     private protected override TextLocation _returnTypeLocation => GetSyntax().returnType.location;
 

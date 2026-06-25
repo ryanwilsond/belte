@@ -20,8 +20,12 @@ internal sealed class SourceReverseMethodSymbol : SourceMemberMethodSymbol {
         NamedTypeSymbol containingType,
         SourceMemberMethodSymbol containingMethod,
         MethodSymbol stateMethod)
-        : base(containingType, new SyntaxReference(syntax), MakeModifiersAndFlags(syntax, containingMethod)) {
-        location = syntax.keyword.location;
+        : base(
+            containingType,
+            new SyntaxReference(syntax),
+            syntax.keyword.location,
+            MakeModifiersAndFlags(syntax, containingMethod)
+        ) {
         _syntax = syntax;
         _containingMethod = containingMethod;
         _stateMethod = stateMethod;
@@ -33,8 +37,6 @@ internal sealed class SourceReverseMethodSymbol : SourceMemberMethodSymbol {
     public sealed override ImmutableArray<TemplateParameterSymbol> templateParameters => [];
 
     public sealed override ImmutableArray<BoundExpression> templateConstraints => [];
-
-    internal override TextLocation location { get; }
 
     internal sealed override int parameterCount {
         get {

@@ -17,9 +17,8 @@ internal sealed class SourceFinalizerSymbol : SourceMemberMethodSymbol {
         : base(
             containingType,
             new SyntaxReference(syntax),
+            syntax.finalizerKeyword.location,
             MakeModifiersAndFlags(containingType, syntax, diagnostics, out _)) {
-        location = syntax.finalizerKeyword.location;
-
         if (containingType.isStatic)
             diagnostics.Push(Error.FinalizerInStaticClass(location));
         else if (!containingType.isReferenceType)
@@ -44,8 +43,6 @@ internal sealed class SourceFinalizerSymbol : SourceMemberMethodSymbol {
             return _lazyReturnType;
         }
     }
-
-    internal override TextLocation location { get; }
 
     internal override ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes() {
         return [];

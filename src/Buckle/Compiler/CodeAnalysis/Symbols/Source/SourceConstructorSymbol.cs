@@ -14,6 +14,7 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
         : base(
             containingType,
             syntax,
+            syntax.constructorKeyword.location,
             MakeModifiersAndFlags(
                 containingType,
                 syntax,
@@ -23,8 +24,6 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
                 out var hasErrors
             )
         ) {
-        location = syntax.constructorKeyword.location;
-
         var hasAnyBody = syntax.HasAnyBody();
 
         if (methodKind == MethodKind.StaticConstructor)
@@ -35,8 +34,6 @@ internal sealed class SourceConstructorSymbol : SourceConstructorSymbolBase {
         if (!hasErrors)
             CheckModifiers(location, diagnostics);
     }
-
-    internal override TextLocation location { get; }
 
     private protected override bool _allowRef => true;
 

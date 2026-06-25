@@ -7,7 +7,7 @@ internal static class LookupPosition {
         var body = node.body;
 
         if (body is null)
-            return IsBeforeToken(position, node, ((MethodDeclarationSyntax)node).semicolon);
+            return IsBeforeToken(position, node, node.semicolon);
 
         return IsBeforeToken(position, node, node.body.closeBrace);
     }

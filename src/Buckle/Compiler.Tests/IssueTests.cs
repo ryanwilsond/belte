@@ -1520,4 +1520,17 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Interface_BakesWithoutErr() {
+        var text = @"
+            class A implements I { }
+            interface I { }
+            ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

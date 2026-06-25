@@ -22,11 +22,11 @@ internal sealed class IndexedTemplateParameterSymbol : TemplateParameterSymbol {
 
     internal override int ordinal => _index;
 
-    internal override bool hasPrimitiveTypeConstraint => false;
+    internal override bool hasValueTypeConstraint => false;
 
     internal override bool isValueTypeFromConstraintTypes => false;
 
-    internal override bool hasObjectTypeConstraint => false;
+    internal override bool hasReferenceTypeConstraint => false;
 
     internal override bool isReferenceTypeFromConstraintTypes => false;
 

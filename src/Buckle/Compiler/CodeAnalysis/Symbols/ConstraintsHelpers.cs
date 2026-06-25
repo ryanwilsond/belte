@@ -19,6 +19,29 @@ internal static partial class ConstraintsHelpers {
         Compilation currentCompilation,
         BelteDiagnosticQueue diagnostics,
         TextLocation errorLocation) {
+        var bounds = templateParameter.ResolveBoundsCore(
+            inProgress,
+            constraintTypes,
+            inherited,
+            currentCompilation,
+            diagnostics,
+            errorLocation
+        );
+
+        if (templateParameter.hasValueTypeConstraint && templateParameter.hasReferenceTypeConstraint)
+            diagnostics.Push(Error.TemplateBaseBothReferenceAndValueType(errorLocation, templateParameter.name));
+
+        return bounds;
+    }
+
+    internal static TypeParameterBounds ResolveBoundsCore(
+        this TemplateParameterSymbol templateParameter,
+        ConsList<TemplateParameterSymbol> inProgress,
+        ImmutableArray<TypeWithAnnotations> constraintTypes,
+        bool inherited,
+        Compilation currentCompilation,
+        BelteDiagnosticQueue diagnostics,
+        TextLocation errorLocation) {
         var effectiveBaseClass = CorLibrary.GetSpecialType(SpecialType.Object);
         TypeSymbol deducedBaseType = effectiveBaseClass;
 
@@ -66,9 +89,9 @@ internal static partial class ConstraintsHelpers {
                         if (!inherited &&
                             currentCompilation is not null &&
                             constraintTypeParameter.IsFromCompilation(currentCompilation)) {
-                            if (constraintTypeParameter.hasPrimitiveTypeConstraint) {
+                            if (constraintTypeParameter.hasValueTypeConstraint) {
                                 diagnostics.Push(
-                                    Error.TemplateObjectBaseWithPrimitiveBase(
+                                    Error.TemplateObjectBaseWithValueTypeBase(
                                         errorLocation,
                                         constraintTypeParameter.name,
                                         templateParameter.name
@@ -138,7 +161,7 @@ internal static partial class ConstraintsHelpers {
                 if (!deducedBaseType.IsErrorType() && !constraintDeducedBase.IsErrorType()) {
                     if (!IsEncompassedBy(deducedBaseType, constraintDeducedBase)) {
                         if (!IsEncompassedBy(constraintDeducedBase, deducedBaseType) &&
-                            !templateParameter.hasPrimitiveTypeConstraint) {
+                            !templateParameter.hasValueTypeConstraint) {
                             diagnostics.Push(
                                 Error.TemplateBaseConstraintConflict(
                                     errorLocation,
@@ -166,9 +189,8 @@ internal static partial class ConstraintsHelpers {
 
         var bounds = new TypeParameterBounds(constraintTypes, interfaces, effectiveBaseClass, deducedBaseType);
 
-        // TODO We always want to check this, right?
-        // if (inherited)
-        CheckOverrideConstraints(templateParameter, bounds, diagnostics, errorLocation);
+        if (inherited)
+            CheckOverrideConstraints(templateParameter, bounds, diagnostics, errorLocation);
 
         return bounds;
     }
@@ -249,18 +271,17 @@ internal static partial class ConstraintsHelpers {
         return clauses.SelectAsArray(clause => clause.constraints);
     }
 
-
     internal static ImmutableArray<TypeParameterConstraintClause> AdjustConstraintKindsBasedOnConstraintTypes(
         ImmutableArray<TemplateParameterSymbol> templateParameters,
         ImmutableArray<TypeParameterConstraintClause> constraintClauses) {
         var arity = templateParameters.Length;
 
-        var isPrimitiveTypeMap = TypeParameterConstraintClause.BuildIsPrimitiveTypeMap(
+        var isValueTypeFromConstraintTypesMap = TypeParameterConstraintClause.BuildIsValueTypeFromConstraintTypesMap(
             templateParameters,
             constraintClauses
         );
 
-        var isObjectTypeFromConstraintTypesMap = TypeParameterConstraintClause.BuildIsObjectTypeFromConstraintTypesMap(
+        var isReferenceTypeFromConstraintTypesMap = TypeParameterConstraintClause.BuildIsReferenceTypeFromConstraintTypesMap(
             templateParameters,
             constraintClauses
         );
@@ -272,11 +293,13 @@ internal static partial class ConstraintsHelpers {
             var typeParameter = templateParameters[i];
             var constraintKind = constraint.constraints;
 
-            if ((constraintKind & TypeParameterConstraintKinds.Primitive) == 0 && isPrimitiveTypeMap[typeParameter])
-                constraintKind |= TypeParameterConstraintKinds.Primitive;
+            if ((constraintKind & TypeParameterConstraintKinds.ValueType) == 0 &&
+                isValueTypeFromConstraintTypesMap[typeParameter]) {
+                constraintKind |= TypeParameterConstraintKinds.ValueType;
+            }
 
-            if (isObjectTypeFromConstraintTypesMap[typeParameter])
-                constraintKind |= TypeParameterConstraintKinds.Object;
+            if (isReferenceTypeFromConstraintTypesMap[typeParameter])
+                constraintKind |= TypeParameterConstraintKinds.ReferenceType;
 
             if (constraint.constraints != constraintKind) {
                 if (builder is null) {
@@ -410,11 +433,50 @@ internal static partial class ConstraintsHelpers {
         this NamedTypeSymbol type,
         TextLocation location,
         BelteDiagnosticQueue diagnostics,
-        SyntaxNode typeSyntax) {
+        SyntaxNode typeSyntax,
+        ConsList<TypeSymbol> basesBeingResolved) {
         if (!RequiresChecking(type))
             return true;
 
-        return !typeSyntax.containsDiagnostics && CheckTypeConstraints(type, location, diagnostics);
+        var result = !typeSyntax.containsDiagnostics && CheckTypeConstraints(type, location, diagnostics);
+
+        if (HasDuplicateInterfaces(type, basesBeingResolved))
+            result = false;
+
+        return result;
+    }
+
+    private static bool HasDuplicateInterfaces(NamedTypeSymbol type, ConsList<TypeSymbol> basesBeingResolved) {
+        if (type.originalDefinition is not PENamedTypeSymbol)
+            return false;
+
+        var array = type.originalDefinition.Interfaces(basesBeingResolved);
+
+        switch (array.Length) {
+            case 0:
+            case 1:
+                return false;
+            case 2:
+                if ((object)array[0].originalDefinition == array[1].originalDefinition)
+                    break;
+
+                return false;
+            default:
+                var set = PooledHashSet<object>.GetInstance();
+
+                foreach (var i in array) {
+                    if (!set.Add(i.originalDefinition)) {
+                        set.Free();
+                        goto hasRelatedInterfaces;
+                    }
+                }
+
+                set.Free();
+                return false;
+        }
+
+hasRelatedInterfaces:
+        return type.Interfaces(basesBeingResolved).HasDuplicates(SymbolEqualityComparer.IgnoreTupleNames);
     }
 
     private static bool CheckTypeConstraints(
@@ -584,6 +646,15 @@ internal static partial class ConstraintsHelpers {
         substitution.SubstituteConstraintTypesDistinctWithoutModifiers(originalConstraintTypes, constraintTypes);
         var hasError = false;
 
+        // TODO
+        // if (templateArgument.type?.type is NamedTypeSymbol { isInterface: true } iface &&
+        //     SelfOrBaseHasStaticAbstractMember(iface, out Symbol member)) {
+        //         diagnostics.Push(Error.TemplateConstraintNotSatisfiedInterfaceWithStaticAbstractMembers(iface.location, member)));
+        //     diagnosticsBuilder.Add(new TypeParameterDiagnosticInfo(typeParameter,
+        //         new UseSiteInfo<AssemblySymbol>(new CSDiagnosticInfo(ErrorCode.ERR_GenericConstraintNotSatisfiedInterfaceWithStaticAbstractMembers, iface, member))));
+        //     hasError = true;
+        // }
+
         foreach (var constraintType in constraintTypes) {
             CheckConstraintType(
                 containingSymbol,
@@ -621,8 +692,8 @@ internal static partial class ConstraintsHelpers {
             return false;
         }
 
-        if (templateParameter.hasObjectTypeConstraint && !templateArgument.type.type.StrippedType().isReferenceType) {
-            diagnostics.Push(Error.ObjectConstraintFailed(
+        if (templateParameter.hasReferenceTypeConstraint && !templateArgument.type.type.StrippedType().isReferenceType) {
+            diagnostics.Push(Error.ReferenceTypeConstraintFailed(
                 location,
                 containingSymbol.ConstructedFrom(),
                 templateParameter.name,
@@ -641,8 +712,8 @@ internal static partial class ConstraintsHelpers {
             ));
         }
 
-        if (templateParameter.hasPrimitiveTypeConstraint && !templateArgument.type.type.StrippedType().isValueType) {
-            diagnostics.Push(Error.PrimitiveConstraintFailed(
+        if (templateParameter.hasValueTypeConstraint && !templateArgument.type.type.StrippedType().isValueType) {
+            diagnostics.Push(Error.ValueTypeConstraintFailed(
                 location,
                 containingSymbol.ConstructedFrom(),
                 templateParameter.name,
@@ -652,8 +723,16 @@ internal static partial class ConstraintsHelpers {
             return false;
         }
 
-        if (templateParameter.hasDefaultConstraint && !templateArgument.type.type.HasDefaultValue())
+        if (templateParameter.hasDefaultConstraint && !templateArgument.type.type.HasDefaultValue()) {
+            diagnostics.Push(Error.DefaultConstraintFailed(
+                location,
+                containingSymbol.ConstructedFrom(),
+                templateParameter.name,
+                templateArgument.type.type
+            ));
+
             return false;
+        }
 
         return true;
     }
@@ -672,6 +751,7 @@ internal static partial class ConstraintsHelpers {
         if (SatisfiesConstraintType(templateArgument.type.type, constraintType.type))
             return;
 
+        // TODO Distinguish diagnostics for ref/val types, class/interface, etc.
         diagnostics.Push(Error.ExtendConstraintFailed(
             location,
             containingSymbol.ConstructedFrom(),
@@ -716,25 +796,25 @@ internal static partial class ConstraintsHelpers {
         var deducedBase = bounds.deducedBaseType;
         var constraintTypes = bounds.constraintTypes;
 
-        if (IsPrimitiveType(templateParameter, constraintTypes) && IsObjectType(templateParameter, constraintTypes)) {
-            diagnostics.Push(Error.TemplateBaseBothObjectAndPrimitive(errorLocation, templateParameter.name));
+        if (IsValueType(templateParameter, constraintTypes) && IsReferenceType(templateParameter, constraintTypes)) {
+            diagnostics.Push(Error.TemplateBaseBothReferenceAndValueType(errorLocation, templateParameter.name));
         } else if (deducedBase.IsNullableType() &&
-            (templateParameter.hasPrimitiveTypeConstraint || templateParameter.hasObjectTypeConstraint)) {
-            diagnostics.Push(Error.TemplateBaseBothObjectAndPrimitive(errorLocation, templateParameter.name));
+            (templateParameter.hasValueTypeConstraint || templateParameter.hasReferenceTypeConstraint)) {
+            diagnostics.Push(Error.TemplateBaseBothReferenceAndValueType(errorLocation, templateParameter.name));
         }
     }
 
-    private static bool IsPrimitiveType(
+    private static bool IsValueType(
         TemplateParameterSymbol templateParameter,
         ImmutableArray<TypeWithAnnotations> constraintTypes) {
-        return templateParameter.hasPrimitiveTypeConstraint ||
-            TemplateParameterSymbol.CalculateIsPrimitiveTypeFromConstraintTypes(constraintTypes);
+        return templateParameter.hasValueTypeConstraint ||
+            TemplateParameterSymbol.CalculateIsValueTypeFromConstraintTypes(constraintTypes);
     }
 
-    private static bool IsObjectType(
+    private static bool IsReferenceType(
         TemplateParameterSymbol templateParameter,
         ImmutableArray<TypeWithAnnotations> constraintTypes) {
-        return templateParameter.hasObjectTypeConstraint ||
-            TemplateParameterSymbol.CalculateIsObjectTypeFromConstraintTypes(constraintTypes);
+        return templateParameter.hasReferenceTypeConstraint ||
+            TemplateParameterSymbol.CalculateIsReferenceTypeFromConstraintTypes(constraintTypes);
     }
 }

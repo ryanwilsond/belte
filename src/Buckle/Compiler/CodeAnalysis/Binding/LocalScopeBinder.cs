@@ -173,13 +173,25 @@ internal class LocalScopeBinder : Binder {
 
                     if (decl.constraintClauseList is not null) {
                         foreach (var constraintClause in decl.constraintClauseList.constraintClauses) {
-                            constraintClause.extendConstraint?.type.VisitRankSpecifiers((rankSpecifier, args) => {
+                            constraintClause.extendsConstraint?.type.VisitRankSpecifiers((rankSpecifier, args) => {
                                 FindExpressionVariablesInRankSpecifier(rankSpecifier.size, args);
                             }, (
                                 localScopeBinder: this,
                                 locals,
                                 localDeclarationBinder: localFunctionDeclarationBinder
                             ));
+
+                            if (constraintClause.implementsConstraint is not null) {
+                                foreach (var typeConstraint in constraintClause.implementsConstraint.types) {
+                                    typeConstraint.VisitRankSpecifiers((rankSpecifier, args) => {
+                                        FindExpressionVariablesInRankSpecifier(rankSpecifier.size, args);
+                                    }, (
+                                        localScopeBinder: this,
+                                        locals,
+                                        localDeclarationBinder: localFunctionDeclarationBinder
+                                    ));
+                                }
+                            }
                         }
                     }
                 }
@@ -318,13 +330,25 @@ internal class LocalScopeBinder : Binder {
 
                     if (decl.constraintClauseList is not null) {
                         foreach (var constraintClause in decl.constraintClauseList.constraintClauses) {
-                            constraintClause.extendConstraint?.type.VisitRankSpecifiers((rankSpecifier, args) => {
+                            constraintClause.extendsConstraint?.type.VisitRankSpecifiers((rankSpecifier, args) => {
                                 FindTokensInRankSpecifier(rankSpecifier.size, args);
                             }, (
                                 localScopeBinder: this,
                                 tokens,
                                 localDeclarationBinder: localFunctionDeclarationBinder
                             ));
+
+                            if (constraintClause.implementsConstraint is not null) {
+                                foreach (var typeConstraint in constraintClause.implementsConstraint.types) {
+                                    typeConstraint.VisitRankSpecifiers((rankSpecifier, args) => {
+                                        FindTokensInRankSpecifier(rankSpecifier.size, args);
+                                    }, (
+                                        localScopeBinder: this,
+                                        tokens,
+                                        localDeclarationBinder: localFunctionDeclarationBinder
+                                    ));
+                                }
+                            }
                         }
                     }
 

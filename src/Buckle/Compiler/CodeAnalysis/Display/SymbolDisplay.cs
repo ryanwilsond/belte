@@ -251,7 +251,7 @@ public static class SymbolDisplay {
                     text.Write(CreateKeyword(SyntaxKind.StructKeyword));
                     break;
                 case TypeKind.Primitive:
-                    text.Write(CreateKeyword(SyntaxKind.PrimitiveKeyword));
+                    text.Write(CreateKeyword("primitive"));
                     break;
                 case TypeKind.Enum:
                     text.Write(CreateKeyword(SyntaxKind.EnumKeyword));

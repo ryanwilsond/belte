@@ -747,7 +747,7 @@ public sealed class EvaluatorTests {
     [InlineData("return typeof(int) == typeof(bool);", false)]
     [InlineData("return typeof(int*) == typeof(int64*);", true)]
     [InlineData("class C<type T> { public bool? M() { return typeof(T) == typeof(int?); } } var c = new C<int?>(); return c.M();", true)]
-    [InlineData("class C<type T> where { T is notnull; } { public bool? M() { return typeof(T) == typeof(int?); } } var c = new C<int?>(); return c.M();", false)]
+    [InlineData("class C<type T> where { T is notnull; } { public bool? M() { return typeof(T) == typeof(int?); } } var c = new C<int>(); return c.M();", false)]
     [InlineData("class C<type T> { public bool? M() { return typeof(T) == typeof(int?); } } var c = new C<bool?>(); return c.M();", false)]
     [InlineData("bool? C<type T>() { return typeof(T) == typeof(int?); } return C<int?>();", true)]
     [InlineData("bool? C<type T>() { return typeof(T) == typeof(int?); } return C<bool?>();", false)]
@@ -1026,7 +1026,7 @@ public sealed class EvaluatorTests {
     [InlineData("return f\"{true} {false}\";", "True False")]
     // Templates
     [InlineData("class A<type t> where { t has default; } { public t a = default; } var a = new A<string?>(); a.a = \"test\"; return a.a;", "test")]
-    [InlineData("class A<type t> where { t has default; } { public t a = default; } lowlevel { var a = new A<int?[]>(); a.a = new int?[] {1, 2, 3}; return a.a[1]; }", 2)]
+    [InlineData("class A<type t> where { t has default; } { public t a = default; } lowlevel { var a = new A<int?[]?>(); a.a = new int?[] {1, 2, 3}; return a.a![1]; }", 2)]
     [InlineData("class A<type t> { }; var a = new A<A<int?>>();", null)]
     [InlineData("T Test<type T>(T a) { return a; } return Test<int?>(3);", 3)]
     [InlineData("T Test<type T>() where { T has default; } { return default; } return Test<int?>();", null)]

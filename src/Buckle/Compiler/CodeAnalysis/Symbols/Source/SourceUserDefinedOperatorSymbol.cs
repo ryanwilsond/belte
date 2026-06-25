@@ -26,16 +26,12 @@ internal sealed class SourceUserDefinedOperatorSymbol : SourceUserDefinedOperato
             syntax.body is not null,
             diagnostics
         ) {
-        location = syntax.operatorKeyword.location;
-
         if (isAbstract || isVirtual ||
             (name != WellKnownMemberNames.EqualityOperatorName &&
              name != WellKnownMemberNames.InequalityOperatorName)) {
             ReportDefaultInterfaceImplementation(location, syntax.body is not null, diagnostics);
         }
     }
-
-    internal override TextLocation location { get; }
 
     private protected override TextLocation _returnTypeLocation => GetSyntax().returnType.location;
 

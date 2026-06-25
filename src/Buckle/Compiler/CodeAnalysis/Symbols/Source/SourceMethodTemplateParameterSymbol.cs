@@ -37,17 +37,17 @@ internal sealed class SourceMethodTemplateParameterSymbol : SourceTemplateParame
         }
     }
 
-    internal override bool hasPrimitiveTypeConstraint {
+    internal override bool hasValueTypeConstraint {
         get {
             var constraints = GetConstraintKinds();
-            return (constraints & TypeParameterConstraintKinds.Primitive) != 0;
+            return (constraints & TypeParameterConstraintKinds.ValueType) != 0;
         }
     }
 
-    internal override bool hasObjectTypeConstraint {
+    internal override bool hasReferenceTypeConstraint {
         get {
             var constraints = GetConstraintKinds();
-            return (constraints & TypeParameterConstraintKinds.Object) != 0;
+            return (constraints & TypeParameterConstraintKinds.ReferenceType) != 0;
         }
     }
 
@@ -68,14 +68,14 @@ internal sealed class SourceMethodTemplateParameterSymbol : SourceTemplateParame
     internal override bool isValueTypeFromConstraintTypes {
         get {
             var constraints = GetConstraintKinds();
-            return (constraints & TypeParameterConstraintKinds.Primitive) != 0;
+            return (constraints & TypeParameterConstraintKinds.ValueType) != 0;
         }
     }
 
     internal override bool isReferenceTypeFromConstraintTypes {
         get {
             var constraints = GetConstraintKinds();
-            return (constraints & TypeParameterConstraintKinds.Object) != 0;
+            return (constraints & TypeParameterConstraintKinds.ReferenceType) != 0;
         }
     }
 

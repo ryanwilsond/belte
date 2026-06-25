@@ -86,8 +86,9 @@ public static class Program {
                 return;
             }
 
-            var buffer = new Buffer();
-            if (recv(client, buffer.buffer, 1024, 0) <= 0) {
+            uint8 buffer[1024];
+
+            if (recv(client, buffer, 1024, 0) <= 0) {
                 _ = closesocket(client);
                 return;
             }
@@ -98,10 +99,6 @@ public static class Program {
             Console.PrintLine("Sent message");
         }
     }
-}
-
-public struct Buffer {
-    public uint8 buffer[1024];
 }
 
 public struct in_addr {

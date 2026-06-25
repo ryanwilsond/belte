@@ -17,9 +17,8 @@ internal sealed class SourceDestructorSymbol : SourceMemberMethodSymbol {
         : base(
             containingType,
             new SyntaxReference(syntax),
+            syntax.destructorKeyword.location,
             MakeModifiersAndFlags(containingType, syntax, diagnostics, out _)) {
-        location = syntax.destructorKeyword.location;
-
         if (containingType.isStatic)
             diagnostics.Push(Error.DestructorInStaticClass(location));
     }
@@ -42,8 +41,6 @@ internal sealed class SourceDestructorSymbol : SourceMemberMethodSymbol {
             return _lazyReturnType;
         }
     }
-
-    internal override TextLocation location { get; }
 
     internal override ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes() {
         return [];

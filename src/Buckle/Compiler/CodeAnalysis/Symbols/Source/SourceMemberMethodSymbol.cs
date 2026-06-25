@@ -19,9 +19,11 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol, I
     private protected SourceMemberMethodSymbol(
         NamedTypeSymbol containingType,
         SyntaxReference syntaxReference,
+        TextLocation location,
         (DeclarationModifiers modifiers, Flags flags) modifiersAndFlags)
         : base(syntaxReference) {
         this.containingType = containingType;
+        this.location = location;
         _modifiers = modifiersAndFlags.modifiers;
         _flags = modifiersAndFlags.flags;
     }
@@ -36,6 +38,8 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol, I
     public sealed override MethodKind methodKind => _flags.methodKind;
 
     public sealed override RefKind refKind => _flags.refKind;
+
+    internal sealed override TextLocation location { get; }
 
     internal sealed override OverriddenOrHiddenMembersResult overriddenOrHiddenMembers {
         get {

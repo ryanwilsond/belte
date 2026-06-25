@@ -627,9 +627,9 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_CircularConstraint, location, message);
     }
 
-    internal static BelteDiagnostic TemplateObjectBaseWithPrimitiveBase(TextLocation location, string parameter1, string parameter2) {
+    internal static BelteDiagnostic TemplateObjectBaseWithValueTypeBase(TextLocation location, string parameter1, string parameter2) {
         var message = $"template parameter '{parameter1}' cannot be used as a constraint for template parameter '{parameter2}'";
-        return CreateError(DiagnosticCode.ERR_TemplateObjectBaseWithPrimitiveBase, location, message);
+        return CreateError(DiagnosticCode.ERR_TemplateObjectBaseWithValueTypeBase, location, message);
     }
 
     internal static BelteDiagnostic TemplateBaseConstraintConflict(TextLocation location, string parameter, TypeSymbol base1, TypeSymbol base2) {
@@ -637,9 +637,9 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_TemplateBaseConstraintConflict, location, message);
     }
 
-    internal static BelteDiagnostic TemplateBaseBothObjectAndPrimitive(TextLocation location, string parameter) {
-        var message = $"template parameter '{parameter}' cannot be constrained as both an object type and a primitive type";
-        return CreateError(DiagnosticCode.ERR_TemplateBaseBothObjectAndPrimitive, location, message);
+    internal static BelteDiagnostic TemplateBaseBothReferenceAndValueType(TextLocation location, string parameter) {
+        var message = $"template parameter '{parameter}' cannot be constrained as both a reference type and a value type";
+        return CreateError(DiagnosticCode.ERR_TemplateBaseBothReferenceAndValueType, location, message);
     }
 
     internal static BelteDiagnostic MemberNameSameAsType(TextLocation location, string name) {
@@ -1342,9 +1342,8 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic BadAbstractUnaryOperatorSignature(TextLocation location) {
-        throw Utilities.ExceptionUtilities.Unreachable();
-        // var message = $"the parameter of a unary operator must be the containing type, or its type parameter constrained to it";
-        // return CreateError(DiagnosticCode.ERR_BadAbstractUnaryOperatorSignature, location, message);
+        var message = $"the parameter of a unary operator must be the containing type, or its type template parameter constrained to it";
+        return CreateError(DiagnosticCode.ERR_BadAbstractUnaryOperatorSignature, location, message);
     }
 
     internal static BelteDiagnostic BadShiftOperatorSignature(TextLocation location) {
@@ -1353,9 +1352,8 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic BadAbstractShiftOperatorSignature(TextLocation location) {
-        throw Utilities.ExceptionUtilities.Unreachable();
-        // var message = $"the first operand of an overloaded shift operator must have the same type as the containing type or its type parameter constrained to it";
-        // return CreateError(DiagnosticCode.ERR_BadAbstractShiftOperatorSignature, location, message);
+        var message = $"the first operand of an overloaded shift operator must have the same type as the containing type or its type template parameter constrained to it";
+        return CreateError(DiagnosticCode.ERR_BadAbstractShiftOperatorSignature, location, message);
     }
 
     internal static BelteDiagnostic BadBinaryOperatorSignature(TextLocation location) {
@@ -1364,15 +1362,13 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic BadAbstractBinaryOperatorSignature(TextLocation location) {
-        throw Utilities.ExceptionUtilities.Unreachable();
-        // var message = $"one of the parameters of a binary operator must be the containing type, or its type parameter constrained to it";
-        // return CreateError(DiagnosticCode.ERR_BadAbstractBinaryOperatorSignature, location, message);
+        var message = $"one of the parameters of a binary operator must be the containing type, or its type template parameter constrained to it";
+        return CreateError(DiagnosticCode.ERR_BadAbstractBinaryOperatorSignature, location, message);
     }
 
     internal static BelteDiagnostic BadAbstractEqualityOperatorSignature(TextLocation location, TypeSymbol type) {
-        throw Utilities.ExceptionUtilities.Unreachable();
-        // var message = $"one of the parameters of an equality, or inequality operator declared in interface '{type}' must be a type parameter on '{type}' constrained to '{type}'";
-        // return CreateError(DiagnosticCode.ERR_BadAbstractEqualityOperatorSignature, location, message);
+        var message = $"one of the parameters of an equality, or inequality operator declared in interface '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' must be a type template parameter on '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' constrained to '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        return CreateError(DiagnosticCode.ERR_BadAbstractEqualityOperatorSignature, location, message);
     }
 
     internal static BelteDiagnostic BadIncrementOperatorSignature(TextLocation location) {
@@ -1381,9 +1377,8 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic BadAbstractIncrementOperatorSignature(TextLocation location) {
-        throw Utilities.ExceptionUtilities.Unreachable();
-        // var message = $"the parameter type for ++ or -- operator must be the containing type, or its type parameter constrained to it";
-        // return CreateError(DiagnosticCode.ERR_BadAbstractIncrementOperatorSignature, location, message);
+        var message = $"the parameter type for ++ or -- operator must be the containing type, or its type template parameter constrained to it";
+        return CreateError(DiagnosticCode.ERR_BadAbstractIncrementOperatorSignature, location, message);
     }
 
     internal static BelteDiagnostic BadIncrementReturnType(TextLocation location) {
@@ -1397,9 +1392,8 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic BadAbstractIncrementReturnType(TextLocation location) {
-        throw Utilities.ExceptionUtilities.Unreachable();
-        // var message = $"the return type for ++ or -- operator must either match the parameter type, or be derived from the parameter type, or be the containing type's type parameter constrained to it unless the parameter type is a different type parameter";
-        // return CreateError(DiagnosticCode.ERR_BadAbstractIncrementReturnType, location, message);
+        var message = $"the return type for ++ or -- operator must either match the parameter type, or be derived from the parameter type, or be the containing type's type template parameter constrained to it unless the parameter type is a different type template parameter";
+        return CreateError(DiagnosticCode.ERR_BadAbstractIncrementReturnType, location, message);
     }
 
     internal static BelteDiagnostic BadIndexCount(TextLocation location, int rank) {
@@ -1714,20 +1708,24 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_TemplateIsStatic, location, message);
     }
 
-    internal static BelteDiagnostic ObjectConstraintFailed(TextLocation location, Symbol constructed, string parameter, TypeSymbol type) {
-        var message = $"the type '{type}' must be an object type in order to use it as parameter '{parameter}' in the template type or method '{constructed.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
-        return CreateError(DiagnosticCode.ERR_ObjectConstraintFailed, location, message);
+    internal static BelteDiagnostic ReferenceTypeConstraintFailed(TextLocation location, Symbol constructed, string parameter, TypeSymbol type) {
+        var message = $"the type '{type}' must be a reference type in order to use it as parameter '{parameter}' in the template type or method '{constructed.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        return CreateError(DiagnosticCode.ERR_ReferenceTypeConstraintFailed, location, message);
     }
 
-    internal static BelteDiagnostic PrimitiveConstraintFailed(TextLocation location, Symbol constructed, string parameter, TypeSymbol type) {
-        var message = $"the type '{type}' must be a primitive type in order to use it as parameter '{parameter}' in the template type or method '{constructed.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
-        return CreateError(DiagnosticCode.ERR_PrimitiveConstraintFailed, location, message);
+    internal static BelteDiagnostic ValueTypeConstraintFailed(TextLocation location, Symbol constructed, string parameter, TypeSymbol type) {
+        var message = $"the type '{type}' must be a value type in order to use it as parameter '{parameter}' in the template type or method '{constructed.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        return CreateError(DiagnosticCode.ERR_ValueConstraintFailed, location, message);
+    }
+
+    internal static BelteDiagnostic DefaultConstraintFailed(TextLocation location, Symbol constructed, string parameter, TypeSymbol type) {
+        var message = $"the type '{type}' must have a default value in order to use it as parameter '{parameter}' in the template type or method '{constructed.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        return CreateError(DiagnosticCode.ERR_DefaultConstraintFailed, location, message);
     }
 
     internal static BelteDiagnostic NotNullableConstraintFailed(TextLocation location, Symbol constructed, string parameter, TypeSymbol type) {
-        throw Utilities.ExceptionUtilities.Unreachable();
-        // var message = $"the type '{type}' must be a non-nullable type in order to use it as parameter '{parameter}' in the template type or method '{constructed.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
-        // return CreateError(DiagnosticCode.ERR_NotNullableConstraintFailed, location, message);
+        var message = $"the type '{type}' must be a non-nullable type in order to use it as parameter '{parameter}' in the template type or method '{constructed.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        return CreateError(DiagnosticCode.ERR_NotNullableConstraintFailed, location, message);
     }
 
     internal static BelteDiagnostic DuplicateConstraint(TextLocation location, string parameter) {

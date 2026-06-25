@@ -29,8 +29,6 @@ internal sealed class SourceUserDefinedConversionSymbol : SourceUserDefinedOpera
             ReportDefaultInterfaceImplementation(location, syntax.body is not null, diagnostics);
     }
 
-    internal override TextLocation location => GetSyntax().operatorKeyword.location;
-
     private protected override TextLocation _returnTypeLocation => GetSyntax().type.location;
 
     internal static SourceUserDefinedConversionSymbol CreateUserDefinedConversionSymbol(

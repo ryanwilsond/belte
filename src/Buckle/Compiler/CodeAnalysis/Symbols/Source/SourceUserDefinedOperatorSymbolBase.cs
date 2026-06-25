@@ -26,6 +26,7 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
         : base(
             containingType,
             new SyntaxReference(syntax),
+            location,
             (modifiers, new Flags(methodKind, refKind, modifiers, false, false, hasAnyBody, false))
         ) {
         _fieldExplicitInterfaceType = explicitInterfaceType;
@@ -147,7 +148,7 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
                 break;
             case WellKnownMemberNames.EqualityOperatorName:
             case WellKnownMemberNames.InequalityOperatorName:
-                if (isAbstract || isVirtual)
+                if (IsInInterfaceAndAbstractOrVirtual())
                     CheckAbstractEqualitySignature(diagnostics);
                 else
                     CheckBinarySignature(diagnostics);
@@ -488,6 +489,25 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
             diagnostics,
             out _
         );
+
+        if (inInterface) {
+            if ((result & (DeclarationModifiers.Abstract | DeclarationModifiers.Virtual | DeclarationModifiers.Sealed)) != 0) {
+                if ((result & DeclarationModifiers.Sealed) != 0 &&
+                    (result & (DeclarationModifiers.Abstract | DeclarationModifiers.Virtual)) != 0) {
+                    diagnostics.Push(Error.InvalidModifier(
+                        location,
+                        ModifierHelpers.ConvertSingleModifierToSyntaxText(DeclarationModifiers.Sealed)
+                    ));
+                }
+
+                result &= ~DeclarationModifiers.Sealed;
+            }
+        }
+
+        if (isExplicitInterfaceImplementation) {
+            if ((result & DeclarationModifiers.Abstract) != 0)
+                result |= DeclarationModifiers.Sealed;
+        }
 
         return result;
     }

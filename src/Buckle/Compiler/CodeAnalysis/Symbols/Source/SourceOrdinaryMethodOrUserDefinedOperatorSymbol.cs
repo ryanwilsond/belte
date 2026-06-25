@@ -13,8 +13,9 @@ internal abstract class SourceOrdinaryMethodOrUserDefinedOperatorSymbol : Source
     private protected SourceOrdinaryMethodOrUserDefinedOperatorSymbol(
         NamedTypeSymbol containingType,
         SyntaxReference syntaxReference,
+        TextLocation location,
         (DeclarationModifiers modifiers, Flags flags) modifiersAndFlags)
-        : base(containingType, syntaxReference, modifiersAndFlags) { }
+        : base(containingType, syntaxReference, location, modifiersAndFlags) { }
 
     public sealed override bool returnsVoid {
         get {

@@ -210,7 +210,6 @@ public static class SyntaxFacts {
             "as" => SyntaxKind.AsKeyword,
             "where" => SyntaxKind.WhereKeyword,
             "throw" => SyntaxKind.ThrowKeyword,
-            "primitive" => SyntaxKind.PrimitiveKeyword,
             "notnull" => SyntaxKind.NotnullKeyword,
             "using" => SyntaxKind.UsingKeyword,
             "namespace" => SyntaxKind.NamespaceKeyword,
@@ -273,7 +272,6 @@ public static class SyntaxFacts {
             case SyntaxKind.NoVerifyKeyword:
             case SyntaxKind.OperatorKeyword:
             case SyntaxKind.PackedKeyword:
-            case SyntaxKind.PrimitiveKeyword:
             case SyntaxKind.StateKeyword:
             case SyntaxKind.UndefKeyword:
                 return true;
@@ -401,7 +399,6 @@ public static class SyntaxFacts {
             SyntaxKind.AsKeyword => "as",
             SyntaxKind.WhereKeyword => "where",
             SyntaxKind.ThrowKeyword => "throw",
-            SyntaxKind.PrimitiveKeyword => "primitive",
             SyntaxKind.NotnullKeyword => "notnull",
             SyntaxKind.UsingKeyword => "using",
             SyntaxKind.NamespaceKeyword => "namespace",

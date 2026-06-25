@@ -430,7 +430,7 @@ public sealed class DiagnosticTests {
         var text = @"
             class A {
                 public static implicit operator int?(A a) { return 1; }
-                public static implicit [operator] int?(A a) { return 1; }
+                public static implicit operator [int?](A a) { return 1; }
             }
         ";
 
@@ -1193,7 +1193,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0083_OperatorRefParameter() {
         var text = @"
             class A {
-                public static A [operator]+(ref A a, A b) { return a; }
+                public static A operator[+](ref A a, A b) { return a; }
             }
         ";
 
@@ -1347,7 +1347,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0094_OperatorRefReturn() {
         var text = @"
             class A {
-                public static ref A? [operator]+(A a, A b) { return null; }
+                public static ref A? operator[+](A a, A b) { return null; }
             }
         ";
 
@@ -2015,7 +2015,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0143_OperatorNeedsMatch() {
         var text = @"
             class A {
-                public static bool? [operator]==(A x, A y) {
+                public static bool? operator[==](A x, A y) {
                     return true;
                 }
             }
@@ -2071,9 +2071,9 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0148_TemplateObjectBaseWithPrimitiveBase() {
+    public void Reports_Error_BU0148_TemplateObjectBaseWithValueTypeBase() {
         var text = @"
-            class A<[type T], type T2> where { T2 is primitive; T extends T2; } { }
+            class A<[type T], type T2> where { T2 is struct; T extends T2; } { }
         ";
 
         var diagnostics = @"
@@ -2084,7 +2084,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0149_TemplateObjectBaseWithPrimitiveBase() {
+    public void Reports_Error_BU0149_TemplateBaseConstraintConflict() {
         var text = @"
             class B { }
             class C { }
@@ -2098,19 +2098,18 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! TODO See comment on ObjectConstraintFailed
-    // [Fact]
-    // public void Reports_Error_BU0150_TemplateBaseBothObjectAndPrimitive() {
-    //     var text = @"
-    //         class A<[type T]> where { T is primitive; T extends Object; } { }
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0150_TemplateBaseBothReferenceAndValueType() {
+        var text = @"
+            class A<[type T]> where { T is struct; T is class; } { }
+        ";
 
-    //     var diagnostics = @"
-    //         template parameter 'T' cannot be constrained as both an object type and a primitive type
-    //     ";
+        var diagnostics = @"
+            template parameter 'T' cannot be constrained as both a reference type and a value type
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0151_MemberNameSameAsType() {
@@ -2218,7 +2217,7 @@ public sealed class DiagnosticTests {
         var text = @"
             class A {
                 private class B { }
-                public static B? [operator]+(A a, A b) { return null; }
+                public static B? operator[+](A a, A b) { return null; }
             }
         ";
 
@@ -2250,7 +2249,7 @@ public sealed class DiagnosticTests {
         var text = @"
             class A {
                 private class B { }
-                public static A? [operator]+(B b, A a) { return null; }
+                public static A? operator[+](B b, A a) { return null; }
             }
         ";
 
@@ -3124,7 +3123,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0233_RefReturnMustHaveIdentityConversion() {
         var text = @"
             class A {
-                public static ref A [operator]+(A a, A b) { return [null]; }
+                public static ref A operator[+](A a, A b) { return [null]; }
             }
         ";
 
@@ -3760,7 +3759,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0292_OperatorCantReturnVoid() {
         var text = @"
             class A {
-                public static void [operator]+(A a, A b) { }
+                public static void operator[+](A a, A b) { }
             }
         ";
 
@@ -3775,7 +3774,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0293_BadUnaryOperatorSignature() {
         var text = @"
             class A {
-                public static A? [operator]+(int a) { return null; }
+                public static A? operator[+](int a) { return null; }
             }
         ";
 
@@ -3786,14 +3785,27 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0294_BadAbstractUnaryOperatorSignature
-    // Abstract operators not implements yet
+    [Fact]
+    public void Reports_Error_BU0294_BadAbstractUnaryOperatorSignature() {
+        var text = @"
+            interface A {
+                static abstract A operator[+](int a);
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            the parameter of a unary operator must be the containing type, or its type template parameter constrained to it
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0295_BadShiftOperatorSignature() {
         var text = @"
             class A {
-                public static A? [operator]<<(int? a, int? b) { return null; }
+                public static A? operator[<<](int? a, int? b) { return null; }
             }
         ";
 
@@ -3804,14 +3816,27 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0296_BadAbstractShiftOperatorSignature
-    // Abstract operators not implements yet
+    [Fact]
+    public void Reports_Error_BU0296_BadAbstractShiftOperatorSignature() {
+        var text = @"
+            interface A {
+                static abstract A operator[<<](int? a, int? b);
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            the first operand of an overloaded shift operator must have the same type as the containing type or its type template parameter constrained to it
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0297_BadBinaryOperatorSignature() {
         var text = @"
             class A {
-                public static A? [operator]+(int? a, int? b) { return null; }
+                public static A? operator[+](int? a, int? b) { return null; }
             }
         ";
 
@@ -3822,17 +3847,45 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0298_BadAbstractBinaryOperatorSignature
-    // Abstract operators not implements yet
+    [Fact]
+    public void Reports_Error_BU0298_BadAbstractBinaryOperatorSignature() {
+        var text = @"
+            interface A {
+                static abstract A operator[+](int? a, int? b);
+            }
+            ;
+        ";
 
-    // ! Error_BU0299_BadAbstractEqualityOperatorSignature
-    // Abstract operators not implements yet
+        var diagnostics = @"
+            one of the parameters of a binary operator must be the containing type, or its type template parameter constrained to it
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0299_BadAbstractEqualityOperatorSignature() {
+        var text = @"
+            interface A {
+                static abstract bool operator[==](A left, A right);
+                static abstract bool operator[!=](A left, A right);
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            one of the parameters of an equality, or inequality operator declared in interface 'A' must be a type template parameter on 'A' constrained to 'A'
+            one of the parameters of an equality, or inequality operator declared in interface 'A' must be a type template parameter on 'A' constrained to 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0300_BadIncrementOperatorSignature() {
         var text = @"
             class A {
-                public static A? [operator]++(int? a) { return null; }
+                public static A? operator[++](int? a) { return null; }
             }
         ";
 
@@ -3843,14 +3896,27 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0301_BadAbstractIncrementOperatorSignature
-    // Abstract operators not implements yet
+    [Fact]
+    public void Reports_Error_BU0301_BadAbstractIncrementOperatorSignature() {
+        var text = @"
+            interface A {
+                static abstract A? operator[++](int? a);
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            the parameter type for ++ or -- operator must be the containing type, or its type template parameter constrained to it
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0302_BadIncrementReturnType() {
         var text = @"
             class A {
-                public static int? [operator]++(A a) { return null; }
+                public static int? operator[++](A a) { return null; }
             }
         ";
 
@@ -3861,8 +3927,21 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0303_BadAbstractIncrementReturnType
-    // Abstract operators not implements yet
+    [Fact]
+    public void Reports_Error_BU0303_BadAbstractIncrementReturnType() {
+        var text = @"
+            interface A {
+                static abstract int? operator[++](A a);
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            the return type for ++ or -- operator must either match the parameter type, or be derived from the parameter type, or be the containing type's type template parameter constrained to it unless the parameter type is a different type template parameter
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0304_BadIndexCount() {
@@ -4194,37 +4273,47 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! TODO int -> ValueType -> Object so technically we can't use this diagnostic
-    // [Fact]
-    // public void Reports_Error_BU0330_ObjectConstraintFailed() {
-    //     var text = @"
-    //         class A<type T> where { T extends Object; } {}
-    //         var a = new [A<int?>]();
-    //     ";
-
-    //     var diagnostics = @"
-    //         the type 'int?' must be an object type in order to use it as parameter 'T' in the template type or method 'A<type! T>'
-    //     ";
-
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
-
     [Fact]
-    public void Reports_Error_BU0331_PrimitiveConstraintFailed() {
+    public void Reports_Error_BU0330_ReferenceTypeConstraintFailed() {
         var text = @"
-            class A<type T> where { T is primitive; } {}
-            var a = new [A<Object>]();
+            class A<type T> where { T is class; } {}
+            var a = new [A<int>]();
         ";
 
         var diagnostics = @"
-            the type 'Object!' must be a primitive type in order to use it as parameter 'T' in the template type or method 'A<type! T>'
+            the type 'int!' must be a reference type in order to use it as parameter 'T' in the template type or method 'A<type! T>'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0332_NotNullableConstraintFailed
-    // Not implemented currently
+    [Fact]
+    public void Reports_Error_BU0331_ValueTypeConstraintFailed() {
+        var text = @"
+            class A<type T> where { T is struct; } {}
+            var a = new [A<Object>]();
+        ";
+
+        var diagnostics = @"
+            the type 'Object!' must be a value type in order to use it as parameter 'T' in the template type or method 'A<type! T>'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0332_NotNullableConstraintFailed() {
+        var text = @"
+            class A<type T> where { T is notnull; } {}
+            var a = new [A<int?>]();
+        ";
+
+        var diagnostics = @"
+            the type 'int?' must be a non-nullable type in order to use it as parameter 'T' in the template type or method 'A<type! T>'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0333_DuplicateConstraint() {
@@ -5094,7 +5183,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0394_LengthMustReturnInt() {
         var text = @"
             public class A {
-                public static bool? [operator] length(A a) { return true; }
+                public static bool? operator [length](A a) { return true; }
             }
         ";
 
@@ -5109,7 +5198,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0395_IterMustReturnEnumerator() {
         var text = @"
             public class A {
-                public static bool? [operator] iter(A a) { return true; }
+                public static bool? operator [iter](A a) { return true; }
             }
         ";
 
@@ -7236,7 +7325,7 @@ public sealed class DiagnosticTests {
         var text = @"
             interface A { }
             class B {
-                public static implicit [operator] B?(A a) { return null; }
+                public static implicit operator [B?](A a) { return null; }
             }
             ;
         ";
@@ -7248,27 +7337,27 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // !
-    // TODO Haven't added interface operators yet
-    // [Fact]
-    // public void Reports_Error_BU0535_AbstractConversionNotInvolvingContainedType() {
-    //     var text = @"
-    //         interface A { }
+    [Fact]
+    public void Reports_Error_BU0535_AbstractConversionNotInvolvingContainedType() {
+        var text = @"
+            interface A<type T> {
+                static abstract implicit operator [T](int a);
+            }
+            ;
+        ";
 
-    //     ";
+        var diagnostics = @"
+            user-defined conversion in an interface must convert to or from a type template parameter on the enclosing type constrained to the enclosing type
+        ";
 
-    //     var diagnostics = @"
-
-    //     ";
-
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0536_ConversionNotInvolvingContainedType() {
         var text = @"
             class A {
-                public static implicit [operator] int(int a) { return a; }
+                public static implicit operator [int](int a) { return a; }
             }
             ;
         ";
@@ -7284,7 +7373,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0537_IdentityConversion() {
         var text = @"
             class A {
-                public static implicit [operator] A(A a) { return a; }
+                public static implicit operator [A](A a) { return a; }
             }
             ;
         ";
@@ -7300,7 +7389,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0538_ConversionWithBase() {
         var text = @"
             class A {
-                public static implicit [operator] Object(A a) { return a; }
+                public static implicit operator [Object](A a) { return a; }
             }
             ;
         ";
@@ -7317,7 +7406,7 @@ public sealed class DiagnosticTests {
         var text = @"
             class B extends A { }
             class A {
-                public static implicit [operator] B(A a) { return (B)a; }
+                public static implicit operator [B](A a) { return (B)a; }
             }
             ;
         ";
@@ -7440,37 +7529,47 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // !
-    // TODO Haven't added interface operators yet
-    // [Fact]
-    // public void Reports_Error_BU0546_InterfacesCantContainConversionOrEqualityOperators() {
-    //     var text = @"
+    [Fact]
+    public void Reports_Error_BU0546_InterfacesCantContainConversionOrEqualityOperators() {
+        var text = @"
+            interface A {
+                static bool operator [==](A left, A right);
+                static bool operator [!=](A left, A right);
+            }
+            ;
+        ";
 
-    //         ;
-    //     ";
+        var diagnostics = @"
+            conversion, equality, or inequality operators declared in interfaces must be abstract
+            conversion, equality, or inequality operators declared in interfaces must be abstract
+        ";
 
-    //     var diagnostics = @"
-    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
-    //     ";
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+    [Fact]
+    public void Reports_Error_BU0547_ExplicitImplementationOfOperatorsMustBeStatic() {
+        var text = @"
+            interface A<type T> where { T implements A<T>; } {
+                static abstract bool operator ==(T left, T right);
+                static abstract bool operator !=(T left, T right);
+            }
 
-    // !
-    // TODO Haven't added interface operators yet
-    // [Fact]
-    // public void Reports_Error_BU0547_ExplicitImplementationOfOperatorsMustBeStatic() {
-    //     var text = @"
+            class B implements [A<B>] {
+                bool A<B>.operator [[==]] (B left, B right) { return false; }
+                static bool A<B>.operator != (B left, B right) { return false; }
+            }
+            ;
+        ";
 
-    //         ;
-    //     ";
+        var diagnostics = @"
+            'B' does not implement interface member 'A.op_Equality(B!, B!)'
+            'B.A<B>.op_Equality(B!, B!)' in explicit interface declaration is not found among members of the interface that can be implemented
+            explicit implementation of a user-defined operator 'B.A<B>.op_Equality(B!, B!)' must be declared static
+        ";
 
-    //     var diagnostics = @"
-    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
-    //     ";
-
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     // !
     // ? Not sure this is reachable right now
@@ -7809,8 +7908,7 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // !
-    // TODO Haven't added interface operators yet
+    // TODO
     // [Fact]
     // public void Reports_Error_BU0567_CloseUnimplementedInterfaceMemberOperatorMismatch() {
     //     var text = @"
@@ -7883,6 +7981,20 @@ var text = """"""
 
         var diagnostics = @"
             all lines must start with the same whitespace as the closing line of the multiline string; place the closing quotations on a non-isolated line if this is intentional
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0572_DefaultConstraintFailed() {
+        var text = @"
+            class A<type T> where { T has default; } { }
+            var a = new [A<string>]();
+        ";
+
+        var diagnostics = @"
+            the type 'string!' must have a default value in order to use it as parameter 'T' in the template type or method 'A<type! T>'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

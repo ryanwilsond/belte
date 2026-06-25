@@ -178,7 +178,8 @@
   </Node>
   <Node Name="TemplateConstraintClauseSyntax" Base="SyntaxNode">
     <Kind Name="TemplateConstraintClause"/>
-    <Field Name="extendConstraint" Type="TemplateExtendsConstraintClauseSyntax" Optional="true"/>
+    <Field Name="extendsConstraint" Type="TemplateExtendsConstraintClauseSyntax" Optional="true"/>
+    <Field Name="implementsConstraint" Type="TemplateImplementsConstraintClauseSyntax" Optional="true"/>
     <Field Name="isConstraint" Type="TemplateIsConstraintClauseSyntax" Optional="true"/>
     <Field Name="hasConstraint" Type="TemplateHasConstraintClauseSyntax" Optional="true"/>
     <Field Name="expressionConstraint" Type="ExpressionStatementSyntax" Optional="true"/>
@@ -192,6 +193,19 @@
       <Kind Name="ExtendsKeyword"/>
     </Field>
     <Field Name="type" Type="SimpleNameSyntax"/>
+    <Field Name="semicolon" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
+    </Field>
+  </Node>
+  <Node Name="TemplateImplementsConstraintClauseSyntax" Base="SyntaxNode">
+    <Kind Name="TemplateImplementsConstraintClause"/>
+    <Field Name="name" Type="IdentifierNameSyntax">
+      <Kind Name="IdentifierName"/>
+    </Field>
+    <Field Name="implementsKeyword" Type="SyntaxToken">
+      <Kind Name="ImplementsKeyword"/>
+    </Field>
+    <Field Name="types" Type="SeparatedSyntaxList&lt;SimpleNameSyntax&gt;"/>
     <Field Name="semicolon" Type="SyntaxToken">
       <Kind Name="SemicolonToken"/>
     </Field>
@@ -582,7 +596,10 @@
     <Field Name="implicitKeyword" Type="SyntaxToken" Optional="true">
       <Kind Name="ImplicitKeyword"/>
     </Field>
-    <Field Name="body" Type="BlockStatementSyntax"/>
+    <Field Name="body" Type="BlockStatementSyntax" Optional="true"/>
+    <Field Name="semicolon" Type="SyntaxToken" Optional="true">
+      <Kind Name="SemicolonToken"/>
+    </Field>
   </AbstractNode>
   <Node Name="VariableDeclarationSyntax" Base="SyntaxNode">
     <Kind Name="VariableDeclaration"/>
@@ -786,7 +803,10 @@
       <Kind Name="ImplicitKeyword"/>
     </Field>
     <Field Name="constructorInitializer" Type="ConstructorInitializerSyntax" Optional="true"/>
-    <Field Name="body" Type="BlockStatementSyntax" Override="true"/>
+    <Field Name="body" Type="BlockStatementSyntax" Override="true" Optional="true"/>
+    <Field Name="semicolon" Type="SyntaxToken" Override="true" Optional="true">
+      <Kind Name="SemicolonToken"/>
+    </Field>
   </Node>
   <Node Name="DestructorDeclarationSyntax" Base="BaseMethodDeclarationSyntax">
     <Kind Name="DestructorDeclaration"/>
@@ -799,7 +819,10 @@
     <Field Name="implicitKeyword" Type="SyntaxToken" Optional="true" Override="true">
       <Kind Name="ImplicitKeyword"/>
     </Field>
-    <Field Name="body" Type="BlockStatementSyntax" Override="true"/>
+    <Field Name="body" Type="BlockStatementSyntax" Override="true" Optional="true"/>
+    <Field Name="semicolon" Type="SyntaxToken" Override="true" Optional="true">
+      <Kind Name="SemicolonToken"/>
+    </Field>
   </Node>
   <Node Name="FinalizerDeclarationSyntax" Base="BaseMethodDeclarationSyntax">
     <Kind Name="FinalizerDeclaration"/>
@@ -812,7 +835,10 @@
     <Field Name="implicitKeyword" Type="SyntaxToken" Optional="true" Override="true">
       <Kind Name="ImplicitKeyword"/>
     </Field>
-    <Field Name="body" Type="BlockStatementSyntax" Override="true"/>
+    <Field Name="body" Type="BlockStatementSyntax" Override="true" Optional="true"/>
+    <Field Name="semicolon" Type="SyntaxToken" Override="true" Optional="true">
+      <Kind Name="SemicolonToken"/>
+    </Field>
   </Node>
   <Node Name="FieldDeclarationSyntax" Base="MemberDeclarationSyntax">
     <Kind Name="FieldDeclaration"/>
@@ -847,7 +873,7 @@
     <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Optional="true"/>
     <Field Name="initConstraintClauseSyntax" Type="InitConstraintClauseSyntax" Optional="true"/>
     <Field Name="body" Type="BlockStatementSyntax" Override="true" Optional="true"/>
-    <Field Name="semicolon" Type="SyntaxToken" Optional="true">
+    <Field Name="semicolon" Type="SyntaxToken" Override="true" Optional="true">
       <Kind Name="SemicolonToken"/>
     </Field>
     <Field Name="stateClause" Type="StateClauseSyntax" Optional="true"/>
@@ -911,7 +937,10 @@
     <Field Name="implicitKeyword" Type="SyntaxToken" Optional="true" Override="true">
       <Kind Name="ImplicitKeyword"/>
     </Field>
-    <Field Name="body" Type="BlockStatementSyntax" Override="true"/>
+    <Field Name="body" Type="BlockStatementSyntax" Override="true" Optional="true"/>
+    <Field Name="semicolon" Type="SyntaxToken" Override="true" Optional="true">
+      <Kind Name="SemicolonToken"/>
+    </Field>
   </Node>
   <Node Name="OperatorDeclarationSyntax" Base="BaseMethodDeclarationSyntax">
     <Kind Name="OperatorDeclaration"/>
@@ -928,7 +957,10 @@
     <Field Name="implicitKeyword" Type="SyntaxToken" Optional="true" Override="true">
       <Kind Name="ImplicitKeyword"/>
     </Field>
-    <Field Name="body" Type="BlockStatementSyntax" Override="true"/>
+    <Field Name="body" Type="BlockStatementSyntax" Override="true" Optional="true"/>
+    <Field Name="semicolon" Type="SyntaxToken" Override="true" Optional="true">
+      <Kind Name="SemicolonToken"/>
+    </Field>
   </Node>
   <Node Name="LiteralOperatorDeclarationSyntax" Base="BaseMethodDeclarationSyntax">
     <Kind Name="LiteralOperatorDeclaration"/>
@@ -945,7 +977,10 @@
     <Field Name="implicitKeyword" Type="SyntaxToken" Optional="true" Override="true">
       <Kind Name="ImplicitKeyword"/>
     </Field>
-    <Field Name="body" Type="BlockStatementSyntax" Override="true"/>
+    <Field Name="body" Type="BlockStatementSyntax" Override="true" Optional="true"/>
+    <Field Name="semicolon" Type="SyntaxToken" Override="true" Optional="true">
+      <Kind Name="SemicolonToken"/>
+    </Field>
   </Node>
   <!-- Statements -->
   <AbstractNode Name="StatementSyntax" Base="SyntaxNode"/>

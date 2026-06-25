@@ -304,11 +304,13 @@ internal partial class Binder {
                 continue;
             }
 
-            var name = clause.extendConstraint is not null
-                ? clause.extendConstraint.name.identifier
-                : clause.isConstraint is not null
-                    ? clause.isConstraint.name.identifier
-                    : clause.hasConstraint.name.identifier;
+            var name = clause.extendsConstraint is not null
+                ? clause.extendsConstraint.name.identifier
+                : clause.implementsConstraint is not null
+                    ? clause.implementsConstraint.name.identifier
+                    : clause.isConstraint is not null
+                        ? clause.isConstraint.name.identifier
+                        : clause.hasConstraint.name.identifier;
 
             if (names.TryGetValue(name.valueText, out var ordinal)) {
                 if (syntaxNodes[ordinal] is null)
@@ -419,19 +421,29 @@ internal partial class Binder {
         for (int i = 0, n = constraintsSyntax.Count; i < n; i++) {
             var syntax = constraintsSyntax[i];
 
-            if (syntax.extendConstraint is not null) {
-                var typeSyntax = syntax.extendConstraint.type;
+            if (syntax.extendsConstraint is not null) {
+                var typeSyntax = syntax.extendsConstraint.type;
                 var type = BindType(typeSyntax, diagnostics, basesBeingResolved);
+                constraintTypes.Add(new TypeWithAnnotations(type.nullableUnderlyingTypeOrSelf));
+            } else if (syntax.implementsConstraint is not null) {
+                var typesSyntax = syntax.implementsConstraint.types;
 
-                if (type.type.StrippedType().specialType.IsPrimitiveType())
-                    diagnostics.Push(Error.CannotDerivePrimitive(typeSyntax.location, type.type.StrippedType()));
-                else
+                foreach (var typeSyntax in typesSyntax) {
+                    var type = BindType(typeSyntax, diagnostics, basesBeingResolved);
                     constraintTypes.Add(new TypeWithAnnotations(type.nullableUnderlyingTypeOrSelf));
+                }
             } else if (syntax.isConstraint is not null) {
                 switch (syntax.isConstraint.keyword.kind) {
-                    case SyntaxKind.PrimitiveKeyword:
-                        if ((constraints & TypeParameterConstraintKinds.Primitive) == 0)
-                            constraints |= TypeParameterConstraintKinds.Primitive;
+                    case SyntaxKind.StructKeyword:
+                        if ((constraints & TypeParameterConstraintKinds.ValueType) == 0)
+                            constraints |= TypeParameterConstraintKinds.ValueType;
+                        else
+                            diagnostics.Push(Error.DuplicateConstraint(syntax.location, templateParameter.name));
+
+                        continue;
+                    case SyntaxKind.ClassKeyword:
+                        if ((constraints & TypeParameterConstraintKinds.ReferenceType) == 0)
+                            constraints |= TypeParameterConstraintKinds.ReferenceType;
                         else
                             diagnostics.Push(Error.DuplicateConstraint(syntax.location, templateParameter.name));
 
@@ -1366,7 +1378,8 @@ internal partial class Binder {
         type = type.Construct(templateArguments);
 
         if (!flags.Includes(BinderFlags.SuppressConstraintChecks) && ConstraintsHelpers.RequiresChecking(type))
-            type.CheckConstraintsForNamedType(typeSyntax.location, diagnostics, typeSyntax);
+            // CheckConstraintsForNamedType should report any relevant diagnostics
+            _ = type.CheckConstraintsForNamedType(typeSyntax.location, diagnostics, typeSyntax, basesBeingResolved);
 
         return type;
     }
@@ -1380,10 +1393,11 @@ internal partial class Binder {
             var argument = arguments[i].typeOrConstant;
             var parameter = parameters[i];
 
-            if (parameter.hasNotNullConstraint)
-                builder.Add(new TypeOrConstant(argument.type.type.StrippedType()));
-            else
-                builder.Add(argument);
+            // TODO This is already caught in constraint checking so why is this here?
+            // if (parameter.hasNotNullConstraint)
+            //     builder.Add(new TypeOrConstant(argument.type.type.StrippedType()));
+            // else
+            builder.Add(argument);
         }
 
         return builder.ToImmutableAndFree();

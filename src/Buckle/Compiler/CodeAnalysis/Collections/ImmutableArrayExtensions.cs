@@ -67,6 +67,39 @@ internal static class ImmutableArrayExtensions {
         return sum;
     }
 
+    internal static bool HasDuplicates<T>(this ImmutableArray<T> array, IEqualityComparer<T> comparer) {
+        return array.HasDuplicates(static x => x, comparer);
+    }
+
+    internal static bool HasDuplicates<TItem, TValue>(
+        this ImmutableArray<TItem> array,
+        Func<TItem, TValue> selector,
+        IEqualityComparer<TValue> comparer) {
+        switch (array.Length) {
+            case 0:
+            case 1:
+                return false;
+            case 2:
+                return comparer.Equals(selector(array[0]), selector(array[1]));
+            default:
+                var set = comparer == EqualityComparer<TValue>.Default
+                    ? PooledHashSet<TValue>.GetInstance()
+                    : new HashSet<TValue>(comparer);
+
+                var result = false;
+
+                foreach (var element in array) {
+                    if (!set.Add(selector(element))) {
+                        result = true;
+                        break;
+                    }
+                }
+
+                (set as PooledHashSet<TValue>)?.Free();
+                return result;
+        }
+    }
+
     internal static Dictionary<K, ImmutableArray<T>> ToDictionary<K, T>(
         this ImmutableArray<T> items,
         Func<T, K> keySelector,

@@ -750,18 +750,43 @@ Int<10, 0> // Compile error
 
 The following constraints only apply to type template parameters:
 
-A `T extends Y` constraint ensures template parameter `T` is or derives from `Y`.
+A `T extends C` constraint ensures template parameter `T` is or derives from class `C`.
 
-A `T is primitive` constraint ensures template parameter `T` is a primitive type.
-
-A `T is notnull` constraint constrains the template parameter `T` to being a non-nullable type. Non-nullable annotations
-are disallowed on type template parameters, so this constraint is required for the template class to know the template
-parameter is a non-nullable type.
+A `T implements I` constraint ensures template parameter `T` implements interface `I`. This constraint can include
+multiple interface types, i.e. `T implements I1, I2, I3` ensures template parameter `T` implements interfaces `I1`,
+`I2`, and `I3`.
 
 A `T has default` constraint ensures template parameter `T` has a default value (i.e. can use the
 [`default` literal](Data.md#315-default-literal) on it).
 
 A `T has constructor` constraint ensures template parameter `T` has a parameterless constructor.
+
+A `T is struct` constraint ensures template parameter `T` is a value type (struct or primitive).
+
+A `T is class` constraint ensures template parameter `T` is a reference type (class).
+
+A `T is notnull` constraint constrains the template parameter `T` to being a non-nullable type. Non-nullable annotations
+are disallowed on type template parameters, so this constraint is required for the template class to know the template
+parameter is a non-nullable type.
+
+These constraints can usually be combined, which the exception that a template parameter cannot be constrained to both
+a reference type and a value type, and cannot have conflicting extend constraints. For an example of combining
+constraints:
+
+```belte
+class A<type T> where { T is struct; T has default; T is notnull; } {
+  public static T GetDefault() {
+    return default;
+  }
+}
+
+var s = A<S>.GetDefault();
+Console.PrintLine(s.a); // 0
+
+struct S {
+  int a;
+}
+```
 
 ## 4.6 Enums
 

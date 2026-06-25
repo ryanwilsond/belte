@@ -184,7 +184,7 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
 
     private void CheckConstraintTypeConstraints(BelteDiagnosticQueue diagnostics) {
         if (underlyingType.specialType != SpecialType.Type) {
-            if (hasPrimitiveTypeConstraint || hasNotNullConstraint)
+            if (hasValueTypeConstraint || hasNotNullConstraint)
                 diagnostics.Push(Error.CannotIsCheckNonType(location, name));
 
             if (constraintTypes.Length > 0)
