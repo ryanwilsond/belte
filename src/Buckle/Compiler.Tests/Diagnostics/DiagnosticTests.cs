@@ -8157,7 +8157,7 @@ var text = """"""
     public void Reports_Error_BU0579_MustUseReturnValueAttributeOnVoid() {
         var text = @"
             class A {
-                [\[MustUseReturnValue\]]
+                \[[MustUseReturnValue]\]
                 public static void M() { }
             }
             ;
