@@ -40,5 +40,7 @@ internal abstract class SynthesizedMethodSymbol : MethodSymbol {
 
     internal override bool isDeclaredConst => false;
 
+    internal override bool hasMustUseReturnValueAttribute => false;
+
     internal sealed override bool hasUnscopedRefAttribute => false;
 }

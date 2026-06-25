@@ -5673,38 +5673,40 @@ internal partial class Binder {
         BoundExpression receiver,
         Symbol symbol,
         BelteDiagnosticQueue diagnostics) {
-        // TODO interfaces
-        // if (symbol.containingType?.isInterface == true) {
-        //     if (symbol.isStatic && (symbol.isAbstract || symbol.isVirtual)) {
-        //         if (receiver is not BoundTypeExpression { type: { typeKind: TypeKind.TemplateParameter } }) {
-        //             Error(diagnostics, ErrorCode.ERR_BadAbstractStaticMemberAccess, node);
-        //             return;
-        //         }
-        //     }
+        if (symbol.containingType?.isInterface == true) {
+            if (symbol.isStatic && (symbol.isAbstract || symbol.isVirtual)) {
+                if (receiver is not BoundTypeExpression { type: { typeKind: TypeKind.TemplateParameter } }) {
+                    diagnostics.Push(Error.BadAbstractStaticMemberAccess(node.location));
+                    return;
+                }
+            }
 
-        //     if (receiver is { type: TemplateParameterSymbol { allowsRefLikeType: true } } &&
-        //         IsNotImplementableInstanceMember(symbol)) {
-        //         Error(diagnostics, ErrorCode.ERR_BadNonVirtualInterfaceMemberAccessOnAllowsRefLike, node);
-        //     } else if (!Compilation.Assembly.RuntimeSupportsDefaultInterfaceImplementation && Compilation.SourceModule != symbol.ContainingModule) {
-        //         if (IsNotImplementableInstanceMember(symbol)) {
-        //             Error(diagnostics, ErrorCode.ERR_RuntimeDoesNotSupportDefaultInterfaceImplementation, node);
-        //         } else {
-        //             switch (symbol.DeclaredAccessibility) {
-        //                 case Accessibility.Protected:
-        //                 case Accessibility.ProtectedOrInternal:
-        //                 case Accessibility.ProtectedAndInternal:
+            if (receiver is { type: TemplateParameterSymbol { allowsRefLikeType: true } } &&
+                IsNotImplementableInstanceMember(symbol)) {
+                throw ExceptionUtilities.Unreachable();
+                // Error(diagnostics, ErrorCode.ERR_BadNonVirtualInterfaceMemberAccessOnAllowsRefLike, node);
+            }
+            // TODO We should probably check runtime support instead of assuming the user is using the latest .NET version
+            // else if (!Compilation.Assembly.RuntimeSupportsDefaultInterfaceImplementation && Compilation.SourceModule != symbol.ContainingModule) {
+            //     if (IsNotImplementableInstanceMember(symbol)) {
+            //         Error(diagnostics, ErrorCode.ERR_RuntimeDoesNotSupportDefaultInterfaceImplementation, node);
+            //     } else {
+            //         switch (symbol.DeclaredAccessibility) {
+            //             case Accessibility.Protected:
+            //             case Accessibility.ProtectedOrInternal:
+            //             case Accessibility.ProtectedAndInternal:
 
-        //                     Error(diagnostics, ErrorCode.ERR_RuntimeDoesNotSupportProtectedAccessForInterfaceMember, node);
-        //                     break;
-        //             }
-        //         }
-        //     }
-        // }
+            //                 Error(diagnostics, ErrorCode.ERR_RuntimeDoesNotSupportProtectedAccessForInterfaceMember, node);
+            //                 break;
+            //         }
+            //     }
+            // }
+        }
 
-        // static bool IsNotImplementableInstanceMember(Symbol symbol) {
-        //     return !symbol.isStatic && !(symbol is TypeSymbol) &&
-        //            !symbol.IsImplementableInterfaceMember();
-        // }
+        static bool IsNotImplementableInstanceMember(Symbol symbol) {
+            return !symbol.isStatic && !(symbol is TypeSymbol) &&
+                   !symbol.IsImplementableInterfaceMember();
+        }
     }
 
     private bool InEnumMemberInitializer() {

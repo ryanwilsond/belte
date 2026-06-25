@@ -148,8 +148,12 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
     }
 
     internal override BoundNode VisitExpressionStatement(BoundExpressionStatement node) {
+        // TODO This is the kind of thing that should probably go in DiagnosticPass instead of Lowerer
         if (node.expression is BoundCallExpression call && !call.method.returnsVoid) {
-            _diagnostics.Push(Warning.IgnoringReturnValue(call.syntax.location, call.method));
+            if (call.method.hasMustUseReturnValueAttribute)
+                _diagnostics.Push(Error.IgnoringRequiredReturnValue(call.syntax.location, call.method));
+            else
+                _diagnostics.Push(Warning.IgnoringReturnValue(call.syntax.location, call.method));
         } else if (node.expression is BoundFunctionPointerCallExpression pCall &&
             !pCall.functionPointer.signature.returnsVoid) {
             _diagnostics.Push(Warning.IgnoringReturnValue(pCall.syntax.location, pCall.functionPointer.signature));

@@ -36,6 +36,35 @@ internal static class ImmutableArrayExtensions {
         return ~low;
     }
 
+    internal static bool SetEquals<T>(
+        this ImmutableArray<T> array1,
+        ImmutableArray<T> array2,
+        IEqualityComparer<T> comparer) {
+        if (array1.IsDefault)
+            return array2.IsDefault;
+        else if (array2.IsDefault)
+            return false;
+
+        var count1 = array1.Length;
+        var count2 = array2.Length;
+
+        if (count1 == 0) {
+            return count2 == 0;
+        } else if (count2 == 0) {
+            return false;
+        } else if (count1 == 1 && count2 == 1) {
+            var item1 = array1[0];
+            var item2 = array2[0];
+
+            return comparer.Equals(item1, item2);
+        }
+
+        var set1 = new HashSet<T>(array1, comparer);
+        var set2 = new HashSet<T>(array2, comparer);
+
+        return set1.SetEquals(set2);
+    }
+
     internal static ImmutableArray<T> AsImmutableOrEmpty<T>(this IEnumerable<T> items) {
         if (items is null)
             return [];

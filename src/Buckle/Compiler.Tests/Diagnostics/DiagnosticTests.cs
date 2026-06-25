@@ -7566,6 +7566,7 @@ public sealed class DiagnosticTests {
 
     // !
     // ? Not sure this is reachable right now
+    // ? On second look, I believe this is only reachable in discriminated unions which we don't have an equivalent for
     // [Fact]
     // public void Reports_Error_BU0548_ExplicitInterfaceImplementationInNonClassOrStruct() {
     //     var text = @"
@@ -7688,7 +7689,7 @@ public sealed class DiagnosticTests {
     }
 
     // !
-    // TODO How do we trigger this
+    // ? Unsure how to trigger this
     // [Fact]
     // public void Reports_Error_BU0555_ExplicitImplCollisionOnRefOut() {
     //     var text = @"
@@ -7901,7 +7902,8 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // TODO
+    // !
+    // ? Not sure how to trigger this
     // [Fact]
     // public void Reports_Error_BU0567_CloseUnimplementedInterfaceMemberOperatorMismatch() {
     //     var text = @"
@@ -8113,6 +8115,56 @@ var text = """"""
 
         var diagnostics = @"
             template constraint fails to evaluate ('a! == 3')
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // !
+    // ? We don't support static implemented interface members yet
+    // [Fact]
+    // public void Reports_Error_BU0577_BadAbstractStaticMemberAccess() {
+    //     var text = @"
+    //         class A<int? a> where { a! == 3; } { }
+    //         var a = new [A<null>]();
+    //     ";
+
+    //     var diagnostics = @"
+    //         template constraint fails to evaluate ('a! == 3')
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    [Fact]
+    public void Reports_Error_BU0578_IgnoringRequiredReturnValue() {
+        var text = @"
+            class A {
+                \[MustUseReturnValue\]
+                public static bool M() { return false; }
+            }
+            [A.M()];
+        ";
+
+        var diagnostics = @"
+            ignoring return value of method 'A.M()' with 'MustUseReturnValue' attribute
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0579_MustUseReturnValueAttributeOnVoid() {
+        var text = @"
+            class A {
+                [\[MustUseReturnValue\]]
+                public static void M() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'MustUseReturnValue' can only be applied to methods returning a value
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

@@ -268,6 +268,8 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
         }
     }
 
+    internal override bool hasMustUseReturnValueAttribute => false;
+
     internal sealed override bool hasUnscopedRefAttribute {
         get {
             if (!_packedFlags.isUnscopedRefPopulated) {

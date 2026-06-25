@@ -20,7 +20,13 @@ Currently, the Belte compiler, Buckle, supports interpretation and building to a
   - [1.4.5](#145-implicit-typing) Implicit Typing
   - [1.4.6](#146-null-flow-analysis) Null-Flow Analysis
   - [1.4.7](#147-arrays) Arrays
+  - [1.4.8](#148-nullability-in-depth) Nullability In-Depth
+  - [1.4.9](#149-object-and-valuetype) Object and ValueType
 - [1.5](#15-differences-from-c) Differences from C#
+  - [1.5.1](#151-type-system) Type System
+  - [1.5.2](#152-language-features) Language Features
+  - [1.5.3](#153-metaprogramming) Metaprogramming
+  - [1.5.4](#154-low-level-programming--interop) Low-Level Programming & Interop
 - [1.6](#16-identifiers) Identifiers
 
 ## 1.1 Conventions
@@ -214,9 +220,23 @@ To summarize:
 - `?` adds nullability
 - Pointer types are never nullable
 
-A type is "nullable" when it permits `null`.
+A type is "nullable" when it permits the sentinel value `null`.
+
+A slightly more in-depth explanation of nullability can be found at this [end of the section].
 
 ### 1.4.1 Normal Types
+
+Every type `T` has two variants:
+
+- `T!`: the non-nullable variant.
+- `T?`: the nullable variant.
+
+When a nullability annotation (`!` or `?`) is omitted, the non-nullable variant is assumed:
+
+```belte
+int x = 3; // Equivalent to `int! x = 3;`
+int? y = null;
+```
 
 Classes are reference types meaning they are heap allocated, garbage collected, and not copied when passed.
 
@@ -264,14 +284,6 @@ a = null; // OK
 ```
 
 Most value-types (non-reference-types) are able to made nullable. Pointers and function pointers are not.
-
-In much of the documentation and standard library, redundant annotations are used for clarity. Note that the following
-are identical because `int` defaults to being non-nullable:
-
-```belte
-int a = 3;
-int! a = 3;
-```
 
 ### 1.4.2 Pointers and Function Pointers
 
@@ -481,80 +493,115 @@ A a = buffer[0]; // null
 In the above example, the non-nullable local `a` is given a null value from the buffer. Buffers should only be used when
 performance is critical or working with unconstrained templates.
 
+### 1.4.8 Nullability In-Depth
+
+A type `T` represents a set of possible values that share some common property. Each type `T` has two variants, a
+null-permitting `T?` and a null-forbidding `T!`. `null` is a sentinel value outside of the normal set `{ T1, T2, ... }`,
+meaning `T?` contains the elements `{ T1, T2, ... } ∪ { NULL }`. `{ NULL }` is a set of a single element `null` which is
+a sentinel value that is equal to itself but not equal to any other value. This is notably different than in relational
+theory where null represents an unknown value. When declaring data containers (variables, constants, fields, etc.),
+omitting a nullability annotation `!` or `?` will default to the null-forbidding variant. For example:
+
+```belte
+int a = 3; // Short-hand for `int! a = 3;`
+```
+
+For example, given a set of integer values within a certain range `{ INT }`, the null-forbidding variant `int!` is
+defined as `int = int! = { INT }`, while the null-permitting variant `int?` is defined as `int? = { INT } ∪ { NULL }`.
+
+In most of the language, a variant of a given type will be used instead of the base type. The exception to this is an
+unconstrained type [template parameter](ClassesAndObjects.md#45-templates) which disallows nullable annotations as it
+represents the possibility of both nullable and non-nullable types. Hence given
+`class A<type T>`, `T t = null` and `T t = default` are both not allowed as `T` does not represent either `T!` or `T?`
+specifically.
+
+Unconstrained type template parameters have no defined behavior beyond passing it around and
+calling methods of `Object` on it because all that is known about it is that it ultimately derives from
+[`Object`](#149-object-and-valuetype). Many [non-bounding constraints](ClassesAndObjects.md#4512-special-constraints)
+(that is, a constraint that does not specify that `T` derives from a class or implements an interface) exist to allow
+interacting with a type template parameter, including excluding any null-permitting `T?` with `where { T is notnull; }`.
+
+### 1.4.9 Object and ValueType
+
+Belte uses the same object model as .NET. I.e. all non-pointer types ultimately derive from `Object`. Any type deriving
+from `Object` is a reference type unless it derives `Object` through the type `ValueType` which directly derives
+`Object`. Ordinary struct types and primitives directly derive `ValueType` which in turn derives `Object` meaning they
+are value types. All enum types derive `Enum` which in turn derives `ValueType`.
+
+Interfaces do not explicitly derive from `Object` as they are not concrete types, but interface values are still treated
+as Objects. This means methods of `Object` can be called on an interface receivers.
+
+Pointers are special types that map directly to machine addresses so they do not derive from `Object` or `ValueType`.
+Since .NET generic type parameters (type template parameters) guarantee that they are ultimately derived from `Object`,
+pointer types cannot be used as type template arguments.
+
 ## 1.5 Differences from C\#
 
-Belte is similar enough to C# so that the differences are more notable than the similarities. The following is a list of
-most of the differences to make it more clear where the language is unique with links to relevant doc sections:
+Belte is similar enough to C# so that the differences are more notable than the similarities. The following lists link
+to relevant doc sections.
 
-- [Enforced non-nullable reference types](#14-nullability-and-types)
-- [Extremely flexible meta-programming](LowLevelFeatures.md#613-compiler-handle)
-- [Compile-time expressions](Data.md#37-compile-time-expressions)
-- [Optional build scripts instead of project files](../Build.md)
+To summarize the main differences:
+
+- First-class nullability and stronger initialization guarantees
+- Compile-time metaprogramming
+- Reversible execution
+- First-class low-level programming without unsafe contexts
 - No properties
-- No extension methods (yet)
-- No array covariance
+
+### 1.5.1 Type System
+
+- [First-class uniform nullability across reference and value types](#14-nullability-and-types)
 - [Class fields have no default value](ClassesAndObjects.md#421-fields)
+- [Class field definite assignment guarantees](ClassesAndObjects.md#4211-definite-assignment)
+- [Arrays prevent reading before writing to elements](#147-arrays)
+- [Null-binding contracts](ControlFlow.md#232-null-binding-contracts)
+- No properties
+- [Different generic/template constraints include expression constraints](ClassesAndObjects.md#451-constraint-clauses)
+- [Conditionals accept expressions of type `bool?` instead of `bool`](ControlFlow.md#231-null-conditions)
+- [More expressive implicit typing allowing with `var`, `const`, and `constexpr` and nullable annotations](Data.md#332-implicit-typing)
+- [Enums can have methods](ClassesAndObjects.md#465-methods)
+- [Built-in MustUseReturnValue attribute](ClassesAndObjects.md#411-attributes)
+
+### 1.5.2 Language Features
+
+- [Reversible methods](ClassesAndObjects.md#4222-state-and-reverse-clauses)
+- [Reversible statements](ControlFlow.md#211-reverse-statements)
 - [`defer` statements](ControlFlow.md#28-defer-statements)
 - [`with` expressions and statements](ControlFlow.md#27-with-expressions-and-statements)
 - [Duck-typed `scoped` statements instead of `using` statements](ControlFlow.md#29-scoped-statements)
-- [`destructor` keyword](ControlFlow.md#291-destructors)
 - [User-defined literals](ClassesAndObjects.md#4233-user-defined-literals)
-- [File-scoped classes](ClassesAndObjects.md#411-declaring-and-using-classes)
-- [Reversible methods](ClassesAndObjects.md#4222-state-and-reverse-clauses)
-- [Reversible statements](ControlFlow.md#211-reverse-statements)
-- [Arrays prevent reading before writing to elements](#147-arrays)
-- Primitive types (e.g. `int`) don't have members
-- [`constructor` and `finalizer` keywords](ClassesAndObjects.md#44-constructors-and-finalizers)
-- Types are not reserved names (including primitives)
-- [`unreachable` statements](ControlFlow.md#210-unreachable-statements)
-- [`const` and `final` locals and fields with reference types instead of `readonly`](Data.md#331-modifiers)
+- [Duck-typed `for` "each" loops with index support](ControlFlow.md#244-for-each-loops)
 - [`const` methods](ClassesAndObjects.md#434-const)
 - [`constexpr` locals and fields](ClassesAndObjects.md#433-static-and-constexpr)
+- [File-scoped classes](ClassesAndObjects.md#411-declaring-and-using-classes)
+- [`unreachable` statements](ControlFlow.md#210-unreachable-statements)
 - [First-class `flags` enums](ClassesAndObjects.md#461-flags)
-- [`extends` keyword for base lists](ClassesAndObjects.md#412-inheritance)
-- [Different generic/template constraints include expression constraints](ClassesAndObjects.md#451-constraint-clauses)
-- [Duck-typed `for` "each" loops with index support](ControlFlow.md#244-for-each-loops)
-- [Inline-IL blocks](LowLevelFeatures.md#611-inline-il)
-- [`isnt` instead of `is not`](Data.md#32-operators)
-- [`lowlevel` contexts](LowLevelFeatures.md#61-low-level-contexts)
-- [C++-style `nullptr` literal](LowLevelFeatures.md#651-creating-and-dereferencing-pointers)
 - [`out` parameters don't require assignment](ControlFlow.md#216-ref-arguments)
-- [GC `pinned` locals](LowLevelFeatures.md#612-pinned-locals)
-- No `internal`/`private protected`/`protected internal` accessibilities (yet)
-- [Switch cases don't require `break` statements](ControlFlow.md#25-switch)
-- No catch filter blocks (yet)
-- [Conditionals accept expressions of type `bool?` instead of `bool`](ControlFlow.md#231-null-conditions)
-- [Null-binding contracts](ControlFlow.md#232-null-binding-contracts)
-- Pointers and other low-level features don't require `unsafe` contexts
-- [More concise function and function pointer type syntax](Data.md#314-function-type)
-- [More concise unmanaged function pointer type syntax](LowLevelFeatures.md#66-function-pointers)
-- [More concise calling convention syntax](LowLevelFeatures.md#661-calling-conventions)
-- [Fixed fields don't require a `fixed` keyword](LowLevelFeatures.md#68-fixed-size-buffers)
-- [C-style stackalloc syntax](LowLevelFeatures.md#6101-stackalloc-locals)
-- [Explicitly-named sized numerics (e.g. `uint16`)](LowLevelFeatures.md#64-numerics)
-- [`winbool` type instead of marshalling `bool` as 4-bytes in `extern`s](LowLevelFeatures.md#671-winbool)
-- `bool` marshals as 1 byte in `extern`s
-- [String interpolation uses `f""` instead of `$""`](Data.md#3122-string-interpolation)
-- [More expressive implicit typing allowing with `var`, `const`, and `constexpr` and nullable annotations](Data.md#332-implicit-typing)
-- [Argument coercion with `implicit` keyword](ControlFlow.md#217-argument-coercion)
-- [More operators (`x!`, `x!!`, `x?`, `x /\ y`, `x \/ y`, `x >< [y, z]`, `x ?! y`, `x..y`, `x?..y`)](Data.md#322-uncommon-operators)
-- Structs cannot have field initializers
-- [Enums can have methods](ClassesAndObjects.md#465-methods)
-- [Implicit enum fields](ClassesAndObjects.md#462-implicit-enum-fields)
-- [More concise enum bit testing](ClassesAndObjects.md#464-bit-testing)
-- [C-style `union`s and anonymous unions](ClassesAndObjects.md#491-unions)
-- [First-class bit casting](LowLevelFeatures.md#641-bit-casts)
 - [`out` parameters can have a default value](ControlFlow.md#2161-out-arguments)
-- [C-string literals](LowLevelFeatures.md#614-c-strings)
-- [`using` aliases can be placed anywhere instead of only before all members](ClassesAndObjects.md#481-aliasing)
-- Struct layout efficiency analysis
-- [`packed` keyword instead of StructLayout attribute](LowLevelFeatures.md#621-packing)
-- [User-defined deconstruction uses same syntax as user-defined casts](Data.md#3161-user-defined-deconstruction)
+- [More operators (`x!`, `x!!`, `x?`, `x /\ y`, `x \/ y`, `x..y`, etc.)](Data.md#322-uncommon-operators)
 - Numeric literals automatically shrink/expand to fit the context (i.e. `f` suffix for float literals is unnecessary)
+
+### 1.5.3 Metaprogramming
+
+- [Compile-time expressions](Data.md#37-compile-time-expressions)
+- [Optional build scripts instead of project files](../Build.md)
+- [Experimental: flexible meta-programming](LowLevelFeatures.md#613-compiler-handle)
+
+### 1.5.4 Low-Level Programming & Interop
+
+- Pointers and other low-level features don't require `unsafe` contexts
+- [`lowlevel` contexts](LowLevelFeatures.md#61-low-level-contexts)
+- [Inline-IL blocks](LowLevelFeatures.md#611-inline-il)
+- [C++-style `nullptr` literal](LowLevelFeatures.md#651-creating-and-dereferencing-pointers)
+- [GC `pinned` locals](LowLevelFeatures.md#612-pinned-locals)
+- [C-style stackalloc syntax](LowLevelFeatures.md#6101-stackalloc-locals)
+- [C-style `union`s and anonymous unions](ClassesAndObjects.md#491-unions)
+- [`winbool` type instead of marshalling `bool` as 4-bytes in `extern`s](LowLevelFeatures.md#671-winbool)
+- [Argument coercion with `implicit` keyword](ControlFlow.md#217-argument-coercion)
+- [First-class bit casting](LowLevelFeatures.md#641-bit-casts)
+- [C-string literals](LowLevelFeatures.md#614-c-strings)
 - [Extern block declarations to share modifiers/attributes across members](LowLevelFeatures.md#673-extern-blocks)
-- [Experimental: Non-numeric enum underlying types](ClassesAndObjects.md#463-experimental-underlying-types)
-- [Experimental: Non-type generics/templates](ClassesAndObjects.md#45-templates)
-- Experimental: Integrated graphics support with `Update()` point
+- Struct layout efficiency analysis
 
 ## 1.6 Identifiers
 

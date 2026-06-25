@@ -142,6 +142,8 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
         }
     }
 
+    internal abstract bool hasMustUseReturnValueAttribute { get; }
+
     internal abstract bool hasUnscopedRefAttribute { get; }
 
     internal virtual bool synthesizesLoweredBoundBody => false;

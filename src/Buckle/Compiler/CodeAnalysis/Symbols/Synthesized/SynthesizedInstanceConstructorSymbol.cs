@@ -67,6 +67,8 @@ internal class SynthesizedInstanceConstructorSymbol : SynthesizedInstanceMethodS
 
     internal override CallingConvention callingConvention => CallingConvention.HasThis;
 
+    internal override bool hasMustUseReturnValueAttribute => false;
+
     internal override bool hasUnscopedRefAttribute => false;
 
     internal override bool isMetadataFinal => false;

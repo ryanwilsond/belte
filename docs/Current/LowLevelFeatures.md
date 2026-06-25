@@ -8,7 +8,7 @@ Currently, most of these features are enabled everywhere for conciseness.
 a lowlevel context.
 
 - [6.1](#61-low-level-contexts) Low-Level Contexts
-- [6.2](#62-structs) Structs
+- [6.2](#62-struct-layout) Struct Layout
   - [6.2.1](#621-packing) Packing
 - [6.3](#63-arrays-and-buffers) Arrays and Buffers
   - [6.3.1](#631-alternate-entry-point-signature) Alternate Entry Point Signature
@@ -58,7 +58,7 @@ The low-level context extends from the declaration to all statements inside. In
 other words, if a method is marked `lowlevel`, the parameter list of that method
 can use low-level exclusive features.
 
-## 6.2 Structs
+## 6.2 Struct Layout
 
 > [Main struct docs](ClassesAndObjects.md#49-structs)
 

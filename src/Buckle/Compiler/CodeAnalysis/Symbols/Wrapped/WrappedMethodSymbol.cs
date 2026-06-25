@@ -56,6 +56,8 @@ internal abstract class WrappedMethodSymbol : MethodSymbol {
 
     internal override CallingConvention callingConvention => underlyingMethod.callingConvention;
 
+    internal override bool hasMustUseReturnValueAttribute => underlyingMethod.hasMustUseReturnValueAttribute;
+
     internal sealed override bool hasUnscopedRefAttribute => underlyingMethod.hasUnscopedRefAttribute;
 
     internal override bool isMetadataFinal => underlyingMethod.isMetadataFinal;

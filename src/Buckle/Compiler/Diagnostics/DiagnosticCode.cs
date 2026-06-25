@@ -585,6 +585,9 @@ public enum DiagnosticCode : ushort {
     ERR_InsufficientStack = 574,
     ERR_NonPrimitiveTemplate = 575,
     ERR_ConstraintFailedToEvaluate = 576,
+    ERR_BadAbstractStaticMemberAccess = 577,
+    ERR_IgnoringRequiredReturnValue = 578,
+    ERR_MustUseReturnValueAttributeOnVoid = 579,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

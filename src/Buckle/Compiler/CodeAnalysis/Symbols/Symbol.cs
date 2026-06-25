@@ -257,6 +257,15 @@ internal abstract class Symbol : ISymbol {
         return null;
     }
 
+    internal bool IsExplicitInterfaceImplementation() {
+        switch (kind) {
+            case SymbolKind.Method:
+                return ((MethodSymbol)this).isExplicitInterfaceImplementation;
+            default:
+                return false;
+        }
+    }
+
     internal NamespaceOrTypeSymbol ContainingNamespaceOrType() {
         if (containingSymbol is not null) {
             switch (containingSymbol.kind) {

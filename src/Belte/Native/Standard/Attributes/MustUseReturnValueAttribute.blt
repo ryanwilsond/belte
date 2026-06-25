@@ -1,0 +1,4 @@
+
+public sealed class MustUseReturnValueAttribute extends Attribute {
+    public constructor() { }
+}

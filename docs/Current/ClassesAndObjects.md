@@ -39,6 +39,7 @@
 - [4.9](#49-structs) Structs
   - [4.9.1](#491-unions) Unions
 - [4.10](#410-interfaces) Interfaces
+- [4.11](#411-attributes) Attributes
 
 ## 4.1 Classes
 
@@ -1276,3 +1277,26 @@ class C implements A {
   void A.M<type T>(T t) { }
 }
 ```
+
+## 4.11 Attributes
+
+There are currently a small number of attributes recognized by the compiler: `DllImport`, `Unmanaged`, and
+`MustUseReturnValue`.
+
+The `MustUseReturnValue` attribute causes calls of target method to raise an error if the return value is completely
+ignored. Discarding the return value is still permitted:
+
+```belte
+class A {
+  [MustUseReturnValue]
+  public static bool M() { /* ... */ }
+}
+
+A.M(); // Error
+_ = A.M(); // Okay
+```
+
+Methods returning void cannot use the `MustUseReturnValue` attribute.
+
+- See also [`DllImport` attribute](LowLevelFeatures.md#67-extern-methods).
+- See also [`Unmanaged` attribute](LowLevelFeatures.md#672-unmanaged-methods).

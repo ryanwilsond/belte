@@ -372,6 +372,8 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
 
     internal override bool isDeclaredConst => false;
 
+    internal override bool hasMustUseReturnValueAttribute => false;
+
     internal override bool hasUnscopedRefAttribute => false;
 
     public override ImmutableArray<TypeOrConstant> templateArguments => [];

@@ -64,6 +64,8 @@ internal sealed class SynthesizedStaticConstructor : MethodSymbol {
 
     public override RefKind refKind => RefKind.None;
 
+    internal override bool hasMustUseReturnValueAttribute => false;
+
     internal override bool hasUnscopedRefAttribute => false;
 
     internal override CallingConvention callingConvention => CallingConvention.Default;

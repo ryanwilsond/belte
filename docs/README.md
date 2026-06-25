@@ -34,7 +34,13 @@
       - [1.4.4](Current/Overview.md#144-fields) Fields
       - [1.4.5](Current/Overview.md#145-implicit-typing) Implicit Typing
       - [1.4.6](Current/Overview.md#146-null-flow-analysis) Null-Flow Analysis
+      - [1.4.8](Current/Overview.md#148-nullability-in-depth) Nullability In-Depth
+      - [1.4.9](Current/Overview.md#149-object-and-valuetype) Object and ValueType
     - [1.5](Current/Overview.md#15-differences-from-c) **Differences from C#**
+      - [1.5.1](Current/Overview.md#151-type-system) Type System
+      - [1.5.2](Current/Overview.md#152-language-features) Language Features
+      - [1.5.3](Current/Overview.md#153-metaprogramming) Metaprogramming
+      - [1.5.4](Current/Overview.md#154-low-level-programming--interop) Low-Level Programming & Interop
     - [1.6](Current/Overview.md#16-identifiers) Identifiers
   - [2](Current/ControlFlow.md) Control Flow
     - [2.1](Current/ControlFlow.md#21-functions) Functions
@@ -148,6 +154,7 @@
     - [4.9](Current/ClassesAndObjects.md#49-structs) Structs
       - [4.9.1](Current/ClassesAndObjects.md#491-unions) Unions
     - [4.10](Current/ClassesAndObjects.md#410-interfaces) Interfaces
+    - [4.11](Current/ClassesAndObjects.md#411-attributes) Attributes
   - [5](Current/StandardLibrary.md) The Standard Library
     - [5.1](Current/StandardLibrary/Console.md) Console
     - [5.2](Current/StandardLibrary/Math.md) Math
@@ -165,7 +172,7 @@
     - [5.10](Current/StandardLibrary/Decimal.md) Decimal, Float64, and Float32
   - [6](Current/LowLevelFeatures.md) Low-Level Features
     - [6.1](Current/LowLevelFeatures.md#61-low-level-contexts) Low-Level Contexts
-    - [6.2](Current/LowLevelFeatures.md#62-structs) Structs
+    - [6.2](Current/LowLevelFeatures.md#62-struct-layout) Struct Layout
       - [6.2.1](Current/LowLevelFeatures.md#621-packing) Packing
     - [6.3](Current/LowLevelFeatures.md#63-arrays-and-buffers) Arrays and Buffers
       - [6.3.1](Current/LowLevelFeatures.md#631-alternate-entry-point-signature) Alternate Entry Point Signature

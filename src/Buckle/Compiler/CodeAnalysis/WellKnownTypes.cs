@@ -27,6 +27,7 @@ internal static class WellKnownTypes {
         { "global::Attribute", WellKnownType.Attribute },
         { "global::DllImportAttribute", WellKnownType.DllImportAttribute },
         { "global::UnmanagedAttribute", WellKnownType.UnmanagedAttribute },
+        { "global::MustUseReturnValueAttribute", WellKnownType.MustUseReturnValueAttribute },
     };
 
     internal static WellKnownType GetTypeFromMetadataName(string metadataName) {

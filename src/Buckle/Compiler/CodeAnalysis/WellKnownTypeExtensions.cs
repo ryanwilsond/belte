@@ -25,6 +25,7 @@ internal static class WellKnownTypeExtensions {
         "Attribute",
         "DllImportAttribute",
         "UnmanagedAttribute",
+        "MustUseReturnValueAttribute",
     ];
 
     internal static bool ShouldEmit(this WellKnownType wellKnownType, bool includeGraphicsTypes) {
@@ -54,6 +55,9 @@ internal static class WellKnownTypeExtensions {
             case WellKnownType.Attribute:
             case WellKnownType.UnmanagedAttribute:
             case WellKnownType.DllImportAttribute:
+                return false;
+            case WellKnownType.MustUseReturnValueAttribute:
+                return false;
             default:
                 return false;
         }

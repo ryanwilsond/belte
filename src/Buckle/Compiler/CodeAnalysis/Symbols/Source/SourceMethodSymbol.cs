@@ -47,6 +47,9 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
     // internal sealed override bool hasUnscopedRefAttribute => GetDecodedWellKnownAttributeData()?.hasUnscopedRefAttribute == true;
     internal sealed override bool hasUnscopedRefAttribute => false;
 
+    internal sealed override bool hasMustUseReturnValueAttribute
+        => GetDecodedWellKnownAttributeData()?.hasMustUseReturnValueAttribute ?? false;
+
     private protected virtual AttributeLocation _attributeLocationForLoadAndValidateAttributes
         => AttributeLocation.None;
 
@@ -204,6 +207,18 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
             DecodeDllImportAttribute(ref arguments);
         else if (attribute.IsTargetAttribute(AttributeDescription.UnmanagedAttribute))
             DecodeUnmanagedAttribute(ref arguments);
+        else if (attribute.IsTargetAttribute(AttributeDescription.MustUseReturnValueAttribute))
+            DecodeMustUseReturnValueAttribute(ref arguments);
+    }
+
+    private void DecodeMustUseReturnValueAttribute(
+        ref DecodeWellKnownAttributeArguments<AttributeSyntax, AttributeData, AttributeLocation> arguments) {
+        var diagnostics = arguments.diagnostics;
+
+        arguments.GetOrCreateData<MethodWellKnownAttributeData>().hasMustUseReturnValueAttribute = true;
+
+        if (returnsVoid)
+            diagnostics.Push(Error.MustUseReturnValueAttributeOnVoid(arguments.attributeSyntax.name.location));
     }
 
     private void DecodeUnmanagedAttribute(

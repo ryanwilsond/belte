@@ -210,7 +210,6 @@ internal static class ExplicitInterfaceHelpers {
             case TypeKind.Struct:
             case TypeKind.Interface:
                 break;
-
             default:
                 diagnostics.Push(Error.ExplicitInterfaceImplementationInNonClassOrStruct(
                     memberLocation,

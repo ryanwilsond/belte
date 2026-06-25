@@ -41,6 +41,7 @@
     <Content Remove="../../Belte/Native/Standard/Attributes/Attribute.blt" />
     <Content Remove="../../Belte/Native/Standard/Attributes/DllImportAttribute.blt" />
     <Content Remove="../../Belte/Native/Standard/Attributes/UnmanagedAttribute.blt" />
+    <Content Remove="../../Belte/Native/Standard/Attributes/MustUseReturnValueAttribute.blt" />
     <Content Remove="../../Belte/Native/Graphics/Vec2.blt" />
     <Content Remove="../../Belte/Native/Graphics/Sprite.blt" />
     <Content Remove="../../Belte/Native/Graphics/Text.blt" />
@@ -76,6 +77,7 @@
     <EmbeddedResource Include="../../Belte/Native/Standard/Attributes/Attribute.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Attributes/DllImportAttribute.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Attributes/UnmanagedAttribute.blt" />
+    <EmbeddedResource Include="../../Belte/Native/Standard/Attributes/MustUseReturnValueAttribute.blt" />
     <EmbeddedResource Include="../../Belte/Native/Graphics/Vec2.blt" />
     <EmbeddedResource Include="../../Belte/Native/Graphics/Sprite.blt" />
     <EmbeddedResource Include="../../Belte/Native/Graphics/Text.blt" />

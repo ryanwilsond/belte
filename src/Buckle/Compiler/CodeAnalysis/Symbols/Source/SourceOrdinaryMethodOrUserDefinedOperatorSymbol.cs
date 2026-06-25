@@ -102,14 +102,14 @@ internal abstract class SourceOrdinaryMethodOrUserDefinedOperatorSymbol : Source
                 _lazyExplicitInterfaceImplementations = [overriddenOrExplicitlyImplementedMethod];
 
                 this.FindExplicitlyImplementedMemberVerification(overriddenOrExplicitlyImplementedMethod, diagnostics);
-                // TODO Interface modifiers
-                // TypeSymbol.CheckModifierMismatchOnImplementingMember(
-                //     containingType,
-                //     this,
-                //     overriddenOrExplicitlyImplementedMethod,
-                //     isExplicit: true,
-                //     diagnostics
-                // );
+
+                TypeSymbol.CheckModifierMismatchOnImplementingMember(
+                    containingType,
+                    this,
+                    overriddenOrExplicitlyImplementedMethod,
+                    isExplicit: true,
+                    diagnostics
+                );
             } else {
                 _lazyExplicitInterfaceImplementations = [];
             }
