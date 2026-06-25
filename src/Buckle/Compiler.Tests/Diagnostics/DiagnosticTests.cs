@@ -1,3 +1,4 @@
+using System.Text;
 using Xunit;
 using Xunit.Abstractions;
 using static Buckle.Tests.Assertions;
@@ -7998,5 +7999,88 @@ var text = """"""
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0573_AssignmentToSelf() {
+        var text = @"
+            int a = 3;
+            [a = a];
+        ";
+
+        var diagnostics = @"
+            assignment made to same variable; did you mean to assign something else?
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0574_InsufficientStack() {
+        const int N = 10000;
+
+        var sb = new StringBuilder();
+        for (var i = 0; i < N; i++)
+            sb.Append("class A{\n");
+
+        for (var i = 0; i < N; i++)
+            sb.Append("}\n");
+
+        var diagnostics = @"
+            expression is too long or complex to compile
+        ";
+
+        AssertDiagnostics(sb.ToString(), diagnostics, _writer, checkLocations: false);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0574_InsufficientStack2() {
+        const int N = 10000;
+
+        var sb = new StringBuilder();
+        for (var i = 0; i < N; i++)
+            sb.Append("namespace ns {\n");
+
+        for (var i = 0; i < N; i++)
+            sb.Append("}\n");
+
+        var diagnostics = @"
+            expression is too long or complex to compile
+        ";
+
+        AssertDiagnostics(sb.ToString(), diagnostics, _writer, checkLocations: false);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0574_InsufficientStack3() {
+        const int N = 10000;
+
+        var sb = new StringBuilder();
+        int i;
+
+        for (i = 0; i < N; i++) {
+            sb.Append("(a + ");
+            sb.Append(i.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            sb.Append(')');
+            sb.Append(" * ");
+            sb.Append("(a -");
+            sb.Append(i.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            sb.Append(") * ");
+        }
+
+        sb.Append("(a + ");
+        sb.Append(i.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        sb.Append(')');
+
+        var text = $@"
+            int a = 1;
+            return {sb};
+        ";
+
+        var diagnostics = @"
+            expression is too long or complex to compile
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, checkLocations: false);
     }
 }

@@ -528,6 +528,12 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         importChain ??= processedInitializers.firstImportChain;
         state.currentImportChain = importChain;
 
+        if (body is not null)
+            DiagnosticPass.ReportDiagnostics(body, currentDiagnostics);
+
+        if (currentDiagnostics.AnyErrors())
+            return currentDiagnostics;
+
         var loweredBody = LowerBody(
             method,
             methodOrdinal,
@@ -610,34 +616,47 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         BelteDiagnosticQueue currentDiagnostics,
         ref MethodSymbol entryPoint,
         out bool sawCompileTimeExpression) {
-        var loweredBody = Lowerer.Lower(
-            this,
-            state.compilation.options.optimizationLevel,
-            method,
-            body,
-            entryPoint?.containingType,
-            currentDiagnostics,
-            out sawCompileTimeExpression
-        );
-
-        if (!transpiling) {
-            loweredBody = LocalFunctionRewriter.Rewrite(
-                loweredBody,
-                state.type,
+        try {
+            var loweredBody = Lowerer.Lower(
+                this,
+                state.compilation.options.optimizationLevel,
                 method,
-                methodOrdinal,
-                null,
-                state,
-                previousAnalyses,
+                body,
+                entryPoint?.containingType,
                 currentDiagnostics,
-                null, // TODO When do we want to use this?
-                ref entryPoint
+                out sawCompileTimeExpression
             );
 
-            loweredBody = Optimizer.RemoveDeadCode(method, loweredBody, currentDiagnostics);
-        }
+            if (!transpiling) {
+                loweredBody = LocalFunctionRewriter.Rewrite(
+                    loweredBody,
+                    state.type,
+                    method,
+                    methodOrdinal,
+                    null,
+                    state,
+                    previousAnalyses,
+                    currentDiagnostics,
+                    null, // TODO When do we want to use this?
+                    ref entryPoint
+                );
 
-        return loweredBody;
+                loweredBody = Optimizer.RemoveDeadCode(method, loweredBody, currentDiagnostics);
+            }
+
+            return loweredBody;
+        } catch (BoundTreeVisitor.CancelledByStackGuardException ex) {
+            ex.AddAnError(currentDiagnostics);
+            sawCompileTimeExpression = false;
+
+            return new BoundBlockStatement(
+                body.syntax,
+                [new BoundErrorStatement(body.syntax, [body], hasErrors: true)],
+                [],
+                [],
+                hasErrors: true
+            );
+        }
     }
 
     internal static BoundBlockStatement BindSynthesizedMethodBody(

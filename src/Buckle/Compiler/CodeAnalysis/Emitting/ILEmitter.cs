@@ -1690,7 +1690,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         var (method, body) = _methodBodyMap[methodDefinition];
         var ilBuilder = new CecilILBuilder(method, this, methodDefinition);
-        var codeGen = new CodeGenerator(this, method, body, ilBuilder, _debugMode);
+        var codeGen = new CodeGenerator(this, method, body, ilBuilder, _debugMode, _diagnostics);
 
         if (_program.entryPoint == method)
             EmitAssemblyResolver(methodDefinition);

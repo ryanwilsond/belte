@@ -540,6 +540,12 @@
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;"/>
     <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;"/>
   </AbstractNode>
+  <Node Name="IncompleteMemberSyntax" Base="MemberDeclarationSyntax">
+    <Kind Name="IncompleteMember"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
+    <Field Name="type" Type="TypeSyntax" Optional="true"/>
+  </Node>
   <AbstractNode Name="BaseNamespaceDeclarationSyntax" Base="MemberDeclarationSyntax">
     <Field Name="keyword" Type="SyntaxToken">
       <Kind Name="NamespaceKeyword"/>

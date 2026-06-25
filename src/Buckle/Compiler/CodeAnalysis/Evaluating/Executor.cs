@@ -1551,7 +1551,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
         var body = _methodBodies[method];
         var ilBuilder = new RefILBuilder(method, this, methodBuilder.GetILGenerator(), _logger);
-        var codeGen = new CodeGenerator(this, method, body, ilBuilder, false);
+        var codeGen = new CodeGenerator(this, method, body, ilBuilder, false, _diagnostics);
         codeGen.Generate();
     }
 
@@ -1561,7 +1561,7 @@ internal sealed partial class Executor : ModuleBuilder {
         if (_logger is not null) lock (_logger) _logger.WriteLine($"Emitting constructor {constructor}");
 
         var ilBuilder = new RefILBuilder(constructor, this, constructorBuilder.GetILGenerator(), _logger);
-        var codeGen = new CodeGenerator(this, constructor, body, ilBuilder, false);
+        var codeGen = new CodeGenerator(this, constructor, body, ilBuilder, false, _diagnostics);
         codeGen.Generate();
     }
 

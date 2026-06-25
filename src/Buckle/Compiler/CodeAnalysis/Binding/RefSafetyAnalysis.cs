@@ -24,8 +24,12 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
 
     internal static void Analyze(MethodSymbol method, BoundNode node, BelteDiagnosticQueue diagnostics) {
         var visitor = new RefSafetyAnalysis(method, diagnostics);
-        // TODO We should probably handle CancelledByStackGuardException here
-        visitor.Visit(node);
+
+        try {
+            visitor.Visit(node);
+        } catch (CancelledByStackGuardException ex) {
+            ex.AddAnError(diagnostics);
+        }
     }
 
     private RefSafetyAnalysis(

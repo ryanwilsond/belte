@@ -293,6 +293,7 @@ public enum SyntaxKind : ushort {
     // Declarations
     CompilationUnit,
     GlobalStatement,
+    IncompleteMember,
     NamespaceDeclaration,
     FileScopedNamespaceDeclaration,
     VariableDeclaration,

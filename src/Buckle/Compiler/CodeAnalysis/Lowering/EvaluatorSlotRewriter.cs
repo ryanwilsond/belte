@@ -9,7 +9,7 @@ using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
-internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
+internal sealed class EvaluatorSlotRewriter : BoundTreeRewriterWithStackGuard {
     private readonly ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder _typeLayouts;
     private readonly BoundProgram _previous;
 

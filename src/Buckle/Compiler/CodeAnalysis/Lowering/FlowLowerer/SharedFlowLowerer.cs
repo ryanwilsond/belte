@@ -8,7 +8,7 @@ using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
-internal partial class SharedFlowLowerer : BoundTreeRewriter {
+internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
     private readonly List<string> _localNames = [];
     private int _tempCount = 0;
     private int _labelCount;

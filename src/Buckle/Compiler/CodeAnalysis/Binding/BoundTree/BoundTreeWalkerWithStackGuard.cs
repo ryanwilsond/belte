@@ -1,5 +1,6 @@
 namespace Buckle.CodeAnalysis.Binding;
 
+// TODO We should be more vigilant about potential stack overflows in general
 internal abstract class BoundTreeWalkerWithStackGuard : BoundTreeWalker {
     private protected int _recursionDepth;
 

@@ -21,7 +21,7 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// In a case where a child must be used more than once, the Expander should handle that node instead to create a temp.
 /// Nodes may be visited multiple times.
 /// </summary>
-internal sealed class Lowerer : BoundTreeRewriter {
+internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
     private readonly SharedExpander _expander;
     private readonly bool _transpiling;
     private readonly MethodCompiler _methodCompiler;

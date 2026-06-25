@@ -247,6 +247,11 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_NullBinaryEquality, location, message, suggestion);
     }
 
+    internal static BelteDiagnostic AssignmentToSelf(TextLocation location) {
+        var message = $"assignment made to same variable; did you mean to assign something else?";
+        return CreateWarning(DiagnosticCode.WRN_AssignmentToSelf, location, message);
+    }
+
     private static BelteDiagnostic CreateWarning(DiagnosticCode code, TextLocation location, string message) {
         return CreateWarning(code, location, message, []);
     }

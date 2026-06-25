@@ -2824,6 +2824,16 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_InvalidMultilineString, message);
     }
 
+    internal static BelteDiagnostic InsufficientStack(TextLocation location) {
+        var message = $"expression is too long or complex to compile";
+        return CreateError(DiagnosticCode.ERR_InsufficientStack, location, message);
+    }
+
+    internal static Diagnostic InsufficientStack() {
+        var message = $"expression is too long or complex to compile";
+        return CreateError(DiagnosticCode.ERR_InsufficientStack, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

@@ -3024,21 +3024,34 @@ internal partial class Binder {
         return new BoundArrayAccessExpression(node, expression, boundConversion, constantValue, elementType, hasErrors);
     }
 
-    private BoundUnconvertedInitializerList BindInitializerListExpression(
+    private BoundExpression BindInitializerListExpression(
         InitializerListExpressionSyntax node,
-        BelteDiagnosticQueue diagnostics) {
+        BelteDiagnosticQueue diagnostics,
+        int nestingLevel = 0) {
+        // TODO Do we even care about this
+        // const int MaxNestingLevel = 64;
+
+        // if (nestingLevel >= MaxNestingLevel) {
+        //     diagnostics.Push(Error.InsufficientStack(node.location));
+        //     return new BoundErrorExpression(node, LookupResultKind.Empty, [], [], CreateErrorType());
+        // }
+
         var items = node.items;
         var builder = ArrayBuilder<BoundExpression>.GetInstance(items.Count);
 
         foreach (var element in items)
-            builder.Add(BindElement(element, diagnostics, this));
+            builder.Add(BindElement(element, diagnostics, this, nestingLevel));
 
         return new BoundUnconvertedInitializerList(node, builder.ToImmutableAndFree());
 
-        static BoundExpression BindElement(ExpressionSyntax syntax, BelteDiagnosticQueue diagnostics, Binder @this) {
+        static BoundExpression BindElement(
+            ExpressionSyntax syntax,
+            BelteDiagnosticQueue diagnostics,
+            Binder @this,
+            int nestingLevel) {
             return syntax switch {
                 InitializerListExpressionSyntax nestedList
-                    => @this.BindInitializerListExpression(nestedList, diagnostics),
+                    => @this.BindInitializerListExpression(nestedList, diagnostics, nestingLevel + 1),
                 ExpressionSyntax expression => @this.BindValue(expression, diagnostics, BindValueKind.RValue),
                 _ => throw ExceptionUtilities.UnexpectedValue(syntax.kind)
             };

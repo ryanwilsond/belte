@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
@@ -17,6 +18,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
     private readonly SyntaxListPool _pool = new SyntaxListPool();
 
+    private int _recursionDepth;
     private bool _expectParenthesis;
     private TerminatorState _terminatorState;
     private ParserContext _context;
@@ -52,11 +54,43 @@ internal sealed partial class LanguageParser : SyntaxParser {
     /// </summary>
     /// <returns>The parsed file.</returns>
     internal CompilationUnitSyntax ParseCompilationUnit() {
+        return ParseWithStackGuard(
+            static @this => @this.ParseCompilationUnitCore(),
+            static @this => SyntaxFactory.CompilationUnit(
+                SyntaxFactory.List<AttributeListSyntax>(),
+                SyntaxFactory.List<NamespaceElementSyntax>(),
+                SyntaxFactory.Token(SyntaxKind.EndOfFileToken)
+            )
+        );
+    }
+
+    internal CompilationUnitSyntax ParseCompilationUnitCore() {
         // TODO How do we distinguish compilation attributes from attributes of the first member?
         // var attributeLists = ParseAttributeLists();
         var elements = ParseNamespaceBody(isGlobal: true);
         var endOfFile = Match(SyntaxKind.EndOfFileToken);
         return SyntaxFactory.CompilationUnit(SyntaxFactory.List<AttributeListSyntax>(), elements, endOfFile);
+    }
+
+    internal TNode ParseWithStackGuard<TNode>(
+        Func<LanguageParser, TNode> parseFunc,
+        Func<LanguageParser, TNode> createEmptyNodeFunc) where TNode : BelteSyntaxNode {
+        Debug.Assert(_recursionDepth == 0);
+
+        try {
+            return parseFunc(this);
+        } catch (InsufficientExecutionStackException) {
+            return CreateForGlobalFailure(_lexer.position, createEmptyNodeFunc(this));
+        }
+    }
+
+    private TNode CreateForGlobalFailure<TNode>(int position, TNode node) where TNode : BelteSyntaxNode {
+        var builder = new SyntaxListBuilder(1);
+        builder.Add(SyntaxFactory.Token(SyntaxKind.BadToken, _lexer.text.ToString()));
+        var fileAsTrivia = SyntaxFactory.SkippedTokensTrivia(builder.ToList<SyntaxToken>());
+        node = AddLeadingSkippedSyntax(node, fileAsTrivia);
+        ForceEndOfFile();
+        return AddDiagnostic(node, Error.InsufficientStack(), position, 0);
     }
 
     private new ResetPoint GetResetPoint() {
@@ -363,6 +397,14 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private MemberDeclarationSyntax ParseMember(bool allowGlobalStatements = false) {
+        _recursionDepth++;
+        StackGuard.EnsureSufficientExecutionStack(_recursionDepth);
+        var result = ParseMemberCore(allowGlobalStatements);
+        _recursionDepth--;
+        return result;
+    }
+
+    private MemberDeclarationSyntax ParseMemberCore(bool allowGlobalStatements = false) {
         if (_isIncrementalAndFactoryContextMatches &&
             CanReuseMemberDeclaration(_currentNodeKind, allowGlobalStatements)) {
             return (MemberDeclarationSyntax)EatNode();
@@ -557,6 +599,16 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private BaseNamespaceDeclarationSyntax ParseNamespaceDeclaration(
+        SyntaxList<AttributeListSyntax> attributeLists,
+        SyntaxList<SyntaxToken> modifiers) {
+        _recursionDepth++;
+        StackGuard.EnsureSufficientExecutionStack(_recursionDepth);
+        var result = ParseNamespaceDeclarationCore(attributeLists, modifiers);
+        _recursionDepth--;
+        return result;
+    }
+
+    private BaseNamespaceDeclarationSyntax ParseNamespaceDeclarationCore(
         SyntaxList<AttributeListSyntax> attributeLists,
         SyntaxList<SyntaxToken> modifiers) {
         var keyword = EatToken();
@@ -1723,84 +1775,91 @@ internal sealed partial class LanguageParser : SyntaxParser {
         consumedAttributeLists = false;
         consumedModifiers = false;
 
-        switch (currentToken.kind) {
-            case SyntaxKind.OpenBraceToken:
-                consumedModifiers = true;
-                return ParseBlockStatement(modifiers);
-            case SyntaxKind.SemicolonToken:
-                return ParseEmptyStatement();
-            case SyntaxKind.IfKeyword:
-                return ParseIfOrNullBindingStatement();
-            case SyntaxKind.WhileKeyword:
-                return ParseWhileStatement();
-            case SyntaxKind.ForKeyword:
-                return ParseForStatement();
-            case SyntaxKind.DoKeyword:
-                return ParseDoWhileStatement();
-            case SyntaxKind.TryKeyword:
-                return ParseTryStatement();
-            case SyntaxKind.BreakKeyword:
-                return ParseBreakStatement();
-            case SyntaxKind.ContinueKeyword:
-                return ParseContinueStatement();
-            case SyntaxKind.UnreachableKeyword:
-                return ParseUnreachableStatement();
-            case SyntaxKind.ReturnKeyword:
-                return ParseReturnStatement();
-            case SyntaxKind.SwitchKeyword:
-                return ParseSwitchStatement();
-            case SyntaxKind.GotoKeyword:
-                return ParseGotoStatement();
-            case SyntaxKind.WithKeyword:
-                return ParseWithStatement();
-            case SyntaxKind.ILKeyword:
-                return ParseInlineILStatement();
-            case SyntaxKind.DeferKeyword:
-                return ParseDeferStatement();
-            case SyntaxKind.ReverseKeyword:
-                return ParseReverseOrReverseDeferStatement();
-            case SyntaxKind.CommitKeyword:
-                return ParseCommitStatement();
-        }
+        try {
+            _recursionDepth++;
+            StackGuard.EnsureSufficientExecutionStack(_recursionDepth);
 
-        var resetPoint = GetResetPoint();
-
-        attributeLists ??= ParseAttributeLists();
-
-        if ((modifiers is null || !modifiers.Any()) && currentToken.kind == SyntaxKind.ScopedKeyword) {
-            consumedAttributeLists = true;
-            return ParseScopedStatementOrLocalDeclaration(attributeLists);
-        }
-
-        modifiers ??= ParseModifiers();
-        var type = ParseType();
-
-        if (!type.containsDiagnostics) {
-            if (type.kind != SyntaxKind.EmptyName && PeekIsPostReturnFunction()) {
-                consumedAttributeLists = true;
-                consumedModifiers = true;
-                return ParseLocalFunctionDeclaration(attributeLists, modifiers, type);
-            } else if ((type.kind != SyntaxKind.EmptyName ||
-                modifiers?.Any(SyntaxKind.ConstKeyword) == true ||
-                modifiers?.Any(SyntaxKind.ConstexprKeyword) == true ||
-                modifiers?.Any(SyntaxKind.FinalKeyword) == true) && PeekIsPostTypeLocalDeclaration()) {
-                consumedAttributeLists = true;
-                consumedModifiers = true;
-                return ParseLocalDeclarationStatement(attributeLists, modifiers, type);
+            switch (currentToken.kind) {
+                case SyntaxKind.OpenBraceToken:
+                    consumedModifiers = true;
+                    return ParseBlockStatement(modifiers);
+                case SyntaxKind.SemicolonToken:
+                    return ParseEmptyStatement();
+                case SyntaxKind.IfKeyword:
+                    return ParseIfOrNullBindingStatement();
+                case SyntaxKind.WhileKeyword:
+                    return ParseWhileStatement();
+                case SyntaxKind.ForKeyword:
+                    return ParseForStatement();
+                case SyntaxKind.DoKeyword:
+                    return ParseDoWhileStatement();
+                case SyntaxKind.TryKeyword:
+                    return ParseTryStatement();
+                case SyntaxKind.BreakKeyword:
+                    return ParseBreakStatement();
+                case SyntaxKind.ContinueKeyword:
+                    return ParseContinueStatement();
+                case SyntaxKind.UnreachableKeyword:
+                    return ParseUnreachableStatement();
+                case SyntaxKind.ReturnKeyword:
+                    return ParseReturnStatement();
+                case SyntaxKind.SwitchKeyword:
+                    return ParseSwitchStatement();
+                case SyntaxKind.GotoKeyword:
+                    return ParseGotoStatement();
+                case SyntaxKind.WithKeyword:
+                    return ParseWithStatement();
+                case SyntaxKind.ILKeyword:
+                    return ParseInlineILStatement();
+                case SyntaxKind.DeferKeyword:
+                    return ParseDeferStatement();
+                case SyntaxKind.ReverseKeyword:
+                    return ParseReverseOrReverseDeferStatement();
+                case SyntaxKind.CommitKeyword:
+                    return ParseCommitStatement();
             }
 
-            // TODO This could be further tuned
-            if (currentToken.kind != SyntaxKind.SemicolonToken &&
-                !IsPossibleExpression(allowBinaryAndAssignment: true)) {
+            var resetPoint = GetResetPoint();
+
+            attributeLists ??= ParseAttributeLists();
+
+            if ((modifiers is null || !modifiers.Any()) && currentToken.kind == SyntaxKind.ScopedKeyword) {
                 consumedAttributeLists = true;
-                consumedModifiers = true;
-                return ParseLocalDeclarationStatement(attributeLists, modifiers, type);
+                return ParseScopedStatementOrLocalDeclaration(attributeLists);
             }
+
+            modifiers ??= ParseModifiers();
+            var type = ParseType();
+
+            if (!type.containsDiagnostics) {
+                if (type.kind != SyntaxKind.EmptyName && PeekIsPostReturnFunction()) {
+                    consumedAttributeLists = true;
+                    consumedModifiers = true;
+                    return ParseLocalFunctionDeclaration(attributeLists, modifiers, type);
+                } else if ((type.kind != SyntaxKind.EmptyName ||
+                    modifiers?.Any(SyntaxKind.ConstKeyword) == true ||
+                    modifiers?.Any(SyntaxKind.ConstexprKeyword) == true ||
+                    modifiers?.Any(SyntaxKind.FinalKeyword) == true) && PeekIsPostTypeLocalDeclaration()) {
+                    consumedAttributeLists = true;
+                    consumedModifiers = true;
+                    return ParseLocalDeclarationStatement(attributeLists, modifiers, type);
+                }
+
+                // TODO This could be further tuned
+                if (currentToken.kind != SyntaxKind.SemicolonToken &&
+                    !IsPossibleExpression(allowBinaryAndAssignment: true)) {
+                    consumedAttributeLists = true;
+                    consumedModifiers = true;
+                    return ParseLocalDeclarationStatement(attributeLists, modifiers, type);
+                }
+            }
+
+            Reset(resetPoint);
+
+            return ParseExpressionStatement();
+        } finally {
+            _recursionDepth--;
         }
-
-        Reset(resetPoint);
-
-        return ParseExpressionStatement();
     }
 
     private StatementSyntax ParseScopedStatementOrLocalDeclaration(SyntaxList<AttributeListSyntax> attributeLists) {
@@ -2698,6 +2757,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
             return true;
         }
 
+        if (!IsPossibleLambda())
+            return false;
+
         var resetPoint = GetResetPoint();
 
         TypeSyntax returnType = null;
@@ -2720,6 +2782,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
         Reset(resetPoint);
 
+        return false;
+    }
+
+    private bool IsPossibleLambda() {
+        // TODO scanning lambdas efficiently
         return false;
     }
 
@@ -2841,6 +2908,14 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private ExpressionSyntax ParseOperatorExpression(int parentPrecedence = 0) {
+        _recursionDepth++;
+        StackGuard.EnsureSufficientExecutionStack(_recursionDepth);
+        var result = ParseOperatorExpressionCore(parentPrecedence);
+        _recursionDepth--;
+        return result;
+    }
+
+    private ExpressionSyntax ParseOperatorExpressionCore(int parentPrecedence = 0) {
         var kind = currentToken.kind;
 
         if (IsInvalidOperatorExpression(kind))
@@ -3687,33 +3762,49 @@ done:
     private ExpressionSyntax ParseInitializerListOrDictionaryExpression() {
         var left = MatchOpenBrace();
 
-        if (currentToken.kind == SyntaxKind.CloseBraceToken)
-            return ParseInitializerListExpression(left);
+        var nodesAndSeparators = _pool.Allocate<BelteSyntaxNode>();
 
-        var point = GetResetPoint();
-        var initializerDictionary = ParseInitializerDictionaryExpression(left);
+        if (currentToken.kind == SyntaxKind.CloseBraceToken) {
+            return SyntaxFactory.InitializerListExpression(
+                left,
+                _pool.ToSeparatedListAndFree<ExpressionSyntax>(nodesAndSeparators),
+                MatchCloseBrace()
+            );
+        }
 
-        if (!initializerDictionary.containsDiagnostics)
-            return initializerDictionary;
+        var firstElement = ParseExpression();
 
-        Reset(point);
-        return ParseInitializerListExpression(left);
+        if (TryParseInitializerDictionaryExpression(left, nodesAndSeparators, firstElement, out var dictionary))
+            return dictionary;
+
+        return ParseInitializerListExpressionContinued(left, nodesAndSeparators, firstElement);
     }
 
-    private ExpressionSyntax ParseInitializerListExpression(SyntaxToken leftBrace) {
+    private InitializerListExpressionSyntax ParseInitializerListExpression() {
+        var leftBrace = MatchOpenBrace();
         var nodesAndSeparators = _pool.Allocate<BelteSyntaxNode>();
-        var parseNextItem = true;
 
-        while (parseNextItem && currentToken.kind is not SyntaxKind.EndOfFileToken and not SyntaxKind.CloseBraceToken) {
-            var expression = ParseExpression();
-            nodesAndSeparators.Add(expression);
+        if (currentToken.kind == SyntaxKind.CloseBraceToken) {
+            return SyntaxFactory.InitializerListExpression(
+                leftBrace,
+                _pool.ToSeparatedListAndFree<ExpressionSyntax>(nodesAndSeparators),
+                MatchCloseBrace()
+            );
+        }
 
-            if (currentToken.kind == SyntaxKind.CommaToken) {
-                var comma = EatToken();
-                nodesAndSeparators.Add(comma);
-            } else {
-                parseNextItem = false;
-            }
+        var firstElement = ParseExpression();
+        return ParseInitializerListExpressionContinued(leftBrace, nodesAndSeparators, firstElement);
+    }
+
+    private InitializerListExpressionSyntax ParseInitializerListExpressionContinued(
+        SyntaxToken leftBrace,
+        SyntaxListBuilder<BelteSyntaxNode> nodesAndSeparators,
+        ExpressionSyntax firstElement) {
+        nodesAndSeparators.Add(firstElement);
+
+        while (currentToken.kind == SyntaxKind.CommaToken) {
+            nodesAndSeparators.Add(EatToken());
+            nodesAndSeparators.Add(ParseExpression());
         }
 
         var separatedSyntaxList = _pool.ToSeparatedListAndFree<ExpressionSyntax>(nodesAndSeparators);
@@ -3722,20 +3813,29 @@ done:
         return SyntaxFactory.InitializerListExpression(leftBrace, separatedSyntaxList, rightBrace);
     }
 
-    private ExpressionSyntax ParseInitializerDictionaryExpression(SyntaxToken leftBrace) {
-        var nodesAndSeparators = _pool.Allocate<BelteSyntaxNode>();
-        var parseNextItem = true;
+    private bool TryParseInitializerDictionaryExpression(
+        SyntaxToken leftBrace,
+        SyntaxListBuilder<BelteSyntaxNode> nodesAndSeparators,
+        ExpressionSyntax firstElement,
+        out ExpressionSyntax result) {
+        if (currentToken.kind != SyntaxKind.ColonToken) {
+            result = null;
+            return false;
+        }
 
-        while (parseNextItem && currentToken.kind is not SyntaxKind.EndOfFileToken and not SyntaxKind.CloseBraceToken) {
-            var keyValuePair = ParseKeyValuePair();
-            nodesAndSeparators.Add(keyValuePair);
+        result = ParseInitializerDictionaryExpressionContinued(leftBrace, nodesAndSeparators, firstElement);
+        return true;
+    }
 
-            if (currentToken.kind == SyntaxKind.CommaToken) {
-                var comma = EatToken();
-                nodesAndSeparators.Add(comma);
-            } else {
-                parseNextItem = false;
-            }
+    private ExpressionSyntax ParseInitializerDictionaryExpressionContinued(
+        SyntaxToken leftBrace,
+        SyntaxListBuilder<BelteSyntaxNode> nodesAndSeparators,
+        ExpressionSyntax firstKey) {
+        nodesAndSeparators.Add(ParseKeyValuePair(firstKey));
+
+        while (currentToken.kind == SyntaxKind.CommaToken) {
+            nodesAndSeparators.Add(EatToken());
+            nodesAndSeparators.Add(ParseKeyValuePair());
         }
 
         var separatedSyntaxList = _pool.ToSeparatedListAndFree<KeyValuePairSyntax>(nodesAndSeparators);
@@ -3744,8 +3844,8 @@ done:
         return SyntaxFactory.InitializerDictionaryExpression(leftBrace, separatedSyntaxList, rightBrace);
     }
 
-    private KeyValuePairSyntax ParseKeyValuePair() {
-        var key = ParseExpression();
+    private KeyValuePairSyntax ParseKeyValuePair(ExpressionSyntax key = null) {
+        key ??= ParseExpression();
         var colon = Match(SyntaxKind.ColonToken);
         var value = ParseExpression();
         return SyntaxFactory.KeyValuePair(key, colon, value);
@@ -3828,7 +3928,7 @@ done:
 
     private ExpressionSyntax ParseArrayCreationExpression(SyntaxToken newKeyword, TypeSyntax type) {
         var initializer = currentToken.kind == SyntaxKind.OpenBraceToken
-            ? (InitializerListExpressionSyntax)ParseInitializerListExpression(MatchOpenBrace())
+            ? ParseInitializerListExpression()
             : null;
 
         return SyntaxFactory.ArrayCreationExpression(newKeyword, type, initializer);

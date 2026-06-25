@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Buckle.CodeAnalysis.Binding;
@@ -8,6 +9,7 @@ using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
+using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -45,6 +47,9 @@ internal sealed partial class CodeGenerator {
     private readonly SyntaxNode _methodBodySyntax;
     private readonly ILEmitStyle _ilEmitStyle;
     private readonly bool _emitPdbSequencePoints;
+    private readonly BelteDiagnosticQueue _diagnostics;
+
+    private int _recursionDepth;
 
     private ArrayBuilder<VariableDefinition> _expressionTemps;
 
@@ -53,13 +58,26 @@ internal sealed partial class CodeGenerator {
         MethodSymbol method,
         BoundBlockStatement methodBody,
         ILBuilder iLBuilder,
-        bool debugMode) {
+        bool debugMode,
+        BelteDiagnosticQueue diagnostics) {
         _module = module;
         _method = method;
         _body = methodBody;
         _builder = iLBuilder;
         _ilEmitStyle = debugMode ? ILEmitStyle.Debug : ILEmitStyle.Release;
         _emitPdbSequencePoints = debugMode;
+        _diagnostics = diagnostics;
+
+        try {
+            _body = ILOptimizer.Optimize(
+                methodBody,
+                debugFriendly: _ilEmitStyle != ILEmitStyle.Release,
+                stackLocals: out _stackLocals
+            );
+        } catch (BoundTreeVisitor.CancelledByStackGuardException ex) {
+            ex.AddAnError(diagnostics);
+            _body = methodBody;
+        }
 
         var sourceMethod = method as SourceMemberMethodSymbol;
         _methodBodySyntax = sourceMethod?.body ?? sourceMethod?.syntaxNode;
@@ -757,6 +775,7 @@ internal sealed partial class CodeGenerator {
         SyntaxNode syntaxNode,
         TypeSymbol keyType) {
         // TODO
+        throw ExceptionUtilities.Unreachable();
     }
 
     private void EmitIntegerSwitchJumpTable(
@@ -787,6 +806,35 @@ internal sealed partial class CodeGenerator {
     }
 
     private void EmitConditionalBranch(BoundExpression condition, ref object dest, bool sense) {
+        _recursionDepth++;
+
+        if (_recursionDepth > 1) {
+            StackGuard.EnsureSufficientExecutionStack(_recursionDepth);
+
+            EmitConditionalBranchCore(condition, ref dest, sense);
+        } else {
+            EmitConditionalBranchCoreWithStackGuard(condition, ref dest, sense);
+        }
+
+        _recursionDepth--;
+    }
+
+    private void EmitConditionalBranchCoreWithStackGuard(BoundExpression condition, ref object dest, bool sense) {
+        Debug.Assert(_recursionDepth == 1);
+
+        try {
+            EmitConditionalBranchCore(condition, ref dest, sense);
+            Debug.Assert(_recursionDepth == 1);
+        } catch (InsufficientExecutionStackException) {
+            _diagnostics.Push(Error.InsufficientStack(
+                BoundTreeVisitor.CancelledByStackGuardException.GetTooLongOrComplexExpressionErrorLocation(condition)
+            ));
+
+            throw new EmitCancelledException();
+        }
+    }
+
+    private void EmitConditionalBranchCore(BoundExpression condition, ref object dest, bool sense) {
 oneMoreTime:
 
         OpCode iLCode;
@@ -1202,6 +1250,34 @@ oneMoreTime:
             return;
         }
 
+        _recursionDepth++;
+
+        if (_recursionDepth > 1) {
+            StackGuard.EnsureSufficientExecutionStack(_recursionDepth);
+            EmitExpressionCore(expression, used);
+        } else {
+            EmitExpressionCoreWithStackGuard(expression, used);
+        }
+
+        _recursionDepth--;
+    }
+
+    private void EmitExpressionCoreWithStackGuard(BoundExpression expression, bool used) {
+        Debug.Assert(_recursionDepth == 1);
+
+        try {
+            EmitExpressionCore(expression, used);
+            Debug.Assert(_recursionDepth == 1);
+        } catch (InsufficientExecutionStackException) {
+            _diagnostics.Push(Error.InsufficientStack(
+                BoundTreeVisitor.CancelledByStackGuardException.GetTooLongOrComplexExpressionErrorLocation(expression)
+            ));
+
+            throw new EmitCancelledException();
+        }
+    }
+
+    private void EmitExpressionCore(BoundExpression expression, bool used) {
         switch (expression.kind) {
             case BoundKind.ThisExpression:
                 if (used)
