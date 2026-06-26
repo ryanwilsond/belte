@@ -67,4 +67,7 @@ internal enum WellKnownMember : byte {
     Array_ctor_2,
     Array_Get,
     Array_Set,
+
+
+    LastCorMember = Array_Set,
 }

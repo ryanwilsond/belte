@@ -6,6 +6,7 @@
   <ValueType Name="UnaryOperatorKind"/>
   <ValueType Name="BinaryOperatorKind"/>
   <ValueType Name="LookupResultKind"/>
+  <ValueType Name="ForEachLoopKind"/>
   <ValueType Name="RefKind"/>
   <!-- Abstract Types -->
   <AbstractNode Name="BoundInitializer" Base="BoundNode"/>
@@ -504,6 +505,8 @@
     <Field Name="body" Type="BoundStatement"/>
   </Node>
   <Node Name="BoundForEachStatement" Base="BoundLoopStatement">
+    <Field Name="enumeratorInfo" Type="ForEachEnumeratorInfo?"/>
+    <Field Name="forEachLoopKind" Type="ForEachLoopKind"/>
     <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
     <Field Name="expression" Type="BoundExpression"/>
     <Field Name="innerLocals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>

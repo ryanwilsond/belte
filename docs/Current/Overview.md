@@ -559,7 +559,6 @@ To summarize the main differences:
 - [Class field definite assignment guarantees](ClassesAndObjects.md#4211-definite-assignment)
 - [Arrays prevent reading before writing to elements](#147-arrays)
 - [Null-binding contracts](ControlFlow.md#232-null-binding-contracts)
-- No properties
 - [Different generic/template constraints include expression constraints](ClassesAndObjects.md#451-constraint-clauses)
 - [Conditionals accept expressions of type `bool?` instead of `bool`](ControlFlow.md#231-null-conditions)
 - [More expressive implicit typing allowing with `var`, `const`, and `constexpr` and nullable annotations](Data.md#332-implicit-typing)

@@ -309,7 +309,7 @@ internal partial class Binder {
         return next.BindNullBindingDeconstruction(diagnostics, originalBinder);
     }
 
-    private protected bool BindForEachCollection(
+    private protected ForEachLoopKind BindForEachCollection(
         SyntaxNode syntax,
         SyntaxNode collectionSyntax,
         ref BoundExpression collectionExpr,
@@ -325,26 +325,105 @@ internal partial class Binder {
             .WhereAsArray(m => m is MethodSymbol e && e.GetParameterType(1).StrippedType().specialType == SpecialType.Int)
             .SingleOrDefault() as MethodSymbol;
 
+        // Prefer native options, then fallback to System.Collections.Generic.IEnumerable<T>
         if (type.IsArray()) {
             inferredType = ((ArrayTypeSymbol)type).elementTypeWithAnnotations;
-            return false;
+            return ForEachLoopKind.Array;
         } else if (type.specialType == SpecialType.String) {
             inferredType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Char));
-            return false;
+            return ForEachLoopKind.String;
         } else if (type.originalDefinition.Equals(CorLibrary.GetWellKnownType(WellKnownType.Enumerator))) {
             inferredType = ((NamedTypeSymbol)type).templateArguments[0].type;
-            return false;
+            return ForEachLoopKind.Enumerator;
         } else if (lengthOps.Any() && worseIndexOp is not null) {
             inferredType = (bestIndexOp ?? worseIndexOp).returnTypeWithAnnotations;
-            return false;
+            return ForEachLoopKind.Length;
         } else if (iterOps.Any()) {
             inferredType = ((NamedTypeSymbol)((MethodSymbol)iterOps.Single()).returnType).templateArguments[0].type;
-            return false;
+            return ForEachLoopKind.Iter;
         } else {
-            diagnostics.Push(Error.InvalidForEachExpression(collectionSyntax.location));
-            inferredType = new TypeWithAnnotations(CreateErrorType());
-            return true;
+            return BindForEachCollectionContinued(syntax, collectionSyntax, type, diagnostics, out inferredType);
         }
+    }
+
+    private ForEachLoopKind BindForEachCollectionContinued(
+        SyntaxNode syntax,
+        SyntaxNode collectionSyntax,
+        TypeSymbol type,
+        BelteDiagnosticQueue diagnostics,
+        out TypeWithAnnotations inferredType) {
+        var iEnumerableT = compilation.GetWellKnownType(WellKnownType.System_Collections_Generic_IEnumerable_T);
+
+        if (!iEnumerableT.IsErrorType()) {
+            var implementedIEnumerable = GetIEnumerableOfT(type, compilation, out var foundMultiple);
+
+            if ((implementedIEnumerable is null) || !IsAccessible(implementedIEnumerable)) {
+                implementedIEnumerable = null;
+
+                var implementedNonGeneric = compilation.GetWellKnownType(WellKnownType.System_Collections_IEnumerable);
+
+                if (implementedNonGeneric is not null &&
+                    conversions.HasImplicitReferenceConversion(type, implementedNonGeneric)) {
+                    implementedIEnumerable = implementedNonGeneric;
+                }
+            }
+
+            if (implementedIEnumerable is not null) {
+                inferredType = implementedIEnumerable.templateArguments[0].type;
+                return ForEachLoopKind.IEnumerable;
+            }
+        }
+
+        diagnostics.Push(Error.InvalidForEachExpression(collectionSyntax.location));
+        inferredType = new TypeWithAnnotations(CreateErrorType());
+        return ForEachLoopKind.Invalid;
+    }
+
+    private static NamedTypeSymbol GetIEnumerableOfT(
+        TypeSymbol type,
+        Compilation compilation,
+        out bool foundMultiple) {
+        NamedTypeSymbol implementedIEnumerable = null;
+        foundMultiple = false;
+
+        if (type.typeKind == TypeKind.TemplateParameter) {
+            var typeParameter = (TemplateParameterSymbol)type;
+            var allInterfaces = typeParameter.effectiveBaseClass.allInterfaces
+                .Concat(typeParameter.allEffectiveInterfaces);
+
+            GetIEnumerableOfT(allInterfaces, compilation, ref @implementedIEnumerable, ref foundMultiple);
+        } else {
+            GetIEnumerableOfT(type.allInterfaces, compilation, ref @implementedIEnumerable, ref foundMultiple);
+        }
+
+        return implementedIEnumerable;
+    }
+
+    private static void GetIEnumerableOfT(
+        ImmutableArray<NamedTypeSymbol> interfaces,
+        Compilation compilation,
+        ref NamedTypeSymbol result,
+        ref bool foundMultiple) {
+        if (foundMultiple)
+            return;
+
+        // TODO Interface variance
+        // interfaces = MethodTypeInferrer.ModuloReferenceTypeNullabilityDifferences(interfaces, VarianceKind.In);
+
+        foreach (var @interface in interfaces) {
+            if (IsIEnumerableT(@interface.originalDefinition, compilation)) {
+                if (result is null || TypeSymbol.Equals(@interface, result, TypeCompareKind.IgnoreTupleNames)) {
+                    result = @interface;
+                } else {
+                    foundMultiple = true;
+                    return;
+                }
+            }
+        }
+    }
+
+    private static bool IsIEnumerableT(TypeSymbol type, Compilation compilation) {
+        return type.Equals(compilation.GetWellKnownType(WellKnownType.System_Collections_Generic_IEnumerable_T));
     }
 
     private protected bool BindNullBindingSource(

@@ -2511,13 +2511,28 @@ internal partial class Binder {
         }
 
         var boundExpression = BindValue(node.expression, diagnostics, BindValueKind.RValue);
-        var thrownExpression = GenerateConversionForAssignment(
-            CorLibrary.GetWellKnownType(WellKnownType.Exception),
+
+        // Prefer System.Exception but have all diagnostics fallback to Belte::Exception
+        var systemType = compilation.GetWellKnownType(WellKnownType.System_Exception);
+        var nativeType = CorLibrary.GetWellKnownType(WellKnownType.Exception);
+
+        if (systemType.IsErrorType())
+            return CreateThrowExpression(nativeType);
+
+        var conversion = conversions.ClassifyConversionFromExpression(
             boundExpression,
-            diagnostics
+            systemType
         );
 
-        return new BoundThrowExpression(node, thrownExpression, null, hasErrors);
+        if (conversion.exists)
+            return CreateThrowExpression(systemType);
+
+        return CreateThrowExpression(nativeType);
+
+        BoundExpression CreateThrowExpression(NamedTypeSymbol type) {
+            var thrownExpression = GenerateConversionForAssignment(type, boundExpression, diagnostics);
+            return new BoundThrowExpression(node, thrownExpression, null, hasErrors);
+        }
     }
 
     private static bool IsThrowExpressionInProperContext(ThrowExpressionSyntax node) {

@@ -47,6 +47,9 @@ internal static class WellKnownMemberNames {
     internal const string Deconstruct = "Deconstruct";
     internal const string BufferLength = "Length";
     internal new const string ToString = "ToString";
+    internal const string GetEnumeratorMethodName = "GetEnumerator";
+    internal const string MoveNextMethodName = "MoveNext";
+    internal const string CurrentPropertyName = "get_Current";
 
     internal static string GetLiteralOperatorName(string suffix) {
         return $"op_Literal_{suffix}";

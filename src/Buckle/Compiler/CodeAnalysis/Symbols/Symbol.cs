@@ -449,6 +449,28 @@ internal abstract class Symbol : ISymbol {
         }
     }
 
+    internal static bool IsSymbolAccessible(
+        Symbol symbol,
+        AssemblySymbol within) {
+        ArgumentNullException.ThrowIfNull(symbol);
+        ArgumentNullException.ThrowIfNull(within);
+        return AccessCheck.IsSymbolAccessible(symbol, within);
+    }
+
+    internal bool IsHiddenByCodeAnalysisEmbeddedAttribute() {
+        var upperLevelType = kind == SymbolKind.NamedType ? (NamedTypeSymbol)this : containingType;
+
+        if (upperLevelType is null)
+            return false;
+
+        while (upperLevelType.containingType is not null)
+            upperLevelType = upperLevelType.containingType;
+
+        // TODO attribute
+        // return upperLevelType.hasCodeAnalysisEmbeddedAttribute;
+        return false;
+    }
+
     internal bool IsNoMoreVisibleThan(TypeSymbol type) {
         return type.StrippedType().IsAtLeastAsVisibleAs(this);
     }

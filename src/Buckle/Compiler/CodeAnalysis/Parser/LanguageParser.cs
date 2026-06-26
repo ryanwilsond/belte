@@ -203,6 +203,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.PrivateKeyword:
             case SyntaxKind.ProtectedKeyword:
             case SyntaxKind.PublicKeyword:
+            case SyntaxKind.PropertyKeyword:
             case SyntaxKind.ConstexprKeyword:
             case SyntaxKind.FinalKeyword:
             case SyntaxKind.SealedKeyword:

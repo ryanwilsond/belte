@@ -353,7 +353,13 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
                 result = this;
                 return false;
             } else if (!oldTypeArgument.IsSameAs(newTypeArgument)) {
-                allTypeArguments[i] = new TypeOrConstant(newTypeArgument);
+                // in `class A<type T>`, `type` is non-nullable even though its a reference type
+                allTypeArguments[i] = new TypeOrConstant(
+                    oldTypeArgument.type.IsTemplateParameter()
+                        ? new TypeWithAnnotations(newTypeArgument.nullableUnderlyingTypeOrSelf)
+                        : newTypeArgument
+                );
+
                 haveChanges = true;
             }
         }

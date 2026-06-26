@@ -10,6 +10,10 @@ internal static class OverriddenOrHiddenMembersHelpers {
         return MakeOverriddenOrHiddenMembersWorker(member);
     }
 
+    internal static OverriddenOrHiddenMembersResult MakeOverriddenOrHiddenMembers(this PropertySymbol member) {
+        return MakeOverriddenOrHiddenMembersWorker(member);
+    }
+
     private static OverriddenOrHiddenMembersResult MakeOverriddenOrHiddenMembersWorker(Symbol member) {
         if (!CanOverrideOrHide(member))
             return OverriddenOrHiddenMembersResult.Empty;

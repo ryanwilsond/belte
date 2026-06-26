@@ -4,6 +4,8 @@ using Buckle.CodeAnalysis.Display;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal static class WellKnownTypes {
+    internal const int PECount = (int)WellKnownType.LastPEType - (int)WellKnownType.FirstPEType + 1;
+
     private static readonly Dictionary<string, WellKnownType> NameToTypeMap = new Dictionary<string, WellKnownType>() {
         { "global::List`1", WellKnownType.List },
         { "global::Dictionary`2", WellKnownType.Dictionary },

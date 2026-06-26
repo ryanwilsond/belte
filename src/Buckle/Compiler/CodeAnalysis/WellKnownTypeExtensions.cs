@@ -26,6 +26,11 @@ internal static class WellKnownTypeExtensions {
         "DllImportAttribute",
         "UnmanagedAttribute",
         "MustUseReturnValueAttribute",
+        "System.Exception",
+        "System.Collections.IEnumerable",
+        "System.Collections.Generic.IEnumerable`1",
+        "System.Collections.IEnumerator",
+        "System.Collections.Generic.IEnumerator`1",
     ];
 
     internal static bool ShouldEmit(this WellKnownType wellKnownType, bool includeGraphicsTypes) {

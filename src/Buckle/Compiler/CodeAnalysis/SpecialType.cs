@@ -40,4 +40,7 @@ public enum SpecialType : byte {
     // Superficial special types
     Pointer,
     FunctionPointer,
+
+
+    LastCorType = Buffer,
 }

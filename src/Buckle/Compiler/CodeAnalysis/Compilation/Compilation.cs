@@ -54,6 +54,9 @@ public sealed partial class Compilation {
     private HandleManager _lazyHandleManager;
     private ConcurrentSet<AssemblySymbol> _lazyUsedAssemblyReferences;
     private ConcurrentDictionary<ImportInfo, ImmutableArray<AssemblySymbol>> _lazyImportInfos;
+    private NamedTypeSymbol[] _lazyWellKnownTypes;
+    // TODO Perf: use SmallDictionary
+    private Dictionary<int, bool> _lazyMakeWellKnownTypeMissingMap;
 
     private Compilation(
         string assemblyName,
@@ -735,6 +738,86 @@ public sealed partial class Compilation {
                     updatePointCandidates.Add(m);
                 }
             }
+        }
+    }
+
+    internal void MakeTypeMissing(WellKnownType type) {
+        MakeTypeMissing((int)type);
+    }
+
+    private void MakeTypeMissing(int type) {
+        _lazyMakeWellKnownTypeMissingMap ??= [];
+        _lazyMakeWellKnownTypeMissingMap[type] = true;
+    }
+
+    internal bool IsTypeMissing(WellKnownType type) {
+        return IsTypeMissing((int)type);
+    }
+
+    private bool IsTypeMissing(int type) {
+        return _lazyMakeWellKnownTypeMissingMap is not null && _lazyMakeWellKnownTypeMissingMap.ContainsKey(type);
+    }
+
+    internal NamedTypeSymbol GetWellKnownType(WellKnownType type) {
+        // Native types should be accessed through CorLibrary
+        Debug.Assert(type > WellKnownType.LastNativeType);
+
+        var index = (int)type - (int)WellKnownType.FirstPEType;
+
+        if (_lazyWellKnownTypes is null || _lazyWellKnownTypes[index] is null) {
+            if (_lazyWellKnownTypes is null)
+                Interlocked.CompareExchange(ref _lazyWellKnownTypes, new NamedTypeSymbol[WellKnownTypes.PECount], null);
+
+            var mdName = type.GetMetadataName();
+            var warnings = BelteDiagnosticQueue.GetInstance();
+            NamedTypeSymbol result;
+            (AssemblySymbol, AssemblySymbol) conflicts = default;
+
+            if (IsTypeMissing(type)) {
+                result = null;
+            } else {
+                result = assembly.GetTypeByMetadataName(
+                    mdName,
+                    includeReferences: true,
+                    useCLSCompliantNameArityEncoding: true,
+                    isWellKnownType: true,
+                    conflicts: out conflicts,
+                    warnings: warnings
+                );
+
+                Debug.Assert(result?.IsErrorType() != true);
+            }
+
+            if (result is null) {
+                var emittedName = MetadataTypeName.FromFullName(mdName, useCLSCompliantNameArityEncoding: true);
+                // TODO Err?
+                result = new MissingMetadataTypeSymbol.TopLevel(assembly.modules[0], ref emittedName, type, null);
+            }
+
+            if (Interlocked.CompareExchange(ref _lazyWellKnownTypes[index], result, null) is not null) {
+                Debug.Assert(
+                    TypeSymbol.Equals(result, _lazyWellKnownTypes[index], TypeCompareKind.ConsiderEverything) ||
+                        (_lazyWellKnownTypes[index]!.IsErrorType() && result.IsErrorType())
+                );
+            } else {
+                declarationDiagnostics.PushRange(warnings);
+            }
+
+            warnings.Free();
+        }
+
+        return _lazyWellKnownTypes[index];
+    }
+
+    internal void GetUnaliasedReferencedAssemblies(ArrayBuilder<AssemblySymbol> assemblies) {
+        var referenceManager = this.referenceManager;
+        var length = referenceManager.referencedAssemblies.Length;
+
+        assemblies.EnsureCapacity(assemblies.Count + length);
+
+        for (var i = 0; i < length; i++) {
+            if (referenceManager.DeclarationsAccessibleWithoutAlias(i))
+                assemblies.Add(referenceManager.referencedAssemblies[i]);
         }
     }
 

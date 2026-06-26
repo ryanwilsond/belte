@@ -147,7 +147,11 @@ internal sealed class TypeWithAnnotations {
         return true;
 
         static bool ShouldLift(TypeSymbol type) {
-            return type.typeKind is TypeKind.Class or TypeKind.Array or TypeKind.TemplateParameter;
+            // TODO TemplateParameters or Interfaces?
+            // Lifting TemplateParameters seems to cause problems where Nullable<type> T substitutes into Nullable<T> T instead of T T
+            // e.g. `List<T>.Add(T)` with `int` becomes `List<int>.Add(Nullable<int>)` which is incorrect
+            // Interfaces also cause problems with template parameters so need to double check that
+            return type.typeKind is TypeKind.Class or TypeKind.Array/* or TypeKind.TemplateParameter*/;
         }
     }
 
