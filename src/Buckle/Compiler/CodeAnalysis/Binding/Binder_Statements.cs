@@ -369,7 +369,10 @@ internal partial class Binder {
             }
 
             if (implementedIEnumerable is not null) {
-                inferredType = implementedIEnumerable.templateArguments[0].type;
+                inferredType = implementedIEnumerable.isTemplateType
+                    ? implementedIEnumerable.templateArguments[0].type
+                    : new TypeWithAnnotations(CorLibrary.GetNullableType(SpecialType.Object));
+
                 return ForEachLoopKind.IEnumerable;
             }
         }
@@ -393,6 +396,9 @@ internal partial class Binder {
 
             GetIEnumerableOfT(allInterfaces, compilation, ref @implementedIEnumerable, ref foundMultiple);
         } else {
+            if (type.IsInterfaceType())
+                GetIEnumerableOfT([(NamedTypeSymbol)type], compilation, ref @implementedIEnumerable, ref foundMultiple);
+
             GetIEnumerableOfT(type.allInterfaces, compilation, ref @implementedIEnumerable, ref foundMultiple);
         }
 
