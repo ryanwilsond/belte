@@ -326,6 +326,17 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
         }
     }
 
+    internal override bool TryGetThisParameter(out ParameterSymbol? thisParameter) {
+        thisParameter = isStatic/* || this.IsExtensionBlockMember()*/
+            ? null
+            : _uncommonFields?._lazyThisParameter ??
+                InterlockedOperations.Initialize(ref
+                    AccessUncommonFields()._lazyThisParameter,
+                    new ThisParameterSymbol(this));
+
+        return true;
+    }
+
     internal override ImmutableArray<AttributeData> GetAttributes() {
         // TODO
         return [];

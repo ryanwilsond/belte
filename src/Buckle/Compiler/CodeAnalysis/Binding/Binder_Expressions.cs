@@ -6380,7 +6380,7 @@ internal partial class Binder {
             }
         }
 
-        return !methodSymbol.CheckMethodConstraints(node.location, diagnostics);
+        return !methodSymbol.CheckMethodConstraints(conversions, node.location, diagnostics);
     }
 
     private static bool IsMemberAccessedThroughVariableOrValue(BoundExpression receiver) {

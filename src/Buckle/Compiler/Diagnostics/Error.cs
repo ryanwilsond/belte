@@ -2876,6 +2876,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_GetOrSetExpected, message);
     }
 
+    internal static BelteDiagnostic PointerTypeInPatternMatch(TextLocation location) {
+        var message = $"patterns are not permitted for pointer types";
+        return CreateError(DiagnosticCode.ERR_PointerTypeInPatternMatch, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.FlowAnalysis;
@@ -80,6 +81,7 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
     internal static BoundBlockStatement Rewrite(
         BoundBlockStatement loweredBody,
         NamedTypeSymbol thisType,
+        ParameterSymbol thisParameter,
         MethodSymbol method,
         int methodOrdinal,
         MethodSymbol substitutedSourceMethod,
@@ -88,11 +90,14 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
         BelteDiagnosticQueue diagnostics,
         HashSet<DataContainerSymbol> assignLocals,
         ref MethodSymbol entryPoint) {
+        Debug.Assert(thisParameter is null ||
+            TypeSymbol.Equals(thisParameter.type, thisType, TypeCompareKind.ConsiderEverything));
+
         var analysis = Analysis.Analyze(loweredBody, method, methodOrdinal, state);
         var rewriter = new LocalFunctionRewriter(
             analysis,
             thisType,
-            null, // TODO Check if we can actually synthesize this
+            thisParameter,
             method,
             substitutedSourceMethod,
             state,

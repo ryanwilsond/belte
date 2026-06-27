@@ -17,7 +17,6 @@ namespace Buckle;
 
 /// <summary>
 /// Handles compiling and handling a single <see cref="CompilerState" />.
-/// Multiple can be created and run asynchronously.
 /// </summary>
 public sealed class Compiler {
     private const int SuccessExitCode = 0;
@@ -122,6 +121,14 @@ public sealed class Compiler {
         return references.ToArray();
     }
 
+    /// <summary>
+    /// Adds diagnostics from compiling the native libraries to the given queue.
+    /// </summary>
+    public void AddLibraryErrors(BelteDiagnosticQueue libraryDiagnostics) {
+        diagnostics.PushRange(libraryDiagnostics.Errors());
+        diagnostics.Push(Fatal.LibraryError());
+    }
+
     private static int CalculateExitCode(BelteDiagnosticQueue diagnostics) {
         var worst = SuccessExitCode;
 
@@ -131,11 +138,6 @@ public sealed class Compiler {
         }
 
         return worst;
-    }
-
-    public void AddLibraryErrors(BelteDiagnosticQueue libraryDiagnostics) {
-        diagnostics.PushRange(libraryDiagnostics.Errors());
-        diagnostics.Push(Fatal.LibraryError());
     }
 
     private BelteDiagnosticQueue GetCorLibrary(out Compilation compilation) {

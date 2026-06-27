@@ -1,6 +1,7 @@
+
 namespace Buckle.CodeAnalysis.Binding;
 
-internal sealed partial class Conversions {
+internal partial class ConversionsBase {
     internal enum BetterResult {
         Left,
         Right,

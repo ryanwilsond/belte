@@ -2475,7 +2475,7 @@ internal sealed partial class OverloadResolution {
 
             for (var i = 0; i < parameterTypes.Length; i++) {
                 var _ = BelteDiagnosticQueue.GetInstance();
-                parameterTypes[i].type.CheckAllConstraints(parameters[i].location, _);
+                parameterTypes[i].type.CheckAllConstraints(conversions, parameters[i].location, _);
 
                 if (_.Any()) {
                     _.Free();

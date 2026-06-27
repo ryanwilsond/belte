@@ -222,7 +222,9 @@ internal abstract class Symbol : ISymbol {
         }
     }
 
-    internal virtual void AfterAddingTypeMembersChecks(BelteDiagnosticQueue diagnostics) { }
+    internal virtual void AfterAddingTypeMembersChecks(
+        ConversionsBase conversions,
+        BelteDiagnosticQueue diagnostics) { }
 
     internal virtual ImmutableArray<AttributeData> GetAttributes() {
         return [];

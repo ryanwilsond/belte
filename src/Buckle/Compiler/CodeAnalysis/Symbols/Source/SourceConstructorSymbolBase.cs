@@ -51,11 +51,13 @@ internal abstract class SourceConstructorSymbolBase : SourceMemberMethodSymbol {
 
     private protected abstract bool _allowRef { get; }
 
-    internal sealed override void AfterAddingTypeMembersChecks(BelteDiagnosticQueue diagnostics) {
-        base.AfterAddingTypeMembersChecks(diagnostics);
+    internal sealed override void AfterAddingTypeMembersChecks(
+        ConversionsBase conversions,
+        BelteDiagnosticQueue diagnostics) {
+        base.AfterAddingTypeMembersChecks(conversions, diagnostics);
 
         foreach (var parameter in parameters)
-            parameter.type.CheckAllConstraints(parameter.syntaxReference.location, diagnostics);
+            parameter.type.CheckAllConstraints(conversions, parameter.syntaxReference.location, diagnostics);
     }
 
     internal sealed override ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes() {

@@ -631,6 +631,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                 loweredBody = LocalFunctionRewriter.Rewrite(
                     loweredBody,
                     state.type,
+                    method.thisParameter,
                     method,
                     methodOrdinal,
                     null,

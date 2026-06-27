@@ -1546,4 +1546,35 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void TemplateConstraint_AllowsNullableReferenceType() {
+        var text = @"
+            class A { }
+            class B extends A { }
+
+            void Func<type T>() where { T extends A; } { }
+
+            Func<B>();
+            Func<B?>();
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void IsPattern_TypeIsChecked() {
+        var text = @"
+            int a = 3;
+            bool b = a is [not] int;
+        ";
+
+        var diagnostics = @"
+            the type or namespace name 'not' could not be found
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

@@ -589,6 +589,7 @@ public enum DiagnosticCode : ushort {
     ERR_IgnoringRequiredReturnValue = 578,
     ERR_MustUseReturnValueAttributeOnVoid = 579,
     ERR_GetOrSetExpected = 580,
+    ERR_PointerTypeInPatternMatch = 581,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

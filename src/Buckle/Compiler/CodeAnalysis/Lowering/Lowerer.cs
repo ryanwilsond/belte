@@ -898,6 +898,8 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
             );
         }
 
+        Debug.Assert(!expression.right.type.IsErrorType());
+
         return base.VisitIsOperator(expression);
     }
 
@@ -1109,6 +1111,8 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
 
         if (node.conversion.kind is ConversionKind.ObjectCreation or ConversionKind.ConditionalExpression)
             return Visit(node.operand);
+
+        Debug.Assert(node.conversion.exists);
 
         return base.VisitCastExpression(node);
     }

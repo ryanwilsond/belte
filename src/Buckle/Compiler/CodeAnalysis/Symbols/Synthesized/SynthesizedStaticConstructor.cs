@@ -84,6 +84,11 @@ internal sealed class SynthesizedStaticConstructor : MethodSymbol {
         return null;
     }
 
+    internal override bool TryGetThisParameter(out ParameterSymbol thisParameter) {
+        thisParameter = null;
+        return true;
+    }
+
     internal sealed override UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete) {
         return null;
     }

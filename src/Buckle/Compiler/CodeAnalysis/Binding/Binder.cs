@@ -1377,9 +1377,18 @@ internal partial class Binder {
         analyzedArguments.Free();
         type = type.Construct(templateArguments);
 
-        if (!flags.Includes(BinderFlags.SuppressConstraintChecks) && ConstraintsHelpers.RequiresChecking(type))
+        if (!flags.Includes(BinderFlags.SuppressConstraintChecks) && ConstraintsHelpers.RequiresChecking(type)) {
             // CheckConstraintsForNamedType should report any relevant diagnostics
-            _ = type.CheckConstraintsForNamedType(typeSyntax.location, diagnostics, typeSyntax, basesBeingResolved);
+            var succeeded = type.CheckConstraintsForNamedType(
+                conversions,
+                typeSyntax.location,
+                diagnostics,
+                typeSyntax,
+                basesBeingResolved
+            );
+
+            Debug.Assert(succeeded || diagnostics.AnyErrors());
+        }
 
         return type;
     }
@@ -1745,22 +1754,16 @@ internal partial class Binder {
         }
 
         var pattern = (DeclarationPatternSyntax)node.right;
+        var patternTypeWithAnnotations = BindType(pattern.type, diagnostics);
+        var patternType = patternTypeWithAnnotations.type;
+
+        if (!hasErrors)
+            hasErrors |= CheckValidPatternType(pattern.type, expressionType, patternType, diagnostics);
+
         var localSymbol = LookupLocal(pattern.identifier) ?? throw ExceptionUtilities.Unreachable();
-
-        var sourceType = expressionType.StrippedType();
-        var targetType = localSymbol.type.StrippedType();
-
-        if (localSymbol.type.IsNullableType() && targetType.isValueType) {
-            diagnostics.Push(Error.CannotAnnotateTypePattern(pattern.type.location, localSymbol.type, targetType));
-            hasErrors = true;
-        }
+        localSymbol.SetTypeWithAnnotations(patternTypeWithAnnotations);
 
         var boolType = CorLibrary.GetSpecialType(SpecialType.Bool);
-
-        if (!hasErrors && !IsCanHandle(sourceType, targetType)) {
-            diagnostics.Push(Error.PatternCannotHandleTypes(pattern.type.location, sourceType, targetType));
-            hasErrors = true;
-        }
 
         return new BoundIsPatternExpression(
             node,
@@ -1770,6 +1773,41 @@ internal partial class Binder {
             boolType,
             hasErrors
         );
+    }
+
+    private bool CheckValidPatternType(
+        SyntaxNode typeSyntax,
+        TypeSymbol inputType,
+        TypeSymbol patternType,
+        BelteDiagnosticQueue diagnostics) {
+        if (inputType.IsErrorType() || patternType.IsErrorType()) {
+            return false;
+        } else if (inputType.IsPointerOrFunctionPointer() || patternType.IsPointerOrFunctionPointer()) {
+            diagnostics.Push(Error.PointerTypeInPatternMatch(typeSyntax.location));
+            return true;
+        } else if (patternType.IsNullableType()) {
+            diagnostics.Push(Error.CannotAnnotateTypePattern(
+                typeSyntax.location,
+                patternType,
+                patternType.StrippedType()
+            ));
+
+            return true;
+        } else if (typeSyntax is NullableTypeSyntax) {
+            throw ExceptionUtilities.Unreachable();
+        } else if (patternType.isStatic) {
+            diagnostics.Push(Error.StaticDataContainer(typeSyntax.location));
+            return true;
+        } else {
+            // TODO This could be more exhaustive with reference types
+
+            if (!IsCanHandle(inputType.StrippedType(), patternType)) {
+                diagnostics.Push(Error.PatternCannotHandleTypes(typeSyntax.location, inputType, patternType));
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private static bool IsCanHandle(TypeSymbol sourceType, TypeSymbol targetType) {

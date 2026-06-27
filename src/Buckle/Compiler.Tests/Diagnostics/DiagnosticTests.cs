@@ -8169,4 +8169,38 @@ var text = """"""
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    // !
+    // TODO Properties
+    // [Fact]
+    // public void Reports_Error_BU0580_GetOrSetExpected() {
+    //     var text = @"
+    //         class A {
+    //             \[[MustUseReturnValue]\]
+    //             public static void M() { }
+    //         }
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         'MustUseReturnValue' can only be applied to methods returning a value
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // ? Parser doesn't allow pointer types in this position currently
+    // [Fact]
+    // public void Reports_Error_BU0581_PointerTypeInPatternMatch() {
+    //     var text = @"
+    //         int a = 3;
+    //         bool b = a is [int*] p;
+    //     ";
+
+    //     var diagnostics = @"
+    //         patterns are not permitted for pointer types
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
 }

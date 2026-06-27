@@ -3667,8 +3667,12 @@ oneMoreTime:
     }
 
     private void EmitParameterLoad(ParameterSymbol parameter) {
-        var slot = ParameterSlot(parameter);
-        _builder.EmitLoadArgument(slot);
+        if (parameter.isThis) {
+            _builder.EmitLoadArgument0();
+        } else {
+            var slot = ParameterSlot(parameter);
+            _builder.EmitLoadArgument(slot);
+        }
 
         if (parameter.refKind != RefKind.None) {
             var parameterType = parameter.type;
