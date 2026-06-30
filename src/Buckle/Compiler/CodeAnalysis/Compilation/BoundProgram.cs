@@ -1,11 +1,12 @@
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Microsoft.CodeAnalysis.PooledObjects;
 
-namespace Buckle.CodeAnalysis.Binding;
+namespace Buckle.CodeAnalysis;
 
 internal sealed partial class BoundProgram {
     private ImmutableDictionary<MethodSymbol, BoundBlockStatement> _lazyOriginalDefinitions;
@@ -134,6 +135,23 @@ internal sealed partial class BoundProgram {
         return builder.ToImmutableAndFree();
     }
 
+    internal ImmutableArray<(MethodSymbol, BoundBlockStatement)> GetMethodsToEmit() {
+        var methods = GetAllMethodBodies();
+        var length = methods.Length;
+        var builder = ArrayBuilder<(MethodSymbol, BoundBlockStatement)>.GetInstance(length);
+
+        for (var i = 0; i < length; i++) {
+            var (method, body) = methods[i];
+
+            if (!TemplateExpander.ShouldEmit(method))
+                continue;
+
+            builder.Add((method, body));
+        }
+
+        return builder.ToImmutableAndFree();
+    }
+
     internal ImmutableArray<NamedTypeSymbol> GetTypesToEmit(bool includeGraphicsWellKnownTypes) {
         var types = GetAllTypes();
         var length = types.Length;
@@ -145,14 +163,22 @@ internal sealed partial class BoundProgram {
             if (t is not NamedTypeSymbol namedType)
                 continue;
 
+            if (t.containingSymbol.kind != SymbolKind.Namespace)
+                continue;
+
+            if (t.specialType != SpecialType.None)
+                continue;
+
+            if (t.originalDefinition is PENamedTypeSymbol)
+                continue;
+
+            if (!TemplateExpander.ShouldEmit(namedType))
+                continue;
+
             var wellKnownType = WellKnownTypes.GetTypeFromMetadataName(namedType);
 
-            if (t.containingSymbol.kind == SymbolKind.Namespace &&
-                t.specialType is SpecialType.None &&
-                wellKnownType.ShouldEmit(includeGraphicsWellKnownTypes) &&
-                t.originalDefinition is not PENamedTypeSymbol) {
-                builder.Add((NamedTypeSymbol)t);
-            }
+            if (wellKnownType.ShouldEmit(includeGraphicsWellKnownTypes))
+                builder.Add(namedType);
         }
 
         return builder.ToImmutableAndFree();

@@ -828,6 +828,7 @@ hasRelatedInterfaces:
     }
 
     private static bool IsEncompassedBy(TypeSymbol a, TypeSymbol b) {
+        // TODO This should use ConversionsBase not Conversion
         return Conversion.HasIdentityOrImplicitConversion(a, b) || Conversion.HasBoxingConversion(a, b);
     }
 

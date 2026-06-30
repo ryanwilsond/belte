@@ -633,7 +633,10 @@ public static class SymbolDisplay {
         else
             text.Write(CreateIdentifier(method.name));
 
-        DisplayTemplateParameters(text, method.templateParameters, format);
+        if ((object)method.constructedFrom == method)
+            DisplayTemplateParameters(text, method.templateParameters, format);
+        else
+            DisplayTemplateArguments(text, method.templateArguments, format);
 
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeParameters) != 0) {
             text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));

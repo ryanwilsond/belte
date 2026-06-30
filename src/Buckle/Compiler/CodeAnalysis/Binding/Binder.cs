@@ -3289,7 +3289,7 @@ internal partial class Binder {
 
         if (operand is BoundMethodGroup group) {
             // TODO Error checking
-            var method = group.methods.FirstOrDefault();
+            var method = group.methods.FirstOrDefault().ConstructIfTemplate(group.templateArguments);
             var paramRefKinds = method.parameterRefKinds.IsDefault
                 ? method.parameterTypesWithAnnotations.Select(p => RefKind.None).ToImmutableArray()
                 : method.parameterRefKinds;
@@ -3314,7 +3314,7 @@ internal partial class Binder {
 
             return new BoundFunctionPointerLoad(
                 node,
-                group.methods.FirstOrDefault(),
+                method,
                 null,
                 functionPointerType,
                 operand.hasErrors

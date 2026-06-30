@@ -182,6 +182,17 @@ internal sealed class FunctionMethodSymbol : MethodSymbol {
         );
     }
 
+    internal FunctionMethodSymbol ReplaceParameterSymbols(
+        TypeWithAnnotations replacedReturnType,
+        ImmutableArray<TypeWithAnnotations> replacedParameterTypes) {
+        return new FunctionMethodSymbol(
+            refKind,
+            replacedReturnType,
+            parameters,
+            replacedParameterTypes.SelectAsArray(t => new TypeOrConstant(t))
+        );
+    }
+
     internal override bool Equals(Symbol other, TypeCompareKind compareKind) {
         if (!(other is FunctionMethodSymbol method)) {
             return false;

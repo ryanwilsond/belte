@@ -78,7 +78,6 @@ implemented.
 | Feature | Evaluator | Executor | IL Emitter | Explanation |
 | - | - | - | - | - |
 | `--type=graphics` projects | ✓ | ✓ | ✕ | Standalone graphics DLL under development |
-| Non-type templates | ✓ | ✕ | ✕ | Not supported by the .NET runtime |
 | Non-integral enums | ✓ | ✕ | ✕ | Not supported by the .NET runtime |
 | Pointers | ✕ | ✓ | ✓ | Partially supported the Evaluator but not stable due to internal memory structure |
 | Function pointers | ✕ | ✓ | ✓ | Disallowed in the Evaluator due to internal memory structure |

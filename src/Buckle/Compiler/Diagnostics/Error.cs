@@ -21,9 +21,9 @@ internal static class Error {
     /// Once the compiler is finished, this class will be unnecessary.
     /// </summary>
     internal static class Unsupported {
-        internal static BelteDiagnostic NonTypeTemplate(TextLocation location) {
-            var message = "unsupported: cannot declare a non-type template when building for .NET, transpiling to C#, or executing";
-            return CreateError(DiagnosticCode.UNS_NonTypeTemplate, location, message);
+        internal static BelteDiagnostic NonTypeTemplateFunction(TextLocation location) {
+            var message = "unsupported: cannot declare a non-type template local function";
+            return CreateError(DiagnosticCode.UNS_NonTypeTemplateFunction, location, message);
         }
 
         internal static BelteDiagnostic GraphicsDll() {

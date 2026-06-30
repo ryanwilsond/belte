@@ -60,6 +60,9 @@ internal static class TypeWithAnnotationsExtensions {
 
                     int i;
                     for (i = 0; i < templateArguments.Length - 1; i++) {
+                        if (templateArguments[i].isConstant)
+                            continue;
+
                         (var nextTypeWithAnnotations, var nextType) = GetNextIterationElements(
                             templateArguments[i].type,
                             canDigThroughNullable
@@ -78,9 +81,20 @@ internal static class TypeWithAnnotationsExtensions {
                             return result;
                     }
 
-                    next = templateArguments[i].type;
-                    break;
+                    // Skip non-type templates
+                    next = null;
 
+                    for (; i >= 0; i--) {
+                        next = templateArguments[i].type;
+
+                        if (next is not null)
+                            break;
+                    }
+
+                    if (next is not null)
+                        break;
+
+                    return null;
                 case TypeKind.Array:
                     next = ((ArrayTypeSymbol)current).elementTypeWithAnnotations;
                     break;

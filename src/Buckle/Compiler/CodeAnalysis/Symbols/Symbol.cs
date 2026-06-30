@@ -862,7 +862,7 @@ internal abstract class Symbol : ISymbol {
     }
 
     private string GetDebuggerDisplay() {
-        return $"{kind} {ToDisplayString(SymbolDisplayFormat.Everything)}";
+        return $"{kind} {ToDisplayString(SymbolDisplayFormat.ErrorMessageFormat)}";
     }
 
     public string ToDisplayString(SymbolDisplayFormat format) {

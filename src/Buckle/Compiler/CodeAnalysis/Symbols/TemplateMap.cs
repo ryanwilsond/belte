@@ -42,7 +42,7 @@ internal class TemplateMap {
             var templateParameter = from[i];
             var templateArgument = to[i];
 
-            if (!templateArgument.Equals(templateParameter))
+            if (templateArgument.type?.type?.Equals(templateParameter) != true)
                 _mapping.Add(templateParameter, templateArgument);
         }
     }
@@ -158,7 +158,8 @@ internal class TemplateMap {
             previous.rank,
             previous.sizes,
             previous.lowerBounds,
-            previous.baseType);
+            previous.baseType
+        );
     }
 
     internal NamedTypeSymbol SubstituteNamedType(NamedTypeSymbol previous) {

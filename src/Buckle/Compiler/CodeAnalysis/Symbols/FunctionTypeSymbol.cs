@@ -60,6 +60,14 @@ internal sealed class FunctionTypeSymbol : TypeSymbol {
         );
     }
 
+    internal FunctionTypeSymbol ReplaceTypeSymbol(
+        TypeWithAnnotations replacedReturnType,
+        ImmutableArray<TypeWithAnnotations> replacedParameterTypes) {
+        return new FunctionTypeSymbol(
+            signature.ReplaceParameterSymbols(replacedReturnType, replacedParameterTypes)
+        );
+    }
+
     internal FunctionMethodSymbol signature { get; }
 
     public override bool isReferenceType => true;

@@ -30,6 +30,9 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
     private readonly BelteDiagnosticQueue _diagnostics;
 
     private bool _sawCompileTimeExpression;
+    private bool _sawNonTypeTemplate;
+    private bool _sawLambda;
+    private bool _sawLocalFunction;
 
     private Lowerer(
         MethodCompiler methodCompiler,
@@ -53,7 +56,10 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         BoundBlockStatement statement,
         NamedTypeSymbol entryType,
         BelteDiagnosticQueue diagnostics,
-        out bool sawCompileTimeExpression) {
+        out bool sawCompileTimeExpression,
+        out bool sawNonTypeTemplate,
+        out bool sawLambda,
+        out bool sawLocalFunction) {
         var lowerer = new Lowerer(methodCompiler, method, entryType, diagnostics);
         var optimize = optimizationLevel == OptimizationLevel.Release && !methodCompiler.transpiling;
 
@@ -77,6 +83,9 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
             rewrittenStatement = (BoundBlockStatement)Optimizer.Optimize(rewrittenStatement);
 
         sawCompileTimeExpression = lowerer._sawCompileTimeExpression;
+        sawNonTypeTemplate = lowerer._sawNonTypeTemplate || TemplateExpander.IsNonTypeTemplateMethod(method);
+        sawLambda = lowerer._sawLambda;
+        sawLocalFunction = lowerer._sawLocalFunction;
 
         return rewrittenStatement;
     }
@@ -91,9 +100,26 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         return base.Visit(node);
     }
 
+    internal override TypeSymbol VisitType(TypeSymbol type) {
+        if (type is not null && TemplateExpander.IsNonTypeTemplateType(type))
+            _sawNonTypeTemplate = true;
+
+        return base.VisitType(type);
+    }
+
     internal override BoundNode VisitCompileTimeExpression(BoundCompileTimeExpression node) {
         _sawCompileTimeExpression = true;
         return base.VisitCompileTimeExpression(node);
+    }
+
+    internal override BoundNode VisitLambda(BoundLambda node) {
+        _sawLambda = true;
+        return base.VisitLambda(node);
+    }
+
+    internal override BoundNode VisitLocalFunctionStatement(BoundLocalFunctionStatement node) {
+        _sawLocalFunction = true;
+        return base.VisitLocalFunctionStatement(node);
     }
 
     internal override BoundNode VisitBlockStatement(BoundBlockStatement node) {
@@ -1111,8 +1137,6 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
 
         if (node.conversion.kind is ConversionKind.ObjectCreation or ConversionKind.ConditionalExpression)
             return Visit(node.operand);
-
-        Debug.Assert(node.conversion.exists);
 
         return base.VisitCastExpression(node);
     }

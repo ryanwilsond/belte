@@ -230,6 +230,18 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
         );
     }
 
+    internal FunctionPointerMethodSymbol ReplaceParameterSymbols(
+        TypeWithAnnotations replacedReturnType,
+        ImmutableArray<TypeWithAnnotations> replacedParameterTypes) {
+        return new FunctionPointerMethodSymbol(
+            callingConvention,
+            refKind,
+            replacedReturnType,
+            parameters,
+            replacedParameterTypes.SelectAsArray(t => new TypeOrConstant(t))
+        );
+    }
+
     internal override bool Equals(Symbol other, TypeCompareKind compareKind) {
         if (!(other is FunctionPointerMethodSymbol method)) {
             return false;
