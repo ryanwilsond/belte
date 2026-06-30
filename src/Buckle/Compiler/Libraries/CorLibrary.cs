@@ -14,9 +14,9 @@ namespace Buckle.Libraries;
 internal sealed class CorLibrary {
     private static readonly CorLibrary Instance = new CorLibrary();
 
-    private const int TotalSpecialTypes = (int)SpecialType.Buffer;
-    private const int TotalWellKnownMembers = (int)WellKnownMember.Array_Set;
-    private const int TotalWellKnownTypes = (int)WellKnownType.MustUseReturnValueAttribute;
+    private const int TotalSpecialTypes = (int)SpecialType.LastCorType;
+    private const int TotalWellKnownMembers = (int)WellKnownMember.LastCorMember;
+    private const int TotalWellKnownTypes = (int)WellKnownType.LastNativeType;
 
     private readonly ConcurrentDictionary<SpecialType, NamedTypeSymbol> _specialTypes = [];
     private readonly ConcurrentDictionary<WellKnownMember, Symbol> _wellKnownMembers = [];
@@ -37,7 +37,8 @@ internal sealed class CorLibrary {
     }
 
     internal static void SetReducedState() {
-        Instance._registeredWellKnownTypes += (int)WellKnownType.MustUseReturnValueAttribute - (int)WellKnownType.Exception;
+        Instance._registeredWellKnownTypes +=
+            (int)WellKnownType.LastNativeType - (int)WellKnownType.LastNativeRequiredType;
     }
 
     #region Public Model

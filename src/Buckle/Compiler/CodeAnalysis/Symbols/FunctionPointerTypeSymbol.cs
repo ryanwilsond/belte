@@ -70,6 +70,14 @@ internal sealed class FunctionPointerTypeSymbol : TypeSymbol {
         );
     }
 
+    internal FunctionPointerTypeSymbol ReplaceTypeSymbol(
+        TypeWithAnnotations replacedReturnType,
+        ImmutableArray<TypeWithAnnotations> replacedParameterTypes) {
+        return new FunctionPointerTypeSymbol(
+            signature.ReplaceParameterSymbols(replacedReturnType, replacedParameterTypes)
+        );
+    }
+
     internal FunctionPointerMethodSymbol signature { get; }
 
     public override bool isReferenceType => false;

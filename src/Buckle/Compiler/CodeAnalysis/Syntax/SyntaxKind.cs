@@ -179,6 +179,9 @@ public enum SyntaxKind : ushort {
     CommitKeyword,
     ImplementsKeyword,
     InterfaceKeyword,
+    PropertyKeyword,
+    SetKeyword,
+    GetKeyword,
     HandleKeyword,
 
     // Trivia
@@ -308,6 +311,10 @@ public enum SyntaxKind : ushort {
     EnumDeclaration,
     EnumMemberDeclaration,
     FieldDeclaration,
+    PropertyDeclaration,
+    ArrowExpressionClause,
+    AccessorList,
+    AccessorDeclaration,
     ExplicitInterfaceSpecifier,
     MethodDeclaration,
     ReverseClause,

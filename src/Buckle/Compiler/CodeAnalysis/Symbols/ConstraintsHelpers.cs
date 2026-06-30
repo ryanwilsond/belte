@@ -319,6 +319,7 @@ internal static partial class ConstraintsHelpers {
 
     internal static void CheckAllConstraints(
         this TypeSymbol type,
+        ConversionsBase conversions,
         TextLocation location,
         BelteDiagnosticQueue diagnostics) {
         // TODO This is probably wrong, I don't think this is exhaustive of all types
@@ -333,7 +334,7 @@ internal static partial class ConstraintsHelpers {
                     var containingType = current.containingType;
 
                     if (containingType is not null)
-                        CheckConstraintsSingleType(containingType, location, diagnostics);
+                        CheckConstraintsSingleType(containingType, conversions, location, diagnostics);
 
                     break;
             }
@@ -357,7 +358,7 @@ internal static partial class ConstraintsHelpers {
                     var nextType = typeArguments[0].type.nullableUnderlyingTypeOrSelf;
 
                     if (nextType is NamedTypeSymbol namedNext)
-                        CheckConstraintsSingleType(namedNext, location, diagnostics);
+                        CheckConstraintsSingleType(namedNext, conversions, location, diagnostics);
 
                     return;
                 case TypeKind.Array:
@@ -387,11 +388,11 @@ internal static partial class ConstraintsHelpers {
                 return;
             }
 
-            CheckAllConstraints(currentPointer.returnType, location, diagnostics);
+            CheckAllConstraints(currentPointer.returnType, conversions, location, diagnostics);
 
             int i;
             for (i = 0; i < currentPointer.parameterCount - 1; i++)
-                CheckAllConstraints(currentPointer.parameters[i].type, location, diagnostics);
+                CheckAllConstraints(currentPointer.parameters[i].type, conversions, location, diagnostics);
 
             next = currentPointer.parameters[i].typeWithAnnotations;
             return;
@@ -405,11 +406,11 @@ internal static partial class ConstraintsHelpers {
                 return;
             }
 
-            CheckAllConstraints(current.returnType, location, diagnostics);
+            CheckAllConstraints(current.returnType, conversions, location, diagnostics);
 
             int i;
             for (i = 0; i < current.parameterCount - 1; i++)
-                CheckAllConstraints(current.parameters[i].type, location, diagnostics);
+                CheckAllConstraints(current.parameters[i].type, conversions, location, diagnostics);
 
             next = current.parameters[i].typeWithAnnotations;
             return;
@@ -418,9 +419,11 @@ internal static partial class ConstraintsHelpers {
 
     private static void CheckConstraintsSingleType(
         NamedTypeSymbol type,
+        ConversionsBase conversions,
         TextLocation location,
         BelteDiagnosticQueue diagnostics) {
         type.CheckConstraints(
+            conversions,
             location,
             diagnostics,
             type.templateSubstitution,
@@ -431,6 +434,7 @@ internal static partial class ConstraintsHelpers {
 
     internal static bool CheckConstraintsForNamedType(
         this NamedTypeSymbol type,
+        ConversionsBase conversions,
         TextLocation location,
         BelteDiagnosticQueue diagnostics,
         SyntaxNode typeSyntax,
@@ -438,7 +442,7 @@ internal static partial class ConstraintsHelpers {
         if (!RequiresChecking(type))
             return true;
 
-        var result = !typeSyntax.containsDiagnostics && CheckTypeConstraints(type, location, diagnostics);
+        var result = !typeSyntax.containsDiagnostics && CheckTypeConstraints(type, conversions, location, diagnostics);
 
         if (HasDuplicateInterfaces(type, basesBeingResolved))
             result = false;
@@ -481,10 +485,12 @@ hasRelatedInterfaces:
 
     private static bool CheckTypeConstraints(
         NamedTypeSymbol type,
+        ConversionsBase conversions,
         TextLocation location,
         BelteDiagnosticQueue diagnostics) {
         return CheckConstraints(
             type,
+            conversions,
             location,
             diagnostics,
             type.templateSubstitution,
@@ -495,10 +501,12 @@ hasRelatedInterfaces:
 
     internal static bool CheckMethodConstraints(
         this MethodSymbol method,
+        ConversionsBase conversions,
         TextLocation location,
         BelteDiagnosticQueue diagnostics) {
         return CheckConstraints(
             method,
+            conversions,
             location,
             diagnostics,
             method.templateSubstitution,
@@ -509,6 +517,7 @@ hasRelatedInterfaces:
 
     internal static bool CheckConstraints(
         this Symbol containingSymbol,
+        ConversionsBase conversions,
         TextLocation location,
         BelteDiagnosticQueue diagnostics,
         TemplateMap substitution,
@@ -521,6 +530,7 @@ hasRelatedInterfaces:
             for (var i = 0; i < n; i++) {
                 if (!CheckConstraints(
                     containingSymbol,
+                    conversions,
                     location,
                     diagnostics,
                     substitution,
@@ -632,6 +642,7 @@ hasRelatedInterfaces:
 
     private static bool CheckConstraints(
         Symbol containingSymbol,
+        ConversionsBase conversions,
         TextLocation location,
         BelteDiagnosticQueue diagnostics,
         TemplateMap substitution,
@@ -660,6 +671,7 @@ hasRelatedInterfaces:
         foreach (var constraintType in constraintTypes) {
             CheckConstraintType(
                 containingSymbol,
+                conversions,
                 location,
                 diagnostics,
                 templateParameter,
@@ -741,6 +753,7 @@ hasRelatedInterfaces:
 
     private static void CheckConstraintType(
         Symbol containingSymbol,
+        ConversionsBase conversions,
         TextLocation location,
         BelteDiagnosticQueue diagnostics,
         TemplateParameterSymbol templateParameter,
@@ -750,7 +763,7 @@ hasRelatedInterfaces:
         if (templateArgument.isConstant)
             return;
 
-        if (SatisfiesConstraintType(templateArgument.type.type, constraintType.type))
+        if (SatisfiesConstraintType(conversions, templateArgument.type.type, constraintType.type))
             return;
 
         // TODO Distinguish diagnostics for ref/val types, class/interface, etc.
@@ -765,13 +778,41 @@ hasRelatedInterfaces:
         hasError = true;
     }
 
-    private static bool SatisfiesConstraintType(TypeSymbol typeArgument, TypeSymbol constraintType) {
+    private static bool SatisfiesConstraintType(
+        ConversionsBase conversions,
+        TypeSymbol typeArgument,
+        TypeSymbol constraintType) {
         if (constraintType.IsErrorType())
             return false;
 
-        // TODO Does this properly handle nested template arguments or constructed types? (I think not)
-        if (typeArgument.InheritsFromIgnoringConstruction((NamedTypeSymbol)constraintType))
+        if (conversions.HasIdentityOrImplicitReferenceConversion(typeArgument, constraintType))
             return true;
+
+        if (typeArgument.isReferenceType && typeArgument.IsNullableType()) {
+            // We treat R? the same as R! because at runtime they are the same, so it counts as satisfying the constraint
+            if (conversions.HasIdentityOrImplicitReferenceConversion(typeArgument.StrippedType(), constraintType))
+                return true;
+        }
+
+        if (typeArgument.isValueType) {
+            if (conversions.HasBoxingConversion(
+                typeArgument.IsNullableType() ? ((NamedTypeSymbol)typeArgument).constructedFrom : typeArgument,
+                constraintType)) {
+                return true;
+            }
+        }
+
+        if (typeArgument.typeKind == TypeKind.TemplateParameter) {
+            var typeParameter = (TemplateParameterSymbol)typeArgument;
+
+            if (conversions.HasImplicitTemplateParameterConversion(typeParameter, constraintType))
+                return true;
+
+            foreach (var typeArgumentConstraint in typeParameter.constraintTypes) {
+                if (SatisfiesConstraintType(conversions, typeArgumentConstraint.type, constraintType))
+                    return true;
+            }
+        }
 
         return false;
     }
@@ -787,6 +828,7 @@ hasRelatedInterfaces:
     }
 
     private static bool IsEncompassedBy(TypeSymbol a, TypeSymbol b) {
+        // TODO This should use ConversionsBase not Conversion
         return Conversion.HasIdentityOrImplicitConversion(a, b) || Conversion.HasBoxingConversion(a, b);
     }
 

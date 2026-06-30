@@ -481,6 +481,8 @@ internal partial class SourceNamespaceSymbol {
                 }
             }
 
+            var conversions = TypeConversions.GetInstance();
+
             foreach (var @using in usingsAndDiagnostics.usingNamespacesOrTypes) {
                 if (@using.usingDirectiveReference.syntaxTree != declarationSyntax.syntaxTree)
                     continue;
@@ -492,7 +494,7 @@ internal partial class SourceNamespaceSymbol {
                 if (target.isType) {
                     var typeSymbol = (TypeSymbol)target;
                     var location = usingDirective.namespaceOrType.location;
-                    typeSymbol.CheckAllConstraints(location, diagnostics);
+                    typeSymbol.CheckAllConstraints(conversions, location, diagnostics);
                 }
 
                 semanticDiagnostics.PushRange(diagnostics);

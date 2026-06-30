@@ -3,14 +3,32 @@ using Diagnostics;
 
 namespace Buckle.Building;
 
+/// <summary>
+/// Builds information used to create a compilation.
+/// </summary>
 public sealed class Builder {
     private readonly DiagnosticOptions _globalDiagnosticOptions;
     private readonly DiagnosticOptions _currentDiagnosticOptions;
     private DiagnosticFlagMode _diagnosticFlagMode;
 
+    /// <summary>
+    /// Build mode of the compilation (default <see cref="BuildMode.Execute" />)
+    /// </summary>
     public BuildMode buildMode;
+
+    /// <summary>
+    /// Output kind of the compilation (default <see cref="OutputKind.ConsoleApplication" />)
+    /// </summary>
     public OutputKind outputKind;
+
+    /// <summary>
+    /// If to produce debug symbols and not perform certain optimizations (default false)
+    /// </summary>
     public bool debugBuild;
+
+    /// <summary>
+    /// If to reference the .NET core libraries (default false)
+    /// </summary>
     public bool includeStdLib;
 
     public Builder() {

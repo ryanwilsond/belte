@@ -306,15 +306,18 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     internal TypeReference GetType(TypeSymbol type, bool byRef = false, bool import = true) {
         var typeRef = GetTypeCore(type);
 
-        if (byRef)
-            typeRef = typeRef.MakeByReferenceType();
+        if (!byRef) {
+            if (typeRef.IsGenericParameter)
+                return typeRef;
 
-        if (typeRef.IsGenericParameter)
-            return typeRef;
+            if (import)
+                return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeRef);
+        }
 
-        if (import)
-            return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeRef);
+        if (import && !typeRef.IsGenericParameter)
+            typeRef = _assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeRef);
 
+        typeRef = typeRef.MakeByReferenceType();
         return typeRef;
 
         TypeReference GetTypeCore(TypeSymbol type) {
@@ -1460,16 +1463,6 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             GetTypeOrIntPtr(method.returnType, method.returnsByRef)
         );
 
-        foreach (var parameter in method.parameters) {
-            var parameterDefinition = new Mono.Cecil.ParameterDefinition(
-                parameter.name,
-                ParameterAttributes.None,
-                GetTypeOrIntPtr(parameter.type, parameter.refKind != RefKind.None)
-            );
-
-            methodDefinition.Parameters.Add(parameterDefinition);
-        }
-
         if (method.arity > 0) {
             var genericBuilder = ArrayBuilder<GenericParameter>.GetInstance();
 
@@ -1480,6 +1473,16 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             }
 
             _methodTypeParameters.Add(method, genericBuilder.ToArrayAndFree());
+        }
+
+        foreach (var parameter in method.parameters) {
+            var parameterDefinition = new Mono.Cecil.ParameterDefinition(
+                parameter.name,
+                ParameterAttributes.None,
+                GetTypeOrIntPtr(parameter.type, parameter.refKind != RefKind.None)
+            );
+
+            methodDefinition.Parameters.Add(parameterDefinition);
         }
 
         SetCustomAttributes(method, methodDefinition);

@@ -21,9 +21,9 @@ internal static class Error {
     /// Once the compiler is finished, this class will be unnecessary.
     /// </summary>
     internal static class Unsupported {
-        internal static BelteDiagnostic NonTypeTemplate(TextLocation location) {
-            var message = "unsupported: cannot declare a non-type template when building for .NET, transpiling to C#, or executing";
-            return CreateError(DiagnosticCode.UNS_NonTypeTemplate, location, message);
+        internal static BelteDiagnostic NonTypeTemplateFunction(TextLocation location) {
+            var message = "unsupported: cannot declare a non-type template local function";
+            return CreateError(DiagnosticCode.UNS_NonTypeTemplateFunction, location, message);
         }
 
         internal static BelteDiagnostic GraphicsDll() {
@@ -2869,6 +2869,16 @@ internal static class Error {
     internal static BelteDiagnostic MustUseReturnValueAttributeOnVoid(TextLocation location) {
         var message = $"'MustUseReturnValue' can only be applied to methods returning a value";
         return CreateError(DiagnosticCode.ERR_MustUseReturnValueAttributeOnVoid, location, message);
+    }
+
+    internal static Diagnostic GetOrSetExpected() {
+        var message = $"a get or set accessor expected";
+        return CreateError(DiagnosticCode.ERR_GetOrSetExpected, message);
+    }
+
+    internal static BelteDiagnostic PointerTypeInPatternMatch(TextLocation location) {
+        var message = $"patterns are not permitted for pointer types";
+        return CreateError(DiagnosticCode.ERR_PointerTypeInPatternMatch, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

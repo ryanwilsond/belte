@@ -41,4 +41,17 @@ internal enum WellKnownType : byte {
     DllImportAttribute,
     UnmanagedAttribute,
     MustUseReturnValueAttribute,
+
+    // PE
+
+    System_Exception,
+    System_Collections_IEnumerable,
+    System_Collections_Generic_IEnumerable_T,
+    System_Collections_IEnumerator,
+    System_Collections_Generic_IEnumerator_T,
+
+    LastNativeType = MustUseReturnValueAttribute,
+    LastNativeRequiredType = Exception,
+    FirstPEType = System_Exception,
+    LastPEType = System_Collections_Generic_IEnumerator_T,
 }

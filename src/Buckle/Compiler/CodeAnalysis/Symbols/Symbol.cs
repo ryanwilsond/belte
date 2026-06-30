@@ -222,7 +222,9 @@ internal abstract class Symbol : ISymbol {
         }
     }
 
-    internal virtual void AfterAddingTypeMembersChecks(BelteDiagnosticQueue diagnostics) { }
+    internal virtual void AfterAddingTypeMembersChecks(
+        ConversionsBase conversions,
+        BelteDiagnosticQueue diagnostics) { }
 
     internal virtual ImmutableArray<AttributeData> GetAttributes() {
         return [];
@@ -447,6 +449,28 @@ internal abstract class Symbol : ISymbol {
                     return null;
             }
         }
+    }
+
+    internal static bool IsSymbolAccessible(
+        Symbol symbol,
+        AssemblySymbol within) {
+        ArgumentNullException.ThrowIfNull(symbol);
+        ArgumentNullException.ThrowIfNull(within);
+        return AccessCheck.IsSymbolAccessible(symbol, within);
+    }
+
+    internal bool IsHiddenByCodeAnalysisEmbeddedAttribute() {
+        var upperLevelType = kind == SymbolKind.NamedType ? (NamedTypeSymbol)this : containingType;
+
+        if (upperLevelType is null)
+            return false;
+
+        while (upperLevelType.containingType is not null)
+            upperLevelType = upperLevelType.containingType;
+
+        // TODO attribute
+        // return upperLevelType.hasCodeAnalysisEmbeddedAttribute;
+        return false;
     }
 
     internal bool IsNoMoreVisibleThan(TypeSymbol type) {
@@ -838,7 +862,7 @@ internal abstract class Symbol : ISymbol {
     }
 
     private string GetDebuggerDisplay() {
-        return $"{kind} {ToDisplayString(SymbolDisplayFormat.Everything)}";
+        return $"{kind} {ToDisplayString(SymbolDisplayFormat.ErrorMessageFormat)}";
     }
 
     public string ToDisplayString(SymbolDisplayFormat format) {

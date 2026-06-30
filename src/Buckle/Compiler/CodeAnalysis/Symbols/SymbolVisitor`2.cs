@@ -53,6 +53,10 @@ internal abstract class SymbolVisitor<TArgument, TResult> {
         return DefaultVisit(symbol, argument);
     }
 
+    internal virtual TResult VisitProperty(PropertySymbol symbol, TArgument argument) {
+        return DefaultVisit(symbol, argument);
+    }
+
     internal virtual TResult VisitParameter(ParameterSymbol symbol, TArgument argument) {
         return DefaultVisit(symbol, argument);
     }

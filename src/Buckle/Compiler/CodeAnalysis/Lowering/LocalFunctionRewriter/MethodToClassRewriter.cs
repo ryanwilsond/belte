@@ -143,7 +143,6 @@ internal abstract partial class MethodToClassRewriter : BoundTreeRewriterWithSta
         return _templateMap.SubstituteType(type)?.type?.type;
     }
 
-
     internal override BoundNode VisitCallExpression(BoundCallExpression node) {
         var rewrittenMethodSymbol = VisitMethodSymbol(node.method);
         var rewrittenReceiver = (BoundExpression)Visit(node.receiver);

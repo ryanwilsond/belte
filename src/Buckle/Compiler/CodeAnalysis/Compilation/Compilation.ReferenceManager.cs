@@ -65,8 +65,17 @@ public sealed partial class Compilation {
 
         internal ImmutableArray<AssemblyMetadata> assemblies => _assemblies;
 
+        internal ImmutableArray<AssemblySymbol> referencedAssemblies => _referencedAssemblies;
+
         internal NamespaceSymbol[] GetGlobalNamespaces() {
             return _assemblySymbols.Select(a => a.globalNamespace).ToArray();
+        }
+
+        internal bool DeclarationsAccessibleWithoutAlias(int referencedAssemblyIndex) {
+            // TODO What is this supposed to do
+            // var aliases = AliasesOfReferencedAssemblies[referencedAssemblyIndex];
+            // return aliases.Length == 0 || aliases.IndexOf(MetadataReferenceProperties.GlobalAlias, StringComparer.Ordinal) >= 0;
+            return true;
         }
 
         internal PEAssemblySymbol CreatePEAssemblyForAssemblyMetadataFirstPass(

@@ -588,10 +588,12 @@ public enum DiagnosticCode : ushort {
     ERR_BadAbstractStaticMemberAccess = 577,
     ERR_IgnoringRequiredReturnValue = 578,
     ERR_MustUseReturnValueAttributeOnVoid = 579,
+    ERR_GetOrSetExpected = 580,
+    ERR_PointerTypeInPatternMatch = 581,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,
-    UNS_NonTypeTemplate = 9001,
+    UNS_NonTypeTemplateFunction = 9001,
     UNS_ILOpCode = 9002,
     UNS_NonIntegralEnum = 9003,
     UNS_GraphicsDll = 9004,

@@ -78,7 +78,6 @@ implemented.
 | Feature | Evaluator | Executor | IL Emitter | Explanation |
 | - | - | - | - | - |
 | `--type=graphics` projects | ✓ | ✓ | ✕ | Standalone graphics DLL under development |
-| Non-type templates | ✓ | ✕ | ✕ | Not supported by the .NET runtime |
 | Non-integral enums | ✓ | ✕ | ✕ | Not supported by the .NET runtime |
 | Pointers | ✕ | ✓ | ✓ | Partially supported the Evaluator but not stable due to internal memory structure |
 | Function pointers | ✕ | ✓ | ✓ | Disallowed in the Evaluator due to internal memory structure |
@@ -194,6 +193,7 @@ These keywords only act as keywords inside specific contexts. As such they can b
 - [endif](Preprocessor.md#72-control)
 - [explicit](ClassesAndObjects.md#4232-casts)
 - [flags](ClassesAndObjects.md#461-flags)
+- [get](ClassesAndObjects.md#424-properties)
 - [handle](LowLevelFeatures.md#613-compiler-handle)
 - [has](ClassesAndObjects.md#4512-special-constraints)
 - [implicit](ClassesAndObjects.md#4232-casts) (user-defined conversions)
@@ -205,6 +205,8 @@ These keywords only act as keywords inside specific contexts. As such they can b
 - [operator](ClassesAndObjects.md#423-operators) (normal operators)
 - [operator](ControlFlow.md#244-for-each-loops) (for each operators)
 - [packed](LowLevelFeatures.md#621-packing)
+- [properties](ClassesAndObjects.md#424-properties)
+- [set](ClassesAndObjects.md#424-properties)
 - [state](ClassesAndObjects.md#4222-state-and-reverse-clauses)
 - [undef](Preprocessor.md#71-defineundef)
 
@@ -222,7 +224,8 @@ To summarize:
 
 A type is "nullable" when it permits the sentinel value `null`.
 
-A slightly more in-depth explanation of nullability can be found at this [end of the section].
+A slightly more in-depth explanation of nullability can be found at this
+[end of the section](#148-nullability-in-depth).
 
 ### 1.4.1 Normal Types
 
@@ -555,7 +558,6 @@ To summarize the main differences:
 - [Class field definite assignment guarantees](ClassesAndObjects.md#4211-definite-assignment)
 - [Arrays prevent reading before writing to elements](#147-arrays)
 - [Null-binding contracts](ControlFlow.md#232-null-binding-contracts)
-- No properties
 - [Different generic/template constraints include expression constraints](ClassesAndObjects.md#451-constraint-clauses)
 - [Conditionals accept expressions of type `bool?` instead of `bool`](ControlFlow.md#231-null-conditions)
 - [More expressive implicit typing allowing with `var`, `const`, and `constexpr` and nullable annotations](Data.md#332-implicit-typing)

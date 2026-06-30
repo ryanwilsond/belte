@@ -11,7 +11,7 @@ internal sealed class TypeSubstitutedLocalSymbol : DataContainerSymbol {
     private readonly TypeWithAnnotations _type;
     private readonly Symbol _containingSymbol;
 
-    public TypeSubstitutedLocalSymbol(
+    internal TypeSubstitutedLocalSymbol(
         DataContainerSymbol originalVariable,
         TypeWithAnnotations type,
         Symbol containingSymbol) {
@@ -48,9 +48,6 @@ internal sealed class TypeSubstitutedLocalSymbol : DataContainerSymbol {
     internal override bool isPinned => _originalVariable.isPinned;
 
     public override RefKind refKind => _originalVariable.refKind;
-
-    // TODO Any way this backfires/isn't necessary?
-    private protected override Symbol _originalSymbolDefinition => _originalVariable;
 
     internal override ScopedKind scope => throw new System.NotImplementedException();
 

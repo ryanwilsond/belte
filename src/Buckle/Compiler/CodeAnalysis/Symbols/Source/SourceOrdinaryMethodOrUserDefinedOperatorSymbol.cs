@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
@@ -63,13 +64,13 @@ internal abstract class SourceOrdinaryMethodOrUserDefinedOperatorSymbol : Source
 
     private protected abstract MethodSymbol FindExplicitlyImplementedMethod(BelteDiagnosticQueue diagnostics);
 
-    internal override void AfterAddingTypeMembersChecks(BelteDiagnosticQueue diagnostics) {
-        base.AfterAddingTypeMembersChecks(diagnostics);
+    internal override void AfterAddingTypeMembersChecks(ConversionsBase conversions, BelteDiagnosticQueue diagnostics) {
+        base.AfterAddingTypeMembersChecks(conversions, diagnostics);
 
-        returnType.CheckAllConstraints(syntaxReference.location, diagnostics);
+        returnType.CheckAllConstraints(conversions, syntaxReference.location, diagnostics);
 
         foreach (var parameter in parameters)
-            parameter.type.CheckAllConstraints(parameter.syntaxReference.location, diagnostics);
+            parameter.type.CheckAllConstraints(conversions, parameter.syntaxReference.location, diagnostics);
     }
 
     private protected abstract int GetParameterCountFromSyntax();

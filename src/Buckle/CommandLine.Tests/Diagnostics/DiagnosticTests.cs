@@ -7,7 +7,7 @@ using static CommandLine.Tests.Assertions;
 namespace CommandLine.Tests.Diagnostics;
 
 /// <summary>
-/// At least one test per diagnostic (any severity) if testable.
+/// Ideally at least one test per diagnostic, multiple if a diagnostic is raised in multiple places.
 /// </summary>
 public sealed class DiagnosticTests {
     private readonly ITestOutputHelper _writer;

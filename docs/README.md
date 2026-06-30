@@ -129,6 +129,7 @@
         - [4.2.3.1](Current/ClassesAndObjects.md#4231-operator-overloading) Operator Overloading
         - [4.2.3.2](Current/ClassesAndObjects.md#4232-casts) Casts
         - [4.2.3.3](Current/ClassesAndObjects.md#4233-user-defined-literals) User-Defined Literals
+      - [4.2.4](Current/ClassesAndObjects.md#424-properties) Properties
     - [4.3](Current/ClassesAndObjects.md#43-modifiers) Modifiers
       - [4.3.1](Current/ClassesAndObjects.md#431-accessibility-modifiers) Accessibility Modifiers
       - [4.3.2](Current/ClassesAndObjects.md#432-overriding-modifiers) Overriding Modifiers
@@ -211,6 +212,9 @@
       - [8.2.1](Current/Interop.md#821-properties) Properties
       - [8.2.2](Current/Interop.md#822-arrays) Arrays
       - [8.2.3](Current/Interop.md#823-nullability) Nullability
+    - [8.3](Current/Interop.md#83-language-feature-compatibility) Language Feature Compatibility
+      - [8.3.1](Current/Interop.md#831-exceptions) Exceptions
+      - [8.3.2](Current/Interop.md#832-for-each-loops) For Each Loops
   - [9](Current/GraphicsLibrary.md) Graphics Library
 
 ___

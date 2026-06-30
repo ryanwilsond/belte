@@ -112,7 +112,7 @@ internal sealed partial class Executor : ModuleBuilder {
             linearBuilder.AddRange(set.Value);
 
         _linearNestedTypes = linearBuilder.ToImmutable();
-        _methodBodies = program.GetAllMethodBodies().ToImmutableDictionary(pair => pair.Item1, pair => pair.Item2);
+        _methodBodies = program.GetMethodsToEmit().ToImmutableDictionary(pair => pair.Item1, pair => pair.Item2);
 
         _entryPoint = _program.entryPoint;
     }

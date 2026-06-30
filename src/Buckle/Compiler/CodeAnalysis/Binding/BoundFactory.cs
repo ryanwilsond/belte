@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Libraries;
@@ -148,7 +149,8 @@ internal static partial class BoundFactory {
         SyntaxNode syntax,
         TypeSymbol type,
         BoundExpression expression) {
-        var conversion = Conversion.Classify(expression.type, type);
+        var conversion = TypeConversions.GetInstance().ClassifyConversionFromExpression(expression, type);
+        Debug.Assert(conversion.exists);
         return Cast(syntax, type, expression, conversion, null);
     }
 

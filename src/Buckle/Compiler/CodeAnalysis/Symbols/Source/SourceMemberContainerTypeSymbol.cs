@@ -1684,7 +1684,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
     private void CheckSpecialMemberErrors(BelteDiagnosticQueue diagnostics) {
         foreach (var member in GetMembersUnordered())
-            member.AfterAddingTypeMembersChecks(diagnostics);
+            member.AfterAddingTypeMembersChecks(TypeConversions.GetInstance(), diagnostics);
     }
 
     private void CheckMemberNameConflicts(BelteDiagnosticQueue diagnostics) {
