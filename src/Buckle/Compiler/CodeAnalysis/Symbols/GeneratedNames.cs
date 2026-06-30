@@ -1,5 +1,7 @@
 using System.Collections.Immutable;
 using System.Linq;
+using Buckle.Building;
+using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Lowering;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -52,6 +54,30 @@ internal static class GeneratedNames {
 
     internal static string MakeStateMethodName(string methodName) {
         return "<" + methodName + ">a__Reversible";
+    }
+
+    internal static string MakeTemplateTypeName(NamedTypeSymbol type) {
+        var result = PooledStringBuilder.GetInstance();
+        var builder = result.Builder;
+        builder.Append(type.name);
+        builder.Append('<');
+
+        var first = true;
+
+        for (var i = 0; i < type.templateParameters.Length; i++) {
+            if (type.templateParameters[i].underlyingType.specialType != SpecialType.Type) {
+                if (first)
+                    first = false;
+                else
+                    builder.Append(',');
+
+                builder.Append(DisplayText.FormatLiteral(type.templateArguments[i].constant.value));
+            }
+        }
+
+        builder.Append('>');
+
+        return result.ToStringAndFree();
     }
 
     internal static string MakeClosureName(

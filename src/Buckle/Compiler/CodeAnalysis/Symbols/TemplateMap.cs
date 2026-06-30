@@ -42,7 +42,7 @@ internal class TemplateMap {
             var templateParameter = from[i];
             var templateArgument = to[i];
 
-            if (!templateArgument.Equals(templateParameter))
+            if (templateArgument.type?.type?.Equals(templateParameter) != true)
                 _mapping.Add(templateParameter, templateArgument);
         }
     }

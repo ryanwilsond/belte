@@ -641,8 +641,10 @@ internal class SharedExpander : BoundTreeExpander {
                 if (replacementContent.StrippedType().specialType == SpecialType.String) {
                     right = replacementContent;
                 } else if (replacementContent.Type().isValueType && !replacementContent.Type().IsStructType()) {
+                    var conversions = TypeConversions.GetInstance();
+
                     if (!replacementContent.Type().IsNullableType()) {
-                        var conversion = Conversion.Classify(replacementContent.Type(), stringType);
+                        var conversion = conversions.ClassifyConversionFromExpression(replacementContent, stringType);
 
                         if (!conversion.exists) {
                             _diagnostics.Push(
@@ -652,7 +654,7 @@ internal class SharedExpander : BoundTreeExpander {
 
                         right = Cast(syntax, stringType, replacementContent, conversion, null);
                     } else {
-                        var conversion = Conversion.Classify(replacementContent.StrippedType(), stringType);
+                        var conversion = conversions.ClassifyConversionFromExpression(replacementContent, stringType);
 
                         if (!conversion.exists) {
                             _diagnostics.Push(

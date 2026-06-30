@@ -46,6 +46,9 @@ internal sealed class Evaluator {
     private bool _insideUpdate;
     private bool _insideExpressionEvaluation;
 
+    // These are used if layouts need to be computed while evaluating if the precomputed layout maps are incomplete
+    // This should only happen when reusing the same cor compilation for multiple programs because normally each program
+    // always computes layouts even if not evaluating
     private ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder _lazyTypeLayouts;
     private Dictionary<MethodSymbol, (BoundBlockStatement, EvaluatorSlotManager)> _lazyMethodLayouts;
 

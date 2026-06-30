@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
@@ -36,10 +37,13 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
     private ManualResetEventSlim _done;
 
     private ImmutableDictionary<FieldSymbol, NamedTypeSymbol>.Builder _lazyFixedImplementationTypes;
+    private ImmutableDictionary<MethodSymbol, BoundBlockStatement>.Builder _lazyExpandedTemplateMethods;
+    private ArrayBuilder<SynthesizedTemplateType> _lazyExpandedTemplateTypes;
     private MethodSymbol _entryPoint;
     private MethodSymbol _updatePoint;
 
-    private bool _sawCompileTimeExpression;
+    private volatile bool _sawCompileTimeExpression;
+    private volatile bool _sawNonTypeTemplate;
 
     private MethodCompiler(
         Compilation compilation,
@@ -144,8 +148,13 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             methodCompiler.CompileNamespace(globalNamespace);
         }
 
-        if (!diagnostics.AnyErrors() && methodCompiler._sawCompileTimeExpression)
-            methodCompiler.ComputeCompileTimeExpressions();
+        if (!diagnostics.AnyErrors()) {
+            if (methodCompiler._sawCompileTimeExpression)
+                methodCompiler.ComputeCompileTimeExpressions();
+
+            if (methodCompiler._sawNonTypeTemplate && !compilation.options.buildMode.PermitsNonTypeTemplates())
+                methodCompiler.ExpandTemplates();
+        }
 
         if (compilation.options.isScript && methodCompiler._updatePoint is null)
             methodCompiler._updatePoint = compilation.GetLateScriptUpdatePoint(methodCompiler._methodBodies);
@@ -207,11 +216,24 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
     }
 
     private BoundProgram CreateBoundProgram() {
+        ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies;
+        ImmutableArray<NamedTypeSymbol> types;
+
+        if (_lazyExpandedTemplateTypes is not null && _lazyExpandedTemplateTypes.Any()) {
+            _lazyExpandedTemplateMethods.AddRange(_methodBodies);
+            _types.AddRange(_lazyExpandedTemplateTypes.Cast<NamedTypeSymbol>());
+            methodBodies = _lazyExpandedTemplateMethods.ToImmutableDictionary();
+            types = _types.ToImmutableAndFree();
+        } else {
+            methodBodies = _methodBodies.ToImmutableDictionary();
+            types = _types.ToImmutableAndFree();
+        }
+
         return new BoundProgram(
             _compilation,
-            _methodBodies.ToImmutableDictionary(),
+            methodBodies,
             _methodLayouts.ToImmutableDictionary(),
-            _types.ToImmutableAndFree(),
+            types,
             _typeLayouts.ToImmutable(),
             _synthesizedNestedTypes,
             _lazyFixedImplementationTypes is null ? [] : _lazyFixedImplementationTypes.ToImmutable(),
@@ -284,6 +306,55 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                 );
 
                 _methodBodies[method] = (BoundBlockStatement)loweredBody;
+            }
+        }
+    }
+
+    private void ExpandTemplates() {
+        // Expand each non-type template instantiation into a new type
+        // Expanded template types don't need evaluator slot layouts because the evaluator supports non-type templates
+
+        // TODO This might be parallelizable
+
+        var templateExpander = new TemplateExpander(
+            _lazyExpandedTemplateTypes = ArrayBuilder<SynthesizedTemplateType>.GetInstance()
+        );
+
+        var secondaryMethodsMapBuilder = ImmutableDictionary.CreateBuilder<MethodSymbol, MethodSymbol>();
+
+        foreach (var (method, _) in _methodBodies) {
+            if (templateExpander.RewriteMethodSymbol(method, out var newMethod)) {
+                Debug.Assert(newMethod is not null && method != newMethod);
+                secondaryMethodsMapBuilder.Add(method, newMethod);
+            }
+        }
+
+        templateExpander.SetSecondaryMethodMap(secondaryMethodsMapBuilder.ToImmutable());
+
+        foreach (var (method, body) in _methodBodies) {
+            if (body is not null && templateExpander.Expand(method, body, out var newMethod, out var newBody)) {
+                if (newMethod is null) {
+                    if (!_methodBodies.TryUpdate(method, newBody, body))
+                        throw ExceptionUtilities.Unreachable();
+                } else {
+                    _lazyExpandedTemplateMethods ??= ImmutableDictionary.CreateBuilder<MethodSymbol, BoundBlockStatement>();
+                    _lazyExpandedTemplateMethods.Add(newMethod, newBody);
+                }
+            }
+        }
+
+        if (_lazyExpandedTemplateTypes.Any()) {
+            _lazyExpandedTemplateMethods ??= ImmutableDictionary.CreateBuilder<MethodSymbol, BoundBlockStatement>();
+            var methodMap = templateExpander.GetMethodMap();
+
+            foreach (var templateType in _lazyExpandedTemplateTypes) {
+                TemplateTypeRewriter.Rewrite(
+                    templateType.underlyingNamedType,
+                    templateType,
+                    _methodBodies,
+                    _lazyExpandedTemplateMethods,
+                    methodMap
+                );
             }
         }
     }
@@ -542,13 +613,15 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             _compilation.previousAnalyses,
             currentDiagnostics,
             ref _entryPoint,
-            out var sawCompileTimeExpression
+            out var sawCompileTimeExpression,
+            out var sawNonTypeTemplate
         );
 
         if (method.methodKind == MethodKind.Ordinary && method.containingType.IsEnumType())
             method = GetEnumMethod(method.containingType, method);
 
         _sawCompileTimeExpression |= sawCompileTimeExpression;
+        _sawNonTypeTemplate |= sawNonTypeTemplate;
 
         var controlFlowGraph = ControlFlowGraph.Create(method, loweredBody);
         var assignments = controlFlowGraph.CheckDefiniteAssignment(currentDiagnostics);
@@ -615,7 +688,8 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         List<LocalFunctionRewriter.Analysis> previousAnalyses,
         BelteDiagnosticQueue currentDiagnostics,
         ref MethodSymbol entryPoint,
-        out bool sawCompileTimeExpression) {
+        out bool sawCompileTimeExpression,
+        out bool sawNonTypeTemplate) {
         try {
             var loweredBody = Lowerer.Lower(
                 this,
@@ -624,23 +698,28 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                 body,
                 entryPoint?.containingType,
                 currentDiagnostics,
-                out sawCompileTimeExpression
+                sawCompileTimeExpression: out sawCompileTimeExpression,
+                sawNonTypeTemplate: out sawNonTypeTemplate,
+                sawLambda: out var sawLambda,
+                sawLocalFunction: out var sawLocalFunction
             );
 
             if (!transpiling) {
-                loweredBody = LocalFunctionRewriter.Rewrite(
-                    loweredBody,
-                    state.type,
-                    method.thisParameter,
-                    method,
-                    methodOrdinal,
-                    null,
-                    state,
-                    previousAnalyses,
-                    currentDiagnostics,
-                    null, // TODO When do we want to use this?
-                    ref entryPoint
-                );
+                if (sawLambda || sawLocalFunction) {
+                    loweredBody = LocalFunctionRewriter.Rewrite(
+                        loweredBody,
+                        state.type,
+                        method.thisParameter,
+                        method,
+                        methodOrdinal,
+                        substitutedSourceMethod: null,
+                        state,
+                        previousAnalyses,
+                        currentDiagnostics,
+                        assignLocals: null,
+                        ref entryPoint
+                    );
+                }
 
                 loweredBody = Optimizer.RemoveDeadCode(method, loweredBody, currentDiagnostics);
             }
@@ -649,6 +728,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         } catch (BoundTreeVisitor.CancelledByStackGuardException ex) {
             ex.AddAnError(currentDiagnostics);
             sawCompileTimeExpression = false;
+            sawNonTypeTemplate = false;
 
             return new BoundBlockStatement(
                 body.syntax,

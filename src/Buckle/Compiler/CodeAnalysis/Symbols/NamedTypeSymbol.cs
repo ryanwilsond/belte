@@ -475,8 +475,8 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
                         return false;
 
                     if (!typeParameters[i].Equals(
-                             typeArguments[i].type.type.originalDefinition,
-                             TypeCompareKind.ConsiderEverything)) {
+                            typeArguments[i].type.type.originalDefinition,
+                            TypeCompareKind.ConsiderEverything)) {
                         return false;
                     }
                 }

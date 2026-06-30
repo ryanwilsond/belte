@@ -1427,13 +1427,38 @@ public sealed class EvaluatorTests {
         A a = new D();
         D d = (D)a;
         return d.B();", 10)]
+    // Non-Type Templates
+    [InlineData(@"
+        class A<int a> {
+            public const int GetA() {
+                return a;
+            }
+        }
+        var a = new A<3>();
+        var b = new A<5>();
+        return a.GetA();", 3)]
+    [InlineData(@"
+        class A<int a> {
+            public const int GetA() {
+                return a;
+            }
+        }
+        var a = new A<3>();
+        var b = new A<5>();
+        return b.GetA();", 5)]
+    [InlineData(@"
+        class A<int a, int b> {
+            public static int Test() {
+                return a + b;
+            }
+        }
+        return A<2,3>.Test();", 5)]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue, evaluator: true, executor: true);
     }
 
     [Theory]
     // Non-Type Templates
-    [InlineData("class A<int a, int b> { public static int Test() { return a + b; } } return A<2,3>.Test();", 5)]
     [InlineData("int Test<int a, int b>() { return a + b; } return Test<2, 3>();", 5)]
     [InlineData("string Test<string a>() { return a; } return Test<\"test\">();", "test")]
     // Runtime Defined SizeOf

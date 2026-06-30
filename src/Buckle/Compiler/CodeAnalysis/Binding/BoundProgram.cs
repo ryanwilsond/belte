@@ -145,14 +145,22 @@ internal sealed partial class BoundProgram {
             if (t is not NamedTypeSymbol namedType)
                 continue;
 
+            if (t.containingSymbol.kind != SymbolKind.Namespace)
+                continue;
+
+            if (t.specialType != SpecialType.None)
+                continue;
+
+            if (t.originalDefinition is PENamedTypeSymbol)
+                continue;
+
+            if (TemplateExpander.IsNonTypeTemplateType(t))
+                continue;
+
             var wellKnownType = WellKnownTypes.GetTypeFromMetadataName(namedType);
 
-            if (t.containingSymbol.kind == SymbolKind.Namespace &&
-                t.specialType is SpecialType.None &&
-                wellKnownType.ShouldEmit(includeGraphicsWellKnownTypes) &&
-                t.originalDefinition is not PENamedTypeSymbol) {
+            if (wellKnownType.ShouldEmit(includeGraphicsWellKnownTypes))
                 builder.Add((NamedTypeSymbol)t);
-            }
         }
 
         return builder.ToImmutableAndFree();

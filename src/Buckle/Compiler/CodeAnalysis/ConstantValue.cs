@@ -97,7 +97,7 @@ internal partial class ConstantValue {
     }
 
     public override int GetHashCode() {
-        return RuntimeHelpers.GetHashCode(this);
+        return value?.GetHashCode() ?? RuntimeHelpers.GetHashCode(this);
     }
 
     public override bool Equals(object obj) {

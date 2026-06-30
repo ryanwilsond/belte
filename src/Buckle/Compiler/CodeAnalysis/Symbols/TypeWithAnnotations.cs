@@ -63,7 +63,12 @@ internal sealed class TypeWithAnnotations {
 
     internal TypeOrConstant SubstituteType(TemplateMap templateMap) {
         var typeSymbol = type.StrippedType();
-        var newType = templateMap.SubstituteType(typeSymbol).type;
+        var newTypeOrConstant = templateMap.SubstituteType(typeSymbol);
+
+        if (newTypeOrConstant.isConstant)
+            return newTypeOrConstant;
+
+        var newType = newTypeOrConstant.type;
 
         if (type.IsNullableType() && !newType.IsNullableType())
             newType = newType.SetIsAnnotated();

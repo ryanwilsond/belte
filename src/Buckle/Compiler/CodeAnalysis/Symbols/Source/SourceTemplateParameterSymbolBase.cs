@@ -222,12 +222,6 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
             return new TypeWithAnnotations(underlying);
         }
 
-        if (declaringCompilation.options.buildMode is BuildMode.CSharpTranspile or
-                                                      BuildMode.Execute or
-                                                      BuildMode.Dotnet) {
-            diagnostics.Push(Error.Unsupported.NonTypeTemplate(syntax.location));
-        }
-
         // TODO This seems wrong/unnecessary:
         if (hasNotNullConstraint)
             return new TypeWithAnnotations(underlying);
