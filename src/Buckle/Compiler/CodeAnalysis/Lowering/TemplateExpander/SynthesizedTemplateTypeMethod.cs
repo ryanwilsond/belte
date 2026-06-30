@@ -17,15 +17,13 @@ internal sealed class SynthesizedTemplateTypeMethod : WrappedMethodSymbol {
     internal SynthesizedTemplateTypeMethod(SynthesizedTemplateType newOwner, MethodSymbol method)
         : base(method) {
         _containingType = newOwner;
-        _returnType = TemplateTypeReplacer<TemplateParameterSymbol>.Replace(
-            method.returnTypeWithAnnotations,
-            newOwner.replacementTemplateParameters
-        );
+        _returnType = TemplateTypeReplacer<TemplateParameterSymbol, TemplateParameterSymbol, TemplateParameterSymbol>
+            .Replace(method.returnTypeWithAnnotations, newOwner.replacementTemplateParameters);
 
         var builder = ArrayBuilder<ParameterSymbol>.GetInstance(method.parameterCount);
 
         foreach (var parameter in method.parameters) {
-            var newType = TemplateTypeReplacer<TemplateParameterSymbol>
+            var newType = TemplateTypeReplacer<TemplateParameterSymbol, TemplateParameterSymbol, TemplateParameterSymbol>
                 .Replace(parameter.typeWithAnnotations, newOwner.replacementTemplateParameters);
 
             builder.Add(new TypeSubstitutedParameterSymbol(parameter, newType));

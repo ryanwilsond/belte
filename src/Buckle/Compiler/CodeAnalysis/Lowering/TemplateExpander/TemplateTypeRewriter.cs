@@ -5,6 +5,9 @@ using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
+/// <summary>
+/// Synthesizes definitions for each instantiated non-type template type found by the <see cref="TemplateExpander" />.
+/// </summary>
 internal sealed class TemplateTypeRewriter : BoundTreeRewriterWithStackGuard {
     private readonly NamedTypeSymbol _originalType;
     private readonly SynthesizedTemplateType _instantiatedType;

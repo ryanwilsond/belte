@@ -8,6 +8,9 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
+/// <summary>
+/// Rewrites method signatures and bodies if they contain instantiations of non-type template types
+/// </summary>
 internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
     private readonly ArrayBuilder<SynthesizedTemplateType> _typesBuilder;
     private readonly Dictionary<ConstructedNamedTypeSymbol, SynthesizedTemplateType> _typesMap = [];
@@ -32,11 +35,11 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
 
         if (IsNonTypeTemplateTypeConstructed(returnType) ||
             method.parameterTypesWithAnnotations.Any(p => IsNonTypeTemplateTypeConstructed(p.type))) {
-            var newReturnType = TypeIsUnexpandedTemplate(returnType, out var newType) ? newType : returnType;
+            var newReturnType = VisitType(returnType);
             var builder = ArrayBuilder<ParameterSymbol>.GetInstance(method.parameterCount);
 
             foreach (var parameter in method.parameters) {
-                var newParameter = TypeIsUnexpandedTemplate(parameter.type, out var newParamType)
+                var newParameter = TypeContainsUnexpandedTemplate(parameter.type, out var newParamType)
                     ? new TypeSubstitutedParameterSymbol(parameter, new TypeWithAnnotations(newParamType))
                     : parameter;
 
@@ -126,17 +129,22 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
     }
 
     private MethodSymbol NoteMethod(NamedTypeSymbol newOwner, MethodSymbol method) {
-        var templateOwner = newOwner.originalDefinition as SynthesizedTemplateType;
-        Debug.Assert(templateOwner is not null);
+        // This is for when rewriting method calls on a template type directly
+        if (newOwner.originalDefinition is SynthesizedTemplateType templateOwner) {
+            var originalDefinition = method.originalDefinition;
 
-        var originalDefinition = method.originalDefinition;
+            if (_methodsMap.TryGetValue((templateOwner, originalDefinition), out var result))
+                return ConstructIfApplicable(result);
 
-        if (_methodsMap.TryGetValue((templateOwner, originalDefinition), out var result))
-            return ConstructIfApplicable(result);
-
-        var templateMethod = new SynthesizedTemplateTypeMethod(templateOwner, originalDefinition);
-        _methodsMap.Add((templateOwner, originalDefinition), templateMethod);
-        return ConstructIfApplicable(templateMethod);
+            var templateMethod = new SynthesizedTemplateTypeMethod(templateOwner, originalDefinition);
+            _methodsMap.Add((templateOwner, originalDefinition), templateMethod);
+            return ConstructIfApplicable(templateMethod);
+        }
+        // This is for when rewriting a method call not on a template type that contains template types (via return or param types)
+        else {
+            Debug.Assert(newOwner is ConstructedNamedTypeSymbol);
+            return method.originalDefinition.AsMember(newOwner);
+        }
 
         MethodSymbol ConstructIfApplicable(MethodSymbol synthesizedMethod) {
             if (newOwner is ConstructedNamedTypeSymbol)
@@ -146,31 +154,13 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
         }
     }
 
-    private bool TypeIsUnexpandedTemplate(TypeSymbol type, out NamedTypeSymbol templateType) {
-        if (NoteType(type)) {
-            var constructedType = (ConstructedNamedTypeSymbol)type;
+    private bool TypeContainsUnexpandedTemplate(TypeSymbol type, out TypeSymbol replacedType) {
+        replacedType = VisitType(type);
 
-            if (_typesMap.TryGetValue(constructedType, out var unconstructedType)) {
-                if (unconstructedType.arity == 0) {
-                    templateType = unconstructedType;
-                    return true;
-                }
+        if (TypeSymbol.Equals(type, replacedType, TypeCompareKind.ConsiderEverything))
+            return false;
 
-                var builder = ArrayBuilder<TypeOrConstant>.GetInstance(unconstructedType.arity);
-
-                foreach (var templateArgument in constructedType.templateArguments) {
-                    if (templateArgument.isType)
-                        builder.Add(templateArgument);
-                }
-
-                Debug.Assert(builder.Count == unconstructedType.arity);
-                templateType = unconstructedType.Construct(builder.ToImmutableAndFree());
-                return true;
-            }
-        }
-
-        templateType = null;
-        return false;
+        return true;
     }
 
     private ImmutableArray<DataContainerSymbol> RewriteLocals(ImmutableArray<DataContainerSymbol> locals) {
@@ -206,10 +196,39 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
     }
 
     internal override TypeSymbol VisitType(TypeSymbol type) {
-        if (type is not null && TypeIsUnexpandedTemplate(type, out var newType))
-            return newType;
+        if (type is not null) {
+            type.VisitType(VisitTypePredicate, this);
+
+            return TemplateTypeReplacer<ConstructedNamedTypeSymbol, SynthesizedTemplateType, NamedTypeSymbol>.Replace(
+                type,
+                _typesMap,
+                ConstructIfApplicable
+            );
+        }
 
         return type;
+
+        static bool VisitTypePredicate(TypeSymbol type, TemplateExpander argument, bool canDigThroughNullable = true) {
+            argument.NoteType(type);
+            return false;
+        }
+
+        static NamedTypeSymbol ConstructIfApplicable(
+            ConstructedNamedTypeSymbol source,
+            SynthesizedTemplateType replacement) {
+            if (replacement.arity == 0)
+                return replacement;
+
+            var builder = ArrayBuilder<TypeOrConstant>.GetInstance(replacement.arity);
+
+            foreach (var templateArgument in source.templateArguments) {
+                if (templateArgument.isType)
+                    builder.Add(templateArgument);
+            }
+
+            Debug.Assert(builder.Count == replacement.arity);
+            return replacement.Construct(builder.ToImmutableAndFree());
+        }
     }
 
     internal override BoundNode VisitBlockStatement(BoundBlockStatement node) {
@@ -264,9 +283,9 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
             );
         }
 
-        if (TypeIsUnexpandedTemplate(node.type, out var templateType)) {
+        if (TypeContainsUnexpandedTemplate(node.type, out var templateType)) {
             node = node.Update(
-                NoteMethod(templateType, node.constructor),
+                NoteMethod((NamedTypeSymbol)templateType, node.constructor),
                 node.arguments,
                 node.argumentRefKinds,
                 node.argsToParams,
@@ -292,10 +311,10 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
             );
         }
 
-        if (TypeIsUnexpandedTemplate(node.method.containingType, out var templateType)) {
+        if (TypeContainsUnexpandedTemplate(node.method.containingType, out var templateType)) {
             node = node.Update(
                 node.receiver,
-                NoteMethod(templateType, node.method),
+                NoteMethod((NamedTypeSymbol)templateType, node.method),
                 node.arguments,
                 node.argumentRefKinds,
                 node.defaultArguments,
@@ -316,10 +335,10 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
             );
         }
 
-        if (TypeIsUnexpandedTemplate(node.targetMethod.containingType, out var templateType)) {
+        if (TypeContainsUnexpandedTemplate(node.targetMethod.containingType, out var templateType)) {
             node = node.Update(
                 node.receiver,
-                NoteMethod(templateType, node.targetMethod),
+                NoteMethod((NamedTypeSymbol)templateType, node.targetMethod),
                 node.type
             );
         }

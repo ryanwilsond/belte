@@ -1,11 +1,12 @@
 using System.Collections.Immutable;
 using System.Linq;
 using System.Threading;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Microsoft.CodeAnalysis.PooledObjects;
 
-namespace Buckle.CodeAnalysis.Binding;
+namespace Buckle.CodeAnalysis;
 
 internal sealed partial class BoundProgram {
     private ImmutableDictionary<MethodSymbol, BoundBlockStatement> _lazyOriginalDefinitions;

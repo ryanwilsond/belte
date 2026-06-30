@@ -1471,6 +1471,14 @@ public sealed class EvaluatorTests {
         var a = new A<3, bool>();
         var b = new A<5, int>();
         return b.GetA(4);", 5)]
+    [InlineData(@"
+        class A<int a> {
+            public const int GetA() {
+                return a;
+            }
+        }
+        A<3>[] arr = new A<3>[1] { new () };
+        return arr[0].GetA();", 3)]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue, evaluator: true, executor: true);
     }

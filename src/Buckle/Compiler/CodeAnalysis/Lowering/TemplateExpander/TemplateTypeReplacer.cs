@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
@@ -5,21 +6,41 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
-internal sealed class TemplateTypeReplacer<T> where T : TypeSymbol {
-    private readonly Dictionary<T, T> _map;
+internal sealed class TemplateTypeReplacer<TKey, TValue, TReturn>
+    where TKey : TypeSymbol
+    where TValue : TypeSymbol
+    where TReturn : TypeSymbol {
+    private readonly Dictionary<TKey, TValue> _map;
+    private readonly Func<TKey, TValue, TReturn> _afterFoundTransformation;
 
-    private TemplateTypeReplacer(Dictionary<T, T> map) {
+    private TemplateTypeReplacer(Dictionary<TKey, TValue> map, Func<TKey, TValue, TReturn> afterFoundTransformation) {
         _map = map;
+        _afterFoundTransformation = afterFoundTransformation;
     }
 
-    internal static TypeWithAnnotations Replace(TypeWithAnnotations source, Dictionary<T, T> map) {
-        var replacer = new TemplateTypeReplacer<T>(map);
+    internal static TypeWithAnnotations Replace(
+        TypeWithAnnotations source,
+        Dictionary<TKey, TValue> map,
+        Func<TKey, TValue, TReturn> afterFoundTransformation = null) {
+        var replacer = new TemplateTypeReplacer<TKey, TValue, TReturn>(map, afterFoundTransformation);
         return replacer.ReplaceTypeWithAnnotations(source);
     }
 
+    internal static TypeSymbol Replace(
+        TypeSymbol source,
+        Dictionary<TKey, TValue> map,
+        Func<TKey, TValue, TReturn> afterFoundTransformation = null) {
+        var replacer = new TemplateTypeReplacer<TKey, TValue, TReturn>(map, afterFoundTransformation);
+        return replacer.ReplaceType(source);
+    }
+
     private TypeSymbol ReplaceType(TypeSymbol source) {
-        if (source is T t && _map.TryGetValue(t, out var replacement))
+        if (source is TKey t && _map.TryGetValue(t, out var replacement)) {
+            if (_afterFoundTransformation is not null)
+                return _afterFoundTransformation(t, replacement);
+
             return replacement;
+        }
 
         TypeSymbol result;
 

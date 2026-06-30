@@ -82,12 +82,17 @@ internal static class TypeWithAnnotationsExtensions {
                     }
 
                     // Skip non-type templates
+                    next = null;
+
                     for (; i >= 0; i--) {
                         next = templateArguments[i].type;
 
                         if (next is not null)
                             break;
                     }
+
+                    if (next is not null)
+                        break;
 
                     return null;
                 case TypeKind.Array:
