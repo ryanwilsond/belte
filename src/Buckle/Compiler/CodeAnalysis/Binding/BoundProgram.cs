@@ -154,13 +154,13 @@ internal sealed partial class BoundProgram {
             if (t.originalDefinition is PENamedTypeSymbol)
                 continue;
 
-            if (TemplateExpander.IsNonTypeTemplateType(t))
+            if (!TemplateExpander.ShouldEmit(namedType))
                 continue;
 
             var wellKnownType = WellKnownTypes.GetTypeFromMetadataName(namedType);
 
             if (wellKnownType.ShouldEmit(includeGraphicsWellKnownTypes))
-                builder.Add((NamedTypeSymbol)t);
+                builder.Add(namedType);
         }
 
         return builder.ToImmutableAndFree();

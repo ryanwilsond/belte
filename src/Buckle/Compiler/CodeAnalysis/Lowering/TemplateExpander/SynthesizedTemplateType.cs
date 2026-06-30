@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Utilities;
@@ -19,23 +20,38 @@ internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol {
         : base(originalType.constructedFrom, null) {
         _originalType = originalType;
         name = GeneratedNames.MakeTemplateTypeName(originalType);
-        templateParameters = originalType.templateParameters
-            .WhereAsArray(t => t.underlyingType.specialType == SpecialType.Type);
 
+        var i = 0;
+        templateParameters = originalType.templateParameters
+            .Where(t => t.underlyingType.specialType == SpecialType.Type)
+            .Select(t => new SynthesizedTemplateTypeParameter(this, t, i++))
+            .ToImmutableArray<TemplateParameterSymbol>();
+
+        i = 0;
         templateSubstitution = new TemplateMap(
             originalType.constructedFrom.containingType,
             originalType.templateParameters,
             originalType.templateArguments.ZipAsArray(
                 originalType.constructedFrom.templateParameters,
-                this,
+                i,
                 (typeOrConstant, templateParameter, i, arg) => {
-                    if (templateParameter.underlyingType.specialType == SpecialType.Type)
-                        return new TypeOrConstant(templateParameter);
-                    else
+                    if (templateParameter.underlyingType.specialType == SpecialType.Type) {
+                        return new TypeOrConstant(templateParameters[templateParameter.ordinal - i]);
+                    } else {
+                        i++;
                         return typeOrConstant;
+                    }
                 }
             )
         );
+
+        replacementTemplateParameters = [];
+
+        i = 0;
+        foreach (var templateParameter in originalType.constructedFrom.templateParameters) {
+            if (templateParameter.underlyingType.specialType == SpecialType.Type)
+                replacementTemplateParameters.Add(templateParameter, templateParameters[i++]);
+        }
 
         this.containingSymbol = containingSymbol;
     }
@@ -63,6 +79,8 @@ internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol {
     internal override IEnumerable<string> memberNames => [];
 
     internal NamedTypeSymbol unexpandedType => _originalType;
+
+    internal Dictionary<TemplateParameterSymbol, TemplateParameterSymbol> replacementTemplateParameters { get; }
 
     internal override LexicalSortKey GetLexicalSortKey() {
         return LexicalSortKey.NotInSource;

@@ -158,7 +158,8 @@ internal class TemplateMap {
             previous.rank,
             previous.sizes,
             previous.lowerBounds,
-            previous.baseType);
+            previous.baseType
+        );
     }
 
     internal NamedTypeSymbol SubstituteNamedType(NamedTypeSymbol previous) {

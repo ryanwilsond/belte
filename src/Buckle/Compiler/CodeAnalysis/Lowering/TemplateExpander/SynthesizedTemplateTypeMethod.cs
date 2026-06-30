@@ -3,17 +3,35 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
 internal sealed class SynthesizedTemplateTypeMethod : WrappedMethodSymbol {
     private readonly SynthesizedTemplateType _containingType;
+    private readonly TypeWithAnnotations _returnType;
+    private readonly ImmutableArray<ParameterSymbol> _parameters;
 
     private int _hashCode;
 
     internal SynthesizedTemplateTypeMethod(SynthesizedTemplateType newOwner, MethodSymbol method)
         : base(method) {
         _containingType = newOwner;
+        _returnType = TemplateTypeReplacer<TemplateParameterSymbol>.Replace(
+            method.returnTypeWithAnnotations,
+            newOwner.replacementTemplateParameters
+        );
+
+        var builder = ArrayBuilder<ParameterSymbol>.GetInstance(method.parameterCount);
+
+        foreach (var parameter in method.parameters) {
+            var newType = TemplateTypeReplacer<TemplateParameterSymbol>
+                .Replace(parameter.typeWithAnnotations, newOwner.replacementTemplateParameters);
+
+            builder.Add(new TypeSubstitutedParameterSymbol(parameter, newType));
+        }
+
+        _parameters = builder.ToImmutableAndFree();
     }
 
     internal override Symbol containingSymbol => _containingType;
@@ -24,11 +42,11 @@ internal sealed class SynthesizedTemplateTypeMethod : WrappedMethodSymbol {
 
     public override ImmutableArray<TypeOrConstant> templateArguments => underlyingMethod.templateArguments;
 
-    internal override TypeWithAnnotations returnTypeWithAnnotations => underlyingMethod.returnTypeWithAnnotations;
+    internal override TypeWithAnnotations returnTypeWithAnnotations => _returnType;
 
-    internal override ImmutableArray<ParameterSymbol> parameters => underlyingMethod.parameters;
+    internal override ImmutableArray<ParameterSymbol> parameters => _parameters;
 
-    internal override int parameterCount => underlyingMethod.parameterCount;
+    internal override int parameterCount => _parameters.Length;
 
     internal override bool isExplicitInterfaceImplementation => underlyingMethod.isExplicitInterfaceImplementation;
 

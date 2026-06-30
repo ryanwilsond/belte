@@ -34,17 +34,21 @@ internal sealed class TemplateTypeRewriter : BoundTreeRewriterWithStackGuard {
     }
 
     internal override BoundNode VisitTypeExpression(BoundTypeExpression node) {
-        if (node.type is TemplateParameterSymbol templateParameter &&
-            templateParameter.underlyingType.specialType != SpecialType.Type) {
-            var typeOrConstant = _instantiatedType.unexpandedType.templateSubstitution
-                .SubstituteType(templateParameter);
+        if (node.type is TemplateParameterSymbol templateParameter) {
+            if (templateParameter.underlyingType.specialType != SpecialType.Type) {
+                var typeOrConstant = _instantiatedType.unexpandedType.templateSubstitution
+                    .SubstituteType(templateParameter);
 
-            if (typeOrConstant.isConstant) {
-                return new BoundLiteralExpression(
-                    node.syntax,
-                    typeOrConstant.constant,
-                    templateParameter.underlyingType.type
-                );
+                if (typeOrConstant.isConstant) {
+                    return new BoundLiteralExpression(
+                        node.syntax,
+                        typeOrConstant.constant,
+                        templateParameter.underlyingType.type
+                    );
+                }
+            } else {
+                if (_instantiatedType.replacementTemplateParameters.TryGetValue(templateParameter, out var value))
+                    return new BoundTypeExpression(node.syntax, null, null, value);
             }
         }
 

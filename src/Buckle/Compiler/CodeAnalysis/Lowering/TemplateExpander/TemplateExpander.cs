@@ -91,6 +91,13 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
         return type is NamedTypeSymbol named && !IsGenericOnlyType(named);
     }
 
+    internal static bool ShouldEmit(NamedTypeSymbol type) {
+        if (type.templateParameters.Any(t => t.underlyingType.specialType != SpecialType.Type))
+            return false;
+
+        return true;
+    }
+
     private static bool IsGenericOnlyType(NamedTypeSymbol type) {
         foreach (var templateParameter in type.templateParameters) {
             if (templateParameter.underlyingType.specialType != SpecialType.Type)
@@ -118,19 +125,48 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
         return true;
     }
 
-    private SynthesizedTemplateTypeMethod NoteMethod(SynthesizedTemplateType newOwner, MethodSymbol method) {
-        if (_methodsMap.TryGetValue((newOwner, method), out var result))
-            return result;
+    private MethodSymbol NoteMethod(NamedTypeSymbol newOwner, MethodSymbol method) {
+        var templateOwner = newOwner.originalDefinition as SynthesizedTemplateType;
+        Debug.Assert(templateOwner is not null);
 
-        var templateMethod = new SynthesizedTemplateTypeMethod(newOwner, method);
-        _methodsMap.Add((newOwner, method), templateMethod);
-        return templateMethod;
+        var originalDefinition = method.originalDefinition;
+
+        if (_methodsMap.TryGetValue((templateOwner, originalDefinition), out var result))
+            return ConstructIfApplicable(result);
+
+        var templateMethod = new SynthesizedTemplateTypeMethod(templateOwner, originalDefinition);
+        _methodsMap.Add((templateOwner, originalDefinition), templateMethod);
+        return ConstructIfApplicable(templateMethod);
+
+        MethodSymbol ConstructIfApplicable(MethodSymbol synthesizedMethod) {
+            if (newOwner is ConstructedNamedTypeSymbol)
+                return synthesizedMethod.AsMember(newOwner);
+
+            return synthesizedMethod;
+        }
     }
 
-    private bool TypeIsUnexpandedTemplate(TypeSymbol type, out SynthesizedTemplateType templateType) {
+    private bool TypeIsUnexpandedTemplate(TypeSymbol type, out NamedTypeSymbol templateType) {
         if (NoteType(type)) {
-            if (_typesMap.TryGetValue((ConstructedNamedTypeSymbol)type, out templateType))
+            var constructedType = (ConstructedNamedTypeSymbol)type;
+
+            if (_typesMap.TryGetValue(constructedType, out var unconstructedType)) {
+                if (unconstructedType.arity == 0) {
+                    templateType = unconstructedType;
+                    return true;
+                }
+
+                var builder = ArrayBuilder<TypeOrConstant>.GetInstance(unconstructedType.arity);
+
+                foreach (var templateArgument in constructedType.templateArguments) {
+                    if (templateArgument.isType)
+                        builder.Add(templateArgument);
+                }
+
+                Debug.Assert(builder.Count == unconstructedType.arity);
+                templateType = unconstructedType.Construct(builder.ToImmutableAndFree());
                 return true;
+            }
         }
 
         templateType = null;
@@ -230,7 +266,7 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
 
         if (TypeIsUnexpandedTemplate(node.type, out var templateType)) {
             node = node.Update(
-                NoteMethod(templateType, node.constructor.originalDefinition),
+                NoteMethod(templateType, node.constructor),
                 node.arguments,
                 node.argumentRefKinds,
                 node.argsToParams,
@@ -259,7 +295,7 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
         if (TypeIsUnexpandedTemplate(node.method.containingType, out var templateType)) {
             node = node.Update(
                 node.receiver,
-                NoteMethod(templateType, node.method.originalDefinition),
+                NoteMethod(templateType, node.method),
                 node.arguments,
                 node.argumentRefKinds,
                 node.defaultArguments,
@@ -283,7 +319,7 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
         if (TypeIsUnexpandedTemplate(node.targetMethod.containingType, out var templateType)) {
             node = node.Update(
                 node.receiver,
-                NoteMethod(templateType, node.targetMethod.originalDefinition),
+                NoteMethod(templateType, node.targetMethod),
                 node.type
             );
         }
