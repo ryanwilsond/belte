@@ -244,6 +244,9 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
             var templateParameters = method.originalDefinition.templateParameters;
 
             for (var i = 0; i < templateArguments.Length; i++) {
+                if (templateArguments[i].isConstant)
+                    return false;
+
                 if (!templateParameters[i].Equals(
                         templateArguments[i].type.type,
                         TypeCompareKind.ConsiderEverything)) {

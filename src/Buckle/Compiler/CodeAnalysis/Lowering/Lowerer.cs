@@ -83,9 +83,9 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
             rewrittenStatement = (BoundBlockStatement)Optimizer.Optimize(rewrittenStatement);
 
         sawCompileTimeExpression = lowerer._sawCompileTimeExpression;
-        sawNonTypeTemplate = lowerer._sawNonTypeTemplate;
+        sawNonTypeTemplate = lowerer._sawNonTypeTemplate || TemplateExpander.IsNonTypeTemplateMethod(method);
         sawLambda = lowerer._sawLambda;
-        sawLocalFunction = lowerer._sawLocalFunction || TemplateExpander.IsNonTypeTemplateType(method.containingType);
+        sawLocalFunction = lowerer._sawLocalFunction;
 
         return rewrittenStatement;
     }

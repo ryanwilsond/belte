@@ -593,7 +593,7 @@ public enum DiagnosticCode : ushort {
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,
-    // ! Unused slot 9001
+    UNS_NonTypeTemplateFunction = 9001,
     UNS_ILOpCode = 9002,
     UNS_NonIntegralEnum = 9003,
     UNS_GraphicsDll = 9004,

@@ -9,8 +9,9 @@ using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
-internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol {
+internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol, ISynthesizedTemplate<NamedTypeSymbol> {
     private readonly ConstructedNamedTypeSymbol _originalType;
+    private readonly Dictionary<TemplateParameterSymbol, TemplateParameterSymbol> _replacementTemplateParameters;
 
     private int _hashCode;
 
@@ -19,7 +20,7 @@ internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol {
         ConstructedNamedTypeSymbol originalType)
         : base(originalType.constructedFrom, null) {
         _originalType = originalType;
-        name = GeneratedNames.MakeTemplateTypeName(originalType);
+        name = GeneratedNames.MakeTemplateTypeOrMethodName(originalType);
 
         var i = 0;
         templateParameters = originalType.templateParameters
@@ -45,12 +46,12 @@ internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol {
             )
         );
 
-        replacementTemplateParameters = [];
+        _replacementTemplateParameters = [];
 
         i = 0;
         foreach (var templateParameter in originalType.constructedFrom.templateParameters) {
             if (templateParameter.underlyingType.specialType == SpecialType.Type)
-                replacementTemplateParameters.Add(templateParameter, templateParameters[i++]);
+                _replacementTemplateParameters.Add(templateParameter, templateParameters[i++]);
         }
 
         this.containingSymbol = containingSymbol;
@@ -78,9 +79,10 @@ internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol {
 
     internal override IEnumerable<string> memberNames => [];
 
-    internal NamedTypeSymbol unexpandedType => _originalType;
+    internal NamedTypeSymbol unexpandedSymbol => _originalType;
 
-    internal Dictionary<TemplateParameterSymbol, TemplateParameterSymbol> replacementTemplateParameters { get; }
+    internal Dictionary<TemplateParameterSymbol, TemplateParameterSymbol> replacementTemplateParameters
+        => _replacementTemplateParameters;
 
     internal override LexicalSortKey GetLexicalSortKey() {
         return LexicalSortKey.NotInSource;
@@ -141,4 +143,9 @@ internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol {
         Debug.Assert(baseHashCode != newHashCode);
         return newHashCode;
     }
+
+    NamedTypeSymbol ISynthesizedTemplate<NamedTypeSymbol>.unexpandedSymbol => _originalType;
+
+    Dictionary<TemplateParameterSymbol, TemplateParameterSymbol> ISynthesizedTemplate<NamedTypeSymbol>.replacementTemplateParameters
+        => _replacementTemplateParameters;
 }

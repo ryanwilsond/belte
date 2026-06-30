@@ -15,9 +15,11 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
     private readonly ArrayBuilder<SynthesizedTemplateType> _typesBuilder;
     private readonly Dictionary<ConstructedNamedTypeSymbol, SynthesizedTemplateType> _typesMap = [];
     // Used for methods contained within an expanded template type
-    private readonly Dictionary<(SynthesizedTemplateType, MethodSymbol), SynthesizedTemplateTypeMethod> _methodsMap = [];
+    private readonly Dictionary<(SynthesizedTemplateType, MethodSymbol), SynthesizedTemplateTypeMethod> _typeMethodsMap = [];
     // Used for methods with an expanded template return type or parameter type
     private ImmutableDictionary<MethodSymbol, MethodSymbol> _secondaryMethodsMap;
+    // Used for methods needing expanding because they directly have non-type templates
+    private readonly Dictionary<MethodSymbol, SynthesizedTemplateMethod> _methodsMap = [];
     private readonly Dictionary<DataContainerSymbol, DataContainerSymbol> _localMap = [];
 
     private MethodSymbol _currentMethod;
@@ -64,7 +66,11 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
         _secondaryMethodsMap = methodMap;
     }
 
-    internal ImmutableDictionary<(SynthesizedTemplateType, MethodSymbol), SynthesizedTemplateTypeMethod> GetMethodMap() {
+    internal ImmutableDictionary<(SynthesizedTemplateType, MethodSymbol), SynthesizedTemplateTypeMethod> GetTypeMethodMap() {
+        return _typeMethodsMap.ToImmutableDictionary();
+    }
+
+    internal ImmutableDictionary<MethodSymbol, SynthesizedTemplateMethod> GetMethodMap() {
         return _methodsMap.ToImmutableDictionary();
     }
 
@@ -87,22 +93,26 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
     }
 
     internal static bool IsNonTypeTemplateTypeConstructed(TypeSymbol type) {
-        return type is ConstructedNamedTypeSymbol constructed && !IsGenericOnlyType(constructed);
+        return type is ConstructedNamedTypeSymbol constructed && !IsGenericOnly(constructed);
     }
 
     internal static bool IsNonTypeTemplateType(TypeSymbol type) {
-        return type is NamedTypeSymbol named && !IsGenericOnlyType(named);
+        return type is NamedTypeSymbol named && !IsGenericOnly(named);
     }
 
-    internal static bool ShouldEmit(NamedTypeSymbol type) {
+    internal static bool IsNonTypeTemplateMethod(MethodSymbol method) {
+        return !IsGenericOnly(method);
+    }
+
+    internal static bool ShouldEmit(ISymbolWithTemplates type) {
         if (type.templateParameters.Any(t => t.underlyingType.specialType != SpecialType.Type))
             return false;
 
         return true;
     }
 
-    private static bool IsGenericOnlyType(NamedTypeSymbol type) {
-        foreach (var templateParameter in type.templateParameters) {
+    private static bool IsGenericOnly(ISymbolWithTemplates symbol) {
+        foreach (var templateParameter in symbol.templateParameters) {
             if (templateParameter.underlyingType.specialType != SpecialType.Type)
                 return false;
         }
@@ -111,7 +121,7 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
     }
 
     private bool NoteType(TypeSymbol type) {
-        if (type is not ConstructedNamedTypeSymbol constructed || IsGenericOnlyType(constructed))
+        if (type is not ConstructedNamedTypeSymbol constructed || IsGenericOnly(constructed))
             return false;
 
         if (_typesMap.ContainsKey(constructed))
@@ -128,16 +138,16 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
         return true;
     }
 
-    private MethodSymbol NoteMethod(NamedTypeSymbol newOwner, MethodSymbol method) {
+    private MethodSymbol ReplaceMethodOwner(NamedTypeSymbol newOwner, MethodSymbol method) {
         // This is for when rewriting method calls on a template type directly
         if (newOwner.originalDefinition is SynthesizedTemplateType templateOwner) {
             var originalDefinition = method.originalDefinition;
 
-            if (_methodsMap.TryGetValue((templateOwner, originalDefinition), out var result))
+            if (_typeMethodsMap.TryGetValue((templateOwner, originalDefinition), out var result))
                 return ConstructIfApplicable(result);
 
             var templateMethod = new SynthesizedTemplateTypeMethod(templateOwner, originalDefinition);
-            _methodsMap.Add((templateOwner, originalDefinition), templateMethod);
+            _typeMethodsMap.Add((templateOwner, originalDefinition), templateMethod);
             return ConstructIfApplicable(templateMethod);
         }
         // This is for when rewriting a method call not on a template type that contains template types (via return or param types)
@@ -160,6 +170,24 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
         if (TypeSymbol.Equals(type, replacedType, TypeCompareKind.ConsiderEverything))
             return false;
 
+        return true;
+    }
+
+    private bool MethodContainsUnexpandedTemplate(MethodSymbol method, out MethodSymbol replacedMethod) {
+        if (method is not ConstructedMethodSymbol constructed || IsGenericOnly(constructed)) {
+            replacedMethod = null;
+            return false;
+        }
+
+        if (_methodsMap.TryGetValue(method, out var templateMethod)) {
+            replacedMethod = templateMethod;
+            return true;
+        }
+
+        var synthesizedMethod = new SynthesizedTemplateMethod(method.containingSymbol, constructed);
+        _methodsMap.Add(constructed, synthesizedMethod);
+
+        replacedMethod = synthesizedMethod;
         return true;
     }
 
@@ -285,7 +313,7 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
 
         if (TypeContainsUnexpandedTemplate(node.type, out var templateType)) {
             node = node.Update(
-                NoteMethod((NamedTypeSymbol)templateType, node.constructor),
+                ReplaceMethodOwner((NamedTypeSymbol)templateType, node.constructor),
                 node.arguments,
                 node.argumentRefKinds,
                 node.argsToParams,
@@ -314,12 +342,24 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
         if (TypeContainsUnexpandedTemplate(node.method.containingType, out var templateType)) {
             node = node.Update(
                 node.receiver,
-                NoteMethod((NamedTypeSymbol)templateType, node.method),
+                ReplaceMethodOwner((NamedTypeSymbol)templateType, node.method),
                 node.arguments,
                 node.argumentRefKinds,
                 node.defaultArguments,
                 node.resultKind,
                 node.type
+            );
+        }
+
+        if (MethodContainsUnexpandedTemplate(node.method, out var templateMethod)) {
+            node = node.Update(
+                node.receiver,
+                templateMethod,
+                node.arguments,
+                node.argumentRefKinds,
+                node.defaultArguments,
+                node.resultKind,
+                templateMethod.returnType
             );
         }
 
@@ -338,11 +378,47 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
         if (TypeContainsUnexpandedTemplate(node.targetMethod.containingType, out var templateType)) {
             node = node.Update(
                 node.receiver,
-                NoteMethod((NamedTypeSymbol)templateType, node.targetMethod),
+                ReplaceMethodOwner((NamedTypeSymbol)templateType, node.targetMethod),
+                node.type
+            );
+        }
+
+        if (MethodContainsUnexpandedTemplate(node.targetMethod, out var templateMethod)) {
+            node = node.Update(
+                node.receiver,
+                templateMethod,
                 node.type
             );
         }
 
         return base.VisitFunctionLoad(node);
+    }
+
+    internal override BoundNode VisitFunctionPointerLoad(BoundFunctionPointerLoad node) {
+        if (_secondaryMethodsMap.TryGetValue(node.targetMethod, out var replacementMethod)) {
+            node = node.Update(
+                replacementMethod,
+                node.constrainedToType,
+                node.type
+            );
+        }
+
+        if (TypeContainsUnexpandedTemplate(node.targetMethod.containingType, out var templateType)) {
+            node = node.Update(
+                ReplaceMethodOwner((NamedTypeSymbol)templateType, node.targetMethod),
+                node.constrainedToType,
+                node.type
+            );
+        }
+
+        if (MethodContainsUnexpandedTemplate(node.targetMethod, out var templateMethod)) {
+            node = node.Update(
+                templateMethod,
+                node.constrainedToType,
+                node.type
+            );
+        }
+
+        return base.VisitFunctionPointerLoad(node);
     }
 }

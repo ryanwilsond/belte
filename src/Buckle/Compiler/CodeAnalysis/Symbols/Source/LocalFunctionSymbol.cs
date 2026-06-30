@@ -181,6 +181,8 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
         GetReturnTypeAttributes();
 
         addTo.PushRange(_declarationDiagnostics);
+
+        TemplateChecks(addTo);
     }
 
     internal void ComputeReturnType() {
@@ -320,5 +322,14 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
 
     internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
         throw ExceptionUtilities.Unreachable();
+    }
+
+    private void TemplateChecks(BelteDiagnosticQueue diagnostics) {
+        foreach (var templateParameter in templateParameters) {
+            if (templateParameter.underlyingType.specialType != SpecialType.Type) {
+                diagnostics.Push(Error.Unsupported.NonTypeTemplateFunction(templateParameter.location));
+                break;
+            }
+        }
     }
 }

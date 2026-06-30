@@ -8,13 +8,21 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// <summary>
 /// Synthesizes definitions for each instantiated non-type template type found by the <see cref="TemplateExpander" />.
 /// </summary>
-internal sealed class TemplateTypeRewriter : BoundTreeRewriterWithStackGuard {
-    private readonly NamedTypeSymbol _originalType;
-    private readonly SynthesizedTemplateType _instantiatedType;
+internal sealed class TemplateTypeRewriter<T> : BoundTreeRewriterWithStackGuard
+    where T : ISymbolWithTemplates {
+    private readonly ISynthesizedTemplate<T> _instantiatedSymbol;
 
-    private TemplateTypeRewriter(NamedTypeSymbol originalType, SynthesizedTemplateType instantiatedType) {
-        _originalType = originalType;
-        _instantiatedType = instantiatedType;
+    private TemplateTypeRewriter(ISynthesizedTemplate<T> instantiatedType) {
+        _instantiatedSymbol = instantiatedType;
+    }
+
+    internal static void Rewrite(
+        SynthesizedTemplateMethod instantiatedMethod,
+        BoundBlockStatement body,
+        ImmutableDictionary<MethodSymbol, BoundBlockStatement>.Builder builder) {
+        var rewriter = new TemplateTypeRewriter<MethodSymbol>(instantiatedMethod);
+        var newBody = (BoundBlockStatement)rewriter.Visit(body);
+        builder.Add(instantiatedMethod, newBody);
     }
 
     internal static void Rewrite(
@@ -23,7 +31,7 @@ internal sealed class TemplateTypeRewriter : BoundTreeRewriterWithStackGuard {
         ConcurrentDictionary<MethodSymbol, BoundBlockStatement> allMethods,
         ImmutableDictionary<MethodSymbol, BoundBlockStatement>.Builder builder,
         ImmutableDictionary<(SynthesizedTemplateType, MethodSymbol), SynthesizedTemplateTypeMethod> methodMap) {
-        var rewriter = new TemplateTypeRewriter(originalType, instantiatedType);
+        var rewriter = new TemplateTypeRewriter<NamedTypeSymbol>(instantiatedType);
 
         foreach (var (method, body) in allMethods) {
             if (method.containingType.originalDefinition.Equals(originalType)) {
@@ -39,7 +47,7 @@ internal sealed class TemplateTypeRewriter : BoundTreeRewriterWithStackGuard {
     internal override BoundNode VisitTypeExpression(BoundTypeExpression node) {
         if (node.type is TemplateParameterSymbol templateParameter) {
             if (templateParameter.underlyingType.specialType != SpecialType.Type) {
-                var typeOrConstant = _instantiatedType.unexpandedType.templateSubstitution
+                var typeOrConstant = _instantiatedSymbol.unexpandedSymbol.templateSubstitution
                     .SubstituteType(templateParameter);
 
                 if (typeOrConstant.isConstant) {
@@ -50,7 +58,7 @@ internal sealed class TemplateTypeRewriter : BoundTreeRewriterWithStackGuard {
                     );
                 }
             } else {
-                if (_instantiatedType.replacementTemplateParameters.TryGetValue(templateParameter, out var value))
+                if (_instantiatedSymbol.replacementTemplateParameters.TryGetValue(templateParameter, out var value))
                     return new BoundTypeExpression(node.syntax, null, null, value);
             }
         }

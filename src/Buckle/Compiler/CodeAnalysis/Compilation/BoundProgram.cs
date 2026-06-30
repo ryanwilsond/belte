@@ -135,6 +135,23 @@ internal sealed partial class BoundProgram {
         return builder.ToImmutableAndFree();
     }
 
+    internal ImmutableArray<(MethodSymbol, BoundBlockStatement)> GetMethodsToEmit() {
+        var methods = GetAllMethodBodies();
+        var length = methods.Length;
+        var builder = ArrayBuilder<(MethodSymbol, BoundBlockStatement)>.GetInstance(length);
+
+        for (var i = 0; i < length; i++) {
+            var (method, body) = methods[i];
+
+            if (!TemplateExpander.ShouldEmit(method))
+                continue;
+
+            builder.Add((method, body));
+        }
+
+        return builder.ToImmutableAndFree();
+    }
+
     internal ImmutableArray<NamedTypeSymbol> GetTypesToEmit(bool includeGraphicsWellKnownTypes) {
         var types = GetAllTypes();
         var length = types.Length;

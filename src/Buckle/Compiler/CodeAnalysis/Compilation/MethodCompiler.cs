@@ -220,13 +220,17 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         ImmutableArray<NamedTypeSymbol> types;
 
         if (_lazyExpandedTemplateTypes is not null && _lazyExpandedTemplateTypes.Any()) {
-            _lazyExpandedTemplateMethods.AddRange(_methodBodies);
             _types.AddRange(_lazyExpandedTemplateTypes.Cast<NamedTypeSymbol>());
-            methodBodies = _lazyExpandedTemplateMethods.ToImmutableDictionary();
             types = _types.ToImmutableAndFree();
         } else {
-            methodBodies = _methodBodies.ToImmutableDictionary();
             types = _types.ToImmutableAndFree();
+        }
+
+        if (_lazyExpandedTemplateMethods is not null && _lazyExpandedTemplateMethods.Any()) {
+            _lazyExpandedTemplateMethods.AddRange(_methodBodies);
+            methodBodies = _lazyExpandedTemplateMethods.ToImmutableDictionary();
+        } else {
+            methodBodies = _methodBodies.ToImmutableDictionary();
         }
 
         return new BoundProgram(
@@ -345,10 +349,10 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
 
         if (_lazyExpandedTemplateTypes.Any()) {
             _lazyExpandedTemplateMethods ??= ImmutableDictionary.CreateBuilder<MethodSymbol, BoundBlockStatement>();
-            var methodMap = templateExpander.GetMethodMap();
+            var methodMap = templateExpander.GetTypeMethodMap();
 
             foreach (var templateType in _lazyExpandedTemplateTypes) {
-                TemplateTypeRewriter.Rewrite(
+                TemplateTypeRewriter<NamedTypeSymbol>.Rewrite(
                     templateType.underlyingNamedType,
                     templateType,
                     _methodBodies,
@@ -356,6 +360,18 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                     methodMap
                 );
             }
+        }
+
+        var templateMethods = templateExpander.GetMethodMap();
+
+        foreach (var (key, value) in templateMethods) {
+            _lazyExpandedTemplateMethods ??= ImmutableDictionary.CreateBuilder<MethodSymbol, BoundBlockStatement>();
+
+            var body = _lazyExpandedTemplateMethods.TryGetValue(key.originalDefinition, out var originalBody)
+                ? originalBody
+                : _methodBodies[key.originalDefinition];
+
+            TemplateTypeRewriter<MethodSymbol>.Rewrite(value, body, _lazyExpandedTemplateMethods);
         }
     }
 
@@ -613,8 +629,8 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             _compilation.previousAnalyses,
             currentDiagnostics,
             ref _entryPoint,
-            out var sawCompileTimeExpression,
-            out var sawNonTypeTemplate
+            sawCompileTimeExpression: out var sawCompileTimeExpression,
+            sawNonTypeTemplate: out var sawNonTypeTemplate
         );
 
         if (method.methodKind == MethodKind.Ordinary && method.containingType.IsEnumType())
