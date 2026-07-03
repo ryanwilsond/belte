@@ -360,6 +360,9 @@ internal partial class Binder {
         foreach (var constraint in constraints) {
             var expression = BindExpression(constraint, diagnostics);
 
+            if (expression.hasAnyErrors)
+                continue;
+
             if (!EnsureExpressionIsCompileTime(expression, templateParameters))
                 diagnostics.Push(Error.ConstraintIsNotConstant(constraint.location));
 

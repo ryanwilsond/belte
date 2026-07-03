@@ -37,6 +37,11 @@ internal static class LiteralUtilities {
         TextLocation errorLocation,
         BelteDiagnosticQueue diagnostics,
         out object result) {
+        if (sourceType.IsErrorType() || targetType.IsErrorType()) {
+            result = null;
+            return false;
+        }
+
         try {
             return TryCastCore(value, sourceType, targetType, out result);
         } catch (FormatException) {

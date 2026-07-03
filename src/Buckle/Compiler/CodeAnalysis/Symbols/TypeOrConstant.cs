@@ -28,6 +28,16 @@ internal sealed class TypeOrConstant {
 
     internal TypeWithAnnotations type { get; }
 
+    internal bool IsSameAs(TypeOrConstant other) {
+        if (isConstant != other.isConstant)
+            return false;
+
+        if (isConstant)
+            return constant?.value == other.constant?.value;
+        else
+            return type.IsSameAs(other.type);
+    }
+
     internal bool Equals(TypeOrConstant other, TypeCompareKind compareKind) {
         if (isConstant)
             return constant?.value == other.constant?.value;

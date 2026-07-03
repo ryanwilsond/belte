@@ -348,11 +348,14 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         }
 
         if (_lazyExpandedTemplateTypes.Any()) {
+            var templateTypes = _lazyExpandedTemplateTypes.ToImmutable();
+
             _lazyExpandedTemplateMethods ??= ImmutableDictionary.CreateBuilder<MethodSymbol, BoundBlockStatement>();
             var methodMap = templateExpander.GetTypeMethodMap();
 
-            foreach (var templateType in _lazyExpandedTemplateTypes) {
+            foreach (var templateType in templateTypes) {
                 TemplateTypeRewriter<NamedTypeSymbol>.Rewrite(
+                    templateExpander,
                     templateType.underlyingNamedType,
                     templateType,
                     _methodBodies,
@@ -360,6 +363,8 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                     methodMap
                 );
             }
+
+            Debug.Assert(templateTypes.Length == _lazyExpandedTemplateTypes.Count);
         }
 
         var templateMethods = templateExpander.GetMethodMap();

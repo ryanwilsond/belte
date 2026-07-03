@@ -9,6 +9,7 @@
 public static class Program {
     constexpr uint16 PORT = 8080;
 
+    [MustUseReturnValue]
     [DllImport("ws2_32.dll")]
     extern {
         int32 WSAStartup(uint16 wVersionRequested, void* lpWSAData);

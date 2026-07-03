@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Lowering;
@@ -16,6 +17,7 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
     private readonly Dictionary<ConstructedNamedTypeSymbol, SynthesizedTemplateType> _typesMap = [];
     // Used for methods contained within an expanded template type
     private readonly Dictionary<(SynthesizedTemplateType, MethodSymbol), SynthesizedTemplateTypeMethod> _typeMethodsMap = [];
+    private readonly Dictionary<(SynthesizedTemplateType, FieldSymbol), SynthesizedTemplateTypeField> _typeFieldsMap = [];
     // Used for methods with an expanded template return type or parameter type
     private ImmutableDictionary<MethodSymbol, MethodSymbol> _secondaryMethodsMap;
     // Used for methods needing expanding because they directly have non-type templates
@@ -33,32 +35,31 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
         // All methods should be rewritten before the main pass
         Debug.Assert(_secondaryMethodsMap is null);
 
-        var returnType = method.returnType;
+        var anyTemplates = TypeContainsUnexpandedTemplate(method.returnType, out var newReturnType);
+        var builder = ArrayBuilder<ParameterSymbol>.GetInstance(method.parameterCount);
 
-        if (IsNonTypeTemplateTypeConstructed(returnType) ||
-            method.parameterTypesWithAnnotations.Any(p => IsNonTypeTemplateTypeConstructed(p.type))) {
-            var newReturnType = VisitType(returnType);
-            var builder = ArrayBuilder<ParameterSymbol>.GetInstance(method.parameterCount);
+        foreach (var parameter in method.parameters) {
+            var paramIsTemplate = TypeContainsUnexpandedTemplate(parameter.type, out var newParamType);
+            var newParameter = paramIsTemplate
+                ? new TypeSubstitutedParameterSymbol(parameter, new TypeWithAnnotations(newParamType))
+                : parameter;
 
-            foreach (var parameter in method.parameters) {
-                var newParameter = TypeContainsUnexpandedTemplate(parameter.type, out var newParamType)
-                    ? new TypeSubstitutedParameterSymbol(parameter, new TypeWithAnnotations(newParamType))
-                    : parameter;
-
-                builder.Add(newParameter);
-            }
-
-            newMethod = new TypeSubstitutedMethodSymbol(
-                method,
-                new TypeWithAnnotations(newReturnType),
-                builder.ToImmutableAndFree()
-            );
-
-            return true;
+            anyTemplates |= paramIsTemplate;
+            builder.Add(newParameter);
         }
 
-        newMethod = null;
-        return false;
+        if (!anyTemplates) {
+            newMethod = null;
+            return false;
+        }
+
+        newMethod = new TypeSubstitutedMethodSymbol(
+            method,
+            new TypeWithAnnotations(newReturnType),
+            builder.ToImmutableAndFree()
+        );
+
+        return true;
     }
 
     internal void SetSecondaryMethodMap(ImmutableDictionary<MethodSymbol, MethodSymbol> methodMap) {
@@ -92,10 +93,6 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
         return newBody != body;
     }
 
-    internal static bool IsNonTypeTemplateTypeConstructed(TypeSymbol type) {
-        return type is ConstructedNamedTypeSymbol constructed && !IsGenericOnly(constructed);
-    }
-
     internal static bool IsNonTypeTemplateType(TypeSymbol type) {
         return type is NamedTypeSymbol named && !IsGenericOnly(named);
     }
@@ -109,6 +106,14 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
             return false;
 
         return true;
+    }
+
+    internal TypeWithAnnotations SubstituteType(TypeWithAnnotations type, SynthesizedTemplateType newOwner) {
+        type = TemplateTypeReplacer<TemplateParameterSymbol, TemplateParameterSymbol, TemplateParameterSymbol>
+            .Replace(type, newOwner.replacementTemplateParameters);
+        type = type.SubstituteType(newOwner.templateSubstitution).type;
+        type = new TypeWithAnnotations(VisitType(type.type));
+        return type;
     }
 
     private static bool IsGenericOnly(ISymbolWithTemplates symbol) {
@@ -131,9 +136,11 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
             ? VisitType(containingType)
             : constructed.containingSymbol;
 
-        var synthesizedType = new SynthesizedTemplateType(containingSymbol, constructed);
+        var synthesizedType = new SynthesizedTemplateType(this, containingSymbol, constructed);
         _typesMap.Add(constructed, synthesizedType);
         _typesBuilder.Add(synthesizedType);
+
+        synthesizedType.NoteFields(_typeFieldsMap);
 
         return true;
     }
@@ -146,7 +153,7 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
             if (_typeMethodsMap.TryGetValue((templateOwner, originalDefinition), out var result))
                 return ConstructIfApplicable(result);
 
-            var templateMethod = new SynthesizedTemplateTypeMethod(templateOwner, originalDefinition);
+            var templateMethod = new SynthesizedTemplateTypeMethod(this, templateOwner, originalDefinition);
             _typeMethodsMap.Add((templateOwner, originalDefinition), templateMethod);
             return ConstructIfApplicable(templateMethod);
         }
@@ -161,6 +168,28 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
                 return synthesizedMethod.AsMember(newOwner);
 
             return synthesizedMethod;
+        }
+    }
+
+    private FieldSymbol ReplaceFieldOwner(NamedTypeSymbol newOwner, FieldSymbol field) {
+        if (newOwner.originalDefinition is SynthesizedTemplateType templateOwner) {
+            var originalDefinition = field.originalDefinition;
+
+            if (_typeFieldsMap.TryGetValue((templateOwner, originalDefinition), out var result))
+                return ConstructIfApplicable(result);
+
+            // The map should be fully populated when the template type is noted
+            throw ExceptionUtilities.Unreachable();
+        } else {
+            Debug.Assert(newOwner is ConstructedNamedTypeSymbol);
+            return field.originalDefinition.AsMember(newOwner);
+        }
+
+        FieldSymbol ConstructIfApplicable(FieldSymbol synthesizedField) {
+            if (newOwner is ConstructedNamedTypeSymbol)
+                return synthesizedField.AsMember(newOwner);
+
+            return synthesizedField;
         }
     }
 
@@ -364,6 +393,19 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
         }
 
         return base.VisitCallExpression(node);
+    }
+
+    internal override BoundNode VisitFieldAccessExpression(BoundFieldAccessExpression node) {
+        if (TypeContainsUnexpandedTemplate(node.field.containingType, out var templateType)) {
+            node = node.Update(
+                node.receiver,
+                ReplaceFieldOwner((NamedTypeSymbol)templateType, node.field),
+                node.constantValue,
+                node.type
+            );
+        }
+
+        return base.VisitFieldAccessExpression(node);
     }
 
     internal override BoundNode VisitFunctionLoad(BoundFunctionLoad node) {

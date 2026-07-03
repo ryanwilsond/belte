@@ -44,9 +44,11 @@ public static class Program {
 
     constexpr uint32 WM_DESTROY = 0x0002;
 
+    [MustUseReturnValue]
     [DllImport("kernel32.dll")]
     static extern int64* GetModuleHandle(string? lpModuleName);
 
+    [MustUseReturnValue]
     [DllImport("user32.dll")]
     extern {
         uint16 RegisterClassEx(WNDCLASSEX* lpwcx);
@@ -64,7 +66,6 @@ public static class Program {
             int64* hInstance,
             int64* lpParam
         );
-        void PostQuitMessage(int32 nExitCode);
         int64* DefWindowProc(int64* hWnd, uint32 msg, int64* wParam, int64* lParam);
         winbool ShowWindow(int64* hWnd, int32 nCmdShow);
         winbool UpdateWindow(int64* hWnd);
@@ -72,6 +73,9 @@ public static class Program {
         winbool TranslateMessage(MSG* lpMsg);
         int64* DispatchMessage(MSG* lpMsg);
     }
+
+    [DllImport("user32.dll")]
+    static extern void PostQuitMessage(int32 nExitCode);
 
     public static void Main() {
         const hInstance = GetModuleHandle(null);

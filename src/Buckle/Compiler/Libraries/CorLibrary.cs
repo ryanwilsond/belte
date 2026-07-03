@@ -53,6 +53,13 @@ internal sealed class CorLibrary {
         return (MethodSymbol)Instance.GetWellKnownMemberCore(wellKnownMember);
     }
 
+    // This should only be used by observational APIs (like DisplayText)
+    // Everything else should use GetWellKnownType or TryGetWellKnownType
+    internal static bool HasWellKnownType(WellKnownType wellKnownType) {
+        Instance.EnsureCorLibraryIsComplete();
+        return Instance.HasWellKnownTypeCore(wellKnownType);
+    }
+
     internal static NamedTypeSymbol GetWellKnownType(WellKnownType wellKnownType) {
         Instance.EnsureCorLibraryIsComplete();
         return Instance.GetWellKnownTypeCore(wellKnownType);
@@ -163,6 +170,10 @@ internal sealed class CorLibrary {
             throw new ArgumentException($"Well known member {wellKnownMember} has not been registered");
 
         return result;
+    }
+
+    private bool HasWellKnownTypeCore(WellKnownType wellKnownType) {
+        return _wellKnownTypes.ContainsKey(wellKnownType);
     }
 
     private NamedTypeSymbol GetWellKnownTypeCore(WellKnownType wellKnownType) {

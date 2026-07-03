@@ -14,18 +14,18 @@ internal sealed class SynthesizedTemplateTypeMethod : WrappedMethodSymbol {
 
     private int _hashCode;
 
-    internal SynthesizedTemplateTypeMethod(SynthesizedTemplateType newOwner, MethodSymbol method)
+    internal SynthesizedTemplateTypeMethod(
+        TemplateExpander templateExpander,
+        SynthesizedTemplateType newOwner,
+        MethodSymbol method)
         : base(method) {
         _containingType = newOwner;
-        _returnType = TemplateTypeReplacer<TemplateParameterSymbol, TemplateParameterSymbol, TemplateParameterSymbol>
-            .Replace(method.returnTypeWithAnnotations, newOwner.replacementTemplateParameters);
+        _returnType = templateExpander.SubstituteType(method.returnTypeWithAnnotations, newOwner);
 
         var builder = ArrayBuilder<ParameterSymbol>.GetInstance(method.parameterCount);
 
         foreach (var parameter in method.parameters) {
-            var newType = TemplateTypeReplacer<TemplateParameterSymbol, TemplateParameterSymbol, TemplateParameterSymbol>
-                .Replace(parameter.typeWithAnnotations, newOwner.replacementTemplateParameters);
-
+            var newType = templateExpander.SubstituteType(parameter.typeWithAnnotations, newOwner);
             builder.Add(new TypeSubstitutedParameterSymbol(parameter, newType));
         }
 

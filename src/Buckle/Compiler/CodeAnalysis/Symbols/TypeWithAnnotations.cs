@@ -195,6 +195,6 @@ internal sealed class TypeWithAnnotations {
     }
 
     private string GetDebuggerDisplay() {
-        return !hasType ? "<null>" : ToDisplayString(SymbolDisplayFormat.Everything);
+        return !hasType ? "<null>" : ToDisplayString(SymbolDisplayFormat.ErrorMessageFormat);
     }
 }

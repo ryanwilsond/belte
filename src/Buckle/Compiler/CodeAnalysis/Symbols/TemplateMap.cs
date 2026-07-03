@@ -175,18 +175,12 @@ internal class TemplateMap {
 
         for (var i = 0; i < oldTemplateArguments.Length; i++) {
             var oldArgument = oldTemplateArguments[i];
+            var newArgument = oldArgument.type.SubstituteType(this);
 
-            if (oldArgument.isConstant) {
-                newTypeArguments.Add(oldArgument);
-                continue;
-            }
-
-            var newArgument = oldArgument.type.SubstituteType(this).type;
-
-            if (!changed && !oldArgument.type.IsSameAs(newArgument))
+            if (!changed && !oldArgument.IsSameAs(newArgument))
                 changed = true;
 
-            newTypeArguments.Add(new TypeOrConstant(newArgument));
+            newTypeArguments.Add(newArgument);
         }
 
         if (!changed)

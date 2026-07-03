@@ -1577,4 +1577,35 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void TemplateConstraint_BogusConstraintDoesntEffectInstantiation() {
+        var text = @"
+            class A<int M> where { M < [N]; } { }
+            A<10> a = new();
+        ";
+
+        var diagnostics = @"
+            undefined symbol 'N'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void NonTypeTemplate_SubstitutesField() {
+        var text = @"
+            class A<int M> {
+                int a = M;
+
+                public int GetA() {
+                    return a;
+                }
+            }
+            var a = new A<10>();
+            return a.GetA();
+        ";
+
+        AssertValue(text, 10);
+    }
 }
