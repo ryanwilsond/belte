@@ -350,15 +350,21 @@ internal static partial class ConstraintsHelpers {
                 case TypeKind.Interface:
                 case TypeKind.Enum:
                 case TypeKind.Struct:
-                    var typeArguments = ((NamedTypeSymbol)current).templateArguments;
+                    var templateArguments = ((NamedTypeSymbol)current).templateArguments;
 
-                    if (typeArguments.IsEmpty)
+                    if (templateArguments.IsEmpty)
                         return;
 
-                    var nextType = typeArguments[0].type.nullableUnderlyingTypeOrSelf;
+                    foreach (var templateArgument in templateArguments) {
+                        if (templateArgument.isType) {
+                            var nextType = templateArguments[0].type.nullableUnderlyingTypeOrSelf;
 
-                    if (nextType is NamedTypeSymbol namedNext)
-                        CheckConstraintsSingleType(namedNext, conversions, location, diagnostics);
+                            if (nextType is NamedTypeSymbol namedNext)
+                                CheckConstraintsSingleType(namedNext, conversions, location, diagnostics);
+
+                            return;
+                        }
+                    }
 
                     return;
                 case TypeKind.Array:

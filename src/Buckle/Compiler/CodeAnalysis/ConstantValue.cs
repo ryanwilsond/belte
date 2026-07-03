@@ -38,11 +38,11 @@ internal partial class ConstantValue {
 #endif
     }
 
-    internal object value { get; }
+    internal virtual object value { get; }
 
-    internal SpecialType specialType { get; }
+    internal virtual SpecialType specialType { get; }
 
-    internal BelteDiagnostic[] diagnostics { get; }
+    internal virtual BelteDiagnostic[] diagnostics { get; }
 
     internal bool isDefaultValue
         => LiteralUtilities.TypeHasConstantDefaultValue(specialType) &&
@@ -55,10 +55,16 @@ internal partial class ConstantValue {
            (value is double d && d == 1);
 
     internal static bool IsNull(ConstantValue constant) {
+        if (constant is TemplateConstantValue)
+            return false;
+
         return constant is not null && constant.value is null;
     }
 
     internal static bool IsNotNull(ConstantValue constant) {
+        if (constant is TemplateConstantValue)
+            return false;
+
         return constant is not null && constant.value is not null;
     }
 
@@ -94,6 +100,10 @@ internal partial class ConstantValue {
             default:
                 return false;
         }
+    }
+
+    internal virtual bool IsSameAs(ConstantValue other) {
+        return value == other?.value;
     }
 
     public override int GetHashCode() {

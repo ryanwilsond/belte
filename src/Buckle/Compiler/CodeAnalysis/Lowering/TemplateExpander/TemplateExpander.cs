@@ -1,9 +1,12 @@
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Text;
+using Buckle.Diagnostics;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -12,28 +15,54 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// <summary>
 /// Rewrites method signatures and bodies if they contain instantiations of non-type template types
 /// </summary>
-internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
+internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard {
+    private const int MaxTemplateRecursionDepth = 512;
+
+    private readonly BelteDiagnosticQueue _diagnostics;
+
     private readonly ArrayBuilder<SynthesizedTemplateType> _typesBuilder;
-    private readonly Dictionary<ConstructedNamedTypeSymbol, SynthesizedTemplateType> _typesMap = [];
-    // Used for methods contained within an expanded template type
+    private readonly ImmutableDictionary<MethodSymbol, BoundBlockStatement>.Builder _methodsBuilder;
+
+    private readonly Dictionary<ConstructedNamedTypeSymbol, SynthesizedTemplateType> _typesMap
+        = new Dictionary<ConstructedNamedTypeSymbol, SynthesizedTemplateType>(
+            new TemplateInstantiationComparer<NamedTypeSymbol>()
+        );
+
+    private readonly Dictionary<ConstructedMethodSymbol, SynthesizedTemplateMethod> _methodsMap
+        = new Dictionary<ConstructedMethodSymbol, SynthesizedTemplateMethod>(
+            new TemplateInstantiationComparer<ConstructedMethodSymbol>()
+        );
+
     private readonly Dictionary<(SynthesizedTemplateType, MethodSymbol), SynthesizedTemplateTypeMethod> _typeMethodsMap = [];
     private readonly Dictionary<(SynthesizedTemplateType, FieldSymbol), SynthesizedTemplateTypeField> _typeFieldsMap = [];
-    // Used for methods with an expanded template return type or parameter type
-    private ImmutableDictionary<MethodSymbol, MethodSymbol> _secondaryMethodsMap;
-    // Used for methods needing expanding because they directly have non-type templates
-    private readonly Dictionary<MethodSymbol, SynthesizedTemplateMethod> _methodsMap = [];
+
+    private ImmutableDictionary<MethodSymbol, MethodSymbol> _initialMethodRewriteMap;
+
     private readonly Dictionary<DataContainerSymbol, DataContainerSymbol> _localMap = [];
 
+    private readonly Queue<TemplateInstantiation> _templateQueue = [];
+
+    private TemplateInstantiation _currentInstantiation;
     private MethodSymbol _currentMethod;
     private MethodSymbol _replacementMethod;
 
-    internal TemplateExpander(ArrayBuilder<SynthesizedTemplateType> typesBuilder) {
+    private TextLocation _currentLocation;
+
+    private bool _inResolutionStage = false;
+
+    internal TemplateExpander(
+        ArrayBuilder<SynthesizedTemplateType> typesBuilder,
+        ImmutableDictionary<MethodSymbol, BoundBlockStatement>.Builder methodsBuilder,
+        BelteDiagnosticQueue diagnostics) {
         _typesBuilder = typesBuilder;
+        _methodsBuilder = methodsBuilder;
+        _diagnostics = diagnostics;
     }
 
-    internal bool RewriteMethodSymbol(MethodSymbol method, out MethodSymbol newMethod) {
+    internal bool InitialMethodSymbolRewrite(MethodSymbol method, out MethodSymbol newMethod) {
         // All methods should be rewritten before the main pass
-        Debug.Assert(_secondaryMethodsMap is null);
+        Debug.Assert(_initialMethodRewriteMap is null);
+        Debug.Assert(!_inResolutionStage);
 
         var anyTemplates = TypeContainsUnexpandedTemplate(method.returnType, out var newReturnType);
         var builder = ArrayBuilder<ParameterSymbol>.GetInstance(method.parameterCount);
@@ -62,35 +91,123 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
         return true;
     }
 
-    internal void SetSecondaryMethodMap(ImmutableDictionary<MethodSymbol, MethodSymbol> methodMap) {
-        Debug.Assert(_secondaryMethodsMap is null);
-        _secondaryMethodsMap = methodMap;
+    internal void SetInitialMethodRewriteMap(ImmutableDictionary<MethodSymbol, MethodSymbol> methodMap) {
+        Debug.Assert(_initialMethodRewriteMap is null);
+        Debug.Assert(!_inResolutionStage);
+        _initialMethodRewriteMap = methodMap;
     }
 
-    internal ImmutableDictionary<(SynthesizedTemplateType, MethodSymbol), SynthesizedTemplateTypeMethod> GetTypeMethodMap() {
-        return _typeMethodsMap.ToImmutableDictionary();
-    }
-
-    internal ImmutableDictionary<MethodSymbol, SynthesizedTemplateMethod> GetMethodMap() {
-        return _methodsMap.ToImmutableDictionary();
-    }
-
-    internal bool Expand(
+    internal bool TryInitialMethodBodyRewrite(
         MethodSymbol method,
         BoundBlockStatement body,
         out MethodSymbol newMethod,
         out BoundBlockStatement newBody) {
-        Debug.Assert(_secondaryMethodsMap is not null);
+        Debug.Assert(_initialMethodRewriteMap is not null);
+        Debug.Assert(!_inResolutionStage);
 
         _currentMethod = method;
 
-        if (_secondaryMethodsMap.TryGetValue(method, out var value))
+        if (_initialMethodRewriteMap.TryGetValue(method, out var value))
             _replacementMethod = value;
 
         newBody = (BoundBlockStatement)VisitBlockStatement(body);
         newMethod = _replacementMethod;
 
         return newBody != body;
+    }
+
+    internal void ResolveTemplates(ConcurrentDictionary<MethodSymbol, BoundBlockStatement> methodBodies) {
+        // These are only used by the initial method pass
+        _currentMethod = null;
+        _replacementMethod = null;
+        _inResolutionStage = true;
+
+        while (_templateQueue.Count != 0) {
+            var instantiation = _templateQueue.Dequeue();
+            _currentInstantiation = instantiation;
+
+            var template = instantiation.template;
+
+            if (template is SynthesizedTemplateMethod templateMethod)
+                ResolveTemplateMethod(templateMethod, methodBodies);
+            else if (template is SynthesizedTemplateType templateType)
+                ResolveTemplateType(templateType, methodBodies);
+            else
+                throw ExceptionUtilities.Unreachable();
+        }
+    }
+
+    private void ResolveTemplateMethod(
+        SynthesizedTemplateMethod templateMethod,
+        ConcurrentDictionary<MethodSymbol, BoundBlockStatement> methodBodies) {
+        Debug.Assert(_inResolutionStage);
+        var originalDefinition = templateMethod.unexpandedSymbol.originalDefinition;
+
+        var body = _methodsBuilder.TryGetValue(originalDefinition, out var originalBody)
+            ? originalBody
+            : methodBodies[originalDefinition];
+
+        _replacementMethod = templateMethod;
+        var newBody = (BoundBlockStatement)Visit(body);
+        _methodsBuilder.Add(templateMethod, newBody);
+    }
+
+    private void ResolveTemplateType(
+        SynthesizedTemplateType templateType,
+        ConcurrentDictionary<MethodSymbol, BoundBlockStatement> methodBodies) {
+        Debug.Assert(_inResolutionStage);
+        var originalDefinition = templateType.unexpandedSymbol.originalDefinition;
+
+        foreach (var (method, body) in methodBodies) {
+            if (method.containingType.originalDefinition.Equals(originalDefinition)) {
+                if (!_typeMethodsMap.TryGetValue((templateType, method), out var newMethod)) {
+                    newMethod = new SynthesizedTemplateTypeMethod(this, templateType, method);
+                    _typeMethodsMap.Add((templateType, method), newMethod);
+                }
+
+                _replacementMethod = newMethod;
+                var newBody = (BoundBlockStatement)Visit(body);
+                _methodsBuilder.Add(newMethod, newBody);
+            }
+        }
+    }
+
+    private bool TryEnqueue(ISynthesizedTemplate template, Symbol cause, TextLocation location) {
+        var instantiation = new TemplateInstantiation(
+            template,
+            cause,
+            _currentInstantiation ?? _templateQueue.LastOrDefault(),
+            location
+        );
+
+        _templateQueue.Enqueue(instantiation);
+
+        if (_templateQueue.Count > MaxTemplateRecursionDepth) {
+            ReportTemplateRecursion(instantiation);
+            return false;
+        }
+
+        return true;
+    }
+
+    private void ReportTemplateRecursion(TemplateInstantiation instantiation) {
+        var cause = instantiation.cause;
+        var template = instantiation.template;
+
+        if (cause is not null) {
+            _diagnostics.Push(Error.TemplateRecursionWithCause(
+                cause.location,
+                (Symbol)template,
+                ((Symbol)template.unexpandedSymbol).originalDefinition,
+                cause.kind.Localize(),
+                cause
+            ));
+        } else {
+            // TODO Add better reporting as it comes up (i.e. walking parent instantiations if cause is not given)
+            throw ExceptionUtilities.Unreachable();
+            // else
+            //     _diagnostics.Push(Error.TemplateRecursion(template, template.unexpandedSymbol));
+        }
     }
 
     internal static bool IsNonTypeTemplateType(TypeSymbol type) {
@@ -108,11 +225,15 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
         return true;
     }
 
-    internal TypeWithAnnotations SubstituteType(TypeWithAnnotations type, SynthesizedTemplateType newOwner) {
+    internal TypeWithAnnotations SubstituteType(
+        TypeWithAnnotations type,
+        ISynthesizedTemplate newOwner,
+        Symbol cause,
+        TextLocation location) {
         type = TemplateTypeReplacer<TemplateParameterSymbol, TemplateParameterSymbol, TemplateParameterSymbol>
             .Replace(type, newOwner.replacementTemplateParameters);
-        type = type.SubstituteType(newOwner.templateSubstitution).type;
-        type = new TypeWithAnnotations(VisitType(type.type));
+        type = type.SubstituteType((newOwner as ISymbolWithTemplates).templateSubstitution).type;
+        type = new TypeWithAnnotations(VisitTypeCore(type.type, cause, location));
         return type;
     }
 
@@ -125,8 +246,12 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
         return true;
     }
 
-    private bool NoteType(TypeSymbol type) {
+    private bool NoteType(TypeSymbol type, Symbol cause, TextLocation location) {
         if (type is not ConstructedNamedTypeSymbol constructed || IsGenericOnly(constructed))
+            return false;
+
+        // These will be simplified and noted later
+        if (ContainsExpressionConstants(constructed))
             return false;
 
         if (_typesMap.ContainsKey(constructed))
@@ -140,9 +265,21 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
         _typesMap.Add(constructed, synthesizedType);
         _typesBuilder.Add(synthesizedType);
 
+        if (!TryEnqueue(synthesizedType, cause, location))
+            return false;
+
         synthesizedType.NoteFields(_typeFieldsMap);
 
         return true;
+
+        static bool ContainsExpressionConstants(ConstructedNamedTypeSymbol type) {
+            foreach (var templateArgument in type.templateArguments) {
+                if (templateArgument.isConstant && templateArgument.constant is TemplateConstantValue)
+                    return true;
+            }
+
+            return false;
+        }
     }
 
     private MethodSymbol ReplaceMethodOwner(NamedTypeSymbol newOwner, MethodSymbol method) {
@@ -202,19 +339,28 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
         return true;
     }
 
-    private bool MethodContainsUnexpandedTemplate(MethodSymbol method, out MethodSymbol replacedMethod) {
+    private bool MethodContainsUnexpandedTemplate(
+        MethodSymbol method,
+        out MethodSymbol replacedMethod,
+        Symbol cause,
+        TextLocation location) {
         if (method is not ConstructedMethodSymbol constructed || IsGenericOnly(constructed)) {
             replacedMethod = null;
             return false;
         }
 
-        if (_methodsMap.TryGetValue(method, out var templateMethod)) {
+        if (_methodsMap.TryGetValue(constructed, out var templateMethod)) {
             replacedMethod = templateMethod;
             return true;
         }
 
         var synthesizedMethod = new SynthesizedTemplateMethod(method.containingSymbol, constructed);
         _methodsMap.Add(constructed, synthesizedMethod);
+
+        if (!TryEnqueue(synthesizedMethod, cause, location)) {
+            replacedMethod = null;
+            return false;
+        }
 
         replacedMethod = synthesizedMethod;
         return true;
@@ -252,9 +398,32 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
         return true;
     }
 
+    internal override BoundNode Visit(BoundNode node) {
+        if (node?.syntax?.location is not null)
+            _currentLocation = node.syntax.location;
+
+        return base.Visit(node);
+    }
+
     internal override TypeSymbol VisitType(TypeSymbol type) {
+        if (type is null)
+            return null;
+
+        if (_currentInstantiation is not null) {
+            return SubstituteType(
+                new TypeWithAnnotations(type),
+                _currentInstantiation.template,
+                null,
+                _currentLocation
+            ).type;
+        } else {
+            return VisitTypeCore(type, null, _currentLocation);
+        }
+    }
+
+    private TypeSymbol VisitTypeCore(TypeSymbol type, Symbol cause, TextLocation location) {
         if (type is not null) {
-            type.VisitType(VisitTypePredicate, this);
+            type.VisitType(VisitTypePredicate, (this, cause, location));
 
             return TemplateTypeReplacer<ConstructedNamedTypeSymbol, SynthesizedTemplateType, NamedTypeSymbol>.Replace(
                 type,
@@ -265,8 +434,11 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
 
         return type;
 
-        static bool VisitTypePredicate(TypeSymbol type, TemplateExpander argument, bool canDigThroughNullable = true) {
-            argument.NoteType(type);
+        static bool VisitTypePredicate(
+            TypeSymbol type,
+            (TemplateExpander expander, Symbol cause, TextLocation location) argument,
+            bool canDigThroughNullable = true) {
+            argument.expander.NoteType(type, argument.cause, argument.location);
             return false;
         }
 
@@ -328,7 +500,7 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
     }
 
     internal override BoundNode VisitObjectCreationExpression(BoundObjectCreationExpression node) {
-        if (_secondaryMethodsMap.TryGetValue(node.constructor, out var replacementMethod)) {
+        if (_initialMethodRewriteMap.TryGetValue(node.constructor, out var replacementMethod)) {
             node = node.Update(
                 replacementMethod,
                 node.arguments,
@@ -356,7 +528,7 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
     }
 
     internal override BoundNode VisitCallExpression(BoundCallExpression node) {
-        if (_secondaryMethodsMap.TryGetValue(node.method, out var replacementMethod)) {
+        if (_initialMethodRewriteMap.TryGetValue(node.method, out var replacementMethod)) {
             node = node.Update(
                 node.receiver,
                 replacementMethod,
@@ -380,7 +552,7 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
             );
         }
 
-        if (MethodContainsUnexpandedTemplate(node.method, out var templateMethod)) {
+        if (MethodContainsUnexpandedTemplate(node.method, out var templateMethod, null, node.syntax.location)) {
             node = node.Update(
                 node.receiver,
                 templateMethod,
@@ -396,7 +568,25 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
     }
 
     internal override BoundNode VisitFieldAccessExpression(BoundFieldAccessExpression node) {
+        if (Binder.IsThisInstanceAccess(node) && _currentInstantiation is not null) {
+            Debug.Assert(_inResolutionStage);
+
+            if (_currentInstantiation.template is SynthesizedTemplateType t) {
+                node = node.Update(
+                    node.receiver,
+                    _typeFieldsMap[(t, node.field)],
+                    node.constantValue,
+                    node.type
+                );
+            } else {
+                throw ExceptionUtilities.Unreachable();
+            }
+        }
+
         if (TypeContainsUnexpandedTemplate(node.field.containingType, out var templateType)) {
+            Debug.Assert(!_inResolutionStage || _currentInstantiation is not null);
+            Debug.Assert(!(Binder.IsThisInstanceAccess(node) && _currentInstantiation is not null));
+
             node = node.Update(
                 node.receiver,
                 ReplaceFieldOwner((NamedTypeSymbol)templateType, node.field),
@@ -409,7 +599,7 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
     }
 
     internal override BoundNode VisitFunctionLoad(BoundFunctionLoad node) {
-        if (_secondaryMethodsMap.TryGetValue(node.targetMethod, out var replacementMethod)) {
+        if (_initialMethodRewriteMap.TryGetValue(node.targetMethod, out var replacementMethod)) {
             node = node.Update(
                 node.receiver,
                 replacementMethod,
@@ -425,7 +615,7 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
             );
         }
 
-        if (MethodContainsUnexpandedTemplate(node.targetMethod, out var templateMethod)) {
+        if (MethodContainsUnexpandedTemplate(node.targetMethod, out var templateMethod, null, node.syntax.location)) {
             node = node.Update(
                 node.receiver,
                 templateMethod,
@@ -437,7 +627,7 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
     }
 
     internal override BoundNode VisitFunctionPointerLoad(BoundFunctionPointerLoad node) {
-        if (_secondaryMethodsMap.TryGetValue(node.targetMethod, out var replacementMethod)) {
+        if (_initialMethodRewriteMap.TryGetValue(node.targetMethod, out var replacementMethod)) {
             node = node.Update(
                 replacementMethod,
                 node.constrainedToType,
@@ -453,7 +643,7 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
             );
         }
 
-        if (MethodContainsUnexpandedTemplate(node.targetMethod, out var templateMethod)) {
+        if (MethodContainsUnexpandedTemplate(node.targetMethod, out var templateMethod, null, node.syntax.location)) {
             node = node.Update(
                 templateMethod,
                 node.constrainedToType,
@@ -462,5 +652,34 @@ internal sealed class TemplateExpander : BoundTreeRewriterWithStackGuard {
         }
 
         return base.VisitFunctionPointerLoad(node);
+    }
+
+    internal override BoundNode VisitTypeExpression(BoundTypeExpression node) {
+        if (node.type is TemplateParameterSymbol templateParameter && _currentInstantiation is not null &&
+            templateParameter.containingSymbol.Equals(
+                ((Symbol)_currentInstantiation.template.unexpandedSymbol
+            ).originalDefinition)) {
+            Debug.Assert(_inResolutionStage);
+
+            var template = _currentInstantiation.template;
+
+            if (templateParameter.underlyingType.specialType != SpecialType.Type) {
+                var typeOrConstant = template.unexpandedSymbol.templateSubstitution
+                    .SubstituteType(templateParameter);
+
+                if (typeOrConstant.isConstant) {
+                    return new BoundLiteralExpression(
+                        node.syntax,
+                        typeOrConstant.constant,
+                        templateParameter.underlyingType.type
+                    );
+                }
+            } else {
+                if (template.replacementTemplateParameters.TryGetValue(templateParameter, out var value))
+                    return new BoundTypeExpression(node.syntax, null, null, value);
+            }
+        }
+
+        return base.VisitTypeExpression(node);
     }
 }

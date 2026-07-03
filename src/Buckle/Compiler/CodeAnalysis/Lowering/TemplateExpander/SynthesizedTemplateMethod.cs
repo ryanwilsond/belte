@@ -10,7 +10,7 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
-internal sealed class SynthesizedTemplateMethod : WrappedMethodSymbol, ISynthesizedTemplate<MethodSymbol> {
+internal sealed class SynthesizedTemplateMethod : WrappedMethodSymbol, ISynthesizedTemplate {
     private readonly ConstructedMethodSymbol _originalMethod;
     private readonly TypeWithAnnotations _returnType;
     private readonly ImmutableArray<ParameterSymbol> _parameters;
@@ -102,7 +102,7 @@ internal sealed class SynthesizedTemplateMethod : WrappedMethodSymbol, ISynthesi
 
     internal override ImmutableArray<MethodSymbol> explicitInterfaceImplementations => [];
 
-    internal MethodSymbol unexpandedSymbol => _originalMethod;
+    internal ConstructedMethodSymbol unexpandedSymbol => _originalMethod;
 
     internal Dictionary<TemplateParameterSymbol, TemplateParameterSymbol> replacementTemplateParameters
         => _replacementTemplateParameters;
@@ -139,8 +139,8 @@ internal sealed class SynthesizedTemplateMethod : WrappedMethodSymbol, ISynthesi
         return newHashCode;
     }
 
-    MethodSymbol ISynthesizedTemplate<MethodSymbol>.unexpandedSymbol => _originalMethod;
+    ISymbolWithTemplates ISynthesizedTemplate.unexpandedSymbol => _originalMethod;
 
-    Dictionary<TemplateParameterSymbol, TemplateParameterSymbol> ISynthesizedTemplate<MethodSymbol>.replacementTemplateParameters
+    Dictionary<TemplateParameterSymbol, TemplateParameterSymbol> ISynthesizedTemplate.replacementTemplateParameters
         => _replacementTemplateParameters;
 }

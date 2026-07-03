@@ -4282,7 +4282,7 @@ done:
             var resetPoint = GetResetPoint();
             var type = ParseType(allowRef: false);
 
-            if (type.kind != SyntaxKind.EmptyName && !type.containsDiagnostics) {
+            if (currentToken.kind is SyntaxKind.CommaToken or SyntaxKind.GreaterThanToken) {
                 expression = type;
             } else {
                 Reset(resetPoint);

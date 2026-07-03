@@ -259,10 +259,8 @@ internal sealed class Evaluator {
     }
 
     private HeapObject CreateHeapObject(NamedTypeSymbol type, bool isStatic = false) {
-        if (!_program.TryGetTypeLayoutIncludingParents(type, out var layout)) {
-            _program.TryGetTypeLayoutIncludingParents(type, out _);
+        if (!_program.TryGetTypeLayoutIncludingParents(type, out var layout))
             throw new BelteInternalException($"Failed to get type layout ({type}).");
-        }
 
         var fields = layout.LocalsInOrder();
         var heapObject = new HeapObject(type, fields.Length);
@@ -291,8 +289,15 @@ internal sealed class Evaluator {
                 if (argument.isType) {
                     var t = argument.type.type;
 
-                    if (t is TemplateParameterSymbol templateParameter)
-                        t = SubstituteTemplateParameter(templateParameter);
+                    if (t is TemplateParameterSymbol templateParameter) {
+                        if (templateParameter.underlyingType.specialType == SpecialType.Type) {
+                            t = SubstituteTemplateParameterType(templateParameter);
+                        } else {
+                            var substituted = SubstituteTemplateParameter(templateParameter);
+                            heapObject.fields[arg.slot] = substituted;
+                            continue;
+                        }
+                    }
 
                     heapObject.fields[arg.slot] = EvaluatorValue.Type(t);
                 } else {
@@ -718,7 +723,7 @@ internal sealed class Evaluator {
         var type = node.sourceType.type;
 
         if (type.StrippedType() is TemplateParameterSymbol t) {
-            var substituted = SubstituteTemplateParameter(t);
+            var substituted = SubstituteTemplateParameterType(t);
 
             if (type.IsNullableType())
                 substituted = CorLibrary.GetOrCreateNullableType(substituted);
@@ -729,18 +734,23 @@ internal sealed class Evaluator {
         return EvaluatorValue.Type(type);
     }
 
-    private TypeSymbol SubstituteTemplateParameter(TemplateParameterSymbol templateParameter) {
+    private TypeSymbol SubstituteTemplateParameterType(TemplateParameterSymbol templateParameter) {
+        Debug.Assert(templateParameter.underlyingType.specialType == SpecialType.Type);
+        return (TypeSymbol)SubstituteTemplateParameter(templateParameter).type;
+    }
+
+    private EvaluatorValue SubstituteTemplateParameter(TemplateParameterSymbol templateParameter) {
         if (templateParameter.templateParameterKind == TemplateParameterKind.Method)
-            return (TypeSymbol)_stack.Peek().values[templateParameter.ordinal + 1].type;
+            return _stack.Peek().values[templateParameter.ordinal + 1];
 
         var thisParameter = _stack.Peek().values[0];
-        var heapObject = _context.heap[thisParameter.ptr];
+        var heapObject = GetHeapObjectFromPointer(thisParameter);
 
         if (!_program.TryGetTypeLayoutIncludingParents((NamedTypeSymbol)heapObject.type, out var layout))
             throw new BelteInternalException($"Failed to get type layout ({heapObject.type}).");
 
         var field = layout.GetLocal(templateParameter);
-        return (TypeSymbol)heapObject.fields[field.slot].type;
+        return heapObject.fields[field.slot];
     }
 
     private EvaluatorValue EvaluateMethodGroup(BoundMethodGroup node) {
@@ -755,7 +765,7 @@ internal sealed class Evaluator {
             throw new BelteNullReferenceException(location);
 
         var exception = _context.heap[value.ptr];
-        // The message will always be the first field as Object has no fields
+        // The message will always be the first field as base type Object has no fields
         var message = exception.fields[0].@string;
 
         throw new BelteEvaluatorException(message, location);
@@ -769,7 +779,7 @@ internal sealed class Evaluator {
                 return _stack.Peek().values[template.ordinal + 1];
 
             var thisParameter = _stack.Peek().values[0];
-            var heapObject = _context.heap[thisParameter.ptr];
+            var heapObject = GetHeapObjectFromPointer(thisParameter);
 
             if (!_program.TryGetTypeLayoutIncludingParents((NamedTypeSymbol)heapObject.type, out var layout))
                 throw new BelteInternalException($"Failed to get type layout ({heapObject.type}).");
@@ -779,6 +789,19 @@ internal sealed class Evaluator {
         }
 
         return EvaluatorValue.None;
+    }
+
+    private HeapObject GetHeapObjectFromPointer(EvaluatorValue pointer) {
+        switch (pointer.kind) {
+            case ValueKind.HeapPtr:
+                return _context.heap[pointer.ptr];
+            case ValueKind.Ref:
+                var value = pointer.loc[pointer.ptr].@struct;
+                Debug.Assert(value is not null);
+                return value;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(pointer.kind);
+        }
     }
 
     private EvaluatorValue EvaluateDataContainerExpression(BoundDataContainerExpression node, bool used) {
@@ -1483,7 +1506,7 @@ internal sealed class Evaluator {
         if (type.IsPointerOrFunctionPointer() || type.specialType is SpecialType.UIntPtr or SpecialType.IntPtr) {
             return new EvaluatorValue() { kind = ValueKind.Ref, uint64 = 0 };
         } else if (type.IsTemplateParameter()) {
-            var targetType = SubstituteTemplateParameter((TemplateParameterSymbol)type);
+            var targetType = SubstituteTemplateParameterType((TemplateParameterSymbol)type);
             return GetDefaultValue(targetType, constantValueForEnum);
         } else if (type.IsStructType()) {
             return CreateStruct((NamedTypeSymbol)type);
@@ -3743,7 +3766,10 @@ internal sealed class Evaluator {
         return ((int)fields[0].int64, (int)fields[1].int64, (int)fields[2].int64, (int)fields[3].int64);
     }
 
-    private EvaluatorValue[] H(EvaluatorValue ptr) => _context.heap[ptr.ptr].fields;
+    private EvaluatorValue[] H(EvaluatorValue ptr) {
+        Debug.Assert(ptr.kind == ValueKind.HeapPtr);
+        return _context.heap[ptr.ptr].fields;
+    }
 
     private void StartGraphics(string title, int width, int height, bool usePointClamp, ValueWrapper<bool> abort) {
         _context.maintainThread = true;

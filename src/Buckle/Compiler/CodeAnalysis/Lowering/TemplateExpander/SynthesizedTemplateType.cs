@@ -11,12 +11,14 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
-internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol, ISynthesizedTemplate<NamedTypeSymbol> {
-    private readonly ImmutableArray<Symbol> _allMembers;
+internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol, ISynthesizedTemplate {
+    private readonly TemplateExpander _templateExpander;
     private readonly ConstructedNamedTypeSymbol _originalType;
     private readonly Dictionary<TemplateParameterSymbol, TemplateParameterSymbol> _replacementTemplateParameters;
 
-    private Dictionary<(SynthesizedTemplateType, FieldSymbol), SynthesizedTemplateTypeField> _fieldMap;
+    private ImmutableArray<Symbol> _lazyAllMembers;
+    private Dictionary<(SynthesizedTemplateType, FieldSymbol), SynthesizedTemplateTypeField> _lazyFieldMap;
+
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> _nameToMembersMap;
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> _nameToTypeMembersMap;
     private int _hashCode;
@@ -27,6 +29,8 @@ internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol, ISynthes
         ConstructedNamedTypeSymbol originalType)
         : base(originalType.constructedFrom, null) {
         _originalType = originalType;
+        _templateExpander = templateExpander;
+
         name = GeneratedNames.MakeTemplateTypeOrMethodName(originalType);
 
         var i = 0;
@@ -62,8 +66,6 @@ internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol, ISynthes
         }
 
         this.containingSymbol = containingSymbol;
-
-        _allMembers = MakeMembers(templateExpander);
     }
 
     public override string name { get; }
@@ -88,21 +90,30 @@ internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol, ISynthes
 
     internal override IEnumerable<string> memberNames => [];
 
-    internal NamedTypeSymbol unexpandedSymbol => _originalType;
+    internal ConstructedNamedTypeSymbol unexpandedSymbol => _originalType;
 
-    internal Dictionary<(SynthesizedTemplateType, FieldSymbol), SynthesizedTemplateTypeField> fieldMap => _fieldMap;
+    internal Dictionary<(SynthesizedTemplateType, FieldSymbol), SynthesizedTemplateTypeField> fieldMap {
+        get {
+            if (_lazyFieldMap is null) {
+                _ = GetMembers();
+                Debug.Assert(_lazyFieldMap is not null);
+                Debug.Assert(!_lazyAllMembers.IsDefault);
+            }
+
+            return _lazyFieldMap;
+        }
+    }
 
     internal Dictionary<TemplateParameterSymbol, TemplateParameterSymbol> replacementTemplateParameters
         => _replacementTemplateParameters;
 
     internal void NoteFields(Dictionary<(SynthesizedTemplateType, FieldSymbol), SynthesizedTemplateTypeField> builder) {
-        // TODO Consider just passing the map directly to the constructor instead of copying
-        foreach (var pair in _fieldMap)
+        foreach (var pair in fieldMap)
             builder.Add(pair.Key, pair.Value);
     }
 
     private ImmutableArray<Symbol> MakeMembers(TemplateExpander templateExpander) {
-        _fieldMap = [];
+        _lazyFieldMap = [];
         var builder = ArrayBuilder<Symbol>.GetInstance();
 
         var unexpandedMembers = unexpandedSymbol.GetMembers();
@@ -112,7 +123,7 @@ internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol, ISynthes
                 case SymbolKind.Field:
                     var originalField = ((FieldSymbol)member).originalDefinition;
                     var templateField = new SynthesizedTemplateTypeField(templateExpander, this, originalField);
-                    _fieldMap.Add((this, originalField), templateField);
+                    _lazyFieldMap.Add((this, originalField), templateField);
                     builder.Add(templateField);
                     break;
                 case SymbolKind.NamedType:
@@ -146,7 +157,10 @@ internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol, ISynthes
     }
 
     internal override ImmutableArray<Symbol> GetMembers() {
-        return _allMembers;
+        if (_lazyAllMembers.IsDefault)
+            ImmutableInterlocked.InterlockedInitialize(ref _lazyAllMembers, MakeMembers(_templateExpander));
+
+        return _lazyAllMembers;
     }
 
     internal override ImmutableArray<Symbol> GetMembers(string name) {
@@ -217,7 +231,7 @@ internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol, ISynthes
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> MakeNameToMembersMap() {
         var builder = NameToObjectPool.Allocate();
 
-        foreach (var symbol in _allMembers) {
+        foreach (var symbol in GetMembers()) {
             ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(
                 builder,
                 symbol.name.AsMemory(),
@@ -240,8 +254,8 @@ internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol, ISynthes
         return result;
     }
 
-    NamedTypeSymbol ISynthesizedTemplate<NamedTypeSymbol>.unexpandedSymbol => _originalType;
+    ISymbolWithTemplates ISynthesizedTemplate.unexpandedSymbol => _originalType;
 
-    Dictionary<TemplateParameterSymbol, TemplateParameterSymbol> ISynthesizedTemplate<NamedTypeSymbol>.replacementTemplateParameters
+    Dictionary<TemplateParameterSymbol, TemplateParameterSymbol> ISynthesizedTemplate.replacementTemplateParameters
         => _replacementTemplateParameters;
 }

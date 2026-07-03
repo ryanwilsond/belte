@@ -16,7 +16,7 @@ internal sealed class SynthesizedTemplateTypeField : WrappedFieldSymbol {
         FieldSymbol field)
         : base(field) {
         _containingType = newOwner;
-        _type = templateExpander.SubstituteType(field.typeWithAnnotations, newOwner);
+        _type = templateExpander.SubstituteType(field.typeWithAnnotations, newOwner, field, field.location);
     }
 
     internal override Symbol containingSymbol => _containingType;

@@ -33,12 +33,25 @@ internal sealed class TypeOrConstant {
             return false;
 
         if (isConstant)
-            return constant?.value == other.constant?.value;
+            return constant?.IsSameAs(other.constant) ?? true;
         else
             return type.IsSameAs(other.type);
     }
 
+    internal TypeOrConstant Substitute(TemplateMap templateMap) {
+        if (isType)
+            return type.SubstituteType(templateMap);
+
+        if (constant is TemplateConstantValue templateConstantValue)
+            return templateConstantValue.Substitute(templateMap);
+
+        return this;
+    }
+
     internal bool Equals(TypeOrConstant other, TypeCompareKind compareKind) {
+        if (isConstant != other.isConstant)
+            return false;
+
         if (isConstant)
             return constant?.value == other.constant?.value;
         else

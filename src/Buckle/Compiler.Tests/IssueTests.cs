@@ -1608,4 +1608,64 @@ public sealed class IssueTests {
 
         AssertValue(text, 10);
     }
+
+    [Fact]
+    public void NonTypeTemplate_SubstitutesParameters() {
+        var text = @"
+            public static class Int64 {
+                public constexpr int64 MinValue = -9223372036854775808;
+                public constexpr int64 MaxValue = 9223372036854775807;
+            }
+
+            public sealed class ValueOutOfRangeException extends Exception {
+                public constructor()
+                    : base(""Value was out of the range of valid values."") { }
+
+                public constructor(any value, any min, any max)
+                    : base(f""Value '{value}' was out of the range of valid values [{min}..{max}]."") { }
+            }
+
+            public struct Int<int Min = Int64.MinValue, int Max = Int64.MaxValue>
+                where { Min <= Max; Min >= Int64.MinValue; Max <= Int64.MaxValue; } {
+                private int64 _value;
+
+                public constructor(int64 value) {
+                    if (value < Min || value > Max)
+                        throw new ValueOutOfRangeException(value, Min, Max);
+
+                    _value = value;
+                }
+
+                public static Int<Min, Max> operator +(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value + right._value);
+                }
+
+                public static implicit operator Int<Min, Max>(int64 value) {
+                    return new(value);
+                }
+            }
+
+            Int<0, 10> a = 11;
+        ";
+
+        var exceptions = @"
+            Value '11' was out of the range of valid values [0..10].
+        ";
+
+        AssertExceptions(text, _writer, exceptions);
+    }
+
+    [Fact]
+    public void Field_AllowsExpressionTemplateArgumentInType() {
+        var text = @"
+            public sealed class A<int M> {
+                A<M + 1>? a;
+            }
+            ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

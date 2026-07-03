@@ -1560,16 +1560,38 @@ internal partial class Binder {
 
         analyzedArguments.types.Add(boundArgument.Type());
 
+        TypeOrConstant typeOrConstant;
+
         if (boundArgument.constantValue is null) {
-            diagnostics.Push(Error.ConstantExpected(templateArgument.location));
-            analyzedArguments.hasErrors.Add(true);
+            if (EnsureExpressionIsCompileTime(boundArgument, GetEnclosingTemplateParameters())) {
+                typeOrConstant = new TypeOrConstant(new TemplateConstantValue(boundArgument));
+                analyzedArguments.hasErrors.Add(false);
+            } else {
+                diagnostics.Push(Error.ConstantExpected(templateArgument.location));
+                analyzedArguments.hasErrors.Add(true);
+                typeOrConstant = new TypeOrConstant(constant: null);
+            }
         } else {
+            typeOrConstant = new TypeOrConstant(boundArgument.constantValue);
             analyzedArguments.hasErrors.Add(false);
         }
 
-        analyzedArguments.arguments.Add(
-            new BoundExpressionOrTypeOrConstant(argument, new TypeOrConstant(boundArgument.constantValue))
-        );
+        analyzedArguments.arguments.Add(new BoundExpressionOrTypeOrConstant(argument, typeOrConstant));
+    }
+
+    private ImmutableArray<TemplateParameterSymbol> GetEnclosingTemplateParameters() {
+        // This will contain many duplicates but it doesn't actually matter
+        var builder = ArrayBuilder<TemplateParameterSymbol>.GetInstance();
+
+        for (var current = this; current is not null; current = current.next) {
+            if (containingMember is ISymbolWithTemplates tm)
+                builder.AddRange(tm.templateParameters);
+
+            if (containingType is ISymbolWithTemplates tt)
+                builder.AddRange(tt.templateParameters);
+        }
+
+        return builder.ToImmutableAndFree();
     }
 
     internal NamedTypeSymbol CreateErrorType(string name = "") {

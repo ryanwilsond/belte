@@ -74,6 +74,8 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
 
     internal bool evaluating => _compilation.options.buildMode.Evaluating();
 
+    internal bool allowNonTypeTemplates => _compilation.options.buildMode.PermitsNonTypeTemplates();
+
     internal static BoundProgram CompileMethodBodies(
         Compilation compilation,
         BelteDiagnosticQueue diagnostics,
@@ -152,7 +154,9 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             if (methodCompiler._sawCompileTimeExpression)
                 methodCompiler.ComputeCompileTimeExpressions();
 
-            if (methodCompiler._sawNonTypeTemplate && !compilation.options.buildMode.PermitsNonTypeTemplates())
+            // TODO Evaluator supports non-type templates natively but we still to do this for diagnostic collection
+            // Is there a way to get around doing this?
+            if (methodCompiler._sawNonTypeTemplate/* && !allowNonTypeTemplates*/)
                 methodCompiler.ExpandTemplates();
         }
 
@@ -219,14 +223,14 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies;
         ImmutableArray<NamedTypeSymbol> types;
 
-        if (_lazyExpandedTemplateTypes is not null && _lazyExpandedTemplateTypes.Any()) {
+        if (!allowNonTypeTemplates && _lazyExpandedTemplateTypes is not null && _lazyExpandedTemplateTypes.Any()) {
             _types.AddRange(_lazyExpandedTemplateTypes.Cast<NamedTypeSymbol>());
             types = _types.ToImmutableAndFree();
         } else {
             types = _types.ToImmutableAndFree();
         }
 
-        if (_lazyExpandedTemplateMethods is not null && _lazyExpandedTemplateMethods.Any()) {
+        if (!allowNonTypeTemplates && _lazyExpandedTemplateMethods is not null && _lazyExpandedTemplateMethods.Any()) {
             _lazyExpandedTemplateMethods.AddRange(_methodBodies);
             methodBodies = _lazyExpandedTemplateMethods.ToImmutableDictionary();
         } else {
@@ -318,66 +322,59 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         // Expand each non-type template instantiation into a new type
         // Expanded template types don't need evaluator slot layouts because the evaluator supports non-type templates
 
-        // TODO This might be parallelizable
+        Debug.Assert(_lazyExpandedTemplateTypes is null);
+        Debug.Assert(_lazyExpandedTemplateMethods is null);
+        _lazyExpandedTemplateTypes = ArrayBuilder<SynthesizedTemplateType>.GetInstance();
+        _lazyExpandedTemplateMethods = ImmutableDictionary.CreateBuilder<MethodSymbol, BoundBlockStatement>();
 
         var templateExpander = new TemplateExpander(
-            _lazyExpandedTemplateTypes = ArrayBuilder<SynthesizedTemplateType>.GetInstance()
+            _lazyExpandedTemplateTypes,
+            _lazyExpandedTemplateMethods,
+            _diagnostics
         );
 
-        var secondaryMethodsMapBuilder = ImmutableDictionary.CreateBuilder<MethodSymbol, MethodSymbol>();
+        Debug.Assert(!_diagnostics.AnyErrors());
+
+        // InitialMethodSymbolRewrite and TryInitialMethodBodyRewrite handle expanding instantiated non-type templates
+        // seen in non-template code
+
+        var initialMethodRewriteMapBuilder = ImmutableDictionary.CreateBuilder<MethodSymbol, MethodSymbol>();
 
         foreach (var (method, _) in _methodBodies) {
-            if (templateExpander.RewriteMethodSymbol(method, out var newMethod)) {
+            if (templateExpander.InitialMethodSymbolRewrite(method, out var newMethod)) {
                 Debug.Assert(newMethod is not null && method != newMethod);
-                secondaryMethodsMapBuilder.Add(method, newMethod);
+
+                if (_diagnostics.AnyErrors())
+                    return;
+
+                initialMethodRewriteMapBuilder.Add(method, newMethod);
             }
         }
 
-        templateExpander.SetSecondaryMethodMap(secondaryMethodsMapBuilder.ToImmutable());
+        templateExpander.SetInitialMethodRewriteMap(initialMethodRewriteMapBuilder.ToImmutable());
 
         foreach (var (method, body) in _methodBodies) {
-            if (body is not null && templateExpander.Expand(method, body, out var newMethod, out var newBody)) {
+            if (body is not null &&
+                templateExpander.TryInitialMethodBodyRewrite(method, body, out var newMethod, out var newBody)) {
+                if (_diagnostics.AnyErrors())
+                    return;
+
                 if (newMethod is null) {
+                    // Evaluator only wants to collect diagnostics
+                    if (allowNonTypeTemplates)
+                        continue;
+
                     if (!_methodBodies.TryUpdate(method, newBody, body))
                         throw ExceptionUtilities.Unreachable();
                 } else {
-                    _lazyExpandedTemplateMethods ??= ImmutableDictionary.CreateBuilder<MethodSymbol, BoundBlockStatement>();
                     _lazyExpandedTemplateMethods.Add(newMethod, newBody);
                 }
             }
         }
 
-        if (_lazyExpandedTemplateTypes.Any()) {
-            var templateTypes = _lazyExpandedTemplateTypes.ToImmutable();
+        // This second pass handles resolving the found templates in the above pass recursively
 
-            _lazyExpandedTemplateMethods ??= ImmutableDictionary.CreateBuilder<MethodSymbol, BoundBlockStatement>();
-            var methodMap = templateExpander.GetTypeMethodMap();
-
-            foreach (var templateType in templateTypes) {
-                TemplateTypeRewriter<NamedTypeSymbol>.Rewrite(
-                    templateExpander,
-                    templateType.underlyingNamedType,
-                    templateType,
-                    _methodBodies,
-                    _lazyExpandedTemplateMethods,
-                    methodMap
-                );
-            }
-
-            Debug.Assert(templateTypes.Length == _lazyExpandedTemplateTypes.Count);
-        }
-
-        var templateMethods = templateExpander.GetMethodMap();
-
-        foreach (var (key, value) in templateMethods) {
-            _lazyExpandedTemplateMethods ??= ImmutableDictionary.CreateBuilder<MethodSymbol, BoundBlockStatement>();
-
-            var body = _lazyExpandedTemplateMethods.TryGetValue(key.originalDefinition, out var originalBody)
-                ? originalBody
-                : _methodBodies[key.originalDefinition];
-
-            TemplateTypeRewriter<MethodSymbol>.Rewrite(value, body, _lazyExpandedTemplateMethods);
-        }
+        templateExpander.ResolveTemplates(_methodBodies);
     }
 
     private void InjectSequencePoints() {

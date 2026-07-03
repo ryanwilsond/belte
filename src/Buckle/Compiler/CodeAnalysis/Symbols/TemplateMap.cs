@@ -50,6 +50,8 @@ internal class TemplateMap {
     internal TemplateMap(ImmutableArray<TemplateParameterSymbol> from, ImmutableArray<TemplateParameterSymbol> to)
         : this(from, TemplateParametersAsTypeOrConstants(to)) { }
 
+    internal Dictionary<TemplateParameterSymbol, TypeOrConstant> mapping => _mapping;
+
     private static Dictionary<TemplateParameterSymbol, TypeOrConstant> ForType(NamedTypeSymbol containingType) {
         return containingType is SubstitutedNamedTypeSymbol substituted
             ? new Dictionary<TemplateParameterSymbol, TypeOrConstant>(
@@ -175,7 +177,7 @@ internal class TemplateMap {
 
         for (var i = 0; i < oldTemplateArguments.Length; i++) {
             var oldArgument = oldTemplateArguments[i];
-            var newArgument = oldArgument.type.SubstituteType(this);
+            var newArgument = oldArgument.Substitute(this);
 
             if (!changed && !oldArgument.IsSameAs(newArgument))
                 changed = true;

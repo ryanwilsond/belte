@@ -20,12 +20,23 @@ internal sealed class SynthesizedTemplateTypeMethod : WrappedMethodSymbol {
         MethodSymbol method)
         : base(method) {
         _containingType = newOwner;
-        _returnType = templateExpander.SubstituteType(method.returnTypeWithAnnotations, newOwner);
+        _returnType = templateExpander.SubstituteType(
+            method.returnTypeWithAnnotations,
+            newOwner,
+            method,
+            method.location
+        );
 
         var builder = ArrayBuilder<ParameterSymbol>.GetInstance(method.parameterCount);
 
         foreach (var parameter in method.parameters) {
-            var newType = templateExpander.SubstituteType(parameter.typeWithAnnotations, newOwner);
+            var newType = templateExpander.SubstituteType(
+                parameter.typeWithAnnotations,
+                newOwner,
+                parameter,
+                parameter.location
+            );
+
             builder.Add(new TypeSubstitutedParameterSymbol(parameter, newType));
         }
 

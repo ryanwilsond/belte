@@ -2881,6 +2881,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_PointerTypeInPatternMatch, location, message);
     }
 
+    internal static BelteDiagnostic TemplateRecursionWithCause(TextLocation location, Symbol template, Symbol original, string kind, Symbol cause) {
+        var message = $"'{original.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' -> '{template.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': template instantiation depth exceeds maximum; recurse caused by {kind} '{cause}'";
+        return CreateError(DiagnosticCode.ERR_TemplateRecursionWithCause, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

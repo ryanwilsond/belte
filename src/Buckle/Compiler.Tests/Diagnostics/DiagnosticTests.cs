@@ -8203,4 +8203,20 @@ var text = """"""
 
     //     AssertDiagnostics(text, diagnostics, _writer);
     // }
+
+    [Fact]
+    public void Reports_Error_BU0582_TemplateRecursionWithCause() {
+        var text = @"
+            public sealed class A<int M> {
+                A<M + 1>? [a] = null;
+            }
+            var a = new A<10>();
+        ";
+
+        var diagnostics = @"
+            'A<int! M>' -> 'A<522>': template instantiation depth exceeds maximum; recurse caused by field 'A.a'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

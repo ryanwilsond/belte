@@ -415,7 +415,11 @@ public sealed class DisplayText {
     /// Renders a <see cref="ConstantValue" /> and appends it to the given <see cref="DisplayText" />.
     /// </summary>
     internal static void DisplayConstant(DisplayText text, ConstantValue constant) {
-        if (constant.value is ImmutableArray<ConstantValue> il) {
+        if (constant is null) {
+            text.Write(CreateKeyword(SyntaxKind.QuestionToken));
+        } else if (constant is TemplateConstantValue t) {
+            DisplayNode(text, t.expression);
+        } else if (constant.value is ImmutableArray<ConstantValue> il) {
             text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
             var isFirst = true;
 
@@ -617,7 +621,7 @@ public sealed class DisplayText {
     }
 
     private static void DisplayTypeExpression(DisplayText text, BoundTypeExpression node) {
-        SymbolDisplay.DisplayType(text, node.Type());
+        SymbolDisplay.DisplayType(text, node.type);
     }
 
     private static void DisplayNamespaceExpression(DisplayText text, BoundNamespaceExpression node) {

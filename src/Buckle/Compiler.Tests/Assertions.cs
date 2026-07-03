@@ -122,6 +122,32 @@ internal static class Assertions {
             Assert.Equal(exceptions[i].GetType(), result.exceptions[i].GetType());
     }
 
+    internal static void AssertExceptions(string text, ITestOutputHelper writer, string exceptionsText) {
+        var syntaxTree = SyntaxTree.Parse(text);
+        var compilation = Compilation.CreateScript(
+            "Tests",
+            DefaultEvalOptions,
+            syntaxTree,
+            BaseCompilation
+        );
+
+        var result = compilation.Evaluate(false);
+
+        var expectedExceptions = AnnotatedText.UnindentLines(exceptionsText);
+
+        if (expectedExceptions.Length != result.exceptions.Count) {
+            writer.WriteLine($"Input: {text}");
+
+            foreach (var exception in result.exceptions)
+                writer.WriteLine($"Exception ({exception}): {exception.Message}");
+        }
+
+        Assert.Equal(expectedExceptions.Length, result.exceptions.Count);
+
+        for (var i = 0; i < expectedExceptions.Length; i++)
+            Assert.Equal(expectedExceptions[i], result.exceptions[i].Message);
+    }
+
     /// <summary>
     /// Asserts that a piece of Belte code will produce a diagnostic when compiling.
     /// </summary>

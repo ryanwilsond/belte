@@ -3,8 +3,8 @@ using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
-internal interface ISynthesizedTemplate<T> where T : ISymbolWithTemplates {
-    T unexpandedSymbol { get; }
+internal interface ISynthesizedTemplate {
+    ISymbolWithTemplates unexpandedSymbol { get; }
 
     Dictionary<TemplateParameterSymbol, TemplateParameterSymbol> replacementTemplateParameters { get; }
 }
