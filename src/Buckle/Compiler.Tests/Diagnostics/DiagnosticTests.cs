@@ -8218,4 +8218,17 @@ var text = """"""
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Warning_BU0583_UnnecessaryCompileTimeExpression() {
+        var text = @"
+            constexpr int local = [$10];
+        ";
+
+        var diagnostics = @"
+            compile-time expression is unnecessary as the target expression is already a compile-time constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
 }

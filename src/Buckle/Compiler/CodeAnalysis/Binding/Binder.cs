@@ -3378,6 +3378,8 @@ internal partial class Binder {
 
         if (!nodeType.IsPrimitiveType() && !nodeType.IsStructType() && !nodeType.IsArray())
             diagnostics.Push(Error.InvalidCompileTimeType(node.location));
+        else if (EnsureExpressionIsCompileTime(operand, []))
+            diagnostics.Push(Warning.UnnecessaryCompileTimeExpression(node.location, node.operand));
 
         return new BoundCompileTimeExpression(node, operand, conditional, operand.type);
     }

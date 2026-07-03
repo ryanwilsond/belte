@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Buckle.CodeAnalysis.Authoring;
@@ -1262,12 +1263,12 @@ public sealed partial class Compilation {
 
         var displayText = new DisplayText();
 
-        foreach (var type in program.types) {
+        foreach (var type in program.types.Sort(LexicalOrderSymbolComparer.Instance)) {
             if (type.IsFromCompilation(this))
                 CompilationExtensions.EmitTree(type, displayText, program, compact: true);
         }
 
-        foreach (var pair in program.methodBodies) {
+        foreach (var pair in program.methodBodies.OrderBy(pair => pair.Key, LexicalOrderSymbolComparer.Instance)) {
             if (pair.Key.IsFromCompilation(this))
                 CompilationExtensions.EmitTree(pair.Key, displayText, program);
         }

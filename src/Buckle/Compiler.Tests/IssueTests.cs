@@ -1729,4 +1729,26 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void CompileTimeExpression_ReportsDiagnostics() {
+        var text = @"
+            class A {
+                public constexpr string a = $Calc();
+
+                private static string Calc() {
+                    return ""asdf"";
+                }
+            }
+
+            constexpr uint8 local = (uint8)[A.a];
+            return local;
+        ";
+
+        var diagnostics = @"
+            constant value 'asdf' cannot be converted to 'uint8!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

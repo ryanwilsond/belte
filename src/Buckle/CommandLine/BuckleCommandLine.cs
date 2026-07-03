@@ -63,6 +63,7 @@ public static partial class BuckleCommandLine {
         new DiagnosticInfo(0525, "BU"),
         new DiagnosticInfo(0528, "BU"),
         new DiagnosticInfo(0573, "BU"),
+        new DiagnosticInfo(0583, "BU"),
     ];
 
     private static readonly DiagnosticInfo[] WarningLevel2 = [

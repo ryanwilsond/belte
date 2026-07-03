@@ -339,7 +339,8 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                         cctor,
                         _methodBodies[cctor],
                         constantMap,
-                        out var madeProgress
+                        out var madeProgress,
+                        _diagnostics
                     );
 
                     progress |= madeProgress;
@@ -362,7 +363,8 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                         method,
                         body,
                         constantMap,
-                        out _
+                        out _,
+                        _diagnostics
                     );
 
                     _methodBodies[method] = foldedBody;

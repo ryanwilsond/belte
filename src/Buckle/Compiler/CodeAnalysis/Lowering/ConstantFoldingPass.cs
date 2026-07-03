@@ -15,24 +15,27 @@ internal sealed class ConstantFoldingPass : BoundTreeRewriterWithStackGuard {
 
     private bool _madeProgress;
 
-    private ConstantFoldingPass(MethodSymbol method, Dictionary<Symbol, ConstantValue> constantMap) {
+    private ConstantFoldingPass(
+        MethodSymbol method,
+        Dictionary<Symbol, ConstantValue> constantMap,
+        BelteDiagnosticQueue diagnostics) {
         _method = method;
         _constantMap = constantMap;
-        _diagnostics = BelteDiagnosticQueue.GetInstance();
+        _diagnostics = diagnostics;
     }
 
     internal static BoundBlockStatement Fold(
         MethodSymbol method,
         BoundBlockStatement body,
         Dictionary<Symbol, ConstantValue> constantMap,
-        out bool madeProgress) {
-        var constantFolding = new ConstantFoldingPass(method, constantMap);
+        out bool madeProgress,
+        BelteDiagnosticQueue diagnostics) {
+        var constantFolding = new ConstantFoldingPass(method, constantMap, diagnostics);
 
         try {
             return (BoundBlockStatement)constantFolding.Visit(body);
         } finally {
             madeProgress = constantFolding._madeProgress;
-            constantFolding._diagnostics.Free();
         }
     }
 
@@ -73,19 +76,26 @@ internal sealed class ConstantFoldingPass : BoundTreeRewriterWithStackGuard {
         var right = (BoundExpression)Visit(node.right);
 
         if (left.constantValue is not null && right.constantValue is not null) {
-            var constant = ConstantFolding.FoldBinary(
-                left,
-                right,
-                node.operatorKind,
-                node.type,
-                node.syntax.location,
-                _diagnostics
-            );
+            var diagnostics = BelteDiagnosticQueue.GetInstance();
 
-            Debug.Assert(!_diagnostics.Any());
+            try {
+                var constant = ConstantFolding.FoldBinary(
+                    left,
+                    right,
+                    node.operatorKind,
+                    node.type,
+                    node.syntax.location,
+                    diagnostics
+                );
 
-            if (constant is not null)
-                return new BoundLiteralExpression(node.syntax, constant, node.type);
+                if (diagnostics.Any())
+                    return Error(node);
+
+                if (constant is not null || _diagnostics.Any())
+                    return new BoundLiteralExpression(node.syntax, constant, node.type);
+            } finally {
+                _diagnostics.PushRangeAndFree(diagnostics);
+            }
         }
 
         return node.Update(left, right, node.operatorKind, node.method, node.constantValue, node.type);
@@ -157,11 +167,19 @@ internal sealed class ConstantFoldingPass : BoundTreeRewriterWithStackGuard {
         var operand = (BoundExpression)Visit(node.operand);
 
         if (operand.constantValue is not null) {
-            var constant = ConstantFolding.FoldCast(operand, new TypeWithAnnotations(node.type), _diagnostics);
-            Debug.Assert(!_diagnostics.Any());
+            var diagnostics = BelteDiagnosticQueue.GetInstance();
 
-            if (constant is not null)
-                return new BoundLiteralExpression(node.syntax, constant, node.type);
+            try {
+                var constant = ConstantFolding.FoldCast(operand, new TypeWithAnnotations(node.type), diagnostics);
+
+                if (diagnostics.Any())
+                    return Error(node);
+
+                if (constant is not null)
+                    return new BoundLiteralExpression(node.syntax, constant, node.type);
+            } finally {
+                _diagnostics.PushRangeAndFree(diagnostics);
+            }
         }
 
         return node.Update(operand, node.conversion, node.constantValue, node.type);
@@ -210,7 +228,7 @@ internal sealed class ConstantFoldingPass : BoundTreeRewriterWithStackGuard {
             return null;
         }
 
-        Debug.Assert(!(node.left.expressionSymbol is DataContainerSymbol d && d.isConstExpr));
+        Debug.Assert(!(node.left.expressionSymbol is DataContainerSymbol d && d.isConstExpr) || right.hasErrors);
 
         return node.Update(left, right, node.isRef, node.type);
     }
@@ -235,5 +253,9 @@ internal sealed class ConstantFoldingPass : BoundTreeRewriterWithStackGuard {
         Debug.Assert(!declaration.dataContainer.isConstExpr);
 
         return node.Update(declaration, node.isScoped, node.disposeMethod);
+    }
+
+    private static BoundErrorExpression Error(BoundExpression node) {
+        return new BoundErrorExpression(node.syntax, LookupResultKind.Empty, [], [node], node.type, hasErrors: true);
     }
 }

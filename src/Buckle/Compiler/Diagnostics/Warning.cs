@@ -2,6 +2,7 @@ using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Diagnostics;
 
@@ -250,6 +251,12 @@ internal static class Warning {
     internal static BelteDiagnostic AssignmentToSelf(TextLocation location) {
         var message = $"assignment made to same variable; did you mean to assign something else?";
         return CreateWarning(DiagnosticCode.WRN_AssignmentToSelf, location, message);
+    }
+
+    internal static BelteDiagnostic UnnecessaryCompileTimeExpression(TextLocation location, SyntaxNode operand) {
+        var message = $"compile-time expression is unnecessary as the target expression is already a compile-time constant";
+        var suggestion = $"{operand}";
+        return CreateWarning(DiagnosticCode.WRN_UnnecessaryCompileTimeExpression, location, message, suggestion);
     }
 
     private static BelteDiagnostic CreateWarning(DiagnosticCode code, TextLocation location, string message) {

@@ -73,7 +73,7 @@ public static class Program {
             Hello, world!
             """;
 
-        const int32 length = $(int32)String.Length(response);
+        constexpr int32 length = $(int32)String.Length(response);
 
         uint8* msg = LowLevel.CreateLPCSTR(response);
         defer LowLevel.FreeLPCSTR(msg);
