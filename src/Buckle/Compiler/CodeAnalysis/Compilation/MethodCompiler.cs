@@ -301,20 +301,93 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         );
 
         var evaluatorContext = new EvaluatorContext(_compilation.options);
+        var constantMap = new Dictionary<Symbol, ConstantValue>();
+
+        var staticConstructors = ArrayBuilder<MethodSymbol>.GetInstance();
 
         foreach (var (method, body) in _methodBodies) {
             if (body is not null) {
+                if (method.methodKind == MethodKind.StaticConstructor)
+                    staticConstructors.Add(method);
+
                 var loweredBody = CompileTimeLowerer.Lower(
                     method,
                     body,
                     _diagnostics,
                     boundProgram,
                     evaluatorContext,
-                    _compilation
+                    _compilation,
+                    constantMap
                 );
 
-                _methodBodies[method] = (BoundBlockStatement)loweredBody;
+                _methodBodies[method] = loweredBody;
             }
+        }
+
+        if (constantMap.Count != 0) {
+            // First iterate static constructor initializers until all fields are resolved
+            // Then do a final pass on all methods to resolve locals which may have field dependencies
+            bool progress;
+
+            do {
+                progress = false;
+
+                for (var i = staticConstructors.Count - 1; i >= 0; i--) {
+                    var cctor = staticConstructors[i];
+
+                    var foldedBody = ConstantFoldingPass.Fold(
+                        cctor,
+                        _methodBodies[cctor],
+                        constantMap,
+                        out var madeProgress
+                    );
+
+                    progress |= madeProgress;
+
+                    // This happens because we use the static constructor as a placeholder location for constexpr
+                    // initializers that need to be constant folded late
+                    // This doesn't prevent the symbol from having a static constructor, but it does prevent emitting
+                    if (cctor is SynthesizedStaticConstructor && BodyIsEmpty(foldedBody)) {
+                        _methodBodies.Remove(cctor, out _);
+                        staticConstructors.RemoveAt(i);
+                    } else {
+                        _methodBodies[cctor] = foldedBody;
+                    }
+                }
+            } while (progress);
+
+            foreach (var (method, body) in _methodBodies) {
+                if (body is not null) {
+                    var foldedBody = ConstantFoldingPass.Fold(
+                        method,
+                        body,
+                        constantMap,
+                        out _
+                    );
+
+                    _methodBodies[method] = foldedBody;
+                }
+            }
+        }
+
+        staticConstructors.Free();
+
+        static bool BodyIsEmpty(BoundBlockStatement body) {
+            foreach (var statement in body.statements) {
+                switch (statement.kind) {
+                    case BoundKind.NopStatement:
+                        break;
+                    case BoundKind.ReturnStatement:
+                        if (((BoundReturnStatement)statement).expression is not null)
+                            return false;
+
+                        break;
+                    default:
+                        return false;
+                }
+            }
+
+            return true;
         }
     }
 

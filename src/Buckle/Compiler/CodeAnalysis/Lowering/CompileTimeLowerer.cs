@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Evaluating;
@@ -17,19 +18,22 @@ internal sealed class CompileTimeLowerer : BoundTreeExpander {
     private readonly EvaluatorContext _context;
     private readonly BoundProgram _program;
     private readonly Compilation _compilation;
+    private readonly Dictionary<Symbol, ConstantValue> _constantMap;
 
     private CompileTimeLowerer(
         MethodSymbol containingMethod,
         BoundProgram program,
         EvaluatorContext context,
         BelteDiagnosticQueue diagnostics,
-        Compilation compilation) {
+        Compilation compilation,
+        Dictionary<Symbol, ConstantValue> constantMap) {
         _diagnostics = diagnostics;
         _evaluator = new Evaluator(program, context, []);
         _context = context;
         _container = containingMethod;
         _program = program;
         _compilation = compilation;
+        _constantMap = constantMap;
     }
 
     private protected override MethodSymbol _container { get; set; }
@@ -40,8 +44,9 @@ internal sealed class CompileTimeLowerer : BoundTreeExpander {
         BelteDiagnosticQueue diagnostics,
         BoundProgram program,
         EvaluatorContext context,
-        Compilation compilation) {
-        var lowerer = new CompileTimeLowerer(method, program, context, diagnostics, compilation);
+        Compilation compilation,
+        Dictionary<Symbol, ConstantValue> constantMap) {
+        var lowerer = new CompileTimeLowerer(method, program, context, diagnostics, compilation, constantMap);
         lowerer._localNames.AddRange(statement.locals.Select(l => l.name));
         return lowerer.Expand(statement);
     }
@@ -321,5 +326,45 @@ internal sealed class CompileTimeLowerer : BoundTreeExpander {
         }
 
         return statements;
+    }
+
+    // These would technically be discovered in ConstantFoldingPass anyway, but might as well add them to the map early
+    private protected override List<BoundStatement> ExpandAssignmentOperator(
+        BoundAssignmentOperator expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        if (expression.left.expressionSymbol is { } symbol && symbol.IsConstExpr() &&
+            expression.right is BoundCompileTimeExpression right && !right.conditional) {
+            var statements = ExpandCompileTimeExpression(right, out var newRight, UseKind.Value);
+
+            Debug.Assert(newRight.constantValue is not null || _diagnostics.AnyErrors());
+
+            if (newRight.constantValue is { } constant)
+                _constantMap.Add(symbol, constant);
+
+            replacement = null;
+            return statements;
+        }
+
+        return base.ExpandAssignmentOperator(expression, out replacement, useKind);
+    }
+
+    private protected override List<BoundStatement> ExpandLocalDeclarationStatement(
+        BoundLocalDeclarationStatement statement) {
+        var declaration = statement.declaration;
+
+        if (declaration.dataContainer.isConstExpr &&
+            declaration.initializer is BoundCompileTimeExpression right && !right.conditional) {
+            var statements = ExpandCompileTimeExpression(right, out var newRight, UseKind.Value);
+
+            Debug.Assert(newRight.constantValue is not null || _diagnostics.AnyErrors());
+
+            if (newRight.constantValue is { } constant)
+                _constantMap.Add(declaration.dataContainer, constant);
+
+            return statements;
+        }
+
+        return base.ExpandLocalDeclarationStatement(statement);
     }
 }

@@ -2516,10 +2516,16 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         if (!hasInstanceConstructor && !isStatic && !isInterface)
             builder.AddNonTypeMember(new SynthesizedInstanceConstructorSymbol(this), declaredMembersAndInitializers);
 
+        // TODO This is problematic because we can't check if a field requires late constant evaluating (compile-time expr)
+        // without resolving what the constant is, which causes a loop
+        // instead we probably just have to delete static constructors if they are empty
         static bool HasNonConstExprInitializer(ImmutableArray<ImmutableArray<FieldInitializer>> initializers) {
-            return initializers.Any(
-                static siblings => siblings.Any(static initializer => !initializer.field.isConstExpr)
-            );
+            return initializers.Any();
+            //     return initializers.Any(
+            //         static siblings => siblings.Any(
+            //             static initializer => !initializer.field.isConstExpr || initializer.field.constantValue is null
+            //         )
+            //     );
         }
     }
 

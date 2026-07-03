@@ -50,7 +50,7 @@ internal sealed class Expander : SharedExpander {
             expression.receiver.type.GetNullableUnderlyingType().IsStructType()) {
             statements = CreateNullableStructAccess(expression, null, out replacement, useKind);
         } else {
-            statements = base.ExpandFieldAccessExpression(expression, out replacement, UseKind.Value);
+            statements = base.ExpandFieldAccessExpression(expression, out replacement, useKind);
         }
 
         if (useKind == UseKind.StableValue)

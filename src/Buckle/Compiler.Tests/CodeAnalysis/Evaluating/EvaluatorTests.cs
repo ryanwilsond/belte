@@ -426,6 +426,14 @@ public sealed class EvaluatorTests {
         var a = new A();
         a.values![1]++;
         return a.values![1];", 3)]
+    [InlineData(@"
+        struct Data {
+            public int item1;
+            public int item2;
+        }
+        Buffer<Data> data = new Buffer<Data>(3);
+        data[0].item1 = 10;
+        return data[0].item1;", 10)]
     // Member access expressions
     [InlineData("class A { public int? num; } A myVar = new A(); myVar.num = 3; return myVar.num + 1;", 4)]
     [InlineData("class A { public int? num; } class B { public A? a; } B myVar = new B(); myVar.a = new A(); myVar.a!.num = 3; return myVar.a!.num + 1;", 4)]

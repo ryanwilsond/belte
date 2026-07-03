@@ -546,9 +546,8 @@ internal partial class Binder {
             }
         }
 
-        var dictType = new TypeWithAnnotations(CorLibrary.GetWellKnownType(WellKnownType.Dictionary)
-            .Construct([new TypeOrConstant(foundKeyType), new TypeOrConstant(foundValueType)]))
-            .SetIsAnnotated().type;
+        var dictType = CorLibrary.GetWellKnownType(WellKnownType.Dictionary)
+            .Construct([new TypeOrConstant(foundKeyType), new TypeOrConstant(foundValueType)]);
 
         if (failed) {
             diagnostics.Push(Error.InvalidInitializerDictionary(node.location));
@@ -7350,6 +7349,7 @@ internal partial class Binder {
                             continue;
 
                         var value = BindValue(interpolation.expression, diagnostics, BindValueKind.RValue);
+                        value = BindToNaturalType(value, diagnostics);
 
                         builder.Add(value);
 

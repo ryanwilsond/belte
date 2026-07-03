@@ -1668,4 +1668,65 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Field_AllowsCompileTimeExpressionAsConstExpr() {
+        var text = @"
+            class A {
+                public constexpr int a = $Calc();
+
+                private static int Calc() {
+                    return 10;
+                }
+            }
+
+            constexpr int local = A.a;
+            return local;
+        ";
+
+        AssertValue(text, 10);
+    }
+
+    [Fact]
+    public void Field_AllowsCompileTimeExpressionAsConstExpr2() {
+        var text = @"
+            class A {
+                public constexpr int a = $Calc() + B.b;
+
+                private static int Calc() {
+                    return 10;
+                }
+            }
+
+            class B {
+                public constexpr int b = $Calc();
+
+                private static int Calc() {
+                    return 5;
+                }
+            }
+
+            constexpr int local = A.a + 3;
+            return local;
+        ";
+
+        AssertValue(text, 18);
+    }
+
+    [Fact]
+    public void Buffer_BogusElementTypeDoesntCrash() {
+        var text = @"
+            struct Data {
+                public int item1;
+                public int item2;
+            }
+            Buffer<Data> data = new Buffer<[Entry]>(3);
+        ";
+
+        var diagnostics = @"
+            undefined symbol 'Entry'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

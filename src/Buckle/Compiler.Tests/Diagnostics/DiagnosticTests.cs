@@ -3340,12 +3340,11 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0257_CircularConstantValue() {
         var text = @"
-            constexpr int? a = [[a]];
+            constexpr int? a = [a];
         ";
 
         var diagnostics = @"
             the evaluation of the constant value for 'a' involves a circular definition
-            expected a compile-time constant value
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

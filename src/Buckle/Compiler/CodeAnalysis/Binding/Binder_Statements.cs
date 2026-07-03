@@ -1648,6 +1648,7 @@ internal partial class Binder {
 
     private static bool ShouldTryToReduce(BoundExpression expression, SpecialType declarationSpecialType) {
         return (expression.kind == BoundKind.LiteralExpression || expression.constantValue is not null) &&
+            !(expression.constantValue?.diagnostics?.Length == 0) &&
             expression.type is not null &&
             expression.type.specialType.IsNumeric() &&
             declarationSpecialType.IsNumeric();

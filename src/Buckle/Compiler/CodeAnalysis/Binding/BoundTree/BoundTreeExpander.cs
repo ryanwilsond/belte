@@ -1465,7 +1465,7 @@ internal abstract partial class BoundTreeExpander {
                 //     c.receiver is not null &&
                 //     c.receiver.StrippedType().IsStructType());
                 // TODO What nodes actually count here
-                expression.receiver.kind is BoundKind.FieldAccessExpression;
+                expression.receiver.kind is BoundKind.FieldAccessExpression or BoundKind.ArrayAccessExpression;
 
             var statements = ExpandExpression(
                 expression.receiver,

@@ -309,6 +309,14 @@ internal abstract class Symbol : ISymbol {
         };
     }
 
+    internal bool IsConstExpr() {
+        return kind switch {
+            SymbolKind.Field => ((FieldSymbol)this).isConstExpr,
+            SymbolKind.Local => ((DataContainerSymbol)this).isConstExpr,
+            _ => throw ExceptionUtilities.UnexpectedValue(kind)
+        };
+    }
+
     internal int GetParameterCount() {
         return kind switch {
             SymbolKind.Method => ((MethodSymbol)this).parameterCount,

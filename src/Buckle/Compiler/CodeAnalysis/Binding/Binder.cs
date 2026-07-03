@@ -378,7 +378,7 @@ internal partial class Binder {
         return builder.ToImmutableAndFree();
     }
 
-    private bool EnsureExpressionIsCompileTime(
+    internal static bool EnsureExpressionIsCompileTime(
         BoundExpression expression,
         ImmutableArray<TemplateParameterSymbol> templateParameters) {
         if (expression.constantValue is not null)
@@ -410,6 +410,14 @@ internal partial class Binder {
                 return templateParameters.Contains(expression.type);
             default:
                 return false;
+
+            // These pertain to late constant folding
+            case BoundKind.CompileTimeExpression:
+                var cte = (BoundCompileTimeExpression)expression;
+                return !cte.conditional;
+            case BoundKind.DataContainerExpression:
+            case BoundKind.FieldAccessExpression:
+                return expression.expressionSymbol.IsConstExpr();
         }
     }
 
@@ -742,8 +750,12 @@ internal partial class Binder {
     }
 
     private TypeSymbol RewriteBufferType(TypeSymbol type) {
-        if (type.originalDefinition.specialType == SpecialType.Buffer)
-            return ArrayTypeSymbol.CreateSZArray(((NamedTypeSymbol)type).templateArguments[0].type);
+        if (type.originalDefinition.specialType == SpecialType.Buffer) {
+            var elementType = ((NamedTypeSymbol)type).templateArguments[0].type
+                ?? new TypeWithAnnotations(CreateErrorType());
+
+            return ArrayTypeSymbol.CreateSZArray(elementType);
+        }
 
         return type;
     }
@@ -1567,7 +1579,9 @@ internal partial class Binder {
                 typeOrConstant = new TypeOrConstant(new TemplateConstantValue(boundArgument));
                 analyzedArguments.hasErrors.Add(false);
             } else {
-                diagnostics.Push(Error.ConstantExpected(templateArgument.location));
+                if (!boundArgument.hasErrors)
+                    diagnostics.Push(Error.ConstantExpected(templateArgument.location));
+
                 analyzedArguments.hasErrors.Add(true);
                 typeOrConstant = new TypeOrConstant(constant: null);
             }
@@ -6502,7 +6516,7 @@ symIsHidden:;
             foreach (var initializer in siblingInitializers) {
                 var fieldSymbol = initializer.field;
 
-                if (!fieldSymbol.isConstExpr) {
+                if (!fieldSymbol.isConstExpr || fieldSymbol.constantValue is null) {
                     var syntaxRef = initializer.syntax;
 
                     if (!fieldSymbol.isStatic && fieldSymbol.containingType.IsStructType())
