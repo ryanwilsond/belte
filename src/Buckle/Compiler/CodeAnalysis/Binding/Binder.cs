@@ -417,6 +417,8 @@ internal partial class Binder {
                 return !cte.conditional;
             case BoundKind.DataContainerExpression:
             case BoundKind.FieldAccessExpression:
+            case BoundKind.FieldSlotExpression:
+            case BoundKind.StackSlotExpression:
                 return expression.expressionSymbol.IsConstExpr();
         }
     }
@@ -3381,7 +3383,7 @@ internal partial class Binder {
         else if (EnsureExpressionIsCompileTime(operand, []))
             diagnostics.Push(Warning.UnnecessaryCompileTimeExpression(node.location, node.operand));
 
-        return new BoundCompileTimeExpression(node, operand, conditional, operand.type);
+        return new BoundCompileTimeExpression(node, operand, conditional, operand.constantValue, operand.type);
     }
 
     private static void BindPointerIndirectionExpressionInternal(

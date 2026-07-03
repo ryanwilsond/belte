@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Evaluating;
@@ -59,6 +58,10 @@ internal sealed class CompileTimeLowerer : BoundTreeExpander {
         BoundCompileTimeExpression node,
         out BoundExpression replacement,
         UseKind _) {
+        // Avoid evaluator if possible. This also gives better diagnostics by letting ConstantFoldingPass handle it
+        if (!node.conditional && Binder.EnsureExpressionIsCompileTime(node.expression, []))
+            return ExpandExpression(node.expression, out replacement);
+
         try {
             var methodLayout = _program.methodLayouts[_container.originalDefinition];
             var result = _evaluator.EvaluateExpression(node.expression, methodLayout, out var hasValue);
@@ -333,38 +336,41 @@ internal sealed class CompileTimeLowerer : BoundTreeExpander {
         BoundAssignmentOperator expression,
         out BoundExpression replacement,
         UseKind useKind) {
-        if (expression.left.expressionSymbol is { } symbol && symbol.IsConstExpr() &&
-            expression.right is BoundCompileTimeExpression right && !right.conditional) {
-            var statements = ExpandCompileTimeExpression(right, out var newRight, UseKind.Value);
+        var statements = ExpandExpression(expression.left, out var newLeft, UseKind.Writable);
+        statements.AddRange(ExpandExpression(expression.right, out var newRight));
 
-            Debug.Assert(newRight.constantValue is not null || _diagnostics.AnyErrors());
-
-            if (newRight.constantValue is { } constant)
-                _constantMap.Add(symbol, constant);
-
+        if (newLeft.expressionSymbol is { } symbol && symbol.IsConstExpr() &&
+            newRight.constantValue is { } constant) {
+            _constantMap.Add(symbol, constant);
             replacement = null;
             return statements;
         }
 
-        return base.ExpandAssignmentOperator(expression, out replacement, useKind);
+        replacement = expression.Update(newLeft, newRight, expression.isRef, expression.type);
+        return statements;
     }
 
     private protected override List<BoundStatement> ExpandLocalDeclarationStatement(
         BoundLocalDeclarationStatement statement) {
-        var declaration = statement.declaration;
+        var statements = ExpandExpression(statement.declaration.initializer, out var newInitializer);
+        var dataContainer = statement.declaration.dataContainer;
 
-        if (declaration.dataContainer.isConstExpr &&
-            declaration.initializer is BoundCompileTimeExpression right && !right.conditional) {
-            var statements = ExpandCompileTimeExpression(right, out var newRight, UseKind.Value);
+        if (dataContainer.isConstExpr && newInitializer.constantValue is { } constant) {
+            _constantMap.Add(dataContainer, constant);
+            return statements;
+        }
 
-            Debug.Assert(newRight.constantValue is not null || _diagnostics.AnyErrors());
-
-            if (newRight.constantValue is { } constant)
-                _constantMap.Add(declaration.dataContainer, constant);
+        if (statements.Count > 0 || statement.declaration.initializer != newInitializer) {
+            statements.Add(new BoundLocalDeclarationStatement(
+                statement.syntax,
+                new BoundDataContainerDeclaration(statement.syntax, statement.declaration.dataContainer, newInitializer),
+                statement.isScoped,
+                statement.disposeMethod
+            ));
 
             return statements;
         }
 
-        return base.ExpandLocalDeclarationStatement(statement);
+        return [statement];
     }
 }

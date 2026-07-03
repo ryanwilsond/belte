@@ -117,6 +117,7 @@
   <Node Name="BoundCompileTimeExpression" Base="BoundExpression">
     <Field Name="expression" Type="BoundExpression"/>
     <Field Name="conditional" Type="bool"/>
+    <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
   <Node Name="BoundUnconvertedNullptrExpression" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>

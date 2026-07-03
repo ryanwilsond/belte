@@ -1751,4 +1751,37 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Cast_LiteralShrinkingSeesThroughCompileTimeExpression() {
+        var text = @"
+            uint8 a = $10;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void CompileTimeExpression_AvoidsEvaluatorIfPossible() {
+        var text = @"
+            class A {
+                public constexpr string a = $Calc();
+
+                private static string Calc() {
+                    return ""asdf"";
+                }
+            }
+
+            constexpr uint8 local = $(uint8)[A.a];
+            return local;
+        ";
+
+        var diagnostics = @"
+            constant value 'asdf' cannot be converted to 'uint8!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }
