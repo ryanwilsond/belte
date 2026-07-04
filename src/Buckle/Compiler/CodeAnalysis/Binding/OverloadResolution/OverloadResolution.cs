@@ -2527,23 +2527,52 @@ internal sealed partial class OverloadResolution {
         EffectiveParameters originalEffectiveParameters,
         out bool hasTypeArgumentsInferredFromFunctionType,
         out MemberAnalysisResult error) {
-        // TODO Type inferrer
-        // var args = arguments.arguments.ToImmutable();
+        var args = arguments.arguments.ToImmutable();
 
-        // var inferenceResult = MethodTypeInferrer.Infer(
-        //     _binder,
-        //     _binder.Conversions,
-        //     originalTemplateParameters,
-        //     method.ContainingType,
-        //     originalEffectiveParameters.ParameterTypes,
-        //     originalEffectiveParameters.ParameterRefKinds,
-        //     args,
-        //     ref useSiteInfo);
+        var ordinals = method.MakeAdjustedTemplateParameterOrdinalsIfNeeded(originalTemplateParameters);
 
-        // if (inferenceResult.Success) {
-        //     hasTypeArgumentsInferredFromFunctionType = inferenceResult.HasTypeArgumentInferredFromFunctionType;
-        //     error = default;
-        //     return inferenceResult.InferredTypeArguments;
+        var inferenceResult = MethodTypeInferrer.Infer(
+            _binder,
+            _binder.conversions,
+            originalTemplateParameters,
+            method.containingType,
+            originalEffectiveParameters.parameterTypes,
+            originalEffectiveParameters.parameterRefKinds,
+            args,
+            ordinals: ordinals
+        );
+
+        if (inferenceResult.success) {
+            hasTypeArgumentsInferredFromFunctionType = inferenceResult.hasTypeArgumentInferredFromFunctionType;
+            error = default;
+            return inferenceResult.inferredTypeArguments;
+        }
+
+        // TODO Extension methods
+        // if (arguments.includesReceiverAsArgument) {
+        //     bool canInfer;
+        //     if (member.IsExtensionBlockMember()) {
+        //         if (member.ContainingType.Arity > 0) {
+        //             var extensionTypeArguments = MethodTypeInferrer.InferTypeArgumentsFromReceiverType(member.ContainingType, args[0], _binder.Compilation, _binder.Conversions, ref useSiteInfo);
+        //             canInfer = !extensionTypeArguments.IsDefault && !extensionTypeArguments.Any(t => !t.HasType);
+        //         } else {
+        //             canInfer = true;
+        //         }
+        //     } else {
+        //         canInfer = MethodTypeInferrer.CanInferTypeArgumentsFromFirstArgument(
+        //             _binder.Compilation,
+        //             _binder.Conversions,
+        //             (MethodSymbol)(Symbol)member,
+        //             args,
+        //             useSiteInfo: ref useSiteInfo,
+        //             out _);
+        //     }
+
+        //     if (!canInfer) {
+        //         hasTypeArgumentsInferredFromFunctionType = false;
+        //         error = MemberAnalysisResult.TypeInferenceExtensionInstanceArgumentFailed();
+        //         return default(ImmutableArray<TypeWithAnnotations>);
+        //     }
         // }
 
         hasTypeArgumentsInferredFromFunctionType = false;

@@ -4,7 +4,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// <summary>
 /// Template argument value.
 /// </summary>
-internal sealed class TypeOrConstant {
+internal sealed partial class TypeOrConstant {
     internal TypeOrConstant(ConstantValue constant) {
         this.constant = constant;
         type = null;

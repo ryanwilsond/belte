@@ -10,7 +10,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// A type symbol with null clarification.
 /// </summary>
 [DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
-internal sealed class TypeWithAnnotations {
+internal sealed partial class TypeWithAnnotations {
     internal TypeWithAnnotations(TypeSymbol underlyingType, bool isNullable) {
         type = underlyingType;
         this.isNullable = isNullable;

@@ -197,6 +197,27 @@ internal static class ImmutableArrayExtensions {
         return ImmutableArray.CreateRange(items, map, arg);
     }
 
+    internal static ImmutableArray<TResult> SelectAsArray<TItem, TArg, TResult>(
+        this ImmutableArray<TItem> items,
+        Func<TItem, int, TArg, TResult> map,
+        TArg arg) {
+        switch (items.Length) {
+            case 0: return [];
+            case 1: return [map(items[0], 0, arg)];
+            case 2: return [map(items[0], 0, arg), map(items[1], 1, arg)];
+            case 3: return [map(items[0], 0, arg), map(items[1], 1, arg), map(items[2], 2, arg)];
+            case 4: return [map(items[0], 0, arg), map(items[1], 1, arg), map(items[2], 2, arg), map(items[3], 3, arg)];
+
+            default:
+                var builder = new FixedSizeArrayBuilder<TResult>(items.Length);
+
+                for (var i = 0; i < items.Length; i++)
+                    builder.Add(map(items[i], i, arg));
+
+                return builder.MoveToImmutable();
+        }
+    }
+
     internal static ImmutableArray<T> AsImmutableOrNull<T>(this T[]? items) {
         if (items is null)
             return default;

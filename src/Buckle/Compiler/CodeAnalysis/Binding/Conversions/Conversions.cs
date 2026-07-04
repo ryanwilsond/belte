@@ -12,6 +12,20 @@ internal sealed class Conversions : ConversionsBase {
         _binder = binder;
     }
 
+    internal static void GetFunctionOrFunctionPointerArguments(
+        SyntaxNode syntax,
+        AnalyzedArguments analyzedArguments,
+        ImmutableArray<ParameterSymbol> parameters,
+        Compilation compilation) {
+        foreach (var p in parameters) {
+            var parameter = p;
+            analyzedArguments.arguments.Add(
+                new BoundExpressionOrTypeOrConstant(new BoundParameterExpression(syntax, parameter, null, parameter.type))
+            );
+            analyzedArguments.refKinds.Add(parameter.refKind);
+        }
+    }
+
     internal override Conversion GetImplicitExtendedLiteralExpressionConversion(
         BoundUnconvertedExtendedLiteralExpression extended,
         TypeSymbol destination) {

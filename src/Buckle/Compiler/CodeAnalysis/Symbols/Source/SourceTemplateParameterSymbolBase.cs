@@ -268,6 +268,9 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
         if (convertedExpression is BoundTypeExpression t)
             return new TypeOrConstant(t.type);
 
+        if (convertedExpression is BoundTypeOfExpression to)
+            return new TypeOrConstant(to.sourceType.type);
+
         var constant = convertedExpression.constantValue;
 
         if (constant is null && !convertedExpression.hasErrors)

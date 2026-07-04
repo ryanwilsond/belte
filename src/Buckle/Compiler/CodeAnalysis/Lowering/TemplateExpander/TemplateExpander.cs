@@ -246,8 +246,23 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
         return true;
     }
 
+    private static bool IsGenericOrPlaceholderOnly(ISymbolWithTemplates symbol) {
+        Debug.Assert(symbol.arity == symbol.templateParameters.Length && symbol.arity == symbol.templateArguments.Length);
+
+        for (var i = 0; i < symbol.arity; i++) {
+            if (symbol.templateParameters[i].underlyingType.specialType != SpecialType.Type) {
+                if (symbol.templateArguments[i].isType)
+                    Debug.Assert(symbol.templateArguments[i].type.type is TemplateParameterSymbol);
+                else
+                    return false;
+            }
+        }
+
+        return true;
+    }
+
     private bool NoteType(TypeSymbol type, Symbol cause, TextLocation location) {
-        if (type is not ConstructedNamedTypeSymbol constructed || IsGenericOnly(constructed))
+        if (type is not ConstructedNamedTypeSymbol constructed || IsGenericOrPlaceholderOnly(constructed))
             return false;
 
         // These will be simplified and noted later
@@ -344,7 +359,7 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
         out MethodSymbol replacedMethod,
         Symbol cause,
         TextLocation location) {
-        if (method is not ConstructedMethodSymbol constructed || IsGenericOnly(constructed)) {
+        if (method is not ConstructedMethodSymbol constructed || IsGenericOrPlaceholderOnly(constructed)) {
             replacedMethod = null;
             return false;
         }

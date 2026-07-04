@@ -1133,8 +1133,25 @@ internal partial class Binder {
 
         var bindingResult = ResultSymbol(result, name, 0, node, diagnostics, out _, qualifier, options);
 
+        bindingResult = ConstructIfApplicable(bindingResult);
+
         result.Free();
         return NamespaceOrTypeOrAliasSymbolWithAnnotations.CreateUnannotated(false, bindingResult);
+    }
+
+    private Symbol ConstructIfApplicable(Symbol symbol) {
+        if (symbol is NamedTypeSymbol namedType && namedType.arity > 0) {
+            var templateArguments = ArrayBuilder<TypeOrConstant>.GetInstance();
+
+            foreach (var templateParameter in namedType.templateParameters) {
+                Debug.Assert(templateParameter.defaultValue is not null);
+                templateArguments.Add(templateParameter.defaultValue);
+            }
+
+            symbol = namedType.Construct(templateArguments.ToImmutableAndFree());
+        }
+
+        return symbol;
     }
 
     private NamespaceOrTypeOrAliasSymbolWithAnnotations BindQualifiedName(
@@ -1187,6 +1204,8 @@ internal partial class Binder {
             node.arity,
             options
         );
+
+        // TODO Resolve default args
 
         NamedTypeSymbol resultType;
 
@@ -4663,6 +4682,11 @@ internal partial class Binder {
         wasError = false;
 
         if (result.isMultiViable) {
+            if (symbols.Count > 1)
+                // TODO Eventually a full overload resolution system would be preferable, but this will help out in the short term
+                // When we update this we need to pass in template arguments
+                FilterOutWorseArityOptions(symbols, arity);
+
             if (symbols.Count > 1) {
                 symbols.Sort(ConsistentSymbolOrder.Instance);
                 var originalSymbols = symbols.ToImmutable();
@@ -4915,6 +4939,45 @@ internal partial class Binder {
         }
 
         return symbols[0];
+    }
+
+    private static void FilterOutWorseArityOptions(ArrayBuilder<Symbol> symbols, int specifiedArity) {
+#if DEBUG
+        foreach (var symbol in symbols)
+            Debug.Assert(symbol is ISymbolWithTemplates);
+
+#endif
+
+        var best = ((ISymbolWithTemplates)symbols[0]).arity;
+
+        for (var i = 1; i < symbols.Count; i++) {
+            var arity = ((ISymbolWithTemplates)symbols[i]).arity;
+
+            if (Better(arity, best, specifiedArity))
+                best = arity;
+        }
+
+        var write = 0;
+
+        for (var read = 0; read < symbols.Count; read++) {
+            if (((ISymbolWithTemplates)symbols[read]).arity == best)
+                symbols[write++] = symbols[read];
+        }
+
+        symbols.Count = write;
+
+        static bool Better(int candidate, int best, int specified) {
+            var cHigh = candidate >= specified;
+            var curHigh = best >= specified;
+
+            if (cHigh != curHigh)
+                return cHigh;
+
+            if (cHigh)
+                return candidate < best;
+
+            return candidate > best;
+        }
     }
 
     private static bool NameAndArityMatchRecursively(Symbol x, Symbol y) {
@@ -6276,14 +6339,26 @@ symIsHidden:;
                                 ? Error.HasNoTemplate(errorLocation, namedType, MessageID.IDS_SK_TYPE.Localize())
                                 : null;
                         } else {
-                            error = diagnose
-                                ? Error.BadArity(
-                                    errorLocation,
-                                    namedType,
-                                    MessageID.IDS_SK_TYPE.Localize(),
-                                    namedType.arity
-                                )
-                                : null;
+                            var defaultCount = 0;
+
+                            foreach (var templateParameter in namedType.templateParameters) {
+                                if (templateParameter.defaultValue is not null)
+                                    defaultCount++;
+                            }
+
+                            if (namedType.arity - defaultCount > arity || namedType.arity < arity) {
+                                error = diagnose
+                                    ? Error.BadArity(
+                                        errorLocation,
+                                        namedType,
+                                        MessageID.IDS_SK_TYPE.Localize(),
+                                        namedType.arity
+                                    )
+                                    : null;
+                            } else {
+                                error = null;
+                                return false;
+                            }
                         }
 
                         return true;
@@ -6301,14 +6376,26 @@ symIsHidden:;
                                 ? Error.HasNoTemplate(errorLocation, method, MessageID.IDS_SK_METHOD.Localize())
                                 : null;
                         } else {
-                            error = diagnose
-                                ? Error.BadArity(
-                                    errorLocation,
-                                    method,
-                                    MessageID.IDS_SK_METHOD.Localize(),
-                                    method.arity
-                                )
-                                : null;
+                            var defaultCount = 0;
+
+                            foreach (var templateParameter in method.templateParameters) {
+                                if (templateParameter.defaultValue is not null)
+                                    defaultCount++;
+                            }
+
+                            if (method.arity - defaultCount > arity || method.arity < arity) {
+                                error = diagnose
+                                    ? Error.BadArity(
+                                        errorLocation,
+                                        method,
+                                        MessageID.IDS_SK_METHOD.Localize(),
+                                        method.arity
+                                    )
+                                    : null;
+                            } else {
+                                error = null;
+                                return false;
+                            }
                         }
 
                         return true;
@@ -6680,6 +6767,28 @@ symIsHidden:;
     #endregion
 
     #region Conversions
+
+    internal bool TryGetCollectionIterationType(
+        SyntaxNode syntax,
+        TypeSymbol collectionType,
+        out TypeWithAnnotations iterationType) {
+        BoundExpression collectionExpr = new BoundValuePlaceholder(syntax, collectionType);
+
+        var result = BindForEachCollection(
+            syntax,
+            syntax,
+            ref collectionExpr,
+            BelteDiagnosticQueue.Discarded,
+            out iterationType
+        );
+
+        if (result == ForEachLoopKind.Invalid) {
+            iterationType = null;
+            return false;
+        }
+
+        return true;
+    }
 
     private static ExpressionSyntax SkipParensAndNullSuppressions(
         ExpressionSyntax expression,

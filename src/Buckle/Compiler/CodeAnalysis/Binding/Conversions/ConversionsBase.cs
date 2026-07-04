@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Libraries;
@@ -14,6 +15,44 @@ internal abstract partial class ConversionsBase {
     internal abstract Conversion GetImplicitExtendedLiteralExpressionConversion(
         BoundUnconvertedExtendedLiteralExpression extended,
         TypeSymbol destination);
+
+    internal bool HasTopLevelNullabilityImplicitConversion(TypeWithAnnotations source, TypeWithAnnotations destination) {
+        // if (!includeNullability) {
+        //     return true;
+        // }
+
+        // if (source.NullableAnnotation.IsOblivious() || destination.NullableAnnotation.IsOblivious() || destination.NullableAnnotation.IsAnnotated()) {
+        //     return true;
+        // }
+
+        // if (IsPossiblyNullableTypeTypeParameter(source) && !IsPossiblyNullableTypeTypeParameter(destination)) {
+        //     return false;
+        // }
+
+        // return !source.NullableAnnotation.IsAnnotated();
+        // TODO
+        return false;
+    }
+
+    internal Conversion ClassifyImplicitConversionFromTypeWhenNeitherOrBothFunctionTypes(
+        TypeSymbol source,
+        TypeSymbol destination) {
+        var sourceFunctionType = source as FunctionTypeSymbol;
+        var destinationFunctionType = destination as FunctionTypeSymbol;
+
+        if (sourceFunctionType is null && destinationFunctionType is null)
+            return ClassifyImplicitConversionFromType(source, destination);
+
+        if (sourceFunctionType is { } && destinationFunctionType is { }) {
+            return Conversion.None;
+            // return HasImplicitFunctionTypeToFunctionTypeConversion(sourceFunctionType, destinationFunctionType)
+            //     ? Conversion.FUnc
+            //     : Conversion.None;
+        }
+
+        Debug.Assert(false);
+        return Conversion.None;
+    }
 
     internal static ListExpressionTypeKind GetListExpressionTypeKind(
         TypeSymbol destination,

@@ -1784,4 +1784,100 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void SimpleName_HonorsTemplateDefaultValues() {
+        var text = @"
+            class A<int T = 3> {
+                public int GetT() {
+                    return T;
+                }
+            }
+            A a = new ();
+            return a.GetT();
+        ";
+
+        AssertValue(text, 3);
+    }
+
+    [Fact]
+    public void TemplateName_HonorsTemplateWithCloserArity() {
+        var text = @"
+            class A<int T1 = 3, int T2 = 5> {
+                public int GetT() {
+                    return T1 + T2;
+                }
+            }
+
+            class A<int T = 3> {
+                public int GetT() {
+                    return T;
+                }
+            }
+
+            A<10> a = new ();
+            return a.GetT();
+        ";
+
+        AssertValue(text, 10);
+    }
+
+    [Fact]
+    public void TemplateParameter_AllowsTypeOfDefaultValue() {
+        var text = @"
+            class A<type T = typeof(int)> where { T has default; } {
+                public T a = default;
+            }
+
+            var a = new A();
+            return a.a;
+        ";
+
+        AssertValue(text, 0);
+    }
+
+    [Fact]
+    public void TemplateParameter_AllowsTypeOfDefaultValue2() {
+        var text = @"
+            static class A {
+                public static T Get<type T = typeof(int)>() where { T has default; } {
+                    return default;
+                }
+            }
+
+            return A.Get();
+        ";
+
+        AssertValue(text, 0);
+    }
+
+    [Fact]
+    public void SimpleCall_HonorsTemplateDefaultValues() {
+        var text = @"
+            static class A {
+                public static T Get<type T = typeof(int)>() where { T has default; } {
+                    return default;
+                }
+            }
+
+            return A.Get();
+        ";
+
+        AssertValue(text, 0);
+    }
+
+    [Fact]
+    public void SimpleCall_HonorsTemplateDefaultValues2() {
+        var text = @"
+            static class A {
+                public static T Get<type T = typeof(int)>(int _) where { T has default; } {
+                    return default;
+                }
+            }
+
+            return A.Get(10);
+        ";
+
+        AssertValue(text, 0);
+    }
 }

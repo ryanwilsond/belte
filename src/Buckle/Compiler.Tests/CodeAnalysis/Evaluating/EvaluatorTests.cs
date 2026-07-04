@@ -1509,6 +1509,22 @@ public sealed class EvaluatorTests {
         }
         int() test = A.Test<3, 5>;
         return test();", 8)]
+    // Method Template Inference
+    [InlineData(@"
+        static class A {
+            public static T Get<type T>(T value) {
+                return value;
+            }
+        }
+        return A.Get(3);", 3)]
+    [InlineData(@"
+        static class A {
+            public static T Get<type T>(T value) {
+                return value;
+            }
+        }
+        return A.Get(true);", true)]
+    [InlineData(@"Buffer<int> a = { 1, 2, 3 }; return LowLevel.Length(a);", 3)]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue, evaluator: true, executor: true);
     }

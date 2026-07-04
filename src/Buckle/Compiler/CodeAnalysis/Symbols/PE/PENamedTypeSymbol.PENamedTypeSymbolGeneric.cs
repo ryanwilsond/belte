@@ -79,7 +79,7 @@ internal abstract partial class PENamedTypeSymbol {
             if (container is null)
                 return true;
 
-            var containingTypeParameters = container.GetAllTypeParameters();
+            var containingTypeParameters = container.GetAllTemplateParameters();
             var n = containingTypeParameters.Length;
 
             if (n == 0)

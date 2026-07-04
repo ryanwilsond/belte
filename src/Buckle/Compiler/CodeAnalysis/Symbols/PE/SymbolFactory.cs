@@ -80,7 +80,7 @@ internal sealed class SymbolFactory : SymbolFactory<PEModuleSymbol, TypeSymbol> 
             }
         }
 
-        var typeParameters = genericType.GetAllTypeParameters();
+        var typeParameters = genericType.GetAllTemplateParameters();
 
         if (typeParameters.Length != arguments.Length)
             return new UnsupportedMetadataTypeSymbol();

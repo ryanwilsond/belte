@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
@@ -291,6 +292,35 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
 
     internal bool IsStructType() {
         return typeKind == TypeKind.Struct;
+    }
+
+    internal bool IsPointerType() {
+        return this is PointerTypeSymbol;
+    }
+
+    internal bool TryGetElementTypesWithAnnotationsIfTupleType(out ImmutableArray<TypeOrConstant> elementTypes) {
+        if (isTupleType) {
+            elementTypes = ((NamedTypeSymbol)this).tupleElementTypes;
+            return true;
+        }
+
+        elementTypes = default;
+        return false;
+    }
+
+    internal TypeSymbol GetFunctionOrFunctionPointerType() {
+        return (TypeSymbol)(this as FunctionTypeSymbol) ?? (this as FunctionPointerTypeSymbol);
+    }
+
+    internal ImmutableArray<ParameterSymbol> FunctionOrFunctionPointerParameters() {
+        Debug.Assert(this is FunctionPointerTypeSymbol or FunctionTypeSymbol);
+
+        if (this is FunctionPointerTypeSymbol { signature.parameters: var functionPointerParameters })
+            return functionPointerParameters;
+        else if (this is FunctionTypeSymbol { signature.parameters: var functionParameters })
+            return functionParameters;
+
+        throw ExceptionUtilities.Unreachable();
     }
 
     internal bool IsTupleTypeOfCardinality(int targetCardinality) {

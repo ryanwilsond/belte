@@ -124,6 +124,8 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
 
     internal bool isUnboxing => kind.IsUnboxingCast();
 
+    internal bool isUserDefined => kind.IsUserDefinedConversion();
+
     internal MethodSymbol method {
         get {
             switch (_uncommonData) {

@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Buckle.CodeAnalysis.Binding;
@@ -193,7 +194,7 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
 
     internal new TemplateParameterSymbol FindEnclosingTemplateParameter(string name) {
         var allTemplateParameters = ArrayBuilder<TemplateParameterSymbol>.GetInstance();
-        GetAllTypeParameters(allTemplateParameters);
+        GetAllTemplateParameters(allTemplateParameters);
 
         TemplateParameterSymbol result = null;
 
@@ -253,21 +254,28 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
         var outer = containingType;
         outer?.GetAllTypeArguments(ref builder);
 
-        foreach (var argument in templateArguments)
+        foreach (var argument in templateArguments) {
+            Debug.Assert(argument.isType);
             builder.Add(argument.type.type);
+        }
     }
 
-    internal void GetAllTypeParameters(ArrayBuilder<TemplateParameterSymbol> result) {
-        containingType?.GetAllTypeParameters(result);
+    internal void GetAllTemplateArguments(ArrayBuilder<TypeOrConstant> builder) {
+        containingType?.GetAllTemplateArguments(builder);
+        builder.AddRange(templateArguments);
+    }
+
+    internal void GetAllTemplateParameters(ArrayBuilder<TemplateParameterSymbol> result) {
+        containingType?.GetAllTemplateParameters(result);
         result.AddRange(templateParameters);
     }
 
-    internal ImmutableArray<TemplateParameterSymbol> GetAllTypeParameters() {
+    internal ImmutableArray<TemplateParameterSymbol> GetAllTemplateParameters() {
         if (containingType is null)
             return templateParameters;
 
         var builder = ArrayBuilder<TemplateParameterSymbol>.GetInstance();
-        GetAllTypeParameters(builder);
+        GetAllTemplateParameters(builder);
         return builder.ToImmutableAndFree();
     }
 
@@ -341,7 +349,7 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
         }
 
         var allTypeArguments = ArrayBuilder<TypeOrConstant>.GetInstance();
-        GetAllTypeArguments(allTypeArguments);
+        GetAllTemplateArguments(allTypeArguments);
 
         var haveChanges = false;
 
@@ -411,13 +419,8 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
 
     internal NamedTypeSymbol WithTypeArguments(ImmutableArray<TypeOrConstant> allTypeArguments) {
         var definition = originalDefinition;
-        var substitution = new TemplateMap(definition.GetAllTypeParameters(), allTypeArguments);
+        var substitution = new TemplateMap(definition.GetAllTemplateParameters(), allTypeArguments);
         return substitution.SubstituteNamedType(definition);
-    }
-
-    internal void GetAllTypeArguments(ArrayBuilder<TypeOrConstant> builder) {
-        containingType?.GetAllTypeArguments(builder);
-        builder.AddRange(templateArguments);
     }
 
     internal NamedTypeSymbol AsUnboundTemplateType() {

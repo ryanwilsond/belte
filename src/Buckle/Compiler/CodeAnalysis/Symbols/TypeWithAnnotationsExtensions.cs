@@ -255,4 +255,8 @@ internal static class TypeWithAnnotationsExtensions {
                 : (type, null);
         }
     }
+
+    internal static bool HasType(this TypeWithAnnotations typeWithAnnotations) {
+        return typeWithAnnotations is not null && typeWithAnnotations.hasType;
+    }
 }
