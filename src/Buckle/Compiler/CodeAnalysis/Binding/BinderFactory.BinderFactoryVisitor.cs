@@ -166,7 +166,6 @@ internal sealed partial class BinderFactory {
             int position,
             bool inBody,
             bool inUsing) {
-
             var extraInfo = inUsing ? NodeUsage.NamespaceUsings : (inBody ? NodeUsage.NamespaceBody : NodeUsage.Normal);
             var key = CreateBinderCacheKey(parent, extraInfo);
 
@@ -614,16 +613,36 @@ internal sealed partial class BinderFactory {
                 return VisitCore(node.parent);
 
             var inBody = LookupPosition.IsInBody(_position, node);
-            var nodeUsage = inBody ? NodeUsage.OperatorBody : NodeUsage.Normal;
+
+            NodeUsage nodeUsage;
+
+            if (inBody)
+                nodeUsage = NodeUsage.OperatorBody;
+            else if (LookupPosition.IsInMethodTemplateParameterScope(_position, node))
+                nodeUsage = NodeUsage.OperatorTemplateParameters;
+            else
+                nodeUsage = NodeUsage.Normal;
+
             var key = CreateBinderCacheKey(node, nodeUsage);
+
+            var templateParameterListSyntax = node is ConversionDeclarationSyntax c ? c.templateParameterList : null;
 
             if (!_binderCache.TryGetValue(key, out var resultBinder)) {
                 resultBinder = VisitCore(node.parent);
 
-                var method = GetMethodSymbol(node, resultBinder);
+                SourceMemberMethodSymbol method = null;
 
-                if (method is not null && inBody)
+                if (nodeUsage != NodeUsage.Normal && templateParameterListSyntax is not null) {
+                    method = GetMethodSymbol(node, resultBinder);
+                    Debug.Assert(method is not null);
+                    resultBinder = new WithMethodTemplateParametersBinder(method, resultBinder);
+                }
+
+                if (nodeUsage == NodeUsage.OperatorBody) {
+                    method ??= GetMethodSymbol(node, resultBinder);
+                    Debug.Assert(method is not null);
                     resultBinder = new InMethodBinder(method, resultBinder);
+                }
 
                 _binderCache.TryAdd(key, resultBinder);
             }

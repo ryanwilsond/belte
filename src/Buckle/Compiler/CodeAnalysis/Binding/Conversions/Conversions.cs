@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
@@ -128,5 +129,71 @@ internal sealed class Conversions : ConversionsBase {
 
         resolution.Free();
         return hasErrors;
+    }
+
+    private protected override bool TryToConstructUserDefinedOperator(
+        MethodSymbol op,
+        BoundExpression argument,
+        TypeSymbol source,
+        TypeSymbol target,
+        out MethodSymbol result) {
+        var originalTemplateParameters = op.templateParameters;
+
+        var ordinals = op.MakeAdjustedTemplateParameterOrdinalsIfNeeded(originalTemplateParameters);
+
+        var inferenceResult = MethodTypeInferrer.Infer(
+            _binder,
+            this,
+            originalTemplateParameters,
+            op.containingType,
+            [new TypeWithAnnotations(source)],
+            [RefKind.None],
+            [new BoundExpressionOrTypeOrConstant(argument)],
+            formalReturnType: op.returnType,
+            returnTargetType: target,
+            ordinals: ordinals
+        );
+
+        if (inferenceResult.success) {
+            result = op.Construct(inferenceResult.inferredTypeArguments);
+
+            var impliedConstraints = _binder.GetEnclosingTemplateConstraints();
+
+            var _ = BelteDiagnosticQueue.GetInstance();
+            result.parameters[0].type.CheckAllConstraints(
+                this,
+                result.parameters[0].location,
+                impliedConstraints,
+                _
+            );
+
+            if (_.Any()) {
+                _.Free();
+                result = null;
+                return false;
+            }
+
+            var constraintsSatisfied = ConstraintsHelpers.CheckMethodConstraints(
+                result,
+                this,
+                argument.syntax.location,
+                impliedConstraints,
+                _
+            );
+
+            Debug.Assert(constraintsSatisfied != _.Any());
+
+            if (_.Any()) {
+                _.Free();
+                result = null;
+                return false;
+            }
+
+            _.Free();
+            return true;
+        }
+
+        result = null;
+        return false;
     }
 }

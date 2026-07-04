@@ -236,6 +236,10 @@ internal sealed class LambdaSymbol : SourceMethodSymbol {
         return [];
     }
 
+    internal override ImmutableArray<BoundExpression> GetTemplateConstraints() {
+        return [];
+    }
+
     internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
         throw ExceptionUtilities.Unreachable();
     }

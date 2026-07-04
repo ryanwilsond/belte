@@ -1,7 +1,6 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 
@@ -50,8 +49,16 @@ internal sealed class SourceStateMethodSymbol : SourceMemberMethodSymbol {
         BelteDiagnosticQueue diagnostics) {
         base.AfterAddingTypeMembersChecks(conversions, diagnostics);
 
-        foreach (var parameter in parameters)
-            parameter.type.CheckAllConstraints(conversions, parameter.syntaxReference.location, diagnostics);
+        var impliedConstraints = GetEnclosingTemplateConstraints();
+
+        foreach (var parameter in parameters) {
+            parameter.type.CheckAllConstraints(
+                conversions,
+                parameter.syntaxReference.location,
+                impliedConstraints,
+                diagnostics
+            );
+        }
     }
 
     internal sealed override ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes() {
@@ -59,6 +66,10 @@ internal sealed class SourceStateMethodSymbol : SourceMemberMethodSymbol {
     }
 
     internal sealed override ImmutableArray<TypeParameterConstraintKinds> GetTypeParameterConstraintKinds() {
+        return [];
+    }
+
+    internal sealed override ImmutableArray<BoundExpression> GetTemplateConstraints() {
         return [];
     }
 

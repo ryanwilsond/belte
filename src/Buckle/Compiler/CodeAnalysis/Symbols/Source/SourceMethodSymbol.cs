@@ -44,6 +44,8 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
 
     internal abstract ImmutableArray<TypeParameterConstraintKinds> GetTypeParameterConstraintKinds();
 
+    internal abstract ImmutableArray<BoundExpression> GetTemplateConstraints();
+
     // internal sealed override bool hasUnscopedRefAttribute => GetDecodedWellKnownAttributeData()?.hasUnscopedRefAttribute == true;
     internal sealed override bool hasUnscopedRefAttribute => false;
 

@@ -52,6 +52,10 @@ internal sealed class SourceFinalizerSymbol : SourceMemberMethodSymbol {
         return [];
     }
 
+    internal sealed override ImmutableArray<BoundExpression> GetTemplateConstraints() {
+        return [];
+    }
+
     private protected override void MethodChecks(BelteDiagnosticQueue diagnostics) {
         _lazyReturnType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void));
     }

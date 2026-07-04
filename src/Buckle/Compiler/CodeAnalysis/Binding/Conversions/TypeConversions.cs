@@ -21,4 +21,14 @@ internal sealed class TypeConversions : ConversionsBase {
     internal override Conversion GetMethodGroupConversion(BoundMethodGroup source, TypeSymbol destination) {
         throw ExceptionUtilities.Unreachable();
     }
+
+    private protected override bool TryToConstructUserDefinedOperator(
+        MethodSymbol op,
+        BoundExpression argument,
+        TypeSymbol source,
+        TypeSymbol target,
+        out MethodSymbol result) {
+        result = null;
+        return false;
+    }
 }

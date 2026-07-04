@@ -19,6 +19,8 @@ internal partial struct MethodTypeInferrer {
     private readonly ImmutableArray<TypeWithAnnotations> _formalParameterTypes;
     private readonly ImmutableArray<RefKind> _formalParameterRefKinds;
     private readonly ImmutableArray<BoundExpressionOrTypeOrConstant> _arguments;
+    private readonly TypeSymbol _formalReturnType;
+    private readonly TypeSymbol _returnTargetType;
     private readonly Extensions _extensions;
 
     private readonly Dictionary<TemplateParameterSymbol, int> _ordinals;
@@ -31,7 +33,7 @@ internal partial struct MethodTypeInferrer {
     private Dependency[,] _dependencies;
     private bool _dependenciesDirty;
 
-    private readonly int NumberArgumentsToProcess => System.Math.Min(_arguments.Length, _formalParameterTypes.Length);
+    private readonly int NumberArgumentsToProcess => Math.Min(_arguments.Length, _formalParameterTypes.Length);
 
     private MethodTypeInferrer(
         Compilation compilation,
@@ -41,6 +43,8 @@ internal partial struct MethodTypeInferrer {
         ImmutableArray<TypeWithAnnotations> formalParameterTypes,
         ImmutableArray<RefKind> formalParameterRefKinds,
         ImmutableArray<BoundExpressionOrTypeOrConstant> arguments,
+        TypeSymbol formatReturnType,
+        TypeSymbol returnTargetType,
         Extensions extensions,
         Dictionary<TemplateParameterSymbol, int>? ordinals) {
         _compilation = compilation;
@@ -51,6 +55,8 @@ internal partial struct MethodTypeInferrer {
         _formalParameterRefKinds = formalParameterRefKinds;
         _arguments = arguments;
         _extensions = extensions ?? Extensions.Default;
+        _returnTargetType = returnTargetType;
+        _formalReturnType = formatReturnType;
 
         Debug.Assert(ordinals is null || ordinals.Values.Count() == ordinals.Values.Distinct().Count());
         Debug.Assert(ordinals is null || methodTemplateParameters.All(tp => ordinals.ContainsKey(tp)));
@@ -73,6 +79,8 @@ internal partial struct MethodTypeInferrer {
         ImmutableArray<TypeWithAnnotations> formalParameterTypes,
         ImmutableArray<RefKind> formalParameterRefKinds,
         ImmutableArray<BoundExpressionOrTypeOrConstant> arguments,
+        TypeSymbol formalReturnType,
+        TypeSymbol returnTargetType = null,
         Dictionary<TemplateParameterSymbol, int> ordinals = null) {
         if (formalParameterTypes.Length == 0) {
             Debug.Assert(methodTypeParameters.Length > 0);
@@ -112,6 +120,8 @@ internal partial struct MethodTypeInferrer {
             formalParameterTypes,
             formalParameterRefKinds,
             arguments,
+            formalReturnType,
+            returnTargetType,
             extensions: null,
             ordinals
         );
@@ -129,6 +139,7 @@ internal partial struct MethodTypeInferrer {
     private void InferTemplateArgsFirstPhase(Binder binder) {
         Debug.Assert(!_formalParameterTypes.IsDefault);
         Debug.Assert(!_arguments.IsDefault);
+        Debug.Assert(_formalReturnType is not null);
 
         for (int arg = 0, length = NumberArgumentsToProcess; arg < length; arg++) {
             var argument = _arguments[arg];
@@ -139,6 +150,9 @@ internal partial struct MethodTypeInferrer {
 
             MakeExplicitParameterTypeInferences(binder, argument, target, kind);
         }
+
+        if (_returnTargetType is not null)
+            MakeReturnTypeInferences(binder, _returnTargetType, _formalReturnType, ExactOrBoundsKind.LowerBound);
     }
 
     private RefKind GetRefKind(int index) {
@@ -154,11 +168,16 @@ internal partial struct MethodTypeInferrer {
         if (argument.isExpression) {
             MakeExplicitParameterTypeInferences(binder, argument.expression, target, kind);
         } else {
-            // TODO
+            // TODO Is this even reachable? This would have to be overload resolution of non-expression args (i.e. templates?)
             // if (argument.typeOrConstant.isType) {
             // } else {
             // }
         }
+    }
+
+    private void MakeReturnTypeInferences(Binder binder, TypeSymbol source, TypeSymbol target, ExactOrBoundsKind kind) {
+        if (IsReallyAType(target))
+            ExactOrBoundsInference(kind, new TypeOrConstant(source), new TypeWithAnnotations(target));
     }
 
     private void MakeExplicitParameterTypeInferences(
@@ -174,9 +193,9 @@ internal partial struct MethodTypeInferrer {
         } else if (argument.kind != BoundKind.TupleLiteral ||
             !MakeExplicitParameterTypeInferences(binder, (BoundTupleLiteral)argument, target, kind)) {
             var argumentType = _extensions.GetTypeWithAnnotations(argument);
-            if (IsReallyAType(argumentType.type)) {
-                ExactOrBoundsInference(kind, argumentType, target);
-            }
+            if (IsReallyAType(argumentType.type))
+                ExactOrBoundsInference(kind, new TypeOrConstant(argumentType), target);
+
             // } else if (IsUnfixedTypeParameter(target) && !target.nullableAnnotation.IsAnnotated() && kind is ExactOrBoundsKind.LowerBound) {
             //     var ordinal = GetOrdinal((TypeParameterSymbol)target.Type);
             //     _nullableAnnotationLowerBounds[ordinal] = _nullableAnnotationLowerBounds[ordinal].Join(argumentType.NullableAnnotation);
@@ -185,15 +204,15 @@ internal partial struct MethodTypeInferrer {
     }
 
     private void ExactOrBoundsInference(ExactOrBoundsKind kind, TypeOrConstant source, TypeOrConstant target) {
-        if (source.isType && target.isType)
-            ExactOrBoundsInference(kind, source.type, target.type);
+        if (target.isType)
+            ExactOrBoundsInference(kind, source, target.type);
 
-        // TODO isConstant
+        // TODO Any other cases here?
     }
 
     private void ExactOrBoundsInference(
         ExactOrBoundsKind kind,
-        TypeWithAnnotations source,
+        TypeOrConstant source,
         TypeWithAnnotations target) {
         switch (kind) {
             case ExactOrBoundsKind.Exact:
@@ -266,14 +285,14 @@ internal partial struct MethodTypeInferrer {
     }
 
     private void ExactInference(TypeOrConstant source, TypeOrConstant target) {
-        if (source.isType && target.isType)
-            ExactInference(source.type, target.type);
+        if (target.isType)
+            ExactInference(source, target.type);
 
-        // TODO
+        // TODO Any other cases?
     }
 
-    private void ExactInference(TypeWithAnnotations source, TypeWithAnnotations target) {
-        Debug.Assert(source.HasType());
+    private void ExactInference(TypeOrConstant source, TypeWithAnnotations target) {
+        Debug.Assert(source.HasTypeOrConstant());
         Debug.Assert(target.HasType());
 
         if (ExactNullableInference(source, target))
@@ -295,12 +314,12 @@ internal partial struct MethodTypeInferrer {
             return;
     }
 
-    private bool ExactNullableInference(TypeWithAnnotations source, TypeWithAnnotations target) {
+    private bool ExactNullableInference(TypeOrConstant source, TypeWithAnnotations target) {
         return ExactOrBoundsNullableInference(ExactOrBoundsKind.Exact, source, target);
     }
 
-    private bool ExactTemplateParameterInference(TypeWithAnnotations source, TypeWithAnnotations target) {
-        Debug.Assert(source.HasType());
+    private bool ExactTemplateParameterInference(TypeOrConstant source, TypeWithAnnotations target) {
+        Debug.Assert(source.HasTypeOrConstant());
         Debug.Assert(target.HasType());
 
         if (IsUnfixedTemplateParameter(target)) {
@@ -312,7 +331,7 @@ internal partial struct MethodTypeInferrer {
     }
 
     private void AddBound(
-        TypeWithAnnotations addedBound,
+        TypeOrConstant addedBound,
         HashSet<TypeOrConstant>[] collectedBounds,
         TypeWithAnnotations methodTypeParameterWithAnnotations) {
         Debug.Assert(IsUnfixedTemplateParameter(methodTypeParameterWithAnnotations));
@@ -326,20 +345,20 @@ internal partial struct MethodTypeInferrer {
             );
         }
 
-        collectedBounds[methodTypeParameterIndex].Add(new TypeOrConstant(addedBound));
+        collectedBounds[methodTypeParameterIndex].Add(addedBound);
     }
 
     private bool ExactOrBoundsNullableInference(
         ExactOrBoundsKind kind,
-        TypeWithAnnotations source,
+        TypeOrConstant source,
         TypeWithAnnotations target) {
-        Debug.Assert(source.HasType());
+        Debug.Assert(source.HasTypeOrConstant());
         Debug.Assert(target.HasType());
 
-        if (source.IsNullableType() && target.IsNullableType()) {
+        if (source.isType && source.type.IsNullableType() && target.IsNullableType()) {
             ExactOrBoundsInference(
                 kind,
-                ((NamedTypeSymbol)source.type).templateArguments[0],
+                ((NamedTypeSymbol)source.type.type).templateArguments[0],
                 ((NamedTypeSymbol)target.type).templateArguments[0]
             );
 
@@ -397,30 +416,34 @@ internal partial struct MethodTypeInferrer {
         return !_fixedResults[methodTypeParameterIndex].Type.HasTypeOrConstant();
     }
 
-    private bool ExactArrayInference(TypeWithAnnotations source, TypeWithAnnotations target) {
-        Debug.Assert(source.HasType());
+    private bool ExactArrayInference(TypeOrConstant source, TypeWithAnnotations target) {
+        Debug.Assert(source.HasTypeOrConstant());
         Debug.Assert(target.HasType());
 
-        if (!source.type.IsArray() || !target.type.IsArray())
+        if (!(source.isType && source.type.type.IsArray()) || !target.type.IsArray())
             return false;
 
-        var arraySource = (ArrayTypeSymbol)source.type;
+        var arraySource = (ArrayTypeSymbol)source.type.type;
         var arrayTarget = (ArrayTypeSymbol)target.type;
 
         if (!arraySource.HasSameShapeAs(arrayTarget))
             return false;
 
-        ExactInference(arraySource.elementTypeWithAnnotations, arrayTarget.elementTypeWithAnnotations);
+        ExactInference(
+            new TypeOrConstant(arraySource.elementTypeWithAnnotations),
+            arrayTarget.elementTypeWithAnnotations
+        );
+
         return true;
     }
 
     private bool ExactConstructedInference(
-        TypeWithAnnotations source,
+        TypeOrConstant source,
         TypeWithAnnotations target) {
-        Debug.Assert(source.HasType());
+        Debug.Assert(source.HasTypeOrConstant());
         Debug.Assert(target.HasType());
 
-        if (source.type is not NamedTypeSymbol namedSource)
+        if (!source.isType || source.type.type is not NamedTypeSymbol namedSource)
             return false;
 
         if (target.type is not NamedTypeSymbol namedTarget)
@@ -437,13 +460,13 @@ internal partial struct MethodTypeInferrer {
         return true;
     }
 
-    private bool ExactPointerInference(TypeWithAnnotations source, TypeWithAnnotations target) {
-        if (source.typeKind == TypeKind.Pointer && target.typeKind == TypeKind.Pointer) {
+    private bool ExactPointerInference(TypeOrConstant source, TypeWithAnnotations target) {
+        if (source.isType && source.type.typeKind == TypeKind.Pointer && target.typeKind == TypeKind.Pointer) {
 
             throw ExceptionUtilities.Unreachable();
             // ExactInference(((PointerTypeSymbol)source.Type).PointedAtTypeWithAnnotations, ((PointerTypeSymbol)target.Type).PointedAtTypeWithAnnotations, ref useSiteInfo);
             // return true;
-        } else if (source.type is FunctionPointerTypeSymbol { signature: { parameterCount: int sourceParameterCount } sourceSignature } &&
+        } else if (source.isType && source.type.type is FunctionPointerTypeSymbol { signature: { parameterCount: int sourceParameterCount } sourceSignature } &&
                    target.type is FunctionPointerTypeSymbol { signature: { parameterCount: int targetParameterCount } targetSignature } &&
                    sourceParameterCount == targetParameterCount) {
 
@@ -484,14 +507,14 @@ internal partial struct MethodTypeInferrer {
     }
 
     private void LowerBoundInference(TypeOrConstant source, TypeOrConstant target) {
-        if (source.isType && target.isType)
-            LowerBoundInference(source.type, target.type);
+        if (target.isType)
+            LowerBoundInference(source, target.type);
 
-        // TODO
+        // TODO Any other cases here?
     }
 
-    private void LowerBoundInference(TypeWithAnnotations source, TypeWithAnnotations target) {
-        Debug.Assert(source.HasType());
+    private void LowerBoundInference(TypeOrConstant source, TypeWithAnnotations target) {
+        Debug.Assert(source.HasTypeOrConstant());
         Debug.Assert(target.HasType());
 
         if (LowerBoundNullableInference(source, target))
@@ -500,7 +523,7 @@ internal partial struct MethodTypeInferrer {
         if (LowerBoundTemplateParameterInference(source, target))
             return;
 
-        if (LowerBoundArrayInference(source.type, target.type))
+        if (source.isType && LowerBoundArrayInference(source.type.type, target.type))
             return;
 
         // if (LowerBoundSpanInference(source.type, target.type))
@@ -513,19 +536,19 @@ internal partial struct MethodTypeInferrer {
         if (LowerBoundTupleInference(source, target))
             return;
 
-        if (LowerBoundConstructedInference(source.type, target.type))
+        if (source.isType && LowerBoundConstructedInference(source.type.type, target.type))
             return;
 
-        if (LowerBoundFunctionPointerTypeInference(source.type, target.type))
+        if (source.isType && LowerBoundFunctionPointerTypeInference(source.type.type, target.type))
             return;
     }
 
-    private bool LowerBoundNullableInference(TypeWithAnnotations source, TypeWithAnnotations target) {
+    private bool LowerBoundNullableInference(TypeOrConstant source, TypeWithAnnotations target) {
         return ExactOrBoundsNullableInference(ExactOrBoundsKind.LowerBound, source, target);
     }
 
-    private bool LowerBoundTemplateParameterInference(TypeWithAnnotations source, TypeWithAnnotations target) {
-        Debug.Assert(source.HasType());
+    private bool LowerBoundTemplateParameterInference(TypeOrConstant source, TypeWithAnnotations target) {
+        Debug.Assert(source.HasTypeOrConstant());
         Debug.Assert(target.HasType());
 
         if (IsUnfixedTemplateParameter(target)) {
@@ -544,13 +567,13 @@ internal partial struct MethodTypeInferrer {
             return false;
 
         var arraySource = (ArrayTypeSymbol)source;
-        var elementSource = arraySource.elementTypeWithAnnotations;
+        var elementSource = new TypeOrConstant(arraySource.elementTypeWithAnnotations);
         var elementTarget = GetMatchingElementType(arraySource, target);
 
         if (!elementTarget.HasType())
             return false;
 
-        if (elementSource.type.isReferenceType)
+        if (elementSource.type.type.isReferenceType)
             LowerBoundInference(elementSource, elementTarget);
         else
             ExactInference(elementSource, elementTarget);
@@ -583,11 +606,12 @@ internal partial struct MethodTypeInferrer {
         return ((NamedTypeSymbol)target).templateArguments[0].type;
     }
 
-    private bool LowerBoundTupleInference(TypeWithAnnotations source, TypeWithAnnotations target) {
-        Debug.Assert(source.HasType());
+    private bool LowerBoundTupleInference(TypeOrConstant source, TypeWithAnnotations target) {
+        Debug.Assert(source.HasTypeOrConstant());
         Debug.Assert(target.HasType());
 
-        if (!source.type.TryGetElementTypesWithAnnotationsIfTupleType(out var sourceTypes) ||
+        if (!source.isType ||
+            !source.type.type.TryGetElementTypesWithAnnotationsIfTupleType(out var sourceTypes) ||
             !target.type.TryGetElementTypesWithAnnotationsIfTupleType(out var targetTypes) ||
             sourceTypes.Length != targetTypes.Length) {
             return false;
@@ -794,8 +818,8 @@ internal partial struct MethodTypeInferrer {
         // return true;
     }
 
-    private void UpperBoundInference(TypeWithAnnotations source, TypeWithAnnotations target) {
-        Debug.Assert(source.HasType());
+    private void UpperBoundInference(TypeOrConstant source, TypeWithAnnotations target) {
+        Debug.Assert(source.HasTypeOrConstant());
         Debug.Assert(target.HasType());
 
         if (UpperBoundNullableInference(source, target))
@@ -807,21 +831,21 @@ internal partial struct MethodTypeInferrer {
         if (UpperBoundArrayInference(source, target))
             return;
 
-        Debug.Assert(source.type.isReferenceType || source.type is FunctionPointerTypeSymbol);
+        Debug.Assert(source.isType && (source.type.type.isReferenceType || source.type.type is FunctionPointerTypeSymbol));
 
         if (UpperBoundConstructedInference(source, target))
             return;
 
-        if (UpperBoundFunctionPointerTypeInference(source.type, target.type))
+        if (source.isType && UpperBoundFunctionPointerTypeInference(source.type.type, target.type))
             return;
     }
 
-    private bool UpperBoundNullableInference(TypeWithAnnotations source, TypeWithAnnotations target) {
+    private bool UpperBoundNullableInference(TypeOrConstant source, TypeWithAnnotations target) {
         return ExactOrBoundsNullableInference(ExactOrBoundsKind.UpperBound, source, target);
     }
 
-    private bool UpperBoundTemplateParameterInference(TypeWithAnnotations source, TypeWithAnnotations target) {
-        Debug.Assert(source.HasType());
+    private bool UpperBoundTemplateParameterInference(TypeOrConstant source, TypeWithAnnotations target) {
+        Debug.Assert(source.HasTypeOrConstant());
         Debug.Assert(target.HasType());
 
         if (IsUnfixedTemplateParameter(target)) {
@@ -832,21 +856,21 @@ internal partial struct MethodTypeInferrer {
         return false;
     }
 
-    private bool UpperBoundArrayInference(TypeWithAnnotations source, TypeWithAnnotations target) {
-        Debug.Assert(source.HasType());
+    private bool UpperBoundArrayInference(TypeOrConstant source, TypeWithAnnotations target) {
+        Debug.Assert(source.HasTypeOrConstant());
         Debug.Assert(target.HasType());
 
-        if (!target.type.IsArray())
+        if (!target.type.IsArray() || !source.isType)
             return false;
 
         var arrayTarget = (ArrayTypeSymbol)target.type;
         var elementTarget = arrayTarget.elementTypeWithAnnotations;
-        var elementSource = GetMatchingElementType(arrayTarget, source.type);
+        var elementSource = new TypeOrConstant(GetMatchingElementType(arrayTarget, source.type.type));
 
-        if (!elementSource.HasType())
+        if (!elementSource.HasTypeOrConstant())
             return false;
 
-        if (elementSource.type.isReferenceType)
+        if (elementSource.type.type.isReferenceType)
             UpperBoundInference(elementSource, elementTarget);
         else
             ExactInference(elementSource, elementTarget);
@@ -855,14 +879,14 @@ internal partial struct MethodTypeInferrer {
     }
 
     private bool UpperBoundConstructedInference(
-        TypeWithAnnotations sourceWithAnnotations,
+        TypeOrConstant sourceTypeOrConstant,
         TypeWithAnnotations targetWithAnnotations) {
-        Debug.Assert(sourceWithAnnotations.HasType());
+        Debug.Assert(sourceTypeOrConstant.HasTypeOrConstant());
         Debug.Assert(targetWithAnnotations.HasType());
-        var source = sourceWithAnnotations.type;
+        var source = sourceTypeOrConstant.type;
         var target = targetWithAnnotations.type;
 
-        if (source is not NamedTypeSymbol constructedSource)
+        if (source?.type is not NamedTypeSymbol constructedSource)
             return false;
 
         if (constructedSource.AllTemplateArgumentsCount() == 0)
@@ -1311,6 +1335,11 @@ internal partial struct MethodTypeInferrer {
             var formalType = _formalParameterTypes[arg];
             var argument = _arguments[arg];
             MakeOutputTypeInferences(binder, argument, formalType);
+        }
+
+        if (_returnTargetType is not null) {
+            var argument = new BoundValuePlaceholder(null, _returnTargetType);
+            MakeOutputTypeInferences(binder, argument, new TypeWithAnnotations(_formalReturnType));
         }
     }
 
@@ -1773,7 +1802,7 @@ OuterBreak:
         var sourceType = _extensions.GetTypeWithAnnotations(expression);
 
         if (sourceType.HasType())
-            LowerBoundInference(sourceType, target);
+            LowerBoundInference(new TypeOrConstant(sourceType), target);
     }
 
     private bool InferredReturnTypeInference(BoundExpression source, TypeWithAnnotations target) {
@@ -1795,7 +1824,7 @@ OuterBreak:
 
         Debug.Assert(inferredReturnType.type is not FunctionTypeSymbol);
 
-        LowerBoundInference(inferredReturnType, returnType);
+        LowerBoundInference(new TypeOrConstant(inferredReturnType), returnType);
         return true;
     }
 
@@ -1850,7 +1879,7 @@ OuterBreak:
         if (returnType is null || returnType.IsVoidType())
             return false;
 
-        LowerBoundInference(returnType, sourceReturnType);
+        LowerBoundInference(new TypeOrConstant(returnType), sourceReturnType);
         return true;
     }
 

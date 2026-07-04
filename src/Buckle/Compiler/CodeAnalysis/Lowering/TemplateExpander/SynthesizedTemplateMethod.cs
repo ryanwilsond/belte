@@ -19,6 +19,7 @@ internal sealed class SynthesizedTemplateMethod : WrappedMethodSymbol, ISynthesi
     private int _hashCode;
 
     internal SynthesizedTemplateMethod(
+        TemplateExpander templateExpander,
         Symbol containingSymbol,
         ConstructedMethodSymbol originalMethod)
         : base(originalMethod.constructedFrom) {
@@ -59,14 +60,22 @@ internal sealed class SynthesizedTemplateMethod : WrappedMethodSymbol, ISynthesi
 
         this.containingSymbol = containingSymbol;
 
-        _returnType = TemplateTypeReplacer<TemplateParameterSymbol, TemplateParameterSymbol, TemplateParameterSymbol>
-            .Replace(originalMethod.returnTypeWithAnnotations, _replacementTemplateParameters);
+        _returnType = templateExpander.SubstituteType(
+            originalMethod.returnTypeWithAnnotations,
+            this,
+            originalMethod,
+            originalMethod.location
+        );
 
         var builder = ArrayBuilder<ParameterSymbol>.GetInstance(originalMethod.parameterCount);
 
         foreach (var parameter in originalMethod.parameters) {
-            var newType = TemplateTypeReplacer<TemplateParameterSymbol, TemplateParameterSymbol, TemplateParameterSymbol>
-                .Replace(parameter.typeWithAnnotations, _replacementTemplateParameters);
+            var newType = templateExpander.SubstituteType(
+                parameter.typeWithAnnotations,
+                this,
+                parameter,
+                parameter.location
+            );
 
             builder.Add(new TypeSubstitutedParameterSymbol(parameter, newType));
         }

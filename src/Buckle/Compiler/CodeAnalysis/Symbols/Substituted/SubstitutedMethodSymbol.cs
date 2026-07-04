@@ -16,6 +16,7 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
     private MethodSymbol _lazyReverseMethod;
     private MethodSymbol _lazyStateMethod;
     private TemplateMap _lazyMap;
+    private ImmutableArray<BoundExpression> _lazyTemplateConstraints;
     private ImmutableArray<TemplateParameterSymbol> _lazyTemplateParameters;
     private ImmutableArray<MethodSymbol> _lazyExplicitInterfaceImplementations;
     private OverriddenOrHiddenMembersResult _lazyOverriddenOrHiddenMembers;
@@ -59,8 +60,12 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
         }
     }
 
-    // TODO this should be something
-    public sealed override ImmutableArray<BoundExpression> templateConstraints => [];
+    public sealed override ImmutableArray<BoundExpression> templateConstraints {
+        get {
+            EnsureMapAndTemplateParameters();
+            return _lazyTemplateConstraints;
+        }
+    }
 
     public override ImmutableArray<TypeOrConstant> templateArguments => GetTemplateParametersAsTemplateArguments();
 
@@ -193,6 +198,13 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
             typeParameters = previousMap.SubstituteTemplateParameters(originalDefinition.templateParameters);
 
         ImmutableInterlocked.InterlockedCompareExchange(ref _lazyTemplateParameters, typeParameters, default);
+
+        // TODO Need to substitute at all?
+        ImmutableInterlocked.InterlockedCompareExchange(
+            ref _lazyTemplateConstraints,
+            originalDefinition.templateConstraints,
+            default
+        );
     }
 
     private ImmutableArray<ParameterSymbol> SubstituteParameters() {

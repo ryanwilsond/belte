@@ -51,7 +51,11 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
     }
 
     internal override void AfterAddingTypeMembersChecks(ConversionsBase conversions, BelteDiagnosticQueue diagnostics) {
-        type.UnderlyingTemplateTypeOrSelf().CheckAllConstraints(conversions, errorLocation, diagnostics);
+        if (!isFixedSizeBuffer) {
+            type.UnderlyingTemplateTypeOrSelf()
+                .CheckAllConstraints(conversions, errorLocation, GetEnclosingTemplateConstraints(), diagnostics);
+        }
+
         base.AfterAddingTypeMembersChecks(conversions, diagnostics);
     }
 

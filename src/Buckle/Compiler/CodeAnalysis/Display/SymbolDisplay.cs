@@ -642,13 +642,15 @@ public static class SymbolDisplay {
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeParameters) != 0) {
             text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
 
-            for (var i = 0; i < method.parameterCount; i++) {
-                if (i > 0) {
-                    text.Write(CreatePunctuation(SyntaxKind.CommaToken));
-                    text.Write(CreateSpace());
-                }
+            if (!method.parameters.IsDefault) {
+                for (var i = 0; i < method.parameterCount; i++) {
+                    if (i > 0) {
+                        text.Write(CreatePunctuation(SyntaxKind.CommaToken));
+                        text.Write(CreateSpace());
+                    }
 
-                DisplayParameter(text, method.parameters[i], format);
+                    DisplayParameter(text, method.parameters[i], format);
+                }
             }
 
             text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));

@@ -1200,27 +1200,40 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return (SyntaxFactory.ExplicitInterfaceSpecifier(name, period), actualIdentifier);
     }
 
-    private (ExplicitInterfaceSpecifierSyntax, SyntaxToken) ParseOperatorMemberName(SyntaxKind? nextWanted = null) {
+    private (ExplicitInterfaceSpecifierSyntax, SyntaxToken) ParseOperatorMemberName(
+        SyntaxKind? nextWanted = null,
+        SyntaxKind? nextWantedAlternative = null) {
         if (currentToken.contextualKind == SyntaxKind.OperatorKeyword) {
             // Allow `operator.operator` where the first one is the interface name
             // Allow `operator<type>.operator` where the first one is the interface name
+            // Don't allow operator<type> operator as that is more likely a misshapen template
             if (Peek(1).kind == SyntaxKind.LessThanToken ||
                 (Peek(1).kind == SyntaxKind.PeriodToken && Peek(2).contextualKind == SyntaxKind.OperatorKeyword)) {
                 NameSyntax specifierIdentifier;
+                var resetPoint = GetResetPoint();
 
                 if (Peek(1).kind == SyntaxKind.PeriodToken)
                     specifierIdentifier = SyntaxFactory.IdentifierName(EatToken());
                 else
                     specifierIdentifier = ParseSimpleName();
 
-                var explicitInterfaceSpecifier = SyntaxFactory.ExplicitInterfaceSpecifier(
-                    specifierIdentifier,
-                    Match(SyntaxKind.PeriodToken)
-                );
+                if (currentToken.kind == SyntaxKind.PeriodToken) {
+                    var explicitInterfaceSpecifier = SyntaxFactory.ExplicitInterfaceSpecifier(
+                        specifierIdentifier,
+                        EatToken()
+                    );
 
-                var operatorKeyword = Match(SyntaxKind.OperatorKeyword, nextWanted, contextual: true);
+                    var operatorKeyword = Match(
+                        SyntaxKind.OperatorKeyword,
+                        nextWanted,
+                        nextWantedAlternative,
+                        contextual: true
+                    );
 
-                return (explicitInterfaceSpecifier, operatorKeyword);
+                    return (explicitInterfaceSpecifier, operatorKeyword);
+                } else {
+                    Reset(resetPoint);
+                }
             }
 
             return (null, ConvertToKeyword(EatToken()));
@@ -1403,9 +1416,22 @@ internal sealed partial class LanguageParser : SyntaxParser {
             contextual: true
         );
 
-        var (explicitInterfaceSpecifier, operatorKeyword) = ParseOperatorMemberName(SyntaxKind.IdentifierToken);
+        var (explicitInterfaceSpecifier, operatorKeyword) = ParseOperatorMemberName(
+            SyntaxKind.IdentifierToken,
+            SyntaxKind.LessThanToken
+        );
+
+        var templateParameterList = currentToken.kind == SyntaxKind.LessThanToken
+            ? ParseTemplateParameterList()
+            : null;
+
         var type = ParseType(false);
         var parameterList = ParseParameterList();
+
+        var constraintClauseList = currentToken.kind == SyntaxKind.WhereKeyword
+            ? ParseTemplateConstraintClauseList()
+            : null;
+
         var (body, semicolon) = ParseMethodBodyOrSemicolon();
 
         if (parameterList.parameters.Count != 1) {
@@ -1421,9 +1447,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
             implicitOrExplicitKeyword,
             explicitInterfaceSpecifier,
             operatorKeyword,
+            templateParameterList,
             type,
             parameterList,
             null,
+            constraintClauseList,
             body,
             semicolon
         );

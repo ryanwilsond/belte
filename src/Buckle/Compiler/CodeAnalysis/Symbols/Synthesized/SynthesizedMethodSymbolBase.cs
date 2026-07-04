@@ -62,6 +62,8 @@ internal abstract class SynthesizedMethodSymbolBase : SourceMemberMethodSymbol {
 
     internal sealed override ImmutableArray<TypeParameterConstraintKinds> GetTypeParameterConstraintKinds() => [];
 
+    internal sealed override ImmutableArray<BoundExpression> GetTemplateConstraints() => [];
+
     internal override int parameterCount => parameters.Length;
 
     internal sealed override ImmutableArray<ParameterSymbol> parameters {

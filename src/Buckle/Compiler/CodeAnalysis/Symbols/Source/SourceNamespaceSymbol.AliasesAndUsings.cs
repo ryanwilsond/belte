@@ -494,7 +494,7 @@ internal partial class SourceNamespaceSymbol {
                 if (target.isType) {
                     var typeSymbol = (TypeSymbol)target;
                     var location = usingDirective.namespaceOrType.location;
-                    typeSymbol.CheckAllConstraints(conversions, location, diagnostics);
+                    typeSymbol.CheckAllConstraints(conversions, location, [], diagnostics);
                 }
 
                 semanticDiagnostics.PushRange(diagnostics);

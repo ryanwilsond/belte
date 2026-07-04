@@ -28,14 +28,44 @@ internal static class LookupPosition {
         return block is not null && IsBeforeToken(position, block, block.closeBrace);
     }
 
-    internal static bool IsInMethodTemplateParameterScope(int position, MethodDeclarationSyntax node) {
+    internal static bool IsInMethodTemplateParameterScope(int position, BaseMethodDeclarationSyntax node) {
+        if (node.kind == SyntaxKind.MethodDeclaration)
+            return IsInMethodTemplateParameterScope(position, (MethodDeclarationSyntax)node);
+        else if (node.kind == SyntaxKind.ConversionDeclaration)
+            return IsInMethodTemplateParameterScope(position, (ConversionDeclarationSyntax)node);
+
+        return false;
+    }
+
+    private static bool IsInMethodTemplateParameterScope(int position, MethodDeclarationSyntax node) {
         if (node.templateParameterList is null)
             return false;
 
         if (node.returnType.fullSpan.Contains(position))
             return true;
 
-        var firstNameToken = node.identifier;
+        var explicitInterfaceSpecifier = node.explicitInterfaceSpecifier;
+        var firstNameToken = explicitInterfaceSpecifier is null
+            ? node.identifier
+            : explicitInterfaceSpecifier.GetFirstToken();
+
+        var firstPostNameToken = node.templateParameterList.openAngleBracket;
+
+        return !IsBetweenTokens(position, firstNameToken, firstPostNameToken);
+    }
+
+    private static bool IsInMethodTemplateParameterScope(int position, ConversionDeclarationSyntax node) {
+        if (node.templateParameterList is null)
+            return false;
+
+        if (node.type.fullSpan.Contains(position))
+            return true;
+
+        var explicitInterfaceSpecifier = node.explicitInterfaceSpecifier;
+        var firstNameToken = explicitInterfaceSpecifier is null
+            ? node.operatorKeyword
+            : explicitInterfaceSpecifier.GetFirstToken();
+
         var firstPostNameToken = node.templateParameterList.openAngleBracket;
 
         return !IsBetweenTokens(position, firstNameToken, firstPostNameToken);

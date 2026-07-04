@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
@@ -17,6 +18,8 @@ internal sealed partial class OverloadResolution {
     private const int BetterConversionTargetRecursionLimit = 100;
 
     private readonly Binder _binder;
+
+    private ImmutableArray<BoundExpression> _lazyImpliedConstraints;
 
     /// <summary>
     /// Creates an <see cref="OverloadResolution" />, uses a Binders diagnostics.
@@ -296,6 +299,7 @@ internal sealed partial class OverloadResolution {
         BoundExpression receiver,
         AnalyzedArguments arguments,
         OverloadResolutionResult<T> result,
+        TextLocation callErrorLocation,
         bool isMethodGroupConversion = false,
         RefKind returnRefKind = default,
         TypeSymbol returnType = null)
@@ -312,6 +316,7 @@ internal sealed partial class OverloadResolution {
             templateArguments,
             receiver,
             arguments,
+            callErrorLocation,
             completeResults: false,
             isMethodGroupConversion,
             returnRefKind,
@@ -328,6 +333,7 @@ internal sealed partial class OverloadResolution {
                 templateArguments,
                 receiver,
                 arguments,
+                callErrorLocation,
                 completeResults: true,
                 isMethodGroupConversion,
                 returnRefKind,
@@ -1256,6 +1262,7 @@ internal sealed partial class OverloadResolution {
         ArrayBuilder<TypeOrConstant> templateArguments,
         BoundExpression receiver,
         AnalyzedArguments arguments,
+        TextLocation callErrorLocation,
         bool completeResults,
         bool isMethodGroupConversion,
         RefKind returnRefKind,
@@ -1287,7 +1294,7 @@ internal sealed partial class OverloadResolution {
             RemoveLessDerivedMembers(results);
 
         RemoveStaticInstanceMismatches(results, arguments, receiver);
-        RemoveConstraintViolations(results);
+        RemoveConstraintViolations(results, callErrorLocation);
 
         if (isMethodGroupConversion)
             RemoveFunctionConversionsWithWrongReturnType(results, returnRefKind, returnType);
@@ -1326,22 +1333,64 @@ internal sealed partial class OverloadResolution {
         }
     }
 
-    private void RemoveConstraintViolations<TMember>(ArrayBuilder<MemberResolutionResult<TMember>> results)
+    private void RemoveConstraintViolations<TMember>(
+        ArrayBuilder<MemberResolutionResult<TMember>> results,
+        TextLocation location)
         where TMember : Symbol {
         if (typeof(TMember) != typeof(MethodSymbol))
             return;
 
-        // TODO template constraints
-        // for (var f = 0; f < results.Count; ++f) {
-        //     var result = results[f];
-        //     var member = (MethodSymbol)(Symbol)result.member;
+        for (var f = 0; f < results.Count; ++f) {
+            var result = results[f];
+            var member = (MethodSymbol)(Symbol)result.member;
 
-        //     if ((result.result.isValid || result.result.kind == MemberResolutionKind.ConstructedParameterFailedConstraintCheck) &&
-        //         FailsConstraintChecks(member, out ArrayBuilder<TypeParameterDiagnosticInfo> constraintFailureDiagnosticsOpt, template)) {
-        //         results[f] = result.WithResult(
-        //             MemberAnalysisResult.ConstraintFailure(constraintFailureDiagnosticsOpt.ToImmutableAndFree()));
-        //     }
+            if ((result.result.isValid || result.result.kind == MemberResolutionKind.ConstructedParameterFailedConstraintCheck) &&
+                FailsConstraintChecks(member, location, out var constraintFailureDiagnosticsOpt)) {
+                results[f] = result.WithResult(
+                    MemberAnalysisResult.ConstraintFailure(constraintFailureDiagnosticsOpt)
+                );
+            }
+        }
+    }
+
+    private bool FailsConstraintChecks<TMember>(
+        TMember member,
+        TextLocation location,
+        out BelteDiagnosticQueue diagnostics)
+        where TMember : Symbol {
+        var arity = member.GetMemberArity();
+
+        if (arity == 0 || member.originalDefinition == (object)member) {
+            diagnostics = null;
+            return false;
+        }
+
+        diagnostics = BelteDiagnosticQueue.GetInstance();
+
+        var constraintsSatisfied = true;
+
+        if (member is MethodSymbol method) {
+            constraintsSatisfied = ConstraintsHelpers.CheckMethodConstraints(
+                method,
+                conversions,
+                location,
+                GetEnclosingTemplateConstraints(),
+                diagnostics
+            );
+        }
+        // TODO Extensions
+        // else if (member.IsExtensionBlockMember() && member.ContainingType is { } extension && ConstraintsHelper.RequiresChecking(extension)) {
+        //     constraintsSatisfied = ConstraintsHelper.CheckConstraints(extension, in constraintsArgs,
+        //         extension.TypeSubstitution, extension.TypeParameters, extension.TypeArgumentsWithAnnotationsNoUseSiteDiagnostics,
+        //         diagnosticsBuilder, nullabilityDiagnosticsBuilderOpt: null, ref useSiteDiagnosticsBuilder);
         // }
+
+        if (!constraintsSatisfied)
+            return true;
+
+        diagnostics.Free();
+        diagnostics = null;
+        return false;
     }
 
     private void RemoveStaticInstanceMismatches<TMember>(
@@ -2472,10 +2521,11 @@ internal sealed partial class OverloadResolution {
 
             var parameterTypes = leastOverriddenMember.GetParameterTypes();
             var parameters = leastOverriddenMember.GetParameters();
+            var impliedConstraints = GetEnclosingTemplateConstraints();
 
             for (var i = 0; i < parameterTypes.Length; i++) {
                 var _ = BelteDiagnosticQueue.GetInstance();
-                parameterTypes[i].type.CheckAllConstraints(conversions, parameters[i].location, _);
+                parameterTypes[i].type.CheckAllConstraints(conversions, parameters[i].location, impliedConstraints, _);
 
                 if (_.Any()) {
                     _.Free();
@@ -2520,6 +2570,13 @@ internal sealed partial class OverloadResolution {
         );
     }
 
+    private ImmutableArray<BoundExpression> GetEnclosingTemplateConstraints() {
+        if (_lazyImpliedConstraints.IsDefault)
+            _lazyImpliedConstraints = _binder.GetEnclosingTemplateConstraints();
+
+        return _lazyImpliedConstraints;
+    }
+
     private ImmutableArray<TypeOrConstant> InferMethodTypeArguments(
         MethodSymbol method,
         ImmutableArray<TemplateParameterSymbol> originalTemplateParameters,
@@ -2539,6 +2596,8 @@ internal sealed partial class OverloadResolution {
             originalEffectiveParameters.parameterTypes,
             originalEffectiveParameters.parameterRefKinds,
             args,
+            method.returnType,
+            returnTargetType: null,
             ordinals: ordinals
         );
 

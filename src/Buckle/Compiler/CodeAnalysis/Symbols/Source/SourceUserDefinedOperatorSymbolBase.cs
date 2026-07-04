@@ -81,21 +81,27 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
 
     public sealed override string name { get; }
 
-    public sealed override ImmutableArray<TemplateParameterSymbol> templateParameters => [];
+    public override ImmutableArray<TemplateParameterSymbol> templateParameters => [];
 
-    public sealed override ImmutableArray<BoundExpression> templateConstraints => [];
+    public override ImmutableArray<BoundExpression> templateConstraints => [];
 
     private protected sealed override TypeSymbol _explicitInterfaceType => _fieldExplicitInterfaceType;
 
-    internal sealed override ImmutableArray<TypeParameterConstraintKinds> GetTypeParameterConstraintKinds() {
+    internal override ImmutableArray<TypeParameterConstraintKinds> GetTypeParameterConstraintKinds() {
         return [];
     }
 
-    internal sealed override ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes() {
+    internal override ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes() {
+        return [];
+    }
+
+    internal override ImmutableArray<BoundExpression> GetTemplateConstraints() {
         return [];
     }
 
     private protected override void MethodChecks(BelteDiagnosticQueue diagnostics) {
+        _ = GetTemplateConstraints();
+
         var (returnType, parameters) = MakeParametersAndBindReturnType(diagnostics);
 
         MethodChecks(returnType, parameters, diagnostics);

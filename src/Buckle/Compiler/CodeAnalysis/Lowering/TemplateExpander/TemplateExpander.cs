@@ -1,4 +1,3 @@
-using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -116,7 +115,7 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
         return newBody != body;
     }
 
-    internal void ResolveTemplates(ConcurrentDictionary<MethodSymbol, BoundBlockStatement> methodBodies) {
+    internal void ResolveTemplates(ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies) {
         // These are only used by the initial method pass
         _currentMethod = null;
         _replacementMethod = null;
@@ -139,7 +138,7 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
 
     private void ResolveTemplateMethod(
         SynthesizedTemplateMethod templateMethod,
-        ConcurrentDictionary<MethodSymbol, BoundBlockStatement> methodBodies) {
+        ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies) {
         Debug.Assert(_inResolutionStage);
         var originalDefinition = templateMethod.unexpandedSymbol.originalDefinition;
 
@@ -154,7 +153,7 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
 
     private void ResolveTemplateType(
         SynthesizedTemplateType templateType,
-        ConcurrentDictionary<MethodSymbol, BoundBlockStatement> methodBodies) {
+        ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies) {
         Debug.Assert(_inResolutionStage);
         var originalDefinition = templateType.unexpandedSymbol.originalDefinition;
 
@@ -317,7 +316,10 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
 
         MethodSymbol ConstructIfApplicable(MethodSymbol synthesizedMethod) {
             if (newOwner is ConstructedNamedTypeSymbol)
-                return synthesizedMethod.AsMember(newOwner);
+                synthesizedMethod = synthesizedMethod.AsMember(newOwner);
+
+            if (method is ConstructedMethodSymbol)
+                synthesizedMethod = synthesizedMethod.Construct(method.templateArguments);
 
             return synthesizedMethod;
         }
@@ -369,7 +371,7 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
             return true;
         }
 
-        var synthesizedMethod = new SynthesizedTemplateMethod(method.containingSymbol, constructed);
+        var synthesizedMethod = new SynthesizedTemplateMethod(this, method.containingSymbol, constructed);
         _methodsMap.Add(constructed, synthesizedMethod);
 
         if (!TryEnqueue(synthesizedMethod, cause, location)) {

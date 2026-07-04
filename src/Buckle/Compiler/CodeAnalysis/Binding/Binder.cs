@@ -363,7 +363,9 @@ internal partial class Binder {
             if (expression.hasAnyErrors)
                 continue;
 
-            if (!EnsureExpressionIsCompileTime(expression, templateParameters))
+            // TODO Do we actually need to pass templateParameters to this method if we are just using GetEnclosingTemplateParameters() ?
+
+            if (!EnsureExpressionIsCompileTime(expression, GetEnclosingTemplateParameters()))
                 diagnostics.Push(Error.ConstraintIsNotConstant(constraint.location));
 
             var conversion = conversions.ClassifyImplicitConversionFromExpression(expression, targetType);
@@ -1231,12 +1233,14 @@ internal partial class Binder {
             );
         } else {
             var boundTemplateArguments = BindTemplateArguments(templateArguments, diagnostics, basesBeingResolved);
+            var impliedConstraints = GetEnclosingTemplateConstraints();
 
             resultType = ConstructNamedType(
                 unconstructedType,
                 node,
                 templateArguments,
                 boundTemplateArguments,
+                impliedConstraints,
                 basesBeingResolved,
                 diagnostics
             );
@@ -1327,6 +1331,7 @@ internal partial class Binder {
         SyntaxNode typeSyntax,
         SeparatedSyntaxList<BaseArgumentSyntax> templateArgumentsSyntax,
         AnalyzedArguments analyzedArguments,
+        ImmutableArray<BoundExpression> impliedConstraints,
         ConsList<TypeSymbol> basesBeingResolved,
         BelteDiagnosticQueue diagnostics) {
         var argumentAnalysis = OverloadResolution.AnalyzeArguments(
@@ -1420,6 +1425,7 @@ internal partial class Binder {
                 typeSyntax.location,
                 diagnostics,
                 typeSyntax,
+                impliedConstraints,
                 basesBeingResolved
             );
 
@@ -1465,11 +1471,15 @@ internal partial class Binder {
             templateArguments.Free();
             return type;
         } else {
+            // TODO Should this be cached or calculated higher up to avoid recalculating?
+            var impliedConstraints = GetEnclosingTemplateConstraints();
+
             return ConstructNamedType(
                 type,
                 typeSyntax,
                 templateArgumentsSyntax,
                 templateArguments,
+                impliedConstraints,
                 basesBeingResolved: null,
                 diagnostics: diagnostics
             );
@@ -1615,15 +1625,34 @@ internal partial class Binder {
     }
 
     private ImmutableArray<TemplateParameterSymbol> GetEnclosingTemplateParameters() {
-        // This will contain many duplicates but it doesn't actually matter
+        // This may contain duplicates but it doesn't actually matter
         var builder = ArrayBuilder<TemplateParameterSymbol>.GetInstance();
 
         for (var current = this; current is not null; current = current.next) {
-            if (containingMember is ISymbolWithTemplates tm)
+            if (current.containingMember is ISymbolWithTemplates tm)
                 builder.AddRange(tm.templateParameters);
+        }
 
-            if (containingType is ISymbolWithTemplates tt)
-                builder.AddRange(tt.templateParameters);
+        return builder.ToImmutableAndFree();
+    }
+
+    internal ImmutableArray<BoundExpression> GetEnclosingTemplateConstraints() {
+        // Duplicates here would not cause errors but would make constraint solving slower so its better to check for
+        // duplicates in this step
+        var visited = new HashSet<ISymbolWithTemplates>();
+        var builder = ArrayBuilder<BoundExpression>.GetInstance();
+
+        var current = this;
+
+        // Skip the immediate constraints if trying to compile them (otherwise infinite cycle)
+        if ((flags & BinderFlags.TemplateConstraintsClause) != 0)
+            current = current.next;
+
+        for (; current is not null; current = current.next) {
+            if (current.containingMember is ISymbolWithTemplates tm && visited.Add(tm)) {
+                Debug.Assert(!tm.templateConstraints.IsDefault);
+                builder.AddRange(tm.templateConstraints);
+            }
         }
 
         return builder.ToImmutableAndFree();
@@ -7805,7 +7834,8 @@ symIsHidden:;
             [],
             null,
             analyzedArguments,
-            result
+            result,
+            callErrorLocation: node.syntax.location
         );
 
         return result;

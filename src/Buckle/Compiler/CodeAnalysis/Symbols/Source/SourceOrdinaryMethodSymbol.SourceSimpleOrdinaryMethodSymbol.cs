@@ -27,6 +27,10 @@ internal abstract partial class SourceOrdinaryMethodSymbol {
             return [];
         }
 
+        internal sealed override ImmutableArray<BoundExpression> GetTemplateConstraints() {
+            return [];
+        }
+
         private protected sealed override TypeSymbol _explicitInterfaceType => null;
 
         private protected sealed override MethodSymbol FindExplicitlyImplementedMethod(

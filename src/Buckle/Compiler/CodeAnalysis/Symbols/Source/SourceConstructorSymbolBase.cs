@@ -56,8 +56,16 @@ internal abstract class SourceConstructorSymbolBase : SourceMemberMethodSymbol {
         BelteDiagnosticQueue diagnostics) {
         base.AfterAddingTypeMembersChecks(conversions, diagnostics);
 
-        foreach (var parameter in parameters)
-            parameter.type.CheckAllConstraints(conversions, parameter.syntaxReference.location, diagnostics);
+        var impliedConstraints = GetEnclosingTemplateConstraints();
+
+        foreach (var parameter in parameters) {
+            parameter.type.CheckAllConstraints(
+                conversions,
+                parameter.syntaxReference.location,
+                impliedConstraints,
+                diagnostics
+            );
+        }
     }
 
     internal sealed override ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes() {
@@ -65,6 +73,10 @@ internal abstract class SourceConstructorSymbolBase : SourceMemberMethodSymbol {
     }
 
     internal sealed override ImmutableArray<TypeParameterConstraintKinds> GetTypeParameterConstraintKinds() {
+        return [];
+    }
+
+    internal sealed override ImmutableArray<BoundExpression> GetTemplateConstraints() {
         return [];
     }
 

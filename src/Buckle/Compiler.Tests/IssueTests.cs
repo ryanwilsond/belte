@@ -1880,4 +1880,235 @@ public sealed class IssueTests {
 
         AssertValue(text, 0);
     }
+
+    [Fact]
+    public void Conversions_AllowTemplate() {
+        var text = @"
+            class A<type T> {
+                public int value;
+
+                public constructor(int value) {
+                    this.value = value;
+                }
+
+                public static implicit operator<type TOther> A<TOther>(A<T> a) {
+                    return new (a.value);
+                }
+            }
+
+            A<int> a = new (10);
+            A<bool> b = a;
+            return b.value;
+        ";
+
+        AssertValue(text, 10);
+    }
+
+    [Fact]
+    public void Conversions_AllowTemplate2() {
+        var text = @"
+            class A<int T> {
+                public int value;
+
+                public constructor(int value) {
+                    this.value = value;
+                }
+
+                public static implicit operator<int TOther> A<TOther>(A<T> a) {
+                    return new (a.value);
+                }
+            }
+
+            A<2> a = new (10);
+            A<3> b = a;
+            return b.value;
+        ";
+
+        AssertValue(text, 10);
+    }
+
+    [Fact]
+    public void Constraints_SubstitutionSeesSameShapeConstraint() {
+        var text = @"
+            class A<int T> where { T != 0; } {
+                public static void Create<int TOther>() where { TOther != 0; } {
+                    var a = new A<TOther>();
+                }
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void MethodConstraints_ExpressionConstraintsAreCompiled() {
+        var text = @"
+            class A {
+                public static void M<int TOther>() where { [TOther != false]; } { }
+            }
+        ";
+
+        var diagnostics = @"
+            binary operator '!=' is not defined for operands of types 'int!' and 'bool!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Template_InfersOperatorAndExpandsTemplateMethodNestedInTemplateType() {
+        var text = @"
+            public static class Int64 {
+                public constexpr int64 MinValue = -9223372036854775808;
+                public constexpr int64 MaxValue = 9223372036854775807;
+            }
+
+            public sealed class ValueOutOfRangeException extends Exception {
+                public constructor()
+                    : base(""Value was out of the range of valid values."") { }
+
+                public constructor(any value, any min, any max)
+                    : base(f""Value '{value}' was out of the range of valid values [{min}..{max}]."") { }
+            }
+
+            public struct Int<int Min = Int64.MinValue, int Max = Int64.MaxValue>
+                where { Min <= Max; Min >= Int64.MinValue; Max <= Int64.MaxValue; } {
+                private int64 _value;
+
+                public constructor(int64 value) {
+                    if (value < Min || value > Max)
+                        throw new ValueOutOfRangeException(value, Min, Max);
+
+                    _value = value;
+                }
+
+                public static Int<Min, Max> operator +(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value + right._value);
+                }
+
+                public static implicit operator Int<Min, Max>(int64 value) {
+                    return new(value);
+                }
+
+                public static implicit operator int64(Int<Min, Max> value) {
+                    return value._value;
+                }
+
+                public static explicit operator<int TMin, int TMax> Int<TMin, TMax>(Int<Min, Max> bigger)
+                    where {
+                        TMin <= TMax; TMin > Min || TMax < Max;
+                        TMin >= Int64.MinValue; TMax <= Int64.MaxValue;
+                    } {
+                    return new Int<TMin, TMax>(bigger._value);
+                }
+
+                public static implicit operator<int TMin, int TMax> Int<TMin, TMax>(Int<Min, Max> smaller)
+                    where {
+                        TMin <= TMax; TMin <= Min; TMax >= Max;
+                        TMin >= Int64.MinValue; TMax <= Int64.MaxValue;
+                    } {
+                    return new Int<TMin, TMax>(smaller._value);
+                }
+
+                public override string? ToString() {
+                    return (string)_value;
+                }
+            }
+
+            Int<0, 5> a = 5;
+            Int b = a;
+            return (int)b;
+        ";
+
+        AssertValue(text, 5);
+    }
+
+    [Fact]
+    public void MethodConstraints_ConstraintsAreChecked() {
+        var text = @"
+            class A {
+                public static void M<int T>() where { T != 0; } { }
+            }
+            [A.M<0>]();
+        ";
+
+        var diagnostics = @"
+            template constraint fails ('T != 0')
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Template_SeesTemplateExplicitConversion() {
+        var text = @"
+            public static class Int64 {
+                public constexpr int64 MinValue = -9223372036854775808;
+                public constexpr int64 MaxValue = 9223372036854775807;
+            }
+
+            public sealed class ValueOutOfRangeException extends Exception {
+                public constructor()
+                    : base(""Value was out of the range of valid values."") { }
+
+                public constructor(any value, any min, any max)
+                    : base(f""Value '{value}' was out of the range of valid values \[{min}..{max}\]."") { }
+            }
+
+            public struct Int<int Min = Int64.MinValue, int Max = Int64.MaxValue>
+                where { Min <= Max; Min >= Int64.MinValue; Max <= Int64.MaxValue; } {
+                private int64 _value;
+
+                public constructor(int64 value) {
+                    if (value < Min || value > Max)
+                        throw new ValueOutOfRangeException(value, Min, Max);
+
+                    _value = value;
+                }
+
+                public static Int<Min, Max> operator +(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value + right._value);
+                }
+
+                public static implicit operator Int<Min, Max>(int64 value) {
+                    return new(value);
+                }
+
+                public static implicit operator int64(Int<Min, Max> value) {
+                    return value._value;
+                }
+
+                public static explicit operator<int TMin, int TMax> Int<TMin, TMax>(Int<Min, Max> bigger)
+                    where {
+                        TMin <= TMax; TMin > Min || TMax < Max;
+                        TMin >= Int64.MinValue; TMax <= Int64.MaxValue;
+                    } {
+                    return new Int<TMin, TMax>(bigger._value);
+                }
+
+                public static implicit operator<int TMin, int TMax> Int<TMin, TMax>(Int<Min, Max> smaller)
+                    where {
+                        TMin <= TMax; TMin <= Min; TMax >= Max;
+                        TMin >= Int64.MinValue; TMax <= Int64.MaxValue;
+                    } {
+                    return new Int<TMin, TMax>(smaller._value);
+                }
+
+                public override string? ToString() {
+                    return (string)_value;
+                }
+            }
+
+            Int<0, 5> a = 5;
+            Int<0, 3> b = [a];
+        ";
+
+        var diagnostics = @"
+            cannot convert from type 'Int<0, 5>!' to 'Int<0, 3>!' implicitly; an explicit conversion exists (are you missing a cast?)
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

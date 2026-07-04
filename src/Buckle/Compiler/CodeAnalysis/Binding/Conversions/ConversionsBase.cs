@@ -16,6 +16,13 @@ internal abstract partial class ConversionsBase {
         BoundUnconvertedExtendedLiteralExpression extended,
         TypeSymbol destination);
 
+    private protected abstract bool TryToConstructUserDefinedOperator(
+        MethodSymbol op,
+        BoundExpression argument,
+        TypeSymbol source,
+        TypeSymbol target,
+        out MethodSymbol result);
+
     internal bool HasTopLevelNullabilityImplicitConversion(TypeWithAnnotations source, TypeWithAnnotations destination) {
         // if (!includeNullability) {
         //     return true;
@@ -1078,8 +1085,19 @@ internal abstract partial class ConversionsBase {
             if (op.returnsVoid || op.parameterCount != 1 || op.returnType.typeKind == TypeKind.Error)
                 continue;
 
-            var convertsFrom = op.GetParameterType(0);
-            var convertsTo = op.returnType;
+            MethodSymbol opMethod;
+
+            if (op.arity == 0) {
+                opMethod = op;
+            } else {
+                if (TryToConstructUserDefinedOperator(op, sourceExpression, source, target, out var result))
+                    opMethod = result;
+                else
+                    continue;
+            }
+
+            var convertsFrom = opMethod.GetParameterType(0);
+            var convertsTo = opMethod.returnType;
             var fromConversion = EncompassingExplicitConversion(sourceExpression, source, convertsFrom);
             var toConversion = EncompassingExplicitConversion(convertsTo, target);
 
@@ -1107,7 +1125,7 @@ internal abstract partial class ConversionsBase {
 
                     u.Add(UserDefinedConversionAnalysis.Lifted(
                         constrainedToTypeOpt,
-                        op,
+                        opMethod,
                         liftedFromConversion,
                         liftedToConversion,
                         nullableFrom,
@@ -1124,7 +1142,14 @@ internal abstract partial class ConversionsBase {
                         fromConversion = EncompassingExplicitConversion(convertsFrom, source);
                     }
 
-                    u.Add(UserDefinedConversionAnalysis.Normal(constrainedToTypeOpt, op, fromConversion, toConversion, convertsFrom, convertsTo));
+                    u.Add(UserDefinedConversionAnalysis.Normal(
+                        constrainedToTypeOpt,
+                        opMethod,
+                        fromConversion,
+                        toConversion,
+                        convertsFrom,
+                        convertsTo
+                    ));
                 }
             }
         }
@@ -1277,8 +1302,19 @@ internal abstract partial class ConversionsBase {
                 if (op.returnsVoid || op.parameterCount != 1)
                     continue;
 
-                var convertsFrom = op.GetParameterType(0);
-                var convertsTo = op.returnType;
+                MethodSymbol opMethod;
+
+                if (op.arity == 0) {
+                    opMethod = op;
+                } else {
+                    if (TryToConstructUserDefinedOperator(op, sourceExpression, source, target, out var result))
+                        opMethod = result;
+                    else
+                        continue;
+                }
+
+                var convertsFrom = opMethod.GetParameterType(0);
+                var convertsTo = opMethod.returnType;
                 var fromConversion = EncompassingImplicitConversion(sourceExpression, source, convertsFrom);
                 var toConversion = allowAnyTarget
                     ? Conversion.Identity
@@ -1294,7 +1330,7 @@ internal abstract partial class ConversionsBase {
 
                     u.Add(UserDefinedConversionAnalysis.Normal(
                         constrainedToTypeOpt,
-                        op,
+                        opMethod,
                         fromConversion,
                         toConversion,
                         convertsFrom,
@@ -1314,7 +1350,7 @@ internal abstract partial class ConversionsBase {
                     if (liftedFromConversion.exists && liftedToConversion.exists) {
                         u.Add(UserDefinedConversionAnalysis.Lifted(
                             constrainedToTypeOpt,
-                            op,
+                            opMethod,
                             liftedFromConversion,
                             liftedToConversion,
                             nullableFrom,

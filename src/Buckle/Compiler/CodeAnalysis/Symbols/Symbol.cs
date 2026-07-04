@@ -850,6 +850,20 @@ internal abstract class Symbol : ISymbol {
         return compilation == declaringCompilation;
     }
 
+    internal ImmutableArray<BoundExpression> GetEnclosingTemplateConstraints() {
+        var builder = ArrayBuilder<BoundExpression>.GetInstance();
+
+        // Don't include this symbols constraints
+        for (var current = containingSymbol; current is not null; current = current.containingSymbol) {
+            if (current is ISymbolWithTemplates tm) {
+                Debug.Assert(!tm.templateConstraints.IsDefault);
+                builder.AddRange(tm.templateConstraints);
+            }
+        }
+
+        return builder.ToImmutableAndFree();
+    }
+
     internal bool Equals(Symbol other) {
         return Equals(other, SymbolEqualityComparer.Default.compareKind);
     }

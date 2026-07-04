@@ -89,6 +89,10 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
         return [];
     }
 
+    internal override ImmutableArray<BoundExpression> GetTemplateConstraints() {
+        return [];
+    }
+
     internal override ExecutableCodeBinder TryGetBodyBinder(
         BinderFactory binderFactory = null,
         bool ignoreAccessibility = false) {

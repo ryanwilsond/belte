@@ -2887,7 +2887,8 @@ internal partial class Binder {
             [],
             receiver,
             analyzedArguments,
-            overloadResolutionResult
+            overloadResolutionResult,
+            callErrorLocation: syntax.location
         );
 
         BoundExpression indexerAccess;
@@ -4520,7 +4521,7 @@ internal partial class Binder {
         if (called)
             options |= LookupOptions.MustBeInvocableIfMember;
 
-        if (!isInMethodBody && !isInsideNameof)
+        if (!isInMethodBody && !isInsideNameof && (flags & BinderFlags.TemplateConstraintsClause) == 0)
             options |= LookupOptions.MustNotBeMethodTemplateParameter;
 
         LookupSymbolsWithFallback(lookupResult, name, arity, errorLocation, options: options);
@@ -5036,6 +5037,7 @@ internal partial class Binder {
                 typeSyntax,
                 templateArgumentsSyntax,
                 templateArguments,
+                GetEnclosingTemplateConstraints(),
                 basesBeingResolved: null,
                 diagnostics: diagnostics
             );
@@ -6039,7 +6041,8 @@ internal partial class Binder {
             templateArguments: methodGroup.templateArguments,
             receiver: methodGroup.receiver,
             arguments: analyzedArguments,
-            result: overloadResolutionResult
+            result: overloadResolutionResult,
+            callErrorLocation: node.location
         );
 
         result = BindCallExpressionContinued(
@@ -6144,6 +6147,7 @@ internal partial class Binder {
                 methodGroup.receiver,
                 analyzedArguments,
                 result,
+                callErrorLocation: node.syntax.location,
                 isMethodGroupConversion,
                 returnRefKind,
                 returnType
@@ -6379,7 +6383,12 @@ internal partial class Binder {
             }
         }
 
-        return !methodSymbol.CheckMethodConstraints(conversions, node.location, diagnostics);
+        return !methodSymbol.CheckMethodConstraints(
+            conversions,
+            node.location,
+            GetEnclosingTemplateConstraints(),
+            diagnostics
+        );
     }
 
     private static bool IsMemberAccessedThroughVariableOrValue(BoundExpression receiver) {

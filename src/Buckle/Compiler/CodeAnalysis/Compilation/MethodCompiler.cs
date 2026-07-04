@@ -448,8 +448,18 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         }
 
         // This second pass handles resolving the found templates in the above pass recursively
+        // We need the method bodies from previous compilations in the case that we are
+        // instantiating a new template of a previous type
 
-        templateExpander.ResolveTemplates(_methodBodies);
+        var builder = ImmutableDictionary.CreateBuilder<MethodSymbol, BoundBlockStatement>();
+        builder.AddRange(_methodBodies);
+
+        for (var current = _compilation.previous; current is not null; current = current.previous) {
+            if (current.boundProgram?.methodBodies is not null)
+                builder.AddRange(current.boundProgram.methodBodies);
+        }
+
+        templateExpander.ResolveTemplates(builder.ToImmutable());
     }
 
     private void InjectSequencePoints() {

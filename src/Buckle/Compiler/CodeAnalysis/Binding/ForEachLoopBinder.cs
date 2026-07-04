@@ -252,7 +252,8 @@ internal sealed class ForEachLoopBinder : LoopBinder {
             templateArguments: templateArguments,
             receiver: dummyReceiver,
             arguments: analyzedArguments,
-            result: overloadResolutionResult
+            result: overloadResolutionResult,
+            callErrorLocation: null
         );
 
         MethodSymbol result = null;

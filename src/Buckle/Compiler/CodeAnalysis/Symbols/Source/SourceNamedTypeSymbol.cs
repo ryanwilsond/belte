@@ -16,7 +16,6 @@ namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, IAttributeTargetSymbol {
     private ImmutableArray<ExpressionSyntax> _unboundConstraints;
-    private ImmutableArray<BoundExpression> _lazyTemplateConstraints;
     private CustomAttributesBag<AttributeData> _lazyAttributesBag;
     private Tuple<NamedTypeSymbol, ImmutableArray<NamedTypeSymbol>> _lazyDeclaredBases;
     private NamedTypeSymbol _lazyBaseType = ErrorTypeSymbol.UnknownResultType;
@@ -63,11 +62,11 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
     public override ImmutableArray<BoundExpression> templateConstraints {
         get {
-            if (_lazyTemplateConstraints.IsDefault) {
+            if (_templateParameterInfo.lazyTemplateConstraints.IsDefault) {
                 var diagnostics = BelteDiagnosticQueue.GetInstance();
 
                 ImmutableInterlocked.InterlockedInitialize(
-                    ref _lazyTemplateConstraints,
+                    ref _templateParameterInfo.lazyTemplateConstraints,
                     MakeTemplateConstraints(diagnostics)
                 );
 
@@ -75,7 +74,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
                 diagnostics.Free();
             }
 
-            return _lazyTemplateConstraints;
+            return _templateParameterInfo.lazyTemplateConstraints;
         }
     }
 
@@ -228,7 +227,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
         if (singleDeclaration is not null) {
             var location = singleDeclaration.nameLocation;
             var conversions = TypeConversions.GetInstance();
-            localBase.CheckAllConstraints(conversions, location, diagnostics);
+            localBase.CheckAllConstraints(conversions, location, GetEnclosingTemplateConstraints(), diagnostics);
         }
     }
 
@@ -239,6 +238,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
             return;
 
         var singleDeclaration = FirstDeclarationWithExplicitBases();
+        var impliedConstraints = GetEnclosingTemplateConstraints();
 
         if (singleDeclaration is not null) {
             var location = singleDeclaration.nameLocation;
@@ -248,7 +248,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
                 var set = pair.Value;
 
                 foreach (var @interface in set)
-                    @interface.CheckAllConstraints(conversions, location, diagnostics);
+                    @interface.CheckAllConstraints(conversions, location, impliedConstraints, diagnostics);
 
                 if (set.Count > 1) {
                     var other = pair.Key;

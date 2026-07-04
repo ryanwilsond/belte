@@ -16,7 +16,7 @@ internal sealed class SourceOverridingMethodTemplateParameterSymbol : SourceTemp
         _map = map;
     }
 
-    internal SourceOrdinaryMethodSymbol owner => _map.overridingMethod;
+    internal SourceOrdinaryMethodOrUserDefinedOperatorSymbol owner => _map.overridingMethod;
 
     internal override TemplateParameterKind templateParameterKind => TemplateParameterKind.Method;
 
