@@ -30,5 +30,7 @@ internal enum BinderFlags : uint {
     AttributeArgument = 1 << 17,
     EarlyAttributeBinding = 1 << 18,
 
+    TemplateArgument = 1 << 19,
+
     AllClearedAtExecutableCodeBoundary = InCatchBlock | InFinallyBlock | InTryBlockOfTryCatch | InNestedFinallyBlock,
 }

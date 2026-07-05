@@ -2702,4 +2702,77 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void UserDefinedOperator_SeesTemplates() {
+        var text = @"
+            class A<type T> {
+                public static A<TOther> operator<type TOther> +(A<TOther> left, A<T> right) {
+                    return left;
+                }
+            }
+
+            A<int> a = new();
+            A<bool> b = new();
+            A<int> c = a + b;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_AllowsTemplateConstantInReturnType() {
+        var text = @"
+            public static class Int64 {
+                public constexpr int64 MinValue = -9223372036854775808;
+                public constexpr int64 MaxValue = 9223372036854775807;
+            }
+
+            public sealed class ValueOutOfRangeException extends Exception {
+                public constructor()
+                    : base(""Value was out of the range of valid values."") { }
+
+                public constructor(any value, any min, any max)
+                    : base(f""Value '{value}' was out of the range of valid values [{min}..{max}]."") { }
+            }
+
+            public struct Int<int Min = Int64.MinValue, int Max = Int64.MaxValue> where { Min <= Max; } {
+                public int64 _value;
+
+                public constructor(int64 value) {
+                    if (value < Min || value > Max)
+                        throw new ValueOutOfRangeException(value, Min, Max);
+
+                    _value = value;
+                }
+
+                public static Int<Min + TMin, Max + TMax> operator<int TMin, int TMax> +(Int<Min, Max> left, Int<TMin, TMax> right)
+                    where {
+                        Min + TMin >= Int64.MinValue;
+                        Max + TMax <= Int64.MaxValue;
+                    } {
+                    return new(left._value + right._value);
+                }
+
+                public static explicit operator<int TMin, int TMax> Int<TMin, TMax>(Int<Min, Max> bigger)
+                    where { !(TMax < Min || TMin > Max); TMin <= TMax; } {
+                    return new Int<TMin, TMax>(bigger._value);
+                }
+
+                public static implicit operator<int TMin, int TMax> Int<TMin, TMax>(Int<Min, Max> smaller)
+                    where { TMax >= Max; TMin <= TMax; TMin <= Min; } {
+                    return new Int<TMin, TMax>(smaller._value);
+                }
+            }
+
+            Int<0, 5> a = new (5);
+            Int<0, 5> b = new (5);
+            var c = a + b;
+            return c._value;
+        ";
+
+        AssertValue(text, 10);
+    }
 }

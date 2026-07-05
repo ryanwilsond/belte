@@ -100,7 +100,12 @@ internal partial class PEParameterSymbol : ParameterSymbol {
                 accessSymbol: accessSymbol,
                 nullableContext: nullableContext
             );
-            // typeWithAnnotations = TupleTypeDecoder.DecodeTupleTypesIfApplicable(typeWithAnnotations, handle, moduleSymbol);
+
+            typeWithAnnotations = TupleTypeDecoder.DecodeTupleTypesIfApplicable(
+                typeWithAnnotations,
+                handle,
+                moduleSymbol
+            );
 
             hasUnscopedRefAttribute = _moduleSymbol.module.HasUnscopedRefAttribute(_handle);
 

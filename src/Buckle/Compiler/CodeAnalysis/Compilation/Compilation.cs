@@ -103,14 +103,14 @@ public sealed partial class Compilation {
 
     internal BoundProgram boundProgram {
         get {
-            EnsureBoundProgramAndMethodDiagnostics();
+            EnsureBoundProgramAndMethodDiagnostics(false);
             return _lazyBoundProgram;
         }
     }
 
     internal BelteDiagnosticQueue methodDiagnostics {
         get {
-            EnsureBoundProgramAndMethodDiagnostics();
+            EnsureBoundProgramAndMethodDiagnostics(false);
             return _lazyMethodDiagnostics;
         }
     }
@@ -1164,7 +1164,7 @@ public sealed partial class Compilation {
             builder.PushRange(declarationDiagnostics);
 
         if (includeMethods) {
-            EnsureBoundProgramAndMethodDiagnostics();
+            EnsureBoundProgramAndMethodDiagnostics(builder.AnyErrors());
             ReportUnusedImports();
             builder.PushRange(methodDiagnostics);
         }
@@ -1197,9 +1197,9 @@ public sealed partial class Compilation {
             usedImports.Contains(position);
     }
 
-    private void EnsureBoundProgramAndMethodDiagnostics() {
+    private void EnsureBoundProgramAndMethodDiagnostics(bool anyErrors) {
         if (_lazyBoundProgram is null)
-            CreateBoundProgramAndMethodDiagnostics();
+            CreateBoundProgramAndMethodDiagnostics(anyErrors);
     }
 
     internal void ReplaceBoundProgram(BoundProgram program, BelteDiagnosticQueue methodDiagnostics) {
@@ -1227,12 +1227,13 @@ public sealed partial class Compilation {
         handleManager.SendParsedMessage();
     }
 
-    private void CreateBoundProgramAndMethodDiagnostics() {
+    private void CreateBoundProgramAndMethodDiagnostics(bool anyErrors) {
         _lazyMethodDiagnostics = new BelteDiagnosticQueue();
         _lazyBoundProgram = MethodCompiler.CompileMethodBodies(
             this,
             _lazyMethodDiagnostics,
-            SkipLibrariesFilter
+            SkipLibrariesFilter,
+            anyErrors: anyErrors
         );
 
         handleManager.SendBoundMessage();

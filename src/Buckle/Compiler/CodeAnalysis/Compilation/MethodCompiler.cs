@@ -81,7 +81,8 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         BelteDiagnosticQueue diagnostics,
         Predicate<Symbol> filter,
         bool skipEntryPoint = false,
-        bool collectSymbols = false) {
+        bool collectSymbols = false,
+        bool anyErrors = false) {
         var emittingToDll = compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
         var globalNamespace = compilation.globalNamespaceInternal;
 
@@ -150,7 +151,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             methodCompiler.CompileNamespace(globalNamespace);
         }
 
-        if (!diagnostics.AnyErrors()) {
+        if (!anyErrors && !diagnostics.AnyErrors()) {
             if (methodCompiler._sawCompileTimeExpression)
                 methodCompiler.ComputeCompileTimeExpressions();
 

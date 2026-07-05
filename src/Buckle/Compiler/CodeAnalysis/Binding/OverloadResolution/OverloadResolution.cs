@@ -1210,18 +1210,44 @@ internal sealed partial class OverloadResolution {
         var hadApplicableCandidate = false;
 
         foreach (var op in operators) {
-            var convLeft = conversions.ClassifyConversionFromExpression(left, op.leftType);
-            var convRight = conversions.ClassifyConversionFromExpression(right, op.rightType);
+            BinaryOperatorSignature opSig;
+
+            if (op.method is null || op.method.arity == 0) {
+                opSig = op;
+            } else {
+                if (TryToConstructBinaryUserDefinedOperator(op, left, right, out var result)) {
+                    if (ResultsAlreadyContainsIdenticalTemplate(result))
+                        continue;
+
+                    opSig = result;
+                } else {
+                    continue;
+                }
+            }
+
+            var convLeft = conversions.ClassifyConversionFromExpression(left, opSig.leftType);
+            var convRight = conversions.ClassifyConversionFromExpression(right, opSig.rightType);
 
             if (IsImplicitConversion(convLeft) && IsImplicitConversion(convRight)) {
-                results.Add(BinaryOperatorAnalysisResult.Applicable(op, convLeft, convRight));
+                results.Add(BinaryOperatorAnalysisResult.Applicable(opSig, convLeft, convRight));
                 hadApplicableCandidate = true;
             } else {
-                results.Add(BinaryOperatorAnalysisResult.Inapplicable(op, convLeft, convRight));
+                results.Add(BinaryOperatorAnalysisResult.Inapplicable(opSig, convLeft, convRight));
             }
         }
 
         return hadApplicableCandidate;
+
+        bool ResultsAlreadyContainsIdenticalTemplate(BinaryOperatorSignature op) {
+            // If two *different* methods instantiate to the same template, we treat them as equivalent because
+            // they are static so they should be indifferent to which method is actually being called
+            foreach (var result in results) {
+                if (result.signature.Equals(op, BinaryOperatorMethodEqualityComparer.Instance))
+                    return true;
+            }
+
+            return false;
+        }
     }
 
     private bool IsImplicitConversion(Conversion conversion) {
@@ -1243,17 +1269,86 @@ internal sealed partial class OverloadResolution {
         var hadApplicableCandidate = false;
 
         foreach (var op in operators) {
-            var conversion = conversions.ClassifyConversionFromExpression(operand, op.operandType);
+            UnaryOperatorSignature opSig;
+
+            if (op.method is null || op.method.arity == 0) {
+                opSig = op;
+            } else {
+                if (TryToConstructUnaryUserDefinedOperator(op, operand, out var result))
+                    opSig = result;
+                else
+                    continue;
+            }
+
+            var conversion = conversions.ClassifyConversionFromExpression(operand, opSig.operandType);
 
             if (conversion.isImplicit) {
-                results.Add(UnaryOperatorAnalysisResult.Applicable(op, conversion));
+                results.Add(UnaryOperatorAnalysisResult.Applicable(opSig, conversion));
                 hadApplicableCandidate = true;
             } else {
-                results.Add(UnaryOperatorAnalysisResult.Inapplicable(op, conversion));
+                results.Add(UnaryOperatorAnalysisResult.Inapplicable(opSig, conversion));
             }
         }
 
         return hadApplicableCandidate;
+    }
+
+    private bool TryToConstructBinaryUserDefinedOperator(
+        BinaryOperatorSignature op,
+        BoundExpression left,
+        BoundExpression right,
+        out BinaryOperatorSignature result) {
+        if (Conversions.TryToConstructUserDefinedOperator(
+            _binder,
+            _binder.conversions,
+            op.method,
+            [new BoundExpressionOrTypeOrConstant(left), new BoundExpressionOrTypeOrConstant(right)],
+            [new TypeWithAnnotations(op.leftType), new TypeWithAnnotations(op.rightType)],
+            [op.leftRefKind, op.rightRefKind],
+            returnType: null,
+            out var resultMethod)) {
+            result = new BinaryOperatorSignature(
+                op.kind,
+                resultMethod.GetParameterType(0),
+                resultMethod.GetParameterType(1),
+                resultMethod.returnType,
+                resultMethod,
+                op.constrainedToTypeOpt
+            );
+
+            return true;
+        }
+
+        result = default;
+        return false;
+    }
+
+    private bool TryToConstructUnaryUserDefinedOperator(
+        UnaryOperatorSignature op,
+        BoundExpression operand,
+        out UnaryOperatorSignature result) {
+        if (Conversions.TryToConstructUserDefinedOperator(
+            _binder,
+            _binder.conversions,
+            op.method,
+            [new BoundExpressionOrTypeOrConstant(operand)],
+            [new TypeWithAnnotations(op.operandType)],
+            [op.refKind],
+            returnType: null,
+            out var resultMethod)) {
+            result = new UnaryOperatorSignature(
+                op.kind,
+                resultMethod.GetParameterType(0),
+                resultMethod.returnType,
+                resultMethod,
+                op.constrainedToTypeOpt
+            );
+
+            return true;
+        }
+
+        result = default;
+        return false;
     }
 
     private void PerformMemberOverloadResolution<T>(

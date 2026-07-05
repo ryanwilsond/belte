@@ -1,5 +1,6 @@
 using System;
 using System.Diagnostics;
+using System.Runtime.CompilerServices;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
@@ -22,15 +23,6 @@ internal sealed class TemplateConstantValue : ConstantValue {
 
     internal override BelteDiagnostic[] diagnostics => null;
 
-    internal override bool IsSameAs(ConstantValue other) {
-        if (other is not TemplateConstantValue t)
-            return false;
-
-        // TODO This returns false if the trees were bound separately but turn out equivalent
-        // Does this matter?
-        return expression == t.expression;
-    }
-
     internal TypeOrConstant Substitute(TemplateMap templateMap) {
         var newExpression = TemplateConstantSimplifier.Simplify(expression, templateMap);
 
@@ -41,5 +33,20 @@ internal sealed class TemplateConstantValue : ConstantValue {
             return new TypeOrConstant(constant);
 
         return new TypeOrConstant(new TemplateConstantValue(newExpression));
+    }
+
+    public override int GetHashCode() {
+        return expression?.GetHashCode() ?? RuntimeHelpers.GetHashCode(this);
+    }
+
+    public override bool Equals(object obj) {
+        return Equals(obj as ConstantValue);
+    }
+
+    public override bool Equals(ConstantValue other) {
+        if (other is not TemplateConstantValue t)
+            return false;
+
+        return ConstraintsHelpers.TemplateConstraintComparer.ExpressionsEqual(expression, t.expression);
     }
 }

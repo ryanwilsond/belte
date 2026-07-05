@@ -1335,6 +1335,15 @@ internal sealed partial class LanguageParser : SyntaxParser {
         SyntaxList<SyntaxToken> modifiers,
         TypeSyntax returnType) {
         var (explicitInterfaceSpecifier, operatorKeyword) = ParseOperatorMemberName();
+
+        TemplateParameterListSyntax templateParameterList = null;
+
+        // Treat `operator <(` as the operator `<` with the beginning of the parameter list
+        if (currentToken.kind == SyntaxKind.LessThanToken &&
+            Peek(1).kind is not SyntaxKind.OpenParenToken and not SyntaxKind.LessThanToken) {
+            templateParameterList = ParseTemplateParameterList();
+        }
+
         var operatorToken = ParseOperatorDeclarationToken();
         var opKind = operatorToken.kind;
 
@@ -1343,6 +1352,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
             : null;
 
         var parameterList = ParseParameterList();
+
+        var constraintClauseList = currentToken.kind == SyntaxKind.WhereKeyword
+            ? ParseTemplateConstraintClauseList()
+            : null;
+
         var (body, semicolon) = ParseMethodBodyOrSemicolon();
 
         switch (parameterList.parameters.Count) {
@@ -1407,10 +1421,12 @@ internal sealed partial class LanguageParser : SyntaxParser {
             returnType,
             explicitInterfaceSpecifier,
             operatorKeyword,
+            templateParameterList,
             operatorToken,
             rightOperatorToken,
             parameterList,
             null,
+            constraintClauseList,
             body,
             semicolon
         );

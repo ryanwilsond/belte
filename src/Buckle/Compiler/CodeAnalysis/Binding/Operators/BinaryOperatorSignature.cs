@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Utilities;
 
@@ -70,6 +71,14 @@ internal struct BinaryOperatorSignature : IEquatable<BinaryOperatorSignature> {
             TypeSymbol.Equals(rightType, other.rightType, TypeCompareKind.ConsiderEverything) &&
             TypeSymbol.Equals(returnType, other.returnType, TypeCompareKind.ConsiderEverything) &&
             method == other.method;
+    }
+
+    public bool Equals(BinaryOperatorSignature other, IEqualityComparer<MethodSymbol> methodComparer) {
+        return kind == other.kind &&
+            TypeSymbol.Equals(leftType, other.leftType, TypeCompareKind.ConsiderEverything) &&
+            TypeSymbol.Equals(rightType, other.rightType, TypeCompareKind.ConsiderEverything) &&
+            TypeSymbol.Equals(returnType, other.returnType, TypeCompareKind.ConsiderEverything) &&
+            methodComparer.Equals(method, other.method);
     }
 
     public static bool operator ==(BinaryOperatorSignature x, BinaryOperatorSignature y) {

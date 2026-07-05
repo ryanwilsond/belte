@@ -595,6 +595,7 @@ public enum DiagnosticCode : ushort {
     ERR_IncorrectCompoundOperatorArgs = 584,
     ERR_OperatorMustReturnVoid = 585,
     ERR_OperatorMustBePublic = 586,
+    ERR_OperatorCantHaveTemplates = 587,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

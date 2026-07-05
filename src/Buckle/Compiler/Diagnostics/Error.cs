@@ -2901,6 +2901,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_OperatorMustReturnVoid, location, message);
     }
 
+    internal static BelteDiagnostic OperatorCantHaveTemplates(TextLocation location, MethodSymbol symbol) {
+        var message = $"user-defined operator '{symbol}' cannot have template parameters";
+        return CreateError(DiagnosticCode.ERR_OperatorCantHaveTemplates, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

@@ -131,75 +131,102 @@ internal sealed class Conversions : ConversionsBase {
         return hasErrors;
     }
 
-    private protected override bool TryToConstructUserDefinedOperator(
+    internal static bool TryToConstructUserDefinedOperator(
+        Binder binder,
+        Conversions conversions,
         MethodSymbol op,
-        BoundExpression argument,
-        TypeSymbol source,
-        TypeSymbol target,
+        ImmutableArray<BoundExpressionOrTypeOrConstant> arguments,
+        ImmutableArray<TypeWithAnnotations> parameterTypes,
+        ImmutableArray<RefKind> parameterRefKinds,
+        TypeSymbol returnType,
         out MethodSymbol result) {
         var originalTemplateParameters = op.templateParameters;
 
         var ordinals = op.MakeAdjustedTemplateParameterOrdinalsIfNeeded(originalTemplateParameters);
 
-        // If the argument is null, we are just checking if something exists but don't actually care about diagnostics
-        // So the location doesn't matter
-        var arg = argument is not null
-            ? new BoundExpressionOrTypeOrConstant(argument)
-            : new BoundExpressionOrTypeOrConstant(new BoundValuePlaceholder(null, source));
-
         var inferenceResult = MethodTypeInferrer.Infer(
-            _binder,
-            this,
+            binder,
+            conversions,
             originalTemplateParameters,
             op.containingType,
-            [new TypeWithAnnotations(source)],
-            [RefKind.None],
-            [arg],
+            parameterTypes,
+            parameterRefKinds,
+            arguments,
             formalReturnType: op.returnType,
-            returnTargetType: target,
+            returnTargetType: returnType,
             ordinals: ordinals
         );
 
         if (inferenceResult.success) {
             result = op.Construct(inferenceResult.inferredTypeArguments);
 
-            var impliedConstraints = _binder.GetEnclosingTemplateConstraints();
+            var impliedConstraints = binder.GetEnclosingTemplateConstraints();
 
-            var _ = BelteDiagnosticQueue.GetInstance();
-            result.parameters[0].type.CheckAllConstraints(
-                this,
-                result.parameters[0].location,
-                impliedConstraints,
-                _
-            );
+            for (var i = 0; i < parameterTypes.Length; i++) {
+                var _ = BelteDiagnosticQueue.GetInstance();
+                parameterTypes[i].type.CheckAllConstraints(
+                    conversions,
+                    result.parameters[i].location,
+                    impliedConstraints,
+                    _
+                );
 
-            if (_.Any()) {
+                if (_.Any()) {
+                    _.Free();
+                    result = null;
+                    return false;
+                }
+
                 _.Free();
-                result = null;
-                return false;
             }
+
+            var _1 = BelteDiagnosticQueue.GetInstance();
 
             var constraintsSatisfied = ConstraintsHelpers.CheckMethodConstraints(
                 result,
-                this,
-                argument?.syntax?.location,
+                conversions,
+                arguments[0].syntax?.location,
                 impliedConstraints,
-                _
+                _1
             );
 
-            Debug.Assert(constraintsSatisfied != _.Any());
+            Debug.Assert(constraintsSatisfied != _1.Any());
 
-            if (_.Any()) {
-                _.Free();
+            if (_1.Any()) {
+                _1.Free();
                 result = null;
                 return false;
             }
 
-            _.Free();
+            _1.Free();
             return true;
         }
 
         result = null;
         return false;
+    }
+
+    private protected override bool TryToConstructUserDefinedOperator(
+        MethodSymbol op,
+        BoundExpression argument,
+        TypeSymbol source,
+        TypeSymbol target,
+        out MethodSymbol result) {
+        // If the argument is null, we are just checking if something exists but don't actually care about diagnostics
+        // So the location doesn't matter
+        var arg = argument is not null
+            ? new BoundExpressionOrTypeOrConstant(argument)
+            : new BoundExpressionOrTypeOrConstant(new BoundValuePlaceholder(null, source));
+
+        return TryToConstructUserDefinedOperator(
+            _binder,
+            this,
+            op,
+            [arg],
+            [new TypeWithAnnotations(source)],
+            [RefKind.None],
+            target,
+            out result
+        );
     }
 }

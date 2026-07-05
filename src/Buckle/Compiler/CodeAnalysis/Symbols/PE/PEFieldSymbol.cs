@@ -110,6 +110,8 @@ internal sealed partial class PEFieldSymbol : FieldSymbol {
                 nullableContext: _containingType
             );
 
+            type = TupleTypeDecoder.DecodeTupleTypesIfApplicable(type, _handle, moduleSymbol);
+
             var refKind = fieldInfo.isByRef
                 ? moduleSymbol.module.HasIsReadOnlyAttribute(_handle) ? RefKind.RefFinal : RefKind.Ref
                 : RefKind.None;

@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Reflection;
 using System.Reflection.Metadata;
 using System.Threading;
@@ -241,37 +242,34 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
         MetadataDecoder tokenDecoder,
         GenericParameterConstraintHandle constraintHandle,
         ref bool hasUnmanagedModreqPattern) {
-        // var constraint = metadataReader.GetGenericParameterConstraint(constraintHandle);
-        // var typeSymbol = tokenDecoder.DecodeGenericParameterConstraint(constraint.Type, out var modifiers);
+        var constraint = metadataReader.GetGenericParameterConstraint(constraintHandle);
+        var typeSymbol = tokenDecoder.DecodeGenericParameterConstraint(constraint.Type, out var modifiers);
 
-        // if (!modifiers.IsDefaultOrEmpty && modifiers.Length > 1) {
-        //     typeSymbol = new UnsupportedMetadataTypeSymbol();
-        // } else if (typeSymbol.SpecialType == SpecialType.System_ValueType) {
-        //     // recognize "(class [mscorlib]System.ValueType modreq([mscorlib]System.Runtime.InteropServices.UnmanagedType" pattern as "unmanaged"
-        //     if (!modifiers.IsDefaultOrEmpty) {
-        //         ModifierInfo<TypeSymbol> m = modifiers.Single();
-        //         if (!m.IsOptional && m.Modifier.IsWellKnownTypeUnmanagedType()) {
-        //             hasUnmanagedModreqPattern = true;
-        //         } else {
-        //             // Any other modifiers, optional or not, are not allowed: http://vstfdevdiv:8080/DevDiv2/DevDiv/_workitems/edit/528856
-        //             typeSymbol = new UnsupportedMetadataTypeSymbol();
-        //         }
-        //     }
+        if (!modifiers.IsDefaultOrEmpty && modifiers.Length > 1) {
+            typeSymbol = new UnsupportedMetadataTypeSymbol();
+        } else if (typeSymbol.specialType == SpecialType.ValueType) {
+            if (!modifiers.IsDefaultOrEmpty) {
+                var m = modifiers.Single();
 
-        //     // Drop 'System.ValueType' constraint type if the 'valuetype' constraint was also specified.
-        //     if (typeSymbol.SpecialType == SpecialType.System_ValueType && ((_flags & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0)) {
-        //         return default;
-        //     }
-        // } else if (!modifiers.IsDefaultOrEmpty) {
-        //     typeSymbol = new UnsupportedMetadataTypeSymbol();
-        // }
+                if (!m.isOptional && m.modifier.IsWellKnownTypeUnmanagedType())
+                    hasUnmanagedModreqPattern = true;
+                else
+                    typeSymbol = new UnsupportedMetadataTypeSymbol();
+            }
 
-        // var type = TypeWithAnnotations.Create(typeSymbol);
-        // type = NullableTypeDecoder.TransformType(type, constraintHandle, moduleSymbol, accessSymbol: _containingSymbol, nullableContext: _containingSymbol);
-        // type = TupleTypeDecoder.DecodeTupleTypesIfApplicable(type, constraintHandle, moduleSymbol);
-        // return type;
-        // TODO
-        return null;
+            if (typeSymbol.specialType == SpecialType.ValueType &&
+                ((_flags & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0)) {
+                return default;
+            }
+        } else if (!modifiers.IsDefaultOrEmpty) {
+            typeSymbol = new UnsupportedMetadataTypeSymbol();
+        }
+
+        var type = new TypeWithAnnotations(typeSymbol);
+        type = NullableTypeDecoder.TransformType(type, constraintHandle, moduleSymbol, accessSymbol: _containingSymbol, nullableContext: _containingSymbol);
+        type = TupleTypeDecoder.DecodeTupleTypesIfApplicable(type, constraintHandle, moduleSymbol);
+
+        return type;
     }
 
     internal override ImmutableArray<NamedTypeSymbol> GetInterfaces(ConsList<TemplateParameterSymbol> inProgress) {

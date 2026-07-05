@@ -4521,8 +4521,10 @@ internal partial class Binder {
         if (called)
             options |= LookupOptions.MustBeInvocableIfMember;
 
-        if (!isInMethodBody && !isInsideNameof && (flags & BinderFlags.TemplateConstraintsClause) == 0)
+        if (!isInMethodBody && !isInsideNameof &&
+            (flags & (BinderFlags.TemplateConstraintsClause | BinderFlags.TemplateArgument)) == 0) {
             options |= LookupOptions.MustNotBeMethodTemplateParameter;
+        }
 
         LookupSymbolsWithFallback(lookupResult, name, arity, errorLocation, options: options);
     }

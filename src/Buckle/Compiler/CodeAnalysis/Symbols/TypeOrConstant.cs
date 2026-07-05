@@ -33,7 +33,7 @@ internal sealed partial class TypeOrConstant {
             return false;
 
         if (isConstant)
-            return constant?.IsSameAs(other.constant) ?? true;
+            return constant?.Equals(other.constant) ?? true;
         else
             return type.IsSameAs(other.type);
     }
@@ -53,7 +53,7 @@ internal sealed partial class TypeOrConstant {
             return false;
 
         if (isConstant)
-            return constant?.value == other.constant?.value;
+            return constant?.Equals(other.constant) ?? false;
         else
             return type.Equals(other.type, compareKind);
     }

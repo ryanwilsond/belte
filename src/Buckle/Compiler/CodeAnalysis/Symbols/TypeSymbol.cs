@@ -1424,6 +1424,41 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
         return abstractMembers;
     }
 
+    internal bool IsWellKnownTypeUnmanagedType() => IsWellKnownInteropServicesTopLevelType("UnmanagedType");
+
+    private bool IsWellKnownInteropServicesTopLevelType(string name) {
+        if (this.name != name || containingType is not null)
+            return false;
+
+        return IsContainedInNamespace("System", "Runtime", "InteropServices");
+    }
+
+    private bool IsContainedInNamespace(string outerNS, string midNS, string innerNS = null) {
+        NamespaceSymbol midNamespace;
+
+        if (innerNS is not null) {
+            var innerNamespace = containingNamespace;
+
+            if (innerNamespace?.name != innerNS)
+                return false;
+
+            midNamespace = innerNamespace.containingNamespace;
+        } else {
+            midNamespace = containingNamespace;
+        }
+
+        if (midNamespace?.name != midNS)
+            return false;
+
+        var outerNamespace = midNamespace.containingNamespace;
+
+        if (outerNamespace?.name != outerNS)
+            return false;
+
+        var globalNamespace = outerNamespace.containingNamespace;
+        return globalNamespace is not null && globalNamespace.isGlobalNamespace;
+    }
+
     internal virtual bool Equals(TypeSymbol other, TypeCompareKind compareKind) {
         return ReferenceEquals(this, other);
     }

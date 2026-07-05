@@ -48,11 +48,18 @@ internal partial class ConstantValue {
         => LiteralUtilities.TypeHasConstantDefaultValue(specialType) &&
             LiteralUtilities.GetDefaultValue(specialType).Equals(value);
 
-    // TODO Extend this to all numerics
     internal bool isOne
-        => (value is long i && i == 1) ||
+        => (value is long l && l == 1) ||
+           (value is ulong ul && ul == 1) ||
+           (value is int i && i == 1) ||
+           (value is uint u && u == 1) ||
+           (value is short s && s == 1) ||
+           (value is ushort w && w == 1) ||
+           (value is sbyte sb && sb == 1) ||
+           (value is byte by && by == 1) ||
            (value is bool b && b) ||
-           (value is double d && d == 1);
+           (value is double d && d == 1) ||
+           (value is float f && f == 1);
 
     internal static bool IsNull(ConstantValue constant) {
         if (constant is TemplateConstantValue)
@@ -78,7 +85,7 @@ internal partial class ConstantValue {
             return false;
         }
 
-        return value is long || value is bool;
+        return value is long or ulong or int or uint or short or ushort or byte or sbyte or bool;
     }
 
     internal bool IsNegativeNumeric() {
@@ -102,10 +109,6 @@ internal partial class ConstantValue {
         }
     }
 
-    internal virtual bool IsSameAs(ConstantValue other) {
-        return value == other?.value;
-    }
-
     public override int GetHashCode() {
         return value?.GetHashCode() ?? RuntimeHelpers.GetHashCode(this);
     }
@@ -114,11 +117,14 @@ internal partial class ConstantValue {
         return Equals(obj as ConstantValue);
     }
 
-    public bool Equals(ConstantValue other) {
+    public virtual bool Equals(ConstantValue other) {
         if (other is null)
             return false;
 
-        return value == other.value;
+        if (value is null)
+            return other.value is null;
+
+        return value.Equals(other.value);
     }
 
     public static bool operator ==(ConstantValue left, ConstantValue right) {

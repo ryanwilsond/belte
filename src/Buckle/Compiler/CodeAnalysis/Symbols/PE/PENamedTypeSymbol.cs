@@ -394,7 +394,7 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
                         .GetInterfaceImplementation(interfaceImpl).Interface;
                     var typeSymbol = tokenDecoder.GetTypeOfToken(interfaceHandle);
 
-                    // typeSymbol = TupleTypeDecoder.DecodeTupleTypesIfApplicable(typeSymbol, interfaceImpl, moduleSymbol);
+                    typeSymbol = TupleTypeDecoder.DecodeTupleTypesIfApplicable(typeSymbol, interfaceImpl, moduleSymbol);
                     typeSymbol = NullableTypeDecoder.TransformType(
                         new TypeWithAnnotations(typeSymbol),
                         interfaceImpl,
@@ -596,10 +596,10 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
                     return baseType;
 
                 // TODO Would we ever want to make the type nullable in the base list?
-                // var moduleSymbol = containingPEModule;
+                var moduleSymbol = containingPEModule;
                 // TypeSymbol decodedType = DynamicTypeDecoder.TransformType(baseType, 0, _handle, moduleSymbol);
                 // decodedType = NativeIntegerTypeDecoder.TransformType(decodedType, _handle, moduleSymbol, this);
-                // decodedType = TupleTypeDecoder.DecodeTupleTypesIfApplicable(decodedType, _handle, moduleSymbol);
+                var decodedType = TupleTypeDecoder.DecodeTupleTypesIfApplicable(baseType, _handle, moduleSymbol);
 
                 // baseType = (NamedTypeSymbol)NullableTypeDecoder.TransformType(
                 //     // new TypeWithAnnotations(decodedType),
@@ -609,6 +609,7 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
                 //     accessSymbol: this,
                 //     nullableContext: this
                 // ).type;
+                baseType = (NamedTypeSymbol)decodedType;
             }
 
             Interlocked.CompareExchange(ref _lazyDeclaredBaseType, baseType, ErrorTypeSymbol.UnknownResultType);

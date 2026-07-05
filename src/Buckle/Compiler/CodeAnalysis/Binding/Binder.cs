@@ -1551,8 +1551,10 @@ internal partial class Binder {
         ConsList<TypeSymbol> basesBeingResolved = null) {
         var analyzedArguments = AnalyzedArguments.GetInstance();
 
+        var binder = WithAdditionalFlags(BinderFlags.TemplateArgument);
+
         for (var i = 0; i < templateArguments.Count; i++) {
-            BindTemplateArgument(
+            binder.BindTemplateArgument(
                 analyzedArguments,
                 templateArguments[i],
                 diagnostics,

@@ -33,6 +33,8 @@ internal static class LookupPosition {
             return IsInMethodTemplateParameterScope(position, (MethodDeclarationSyntax)node);
         else if (node.kind == SyntaxKind.ConversionDeclaration)
             return IsInMethodTemplateParameterScope(position, (ConversionDeclarationSyntax)node);
+        else if (node.kind == SyntaxKind.OperatorDeclaration)
+            return IsInMethodTemplateParameterScope(position, (OperatorDeclarationSyntax)node);
 
         return false;
     }
@@ -60,6 +62,25 @@ internal static class LookupPosition {
 
         if (node.type.fullSpan.Contains(position))
             return true;
+
+        var explicitInterfaceSpecifier = node.explicitInterfaceSpecifier;
+        var firstNameToken = explicitInterfaceSpecifier is null
+            ? node.operatorKeyword
+            : explicitInterfaceSpecifier.GetFirstToken();
+
+        var firstPostNameToken = node.templateParameterList.openAngleBracket;
+
+        return !IsBetweenTokens(position, firstNameToken, firstPostNameToken);
+    }
+
+    private static bool IsInMethodTemplateParameterScope(int position, OperatorDeclarationSyntax node) {
+        if (node.templateParameterList is null)
+            return false;
+
+        if (node.operatorToken.fullSpan.Contains(position) ||
+            (node.rightOperatorToken is not null && node.rightOperatorToken.fullSpan.Contains(position))) {
+            return true;
+        }
 
         var explicitInterfaceSpecifier = node.explicitInterfaceSpecifier;
         var firstNameToken = explicitInterfaceSpecifier is null

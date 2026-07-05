@@ -1129,10 +1129,8 @@ tryAgain:
             }
         }
 
-        if (!targetTypeSymbol.isTupleType) {
-            // TODO tuples
-            // targetTypeSymbol = TupleTypeDecoder.DecodeTupleTypesIfApplicable(targetTypeSymbol, elementNames: default);
-        }
+        if (!targetTypeSymbol.isTupleType)
+            targetTypeSymbol = TupleTypeDecoder.DecodeTupleTypesIfApplicable(targetTypeSymbol, elementNames: default);
 
         var memberRefDecoder = new MemberRefMetadataDecoder(moduleSymbol, targetTypeSymbol.originalDefinition);
         var definition = memberRefDecoder.FindMember(memberRef, methodsOnly);
@@ -1141,6 +1139,41 @@ tryAgain:
             return definition.SymbolAsMember((NamedTypeSymbol)targetTypeSymbol);
 
         return definition;
+    }
+
+    internal TypeSymbol DecodeGenericParameterConstraint(
+        EntityHandle token,
+        out ImmutableArray<ModifierInfo<TypeSymbol>> modifiers) {
+        modifiers = [];
+
+        switch (token.Kind) {
+            case HandleKind.TypeSpecification: {
+                    try {
+                        var memoryReader = module.GetTypeSpecificationSignatureReaderOrThrow(
+                            (TypeSpecificationHandle)token
+                        );
+
+                        modifiers = DecodeModifiersOrThrow(ref memoryReader, out var typeCode);
+                        var type = DecodeTypeOrThrow(ref memoryReader, typeCode, out _);
+
+                        return type;
+                    } catch (BadImageFormatException mrEx) {
+                        return GetUnsupportedMetadataTypeSymbol(mrEx);
+                    } catch (UnsupportedSignatureContent) {
+                        return GetUnsupportedMetadataTypeSymbol();
+                    }
+                }
+            case HandleKind.TypeReference:
+                return GetTypeOfTypeRef((TypeReferenceHandle)token, out _);
+            case HandleKind.TypeDefinition:
+                return GetTypeOfTypeDef((TypeDefinitionHandle)token);
+            default:
+                return GetUnsupportedMetadataTypeSymbol();
+        }
+    }
+
+    private TypeSymbol GetTypeOfTypeDef(TypeDefinitionHandle typeDef) {
+        return GetTypeOfTypeDef(typeDef, out _, isContainingType: false);
     }
 
     internal TypeSymbol GetMemberRefTypeSymbol(MemberReferenceHandle memberRef) {

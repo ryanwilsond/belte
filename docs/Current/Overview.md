@@ -549,7 +549,7 @@ To summarize the main differences:
 - Compile-time metaprogramming
 - Reversible execution
 - First-class low-level programming without unsafe contexts
-- Non-type-permitting templates instead of only type generics
+- Non-type-permitting templates instead of only type generics including template operators
 
 ### 1.5.1 Type System
 
@@ -560,6 +560,7 @@ To summarize the main differences:
 - [Null-binding contracts](ControlFlow.md#232-null-binding-contracts)
 - [Different generic/template constraints include expression constraints](ClassesAndObjects.md#451-constraint-clauses)
 - [Non-type-permitting templates instead of only type generics](ClassesAndObjects.md#45-templates)
+- [Template user-defined operators and conversions](ClassesAndObjects.md#4231-operator-overloading)
 - [Conditionals accept expressions of type `bool?` instead of `bool`](ControlFlow.md#231-null-conditions)
 - [More expressive implicit typing allowing with `var`, `const`, and `constexpr` and nullable annotations](Data.md#332-implicit-typing)
 - [Enums can have methods](ClassesAndObjects.md#465-methods)

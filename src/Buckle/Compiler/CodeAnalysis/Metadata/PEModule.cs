@@ -50,6 +50,7 @@ internal sealed partial class PEModule : IDisposable {
     private static readonly AttributeValueExtractor<StringAndInt> AttributeStringAndIntValueExtractor = CrackStringAndIntInAttributeValue;
     private static readonly AttributeValueExtractor<byte> AttributeByteValueExtractor = CrackByteInAttributeValue;
     private static readonly AttributeValueExtractor<ImmutableArray<byte>> AttributeByteArrayValueExtractor = CrackByteArrayInAttributeValue;
+    private static readonly AttributeValueExtractor<ImmutableArray<string>> AttributeStringArrayValueExtractor = CrackStringArrayInAttributeValue;
 
     internal PEModule(
         ModuleMetadata owner,
@@ -129,6 +130,21 @@ internal sealed partial class PEModule : IDisposable {
 
     internal bool IsNoPiaLocalType(TypeDefinitionHandle typeDef) {
         return IsNoPiaLocalType(typeDef, out _);
+    }
+
+    internal bool HasTupleElementNamesAttribute(EntityHandle token, out ImmutableArray<string> tupleElementNames) {
+        var info = FindTargetAttribute(token, AttributeDescription.TupleElementNamesAttribute);
+
+        if (!info.hasValue) {
+            tupleElementNames = default;
+            return false;
+        }
+
+        return TryExtractStringArrayValueFromAttribute(info.handle, out tupleElementNames);
+    }
+
+    private bool TryExtractStringArrayValueFromAttribute(CustomAttributeHandle handle, out ImmutableArray<string?> value) {
+        return TryExtractValueFromAttribute(handle, out value, AttributeStringArrayValueExtractor);
     }
 
     internal IEnumerable<IGrouping<string, TypeDefinitionHandle>> GroupTypesByNamespaceOrThrow(
@@ -605,6 +621,32 @@ internal sealed partial class PEModule : IDisposable {
                 value = byteArrayBuilder.ToImmutableAndFree();
                 return true;
             }
+        }
+
+        value = default;
+        return false;
+    }
+
+    internal static bool CrackStringArrayInAttributeValue(out ImmutableArray<string> value, ref BlobReader sig) {
+        if (sig.RemainingBytes >= 4) {
+            var arrayLen = sig.ReadUInt32();
+
+            if (IsArrayNull(arrayLen)) {
+                value = default;
+                return false;
+            }
+
+            var stringArray = new string[arrayLen];
+
+            for (var i = 0; i < arrayLen; i++) {
+                if (!CrackStringInAttributeValue(out stringArray[i], ref sig)) {
+                    value = stringArray.AsImmutableOrNull();
+                    return false;
+                }
+            }
+
+            value = stringArray.AsImmutableOrNull();
+            return true;
         }
 
         value = default;

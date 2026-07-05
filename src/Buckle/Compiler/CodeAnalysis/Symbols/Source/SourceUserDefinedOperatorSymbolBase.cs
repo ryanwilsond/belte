@@ -118,10 +118,15 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
         CheckOperatorSignatures(diagnostics);
     }
 
-    private protected abstract (TypeWithAnnotations ReturnType, ImmutableArray<ParameterSymbol> Parameters)
-        MakeParametersAndBindReturnType(BelteDiagnosticQueue diagnostics);
+    private protected abstract (TypeWithAnnotations ReturnType, ImmutableArray<ParameterSymbol> Parameters) MakeParametersAndBindReturnType(
+        BelteDiagnosticQueue diagnostics);
 
     private void CheckOperatorSignatures(BelteDiagnosticQueue diagnostics) {
+        if (!templateParameters.IsEmpty) {
+            if (!OperatorFacts.OperatorAllowsTemplate(name))
+                diagnostics.Push(Error.OperatorCantHaveTemplates(location, this));
+        }
+
         if (methodKind == MethodKind.Literal) {
             CheckLiteralOperatorSignature(diagnostics);
             return;

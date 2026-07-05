@@ -3,11 +3,16 @@ using Buckle.CodeAnalysis.Binding;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal static partial class ConstraintsHelpers {
-    private sealed class TemplateConstraintComparer {
+    internal sealed class TemplateConstraintComparer {
         private readonly TemplateMap _templateMap;
 
         internal TemplateConstraintComparer(TemplateMap templateMap) {
             _templateMap = templateMap;
+        }
+
+        internal static bool ExpressionsEqual(BoundExpression left, BoundExpression right) {
+            var comparer = new TemplateConstraintComparer(null);
+            return comparer.Equals(left, right);
         }
 
         internal bool Equals(BoundExpression constraint, BoundExpression impliedConstraint) {
@@ -19,7 +24,7 @@ internal static partial class ConstraintsHelpers {
                 return false;
 
             if (given.constantValue is not null && implied.constantValue is not null)
-                return given.constantValue.IsSameAs(implied.constantValue);
+                return given.constantValue.Equals(implied.constantValue);
 
             switch (given.kind) {
                 case BoundKind.UnaryOperator:
@@ -84,8 +89,12 @@ internal static partial class ConstraintsHelpers {
                     var templateGiven = (TemplateParameterSymbol)given.type;
                     var templateImplied = (TemplateParameterSymbol)implied.type;
 
-                    return _templateMap.SubstituteTemplateParameter(templateGiven)
-                        .IsSameAs(new TypeOrConstant(templateImplied));
+                    if (_templateMap is not null) {
+                        return _templateMap.SubstituteTemplateParameter(templateGiven)
+                            .IsSameAs(new TypeOrConstant(templateImplied));
+                    } else {
+                        return templateGiven.Equals(templateImplied);
+                    }
                 default:
                     return false;
             }

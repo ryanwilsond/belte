@@ -8279,4 +8279,20 @@ var text = """"""
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0587_OperatorCantHaveTemplates() {
+        var text = @"
+            class A {
+                public void operator<type T> [+=](A a) { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            user-defined operator 'A.op_AdditionAssignment<type! T>(A!)' cannot have template parameters
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

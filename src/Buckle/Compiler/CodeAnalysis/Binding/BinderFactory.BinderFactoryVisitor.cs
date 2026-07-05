@@ -625,7 +625,11 @@ internal sealed partial class BinderFactory {
 
             var key = CreateBinderCacheKey(node, nodeUsage);
 
-            var templateParameterListSyntax = node is ConversionDeclarationSyntax c ? c.templateParameterList : null;
+            var templateParameterListSyntax = node is ConversionDeclarationSyntax c
+                ? c.templateParameterList
+                : node is OperatorDeclarationSyntax o
+                    ? o.templateParameterList
+                    : null;
 
             if (!_binderCache.TryGetValue(key, out var resultBinder)) {
                 resultBinder = VisitCore(node.parent);

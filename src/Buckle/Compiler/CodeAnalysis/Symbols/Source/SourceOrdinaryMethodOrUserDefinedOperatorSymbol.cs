@@ -136,11 +136,13 @@ internal abstract class SourceOrdinaryMethodOrUserDefinedOperatorSymbol : Source
     private protected ImmutableArray<TemplateParameterSymbol> MakeTemplateParameters(
         BaseMethodDeclarationSyntax syntax,
         BelteDiagnosticQueue diagnostics) {
-        Debug.Assert(syntax is MethodDeclarationSyntax or ConversionDeclarationSyntax);
+        Debug.Assert(syntax is MethodDeclarationSyntax or ConversionDeclarationSyntax or OperatorDeclarationSyntax);
 
         var templateParameterList = syntax is MethodDeclarationSyntax m
             ? m.templateParameterList
-            : ((ConversionDeclarationSyntax)syntax).templateParameterList;
+            : syntax is ConversionDeclarationSyntax c
+                ? c.templateParameterList
+                : ((OperatorDeclarationSyntax)syntax).templateParameterList;
 
         if (templateParameterList is null)
             return [];
@@ -198,7 +200,7 @@ internal abstract class SourceOrdinaryMethodOrUserDefinedOperatorSymbol : Source
         ref TemplateParameterInfo templateParameterInfo,
         BaseMethodDeclarationSyntax syntax) {
         if (templateParameterInfo.lazyTypeParameterConstraintTypes.IsDefault) {
-            Debug.Assert(syntax is MethodDeclarationSyntax or ConversionDeclarationSyntax);
+            Debug.Assert(syntax is MethodDeclarationSyntax or ConversionDeclarationSyntax or OperatorDeclarationSyntax);
 
             TypeSyntax returnTypeSyntax;
             TemplateParameterListSyntax templateParameterListSyntax;
@@ -212,6 +214,10 @@ internal abstract class SourceOrdinaryMethodOrUserDefinedOperatorSymbol : Source
                 returnTypeSyntax = c.type;
                 templateParameterListSyntax = c.templateParameterList;
                 constraintClauseListSyntax = c.constraintClauseList;
+            } else if (syntax is OperatorDeclarationSyntax o) {
+                returnTypeSyntax = o.returnType;
+                templateParameterListSyntax = o.templateParameterList;
+                constraintClauseListSyntax = o.constraintClauseList;
             } else {
                 throw ExceptionUtilities.UnexpectedValue(syntax.kind);
             }
@@ -261,7 +267,7 @@ internal abstract class SourceOrdinaryMethodOrUserDefinedOperatorSymbol : Source
         ref TemplateParameterInfo templateParameterInfo,
         BaseMethodDeclarationSyntax syntax) {
         if (templateParameterInfo.lazyTypeParameterConstraintKinds.IsDefault) {
-            Debug.Assert(syntax is MethodDeclarationSyntax or ConversionDeclarationSyntax);
+            Debug.Assert(syntax is MethodDeclarationSyntax or ConversionDeclarationSyntax or OperatorDeclarationSyntax);
 
             TypeSyntax returnTypeSyntax;
             TemplateParameterListSyntax templateParameterListSyntax;
@@ -275,6 +281,10 @@ internal abstract class SourceOrdinaryMethodOrUserDefinedOperatorSymbol : Source
                 returnTypeSyntax = c.type;
                 templateParameterListSyntax = c.templateParameterList;
                 constraintClauseListSyntax = c.constraintClauseList;
+            } else if (syntax is OperatorDeclarationSyntax o) {
+                returnTypeSyntax = o.returnType;
+                templateParameterListSyntax = o.templateParameterList;
+                constraintClauseListSyntax = o.constraintClauseList;
             } else {
                 throw ExceptionUtilities.UnexpectedValue(syntax.kind);
             }
@@ -303,7 +313,7 @@ internal abstract class SourceOrdinaryMethodOrUserDefinedOperatorSymbol : Source
         ref TemplateParameterInfo templateParameterInfo,
         BaseMethodDeclarationSyntax syntax) {
         if (templateParameterInfo.lazyTemplateConstraints.IsDefault) {
-            Debug.Assert(syntax is MethodDeclarationSyntax or ConversionDeclarationSyntax);
+            Debug.Assert(syntax is MethodDeclarationSyntax or ConversionDeclarationSyntax or OperatorDeclarationSyntax);
 
             _ = GetTypeParameterConstraintTypes();
 
@@ -315,7 +325,9 @@ internal abstract class SourceOrdinaryMethodOrUserDefinedOperatorSymbol : Source
             } else {
                 var returnTypeSyntax = syntax is MethodDeclarationSyntax m
                     ? m.returnType
-                    : ((ConversionDeclarationSyntax)syntax).type;
+                    : syntax is ConversionDeclarationSyntax c
+                        ? c.type
+                        : ((OperatorDeclarationSyntax)syntax).returnType;
 
                 var withTemplateParametersBinder = declaringCompilation
                     .GetBinderFactory(syntax.syntaxTree)

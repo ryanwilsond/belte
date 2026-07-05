@@ -128,6 +128,65 @@ internal static class OperatorFacts {
         }
     }
 
+    internal static bool OperatorAllowsTemplate(string name) {
+        switch (name) {
+            case WellKnownMemberNames.IndexOperatorName:
+                return false;
+            case WellKnownMemberNames.PowerOperatorName:
+            case WellKnownMemberNames.MultiplyOperatorName:
+            case WellKnownMemberNames.DivideOperatorName:
+            case WellKnownMemberNames.ModulusOperatorName:
+            case WellKnownMemberNames.AdditionOperatorName:
+            case WellKnownMemberNames.UnaryPlusOperatorName:
+            case WellKnownMemberNames.SubtractionOperatorName:
+            case WellKnownMemberNames.UnaryNegationOperatorName:
+            case WellKnownMemberNames.LeftShiftOperatorName:
+            case WellKnownMemberNames.RightShiftOperatorName:
+            case WellKnownMemberNames.UnsignedRightShiftOperatorName:
+            case WellKnownMemberNames.BitwiseAndOperatorName:
+            case WellKnownMemberNames.BitwiseExclusiveOrOperatorName:
+            case WellKnownMemberNames.BitwiseOrOperatorName:
+            case WellKnownMemberNames.IncrementOperatorName:
+            case WellKnownMemberNames.DecrementOperatorName:
+            case WellKnownMemberNames.LogicalNotOperatorName:
+            case WellKnownMemberNames.BitwiseNotOperatorName:
+            case WellKnownMemberNames.EqualityOperatorName:
+            case WellKnownMemberNames.InequalityOperatorName:
+            case WellKnownMemberNames.LessThanOperatorName:
+            case WellKnownMemberNames.GreaterThanOperatorName:
+            case WellKnownMemberNames.LessThanOrEqualOperatorName:
+            case WellKnownMemberNames.GreaterThanOrEqualOperatorName:
+            case WellKnownMemberNames.SlashBackslashOperatorName:
+            case WellKnownMemberNames.BackslashSlashOperatorName:
+                return true;
+            case WellKnownMemberNames.ImplicitConversionName:
+            case WellKnownMemberNames.ExplicitConversionName:
+                return true;
+            case WellKnownMemberNames.LengthOperatorName:
+            case WellKnownMemberNames.IterOperatorName:
+                return false;
+            case WellKnownMemberNames.PowerAssignmentOperatorName:
+            case WellKnownMemberNames.AdditionAssignmentOperatorName:
+            case WellKnownMemberNames.SubtractionAssignmentOperatorName:
+            case WellKnownMemberNames.MultiplicationAssignmentOperatorName:
+            case WellKnownMemberNames.DivisionAssignmentOperatorName:
+            case WellKnownMemberNames.ModulusAssignmentOperatorName:
+            case WellKnownMemberNames.BitwiseAndAssignmentOperatorName:
+            case WellKnownMemberNames.BitwiseOrAssignmentOperatorName:
+            case WellKnownMemberNames.ExclusiveOrAssignmentOperatorName:
+            case WellKnownMemberNames.LeftShiftAssignmentOperatorName:
+            case WellKnownMemberNames.RightShiftAssignmentOperatorName:
+            case WellKnownMemberNames.UnsignedRightShiftAssignmentOperatorName:
+            case WellKnownMemberNames.SlashBackslashAssignmentOperatorName:
+            case WellKnownMemberNames.BackslashSlashAssignmentOperatorName:
+            case WellKnownMemberNames.IncrementAssignmentOperatorName:
+            case WellKnownMemberNames.DecrementAssignmentOperatorName:
+                return false;
+            default:
+                return false;
+        }
+    }
+
     internal static BinaryOperatorSignature GetSignature(BinaryOperatorKind kind) {
         var left = TypeFromKind(kind);
 

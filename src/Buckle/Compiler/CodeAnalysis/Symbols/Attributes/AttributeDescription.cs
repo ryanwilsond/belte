@@ -50,6 +50,7 @@ internal partial struct AttributeDescription {
     private static readonly byte[] Signature_HasThis_Void_CompilationRelaxations = [(byte)SignatureAttributes.Instance, 1, Void, TypeHandle, (byte)TypeHandleTarget.CompilationRelaxations];
     private static readonly byte[] Signature_HasThis_Void_Type_Int32 = [(byte)SignatureAttributes.Instance, 2, Void, TypeHandle, (byte)TypeHandleTarget.SystemType, Int32];
     private static readonly byte[] Signature_HasThis_Void_SzArray_Byte = [(byte)SignatureAttributes.Instance, 1, Void, SzArray, Byte];
+    private static readonly byte[] Signature_HasThis_Void_SzArray_String = [(byte)SignatureAttributes.Instance, 1, Void, SzArray, String];
 
     private static readonly byte[][] Signatures_HasThis_Void_Only = [Signature_HasThis_Void];
     private static readonly byte[][] Signatures_HasThis_Void_String_Only = [Signature_HasThis_Void_String];
@@ -61,6 +62,7 @@ internal partial struct AttributeDescription {
     private static readonly byte[][] SignaturesOfTypeIdentifierAttribute = [Signature_HasThis_Void, Signature_HasThis_Void_String_String];
     private static readonly byte[][] SignaturesOfCompilationRelaxationsAttribute = [Signature_HasThis_Void_Int32, Signature_HasThis_Void_CompilationRelaxations];
     private static readonly byte[][] SignaturesOfFixedBufferAttribute = [Signature_HasThis_Void_Type_Int32];
+    private static readonly byte[][] SignaturesOfTupleElementNamesAttribute = { Signature_HasThis_Void, Signature_HasThis_Void_SzArray_String };
 
     internal static readonly AttributeDescription InternalsVisibleToAttribute = new AttributeDescription("System.Runtime.CompilerServices", "InternalsVisibleToAttribute", Signatures_HasThis_Void_String_Only);
     internal static readonly AttributeDescription TypeIdentifierAttribute = new AttributeDescription("System.Runtime.InteropServices", "TypeIdentifierAttribute", SignaturesOfTypeIdentifierAttribute);
@@ -84,4 +86,5 @@ internal partial struct AttributeDescription {
     internal static readonly AttributeDescription UnmanagedCallersOnlyAttribute = new AttributeDescription("System.Runtime.InteropServices", "UnmanagedCallersOnlyAttribute", Signatures_HasThis_Void_Only);
     internal static readonly AttributeDescription UnmanagedAttribute = new AttributeDescription("", "UnmanagedAttribute", Signatures_HasThis_Void_Only);
     internal static readonly AttributeDescription MustUseReturnValueAttribute = new AttributeDescription("", "MustUseReturnValueAttribute", Signatures_HasThis_Void_Only);
+    internal static readonly AttributeDescription TupleElementNamesAttribute = new AttributeDescription("System.Runtime.CompilerServices", "TupleElementNamesAttribute", SignaturesOfTupleElementNamesAttribute);
 }

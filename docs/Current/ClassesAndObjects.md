@@ -467,6 +467,24 @@ class MyClass {
 }
 ```
 
+Operators can be templated as long as one of the parameters matches the containing type exactly:
+
+```belte
+class MyClass<type T> {
+  public static MyClass<TOther> operator<type TOther> +(MyClass<TOther> left, MyClass<T> right) {
+    // ...
+  }
+}
+```
+
+These operators will infer their template arguments from usage:
+
+```belte
+MyClass<int> a = /* ... */;
+MyClass<bool> b = /* ... */;
+MyClass<int> c = a + b; // Okay
+```
+
 #### 4.2.3.2 Casts
 
 Explicit and implicit casts from or to the class type can be declared as such:
@@ -499,6 +517,69 @@ A a = (A)3;
 
 ```belte
 int a = new A();
+```
+
+Like operators, user-defined casts can be templated as long as either the parameter type or return type matches the
+containing type exactly:
+
+```belte
+class MyClass<type T> {
+  public static implicit operator<type TOther> MyClass<TOther>(MyClass<T> operand) {
+    // ...
+  }
+}
+```
+
+Also like operators, their template arguments will be inferred from usage:
+
+```belte
+MyClass<int> a = /* ... */;
+MyClass<bool> b = a; // Okay
+```
+
+Template argument inference will account for constraints. Consider this slightly more complex example with a bounded
+integer type:
+
+```belte
+public struct Int<int Min = Int64.MinValue, int Max = Int64.MaxValue>
+    where { Min <= Max; } {
+  private int64 _value;
+
+  public constructor(int64 value) {
+    if (value < Min || value > Max)
+      throw new ValueOutOfRangeException(value, Min, Max);
+
+    _value = value;
+  }
+
+  public static implicit operator Int<Min, Max>(int64 value) {
+    return new(value);
+  }
+
+  public static explicit operator<int TMin, int TMax> Int<TMin, TMax>(Int<Min, Max> bigger)
+      where { !(TMax < Min || TMin > Max); TMin <= TMax; } {
+    return new Int<TMin, TMax>(bigger._value);
+  }
+
+  public static implicit operator<int TMin, int TMax> Int<TMin, TMax>(Int<Min, Max> smaller)
+      where { TMax >= Max; TMin <= TMax; TMin <= Min; } {
+    return new Int<TMin, TMax>(smaller._value);
+  }
+}
+```
+
+The last two user-defined casts on the type have identical signatures apart from their constraints, as such those
+constraints will determine which call is used (note that implicit casts are always preferred over explicit casts):
+
+```belte
+Int<0, 5> a = 3;
+Int<0, 6> b = a; // Implicit because the target bounds fully encompass the source bounds
+
+Int<0, 5> a = 3;
+Int<0, 3> b = (Int<0, 3>)a; // Explicit because the target bounds don't fully encompass the source bounds
+
+Int<0, 5> a = 3;
+Int<6, 10> b = a; // Invalid because neither cast allows bounds with no overlap
 ```
 
 #### 4.2.3.3 User-Defined Literals
@@ -692,7 +773,7 @@ class List<type t> {
 
   public constructor(t[] array) {
     this.array = array;
-    length = Length(array);
+    length = array.Length())
   }
 
   public static ref t operator[](List<t> list, int index) {
@@ -729,6 +810,22 @@ var myList = new List<List<int>>({
   new List<int>({ 3 }),
   new List<int>({ 3, 3, 2, 45 })
 });
+```
+
+Template parameters can have default values similar to method or function parameters:
+
+```belte
+class A<int T = 10> { }
+
+A a; // Same as `A<10> a;`
+```
+
+For default types, a `typeof(<type>)` expression can be used:
+
+```belte
+class A<type T = typeof(int)> { }
+
+A a; // Same as `A<int> a;`
 ```
 
 ### 4.5.1 Constraint Clauses
