@@ -457,8 +457,17 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.ReversibleExpression => ExpandReversibleExpression((BoundReversibleExpression)expression, out replacement, useKind),
             BoundKind.ArrayLength => ExpandArrayLength((BoundArrayLength)expression, out replacement, useKind),
             BoundKind.UnconvertedArrayLength => ExpandUnconvertedArrayLength((BoundUnconvertedArrayLength)expression, out replacement, useKind),
+            BoundKind.ValuePlaceholder => ExpandValuePlaceholder((BoundValuePlaceholder)expression, out replacement, useKind),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
+    }
+
+    private protected virtual List<BoundStatement> ExpandValuePlaceholder(
+        BoundValuePlaceholder expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        replacement = expression;
+        return [];
     }
 
     private protected virtual List<BoundStatement> ExpandArrayLength(

@@ -501,4 +501,15 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
             );
         }
     }
+
+    internal static bool IsInstanceIncrementDecrementOrCompoundAssignmentOperator(MethodSymbol target) {
+        if (target.methodKind == MethodKind.Operator && !target.isStatic) {
+            var syntaxKind = SyntaxFacts.GetOperatorKind(target.name);
+
+            return syntaxKind is SyntaxKind.PlusPlusToken or SyntaxKind.MinusMinusToken ||
+                SyntaxFacts.IsOverloadableCompoundAssignmentOperator(syntaxKind);
+        }
+
+        return false;
+    }
 }

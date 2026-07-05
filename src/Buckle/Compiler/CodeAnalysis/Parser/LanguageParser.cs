@@ -1335,7 +1335,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         SyntaxList<SyntaxToken> modifiers,
         TypeSyntax returnType) {
         var (explicitInterfaceSpecifier, operatorKeyword) = ParseOperatorMemberName();
-        var operatorToken = EatToken();
+        var operatorToken = ParseOperatorDeclarationToken();
         var opKind = operatorToken.kind;
 
         var rightOperatorToken = operatorToken.kind == SyntaxKind.OpenBracketToken
@@ -1348,7 +1348,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
         switch (parameterList.parameters.Count) {
             case 1:
                 if (!operatorToken.isFabricated && !SyntaxFacts.IsOverloadableUnaryOperator(opKind) &&
-                    !SyntaxFacts.IsOverloadableMethod(operatorToken)) {
+                    !SyntaxFacts.IsOverloadableMethod(operatorToken) &&
+                    !SyntaxFacts.IsOverloadableCompoundAssignmentOperator(opKind)) {
                     operatorToken = AddDiagnostic(
                         operatorToken,
                         Error.ExpectedOverloadableUnaryOperator()
@@ -1378,9 +1379,17 @@ internal sealed partial class LanguageParser : SyntaxParser {
                     );
                 } else if (SyntaxFacts.IsOverloadableUnaryOperator(opKind) ||
                     SyntaxFacts.IsOverloadableMethod(operatorToken)) {
+                    if (opKind is not (SyntaxKind.PlusPlusToken or SyntaxKind.MinusMinusToken) ||
+                        parameterList.parameters.Count != 0) {
+                        operatorToken = AddDiagnostic(
+                            operatorToken,
+                            Error.IncorrectUnaryOperatorArgs(SyntaxFacts.GetText(opKind) ?? operatorToken.text)
+                        );
+                    }
+                } else if (SyntaxFacts.IsOverloadableCompoundAssignmentOperator(opKind)) {
                     operatorToken = AddDiagnostic(
                         operatorToken,
-                        Error.IncorrectUnaryOperatorArgs(SyntaxFacts.GetText(opKind) ?? operatorToken.text)
+                        Error.IncorrectCompoundOperatorArgs(SyntaxFacts.GetText(opKind))
                     );
                 } else {
                     operatorToken = AddDiagnostic(
@@ -1405,6 +1414,58 @@ internal sealed partial class LanguageParser : SyntaxParser {
             body,
             semicolon
         );
+    }
+
+    private SyntaxToken ParseOperatorDeclarationToken() {
+        var tokensToCombine = 1;
+        var combinedTokenKind = currentToken.kind;
+
+        if (currentToken.kind == SyntaxKind.GreaterThanToken &&
+            Peek(1).kind is SyntaxKind.GreaterThanToken or SyntaxKind.GreaterThanEqualsToken &&
+            NoTriviaBetween(currentToken, Peek(1))) {
+            if (Peek(1).kind == SyntaxKind.GreaterThanToken) {
+                if (Peek(2).kind is SyntaxKind.GreaterThanToken or SyntaxKind.GreaterThanEqualsToken &&
+                    NoTriviaBetween(Peek(1), Peek(2))) {
+                    if (Peek(2).kind == SyntaxKind.GreaterThanToken) {
+                        tokensToCombine = 3;
+                        combinedTokenKind = SyntaxKind.GreaterThanGreaterThanGreaterThanToken;
+                    }
+                } else {
+                    tokensToCombine = 2;
+                    combinedTokenKind = SyntaxKind.GreaterThanGreaterThanToken;
+                }
+            }
+        } else if (currentToken.kind == SyntaxKind.AsteriskToken &&
+            Peek(1).kind == SyntaxKind.AsteriskToken &&
+            NoTriviaBetween(currentToken, Peek(1))) {
+            tokensToCombine = 2;
+            combinedTokenKind = SyntaxKind.AsteriskAsteriskToken;
+        }
+
+        var operatorToken = EatToken();
+
+        if (tokensToCombine == 2) {
+            var operatorToken2 = EatToken();
+
+            operatorToken = SyntaxFactory.Token(
+                operatorToken.GetLeadingTrivia(),
+                combinedTokenKind,
+                operatorToken2.GetTrailingTrivia()
+            );
+        } else if (tokensToCombine == 3) {
+            EatToken();
+            var operatorToken2 = EatToken();
+
+            operatorToken = SyntaxFactory.Token(
+                operatorToken.GetLeadingTrivia(),
+                combinedTokenKind,
+                operatorToken2.GetTrailingTrivia()
+            );
+        } else if (tokensToCombine != 1) {
+            throw ExceptionUtilities.Unreachable();
+        }
+
+        return operatorToken;
     }
 
     private ConversionDeclarationSyntax ParseConversionDeclaration(
@@ -3189,7 +3250,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
                             combinedTokenKind = SyntaxKind.GreaterThanGreaterThanGreaterThanToken;
                             precedence = combinedTokenKind.GetBinaryPrecedence();
                         } else {
-                            // >>>=, needs to be handled by ParseAssignmentExpression
+                            // >>>=, needs to be handled by ParseAssignmentExpression or Lexer
                             break;
                         }
                     } else {
@@ -3198,7 +3259,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
                         precedence = combinedTokenKind.GetBinaryPrecedence();
                     }
                 } else {
-                    // >>=, needs to be handled by ParseAssignmentExpression
+                    // >>=, needs to be handled by ParseAssignmentExpression or Lexer
                     break;
                 }
             } else if (currentToken.kind == SyntaxKind.AsteriskToken &&

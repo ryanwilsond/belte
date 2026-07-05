@@ -485,9 +485,19 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_IncorrectUnaryOperatorArgs, message);
     }
 
-    internal static BelteDiagnostic OperatorMustBePublicAndStatic(TextLocation location) {
-        var message = $"overloaded operators must be marked as public and static";
+    internal static Diagnostic IncorrectCompoundOperatorArgs(string @operator) {
+        var message = $"overloaded compound assignment operator '{@operator}' takes 1 parameter";
+        return CreateError(DiagnosticCode.ERR_IncorrectCompoundOperatorArgs, message);
+    }
+
+    internal static BelteDiagnostic OperatorMustBePublicAndStatic(TextLocation location, MethodSymbol symbol) {
+        var message = $"user-defined operator '{symbol}' must be declared public and static";
         return CreateError(DiagnosticCode.ERR_OperatorMustBePublicAndStatic, location, message);
+    }
+
+    internal static BelteDiagnostic OperatorMustBePublic(TextLocation location, MethodSymbol symbol) {
+        var message = $"user-defined operator '{symbol}' must be declared public";
+        return CreateError(DiagnosticCode.ERR_OperatorMustBePublic, location, message);
     }
 
     internal static BelteDiagnostic OperatorInStaticClass(TextLocation location) {
@@ -2884,6 +2894,11 @@ internal static class Error {
     internal static BelteDiagnostic TemplateRecursionWithCause(TextLocation location, Symbol template, Symbol original, string kind, Symbol cause) {
         var message = $"'{original.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' -> '{template.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': template instantiation depth exceeds maximum; recurse caused by {kind} '{cause}'";
         return CreateError(DiagnosticCode.ERR_TemplateRecursionWithCause, location, message);
+    }
+
+    internal static BelteDiagnostic OperatorMustReturnVoid(TextLocation location) {
+        var message = $"the return type for assignment operators must be void";
+        return CreateError(DiagnosticCode.ERR_OperatorMustReturnVoid, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

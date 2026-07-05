@@ -16,6 +16,7 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
         MethodKind methodKind,
         TypeSymbol explicitInterfaceType,
         string name,
+        bool isCompoundAssignmentOrIncrementAssignment,
         SourceMemberContainerTypeSymbol containingType,
         TextLocation location,
         BelteSyntaxNode syntax,
@@ -46,10 +47,13 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
         }
 
         if (isExplicitInterfaceImplementation) {
-            if (!isStatic)
+            if (!isStatic && !isCompoundAssignmentOrIncrementAssignment)
                 diagnostics.Push(Error.ExplicitImplementationOfOperatorsMustBeStatic(location, this));
+        } else if (isCompoundAssignmentOrIncrementAssignment) {
+            if (declaredAccessibility != Accessibility.Public)
+                diagnostics.Push(Error.OperatorMustBePublic(location, this));
         } else if (declaredAccessibility != Accessibility.Public || !isStatic) {
-            diagnostics.Push(Error.OperatorMustBePublicAndStatic(location));
+            diagnostics.Push(Error.OperatorMustBePublicAndStatic(location, this));
         }
 
         if (isAbstract && isExtern) {
@@ -158,6 +162,26 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
                     CheckAbstractEqualitySignature(diagnostics);
                 else
                     CheckBinarySignature(diagnostics);
+
+                break;
+            case WellKnownMemberNames.PowerAssignmentOperatorName:
+            case WellKnownMemberNames.SlashBackslashAssignmentOperatorName:
+            case WellKnownMemberNames.BackslashSlashAssignmentOperatorName:
+            case WellKnownMemberNames.AdditionAssignmentOperatorName:
+            case WellKnownMemberNames.DivisionAssignmentOperatorName:
+            case WellKnownMemberNames.MultiplicationAssignmentOperatorName:
+            case WellKnownMemberNames.SubtractionAssignmentOperatorName:
+            case WellKnownMemberNames.ModulusAssignmentOperatorName:
+            case WellKnownMemberNames.BitwiseAndAssignmentOperatorName:
+            case WellKnownMemberNames.BitwiseOrAssignmentOperatorName:
+            case WellKnownMemberNames.ExclusiveOrAssignmentOperatorName:
+            case WellKnownMemberNames.LeftShiftAssignmentOperatorName:
+            case WellKnownMemberNames.RightShiftAssignmentOperatorName:
+            case WellKnownMemberNames.UnsignedRightShiftAssignmentOperatorName:
+            case WellKnownMemberNames.IncrementAssignmentOperatorName:
+            case WellKnownMemberNames.DecrementAssignmentOperatorName:
+                if (!returnsVoid)
+                    diagnostics.Push(Error.OperatorMustReturnVoid(location));
 
                 break;
             default:
@@ -404,6 +428,24 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
             case WellKnownMemberNames.ImplicitConversionName:
             case WellKnownMemberNames.ExplicitConversionName:
                 return parameterCount == 1;
+            case WellKnownMemberNames.PowerAssignmentOperatorName:
+            case WellKnownMemberNames.SlashBackslashAssignmentOperatorName:
+            case WellKnownMemberNames.BackslashSlashAssignmentOperatorName:
+            case WellKnownMemberNames.AdditionAssignmentOperatorName:
+            case WellKnownMemberNames.DivisionAssignmentOperatorName:
+            case WellKnownMemberNames.MultiplicationAssignmentOperatorName:
+            case WellKnownMemberNames.SubtractionAssignmentOperatorName:
+            case WellKnownMemberNames.ModulusAssignmentOperatorName:
+            case WellKnownMemberNames.BitwiseAndAssignmentOperatorName:
+            case WellKnownMemberNames.BitwiseOrAssignmentOperatorName:
+            case WellKnownMemberNames.ExclusiveOrAssignmentOperatorName:
+            case WellKnownMemberNames.LeftShiftAssignmentOperatorName:
+            case WellKnownMemberNames.RightShiftAssignmentOperatorName:
+            case WellKnownMemberNames.UnsignedRightShiftAssignmentOperatorName:
+                return parameterCount == 1;
+            case WellKnownMemberNames.IncrementAssignmentOperatorName:
+            case WellKnownMemberNames.DecrementAssignmentOperatorName:
+                return parameterCount == 0;
             default:
                 return parameterCount == 2;
         }

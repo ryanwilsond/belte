@@ -141,6 +141,12 @@ internal sealed class Conversions : ConversionsBase {
 
         var ordinals = op.MakeAdjustedTemplateParameterOrdinalsIfNeeded(originalTemplateParameters);
 
+        // If the argument is null, we are just checking if something exists but don't actually care about diagnostics
+        // So the location doesn't matter
+        var arg = argument is not null
+            ? new BoundExpressionOrTypeOrConstant(argument)
+            : new BoundExpressionOrTypeOrConstant(new BoundValuePlaceholder(null, source));
+
         var inferenceResult = MethodTypeInferrer.Infer(
             _binder,
             this,
@@ -148,7 +154,7 @@ internal sealed class Conversions : ConversionsBase {
             op.containingType,
             [new TypeWithAnnotations(source)],
             [RefKind.None],
-            [new BoundExpressionOrTypeOrConstant(argument)],
+            [arg],
             formalReturnType: op.returnType,
             returnTargetType: target,
             ordinals: ordinals
@@ -176,7 +182,7 @@ internal sealed class Conversions : ConversionsBase {
             var constraintsSatisfied = ConstraintsHelpers.CheckMethodConstraints(
                 result,
                 this,
-                argument.syntax.location,
+                argument?.syntax?.location,
                 impliedConstraints,
                 _
             );

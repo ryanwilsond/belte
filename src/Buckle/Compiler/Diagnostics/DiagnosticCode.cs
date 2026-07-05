@@ -592,6 +592,9 @@ public enum DiagnosticCode : ushort {
     ERR_PointerTypeInPatternMatch = 581,
     ERR_TemplateRecursionWithCause = 582,
     WRN_UnnecessaryCompileTimeExpression = 583,
+    ERR_IncorrectCompoundOperatorArgs = 584,
+    ERR_OperatorMustReturnVoid = 585,
+    ERR_OperatorMustBePublic = 586,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

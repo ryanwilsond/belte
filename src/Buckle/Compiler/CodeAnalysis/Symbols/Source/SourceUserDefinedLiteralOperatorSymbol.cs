@@ -15,8 +15,9 @@ internal sealed class SourceUserDefinedLiteralOperatorSymbol : SourceUserDefined
         BelteDiagnosticQueue diagnostics)
         : base(
             methodKind,
-            null,
+            explicitInterfaceType: null,
             name,
+            isCompoundAssignmentOrIncrementAssignment: false,
             containingType,
             syntax.literalKeyword.location,
             syntax,

@@ -105,6 +105,29 @@ internal static class OperatorFacts {
         };
     }
 
+    internal static string GetCompoundOperatorNameFromKind(SyntaxKind kind) {
+        switch (kind) {
+            case SyntaxKind.SlashBackslashEqualsToken: return WellKnownMemberNames.SlashBackslashAssignmentOperatorName;
+            case SyntaxKind.BackslashSlashEqualsToken: return WellKnownMemberNames.BackslashSlashAssignmentOperatorName;
+            case SyntaxKind.AsteriskAsteriskEqualsToken: return WellKnownMemberNames.PowerAssignmentOperatorName;
+            case SyntaxKind.PlusEqualsToken: return WellKnownMemberNames.AdditionAssignmentOperatorName;
+            case SyntaxKind.MinusEqualsToken: return WellKnownMemberNames.SubtractionAssignmentOperatorName;
+            case SyntaxKind.AsteriskEqualsToken: return WellKnownMemberNames.MultiplicationAssignmentOperatorName;
+            case SyntaxKind.SlashEqualsToken: return WellKnownMemberNames.DivisionAssignmentOperatorName;
+            case SyntaxKind.PercentEqualsToken: return WellKnownMemberNames.ModulusAssignmentOperatorName;
+            case SyntaxKind.CaretEqualsToken: return WellKnownMemberNames.ExclusiveOrAssignmentOperatorName;
+            case SyntaxKind.AmpersandEqualsToken: return WellKnownMemberNames.BitwiseAndAssignmentOperatorName;
+            case SyntaxKind.PipeEqualsToken: return WellKnownMemberNames.BitwiseOrAssignmentOperatorName;
+            case SyntaxKind.LessThanLessThanEqualsToken: return WellKnownMemberNames.LeftShiftAssignmentOperatorName;
+            case SyntaxKind.GreaterThanGreaterThanEqualsToken: return WellKnownMemberNames.RightShiftAssignmentOperatorName;
+            case SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken: return WellKnownMemberNames.UnsignedRightShiftAssignmentOperatorName;
+            case SyntaxKind.PlusPlusToken: return WellKnownMemberNames.IncrementAssignmentOperatorName;
+            case SyntaxKind.MinusMinusToken: return WellKnownMemberNames.DecrementAssignmentOperatorName;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(kind);
+        }
+    }
+
     internal static BinaryOperatorSignature GetSignature(BinaryOperatorKind kind) {
         var left = TypeFromKind(kind);
 
@@ -172,6 +195,30 @@ internal static class OperatorFacts {
             opType = CorLibrary.GetOrCreateNullableType(opType);
 
         return new UnaryOperatorSignature(kind, opType, opType);
+    }
+
+    internal static bool IsCompoundAssignmentOperatorName(string operatorMetadataName) {
+        switch (operatorMetadataName) {
+            case WellKnownMemberNames.DecrementAssignmentOperatorName:
+            case WellKnownMemberNames.IncrementAssignmentOperatorName:
+            case WellKnownMemberNames.SlashBackslashAssignmentOperatorName:
+            case WellKnownMemberNames.BackslashSlashAssignmentOperatorName:
+            case WellKnownMemberNames.PowerAssignmentOperatorName:
+            case WellKnownMemberNames.AdditionAssignmentOperatorName:
+            case WellKnownMemberNames.SubtractionAssignmentOperatorName:
+            case WellKnownMemberNames.MultiplicationAssignmentOperatorName:
+            case WellKnownMemberNames.DivisionAssignmentOperatorName:
+            case WellKnownMemberNames.ModulusAssignmentOperatorName:
+            case WellKnownMemberNames.BitwiseAndAssignmentOperatorName:
+            case WellKnownMemberNames.BitwiseOrAssignmentOperatorName:
+            case WellKnownMemberNames.ExclusiveOrAssignmentOperatorName:
+            case WellKnownMemberNames.LeftShiftAssignmentOperatorName:
+            case WellKnownMemberNames.RightShiftAssignmentOperatorName:
+            case WellKnownMemberNames.UnsignedRightShiftAssignmentOperatorName:
+                return true;
+            default:
+                return false;
+        }
     }
 
     internal static TypeSymbol TypeFromKind(BinaryOperatorKind kind) {

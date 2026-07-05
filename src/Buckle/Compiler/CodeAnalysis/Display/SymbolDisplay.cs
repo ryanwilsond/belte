@@ -448,8 +448,9 @@ public static class SymbolDisplay {
     }
 
     private static SymbolDisplayFormat ToMemberTypeFormat(SymbolDisplayFormat format) {
-        return format.WithOptions(format.memberOptions & ~(SymbolDisplayMemberOptions.IncludeTypeModifiers |
-                                                           SymbolDisplayMemberOptions.IncludeAccessibility));
+        format = format.WithOptions(format.memberOptions & ~(SymbolDisplayMemberOptions.IncludeTypeModifiers |
+                                                             SymbolDisplayMemberOptions.IncludeAccessibility));
+        return format.WithOptions(format.templateOptions & ~SymbolDisplayTemplateOptions.IncludeTemplateConstraints);
     }
 
     private static void DisplayTemplateParameter(
@@ -494,7 +495,7 @@ public static class SymbolDisplay {
             }
         }
 
-        if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeDefaultValue) != 0) {
+        if ((format.templateOptions & SymbolDisplayTemplateOptions.IncludeTemplateDefaultValues) != 0) {
             var defaultValue = templateParameter.defaultValue;
 
             if (defaultValue is not null) {

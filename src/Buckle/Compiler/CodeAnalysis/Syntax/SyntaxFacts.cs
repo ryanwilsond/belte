@@ -524,7 +524,9 @@ public static class SyntaxFacts {
     /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>If the <see cref="SyntaxKind" /> is an overloadable operator.</returns>
     internal static bool IsOverloadableOperator(this SyntaxKind type) {
-        return IsOverloadableUnaryOperator(type) || IsOverloadableBinaryOperator(type);
+        return IsOverloadableUnaryOperator(type) ||
+               IsOverloadableBinaryOperator(type) ||
+               IsOverloadableCompoundAssignmentOperator(type);
     }
 
     internal static bool IsOverloadableUnaryOperator(this SyntaxKind type) {
@@ -564,6 +566,28 @@ public static class SyntaxFacts {
             SyntaxKind.BackslashSlashToken => true,
             _ => false,
         };
+    }
+
+    internal static bool IsOverloadableCompoundAssignmentOperator(SyntaxKind kind) {
+        switch (kind) {
+            case SyntaxKind.AsteriskAsteriskEqualsToken:
+            case SyntaxKind.SlashBackslashEqualsToken:
+            case SyntaxKind.BackslashSlashEqualsToken:
+            case SyntaxKind.PlusEqualsToken:
+            case SyntaxKind.MinusEqualsToken:
+            case SyntaxKind.AsteriskEqualsToken:
+            case SyntaxKind.SlashEqualsToken:
+            case SyntaxKind.PercentEqualsToken:
+            case SyntaxKind.AmpersandEqualsToken:
+            case SyntaxKind.PipeEqualsToken:
+            case SyntaxKind.CaretEqualsToken:
+            case SyntaxKind.LessThanLessThanEqualsToken:
+            case SyntaxKind.GreaterThanGreaterThanEqualsToken:
+            case SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken:
+                return true;
+            default:
+                return false;
+        }
     }
 
     internal static bool IsOverloadableMethod(this InternalSyntax.SyntaxToken token) {
@@ -662,8 +686,10 @@ public static class SyntaxFacts {
             SyntaxKind.AmpersandToken => WellKnownMemberNames.BitwiseAndOperatorName,
             SyntaxKind.CaretToken => WellKnownMemberNames.BitwiseExclusiveOrOperatorName,
             SyntaxKind.PipeToken => WellKnownMemberNames.BitwiseOrOperatorName,
-            SyntaxKind.PlusPlusToken => WellKnownMemberNames.IncrementOperatorName,
-            SyntaxKind.MinusMinusToken => WellKnownMemberNames.DecrementOperatorName,
+            SyntaxKind.PlusPlusToken when parameterCount == 0 => WellKnownMemberNames.IncrementAssignmentOperatorName,
+            SyntaxKind.PlusPlusToken when parameterCount == 1 => WellKnownMemberNames.IncrementOperatorName,
+            SyntaxKind.MinusMinusToken when parameterCount == 0 => WellKnownMemberNames.DecrementAssignmentOperatorName,
+            SyntaxKind.MinusMinusToken when parameterCount == 1 => WellKnownMemberNames.DecrementOperatorName,
             SyntaxKind.ExclamationToken => WellKnownMemberNames.LogicalNotOperatorName,
             SyntaxKind.TildeToken => WellKnownMemberNames.BitwiseNotOperatorName,
             SyntaxKind.OpenBracketToken => WellKnownMemberNames.IndexOperatorName,
@@ -676,6 +702,20 @@ public static class SyntaxFacts {
             SyntaxKind.GreaterThanEqualsToken => WellKnownMemberNames.GreaterThanOrEqualOperatorName,
             SyntaxKind.SlashBackslashToken => WellKnownMemberNames.SlashBackslashOperatorName,
             SyntaxKind.BackslashSlashToken => WellKnownMemberNames.BackslashSlashOperatorName,
+            SyntaxKind.SlashBackslashEqualsToken => WellKnownMemberNames.SlashBackslashAssignmentOperatorName,
+            SyntaxKind.BackslashSlashEqualsToken => WellKnownMemberNames.BackslashSlashAssignmentOperatorName,
+            SyntaxKind.AsteriskAsteriskEqualsToken => WellKnownMemberNames.PowerAssignmentOperatorName,
+            SyntaxKind.PlusEqualsToken => WellKnownMemberNames.AdditionAssignmentOperatorName,
+            SyntaxKind.MinusEqualsToken => WellKnownMemberNames.SubtractionAssignmentOperatorName,
+            SyntaxKind.AsteriskEqualsToken => WellKnownMemberNames.MultiplicationAssignmentOperatorName,
+            SyntaxKind.SlashEqualsToken => WellKnownMemberNames.DivisionAssignmentOperatorName,
+            SyntaxKind.PercentEqualsToken => WellKnownMemberNames.ModulusAssignmentOperatorName,
+            SyntaxKind.AmpersandEqualsToken => WellKnownMemberNames.BitwiseAndAssignmentOperatorName,
+            SyntaxKind.PipeEqualsToken => WellKnownMemberNames.BitwiseOrAssignmentOperatorName,
+            SyntaxKind.CaretEqualsToken => WellKnownMemberNames.ExclusiveOrAssignmentOperatorName,
+            SyntaxKind.LessThanLessThanEqualsToken => WellKnownMemberNames.LeftShiftAssignmentOperatorName,
+            SyntaxKind.GreaterThanGreaterThanEqualsToken => WellKnownMemberNames.RightShiftAssignmentOperatorName,
+            SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken => WellKnownMemberNames.UnsignedRightShiftAssignmentOperatorName,
             _ => null,
         };
     }
@@ -709,6 +749,22 @@ public static class SyntaxFacts {
             WellKnownMemberNames.GreaterThanOrEqualOperatorName => SyntaxKind.GreaterThanEqualsToken,
             WellKnownMemberNames.SlashBackslashOperatorName => SyntaxKind.SlashBackslashToken,
             WellKnownMemberNames.BackslashSlashOperatorName => SyntaxKind.BackslashSlashToken,
+            WellKnownMemberNames.SlashBackslashAssignmentOperatorName => SyntaxKind.SlashBackslashEqualsToken,
+            WellKnownMemberNames.BackslashSlashAssignmentOperatorName => SyntaxKind.BackslashSlashEqualsToken,
+            WellKnownMemberNames.PowerAssignmentOperatorName => SyntaxKind.AsteriskAsteriskEqualsToken,
+            WellKnownMemberNames.AdditionAssignmentOperatorName => SyntaxKind.PlusEqualsToken,
+            WellKnownMemberNames.SubtractionAssignmentOperatorName => SyntaxKind.MinusEqualsToken,
+            WellKnownMemberNames.MultiplicationAssignmentOperatorName => SyntaxKind.AsteriskEqualsToken,
+            WellKnownMemberNames.DivisionAssignmentOperatorName => SyntaxKind.SlashEqualsToken,
+            WellKnownMemberNames.ModulusAssignmentOperatorName => SyntaxKind.PercentEqualsToken,
+            WellKnownMemberNames.BitwiseAndAssignmentOperatorName => SyntaxKind.AmpersandEqualsToken,
+            WellKnownMemberNames.BitwiseOrAssignmentOperatorName => SyntaxKind.PipeEqualsToken,
+            WellKnownMemberNames.ExclusiveOrAssignmentOperatorName => SyntaxKind.CaretEqualsToken,
+            WellKnownMemberNames.LeftShiftAssignmentOperatorName => SyntaxKind.LessThanLessThanEqualsToken,
+            WellKnownMemberNames.RightShiftAssignmentOperatorName => SyntaxKind.GreaterThanGreaterThanEqualsToken,
+            WellKnownMemberNames.UnsignedRightShiftAssignmentOperatorName => SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken,
+            WellKnownMemberNames.IncrementAssignmentOperatorName => SyntaxKind.PlusPlusToken,
+            WellKnownMemberNames.DecrementAssignmentOperatorName => SyntaxKind.MinusMinusToken,
             _ => SyntaxKind.None,
         };
     }

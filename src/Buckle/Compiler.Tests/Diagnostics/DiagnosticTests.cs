@@ -1574,7 +1574,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            overloaded operators must be marked as public and static
+            user-defined operator 'A.op_Addition(A!, A!)' must be declared public and static
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -8230,5 +8230,53 @@ var text = """"""
         ";
 
         AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0584_IncorrectCompoundOperatorArgs() {
+        var text = @"
+            class A {
+                public void operator [+=]() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            overloaded compound assignment operator '+=' takes 1 parameter
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0585_OperatorMustReturnVoid() {
+        var text = @"
+            class A {
+                public int operator [+=](A a) { return 0; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            the return type for assignment operators must be void
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0586_OperatorMustBePublic() {
+        var text = @"
+            class A {
+                void operator [+=](A a) { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            user-defined operator 'A.op_AdditionAssignment(A!)' must be declared public
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 }

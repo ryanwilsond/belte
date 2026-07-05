@@ -312,6 +312,10 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
         return (TypeSymbol)(this as FunctionTypeSymbol) ?? (this as FunctionPointerTypeSymbol);
     }
 
+    internal bool IsFunctionOrFunctionPointer() {
+        return this is FunctionTypeSymbol or FunctionPointerTypeSymbol;
+    }
+
     internal ImmutableArray<ParameterSymbol> FunctionOrFunctionPointerParameters() {
         Debug.Assert(this is FunctionPointerTypeSymbol or FunctionTypeSymbol);
 

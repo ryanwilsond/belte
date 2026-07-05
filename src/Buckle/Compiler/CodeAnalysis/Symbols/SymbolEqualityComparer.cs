@@ -9,6 +9,8 @@ internal sealed class SymbolEqualityComparer : IEqualityComparer<Symbol> {
         = new SymbolEqualityComparer(TypeCompareKind.IgnoreTupleNames);
     internal static readonly SymbolEqualityComparer CLRSignature
         = new SymbolEqualityComparer(TypeCompareKind.CLRSignatureCompareOptions);
+    internal static readonly SymbolEqualityComparer AllIgnoreOptions
+        = new SymbolEqualityComparer(TypeCompareKind.AllIgnoreOptions);
 
     internal static readonly SymbolEqualityComparer Default = ConsiderEverything;
 

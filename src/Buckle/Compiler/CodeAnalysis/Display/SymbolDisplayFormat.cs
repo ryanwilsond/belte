@@ -20,7 +20,7 @@ public sealed class SymbolDisplayFormat {
 
     public static readonly SymbolDisplayFormat ObjectCreationFormat = new SymbolDisplayFormat(
         qualificationStyle: SymbolDisplayQualificationStyle.IncludeContainingTypes,
-        templateOptions: SymbolDisplayTemplateOptions.Everything,
+        templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
         memberOptions: SymbolDisplayMemberOptions.None,
         parameterOptions: SymbolDisplayParameterOptions.Everything,
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.None
@@ -28,7 +28,7 @@ public sealed class SymbolDisplayFormat {
 
     public static readonly SymbolDisplayFormat BoundDisplayFormat = new SymbolDisplayFormat(
         qualificationStyle: SymbolDisplayQualificationStyle.IncludeContainingTypes,
-        templateOptions: SymbolDisplayTemplateOptions.Everything,
+        templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters | SymbolDisplayTemplateOptions.IncludeTemplateConstraints,
         memberOptions: SymbolDisplayMemberOptions.Everything,
         parameterOptions: SymbolDisplayParameterOptions.Everything,
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.None
@@ -36,7 +36,7 @@ public sealed class SymbolDisplayFormat {
 
     public static readonly SymbolDisplayFormat CompactBoundDisplayFormat = new SymbolDisplayFormat(
         qualificationStyle: SymbolDisplayQualificationStyle.IncludeContainingTypes,
-        templateOptions: SymbolDisplayTemplateOptions.Everything,
+        templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
         memberOptions: SymbolDisplayMemberOptions.Everything & ~SymbolDisplayMemberOptions.IncludeContainingType,
         parameterOptions: SymbolDisplayParameterOptions.Everything,
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.None
@@ -96,7 +96,7 @@ public sealed class SymbolDisplayFormat {
 
     public static readonly SymbolDisplayFormat DebuggerDisplay = new SymbolDisplayFormat(
         qualificationStyle: SymbolDisplayQualificationStyle.None,
-        templateOptions: SymbolDisplayTemplateOptions.Everything,
+        templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
         memberOptions: SymbolDisplayMemberOptions.IncludeParameters,
         parameterOptions: SymbolDisplayParameterOptions.Everything,
         miscellaneousOptions:
@@ -142,6 +142,16 @@ public sealed class SymbolDisplayFormat {
             qualificationStyle,
             templateOptions,
             options,
+            parameterOptions,
+            miscellaneousOptions
+        );
+    }
+
+    internal SymbolDisplayFormat WithOptions(SymbolDisplayTemplateOptions options) {
+        return new SymbolDisplayFormat(
+            qualificationStyle,
+            options,
+            memberOptions,
             parameterOptions,
             miscellaneousOptions
         );

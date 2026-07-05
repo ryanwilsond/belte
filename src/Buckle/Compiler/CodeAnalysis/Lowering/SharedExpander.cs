@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
@@ -13,6 +14,8 @@ using static Buckle.CodeAnalysis.Binding.BoundFactory;
 namespace Buckle.CodeAnalysis.Lowering;
 
 internal class SharedExpander : BoundTreeExpander {
+    private Dictionary<BoundValuePlaceholder, BoundExpression> _placeholderReplacementMapDoNotUseDirectly;
+
     private protected readonly BelteDiagnosticQueue _diagnostics;
     private readonly Dictionary<TokenSymbol, List<BoundStatement>> _tokenMap;
 
@@ -27,6 +30,50 @@ internal class SharedExpander : BoundTreeExpander {
     internal BoundBlockStatement Expand(BoundBlockStatement statement) {
         _localNames.AddRange(statement.locals.Select(l => l.name));
         return (BoundBlockStatement)Simplify(statement.syntax, ExpandStatement(statement));
+    }
+
+    private protected List<BoundStatement> ApplyConversion(
+        BoundExpression conversion,
+        BoundValuePlaceholder placeholder,
+        BoundExpression expression,
+        out BoundExpression replacement) {
+        AddPlaceholderReplacement(placeholder, expression);
+        var statements = ExpandExpression(conversion, out replacement);
+        RemovePlaceholderReplacement(placeholder);
+        return statements;
+    }
+
+    [Conditional("DEBUG")]
+    private static void AssertPlaceholderReplacement(BoundValuePlaceholder placeholder, BoundExpression value) {
+        Debug.Assert(value.type is { } && (value.type.Equals(placeholder.type, TypeCompareKind.AllIgnoreOptions) || value.hasErrors));
+    }
+
+    private void AddPlaceholderReplacement(BoundValuePlaceholder placeholder, BoundExpression value) {
+        AssertPlaceholderReplacement(placeholder, value);
+        _placeholderReplacementMapDoNotUseDirectly ??= new Dictionary<BoundValuePlaceholder, BoundExpression>();
+        _placeholderReplacementMapDoNotUseDirectly.Add(placeholder, value);
+    }
+
+    private void RemovePlaceholderReplacement(BoundValuePlaceholder placeholder) {
+        Debug.Assert(placeholder is { });
+        Debug.Assert(_placeholderReplacementMapDoNotUseDirectly is { });
+        var removed = _placeholderReplacementMapDoNotUseDirectly.Remove(placeholder);
+        Debug.Assert(removed);
+    }
+
+    private BoundExpression PlaceholderReplacement(BoundValuePlaceholder placeholder) {
+        Debug.Assert(_placeholderReplacementMapDoNotUseDirectly is { });
+        var value = _placeholderReplacementMapDoNotUseDirectly[placeholder];
+        AssertPlaceholderReplacement(placeholder, value);
+        return value;
+    }
+
+    private protected override List<BoundStatement> ExpandValuePlaceholder(
+        BoundValuePlaceholder expression,
+        out BoundExpression replacement,
+        UseKind _) {
+        replacement = PlaceholderReplacement(expression);
+        return [];
     }
 
     private protected override List<BoundStatement> ExpandExpression(

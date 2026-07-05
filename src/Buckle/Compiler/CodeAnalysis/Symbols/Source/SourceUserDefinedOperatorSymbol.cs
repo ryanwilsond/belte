@@ -12,12 +12,14 @@ internal sealed class SourceUserDefinedOperatorSymbol : SourceUserDefinedOperato
         SourceMemberContainerTypeSymbol containingType,
         TypeSymbol explicitInterfaceType,
         string name,
+        bool isCompoundAssignmentOrIncrementAssignment,
         OperatorDeclarationSyntax syntax,
         BelteDiagnosticQueue diagnostics)
         : base(
             methodKind,
             explicitInterfaceType,
             name,
+            isCompoundAssignmentOrIncrementAssignment,
             containingType,
             syntax.operatorToken.location,
             syntax,
@@ -42,6 +44,7 @@ internal sealed class SourceUserDefinedOperatorSymbol : SourceUserDefinedOperato
         BelteDiagnosticQueue diagnostics) {
         var name = SyntaxFacts.GetOperatorMemberName(syntax);
         var interfaceSpecifier = syntax.explicitInterfaceSpecifier;
+        var isCompoundAssignmentOrIncrementAssignment = OperatorFacts.IsCompoundAssignmentOperatorName(name);
 
         name = ExplicitInterfaceHelpers.GetMemberNameAndInterfaceSymbol(
             bodyBinder,
@@ -62,6 +65,7 @@ internal sealed class SourceUserDefinedOperatorSymbol : SourceUserDefinedOperato
             containingType,
             explicitInterfaceType,
             name,
+            isCompoundAssignmentOrIncrementAssignment,
             syntax,
             diagnostics
         );

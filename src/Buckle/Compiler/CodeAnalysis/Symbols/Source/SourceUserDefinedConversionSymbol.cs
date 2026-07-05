@@ -20,6 +20,7 @@ internal sealed class SourceUserDefinedConversionSymbol : SourceUserDefinedOpera
             methodKind,
             explicitInterfaceType,
             name,
+            isCompoundAssignmentOrIncrementAssignment: false,
             containingType,
             syntax.type.location,
             syntax,

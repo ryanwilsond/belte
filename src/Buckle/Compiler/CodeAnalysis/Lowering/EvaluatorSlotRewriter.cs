@@ -155,6 +155,11 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriterWithStackGuard {
         return base.VisitSwitchDispatch(node);
     }
 
+    internal override BoundNode VisitValuePlaceholder(BoundValuePlaceholder node) {
+        _lateTempCount++;
+        return base.VisitValuePlaceholder(node);
+    }
+
     internal override BoundNode VisitCompileTimeExpression(BoundCompileTimeExpression node) {
         var structStack = new Stack<NamedTypeSymbol>();
 
@@ -185,6 +190,8 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriterWithStackGuard {
         }
 
         if (node.receiver is not null && node.receiver.type.StrippedType().IsStructType())
+            _lateTempCount++;
+        else if (node.method.returnType.StrippedType().IsStructType())
             _lateTempCount++;
 
         return base.VisitCallExpression(node);

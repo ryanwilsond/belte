@@ -439,15 +439,33 @@ class MyClass {
 }
 ```
 
-Operator overloading is used to allow custom classes to use syntactical operators. The overloadable operators are:
+Operator overloading is used to allow custom classes to use syntactical operators. Compound assignment and certain
+increment operators must be public while all other operators must be both public and static.
 
 | Operators | Notes |
 | - | - |
 | `+x`, `-x`, `!x`, `~x`, `++`, `--`, `x[]` | |
-| `x + y`, `x - y`, `x * y`, `x / y`, `x % y`, `x & y`, `x \| y`, `x ^ y`, `x << y`, `x >> y`, `x >>> y` | |
+| `x + y`, `x - y`, `x * y`, `x / y`, `x ** y`, `x /\ y`, `x \/ y`, `x % y`, `x & y`, `x \| y`, `x ^ y`, `x << y`, `x >> y`, `x >>> y` | Must be static |
 | `x == y`, `x != y`, `x < y`, `x > y`, `x <= y`, `x >= y` | Must be overloaded in the following pairs: `==` and `!=`, `<` and `>`, `<=` and `>=` |
+| `+=`, `-=`, `*=`, `/=`, `**=`, `/\=`, `\/=`, `%=`, `&=`, `\|=`, `^=`, `<<=`, `>>=`, `>>>=` | Must be non-static |
 
-Note that operators must be marked [public](#431-accessibility-modifiers) and [static](#433-static-and-constexpr).
+The increment (`++` and `--`) operators have a static and non-static variant. If both are defined for a type, the
+instance version is preferred:
+
+```belte
+MyClass myClass = /* ... */;
+myClass++; // Instance increment is used
+
+class MyClass {
+  public static MyClass operator ++(MyClass operand) {
+    // ...
+  }
+
+  public void operator ++() {
+    // ...
+  }
+}
+```
 
 #### 4.2.3.2 Casts
 

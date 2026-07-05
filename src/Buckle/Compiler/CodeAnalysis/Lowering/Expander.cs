@@ -113,28 +113,56 @@ internal sealed class Expander : SharedExpander {
 
         */
         Debug.Assert(useKind != UseKind.Writable);
+
+        if (expression.op.method?.isStatic == false)
+            return ExpandInstanceCompoundAssignmentOperator(expression, out replacement, useKind);
+
         var syntax = expression.syntax;
 
         var statements = ExpandExpression(expression.left, out var newLeft, UseKind.Writable);
         statements.AddRange(ExpandExpression(expression.right, out var newRight));
 
-        statements.AddRange(ExpandAssignmentOperator(Assignment(syntax,
-            newLeft,
-            new BoundBinaryOperator(syntax,
+        BoundExpression convertedLeft;
+
+        if (expression.leftConversion is not null) {
+            statements.AddRange(ApplyConversionIfNotIdentity(
+                expression.leftConversion,
+                expression.leftPlaceholder,
+                newLeft,
+                out convertedLeft
+            ));
+        } else {
+            convertedLeft = newLeft;
+        }
+
+        BoundExpression binary = new BoundBinaryOperator(syntax,
+            convertedLeft,
+            newRight,
+            expression.op.kind,
+            expression.op.method,
+            ConstantFolding.FoldBinary(
                 newLeft,
                 newRight,
                 expression.op.kind,
-                expression.op.method,
-                ConstantFolding.FoldBinary(
-                    newLeft,
-                    newRight,
-                    expression.op.kind,
-                    expression.Type(),
-                    syntax.location,
-                    BelteDiagnosticQueue.Discarded
-                ),
-                expression.type
+                expression.Type(),
+                syntax.location,
+                BelteDiagnosticQueue.Discarded
             ),
+            expression.op.returnType
+        );
+
+        if (expression.finalConversion is not null) {
+            statements.AddRange(ApplyConversionIfNotIdentity(
+                expression.finalConversion,
+                expression.finalPlaceholder,
+                binary,
+                out binary
+            ));
+        }
+
+        statements.AddRange(ExpandAssignmentOperator(Assignment(syntax,
+            newLeft,
+            binary,
             false,
             expression.type
         ), out var assignment, UseKind.Value));
@@ -144,6 +172,36 @@ internal sealed class Expander : SharedExpander {
             return statements;
         } else {
             statements.Add(Statement(syntax, assignment));
+            replacement = newLeft;
+            return statements;
+        }
+    }
+
+    private List<BoundStatement> ExpandInstanceCompoundAssignmentOperator(
+        BoundCompoundAssignmentOperator expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        Debug.Assert(expression.leftConversion is null);
+        Debug.Assert(expression.leftPlaceholder is null);
+        Debug.Assert(expression.finalConversion is null);
+        Debug.Assert(expression.finalConversion is null);
+
+        var syntax = expression.syntax;
+        var method = expression.op.method;
+
+        var statements = ExpandExpression(expression.left, out var newLeft);
+        statements.AddRange(ExpandExpression(expression.right, out var newRight));
+        statements.Add(Statement(syntax, InstanceCall(
+            syntax,
+            newLeft,
+            method,
+            newRight
+        )));
+
+        if (useKind == UseKind.None) {
+            replacement = null;
+            return statements;
+        } else {
             replacement = newLeft;
             return statements;
         }
@@ -698,6 +756,8 @@ internal sealed class Expander : SharedExpander {
         var op = expression.operatorKind;
 
         if (op.IsConditional()) {
+            Debug.Assert(expression.method is null);
+
             if (op.Operator() == BinaryOperatorKind.And)
                 return ExpandConditionalAndOperator(expression, out replacement);
             else if (op.Operator() == BinaryOperatorKind.Or)
@@ -1600,23 +1660,25 @@ internal sealed class Expander : SharedExpander {
         */
         Debug.Assert(useKind != UseKind.Writable);
 
+        if (expression.method?.isStatic == false)
+            return ExpandInstanceIncrementOperator(expression, out replacement, useKind);
+
+        if (expression.method is not null)
+            return ExpandStaticIncrementOperator(expression, out replacement, useKind);
+
         var syntax = expression.syntax;
         var operand = expression.operand;
-        var method = expression.method;
-
-        if (method is not null) {
-            var statements = ExpandExpression(operand, out var newOperand);
-            replacement = Call(
-                syntax,
-                method,
-                newOperand
-            );
-
-            return StabilizeCallIfNecessary(syntax, method, useKind, statements, replacement, out replacement);
-        }
 
         var op = expression.operatorKind.Operator();
         var isIsolated = useKind == UseKind.None;
+
+        if (expression.operand.StrippedType().specialType == SpecialType.None)
+            return ExpandUserDefinedIncrementOperator(expression, op, isIsolated, out replacement, useKind);
+
+        Debug.Assert(expression.operandConversion is null || !HasNonIdentityConversion(expression.operandConversion));
+        Debug.Assert(expression.operandPlaceholder is null || !HasNonIdentityConversion(expression.operandConversion));
+        Debug.Assert(expression.resultConversion is null || !HasNonIdentityConversion(expression.resultConversion));
+        Debug.Assert(expression.resultPlaceholder is null || !HasNonIdentityConversion(expression.resultConversion));
 
         if (op == UnaryOperatorKind.PrefixIncrement || (op == UnaryOperatorKind.PostfixIncrement && isIsolated))
             return ExpandCompoundAssignmentOperator(Increment(syntax, operand), out replacement, useKind);
@@ -1645,6 +1707,233 @@ internal sealed class Expander : SharedExpander {
         }
     }
 
+    private List<BoundStatement> ExpandUserDefinedIncrementOperator(
+        BoundIncrementOperator expression,
+        UnaryOperatorKind op,
+        bool isIsolated,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        Debug.Assert(expression.operandConversion is not null);
+        Debug.Assert(expression.operandPlaceholder is not null);
+        Debug.Assert(expression.resultConversion is not null);
+        Debug.Assert(expression.resultPlaceholder is not null);
+        var syntax = expression.syntax;
+
+        var shouldCreateTemp = !isIsolated &&
+            op.Operator() is UnaryOperatorKind.PostfixIncrement or UnaryOperatorKind.PostfixDecrement;
+
+        SynthesizedDataContainerSymbol temp = null;
+
+        List<BoundStatement> statements = [];
+
+        if (shouldCreateTemp) {
+            temp = GenerateTempLocal(expression.operand.type);
+            statements.Add(LocalDeclaration(syntax, temp, expression.operand));
+        }
+
+        statements.AddRange(ApplyConversionIfNotIdentity(
+            expression.operandConversion,
+            expression.operandPlaceholder,
+            expression.operand,
+            out var newOperand
+        ));
+
+        if (op == UnaryOperatorKind.PrefixIncrement || op == UnaryOperatorKind.PostfixIncrement) {
+            statements.AddRange(ExpandIncrementContinued(
+                expression.resultConversion,
+                expression.resultPlaceholder,
+                expression.operand,
+                Increment(syntax, newOperand),
+                out replacement,
+                useKind
+            ));
+        } else if (op == UnaryOperatorKind.PrefixDecrement || op == UnaryOperatorKind.PostfixDecrement) {
+            statements.AddRange(ExpandIncrementContinued(
+                expression.resultConversion,
+                expression.resultPlaceholder,
+                expression.operand,
+                Decrement(syntax, newOperand),
+                out replacement,
+                useKind
+            ));
+        } else {
+            throw ExceptionUtilities.Unreachable();
+        }
+
+        if (shouldCreateTemp) {
+            statements.Add(Statement(syntax, replacement));
+            replacement = Local(syntax, temp);
+        }
+
+        return statements;
+
+        List<BoundStatement> ExpandIncrementContinued(
+            BoundExpression resultConversion,
+            BoundValuePlaceholder resultPlaceholder,
+            BoundExpression operand,
+            BoundCompoundAssignmentOperator increment,
+            out BoundExpression replacement,
+            UseKind useKind) {
+            // Replacement is the result of the increment
+            Debug.Assert(useKind != UseKind.Writable);
+
+            var statements = ExpandExpression(operand, out var newOperand, UseKind.Writable);
+            statements.AddRange(ExpandExpression(increment.left, out var newLeft));
+            statements.AddRange(ExpandExpression(increment.right, out var newRight));
+
+            var binary = new BoundBinaryOperator(syntax,
+                newLeft,
+                newRight,
+                increment.op.kind,
+                increment.op.method,
+                null,
+                increment.type
+            );
+
+            statements.AddRange(
+                ApplyConversionIfNotIdentity(resultConversion, resultPlaceholder, binary, out var newBinary)
+            );
+
+            statements.AddRange(ExpandAssignmentOperator(Assignment(syntax,
+                newOperand,
+                newBinary,
+                false,
+                newOperand.type
+            ), out var assignment, UseKind.Value));
+
+            if (useKind is UseKind.Value or UseKind.None) {
+                replacement = assignment;
+                return statements;
+            } else {
+                statements.Add(Statement(syntax, assignment));
+                replacement = newLeft;
+                return statements;
+            }
+        }
+    }
+
+    private List<BoundStatement> ApplyConversionIfNotIdentity(
+        BoundExpression conversion,
+        BoundValuePlaceholder placeholder,
+        BoundExpression expression,
+        out BoundExpression replacement) {
+        if (HasNonIdentityConversion(conversion)) {
+            Debug.Assert(placeholder is not null);
+            return ApplyConversion(conversion, placeholder, expression, out replacement);
+        }
+
+        replacement = expression;
+        return [];
+    }
+
+    private static bool HasNonIdentityConversion(BoundExpression expression) {
+        while (expression is BoundCastExpression conversion) {
+            if (!conversion.conversion.isIdentity)
+                return true;
+
+            expression = conversion.operand;
+        }
+
+        return false;
+    }
+
+    private List<BoundStatement> ExpandInstanceIncrementOperator(
+        BoundIncrementOperator expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        Debug.Assert(expression.operandConversion is null);
+        Debug.Assert(expression.operandPlaceholder is null);
+        Debug.Assert(expression.resultConversion is null);
+        Debug.Assert(expression.resultPlaceholder is null);
+
+        var syntax = expression.syntax;
+        var method = expression.method;
+
+        var statements = ExpandExpression(expression.operand, out var newOperand);
+        statements.Add(Statement(syntax, InstanceCall(
+            syntax,
+            newOperand,
+            method
+        )));
+
+        if (useKind == UseKind.None) {
+            replacement = null;
+            return statements;
+        } else {
+            replacement = newOperand;
+            return statements;
+        }
+    }
+
+    private List<BoundStatement> ExpandStaticIncrementOperator(
+        BoundIncrementOperator expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        Debug.Assert(expression.operandConversion is null || !HasNonIdentityConversion(expression.operandConversion));
+        Debug.Assert(expression.operandPlaceholder is null || !HasNonIdentityConversion(expression.operandConversion));
+        Debug.Assert(expression.resultConversion is null || !HasNonIdentityConversion(expression.resultConversion));
+        Debug.Assert(expression.resultPlaceholder is null || !HasNonIdentityConversion(expression.resultConversion));
+
+        var syntax = expression.syntax;
+
+        var shouldCreateTemp = !(useKind == UseKind.None) &&
+            expression.operatorKind.Operator() is UnaryOperatorKind.PostfixIncrement or
+                                                  UnaryOperatorKind.PostfixDecrement;
+
+        SynthesizedDataContainerSymbol temp = null;
+
+        List<BoundStatement> statements = [];
+
+        statements.AddRange(ExpandExpression(expression.operand, out var newOperand, UseKind.Writable));
+
+        if (shouldCreateTemp) {
+            temp = GenerateTempLocal(expression.operand.type);
+            statements.Add(LocalDeclaration(syntax, temp, newOperand));
+        }
+
+        replacement = Call(
+            syntax,
+            expression.method,
+            newOperand
+        );
+
+        if (useKind == UseKind.None) {
+            statements.Add(Statement(syntax, Assignment(
+                syntax,
+                newOperand,
+                replacement,
+                false,
+                newOperand.type
+            )));
+
+            replacement = null;
+            return statements;
+        }
+
+        if (shouldCreateTemp) {
+            statements.Add(Statement(syntax, Assignment(
+                syntax,
+                newOperand,
+                replacement,
+                false,
+                newOperand.type
+            )));
+
+            replacement = Local(syntax, temp);
+            return statements;
+        }
+
+        replacement = Assignment(
+            syntax,
+            newOperand,
+            replacement,
+            false,
+            newOperand.type
+        );
+
+        return statements;
+    }
+
     private protected override List<BoundStatement> ExpandConditionalOperator(
         BoundConditionalOperator expression,
         out BoundExpression replacement,
@@ -1671,6 +1960,8 @@ internal sealed class Expander : SharedExpander {
         out BoundExpression replacement,
         UseKind useKind) {
         Debug.Assert(useKind != UseKind.Writable);
+        Debug.Assert(expression.operandConversion is null);
+        Debug.Assert(expression.operandPlaceholder is null);
         var statements = base.ExpandAsOperator(expression, out replacement, UseKind.Value);
         return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
     }

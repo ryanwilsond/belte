@@ -701,8 +701,10 @@ internal sealed class Evaluator {
     private EvaluatorValue EvaluateThisExpression(BoundThisExpression node) {
         var value = _stack.Peek().values[0];
 
-        if (node.type.isValueType)
+        if (node.type.isValueType) {
+            Debug.Assert(value.kind == ValueKind.Ref);
             return value.loc[value.ptr];
+        }
 
         return value;
     }
@@ -2549,8 +2551,19 @@ internal sealed class Evaluator {
 
     private EvaluatorValue EvaluateAddressOfTempClone(BoundExpression node, ValueWrapper<bool> abort) {
         // Should only be reachable with uninitialized ref locals and structs
-        if (!node.IsLiteralNull() && !(node is BoundCallExpression c && c.receiver.type.StrippedType().IsStructType()))
-            throw ExceptionUtilities.UnexpectedValue(node.kind);
+#if DEBUG
+        if (!node.IsLiteralNull()) {
+            if (node is BoundCallExpression c) {
+                if (c.receiver.type.StrippedType().IsStructType()) {
+                } else if (c.method.returnType.StrippedType().IsStructType()) {
+                } else {
+                    Debug.Assert(false);
+                }
+            } else {
+                Debug.Assert(false);
+            }
+        }
+#endif
 
         var value = EvaluateExpression(node, true, abort);
         var temp = AllocateTemp(node.type);
@@ -2676,6 +2689,12 @@ internal sealed class Evaluator {
         return EvaluatorValue.HeapPtr(index);
     }
 
+    private EvaluatorValue EvaluateThisParameter(BoundExpression receiver, ValueWrapper<bool> abort) {
+        return receiver.type.isValueType
+            ? EvaluateAddress(receiver, AddressKind.Writeable, abort)
+            : EvaluateExpression(receiver, true, abort);
+    }
+
     private EvaluatorValue EvaluateInstanceCallExpression(
         BoundCallExpression node,
         UseKind useKind,
@@ -2684,7 +2703,7 @@ internal sealed class Evaluator {
         var arguments = node.arguments;
         var receiver = node.receiver;
 
-        var thisParameter = EvaluateExpression(receiver, true, abort);
+        var thisParameter = EvaluateThisParameter(receiver, abort);
 
         if (thisParameter.kind == ValueKind.Int64)
             thisParameter = EvaluateExpression(receiver, true, abort);
@@ -2715,11 +2734,18 @@ internal sealed class Evaluator {
         EvaluatorValue thisParameter) {
         if ((method.isAbstract || method.isVirtual) &&
             receiver?.StrippedType()?.typeKind != TypeKind.TemplateParameter) {
-            var typeToLookup = receiver?.kind == BoundKind.BaseExpression
-                ? receiver.StrippedType()
-                : thisParameter.kind == ValueKind.Struct
-                    ? thisParameter.@struct.type.StrippedType()
-                    : _context.heap[thisParameter.ptr].type.StrippedType();
+            TypeSymbol typeToLookup;
+
+            if (receiver?.kind == BoundKind.BaseExpression) {
+                typeToLookup = receiver.StrippedType();
+            } else if (thisParameter.kind == ValueKind.Ref) {
+                var temp = thisParameter.loc[thisParameter.ptr];
+                Debug.Assert(temp.kind == ValueKind.Struct);
+                typeToLookup = temp.@struct.type.StrippedType();
+            } else {
+                Debug.Assert(thisParameter.kind == ValueKind.HeapPtr);
+                typeToLookup = _context.heap[thisParameter.ptr].type.StrippedType();
+            }
 
             // TODO Use GetLeastOverriddenMember instead
             // var newMethod = method.GetLeastOverriddenMethod((NamedTypeSymbol)typeToLookup);
@@ -2799,8 +2825,17 @@ internal sealed class Evaluator {
 
         var frame = new StackFrame(layout);
 
-        if (!thisParameter.Equals(EvaluatorValue.None))
-            frame.values[0] = thisParameter;
+        if (!thisParameter.Equals(EvaluatorValue.None)) {
+            switch (thisParameter.kind) {
+                case ValueKind.Ref:
+                case ValueKind.HeapPtr:
+                case ValueKind.MethodGroup:
+                    frame.values[0] = thisParameter;
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(thisParameter.kind);
+            }
+        }
 
         if (method.arity > 0) {
             for (var i = 0; i < method.arity; i++) {
@@ -2965,8 +3000,10 @@ internal sealed class Evaluator {
                         if (argument.kind == ValueKind.HeapPtr) {
                             var type = _context.heap[argument.ptr].type;
                             result = GetTypeName(type);
-                        } else if (argument.kind == ValueKind.Struct) {
-                            var type = argument.@struct.type;
+                        } else if (argument.kind == ValueKind.Ref) {
+                            var temp = argument.loc[argument.ptr];
+                            Debug.Assert(temp.kind == ValueKind.Struct);
+                            var type = temp.@struct.type;
                             result = GetTypeName(type);
                         } else {
                             // TODO These are .NET types not Belte types! (to ensure parity with IL code gen)
@@ -3270,12 +3307,13 @@ internal sealed class Evaluator {
                         return true;
                     }
                 case "Object<>_ToString":
-                    var thisParameter = EvaluateExpression(receiver, true, abort);
+                    var thisParameter = EvaluateThisParameter(receiver, abort);
 
                     if (thisParameter.kind == ValueKind.Null)
                         throw new BelteNullReferenceException(receiver.syntax.location);
 
-                    result = thisParameter.kind is ValueKind.HeapPtr or ValueKind.Struct
+                    result = thisParameter.kind == ValueKind.HeapPtr ||
+                        (thisParameter.kind == ValueKind.Ref && thisParameter.loc[thisParameter.ptr].kind == ValueKind.Struct)
                         ? InvokeMethod(ResolveVirtualMethod(method, receiver, thisParameter), thisParameter, [], abort)
                         : EvaluatorValue.Format(thisParameter, _context);
 

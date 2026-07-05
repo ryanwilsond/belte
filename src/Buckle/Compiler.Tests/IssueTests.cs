@@ -2111,4 +2111,595 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void UserDefinedOperator_CanDefineCombinedTokenOps() {
+        var text = @"
+            class A {
+                public static A operator >>>(A left, A right) {
+                    return left;
+                }
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_IncrementsProperly() {
+        var text = @"
+            class A {
+                int _value;
+
+                public constructor(int value) { _value = value; }
+
+                public static A operator +(A left, A right) {
+                    return new (left._value + right._value);
+                }
+
+                public static implicit operator int(A a) {
+                    return a._value;
+                }
+
+                public static implicit operator A(int a) {
+                    return new (a);
+                }
+            }
+
+            var a = new A(4);
+            int b = a++;
+            return b;
+        ";
+
+        AssertValue(text, 4);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_PrefersInstanceIncrementOverOtherOps() {
+        var text = @"
+            class A {
+                int _value;
+
+                public constructor(int value) { _value = value; }
+
+                public static A operator +(A left, A right) {
+                    return new (30);
+                }
+
+                public static A operator ++(A op) {
+                    return new (20);
+                }
+
+                public void operator ++() {
+                    _value = 10;
+                }
+
+                public static implicit operator int(A a) {
+                    return a._value;
+                }
+
+                public static implicit operator A(int a) {
+                    return new (a);
+                }
+            }
+
+            var a = new A(4);
+            a++;
+            return (int)a;
+        ";
+
+        AssertValue(text, 10);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_IncrementsProperly2() {
+        var text = @"
+            class A {
+                int _value;
+
+                public constructor(int value) { _value = value; }
+
+                public static A operator +(A left, A right) {
+                    return new (left._value + right._value);
+                }
+
+                public static implicit operator int(A a) {
+                    return a._value;
+                }
+
+                public static implicit operator A(int a) {
+                    return new (a);
+                }
+            }
+
+            var a = new A(4);
+            int b = a++;
+            return b;
+        ";
+
+        AssertValue(text, 4);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_IncrementsProperly3() {
+        var text = @"
+            class A {
+                int _value;
+
+                public constructor(int value) { _value = value; }
+
+                public static A operator ++(A left) {
+                    return new (left._value + 1);
+                }
+
+                public static implicit operator int(A a) {
+                    return a._value;
+                }
+
+                public static implicit operator A(int a) {
+                    return new (a);
+                }
+            }
+
+            var a = new A(4);
+            int b = a++;
+            return b;
+        ";
+
+        AssertValue(text, 4);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_IncrementsProperly4() {
+        var text = @"
+            class A {
+                int _value;
+
+                public constructor(int value) { _value = value; }
+
+                public void operator ++() {
+                    _value++;
+                }
+
+                public static implicit operator int(A a) {
+                    return a._value;
+                }
+
+                public static implicit operator A(int a) {
+                    return new (a);
+                }
+            }
+
+            var a = new A(4);
+            int b = a++;
+            return b;
+        ";
+
+        AssertValue(text, 4);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_IncrementsProperly5() {
+        var text = @"
+            class A {
+                int _value;
+
+                public constructor(int value) { _value = value; }
+
+                public static A operator +(A left, A right) {
+                    return new (left._value + right._value);
+                }
+
+                public static implicit operator int(A a) {
+                    return a._value;
+                }
+
+                public static implicit operator A(int a) {
+                    return new (a);
+                }
+            }
+
+            var a = new A(4);
+            a++;
+            return (int)a;
+        ";
+
+        AssertValue(text, 5);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_IncrementsProperly6() {
+        var text = @"
+            class A {
+                int _value;
+
+                public constructor(int value) { _value = value; }
+
+                public static A operator ++(A left) {
+                    return new (left._value + 1);
+                }
+
+                public static implicit operator int(A a) {
+                    return a._value;
+                }
+
+                public static implicit operator A(int a) {
+                    return new (a);
+                }
+            }
+
+            var a = new A(4);
+            a++;
+            return (int)a;
+        ";
+
+        AssertValue(text, 5);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_IncrementsProperly7() {
+        var text = @"
+            class A {
+                int _value;
+
+                public constructor(int value) { _value = value; }
+
+                public void operator ++() {
+                    _value++;
+                }
+
+                public static implicit operator int(A a) {
+                    return a._value;
+                }
+
+                public static implicit operator A(int a) {
+                    return new (a);
+                }
+            }
+
+            var a = new A(4);
+            a++;
+            return (int)a;
+        ";
+
+        AssertValue(text, 5);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_IncrementsProperly8() {
+        var text = @"
+            struct A {
+                int _value;
+
+                public constructor(int value) { _value = value; }
+
+                public static A operator +(A left, A right) {
+                    return new (left._value + right._value);
+                }
+
+                public static implicit operator int(A a) {
+                    return a._value;
+                }
+
+                public static implicit operator A(int a) {
+                    return new (a);
+                }
+            }
+
+            var a = new A(4);
+            a++;
+            return (int)a;
+        ";
+
+        AssertValue(text, 5);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_IncrementsProperly9() {
+        var text = @"
+            struct A {
+                int _value;
+
+                public constructor(int value) { _value = value; }
+
+                public static A operator ++(A left) {
+                    return new (left._value + 1);
+                }
+
+                public static implicit operator int(A a) {
+                    return a._value;
+                }
+
+                public static implicit operator A(int a) {
+                    return new (a);
+                }
+            }
+
+            var a = new A(4);
+            a++;
+            return (int)a;
+        ";
+
+        AssertValue(text, 5);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_IncrementsProperly10() {
+        var text = @"
+            struct A {
+                int _value;
+
+                public constructor(int value) { _value = value; }
+
+                public void operator ++() {
+                    _value++;
+                }
+
+                public static implicit operator int(A a) {
+                    return a._value;
+                }
+
+                public static implicit operator A(int a) {
+                    return new (a);
+                }
+            }
+
+            var a = new A(4);
+            a++;
+            return (int)a;
+        ";
+
+        AssertValue(text, 5);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_AllOperatorsAreParsed() {
+        var text = @"
+            public static class Int64 {
+                public constexpr int64 MinValue = -9223372036854775808;
+                public constexpr int64 MaxValue = 9223372036854775807;
+            }
+
+            public sealed class ValueOutOfRangeException extends Exception {
+                public constructor()
+                    : base(""Value was out of the range of valid values."") { }
+
+                public constructor(any value, any min, any max)
+                    : base(f""Value '{value}' was out of the range of valid values \[{min}..{max}\]."") { }
+            }
+
+            public struct Int<int Min = Int64.MinValue, int Max = Int64.MaxValue> where { Min <= Max; } {
+                private int64 _value;
+
+                public constructor(int64 value) {
+                    if (value < Min || value > Max)
+                        throw new ValueOutOfRangeException(value, Min, Max);
+
+                    _value = value;
+                }
+
+                public static Int<Min, Max> operator +(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value + right._value);
+                }
+
+                public void operator +=(Int<Min, Max> right) {
+                    _value += right._value;
+                    CheckValueOutOfRange();
+                }
+
+                public static Int<Min, Max> operator -(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value - right._value);
+                }
+
+                public void operator -=(Int<Min, Max> right) {
+                    _value -= right._value;
+                    CheckValueOutOfRange();
+                }
+
+                public static Int<Min, Max> operator *(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value * right._value);
+                }
+
+                public void operator *=(Int<Min, Max> right) {
+                    _value *= right._value;
+                    CheckValueOutOfRange();
+                }
+
+                public static Int<Min, Max> operator /(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value / right._value);
+                }
+
+                public void operator /=(Int<Min, Max> right) {
+                    _value /= right._value;
+                    CheckValueOutOfRange();
+                }
+
+                public static Int<Min, Max> operator **(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value ** right._value);
+                }
+
+                public void operator **=(Int<Min, Max> right) {
+                    _value **= right._value;
+                    CheckValueOutOfRange();
+                }
+
+                public static Int<Min, Max> operator %(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value % right._value);
+                }
+
+                public void operator %=(Int<Min, Max> right) {
+                    _value %= right._value;
+                    CheckValueOutOfRange();
+                }
+
+                public static bool operator <(Int<Min, Max> left, Int<Min, Max> right) {
+                    return left._value < right._value;
+                }
+
+                public static bool operator <=(Int<Min, Max> left, Int<Min, Max> right) {
+                    return left._value <= right._value;
+                }
+
+                public static bool operator >(Int<Min, Max> left, Int<Min, Max> right) {
+                    return left._value > right._value;
+                }
+
+                public static bool operator >=(Int<Min, Max> left, Int<Min, Max> right) {
+                    return left._value >= right._value;
+                }
+
+                public static Int<Min, Max> operator <<(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value << right._value);
+                }
+
+                public void operator <<=(Int<Min, Max> right) {
+                    _value <<= right._value;
+                    CheckValueOutOfRange();
+                }
+
+                public static Int<Min, Max> operator >>(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value >> right._value);
+                }
+
+                public void operator >>=(Int<Min, Max> right) {
+                    _value >>= right._value;
+                    CheckValueOutOfRange();
+                }
+
+                public static Int<Min, Max> operator >>>(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value >>> right._value);
+                }
+
+                public void operator >>>=(Int<Min, Max> right) {
+                    _value >>>= right._value;
+                    CheckValueOutOfRange();
+                }
+
+                public static Int<Min, Max> operator &(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value & right._value);
+                }
+
+                public void operator &=(Int<Min, Max> right) {
+                    _value &= right._value;
+                    CheckValueOutOfRange();
+                }
+
+                public static Int<Min, Max> operator |(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value | right._value);
+                }
+
+                public void operator |=(Int<Min, Max> right) {
+                    _value |= right._value;
+                    CheckValueOutOfRange();
+                }
+
+                public static Int<Min, Max> operator ^(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value ^ right._value);
+                }
+
+                public void operator ^=(Int<Min, Max> right) {
+                    _value ^= right._value;
+                    CheckValueOutOfRange();
+                }
+
+                public static Int<Min, Max> operator /\(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value /\ right._value);
+                }
+
+                public void operator /\=(Int<Min, Max> right) {
+                    _value /\= right._value;
+                }
+
+                public static Int<Min, Max> operator \/(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value \/ right._value);
+                }
+
+                public void operator \/=(Int<Min, Max> right) {
+                    _value \/= right._value;
+                }
+
+                public static Int<Min, Max> operator +(Int<Min, Max> operand) {
+                    return operand;
+                }
+
+                public static Int<Min, Max> operator -(Int<Min, Max> operand) {
+                    return new(-operand._value);
+                }
+
+                public static Int<Min, Max> operator ~(Int<Min, Max> operand) {
+                    return new(~operand._value);
+                }
+
+                public static Int<Min, Max> operator ++(Int<Min, Max> operand) {
+                    return new(operand._value + 1);
+                }
+
+                public static Int<Min, Max> operator --(Int<Min, Max> operand) {
+                    return new(operand._value - 1);
+                }
+
+                public void operator ++() {
+                    _value++;
+                    CheckValueOutOfRange();
+                }
+
+                public void operator --() {
+                    _value--;
+                    CheckValueOutOfRange();
+                }
+
+                public static implicit operator Int<Min, Max>(int64 value) {
+                    return new(value);
+                }
+
+                public static implicit operator int64(Int<Min, Max> value) {
+                    return value._value;
+                }
+
+                public static explicit operator<int TMin, int TMax> Int<TMin, TMax>(Int<Min, Max> bigger)
+                    where { !(TMax < Min || TMin > Max); TMin <= TMax; } {
+                    return new Int<TMin, TMax>(bigger._value);
+                }
+
+                public static implicit operator<int TMin, int TMax> Int<TMin, TMax>(Int<Min, Max> smaller)
+                    where { TMax >= Max; TMin <= TMax; TMin <= Min; } {
+                    return new Int<TMin, TMax>(smaller._value);
+                }
+
+                public override string? ToString() {
+                    return (string)_value;
+                }
+
+                public static bool operator ==(Int<Min, Max> left, Int<Min, Max> right) {
+                    return left._value == right._value;
+                }
+
+                public static bool operator !=(Int<Min, Max> left, Int<Min, Max> right) {
+                    return left._value != right._value;
+                }
+
+                public override bool Equals(Object? object) {
+                    if (object is Int<Min, Max> number)
+                        return _value == number._value;
+
+                    return false;
+                }
+
+                public override int32 GetHashCode() {
+                    return LowLevel.GetHashCode(_value);
+                }
+
+                private void CheckValueOutOfRange() {
+                    if (_value < Min || _value > Max)
+                        throw new ValueOutOfRangeException(_value, Min, Max);
+                }
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }
