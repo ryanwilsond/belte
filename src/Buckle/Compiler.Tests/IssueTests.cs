@@ -2775,4 +2775,20 @@ public sealed class IssueTests {
 
         AssertValue(text, 10);
     }
+
+    [Fact]
+    public void UserDefinedOperator_HexadecimalReduces() {
+        var text = @"
+            class A {
+                public static implicit operator A(int64 num) {
+                    return new();
+                }
+            }
+            A a = 0x0;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

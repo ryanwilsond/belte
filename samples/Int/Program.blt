@@ -1,0 +1,51 @@
+/*
+
+    Int
+
+    This program demonstrates how templates can be used with constraints to create sophisticated types.
+    This example shows an `Int` type that constraints an `int64` to user-specified bounds.
+
+    `Int.blt` is annotated to explain the features involved.
+
+    This file is mean't to be read, not run
+        (it will not compile as it leasts malformed code uncommented for demonstrations).
+
+*/
+
+// Int in the range [0..10]
+Int<0, 10> a = 5;
+
+// Int in the range [Int64.MinValue..Int64.MaxValue]
+// Templates allow default values, so the two following declarations are equivalent:
+Int b = 0xFA;
+Int<Int64.MinValue, Int64.MaxValue> c = 0xFA;
+
+// Implicit conversion to a strictly larger int
+Int<0, 10> d = 4;
+Int<-5, 12> e = d;
+
+// Explicit conversion if the bounds partially overlap
+Int<0, 10> f = 5;
+Int<5, 15> g = (Int<5, 15>)f;
+
+// No conversion if the bounds don't overlap
+Int<0, 10> h = 5;
+Int<20, 30> i = h; // Compile-time error here
+
+// Min must be less than max
+Int<10, 0> j = 4; // Compile-time error here
+
+// If the value is out of bounds, an exception is throw
+Int<0, 10> k = 11; // Runtime exception thrown here
+
+// The value is rechecked after arithmetic to ensure it's not out of bounds
+Int<0, 10> l = 6;
+l += 6; // Runtime exception throw here
+
+// Implicit conversions to/from `int64` primitive
+int64 m = l;
+
+// If a specific range is used often, it can be aliased
+using MyInt = Int<100, 200>;
+MyInt n = 150;
+MyInt o = 175;

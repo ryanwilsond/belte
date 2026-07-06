@@ -1098,6 +1098,12 @@ internal abstract partial class ConversionsBase {
 
             var convertsFrom = opMethod.GetParameterType(0);
             var convertsTo = opMethod.returnType;
+
+            if (sourceExpression is not null) {
+                sourceExpression = Binder.ReduceNumericIfApplicable(convertsFrom, sourceExpression);
+                source = sourceExpression.type;
+            }
+
             var fromConversion = EncompassingExplicitConversion(sourceExpression, source, convertsFrom);
             var toConversion = EncompassingExplicitConversion(convertsTo, target);
 
@@ -1315,6 +1321,12 @@ internal abstract partial class ConversionsBase {
 
                 var convertsFrom = opMethod.GetParameterType(0);
                 var convertsTo = opMethod.returnType;
+
+                if (sourceExpression is not null) {
+                    sourceExpression = Binder.ReduceNumericIfApplicable(convertsFrom, sourceExpression);
+                    source = sourceExpression.type;
+                }
+
                 var fromConversion = EncompassingImplicitConversion(sourceExpression, source, convertsFrom);
                 var toConversion = allowAnyTarget
                     ? Conversion.Identity

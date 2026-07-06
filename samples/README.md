@@ -17,6 +17,7 @@
 | [samples/Snake](Snake/Program.blt) | `buckle samples/Snake --type=graphics` | Snake game. |
 | [samples/Win32](Win32/Program.blt) | `buckle samples/Win32` | Win32 api window. |
 | [samples/Socket](Socket/Program.blt) | `buckle samples/Socket` | Simple socket connection. |
+| [samples/Int](Int/Program.blt) | `buckle samples/Int` | Small demonstration of templates and constraints to create a bounded type. |
 
 ## Running a Sample Using the Executor or Evaluator
 
