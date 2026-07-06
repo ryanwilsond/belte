@@ -2565,12 +2565,12 @@ internal partial class Binder {
 
         var hasError = false;
 
-        // if (typeWithAnnotations.isNullable && type.isReferenceType) {
-        // TODO Do we want this restriction?
-        // error: cannot take the `typeof` a nullable reference type.
-        // diagnostics.Add(ErrorCode.ERR_BadNullableTypeof, node.Location);
-        // hasError = true;
-        // }
+        // I don't like having this restriction, but unfortunately we have to have it because .NET treats
+        // nullable reference types as the same type as non-nullable reference types
+        if (typeWithAnnotations.isNullable && type.isReferenceType) {
+            diagnostics.Push(Error.InvalidTypeOf(node.location));
+            hasError = true;
+        }
 
         var boundType = new BoundTypeExpression(typeSyntax, typeWithAnnotations, null, type, type.IsErrorType());
         return new BoundTypeOfExpression(node, boundType, CorLibrary.GetSpecialType(SpecialType.Type), hasError);

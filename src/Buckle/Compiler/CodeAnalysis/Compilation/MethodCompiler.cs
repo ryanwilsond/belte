@@ -748,14 +748,14 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             loweredBody = StateMethodRewriter.Merge(method, partialTargetBody, loweredBody);
 
         if (method.hasReversalState) {
-            CompileMethodCore(
+            currentDiagnostics.PushRangeAndFree(CompileMethodCore(
                 method.stateMethod,
                 methodOrdinal + 1,
                 ref processedInitializers,
                 state,
                 true,
                 loweredBody
-            );
+            ));
         }
 
         if (!transpiling) {

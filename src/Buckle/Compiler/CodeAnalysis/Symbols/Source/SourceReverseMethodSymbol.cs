@@ -180,6 +180,9 @@ internal sealed class SourceReverseMethodSymbol : SourceMemberMethodSymbol {
 
         _lazyReturnType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void));
         CheckEffectiveAccessibility(_lazyReturnType, _lazyParameters, diagnostics);
+
+        if (containingType.IsEnumType())
+            diagnostics.Push(Error.ReverseMethodInEnum(location));
     }
 
     private static (DeclarationModifiers, Flags) MakeModifiersAndFlags(

@@ -937,15 +937,17 @@ internal partial class Binder {
         SyntaxNode syntax,
         ConsList<TypeSymbol> basesBeingResolved = null) {
         if (symbol.isAlias) {
+            var unwrapped = (NamespaceOrTypeSymbol)UnwrapAlias(
+                symbol.symbol,
+                out _,
+                diagnostics,
+                syntax,
+                basesBeingResolved
+            );
+
             return NamespaceOrTypeOrAliasSymbolWithAnnotations.CreateUnannotated(
-                symbol.isNullable,
-                (NamespaceOrTypeSymbol)UnwrapAlias(
-                    symbol.symbol,
-                    out _,
-                    diagnostics,
-                    syntax,
-                    basesBeingResolved
-                )
+                symbol.isNullable || (unwrapped is TypeSymbol t && t.IsNullableType()),
+                unwrapped
             );
         }
 
@@ -959,9 +961,17 @@ internal partial class Binder {
         SyntaxNode syntax,
         ConsList<TypeSymbol> basesBeingResolved = null) {
         if (symbol.isAlias) {
+            var unwrapped = (NamespaceOrTypeSymbol)UnwrapAlias(
+                symbol.symbol,
+                out alias,
+                diagnostics,
+                syntax,
+                basesBeingResolved
+            );
+
             return NamespaceOrTypeOrAliasSymbolWithAnnotations.CreateUnannotated(
-                symbol.isNullable,
-                (NamespaceOrTypeSymbol)UnwrapAlias(symbol.symbol, out alias, diagnostics, syntax, basesBeingResolved)
+                symbol.isNullable || (unwrapped is TypeSymbol t && t.IsNullableType()),
+                unwrapped
             );
         }
 
@@ -1519,8 +1529,8 @@ internal partial class Binder {
         } else {
             var symbol = BindTypeOrAlias(syntax, diagnostics);
             isImplicitlyTyped = false;
-            isNonNullable = false;
-            isNullable = false;
+            isNonNullable = syntax.kind == SyntaxKind.NonNullableType;
+            isNullable = syntax.kind == SyntaxKind.NullableType;
             return UnwrapAlias(symbol, out alias, diagnostics, syntax).typeWithAnnotations;
         }
     }

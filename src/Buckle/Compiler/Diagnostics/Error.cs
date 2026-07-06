@@ -2906,6 +2906,16 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_OperatorCantHaveTemplates, location, message);
     }
 
+    internal static BelteDiagnostic InvalidTypeOf(TextLocation location) {
+        var message = $"the typeof operator cannot be used on a nullable reference type";
+        return CreateError(DiagnosticCode.ERR_InvalidTypeOf, location, message);
+    }
+
+    internal static BelteDiagnostic ReverseMethodInEnum(TextLocation location) {
+        var message = $"enum methods cannot have a reverse clause";
+        return CreateError(DiagnosticCode.ERR_ReverseMethodInEnum, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

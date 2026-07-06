@@ -282,6 +282,22 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
+    public void Reports_Error_BU0019_NotAllPathsReturn2() {
+        var text = @"
+            class A {
+                public void M() { } [state](int) { } reverse(int p) { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            not all code paths return a value
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
     public void Reports_Error_BU0020_CannotConvert() {
         var text = @"
             class A {
@@ -8291,6 +8307,65 @@ var text = """"""
 
         var diagnostics = @"
             user-defined operator 'A.op_AdditionAssignment<type! T>(A!)' cannot have template parameters
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0588_InvalidTypeOf() {
+        var text = @"
+            class A { }
+            return [typeof(A?)];
+        ";
+
+        var diagnostics = @"
+            the typeof operator cannot be used on a nullable reference type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0588_InvalidTypeOf2() {
+        var text = @"
+            using H = A;
+            class A { }
+            return [typeof(H?)];
+        ";
+
+        var diagnostics = @"
+            the typeof operator cannot be used on a nullable reference type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0588_InvalidTypeOf3() {
+        var text = @"
+            using H = A?;
+            class A { }
+            return [typeof(H)];
+        ";
+
+        var diagnostics = @"
+            the typeof operator cannot be used on a nullable reference type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0589_ReverseMethodInEnum() {
+        var text = @"
+            enum A {
+                public void M() { } state(int) { return 0; } [reverse](int p) { }
+            }
+        ";
+
+        var diagnostics = @"
+            enum methods cannot have a reverse clause
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

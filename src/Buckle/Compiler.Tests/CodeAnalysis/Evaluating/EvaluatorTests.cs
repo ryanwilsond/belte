@@ -1041,8 +1041,17 @@ public sealed class EvaluatorTests {
     [InlineData("T Test<type T>() where { T has default; } { return default; } return Test<int>();", 0)]
     [InlineData("class A<type T> { } return typeof(A<int>) == typeof(A<int>);", true)]
     [InlineData("class A<type T> { } return typeof(A<int>) == typeof(A<bool>);", false)]
-    // Misc for coverage
+    // Aliases
     [InlineData("using H = int?; H myVar = 3; return myVar;", 3)]
+    [InlineData("using H = int?; H! myVar = 3; return LowLevel.GetType(myVar) == typeof(int?);", false)]
+    [InlineData("using H = int?; H! myVar = 3; return LowLevel.GetType(myVar) == typeof(int);", true)]
+    [InlineData("using H = int?; return typeof(H) == typeof(int?);", true)]
+    [InlineData("using H = int?; return typeof(H) == typeof(int);", false)]
+    [InlineData("using H = int?; return typeof(H?) == typeof(int?);", true)]
+    [InlineData("using H = int?; return typeof(H?) == typeof(int);", false)]
+    [InlineData("using H = int?; return typeof(H!) == typeof(int?);", false)]
+    [InlineData("using H = int?; return typeof(H!) == typeof(int);", true)]
+    // Misc for coverage
     [InlineData("class A<type T>;", null)]
     [InlineData("class P { int? a = 3; public int? M(int? a) { return a; } } var myP = new P(); return myP.M(4);", 4)]
     [InlineData("class P { public int? M(int? a, int? b) { return a + b; } public int? M(int? a) { return a; } } var myP = new P(); return myP.M(4, 5);", 9)]
