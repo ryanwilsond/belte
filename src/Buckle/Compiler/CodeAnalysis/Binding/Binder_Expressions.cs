@@ -5912,7 +5912,7 @@ internal partial class Binder {
                 cond.syntax,
                 cond.receiver,
                 call,
-                CorLibrary.GetOrCreateNullableType(call.type)
+                call.type.IsVoidType() ? call.type : CorLibrary.GetOrCreateNullableType(call.type)
             );
         }
 

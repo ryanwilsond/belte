@@ -781,14 +781,14 @@ public sealed class EvaluatorTests {
     [InlineData("return sizeof(winbool);", 4)]
     // Operators
     [InlineData(@"
-        class A {
+        class A1 {
             public int? a;
             public constructor(int? a) { this.a = a; }
-            public static int? operator+(A a) { return a.a; }
-            public static int? operator+(A a, int? b) { return a.a + b; }
+            public static int? operator+(A1 a) { return a.a; }
+            public static int? operator+(A1 a, int? b) { return a.a + b; }
         }
 
-        var a = new A(3);
+        var a = new A1(3);
         return a + 5;", 8)]
     [InlineData(@"
         class A {
@@ -802,16 +802,16 @@ public sealed class EvaluatorTests {
         a[1]++;
         return a[1] + a[0];", 4)]
     [InlineData(@"
-        class A {
+        class A2 {
             public int? a;
-            public static implicit operator A(int? b) {
-                var c = new A();
+            public static implicit operator A2(int? b) {
+                var c = new A2();
                 c.a = b;
                 return c;
             }
         }
 
-        A a = 3;
+        A2 a = 3;
         return a.a;", 3)]
     [InlineData(@"
         class A {
@@ -1053,14 +1053,14 @@ public sealed class EvaluatorTests {
     [InlineData("using H = int?; return typeof(H!) == typeof(int);", true)]
     // Misc for coverage
     [InlineData("class A<type T>;", null)]
-    [InlineData("class P { int? a = 3; public int? M(int? a) { return a; } } var myP = new P(); return myP.M(4);", 4)]
-    [InlineData("class P { public int? M(int? a, int? b) { return a + b; } public int? M(int? a) { return a; } } var myP = new P(); return myP.M(4, 5);", 9)]
-    [InlineData("class P { public static T M<type T>() where { T has default; } { T a = default; return a; } } return P.M<int?>();", null)]
-    [InlineData("static class P { [DllImport(\"kernel32.dll\")]static extern int64* GetModuleHandle(string? lpModuleName); } return null;", null)]
-    [InlineData("static class P { [DllImport(\"msvcrt.dll\", CallingConvention: CallingConvention.Cdecl)]static extern void* memcpy(void* dest, void* src, uint64 count); } return null;", null)]
-    [InlineData("class P { struct S { int32 f[10]; } } return null;", null)]
+    [InlineData("class P1 { int? a = 3; public int? M(int? a) { return a; } } var myP = new P1(); return myP.M(4);", 4)]
+    [InlineData("class P2 { public int? M(int? a, int? b) { return a + b; } public int? M(int? a) { return a; } } var myP = new P2(); return myP.M(4, 5);", 9)]
+    [InlineData("class P3 { public static T M<type T>() where { T has default; } { T a = default; return a; } } return P3.M<int?>();", null)]
+    [InlineData("static class P4 { [DllImport(\"kernel32.dll\")]static extern int64* GetModuleHandle(string? lpModuleName); } return null;", null)]
+    [InlineData("static class P5 { [DllImport(\"msvcrt.dll\", CallingConvention: CallingConvention.Cdecl)]static extern void* memcpy(void* dest, void* src, uint64 count); } return null;", null)]
+    [InlineData("class P6 { struct S { int32 f[10]; } } return null;", null)]
     [InlineData(@"
-        class P {
+        class P7 {
             public static T M<type T>(T b) where { T has default; }  {
                 T a = b;
                 L();
@@ -1068,9 +1068,9 @@ public sealed class EvaluatorTests {
                 void L() { a = default; }
             }
         }
-        return P.M<int>(3);", 0)]
+        return P7.M<int>(3);", 0)]
     [InlineData(@"
-        class P {
+        class P8 {
             public static T M<type T>(T b) where { T has default; } {
                 T a = b;
                 L<bool>();
@@ -1078,7 +1078,7 @@ public sealed class EvaluatorTests {
                 void L<type T2>() { a = default; }
             }
         }
-        return P.M<int>(3);", 0)]
+        return P8.M<int>(3);", 0)]
     [InlineData(@"
         var? a = true;
         var? b = false;
@@ -1114,51 +1114,51 @@ public sealed class EvaluatorTests {
         return b;
         ", 0)]
     [InlineData(@"
-        class A {
+        class A3 {
             public int? a;
         }
 
-        A? a = new A();
+        A3? a = new A3();
         a?.a = 3;
         return a?.a;
         ", 3)]
     [InlineData(@"
-        class A {
+        class A4 {
             public int? a;
-            public A? b;
+            public A4? b;
         }
 
-        A a = new A();
+        A4 a = new A4();
         a.b?.a = 3;
         return a.b?.a;
         ", null)]
     [InlineData(@"
-        class A {
+        class A5 {
             public int? a;
             public void M() { a = 5; }
         }
 
-        A? a = new A();
+        A5? a = new A5();
         var b = a?..M();
         return b?.a;
         ", 5)]
     [InlineData(@"
-        class A {
+        class A6 {
             public int? a;
             public void M() { a = 5; }
         }
 
-        A? a = null;
+        A6? a = null;
         var b = a?..M();
         return b?.a;
         ", null)]
     [InlineData(@"
-        class A {
+        class A7 {
             public int? a;
-            public A? b;
+            public A7? b;
         }
 
-        var a = ((A?)new A())?..b = (new A()..a = 4);
+        var a = ((A7?)new A7())?..b = (new A7()..a = 4);
         return a?.b!.a;
         ", 4)]
     [InlineData(@"

@@ -154,11 +154,13 @@ internal sealed class CorLibrary {
     }
 
     private NamedTypeSymbol GetNullableTypeCore(SpecialType specialType) {
+        Debug.Assert(specialType != SpecialType.Void);
         return GetSpecialTypeCore(SpecialType.Nullable)
             .Construct([new TypeOrConstant(GetSpecialTypeCore(specialType))]);
     }
 
     private NamedTypeSymbol CreateNullableType(TypeSymbol type) {
+        Debug.Assert(!type.IsVoidType());
         return GetSpecialTypeCore(SpecialType.Nullable).Construct([new TypeOrConstant(type)]);
     }
 

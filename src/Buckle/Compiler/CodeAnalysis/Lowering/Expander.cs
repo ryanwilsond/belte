@@ -391,7 +391,7 @@ internal sealed class Expander : SharedExpander {
         statements.Add(GotoIfNot(syntax, breakLabel, condition));
 
         var defaultValue = Literal(syntax, expression.defaultValue.value, expression.type);
-        var assignment = Assignment(syntax, Local(syntax, temp), defaultValue, false, expression.type);
+        var assignment = Assignment(syntax, Local(syntax, temp), defaultValue, false, temp.type);
         statements.Add(Statement(syntax, assignment));
         statements.Add(Label(syntax, breakLabel));
 
@@ -437,7 +437,7 @@ internal sealed class Expander : SharedExpander {
         );
 
         statements.AddRange(ExpandExpression(expression.right, out var newRight));
-        var assignment = Assignment(syntax, newLeft, newRight, false, expression.type);
+        var assignment = Assignment(syntax, newLeft, newRight, false, newLeft.type);
         statements.Add(Statement(syntax, assignment));
         statements.Add(Label(syntax, breakLabel));
 
@@ -2151,7 +2151,7 @@ internal sealed class Expander : SharedExpander {
                 finalReceiver,
                 newRight,
                 false,
-                newReceiver.type
+                finalReceiver.type
             );
 
             if (isIsolated) {

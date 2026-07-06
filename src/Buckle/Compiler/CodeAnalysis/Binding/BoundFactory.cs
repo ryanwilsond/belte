@@ -169,6 +169,8 @@ internal static partial class BoundFactory {
         BoundExpression right,
         bool isRef,
         TypeSymbol type) {
+        Debug.Assert(left.type.Equals(type));
+        Debug.Assert(right.type.StrippedType().Equals(left.type.StrippedType()));
         return new BoundAssignmentOperator(syntax, left, right, isRef, type);
     }
 
