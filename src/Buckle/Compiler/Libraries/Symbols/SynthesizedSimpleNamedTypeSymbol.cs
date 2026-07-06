@@ -92,6 +92,14 @@ internal sealed class SynthesizedSimpleNamedTypeSymbol : NamedTypeSymbol {
         return [];
     }
 
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers() {
+        return GetMembersUnordered();
+    }
+
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers(string name) {
+        return GetMembers(name);
+    }
+
     internal override ImmutableArray<Symbol> GetMembers() {
         return [];
     }
@@ -106,6 +114,10 @@ internal sealed class SynthesizedSimpleNamedTypeSymbol : NamedTypeSymbol {
 
     internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers(ReadOnlyMemory<char> name) {
         return [];
+    }
+
+    internal override AttributeUsageInfo GetAttributeUsageInfo() {
+        return AttributeUsageInfo.Null;
     }
 
     private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {

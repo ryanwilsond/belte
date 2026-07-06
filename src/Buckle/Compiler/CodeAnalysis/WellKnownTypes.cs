@@ -27,6 +27,7 @@ internal static class WellKnownTypes {
         { "global::ValueTuple`8", WellKnownType.ValueTuple_TRest },
         { "global::Array`1", WellKnownType.Array },
         { "global::Attribute", WellKnownType.Attribute },
+        { "global::AttributeUsageAttribute", WellKnownType.AttributeUsageAttribute },
         { "global::DllImportAttribute", WellKnownType.DllImportAttribute },
         { "global::UnmanagedAttribute", WellKnownType.UnmanagedAttribute },
         { "global::MustUseReturnValueAttribute", WellKnownType.MustUseReturnValueAttribute },

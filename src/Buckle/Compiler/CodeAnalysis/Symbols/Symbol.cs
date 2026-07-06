@@ -408,15 +408,6 @@ internal abstract class Symbol : ISymbol {
         };
     }
 
-    internal Symbol SymbolAsMember(NamedTypeSymbol newOwner) {
-        return kind switch {
-            SymbolKind.Field => ((FieldSymbol)this).AsMember(newOwner),
-            SymbolKind.Method => ((MethodSymbol)this).AsMember(newOwner),
-            SymbolKind.NamedType => ((NamedTypeSymbol)this).AsMember(newOwner),
-            _ => throw ExceptionUtilities.UnexpectedValue(kind),
-        };
-    }
-
     internal RefKind GetRefKind() {
         return this switch {
             ParameterSymbol p => p.refKind,
@@ -542,15 +533,22 @@ internal abstract class Symbol : ISymbol {
             var interestedInDiagnostics = !earlyDecodingOnly && attributeMatchesOpt is null;
             var boundAttributeTypes = attributeTypesBuilder.AsImmutableOrNull();
 
-            // this.EarlyDecodeWellKnownAttributeTypes(boundAttributeTypes, attributesToBind);
-            // this.PostEarlyDecodeWellKnownAttributeTypes();
+            EarlyDecodeWellKnownAttributeTypes(boundAttributeTypes, attributesToBind);
+            PostEarlyDecodeWellKnownAttributeTypes();
 
             var attributeDataArray = new AttributeData[totalAttributesCount];
             boundAttributeArray = interestedInDiagnostics ? new BoundAttribute[totalAttributesCount] : null;
 
-            // EarlyWellKnownAttributeData? earlyData = this.EarlyDecodeWellKnownAttributes(binders, boundAttributeTypes, attributesToBind, symbolPart, attributeDataArray, boundAttributeArray);
+            var earlyData = EarlyDecodeWellKnownAttributes(
+                binders,
+                boundAttributeTypes,
+                attributesToBind,
+                symbolPart,
+                attributeDataArray,
+                boundAttributeArray
+            );
 
-            // lazyAttributesBag.SetEarlyDecodedWellKnownAttributeData(earlyData);
+            lazyAttributesBag.SetEarlyDecodedWellKnownAttributeData(earlyData);
 
             if (earlyDecodingOnly) {
                 diagnostics.Free();
@@ -587,27 +585,34 @@ internal abstract class Symbol : ISymbol {
             boundAttributeArray = null;
             wellKnownAttributeData = null;
             Interlocked.CompareExchange(ref lazyAttributesBag, CustomAttributesBag<AttributeData>.WithEmptyData(), null);
-            // this.PostEarlyDecodeWellKnownAttributeTypes();
+            PostEarlyDecodeWellKnownAttributeTypes();
         }
 
         var lazyAttributesStoredOnThisThread = false;
 
         if (lazyAttributesBag.SetAttributes(boundAttributes)) {
             if (attributeMatchesOpt is null) {
-                // this.PostDecodeWellKnownAttributes(boundAttributes, attributesToBind, diagnostics, symbolPart, wellKnownAttributeData);
-                // this.RecordPresenceOfBadAttributes(boundAttributes);
+                PostDecodeWellKnownAttributes(
+                    boundAttributes,
+                    attributesToBind,
+                    diagnostics,
+                    symbolPart,
+                    wellKnownAttributeData
+                );
 
-                // if (totalAttributesCount != 0) {
-                //     for (var i = 0; i < totalAttributesCount; i++) {
-                //         var boundAttribute = boundAttributeArray[i];
-                //         Binder attributeBinder = binders[i];
+                RecordPresenceOfBadAttributes(boundAttributes);
 
-                //         if (boundAttribute.Constructor is { } ctor) {
-                //             Binder.CheckRequiredMembersInObjectInitializer(ctor, ImmutableArray<BoundExpression>.CastUp(boundAttribute.NamedArguments), boundAttribute.Syntax, diagnostics);
-                //             attributeBinder.ReportDiagnosticsIfObsolete(diagnostics, ctor, boundAttribute.Syntax, hasBaseReceiver: false);
-                //         }
-                //     }
-                // }
+                if (totalAttributesCount != 0) {
+                    for (var i = 0; i < totalAttributesCount; i++) {
+                        var boundAttribute = boundAttributeArray[i];
+                        var attributeBinder = binders[i];
+
+                        if (boundAttribute.constructor is { } ctor) {
+                            // Binder.CheckRequiredMembersInObjectInitializer(ctor, ImmutableArray<BoundExpression>.CastUp(boundAttribute.NamedArguments), boundAttribute.Syntax, diagnostics);
+                            // attributeBinder.ReportDiagnosticsIfObsolete(diagnostics, ctor, boundAttribute.Syntax, hasBaseReceiver: false);
+                        }
+                    }
+                }
 
                 AddDeclarationDiagnostics(diagnostics);
             }
@@ -621,6 +626,78 @@ internal abstract class Symbol : ISymbol {
         diagnostics.Free();
         return lazyAttributesStoredOnThisThread;
     }
+
+    private void RecordPresenceOfBadAttributes(ImmutableArray<AttributeData> boundAttributes) {
+        foreach (var attribute in boundAttributes) {
+            if (attribute.hasErrors) {
+                var compilation = declaringCompilation;
+                ((SourceModuleSymbol)compilation.sourceModule).RecordPresenceOfBadAttributes();
+                break;
+            }
+        }
+    }
+
+    internal virtual void PostDecodeWellKnownAttributes(
+        ImmutableArray<AttributeData> boundAttributes,
+        ImmutableArray<AttributeSyntax> allAttributeSyntaxNodes,
+        BelteDiagnosticQueue diagnostics,
+        AttributeLocation symbolPart,
+        WellKnownAttributeData decodedData) { }
+
+    internal EarlyWellKnownAttributeData EarlyDecodeWellKnownAttributes(
+        ImmutableArray<Binder> binders,
+        ImmutableArray<NamedTypeSymbol> boundAttributeTypes,
+        ImmutableArray<AttributeSyntax> attributesToBind,
+        AttributeLocation symbolPart,
+        AttributeData[] attributeDataArray,
+        BoundAttribute[] boundAttributeArray) {
+        var earlyBinder = new EarlyWellKnownAttributeBinder(binders[0]);
+        var arguments = new EarlyDecodeWellKnownAttributeArguments<EarlyWellKnownAttributeBinder, NamedTypeSymbol, AttributeSyntax, AttributeLocation> {
+            symbolPart = symbolPart
+        };
+
+        for (var i = 0; i < boundAttributeTypes.Length; i++) {
+            var boundAttributeType = boundAttributeTypes[i];
+
+            if (!boundAttributeType.IsErrorType()) {
+                if (binders[i] != earlyBinder.next)
+                    earlyBinder = new EarlyWellKnownAttributeBinder(binders[i]);
+
+                arguments.binder = earlyBinder;
+                arguments.attributeType = boundAttributeType;
+                arguments.attributeSyntax = attributesToBind[i];
+
+                var (earlyAttributeDataOpt, boundAttributeOpt) = EarlyDecodeWellKnownAttribute(ref arguments);
+                attributeDataArray[i] = earlyAttributeDataOpt;
+
+                boundAttributeArray?[i] = boundAttributeOpt;
+            }
+        }
+
+        return arguments.hasDecodedData ? arguments.decodedData : null;
+    }
+
+    internal virtual (AttributeData, BoundAttribute) EarlyDecodeWellKnownAttribute(
+        ref EarlyDecodeWellKnownAttributeArguments<EarlyWellKnownAttributeBinder, NamedTypeSymbol, AttributeSyntax, AttributeLocation> arguments) {
+        return (null, null);
+    }
+
+    private void EarlyDecodeWellKnownAttributeTypes(
+        ImmutableArray<NamedTypeSymbol> attributeTypes,
+        ImmutableArray<AttributeSyntax> attributeSyntaxList) {
+        for (var i = 0; i < attributeTypes.Length; i++) {
+            var attributeType = attributeTypes[i];
+
+            if (!attributeType.IsErrorType())
+                EarlyDecodeWellKnownAttributeType(attributeType, attributeSyntaxList[i]);
+        }
+    }
+
+    internal virtual void EarlyDecodeWellKnownAttributeType(
+        NamedTypeSymbol attributeType,
+        AttributeSyntax attributeSyntax) { }
+
+    internal virtual void PostEarlyDecodeWellKnownAttributeTypes() { }
 
     private ImmutableArray<AttributeSyntax> GetAttributesToBind(
         OneOrMany<SyntaxList<AttributeListSyntax>> attributeDeclarationSyntaxLists,
@@ -642,14 +719,15 @@ internal abstract class Symbol : ISymbol {
                 var prevCount = attributesToBindCount;
 
                 foreach (var attributeDeclarationSyntax in attributeDeclarationSyntaxList) {
-                    if (symbolPart == AttributeLocation.None && ReferenceEquals(attributeTarget.attributesOwner, attributeTarget) &&
+                    if (MatchAttributeTarget(attributeTarget, symbolPart, attributeDeclarationSyntax, diagnostics) &&
                         ShouldBindAttributes(attributeDeclarationSyntax, diagnostics)) {
-                        if (syntaxBuilder == null) {
+                        if (syntaxBuilder is null) {
                             syntaxBuilder = new ArrayBuilder<AttributeSyntax>();
                             bindersBuilder = new ArrayBuilder<Binder>();
                         }
 
                         var attributesToBind = attributeDeclarationSyntax.attributes;
+
                         if (attributeMatchesOpt is null) {
                             syntaxBuilder.AddRange(attributesToBind);
                             attributesToBindCount += attributesToBind.Count;
@@ -665,8 +743,6 @@ internal abstract class Symbol : ISymbol {
                 }
 
                 if (attributesToBindCount != prevCount) {
-                    Debug.Assert(bindersBuilder != null);
-
                     var binder = GetAttributeBinder(attributeDeclarationSyntaxList, compilation, rootBinderOpt);
 
                     for (var i = 0; i < attributesToBindCount - prevCount; i++)
@@ -682,6 +758,19 @@ internal abstract class Symbol : ISymbol {
             binders = [];
             return [];
         }
+    }
+
+    private static bool MatchAttributeTarget(
+        IAttributeTargetSymbol attributeTarget,
+        AttributeLocation symbolPart,
+        AttributeListSyntax attributeList,
+        BelteDiagnosticQueue diagnostics) {
+        var defaultAttributeLocation = attributeTarget.defaultAttributeLocation;
+        var attributesOwner = attributeTarget.attributesOwner;
+
+        var isOwner = symbolPart == AttributeLocation.None && ReferenceEquals(attributesOwner, attributeTarget);
+
+        return isOwner;
     }
 
     private protected virtual bool ShouldBindAttributes(
@@ -774,33 +863,78 @@ internal abstract class Symbol : ISymbol {
         AttributeLocation symbolPart,
         BelteDiagnosticQueue diagnostics,
         HashSet<NamedTypeSymbol> uniqueAttributeTypes) {
-        // TODO Unnecessary since we only have 1 attribute right now
-        // NamedTypeSymbol attributeType = attribute.attributeClass;
-        // AttributeUsageInfo attributeUsageInfo = attributeType.GetAttributeUsageInfo();
+        var attributeType = (NamedTypeSymbol)attribute.attributeClass;
+        var attributeUsageInfo = attributeType.GetAttributeUsageInfo();
 
-        // // Given attribute can't be specified more than once if AllowMultiple is false.
-        // if (!uniqueAttributeTypes.Add(attributeType.OriginalDefinition) && !attributeUsageInfo.AllowMultiple) {
-        //     diagnostics.Add(ErrorCode.ERR_DuplicateAttribute, node.Name.Location, node.GetErrorDisplayName());
-        //     return false;
-        // }
+        if (!uniqueAttributeTypes.Add(attributeType.originalDefinition) && !attributeUsageInfo.allowMultiple) {
+            diagnostics.Push(Error.DuplicateAttribute(node.name.location, node.GetErrorDisplayName()));
+            return false;
+        }
 
-        // // Verify if the attribute type can be applied to given owner symbol.
-        // AttributeTargets attributeTarget;
-        // if (symbolPart == AttributeLocation.Return) {
-        //     // attribute on return type
-        //     Debug.Assert(this.Kind == SymbolKind.Method);
-        //     attributeTarget = AttributeTargets.ReturnValue;
-        // } else {
-        //     attributeTarget = this.GetAttributeTarget();
-        // }
+        AttributeTargets attributeTarget;
 
-        // if ((attributeTarget & attributeUsageInfo.ValidTargets) == 0) {
-        //     // generate error
-        //     diagnostics.Add(ErrorCode.ERR_AttributeOnBadSymbolType, node.Name.Location, node.GetErrorDisplayName(), attributeUsageInfo.GetValidTargetsErrorArgument());
-        //     return false;
-        // }
+        if (symbolPart == AttributeLocation.Return)
+            attributeTarget = AttributeTargets.ReturnValue;
+        else
+            attributeTarget = GetAttributeTarget();
+
+        if ((attributeTarget & attributeUsageInfo.validTargets) == 0) {
+            diagnostics.Push(Error.AttributeOnBadSymbolType(
+                node.name.location,
+                node.GetErrorDisplayName(),
+                attributeUsageInfo.GetValidTargetsErrorArgument()
+            ));
+
+            return false;
+        }
 
         return true;
+    }
+
+    internal virtual AttributeTargets GetAttributeTarget() {
+        switch (kind) {
+            case SymbolKind.Assembly:
+                return AttributeTargets.Assembly;
+            case SymbolKind.Field:
+                return AttributeTargets.Field;
+            case SymbolKind.Method:
+                var method = (MethodSymbol)this;
+
+                switch (method.methodKind) {
+                    case MethodKind.Constructor:
+                    case MethodKind.StaticConstructor:
+                        return AttributeTargets.Constructor;
+                    default:
+                        return AttributeTargets.Method;
+                }
+            case SymbolKind.NamedType:
+                var namedType = (NamedTypeSymbol)this;
+
+                switch (namedType.typeKind) {
+                    case TypeKind.Class:
+                        return AttributeTargets.Class;
+                    case TypeKind.Enum:
+                        return AttributeTargets.Enum;
+                    case TypeKind.Interface:
+                        return AttributeTargets.Interface;
+                    case TypeKind.Struct:
+                        return AttributeTargets.Struct;
+                    case TypeKind.TemplateParameter:
+                        return AttributeTargets.GenericParameter;
+                }
+
+                break;
+            case SymbolKind.Module:
+                return AttributeTargets.Module;
+            case SymbolKind.Parameter:
+                return AttributeTargets.Parameter;
+            case SymbolKind.Property:
+                return AttributeTargets.Property;
+            case SymbolKind.TemplateParameter:
+                return AttributeTargets.GenericParameter;
+        }
+
+        return 0;
     }
 
     private protected virtual void DecodeWellKnownAttributeImpl(

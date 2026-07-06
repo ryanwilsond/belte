@@ -598,6 +598,13 @@ public enum DiagnosticCode : ushort {
     ERR_OperatorCantHaveTemplates = 587,
     ERR_InvalidTypeOf = 588,
     ERR_ReverseMethodInEnum = 589,
+    ERR_AttributeUsageOnNonAttributeClass = 590,
+    ERR_DuplicateAttribute = 591,
+    ERR_AttributeOnBadSymbolType = 592,
+    ERR_ModuleEmitFailure = 593,
+    ERR_InvalidAttributeParamType = 594,
+    ERR_BadAttributeArgument = 595,
+    ERR_UnmanagedCannotBeCalledDirectly = 596,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

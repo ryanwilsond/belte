@@ -12,6 +12,20 @@ internal static class LookupPosition {
         return IsBeforeToken(position, node, node.body.closeBrace);
     }
 
+    internal static bool IsInAttributeSpecification(
+        int position,
+        SyntaxList<AttributeListSyntax> attributesSyntaxList) {
+        var count = attributesSyntaxList.Count;
+
+        if (count == 0)
+            return false;
+
+        var startToken = attributesSyntaxList[0].openBracket;
+        var endToken = attributesSyntaxList[count - 1].closeBracket;
+
+        return IsBetweenTokens(position, startToken, endToken);
+    }
+
     private static bool IsBeforeToken(int position, BelteSyntaxNode node, SyntaxToken firstExcluded) {
         return IsBeforeToken(position, firstExcluded) && position >= node.span.start;
     }

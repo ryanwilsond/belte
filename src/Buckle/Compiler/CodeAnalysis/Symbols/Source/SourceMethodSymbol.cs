@@ -170,8 +170,7 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
 
         var lazyAttributesBag = _lazyAttributesBag;
 
-        // TODO What is the purpose of this second check
-        if (lazyAttributesBag is null/* || !lazyAttributesBag.isEarlyDecodedWellKnownAttributeDataComputed*/)
+        if (lazyAttributesBag is null || !lazyAttributesBag.isEarlyDecodedWellKnownAttributeDataComputed)
             return UnmanagedCallersOnlyAttributeData.Uninitialized;
 
         if (lazyAttributesBag.isDecodedWellKnownAttributeDataComputed) {
@@ -205,12 +204,15 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
         ref DecodeWellKnownAttributeArguments<AttributeSyntax, AttributeData, AttributeLocation> arguments) {
         var attribute = arguments.attribute;
 
-        if (attribute.IsTargetAttribute(AttributeDescription.DllImportAttribute))
+        if (attribute.IsTargetAttribute(AttributeDescription.DllImportAttribute) ||
+            attribute.IsTargetAttribute(AttributeDescription.DllImportAttributeNative)) {
             DecodeDllImportAttribute(ref arguments);
-        else if (attribute.IsTargetAttribute(AttributeDescription.UnmanagedAttribute))
+        } else if (attribute.IsTargetAttribute(AttributeDescription.UnmanagedAttribute) ||
+                   attribute.IsTargetAttribute(AttributeDescription.UnmanagedCallersOnlyAttribute)) {
             DecodeUnmanagedAttribute(ref arguments);
-        else if (attribute.IsTargetAttribute(AttributeDescription.MustUseReturnValueAttribute))
+        } else if (attribute.IsTargetAttribute(AttributeDescription.MustUseReturnValueAttribute)) {
             DecodeMustUseReturnValueAttribute(ref arguments);
+        }
     }
 
     private void DecodeMustUseReturnValueAttribute(

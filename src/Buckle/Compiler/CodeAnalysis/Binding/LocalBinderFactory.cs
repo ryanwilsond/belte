@@ -254,7 +254,11 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
     }
 
     internal override void VisitAttribute(AttributeSyntax node) {
-        var attrBinder = new ExpressionVariableBinder(node, _enclosing);
+        var attrBinder = new ExpressionVariableBinder(
+            node,
+            _enclosing.WithAdditionalFlags(BinderFlags.AttributeArgument)
+        );
+
         AddToMap(node, attrBinder);
 
         if (node.argumentList?.arguments?.Count > 0) {

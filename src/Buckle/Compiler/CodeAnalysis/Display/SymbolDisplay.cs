@@ -98,6 +98,9 @@ public static class SymbolDisplay {
         format ??= SymbolDisplayFormat.ErrorMessageFormat;
         var stripped = ((TypeSymbol)type).StrippedType();
 
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeAttributes) != 0)
+            DisplayAttributes(text, stripped.GetAttributes());
+
         if (type is ArrayTypeSymbol) {
             var array = (ArrayTypeSymbol)stripped;
             text.Write(CreateIdentifier("Buffer"));
@@ -396,6 +399,9 @@ public static class SymbolDisplay {
     }
 
     private static void DisplayField(DisplayText text, FieldSymbol field, SymbolDisplayFormat format) {
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeAttributes) != 0)
+            DisplayAttributes(text, field.GetAttributes());
+
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeAccessibility) != 0)
             DisplayAccessibility(text, field);
 
@@ -418,6 +424,9 @@ public static class SymbolDisplay {
 
     private static void DisplayParameter(DisplayText text, ParameterSymbol parameter, SymbolDisplayFormat format) {
         var needSpace = false;
+
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeAttributes) != 0)
+            DisplayAttributes(text, parameter.GetAttributes());
 
         if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeModifiers) != 0)
             DisplayConstExprRef(text, parameter.isConst, false, false, parameter.refKind);
@@ -458,6 +467,9 @@ public static class SymbolDisplay {
         TemplateParameterSymbol templateParameter,
         SymbolDisplayFormat format) {
         var needSpace = false;
+
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeAttributes) != 0)
+            DisplayAttributes(text, templateParameter.GetAttributes());
 
         if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.ExpandTemplateParameter) != 0) {
             DisplayType(text, templateParameter.underlyingType.type, format);

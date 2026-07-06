@@ -1,4 +1,5 @@
 
+[AttributeUsage(AttributeTargets.Method)]
 public sealed class DllImportAttribute extends Attribute {
     public constructor(string libraryName) { }
 

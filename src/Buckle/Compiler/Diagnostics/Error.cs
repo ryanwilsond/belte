@@ -1851,6 +1851,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_InvalidAttributeArgument, location, message);
     }
 
+    internal static BelteDiagnostic BadAttributeArgument(TextLocation location) {
+        var message = $"an attribute argument must be a constant expression, typeof expression, or array creation expression of an attribute parameter type";
+        return CreateError(DiagnosticCode.ERR_BadAttributeArgument, location, message);
+    }
+
     internal static BelteDiagnostic FixedBufferTooManyDimensions(TextLocation location) {
         var message = $"a fixed buffer can only have one dimension";
         return CreateError(DiagnosticCode.ERR_FixedBufferTooManyDimensions, location, message);
@@ -2914,6 +2919,36 @@ internal static class Error {
     internal static BelteDiagnostic ReverseMethodInEnum(TextLocation location) {
         var message = $"enum methods cannot have a reverse clause";
         return CreateError(DiagnosticCode.ERR_ReverseMethodInEnum, location, message);
+    }
+
+    internal static BelteDiagnostic AttributeUsageOnNonAttributeClass(TextLocation location, string name) {
+        var message = $"attribute '{name}' is only valid on classes derived from Attribute";
+        return CreateError(DiagnosticCode.ERR_AttributeUsageOnNonAttributeClass, location, message);
+    }
+
+    internal static BelteDiagnostic DuplicateAttribute(TextLocation location, string name) {
+        var message = $"duplicate '{name}' attribute";
+        return CreateError(DiagnosticCode.ERR_DuplicateAttribute, location, message);
+    }
+
+    internal static BelteDiagnostic AttributeOnBadSymbolType(TextLocation location, string name, object kind) {
+        var message = $"attribute '{name}' is not valid on this declaration type; it is only valid on '{kind}' declarations";
+        return CreateError(DiagnosticCode.ERR_AttributeOnBadSymbolType, location, message);
+    }
+
+    internal static Diagnostic ModuleEmitFailure(string name) {
+        var message = $"failed to emit module '{name}'";
+        return CreateError(DiagnosticCode.ERR_ModuleEmitFailure, message);
+    }
+
+    internal static BelteDiagnostic InvalidAttributeParamType(TextLocation location, string name, TypeSymbol type) {
+        var message = $"attribute constructor parameter '{name}' has type '{type}', which is not a valid attribute parameter type";
+        return CreateError(DiagnosticCode.ERR_InvalidAttributeParamType, location, message);
+    }
+
+    internal static BelteDiagnostic UnmanagedCannotBeCalledDirectly(TextLocation location, Symbol symbol) {
+        var message = $"'{symbol}' is attributed with 'Unmanaged' and cannot be called directly; obtain an unmanaged function pointer to this method";
+        return CreateError(DiagnosticCode.ERR_UnmanagedCannotBeCalledDirectly, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

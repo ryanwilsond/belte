@@ -39,4 +39,8 @@ internal abstract class WrappedNamedTypeSymbol : NamedTypeSymbol {
     internal override bool hasStructDefault => underlyingNamedType.hasStructDefault;
 
     internal override bool isInterface => underlyingNamedType.isInterface;
+
+    internal override AttributeUsageInfo GetAttributeUsageInfo() {
+        return underlyingNamedType.GetAttributeUsageInfo();
+    }
 }

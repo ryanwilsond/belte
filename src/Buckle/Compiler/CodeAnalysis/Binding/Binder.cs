@@ -101,6 +101,8 @@ internal partial class Binder {
 
     internal bool isEarlyAttributeBinder => flags.Includes(BinderFlags.EarlyAttributeBinding);
 
+    internal bool inAttributeArgument => flags.Includes(BinderFlags.AttributeArgument);
+
     internal Compilation compilation { get; }
 
     internal BinderFlags flags { get; }
@@ -3853,6 +3855,8 @@ internal partial class Binder {
             if (overloadResolutionResult.succeeded) {
                 var method = overloadResolutionResult.bestResult.member;
 
+                ReportDiagnosticsIfUnmanagedCallersOnly(diagnostics, method, node);
+
                 BoundValuePlaceholder operandPlaceholder = null;
                 BoundExpression operandConversion = null;
 
@@ -4992,6 +4996,8 @@ internal partial class Binder {
                     diagnostics
                 );
 
+                ReportDiagnosticsIfUnmanagedCallersOnly(diagnostics, method, node);
+
                 BoundValuePlaceholder leftPlaceholder = null;
                 BoundExpression leftConversion = null;
 
@@ -5765,9 +5771,8 @@ internal partial class Binder {
                 error = diagnose ? Error.AbstractAttributeClass(errorLocation, symbol) : null;
                 return false;
             } else {
-                if (compilation.IsEqualOrDerivedFromWellKnownClass(namedType, WellKnownType.Attribute)) {
+                if (compilation.IsAttributeType(namedType))
                     return true;
-                }
             }
         }
 
@@ -6457,6 +6462,8 @@ symIsHidden:;
         Binder originalBinder) {
         if ((options & LookupOptions.NamespacesOrTypesOnly) != 0 && nsOrType is TypeSymbol)
             return nsOrType.StrippedTypeOrSelf().GetTypeMembers(name).Cast<NamedTypeSymbol, Symbol>();
+        else if (nsOrType.kind == SymbolKind.NamedType && originalBinder.isEarlyAttributeBinder)
+            return ((NamedTypeSymbol)nsOrType).GetEarlyAttributeDecodingMembers(name);
         else
             return nsOrType.StrippedTypeOrSelf().GetMembers(name);
     }
@@ -6467,6 +6474,8 @@ symIsHidden:;
         Binder originalBinder) {
         if ((options & LookupOptions.NamespacesOrTypesOnly) != 0 && nsOrType is TypeSymbol)
             return StaticCast<Symbol>.From(nsOrType.GetTypeMembersUnordered());
+        else if (nsOrType.kind == SymbolKind.NamedType && originalBinder.isEarlyAttributeBinder)
+            return ((NamedTypeSymbol)nsOrType).GetEarlyAttributeDecodingMembers();
         else
             return nsOrType.GetMembersUnordered();
     }
@@ -8512,34 +8521,19 @@ symIsHidden:;
             var boundAttributeType = boundAttributeTypes[i];
             var binder = binders[i];
 
-            // TODO We only have well known attributes currently
-            // var attribute = (SourceAttributeData?)attributeDataArray[i];
+            var attribute = (SourceAttributeData)attributeDataArray[i];
 
-            // if (attribute == null) {
-            (attributeDataArray[i], var boundAttribute) = binder.GetAttribute(
-                attributeSyntax,
-                boundAttributeType,
-                beforeAttributePartBound,
-                afterAttributePartBound,
-                diagnostics
-            );
+            if (attribute is null) {
+                (attributeDataArray[i], var boundAttribute) = binder.GetAttribute(
+                    attributeSyntax,
+                    boundAttributeType,
+                    beforeAttributePartBound,
+                    afterAttributePartBound,
+                    diagnostics
+                );
 
-            boundAttributeArray?[i] = boundAttribute;
-            // } else {
-            //     Debug.Assert(boundAttributeArray is null || boundAttributeArray[i] is not null);
-
-            //     // attributesBuilder might contain some early bound well-known attributes, which had no errors.
-            //     // We don't rebind the early bound attributes, but need to compute isConditionallyOmitted.
-            //     // Note that AttributeData.IsConditionallyOmitted is required only during emit, but must be computed here as
-            //     // its value depends on the values of conditional symbols, which in turn depends on the source file where the attribute is applied.
-
-            //     Debug.Assert(!attribute.HasErrors);
-            //     Debug.Assert(attribute.AttributeClass is object);
-            //     CompoundUseSiteInfo<AssemblySymbol> useSiteInfo = binder.GetNewCompoundUseSiteInfo(diagnostics);
-            //     bool isConditionallyOmitted = binder.IsAttributeConditionallyOmitted(attribute.AttributeClass, attributeSyntax.SyntaxTree, ref useSiteInfo);
-            //     diagnostics.Add(attributeSyntax, useSiteInfo);
-            //     attributeDataArray[i] = attribute.WithOmittedCondition(isConditionallyOmitted);
-            // }
+                boundAttributeArray?[i] = boundAttribute;
+            }
         }
     }
 
@@ -8626,13 +8620,13 @@ symIsHidden:;
             // expanded = memberResolutionResult.resolution == MemberResolutionKind.ApplicableInExpandedForm;
 
             if (!found) {
-                // resultKind = resultKind.WorseResultKind(
-                //     memberResolutionResult.IsValid && !binder.IsConstructorAccessible(memberResolutionResult.Member, ref useSiteInfo) ?
-                //         LookupResultKind.Inaccessible :
-                //         LookupResultKind.OverloadResolutionFailure);
-                // boundConstructorArguments = binder.BuildArgumentsForErrorRecovery(analyzedArguments, candidateConstructors);
-                // TODO Temporary because attributes are intrinsic right now
-                boundConstructorArguments = analyzedArguments.arguments.Select(a => a.expression).ToImmutableArray();
+                resultKind = resultKind.WorseResultKind(
+                    memberResolutionResult.isValid && !binder.IsConstructorAccessible(memberResolutionResult.member)
+                        ? LookupResultKind.Inaccessible
+                        : LookupResultKind.OverloadResolutionFailure);
+
+                boundConstructorArguments = binder
+                    .BuildArgumentsForErrorRecovery(analyzedArguments, candidateConstructors);
             } else {
                 binder.BindDefaultArguments(
                     node,
@@ -8642,9 +8636,9 @@ symIsHidden:;
                     analyzedArguments.names,
                     ref argsToParamsOpt,
                     out defaultArguments,
-                    expanded,
-                    diagnostics
-                // attributedMember: attributedMember
+                    enableCallerInfo: !binder.isEarlyAttributeBinder,
+                    diagnostics,
+                    attributedMember: attributedMember
                 );
 
                 boundConstructorArguments = analyzedArguments.arguments.Select(a => a.expression).ToImmutableArray();
@@ -8656,7 +8650,7 @@ symIsHidden:;
         }
 
         var boundConstructorArgumentNamesOpt = analyzedArguments.GetNames();
-        // ImmutableArray<BoundAssignmentOperator> boundNamedArguments = analyzedArguments.namedArguments?.ToImmutableAndFree()
+        // ImmutableArray<BoundAssignmentOperator> boundNamedArguments = analyzedArguments.arguments?.ToImmutableAndFree()
         //     ?? ImmutableArray<BoundAssignmentOperator>.Empty;
         var boundNamedArguments = ImmutableArray<BoundAssignmentOperator>.Empty;
         analyzedArguments.Free();
@@ -8683,22 +8677,21 @@ symIsHidden:;
 
         if (attributeType.IsErrorType() || attributeType.isAbstract || attributeConstructor is null) {
             hasErrors = true;
-            // TODO Temp
-            // return new SourceAttributeData(
-            //     compilation,
-            //     (AttributeSyntax)boundAttribute.syntax,
-            //     attributeType,
-            //     attributeConstructor,
-            //     hasErrors
-            // );
+            return new SourceAttributeData(
+                compilation,
+                (AttributeSyntax)boundAttribute.syntax,
+                attributeType,
+                attributeConstructor,
+                hasErrors
+            );
         }
 
-        // ValidateTypeForAttributeParameters(
-        //     attributeConstructor.parameters,
-        //     ((AttributeSyntax)boundAttribute.syntax).name,
-        //     diagnostics,
-        //     ref hasErrors
-        // );
+        ValidateTypeForAttributeParameters(
+            attributeConstructor.parameters,
+            ((AttributeSyntax)boundAttribute.syntax).name,
+            diagnostics,
+            ref hasErrors
+        );
 
         var visitor = new AttributeExpressionVisitor(this);
         var arguments = boundAttribute.constructorArguments;
@@ -8790,6 +8783,21 @@ symIsHidden:;
         }
     }
 
+    private void ValidateTypeForAttributeParameters(
+        ImmutableArray<ParameterSymbol> parameters,
+        BelteSyntaxNode syntax,
+        BelteDiagnosticQueue diagnostics,
+        ref bool hasErrors) {
+        foreach (var parameter in parameters) {
+            var paramType = parameter.typeWithAnnotations;
+
+            if (!paramType.type.IsValidAttributeParameterType(compilation)) {
+                diagnostics.Push(Error.InvalidAttributeParamType(syntax.location, parameter.name, paramType.type));
+                hasErrors = true;
+            }
+        }
+    }
+
     private ImmutableArray<TypedConstant> GetRewrittenAttributeConstructorArguments(
         MethodSymbol attributeConstructor,
         ImmutableArray<TypedConstant> constructorArgsArray,
@@ -8814,7 +8822,7 @@ symIsHidden:;
                 } else if (reorderedArgument.kind == TypedConstantKind.Array &&
                       parameter.type.typeKind == TypeKind.Array &&
                       !((TypeSymbol)reorderedArgument.type).Equals(parameter.type, TypeCompareKind.AllIgnoreOptions)) {
-                    // diagnostics.Add(ErrorCode.ERR_BadAttributeArgument, syntax.Location);
+                    diagnostics.Push(Error.BadAttributeArgument(syntax.location));
                     hasErrors = true;
                 }
             }

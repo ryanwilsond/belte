@@ -39,6 +39,7 @@
     <Content Remove="../../Belte/Native/Standard/Exceptions/InvalidOperationException.blt" />
     <Content Remove="../../Belte/Native/Standard/Exceptions/NotSupportedException.blt" />
     <Content Remove="../../Belte/Native/Standard/Attributes/Attribute.blt" />
+    <Content Remove="../../Belte/Native/Standard/Attributes/AttributeUsageAttribute.blt" />
     <Content Remove="../../Belte/Native/Standard/Attributes/DllImportAttribute.blt" />
     <Content Remove="../../Belte/Native/Standard/Attributes/UnmanagedAttribute.blt" />
     <Content Remove="../../Belte/Native/Standard/Attributes/MustUseReturnValueAttribute.blt" />
@@ -75,6 +76,7 @@
     <EmbeddedResource Include="../../Belte/Native/Standard/Exceptions/InvalidOperationException.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Exceptions/NotSupportedException.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Attributes/Attribute.blt" />
+    <EmbeddedResource Include="../../Belte/Native/Standard/Attributes/AttributeUsageAttribute.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Attributes/DllImportAttribute.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Attributes/UnmanagedAttribute.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Attributes/MustUseReturnValueAttribute.blt" />

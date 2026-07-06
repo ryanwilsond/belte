@@ -140,6 +140,12 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
 
     internal abstract ImmutableArray<NamedTypeSymbol> GetDeclaredInterfaces(ConsList<TypeSymbol> basesBeingResolved);
 
+    internal abstract AttributeUsageInfo GetAttributeUsageInfo();
+
+    internal abstract ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers(string name);
+
+    internal abstract ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers();
+
     internal virtual NamedTypeSymbol AsMember(NamedTypeSymbol newOwner) {
         return newOwner.isDefinition
             ? this

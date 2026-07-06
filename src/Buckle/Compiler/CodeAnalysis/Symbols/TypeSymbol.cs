@@ -407,6 +407,10 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
         };
     }
 
+    internal bool IsValidAttributeParameterType(Compilation compilation) {
+        return this.GetAttributeParameterTypedConstantKind(compilation) != TypedConstantKind.Error;
+    }
+
     internal TypeSymbol GetNextBaseType(
         ConsList<TypeSymbol> basesBeingResolved,
         ref PooledHashSet<NamedTypeSymbol> visited) {

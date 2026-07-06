@@ -120,9 +120,8 @@ internal sealed partial class BinderFactory {
         }
 
         internal override Binder VisitEnumDeclaration(EnumDeclarationSyntax parent) {
-            var inBody = LookupPosition.IsBetweenTokens(_position, parent.openBrace, parent.closeBrace);
-            // TODO Attributes
-            // LookupPosition.IsInAttributeSpecification(_position, parent.attributeLists);
+            var inBody = LookupPosition.IsBetweenTokens(_position, parent.openBrace, parent.closeBrace) ||
+                LookupPosition.IsInAttributeSpecification(_position, parent.attributeLists);
 
             if (!inBody)
                 return VisitCore(parent.parent);
@@ -272,6 +271,8 @@ internal sealed partial class BinderFactory {
             var nodeUsage = NodeUsage.Normal;
 
             if (node is FileScopedClassDeclarationSyntax fileScoped) {
+                if (LookupPosition.IsInAttributeSpecification(_position, node.attributeLists))
+                    nodeUsage = NodeUsage.NamedTypeBodyOrTemplateParameters;
                 if (LookupPosition.IsInTemplateParameterList(_position, fileScoped))
                     nodeUsage = NodeUsage.NamedTypeBodyOrTemplateParameters;
                 else if (LookupPosition.IsBetweenTokens(_position, fileScoped.keyword, fileScoped.semicolon))
@@ -282,6 +283,8 @@ internal sealed partial class BinderFactory {
                 if (node.openBrace != default &&
                     node.closeBrace != default &&
                     LookupPosition.IsBetweenTokens(_position, node.openBrace, node.closeBrace)) {
+                    nodeUsage = NodeUsage.NamedTypeBodyOrTemplateParameters;
+                } else if (LookupPosition.IsInAttributeSpecification(_position, node.attributeLists)) {
                     nodeUsage = NodeUsage.NamedTypeBodyOrTemplateParameters;
                 } else if (LookupPosition.IsInTemplateParameterList(_position, node)) {
                     nodeUsage = NodeUsage.NamedTypeBodyOrTemplateParameters;

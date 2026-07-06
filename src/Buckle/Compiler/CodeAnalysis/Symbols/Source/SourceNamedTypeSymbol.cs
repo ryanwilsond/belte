@@ -846,4 +846,113 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
     private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
         return new SourceNamedTypeSymbol(containingType, _declaration, BelteDiagnosticQueue.Discarded, newData);
     }
+
+    private protected sealed override void DecodeWellKnownAttributeImpl(
+        ref DecodeWellKnownAttributeArguments<AttributeSyntax, AttributeData, AttributeLocation> arguments) {
+        var diagnostics = arguments.diagnostics;
+        var attribute = arguments.attribute;
+
+        if (attribute.IsTargetAttribute(AttributeDescription.AttributeUsageAttribute) ||
+            attribute.IsTargetAttribute(AttributeDescription.AttributeUsageAttributeNative)) {
+            DecodeAttributeUsageAttribute(
+                attribute,
+                arguments.attributeSyntax,
+                diagnose: true,
+                diagnosticsOpt: diagnostics
+            );
+        }
+    }
+
+    internal override AttributeUsageInfo GetAttributeUsageInfo() {
+        var data = GetEarlyDecodedWellKnownAttributeData();
+
+        if (data is not null && !data.attributeUsageInfo.isNull)
+            return data.attributeUsageInfo;
+
+        return baseType is not null ? baseType.GetAttributeUsageInfo() : AttributeUsageInfo.Default;
+    }
+
+    internal TypeEarlyWellKnownAttributeData GetEarlyDecodedWellKnownAttributeData() {
+        var attributesBag = _lazyAttributesBag;
+
+        if (attributesBag is null || !attributesBag.isEarlyDecodedWellKnownAttributeDataComputed)
+            attributesBag = GetAttributesBag();
+
+        return (TypeEarlyWellKnownAttributeData)attributesBag.earlyDecodedWellKnownAttributeData;
+    }
+
+    internal override (AttributeData, BoundAttribute) EarlyDecodeWellKnownAttribute(
+        ref EarlyDecodeWellKnownAttributeArguments<EarlyWellKnownAttributeBinder, NamedTypeSymbol, AttributeSyntax, AttributeLocation> arguments) {
+        AttributeData attributeData;
+        BoundAttribute boundAttribute;
+
+        if (AttributeData.IsTargetEarlyAttribute(
+                arguments.attributeType,
+                arguments.attributeSyntax,
+                AttributeDescription.AttributeUsageAttribute) ||
+            AttributeData.IsTargetEarlyAttribute(
+                arguments.attributeType,
+                arguments.attributeSyntax,
+                AttributeDescription.AttributeUsageAttributeNative)) {
+            (attributeData, boundAttribute) = arguments.binder.GetAttribute(
+                arguments.attributeSyntax,
+                arguments.attributeType,
+                beforeAttributePartBound: null,
+                afterAttributePartBound: null,
+                out var hasAnyDiagnostics
+            );
+
+            if (!attributeData.hasErrors) {
+                var info = DecodeAttributeUsageAttribute(attributeData, arguments.attributeSyntax, diagnose: false);
+
+                if (!info.isNull) {
+                    var typeData = arguments.GetOrCreateData<TypeEarlyWellKnownAttributeData>();
+
+                    if (typeData.attributeUsageInfo.isNull)
+                        typeData.attributeUsageInfo = info;
+
+                    if (!hasAnyDiagnostics)
+                        return (attributeData, boundAttribute);
+                }
+            }
+
+            return (null, null);
+        }
+
+        return base.EarlyDecodeWellKnownAttribute(ref arguments);
+    }
+
+    private AttributeUsageInfo DecodeAttributeUsageAttribute(
+        AttributeData attribute,
+        AttributeSyntax node,
+        bool diagnose,
+        BelteDiagnosticQueue diagnosticsOpt = null) {
+        Debug.Assert(!IsErrorType());
+
+        if (!declaringCompilation.IsAttributeType(this)) {
+            if (diagnose) {
+                diagnosticsOpt.Push(Error.AttributeUsageOnNonAttributeClass(
+                    node.name.location,
+                    node.GetErrorDisplayName()
+                ));
+            }
+
+            return AttributeUsageInfo.Null;
+        } else {
+            var info = attribute.DecodeAttributeUsageAttribute();
+
+            if (!info.hasValidAttributeTargets) {
+                if (diagnose) {
+                    diagnosticsOpt.Push(Error.InvalidAttributeArgument(
+                        attribute.GetAttributeArgumentLocation(0),
+                        node.GetErrorDisplayName()
+                    ));
+                }
+
+                return AttributeUsageInfo.Null;
+            }
+
+            return info;
+        }
+    }
 }

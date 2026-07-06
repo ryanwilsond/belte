@@ -104,6 +104,10 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
         return [];
     }
 
+    internal override AttributeUsageInfo GetAttributeUsageInfo() {
+        return AttributeUsageInfo.Null;
+    }
+
     internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
         return SpecializedCollections.EmptyEnumerable<(MethodSymbol Body, MethodSymbol Implemented)>();
     }
@@ -111,6 +115,14 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
     internal sealed override ImmutableArray<NamedTypeSymbol> Interfaces(
         ConsList<TypeSymbol> basesBeingResolved = null) {
         return [];
+    }
+
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers() {
+        return GetMembersUnordered();
+    }
+
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers(string name) {
+        return GetMembers(name);
     }
 
     internal TypeOrConstant Substitute(TemplateMap templateMap) {

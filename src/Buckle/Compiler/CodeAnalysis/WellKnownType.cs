@@ -38,6 +38,7 @@ internal enum WellKnownType : byte {
     Array,
 
     Attribute,
+    AttributeUsageAttribute,
     DllImportAttribute,
     UnmanagedAttribute,
     MustUseReturnValueAttribute,

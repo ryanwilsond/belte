@@ -37,6 +37,10 @@ internal sealed class ImplicitNamedTypeSymbol : SourceMemberContainerTypeSymbol 
         return [];
     }
 
+    internal override AttributeUsageInfo GetAttributeUsageInfo() {
+        return AttributeUsageInfo.Null;
+    }
+
     private protected override void CheckInterfaces(BelteDiagnosticQueue diagnostics) { }
 
     public override ImmutableArray<TemplateParameterSymbol> templateParameters => [];

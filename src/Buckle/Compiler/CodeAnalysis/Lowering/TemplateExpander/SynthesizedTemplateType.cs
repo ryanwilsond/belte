@@ -163,6 +163,14 @@ internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol, ISynthes
         return _lazyAllMembers;
     }
 
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers() {
+        return GetMembersUnordered();
+    }
+
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers(string name) {
+        return GetMembers(name);
+    }
+
     internal override ImmutableArray<Symbol> GetMembers(string name) {
         return GetNameToMembersMap().TryGetValue(name.AsMemory(), out var members) ? members : [];
     }

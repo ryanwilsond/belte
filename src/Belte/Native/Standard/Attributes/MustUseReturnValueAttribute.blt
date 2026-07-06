@@ -1,4 +1,5 @@
 
+[AttributeUsage(AttributeTargets.Method)]
 public sealed class MustUseReturnValueAttribute extends Attribute {
     public constructor() { }
 }

@@ -8370,4 +8370,116 @@ var text = """"""
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0590_AttributeUsageOnNonAttributeClass() {
+        var text = @"
+            \[[AttributeUsage](AttributeTargets.All)\]
+            class A { }
+        ";
+
+        var diagnostics = @"
+            attribute 'AttributeUsage' is only valid on classes derived from Attribute
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0591_DuplicateAttribute() {
+        var text = @"
+            \[AttributeUsage(AttributeTargets.All, AllowMultiple: false)\]
+            class A extends Attribute { }
+
+            \[A\]
+            \[[A]\]
+            class B { }
+        ";
+
+        var diagnostics = @"
+            duplicate 'A' attribute
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0592_AttributeOnBadSymbolType() {
+        var text = @"
+            \[AttributeUsage(AttributeTargets.Method)\]
+            class A extends Attribute { }
+
+            \[[A]\]
+            class B { }
+        ";
+
+        var diagnostics = @"
+            attribute 'A' is not valid on this declaration type; it is only valid on 'method' declarations
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Reports_Error_BU0593_ModuleEmitFailure
+    // ? Only reported is exceedingly rare cases where depending on another module that has bad types
+
+    [Fact]
+    public void Reports_Error_BU0594_InvalidAttributeParamType() {
+        var text = @"
+            class A extends Attribute {
+                public constructor(A a) { }
+                public constructor() { }
+            }
+            \[[A](new A())\]
+            class B { }
+            ;
+        ";
+
+        var diagnostics = @"
+            attribute constructor parameter 'a' has type 'A!', which is not a valid attribute parameter type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0595_BadAttributeArgument() {
+        var text = @"
+            class A extends Attribute {
+                public constructor(int a) { }
+            }
+            \[A([B.M()])\]
+            class B {
+                public static int M() { return 0; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            an attribute argument must be a constant expression, typeof expression, or array creation expression of an attribute parameter type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0596_UnmanagedCannotBeCalledDirectly() {
+        var text = @"
+            class A {
+                \[Unmanaged\]
+                public static void M() { }
+
+                public static void M2() {
+                    [M()];
+                }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'A.M()' is attributed with 'Unmanaged' and cannot be called directly; obtain an unmanaged function pointer to this method
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

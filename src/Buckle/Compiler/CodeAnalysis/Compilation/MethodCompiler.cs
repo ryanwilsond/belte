@@ -167,6 +167,9 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         if (compilation.options.optimizationLevel == OptimizationLevel.Debug)
             methodCompiler.InjectSequencePoints();
 
+        if (((SourceModuleSymbol)compilation.sourceModule).hasBadAttributes && !anyErrors && !diagnostics.AnyErrors())
+            diagnostics.Push(Error.ModuleEmitFailure(compilation.sourceModule.name));
+
         return methodCompiler.CreateBoundProgram();
     }
 

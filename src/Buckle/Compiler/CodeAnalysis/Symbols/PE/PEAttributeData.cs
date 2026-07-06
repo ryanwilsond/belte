@@ -15,6 +15,14 @@ internal sealed class PEAttributeData : AttributeData {
         _handle = handle;
     }
 
+    protected internal override INamedTypeSymbol _commonAttributeClass {
+        get {
+            throw new NotImplementedException();
+            // EnsureClassAndConstructorSymbolsAreLoaded();
+            // return _lazyAttributeClass;
+        }
+    }
+
     protected internal override ImmutableArray<KeyValuePair<string, TypedConstant>> _commonNamedArguments {
         get {
             throw new NotImplementedException();

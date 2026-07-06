@@ -114,14 +114,22 @@ internal static class TypeSymbolExtensions {
             type = arrayType.elementType;
         }
 
+        if (type.IsEnumType()) {
+            if (kind == TypedConstantKind.Error)
+                kind = TypedConstantKind.Enum;
+
+            type = type.GetEnumUnderlyingType();
+        }
+
         var typedConstantKind = TypedConstant.GetTypedConstantKind(type, compilation);
 
         switch (typedConstantKind) {
             case TypedConstantKind.Array:
+            case TypedConstantKind.Enum:
             case TypedConstantKind.Error:
                 return TypedConstantKind.Error;
             default:
-                if (kind == TypedConstantKind.Array)
+                if (kind is TypedConstantKind.Array or TypedConstantKind.Enum)
                     return kind;
 
                 return typedConstantKind;

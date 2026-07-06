@@ -19,6 +19,37 @@ internal partial struct AttributeDescription {
         this.matchIgnoringCase = matchIgnoringCase;
     }
 
+    static AttributeDescription() {
+        const string system = "System";
+        const string compilerServices = "System.Runtime.CompilerServices";
+        const string interopServices = "System.Runtime.InteropServices";
+
+        TypeHandleTargets = (new[] {
+             new TypeHandleTargetInfo(system,"AttributeTargets", SerializationTypeCode.Int32)
+            ,new TypeHandleTargetInfo("","AttributeTargets", SerializationTypeCode.Int32)
+            ,new TypeHandleTargetInfo("System.Reflection","AssemblyNameFlags", SerializationTypeCode.Int32)
+            ,new TypeHandleTargetInfo(compilerServices,"MethodImplOptions", SerializationTypeCode.Int32)
+            ,new TypeHandleTargetInfo(interopServices,"CharSet", SerializationTypeCode.Int32)
+            ,new TypeHandleTargetInfo(interopServices,"LayoutKind", SerializationTypeCode.Int32)
+            ,new TypeHandleTargetInfo(interopServices,"UnmanagedType", SerializationTypeCode.Int32)
+            ,new TypeHandleTargetInfo(interopServices,"TypeLibTypeFlags", SerializationTypeCode.Int32)
+            ,new TypeHandleTargetInfo(interopServices,"ClassInterfaceType", SerializationTypeCode.Int32)
+            ,new TypeHandleTargetInfo(interopServices,"ComInterfaceType", SerializationTypeCode.Int32)
+            ,new TypeHandleTargetInfo(compilerServices,"CompilationRelaxations", SerializationTypeCode.Int32)
+            ,new TypeHandleTargetInfo("System.Diagnostics.DebuggableAttribute","DebuggingModes", SerializationTypeCode.Int32)
+            ,new TypeHandleTargetInfo("System.Security","SecurityCriticalScope", SerializationTypeCode.Int32)
+            ,new TypeHandleTargetInfo(interopServices,"CallingConvention", SerializationTypeCode.Int32)
+            ,new TypeHandleTargetInfo("","CallingConvention", SerializationTypeCode.Int32)
+            ,new TypeHandleTargetInfo("System.Configuration.Assemblies","AssemblyHashAlgorithm", SerializationTypeCode.Int32)
+            ,new TypeHandleTargetInfo("System.EnterpriseServices","TransactionOption", SerializationTypeCode.Int32)
+            ,new TypeHandleTargetInfo("System.Security.Permissions","SecurityAction", SerializationTypeCode.Int32)
+            ,new TypeHandleTargetInfo(system,"Type", SerializationTypeCode.Type)
+            ,new TypeHandleTargetInfo("Windows.Foundation.Metadata","DeprecationType", SerializationTypeCode.Int32)
+            ,new TypeHandleTargetInfo("Windows.Foundation.Metadata","Platform", SerializationTypeCode.Int32)
+            ,new TypeHandleTargetInfo(interopServices,"ExtendedLayoutKind", SerializationTypeCode.Int32)
+        }).AsImmutable();
+    }
+
     internal string fullName => @namespace + "." + name;
 
     internal int GetParameterCount(int signatureIndex) {
@@ -51,6 +82,8 @@ internal partial struct AttributeDescription {
     private static readonly byte[] Signature_HasThis_Void_Type_Int32 = [(byte)SignatureAttributes.Instance, 2, Void, TypeHandle, (byte)TypeHandleTarget.SystemType, Int32];
     private static readonly byte[] Signature_HasThis_Void_SzArray_Byte = [(byte)SignatureAttributes.Instance, 1, Void, SzArray, Byte];
     private static readonly byte[] Signature_HasThis_Void_SzArray_String = [(byte)SignatureAttributes.Instance, 1, Void, SzArray, String];
+    private static readonly byte[] Signature_HasThis_Void_AttributeTargets = [(byte)SignatureAttributes.Instance, 1, Void, TypeHandle, (byte)TypeHandleTarget.AttributeTargets];
+    private static readonly byte[] Signature_HasThis_Void_AttributeTargetsNative = [(byte)SignatureAttributes.Instance, 1, Void, TypeHandle, (byte)TypeHandleTarget.AttributeTargetsNative];
 
     private static readonly byte[][] Signatures_HasThis_Void_Only = [Signature_HasThis_Void];
     private static readonly byte[][] Signatures_HasThis_Void_String_Only = [Signature_HasThis_Void_String];
@@ -64,6 +97,11 @@ internal partial struct AttributeDescription {
     private static readonly byte[][] SignaturesOfFixedBufferAttribute = [Signature_HasThis_Void_Type_Int32];
     private static readonly byte[][] SignaturesOfTupleElementNamesAttribute = { Signature_HasThis_Void, Signature_HasThis_Void_SzArray_String };
 
+    private static readonly byte[][] SignaturesOfAttributeUsage = { Signature_HasThis_Void_AttributeTargets };
+    private static readonly byte[][] SignaturesOfAttributeUsageNative = { Signature_HasThis_Void_AttributeTargetsNative };
+
+    internal static readonly AttributeDescription AttributeUsageAttribute = new AttributeDescription("System", "AttributeUsageAttribute", SignaturesOfAttributeUsage);
+    internal static readonly AttributeDescription AttributeUsageAttributeNative = new AttributeDescription("", "AttributeUsageAttribute", SignaturesOfAttributeUsageNative);
     internal static readonly AttributeDescription InternalsVisibleToAttribute = new AttributeDescription("System.Runtime.CompilerServices", "InternalsVisibleToAttribute", Signatures_HasThis_Void_String_Only);
     internal static readonly AttributeDescription TypeIdentifierAttribute = new AttributeDescription("System.Runtime.InteropServices", "TypeIdentifierAttribute", SignaturesOfTypeIdentifierAttribute);
     internal static readonly AttributeDescription ParamArrayAttribute = new AttributeDescription("System", "ParamArrayAttribute", Signatures_HasThis_Void_Only);
@@ -83,6 +121,7 @@ internal partial struct AttributeDescription {
     internal static readonly AttributeDescription RequiresLocationAttribute = new AttributeDescription("System.Runtime.CompilerServices", "RequiresLocationAttribute", Signatures_HasThis_Void_Only);
     internal static readonly AttributeDescription ScopedRefAttribute = new AttributeDescription("System.Runtime.CompilerServices", "ScopedRefAttribute", Signatures_HasThis_Void_Only);
     internal static readonly AttributeDescription DllImportAttribute = new AttributeDescription("System.Runtime.InteropServices", "DllImportAttribute", Signatures_HasThis_Void_String_Only);
+    internal static readonly AttributeDescription DllImportAttributeNative = new AttributeDescription("", "DllImportAttribute", Signatures_HasThis_Void_String_Only);
     internal static readonly AttributeDescription UnmanagedCallersOnlyAttribute = new AttributeDescription("System.Runtime.InteropServices", "UnmanagedCallersOnlyAttribute", Signatures_HasThis_Void_Only);
     internal static readonly AttributeDescription UnmanagedAttribute = new AttributeDescription("", "UnmanagedAttribute", Signatures_HasThis_Void_Only);
     internal static readonly AttributeDescription MustUseReturnValueAttribute = new AttributeDescription("", "MustUseReturnValueAttribute", Signatures_HasThis_Void_Only);

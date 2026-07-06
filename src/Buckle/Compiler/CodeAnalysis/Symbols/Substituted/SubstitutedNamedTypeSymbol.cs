@@ -9,6 +9,8 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class SubstitutedNamedTypeSymbol : WrappedNamedTypeSymbol {
+    private static readonly Func<Symbol, NamedTypeSymbol, Symbol> SymbolAsMemberFunc = SymbolExtensions.SymbolAsMember;
+
     private readonly TemplateMap _inputMap;
 
     private int _hashCode;
@@ -259,5 +261,23 @@ internal abstract class SubstitutedNamedTypeSymbol : WrappedNamedTypeSymbol {
         }
 
         return builder;
+    }
+
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers() {
+        return isUnboundTemplateType
+            ? GetMembers()
+            : originalDefinition.GetEarlyAttributeDecodingMembers().SelectAsArray(SymbolAsMemberFunc, this);
+    }
+
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers(string name) {
+        if (isUnboundTemplateType)
+            return GetMembers(name);
+
+        var builder = ArrayBuilder<Symbol>.GetInstance();
+
+        foreach (var t in originalDefinition.GetEarlyAttributeDecodingMembers(name))
+            builder.Add(t.SymbolAsMember(this));
+
+        return builder.ToImmutableAndFree();
     }
 }

@@ -114,6 +114,18 @@ internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
         return [];
     }
 
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers() {
+        return [];
+    }
+
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers(string name) {
+        return [];
+    }
+
+    internal override AttributeUsageInfo GetAttributeUsageInfo() {
+        return AttributeUsageInfo.Null;
+    }
+
     private ImmutableArray<TemplateParameterSymbol> ConstructTemplateParameters() {
         if (arity == 0)
             return [];

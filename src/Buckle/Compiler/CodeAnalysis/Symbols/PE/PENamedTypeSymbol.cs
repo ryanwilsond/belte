@@ -900,4 +900,27 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
             _ => SpecializedCollections.ReadOnlySet(names),
         };
     }
+
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers() {
+        return GetMembersUnordered();
+    }
+
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers(string name) {
+        return GetMembers(name);
+    }
+
+    internal override AttributeUsageInfo GetAttributeUsageInfo() {
+        var uncommon = GetUncommonProperties();
+
+        if (uncommon == NoUncommonProperties)
+            return baseType is not null ? baseType.GetAttributeUsageInfo() : AttributeUsageInfo.Default;
+
+        // TODO Attributes
+        return AttributeUsageInfo.Default;
+        // if (uncommon.lazyAttributeUsageInfo.IsNull) {
+        //     uncommon.lazyAttributeUsageInfo = this.DecodeAttributeUsageInfo();
+        // }
+
+        // return uncommon.lazyAttributeUsageInfo;
+    }
 }

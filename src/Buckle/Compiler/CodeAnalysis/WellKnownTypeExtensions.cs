@@ -23,6 +23,7 @@ internal static class WellKnownTypeExtensions {
         "Sound",
         "Array`1",
         "Attribute",
+        "AttributeUsageAttribute",
         "DllImportAttribute",
         "UnmanagedAttribute",
         "MustUseReturnValueAttribute",

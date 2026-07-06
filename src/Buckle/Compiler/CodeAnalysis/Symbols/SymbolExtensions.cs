@@ -25,6 +25,15 @@ internal static class SymbolExtensions {
         return SyntaxTree.Dummy.GetRoot();
     }
 
+    internal static Symbol SymbolAsMember(this Symbol s, NamedTypeSymbol newOwner) {
+        return s.kind switch {
+            SymbolKind.Field => ((FieldSymbol)s).AsMember(newOwner),
+            SymbolKind.Method => ((MethodSymbol)s).AsMember(newOwner),
+            SymbolKind.NamedType => ((NamedTypeSymbol)s).AsMember(newOwner),
+            _ => throw ExceptionUtilities.UnexpectedValue(s.kind),
+        };
+    }
+
     internal static bool IsTypeOrTypeAlias(this Symbol symbol) {
         switch (symbol.kind) {
             case SymbolKind.ArrayType:

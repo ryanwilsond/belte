@@ -98,6 +98,9 @@ internal sealed class ForEachLoopBinder : LoopBinder {
             ? BindEnumeratorInfo(_syntax, _syntax.expression, collectionExpr.type, diagnostics)
             : null;
 
+        if (enumeratorInfo is not null)
+            ReportDiagnosticsIfUnmanagedCallersOnly(diagnostics, enumeratorInfo.getEnumeratorMethod, _syntax.keyword);
+
         _valueSymbol.SetTypeWithAnnotations(inferredType);
         _indexSymbol?.SetTypeWithAnnotations(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Int)));
 

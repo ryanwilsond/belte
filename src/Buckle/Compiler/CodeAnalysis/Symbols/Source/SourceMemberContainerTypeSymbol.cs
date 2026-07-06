@@ -66,6 +66,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     private SynthesizedExplicitImplementations _lazySynthesizedExplicitImplementations;
     private ThreeState _lazyAnyMemberHasAttributes;
     private Dictionary<SyntaxNode, ScopeInheritorInfo> _lazyScopeInheritorInfo;
+    private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> _lazyEarlyAttributeDecodingMembersDictionary;
     private int _lazyKnownCircularStruct;
     private int _lazyHasStructDefault;
     private int _lazyKnownToBeImmutable;
@@ -2949,6 +2950,33 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         }
     }
 
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers() {
+        return GetEarlyAttributeDecodingMembersDictionary().Flatten();
+    }
+
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers(string name) {
+        return GetEarlyAttributeDecodingMembersDictionary()
+            .TryGetValue(name.AsMemory(), out var result) ? result : [];
+    }
+
+    private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> GetEarlyAttributeDecodingMembersDictionary() {
+        if (_lazyEarlyAttributeDecodingMembersDictionary is null) {
+            if (Volatile.Read(ref _lazyMembersDictionary) is
+                Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> result) {
+                return result;
+            }
+
+            var membersAndInitializers = GetMembersAndInitializers();
+
+            Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> membersByName;
+            membersByName = ToNameKeyedDictionary(membersAndInitializers.nonTypeMembers);
+            AddNestedTypesToDictionary(membersByName, GetTypeMembersDictionary());
+
+            Interlocked.CompareExchange(ref _lazyEarlyAttributeDecodingMembersDictionary, membersByName, null);
+        }
+
+        return _lazyEarlyAttributeDecodingMembersDictionary;
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool HasFlag(DeclarationModifiers flag) => (_modifiers & flag) != 0;
