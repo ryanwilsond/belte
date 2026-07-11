@@ -22,15 +22,15 @@ using Shared;
 
 namespace Buckle.CodeAnalysis.Emitting;
 
-internal sealed partial class ILEmitter : ModuleBuilder {
+internal partial class ILEmitter : ModuleBuilder {
     internal readonly static Lock GlobalCecilLock = new();
     internal readonly static ConcurrentSet<TypeReference> Imports = [];
 
     private readonly MethodReference _belteCompilerGeneratedAttributeCtor;
     private readonly TypeReference _belteCompilerGeneratedAttribute;
 
-    private readonly BelteDiagnosticQueue _diagnostics;
-    private readonly AssemblyDefinition _assemblyDefinition;
+    private protected readonly BelteDiagnosticQueue _diagnostics;
+    private protected readonly AssemblyDefinition _assemblyDefinition;
     private readonly List<AssemblyDefinition> _assemblies;
     private readonly List<AssemblyDefinition> _backupAssemblies;
     private readonly BoundProgram _program;
@@ -63,7 +63,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private MethodDefinition _init;
     internal FieldDefinition randomField;
 
-    private ILEmitter(
+    private protected ILEmitter(
         BoundProgram program,
         string assemblySimpleName,
         bool debugMode,
@@ -893,7 +893,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
     }
 
-    private void EmitInternal(bool programOnly = false) {
+    private protected void EmitInternal(bool programOnly = false) {
         CompleteWellKnownTypes();
 
         foreach (var type in _topLevelTypes)

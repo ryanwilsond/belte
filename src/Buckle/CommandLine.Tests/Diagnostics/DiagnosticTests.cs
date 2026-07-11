@@ -512,4 +512,7 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(args, diagnostics, _writer);
     }
+
+    // ! Error_CL0048_MissingFilenameF
+    // ? Requires creating build script
 }

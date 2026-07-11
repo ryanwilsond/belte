@@ -2,7 +2,7 @@ using Mono.Cecil;
 
 namespace Buckle.CodeAnalysis.Emitting;
 
-internal sealed partial class ILEmitter {
+internal partial class ILEmitter {
     internal static class NetMethodReference {
         internal static MethodReference Object_Equals_OO;
         internal static MethodReference Object_ToString;

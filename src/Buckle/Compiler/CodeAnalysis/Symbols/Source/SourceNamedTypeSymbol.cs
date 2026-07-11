@@ -660,7 +660,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
             }
 
             if (type.specialType is SpecialType.Char or SpecialType.String &&
-                declaringCompilation.options.buildMode is BuildMode.CSharpTranspile or BuildMode.Execute or BuildMode.Dotnet) {
+                !declaringCompilation.options.buildMode.SupportsNonIntegralEnums()) {
                 diagnostics.Push(Error.Unsupported.NonIntegralEnum(typeSyntax.location));
             }
 

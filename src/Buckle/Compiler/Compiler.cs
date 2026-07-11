@@ -77,7 +77,7 @@ public sealed class Compiler {
     public int Compile() {
         diagnostics.Clear();
 
-        if (state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute)
+        if (state.buildMode.RunsImmediately())
             InternalInterpreter();
         else
             InternalCompiler();
@@ -196,7 +196,7 @@ public sealed class Compiler {
             _options.localDiagnosticOptions
         );
 
-        if (buildMode is BuildMode.Evaluate or BuildMode.Execute) {
+        if (buildMode is BuildMode.Evaluate or BuildMode.Execute or BuildMode.Emulate) {
             if (GetCorLibrary(out var corLibrary).AnyErrors()) {
                 ReportAndReturnLibraryErrors();
                 return;
@@ -218,7 +218,14 @@ public sealed class Compiler {
             LogParseTime(timer, libTime, syntaxTrees.Length);
 
             void Wrapper(object parameter) {
-                if (buildMode == BuildMode.Evaluate) {
+                if (buildMode == BuildMode.Execute) {
+                    diagnostics.PushRange(compilation.Execute(
+                        state.verboseMode,
+                        state.time,
+                        state.verbosePath,
+                        state.reducedVerboseMode
+                    ));
+                } else if (buildMode == BuildMode.Evaluate) {
                     var result = compilation.Evaluate(
                         (ValueWrapper<bool>)parameter,
                         state.verboseMode,
@@ -230,7 +237,8 @@ public sealed class Compiler {
                     exceptions = result.exceptions;
                     diagnostics.PushRange(result.diagnostics);
                 } else {
-                    diagnostics.PushRange(compilation.Execute(
+                    Debug.Assert(buildMode == BuildMode.Emulate);
+                    diagnostics.PushRange(compilation.Emulate(
                         state.verboseMode,
                         state.time,
                         state.verbosePath,
@@ -244,6 +252,7 @@ public sealed class Compiler {
             else
                 InternalInterpreterStart(Wrapper);
         } else {
+            Debug.Assert(buildMode == BuildMode.Interpret);
             Debug.Assert(state.tasks.Length == 1, "multiple tasks while in script mode");
 
             if (GetCorLibrary(out var corLibrary).AnyErrors()) {

@@ -1545,6 +1545,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
         ArrowExpressionClauseSyntax arrowExpressionClause;
         SyntaxToken semicolon;
 
+        var saved = _context;
+        _context |= ParserContext.InPropertyAccessor;
+
         if (currentToken.kind == SyntaxKind.EqualsGreaterThanToken) {
             arrowExpressionClause = ParseArrowExpressionClause();
             semicolon = EatToken(SyntaxKind.SemicolonToken);
@@ -1554,6 +1557,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
             arrowExpressionClause = null;
             semicolon = null;
         }
+
+        _context = saved;
 
         return SyntaxFactory.PropertyDeclaration(
             attributeLists,
@@ -3489,6 +3494,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.ReversibleKeyword:
                 return ParseReversibleExpression();
             case SyntaxKind.IdentifierToken:
+                return ParseFieldExpressionOrLastCaseName();
             case SyntaxKind.GlobalKeyword:
             default:
                 return ParseLastCaseName();
@@ -4896,6 +4902,16 @@ done:
         var closeBracket = Match(SyntaxKind.CloseBracketToken);
 
         return SyntaxFactory.ArrayRankSpecifier(openBracket, size, closeBracket);
+    }
+
+    private ExpressionSyntax ParseFieldExpressionOrLastCaseName() {
+        if (currentToken.contextualKind == SyntaxKind.FieldKeyword &&
+            (_context & ParserContext.InPropertyAccessor) != 0) {
+            var keyword = ConvertToKeyword(EatToken());
+            return SyntaxFactory.FieldExpression(keyword);
+        }
+
+        return ParseLastCaseName();
     }
 
     private NameSyntax ParseLastCaseName() {

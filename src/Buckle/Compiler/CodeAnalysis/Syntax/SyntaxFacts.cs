@@ -255,6 +255,7 @@ public static class SyntaxFacts {
             "property" => SyntaxKind.PropertyKeyword,
             "set" => SyntaxKind.SetKeyword,
             "get" => SyntaxKind.GetKeyword,
+            "field" => SyntaxKind.FieldKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -265,6 +266,7 @@ public static class SyntaxFacts {
             case SyntaxKind.ElifKeyword:
             case SyntaxKind.EndifKeyword:
             case SyntaxKind.ExplicitKeyword:
+            case SyntaxKind.FieldKeyword:
             case SyntaxKind.FlagsKeyword:
             case SyntaxKind.GetKeyword:
             case SyntaxKind.HandleKeyword:
@@ -450,6 +452,7 @@ public static class SyntaxFacts {
             SyntaxKind.PropertyKeyword => "property",
             SyntaxKind.SetKeyword => "set",
             SyntaxKind.GetKeyword => "get",
+            SyntaxKind.FieldKeyword => "field",
             _ => null,
         };
     }
@@ -831,17 +834,23 @@ public static class SyntaxFacts {
         }
     }
 
+    private const int FirstKeyword = (int)SyntaxKind.TypeOfKeyword;
+    private const int LastKeyword = (int)SyntaxKind.FieldKeyword;
+
     /// <summary>
     /// Checks if a <see cref="SyntaxKind" /> is a keyword.
     /// </summary>
     /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>If the <see cref="SyntaxKind" /> is a keyword.</returns>
     public static bool IsKeyword(this SyntaxKind type) {
-        return type >= SyntaxKind.TypeOfKeyword && type <= SyntaxKind.HandleKeyword;
+        return (int)type >= FirstKeyword && (int)type <= LastKeyword;
     }
 
+    private const int FirstExpression = (int)SyntaxKind.ParenthesizedExpression;
+    private const int LastExpression = (int)SyntaxKind.FieldExpression;
+
     public static bool IsExpression(this SyntaxKind kind) {
-        if (kind >= SyntaxKind.ParenthesizedExpression && kind <= SyntaxKind.SimpleLambdaExpression)
+        if ((int)kind >= FirstExpression && (int)kind <= LastExpression)
             return true;
 
         switch (kind) {
@@ -853,8 +862,11 @@ public static class SyntaxFacts {
         }
     }
 
+    private const int FirstStatement = (int)SyntaxKind.EmptyStatement;
+    private const int LastStatement = (int)SyntaxKind.NullBindingStatement;
+
     public static bool IsStatement(this SyntaxKind kind) {
-        if (kind >= SyntaxKind.EmptyStatement && kind <= SyntaxKind.NullBindingStatement)
+        if ((int)kind >= FirstStatement && (int)kind <= LastStatement)
             return true;
 
         switch (kind) {
@@ -865,13 +877,16 @@ public static class SyntaxFacts {
         }
     }
 
+    private const int FirstToken = (int)SyntaxKind.TildeToken;
+    private const int LastToken = LastKeyword;
+
     /// <summary>
     /// Checks if a <see cref="SyntaxKind" /> is a <see cref="SyntaxToken" />.
     /// </summary>
     /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>If the <see cref="SyntaxKind" /> is a token.</returns>
     public static bool IsToken(this SyntaxKind type) {
-        if (type >= SyntaxKind.TildeToken && type <= SyntaxKind.HandleKeyword)
+        if ((int)type >= FirstToken && (int)type <= LastToken)
             return true;
 
         switch (type) {
@@ -886,13 +901,16 @@ public static class SyntaxFacts {
         }
     }
 
+    private const int FirstTrivia = (int)SyntaxKind.EndOfLineTrivia;
+    private const int LastTrivia = (int)SyntaxKind.HandleDirectiveTrivia;
+
     /// <summary>
     /// Checks if a <see cref="SyntaxKind" /> is trivia.
     /// </summary>
     /// <param name="type"><see cref="SyntaxKind" />.</param>
     /// <returns>If the <see cref="SyntaxKind" /> is trivia.</returns>
     public static bool IsTrivia(this SyntaxKind type) {
-        return type >= SyntaxKind.EndOfLineTrivia && type <= SyntaxKind.HandleDirectiveTrivia;
+        return (int)type >= FirstTrivia && (int)type <= LastTrivia;
     }
 
     /// <summary>

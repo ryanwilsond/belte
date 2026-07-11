@@ -140,11 +140,12 @@ internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
     internal override BoundNode VisitDataContainerExpression(BoundDataContainerExpression node) {
         var symbol = node.dataContainer;
 
-        // TODO This is a hack to avoid reporting for pattern locals which aren't analyzed correctly
-        var shouldReport = symbol.declarationKind == DataContainerDeclarationKind.Variable &&
-            !symbol.isGlobal &&
+        var shouldReport = !symbol.isGlobal &&
             (_method is SynthesizedMethodSymbolBase m ? m.baseMethod : _method.originalDefinition)
-                .Equals(symbol.containingSymbol);
+                .Equals(symbol.containingSymbol)
+                    // TODO This is a hack to avoid reporting for pattern locals which aren't analyzed correctly
+                    && symbol.declarationKind == DataContainerDeclarationKind.Variable
+            ;
 
         if (shouldReport && !_assignments[_slotMap[symbol]])
             _diagnostics.Push(Error.UseOfUnassignedLocal(node.syntax.location, symbol));

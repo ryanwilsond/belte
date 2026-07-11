@@ -62,6 +62,7 @@ public sealed class LexerTests {
         untestedTokenTypes.Remove(SyntaxKind.OperatorKeyword);
         untestedTokenTypes.Remove(SyntaxKind.LiteralKeyword);
         untestedTokenTypes.Remove(SyntaxKind.ExtendedLiteralToken);
+        untestedTokenTypes.Remove(SyntaxKind.FieldKeyword);
         untestedTokenTypes.Remove(SyntaxKind.FlagsKeyword);
         untestedTokenTypes.Remove(SyntaxKind.GetKeyword);
         untestedTokenTypes.Remove(SyntaxKind.HandleKeyword);

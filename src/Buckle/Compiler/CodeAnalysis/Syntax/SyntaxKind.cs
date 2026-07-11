@@ -183,6 +183,7 @@ public enum SyntaxKind : ushort {
     SetKeyword,
     GetKeyword,
     HandleKeyword,
+    FieldKeyword,
 
     // Trivia
     EndOfLineTrivia,
@@ -246,6 +247,7 @@ public enum SyntaxKind : ushort {
     ParenthesizedLambdaExpression,
     SimpleLambdaExpression,
     TupleExpression,
+    FieldExpression,
     InterpolatedStringText,
     Interpolation,
     InterpolatedStringStartToken,

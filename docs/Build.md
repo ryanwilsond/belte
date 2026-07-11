@@ -8,6 +8,7 @@
 - [Concurrent Builds](#concurrent-builds)
 - [Diagnostics](#diagnostics)
 - [Logging](#logging)
+- [Arguments](#arguments)
 - [Examples](#examples)
 
 ## Introduction
@@ -400,6 +401,20 @@ void Build(Builder builder) {
 }
 ```
 
+## Arguments
+
+Build scripts can optionally accept command-line arguments from the [`build` or `run` commands](Buckle.md#build).
+
+These arguments can be accessed by adding an arguments parameter to the build function:
+
+```belte
+using Buckle.Building;
+
+void Build(Builder builder, string[] args) { }
+```
+
+Like normal entry points, the arguments can either be an array or buffer.
+
 ## Examples
 
 Consider this setup:
@@ -422,11 +437,14 @@ RayLib. The accompanying `raylib.dll` is the native library (not managed .NET).
 This build script uses strict warning settings for the main code but minimal reporting for library code. It puts the
 main outputs into `bin/` including copying `raylib.dll` which is found with `builder.AddDep`.
 
+Additionally this script optionally enables verbose settings if the build command passed a `verbose` argument such as in
+`buckle build verbose`.
+
 ```belte
 using Buckle;
 using Buckle.Building;
 
-void Build(Builder builder) {
+void Build(Builder builder, string[] args) {
   builder.SetDiagnosticFlagMode(.Positional);
   builder.SetDiagnosticSeverity(.Warning);
   builder.SetWarningLevel(2);
@@ -443,8 +461,10 @@ void Build(Builder builder) {
 
   builder.AddDep("lib", "*.dll");
 
-  builder.SetVerboseMode(.Normal);
-  builder.SetVerboseArtifactPath("artifacts");
+  if (args.Length() > 0 && args[0] == "verbose") {
+    builder.SetVerboseMode(.Normal);
+    builder.SetVerboseArtifactPath("artifacts");
+  }
 }
 ```
 

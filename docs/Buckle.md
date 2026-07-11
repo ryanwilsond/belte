@@ -33,10 +33,11 @@ automatically by searching the working directory for a file named `Build.blt`. W
 [*--time*](#--time), [*--info*](#--info), and [*--debug*](#--debug) options can be specified in addition. All other
 arguments must be defined in the build script itself.
 
-Optionally, the build script can be specified manually by passing it's path as an argument immediately following
-*build*.
+Optionally, the build script path can be specified manually by passing it's path after a `-f` or `--file` argument.
 
 For relevant build modes, arguments can be passed with the [*--*](#---arg) option.
+
+All other arguments not starting with `-` are passed directly to the build script.
 
 > [Build script info](Build.md)
 

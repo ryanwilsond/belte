@@ -1484,6 +1484,12 @@
   </Node>
   <!-- Expressions -->
   <AbstractNode Name="ExpressionSyntax" Base="SyntaxNode"/>
+  <Node Name="FieldExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="FieldExpression"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="FieldKeyword"/>
+    </Field>
+  </Node>
   <Node Name="AssignmentExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="AssignmentExpression"/>
     <Field Name="left" Type="ExpressionSyntax"/>

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -123,11 +124,29 @@ public sealed class BuildManager {
         var buildMethod = assembly.GetTypes()
             .SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static))
             .FirstOrDefault(m => (m.Name == "Build" || m.Name.StartsWith("<Main>ss__Build")) &&
-                m.GetParameters().Length == 1 &&
+                (m.GetParameters().Length == 1 || m.GetParameters().Length == 2) &&
                 typeof(Builder).IsAssignableFrom(m.GetParameters()[0].ParameterType));
 
         if (buildMethod is not null && (buildMethod.IsGenericMethod || buildMethod.ReturnType != typeof(void)))
             buildMethod = null;
+
+        if (buildMethod is not null && buildMethod.GetParameters().Length == 2) {
+            var parameterType = buildMethod.GetParameters()[1].ParameterType;
+
+            if (!typeof(string[]).IsAssignableFrom(parameterType)) {
+                var arrayType = assembly.GetTypes()
+                    .FirstOrDefault(t => t.Name == "Array" && t.Namespace == "Belte" && t.IsGenericType);
+
+                if (arrayType is null) {
+                    buildMethod = null;
+                } else {
+                    arrayType = arrayType.MakeGenericType(typeof(string));
+
+                    if (!arrayType.IsAssignableFrom(parameterType))
+                        buildMethod = null;
+                }
+            }
+        }
 
         if (buildMethod is null) {
             diagnostics.Push(Error.NoBuildMethod());
@@ -136,9 +155,22 @@ public sealed class BuildManager {
             File.Delete(_state.dllPath);
             File.Delete(_state.metaPath);
         } else {
-            buildMethod.Invoke(null, [builder]);
+            if (buildMethod.GetParameters().Length == 1)
+                buildMethod.Invoke(null, [builder]);
+            else
+                buildMethod.Invoke(null, [builder, FormatArguments(buildMethod)]);
         }
 
         return builder;
+    }
+
+    private object FormatArguments(MethodInfo buildMethod) {
+        Debug.Assert(buildMethod.GetParameters().Length == 2);
+        var parameterType = buildMethod.GetParameters()[1].ParameterType;
+
+        if (typeof(string[]).IsAssignableFrom(parameterType))
+            return _state.arguments;
+
+        return Activator.CreateInstance(parameterType, _state.arguments.Length, _state.arguments);
     }
 }

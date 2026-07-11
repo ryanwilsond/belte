@@ -1148,6 +1148,8 @@ internal sealed class Expander : SharedExpander {
         var type = local.type;
         var operand = expression.expression;
 
+        Debug.Assert(expression.type.specialType == SpecialType.Bool);
+
         if (operand.type.Equals(type, TypeCompareKind.ConsiderEverything)) {
             var statements = ExpandExpression(operand, out var newOperand);
             statements.Add(LocalDeclaration(syntax, local, newOperand));
@@ -1201,7 +1203,7 @@ internal sealed class Expander : SharedExpander {
                     null,
                     expression.type
                 ),
-                assignedOnFallthrough: [temp]
+                assignedOnFallthrough: [local]
             ));
             statements.AddRange(ExpandExpression(CreateCast(syntax, local.type, newOperand), out var cast));
             statements.Add(LocalDeclaration(syntax, local, cast));
@@ -1211,6 +1213,57 @@ internal sealed class Expander : SharedExpander {
             statements.Add(Label(syntax, breakLabel));
             replacement = Local(syntax, temp);
             return statements;
+
+            // TODO This structure may be preferable
+            // TODO It has an extra jump but prevents double assignment to the result temporary
+            // TODO This means if we ever do jump elision this could be optimized better
+            /*
+
+            goto false unless <expression> is <local.type>
+            <local> = (<local.type>)<expression>
+            result = true
+            goto end
+            false:
+            result = false
+            end:
+            result
+
+            */
+            // var falseLabel = GenerateLabel();
+            // var endLabel = GenerateLabel();
+
+            // var statements = ExpandExpression(operand, out var newOperand, UseKind.StableValue);
+            // var temp = GenerateTempLocal(expression.type);
+
+            // statements.Add(LocalDeclaration(syntax, temp, null));
+            // statements.Add(GotoIfNot(syntax,
+            //     falseLabel,
+            //     new BoundIsOperator(syntax,
+            //         newOperand,
+            //         new BoundTypeExpression(syntax, null, null, local.type),
+            //         false,
+            //         null,
+            //         expression.type
+            //     ),
+            //     assignedOnFallthrough: [local]
+            // ));
+            // statements.AddRange(ExpandExpression(CreateCast(syntax, local.type, newOperand), out var cast));
+            // statements.Add(LocalDeclaration(syntax, local, cast));
+            // statements.Add(Statement(syntax,
+            //     Assignment(syntax, Local(syntax, temp), Literal(syntax, true, expression.type), false, expression.type)
+            // ));
+
+            // statements.Add(Goto(syntax, endLabel));
+            // statements.Add(Label(syntax, falseLabel));
+
+            // statements.Add(Statement(syntax,
+            //     Assignment(syntax, Local(syntax, temp), Literal(syntax, false, expression.type), false, expression.type)
+            // ));
+
+            // statements.Add(Label(syntax, endLabel));
+
+            // replacement = Local(syntax, temp);
+            // return statements;
         }
     }
 

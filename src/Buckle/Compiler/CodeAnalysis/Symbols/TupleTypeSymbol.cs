@@ -245,9 +245,17 @@ internal partial class NamedTypeSymbol {
     }
 
     internal bool IsTupleTypeOfCardinality(out int tupleCardinality) {
-        if (!isUnboundTemplateType &&
+        var isNativeTuple = !isUnboundTemplateType &&
             originalDefinition.containingAssembly?.name == MetadataHelpers.CorLibraryString &&
-            name == ValueTupleTypeName) {
+            name == ValueTupleTypeName;
+
+        var isSystemTuple = !isUnboundTemplateType &&
+            containingSymbol?.kind == SymbolKind.Namespace &&
+            containingNamespace.containingNamespace?.isGlobalNamespace == true &&
+            name == ValueTupleTypeName &&
+            containingNamespace.name == MetadataHelpers.SystemString;
+
+        if (isNativeTuple || isSystemTuple) {
             var arity = this.arity;
 
             if (arity >= 0 && arity < ValueTupleRestPosition) {

@@ -557,6 +557,49 @@ public sealed partial class Compilation {
         return null;
     }
 
+    public BelteDiagnosticQueue Emulate(
+        bool verbose = false,
+        bool logTime = false,
+        string verbosePath = null,
+        bool noArtifacts = false) {
+        return Emulate(verbose, logTime, verbosePath, noArtifacts, out _);
+    }
+
+    internal BelteDiagnosticQueue Emulate(
+        bool verbose,
+        bool logTime,
+        string verbosePath,
+        bool noArtifacts,
+        out object result) {
+        var timer = logTime ? Stopwatch.StartNew() : null;
+        var diagnostics = GetDiagnostics()
+            .ApplyTransformations(options.globalDiagnosticOptions, options.localDiagnosticOptions);
+        var program = boundProgram;
+
+        Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
+
+        if (diagnostics.AnyErrors()) {
+            result = null;
+            return diagnostics;
+        }
+
+        handleManager.SendBeforeEmitMessage();
+
+        if (verbose && options.enableOutput && !noArtifacts) {
+            EmitCFG(verbosePath);
+            EmitBoundProgram(verbosePath);
+        }
+
+        var emulator = new Emulator(program, options.arguments, diagnostics);
+        result = emulator.Emulate(verbose, logTime, verbosePath, noArtifacts);
+
+        if (verbose && options.enableOutput && result is not null)
+            Console.WriteLine(result);
+
+        handleManager.SendFinishedMessage();
+        return diagnostics;
+    }
+
     public BelteDiagnosticQueue GetParseDiagnostics() {
         return GetDiagnostics(true, false, false);
     }

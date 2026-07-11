@@ -641,7 +641,115 @@ class A {
 
 ### 4.2.4 Properties
 
-WIP
+Properties are members that are accessed similarly to fields but behave more like methods. They consist of a getter
+and setter method that is called when the property is read from or assigned to respectively. If a getter is not defined,
+the property cannot be read from. Likewise, if a setter is not defined, the property cannot be assigned to. Accessors
+without a body automatically read/write to a backing field. The following declarations are equivalent:
+
+```belte
+class A {
+  private int _backingField = 0;
+
+  public property int myProperty {
+    get {
+      return _backingField;
+    }
+    set {
+      _backingField = value;
+    }
+  }
+}
+```
+
+```belte
+class A {
+  private int _backingField = 0;
+
+  public property int myProperty {
+    get => _backingField;
+    set => _backingField = value;
+  }
+}
+```
+
+```belte
+class A {
+  public property int myProperty { get; set; }
+}
+```
+
+In setters, a local `value` is defined which acts as the value being assigned:
+
+```belte
+myA.myProperty = 3; // value = 3
+
+class A {
+  private int _backingField = 0;
+
+  public property int myProperty {
+    get => _backingField;
+    set => _backingField = value;
+  }
+}
+```
+
+In both accessors, a field expression can be used to read/write to a backing field without explicitly defining one. The
+following declarations are equivalent:
+
+```belte
+class A {
+  private int _backingField = 0;
+
+  public property int myProperty {
+    get => _backingField;
+    set => _backingField = value;
+  }
+}
+```
+
+```belte
+class A {
+  public property int myProperty {
+    get => field;
+    set => field = value;
+  }
+}
+```
+
+Like methods, properties can be overridden. Properties can also be marked `const` meaning they do not affect instance
+data like in methods marked likewise. Properties cannot be `final` or `constexpr`.
+
+A read-only property (one that cannot be assigned to and does not have it's own backing storage) can be written
+concisely as such:
+
+```belte
+class A {
+  public property int myProperty => GetSomeData();
+
+  private int GetSomeData() {
+    // ...
+  }
+}
+```
+
+As the properties do not have inherent storage, the value of the property is recalculated for every read:
+
+```belte
+var myA = new A();
+var local1 = myA.myProperty; // local1 = 0
+var local2 = myA.myProperty; // local2 = 1
+var local3 = myA.myProperty; // local3 = 2
+
+class A {
+  private int _backingField = 0;
+
+  public property int myProperty => GetSomeData();
+
+  private int GetSomeData() {
+    return _backingField++;
+  }
+}
+```
 
 ## 4.3 Modifiers
 

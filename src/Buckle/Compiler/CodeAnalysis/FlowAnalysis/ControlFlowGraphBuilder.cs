@@ -89,14 +89,16 @@ internal sealed partial class ControlFlowGraphBuilder {
                                 current,
                                 thenBlock,
                                 thenCondition,
-                                negated ? cgs.assignedOnFallthrough : cgs.assignedOnJump
+                                // negated ? cgs.assignedOnFallthrough :
+                                cgs.assignedOnJump
                             );
 
                             Connect(
                                 current,
                                 elseBlock,
                                 elseCondition,
-                                negated ? cgs.assignedOnJump : cgs.assignedOnFallthrough
+                                // negated ? cgs.assignedOnJump :
+                                cgs.assignedOnFallthrough
                             );
                         }
 

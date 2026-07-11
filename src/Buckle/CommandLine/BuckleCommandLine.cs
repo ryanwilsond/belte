@@ -451,6 +451,7 @@ public class {name} {{
             case BuildMode.Evaluate:
             case BuildMode.Execute:
             case BuildMode.Interpret:
+            case BuildMode.Emulate:
                 // Already executed from build
                 break;
             case BuildMode.Dotnet:
@@ -1230,6 +1231,8 @@ public class {name} {{
         arguments = Array.Empty<string>();
         debugMode = false;
 
+        List<string> buildArgumentsBuilder = null;
+
         for (var i = 1; i < args.Length; i++) {
             var arg = args[i];
 
@@ -1250,15 +1253,27 @@ public class {name} {{
                 case "--debug":
                     debugMode = true;
                     break;
-                default:
-                    if (i == 1 && !arg.StartsWith('-'))
-                        state.buildScript = arg;
+                case "-f":
+                case "--file":
+                    if (i < args.Length - 1)
+                        state.buildScript = args[++i];
                     else
+                        diagnostics.Push(Belte.Diagnostics.Error.MissingFilenameF(arg));
+
+                    break;
+                default:
+                    if (!arg.StartsWith('-')) {
+                        buildArgumentsBuilder ??= [];
+                        buildArgumentsBuilder.Add(arg);
+                    } else {
                         diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedOption(arg));
+                    }
 
                     break;
             }
         }
+
+        state.arguments = buildArgumentsBuilder is null ? Array.Empty<string>() : buildArgumentsBuilder.ToArray();
 
         return state;
     }
@@ -1357,6 +1372,10 @@ public class {name} {{
                 case "--execute":
                     specifyBuildMode = true;
                     state.buildMode = BuildMode.Execute;
+                    break;
+                case "--emulate":
+                    specifyBuildMode = true;
+                    state.buildMode = BuildMode.Emulate;
                     break;
                 case "-t":
                 case "--transpile":
@@ -1677,10 +1696,8 @@ public class {name} {{
                 state.outputFilename = "a.dll";
         }
 
-        if (!specifyWarningLevel &&
-            state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute) {
+        if (!specifyWarningLevel && state.buildMode.RunsImmediately())
             state.diagnosticOptions.warningLevel = 0;
-        }
 
         if (!specifyOut && state.buildMode == BuildMode.CSharpTranspile)
             state.outputFilename = "a.cs";
@@ -1694,10 +1711,8 @@ public class {name} {{
         if (specifyOut && specifyStage && state.tasks.Length > 1 && state.buildMode != BuildMode.Dotnet)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyWithMultipleFiles());
 
-        if ((specifyStage || specifyOut) &&
-            state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute) {
+        if ((specifyStage || specifyOut) && state.buildMode.RunsImmediately())
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyWithInterpreter());
-        }
 
         if (state.tasks.Length > 1 && state.buildMode == BuildMode.Interpret)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotInterpretWithMultipleFiles());
@@ -1707,11 +1722,8 @@ public class {name} {{
         if (specifyModule && state.buildMode != BuildMode.Dotnet)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyModuleNameWithoutDotnet());
 
-        if (references.Count > 0 && state.buildMode is not BuildMode.Dotnet and not
-                                                           BuildMode.AutoRun and not
-                                                           BuildMode.Execute) {
+        if (references.Count > 0 && !state.buildMode.SupportsDotnetReferences())
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyReferencesWithoutDotnet());
-        }
 
         foreach (var reference in references) {
             if (!File.Exists(reference))

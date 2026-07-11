@@ -70,11 +70,9 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
 
     internal bool transpiling => _compilation.options.buildMode == BuildMode.CSharpTranspile;
 
-    internal bool emitting => _compilation.options.buildMode.Emitting();
-
     internal bool evaluating => _compilation.options.buildMode.Evaluating();
 
-    internal bool allowNonTypeTemplates => _compilation.options.buildMode.PermitsNonTypeTemplates();
+    internal bool allowNonTypeTemplates => _compilation.options.buildMode.SupportsNonTypeTemplates();
 
     internal static BoundProgram CompileMethodBodies(
         Compilation compilation,

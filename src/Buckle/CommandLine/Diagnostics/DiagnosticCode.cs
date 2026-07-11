@@ -56,4 +56,5 @@ public enum DiagnosticCode : ushort {
     ERR_MissingWErrIgnoreCode = 45,
     ERR_MissingWErrIncludeCode = 46,
     ERR_MissingWarningLevelAfterWError = 47,
+    ERR_MissingFilenameF = 48,
 }
