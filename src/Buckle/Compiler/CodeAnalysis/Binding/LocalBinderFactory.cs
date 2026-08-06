@@ -280,6 +280,9 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
                 : _enclosing;
 
             binder = new InMethodBinder(match, binder);
+
+            if (BinderFactory.BinderFactoryVisitor.MethodHasAdditionalContext(match, out var additionalFlags))
+                binder = binder.WithAdditionalFlags(additionalFlags);
         }
 
         var blockBody = node.body;

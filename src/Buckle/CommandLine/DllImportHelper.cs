@@ -6,6 +6,7 @@ public static class DllImportHelper {
     /// Extracts libraries embedded in certain release mode builds into the installation directory
     /// </summary>
     public static void ExtractAndLoadDlls() {
+        ExtractToBaseDirectory("Resources.Belte.Core.dll", "Belte.Core.dll");
         ExtractToBaseDirectory("Resources.Belte.Runtime.dll", "Belte.Runtime.dll");
         ExtractToBaseDirectory("Resources.Belte.Graphics.dll", "Belte.Graphics.dll");
         ExtractToBaseDirectory("Resources.freetype6.dll", "freetype6.dll");

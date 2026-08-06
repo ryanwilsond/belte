@@ -162,6 +162,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
 
     private protected override void MethodChecks(BelteDiagnosticQueue diagnostics) {
         _ = GetTemplateConstraints();
+        _ = isPure;
 
         var (returnType, parameters, declaredConstraints) = MakeParametersAndBindReturnType(diagnostics);
         var overriddenMethod = MethodChecks(returnType, parameters, diagnostics);
@@ -316,10 +317,8 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         );
     }
 
-    private (TypeWithAnnotations returnType,
-        ImmutableArray<ParameterSymbol> parameters,
-        ImmutableArray<TypeParameterConstraintClause> declaredConstraints)
-        MakeParametersAndBindReturnType(BelteDiagnosticQueue diagnostics) {
+    private (TypeWithAnnotations returnType, ImmutableArray<ParameterSymbol> parameters, ImmutableArray<TypeParameterConstraintClause> declaredConstraints) MakeParametersAndBindReturnType(
+        BelteDiagnosticQueue diagnostics) {
         var syntax = (MethodDeclarationSyntax)syntaxNode;
         var returnTypeSyntax = syntax.returnType;
         var withTemplateParametersBinder = declaringCompilation
@@ -336,7 +335,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             this,
             syntax.parameterList.parameters,
             diagnostics,
-            allowRef: true,
+            allowRef: !isPure,
             isVirtual || isAbstract,
             allowConst: true
         ).Cast<SourceParameterSymbol, ParameterSymbol>();

@@ -238,10 +238,11 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Info_CL0020_IgnoringCompiledFile() {
         var fileName = "BelteTestsAssertDiagnosticCL0020.exe";
-        var args = new string[] { fileName, "--type=dll" };
+        var args = new string[] { fileName, "--type=dll", "-l0" };
 
         var diagnostics = @"
             BelteTestsAssertDiagnosticCL0020.exe: file already compiled; ignoring
+            failed to emit assembly attribute 'BelteMetadataAttribute' (are you using '--nostdlib'?)
         ";
 
         AssertDiagnostics(args, diagnostics, _writer, DiagnosticSeverity.Info, false, fileName);

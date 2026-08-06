@@ -146,6 +146,10 @@ internal sealed class LambdaSymbol : SourceMethodSymbol {
         // _declarationDiagnostics.PushRange(diagnostics);
     }
 
+    private protected override BehaviorSpecifierInfo MakeSpecifierInfo(BelteDiagnosticQueue diagnostics) {
+        return BehaviorSpecifierInfo.Default;
+    }
+
     private ImmutableArray<ParameterSymbol> MakeParameters(
         Compilation compilation,
         UnboundLambda unboundLambda,

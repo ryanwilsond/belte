@@ -65,8 +65,16 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
 
         var rewrittenStatement = statement;
 
-        if (optimize)
-            rewrittenStatement = (BoundBlockStatement)Optimizer.Optimize(rewrittenStatement);
+        sawCompileTimeExpression = false;
+
+        if (optimize) {
+            rewrittenStatement = (BoundBlockStatement)Optimizer.Optimize(
+                rewrittenStatement,
+                out var createdCompileTimeExpression
+            );
+
+            sawCompileTimeExpression |= createdCompileTimeExpression;
+        }
 
         if (methodCompiler.transpiling) {
             rewrittenStatement = SharedFlowLowerer.Lower(method, rewrittenStatement, diagnostics);
@@ -79,10 +87,16 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
             rewrittenStatement = Flatten(method, rewrittenStatement);
         }
 
-        if (optimize)
-            rewrittenStatement = (BoundBlockStatement)Optimizer.Optimize(rewrittenStatement);
+        if (optimize) {
+            rewrittenStatement = (BoundBlockStatement)Optimizer.Optimize(
+                rewrittenStatement,
+                out var createdCompileTimeExpression
+            );
 
-        sawCompileTimeExpression = lowerer._sawCompileTimeExpression;
+            sawCompileTimeExpression |= createdCompileTimeExpression;
+        }
+
+        sawCompileTimeExpression |= lowerer._sawCompileTimeExpression;
         sawNonTypeTemplate = lowerer._sawNonTypeTemplate || TemplateExpander.IsNonTypeTemplateMethod(method);
         sawLambda = lowerer._sawLambda;
         sawLocalFunction = lowerer._sawLocalFunction;

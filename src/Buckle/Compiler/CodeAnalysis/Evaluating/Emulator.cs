@@ -11,7 +11,7 @@ internal sealed class Emulator : ILEmitter {
             program,
             assemblySimpleName: "EmulatingAssembly",
             debugMode: program.compilation.options.optimizationLevel == OptimizationLevel.Debug,
-            reduced: program.compilation.options.noStdLib,
+            noStdLib: program.compilation.options.noStdLib,
             diagnostics) {
 
     }

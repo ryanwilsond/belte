@@ -1742,7 +1742,7 @@ oneMoreTime:
                         _builder.EmitThrowNullCondition();
                         // This is to balance the stack
                         EmitDefaultValue(
-                            CorLibrary.GetWellKnownType(WellKnownType.Exception),
+                            _method.declaringCompilation.GetWellKnownType(WellKnownType.System_Exception),
                             useKind != UseKind.Unused,
                             expression.syntax
                         );

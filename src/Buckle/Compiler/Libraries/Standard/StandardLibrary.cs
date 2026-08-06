@@ -479,14 +479,6 @@ internal static class StandardLibrary {
         ]);
     }
 
-    private static SynthesizedFinishedNamedTypeSymbol GenerateUnmanagedAttribute() {
-        return Class("UnmanagedAttribute", CorLibrary.GetWellKnownType(WellKnownType.Attribute), []);
-    }
-
-    private static SynthesizedFinishedNamedTypeSymbol GenerateDllImportAttribute() {
-        return Class("DllImportAttribute", CorLibrary.GetWellKnownType(WellKnownType.Attribute), []);
-    }
-
     private static SynthesizedFinishedNamedTypeSymbol GenerateTime() {
         return StaticClass("Time", [
             StaticMethod("Now", SpecialType.Int),

@@ -20,4 +20,8 @@ internal static class StringExtensions {
 
         return true;
     }
+
+    internal static bool IsValidClrTypeName(this string name) {
+        return !string.IsNullOrEmpty(name) && name.IndexOf('\0') == -1;
+    }
 }

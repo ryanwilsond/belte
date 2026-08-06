@@ -124,4 +124,12 @@ internal sealed class SymbolFactory : SymbolFactory<PEModuleSymbol, TypeSymbol> 
 
         return new PointerTypeSymbol(CreateType(type, customModifiers));
     }
+
+    internal override TypeSymbol GetSystemTypeSymbol(PEModuleSymbol moduleSymbol) {
+        return moduleSymbol.systemTypeSymbol;
+    }
+
+    internal override TypeSymbol GetEnumUnderlyingType(PEModuleSymbol moduleSymbol, TypeSymbol type) {
+        return type.GetEnumUnderlyingType();
+    }
 }

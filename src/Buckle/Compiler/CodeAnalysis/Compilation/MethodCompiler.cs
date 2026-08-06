@@ -265,19 +265,27 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             var currentCompilation = _compilation;
 
             while (currentCompilation is not null) {
-                foreach (var (key, value) in current) {
-                    methodBodiesBuilder.Add(key, EvaluatorSlotRewriter.Rewrite(
-                        key,
-                        value,
-                        _typeLayouts,
-                        _compilation.previous?.boundProgram,
-                        out var manager
-                    ));
+                // Previous compilation may have been built with Evaluator layouts already
+                // But the current one definitely hasn't
+                if (currentCompilation != _compilation && currentCompilation.boundProgram.methodLayouts.Count > 0) {
+                    Debug.Assert(currentCompilation.boundProgram.methodLayouts.Count == currentCompilation.boundProgram.methodBodies.Count);
+                    methodBodiesBuilder.AddRange(currentCompilation.boundProgram.methodBodies);
+                    methodLayoutsBuilder.AddRange(currentCompilation.boundProgram.methodLayouts);
+                } else {
+                    foreach (var (key, value) in current) {
+                        methodBodiesBuilder.Add(key, EvaluatorSlotRewriter.Rewrite(
+                            key,
+                            value,
+                            _typeLayouts,
+                            _compilation.previous?.boundProgram,
+                            out var manager
+                        ));
 
-                    methodLayoutsBuilder.Add(key, manager);
+                        methodLayoutsBuilder.Add(key, manager);
+                    }
                 }
 
-                // We have to recompute libraries because they aren't build with evaluator slots in mind
+                // We have to recompute libraries because they aren't always built with evaluator slots in mind
                 currentCompilation = currentCompilation.previous;
                 current = currentCompilation?.boundProgram?.methodBodies?.ToDictionary();
             }
@@ -358,19 +366,21 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                     }
                 }
             } while (progress);
+        }
 
-            foreach (var (method, body) in _methodBodies) {
-                if (body is not null) {
-                    var foldedBody = ConstantFoldingPass.Fold(
-                        method,
-                        body,
-                        constantMap,
-                        out _,
-                        _diagnostics
-                    );
+        // Primarily for field dependencies resolved by constructors, but this might also catch some folding of
+        // operations involving compile-time sub-expressions
+        foreach (var (method, body) in _methodBodies) {
+            if (body is not null) {
+                var foldedBody = ConstantFoldingPass.Fold(
+                    method,
+                    body,
+                    constantMap,
+                    out _,
+                    _diagnostics
+                );
 
-                    _methodBodies[method] = foldedBody;
-                }
+                _methodBodies[method] = foldedBody;
             }
         }
 
@@ -504,8 +514,19 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         lock (_types)
             _types.Add(symbol);
 
-        var state = new TypeCompilationState(symbol, _compilation, _typeLayouts);
+        var fieldsRequiringAssignment = ArrayBuilder<FieldSymbol>.GetInstance();
         var members = symbol.GetMembers();
+
+        for (var ordinal = 0; ordinal < members.Length; ordinal++) {
+            var member = members[ordinal];
+
+            if (member is FieldSymbol f) {
+                if (f.definiteAssignmentError is not null && !(symbol.IsStructType() && f.type.HasDefaultValue()))
+                    fieldsRequiringAssignment.Add(f);
+            }
+        }
+
+        var state = new TypeCompilationState(symbol, _compilation, _typeLayouts, fieldsRequiringAssignment);
         var processedInstanceInitializers = new Binder.ProcessedFieldInitializers();
         var processedStaticInitializers = new Binder.ProcessedFieldInitializers();
 
@@ -536,8 +557,6 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             }
         }
 
-        var fieldsRequiringAssignment = ArrayBuilder<FieldSymbol>.GetInstance();
-
         for (var ordinal = 0; ordinal < members.Length; ordinal++) {
             var member = members[ordinal];
 
@@ -567,9 +586,6 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                             true
                         );
                     }
-
-                    if (f.definiteAssignmentError is not null && !(symbol.IsStructType() && f.type.HasDefaultValue()))
-                        fieldsRequiringAssignment.Add(f);
 
                     break;
             }
@@ -729,7 +745,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         _sawNonTypeTemplate |= sawNonTypeTemplate;
 
         var controlFlowGraph = ControlFlowGraph.Create(method, loweredBody);
-        var assignments = controlFlowGraph.CheckDefiniteAssignment(currentDiagnostics);
+        var assignments = controlFlowGraph.CheckDefiniteAssignment(currentDiagnostics, state.fieldsRequiringAssignment);
 
         foreach (var field in method.initFields) {
             if (!assignments.Contains(field))

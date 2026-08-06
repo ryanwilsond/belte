@@ -22,7 +22,7 @@ internal sealed class SynthesizedTemplateTypeField : WrappedFieldSymbol {
     internal override Symbol containingSymbol => _containingType;
 
     internal override ImmutableArray<AttributeData> GetAttributes() {
-        return originalDefinition.GetAttributes();
+        return underlyingField.GetAttributes();
     }
 
     internal override TypeWithAnnotations GetFieldType(ConsList<FieldSymbol> fieldsBeingBound) {

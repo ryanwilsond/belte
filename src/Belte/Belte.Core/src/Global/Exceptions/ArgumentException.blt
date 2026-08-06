@@ -1,4 +1,4 @@
 
-public sealed class ArgumentException extends Exception {
+public sealed class ArgumentException extends System.Exception {
     public constructor() : base("Value does not fall within the expected range.") { }
 }

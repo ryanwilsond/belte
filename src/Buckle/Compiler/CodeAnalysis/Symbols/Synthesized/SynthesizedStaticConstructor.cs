@@ -33,9 +33,7 @@ internal sealed class SynthesizedStaticConstructor : MethodSymbol {
 
     internal override Accessibility declaredAccessibility => Accessibility.Private;
 
-    internal override TextLocation location => null;
-
-    internal override ImmutableArray<TextLocation> locations => [];
+    internal override TextLocation location => containingType.location;
 
     internal override SyntaxReference syntaxReference => null;
 

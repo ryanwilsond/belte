@@ -61,7 +61,7 @@ internal class SynthesizedInstanceConstructorSymbol : SynthesizedInstanceMethodS
 
     internal override SyntaxReference syntaxReference => null;
 
-    internal override TextLocation location => null;
+    internal override TextLocation location => containingType.location;
 
     internal override bool isImplicitlyDeclared => true;
 

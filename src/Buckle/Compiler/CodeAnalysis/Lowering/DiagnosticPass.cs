@@ -7,6 +7,8 @@ namespace Buckle.CodeAnalysis.Lowering;
 internal sealed class DiagnosticPass : BoundTreeWalkerWithStackGuard {
     private readonly BelteDiagnosticQueue _diagnostics;
 
+    private bool _seenPossibleThrowingNode;
+
     private DiagnosticPass(BelteDiagnosticQueue diagnostics) {
         _diagnostics = diagnostics;
     }
@@ -18,6 +20,18 @@ internal sealed class DiagnosticPass : BoundTreeWalkerWithStackGuard {
         } catch (CancelledByStackGuardException ex) {
             ex.AddAnError(diagnostics);
         }
+    }
+
+    internal override BoundNode VisitTryStatement(BoundTryStatement node) {
+        _seenPossibleThrowingNode = false;
+        Visit(node.body);
+
+        if (!_seenPossibleThrowingNode && node.catchBody is not null && node.finallyBody is null)
+            _diagnostics.Push(Warning.UnnecessaryTryStatement(node.syntax.location));
+
+        Visit(node.catchBody);
+        Visit(node.finallyBody);
+        return null;
     }
 
     internal override BoundNode VisitAssignmentOperator(BoundAssignmentOperator node) {
@@ -81,4 +95,130 @@ internal sealed class DiagnosticPass : BoundTreeWalkerWithStackGuard {
                 return false;
         }
     }
+
+    #region NoThrow Checking
+
+    // TODO If 'nothrow' becomes more important/prevalent, it may be worth storing whether a node can throw directly
+    // on the node itself and propagate that boolean value instead of performing all of these checks
+
+    // TODO Potentially missed some, need to double check (same with todo comment in Conversion)
+    // Note that some exceptions don't "count", e.g. stackalloc expressions can throw StackOverflowException
+    // but we don't count that because it cannot be caught
+    // Similarly, pointer related segfaults don't count because CorruptedStateException also cannot be caught
+
+    internal override BoundNode VisitArrayAccessExpression(BoundArrayAccessExpression node) {
+        _seenPossibleThrowingNode = true;
+        return base.VisitArrayAccessExpression(node);
+    }
+
+    internal override BoundNode VisitArrayCreationExpression(BoundArrayCreationExpression node) {
+        // Possible if array size exceeds runtime limit (int32 I believe?)
+        // TODO Maybe all exception cases should be caught statically instead of at runtime?
+        return base.VisitArrayCreationExpression(node);
+    }
+
+    internal override BoundNode VisitBinaryOperator(BoundBinaryOperator node) {
+        _seenPossibleThrowingNode |= node.method is not null && !node.method.isNoThrow;
+        return base.VisitBinaryOperator(node);
+    }
+
+    internal override BoundNode VisitCallExpression(BoundCallExpression node) {
+        _seenPossibleThrowingNode |= !node.method.isNoThrow;
+        return base.VisitCallExpression(node);
+    }
+
+    internal override BoundNode VisitCastExpression(BoundCastExpression node) {
+        _seenPossibleThrowingNode |= node.conversion.CouldThrow();
+        return base.VisitCastExpression(node);
+    }
+
+    internal override BoundNode VisitCStringLiteral(BoundCStringLiteral node) {
+        // TODO This is true because it has to call a non nothrow helper?
+        _seenPossibleThrowingNode = true;
+        return base.VisitCStringLiteral(node);
+    }
+
+    internal override BoundNode VisitForEachStatement(BoundForEachStatement node) {
+        // TODO We need to restructure foreach to always use enumeratorInfo to consolidate the methods
+        // so its easier to check whether or not they are all marked nothrow
+
+        if (node.enumeratorInfo is not null) {
+            _seenPossibleThrowingNode |= !node.enumeratorInfo.disposeMethod.isNoThrow ||
+                                         !node.enumeratorInfo.getCurrentMethod.isNoThrow ||
+                                         !node.enumeratorInfo.getEnumeratorMethod.isNoThrow ||
+                                         !node.enumeratorInfo.moveNextMethod.isNoThrow;
+        }
+
+        return base.VisitForEachStatement(node);
+    }
+
+    internal override BoundNode VisitIncrementOperator(BoundIncrementOperator node) {
+        _seenPossibleThrowingNode |= node.method is not null && !node.method.isNoThrow;
+        return base.VisitIncrementOperator(node);
+    }
+
+    internal override BoundNode VisitIndexerAccessExpression(BoundIndexerAccessExpression node) {
+        _seenPossibleThrowingNode |= (node.method is not null && !node.method.isNoThrow) ||
+            node.receiver.StrippedType().specialType == SpecialType.String;
+
+        return base.VisitIndexerAccessExpression(node);
+    }
+
+    internal override BoundNode VisitInitializerDictionary(BoundInitializerDictionary node) {
+        // Possible if duplicate keys
+        // TODO Maybe all exception cases should be caught statically instead of at runtime?
+        _seenPossibleThrowingNode = true;
+        return base.VisitInitializerDictionary(node);
+    }
+
+    internal override BoundNode VisitInitializerList(BoundInitializerList node) {
+        // Possible if array size exceeds runtime limit (int32 I believe?)
+        // TODO Maybe all exception cases should be caught statically instead of at runtime?
+        _seenPossibleThrowingNode = true;
+        return base.VisitInitializerList(node);
+    }
+
+    internal override BoundNode VisitInlineILStatement(BoundInlineILStatement node) {
+        // TODO Check each instruction for throwing potential
+        // Right now we will just assume yes
+        _seenPossibleThrowingNode = true;
+        return base.VisitInlineILStatement(node);
+    }
+
+    internal override BoundNode VisitNullAssertOperator(BoundNullAssertOperator node) {
+        _seenPossibleThrowingNode |= node.throwIfNull;
+        return base.VisitNullAssertOperator(node);
+    }
+
+    internal override BoundNode VisitObjectCreationExpression(BoundObjectCreationExpression node) {
+        _seenPossibleThrowingNode |= !node.constructor.isNoThrow;
+        return base.VisitObjectCreationExpression(node);
+    }
+
+    internal override BoundNode VisitReverseStatement(BoundReverseStatement node) {
+        // TODO reverse clause doesn't allow specifiers so it cannot be marked 'nothrow'
+        // TODO But don't they inherit the 'nothrow' specifier from the main method? So then this wouldn't always throw
+
+        // If reversing becomes prevalent enough we should consider allowing specifiers on these clauses
+        _seenPossibleThrowingNode = true;
+        return base.VisitReverseStatement(node);
+    }
+
+    internal override BoundNode VisitThrowExpression(BoundThrowExpression node) {
+        _seenPossibleThrowingNode = true;
+        return base.VisitThrowExpression(node);
+    }
+
+    internal override BoundNode VisitUnaryOperator(BoundUnaryOperator node) {
+        _seenPossibleThrowingNode |= node.method is not null && !node.method.isNoThrow;
+        return base.VisitUnaryOperator(node);
+    }
+
+    internal override BoundNode VisitUnreachableStatement(BoundUnreachableStatement node) {
+        _seenPossibleThrowingNode = true;
+        return base.VisitUnreachableStatement(node);
+    }
+
+    #endregion
+
 }

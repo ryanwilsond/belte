@@ -23,7 +23,7 @@ internal static class Assertions {
     private readonly static Compilation BaseCompilation;
 
     static Assertions() {
-        var compilation = LibraryHelpers.LoadLibraries();
+        var compilation = LibraryHelpers.LoadLibraries(buildMode: BuildMode.Evaluate);
         _ = compilation.boundProgram;
         BaseCompilation = compilation;
     }

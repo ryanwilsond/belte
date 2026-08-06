@@ -2,6 +2,7 @@
 BUCKLE_DIR:=src/Buckle
 DEPENDENCY_DIR:=src/Dependencies
 BELTE_DIR:=src/Belte
+BELTE_CORE_DIR:=$(BELTE_DIR)/Belte.Core
 CL_DIR:=$(BUCKLE_DIR)/CommandLine
 COMPILER_DIR:=$(BUCKLE_DIR)/Compiler
 REPL_DIR:=$(BUCKLE_DIR)/Repl
@@ -27,18 +28,21 @@ ifeq ($(OS), Windows_NT)
 #	TODO "> \$null" to void the output doesn't work on all machines
 	RM:=powershell -NoProfile -Command "Remove-Item -Recurse -Force -ErrorAction Ignore"
 	CP:=powershell -NoProfile -Command "Copy-Item -Recurse"
+	CPC=powershell -NoProfile -Command "Copy-Item -Recurse '$(1)\*' '$(2)'"
 	MV:=powershell -NoProfile -Command "Move-Item -Force"
 	MKDIR:= powershell -NoProfile -Command "New-Item -ItemType Directory -Force"
 else
 	RM:=rm -rf
 	CP:=cp
+	CPC=cp -r "$(1)/." "$(2)/"
 	MV:=mv
 	MKDIR:=mkdir -p
 endif
 
 all: debug
 release: prebuild libs copydlls build postbuild
-releasemf: prebuild libs copydlls buildmf postbuild
+releasemf: prebuild libs copylibs copydlls buildmf postbuild
+releasemfnolibs: prebuild copydlls buildmf postbuild
 portable: prebuild libs buildportable postbuildportable
 debug: prebuild builddebug postbuilddebug
 linux: prebuild buildlinux postbuildlinux
@@ -83,8 +87,14 @@ libs:
 	@echo "Started building the Belte libraries ..."
 	@$(MKDIR) lib
 	@dotnet publish $(PUBLISH_FLAGS) $(BELTE_DIR)/Belte.Runtime/Belte.Runtime.csproj -o lib
-	@dotnet publish $(PUBLISH_FLAGS) $(BELTE_DIR)/Belte.Graphics/Belte.Graphics.csproj -o lib
+# 	@dotnet publish $(PUBLISH_FLAGS) $(BELTE_DIR)/Belte.Graphics/Belte.Graphics.csproj -o lib
+	@cd $(BELTE_CORE_DIR) && buckle build
+	@$(MV) $(BELTE_CORE_DIR)/bin/Belte.Core.dll lib/Belte.Core.dll
 	@echo "    Finished"
+
+copylibs:
+# 	@$(call CPC,lib,bin/release)
+	@$(CP) lib/Belte.Core.dll bin/release/Belte.Core.dll
 
 prebuild:
 	@$(MKDIR) bin
@@ -112,7 +122,8 @@ postbuildlinux:
 build:
 	@echo "Started building the Buckle project (release) ..."
 	@dotnet publish $(CL_DIR)/CommandLine.csproj $(FLAGS) -o bin/release \
-		-r $(SYSTEM) -p:PublishReadyToRunShowWarnings=true -p:PublishReadyToRun=true
+		-r $(SYSTEM) -p:PublishReadyToRunShowWarnings=true -p:PublishReadyToRun=true \
+		-p:DefineConstants="SINGLE_FILE_BUILD"
 
 buildmf:
 	@echo "Started building the Buckle project (release, multi-file) ..."

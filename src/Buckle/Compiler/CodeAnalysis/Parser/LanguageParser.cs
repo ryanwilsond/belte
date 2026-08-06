@@ -921,26 +921,26 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
     private BaseTypeSyntax ParseBaseType() {
         var extendsKeyword = Match(SyntaxKind.ExtendsKeyword, SyntaxKind.IdentifierToken, SyntaxKind.GlobalKeyword);
-        var baseType = ParseSimpleName();
+        var baseType = ParseType(allowNoFollowUp: true);
         return SyntaxFactory.BaseType(extendsKeyword, baseType);
     }
 
     private InterfaceListSyntax ParseInterfaceList() {
         var keyword = Match(SyntaxKind.ImplementsKeyword, SyntaxKind.IdentifierToken, SyntaxKind.GlobalKeyword);
-        var interfaces = ParseSimpleNameList();
+        var interfaces = ParseTypeList();
         return SyntaxFactory.InterfaceList(keyword, interfaces);
     }
 
-    private SeparatedSyntaxList<SimpleNameSyntax> ParseSimpleNameList() {
+    private SeparatedSyntaxList<TypeSyntax> ParseTypeList() {
         var nodesAndSeparators = _pool.Allocate<BelteSyntaxNode>();
-        nodesAndSeparators.Add(ParseSimpleName());
+        nodesAndSeparators.Add(ParseType(allowNoFollowUp: true));
 
         while (currentToken.kind == SyntaxKind.CommaToken) {
             nodesAndSeparators.Add(EatToken());
-            nodesAndSeparators.Add(ParseSimpleName());
+            nodesAndSeparators.Add(ParseType(allowNoFollowUp: true));
         }
 
-        return _pool.ToSeparatedListAndFree<SimpleNameSyntax>(nodesAndSeparators);
+        return _pool.ToSeparatedListAndFree<TypeSyntax>(nodesAndSeparators);
     }
 
     private TemplateConstraintClauseListSyntax ParseTemplateConstraintClauseList() {
@@ -997,7 +997,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private TemplateExtendsConstraintClauseSyntax ParseTemplateExtendsConstraintClause() {
         var name = ParseIdentifierName();
         var extendsKeyword = Match(SyntaxKind.ExtendsKeyword, SyntaxKind.IdentifierToken, SyntaxKind.GlobalKeyword);
-        var type = ParseSimpleName();
+        var type = ParseType(allowNoFollowUp: true);
         var semicolon = EatToken(SyntaxKind.SemicolonToken);
         return SyntaxFactory.TemplateExtendsConstraintClause(name, extendsKeyword, type, semicolon);
     }
@@ -1011,7 +1011,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             SyntaxKind.GlobalKeyword
         );
 
-        var types = ParseSimpleNameList();
+        var types = ParseTypeList();
         var semicolon = EatToken(SyntaxKind.SemicolonToken);
 
         return SyntaxFactory.TemplateImplementsConstraintClause(name, implementsKeyword, types, semicolon);
@@ -1057,6 +1057,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var implicitKeyword = currentToken.contextualKind == SyntaxKind.ImplicitKeyword
             ? ConvertToKeyword(EatToken())
             : null;
+        var specifierList = ParseSpecifierList();
         var constructorInitializer = currentToken.kind == SyntaxKind.ColonToken ? ParseConstructorInitializer() : null;
         var (body, semicolon) = ParseMethodBodyOrSemicolon();
 
@@ -1066,6 +1067,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             constructorKeyword,
             parameterList,
             implicitKeyword,
+            specifierList,
             constructorInitializer,
             body,
             semicolon
@@ -1083,6 +1085,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
             Match(SyntaxKind.CloseParenToken, SyntaxKind.OpenBraceToken)
         );
 
+        var specifierList = ParseSpecifierList();
+
         var (body, semicolon) = ParseMethodBodyOrSemicolon();
 
         return SyntaxFactory.DestructorDeclaration(
@@ -1091,6 +1095,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             destructorKeyword,
             parameterList,
             null,
+            specifierList,
             body,
             semicolon
         );
@@ -1107,6 +1112,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
             Match(SyntaxKind.CloseParenToken, SyntaxKind.OpenBraceToken)
         );
 
+        var specifierList = ParseSpecifierList();
+
         var (body, semicolon) = ParseMethodBodyOrSemicolon();
 
         return SyntaxFactory.FinalizerDeclaration(
@@ -1115,6 +1122,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             finalizerKeyword,
             parameterList,
             null,
+            specifierList,
             body,
             semicolon
         );
@@ -1140,6 +1148,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var implicitKeyword = currentToken.contextualKind == SyntaxKind.ImplicitKeyword
             ? ConvertToKeyword(EatToken())
             : null;
+        var specifierList = ParseSpecifierList();
         var constraintClauseList = currentToken.kind == SyntaxKind.WhereKeyword
             ? ParseTemplateConstraintClauseList()
             : null;
@@ -1161,6 +1170,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             templateParameterList,
             parameterList,
             implicitKeyword,
+            specifierList,
             constraintClauseList,
             initClause,
             body,
@@ -1180,6 +1190,31 @@ internal sealed partial class LanguageParser : SyntaxParser {
             body = ParseBlockStatement();
 
         return (body, semicolon);
+    }
+
+    private SyntaxList<SyntaxToken> ParseSpecifierList() {
+        var specifiers = _pool.Allocate<SyntaxToken>();
+
+        while (true) {
+            if (IsContextualSpecifier(currentToken.contextualKind))
+                specifiers.Add(ConvertToKeyword(EatToken()));
+            else
+                break;
+        }
+
+        return _pool.ToListAndFree(specifiers);
+    }
+
+    private bool IsContextualSpecifier(SyntaxKind syntaxKind) {
+        switch (syntaxKind) {
+            case SyntaxKind.NoallocKeyword:
+            case SyntaxKind.NothrowKeyword:
+            case SyntaxKind.MemoizeKeyword:
+            case SyntaxKind.PureKeyword:
+                return true;
+            default:
+                return false;
+        }
     }
 
     private (ExplicitInterfaceSpecifierSyntax, SyntaxToken) ParseMemberName() {
@@ -1315,6 +1350,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var literalKeyword = Match(SyntaxKind.LiteralKeyword, contextual: true);
         var suffix = Match(SyntaxKind.IdentifierToken);
         var parameterList = ParseParameterList();
+        var specifierList = ParseSpecifierList();
         var (body, semicolon) = ParseMethodBodyOrSemicolon();
 
         return SyntaxFactory.LiteralOperatorDeclaration(
@@ -1325,6 +1361,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             suffix,
             parameterList,
             null,
+            specifierList,
             body,
             semicolon
         );
@@ -1352,6 +1389,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
             : null;
 
         var parameterList = ParseParameterList();
+
+        var specifierList = ParseSpecifierList();
 
         var constraintClauseList = currentToken.kind == SyntaxKind.WhereKeyword
             ? ParseTemplateConstraintClauseList()
@@ -1426,6 +1465,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             rightOperatorToken,
             parameterList,
             null,
+            specifierList,
             constraintClauseList,
             body,
             semicolon
@@ -1505,6 +1545,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var type = ParseType(false);
         var parameterList = ParseParameterList();
 
+        var specifierList = ParseSpecifierList();
+
         var constraintClauseList = currentToken.kind == SyntaxKind.WhereKeyword
             ? ParseTemplateConstraintClauseList()
             : null;
@@ -1528,6 +1570,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             type,
             parameterList,
             null,
+            specifierList,
             constraintClauseList,
             body,
             semicolon
@@ -1743,6 +1786,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var implicitKeyword = currentToken.contextualKind == SyntaxKind.ImplicitKeyword
             ? ConvertToKeyword(EatToken())
             : null;
+        var specifierList = ParseSpecifierList();
         var constraintClauseList = currentToken.kind == SyntaxKind.WhereKeyword
             ? ParseTemplateConstraintClauseList()
             : null;
@@ -1756,6 +1800,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             templateParameterList,
             parameterList,
             implicitKeyword,
+            specifierList,
             constraintClauseList,
             body
         );

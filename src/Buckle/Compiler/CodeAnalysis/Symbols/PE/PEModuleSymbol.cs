@@ -3,12 +3,14 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Metadata;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Text;
+using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -36,6 +38,7 @@ internal sealed partial class PEModuleSymbol : NonMissingModuleSymbol {
 
     private ICollection<string> _lazyTypeNames;
     private ICollection<string> _lazyNamespaceNames;
+    private NamedTypeSymbol _lazySystemTypeSymbol;
 
     private NullableMemberMetadata _lazyNullableMemberMetadata;
 
@@ -90,11 +93,43 @@ internal sealed partial class PEModuleSymbol : NonMissingModuleSymbol {
 
     internal override ImmutableArray<TextLocation> locations => metadataLocation.Cast<MetadataLocation, TextLocation>();
 
+    internal NamedTypeSymbol systemTypeSymbol {
+        get {
+            if (_lazySystemTypeSymbol is null) {
+                Interlocked.CompareExchange(
+                    ref _lazySystemTypeSymbol,
+                    // TODO Do we care for the *actual* PE definition?
+                    CorLibrary.GetSpecialType(SpecialType.Type),
+                    // GetTypeSymbolForWellKnownType(WellKnownType.System_Type),
+                    null
+                );
+
+                Debug.Assert(_lazySystemTypeSymbol is not null);
+            }
+
+            return _lazySystemTypeSymbol;
+        }
+    }
+
     internal override ImmutableArray<AttributeData> GetAttributes() {
         if (_lazyCustomAttributes.IsDefault)
             LoadCustomAttributes(Token, ref _lazyCustomAttributes);
 
         return _lazyCustomAttributes;
+    }
+
+    internal bool TryGetNonEmptyCustomAttributes(EntityHandle handle, out CustomAttributeHandleCollection attributes) {
+        try {
+            attributes = module.metadataReader.GetCustomAttributes(handle);
+            return attributes.Count != 0;
+        } catch (BadImageFormatException) {
+            attributes = default;
+            return false;
+        }
+    }
+
+    internal bool AttributeMatchesFilter(CustomAttributeHandle handle, AttributeDescription filter) {
+        return filter.signatures is not null && module.GetTargetAttributeSignatureIndex(handle, filter) != -1;
     }
 
     internal ImmutableArray<AttributeData> GetAssemblyAttributes() {

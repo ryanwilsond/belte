@@ -1,4 +1,6 @@
 
+namespace System;
+
 public class Exception {
     public constructor() : this("Exception thrown") { }
 

@@ -12,7 +12,6 @@ internal enum WellKnownType : byte {
     // Required
 
     Enumerator,
-    Exception,
 
     // Non-required
 
@@ -37,8 +36,6 @@ internal enum WellKnownType : byte {
 
     Array,
 
-    Attribute,
-    AttributeUsageAttribute,
     DllImportAttribute,
     UnmanagedAttribute,
     MustUseReturnValueAttribute,
@@ -50,9 +47,16 @@ internal enum WellKnownType : byte {
     System_Collections_Generic_IEnumerable_T,
     System_Collections_IEnumerator,
     System_Collections_Generic_IEnumerator_T,
+    System_Attribute,
+    System_AttributeUsageAttribute,
+
+    Belte_NoAllocAttribute,
+    Belte_NoThrowAttribute,
+    Belte_PureAttribute,
+    Belte_CompilerServices_BelteMetadataAttribute,
 
     LastNativeType = MustUseReturnValueAttribute,
-    LastNativeRequiredType = Exception,
+    LastNativeRequiredType = Enumerator,
     FirstPEType = System_Exception,
-    LastPEType = System_Collections_Generic_IEnumerator_T,
+    LastPEType = Belte_CompilerServices_BelteMetadataAttribute,
 }

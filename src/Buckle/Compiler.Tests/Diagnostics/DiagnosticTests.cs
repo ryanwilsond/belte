@@ -6,7 +6,7 @@ using static Buckle.Tests.Assertions;
 namespace Buckle.Tests.Diagnostics;
 
 /// <summary>
-/// At least one test per diagnostic (any severity) if testable. If not testable, an explanation as to why is given.
+/// At least one test per diagnostic (any severity) if testable. If not (easily) testable, an explanation as to why is given.
 /// </summary>
 public sealed class DiagnosticTests {
     private readonly ITestOutputHelper _writer;
@@ -3337,7 +3337,18 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0254_InvalidRefParameter
+    [Fact]
+    public void Reports_Error_BU0254_InvalidRefParameter() {
+        var text = @"
+            void F([ref] int a) pure { }
+        ";
+
+        var diagnostics = @"
+            'ref' and 'out' are not valid in this context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     // ? Currently not enforced
     // [Fact]
@@ -4369,7 +4380,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0336_ThrowMisplaced() {
         var text = @"
-            3 + [throw] new Exception();
+            3 + [throw] new System.Exception();
         ";
 
         var diagnostics = @"
@@ -7954,7 +7965,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0569_AbstractAttributeClass() {
         var text = @"
-            \[[Attribute]\]
+            \[System.[Attribute]\]
             class A { }
             ;
         ";
@@ -8374,6 +8385,8 @@ var text = """"""
     [Fact]
     public void Reports_Error_BU0590_AttributeUsageOnNonAttributeClass() {
         var text = @"
+            using System;
+
             \[[AttributeUsage](AttributeTargets.All)\]
             class A { }
         ";
@@ -8388,6 +8401,8 @@ var text = """"""
     [Fact]
     public void Reports_Error_BU0591_DuplicateAttribute() {
         var text = @"
+            using System;
+
             \[AttributeUsage(AttributeTargets.All, AllowMultiple: false)\]
             class A extends Attribute { }
 
@@ -8406,6 +8421,8 @@ var text = """"""
     [Fact]
     public void Reports_Error_BU0592_AttributeOnBadSymbolType() {
         var text = @"
+            using System;
+
             \[AttributeUsage(AttributeTargets.Method)\]
             class A extends Attribute { }
 
@@ -8426,6 +8443,8 @@ var text = """"""
     [Fact]
     public void Reports_Error_BU0594_InvalidAttributeParamType() {
         var text = @"
+            using System;
+
             class A extends Attribute {
                 public constructor(A a) { }
                 public constructor() { }
@@ -8445,7 +8464,7 @@ var text = """"""
     [Fact]
     public void Reports_Error_BU0595_BadAttributeArgument() {
         var text = @"
-            class A extends Attribute {
+            class A extends System.Attribute {
                 public constructor(int a) { }
             }
             \[A([B.M()])\]
@@ -8482,4 +8501,506 @@ var text = """"""
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0597_DuplicateBehaviorSpecifier() {
+        var text = @"
+            void MyFunc() pure [pure] { }
+            ;
+        ";
+
+        var diagnostics = @"
+            behavior specifier 'pure' has already been applied to this item
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0598_MemoizeRequiresPureSpecifier() {
+        var text = @"
+            void MyFunc() [memoize] { }
+            ;
+        ";
+
+        var diagnostics = @"
+            behavior specifier 'memoize' can only be used with the behavior specifier 'pure'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0599_InvalidBehaviorSpecifier() {
+        var text = @"
+            class A {
+                constructor() [pure] { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            behavior specifier 'pure' is not valid for this item
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0600_CannotAllocateInNoAllocContext() {
+        var text = @"
+            class A { }
+
+            void F() noalloc {
+                var a = [new A()];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot allocate a new object in a 'noalloc' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0600_CannotAllocateInNoAllocContext2() {
+        var text = @"
+            void F() noalloc {
+                var a = [new int\[10\]];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot allocate a new object in a 'noalloc' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0600_CannotAllocateInNoAllocContext3() {
+        var text = @"
+            void F() noalloc {
+                var a = [""test""];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot allocate a new object in a 'noalloc' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0600_CannotAllocateInNoAllocContext4() {
+        var text = @"
+            void F() noalloc {
+                var a = [{ 1, 2, 3 }];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot allocate a new object in a 'noalloc' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0600_CannotAllocateInNoAllocContext5() {
+        var text = @"
+            void F() noalloc {
+                var a = [{ 1: 1, 2: 2, 3: 3 }];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot allocate a new object in a 'noalloc' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0600_CannotAllocateInNoAllocContext6() {
+        var text = @"
+            void F() noalloc {
+                var a = [new int\[1\] { 1 }];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot allocate a new object in a 'noalloc' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0601_InvalidCallInSpecifierContext() {
+        var text = @"
+            void F() noalloc {
+                [G]();
+            }
+            void G() { }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot call method 'G()' in the current context because it is not marked 'noalloc'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0601_InvalidCallInSpecifierContext2() {
+        var text = @"
+            void F() pure {
+                [G]();
+            }
+            void G() { }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot call method 'G()' in the current context because it is not marked 'pure'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0601_InvalidCallInSpecifierContext3() {
+        var text = @"
+            void F() nothrow {
+                [G]();
+            }
+            void G() { }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot call method 'G()' in the current context because it is not marked 'nothrow'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0602_ImpureWriteInPureContext() {
+        var text = @"
+            class A {
+                string a = ""test"";
+                void M() pure {
+                    [a] = ""test"";
+                }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot write to a member of a reference type in a method marked as 'pure'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0603_ImpureReadInPureContext() {
+        var text = @"
+            class A {
+                int a = 0;
+                int M() pure {
+                    return [a];
+                }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot read from a mutable member of a reference type in a method marked as 'pure'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0604_ThrowInNoThrowContext() {
+        var text = @"
+            void F() nothrow {
+                [throw] new System.Exception();
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot throw an uncaught exception in a 'nothrow' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0605_PureMethodCannotHaveReverse() {
+        var text = @"
+            class A {
+                void [M]() pure {
+                } reverse {
+                }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            method marked as 'pure' cannot have a reverse clause
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0606_CantChangeSpecifierOnOverride() {
+        var text = @"
+            class A {
+                public virtual void M() pure { }
+            }
+
+            class B extends A {
+                public override void [M]() { }
+            }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            'B.M()': member must be marked 'pure' when overriding inherited member 'A.M()' because it is marked 'pure'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0607_DifferentSpecifierOnOverride() {
+        var text = @"
+            class A {
+                public virtual void M() { }
+            }
+
+            class B extends A {
+                public override void [M]() pure { }
+            }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            'B.M()': member is marked 'pure' but overridden member 'A.M()' is not
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0608_ThisDownCastInConstructor() {
+        var text = @"
+            class A {
+                public constructor() {
+                    var v = [(B)this];
+                }
+            }
+
+            class B extends A { }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot downcast 'this' to derived type 'B!' in a constructor
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0608_ThisDownCastInConstructor2() {
+        var text = @"
+            class A {
+                public constructor() {
+                    var v = [this is B b];
+                }
+            }
+
+            class B extends A { }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot downcast 'this' to derived type 'B!' in a constructor
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0608_ThisDownCastInConstructor3() {
+        var text = @"
+            class A {
+                public constructor() {
+                    var v = [this as B];
+                }
+            }
+
+            class B extends A { }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot downcast 'this' to derived type 'B!' in a constructor
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0609_PotentialUninitializedObjectLeak() {
+        var text = @"
+            class A {
+                int a;
+
+                public constructor() {
+                    [Call()];
+                    a = 0;
+                }
+
+                public void Call() { }
+            }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            call potentially leaks uninitialized object state
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0610_PotentialThrowInNoThrowContext() {
+        var text = @"
+            void F() nothrow {
+                var a = new int\[10\];
+                var b = [a\[0\]];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            expression potentially throws; cannot throw an uncaught exception in a 'nothrow' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0610_PotentialThrowInNoThrowContext2() {
+        var text = @"
+            void F() nothrow {
+                var a = new Buffer<int>(10);
+                var b = [a\[0\]];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            expression potentially throws; cannot throw an uncaught exception in a 'nothrow' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0610_PotentialThrowInNoThrowContext3() {
+        var text = @"
+            void F() nothrow {
+                var a = ""test"";
+                var b = [a\[0\]];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            expression potentially throws; cannot throw an uncaught exception in a 'nothrow' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0610_PotentialThrowInNoThrowContext4() {
+        var text = @"
+            class A {
+                public int a = 0;
+            }
+
+            void F() nothrow {
+                var? a = new A();
+                var b = [a!].a;
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            expression potentially throws; cannot throw an uncaught exception in a 'nothrow' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0610_PotentialThrowInNoThrowContext5() {
+        var text = @"
+            void F() nothrow {
+                int32 a = 0;
+                uint8 b = [(uint8)a];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            expression potentially throws; cannot throw an uncaught exception in a 'nothrow' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0611_UnnecessaryTryStatement() {
+        var text = @"
+            [try {
+                int a = 0;
+            } catch { }]
+            ;
+        ";
+
+        var diagnostics = @"
+            try statement is unnecessary as no statements within it can throw
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
+
+    // ! Reports_Warning_BU0612_FailedToEmitMetadataAttribute
+    // ? Requires command-line arguments (--nostdlib)
 }

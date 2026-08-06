@@ -259,6 +259,26 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_UnnecessaryCompileTimeExpression, location, message, suggestion);
     }
 
+    internal static BelteDiagnostic DifferentSpecifierOnOverride(TextLocation location, Symbol symbol, Symbol hiddenMember, string specifier) {
+        var message = $"'{symbol}': member is marked '{specifier}' but overridden member '{hiddenMember}' is not";
+        return CreateWarning(DiagnosticCode.WRN_DifferentSpecifierOnOverride, location, message);
+    }
+
+    internal static BelteDiagnostic PotentialUninitializedObjectLeak(TextLocation location) {
+        var message = $"call potentially leaks uninitialized object state";
+        return CreateWarning(DiagnosticCode.WRN_PotentialUninitializedObjectLeak, location, message);
+    }
+
+    internal static BelteDiagnostic UnnecessaryTryStatement(TextLocation location) {
+        var message = $"try statement is unnecessary as no statements within it can throw";
+        return CreateWarning(DiagnosticCode.WRN_UnnecessaryTryStatement, location, message);
+    }
+
+    internal static BelteDiagnostic FailedToEmitMetadataAttribute() {
+        var message = $"failed to emit assembly attribute 'BelteMetadataAttribute' (are you using '--nostdlib'?)";
+        return CreateWarning(DiagnosticCode.WRN_FailedToEmitMetadataAttribute, null, message);
+    }
+
     private static BelteDiagnostic CreateWarning(DiagnosticCode code, TextLocation location, string message) {
         return CreateWarning(code, location, message, []);
     }

@@ -98,7 +98,9 @@ internal sealed class ControlFlowGraph {
         return true;
     }
 
-    internal HashSet<Symbol> CheckDefiniteAssignment(BelteDiagnosticQueue diagnostics) {
+    internal HashSet<Symbol> CheckDefiniteAssignment(
+        BelteDiagnosticQueue diagnostics,
+        ArrayBuilder<FieldSymbol> fieldsRequiringAssignment = null) {
         try {
             var result = DefiniteAssignment.CheckDefiniteAssignment(
                 this,
@@ -106,6 +108,7 @@ internal sealed class ControlFlowGraph {
                 _slotMap,
                 _method,
                 _closureCaptures,
+                fieldsRequiringAssignment,
                 diagnostics
             );
 

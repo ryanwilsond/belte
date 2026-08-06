@@ -171,18 +171,6 @@ void Build(Builder builder) {
 }
 ```
 
-To disable building with the native Belte Standard Library, set the `Builder.includeStdLib` field to `false`.
-
-For example:
-
-```belte
-using Buckle.Building;
-
-void Build(Builder builder) {
-  builder.includeStdLib = false;
-}
-```
-
 ## Dependencies
 
 To add dependency files that otherwise the compiler does not use (such as a unmanaged DLL loaded at runtime),

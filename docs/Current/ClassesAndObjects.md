@@ -10,6 +10,7 @@
   - [4.2.2](#422-methods) Methods
     - [4.2.2.1](#4221-overloading) Overloading
     - [4.2.2.2](#4222-state-and-reverse-clauses) State and Reverse Clauses
+    - [4.2.2.3](#4223-behavior-specifiers) Behavior Specifiers
   - [4.2.3](#423-operators) Operators
     - [4.2.3.1](#4231-operator-overloading) Operator Overloading
     - [4.2.3.2](#4232-casts) Casts
@@ -424,6 +425,64 @@ with (myList.Append(4)) {
 
 The state clause can use any values of the target method (parameters and locals) as long as all code paths have assigned
 a value to those values.
+
+#### 4.2.2.3 Behavior Specifiers
+
+Methods allow various behavior specifies which constrain behavior and allow certain optimizations to take
+place. They are placed between the parameter list and body (more specifically: after the
+[implicit argument coercion specifier](ControlFlow.md#217-argument-coercion) and before the
+[template constraint clauses](#451-constraint-clauses)).
+
+```belte
+int MyMethod(int arg) pure memoize {
+  // ...
+}
+```
+
+The following is a list of all the behavior specifiers. Some may be composed with each other:
+
+| Specifier | Behavior | Composability |
+| - | - | - |
+| `memoize` | Compiler may cache results of the pure function using a map | Must be used with the `pure` specifier |
+| `noalloc` | Heap allocations are not allowed (i.e. no `new` expressions) | Can be used with any other specifiers |
+| `nothrow` | Exceptions cannot be thrown (i.e. no uncaught `throw` expressions) | Can be used with any other specifiers |
+| `pure` | Method is a pure function (i.e. method has no side effects) | Can be used with any other specifiers |
+
+One example of an optimization that may take place is the caching of pure function calls to avoid performing duplicate
+work. Consider the following method definition:
+
+```belte
+int PureFunc(int arg) pure { /* ... */ }
+```
+
+Because it is pure, the following code:
+
+```belte
+int myNum = PureFunc(10) * PureFunc(10);
+```
+
+May be rewritten into the following by the compiler:
+
+```belte
+int temp = PureFunc(10);
+int myNum = temp * temp;
+```
+
+Specific types of functions may prohibit the use of certain specifiers. The following is a list of function types and
+what behavior specifiers they allow:
+
+| | [Ordinary Method](#422-methods) | [Local Function](ControlFlow.md#21-functions) | [Ordinary Operator](#4231-operator-overloading) | [Conversion Operator](#4232-casts) | [Literal Operator](#4233-user-defined-literals) | [Constructor](#44-constructors-and-finalizers) | [Destructor](ControlFlow.md#291-destructors) | [Finalizer](#44-constructors-and-finalizers) | [Reverse Funclet](#4222-state-and-reverse-clauses) | [State Funclet](#4222-state-and-reverse-clauses) |
+| - | - | - | - | - | - | - | - | - | - | - |
+| `memoize` | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| `noalloc` | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✗ |
+| `nothrow` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ |
+| `pure` | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
+
+Note that `memoize` is purely an optimization suggestion and does not guarantee the compiler will cache calls to that
+function.
+
+Note that `nothrow` includes all potential managed exceptions (throw expressions, array accessing out of bounds,
+invalid casts, etc.) but **does not include corrupted state exceptions** (such as pointer related segfaults).
 
 ### 4.2.3 Operators
 

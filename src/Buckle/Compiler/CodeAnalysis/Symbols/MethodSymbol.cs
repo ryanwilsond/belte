@@ -89,6 +89,14 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
 
     internal virtual MethodSymbol stateMethod => null;
 
+    internal virtual bool isPure => false;
+
+    internal virtual bool shouldMemoizeIfPure => false;
+
+    internal virtual bool isNoThrow => false;
+
+    internal virtual bool isNoAlloc => false;
+
     internal virtual ImmutableArray<FieldSymbol> initFields => [];
 
     internal virtual bool isExplicitInterfaceImplementation => explicitInterfaceImplementations.Any();

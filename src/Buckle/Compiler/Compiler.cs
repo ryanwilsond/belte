@@ -23,6 +23,9 @@ public sealed class Compiler {
     private const int ErrorExitCode = 1;
     private const int FatalExitCode = 2;
 
+    // TODO Maybe move this somewhere else
+    internal const int BelteMetadataVersion = 1;
+
     private Compilation _lazyCorLibrary;
     private BelteDiagnosticQueue _lazyCorLibraryDiagnostics;
 
@@ -88,14 +91,17 @@ public sealed class Compiler {
     /// <summary>
     /// Gets .NET library paths for a given library level.
     /// </summary>
-    public static string[] ResolveLibraryLevel(int l) {
-        if (l < 0)
+    public static string[] ResolveLibraryLevel(int l, bool noStdLib) {
+        if (l < 0 && noStdLib)
             return [];
 
         var tfm = DotnetReferenceResolver.GetTFM();
         var refPackPath = DotnetReferenceResolver.ResolveNetCoreAppRefPath(tfm, out _);
 
         var references = new List<string>();
+
+        if (!noStdLib)
+            references.Add(Path.Join(AppContext.BaseDirectory, "Belte.Core.dll"));
 
         if (l == 0 || l == 1) {
             references.Add(Path.Join(refPackPath, "System.Runtime.dll"));

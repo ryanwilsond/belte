@@ -1,4 +1,4 @@
 
-public sealed class InvalidCastException extends Exception {
+public sealed class InvalidCastException extends System.Exception {
     public constructor() : base("Specified cast is not valid.") { }
 }

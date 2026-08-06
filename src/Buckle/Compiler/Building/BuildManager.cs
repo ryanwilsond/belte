@@ -37,7 +37,7 @@ public sealed class BuildManager {
         var compilerState = new CompilerState() {
             buildMode = BuildMode.Dotnet,
             moduleName = "build",
-            references = Compiler.ResolveLibraryLevel(1),
+            references = Compiler.ResolveLibraryLevel(1, noStdLib: false),
             debugMode = false,
             diagnosticOptions = new TaskDiagnosticOptions() {
                 severity = DiagnosticSeverity.Error,
@@ -60,7 +60,8 @@ public sealed class BuildManager {
             concurrentBuild = false,
             maxCores = 1,
             entryName = null,
-            noStdLib = false
+            // ! TODO THIS IS TEMPORARY JUST TO UPDATE THE COMPILER TO THE NEW CORLIB SYSTEM
+            noStdLib = true
         };
 
         compiler.state = compilerState;

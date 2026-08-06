@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -104,5 +105,49 @@ internal abstract class NamespaceSymbol : NamespaceOrTypeSymbol, INamespaceSymbo
         SymbolVisitor<TArgument, TResult> visitor,
         TArgument argument) {
         return visitor.VisitNamespace(this, argument);
+    }
+
+    internal static void RegisterDeclaredWellKnownTypes<T>(Compilation compilation, IEnumerable<T> members) {
+        if (compilation.keepLookingForWellKnownTypes) {
+            foreach (var member in members) {
+                if (member is NamedTypeSymbol type) {
+                    if (CheckWellKnownType(type))
+                        return;
+                } else if (member is IEnumerable<NamespaceOrTypeSymbol> enumerable) {
+                    foreach (var m in enumerable) {
+                        if (m is NamedTypeSymbol t) {
+                            if (CheckWellKnownType(t))
+                                return;
+                        }
+                    }
+                }
+            }
+        }
+
+        bool CheckWellKnownType(NamedTypeSymbol type) {
+            var wellKnownType = WellKnownTypes.GetTypeFromMetadataName(type);
+
+            if (wellKnownType != WellKnownType.None) {
+                compilation.RegisterDeclaredWellKnownType(wellKnownType, type);
+
+                if (!compilation.keepLookingForWellKnownTypes)
+                    return true;
+            }
+
+            return false;
+        }
+    }
+
+    internal static void RegisterDeclaredCorTypes<T>(Compilation compilation, IEnumerable<T> members) {
+        if (compilation.keepLookingForCorTypes) {
+            foreach (var member in members) {
+                if (member is NamedTypeSymbol type && type.specialType != SpecialType.None) {
+                    compilation.RegisterDeclaredSpecialType(type);
+
+                    if (!compilation.keepLookingForCorTypes)
+                        return;
+                }
+            }
+        }
     }
 }

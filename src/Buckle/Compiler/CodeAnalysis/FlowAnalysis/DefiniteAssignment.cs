@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
@@ -12,6 +13,7 @@ internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
     private readonly Dictionary<Symbol, int> _slotMap;
     private readonly MultiDictionary<Symbol, Symbol> _closureCaptures;
     private readonly MethodSymbol _method;
+    private readonly ArrayBuilder<FieldSymbol> _fieldsRequiringAssignment;
 
     private BelteDiagnosticQueue _diagnostics;
     private BitVector _assignments;
@@ -19,10 +21,12 @@ internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
     private DefiniteAssignment(
         Dictionary<Symbol, int> slotMap,
         MethodSymbol containingMethod,
-        MultiDictionary<Symbol, Symbol> closureCaptures) {
+        MultiDictionary<Symbol, Symbol> closureCaptures,
+        ArrayBuilder<FieldSymbol> fieldsRequiringAssignment) {
         _slotMap = slotMap;
         _method = containingMethod;
         _closureCaptures = closureCaptures;
+        _fieldsRequiringAssignment = fieldsRequiringAssignment;
     }
 
     internal static HashSet<Symbol> CheckDefiniteAssignment(
@@ -31,10 +35,11 @@ internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
         Dictionary<Symbol, int> slotMap,
         MethodSymbol method,
         MultiDictionary<Symbol, Symbol> closureCaptures,
+        ArrayBuilder<FieldSymbol> fieldsRequiringAssignment,
         BelteDiagnosticQueue diagnostics) {
         bool changed;
         BelteDiagnosticQueue currentDiagnostics = null;
-        var walker = new DefiniteAssignment(slotMap, method, closureCaptures);
+        var walker = new DefiniteAssignment(slotMap, method, closureCaptures, fieldsRequiringAssignment);
 
         var blocks = graph.blocks;
         var end = graph.end;
@@ -208,6 +213,23 @@ internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
                         node.syntax.location,
                         capture is LambdaCapturedVariable l ? l.captured : capture
                     ));
+                }
+            }
+        }
+
+        // TODO Also warn on static constructors?
+        if (_method.methodKind == MethodKind.Constructor && Binder.IsThisInstanceAccess(node.receiver)) {
+            Debug.Assert(_fieldsRequiringAssignment is not null);
+
+            // Technically a method with init fields could leak stuff
+            if (!node.method.IsConstructor() && node.method.initFields.IsDefaultOrEmpty) {
+                foreach (var field in _fieldsRequiringAssignment) {
+                    if (!field.isStatic) {
+                        if (!_assignments[_slotMap[field]]) {
+                            _diagnostics.Push(Warning.PotentialUninitializedObjectLeak(node.syntax.location));
+                            break;
+                        }
+                    }
                 }
             }
         }

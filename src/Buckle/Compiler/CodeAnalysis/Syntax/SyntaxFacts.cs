@@ -256,6 +256,10 @@ public static class SyntaxFacts {
             "set" => SyntaxKind.SetKeyword,
             "get" => SyntaxKind.GetKeyword,
             "field" => SyntaxKind.FieldKeyword,
+            "nothrow" => SyntaxKind.NothrowKeyword,
+            "noalloc" => SyntaxKind.NoallocKeyword,
+            "pure" => SyntaxKind.PureKeyword,
+            "memoize" => SyntaxKind.MemoizeKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -274,11 +278,15 @@ public static class SyntaxFacts {
             case SyntaxKind.ImplicitKeyword:
             case SyntaxKind.InitializesKeyword:
             case SyntaxKind.LiteralKeyword:
+            case SyntaxKind.MemoizeKeyword:
+            case SyntaxKind.NoallocKeyword:
+            case SyntaxKind.NothrowKeyword:
             case SyntaxKind.NotnullKeyword:
             case SyntaxKind.NoVerifyKeyword:
             case SyntaxKind.OperatorKeyword:
             case SyntaxKind.PackedKeyword:
             case SyntaxKind.PropertyKeyword:
+            case SyntaxKind.PureKeyword:
             case SyntaxKind.SetKeyword:
             case SyntaxKind.StateKeyword:
             case SyntaxKind.UndefKeyword:
@@ -453,6 +461,10 @@ public static class SyntaxFacts {
             SyntaxKind.SetKeyword => "set",
             SyntaxKind.GetKeyword => "get",
             SyntaxKind.FieldKeyword => "field",
+            SyntaxKind.NothrowKeyword => "nothrow",
+            SyntaxKind.NoallocKeyword => "noalloc",
+            SyntaxKind.PureKeyword => "pure",
+            SyntaxKind.MemoizeKeyword => "memoize",
             _ => null,
         };
     }
@@ -665,6 +677,26 @@ public static class SyntaxFacts {
         }
     }
 
+    internal static bool IsGuaranteedType(SyntaxKind kind) {
+        switch (kind) {
+            case SyntaxKind.TupleType:
+            case SyntaxKind.ArrayType:
+            case SyntaxKind.ReferenceType:
+            case SyntaxKind.NullableType:
+            case SyntaxKind.NonNullableType:
+            case SyntaxKind.PointerType:
+            case SyntaxKind.FunctionType:
+            case SyntaxKind.FunctionPointerType:
+                return true;
+            case SyntaxKind.IdentifierName:
+            case SyntaxKind.TemplateName:
+            case SyntaxKind.QualifiedName:
+            case SyntaxKind.AliasQualifiedName:
+            default:
+                return false;
+        }
+    }
+
     private static string GetOperatorMemberNameCore(int parameterCount, SyntaxKind kind, string text) {
         if (kind == SyntaxKind.IdentifierToken) {
             return text switch {
@@ -835,7 +867,7 @@ public static class SyntaxFacts {
     }
 
     private const int FirstKeyword = (int)SyntaxKind.TypeOfKeyword;
-    private const int LastKeyword = (int)SyntaxKind.FieldKeyword;
+    private const int LastKeyword = (int)SyntaxKind.MemoizeKeyword;
 
     /// <summary>
     /// Checks if a <see cref="SyntaxKind" /> is a keyword.

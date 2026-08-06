@@ -512,10 +512,16 @@ internal abstract partial class ConversionsBase {
     internal Conversion ClassifyBuiltInConversion(TypeSymbol source, TypeSymbol target) {
         var conversion = FastClassifyConversion(source, target);
 
-        if (conversion.exists)
+        if (conversion.exists) {
             return conversion;
+        } else {
+            conversion = ClassifyImplicitBuiltInConversionSlow(source, target);
 
-        return Conversion.Classify(source, target);
+            if (conversion.exists)
+                return conversion;
+        }
+
+        return ClassifyExplicitBuiltInConversion(source, target);
     }
 
     internal Conversion ClassifyConversionFromType(TypeSymbol source, TypeSymbol target) {

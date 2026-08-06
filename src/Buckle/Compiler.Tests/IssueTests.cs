@@ -1617,7 +1617,7 @@ public sealed class IssueTests {
                 public constexpr int64 MaxValue = 9223372036854775807;
             }
 
-            public sealed class ValueOutOfRangeException extends Exception {
+            public sealed class ValueOutOfRangeException extends System.Exception {
                 public constructor()
                     : base(""Value was out of the range of valid values."") { }
 
@@ -1965,7 +1965,7 @@ public sealed class IssueTests {
                 public constexpr int64 MaxValue = 9223372036854775807;
             }
 
-            public sealed class ValueOutOfRangeException extends Exception {
+            public sealed class ValueOutOfRangeException extends System.Exception {
                 public constructor()
                     : base(""Value was out of the range of valid values."") { }
 
@@ -2049,7 +2049,7 @@ public sealed class IssueTests {
                 public constexpr int64 MaxValue = 9223372036854775807;
             }
 
-            public sealed class ValueOutOfRangeException extends Exception {
+            public sealed class ValueOutOfRangeException extends System.Exception {
                 public constructor()
                     : base(""Value was out of the range of valid values."") { }
 
@@ -2462,7 +2462,7 @@ public sealed class IssueTests {
                 public constexpr int64 MaxValue = 9223372036854775807;
             }
 
-            public sealed class ValueOutOfRangeException extends Exception {
+            public sealed class ValueOutOfRangeException extends System.Exception {
                 public constructor()
                     : base(""Value was out of the range of valid values."") { }
 
@@ -2730,7 +2730,7 @@ public sealed class IssueTests {
                 public constexpr int64 MaxValue = 9223372036854775807;
             }
 
-            public sealed class ValueOutOfRangeException extends Exception {
+            public sealed class ValueOutOfRangeException extends System.Exception {
                 public constructor()
                     : base(""Value was out of the range of valid values."") { }
 
@@ -2785,6 +2785,113 @@ public sealed class IssueTests {
                 }
             }
             A a = 0x0;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void TemplateArgument_ParsesErrorTypeNotAsExpression() {
+        var text = @"
+            class A<type T> where { T has default; } {
+                public static T Method() {
+                    return default(T);
+                }
+            }
+            A<[FileStream]!>.Method();
+        ";
+
+        var diagnostics = @"
+            the type or namespace name 'FileStream' could not be found
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void ImplicitBaseInitializer_ReportsAccessibility() {
+        var text = @"
+            class A {
+                constructor() { }
+            }
+
+            class [B] extends A { }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            'A..ctor()' is inaccessible due to its protection level
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, script: false);
+    }
+
+    [Fact]
+    public void AsOperator_AllowsDownCast() {
+        var text = @"
+            class A { }
+
+            class B extends A { }
+
+            var a = new A();
+            var b = a as B;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void NoThrow_AllowsThrowingInTry() {
+        var text = @"
+            void F1() { }
+
+            void F2() nothrow {
+                try {
+                    F1();
+                } catch {
+
+                }
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void NoThrow_AllowsPotentialThrowingInTry() {
+        var text = @"
+            void F1() { }
+
+            void F2() nothrow {
+                try {
+                    int32 a = 0;
+                    uint8 b = (uint8)a;
+                } catch {
+
+                }
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void BaseList_AllowsNonSimpleName() {
+        var text = @"
+            namespace A {
+                public class B { }
+            }
+            class C extends A.B { }
+            ;
         ";
 
         var diagnostics = @"";

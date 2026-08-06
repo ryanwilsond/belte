@@ -1,8 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
+using System.Threading;
+using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Text;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -12,14 +16,17 @@ internal sealed class PEAssemblySymbol : MetadataOrSourceAssemblySymbol {
     private ImmutableArray<AssemblySymbol> _noPiaResolutionAssemblies;
     private ImmutableArray<AssemblySymbol> _linkedReferencedAssemblies;
     private readonly bool _isLinked;
+    private int _lazyBelteMetadataVersion = -1;
+    private bool _lazyIsBelteAssembly;
+
+    private ImmutableArray<AttributeData> _lazyCustomAttributes;
 
     internal PEAssemblySymbol(PEAssembly assembly, bool isLinked, MetadataImportOptions importOptions) {
         _assembly = assembly;
         var modules = new ModuleSymbol[assembly.modules.Length];
 
-        for (var i = 0; i < assembly.modules.Length; i++) {
+        for (var i = 0; i < assembly.modules.Length; i++)
             modules[i] = new PEModuleSymbol(this, assembly.modules[i], importOptions, i);
-        }
 
         _modules = modules.AsImmutableOrNull();
         _isLinked = isLinked;
@@ -34,24 +41,59 @@ internal sealed class PEAssemblySymbol : MetadataOrSourceAssemblySymbol {
     internal override ImmutableArray<TextLocation> locations
         => primaryModule.metadataLocation.Cast<MetadataLocation, TextLocation>();
 
+    internal override bool isBelteAssembly {
+        get {
+            EnsureBelteMetadataAttributeIsRead();
+            return _lazyIsBelteAssembly;
+        }
+    }
+
+    internal override int belteMetadataVersion {
+        get {
+            EnsureBelteMetadataAttributeIsRead();
+
+            if (!isBelteAssembly)
+                throw ExceptionUtilities.Unreachable();
+
+            return _lazyBelteMetadataVersion;
+        }
+    }
+
     internal (AssemblySymbol FirstSymbol, AssemblySymbol SecondSymbol) LookupAssembliesForForwardedMetadataType(
         ref MetadataTypeName emittedName) {
         return primaryModule.GetAssembliesForForwardedType(ref emittedName);
     }
 
     internal override ImmutableArray<AttributeData> GetAttributes() {
-        // TODO
-        // if (_lazyCustomAttributes.IsDefault) {
-        //     if (this.MightContainExtensionMethods) {
-        //         this.PrimaryModule.LoadCustomAttributesFilterExtensions(_assembly.Handle,
-        //             ref _lazyCustomAttributes);
-        //     } else {
-        //         this.PrimaryModule.LoadCustomAttributes(_assembly.Handle,
-        //             ref _lazyCustomAttributes);
-        //     }
-        // }
-        // return _lazyCustomAttributes;
-        return [];
+        if (_lazyCustomAttributes.IsDefault)
+            ImmutableInterlocked.InterlockedInitialize(ref _lazyCustomAttributes, LoadAndFilterAttributes());
+
+        return _lazyCustomAttributes;
+
+        ImmutableArray<AttributeData> LoadAndFilterAttributes() {
+            var containingModule = primaryModule;
+
+            if (!containingModule.TryGetNonEmptyCustomAttributes(_assembly.handle, out var customAttributeHandles))
+                return [];
+
+            // TODO
+            // var mightContainExtensions = this.mightContainExtensions;
+            var mightContainExtensions = true;
+
+            using var builder = TemporaryArray<AttributeData>.Empty;
+
+            foreach (var handle in customAttributeHandles) {
+                if (mightContainExtensions && containingModule.AttributeMatchesFilter(
+                        handle,
+                        AttributeDescription.CaseSensitiveExtensionAttribute)) {
+                    continue;
+                }
+
+                builder.Add(new PEAttributeData(containingModule, handle));
+            }
+
+            return builder.ToImmutableAndClear();
+        }
     }
 
     internal override IEnumerable<NamedTypeSymbol> GetAllTopLevelForwardedTypes() {
@@ -130,4 +172,40 @@ internal sealed class PEAssemblySymbol : MetadataOrSourceAssemblySymbol {
     internal sealed override Compilation declaringCompilation => null;
 
     internal override AssemblyMetadata GetMetadata() => _assembly.GetNonDisposableMetadata();
+
+    private void EnsureBelteMetadataAttributeIsRead() {
+        if (_lazyBelteMetadataVersion == -1) {
+            var metadataVersion = ReadBelteMetadataVersion();
+
+            if (!metadataVersion.HasValue) {
+                Interlocked.CompareExchange(ref _lazyBelteMetadataVersion, -2, -1);
+                Interlocked.Exchange(ref _lazyIsBelteAssembly, false);
+            } else {
+                Interlocked.CompareExchange(ref _lazyBelteMetadataVersion, metadataVersion.Value, -1);
+                Interlocked.Exchange(ref _lazyIsBelteAssembly, true);
+            }
+        }
+
+        Debug.Assert(_lazyBelteMetadataVersion != -1);
+    }
+
+    private int? ReadBelteMetadataVersion() {
+        foreach (var attribute in GetAttributes()) {
+            // TODO I'd rather this checks the attribute is from the Belte.Core assembly than doing a name search
+            if (attribute.attributeClass?.metadataName != "BelteMetadataAttribute")
+                continue;
+
+            if (attribute.attributeClass.containingNamespace
+                .ToDisplayString(SymbolDisplayFormat.NamespaceQualifiedNameFormat) != "Belte.CompilerServices") {
+                continue;
+            }
+
+            if (attribute._commonConstructorArguments.Length != 1)
+                continue;
+
+            return (int)attribute._commonConstructorArguments[0].value;
+        }
+
+        return null;
+    }
 }

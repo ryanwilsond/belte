@@ -1603,15 +1603,20 @@ internal partial class Binder {
         if (argument.identifier is not null)
             analyzedArguments.AddName(argument.identifier);
 
-        var typeWithAnnotations = BindType(argument.expression, BelteDiagnosticQueue.Discarded);
+        var typeDiagnostics = BelteDiagnosticQueue.GetInstance();
+
+        var typeWithAnnotations = BindType(argument.expression, typeDiagnostics);
         var type = typeWithAnnotations.type;
 
-        if (type.StrippedType() is not ErrorTypeSymbol) {
+        if (type.StrippedType() is not ErrorTypeSymbol || SyntaxFacts.IsGuaranteedType(argument.expression.kind)) {
             analyzedArguments.types.Add(type);
-            analyzedArguments.hasErrors.Add(false);
+            analyzedArguments.hasErrors.Add(type.ContainsErrorType());
             analyzedArguments.arguments.Add(new BoundExpressionOrTypeOrConstant(argument, new TypeOrConstant(type)));
+            diagnostics.PushRangeAndFree(typeDiagnostics);
             return;
         }
+
+        typeDiagnostics.Free();
 
         var boundArgument = BindExpression(argument.expression, diagnostics);
 
@@ -1863,6 +1868,9 @@ internal partial class Binder {
         if (!hasErrors)
             hasErrors |= CheckValidPatternType(pattern.type, expressionType, patternType, diagnostics);
 
+        if (!hasErrors)
+            hasErrors |= ReportThisDownCastInConstructor(node, expression, patternType, diagnostics);
+
         var localSymbol = LookupLocal(pattern.identifier) ?? throw ExceptionUtilities.Unreachable();
         localSymbol.SetTypeWithAnnotations(patternTypeWithAnnotations);
 
@@ -2030,6 +2038,9 @@ internal partial class Binder {
             operand.constantValue
         );
 
+        if (!hasErrors)
+            hasErrors |= ReportThisDownCastInConstructor(node, operand, targetType, diagnostics);
+
         if (conversion.exists) {
             operandPlaceholder = new BoundValuePlaceholder(operand.syntax, operand.Type());
             operandConversion = CreateConversion(node, operandPlaceholder, conversion, false, resultType, diagnostics);
@@ -2082,7 +2093,14 @@ internal partial class Binder {
         }
 
         if (!hasErrors) {
-            ReportAsOperatorDiagnostics(node, diagnostics, operandType, targetType, conversionKind, operandConstantValue);
+            ReportAsOperatorDiagnostics(
+                node,
+                diagnostics,
+                operandType,
+                targetType,
+                conversionKind,
+                operandConstantValue
+            );
         }
 
         return hasErrors;
@@ -3579,6 +3597,9 @@ internal partial class Binder {
         var throwIfNull = compilation.options.optimizationLevel == OptimizationLevel.Debug
             ? true
             : node.operatorToken.kind == SyntaxKind.ExclamationToken;
+
+        if (throwIfNull)
+            ReportDiagnosticsIfNoThrowContext(node, diagnostics);
 
         return new BoundNullAssertOperator(node, operand, throwIfNull, constantValue, resultType);
     }
@@ -5264,7 +5285,7 @@ internal partial class Binder {
 
                             // return originalSymbols[best.Index];
                         } else if (srcSymbol.kind == SymbolKind.NamedType && mdSymbol.kind == SymbolKind.NamedType) {
-                            throw ExceptionUtilities.Unreachable();
+                            // TODO Warning
                             // WRN_SameFullNameThisAggAgg: The type '{1}' in '{0}' conflicts with the imported type '{3}' in '{2}'. Using the type defined in '{0}'.
                             // diagnostics.Add(ErrorCode.WRN_SameFullNameThisAggAgg, where.Location, originalSymbols,
                             //     arg0,
@@ -5272,7 +5293,7 @@ internal partial class Binder {
                             //     mdSymbol.ContainingAssembly,
                             //     mdSymbol);
 
-                            // return originalSymbols[best.Index];
+                            return originalSymbols[best.index];
                         }
                     }
                 }

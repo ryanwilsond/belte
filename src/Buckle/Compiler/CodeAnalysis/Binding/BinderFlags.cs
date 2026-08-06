@@ -32,5 +32,9 @@ internal enum BinderFlags : uint {
 
     TemplateArgument = 1 << 19,
 
+    PureContext = 1 << 20,
+    NoAllocContext = 1 << 21,
+    NoThrowContext = 1 << 22,
+
     AllClearedAtExecutableCodeBoundary = InCatchBlock | InFinallyBlock | InTryBlockOfTryCatch | InNestedFinallyBlock,
 }

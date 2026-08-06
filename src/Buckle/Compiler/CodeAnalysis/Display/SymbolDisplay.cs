@@ -82,6 +82,9 @@ public static class SymbolDisplay {
             case SymbolKind.Assembly:
                 DisplayAssembly(text, (AssemblySymbol)symbol);
                 break;
+            case SymbolKind.Module:
+                DisplayModule(text, (ModuleSymbol)symbol);
+                break;
             case SymbolKind.Preprocessing:
                 DisplayPreprocessingSymbol(text, (PreprocessingSymbol)symbol);
                 break;
@@ -371,6 +374,10 @@ public static class SymbolDisplay {
 
     private static void DisplayAssembly(DisplayText text, AssemblySymbol assembly) {
         text.Write(CreateIdentifier(assembly.identity.GetDisplayName()));
+    }
+
+    private static void DisplayModule(DisplayText text, ModuleSymbol module) {
+        text.Write(CreateIdentifier(module.name));
     }
 
     private static void DisplayAlias(DisplayText text, AliasSymbol alias) {
@@ -683,7 +690,14 @@ public static class SymbolDisplay {
             text.Write(CreateIdentifier(attribute.attributeClass.name));
             text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
 
+            var isFirst = true;
+
             foreach (var argument in attribute._commonConstructorArguments) {
+                if (isFirst)
+                    isFirst = false;
+                else
+                    text.Write(CreatePunctuation(", "));
+
                 var constantValue = new ConstantValue(
                     argument.value,
                     SpecialTypeExtensions.SpecialTypeFromLiteralValue(argument.value)

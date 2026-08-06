@@ -83,6 +83,8 @@ internal abstract class SourceConstructorSymbolBase : SourceMemberMethodSymbol {
     private protected abstract ParameterListSyntax GetParameterList();
 
     private protected sealed override void MethodChecks(BelteDiagnosticQueue diagnostics) {
+        _ = isPure;
+
         var syntax = (BelteSyntaxNode)syntaxReference.node;
         var binderFactory = declaringCompilation.GetBinderFactory(syntax.syntaxTree);
         var parameterList = GetParameterList();
@@ -95,7 +97,7 @@ internal abstract class SourceConstructorSymbolBase : SourceMemberMethodSymbol {
             this,
             parameterList.parameters,
             diagnostics,
-            _allowRef,
+            _allowRef && !isPure,
             addRefConstModifier: false,
             allowConst: true
         ).Cast<SourceParameterSymbol, ParameterSymbol>();

@@ -2013,9 +2013,28 @@ internal sealed class Expander : SharedExpander {
         out BoundExpression replacement,
         UseKind useKind) {
         Debug.Assert(useKind != UseKind.Writable);
-        Debug.Assert(expression.operandConversion is null);
-        Debug.Assert(expression.operandPlaceholder is null);
-        var statements = base.ExpandAsOperator(expression, out replacement, UseKind.Value);
+        Debug.Assert(expression.operandConversion is null == expression.operandPlaceholder is null);
+        Debug.Assert(!expression.type.isValueType || expression.type.IsNullableType());
+
+        List<BoundStatement> statements;
+
+        if (expression.operandConversion is null && expression.operandPlaceholder is null) {
+            statements = base.ExpandAsOperator(expression, out replacement, UseKind.Value);
+        } else {
+            var conversion = BoundNode.GetConversion(expression.operandConversion, expression.operandPlaceholder);
+
+            if (conversion.isImplicit) {
+                statements = ApplyConversion(
+                    expression.operandConversion,
+                    expression.operandPlaceholder,
+                    expression.left,
+                    out replacement
+                );
+            } else {
+                statements = base.ExpandAsOperator(expression, out replacement, UseKind.Value);
+            }
+        }
+
         return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
     }
 

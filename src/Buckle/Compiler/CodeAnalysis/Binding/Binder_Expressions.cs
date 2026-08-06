@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
@@ -510,6 +511,8 @@ internal partial class Binder {
     private BoundExpression BindInitializerDictionaryExpression(
         InitializerDictionaryExpressionSyntax node,
         BelteDiagnosticQueue diagnostics) {
+        ReportDiagnosticsIfNoAllocContext(node, diagnostics);
+
         TypeSymbol foundKeyType = null;
         TypeSymbol foundValueType = null;
         var failed = false;
@@ -572,6 +575,8 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics,
         bool inferType,
         bool shouldLiftIfPossible = false) {
+        ReportDiagnosticsIfNoAllocContext(node, diagnostics);
+
         var result = BindArrayInitializerList(
             diagnostics,
             node,
@@ -1417,6 +1422,11 @@ internal partial class Binder {
             return false;
         }
 
+        if (flags.Includes(BinderFlags.PureContext) && fieldSymbol.containingType.isReferenceType) {
+            diagnostics.Push(Error.ImpureWriteInPureContext(node.location));
+            return false;
+        }
+
         if (RequiresAssignableVariable(valueKind)) {
             switch (fieldSymbol.refKind) {
                 case RefKind.None:
@@ -1759,8 +1769,6 @@ internal partial class Binder {
                     return BindQualifiedName((QualifiedNameSyntax)node, diagnostics);
                 case SyntaxKind.ReferenceType:
                     return BindReferenceType((ReferenceTypeSyntax)node, diagnostics);
-                case SyntaxKind.NonNullableType:
-                    return ErrorExpression(node);
                 case SyntaxKind.ParenthesizedExpression:
                     return BindParenthesisExpression((ParenthesisExpressionSyntax)node, diagnostics);
                 case SyntaxKind.MemberAccessExpression:
@@ -1825,6 +1833,9 @@ internal partial class Binder {
                     return BindWithExpression((WithExpressionSyntax)node, diagnostics);
                 case SyntaxKind.ReversibleExpression:
                     return BindReversibleExpression((ReversibleExpressionSyntax)node, diagnostics);
+                case SyntaxKind.NonNullableType:
+                    Debug.Assert(false);
+                    return ErrorExpression(node);
                 default:
                     throw ExceptionUtilities.UnexpectedValue(node.kind);
             }
@@ -2541,24 +2552,20 @@ internal partial class Binder {
             hasErrors = true;
         }
 
+        // TODO Currently catches guarantee catching everything which is why this works
+        // TODO In the future when we add catch filters and such, this will need to actually check if the exception type
+        // would be caught by any enclosing try catches
+        if (!hasErrors && flags.Includes(BinderFlags.NoThrowContext) &&
+            !flags.Includes(BinderFlags.InTryBlockOfTryCatch)) {
+            diagnostics.Push(Error.ThrowInNoThrowContext(node.throwKeyword.location));
+            hasErrors = true;
+        }
+
         var boundExpression = BindValue(node.expression, diagnostics, BindValueKind.RValue);
 
-        // Prefer System.Exception but have all diagnostics fallback to Belte::Exception
-        var systemType = compilation.GetWellKnownType(WellKnownType.System_Exception);
-        var nativeType = CorLibrary.GetWellKnownType(WellKnownType.Exception);
+        var systemExceptionType = compilation.GetWellKnownType(WellKnownType.System_Exception);
 
-        if (systemType.IsErrorType())
-            return CreateThrowExpression(nativeType);
-
-        var conversion = conversions.ClassifyConversionFromExpression(
-            boundExpression,
-            systemType
-        );
-
-        if (conversion.exists)
-            return CreateThrowExpression(systemType);
-
-        return CreateThrowExpression(nativeType);
+        return CreateThrowExpression(systemExceptionType);
 
         BoundExpression CreateThrowExpression(NamedTypeSymbol type) {
             var thrownExpression = GenerateConversionForAssignment(type, boundExpression, diagnostics);
@@ -2787,6 +2794,8 @@ internal partial class Binder {
         }
 
         if (expression.StrippedType().specialType == SpecialType.String) {
+            ReportDiagnosticsIfNoThrowContext(node, diagnostics);
+
             var intType = CorLibrary.GetSpecialType(SpecialType.Int);
             var charType = CorLibrary.GetSpecialType(SpecialType.Char);
 
@@ -2819,6 +2828,8 @@ internal partial class Binder {
         var fatArray = CorLibrary.TryGetWellKnownType(WellKnownType.Array, compilation);
 
         if (expression.StrippedType().originalDefinition.Equals(fatArray)) {
+            ReportDiagnosticsIfNoThrowContext(node, diagnostics);
+
             var intType = CorLibrary.GetSpecialType(SpecialType.Int);
             var namedType = (NamedTypeSymbol)expression.StrippedType();
             var resultType = namedType.templateArguments[0].type.type;
@@ -2972,6 +2983,9 @@ internal partial class Binder {
 
             var gotError = MemberGroupFinalValidationAccessibilityChecks(receiver, method, syntax, diagnostics);
 
+            if (!gotError)
+                gotError = MemberGroupFinalValidationSpecifierChecks(method, syntax, diagnostics);
+
             CheckAndCoerceArguments(
                 syntax,
                 resolutionResult,
@@ -3052,6 +3066,8 @@ internal partial class Binder {
             );
         }
 
+        ReportDiagnosticsIfNoThrowContext(node, diagnostics);
+
         var argument = analyzedArguments.arguments[0];
         var intType = CorLibrary.GetSpecialType(SpecialType.Int);
 
@@ -3075,6 +3091,8 @@ internal partial class Binder {
         InitializerListExpressionSyntax node,
         BelteDiagnosticQueue diagnostics,
         int nestingLevel = 0) {
+        ReportDiagnosticsIfNoAllocContext(node, diagnostics);
+
         // TODO Do we even care about this
         // const int MaxNestingLevel = 64;
 
@@ -3284,6 +3302,11 @@ internal partial class Binder {
 
         if (hasErrors && !suppressErrors)
             GenerateExplicitConversionErrors(diagnostics, node, conversion, operand, targetType);
+        else
+            hasErrors |= ReportThisDownCastInConstructor(node, operand, targetType, diagnostics);
+
+        if (conversion.CouldThrow())
+            ReportDiagnosticsIfNoThrowContext(node, diagnostics);
 
         return CreateConversion(
             node,
@@ -3294,6 +3317,21 @@ internal partial class Binder {
             diagnostics: diagnostics,
             hasErrors: hasErrors | suppressErrors
         );
+    }
+
+    private bool ReportThisDownCastInConstructor(
+        SyntaxNode syntax,
+        BoundExpression operand,
+        TypeSymbol targetType,
+        BelteDiagnosticQueue diagnostics) {
+        if (containingMember is MethodSymbol m && m.IsConstructor() && IsThisInstanceAccess(operand)) {
+            if (targetType.IsClassType() && conversions.IsBaseClass(targetType, operand.type)) {
+                diagnostics.Push(Error.ThisDownCastInConstructor(syntax.location, targetType));
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private void GenerateExplicitConversionErrors(
@@ -3646,6 +3684,8 @@ internal partial class Binder {
         ImmutableArray<(TextLocation location, ExpressionSyntax size)> rankSpecifiers,
         TypeSymbol type,
         BelteDiagnosticQueue diagnostics) {
+        ReportDiagnosticsIfNoAllocContext(node, diagnostics);
+
         var (rank, _) = GetArrayRankAndElementType(type);
         var sizes = ArrayBuilder<BoundExpression>.GetInstance();
         var hasErrors = false;
@@ -3686,6 +3726,8 @@ internal partial class Binder {
     private protected BoundExpression BindObjectCreationExpression(
         ObjectCreationExpressionSyntax node,
         BelteDiagnosticQueue diagnostics) {
+        ReportDiagnosticsIfNoAllocContext(node, diagnostics);
+
         if (node.type is null)
             return BindImplicitObjectCreationExpression(node, diagnostics);
 
@@ -3739,6 +3781,16 @@ internal partial class Binder {
             default:
                 throw ExceptionUtilities.UnexpectedValue(type.typeKind);
         }
+    }
+
+    private void ReportDiagnosticsIfNoAllocContext(SyntaxNode syntax, BelteDiagnosticQueue diagnostics) {
+        if (flags.Includes(BinderFlags.NoAllocContext))
+            diagnostics.Push(Error.CannotAllocateInNoAllocContext(syntax.location));
+    }
+
+    private void ReportDiagnosticsIfNoThrowContext(SyntaxNode syntax, BelteDiagnosticQueue diagnostics) {
+        if (flags.Includes(BinderFlags.NoThrowContext) && !flags.Includes(BinderFlags.InTryBlockOfTryCatch))
+            diagnostics.Push(Error.PotentialThrowInNoThrowContext(syntax.location));
     }
 
     private BoundExpression BindInterfaceCreationExpression(
@@ -5666,6 +5718,13 @@ internal partial class Binder {
             }
         }
 
+        if (!hasError && flags.Includes(BinderFlags.PureContext) && fieldSymbol.containingType.isReferenceType) {
+            if (!fieldSymbol.type.IsKnownToBeImmutable()) {
+                diagnostics.Push(Error.ImpureReadInPureContext(node.location));
+                hasError = true;
+            }
+        }
+
         ConstantValue constantValueOpt = null;
 
         if ((fieldSymbol.isConstExpr || (isEnumField && !IsInstanceReceiver(receiver))) && !isInsideNameof) {
@@ -6434,6 +6493,9 @@ internal partial class Binder {
             }
         }
 
+        if (MemberGroupFinalValidationSpecifierChecks(methodSymbol, node, diagnostics))
+            return true;
+
         return !methodSymbol.CheckMethodConstraints(
             conversions,
             node.location,
@@ -6499,6 +6561,29 @@ internal partial class Binder {
                 diagnostics.Push(Error.MemberIsInaccessible(node.location, memberSymbol));
                 return true;
             }
+        }
+
+        return false;
+    }
+
+    private bool MemberGroupFinalValidationSpecifierChecks(
+        MethodSymbol methodSymbol,
+        SyntaxNode node,
+        BelteDiagnosticQueue diagnostics) {
+        if (flags.Includes(BinderFlags.PureContext) && !methodSymbol.isPure) {
+            diagnostics.Push(Error.InvalidCallInSpecifierContext(node.location, methodSymbol, "pure"));
+            return true;
+        }
+
+        if (flags.Includes(BinderFlags.NoAllocContext) && !methodSymbol.isNoAlloc) {
+            diagnostics.Push(Error.InvalidCallInSpecifierContext(node.location, methodSymbol, "noalloc"));
+            return true;
+        }
+
+        if (flags.Includes(BinderFlags.NoThrowContext) && !methodSymbol.isNoThrow &&
+            !flags.Includes(BinderFlags.InTryBlockOfTryCatch)) {
+            diagnostics.Push(Error.InvalidCallInSpecifierContext(node.location, methodSymbol, "nothrow"));
+            return true;
         }
 
         return false;
@@ -7485,7 +7570,7 @@ internal partial class Binder {
     }
 
     private BoundExpression BindLiteralExpression(LiteralExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
-        return BindLiteral(node, node.token);
+        return BindLiteral(node, node.token, diagnostics);
     }
 
     private BoundExpression BindDefaultLiteralExpression(
@@ -7520,13 +7605,13 @@ internal partial class Binder {
         ExtendedLiteralExpressionSyntax node,
         BelteDiagnosticQueue diagnostics) {
         var literal = node.token is not null
-            ? BindLiteral(node, node.token)
+            ? BindLiteral(node, node.token, diagnostics)
             : BindExpression(node.expression, diagnostics);
 
         return new BoundUnconvertedExtendedLiteralExpression(node, node.suffix.text, literal, literal.type);
     }
 
-    private BoundExpression BindLiteral(SyntaxNode node, SyntaxToken literalToken) {
+    private BoundExpression BindLiteral(SyntaxNode node, SyntaxToken literalToken, BelteDiagnosticQueue diagnostics) {
         var value = literalToken.value;
         var kind = literalToken.kind;
 
@@ -7543,6 +7628,9 @@ internal partial class Binder {
 
         var specialType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(value);
         var constantValue = new ConstantValue(value, specialType);
+
+        if (specialType == SpecialType.String)
+            ReportDiagnosticsIfNoAllocContext(node, diagnostics);
 
         if (kind == SyntaxKind.CStringLiteralToken) {
             var pointerType = new PointerTypeSymbol(

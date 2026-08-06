@@ -276,8 +276,8 @@ done:
             ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(builder, symbol.name.AsMemory(), symbol);
         }
 
-        RegisterDeclaredCorTypes(builder);
-        RegisterDeclaredWellKnownTypes(builder);
+        RegisterDeclaredCorTypes(declaringCompilation, builder.Values);
+        RegisterDeclaredWellKnownTypes(declaringCompilation, builder.Values);
 
         var result = new Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>>(
             builder.Count,
@@ -382,50 +382,6 @@ done:
                 return new ImplicitNamedTypeSymbol(this, (MergedTypeDeclaration)declaration, diagnostics);
             default:
                 throw ExceptionUtilities.UnexpectedValue(declaration.kind);
-        }
-    }
-
-    private void RegisterDeclaredCorTypes(PooledDictionary<ReadOnlyMemory<char>, object> members) {
-        if (declaringCompilation.keepLookingForCorTypes) {
-            foreach (var member in members.Values) {
-                if (member is NamedTypeSymbol type && type.specialType != SpecialType.None) {
-                    declaringCompilation.RegisterDeclaredSpecialType(type);
-
-                    if (!declaringCompilation.keepLookingForCorTypes)
-                        return;
-                }
-            }
-        }
-    }
-
-    private void RegisterDeclaredWellKnownTypes(PooledDictionary<ReadOnlyMemory<char>, object> members) {
-        if (declaringCompilation.keepLookingForWellKnownTypes) {
-            foreach (var member in members.Values) {
-                if (member is NamedTypeSymbol type) {
-                    if (CheckWellKnownType(type))
-                        return;
-                } else if (member is IEnumerable<NamespaceOrTypeSymbol> enumerable) {
-                    foreach (var m in enumerable) {
-                        if (m is NamedTypeSymbol t) {
-                            if (CheckWellKnownType(t))
-                                return;
-                        }
-                    }
-                }
-            }
-        }
-
-        bool CheckWellKnownType(NamedTypeSymbol type) {
-            var wellKnownType = WellKnownTypes.GetTypeFromMetadataName(type);
-
-            if (wellKnownType != WellKnownType.None) {
-                declaringCompilation.RegisterDeclaredWellKnownType(wellKnownType, type);
-
-                if (!declaringCompilation.keepLookingForWellKnownTypes)
-                    return true;
-            }
-
-            return false;
         }
     }
 

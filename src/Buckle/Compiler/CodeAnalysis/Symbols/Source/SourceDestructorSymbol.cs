@@ -56,6 +56,7 @@ internal sealed class SourceDestructorSymbol : SourceMemberMethodSymbol {
 
     private protected override void MethodChecks(BelteDiagnosticQueue diagnostics) {
         _lazyReturnType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void));
+        _ = isPure;
     }
 
     private static (DeclarationModifiers, Flags) MakeModifiersAndFlags(

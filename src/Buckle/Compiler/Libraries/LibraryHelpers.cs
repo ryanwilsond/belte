@@ -14,19 +14,9 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.Libraries;
 
 public static class LibraryHelpers {
-    private static readonly string[] ReducedStdLibFiles = [
+    private static readonly string[] NativeSources = [
         "Compiler.Object.blt",
-        "Compiler.ReducedEnumerator.blt",
-        "Compiler.Exception.blt",
-        "Compiler.Buffer.blt",
-    ];
-
-    private static readonly string[] ReducedStdLibExclude = [
-        "Compiler.Enumerator.blt"
-    ];
-
-    private static readonly string[] StdLibExclude = [
-        "Compiler.ReducedEnumerator.blt"
+        "Compiler.Buffer.blt"
     ];
 
     private static SynthesizedBelteNamespaceSymbol _belteNamespace;
@@ -80,7 +70,8 @@ public static class LibraryHelpers {
         BuildMode buildMode = BuildMode.None,
         bool concurrentBuild = false,
         int maxCoreCount = 1,
-        bool reducedStdLib = false) {
+        bool noStdLib = false,
+        int explicitLibraryLevel = 0) {
         var assembly = Assembly.GetExecutingAssembly();
         var syntaxTrees = new List<SyntaxTree>();
 
@@ -91,13 +82,8 @@ public static class LibraryHelpers {
             if (!libraryName.EndsWith(".blt"))
                 continue;
 
-            if (reducedStdLib) {
-                if (!ReducedStdLibFiles.Contains(libraryName) || ReducedStdLibExclude.Contains(libraryName))
-                    continue;
-            } else {
-                if (StdLibExclude.Contains(libraryName))
-                    continue;
-            }
+            if (!buildMode.Evaluating() && !NativeSources.Contains(libraryName))
+                continue;
 
             using var stream = assembly.GetManifestResourceStream(libraryName);
             using var reader = new StreamReader(stream);
@@ -112,14 +98,13 @@ public static class LibraryHelpers {
             OutputKind.DynamicallyLinkedLibrary,
             concurrentBuild: concurrentBuild,
             maxCoreCount: maxCoreCount,
-            noStdLib: reducedStdLib
+            noStdLib: noStdLib,
+            // When Evaluating we recompile the standard library from source to have method bodies available
+            references: Compiler.ResolveLibraryLevel(explicitLibraryLevel, noStdLib || buildMode.Evaluating())
         );
 
-        if (reducedStdLib)
-            CorLibrary.SetReducedState();
-
         var corLibrary = Compilation.Create(MetadataHelpers.CorLibraryString, options, syntaxTrees.ToArray());
-        CreateBelteNamespace(reducedStdLib);
+        CreateBelteNamespace(noStdLib);
         corLibrary = corLibrary.AddNamespace(BelteNamespace);
         corLibrary.GetDiagnostics();
 
@@ -178,8 +163,8 @@ public static class LibraryHelpers {
         }
     }
 
-    private static void CreateBelteNamespace(bool reducedStdLib) {
-        _belteNamespace = new SynthesizedBelteNamespaceSymbol("Belte", reducedStdLib);
+    private static void CreateBelteNamespace(bool noStdLib) {
+        _belteNamespace = new SynthesizedBelteNamespaceSymbol("Belte", noStdLib);
     }
 
     internal static SynthesizedFieldSymbol ConstExprField(string name, SpecialOrKnownType type, object constantValue) {

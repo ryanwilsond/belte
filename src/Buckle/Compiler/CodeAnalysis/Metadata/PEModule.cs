@@ -479,6 +479,13 @@ internal sealed partial class PEModule : IDisposable {
         return name;
     }
 
+    internal bool GetTypeAndConstructor(
+        CustomAttributeHandle customAttribute,
+        out EntityHandle ctorType,
+        out EntityHandle attributeCtor) {
+        return GetTypeAndConstructor(metadataReader, customAttribute, out ctorType, out attributeCtor);
+    }
+
     internal bool IsNestedTypeDefOrThrow(TypeDefinitionHandle typeDef) {
         return IsNestedTypeDefOrThrow(metadataReader, typeDef);
     }

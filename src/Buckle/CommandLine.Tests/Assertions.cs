@@ -35,6 +35,7 @@ internal static class Assertions {
 
         argsList = argsList.Prepend("--noout");
         argsList = argsList.Prepend("--severity=all");
+        argsList = argsList.Prepend("--nostdlib");
 
         foreach (var file in filesToCreate.ToList().Append(firstArgFilename)) {
             var fileStream = File.Create(Path.Combine(executingPath, file));
@@ -46,7 +47,7 @@ internal static class Assertions {
         BuckleCommandLine.ProcessArgs(argsList.ToArray());
 
         var expectedDiagnostics = AnnotatedText.UnindentLines(diagnosticText);
-        var diagnostics = stringWriter.ToString().Split(Environment.NewLine).ToList();
+        var diagnostics = stringWriter.ToString().Split("\n").ToList();
 
         diagnostics = diagnostics
             .Where(t => !string.IsNullOrEmpty(t))
@@ -64,7 +65,7 @@ internal static class Assertions {
         Assert.Equal(expectedDiagnostics.Length, diagnostics.Count);
 
         for (var i = 0; i < expectedDiagnostics.Length; i++) {
-            var diagnosticParts = diagnostics[i].Split(": ").Skip(2);
+            var diagnosticParts = diagnostics[i].Split(": ").Skip(diagnostics[i].StartsWith("testhost") ? 2 : 1);
             var diagnostic = (!diagnosticParts.Any()
                 ? diagnostics[i]
                 : diagnosticParts.Count() == 1

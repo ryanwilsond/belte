@@ -184,6 +184,10 @@ public enum SyntaxKind : ushort {
     GetKeyword,
     HandleKeyword,
     FieldKeyword,
+    NothrowKeyword,
+    NoallocKeyword,
+    PureKeyword,
+    MemoizeKeyword,
 
     // Trivia
     EndOfLineTrivia,

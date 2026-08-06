@@ -151,6 +151,18 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
         return null;
     }
 
+    internal override BoundNode VisitDeconstructionAssignmentOperator(BoundDeconstructionAssignmentOperator node) {
+        base.VisitDeconstructionAssignmentOperator(node);
+
+        // TODO
+        // var left = node.left;
+        // var right = node.right;
+        // var variables = GetDeconstructionAssignmentVariables(left);
+        // VisitDeconstructionArguments(variables, right.syntax, right.conversion, right.operand);
+        // variables.FreeAll(v => v.NestedVariables);
+        return null;
+    }
+
     internal override BoundNode VisitReturnStatement(BoundReturnStatement node) {
         base.VisitReturnStatement(node);
 

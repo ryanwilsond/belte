@@ -205,6 +205,15 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
         return OneOrMany.Create(syntax.attributeLists);
     }
 
+    private protected override BehaviorSpecifierInfo MakeSpecifierInfo(BelteDiagnosticQueue diagnostics) {
+        var specifiers = MakeBehaviorSpecifiers(diagnostics, MethodKind.LocalFunction);
+
+        if (specifiers == BehaviorSpecifiers.None)
+            return BehaviorSpecifierInfo.Default;
+
+        return new BehaviorSpecifierInfo(specifiers);
+    }
+
     internal override bool IsMetadataVirtual(bool forceComplete = false) => false;
 
     private protected override void NoteAttributesComplete(bool forReturnType) { }
@@ -222,6 +231,8 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
 
         GetAttributes();
         GetReturnTypeAttributes();
+
+        _ = isPure;
 
         addTo.PushRange(_declarationDiagnostics);
 
@@ -297,7 +308,7 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
             this,
             syntax.parameterList.parameters,
             diagnostics,
-            allowRef: true,
+            allowRef: !isPure,
             addRefConstModifier: false,
             allowConst: true
         ).Cast<SourceParameterSymbol, ParameterSymbol>();

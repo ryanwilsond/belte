@@ -164,6 +164,15 @@ done:
         _state.SpinWaitComplete(CompletionParts.MethodSymbolAll);
     }
 
+    private protected override BehaviorSpecifierInfo MakeSpecifierInfo(BelteDiagnosticQueue diagnostics) {
+        var specifiers = MakeBehaviorSpecifiers(diagnostics, methodKind);
+
+        if (specifiers == BehaviorSpecifiers.None)
+            return BehaviorSpecifierInfo.Default;
+
+        return new BehaviorSpecifierInfo(specifiers);
+    }
+
     private protected void ReportDefaultInterfaceImplementation(
         TextLocation location,
         bool hasBody,

@@ -1,4 +1,6 @@
 
+namespace System;
+
 [AttributeUsage(AttributeTargets.All)]
 public sealed class AttributeUsageAttribute extends Attribute {
     public constructor(AttributeTargets attributeTargets) { }

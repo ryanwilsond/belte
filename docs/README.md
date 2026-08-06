@@ -125,6 +125,7 @@
       - [4.2.2](Current/ClassesAndObjects.md#422-methods) Methods
         - [4.2.2.1](Current/ClassesAndObjects.md#4221-overloading) Overloading
         - [4.2.2.2](Current/ClassesAndObjects.md#4222-state-and-reverse-clauses) State and Reverse Clauses
+        - [4.2.2.3](Current/ClassesAndObjects.md#4223-behavior-specifiers) Behavior Specifiers
       - [4.2.3](Current/ClassesAndObjects.md#423-operators) Operators
         - [4.2.3.1](Current/ClassesAndObjects.md#4231-operator-overloading) Operator Overloading
         - [4.2.3.2](Current/ClassesAndObjects.md#4232-casts) Casts

@@ -16,7 +16,9 @@
     <EmbeddedResource Include="Resources/Version.txt" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+  <!-- <ItemGroup Condition="'$(Configuration)' == 'Release'"> -->
+  <ItemGroup Condition="$([System.String]::Copy(';$(DefineConstants);').Contains(';SINGLE_FILE_BUILD;'))">
+    <Content Remove="../../../lib/Belte.Core.dll" />
     <Content Remove="../../../lib/Belte.Runtime.dll" />
     <Content Remove="../../../lib/Belte.Graphics.dll" />
     <Content Remove="../../../bin/release/freetype6.dll" />
@@ -24,7 +26,10 @@
     <Content Remove="../../../bin/release/SDL2.dll" />
   </ItemGroup>
 
-  <ItemGroup Condition="'$(Configuration)' == 'Release'">
+  <ItemGroup Condition="$([System.String]::Copy(';$(DefineConstants);').Contains(';SINGLE_FILE_BUILD;'))">
+    <EmbeddedResource Include="../../../lib/Belte.Core.dll">
+      <LogicalName>Resources.Belte.Core.dll</LogicalName>
+    </EmbeddedResource>
     <EmbeddedResource Include="../../../lib/Belte.Runtime.dll">
       <LogicalName>Resources.Belte.Runtime.dll</LogicalName>
     </EmbeddedResource>
@@ -58,6 +63,10 @@
 
   <Target Name="CopyFreetypeDll" AfterTargets="Build">
     <Copy SourceFiles="$(OutputPath)/lib/x64/freetype6.dll" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
+  </Target>
+
+  <Target Name="CopyBelteCore" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug'">
+    <Copy SourceFiles="$(MSBuildProjectDirectory)/../../../bin/release/Belte.Core.dll" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
   </Target>
 
 </Project>

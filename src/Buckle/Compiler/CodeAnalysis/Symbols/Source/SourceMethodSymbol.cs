@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Runtime.InteropServices;
+using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -8,9 +9,10 @@ using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbol {
+internal abstract partial class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbol {
     private CustomAttributesBag<AttributeData> _lazyAttributesBag;
     private CustomAttributesBag<AttributeData> _lazyReturnTypeAttributesBag;
+    private BehaviorSpecifierInfo _lazySpecifierInfo;
 
     private protected SourceMethodSymbol(SyntaxReference syntaxReference) {
         this.syntaxReference = syntaxReference;
@@ -36,6 +38,66 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
 
     internal override bool coerceArguments { get; }
 
+    internal override bool isPure {
+        get {
+            if (_lazySpecifierInfo is null) {
+                var diagnostics = BelteDiagnosticQueue.GetInstance();
+
+                if (Interlocked.CompareExchange(ref _lazySpecifierInfo, MakeSpecifierInfo(diagnostics), null) is null) {
+                    AddDeclarationDiagnostics(diagnostics);
+                    diagnostics.Free();
+                }
+            }
+
+            return _lazySpecifierInfo.isPure;
+        }
+    }
+
+    internal override bool shouldMemoizeIfPure {
+        get {
+            if (_lazySpecifierInfo is null) {
+                var diagnostics = BelteDiagnosticQueue.GetInstance();
+
+                if (Interlocked.CompareExchange(ref _lazySpecifierInfo, MakeSpecifierInfo(diagnostics), null) is null) {
+                    AddDeclarationDiagnostics(diagnostics);
+                    diagnostics.Free();
+                }
+            }
+
+            return _lazySpecifierInfo.shouldMemoizeIfPure;
+        }
+    }
+
+    internal override bool isNoThrow {
+        get {
+            if (_lazySpecifierInfo is null) {
+                var diagnostics = BelteDiagnosticQueue.GetInstance();
+
+                if (Interlocked.CompareExchange(ref _lazySpecifierInfo, MakeSpecifierInfo(diagnostics), null) is null) {
+                    AddDeclarationDiagnostics(diagnostics);
+                    diagnostics.Free();
+                }
+            }
+
+            return _lazySpecifierInfo.isNoThrow;
+        }
+    }
+
+    internal override bool isNoAlloc {
+        get {
+            if (_lazySpecifierInfo is null) {
+                var diagnostics = BelteDiagnosticQueue.GetInstance();
+
+                if (Interlocked.CompareExchange(ref _lazySpecifierInfo, MakeSpecifierInfo(diagnostics), null) is null) {
+                    AddDeclarationDiagnostics(diagnostics);
+                    diagnostics.Free();
+                }
+            }
+
+            return _lazySpecifierInfo.isNoAlloc;
+        }
+    }
+
     internal BelteSyntaxNode syntaxNode => (BelteSyntaxNode)syntaxReference.node;
 
     internal SyntaxTree syntaxTree => syntaxReference.syntaxTree;
@@ -57,6 +119,60 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
 
     internal override ImmutableArray<AttributeData> GetAttributes() {
         return GetAttributesBag().attributes;
+    }
+
+    private protected abstract BehaviorSpecifierInfo MakeSpecifierInfo(BelteDiagnosticQueue diagnostics);
+
+    private protected BehaviorSpecifiers MakeBehaviorSpecifiers(
+        BelteDiagnosticQueue diagnostics,
+        MethodKind methodKind) {
+        var specifierList = ExtractSpecifierList();
+
+        if (specifierList is null || specifierList.Count == 0)
+            return BehaviorSpecifiers.None;
+
+        var seenSpecifiers = BehaviorSpecifiers.None;
+        SyntaxToken memoizeToken = null;
+
+        foreach (var specifierToken in specifierList) {
+            var specifier = ToBehaviorSpecifier(specifierToken.kind);
+
+            if ((seenSpecifiers & specifier) != 0)
+                diagnostics.Push(Error.DuplicateBehaviorSpecifier(specifierToken.location, specifierToken));
+            else if (specifier == BehaviorSpecifiers.Memoize)
+                memoizeToken = specifierToken;
+
+            switch (specifier) {
+                case BehaviorSpecifiers.Memoize:
+                case BehaviorSpecifiers.Pure:
+                    if (methodKind is MethodKind.Constructor or MethodKind.Destructor or MethodKind.Finalizer)
+                        diagnostics.Push(Error.InvalidBehaviorSpecifier(specifierToken.location, specifierToken));
+
+                    break;
+                case BehaviorSpecifiers.NoAlloc:
+                    if (methodKind == MethodKind.Constructor)
+                        diagnostics.Push(Error.InvalidBehaviorSpecifier(specifierToken.location, specifierToken));
+
+                    break;
+            }
+
+            seenSpecifiers |= specifier;
+        }
+
+        if ((seenSpecifiers & BehaviorSpecifiers.Pure) == 0 && memoizeToken is not null)
+            diagnostics.Push(Error.MemoizeRequiresPureSpecifier(memoizeToken.location));
+
+        return seenSpecifiers;
+
+        static BehaviorSpecifiers ToBehaviorSpecifier(SyntaxKind syntaxKind) {
+            return syntaxKind switch {
+                SyntaxKind.PureKeyword => BehaviorSpecifiers.Pure,
+                SyntaxKind.NoallocKeyword => BehaviorSpecifiers.NoAlloc,
+                SyntaxKind.NothrowKeyword => BehaviorSpecifiers.NoThrow,
+                SyntaxKind.MemoizeKeyword => BehaviorSpecifiers.Memoize,
+                _ => throw ExceptionUtilities.Unreachable()
+            };
+        }
     }
 
     internal override ImmutableArray<AttributeData> GetReturnTypeAttributes() {
@@ -353,6 +469,17 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
             return methodDeclaration.implicitKeyword;
         else if (node is LocalFunctionStatementSyntax statement)
             return statement.implicitKeyword;
+
+        return null;
+    }
+
+    internal SyntaxTokenList ExtractSpecifierList() {
+        var node = syntaxReference.node;
+
+        if (node is BaseMethodDeclarationSyntax methodDeclaration)
+            return methodDeclaration.specifierList;
+        else if (node is LocalFunctionStatementSyntax statement)
+            return statement.specifierList;
 
         return null;
     }

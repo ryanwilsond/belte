@@ -4,7 +4,6 @@ using System.Diagnostics;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -58,6 +57,10 @@ internal abstract class AssemblySymbol : Symbol {
     internal abstract ImmutableArray<byte> publicKey { get; }
 
     internal abstract ImmutableArray<ModuleSymbol> modules { get; }
+
+    internal abstract bool isBelteAssembly { get; }
+
+    internal abstract int belteMetadataVersion { get; }
 
     internal abstract NamedTypeSymbol LookupDeclaredOrForwardedTopLevelMetadataType(
         ref MetadataTypeName emittedName,
@@ -208,7 +211,7 @@ internal abstract class AssemblySymbol : Symbol {
         var assemblies = SymbolPool.Allocate();
 
         if (assemblyOpt is not null)
-            assemblies.AddRange(declaringCompilation.referenceManager.referencedAssemblies);
+            assemblies.AddRange(declaringCompilation.GetBoundReferenceManager().referencedAssemblies);
         else
             declaringCompilation.GetUnaliasedReferencedAssemblies(assemblies);
 
@@ -231,7 +234,6 @@ internal abstract class AssemblySymbol : Symbol {
                     // TODO Warning
                     // The predefined type '{0}' is defined in multiple assemblies in the global alias; using definition from '{1}'
                     // warnings.Add(ErrorCode.WRN_MultiplePredefTypes, NoLocation.Singleton, result, result.ContainingAssembly);
-                    throw ExceptionUtilities.Unreachable();
                 }
 
                 break;

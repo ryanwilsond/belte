@@ -1208,9 +1208,8 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic InvalidRefParameter(TextLocation location) {
-        throw ExceptionUtilities.Unreachable();
-        // var message = $"'ref' is not valid in this context";
-        // return CreateError(DiagnosticCode.ERR_InvalidRefParameter, location, message);
+        var message = $"'ref' and 'out' are not valid in this context";
+        return CreateError(DiagnosticCode.ERR_InvalidRefParameter, location, message);
     }
 
     internal static BelteDiagnostic RefConstWrongOrder(TextLocation location) {
@@ -2949,6 +2948,66 @@ internal static class Error {
     internal static BelteDiagnostic UnmanagedCannotBeCalledDirectly(TextLocation location, Symbol symbol) {
         var message = $"'{symbol}' is attributed with 'Unmanaged' and cannot be called directly; obtain an unmanaged function pointer to this method";
         return CreateError(DiagnosticCode.ERR_UnmanagedCannotBeCalledDirectly, location, message);
+    }
+
+    internal static BelteDiagnostic DuplicateBehaviorSpecifier(TextLocation location, SyntaxToken token) {
+        var message = $"behavior specifier '{token.text}' has already been applied to this item";
+        return CreateError(DiagnosticCode.ERR_DuplicateBehaviorSpecifier, location, message);
+    }
+
+    internal static BelteDiagnostic MemoizeRequiresPureSpecifier(TextLocation location) {
+        var message = $"behavior specifier 'memoize' can only be used with the behavior specifier 'pure'";
+        return CreateError(DiagnosticCode.ERR_MemoizeRequiresPureSpecifier, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidBehaviorSpecifier(TextLocation location, SyntaxToken token) {
+        var message = $"behavior specifier '{token.text}' is not valid for this item";
+        return CreateError(DiagnosticCode.ERR_InvalidBehaviorSpecifier, location, message);
+    }
+
+    internal static BelteDiagnostic CannotAllocateInNoAllocContext(TextLocation location) {
+        var message = $"cannot allocate a new object in a 'noalloc' context";
+        return CreateError(DiagnosticCode.ERR_CannotAllocateInNoAllocContext, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidCallInSpecifierContext(TextLocation location, MethodSymbol method, string context) {
+        var message = $"cannot call method '{method}' in the current context because it is not marked '{context}'";
+        return CreateError(DiagnosticCode.ERR_InvalidCallInSpecifierContext, location, message);
+    }
+
+    internal static BelteDiagnostic ImpureWriteInPureContext(TextLocation location) {
+        var message = $"cannot write to a member of a reference type in a method marked as 'pure'";
+        return CreateError(DiagnosticCode.ERR_ImpureWriteInPureContext, location, message);
+    }
+
+    internal static BelteDiagnostic ImpureReadInPureContext(TextLocation location) {
+        var message = $"cannot read from a mutable member of a reference type in a method marked as 'pure'";
+        return CreateError(DiagnosticCode.ERR_ImpureReadInPureContext, location, message);
+    }
+
+    internal static BelteDiagnostic ThrowInNoThrowContext(TextLocation location) {
+        var message = $"cannot throw an uncaught exception in a 'nothrow' context";
+        return CreateError(DiagnosticCode.ERR_ThrowInNoThrowContext, location, message);
+    }
+
+    internal static BelteDiagnostic PureMethodCannotHaveReverse(TextLocation location) {
+        var message = $"method marked as 'pure' cannot have a reverse clause";
+        return CreateError(DiagnosticCode.ERR_PureMethodCannotHaveReverse, location, message);
+    }
+
+    internal static BelteDiagnostic CantChangeSpecifierOnOverride(TextLocation location, Symbol symbol, Symbol hiddenMember, string specifier) {
+        var message = $"'{symbol}': member must be marked '{specifier}' when overriding inherited member '{hiddenMember}' because it is marked '{specifier}'";
+        return CreateError(DiagnosticCode.ERR_CantChangeSpecifierOnOverride, location, message);
+    }
+
+    internal static BelteDiagnostic ThisDownCastInConstructor(TextLocation location, TypeSymbol type) {
+        var message = $"cannot downcast 'this' to derived type '{type}' in a constructor";
+        return CreateError(DiagnosticCode.ERR_ThisDownCastInConstructor, location, message);
+    }
+
+    internal static BelteDiagnostic PotentialThrowInNoThrowContext(TextLocation location) {
+        var message = $"expression potentially throws; cannot throw an uncaught exception in a 'nothrow' context";
+        return CreateError(DiagnosticCode.ERR_PotentialThrowInNoThrowContext, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

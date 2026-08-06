@@ -64,6 +64,9 @@ public static partial class BuckleCommandLine {
         new DiagnosticInfo(0528, "BU"),
         new DiagnosticInfo(0573, "BU"),
         new DiagnosticInfo(0583, "BU"),
+        new DiagnosticInfo(0607, "BU"),
+        new DiagnosticInfo(0611, "BU"),
+        new DiagnosticInfo(0612, "BU"),
     ];
 
     private static readonly DiagnosticInfo[] WarningLevel2 = [
@@ -78,6 +81,7 @@ public static partial class BuckleCommandLine {
         new DiagnosticInfo(0467, "BU"),
         new DiagnosticInfo(0471, "BU"),
         new DiagnosticInfo(0527, "BU"),
+        new DiagnosticInfo(0609, "BU"),
     ];
 
     private static readonly DiagnosticInfo[] WarningLevel3 = [];
@@ -596,10 +600,10 @@ public class {name} {{
 
         pendingDependencyCopies = (depsSource.ToArray(), depsDest.ToArray());
 
-        references.AddRange(Compiler.ResolveLibraryLevel(builder.l));
+        references.AddRange(Compiler.ResolveLibraryLevel(builder.l, noStdLib: !builder.includeStdLib));
 
         var outputFilename = builder.output ?? "a.exe";
-        var moduleName = Path.GetFileNameWithoutExtension(outputFilename);
+        var moduleName = builder.assemblyName ?? Path.GetFileNameWithoutExtension(outputFilename);
 
         var tasks = new List<FileState>();
         var taskDiagnosticOptions = new Dictionary<string, TaskDiagnosticOptions>();
@@ -1664,7 +1668,7 @@ public class {name} {{
         if (state.maxCores == 1)
             state.concurrentBuild = false;
 
-        references.AddRange(Compiler.ResolveLibraryLevel(l));
+        references.AddRange(Compiler.ResolveLibraryLevel(l, state.noStdLib));
         pendingReferenceCopies = copies.ToArray();
 
         dialogs = tempDialogs;
@@ -1722,8 +1726,10 @@ public class {name} {{
         if (specifyModule && state.buildMode != BuildMode.Dotnet)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyModuleNameWithoutDotnet());
 
-        if (references.Count > 0 && !state.buildMode.SupportsDotnetReferences())
-            diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyReferencesWithoutDotnet());
+        if (references.Count > 0 && !state.buildMode.SupportsDotnetReferences()) {
+            if (references.Count > 1 || !references[0].EndsWith("Belte.Core.dll"))
+                diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyReferencesWithoutDotnet());
+        }
 
         foreach (var reference in references) {
             if (!File.Exists(reference))

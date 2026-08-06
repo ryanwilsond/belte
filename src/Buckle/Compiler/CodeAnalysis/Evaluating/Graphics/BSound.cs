@@ -1,3 +1,4 @@
+using System;
 using Microsoft.Xna.Framework.Audio;
 
 namespace Buckle.CodeAnalysis.Evaluating;
@@ -12,5 +13,9 @@ public sealed class BSound {
         this.volume = volume;
         this.loop = loop;
         this.mSound = mSound;
+    }
+
+    public BSound() {
+        throw new InvalidOperationException();
     }
 }

@@ -1229,6 +1229,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             );
 
             CheckConstMismatch(overridingMemberLocation, overriddenMethod, overridingMethod, diagnostics);
+            CheckSpecifiersMismatch(overridingMemberLocation, overriddenMethod, overridingMethod, diagnostics);
         }
     }
 
@@ -1271,6 +1272,36 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         overridingMethod,
                         overriddenMethod,
                         overridingParameter.name
+                    ));
+                }
+            }
+        }
+    }
+
+    private static void CheckSpecifiersMismatch(
+        TextLocation overridingMemberLocation,
+        MethodSymbol overriddenMethod,
+        MethodSymbol overridingMethod,
+        BelteDiagnosticQueue diagnostics) {
+        CheckSpecifier(overriddenMethod.isPure, overridingMethod.isPure, "pure");
+        CheckSpecifier(overriddenMethod.isNoThrow, overridingMethod.isNoThrow, "nothrow");
+        CheckSpecifier(overriddenMethod.isNoAlloc, overridingMethod.isNoAlloc, "noalloc");
+
+        void CheckSpecifier(bool overridden, bool overriding, string specifier) {
+            if (overridden != overriding) {
+                if (overridden) {
+                    diagnostics.Push(Error.CantChangeSpecifierOnOverride(
+                        overridingMemberLocation,
+                        overridingMethod,
+                        overriddenMethod,
+                        specifier
+                    ));
+                } else {
+                    diagnostics.Push(Warning.DifferentSpecifierOnOverride(
+                        overridingMemberLocation,
+                        overridingMethod,
+                        overriddenMethod,
+                        specifier
                     ));
                 }
             }
@@ -2535,7 +2566,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             return 1;
 
         var alignmentValue = packedArgument.alignment.value;
-        var alignmentType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(alignmentValue);
+        var alignmentType = CodeAnalysis.SpecialTypeExtensions.SpecialTypeFromLiteralValue(alignmentValue);
 
         if (!LiteralUtilities.TrySpecialCastCore(alignmentValue, alignmentType, SpecialType.Int, out var result)) {
             diagnostics.Push(

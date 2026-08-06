@@ -10,7 +10,6 @@ internal static class WellKnownTypes {
         { "global::List`1", WellKnownType.List },
         { "global::Dictionary`2", WellKnownType.Dictionary },
         { "global::Enumerator`1", WellKnownType.Enumerator },
-        { "global::Exception", WellKnownType.Exception },
         { "global::Vec2", WellKnownType.Vec2 },
         { "global::Sprite", WellKnownType.Sprite },
         { "global::Text", WellKnownType.Text },
@@ -26,8 +25,6 @@ internal static class WellKnownTypes {
         { "global::ValueTuple`7", WellKnownType.ValueTuple_T7 },
         { "global::ValueTuple`8", WellKnownType.ValueTuple_TRest },
         { "global::Array`1", WellKnownType.Array },
-        { "global::Attribute", WellKnownType.Attribute },
-        { "global::AttributeUsageAttribute", WellKnownType.AttributeUsageAttribute },
         { "global::DllImportAttribute", WellKnownType.DllImportAttribute },
         { "global::UnmanagedAttribute", WellKnownType.UnmanagedAttribute },
         { "global::MustUseReturnValueAttribute", WellKnownType.MustUseReturnValueAttribute },
@@ -46,7 +43,11 @@ internal static class WellKnownTypes {
         if (type.containingSymbol is not null)
             emittedName = type.containingSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedNameFormat);
 
-        emittedName = MetadataHelpers.BuildQualifiedName(emittedName, type.metadataName);
+        var normalizedMetadataName = type.arity == 0 || type.mangleName
+            ? type.metadataName
+            : type.metadataName + "`" + type.arity;
+
+        emittedName = MetadataHelpers.BuildQualifiedName(emittedName, normalizedMetadataName);
 
         return GetTypeFromMetadataName(emittedName);
     }

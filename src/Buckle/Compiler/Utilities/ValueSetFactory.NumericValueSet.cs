@@ -247,7 +247,7 @@ internal static partial class ValueSetFactory {
 
         public override bool Equals(object? obj) {
             return obj is NumericValueSet<T> other &&
-            _intervals.SequenceEqual(other._intervals);
+            System.Linq.ImmutableArrayExtensions.SequenceEqual(_intervals, other._intervals);
         }
 
         public override int GetHashCode() {

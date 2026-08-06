@@ -33,7 +33,7 @@
                 },
                 {
                     "name": "keyword.other.belte",
-                    "match": "\\b(this|base|var|ref|new|operator|lowlevel|implicit|explicit|nameof|typeof|sizeof|stackalloc|primitive|notnull|is|isnt|as|global|il|noverify|out|union|literal|has|initializes|property|get|set)\\b"
+                    "match": "\\b(this|base|var|ref|new|operator|lowlevel|implicit|explicit|nameof|typeof|sizeof|stackalloc|primitive|notnull|is|isnt|as|global|il|noverify|out|union|literal|has|initializes|property|get|set|noalloc|nothrow|pure|memoize)\\b"
                 },
                 {
                     "name": "keyword.operator.arithmetic.belte",
@@ -163,7 +163,7 @@
                 },
                 {
                     "name": "entity.name.type.belte",
-                    "match": "(?<!\\S)\\b([a-zA-Z_]+\\w*)\\s*((?=\\s+[a-zA-Z_]+\\w*)|(?=\\[\\]\\s+[a-zA-Z_]+\\w*))\\b"
+                    "match": "(?<!\\S)\\b([a-zA-Z_]+\\w*)\\s*((?=\\??!?\\s+[a-zA-Z_]+\\w*)|(?=(?:\\??!?\\[\\])*\\??!?\\s+[a-zA-Z_]+\\w*))\\b"
                 },
                 {
                     "name": "entity.name.type.parameter.belte",

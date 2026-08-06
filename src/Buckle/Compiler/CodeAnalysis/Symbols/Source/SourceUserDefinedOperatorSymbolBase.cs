@@ -105,6 +105,7 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
 
     private protected override void MethodChecks(BelteDiagnosticQueue diagnostics) {
         _ = GetTemplateConstraints();
+        _ = isPure;
 
         var (returnType, parameters) = MakeParametersAndBindReturnType(diagnostics);
 
@@ -470,11 +471,10 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
             diagnostics.Push(Error.OperatorRefReturn(location));
     }
 
-    private protected (TypeWithAnnotations ReturnType, ImmutableArray<ParameterSymbol> Parameters)
-        MakeParametersAndBindReturnType(
-            BaseMethodDeclarationSyntax declarationSyntax,
-            TypeSyntax returnTypeSyntax,
-            BelteDiagnosticQueue diagnostics) {
+    private protected (TypeWithAnnotations ReturnType, ImmutableArray<ParameterSymbol> Parameters) MakeParametersAndBindReturnType(
+        BaseMethodDeclarationSyntax declarationSyntax,
+        TypeSyntax returnTypeSyntax,
+        BelteDiagnosticQueue diagnostics) {
         TypeWithAnnotations returnType;
         ImmutableArray<ParameterSymbol> parameters;
 
@@ -488,7 +488,7 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
             this,
             declarationSyntax.parameterList.parameters,
             diagnostics,
-            allowRef: true,
+            allowRef: !isPure,
             isVirtual || isAbstract,
             allowConst: true
         ).Cast<SourceParameterSymbol, ParameterSymbol>();

@@ -27,7 +27,8 @@ public sealed class Builder {
     public bool debugBuild;
 
     /// <summary>
-    /// If to reference the .NET core libraries (default false)
+    /// If to reference core Belte libraries (default true)
+    /// Should only be false if building the Belte core library itself
     /// </summary>
     public bool includeStdLib;
 
@@ -64,6 +65,8 @@ public sealed class Builder {
 
     public string entryName { get; private set; }
 
+    public string assemblyName { get; private set; }
+
     public DiagnosticOptions diagnosticOptions => _globalDiagnosticOptions;
 
     public void AddInput(string path) {
@@ -82,6 +85,10 @@ public sealed class Builder {
 
     public void IncludeNETSDK() {
         l = 2;
+    }
+
+    public void ExplicitAssemblyName(string assemblyName) {
+        this.assemblyName = assemblyName;
     }
 
     public void SetOutput(string path) {

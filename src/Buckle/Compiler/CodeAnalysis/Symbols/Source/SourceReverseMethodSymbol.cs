@@ -183,6 +183,9 @@ internal sealed class SourceReverseMethodSymbol : SourceMemberMethodSymbol {
 
         if (containingType.IsEnumType())
             diagnostics.Push(Error.ReverseMethodInEnum(location));
+
+        if (_containingMethod.isPure)
+            diagnostics.Push(Error.PureMethodCannotHaveReverse(_containingMethod.location));
     }
 
     private static (DeclarationModifiers, Flags) MakeModifiersAndFlags(

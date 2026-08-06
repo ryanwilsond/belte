@@ -24,6 +24,7 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
     private readonly TypeDefinitionHandle _handle;
     private readonly string _name;
     private readonly TypeAttributes _flags;
+    private readonly SpecialType _corTypeId;
 
     private ICollection<string> _lazyMemberNames;
     private ImmutableArray<Symbol> _lazyMembersInDeclarationOrder;
@@ -76,7 +77,34 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
             out var originalTypeName)) {
             _name = originalTypeName;
         }
+
+        // TODO This should use the assembly instead of the singleton eventually
+        // TODO We still define Object natively so this cannot use CorLibrary.StillLookingForSpecialTypes()
+        // Instead we see if its in a cor-library-looking assembly
+        if (emittedNamespaceName is not null &&
+            AssemblyIsCorLibraryCandidate(moduleSymbol.containingAssembly) &&
+            declaredAccessibility == Accessibility.Public) {
+            _corTypeId = SpecialTypes.GetTypeFromMetadataName(
+                MetadataHelpers.BuildQualifiedName(emittedNamespaceName, metadataName)
+            );
+        } else {
+            _corTypeId = SpecialType.None;
+        }
+
+        static bool AssemblyIsCorLibraryCandidate(AssemblySymbol assemblySymbol) {
+            var assembly = ((PEAssemblySymbol)assemblySymbol).assembly;
+
+            if (assembly.assemblyReferences.Length == 0 &&
+                !assembly.ContainsNoPiaLocalTypes()) {
+                if (assembly.declaresTheObjectClass)
+                    return true;
+            }
+
+            return false;
+        }
     }
+
+    public override SpecialType specialType => _corTypeId;
 
     internal static PENamedTypeSymbol Create(
         PEModuleSymbol moduleSymbol,
@@ -619,14 +647,16 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
     }
 
     private NamedTypeSymbol MakeDeclaredBaseType() {
-        try {
-            var moduleSymbol = containingPEModule;
-            var token = moduleSymbol.module.GetBaseTypeOfTypeOrThrow(_handle);
+        if (!_flags.IsInterface()) {
+            try {
+                var moduleSymbol = containingPEModule;
+                var token = moduleSymbol.module.GetBaseTypeOfTypeOrThrow(_handle);
 
-            if (!token.IsNil)
-                return (NamedTypeSymbol)new MetadataDecoder(moduleSymbol, this).GetTypeOfToken(token);
-        } catch (BadImageFormatException mrEx) {
-            return new UnsupportedMetadataTypeSymbol(mrEx);
+                if (!token.IsNil)
+                    return (NamedTypeSymbol)new MetadataDecoder(moduleSymbol, this).GetTypeOfToken(token);
+            } catch (BadImageFormatException mrEx) {
+                return new UnsupportedMetadataTypeSymbol(mrEx);
+            }
         }
 
         return null;
@@ -685,7 +715,7 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
                         }
                     }
 
-                    if (!haveParameterlessConstructor)
+                    if (!containingAssembly.isBelteAssembly && !haveParameterlessConstructor)
                         nonFieldMembers.Insert(0, new SynthesizedInstanceConstructorSymbol(this));
                 }
 

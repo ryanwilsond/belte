@@ -84,12 +84,6 @@ Specifies the project type.
 Specifies a type name to search for the entry point (and update point) symbols in. The type can be namespace qualified
 but cannot be nested.
 
-### *--nostdlib*
-
-Disables compiling with the higher-level Standard Library (collections, IO, etc.). Certain parts of the Standard Library
-are still compiled with where removing them would break core language functionality (such as primitive type
-definitions).
-
 ### *--evaluate*
 
 Instead of producing an executable, the program is run immediately after being compiled. Unlike the *-i* option, the

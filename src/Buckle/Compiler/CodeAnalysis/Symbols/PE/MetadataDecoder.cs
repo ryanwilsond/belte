@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Reflection.Metadata;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -145,7 +146,6 @@ internal class MetadataDecoder : TypeNameDecoder<PEModuleSymbol, TypeSymbol> {
         signatureHeader = reader.ReadSignatureHeader();
         return reader;
     }
-
 
     private ConcurrentDictionary<TypeDefinitionHandle, TypeSymbol> GetTypeHandleToTypeMap() {
         return _moduleSymbol.typeHandleToTypeMap;
@@ -810,7 +810,7 @@ tryAgain:
         try {
             module.GetTypeRefPropsOrThrow(typeRef, out var name, out var @namespace, out var resolutionScope);
 
-            var mdName = @namespace.Length > 01
+            var mdName = @namespace.Length > 0
                 ? MetadataTypeName.FromNamespaceAndTypeName(@namespace, name)
                 : MetadataTypeName.FromTypeName(name);
 
@@ -822,6 +822,7 @@ tryAgain:
 
         if (cache is not null && !isNoPiaLocalType) {
             var result1 = cache.GetOrAdd(typeRef, result);
+            Debug.Assert(result1.Equals(result, TypeCompareKind.ConsiderEverything));
         }
 
         return result;
@@ -933,9 +934,7 @@ tryAgain:
 
         var generic = GetTypeOfToken(tokenGeneric, out refersToNoPiaLocalType);
 
-        var argumentsBuilder = ArrayBuilder<KeyValuePair<TypeSymbol, ImmutableArray<ModifierInfo<TypeSymbol>>>>
-            .GetInstance(argumentCount);
-
+        var argumentsBuilder = ArrayBuilder<KeyValuePair<TypeSymbol, ImmutableArray<ModifierInfo<TypeSymbol>>>>.GetInstance(argumentCount);
         var argumentRefersToNoPiaLocalTypeBuilder = ArrayBuilder<bool>.GetInstance(argumentCount);
 
         for (var argumentIndex = 0; argumentIndex < argumentCount; argumentIndex++) {
@@ -1291,5 +1290,327 @@ tryAgain:
             EnqueueTypeSymbol(typeDefsToSearch, typeSymbolsToSearch, @interface);
 
         EnqueueTypeSymbol(typeDefsToSearch, typeSymbolsToSearch, typeSymbol.baseType);
+    }
+
+    internal bool GetCustomAttribute(
+        CustomAttributeHandle handle,
+        out TypeSymbol attributeClass,
+        out MethodSymbol attributeCtor) {
+        EntityHandle attributeType;
+        EntityHandle ctor;
+
+        try {
+            if (!module.GetTypeAndConstructor(handle, out attributeType, out ctor)) {
+                attributeClass = null;
+                attributeCtor = null;
+                return false;
+            }
+        } catch (BadImageFormatException) {
+            attributeClass = null;
+            attributeCtor = null;
+            return false;
+        }
+
+        attributeClass = GetTypeOfToken(attributeType);
+        attributeCtor = GetMethodSymbolForMethodDefOrMemberRef(ctor, attributeClass);
+        return true;
+    }
+
+    internal bool GetCustomAttribute(
+        CustomAttributeHandle handle,
+        MethodSymbol attributeConstructor,
+        out TypedConstant[] positionalArgs,
+        out KeyValuePair<string, TypedConstant>[] namedArgs) {
+        try {
+            positionalArgs = Array.Empty<TypedConstant>();
+            namedArgs = Array.Empty<KeyValuePair<string, TypedConstant>>();
+
+            if (attributeConstructor is null ||
+                attributeConstructor.isTemplateMethod ||
+                !attributeConstructor.returnsVoid) {
+                return false;
+            }
+
+            var argsReader = module.GetMemoryReaderOrThrow(module.GetCustomAttributeValueOrThrow(handle));
+
+            uint prolog = argsReader.ReadUInt16();
+
+            if (prolog != 1)
+                return false;
+
+            var paramCount = attributeConstructor.parameterCount;
+
+            if (paramCount > 0) {
+                positionalArgs = new TypedConstant[paramCount];
+
+                for (var i = 0; i < positionalArgs.Length; i++) {
+                    var parameterType = attributeConstructor.parameters[i].type;
+                    positionalArgs[i] = DecodeCustomAttributeFixedArgumentOrThrow(parameterType, ref argsReader);
+                }
+            }
+
+            var namedParamCount = argsReader.ReadInt16();
+
+            if (namedParamCount > 0) {
+                namedArgs = new KeyValuePair<string, TypedConstant>[namedParamCount];
+
+                for (var i = 0; i < namedArgs.Length; i++) {
+                    (namedArgs[i], _, _, _) = DecodeCustomAttributeNamedArgumentOrThrow(ref argsReader);
+                }
+            }
+
+            return true;
+        } catch (Exception e) when (e is UnsupportedSignatureContent || e is BadImageFormatException) {
+            positionalArgs = Array.Empty<TypedConstant>();
+            namedArgs = Array.Empty<KeyValuePair<string, TypedConstant>>();
+        }
+
+        return false;
+    }
+
+    internal (KeyValuePair<string, TypedConstant> nameValuePair, bool isProperty, SerializationTypeCode typeCode, SerializationTypeCode elementTypeCode) DecodeCustomAttributeNamedArgumentOrThrow(
+        ref BlobReader argReader) {
+        var kind = (CustomAttributeNamedArgumentKind)argReader.ReadCompressedInteger();
+
+        if (kind != CustomAttributeNamedArgumentKind.Field && kind != CustomAttributeNamedArgumentKind.Property)
+            throw new UnsupportedSignatureContent();
+
+        DecodeCustomAttributeFieldOrPropTypeOrThrow(
+            ref argReader,
+            out var typeCode,
+            out var type,
+            out var elementTypeCode,
+            out var elementType,
+            isElementType: false
+        );
+
+        if (!PEModule.CrackStringInAttributeValue(out var name, ref argReader))
+            throw new UnsupportedSignatureContent();
+
+        TypedConstant value = typeCode == SerializationTypeCode.SZArray
+            ? DecodeCustomAttributeElementArrayOrThrow(ref argReader, elementTypeCode, elementType, type)
+            : DecodeCustomAttributeElementOrThrow(ref argReader, typeCode, type);
+
+        return (
+            new KeyValuePair<string, TypedConstant>(name, value),
+            kind == CustomAttributeNamedArgumentKind.Property,
+            typeCode,
+            elementTypeCode
+        );
+    }
+
+    private TypedConstant DecodeCustomAttributeElementArrayOrThrow(
+        ref BlobReader argReader,
+        SerializationTypeCode elementTypeCode,
+        TypeSymbol elementType,
+        TypeSymbol arrayType) {
+        var count = argReader.ReadInt32();
+        TypedConstant[] values;
+
+        if (count == -1) {
+            values = null;
+        } else if (count == 0) {
+            values = Array.Empty<TypedConstant>();
+        } else {
+            values = new TypedConstant[count];
+
+            for (var i = 0; i < count; i++)
+                values[i] = DecodeCustomAttributeElementOrThrow(ref argReader, elementTypeCode, elementType);
+        }
+
+        return CreateArrayTypedConstant(arrayType, values.AsImmutableOrNull());
+    }
+
+    private TypedConstant DecodeCustomAttributeElementOrThrow(
+        ref BlobReader argReader,
+        SerializationTypeCode typeCode,
+        TypeSymbol type) {
+        if (typeCode == SerializationTypeCode.TaggedObject) {
+            DecodeCustomAttributeFieldOrPropTypeOrThrow(
+                ref argReader,
+                out typeCode,
+                out type,
+                out var elementTypeCode,
+                out var elementType,
+                isElementType: false
+            );
+
+            if (typeCode == SerializationTypeCode.SZArray)
+                return DecodeCustomAttributeElementArrayOrThrow(ref argReader, elementTypeCode, elementType, type);
+        }
+
+        return DecodeCustomAttributePrimitiveElementOrThrow(ref argReader, typeCode, type);
+    }
+
+    private static TypedConstant CreateArrayTypedConstant(TypeSymbol type, ImmutableArray<TypedConstant> array) {
+        if (type.typeKind == TypeKind.Error)
+            return new TypedConstant(type, TypedConstantKind.Error, null);
+
+        Debug.Assert(type.typeKind == TypeKind.Array);
+        return new TypedConstant(type, array);
+    }
+
+    private TypedConstant DecodeCustomAttributePrimitiveElementOrThrow(
+        ref BlobReader argReader,
+        SerializationTypeCode typeCode,
+        TypeSymbol type) {
+        Debug.Assert(type is not null);
+
+        switch (typeCode) {
+            case SerializationTypeCode.Boolean:
+                return CreateTypedConstant(type, GetPrimitiveOrEnumTypedConstantKind(type), argReader.ReadSByte() != 0);
+            case SerializationTypeCode.SByte:
+                return CreateTypedConstant(type, GetPrimitiveOrEnumTypedConstantKind(type), argReader.ReadSByte());
+            case SerializationTypeCode.Byte:
+                return CreateTypedConstant(type, GetPrimitiveOrEnumTypedConstantKind(type), argReader.ReadByte());
+            case SerializationTypeCode.Int16:
+                return CreateTypedConstant(type, GetPrimitiveOrEnumTypedConstantKind(type), argReader.ReadInt16());
+            case SerializationTypeCode.UInt16:
+                return CreateTypedConstant(type, GetPrimitiveOrEnumTypedConstantKind(type), argReader.ReadUInt16());
+            case SerializationTypeCode.Int32:
+                return CreateTypedConstant(type, GetPrimitiveOrEnumTypedConstantKind(type), argReader.ReadInt32());
+            case SerializationTypeCode.UInt32:
+                return CreateTypedConstant(type, GetPrimitiveOrEnumTypedConstantKind(type), argReader.ReadUInt32());
+            case SerializationTypeCode.Int64:
+                return CreateTypedConstant(type, GetPrimitiveOrEnumTypedConstantKind(type), argReader.ReadInt64());
+            case SerializationTypeCode.UInt64:
+                return CreateTypedConstant(type, GetPrimitiveOrEnumTypedConstantKind(type), argReader.ReadUInt64());
+            case SerializationTypeCode.Single:
+                return CreateTypedConstant(type, GetPrimitiveOrEnumTypedConstantKind(type), argReader.ReadSingle());
+            case SerializationTypeCode.Double:
+                return CreateTypedConstant(type, GetPrimitiveOrEnumTypedConstantKind(type), argReader.ReadDouble());
+            case SerializationTypeCode.Char:
+                return CreateTypedConstant(type, GetPrimitiveOrEnumTypedConstantKind(type), argReader.ReadChar());
+            case SerializationTypeCode.String:
+                string s;
+
+                var kind = PEModule.CrackStringInAttributeValue(out s, ref argReader) ?
+                    TypedConstantKind.Primitive :
+                    TypedConstantKind.Error;
+
+                return CreateTypedConstant(type, kind, s);
+            case SerializationTypeCode.Type:
+                var serializedType = PEModule.CrackStringInAttributeValue(out var typeName, ref argReader)
+                    ? (typeName is not null ? GetTypeSymbolForSerializedType(typeName) : null)
+                    : GetUnsupportedMetadataTypeSymbol();
+
+                return CreateTypedConstant(type, TypedConstantKind.Type, serializedType);
+            default:
+                throw new UnsupportedSignatureContent();
+        }
+    }
+
+    private static TypedConstantKind GetPrimitiveOrEnumTypedConstantKind(TypeSymbol type) {
+        return (type.typeKind == TypeKind.Enum) ? TypedConstantKind.Enum : TypedConstantKind.Primitive;
+    }
+
+    private static TypedConstant CreateTypedConstant(TypeSymbol type, TypedConstantKind kind, object value) {
+        if (type.typeKind == TypeKind.Error)
+            return new TypedConstant(type, TypedConstantKind.Error, null);
+
+        return new TypedConstant(type, kind, value);
+    }
+
+    private void DecodeCustomAttributeFieldOrPropTypeOrThrow(
+        ref BlobReader argReader,
+        out SerializationTypeCode typeCode,
+        out TypeSymbol type,
+        out SerializationTypeCode elementTypeCode,
+        out TypeSymbol elementType,
+        bool isElementType) {
+        typeCode = argReader.ReadSerializationTypeCode();
+
+        if (typeCode == SerializationTypeCode.SZArray) {
+            if (isElementType)
+                throw new UnsupportedSignatureContent();
+
+            DecodeCustomAttributeFieldOrPropTypeOrThrow(
+                ref argReader,
+                out elementTypeCode,
+                out elementType,
+                out var unusedElementTypeCode,
+                out var unusedElementType,
+                isElementType: true
+            );
+
+            type = GetSZArrayTypeSymbol(elementType, customModifiers: default);
+            return;
+        }
+
+        elementTypeCode = SerializationTypeCode.Invalid;
+        elementType = null;
+
+        switch (typeCode) {
+            case SerializationTypeCode.TaggedObject:
+                type = GetSpecialType(SpecialType.Object);
+                return;
+            case SerializationTypeCode.Enum:
+                string enumTypeName;
+
+                if (!PEModule.CrackStringInAttributeValue(out enumTypeName, ref argReader))
+                    throw new UnsupportedSignatureContent();
+
+                type = GetTypeSymbolForSerializedType(enumTypeName);
+                var underlyingType = GetEnumUnderlyingType(type) ?? throw new UnsupportedSignatureContent();
+                typeCode = underlyingType.specialType.ToSerializationType();
+                return;
+            case SerializationTypeCode.Type:
+                type = SystemTypeSymbol;
+                return;
+            case SerializationTypeCode.String:
+            case SerializationTypeCode.Boolean:
+            case SerializationTypeCode.Char:
+            case SerializationTypeCode.SByte:
+            case SerializationTypeCode.Byte:
+            case SerializationTypeCode.Int16:
+            case SerializationTypeCode.UInt16:
+            case SerializationTypeCode.Int32:
+            case SerializationTypeCode.UInt32:
+            case SerializationTypeCode.Int64:
+            case SerializationTypeCode.UInt64:
+            case SerializationTypeCode.Single:
+            case SerializationTypeCode.Double:
+                type = GetSpecialType(((SignatureTypeCode)typeCode).ToSpecialType());
+                return;
+        }
+
+        throw new UnsupportedSignatureContent();
+    }
+
+    private TypedConstant DecodeCustomAttributeFixedArgumentOrThrow(TypeSymbol type, ref BlobReader argReader) {
+        if (type is ArrayTypeSymbol { isSZArray: true, elementType: { } elementType }) {
+            return DecodeCustomAttributeElementArrayOrThrow(
+                ref argReader,
+                GetTypeCode(elementType),
+                elementType,
+                type
+            );
+        }
+
+        return DecodeCustomAttributeElementOrThrow(ref argReader, GetTypeCode(type), (TypeSymbol)type);
+
+        SerializationTypeCode GetTypeCode(TypeSymbol type) {
+            if (ReferenceEquals(type, SystemTypeSymbol))
+                return SerializationTypeCode.Type;
+
+            if (type is NamedTypeSymbol { enumUnderlyingType: { } underlyingType })
+                type = underlyingType;
+
+            var result = type.specialType.ToSerializationTypeOrInvalid();
+
+            if (result == SerializationTypeCode.Invalid)
+                throw new UnsupportedSignatureContent();
+
+            return result;
+        }
+    }
+
+    internal MethodSymbol GetMethodSymbolForMethodDefOrMemberRef(EntityHandle memberToken, TypeSymbol container) {
+        var type = memberToken.Kind;
+        Debug.Assert(type == HandleKind.MethodDefinition || type == HandleKind.MemberReference);
+
+        return type == HandleKind.MethodDefinition
+            ? FindMethodSymbolInType(container, (MethodDefinitionHandle)memberToken)
+            : GetMethodSymbolForMemberRef((MemberReferenceHandle)memberToken, container);
     }
 }

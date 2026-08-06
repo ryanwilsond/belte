@@ -383,8 +383,8 @@ internal sealed partial class BinderFactory {
                     Debug.Assert(method is not null);
                     resultBinder = new InMethodBinder(method, resultBinder);
 
-                    if (method?.isEffectivelyConst == true)
-                        resultBinder = resultBinder.WithAdditionalFlags(BinderFlags.ConstContext);
+                    if (method is not null && MethodHasAdditionalContext(method, out var additionalFlags))
+                        resultBinder = resultBinder.WithAdditionalFlags(additionalFlags);
                 }
 
                 _binderCache.TryAdd(key, resultBinder);
@@ -413,8 +413,8 @@ internal sealed partial class BinderFactory {
                     var method = GetMethodSymbol(node, resultBinder);
                     resultBinder = new InMethodBinder(method, resultBinder);
 
-                    if (method.isEffectivelyConst)
-                        resultBinder = resultBinder.WithAdditionalFlags(BinderFlags.ConstContext);
+                    if (MethodHasAdditionalContext(method, out var additionalFlags))
+                        resultBinder = resultBinder.WithAdditionalFlags(additionalFlags);
                 }
 
                 _binderCache.TryAdd(key, resultBinder);
@@ -439,8 +439,8 @@ internal sealed partial class BinderFactory {
                     var method = GetStateMethodSymbol(node, resultBinder);
                     resultBinder = new InMethodBinder(method, resultBinder);
 
-                    if (method.isEffectivelyConst)
-                        resultBinder = resultBinder.WithAdditionalFlags(BinderFlags.ConstContext);
+                    if (MethodHasAdditionalContext(method, out var additionalFlags))
+                        resultBinder = resultBinder.WithAdditionalFlags(additionalFlags);
                 }
 
                 _binderCache.TryAdd(key, resultBinder);
@@ -460,6 +460,24 @@ internal sealed partial class BinderFactory {
                 return (SourceMemberMethodSymbol)result;
 
             return null;
+        }
+
+        internal static bool MethodHasAdditionalContext(MethodSymbol method, out BinderFlags additionalFlags) {
+            additionalFlags = BinderFlags.None;
+
+            if (method.isEffectivelyConst)
+                additionalFlags |= BinderFlags.ConstContext;
+
+            if (method.isPure)
+                additionalFlags |= BinderFlags.PureContext;
+
+            if (method.isNoAlloc)
+                additionalFlags |= BinderFlags.NoAllocContext;
+
+            if (method.isNoThrow)
+                additionalFlags |= BinderFlags.NoThrowContext;
+
+            return additionalFlags != BinderFlags.None;
         }
 
         private SourceMemberMethodSymbol GetMethodSymbol(ReverseClauseSyntax reverseClauseSyntax, Binder outerBinder) {
@@ -589,9 +607,57 @@ internal sealed partial class BinderFactory {
                 if (inBodyOrInitializer) {
                     var method = GetMethodSymbol(node, resultBinder);
 
-                    if (method is not null)
+                    if (method is not null) {
                         resultBinder = new InMethodBinder(method, resultBinder);
+
+                        if (MethodHasAdditionalContext(method, out var additionalFlags))
+                            resultBinder = resultBinder.WithAdditionalFlags(additionalFlags);
+                    }
                 }
+
+                _binderCache.TryAdd(key, resultBinder);
+            }
+
+            return resultBinder;
+        }
+
+        internal override Binder VisitFinalizerDeclaration(FinalizerDeclarationSyntax node) {
+            if (!LookupPosition.IsInBody(_position, node))
+                return VisitCore(node.parent);
+
+            var key = CreateBinderCacheKey(node, usage: NodeUsage.Normal);
+
+            if (!_binderCache.TryGetValue(key, out var resultBinder)) {
+                resultBinder = VisitCore(node.parent);
+
+                var method = GetMethodSymbol(node, resultBinder);
+                Debug.Assert(method is not null);
+                resultBinder = new InMethodBinder(method, resultBinder);
+
+                if (MethodHasAdditionalContext(method, out var additionalFlags))
+                    resultBinder = resultBinder.WithAdditionalFlags(additionalFlags);
+
+                _binderCache.TryAdd(key, resultBinder);
+            }
+
+            return resultBinder;
+        }
+
+        internal override Binder VisitDestructorDeclaration(DestructorDeclarationSyntax node) {
+            if (!LookupPosition.IsInBody(_position, node))
+                return VisitCore(node.parent);
+
+            var key = CreateBinderCacheKey(node, usage: NodeUsage.Normal);
+
+            if (!_binderCache.TryGetValue(key, out var resultBinder)) {
+                resultBinder = VisitCore(node.parent);
+
+                var method = GetMethodSymbol(node, resultBinder);
+                Debug.Assert(method is not null);
+                resultBinder = new InMethodBinder(method, resultBinder);
+
+                if (MethodHasAdditionalContext(method, out var additionalFlags))
+                    resultBinder = resultBinder.WithAdditionalFlags(additionalFlags);
 
                 _binderCache.TryAdd(key, resultBinder);
             }
@@ -649,6 +715,9 @@ internal sealed partial class BinderFactory {
                     method ??= GetMethodSymbol(node, resultBinder);
                     Debug.Assert(method is not null);
                     resultBinder = new InMethodBinder(method, resultBinder);
+
+                    if (MethodHasAdditionalContext(method, out var additionalFlags))
+                        resultBinder = resultBinder.WithAdditionalFlags(additionalFlags);
                 }
 
                 _binderCache.TryAdd(key, resultBinder);
