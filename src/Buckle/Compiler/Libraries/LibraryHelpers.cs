@@ -71,7 +71,8 @@ public static class LibraryHelpers {
         bool concurrentBuild = false,
         int maxCoreCount = 1,
         bool noStdLib = false,
-        int explicitLibraryLevel = 0) {
+        int explicitLibraryLevel = 0,
+        bool includeAllNativeFiles = false) {
         var assembly = Assembly.GetExecutingAssembly();
         var syntaxTrees = new List<SyntaxTree>();
 
@@ -82,7 +83,7 @@ public static class LibraryHelpers {
             if (!libraryName.EndsWith(".blt"))
                 continue;
 
-            if (!buildMode.Evaluating() && !NativeSources.Contains(libraryName))
+            if (!buildMode.Evaluating() && !NativeSources.Contains(libraryName) && !includeAllNativeFiles)
                 continue;
 
             using var stream = assembly.GetManifestResourceStream(libraryName);

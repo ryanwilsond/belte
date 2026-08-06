@@ -36,6 +36,7 @@ internal static class Assertions {
         argsList = argsList.Prepend("--noout");
         argsList = argsList.Prepend("--severity=all");
         argsList = argsList.Prepend("--nostdlib");
+        argsList = argsList.Prepend("--nobootstrap");
 
         foreach (var file in filesToCreate.ToList().Append(firstArgFilename)) {
             var fileStream = File.Create(Path.Combine(executingPath, file));

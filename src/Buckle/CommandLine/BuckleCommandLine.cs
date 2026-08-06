@@ -651,7 +651,8 @@ public class {name} {{
             maxCores = maxCores,
             entryName = builder.entryName,
             noStdLib = !builder.includeStdLib,
-            taskDiagnosticOptions = taskDiagnosticOptions
+            taskDiagnosticOptions = taskDiagnosticOptions,
+            noBootStrap = false
         };
     }
 
@@ -1341,6 +1342,7 @@ public class {name} {{
         state.debugMode = false;
         state.concurrentBuild = true;
         state.maxCores = Environment.ProcessorCount - 2;
+        state.noBootStrap = false;
 
         void DecodeSimpleOption(string arg) {
             switch (arg) {
@@ -1437,6 +1439,9 @@ public class {name} {{
                     break;
                 case "--nostdlib":
                     state.noStdLib = true;
+                    break;
+                case "--nobootstrap":
+                    state.noBootStrap = true;
                     break;
                 default:
                     diagnosticsCL.Push(Belte.Diagnostics.Error.UnrecognizedOption(arg));
@@ -1668,7 +1673,7 @@ public class {name} {{
         if (state.maxCores == 1)
             state.concurrentBuild = false;
 
-        references.AddRange(Compiler.ResolveLibraryLevel(l, state.noStdLib));
+        references.AddRange(Compiler.ResolveLibraryLevel(l, state.noStdLib || state.noBootStrap));
         pendingReferenceCopies = copies.ToArray();
 
         dialogs = tempDialogs;

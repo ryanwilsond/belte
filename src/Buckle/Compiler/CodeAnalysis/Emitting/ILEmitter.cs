@@ -914,10 +914,8 @@ internal partial class ILEmitter : ModuleBuilder {
             if (_types.ContainsKey(baseType.originalDefinition))
                 continue;
 
-            if (!baseType.IsFromCompilation(_program.compilation))
+            if (baseType is PENamedTypeSymbol)
                 continue;
-
-            Debug.Assert(baseType is not PENamedTypeSymbol);
 
             var typeDefinition = CreateNamedTypeDefinition(baseType);
 

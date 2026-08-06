@@ -46,7 +46,7 @@ releasemfnolibs: prebuild copydlls buildmf postbuild
 portable: prebuild libs buildportable postbuildportable
 debug: prebuild builddebug postbuilddebug
 linux: prebuild buildlinux postbuildlinux
-setup: prebuild generate libs
+setup: prebuild generate libsnobelte
 
 .PHONY: test
 
@@ -90,6 +90,12 @@ libs:
 # 	@dotnet publish $(PUBLISH_FLAGS) $(BELTE_DIR)/Belte.Graphics/Belte.Graphics.csproj -o lib
 	@cd $(BELTE_CORE_DIR) && buckle build
 	@$(MV) $(BELTE_CORE_DIR)/bin/Belte.Core.dll lib/Belte.Core.dll
+	@echo "    Finished"
+
+libsnobelte:
+	@echo "Started building the Belte libraries ..."
+	@$(MKDIR) lib
+	@dotnet publish $(PUBLISH_FLAGS) $(BELTE_DIR)/Belte.Runtime/Belte.Runtime.csproj -o lib
 	@echo "    Finished"
 
 copylibs:

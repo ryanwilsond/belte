@@ -152,7 +152,8 @@ public sealed class Compiler {
                 _options.buildMode,
                 _options.concurrentBuild,
                 _options.maxCoreCount,
-                state.noStdLib
+                noStdLib: state.noStdLib || state.noBootStrap,
+                includeAllNativeFiles: state.noBootStrap
             );
 
             var corLibraryDiagnostics = corLibrary.GetDiagnostics();
