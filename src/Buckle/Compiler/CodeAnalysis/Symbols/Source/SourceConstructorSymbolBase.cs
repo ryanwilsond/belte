@@ -102,7 +102,7 @@ internal abstract class SourceConstructorSymbolBase : SourceMemberMethodSymbol {
             allowConst: true
         ).Cast<SourceParameterSymbol, ParameterSymbol>();
 
-        _lazyReturnType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void));
+        _lazyReturnType = new TypeWithAnnotations(bodyBinder.compilation.GetSpecialType(SpecialType.Void));
 
         if (methodKind == MethodKind.StaticConstructor && (_lazyParameters.Length != 0))
             diagnostics.Push(Error.StaticConstructorParameter(location));

@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -91,7 +90,7 @@ internal sealed class SourceStateMethodSymbol : SourceMemberMethodSymbol {
 
         if (t1.IsVoidType())
             // This is purely a placeholder
-            t1 = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Int32));
+            t1 = new TypeWithAnnotations(declaringCompilation.GetSpecialType(SpecialType.Int32));
 
         var binderFactory = declaringCompilation.GetBinderFactory(_syntax.syntaxTree);
 

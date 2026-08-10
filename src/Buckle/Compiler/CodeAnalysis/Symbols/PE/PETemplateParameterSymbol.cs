@@ -129,7 +129,7 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
     internal override SyntaxReference syntaxReference => null;
 
     internal override TypeWithAnnotations underlyingType
-        => new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type));
+        => new TypeWithAnnotations(containingAssembly.corLibrary.GetSpecialType(SpecialType.Type));
 
     internal override TypeOrConstant defaultValue => null;
 
@@ -344,6 +344,6 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
     }
 
     private NamedTypeSymbol GetDefaultBaseType() {
-        return CorLibrary.GetSpecialType(SpecialType.Object);
+        return containingAssembly.corLibrary.GetSpecialType(SpecialType.Object);
     }
 }

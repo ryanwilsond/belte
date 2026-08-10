@@ -279,6 +279,11 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_FailedToEmitMetadataAttribute, null, message);
     }
 
+    internal static BelteDiagnostic FailedToEmitAttribute(TextLocation location, TypeSymbol type) {
+        var message = $"failed to emit attribute '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' (are you using '--nostdlib'?)";
+        return CreateWarning(DiagnosticCode.WRN_FailedToEmitAttribute, location, message);
+    }
+
     private static BelteDiagnostic CreateWarning(DiagnosticCode code, TextLocation location, string message) {
         return CreateWarning(code, location, message, []);
     }

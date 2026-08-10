@@ -31,6 +31,8 @@ internal sealed partial class OverloadResolution {
 
     internal Conversions conversions => _binder.conversions;
 
+    internal Compilation compilation => _binder.compilation;
+
     internal void FunctionPointerOverloadResolution(
         ArrayBuilder<FunctionPointerMethodSymbol> funcPtrBuilder,
         AnalyzedArguments analyzedArguments,
@@ -171,7 +173,7 @@ internal sealed partial class OverloadResolution {
             if (!hadApplicableCandidates) {
                 result.results.Clear();
                 var operators = ArrayBuilder<BinaryOperatorSignature>.GetInstance();
-                CorLibrary.GetAllBuiltInBinaryOperators(kind, operators);
+                compilation.builtInOperators.GetAllBuiltInBinaryOperators(kind, operators);
                 GetEnumOperations(kind, left, right, operators);
                 GetPointerOperations(kind, left, right, operators);
                 CandidateOperators(operators, left, right, result.results);
@@ -283,7 +285,7 @@ internal sealed partial class OverloadResolution {
             if (!hadApplicableCandidates) {
                 result.results.Clear();
                 var operators = ArrayBuilder<UnaryOperatorSignature>.GetInstance();
-                CorLibrary.GetAllBuiltInUnaryOperators(kind, operators);
+                compilation.builtInOperators.GetAllBuiltInUnaryOperators(kind, operators);
                 GetEnumOperations(kind, operand, operators);
                 CandidateOperators(operators, operand, result.results);
                 operators.Free();
@@ -372,7 +374,7 @@ internal sealed partial class OverloadResolution {
         if (!enumType.IsValidEnumType())
             return;
 
-        var nullableEnum = CorLibrary.GetOrCreateNullableType(enumType);
+        var nullableEnum = compilation.corLibrary.GetOrCreateNullableType(enumType);
 
         switch (kind) {
             case UnaryOperatorKind.PostfixIncrement:
@@ -455,8 +457,8 @@ internal sealed partial class OverloadResolution {
 
         var underlying = enumType.GetEnumUnderlyingType();
 
-        var nullableEnum = CorLibrary.GetOrCreateNullableType(enumType);
-        var nullableUnderlying = CorLibrary.GetOrCreateNullableType(underlying);
+        var nullableEnum = compilation.corLibrary.GetOrCreateNullableType(enumType);
+        var nullableUnderlying = compilation.corLibrary.GetOrCreateNullableType(underlying);
 
         switch (kind) {
             case BinaryOperatorKind.Addition:
@@ -477,7 +479,7 @@ internal sealed partial class OverloadResolution {
             case BinaryOperatorKind.LessThan:
             case BinaryOperatorKind.GreaterThanOrEqual:
             case BinaryOperatorKind.LessThanOrEqual:
-                var boolean = CorLibrary.GetSpecialType(SpecialType.Bool);
+                var boolean = compilation.GetSpecialType(SpecialType.Bool);
                 operators.Add(new BinaryOperatorSignature(kind | BinaryOperatorKind.Enum, enumType, enumType, boolean));
                 operators.Add(new BinaryOperatorSignature(kind | BinaryOperatorKind.Lifted | BinaryOperatorKind.Enum, nullableEnum, nullableEnum, boolean));
                 break;
@@ -547,14 +549,14 @@ internal sealed partial class OverloadResolution {
             case BinaryOperatorKind.GreaterThanOrEqual:
             case BinaryOperatorKind.LessThanOrEqual:
                 var voidPointerType = new PointerTypeSymbol(
-                    new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void))
+                    new TypeWithAnnotations(compilation.GetSpecialType(SpecialType.Void))
                 );
 
                 operators.Add(new BinaryOperatorSignature(
                     kind | BinaryOperatorKind.Pointer,
                     voidPointerType,
                     voidPointerType,
-                    CorLibrary.GetSpecialType(SpecialType.Bool)
+                    compilation.GetSpecialType(SpecialType.Bool)
                 ));
 
                 break;
@@ -1088,7 +1090,7 @@ internal sealed partial class OverloadResolution {
     }
 
     private NamedTypeSymbol MakeNullable(TypeSymbol type) {
-        return CorLibrary.GetSpecialType(SpecialType.Nullable).Construct([new TypeOrConstant(type)]);
+        return compilation.GetSpecialType(SpecialType.Nullable).Construct([new TypeOrConstant(type)]);
     }
 
     private static LiftingResult UserDefinedBinaryOperatorCanBeLifted(

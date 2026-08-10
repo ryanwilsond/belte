@@ -42,5 +42,6 @@ public enum SpecialType : byte {
     FunctionPointer,
 
 
+    NextAvailable,
     LastCorType = Buffer,
 }

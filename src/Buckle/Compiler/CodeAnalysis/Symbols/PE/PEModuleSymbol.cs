@@ -99,7 +99,7 @@ internal sealed partial class PEModuleSymbol : NonMissingModuleSymbol {
                 Interlocked.CompareExchange(
                     ref _lazySystemTypeSymbol,
                     // TODO Do we care for the *actual* PE definition?
-                    CorLibrary.GetSpecialType(SpecialType.Type),
+                    containingAssembly.corLibrary.GetSpecialType(SpecialType.Type),
                     // GetTypeSymbolForWellKnownType(WellKnownType.System_Type),
                     null
                 );

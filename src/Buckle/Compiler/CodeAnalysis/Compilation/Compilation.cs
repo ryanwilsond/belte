@@ -64,6 +64,12 @@ public sealed partial class Compilation {
     private NamedTypeSymbol[] _lazyWellKnownTypes;
     // TODO Perf: use SmallDictionary
     private Dictionary<int, bool> _lazyMakeWellKnownTypeMissingMap;
+    private BuiltInOperators _lazyBuiltInOperators;
+
+    // TODO These will be obsoleted soon, just in a transition period where they are instance instead of static
+    private CorLibrary _lazyCorLibrary;
+    private StandardLibrary _lazyStandardLibrary;
+    private GraphicsLibrary _lazyGraphicsLibrary;
 
     private Compilation(
         string assemblyName,
@@ -72,7 +78,9 @@ public sealed partial class Compilation {
         SyntaxAndDeclarationManager syntax,
         ReferenceManager referenceManager,
         NamespaceSymbol namespaceOpt = null,
-        bool forwardDiagnostics = false) {
+        bool forwardDiagnostics = false,
+        StandardLibrary standardLibraryOpt = null,
+        GraphicsLibrary graphicsLibraryOpt = null) {
         this.assemblyName = assemblyName;
         this.options = options;
         this.previous = previous;
@@ -91,12 +99,17 @@ public sealed partial class Compilation {
             declarationDiagnostics
         );
 
+        _lazyStandardLibrary = standardLibraryOpt;
+        _lazyGraphicsLibrary = graphicsLibraryOpt;
+
         // TODO non-null referenceManager implies reuseReferenceManager, which may not be wanted in all cases
         if (referenceManager is not null) {
+            _lazyCorLibrary = referenceManager.corLibrary;
             referenceManager.AssertCanReuseForCompilation(this);
             _referenceManager = referenceManager;
         } else {
             _referenceManager = new ReferenceManager(
+                corLibrary,
                 assemblyName,
                 AssemblyIdentityComparer.Default,
                 observedMetadata: null
@@ -143,13 +156,71 @@ public sealed partial class Compilation {
 
     internal ImmutableArray<SyntaxTree> syntaxTrees => _syntax.state.syntaxTrees;
 
-    internal bool keepLookingForCorTypes => CorLibrary.StillLookingForSpecialTypes();
+    internal bool keepLookingForCorTypes => corLibrary.StillLookingForSpecialTypes();
 
-    internal bool keepLookingForWellKnownTypes => CorLibrary.StillLookingForWellKnownTypes();
+    internal bool keepLookingForWellKnownTypes => corLibrary.StillLookingForWellKnownTypes();
 
     internal MergedNamespaceDeclaration mergedRootDeclaration => _syntax.state.declarationTable.GetMergedRoot(this);
 
     internal DeclarationTable declarationTable => _syntax.state.declarationTable;
+
+    internal CorLibrary corLibrary {
+        get {
+            if (_lazyCorLibrary is null) {
+                if (previous is not null) {
+                    Interlocked.CompareExchange(ref _lazyCorLibrary, previous.corLibrary, null);
+                } else {
+                    var corLibrary = new CorLibrary(this);
+                    Interlocked.CompareExchange(ref _lazyCorLibrary, corLibrary, null);
+                }
+            }
+
+            Debug.Assert(_lazyCorLibrary is not null);
+            return _lazyCorLibrary;
+        }
+    }
+
+    internal StandardLibrary standardLibrary {
+        get {
+            if (_lazyStandardLibrary is null) {
+                if (previous is not null) {
+                    Interlocked.CompareExchange(ref _lazyStandardLibrary, previous.standardLibrary, null);
+                } else {
+                    var standard = new StandardLibrary(this);
+                    Interlocked.CompareExchange(ref _lazyStandardLibrary, standard, null);
+                }
+            }
+
+            Debug.Assert(_lazyStandardLibrary is not null);
+            return _lazyStandardLibrary;
+        }
+    }
+
+    internal GraphicsLibrary graphicsLibrary {
+        get {
+            if (_lazyGraphicsLibrary is null) {
+                if (previous is not null) {
+                    Interlocked.CompareExchange(ref _lazyGraphicsLibrary, previous.graphicsLibrary, null);
+                } else {
+                    var graphics = new GraphicsLibrary(this);
+                    Interlocked.CompareExchange(ref _lazyGraphicsLibrary, graphics, null);
+                }
+            }
+
+            Debug.Assert(_lazyGraphicsLibrary is not null);
+            return _lazyGraphicsLibrary;
+        }
+    }
+
+    internal BuiltInOperators builtInOperators {
+        get {
+            return InterlockedOperations.Initialize(
+                ref _lazyBuiltInOperators,
+                static self => new BuiltInOperators(self),
+                this
+            );
+        }
+    }
 
     internal AssemblySymbol assembly {
         get {
@@ -244,9 +315,9 @@ public sealed partial class Compilation {
             _referenceManager.CreateSourceAssemblyForCompilation(this);
             Debug.Assert(_lazyAssembly is not null);
 
-            if (_referenceManager.corLibraryOpt is not null) {
+            if (_referenceManager.corAssemblyOpt is not null) {
                 // This PE assembly contains WellKnownType definitions that we need
-                var assembly = _referenceManager.corLibraryOpt;
+                var assembly = _referenceManager.corAssemblyOpt;
                 var members = assembly.globalNamespace.GetTypeMembers();
 
                 NamespaceSymbol.RegisterDeclaredCorTypes(this, members);
@@ -424,7 +495,16 @@ public sealed partial class Compilation {
     }
 
     internal Compilation AddNamespace(NamespaceSymbol namespaceSymbol) {
-        return new Compilation(assemblyName, options, previous, _syntax, _referenceManager, namespaceSymbol);
+        return new Compilation(
+            assemblyName,
+            options,
+            previous,
+            _syntax,
+            _referenceManager,
+            namespaceSymbol,
+            standardLibraryOpt: standardLibrary,
+            graphicsLibraryOpt: graphicsLibrary
+        );
     }
 
     public bool ContainsSyntaxTree(SyntaxTree syntaxTree) {
@@ -736,12 +816,11 @@ public sealed partial class Compilation {
     }
 
     internal void RegisterDeclaredSpecialType(NamedTypeSymbol type) {
-        // TODO Maybe make the CorLibrary not static?
-        CorLibrary.RegisterDeclaredSpecialType(type);
+        corLibrary.RegisterDeclaredSpecialType(type);
     }
 
     internal void RegisterDeclaredWellKnownType(WellKnownType wellKnownType, NamedTypeSymbol type) {
-        CorLibrary.RegisterDeclaredWellKnownType(wellKnownType, type);
+        corLibrary.RegisterDeclaredWellKnownType(wellKnownType, type);
     }
 
     internal Binder GetBinder(BelteSyntaxNode syntax) {
@@ -923,9 +1002,12 @@ public sealed partial class Compilation {
         return _lazyMakeWellKnownTypeMissingMap is not null && _lazyMakeWellKnownTypeMissingMap.ContainsKey(type);
     }
 
+    internal NamedTypeSymbol GetSpecialType(SpecialType specialType) {
+        return corLibrary.GetSpecialType(specialType);
+    }
+
     internal NamedTypeSymbol GetWellKnownType(WellKnownType type) {
-        // Native types should be accessed through CorLibrary
-        Debug.Assert(type > WellKnownType.LastNativeType);
+        Debug.Assert(type > WellKnownType.LastNativeType, "Native well known types should be accessed through a CorLibrary");
 
         var index = (int)type - (int)WellKnownType.FirstPEType;
 
@@ -1164,7 +1246,7 @@ public sealed partial class Compilation {
         return entryPoint;
     }
 
-    internal static bool HasEntryPointSignature(MethodSymbol method) {
+    internal bool HasEntryPointSignature(MethodSymbol method) {
         if (!method.name.Equals(WellKnownMemberNames.EntryPointMethodName))
             return false;
 
@@ -1192,7 +1274,7 @@ public sealed partial class Compilation {
         var firstType = method.parameters[0].type;
 
         if (firstType.specialType != SpecialType.Array) {
-            if (!firstType.originalDefinition.Equals(CorLibrary.GetWellKnownType(WellKnownType.Array)))
+            if (!firstType.originalDefinition.Equals(corLibrary.GetWellKnownType(WellKnownType.Array)))
                 return false;
 
             if (((NamedTypeSymbol)firstType).templateArguments[0].type.type.specialType != SpecialType.String)
@@ -1255,7 +1337,16 @@ public sealed partial class Compilation {
     }
 
     private Compilation Update(SyntaxAndDeclarationManager syntax) {
-        var compilation = new Compilation(assemblyName, options, previous, syntax, _referenceManager);
+        var compilation = new Compilation(
+            assemblyName,
+            options,
+            previous,
+            syntax,
+            _referenceManager,
+            standardLibraryOpt: standardLibrary,
+            graphicsLibraryOpt: graphicsLibrary
+        );
+
         compilation.declarationDiagnostics.PushRange(declarationDiagnostics);
         return compilation;
     }
@@ -1289,6 +1380,104 @@ public sealed partial class Compilation {
             var set = treeToUsedImportDirectivesMap.GetOrAdd(syntaxTree, CreateSetCallback);
             set.Add(position);
         }
+    }
+
+    internal static Symbol GetRuntimeMember(
+        ImmutableArray<Symbol> members,
+        in MemberDescriptor descriptor,
+        SignatureComparer<MethodSymbol, FieldSymbol, PropertySymbol, TypeSymbol, ParameterSymbol> comparer,
+        AssemblySymbol accessWithinOpt) {
+        SymbolKind targetSymbolKind;
+        var targetMethodKind = MethodKind.Ordinary;
+        var isStatic = (descriptor.flags & MemberFlags.Static) != 0;
+
+        Symbol result = null;
+
+        switch (descriptor.flags & MemberFlags.KindMask) {
+            case MemberFlags.Constructor:
+                targetSymbolKind = SymbolKind.Method;
+                targetMethodKind = MethodKind.Constructor;
+                Debug.Assert(!isStatic);
+                break;
+            case MemberFlags.Method:
+                targetSymbolKind = SymbolKind.Method;
+                break;
+            case MemberFlags.PropertyGet:
+                throw ExceptionUtilities.UnexpectedValue(descriptor.flags & MemberFlags.KindMask);
+            // targetSymbolKind = SymbolKind.Method;
+            // targetMethodKind = MethodKind.PropertyGet;
+            // break;
+            case MemberFlags.Field:
+                targetSymbolKind = SymbolKind.Field;
+                break;
+            case MemberFlags.Property:
+                throw ExceptionUtilities.UnexpectedValue(descriptor.flags & MemberFlags.KindMask);
+            // targetSymbolKind = SymbolKind.Property;
+            // break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(descriptor.flags);
+        }
+
+        foreach (var member in members) {
+            if (!member.name.Equals(descriptor.name))
+                continue;
+
+            if (member.kind != targetSymbolKind || member.isStatic != isStatic ||
+                !(member.declaredAccessibility == Accessibility.Public ||
+                    (accessWithinOpt is not null && Symbol.IsSymbolAccessible(member, accessWithinOpt)))) {
+                continue;
+            }
+
+            switch (targetSymbolKind) {
+                case SymbolKind.Method: {
+                        var method = (MethodSymbol)member;
+                        var methodKind = method.methodKind;
+
+                        if (methodKind == MethodKind.Conversion || methodKind == MethodKind.Operator)
+                            methodKind = MethodKind.Ordinary;
+
+                        if (method.arity != descriptor.arity || methodKind != targetMethodKind ||
+                            (descriptor.flags & MemberFlags.Virtual) != 0
+                                != (method.isVirtual || method.isOverride || method.isAbstract)) {
+                            continue;
+                        }
+
+                        if (!comparer.MatchMethodSignature(method, descriptor.signature))
+                            continue;
+                    }
+
+                    break;
+                case SymbolKind.Property: {
+                        var property = (PropertySymbol)member;
+
+                        if ((descriptor.flags & MemberFlags.Virtual) != 0
+                            != (property.isVirtual || property.isOverride || property.isAbstract)) {
+                            continue;
+                        }
+
+                        if (!comparer.MatchPropertySignature(property, descriptor.signature))
+                            continue;
+                    }
+
+                    break;
+                case SymbolKind.Field:
+                    if (!comparer.MatchFieldSignature((FieldSymbol)member, descriptor.signature))
+                        continue;
+
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(targetSymbolKind);
+            }
+
+            if (result is not null) {
+                result = null;
+                break;
+            }
+
+            result = member;
+        }
+
+        return result;
     }
 
     private static Compilation Create(
@@ -1431,7 +1620,7 @@ public sealed partial class Compilation {
         var cfgStatement = program.entryPoint is null ? null : program.methodBodies[program.entryPoint];
 
         if (cfgStatement is not null) {
-            var cfg = ControlFlowGraph.Create(program.entryPoint, cfgStatement);
+            var cfg = ControlFlowGraph.Create(this, program.entryPoint, cfgStatement);
 
             using var streamWriter = new StreamWriter(cfgPath);
             cfg.WriteTo(streamWriter);

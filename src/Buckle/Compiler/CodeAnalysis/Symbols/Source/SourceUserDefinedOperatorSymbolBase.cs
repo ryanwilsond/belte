@@ -3,7 +3,6 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -393,8 +392,10 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
                 diagnostics.Push(Error.BadUnaryOperatorSignature(location));
         }
 
-        if (!returnType.originalDefinition.Equals(CorLibrary.GetWellKnownType(WellKnownType.Enumerator)))
+        if (!returnType.originalDefinition
+                .Equals(declaringCompilation.corLibrary.GetWellKnownType(WellKnownType.Enumerator))) {
             diagnostics.Push(Error.IterMustReturnEnumerator(location));
+        }
     }
 
     private bool MatchesContainingType(TypeSymbol type) {

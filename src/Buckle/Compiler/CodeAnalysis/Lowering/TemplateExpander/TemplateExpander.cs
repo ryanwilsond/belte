@@ -440,7 +440,7 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
 
     private TypeSymbol VisitTypeCore(TypeSymbol type, Symbol cause, TextLocation location) {
         if (type is not null) {
-            type.VisitType(VisitTypePredicate, (this, cause, location));
+            type.VisitType(VisitTypePredicate, (this, cause, location), canDigThroughNullable: true);
 
             return TemplateTypeReplacer<ConstructedNamedTypeSymbol, SynthesizedTemplateType, NamedTypeSymbol>.Replace(
                 type,

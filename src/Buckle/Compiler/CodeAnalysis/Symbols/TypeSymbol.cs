@@ -8,7 +8,6 @@ using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -359,7 +358,8 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
         byte defaultTransformFlag,
         ImmutableArray<byte> transforms,
         ref int position,
-        out TypeSymbol result);
+        out TypeSymbol result,
+        bool isBelteMode);
 
     internal TypeSymbol UnderlyingTemplateTypeOrSelf() {
         if (kind != SymbolKind.TemplateParameter)
@@ -413,6 +413,7 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
 
     internal TypeSymbol GetNextBaseType(
         ConsList<TypeSymbol> basesBeingResolved,
+        Compilation compilation,
         ref PooledHashSet<NamedTypeSymbol> visited) {
         switch (typeKind) {
             case TypeKind.TemplateParameter:
@@ -421,7 +422,7 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
             case TypeKind.Struct:
             case TypeKind.Error:
             case TypeKind.Interface:
-                return GetNextDeclaredBase((NamedTypeSymbol)this, basesBeingResolved, ref visited);
+                return GetNextDeclaredBase((NamedTypeSymbol)this, basesBeingResolved, compilation, ref visited);
             case TypeKind.Array:
             case TypeKind.Enum:
             case TypeKind.Primitive:
@@ -1254,6 +1255,7 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
 
     internal bool InheritsFromIgnoringConstruction(
         NamedTypeSymbol baseType,
+        Compilation compilation,
         ConsList<TypeSymbol> basesBeingResolved = null) {
         PooledHashSet<NamedTypeSymbol> interfacesLookedAt = null;
         ArrayBuilder<NamedTypeSymbol> baseInterfaces = null;
@@ -1279,7 +1281,7 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
             if (baseTypeIsInterface)
                 GetBaseInterfaces(current, baseInterfaces, interfacesLookedAt, basesBeingResolved);
 
-            var next = current.GetNextBaseType(basesBeingResolved, ref visited);
+            var next = current.GetNextBaseType(basesBeingResolved, compilation, ref visited);
 
             if (next is null)
                 current = null;
@@ -1343,6 +1345,7 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
     private static TypeSymbol GetNextDeclaredBase(
         NamedTypeSymbol type,
         ConsList<TypeSymbol> basesBeingResolved,
+        Compilation compilation,
         ref PooledHashSet<NamedTypeSymbol> visited) {
         if (basesBeingResolved is not null && basesBeingResolved.ContainsReference(type.originalDefinition))
             return null;
@@ -1356,7 +1359,7 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
 
         if (nextType is null) {
             SetKnownToHaveNoDeclaredBaseCycles(ref visited);
-            return GetDefaultBaseOrNull(type);
+            return GetDefaultBaseOrNull(type, compilation);
         }
 
         var origType = type.originalDefinition;
@@ -1368,7 +1371,7 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
             visited.Add(origType);
 
             if (visited.Contains(nextType.originalDefinition))
-                return GetDefaultBaseOrNull(type);
+                return GetDefaultBaseOrNull(type, compilation);
         }
 
         return nextType;
@@ -1384,15 +1387,15 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
         }
     }
 
-    private static NamedTypeSymbol GetDefaultBaseOrNull(NamedTypeSymbol type) {
+    private static NamedTypeSymbol GetDefaultBaseOrNull(NamedTypeSymbol type, Compilation compilation) {
         switch (type.typeKind) {
             case TypeKind.Class:
             case TypeKind.Error:
-                return CorLibrary.GetSpecialType(SpecialType.Object);
+                return compilation.GetSpecialType(SpecialType.Object);
             case TypeKind.Interface:
                 return null;
             case TypeKind.Struct:
-                return CorLibrary.GetSpecialType(SpecialType.ValueType);
+                return compilation.GetSpecialType(SpecialType.ValueType);
             default:
                 throw ExceptionUtilities.UnexpectedValue(type.typeKind);
         }

@@ -2,7 +2,6 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
-using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -18,6 +17,7 @@ internal sealed class CSharpCodeGenerator {
     private readonly ImmutableArray<string> _localNames;
     private int _tempCount = 0;
 
+    private readonly Compilation _compilation;
     private readonly CSharpEmitter _module;
     private readonly MethodSymbol _method;
     private readonly BoundBlockStatement _body;
@@ -43,11 +43,13 @@ internal sealed class CSharpCodeGenerator {
     };
 
     internal CSharpCodeGenerator(
+        Compilation compilation,
         CSharpEmitter module,
         IndentedTextWriter writer,
         MethodSymbol method,
         BoundBlockStatement methodBody,
         bool debugMode) {
+        _compilation = compilation;
         _module = module;
         _method = method;
         _body = methodBody;
@@ -487,7 +489,7 @@ internal sealed class CSharpCodeGenerator {
     }
 
     private string EmitCallExpression(BoundCallExpression node, bool skipReceiver = false) {
-        if (node.method.containingType.Equals(StandardLibrary.Random.underlyingNamedType))
+        if (node.method.containingType.Equals(_compilation.standardLibrary.Random.underlyingNamedType))
             return EmitRandomCall(node.method, node.arguments, node.argumentRefKinds);
 
         if (node.method.IsConstructor())
@@ -496,18 +498,18 @@ internal sealed class CSharpCodeGenerator {
         var arguments = EmitArguments(node.arguments, node.argumentRefKinds);
 
         if ((object)node.method.originalDefinition ==
-            CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_getValue).originalDefinition) {
+            _compilation.corLibrary.GetWellKnownMember(WellKnownMember.Nullable_getValue).originalDefinition) {
             return $"{EmitExpression(node.receiver)}.Value";
         }
 
         if ((object)node.method.originalDefinition ==
-            CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_getHasValue).originalDefinition) {
+            _compilation.corLibrary.GetWellKnownMember(WellKnownMember.Nullable_getHasValue).originalDefinition) {
             return $"{EmitExpression(node.receiver)}.HasValue";
         }
 
         var method = _module.GetMethodName(node.method);
 
-        if ((object)node.method.containingType == StandardLibrary.LowLevel.originalDefinition) {
+        if ((object)node.method.containingType == _compilation.standardLibrary.LowLevel.originalDefinition) {
             if (node.method.name == "SizeOf")
                 return method;
         }

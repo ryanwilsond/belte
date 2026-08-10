@@ -7,7 +7,7 @@ namespace Buckle.CodeAnalysis.Binding;
 
 internal static class AccessCheck {
     internal static bool IsSymbolAccessible(Symbol symbol, Symbol within, TypeSymbol throughType = null) {
-        return IsSymbolAccessibleCore(symbol, within, throughType, out _);
+        return IsSymbolAccessibleCore(symbol, within, throughType, out _, within.declaringCompilation);
     }
 
     internal static bool IsSymbolAccessible(
@@ -19,7 +19,8 @@ internal static class AccessCheck {
             symbol,
             within,
             throughType,
-            out failedThroughTypeCheck
+            out failedThroughTypeCheck,
+            within.declaringCompilation
         );
     }
 
@@ -35,7 +36,8 @@ internal static class AccessCheck {
         Symbol symbol,
         Symbol within,
         TypeSymbol throughType,
-        out bool failedThroughTypeCheck) {
+        out bool failedThroughTypeCheck,
+        Compilation compilation) {
         failedThroughTypeCheck = false;
 
         // TODO This is temporary
@@ -48,14 +50,16 @@ internal static class AccessCheck {
                     ((ArrayTypeSymbol)symbol).elementType,
                     within,
                     null,
-                    out failedThroughTypeCheck
+                    out failedThroughTypeCheck,
+                    compilation
                 );
             case SymbolKind.PointerType:
                 return IsSymbolAccessibleCore(
                     ((PointerTypeSymbol)symbol).pointedAtType,
                     within,
                     null,
-                    out failedThroughTypeCheck
+                    out failedThroughTypeCheck,
+                    compilation
                 );
             case SymbolKind.NamedType:
                 return IsNamedTypeAccessible((NamedTypeSymbol)symbol, within);
@@ -72,7 +76,8 @@ internal static class AccessCheck {
                     funcPtr.signature.returnType,
                     within,
                     throughType: null,
-                    out failedThroughTypeCheck)) {
+                    out failedThroughTypeCheck,
+                    compilation)) {
                     return false;
                 }
 
@@ -81,7 +86,8 @@ internal static class AccessCheck {
                         param.type,
                         within,
                         throughType: null,
-                        out failedThroughTypeCheck)) {
+                        out failedThroughTypeCheck,
+                    compilation)) {
                         return false;
                     }
                 }
@@ -93,7 +99,8 @@ internal static class AccessCheck {
                     func.signature.returnType,
                     within,
                     throughType: null,
-                    out failedThroughTypeCheck)) {
+                    out failedThroughTypeCheck,
+                    compilation)) {
                     return false;
                 }
 
@@ -102,7 +109,8 @@ internal static class AccessCheck {
                         param.type,
                         within,
                         throughType: null,
-                        out failedThroughTypeCheck)) {
+                        out failedThroughTypeCheck,
+                        compilation)) {
                         return false;
                     }
                 }
@@ -118,10 +126,17 @@ internal static class AccessCheck {
                     symbol.declaredAccessibility,
                     within,
                     throughType,
-                    out failedThroughTypeCheck
+                    out failedThroughTypeCheck,
+                    compilation
                 );
             case SymbolKind.Alias:
-                return IsSymbolAccessibleCore(((AliasSymbol)symbol).target, within, null, out failedThroughTypeCheck);
+                return IsSymbolAccessibleCore(
+                    ((AliasSymbol)symbol).target,
+                    within,
+                    null,
+                    out failedThroughTypeCheck,
+                    compilation
+                );
             default:
                 throw ExceptionUtilities.UnexpectedValue(symbol.kind);
         }
@@ -132,7 +147,8 @@ internal static class AccessCheck {
         Accessibility accessibility,
         Symbol within,
         TypeSymbol throughType,
-        out bool failedThroughTypeCheck) {
+        out bool failedThroughTypeCheck,
+        Compilation compilation) {
         failedThroughTypeCheck = false;
 
         if ((object)containingType == within)
@@ -144,7 +160,14 @@ internal static class AccessCheck {
         if (accessibility == Accessibility.Public)
             return true;
 
-        return IsNonPublicMemberAccessible(containingType, accessibility, within, throughType, out failedThroughTypeCheck);
+        return IsNonPublicMemberAccessible(
+            containingType,
+            accessibility,
+            within,
+            throughType,
+            out failedThroughTypeCheck,
+            compilation
+        );
     }
 
     private static bool IsNonPublicMemberAccessible(
@@ -152,7 +175,8 @@ internal static class AccessCheck {
         Accessibility accessibility,
         Symbol within,
         TypeSymbol throughType,
-        out bool failedThroughTypeCheck) {
+        out bool failedThroughTypeCheck,
+        Compilation compilation) {
         failedThroughTypeCheck = false;
 
         var originalContainingType = containingType.originalDefinition;
@@ -168,7 +192,8 @@ internal static class AccessCheck {
                     withinType,
                     originalContainingType,
                     throughType,
-                    out failedThroughTypeCheck
+                    out failedThroughTypeCheck,
+                    compilation
                 );
             default:
                 throw ExceptionUtilities.UnexpectedValue(accessibility);
@@ -186,7 +211,8 @@ internal static class AccessCheck {
         NamedTypeSymbol withinType,
         NamedTypeSymbol originalContainingType,
         TypeSymbol throughType,
-        out bool failedThroughTypeCheck) {
+        out bool failedThroughTypeCheck,
+        Compilation compilation) {
         failedThroughTypeCheck = false;
 
         if (withinType is null)
@@ -199,11 +225,13 @@ internal static class AccessCheck {
         var originalThroughType = throughType?.originalDefinition;
 
         while (current is not null) {
-            if (current.InheritsFromIgnoringConstruction(originalContainingType)) {
-                if (originalThroughType is null || originalThroughType.InheritsFromIgnoringConstruction(current))
+            if (current.InheritsFromIgnoringConstruction(originalContainingType, compilation)) {
+                if (originalThroughType is null ||
+                    originalThroughType.InheritsFromIgnoringConstruction(current, compilation)) {
                     return true;
-                else
+                } else {
                     failedThroughTypeCheck = true;
+                }
             }
 
             current = current.containingType;
@@ -233,7 +261,13 @@ internal static class AccessCheck {
         if (!type.isDefinition) {
             foreach (var templateArgument in type.templateArguments) {
                 if (templateArgument.isType &&
-                    !IsSymbolAccessibleCore(templateArgument.type.type, within, null, out _)) {
+                    !IsSymbolAccessibleCore(
+                        templateArgument.type.type,
+                        within,
+                        null,
+                        out _,
+                        within.declaringCompilation
+                    )) {
                     return false;
                 }
             }
@@ -243,7 +277,14 @@ internal static class AccessCheck {
 
         return containingType is null
             ? IsNonNestedTypeAccessible(type.containingNamespace, type.declaredAccessibility, within)
-            : IsMemberAccessible(containingType, type.declaredAccessibility, within, null, out _);
+            : IsMemberAccessible(
+                containingType,
+                type.declaredAccessibility,
+                within,
+                null,
+                out _,
+                within.declaringCompilation
+            );
     }
 
     private static bool IsNonNestedTypeAccessible(

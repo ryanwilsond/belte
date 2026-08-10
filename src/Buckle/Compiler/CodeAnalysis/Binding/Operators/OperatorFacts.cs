@@ -187,75 +187,6 @@ internal static class OperatorFacts {
         }
     }
 
-    internal static BinaryOperatorSignature GetSignature(BinaryOperatorKind kind) {
-        var left = TypeFromKind(kind);
-
-        switch (kind.Operator()) {
-            case BinaryOperatorKind.Multiplication:
-            case BinaryOperatorKind.Division:
-            case BinaryOperatorKind.Subtraction:
-            case BinaryOperatorKind.Modulo:
-            case BinaryOperatorKind.And:
-            case BinaryOperatorKind.Or:
-            case BinaryOperatorKind.Xor:
-            case BinaryOperatorKind.Min:
-            case BinaryOperatorKind.Max:
-                return new BinaryOperatorSignature(kind, left, left, left);
-            case BinaryOperatorKind.Addition:
-                return new BinaryOperatorSignature(kind, left, TypeFromKind(kind), TypeFromKind(kind));
-            case BinaryOperatorKind.LeftShift:
-            case BinaryOperatorKind.RightShift:
-            case BinaryOperatorKind.UnsignedRightShift:
-                var rightType = CorLibrary.GetSpecialType(SpecialType.Int);
-
-                if (kind.IsLifted())
-                    rightType = CorLibrary.GetOrCreateNullableType(rightType);
-
-                return new BinaryOperatorSignature(kind, left, rightType, left);
-            case BinaryOperatorKind.Equal:
-            case BinaryOperatorKind.NotEqual:
-            case BinaryOperatorKind.GreaterThan:
-            case BinaryOperatorKind.LessThan:
-            case BinaryOperatorKind.GreaterThanOrEqual:
-            case BinaryOperatorKind.LessThanOrEqual:
-                return new BinaryOperatorSignature(
-                    kind,
-                    left,
-                    left,
-                    kind.IsLifted()
-                        ? CorLibrary.GetNullableType(SpecialType.Bool)
-                        : CorLibrary.GetSpecialType(SpecialType.Bool)
-                );
-        }
-
-        return new BinaryOperatorSignature(kind, left, TypeFromKind(kind), TypeFromKind(kind));
-    }
-
-    internal static UnaryOperatorSignature GetSignature(UnaryOperatorKind kind) {
-        var opType = kind.OperandTypes() switch {
-            UnaryOperatorKind.Int8 => CorLibrary.GetSpecialType(SpecialType.Int8),
-            UnaryOperatorKind.Int16 => CorLibrary.GetSpecialType(SpecialType.Int16),
-            UnaryOperatorKind.Int32 => CorLibrary.GetSpecialType(SpecialType.Int32),
-            UnaryOperatorKind.UInt8 => CorLibrary.GetSpecialType(SpecialType.UInt8),
-            UnaryOperatorKind.UInt16 => CorLibrary.GetSpecialType(SpecialType.UInt16),
-            UnaryOperatorKind.UInt32 => CorLibrary.GetSpecialType(SpecialType.UInt32),
-            // UnaryOperatorKind.Int => CorLibrary.GetSpecialType(SpecialType.Int64),
-            UnaryOperatorKind.Int64 => CorLibrary.GetSpecialType(SpecialType.Int),
-            UnaryOperatorKind.UInt64 => CorLibrary.GetSpecialType(SpecialType.UInt64),
-            UnaryOperatorKind.Char => CorLibrary.GetSpecialType(SpecialType.Char),
-            UnaryOperatorKind.Float32 => CorLibrary.GetSpecialType(SpecialType.Float32),
-            // UnaryOperatorKind.Float64 => CorLibrary.GetSpecialType(SpecialType.Float64),
-            UnaryOperatorKind.Float64 => CorLibrary.GetSpecialType(SpecialType.Decimal),
-            UnaryOperatorKind.Bool => CorLibrary.GetSpecialType(SpecialType.Bool),
-            _ => throw ExceptionUtilities.UnexpectedValue(kind.OperandTypes()),
-        };
-
-        if (kind.IsLifted())
-            opType = CorLibrary.GetOrCreateNullableType(opType);
-
-        return new UnaryOperatorSignature(kind, opType, opType);
-    }
-
     internal static bool IsCompoundAssignmentOperatorName(string operatorMetadataName) {
         switch (operatorMetadataName) {
             case WellKnownMemberNames.DecrementAssignmentOperatorName:
@@ -278,34 +209,5 @@ internal static class OperatorFacts {
             default:
                 return false;
         }
-    }
-
-    internal static TypeSymbol TypeFromKind(BinaryOperatorKind kind) {
-        var type = kind.OperandTypes() switch {
-            BinaryOperatorKind.Int8 => CorLibrary.GetSpecialType(SpecialType.Int8),
-            BinaryOperatorKind.Int16 => CorLibrary.GetSpecialType(SpecialType.Int16),
-            BinaryOperatorKind.Int32 => CorLibrary.GetSpecialType(SpecialType.Int32),
-            BinaryOperatorKind.UInt8 => CorLibrary.GetSpecialType(SpecialType.UInt8),
-            BinaryOperatorKind.UInt16 => CorLibrary.GetSpecialType(SpecialType.UInt16),
-            BinaryOperatorKind.UInt32 => CorLibrary.GetSpecialType(SpecialType.UInt32),
-            // BinaryOperatorKind.Int => CorLibrary.GetSpecialType(SpecialType.Int64),
-            BinaryOperatorKind.Int64 => CorLibrary.GetSpecialType(SpecialType.Int),
-            BinaryOperatorKind.UInt64 => CorLibrary.GetSpecialType(SpecialType.UInt64),
-            BinaryOperatorKind.Float32 => CorLibrary.GetSpecialType(SpecialType.Float32),
-            // BinaryOperatorKind.Float64 => CorLibrary.GetSpecialType(SpecialType.Float64),
-            BinaryOperatorKind.Float64 => CorLibrary.GetSpecialType(SpecialType.Decimal),
-            BinaryOperatorKind.Bool => CorLibrary.GetSpecialType(SpecialType.Bool),
-            BinaryOperatorKind.Object => CorLibrary.GetSpecialType(SpecialType.Object),
-            BinaryOperatorKind.String => CorLibrary.GetSpecialType(SpecialType.String),
-            BinaryOperatorKind.Char => CorLibrary.GetSpecialType(SpecialType.Char),
-            BinaryOperatorKind.Type => CorLibrary.GetSpecialType(SpecialType.Type),
-            BinaryOperatorKind.Any => CorLibrary.GetSpecialType(SpecialType.Any),
-            _ => throw ExceptionUtilities.UnexpectedValue(kind.OperandTypes()),
-        };
-
-        if (kind.IsLifted())
-            type = CorLibrary.GetOrCreateNullableType(type);
-
-        return type;
     }
 }

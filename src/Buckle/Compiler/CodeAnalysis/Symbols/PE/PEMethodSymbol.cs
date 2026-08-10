@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Metadata;
 using System.Threading;
@@ -22,6 +23,9 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
     private SignatureData _lazySignature;
     private ImmutableArray<MethodSymbol> _lazyExplicitMethodImplementations;
     private UncommonFields _uncommonFields;
+    private int _lazyIsPure;
+    private int _lazyIsNoThrow;
+    private int _lazyIsNoAlloc;
 
     internal PEMethodSymbol(
         PEModuleSymbol moduleSymbol,
@@ -326,6 +330,36 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
         }
     }
 
+    internal override bool isPure {
+        get {
+            if (!_packedFlags.isCustomAttributesPopulated)
+                _ = GetAttributes();
+
+            Debug.Assert(_lazyIsPure != (int)ThreeState.Unknown);
+            return _lazyIsPure == (int)ThreeState.True;
+        }
+    }
+
+    internal override bool isNoThrow {
+        get {
+            if (!_packedFlags.isCustomAttributesPopulated)
+                _ = GetAttributes();
+
+            Debug.Assert(_lazyIsNoThrow != (int)ThreeState.Unknown);
+            return _lazyIsNoThrow == (int)ThreeState.True;
+        }
+    }
+
+    internal override bool isNoAlloc {
+        get {
+            if (!_packedFlags.isCustomAttributesPopulated)
+                _ = GetAttributes();
+
+            Debug.Assert(_lazyIsNoAlloc != (int)ThreeState.Unknown);
+            return _lazyIsNoAlloc == (int)ThreeState.True;
+        }
+    }
+
     internal override bool TryGetThisParameter(out ParameterSymbol? thisParameter) {
         thisParameter = isStatic/* || this.IsExtensionBlockMember()*/
             ? null
@@ -338,8 +372,139 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
     }
 
     internal override ImmutableArray<AttributeData> GetAttributes() {
-        // TODO
-        return [];
+        if (!_packedFlags.isCustomAttributesPopulated) {
+            var attributeData = LoadAndFilterAttributes(
+                out var isExtensionMethod,
+                out var isReadOnly,
+                out var hasRequiresUnsafeAttribute,
+                out var isPure,
+                out var isNoThrow,
+                out var isNoAlloc
+            );
+
+            _packedFlags.InitializeIsExtensionMethod(isExtensionMethod);
+            _packedFlags.InitializeIsReadOnly(isReadOnly);
+            // _packedFlags.InitializeRequiresUnsafe(ComputeRequiresUnsafe(hasRequiresUnsafeAttribute));
+
+            if (_lazyIsPure == (int)ThreeState.Unknown) {
+                var val = isPure ? (int)ThreeState.True : (int)ThreeState.False;
+                Interlocked.CompareExchange(ref _lazyIsPure, val, (int)ThreeState.Unknown);
+            }
+
+            if (_lazyIsNoThrow == (int)ThreeState.Unknown) {
+                var val = isNoThrow ? (int)ThreeState.True : (int)ThreeState.False;
+                Interlocked.CompareExchange(ref _lazyIsNoThrow, val, (int)ThreeState.Unknown);
+            }
+
+            if (_lazyIsNoAlloc == (int)ThreeState.Unknown) {
+                var val = isNoAlloc ? (int)ThreeState.True : (int)ThreeState.False;
+                Interlocked.CompareExchange(ref _lazyIsNoAlloc, val, (int)ThreeState.Unknown);
+            }
+
+            Debug.Assert(!attributeData.IsDefault);
+
+            if (!attributeData.IsEmpty) {
+                attributeData = InterlockedOperations.Initialize(
+                    ref AccessUncommonFields()._lazyCustomAttributes,
+                    attributeData
+                );
+            }
+
+            _packedFlags.SetIsCustomAttributesPopulated();
+            return attributeData;
+        }
+
+        var uncommonFields = _uncommonFields;
+
+        if (uncommonFields is null) {
+            return [];
+        } else {
+            var attributeData = uncommonFields._lazyCustomAttributes;
+
+            return attributeData.IsDefault
+                ? InterlockedOperations.Initialize(ref uncommonFields._lazyCustomAttributes, [])
+                : attributeData;
+        }
+
+        ImmutableArray<AttributeData> LoadAndFilterAttributes(
+            out bool isExtensionMethod,
+            out bool isReadOnly,
+            out bool hasRequiresUnsafeAttribute,
+            out bool isPure,
+            out bool isNoThrow,
+            out bool isNoAlloc) {
+            isExtensionMethod = false;
+            isReadOnly = false;
+            hasRequiresUnsafeAttribute = false;
+            isPure = false;
+            isNoThrow = false;
+            isNoAlloc = false;
+
+            var containingModule = _containingType.containingPEModule;
+
+            if (!containingModule.TryGetNonEmptyCustomAttributes(_handle, out var customAttributeHandles))
+                return [];
+
+            // TODO
+            // bool checkForRequiredMembers = this.ShouldCheckRequiredMembers() && containingType.hasAnyRequiredMembers;
+
+            // var isInstanceIncrementDecrementOrCompoundAssignmentOperator = SourceMethodSymbol.
+            //     IsInstanceIncrementDecrementOrCompoundAssignmentOperator(this);
+
+            // var filterCompilerFeatureRequiredAttribute = (checkForRequiredMembers ||
+            //     isInstanceIncrementDecrementOrCompoundAssignmentOperator) &&
+            //         DeriveCompilerFeatureRequiredDiagnostic() is null;
+
+            // var filterObsoleteAttribute = checkForRequiredMembers && ObsoleteAttributeData is null;
+
+            using var builder = TemporaryArray<AttributeData>.Empty;
+
+            foreach (var handle in customAttributeHandles) {
+                if (containingModule
+                    .AttributeMatchesFilter(handle, AttributeDescription.CaseSensitiveExtensionAttribute)) {
+                    isExtensionMethod = true;
+                    continue;
+                }
+
+                if (containingModule.AttributeMatchesFilter(handle, AttributeDescription.IsReadOnlyAttribute)) {
+                    isReadOnly = true;
+                    continue;
+                }
+
+                // if (filterCompilerFeatureRequiredAttribute && containingModule.AttributeMatchesFilter(handle, AttributeDescription.CompilerFeatureRequiredAttribute))
+                //     continue;
+
+                // if (filterObsoleteAttribute && containingModule.AttributeMatchesFilter(handle, AttributeDescription.ObsoleteAttribute))
+                //     continue;
+
+                // if (containingModule.AttributeMatchesFilter(handle, AttributeDescription.ExtensionMarkerAttribute))
+                //     continue;
+
+                // if (containingModule.AttributeMatchesFilter(handle, AttributeDescription.RequiresUnsafeAttribute)) {
+                //     hasRequiresUnsafeAttribute = true;
+                //     continue;
+                // }
+
+                if (containingModule.AttributeMatchesFilter(handle, AttributeDescription.PureAttribute)) {
+                    isPure = true;
+                    continue;
+                }
+
+                if (containingModule.AttributeMatchesFilter(handle, AttributeDescription.NoThrowAttribute)) {
+                    isNoThrow = true;
+                    continue;
+                }
+
+                if (containingModule.AttributeMatchesFilter(handle, AttributeDescription.NoAllocAttribute)) {
+                    isNoAlloc = true;
+                    continue;
+                }
+
+                builder.Add(new PEAttributeData(containingModule, handle));
+            }
+
+            return builder.ToImmutableAndClear();
+        }
     }
 
     internal override UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete) {
@@ -439,7 +604,7 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
         var paramInfo = new MetadataDecoder(moduleSymbol, this)
             .GetSignatureForMethod(_handle, out var signatureHeader, out var mrEx);
 
-        var makeBad = mrEx != null;
+        var makeBad = mrEx is not null;
 
         if (!signatureHeader.IsGeneric && _lazyTypeParameters.IsDefault)
             ImmutableInterlocked.InterlockedInitialize(ref _lazyTypeParameters, []);

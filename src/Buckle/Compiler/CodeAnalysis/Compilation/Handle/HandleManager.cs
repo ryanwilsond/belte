@@ -80,7 +80,7 @@ internal sealed class HandleManager {
                     Error.CannotConvertConstantValue(
                         syntax.priority.location,
                         result,
-                        CorLibrary.GetSpecialType(SpecialType.Int32)
+                        _compilation.GetSpecialType(SpecialType.Int32)
                     )
                 );
             } else {

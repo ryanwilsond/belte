@@ -3,6 +3,7 @@ using System.Diagnostics;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -25,6 +26,40 @@ internal sealed class Conversions : ConversionsBase {
             );
             analyzedArguments.refKinds.Add(parameter.refKind);
         }
+    }
+
+    internal override Conversion GetListExpressionConversion(
+        BoundUnconvertedInitializerList node,
+        TypeSymbol targetType) {
+        var listTypeKind = GetListExpressionTypeKind(
+            _binder.compilation,
+            targetType,
+            out var elementTypeWithAnnotations
+        );
+
+        var elementType = elementTypeWithAnnotations?.type;
+
+        switch (listTypeKind) {
+            case ListExpressionTypeKind.None:
+                return Conversion.None;
+        }
+
+        var items = node.items;
+
+        var builder = ArrayBuilder<Conversion>.GetInstance(items.Length);
+
+        foreach (var element in items) {
+            var elementConversion = ClassifyImplicitConversionFromExpression(element, elementType);
+
+            if (!elementConversion.exists) {
+                builder.Free();
+                return Conversion.None;
+            }
+
+            builder.Add(elementConversion);
+        }
+
+        return Conversion.CreateListExpressionConversion(listTypeKind, elementType, builder.ToImmutableAndFree());
     }
 
     internal override Conversion GetImplicitExtendedLiteralExpressionConversion(
@@ -228,5 +263,19 @@ internal sealed class Conversions : ConversionsBase {
             target,
             out result
         );
+    }
+
+    private protected override Conversion GetImplicitArrayLengthConversion(
+        BoundUnconvertedArrayLength length,
+        TypeSymbol destination) {
+        if (destination.specialType is SpecialType.Int32 or SpecialType.Int64 or SpecialType.Int)
+            return Conversion.Identity;
+
+        var conversion = ClassifyConversionFromType(_binder.compilation.GetSpecialType(SpecialType.Int), destination);
+
+        if (conversion.isImplicit)
+            return conversion;
+
+        return Conversion.None;
     }
 }

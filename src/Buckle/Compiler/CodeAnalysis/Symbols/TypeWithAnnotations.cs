@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using Buckle.CodeAnalysis.Display;
 using Buckle.Libraries;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -52,7 +53,9 @@ internal sealed partial class TypeWithAnnotations {
     }
 
     internal TypeWithAnnotations SetIsAnnotated() {
-        var newType = CorLibrary.GetSpecialType(SpecialType.Nullable).Construct([new TypeOrConstant(type, false)]);
+        var newType = CorLibrary.Instance.GetSpecialType(SpecialType.Nullable)
+            .Construct([new TypeOrConstant(type, false)]);
+
         return new TypeWithAnnotations(newType, true);
     }
 
@@ -89,7 +92,8 @@ internal sealed partial class TypeWithAnnotations {
         byte defaultTransformFlag,
         ImmutableArray<byte> transforms,
         ref int position,
-        out TypeWithAnnotations result) {
+        out TypeWithAnnotations result,
+        bool isBelteMode) {
         result = this;
 
         var oldTypeSymbol = type;
@@ -107,10 +111,11 @@ internal sealed partial class TypeWithAnnotations {
             transformFlag = defaultTransformFlag;
 
         if (!oldTypeSymbol.ApplyNullableTransforms(
-            defaultTransformFlag,
-            transforms,
-            ref position,
-            out var newTypeSymbol)) {
+                defaultTransformFlag,
+                transforms,
+                ref position,
+                out var newTypeSymbol,
+                isBelteMode)) {
             return false;
         }
 
@@ -122,26 +127,45 @@ internal sealed partial class TypeWithAnnotations {
         if (result.specialType == SpecialType.Void)
             return true;
 
-        switch (transformFlag) {
-            case NullableContextExtensions.AnnotatedAttributeValue:
-                result = result.isNullable
-                    ? result
-                    : ShouldLift(result.type)
+        if (isBelteMode) {
+            switch (transformFlag) {
+                case 0:
+                    result = ShouldLift(result.type)
                         ? result.SetIsAnnotated()
-                        : result;
+                        : new TypeWithAnnotations(result.nullableUnderlyingTypeOrSelf);
 
-                break;
-            case NullableContextExtensions.NotAnnotatedAttributeValue:
-                result = ShouldLift(result.type)
-                    ? result.SetIsAnnotated()
-                    : new TypeWithAnnotations(result.nullableUnderlyingTypeOrSelf);
+                    break;
+                case 1:
+                    Debug.Assert(!result.IsNullableType());
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(transformFlag);
+            }
+        } else {
+            // TODO Currently we don't "trust" C# nullability attributes and always treat them as nullable
+            // Maybe if one day the C# compiler enforces nullability as errors instead of warnings we can actually
+            // use them
+            switch (transformFlag) {
+                case NullableContextExtensions.AnnotatedAttributeValue:
+                    result = result.isNullable
+                        ? result
+                        : ShouldLift(result.type)
+                            ? result.SetIsAnnotated()
+                            : result;
 
-                break;
-            default:
-                result = ShouldLift(result.type) ? result.SetIsAnnotated() : result;
-                break;
-                // result = this;
-                // return false;
+                    break;
+                case NullableContextExtensions.NotAnnotatedAttributeValue:
+                    result = ShouldLift(result.type)
+                        ? result.SetIsAnnotated()
+                        : new TypeWithAnnotations(result.nullableUnderlyingTypeOrSelf);
+
+                    break;
+                default:
+                    result = ShouldLift(result.type) ? result.SetIsAnnotated() : result;
+                    break;
+                    // result = this;
+                    // return false;
+            }
         }
 
         return true;
@@ -151,7 +175,12 @@ internal sealed partial class TypeWithAnnotations {
             // Lifting TemplateParameters seems to cause problems where Nullable<type> T substitutes into Nullable<T> T instead of T T
             // e.g. `List<T>.Add(T)` with `int` becomes `List<int>.Add(Nullable<int>)` which is incorrect
             // Interfaces also cause problems with template parameters so need to double check that
-            return type.typeKind is TypeKind.Class or TypeKind.Array/* or TypeKind.TemplateParameter*/;
+            // return type.typeKind is TypeKind.Class or TypeKind.Array/* or TypeKind.TemplateParameter*/;
+
+            if (type.IsTemplateParameter())
+                return false;
+
+            return type.isReferenceType;
         }
     }
 

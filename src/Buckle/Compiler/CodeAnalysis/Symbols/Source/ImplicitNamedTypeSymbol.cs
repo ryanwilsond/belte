@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -16,7 +15,7 @@ internal sealed class ImplicitNamedTypeSymbol : SourceMemberContainerTypeSymbol 
         _state.NotePartComplete(CompletionParts.EnumUnderlyingType);
     }
 
-    internal override NamedTypeSymbol baseType => CorLibrary.GetSpecialType(SpecialType.Object);
+    internal override NamedTypeSymbol baseType => declaringCompilation.GetSpecialType(SpecialType.Object);
 
     private protected override void CheckBase(BelteDiagnosticQueue diagnostics) { }
 

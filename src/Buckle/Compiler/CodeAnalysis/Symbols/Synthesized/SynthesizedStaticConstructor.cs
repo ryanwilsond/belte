@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
-using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -38,7 +37,7 @@ internal sealed class SynthesizedStaticConstructor : MethodSymbol {
     internal override SyntaxReference syntaxReference => null;
 
     internal override TypeWithAnnotations returnTypeWithAnnotations
-        => new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void));
+        => new TypeWithAnnotations(containingAssembly.corLibrary.GetSpecialType(SpecialType.Void));
 
     internal override Symbol containingSymbol => containingType;
 

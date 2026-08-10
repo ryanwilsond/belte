@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -20,6 +21,7 @@ internal static class TypeWithAnnotationsExtensions {
 
                 if (containingType is not null) {
                     isNestedNamedType = true;
+
                     var result = VisitType(
                         default,
                         containingType,
@@ -44,6 +46,9 @@ internal static class TypeWithAnnotationsExtensions {
 
             TypeWithAnnotations next;
 
+            if (current.specialType == SpecialType.Nullable && !canDigThroughNullable)
+                current = current.GetNullableUnderlyingType();
+
             switch (current.typeKind) {
                 case TypeKind.Primitive:
                 case TypeKind.TemplateParameter:
@@ -53,16 +58,14 @@ internal static class TypeWithAnnotationsExtensions {
                 case TypeKind.Interface:
                 case TypeKind.Struct:
                 case TypeKind.Enum:
-                    var templateArguments = ((NamedTypeSymbol)current).templateArguments;
+                    var templateArguments = ((NamedTypeSymbol)current).templateArguments
+                        .WhereAsArray(t => !t.isConstant && t.type is not null);
 
                     if (templateArguments.IsEmpty)
                         return null;
 
                     int i;
                     for (i = 0; i < templateArguments.Length - 1; i++) {
-                        if (templateArguments[i].isConstant)
-                            continue;
-
                         (var nextTypeWithAnnotations, var nextType) = GetNextIterationElements(
                             templateArguments[i].type,
                             canDigThroughNullable
@@ -81,20 +84,10 @@ internal static class TypeWithAnnotationsExtensions {
                             return result;
                     }
 
-                    // Skip non-type templates
-                    next = null;
+                    next = templateArguments[i].type;
+                    Debug.Assert(next is not null);
 
-                    for (; i >= 0; i--) {
-                        next = templateArguments[i].type;
-
-                        if (next is not null)
-                            break;
-                    }
-
-                    if (next is not null)
-                        break;
-
-                    return null;
+                    break;
                 case TypeKind.Array:
                     next = ((ArrayTypeSymbol)current).elementTypeWithAnnotations;
                     break;

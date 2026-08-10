@@ -6,7 +6,6 @@ using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 using Mono.Cecil;
@@ -17,6 +16,7 @@ namespace Buckle.CodeAnalysis.Emitting;
 internal sealed partial class CecilILBuilder : ILBuilder {
     private const int HiddenLine = 0xFEEFEE;
 
+    private readonly Compilation _compilation;
     private readonly List<(int instructionIndex, object target)> _unhandledGotos;
     private readonly List<(int instructionIndex, object[] targets)> _unhandledSwitches;
     private readonly ILEmitter _module;
@@ -34,7 +34,12 @@ internal sealed partial class CecilILBuilder : ILBuilder {
 
     internal readonly ILProcessor iLProcessor;
 
-    internal CecilILBuilder(MethodSymbol method, ILEmitter module, MethodDefinition definition) {
+    internal CecilILBuilder(
+        Compilation compilation,
+        MethodSymbol method,
+        ILEmitter module,
+        MethodDefinition definition) {
+        _compilation = compilation;
         _method = method;
         _module = module;
         _definition = definition;
@@ -293,7 +298,7 @@ internal sealed partial class CecilILBuilder : ILBuilder {
 
         if (ctx.hasCatch) {
             var handler = new ExceptionHandler(ExceptionHandlerType.Catch) {
-                CatchType = _module.GetType(CorLibrary.GetWellKnownType(WellKnownType.System_Exception)),
+                CatchType = _module.GetType(_compilation.corLibrary.GetWellKnownType(WellKnownType.System_Exception)),
                 TryStart = ctx.innerTryStart,
                 TryEnd = ctx.innerTryEnd,
                 HandlerStart = ctx.handlerStart,
@@ -629,7 +634,7 @@ internal sealed partial class CecilILBuilder : ILBuilder {
         LocalSlotConstraints constraints,
         bool isSlotReusable) {
         var typeReference = (type.typeKind == TypeKind.FunctionPointer)
-            ? _module.GetType(CorLibrary.GetSpecialType(SpecialType.IntPtr))
+            ? _module.GetType(_compilation.GetSpecialType(SpecialType.IntPtr))
             : _module.GetType(type, (constraints & LocalSlotConstraints.ByRef) != 0);
 
         if (symbol.isPinned)
@@ -653,7 +658,7 @@ internal sealed partial class CecilILBuilder : ILBuilder {
         TypeSymbol type,
         LocalSlotConstraints constraints) {
         var typeReference = (type.typeKind == TypeKind.FunctionPointer)
-            ? _module.GetType(CorLibrary.GetSpecialType(SpecialType.IntPtr))
+            ? _module.GetType(_compilation.GetSpecialType(SpecialType.IntPtr))
             : _module.GetType(type);
 
         var variableDefinition = new Mono.Cecil.Cil.VariableDefinition(typeReference);

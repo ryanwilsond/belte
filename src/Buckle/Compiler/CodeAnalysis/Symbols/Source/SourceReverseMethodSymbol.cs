@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -178,7 +177,7 @@ internal sealed class SourceReverseMethodSymbol : SourceMemberMethodSymbol {
             _lazyParameters = [];
         }
 
-        _lazyReturnType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void));
+        _lazyReturnType = new TypeWithAnnotations(declaringCompilation.GetSpecialType(SpecialType.Void));
         CheckEffectiveAccessibility(_lazyReturnType, _lazyParameters, diagnostics);
 
         if (containingType.IsEnumType())

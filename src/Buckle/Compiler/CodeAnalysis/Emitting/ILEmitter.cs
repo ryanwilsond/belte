@@ -11,6 +11,7 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
@@ -43,12 +44,14 @@ internal partial class ILEmitter : ModuleBuilder {
     private readonly ImmutableArray<(MethodSymbol, BoundBlockStatement)> _methodBodies;
     private readonly bool _isDll;
     private readonly bool _debugMode;
+    private readonly Compilation _compilation;
 
     private readonly Dictionary<SpecialType, TypeReference> _specialTypes = [];
     private readonly Dictionary<TypeSymbol, TypeDefinition> _types = [];
     private readonly ConcurrentDictionary<MethodSymbol, MethodDefinition> _methods = [];
     private readonly ConcurrentDictionary<MethodDefinition, (MethodSymbol, BoundBlockStatement)> _methodBodyMap = [];
     private readonly ConcurrentDictionary<FieldSymbol, FieldDefinition> _fields = [];
+    private readonly ConcurrentDictionary<(TemplateParameterSymbol, Symbol), GenericParameter> _templateParameters = [];
     private readonly ConcurrentDictionary<MethodSymbol, TypeReference[]> _methodTypeParameters = [];
     private readonly string _belteDllName;
     private readonly string _tfm;
@@ -67,6 +70,8 @@ internal partial class ILEmitter : ModuleBuilder {
     private MethodDefinition _init;
     internal FieldDefinition randomField;
 
+    private int _nullabilityAttributeFailedToEmit;
+
     private protected ILEmitter(
         BoundProgram program,
         string assemblySimpleName,
@@ -75,8 +80,9 @@ internal partial class ILEmitter : ModuleBuilder {
         BelteDiagnosticQueue diagnostics) {
         _diagnostics = diagnostics;
         _program = program;
+        _compilation = program.compilation;
         _debugMode = debugMode;
-        _isDll = program.compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
+        _isDll = _compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
 
         _tfm = DotnetReferenceResolver.GetTFM();
         var refPackPath = DotnetReferenceResolver.ResolveNetCoreAppRefPath(_tfm, out _version);
@@ -93,6 +99,7 @@ internal partial class ILEmitter : ModuleBuilder {
         var objectDll = Path.Join(refPackPath, "System.Runtime.dll");
         var consoleDll = Path.Join(refPackPath, "System.Console.dll");
         var memoryDll = Path.Join(refPackPath, "System.Memory.dll");
+        var interopServices = Path.Join(refPackPath, "System.Runtime.InteropServices.dll");
 
         _assemblies = [
             AssemblyDefinition.ReadAssembly(_belteDllName),
@@ -103,13 +110,14 @@ internal partial class ILEmitter : ModuleBuilder {
             AssemblyDefinition.ReadAssembly(objectDll),
             AssemblyDefinition.ReadAssembly(consoleDll),
             AssemblyDefinition.ReadAssembly(memoryDll),
+            AssemblyDefinition.ReadAssembly(interopServices),
         ];
 
 #if !DEBUG
 #pragma warning restore IL3000
 #endif
 
-        var references = program.compilation.GetBoundReferenceManager().explicitReferences
+        var references = _compilation.GetBoundReferenceManager().explicitReferences
             .Where(e => e is PortableExecutableReference)
             .Select(e => ((PortableExecutableReference)e).filePath);
 
@@ -147,7 +155,7 @@ internal partial class ILEmitter : ModuleBuilder {
             linearBuilder.AddRange(set.Value);
 
         _linearNestedTypes = linearBuilder.ToImmutable();
-        _methodBodies = program.GetAllMethodBodies();
+        _methodBodies = program.GetMethodsToEmit();
 
         var compilerAssembly = AssemblyDefinition.ReadAssembly(
             typeof(BelteCompilerGeneratedAttribute).Assembly.Location
@@ -201,10 +209,10 @@ internal partial class ILEmitter : ModuleBuilder {
         // This has to be done after main emit phase in case the attribute definition is in this assembly
         EmitMetadataAttribute();
 
-        if (!_program.compilation.options.enableOutput)
+        if (!_compilation.options.enableOutput)
             return;
 
-        var isDll = _program.compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
+        var isDll = _compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
 
         if (!isDll)
             EmitRuntimeConfig(outputPath);
@@ -232,16 +240,17 @@ internal partial class ILEmitter : ModuleBuilder {
     }
 
     private void EmitMetadataAttribute() {
-        var metadataAttribute = _program.compilation
+        var metadataAttribute = _compilation
             .GetWellKnownType(WellKnownType.Belte_CompilerServices_BelteMetadataAttribute);
 
         if (metadataAttribute.IsErrorType()) {
-            // Non-fatal but the user should know
+            // Non-fatal, but the user should know
+            // This should only really happen when emitting the build script that handles creating the standard library
             _diagnostics.Push(Warning.FailedToEmitMetadataAttribute());
             return;
         }
 
-        var attributeType = Resolve(GetType(metadataAttribute));
+        var attributeType = Resolve(GetType(metadataAttribute, import: false));
 
         var metadataAttributeCtor = _assemblyDefinition.MainModule.ImportReference(
             attributeType.GetConstructors().Single(c => c.Parameters.Count == 1)
@@ -280,7 +289,7 @@ internal partial class ILEmitter : ModuleBuilder {
 
         using (var indentedTextWriter = new System.CodeDom.Compiler.IndentedTextWriter(stringWriter, "    ")) {
             foreach (var type in _topLevelTypes) {
-                if (!programOnly || type.IsFromCompilation(_program.compilation)) {
+                if (!programOnly || type.IsFromCompilation(_compilation)) {
                     var typeDefinition = _types[type.originalDefinition];
                     WriteType(stringWriter, indentedTextWriter, typeDefinition);
                 }
@@ -930,8 +939,8 @@ internal partial class ILEmitter : ModuleBuilder {
         foreach (var type in _topLevelTypes)
             CreateTypeDefinitionAndBases(type);
 
-        if (_program.compilation.options.concurrentBuild && !programOnly) {
-            var maxParallels = _program.compilation.options.maxCoreCount;
+        if (_compilation.options.concurrentBuild && !programOnly) {
+            var maxParallels = _compilation.options.maxCoreCount;
             var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = maxParallels };
 
             var topLevelTypes = _topLevelTypes;
@@ -940,20 +949,43 @@ internal partial class ILEmitter : ModuleBuilder {
             var linearTypes = _linearNestedTypes;
             Parallel.For(0, linearTypes.Length, parallelOptions, i => CreateMemberDefinitions(linearTypes[i]));
 
+            Parallel.Invoke(parallelOptions,
+                () => Parallel.ForEach(_types, CreateTypeMetadata),
+                () => Parallel.ForEach(_fields, CreateFieldMetadata),
+                () => Parallel.ForEach(_methods, CreateMethodMetadata)
+            );
+
             Parallel.ForEach(_methods, parallelOptions, method => EmitMethod(method.Value));
         } else {
             foreach (var type in _topLevelTypes) {
-                if (!programOnly || type.IsFromCompilation(_program.compilation))
+                if (!programOnly || type.IsFromCompilation(_compilation))
                     CreateMemberDefinitions(type);
             }
 
             foreach (var type in _linearNestedTypes) {
-                if (!programOnly || type.IsFromCompilation(_program.compilation))
+                if (!programOnly || type.IsFromCompilation(_compilation))
                     CreateMemberDefinitions(type);
             }
 
+            {
+                foreach (var pair in _types) {
+                    if (!programOnly || pair.Key.IsFromCompilation(_compilation))
+                        CreateTypeMetadata(pair);
+                }
+
+                foreach (var pair in _fields) {
+                    if (!programOnly || pair.Key.IsFromCompilation(_compilation))
+                        CreateFieldMetadata(pair);
+                }
+
+                foreach (var pair in _methods) {
+                    if (!programOnly || pair.Key.IsFromCompilation(_compilation))
+                        CreateMethodMetadata(pair);
+                }
+            }
+
             foreach (var method in _methods) {
-                if (!programOnly || method.Key.IsFromCompilation(_program.compilation))
+                if (!programOnly || method.Key.IsFromCompilation(_compilation))
                     EmitMethod(method.Value);
             }
         }
@@ -982,145 +1014,200 @@ internal partial class ILEmitter : ModuleBuilder {
         }
     }
 
+    private void CreateTypeMetadata(KeyValuePair<TypeSymbol, TypeDefinition> pair) {
+        var type = pair.Key;
+        var typeDefinition = pair.Value;
+
+        AddCustomAttributes(typeDefinition.CustomAttributes, type.GetAttributes());
+
+        if (type is NamedTypeSymbol namedType) {
+            for (var i = 0; i < namedType.templateParameters.Length; i++) {
+                var templateParameter = namedType.templateParameters[i];
+                var genericParameter = typeDefinition.GenericParameters[i];
+
+                AddCustomAttributes(genericParameter.CustomAttributes, templateParameter.GetAttributes());
+            }
+        }
+    }
+
+    private void CreateMethodMetadata(KeyValuePair<MethodSymbol, MethodDefinition> pair) {
+        var method = pair.Key;
+        var methodDefinition = pair.Value;
+
+        AddCustomAttributes(methodDefinition.CustomAttributes, method.GetAttributes());
+
+        for (var i = 0; i < method.arity; i++) {
+            var templateParameter = method.templateParameters[i];
+            var genericParameter = methodDefinition.GenericParameters[i];
+
+            AddCustomAttributes(genericParameter.CustomAttributes, templateParameter.GetAttributes());
+        }
+
+        AddCustomAttributes(methodDefinition.MethodReturnType.CustomAttributes, method.GetReturnTypeAttributes());
+
+        if (TypeNeedsNullabilityAttribute(method.returnType, method.location))
+            methodDefinition.MethodReturnType.CustomAttributes.Add(CreateNullabilityAttribute(method.returnType));
+
+        for (var i = 0; i < method.parameterCount; i++) {
+            var parameter = method.parameters[i];
+            var parameterDefinition = methodDefinition.Parameters[i];
+
+            AddCustomAttributes(parameterDefinition.CustomAttributes, parameter.GetAttributes());
+
+            if (TypeNeedsNullabilityAttribute(parameter.type, parameter.location))
+                parameterDefinition.CustomAttributes.Add(CreateNullabilityAttribute(parameter.type));
+        }
+    }
+
+    private void CreateFieldMetadata(KeyValuePair<FieldSymbol, FieldDefinition> pair) {
+        var field = pair.Key;
+        var fieldDefinition = pair.Value;
+
+        AddCustomAttributes(fieldDefinition.CustomAttributes, field.GetAttributes());
+
+        if (TypeNeedsNullabilityAttribute(field.type, field.location))
+            fieldDefinition.CustomAttributes.Add(CreateNullabilityAttribute(field.type));
+    }
+
     private void CompleteWellKnownTypes() {
         // We check if the CorLibrary contains them first in the case we are emitting a build script
         // that is building the CorLibrary, in which case they don't exist yet
         // We also check that this isn't the CorLibrary because in that case we want to refer to the actual definitions
         // in this module, not the .NET ones
 
-        if (CorLibrary.HasWellKnownType(WellKnownType.ValueTuple_T1) &&
-            !_topLevelTypes.Contains(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T1))) {
+        if (_compilation.corLibrary.HasWellKnownType(WellKnownType.ValueTuple_T1) &&
+            !_topLevelTypes.Contains(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T1))) {
             _types.Add(
-                CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T1),
+                _compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T1),
                 Resolve(ImportType("System.ValueTuple`1")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T1_Item1),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T1_Item1),
                 Resolve(Resolve(ImportType("System.ValueTuple`1")).Fields.Single(f => f.Name == "Item1")));
             _types.Add(
-                CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T2),
+                _compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T2),
                 Resolve(ImportType("System.ValueTuple`2")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item1),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item1),
                 Resolve(Resolve(ImportType("System.ValueTuple`2")).Fields.Single(f => f.Name == "Item1")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2),
                 Resolve(Resolve(ImportType("System.ValueTuple`2")).Fields.Single(f => f.Name == "Item2")));
             _types.Add(
-                CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T3),
+                _compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T3),
                 Resolve(ImportType("System.ValueTuple`3")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T3_Item1),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T3_Item1),
                 Resolve(Resolve(ImportType("System.ValueTuple`3")).Fields.Single(f => f.Name == "Item1")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T3_Item2),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T3_Item2),
                 Resolve(Resolve(ImportType("System.ValueTuple`3")).Fields.Single(f => f.Name == "Item2")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T3_Item3),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T3_Item3),
                 Resolve(Resolve(ImportType("System.ValueTuple`3")).Fields.Single(f => f.Name == "Item3")));
             _types.Add(
-                CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T4),
+                _compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T4),
                 Resolve(ImportType("System.ValueTuple`4")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_Item1),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_Item1),
                 Resolve(Resolve(ImportType("System.ValueTuple`4")).Fields.Single(f => f.Name == "Item1")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_Item2),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_Item2),
                 Resolve(Resolve(ImportType("System.ValueTuple`4")).Fields.Single(f => f.Name == "Item2")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_Item3),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_Item3),
                 Resolve(Resolve(ImportType("System.ValueTuple`4")).Fields.Single(f => f.Name == "Item3")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_Item4),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_Item4),
                 Resolve(Resolve(ImportType("System.ValueTuple`4")).Fields.Single(f => f.Name == "Item4")));
             _types.Add(
-                CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T5),
+                _compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T5),
                 Resolve(ImportType("System.ValueTuple`5")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_Item1),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_Item1),
                 Resolve(Resolve(ImportType("System.ValueTuple`5")).Fields.Single(f => f.Name == "Item1")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_Item2),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_Item2),
                 Resolve(Resolve(ImportType("System.ValueTuple`5")).Fields.Single(f => f.Name == "Item2")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_Item3),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_Item3),
                 Resolve(Resolve(ImportType("System.ValueTuple`5")).Fields.Single(f => f.Name == "Item3")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_Item4),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_Item4),
                 Resolve(Resolve(ImportType("System.ValueTuple`5")).Fields.Single(f => f.Name == "Item4")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_Item5),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_Item5),
                 Resolve(Resolve(ImportType("System.ValueTuple`5")).Fields.Single(f => f.Name == "Item5")));
             _types.Add(
-                CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T6),
+                _compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T6),
                 Resolve(ImportType("System.ValueTuple`6")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item1),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item1),
                 Resolve(Resolve(ImportType("System.ValueTuple`6")).Fields.Single(f => f.Name == "Item1")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item2),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item2),
                 Resolve(Resolve(ImportType("System.ValueTuple`6")).Fields.Single(f => f.Name == "Item2")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item3),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item3),
                 Resolve(Resolve(ImportType("System.ValueTuple`6")).Fields.Single(f => f.Name == "Item3")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item4),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item4),
                 Resolve(Resolve(ImportType("System.ValueTuple`6")).Fields.Single(f => f.Name == "Item4")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item5),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item5),
                 Resolve(Resolve(ImportType("System.ValueTuple`6")).Fields.Single(f => f.Name == "Item5")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item6),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item6),
                 Resolve(Resolve(ImportType("System.ValueTuple`6")).Fields.Single(f => f.Name == "Item6")));
             _types.Add(
-                CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T7),
+                _compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T7),
                 Resolve(ImportType("System.ValueTuple`7")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item1),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item1),
                 Resolve(Resolve(ImportType("System.ValueTuple`7")).Fields.Single(f => f.Name == "Item1")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item2),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item2),
                 Resolve(Resolve(ImportType("System.ValueTuple`7")).Fields.Single(f => f.Name == "Item2")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item3),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item3),
                 Resolve(Resolve(ImportType("System.ValueTuple`7")).Fields.Single(f => f.Name == "Item3")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item4),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item4),
                 Resolve(Resolve(ImportType("System.ValueTuple`7")).Fields.Single(f => f.Name == "Item4")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item5),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item5),
                 Resolve(Resolve(ImportType("System.ValueTuple`7")).Fields.Single(f => f.Name == "Item5")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item6),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item6),
                 Resolve(Resolve(ImportType("System.ValueTuple`7")).Fields.Single(f => f.Name == "Item6")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item7),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item7),
                 Resolve(Resolve(ImportType("System.ValueTuple`7")).Fields.Single(f => f.Name == "Item7")));
             _types.Add(
-                CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_TRest),
+                _compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_TRest),
                 Resolve(ImportType("System.ValueTuple`8")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item1),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item1),
                 Resolve(Resolve(ImportType("System.ValueTuple`8")).Fields.Single(f => f.Name == "Item1")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item2),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item2),
                 Resolve(Resolve(ImportType("System.ValueTuple`8")).Fields.Single(f => f.Name == "Item2")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item3),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item3),
                 Resolve(Resolve(ImportType("System.ValueTuple`8")).Fields.Single(f => f.Name == "Item3")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item4),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item4),
                 Resolve(Resolve(ImportType("System.ValueTuple`8")).Fields.Single(f => f.Name == "Item4")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item5),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item5),
                 Resolve(Resolve(ImportType("System.ValueTuple`8")).Fields.Single(f => f.Name == "Item5")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item6),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item6),
                 Resolve(Resolve(ImportType("System.ValueTuple`8")).Fields.Single(f => f.Name == "Item6")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item7),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item7),
                 Resolve(Resolve(ImportType("System.ValueTuple`8")).Fields.Single(f => f.Name == "Item7")));
             _fields.Add(
-                (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Rest),
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Rest),
                 Resolve(Resolve(ImportType("System.ValueTuple`8")).Fields.Single(f => f.Name == "Rest")));
         }
     }
@@ -1140,17 +1227,19 @@ internal partial class ILEmitter : ModuleBuilder {
         wrapper.Parameters.Add(new Mono.Cecil.ParameterDefinition(
             "args",
             ParameterAttributes.None,
-            ImportType("System.String[]")
+            _specialTypes[SpecialType.String].MakeArrayType()
         ));
 
         programType.Methods.Add(wrapper);
 
-        var wrapperBuilder = new CecilILBuilder(null, this, wrapper);
+        var wrapperBuilder = new CecilILBuilder(_compilation, null, this, wrapper);
         var il = wrapperBuilder.iLProcessor;
 
         var arrayTypeSymbol = (NamedTypeSymbol)entrySymbol.GetParameterType(0);
 
-        var ctorSymbol = CorLibrary.GetWellKnownMethod(WellKnownMember.Array_ctor_2).AsMember(arrayTypeSymbol);
+        var ctorSymbol = _compilation.corLibrary.GetWellKnownMethod(WellKnownMember.Array_ctor_2)
+            .AsMember(arrayTypeSymbol);
+
         var ctor = GetMethod(ctorSymbol);
 
         il.Emit(OpCodes.Ldarg_0);
@@ -1196,7 +1285,7 @@ internal partial class ILEmitter : ModuleBuilder {
 
         staticClass.Methods.Add(staticEntry);
 
-        var staticBuilder = new CecilILBuilder(null, this, staticEntry);
+        var staticBuilder = new CecilILBuilder(_compilation, null, this, staticEntry);
         var il = staticBuilder.iLProcessor;
 
         il.Emit(OpCodes.Newobj, GetMethod(programCtor));
@@ -1242,13 +1331,18 @@ internal partial class ILEmitter : ModuleBuilder {
             typeDefinition.CustomAttributes.Add(flagsAttr);
         }
 
-        GenericParameter[] workingParams = [];
+        Debug.Assert(type.arity == type.templateParameters.Length);
+        var workingParams = new (TemplateParameterSymbol, GenericParameter)[type.arity];
 
         if (type.arity > 0) {
-            workingParams = type.templateParameters.Select(t => new GenericParameter(t.name, typeDefinition)).ToArray();
+            for (var i = 0; i < type.arity; i++) {
+                var templateParameter = type.templateParameters[i];
+                var genericDefinition = new GenericParameter(templateParameter.name, typeDefinition);
 
-            foreach (var generic in workingParams)
-                typeDefinition.GenericParameters.Add(generic);
+                _templateParameters.Add((templateParameter, type), genericDefinition);
+                workingParams[i] = (templateParameter, genericDefinition);
+                typeDefinition.GenericParameters.Add(genericDefinition);
+            }
         }
 
         _types.Add(type.originalDefinition, typeDefinition);
@@ -1279,7 +1373,7 @@ internal partial class ILEmitter : ModuleBuilder {
     private void CreateNestedTypes(
         NamedTypeSymbol type,
         TypeDefinition typeDefinition,
-        GenericParameter[] workingParams) {
+        (TemplateParameterSymbol, GenericParameter)[] workingParams) {
         foreach (var member in type.GetTypeMembers())
             CreateNestedType(member, workingParams);
 
@@ -1288,14 +1382,17 @@ internal partial class ILEmitter : ModuleBuilder {
                 CreateNestedType(nestedType, workingParams);
         }
 
-        void CreateNestedType(NamedTypeSymbol nestedType, GenericParameter[] workingParams) {
+        void CreateNestedType(NamedTypeSymbol nestedType, (TemplateParameterSymbol, GenericParameter)[] workingParams) {
             var nestedDefinition = CreateNamedTypeDefinition(nestedType, isNested: true);
 
             workingParams = workingParams.Concat(
-                nestedType.templateParameters.Select(t => new GenericParameter(t.name, nestedDefinition))).ToArray();
+                nestedType.templateParameters.Select(t => (t, new GenericParameter(t.name, nestedDefinition))))
+                    .ToArray();
 
-            foreach (var generic in workingParams)
-                nestedDefinition.GenericParameters.Add(new GenericParameter(generic.Name, nestedDefinition));
+            foreach (var generic in workingParams) {
+                nestedDefinition.GenericParameters.Add(new GenericParameter(generic.Item2.Name, nestedDefinition));
+                _templateParameters.Add((generic.Item1, nestedType), generic.Item2);
+            }
 
             CreateNestedTypes(nestedType, nestedDefinition, workingParams);
             typeDefinition.NestedTypes.Add(nestedDefinition);
@@ -1307,7 +1404,7 @@ internal partial class ILEmitter : ModuleBuilder {
             ? ""
             : symbol.containingNamespace?.ToDisplayString(SymbolDisplayFormat.NamespaceQualifiedNameFormat) ?? "";
 
-        if (symbol.IsFromCompilation(_program.compilation))
+        if (symbol.IsFromCompilation(_compilation))
             return namespaceName;
 
         if (namespaceName == "")
@@ -1379,6 +1476,9 @@ internal partial class ILEmitter : ModuleBuilder {
                         ? _specialTypes[SpecialType.IntPtr]
                         : GetType(f.type, f.refKind != RefKind.None)
                 );
+
+                if (TypeNeedsNullabilityAttribute(f.type, f.location))
+                    fieldDefinition.CustomAttributes.Add(CreateNullabilityAttribute(f.type));
 
                 if (type.IsStructType() && f.type.specialType == SpecialType.Bool)
                     fieldDefinition.MarshalInfo = new MarshalInfo(NativeType.I1);
@@ -1500,6 +1600,9 @@ internal partial class ILEmitter : ModuleBuilder {
 
             foreach (var templateParameter in method.templateParameters) {
                 var genericParameter = new GenericParameter(templateParameter.name, methodDefinition);
+
+                _templateParameters.Add((templateParameter, method), genericParameter);
+
                 methodDefinition.GenericParameters.Add(genericParameter);
                 genericBuilder.Add(genericParameter);
             }
@@ -1517,7 +1620,7 @@ internal partial class ILEmitter : ModuleBuilder {
             methodDefinition.Parameters.Add(parameterDefinition);
         }
 
-        SetCustomAttributes(method, methodDefinition);
+        AddMethodCustomAttributes(method, methodDefinition);
 
         _methods.Add(method, methodDefinition);
 
@@ -1534,7 +1637,125 @@ internal partial class ILEmitter : ModuleBuilder {
         return methodDefinition;
     }
 
-    private void SetCustomAttributes(MethodSymbol method, MethodDefinition methodDefinition) {
+    private bool TypeNeedsNullabilityAttribute(TypeSymbol type, TextLocation errorLocation) {
+        var flag = Volatile.Read(ref _nullabilityAttributeFailedToEmit);
+
+        if (flag == (int)ThreeState.True)
+            return false;
+
+        if (type.specialType.CanSkipNullabilityAttributeCheck())
+            return false;
+
+        if (!type.isReferenceType && (type is not NamedTypeSymbol namedType || namedType.arity == 0))
+            return false;
+
+        ValueWrapper<bool> sawNonNullableReferenceType = false;
+
+        type.VisitType(VisitTypePredicate, sawNonNullableReferenceType, canDigThroughNullable: false);
+
+        if ((bool)sawNonNullableReferenceType) {
+            if (flag == (int)ThreeState.Unknown) {
+                var nullabilityAttribute = _compilation.GetWellKnownType(WellKnownType.Belte_NullabilityAttribute);
+
+                var val = nullabilityAttribute.IsErrorType() ? (int)ThreeState.True : (int)ThreeState.False;
+
+                if (Interlocked.Exchange(ref _nullabilityAttributeFailedToEmit, val) == (int)ThreeState.Unknown) {
+                    if (val == (int)ThreeState.True)
+                        _diagnostics.Push(Warning.FailedToEmitAttribute(errorLocation, nullabilityAttribute));
+                }
+
+                return val != (int)ThreeState.True;
+            }
+
+            return true;
+        }
+
+        return false;
+
+        static bool VisitTypePredicate(TypeSymbol type, ValueWrapper<bool> arg, bool canDigThroughNullable = false) {
+            if (type.isReferenceType && !type.IsNullableType()) {
+                arg.Value = true;
+                return true;
+            }
+
+            return false;
+        }
+    }
+
+    private CustomAttribute CreateNullabilityAttribute(TypeSymbol type) {
+        Debug.Assert(Volatile.Read(ref _nullabilityAttributeFailedToEmit) == (int)ThreeState.False);
+
+        var nullabilityAttribute = _compilation.GetWellKnownType(WellKnownType.Belte_NullabilityAttribute);
+
+        Debug.Assert(!nullabilityAttribute.IsErrorType());
+
+        var attributeType = Resolve(GetType(nullabilityAttribute, import: false));
+
+        var attributeCtor = _assemblyDefinition.MainModule.ImportReference(
+            attributeType.GetConstructors().Single(c => c.Parameters.Count == 1)
+        );
+
+        var attribute = new CustomAttribute(attributeCtor);
+
+        attribute.ConstructorArguments.Add(
+            new CustomAttributeArgument(
+                _specialTypes[SpecialType.UInt8].MakeArrayType(),
+                EncodeNullability(type)
+            )
+        );
+
+        return attribute;
+
+        CustomAttributeArgument[] EncodeNullability(TypeSymbol type) {
+            // Most of the time this will either be 1 or 2 so lets optimize for that case
+            var builder = ArrayBuilder<byte>.GetInstance(2);
+
+            type.VisitType(EncodePredicate, builder, canDigThroughNullable: true);
+
+            Debug.Assert(builder.Contains(1));
+
+            var arguments = new CustomAttributeArgument[builder.Count];
+
+            for (var i = 0; i < builder.Count; i++)
+                arguments[i] = new CustomAttributeArgument(_specialTypes[SpecialType.UInt8], builder[i]);
+
+            builder.Free();
+
+            return arguments;
+        }
+
+        static bool EncodePredicate(TypeSymbol type, ArrayBuilder<byte> arg, bool canDigThroughNullable = true) {
+            if (type.isReferenceType && !type.IsNullableType())
+                arg.Add(1);
+            else
+                arg.Add(0);
+
+            return false;
+        }
+    }
+
+    private void AddCustomAttributes(
+        Mono.Collections.Generic.Collection<CustomAttribute> customAttributes,
+        ImmutableArray<AttributeData> attributes) {
+        foreach (var attribute in attributes) {
+            var ctor = GetMethod((MethodSymbol)attribute.attributeConstructor);
+            var customAttribute = new CustomAttribute(ctor);
+
+            // TODO Named arguments
+            foreach (var argument in attribute._commonConstructorArguments) {
+                var customArgument = new CustomAttributeArgument(
+                    GetType(argument.type),
+                    argument.value
+                );
+
+                customAttribute.ConstructorArguments.Add(customArgument);
+            }
+
+            customAttributes.Add(customAttribute);
+        }
+    }
+
+    private void AddMethodCustomAttributes(MethodSymbol method, MethodDefinition methodDefinition) {
         var unmanagedAttribute = method.GetUnmanagedCallersOnlyAttributeData(true);
 
         if (unmanagedAttribute is not null && unmanagedAttribute != UnmanagedCallersOnlyAttributeData.Uninitialized) {
@@ -1545,11 +1766,9 @@ internal partial class ILEmitter : ModuleBuilder {
             var attr = new CustomAttribute(attrCtor);
 
             var typeArray = new CustomAttributeArgument(
-                ImportType("System.Type[]"),
+                _specialTypes[SpecialType.Type].MakeArrayType(),
                 new CustomAttributeArgument[] {
-                new CustomAttributeArgument(
-                    ImportType("System.Type"),
-                    callConvCdecl)
+                    new CustomAttributeArgument(ImportType("System.Type"), callConvCdecl)
                 }
             );
 
@@ -1562,6 +1781,33 @@ internal partial class ILEmitter : ModuleBuilder {
             ));
 
             methodDefinition.CustomAttributes.Add(attr);
+        }
+
+        if (method.isPure)
+            AddWellKnownAttribute(methodDefinition.CustomAttributes, WellKnownType.Belte_PureAttribute);
+
+        if (method.isNoThrow)
+            AddWellKnownAttribute(methodDefinition.CustomAttributes, WellKnownType.Belte_NoThrowAttribute);
+
+        if (method.isNoAlloc)
+            AddWellKnownAttribute(methodDefinition.CustomAttributes, WellKnownType.Belte_NoAllocAttribute);
+
+        void AddWellKnownAttribute(
+            Mono.Collections.Generic.Collection<CustomAttribute> customAttributes,
+            WellKnownType wellKnownType) {
+            var attributeSymbol = _compilation.GetWellKnownType(wellKnownType);
+
+            Debug.Assert(!attributeSymbol.IsErrorType());
+
+            var attributeType = Resolve(GetType(attributeSymbol, import: false));
+
+            var attributeCtor = _assemblyDefinition.MainModule.ImportReference(
+                attributeType.GetConstructors().Single()
+            );
+
+            var attribute = new CustomAttribute(attributeCtor);
+
+            customAttributes.Add(attribute);
         }
     }
 
@@ -1592,6 +1838,8 @@ internal partial class ILEmitter : ModuleBuilder {
         methodDefinition.PInvokeInfo = pInvoke;
         methodDefinition.IsPreserveSig = true;
 
+        Debug.Assert(method.arity == 0);
+
         foreach (var parameter in method.parameters) {
             var parameterDefinition = new Mono.Cecil.ParameterDefinition(
                 parameter.name,
@@ -1608,7 +1856,7 @@ internal partial class ILEmitter : ModuleBuilder {
         if (method.returnType.specialType == SpecialType.Bool)
             methodDefinition.MethodReturnType.MarshalInfo = new MarshalInfo(NativeType.I1);
 
-        SetCustomAttributes(method, methodDefinition);
+        AddMethodCustomAttributes(method, methodDefinition);
 
         _methods.Add(method, methodDefinition);
 
@@ -1712,8 +1960,8 @@ internal partial class ILEmitter : ModuleBuilder {
             return;
 
         var (method, body) = _methodBodyMap[methodDefinition];
-        var ilBuilder = new CecilILBuilder(method, this, methodDefinition);
-        var codeGen = new CodeGenerator(this, method, body, ilBuilder, _debugMode, _diagnostics);
+        var ilBuilder = new CecilILBuilder(_compilation, method, this, methodDefinition);
+        var codeGen = new CodeGenerator(_compilation, this, method, body, ilBuilder, _debugMode, _diagnostics);
 
         if (_program.entryPoint == method)
             EmitAssemblyResolver(methodDefinition);
@@ -1834,7 +2082,7 @@ internal partial class ILEmitter : ModuleBuilder {
 
     private void EmitAssemblyResolver(MethodDefinition mainMethod) {
         // TODO Maybe instead of finding dlls from compiler, embed and extract them?
-        var cctorBuilder = new CecilILBuilder(null, this, _cctor);
+        var cctorBuilder = new CecilILBuilder(_compilation, null, this, _cctor);
         var cctorIL = cctorBuilder.iLProcessor;
 
         cctorIL.Emit(OpCodes.Newobj, _ctor);
@@ -1843,7 +2091,7 @@ internal partial class ILEmitter : ModuleBuilder {
 
         cctorBuilder.Finish();
 
-        var ctorBuilder = new CecilILBuilder(null, this, _ctor);
+        var ctorBuilder = new CecilILBuilder(_compilation, null, this, _ctor);
         var ctorIL = ctorBuilder.iLProcessor;
 
         ctorIL.Emit(OpCodes.Ldarg_0);
@@ -1852,7 +2100,7 @@ internal partial class ILEmitter : ModuleBuilder {
 
         ctorBuilder.Finish();
 
-        var cBuilder = new CecilILBuilder(null, this, _cInit);
+        var cBuilder = new CecilILBuilder(_compilation, null, this, _cInit);
 
         cBuilder.AllocateSlot(_specialTypes[SpecialType.String], LocalSlotConstraints.None);
         cBuilder.AllocateSlot(_specialTypes[SpecialType.String], LocalSlotConstraints.None);
@@ -1883,7 +2131,7 @@ internal partial class ILEmitter : ModuleBuilder {
 
         cBuilder.Finish();
 
-        var amBuilder = new CecilILBuilder(null, this, _init);
+        var amBuilder = new CecilILBuilder(_compilation, null, this, _init);
         var amIL = amBuilder.iLProcessor;
 
         var endAM = new object();
@@ -1925,7 +2173,7 @@ internal partial class ILEmitter : ModuleBuilder {
 
                 moduleType.Methods.Add(cctor);
 
-                var mBuilder = new CecilILBuilder(null, this, cctor);
+                var mBuilder = new CecilILBuilder(_compilation, null, this, cctor);
                 var mIL = mBuilder.iLProcessor;
 
                 mIL.Emit(OpCodes.Call, _init);
@@ -1986,6 +2234,23 @@ internal partial class ILEmitter : ModuleBuilder {
 
                     if (type.FullName == metadataName)
                         foundTypes.Add(type);
+                }
+            }
+        }
+
+        if (foundTypes.Count == 0) {
+            for (var i = 0; i < _backupAssemblies.Count; i++) {
+                var modules = _backupAssemblies[i].Modules;
+
+                for (var j = 0; j < modules.Count; j++) {
+                    var types = modules[j].Types;
+
+                    for (var k = 0; k < types.Count; k++) {
+                        var type = types[k];
+
+                        if (type.FullName == metadataName)
+                            foundTypes.Add(type);
+                    }
                 }
             }
         }
@@ -2106,8 +2371,8 @@ internal partial class ILEmitter : ModuleBuilder {
         };
 
         foreach (var (type, metadataName) in builtInTypes) {
-            Debug.Assert(CorLibrary.GetSpecialType(type).name == CorLibrary.GetSpecialType(type).metadataName);
-            var typeReference = ImportType(CorLibrary.GetSpecialType(type).name, metadataName);
+            Debug.Assert(_compilation.GetSpecialType(type).name == _compilation.GetSpecialType(type).metadataName);
+            var typeReference = ImportType(_compilation.GetSpecialType(type).name, metadataName);
             _specialTypes.Add(type, typeReference);
         }
 

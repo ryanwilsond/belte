@@ -5,16 +5,23 @@ using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
+    private readonly Compilation _compilation;
+
     private NamedTypeSymbol _lazyBaseType;
 
-    internal PrimitiveTypeSymbol(string name, SpecialType specialType, int arity = 0, NamedTypeSymbol baseType = null) {
+    internal PrimitiveTypeSymbol(
+        Compilation compilation,
+        string name,
+        SpecialType specialType,
+        int arity = 0,
+        NamedTypeSymbol baseType = null) {
+        _compilation = compilation;
         this.name = name;
         this.specialType = specialType;
         this.arity = arity;
@@ -22,7 +29,12 @@ internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
         templateParameters = ConstructTemplateParameters();
     }
 
-    internal PrimitiveTypeSymbol(string name, int arity, NamedTypeSymbol baseType = null) {
+    internal PrimitiveTypeSymbol(
+        Compilation compilation,
+        string name,
+        int arity,
+        NamedTypeSymbol baseType = null) {
+        _compilation = compilation;
         this.name = name;
         specialType = SpecialType.None;
         this.arity = arity;
@@ -66,8 +78,13 @@ internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
 
     internal override NamedTypeSymbol baseType {
         get {
-            if (_lazyBaseType is null)
-                Interlocked.CompareExchange(ref _lazyBaseType, CorLibrary.GetSpecialType(SpecialType.Object), null);
+            if (_lazyBaseType is null) {
+                Interlocked.CompareExchange(
+                    ref _lazyBaseType,
+                    _compilation.GetSpecialType(SpecialType.Object),
+                    null
+                );
+            }
 
             return _lazyBaseType;
         }
@@ -131,7 +148,7 @@ internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
             return [];
 
         var builder = ArrayBuilder<TemplateParameterSymbol>.GetInstance();
-        var typeType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type));
+        var typeType = new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.Type));
 
         for (var i = 0; i < arity; i++)
             builder.Add(new SynthesizedTemplateParameterSymbol(this, typeType, i));

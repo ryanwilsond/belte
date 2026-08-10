@@ -31,6 +31,7 @@ namespace Buckle.CodeAnalysis.Evaluating;
 /// Evaluates BoundStatements inline similar to an interpreter.
 /// </summary>
 internal sealed partial class Evaluator {
+    private readonly Compilation _compilation;
     private readonly BoundProgram _program;
     private readonly EvaluatorContext _context;
     private readonly Stack<StackFrame> _stack;
@@ -59,6 +60,7 @@ internal sealed partial class Evaluator {
         _context = context;
         _context.program = program;
         _program = program;
+        _compilation = program.compilation;
         _args = arguments;
         _stack = [];
         exceptions = [];
@@ -84,7 +86,7 @@ internal sealed partial class Evaluator {
     private MethodSymbol _toStringMethod {
         get {
             if (_lazyToString is null) {
-                var toString = CorLibrary.GetSpecialType(SpecialType.Object)
+                var toString = _compilation.GetSpecialType(SpecialType.Object)
                     .GetMembers(WellKnownMemberNames.ToString).First() as MethodSymbol;
 
                 Interlocked.CompareExchange(ref _lazyToString, toString, null);
@@ -124,18 +126,18 @@ internal sealed partial class Evaluator {
             EvaluatorValue argsPtr;
 
             if (entryPoint.GetParameterType(0).IsArray()) {
-                argsType = LibraryHelpers.StringBuffer.knownType;
+                argsType = LibraryHelpers.GetStringBuffer(_compilation).knownType;
                 var args = new HeapObject(argsType, _args.Select(a => EvaluatorValue.Literal(a)).ToArray());
 
                 var index = _context.heap.Allocate(args, _stack, _context);
                 argsPtr = EvaluatorValue.HeapPtr(index);
             } else {
-                Debug.Assert(CorLibrary.GetWellKnownType(WellKnownType.Array)
+                Debug.Assert(_compilation.corLibrary.GetWellKnownType(WellKnownType.Array)
                     .Equals(entryPoint.GetParameterType(0).originalDefinition));
 
                 argsType = entryPoint.GetParameterType(0);
 
-                var bufferType = LibraryHelpers.StringBuffer.knownType;
+                var bufferType = LibraryHelpers.GetStringBuffer(_compilation).knownType;
                 var bufferArgs = new HeapObject(bufferType, _args.Select(a => EvaluatorValue.Literal(a)).ToArray());
 
                 var bufferIndex = _context.heap.Allocate(bufferArgs, _stack, _context);
@@ -210,33 +212,33 @@ internal sealed partial class Evaluator {
     private TypeSymbol GetResultType(EvaluatorValue result) {
         switch (result.kind) {
             case ValueKind.Int8:
-                return CorLibrary.GetSpecialType(SpecialType.Int8);
+                return _compilation.GetSpecialType(SpecialType.Int8);
             case ValueKind.Int16:
-                return CorLibrary.GetSpecialType(SpecialType.Int16);
+                return _compilation.GetSpecialType(SpecialType.Int16);
             case ValueKind.Int32:
-                return CorLibrary.GetSpecialType(SpecialType.Int32);
+                return _compilation.GetSpecialType(SpecialType.Int32);
             case ValueKind.Int64:
-                return CorLibrary.GetSpecialType(SpecialType.Int64);
+                return _compilation.GetSpecialType(SpecialType.Int64);
             case ValueKind.UInt8:
-                return CorLibrary.GetSpecialType(SpecialType.UInt8);
+                return _compilation.GetSpecialType(SpecialType.UInt8);
             case ValueKind.UInt16:
-                return CorLibrary.GetSpecialType(SpecialType.UInt16);
+                return _compilation.GetSpecialType(SpecialType.UInt16);
             case ValueKind.UInt32:
-                return CorLibrary.GetSpecialType(SpecialType.UInt32);
+                return _compilation.GetSpecialType(SpecialType.UInt32);
             case ValueKind.UInt64:
-                return CorLibrary.GetSpecialType(SpecialType.UInt64);
+                return _compilation.GetSpecialType(SpecialType.UInt64);
             case ValueKind.Float32:
-                return CorLibrary.GetSpecialType(SpecialType.Float32);
+                return _compilation.GetSpecialType(SpecialType.Float32);
             case ValueKind.Float64:
-                return CorLibrary.GetSpecialType(SpecialType.Float64);
+                return _compilation.GetSpecialType(SpecialType.Float64);
             case ValueKind.Bool:
-                return CorLibrary.GetSpecialType(SpecialType.Bool);
+                return _compilation.GetSpecialType(SpecialType.Bool);
             case ValueKind.Char:
-                return CorLibrary.GetSpecialType(SpecialType.Char);
+                return _compilation.GetSpecialType(SpecialType.Char);
             case ValueKind.String:
-                return CorLibrary.GetSpecialType(SpecialType.String);
+                return _compilation.GetSpecialType(SpecialType.String);
             case ValueKind.Type:
-                return CorLibrary.GetSpecialType(SpecialType.Type);
+                return _compilation.GetSpecialType(SpecialType.Type);
             case ValueKind.Struct:
                 return result.@struct.type;
             case ValueKind.HeapPtr:
@@ -778,7 +780,7 @@ internal sealed partial class Evaluator {
             var substituted = SubstituteTemplateParameterType(t);
 
             if (type.IsNullableType())
-                substituted = CorLibrary.GetOrCreateNullableType(substituted);
+                substituted = _compilation.corLibrary.GetOrCreateNullableType(substituted);
 
             type = substituted;
         }
@@ -1416,8 +1418,10 @@ internal sealed partial class Evaluator {
         BoundObjectCreationExpression node,
         bool used,
         ValueWrapper<bool> abort) {
-        if (node.constructor.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_ctor))
+        if (node.constructor.originalDefinition ==
+                _compilation.corLibrary.GetWellKnownMember(WellKnownMember.Nullable_ctor)) {
             return EvaluateExpression(node.arguments[0], used, abort);
+        }
 
         var type = (NamedTypeSymbol)node.StrippedType();
 
@@ -1658,7 +1662,7 @@ internal sealed partial class Evaluator {
             var operandType = _context.heap[value.ptr].type.StrippedType();
 
             if (operandType.Equals(targetType) ||
-                targetType is NamedTypeSymbol t && operandType.InheritsFromIgnoringConstruction(t)) {
+                targetType is NamedTypeSymbol t && operandType.InheritsFromIgnoringConstruction(t, _compilation)) {
                 value.@bool = !node.isNot;
                 value.kind = ValueKind.Bool;
                 return value;
@@ -1669,7 +1673,7 @@ internal sealed partial class Evaluator {
             var operandType = value.@struct.type.StrippedType();
 
             if (operandType.Equals(targetType) ||
-                targetType is NamedTypeSymbol t && operandType.InheritsFromIgnoringConstruction(t)) {
+                targetType is NamedTypeSymbol t && operandType.InheritsFromIgnoringConstruction(t, _compilation)) {
                 value.@bool = !node.isNot;
                 value.kind = ValueKind.Bool;
                 return value;
@@ -1715,7 +1719,7 @@ internal sealed partial class Evaluator {
             var operandType = _context.heap[value.ptr].type.StrippedType();
 
             if (operandType.Equals(targetType) ||
-                targetType is NamedTypeSymbol t && operandType.InheritsFromIgnoringConstruction(t)) {
+                targetType is NamedTypeSymbol t && operandType.InheritsFromIgnoringConstruction(t, _compilation)) {
                 return value;
             }
         }
@@ -1724,7 +1728,7 @@ internal sealed partial class Evaluator {
             var operandType = value.@struct.type.StrippedType();
 
             if (operandType.Equals(targetType) ||
-                targetType is NamedTypeSymbol t && operandType.InheritsFromIgnoringConstruction(t)) {
+                targetType is NamedTypeSymbol t && operandType.InheritsFromIgnoringConstruction(t, _compilation)) {
                 return value;
             }
         }
@@ -2960,6 +2964,7 @@ internal sealed partial class Evaluator {
         }
 
         body = EvaluatorSlotRewriter.Rewrite(
+            _compilation,
             method,
             body,
             _lazyTypeLayouts,
@@ -2988,22 +2993,22 @@ internal sealed partial class Evaluator {
         io = false;
         result = null;
 
-        if ((object)method.containingNamespace != LibraryHelpers.BelteNamespace.originalDefinition) {
+        if ((object)method.containingNamespace != _compilation.corLibrary.belteNamespace.originalDefinition) {
             if (method.containingType?.specialType != SpecialType.Nullable &&
                 method.containingType?.specialType != SpecialType.Object) {
                 return false;
             }
         }
 
-        var reduced = _program.compilation.options.noStdLib;
+        var reduced = _compilation.options.noStdLib;
 
-        if (!reduced && (object)method.containingType == GraphicsLibrary.Graphics.underlyingNamedType)
+        if (!reduced && (object)method.containingType == _compilation.graphicsLibrary.Graphics.underlyingNamedType)
             return HandleGraphicsCall(location, method, arguments, abort, out result);
 
         // TODO If we deem these string checks too slow, we could probably compute unique Int64 mapKeys instead
         var mapKey = LibraryHelpers.BuildMapKey(method);
 
-        if ((object)method.containingNamespace == LibraryHelpers.BelteNamespace.originalDefinition) {
+        if ((object)method.containingNamespace == _compilation.corLibrary.belteNamespace.originalDefinition) {
             switch (mapKey) {
                 case "LowLevel_GetHashCode_O": {
                         var argument = EvaluateExpression(arguments[0], true, abort);
@@ -3054,19 +3059,19 @@ internal sealed partial class Evaluator {
                             type = argument.@struct.type;
                         } else {
                             type = argument.kind switch {
-                                ValueKind.Int8 => CorLibrary.GetSpecialType(SpecialType.Int8),
-                                ValueKind.Int16 => CorLibrary.GetSpecialType(SpecialType.Int16),
-                                ValueKind.Int32 => CorLibrary.GetSpecialType(SpecialType.Int32),
-                                ValueKind.Int64 => CorLibrary.GetSpecialType(SpecialType.Int64),
-                                ValueKind.UInt8 => CorLibrary.GetSpecialType(SpecialType.UInt8),
-                                ValueKind.UInt16 => CorLibrary.GetSpecialType(SpecialType.UInt16),
-                                ValueKind.UInt32 => CorLibrary.GetSpecialType(SpecialType.UInt32),
-                                ValueKind.UInt64 => CorLibrary.GetSpecialType(SpecialType.UInt64),
-                                ValueKind.Float32 => CorLibrary.GetSpecialType(SpecialType.Float32),
-                                ValueKind.Float64 => CorLibrary.GetSpecialType(SpecialType.Float64),
-                                ValueKind.Bool => CorLibrary.GetSpecialType(SpecialType.Bool),
-                                ValueKind.Char => CorLibrary.GetSpecialType(SpecialType.Char),
-                                ValueKind.String => CorLibrary.GetSpecialType(SpecialType.String),
+                                ValueKind.Int8 => _compilation.GetSpecialType(SpecialType.Int8),
+                                ValueKind.Int16 => _compilation.GetSpecialType(SpecialType.Int16),
+                                ValueKind.Int32 => _compilation.GetSpecialType(SpecialType.Int32),
+                                ValueKind.Int64 => _compilation.GetSpecialType(SpecialType.Int64),
+                                ValueKind.UInt8 => _compilation.GetSpecialType(SpecialType.UInt8),
+                                ValueKind.UInt16 => _compilation.GetSpecialType(SpecialType.UInt16),
+                                ValueKind.UInt32 => _compilation.GetSpecialType(SpecialType.UInt32),
+                                ValueKind.UInt64 => _compilation.GetSpecialType(SpecialType.UInt64),
+                                ValueKind.Float32 => _compilation.GetSpecialType(SpecialType.Float32),
+                                ValueKind.Float64 => _compilation.GetSpecialType(SpecialType.Float64),
+                                ValueKind.Bool => _compilation.GetSpecialType(SpecialType.Bool),
+                                ValueKind.Char => _compilation.GetSpecialType(SpecialType.Char),
+                                ValueKind.String => _compilation.GetSpecialType(SpecialType.String),
                                 _ => throw ExceptionUtilities.UnexpectedValue(argument.kind)
                             };
                         }
@@ -3190,7 +3195,7 @@ internal sealed partial class Evaluator {
                         if (argument.kind is ValueKind.HeapPtr or ValueKind.Struct) {
                             var toStringMethod = ResolveVirtualMethod(_toStringMethod, null, argument);
                             var toStringResult = InvokeMethod(toStringMethod, argument, [], abort);
-                            var func = StandardLibrary.EvaluatorMap[mapKey];
+                            var func = _compilation.standardLibrary.EvaluatorMap[mapKey];
                             result = func(toStringResult.@string, null, null);
                             return true;
                         }
@@ -3332,7 +3337,7 @@ internal sealed partial class Evaluator {
                     break;
             }
 
-            var function = StandardLibrary.EvaluatorMap[mapKey];
+            var function = _compilation.standardLibrary.EvaluatorMap[mapKey];
             var valueArguments = arguments
                 .Select(a => EvaluatorValue.Format(EvaluateExpression(a, true, abort), _context))
                 .ToArray();
@@ -3492,7 +3497,7 @@ internal sealed partial class Evaluator {
         out object result) {
         result = null;
 
-        if (_program.compilation.options.outputKind != OutputKind.GraphicsApplication)
+        if (_compilation.options.outputKind != OutputKind.GraphicsApplication)
             throw new InvalidOperationException("Cannot make Graphics calls when the output kind is not graphics");
 
         var mapKey = LibraryHelpers.BuildMapKey(method);
@@ -3548,7 +3553,7 @@ internal sealed partial class Evaluator {
 
                     evaluatedArguments[0] = LoadTexture(path);
 
-                    var spriteType = CorLibrary.GetWellKnownType(WellKnownType.Sprite);
+                    var spriteType = _compilation.corLibrary.GetWellKnownType(WellKnownType.Sprite);
                     var constructor = spriteType.instanceConstructors[0];
 
                     var sprite = CreateObject(spriteType, abort);
@@ -3600,7 +3605,7 @@ internal sealed partial class Evaluator {
                     var path = GetFilePath(evaluatedArguments[1].@string, location)
                         ?? throw new BelteEvaluatorException("Cannot load text: path does not exist.", location);
 
-                    var textType = CorLibrary.GetWellKnownType(WellKnownType.Text);
+                    var textType = _compilation.corLibrary.GetWellKnownType(WellKnownType.Text);
                     var textPtr = CreateObject(textType, abort);
                     var text = H(textPtr);
 
@@ -3672,7 +3677,7 @@ internal sealed partial class Evaluator {
                 break;
             case "Graphics_GetMousePosition": {
                     var (x, y) = _context.graphicsHandler.GetMousePosition();
-                    var vecType = CorLibrary.GetWellKnownType(WellKnownType.Vec2);
+                    var vecType = _compilation.corLibrary.GetWellKnownType(WellKnownType.Vec2);
                     var vec = CreateObject(vecType, abort);
 
                     InvokeMethod(
@@ -3766,7 +3771,7 @@ internal sealed partial class Evaluator {
                     var path = GetFilePath(EvaluateExpression(arguments[0], true, abort).@string, location)
                         ?? throw new BelteEvaluatorException("Cannot load sound: path does not exist.", location);
 
-                    var soundType = CorLibrary.GetWellKnownType(WellKnownType.Sound);
+                    var soundType = _compilation.corLibrary.GetWellKnownType(WellKnownType.Sound);
                     var soundPtr = CreateObject(soundType, abort);
                     var sound = H(soundPtr);
 
@@ -3829,7 +3834,7 @@ internal sealed partial class Evaluator {
         }
 
         EvaluatorValue LoadTexture(string path, bool useColorKey = false, long r = 255, long g = 255, long b = 255) {
-            var textureType = CorLibrary.GetWellKnownType(WellKnownType.Texture);
+            var textureType = _compilation.corLibrary.GetWellKnownType(WellKnownType.Texture);
             var texturePointer = CreateObject(textureType, abort);
             var texture = _context.heap[texturePointer.ptr];
             var texture2D = (_context.graphicsHandler?.LoadTexture(path, useColorKey, r, g, b))

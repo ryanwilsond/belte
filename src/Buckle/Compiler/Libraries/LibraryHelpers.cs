@@ -1,10 +1,10 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.IO;
 using System.Reflection;
 using System.Text;
-using System.Threading;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -18,50 +18,6 @@ public static class LibraryHelpers {
         "Compiler.Object.blt",
         "Compiler.Buffer.blt"
     ];
-
-    private static SynthesizedBelteNamespaceSymbol _belteNamespace;
-    private static SpecialOrKnownType.Boxed _lazyStringList;
-    private static SpecialOrKnownType.Boxed _lazyStringBuffer;
-    private static SpecialOrKnownType.Boxed _lazyAnyBuffer;
-    private static SpecialOrKnownType.Boxed _lazyCharBuffer;
-
-    internal static NamespaceSymbol BelteNamespace => _belteNamespace;
-
-    internal static SpecialOrKnownType CharBuffer {
-        get {
-            if (_lazyCharBuffer is null)
-                Interlocked.CompareExchange(ref _lazyCharBuffer, GenerateArray(SpecialType.Char), null);
-
-            return _lazyCharBuffer.type;
-        }
-    }
-
-    internal static SpecialOrKnownType StringList {
-        get {
-            if (_lazyStringList is null)
-                Interlocked.CompareExchange(ref _lazyStringList, GenerateStringList(), null);
-
-            return _lazyStringList.type;
-        }
-    }
-
-    internal static SpecialOrKnownType StringBuffer {
-        get {
-            if (_lazyStringBuffer is null)
-                Interlocked.CompareExchange(ref _lazyStringBuffer, GenerateArray(SpecialType.String), null);
-
-            return _lazyStringBuffer.type;
-        }
-    }
-
-    internal static SpecialOrKnownType AnyBuffer {
-        get {
-            if (_lazyAnyBuffer is null)
-                Interlocked.CompareExchange(ref _lazyAnyBuffer, GenerateArray(SpecialType.Any), null);
-
-            return _lazyAnyBuffer.type;
-        }
-    }
 
     /// <summary>
     /// Creates a compilation containing all of the built-in libraries.
@@ -104,12 +60,29 @@ public static class LibraryHelpers {
             references: Compiler.ResolveLibraryLevel(explicitLibraryLevel, noStdLib || buildMode.Evaluating())
         );
 
-        var corLibrary = Compilation.Create(MetadataHelpers.CorLibraryString, options, syntaxTrees.ToArray());
-        CreateBelteNamespace(noStdLib);
-        corLibrary = corLibrary.AddNamespace(BelteNamespace);
-        corLibrary.GetDiagnostics();
+        var corLibraryCompilation = Compilation.Create(
+            MetadataHelpers.CorLibraryString,
+            options,
+            syntaxTrees.ToArray()
+        );
 
-        return corLibrary;
+        var belteNamespace = CreateBelteNamespace(corLibraryCompilation, noStdLib);
+        var updatedCorLibraryCompilation = corLibraryCompilation.AddNamespace(belteNamespace);
+        updatedCorLibraryCompilation.corLibrary.SetBelteNamespace(belteNamespace);
+
+        updatedCorLibraryCompilation.GetDiagnostics();
+
+        return updatedCorLibraryCompilation;
+    }
+
+    internal static SpecialOrKnownType GetCharBuffer(Compilation compilation) {
+        Debug.Assert(compilation is not null);
+        return GenerateArray(compilation, SpecialType.Char).type;
+    }
+
+    internal static SpecialOrKnownType GetStringBuffer(Compilation compilation) {
+        Debug.Assert(compilation is not null);
+        return GenerateArray(compilation, SpecialType.String).type;
     }
 
     internal static string BuildMapKey(MethodSymbol method) {
@@ -164,8 +137,8 @@ public static class LibraryHelpers {
         }
     }
 
-    private static void CreateBelteNamespace(bool noStdLib) {
-        _belteNamespace = new SynthesizedBelteNamespaceSymbol("Belte", noStdLib);
+    private static SynthesizedBelteNamespaceSymbol CreateBelteNamespace(Compilation compilation, bool noStdLib) {
+        return new SynthesizedBelteNamespaceSymbol(compilation, "Belte", noStdLib);
     }
 
     internal static SynthesizedFieldSymbol ConstExprField(string name, SpecialOrKnownType type, object constantValue) {
@@ -183,32 +156,42 @@ public static class LibraryHelpers {
         );
     }
 
-    internal static SynthesizedFinishedNamedTypeSymbol Class(string name, ImmutableArray<Symbol> members) {
-        return Class(name, members, DeclarationModifiers.None);
+    internal static SynthesizedFinishedNamedTypeSymbol Class(
+        Compilation compilation,
+        string name,
+        ImmutableArray<Symbol> members) {
+        return Class(compilation, name, members, DeclarationModifiers.None);
     }
 
     internal static SynthesizedFinishedNamedTypeSymbol Class(
+        Compilation compilation,
         string name,
         NamedTypeSymbol baseType,
         ImmutableArray<Symbol> members) {
-        return Class(name, members, DeclarationModifiers.None, baseType);
+        return Class(compilation, name, members, DeclarationModifiers.None, baseType);
     }
 
-    internal static SynthesizedFinishedNamedTypeSymbol StaticClass(string name, ImmutableArray<Symbol> members) {
-        return Class(name, members, DeclarationModifiers.Static);
+    internal static SynthesizedFinishedNamedTypeSymbol StaticClass(
+        Compilation compilation,
+        string name,
+        ImmutableArray<Symbol> members) {
+        return Class(compilation, name, members, DeclarationModifiers.Static);
     }
 
     internal static SynthesizedFinishedNamedTypeSymbol Class(
+        Compilation compilation,
         string name,
         ImmutableArray<Symbol> members,
         DeclarationModifiers modifiers,
         NamedTypeSymbol baseType = null) {
+        Debug.Assert(compilation.corLibrary.belteNamespace is not null);
+
         var namedType = new SynthesizedSimpleNamedTypeSymbol(
             name,
             TypeKind.Class,
-            baseType ?? CorLibrary.GetSpecialType(SpecialType.Object),
+            baseType ?? compilation.GetSpecialType(SpecialType.Object),
             DeclarationModifiers.Public | modifiers,
-            BelteNamespace,
+            compilation.corLibrary.belteNamespace,
             []
         );
 
@@ -241,7 +224,11 @@ public static class LibraryHelpers {
             }
         }
 
-        return new SynthesizedFinishedNamedTypeSymbol(namedType, BelteNamespace, builder.ToImmutableAndFree());
+        return new SynthesizedFinishedNamedTypeSymbol(
+            namedType,
+            compilation.corLibrary.belteNamespace,
+            builder.ToImmutableAndFree()
+        );
     }
 
     internal static SynthesizedFinishedMethodSymbol StaticMethod(string name, SpecialOrKnownType type) {
@@ -530,16 +517,12 @@ public static class LibraryHelpers {
         return new SynthesizedFinishedMethodSymbol(method, null, builder.ToImmutableAndFree());
     }
 
-    private static SpecialOrKnownType.Boxed GenerateStringList() {
-        return new SpecialOrKnownType.Boxed(new ConstructedNamedTypeSymbol(
-            CorLibrary.GetWellKnownType(WellKnownType.List),
-            [new TypeOrConstant(CorLibrary.GetSpecialType(SpecialType.String))]
-        ));
-    }
-
-    private static SpecialOrKnownType.Boxed GenerateArray(SpecialType elementType) {
+    private static SpecialOrKnownType.Boxed GenerateArray(Compilation compilation, SpecialType elementType) {
         return new SpecialOrKnownType.Boxed(
-            ArrayTypeSymbol.CreateSZArray(new TypeWithAnnotations(CorLibrary.GetSpecialType(elementType)))
+            ArrayTypeSymbol.CreateSZArray(
+                compilation.assembly,
+                new TypeWithAnnotations(compilation.GetSpecialType(elementType))
+            )
         );
     }
 }

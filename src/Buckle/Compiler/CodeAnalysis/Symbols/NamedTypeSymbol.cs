@@ -348,7 +348,8 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
         byte defaultTransformFlag,
         ImmutableArray<byte> transforms,
         ref int position,
-        out TypeSymbol result) {
+        out TypeSymbol result,
+        bool isBelteMode) {
         if (!isTemplateType) {
             result = this;
             return true;
@@ -362,7 +363,12 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
         for (var i = 0; i < allTypeArguments.Count; i++) {
             var oldTypeArgument = allTypeArguments[i].type;
 
-            if (!oldTypeArgument.ApplyNullableTransforms(defaultTransformFlag, transforms, ref position, out var newTypeArgument)) {
+            if (!oldTypeArgument.ApplyNullableTransforms(
+                    defaultTransformFlag,
+                    transforms,
+                    ref position,
+                    out var newTypeArgument,
+                    isBelteMode)) {
                 allTypeArguments.Free();
                 result = this;
                 return false;

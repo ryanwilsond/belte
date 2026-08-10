@@ -143,6 +143,9 @@ internal sealed partial class BoundProgram {
         for (var i = 0; i < length; i++) {
             var (method, body) = methods[i];
 
+            if (method.containingType.originalDefinition is PENamedTypeSymbol)
+                continue;
+
             if (!TemplateExpander.ShouldEmit(method))
                 continue;
 

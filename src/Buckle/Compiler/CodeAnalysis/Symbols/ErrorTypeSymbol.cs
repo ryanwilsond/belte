@@ -5,7 +5,6 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -162,7 +161,7 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
                     this,
                     "",
                     i,
-                    new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type))
+                    new TypeWithAnnotations(containingAssembly.corLibrary.GetSpecialType(SpecialType.Type))
                 );
             }
 

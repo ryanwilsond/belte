@@ -4,6 +4,7 @@ using System.Diagnostics;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -11,6 +12,9 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal abstract class AssemblySymbol : Symbol {
     private static readonly ObjectPool<ArrayBuilder<AssemblySymbol>> SymbolPool
         = new ObjectPool<ArrayBuilder<AssemblySymbol>>(() => []);
+
+    private AssemblySymbol _corAssembly;
+    private CorLibrary _corLibrary;
 
     public override string name => identity.name;
 
@@ -23,6 +27,10 @@ internal abstract class AssemblySymbol : Symbol {
     internal sealed override Symbol containingSymbol => null;
 
     internal sealed override AssemblySymbol containingAssembly => null;
+
+    internal AssemblySymbol corAssembly => _corAssembly;
+
+    internal CorLibrary corLibrary => _corLibrary;
 
     internal abstract bool isMissing { get; }
 
@@ -61,6 +69,22 @@ internal abstract class AssemblySymbol : Symbol {
     internal abstract bool isBelteAssembly { get; }
 
     internal abstract int belteMetadataVersion { get; }
+
+    internal void SetCorLibrary(AssemblySymbol corAssembly) {
+        Debug.Assert(_corAssembly is null);
+        Debug.Assert(_corLibrary is null);
+        Debug.Assert(corAssembly.corLibrary is not null);
+        Debug.Assert(corAssembly.corAssembly == corAssembly);
+        _corAssembly = corAssembly;
+        _corLibrary = corAssembly.corLibrary;
+    }
+
+    internal void SetCorLibraryInternal(CorLibrary corLibrary) {
+        Debug.Assert(_corAssembly is null);
+        Debug.Assert(_corLibrary is null);
+        _corAssembly = this;
+        _corLibrary = corLibrary;
+    }
 
     internal abstract NamedTypeSymbol LookupDeclaredOrForwardedTopLevelMetadataType(
         ref MetadataTypeName emittedName,

@@ -1496,7 +1496,7 @@ internal partial struct MethodTypeInferrer {
         _dependenciesDirty = true;
     }
 
-    private static (TypeOrConstant Type, bool FromFunctionType) Fix(
+    private (TypeOrConstant Type, bool FromFunctionType) Fix(
         Compilation compilation,
         ConversionsBase conversions,
         TemplateParameterSymbol typeParameter,
@@ -1622,7 +1622,7 @@ OuterBreak:
         }
     }
 
-    private static bool ImplicitConversionExists(
+    private bool ImplicitConversionExists(
         TypeOrConstant sourceTypeOrConstant,
         TypeOrConstant destinationTypeOrConstant,
         ConversionsBase conversions) {
@@ -1632,11 +1632,11 @@ OuterBreak:
             Debug.Assert(sourceTypeOrConstant.isConstant && destinationTypeOrConstant.isConstant);
 
             var sourceType = new TypeWithAnnotations(
-                CorLibrary.GetSpecialType(sourceTypeOrConstant.constant.specialType)
+                _compilation.GetSpecialType(sourceTypeOrConstant.constant.specialType)
             );
 
             var destinationType = new TypeWithAnnotations(
-                CorLibrary.GetSpecialType(destinationTypeOrConstant.constant.specialType)
+                _compilation.GetSpecialType(destinationTypeOrConstant.constant.specialType)
             );
 
             return ImplicitConversionExistsCore(sourceType, destinationType, conversions);
@@ -1664,7 +1664,7 @@ OuterBreak:
         }
     }
 
-    private static void MergeOrRemoveCandidates(
+    private void MergeOrRemoveCandidates(
         Dictionary<TypeOrConstant, TypeOrConstant> candidates,
         HashSet<TypeOrConstant> bounds,
         Predicate<TypeOrConstant>? predicate,

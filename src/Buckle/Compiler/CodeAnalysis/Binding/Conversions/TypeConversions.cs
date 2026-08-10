@@ -22,6 +22,12 @@ internal sealed class TypeConversions : ConversionsBase {
         throw ExceptionUtilities.Unreachable();
     }
 
+    internal override Conversion GetListExpressionConversion(
+        BoundUnconvertedInitializerList node,
+        TypeSymbol targetType) {
+        throw ExceptionUtilities.Unreachable();
+    }
+
     private protected override bool TryToConstructUserDefinedOperator(
         MethodSymbol op,
         BoundExpression argument,
@@ -30,5 +36,11 @@ internal sealed class TypeConversions : ConversionsBase {
         out MethodSymbol result) {
         result = null;
         return false;
+    }
+
+    private protected override Conversion GetImplicitArrayLengthConversion(
+        BoundUnconvertedArrayLength length,
+        TypeSymbol destination) {
+        throw ExceptionUtilities.Unreachable();
     }
 }

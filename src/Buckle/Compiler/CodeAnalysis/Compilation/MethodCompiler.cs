@@ -274,6 +274,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                 } else {
                     foreach (var (key, value) in current) {
                         methodBodiesBuilder.Add(key, EvaluatorSlotRewriter.Rewrite(
+                            _compilation,
                             key,
                             value,
                             _typeLayouts,
@@ -640,7 +641,11 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         if (_enumMethodContainerTypes.TryGetValue(enumType, out var container))
             return container.methodMap[originalMethod];
 
-        var synthesizedContainer = new SynthesizedEnumMethodContainer(enumType, enumType.containingNamespace);
+        var synthesizedContainer = new SynthesizedEnumMethodContainer(
+            _compilation,
+            enumType,
+            enumType.containingNamespace
+        );
 
         lock (_enumMethodContainerTypes)
             _enumMethodContainerTypes.TryAdd(enumType, synthesizedContainer);
@@ -658,6 +663,11 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         TypeCompilationState state) {
         if (method.isAbstract || method.originalDefinition is PEMethodSymbol or SourceStateMethodSymbol)
             return;
+
+        if (method.containingType.originalDefinition is PENamedTypeSymbol &&
+            method is SynthesizedInstanceConstructorSymbol) {
+            return;
+        }
 
         var methodDiagnostics = CompileMethodCore(method, methodOrdinal, ref processedInitializers, state);
 
@@ -693,6 +703,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             processedInitializers.hasErrors = processedInitializers.hasErrors || analyzedInitializers.hasAnyErrors;
 
             RefSafetyAnalysis.Analyze(
+                _compilation,
                 method,
                 new BoundBlockStatement(analyzedInitializers.syntax, analyzedInitializers.statements, [], []),
                 currentDiagnostics
@@ -744,7 +755,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         _sawCompileTimeExpression |= sawCompileTimeExpression;
         _sawNonTypeTemplate |= sawNonTypeTemplate;
 
-        var controlFlowGraph = ControlFlowGraph.Create(method, loweredBody);
+        var controlFlowGraph = ControlFlowGraph.Create(_compilation, method, loweredBody);
         var assignments = controlFlowGraph.CheckDefiniteAssignment(currentDiagnostics, state.fieldsRequiringAssignment);
 
         foreach (var field in method.initFields) {
@@ -762,7 +773,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         }
 
         if (isStateMethod)
-            loweredBody = StateMethodRewriter.Merge(method, partialTargetBody, loweredBody);
+            loweredBody = StateMethodRewriter.Merge(_compilation, method, partialTargetBody, loweredBody);
 
         if (method.hasReversalState) {
             currentDiagnostics.PushRangeAndFree(CompileMethodCore(
@@ -781,6 +792,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
 
             if (_compilation.options.buildMode.Evaluating()) {
                 loweredBody = EvaluatorSlotRewriter.Rewrite(
+                    _compilation,
                     method,
                     loweredBody,
                     _typeLayouts,
@@ -813,6 +825,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         out bool sawNonTypeTemplate) {
         try {
             var loweredBody = Lowerer.Lower(
+                _compilation,
                 this,
                 state.compilation.options.optimizationLevel,
                 method,
@@ -842,7 +855,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                     );
                 }
 
-                loweredBody = Optimizer.RemoveDeadCode(method, loweredBody, currentDiagnostics);
+                loweredBody = Optimizer.RemoveDeadCode(_compilation, method, loweredBody, currentDiagnostics);
             }
 
             return loweredBody;
@@ -918,7 +931,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
 
             var methodBody = bodyBinder.BindMethodBody(syntaxNode, diagnostics);
 
-            RefSafetyAnalysis.Analyze(method, methodBody, diagnostics);
+            RefSafetyAnalysis.Analyze(state.compilation, method, methodBody, diagnostics);
 
             switch (methodBody) {
                 case BoundConstructorMethodBody constructor:
@@ -988,7 +1001,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             var potentiallyMistakenLocals = ArrayBuilder<MethodSymbol>.GetInstance();
 
             foreach (var local in body.localFunctions) {
-                if (Compilation.HasEntryPointSignature(local))
+                if (state.compilation.HasEntryPointSignature(local))
                     candidateLocals.Add(local);
                 else if (local.name == WellKnownMemberNames.EntryPointMethodName)
                     potentiallyMistakenLocals.Add(local);

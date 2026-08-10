@@ -237,7 +237,7 @@ done:
     }
 
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>> GetNameToMembersMap() {
-        if (_nameToMembersMap == null) {
+        if (_nameToMembersMap is null) {
             var diagnostics = BelteDiagnosticQueue.GetInstance();
 
             if (Interlocked.CompareExchange(ref _nameToMembersMap, MakeNameToMembersMap(diagnostics), null) is null) {
@@ -347,7 +347,7 @@ done:
                 }
 
                 if (symbol is SourceNamespaceSymbol ns && !reportedShadows && @namespace.isGlobalNamespace) {
-                    if (ns.name == LibraryHelpers.BelteNamespace.name) {
+                    if (ns.name == ns.declaringCompilation.corLibrary.belteNamespace.name) {
                         diagnostics.Push(Warning.NamespaceNameShadowsBelte(ns.location, ns));
                         reportedShadows = true;
                     }

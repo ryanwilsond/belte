@@ -67,6 +67,7 @@ public static partial class BuckleCommandLine {
         new DiagnosticInfo(0607, "BU"),
         new DiagnosticInfo(0611, "BU"),
         new DiagnosticInfo(0612, "BU"),
+        new DiagnosticInfo(0613, "BU"),
     ];
 
     private static readonly DiagnosticInfo[] WarningLevel2 = [
@@ -1229,7 +1230,8 @@ public class {name} {{
         var state = new BuildState {
             showTime = false,
             showInfo = false,
-            buildScript = "Build.blt"
+            buildScript = "Build.blt",
+            noStdLib = false
         };
 
         diagnostics = new DiagnosticQueue<Diagnostic>();
@@ -1257,6 +1259,9 @@ public class {name} {{
                     break;
                 case "--debug":
                     debugMode = true;
+                    break;
+                case "--nostdlib":
+                    state.noStdLib = true;
                     break;
                 case "-f":
                 case "--file":
@@ -1309,7 +1314,8 @@ public class {name} {{
         var specifyWarningLevel = false;
         var wErrorLevel = 2;
 
-        var l = -1;
+        var anyExplicitReferences = false;
+        var l = 0;
         var sae = false;
 
         string currentFileAssociation = null;
@@ -1497,12 +1503,17 @@ public class {name} {{
             } else if (arg.StartsWith("--ref")) {
                 bool err;
 
+                var previousCount = references.Count;
+
                 if (arg != "--reference" && arg != "--reference=" && arg.StartsWith("--reference"))
                     err = ResolveInputRefs(arg.Substring(11), references, copies, diagnostics);
                 else if (arg != "--ref" && arg != "--ref=")
                     err = ResolveInputRefs(arg.Substring(5), references, copies, diagnostics);
                 else
                     err = true;
+
+                if (references.Count > previousCount)
+                    anyExplicitReferences = true;
 
                 if (err)
                     diagnostics.Push(Belte.Diagnostics.Error.MissingReference(arg));
@@ -1731,10 +1742,8 @@ public class {name} {{
         if (specifyModule && state.buildMode != BuildMode.Dotnet)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyModuleNameWithoutDotnet());
 
-        if (references.Count > 0 && !state.buildMode.SupportsDotnetReferences()) {
-            if (references.Count > 1 || !references[0].EndsWith("Belte.Core.dll"))
-                diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyReferencesWithoutDotnet());
-        }
+        if (anyExplicitReferences && !state.buildMode.SupportsDotnetReferences())
+            diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyReferencesWithoutDotnet());
 
         foreach (var reference in references) {
             if (!File.Exists(reference))

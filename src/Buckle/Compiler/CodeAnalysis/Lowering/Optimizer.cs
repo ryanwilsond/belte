@@ -14,13 +14,20 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// Optimizes BoundExpressions and BoundStatements. Can be run multiple times.
 /// </summary>
 internal sealed class Optimizer : BoundTreeRewriterWithStackGuard {
+    private readonly bool _isFirstPass;
+
     // TODO CSE/GVN on pure operations
     private bool _createdCompileTimeExpression = false;
 
-    private Optimizer() { }
+    private Optimizer(bool isFirstPass) {
+        _isFirstPass = isFirstPass;
+    }
 
-    internal static BoundStatement Optimize(BoundStatement statement, out bool createdCompileTimeExpression) {
-        var optimizer = new Optimizer();
+    internal static BoundStatement Optimize(
+        BoundStatement statement,
+        out bool createdCompileTimeExpression,
+        bool isFirstPass) {
+        var optimizer = new Optimizer(isFirstPass);
 
         var result = (BoundStatement)optimizer.Visit(statement);
         createdCompileTimeExpression = optimizer._createdCompileTimeExpression;
@@ -29,10 +36,11 @@ internal sealed class Optimizer : BoundTreeRewriterWithStackGuard {
     }
 
     internal static BoundBlockStatement RemoveDeadCode(
+        Compilation compilation,
         MethodSymbol method,
         BoundBlockStatement block,
         BelteDiagnosticQueue diagnostics) {
-        var controlFlow = ControlFlowGraph.Create(method, block);
+        var controlFlow = ControlFlowGraph.Create(compilation, method, block);
         var reachableStatements = new HashSet<BoundStatement>(controlFlow.blocks.SelectMany(b => b.statements));
 
         var builder = block.statements.ToBuilder();
@@ -283,7 +291,7 @@ again:
         $?<method>(<args>)
 
         */
-        if (node.method.isPure) {
+        if (!_isFirstPass && node.method.isPure) {
             var constArgs = true;
 
             foreach (var arg in node.arguments) {

@@ -28,6 +28,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
     private readonly MethodSymbol _method;
     private readonly NamedTypeSymbol _entryType;
     private readonly BelteDiagnosticQueue _diagnostics;
+    private readonly Compilation _compilation;
 
     private bool _sawCompileTimeExpression;
     private bool _sawNonTypeTemplate;
@@ -35,21 +36,24 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
     private bool _sawLocalFunction;
 
     private Lowerer(
+        Compilation compilation,
         MethodCompiler methodCompiler,
         MethodSymbol container,
         NamedTypeSymbol entryType,
         BelteDiagnosticQueue diagnostics) {
+        _compilation = compilation;
         _methodCompiler = methodCompiler;
         _entryType = entryType;
         _diagnostics = diagnostics;
         _expander = methodCompiler.transpiling
-            ? new SharedExpander(container, diagnostics)
-            : new Expander(container, diagnostics);
+            ? new SharedExpander(_compilation, container, diagnostics)
+            : new Expander(_compilation, container, diagnostics);
         _method = container;
         _transpiling = methodCompiler.transpiling;
     }
 
     internal static BoundBlockStatement Lower(
+        Compilation compilation,
         MethodCompiler methodCompiler,
         OptimizationLevel optimizationLevel,
         MethodSymbol method,
@@ -60,7 +64,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         out bool sawNonTypeTemplate,
         out bool sawLambda,
         out bool sawLocalFunction) {
-        var lowerer = new Lowerer(methodCompiler, method, entryType, diagnostics);
+        var lowerer = new Lowerer(compilation, methodCompiler, method, entryType, diagnostics);
         var optimize = optimizationLevel == OptimizationLevel.Release && !methodCompiler.transpiling;
 
         var rewrittenStatement = statement;
@@ -70,18 +74,19 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         if (optimize) {
             rewrittenStatement = (BoundBlockStatement)Optimizer.Optimize(
                 rewrittenStatement,
-                out var createdCompileTimeExpression
+                out var createdCompileTimeExpression,
+                isFirstPass: true
             );
 
             sawCompileTimeExpression |= createdCompileTimeExpression;
         }
 
         if (methodCompiler.transpiling) {
-            rewrittenStatement = SharedFlowLowerer.Lower(method, rewrittenStatement, diagnostics);
+            rewrittenStatement = SharedFlowLowerer.Lower(compilation, method, rewrittenStatement, diagnostics);
             rewrittenStatement = lowerer._expander.Expand(rewrittenStatement);
             rewrittenStatement = (BoundBlockStatement)lowerer.Visit(rewrittenStatement);
         } else {
-            rewrittenStatement = FlowLowerer.Lower(method, rewrittenStatement, diagnostics);
+            rewrittenStatement = FlowLowerer.Lower(compilation, method, rewrittenStatement, diagnostics);
             rewrittenStatement = lowerer._expander.Expand(rewrittenStatement);
             rewrittenStatement = (BoundBlockStatement)lowerer.Visit(rewrittenStatement);
             rewrittenStatement = Flatten(method, rewrittenStatement);
@@ -90,7 +95,8 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         if (optimize) {
             rewrittenStatement = (BoundBlockStatement)Optimizer.Optimize(
                 rewrittenStatement,
-                out var createdCompileTimeExpression
+                out var createdCompileTimeExpression,
+                isFirstPass: false
             );
 
             sawCompileTimeExpression |= createdCompileTimeExpression;
@@ -109,7 +115,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
             return null;
 
         if (node is BoundExpression e && e.constantValue is not null)
-            return VisitConstant(e);
+            return VisitConstant(_compilation, e);
 
         return base.Visit(node);
     }
@@ -243,27 +249,33 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         if (node.operatorKind == BinaryOperatorKind.Float64Division) {
             if ((double)right.value == 0) {
                 if ((double)left.value == 0) {
-                    var constant = ((FieldSymbol)StandardLibrary.Float64.GetMembers("NaN")[0]).constantValue;
-                    return Literal(syntax, constant, node.type);
+                    Debug.Assert(false);
+                    var constant = ((FieldSymbol)_compilation.standardLibrary.Float64.GetMembers("NaN")[0]).constantValue;
+                    return Literal(_compilation, syntax, constant, node.type);
                 } else if ((double)left.value > 0) {
-                    var constant = ((FieldSymbol)StandardLibrary.Float64.GetMembers("PositiveInfinity")[0]).constantValue;
-                    return Literal(syntax, constant, node.type);
+                    Debug.Assert(false);
+                    var constant = ((FieldSymbol)_compilation.standardLibrary.Float64.GetMembers("PositiveInfinity")[0]).constantValue;
+                    return Literal(_compilation, syntax, constant, node.type);
                 } else if ((double)left.value < 0) {
-                    var constant = ((FieldSymbol)StandardLibrary.Float64.GetMembers("NegativeInfinity")[0]).constantValue;
-                    return Literal(syntax, constant, node.type);
+                    Debug.Assert(false);
+                    var constant = ((FieldSymbol)_compilation.standardLibrary.Float64.GetMembers("NegativeInfinity")[0]).constantValue;
+                    return Literal(_compilation, syntax, constant, node.type);
                 }
             }
         } else if (node.operatorKind == BinaryOperatorKind.Float32Division) {
             if ((float)right.value == 0) {
                 if ((float)left.value == 0) {
-                    var constant = ((FieldSymbol)StandardLibrary.Float32.GetMembers("NaN")[0]).constantValue;
-                    return Literal(syntax, constant, node.type);
+                    Debug.Assert(false);
+                    var constant = ((FieldSymbol)_compilation.standardLibrary.Float32.GetMembers("NaN")[0]).constantValue;
+                    return Literal(_compilation, syntax, constant, node.type);
                 } else if ((float)left.value > 0) {
-                    var constant = ((FieldSymbol)StandardLibrary.Float32.GetMembers("PositiveInfinity")[0]).constantValue;
-                    return Literal(syntax, constant, node.type);
+                    Debug.Assert(false);
+                    var constant = ((FieldSymbol)_compilation.standardLibrary.Float32.GetMembers("PositiveInfinity")[0]).constantValue;
+                    return Literal(_compilation, syntax, constant, node.type);
                 } else if ((float)left.value < 0) {
-                    var constant = ((FieldSymbol)StandardLibrary.Float32.GetMembers("NegativeInfinity")[0]).constantValue;
-                    return Literal(syntax, constant, node.type);
+                    Debug.Assert(false);
+                    var constant = ((FieldSymbol)_compilation.standardLibrary.Float32.GetMembers("NegativeInfinity")[0]).constantValue;
+                    return Literal(_compilation, syntax, constant, node.type);
                 }
             }
         }
@@ -284,7 +296,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         var specialType = CodeGenerator.NormalizeNumericType(node.type.StrippedType().specialType);
 
         return Visit(Call(node.syntax,
-            StandardLibrary.GetClampMethod(node.type.IsNullableType(), specialType),
+            _compilation.standardLibrary.GetClampMethod(node.type.IsNullableType(), specialType),
             [node.left, node.lower, node.upper]
         ));
     }
@@ -315,9 +327,10 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
                 new BoundDataContainerDeclaration(syntax,
                     declaration.dataContainer,
                     CreateNullable(
+                        _compilation,
                         syntax,
                         initializer,
-                        CorLibrary.GetOrCreateNullableType(initializer.Type())
+                        _compilation.corLibrary.GetOrCreateNullableType(initializer.Type())
                     )
                 ),
                 statement.isScoped,
@@ -355,7 +368,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
                 Assignment(
                     syntax,
                     expression.left,
-                    CreateNullable(syntax, expression.right, expression.left.Type()),
+                    CreateNullable(_compilation, syntax, expression.right, expression.left.Type()),
                     expression.isRef,
                     expression.Type()
                 )
@@ -369,8 +382,8 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
             var indexer = (BoundIndexerAccessExpression)expression.left;
             var namedType = (NamedTypeSymbol)indexer.receiver.StrippedType();
 
-            if (CorLibrary.GetWellKnownType(WellKnownType.Array).Equals(namedType.originalDefinition)) {
-                var method = CorLibrary.GetWellKnownMethod(WellKnownMember.Array_Set).AsMember(namedType);
+            if (_compilation.corLibrary.GetWellKnownType(WellKnownType.Array).Equals(namedType.originalDefinition)) {
+                var method = _compilation.corLibrary.GetWellKnownMethod(WellKnownMember.Array_Set).AsMember(namedType);
 
                 return Visit(InstanceCall(expression.syntax,
                     indexer.receiver,
@@ -442,16 +455,17 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
                 Binary(syntax,
                     result.receiver,
                     BinaryOperatorKind.And | Binder.RelationalOperatorType(enumUnderlyingType),
-                    Literal(syntax, result.field.constantValue, enumUnderlyingType),
+                    Literal(_compilation, syntax, result.field.constantValue, enumUnderlyingType),
                     enumUnderlyingType
                 ),
                 BinaryOperatorKind.Equal | Binder.RelationalOperatorType(enumUnderlyingType),
                 Literal(
+                    _compilation,
                     syntax,
                     result.field.constantValue,
                     enumUnderlyingType
                 ),
-                CorLibrary.GetSpecialType(SpecialType.Bool)
+                _compilation.GetSpecialType(SpecialType.Bool)
             ));
         }
 
@@ -496,9 +510,9 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         SyntaxNode syntax,
         BoundExpression countExpression,
         TypeSymbol elementType) {
-        var uint32 = CorLibrary.GetSpecialType(SpecialType.UInt32);
-        var int32 = CorLibrary.GetSpecialType(SpecialType.Int32);
-        var uintptr = CorLibrary.GetSpecialType(SpecialType.UIntPtr);
+        var uint32 = _compilation.GetSpecialType(SpecialType.UInt32);
+        var int32 = _compilation.GetSpecialType(SpecialType.Int32);
+        var uintptr = _compilation.GetSpecialType(SpecialType.UIntPtr);
 
         var sizeInBytes = elementType.specialType.SizeInBytes();
         var sizeOfConstant = sizeInBytes > 0 ? new ConstantValue(sizeInBytes, SpecialType.Int32) : null;
@@ -522,7 +536,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
 
                 if (folded < uint.MaxValue) {
                     return new BoundCastExpression(syntax,
-                        Literal(syntax, (uint)folded, uint32),
+                        Literal(_compilation, syntax, (uint)folded, uint32),
                         Conversion.ExplicitIntegerToPointer,
                         null,
                         uintptr
@@ -574,7 +588,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
 
                 return VisitConditionalOperator(
                     expression.Update(
-                        RewriteNull(syntax, condition),
+                        RewriteNull(_compilation, syntax, condition),
                         expression.isRef,
                         expression.trueExpression,
                         expression.falseExpression,
@@ -612,9 +626,9 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
                 condition = Conditional(
                     syntax,
                     conditional.condition,
-                    RewriteNull(syntax, conditional.trueExpression),
-                    RewriteNull(syntax, conditional.falseExpression),
-                    CorLibrary.GetSpecialType(SpecialType.Bool)
+                    RewriteNull(_compilation, syntax, conditional.trueExpression),
+                    RewriteNull(_compilation, syntax, conditional.falseExpression),
+                    _compilation.GetSpecialType(SpecialType.Bool)
                 );
             }
 
@@ -622,7 +636,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
                 new BoundConditionalGotoStatement(
                     syntax,
                     statement.label,
-                    RewriteNull(syntax, condition),
+                    RewriteNull(_compilation, syntax, condition),
                     statement.jumpIfTrue,
                     statement.assignedOnJump,
                     statement.assignedOnFallthrough
@@ -667,7 +681,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         */
         var fromType = node.fromType;
         var toType = node.type;
-        var method = StandardLibrary.GetWellKnownMember(STLWellKnownMembers.LowLevel_BitCast)
+        var method = _compilation.standardLibrary.GetWellKnownMember(STLWellKnownMembers.LowLevel_BitCast)
             .Construct([new TypeOrConstant(fromType), new TypeOrConstant(toType)]);
 
         return Visit(Call(node.syntax, method, node.operand));
@@ -703,13 +717,13 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
             );
         }
 
-        var int32 = CorLibrary.GetSpecialType(SpecialType.Int32);
+        var int32 = _compilation.GetSpecialType(SpecialType.Int32);
         var sizeInBytes = resultType.specialType.SizeInBytes();
         var constantValue = sizeInBytes > 0 ? new ConstantValue(sizeInBytes, SpecialType.Int32) : null;
 
         var binaryType = UIntPtr.Size switch {
-            4 => CorLibrary.GetSpecialType(SpecialType.UInt32),
-            8 => CorLibrary.GetSpecialType(SpecialType.UInt64),
+            4 => _compilation.GetSpecialType(SpecialType.UInt32),
+            8 => _compilation.GetSpecialType(SpecialType.UInt64),
             _ => throw ExceptionUtilities.UnexpectedValue(UIntPtr.Size)
         };
 
@@ -775,7 +789,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         if (expression.index.Type().IsNullableType()) {
             return Visit(expression.Update(
                 expression.receiver,
-                RewriteNull(syntax, expression.index),
+                RewriteNull(_compilation, syntax, expression.index),
                 expression.constantValue,
                 expression.type
             ));
@@ -795,12 +809,12 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
 
         */
         var syntax = expression.syntax;
-        var sizeType = CorLibrary.GetSpecialType(SpecialType.Int);
+        var sizeType = _compilation.GetSpecialType(SpecialType.Int);
 
         return VisitArrayCreationExpression(
             new BoundArrayCreationExpression(
                 syntax,
-                [Literal(syntax, (long)expression.items.Length, sizeType)],
+                [Literal(_compilation, syntax, (long)expression.items.Length, sizeType)],
                 VisitNonIsolatedList(expression),
                 expression.Type()
             )
@@ -836,10 +850,14 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         BoundNode VisitListItem(BoundExpression item) {
             if (ShouldBeTreatedAsNullable(elementType) &&
                 !item.Type().IsNullableType()) {
-                if (item.constantValue is null)
-                    return Visit(CreateNullable(syntax, item, elementType));
-                else
-                    return VisitConstant(Literal(syntax, item.constantValue.value, elementType));
+                if (item.constantValue is null) {
+                    return Visit(CreateNullable(_compilation, syntax, item, elementType));
+                } else {
+                    return VisitConstant(
+                        _compilation,
+                        Literal(_compilation, syntax, item.constantValue.value, elementType)
+                    );
+                }
             }
 
             return Visit(item);
@@ -870,7 +888,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         var arrayType = (NamedTypeSymbol)expression.type.StrippedType();
 
         if (expression.initializer is null) {
-            var ctor = CorLibrary.GetWellKnownMethod(WellKnownMember.Array_ctor_1).AsMember(arrayType);
+            var ctor = _compilation.corLibrary.GetWellKnownMethod(WellKnownMember.Array_ctor_1).AsMember(arrayType);
             Debug.Assert(expression.sizes.Length == 1);
 
             return Visit(new BoundObjectCreationExpression(
@@ -884,8 +902,8 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
                 arrayType
             ));
         } else {
-            var ctor = CorLibrary.GetWellKnownMethod(WellKnownMember.Array_ctor_2).AsMember(arrayType);
-            var rawType = ArrayTypeSymbol.FromFatArray(arrayType);
+            var ctor = _compilation.corLibrary.GetWellKnownMethod(WellKnownMember.Array_ctor_2).AsMember(arrayType);
+            var rawType = ArrayTypeSymbol.FromFatArray(_compilation.assembly, arrayType);
 
             return Visit(new BoundObjectCreationExpression(
                 expression.syntax,
@@ -917,7 +935,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
                 var call = InstanceCall(
                     syntax,
                     expression.left,
-                    CreateNullableGetHasValueSymbol(expression.left.Type().GetNullableUnderlyingType())
+                    CreateNullableGetHasValueSymbol(_compilation, expression.left.Type().GetNullableUnderlyingType())
                 );
 
                 if (expression.isNot)
@@ -954,10 +972,25 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
 
         */
         if (ShouldBeTreatedAsNullable(expression.operand.Type())) {
-            if (expression.throwIfNull)
-                return Visit(CreateNullableGetValueCall(expression.syntax, expression.operand, expression.Type()));
-            else
-                return Visit(CreateNullableGetValueOrDefaultCall(expression.syntax, expression.operand, expression.Type()));
+            if (expression.throwIfNull) {
+                return Visit(
+                    CreateNullableGetValueCall(
+                        _compilation,
+                        expression.syntax,
+                        expression.operand,
+                        expression.Type()
+                    )
+                );
+            } else {
+                return Visit(
+                    CreateNullableGetValueOrDefaultCall(
+                        _compilation,
+                        expression.syntax,
+                        expression.operand,
+                        expression.Type()
+                    )
+                );
+            }
         }
 
         return base.VisitNullAssertOperator(expression);
@@ -976,8 +1009,14 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         var syntax = node.syntax;
         var type = node.type;
 
-        if (type.IsPointerOrFunctionPointer() || type.specialType is SpecialType.IntPtr or SpecialType.UIntPtr)
-            return Visit(Cast(syntax, type, Literal(syntax, null, type), Conversion.ImplicitNullToPointer, null));
+        if (type.IsPointerOrFunctionPointer() || type.specialType is SpecialType.IntPtr or SpecialType.UIntPtr) {
+            return Visit(Cast(syntax,
+                type,
+                Literal(_compilation, syntax, null, type),
+                Conversion.ImplicitNullToPointer,
+                null
+            ));
+        }
 
         return base.VisitDefaultExpression(node);
     }
@@ -1012,7 +1051,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
                 smallestType.arity
             );
 
-            var smallestCtor = CorLibrary.GetWellKnownMethod(NamedTypeSymbol.GetTupleCtor(smallestType.arity));
+            var smallestCtor = _compilation.corLibrary.GetWellKnownMethod(NamedTypeSymbol.GetTupleCtor(smallestType.arity));
 
             var smallestConstructor = smallestCtor.AsMember(smallestType);
             var currentCreation = new BoundObjectCreationExpression(
@@ -1028,7 +1067,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
 
             if (underlyingTupleTypeChain.Count > 0) {
                 var tuple8Type = underlyingTupleTypeChain.Peek();
-                var tuple8Ctor = CorLibrary.GetWellKnownMethod(
+                var tuple8Ctor = _compilation.corLibrary.GetWellKnownMethod(
                     NamedTypeSymbol.GetTupleCtor(NamedTypeSymbol.ValueTupleRestPosition)
                 );
 
@@ -1070,35 +1109,39 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
     }
 
     internal static BoundExpression CreateNullableGetValueCall(
+        Compilation compilation,
         SyntaxNode syntax,
         BoundExpression operand,
         TypeSymbol genericType) {
         return InstanceCall(
             syntax,
             operand,
-            CreateNullableGetValueSymbol(genericType)
+            CreateNullableGetValueSymbol(compilation, genericType)
         );
     }
 
-    private static MethodSymbol CreateNullableGetValueSymbol(TypeSymbol genericType) {
+    private static MethodSymbol CreateNullableGetValueSymbol(Compilation compilation, TypeSymbol genericType) {
         return CreateMethodAsMemberOfNullable(
-            CorLibrary.GetWellKnownMethod(WellKnownMember.Nullable_getValue),
+            compilation,
+            compilation.corLibrary.GetWellKnownMethod(WellKnownMember.Nullable_getValue),
             genericType
         );
     }
 
     internal static BoundExpression CreateNullableGetValueOrDefaultCall(
+        Compilation compilation,
         SyntaxNode syntax,
         BoundExpression operand,
         TypeSymbol genericType) {
         return InstanceCall(
             syntax,
             operand,
-            CreateNullableGetValueOrDefaultSymbol(genericType)
+            CreateNullableGetValueOrDefaultSymbol(compilation, genericType)
         );
     }
 
     internal static BoundExpression CreateNullableGetValueOrDefaultTCall(
+        Compilation compilation,
         SyntaxNode syntax,
         BoundExpression operand,
         BoundExpression argument,
@@ -1106,42 +1149,49 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         return InstanceCall(
             syntax,
             operand,
-            CreateNullableGetValueOrDefaultTSymbol(genericType),
+            CreateNullableGetValueOrDefaultTSymbol(compilation, genericType),
             [argument]
         );
     }
 
-    private static MethodSymbol CreateNullableGetValueOrDefaultSymbol(TypeSymbol genericType) {
+    private static MethodSymbol CreateNullableGetValueOrDefaultSymbol(Compilation compilation, TypeSymbol genericType) {
         return CreateMethodAsMemberOfNullable(
-            CorLibrary.GetWellKnownMethod(WellKnownMember.Nullable_GetValueOrDefault),
+            compilation,
+            compilation.corLibrary.GetWellKnownMethod(WellKnownMember.Nullable_GetValueOrDefault),
             genericType
         );
     }
 
-    private static MethodSymbol CreateNullableGetValueOrDefaultTSymbol(TypeSymbol genericType) {
+    private static MethodSymbol CreateNullableGetValueOrDefaultTSymbol(Compilation compilation, TypeSymbol genericType) {
         return CreateMethodAsMemberOfNullable(
-            CorLibrary.GetWellKnownMethod(WellKnownMember.Nullable_GetValueOrDefault_T),
+            compilation,
+            compilation.corLibrary.GetWellKnownMethod(WellKnownMember.Nullable_GetValueOrDefault_T),
             genericType
         );
     }
 
-    private static MethodSymbol CreateNullableGetHasValueSymbol(TypeSymbol genericType) {
+    private static MethodSymbol CreateNullableGetHasValueSymbol(Compilation compilation, TypeSymbol genericType) {
         return CreateMethodAsMemberOfNullable(
-            CorLibrary.GetWellKnownMethod(WellKnownMember.Nullable_getHasValue),
+            compilation,
+            compilation.corLibrary.GetWellKnownMethod(WellKnownMember.Nullable_getHasValue),
             genericType
         );
     }
 
-    private static MethodSymbol CreateNullableCtorSymbol(TypeSymbol genericType) {
+    private static MethodSymbol CreateNullableCtorSymbol(Compilation compilation, TypeSymbol genericType) {
         return CreateMethodAsMemberOfNullable(
-            CorLibrary.GetWellKnownMethod(WellKnownMember.Nullable_ctor),
+            compilation,
+            compilation.corLibrary.GetWellKnownMethod(WellKnownMember.Nullable_ctor),
             genericType
         );
     }
 
-    private static MethodSymbol CreateMethodAsMemberOfNullable(MethodSymbol method, TypeSymbol genericType) {
+    private static MethodSymbol CreateMethodAsMemberOfNullable(
+        Compilation compilation,
+        MethodSymbol method,
+        TypeSymbol genericType) {
         return (MethodSymbol)method.SymbolAsMember(
-            CorLibrary.GetSpecialType(SpecialType.Nullable).Construct([new TypeOrConstant(genericType)])
+            compilation.corLibrary.GetSpecialType(SpecialType.Nullable).Construct([new TypeOrConstant(genericType)])
         );
     }
 
@@ -1327,6 +1377,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
     }
 
     internal static BoundExpression CreateNullable(
+        Compilation compilation,
         SyntaxNode syntax,
         BoundExpression expression,
         TypeSymbol nullableType) {
@@ -1341,7 +1392,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         if (expression.type.IsNullableType()) {
             if (expression.constantValue is not null) {
                 Debug.Assert(expression.constantValue.value is not null);
-                expression = Literal(syntax, expression.constantValue.value, expression.type.StrippedType());
+                expression = Literal(compilation, syntax, expression.constantValue.value, expression.type.StrippedType());
             } else {
                 return expression;
             }
@@ -1349,7 +1400,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
 
         return new BoundObjectCreationExpression(
             syntax,
-            CreateNullableCtorSymbol(nullableType.GetNullableUnderlyingType()),
+            CreateNullableCtorSymbol(compilation, nullableType.GetNullableUnderlyingType()),
             [expression],
             default,
             default,
@@ -1359,12 +1410,12 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         );
     }
 
-    internal static BoundExpression VisitConstant(BoundExpression expression) {
+    internal static BoundExpression VisitConstant(Compilation compilation, BoundExpression expression) {
         var syntax = expression.syntax;
         var type = expression.Type();
 
         if (expression.constantValue.value is null)
-            type = CorLibrary.GetOrCreateNullableType(type);
+            type = compilation.corLibrary.GetOrCreateNullableType(type);
 
         return new BoundLiteralExpression(
             syntax,
@@ -1373,26 +1424,29 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         );
     }
 
-    internal static BoundExpression RewriteNull(SyntaxNode syntax, BoundExpression expression) {
+    internal static BoundExpression RewriteNull(
+        Compilation compilation,
+        SyntaxNode syntax,
+        BoundExpression expression) {
         if (ConstantValue.IsNull(expression.constantValue)) {
             return Call(
                 syntax,
-                StandardLibrary.GetWellKnownMember(STLWellKnownMembers.LowLevel_ThrowNullConditionException),
+                compilation.standardLibrary.GetWellKnownMember(STLWellKnownMembers.LowLevel_ThrowNullConditionException),
                 []
             );
         }
 
         if (expression is BoundObjectCreationExpression creation &&
             creation.type.specialType == SpecialType.Nullable) {
-            return RewriteNull(syntax, creation.arguments[0]);
+            return RewriteNull(compilation, syntax, creation.arguments[0]);
         }
 
         if (expression is BoundBinaryOperator binary && binary.operatorKind.IsConditional()) {
             return Binary(
                 syntax,
-                RewriteNull(syntax, binary.left),
+                RewriteNull(compilation, syntax, binary.left),
                 binary.operatorKind,
-                RewriteNull(syntax, binary.right),
+                RewriteNull(compilation, syntax, binary.right),
                 binary.StrippedType()
             );
         }

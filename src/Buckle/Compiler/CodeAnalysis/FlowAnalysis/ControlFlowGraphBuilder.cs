@@ -13,6 +13,7 @@ namespace Buckle.CodeAnalysis.FlowAnalysis;
 /// Builds a <see cref="ControlFlowGraph" /> from BasicBlocks and BasicBlockBranches.
 /// </summary>
 internal sealed partial class ControlFlowGraphBuilder {
+    private readonly Compilation _compilation;
     private readonly Dictionary<Symbol, int> _slotMap;
     private readonly ArrayBuilder<Symbol> _symbolsBySlot;
     private readonly MethodSymbol _method;
@@ -26,9 +27,11 @@ internal sealed partial class ControlFlowGraphBuilder {
     private readonly Dictionary<BasicBlock, List<TryRegion>> _regionsByBlock = [];
 
     internal ControlFlowGraphBuilder(
+        Compilation compilation,
         MethodSymbol method,
         Dictionary<Symbol, int> slotMap,
         ArrayBuilder<Symbol> symbolsBySlot) {
+        _compilation = compilation;
         _slotMap = slotMap;
         _symbolsBySlot = symbolsBySlot;
         _method = method;
@@ -215,7 +218,7 @@ again:
         if (condition.constantValue is not null)
             return condition;
 
-        var boolType = CorLibrary.GetSpecialType(SpecialType.Bool);
+        var boolType = _compilation.GetSpecialType(SpecialType.Bool);
         var opKind = OverloadResolution.UnOpEasyOut.OpKind(UnaryOperatorKind.LogicalNegation, boolType);
 
         return new BoundUnaryOperator(syntax, condition, opKind, null, null, boolType);

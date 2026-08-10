@@ -20,7 +20,11 @@ internal abstract class AttributeData {
 
     protected internal abstract INamedTypeSymbol _commonAttributeClass { get; }
 
+    protected internal abstract IMethodSymbol _commonAttributeConstructor { get; }
+
     internal virtual INamedTypeSymbol attributeClass => _commonAttributeClass;
+
+    internal virtual IMethodSymbol attributeConstructor => _commonAttributeConstructor;
 
     internal abstract int GetTargetAttributeSignatureIndex(AttributeDescription description);
 

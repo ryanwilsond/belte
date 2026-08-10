@@ -290,12 +290,14 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
     internal FunctionPointerMethodSymbol ApplyNullableTransforms(
         byte defaultTransformFlag,
         ImmutableArray<byte> transforms,
-        ref int position) {
+        ref int position,
+        bool isBelteMode) {
         var madeChanges = returnTypeWithAnnotations.ApplyNullableTransforms(
             defaultTransformFlag,
             transforms,
             ref position,
-            out var newReturnType
+            out var newReturnType,
+            isBelteMode
         );
 
         var newParamTypes = ImmutableArray<TypeOrConstant>.Empty;
@@ -306,7 +308,14 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
 
             foreach (var param in parameters) {
                 madeParamChanges |= param.typeWithAnnotations
-                    .ApplyNullableTransforms(defaultTransformFlag, transforms, ref position, out var newParamType);
+                    .ApplyNullableTransforms(
+                        defaultTransformFlag,
+                        transforms,
+                        ref position,
+                        out var newParamType,
+                        isBelteMode
+                    );
+
                 paramTypesBuilder.Add(new TypeOrConstant(newParamType));
             }
 

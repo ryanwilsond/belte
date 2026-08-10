@@ -88,13 +88,15 @@ internal sealed partial class BinderFactory {
                 if (_inScript)
                     result = result.WithAdditionalFlags(BinderFlags.IgnoreAccessibility);
 
-                if (SynthesizedEntryPoint.GetSimpleProgramEntryPoint(_compilation, node, fallbackToMainEntryPoint: true)
-                    is SynthesizedEntryPoint simpleProgram) {
-                    var bodyBinder = simpleProgram.GetBodyBinder(_factory._ignoreAccessibility);
-                    result = new SimpleProgramUnitBinder(
-                        result,
-                        (SimpleProgramBinder)bodyBinder.GetBinder(simpleProgram.syntaxNode)
-                    );
+                if (_compilation.options.outputKind.HasEntryPoint()) {
+                    if (SynthesizedEntryPoint.GetSimpleProgramEntryPoint(_compilation, node, fallbackToMainEntryPoint: true)
+                        is SynthesizedEntryPoint simpleProgram) {
+                        var bodyBinder = simpleProgram.GetBodyBinder(_factory._ignoreAccessibility);
+                        result = new SimpleProgramUnitBinder(
+                            result,
+                            (SimpleProgramBinder)bodyBinder.GetBinder(simpleProgram.syntaxNode)
+                        );
+                    }
                 }
 
                 _binderCache.TryAdd(key, result);

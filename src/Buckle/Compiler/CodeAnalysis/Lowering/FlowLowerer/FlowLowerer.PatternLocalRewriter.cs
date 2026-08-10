@@ -13,10 +13,16 @@ internal sealed partial class FlowLowerer {
         private protected readonly SyntaxNode _node;
         private protected readonly FlowLowerer _flowLowerer;
         private protected readonly DagTempAllocator _tempAllocator;
+        private protected readonly Compilation _compilation;
 
-        internal PatternLocalRewriter(SyntaxNode node, FlowLowerer flowLowerer, bool generateInstrumentation) {
+        internal PatternLocalRewriter(
+            SyntaxNode node,
+            FlowLowerer flowLowerer,
+            Compilation compilation,
+            bool generateInstrumentation) {
             _node = node;
             _flowLowerer = flowLowerer;
+            _compilation = compilation;
             _generateInstrumentation = generateInstrumentation;
             _tempAllocator = new DagTempAllocator(flowLowerer, node);
         }
@@ -95,7 +101,7 @@ internal sealed partial class FlowLowerer {
                         new BoundTypeExpression(d.syntax, new TypeWithAnnotations(d.type), null, d.type),
                         false,
                         null,
-                        CorLibrary.GetSpecialType(SpecialType.Bool)
+                        _compilation.GetSpecialType(SpecialType.Bool)
                     );
                 default:
                     throw ExceptionUtilities.UnexpectedValue(test);
@@ -109,9 +115,9 @@ internal sealed partial class FlowLowerer {
             var isNot = operatorKind.Operator() == BinaryOperatorKind.NotEqual;
 
             if (rewrittenExpr.type.IsPointerOrFunctionPointer()) {
-                TypeSymbol objectType = CorLibrary.GetSpecialType(SpecialType.Object);
+                TypeSymbol objectType = _compilation.GetSpecialType(SpecialType.Object);
                 var operandType = new PointerTypeSymbol(
-                    new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void))
+                    new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.Void))
                 );
 
                 return new BoundIsOperator(syntax,
@@ -119,19 +125,19 @@ internal sealed partial class FlowLowerer {
                         operandType,
                         rewrittenExpr
                     ),
-                    Literal(syntax, null, objectType),
+                    Literal(_compilation, syntax, null, objectType),
                     isNot,
                     null,
-                    CorLibrary.GetSpecialType(SpecialType.Bool)
+                    _compilation.GetSpecialType(SpecialType.Bool)
                 );
             }
 
             return (BoundExpression)_flowLowerer.Visit(new BoundIsOperator(syntax,
                 rewrittenExpr,
-                Literal(syntax, null, rewrittenExpr.type),
+                Literal(_compilation, syntax, null, rewrittenExpr.type),
                 isNot,
                 null,
-                CorLibrary.GetSpecialType(SpecialType.Bool)
+                _compilation.GetSpecialType(SpecialType.Bool)
             ));
         }
 
@@ -160,13 +166,13 @@ internal sealed partial class FlowLowerer {
                     throw ExceptionUtilities.Unreachable();
             }
 
-            BoundExpression literal = Literal(syntax, val, input.type);
+            BoundExpression literal = Literal(_compilation, syntax, val, input.type);
             var comparisonType = input.type.EnumUnderlyingTypeOrSelf();
 
             // TODO Int32 or Int64 bin op kind?
             if (operatorKind.OperandTypes() == BinaryOperatorKind.Int64 &&
                 comparisonType.specialType != SpecialType.Int32) {
-                comparisonType = CorLibrary.GetSpecialType(SpecialType.Int32);
+                comparisonType = _compilation.GetSpecialType(SpecialType.Int32);
                 input = CreateCast(syntax, comparisonType, input);
                 literal = CreateCast(syntax, comparisonType, literal);
             }
@@ -175,7 +181,7 @@ internal sealed partial class FlowLowerer {
                 input,
                 operatorKind,
                 literal,
-                CorLibrary.GetSpecialType(SpecialType.Bool)
+                _compilation.GetSpecialType(SpecialType.Bool)
             ));
         }
 
@@ -209,10 +215,10 @@ internal sealed partial class FlowLowerer {
                 testExpression = new BoundIsOperator(
                     _node,
                     output,
-                    Literal(_node, null, output.type),
+                    Literal(_compilation, _node, null, output.type),
                     true,
                     null,
-                    CorLibrary.GetSpecialType(SpecialType.Bool)
+                    _compilation.GetSpecialType(SpecialType.Bool)
                 );
 
                 return true;
@@ -238,10 +244,10 @@ internal sealed partial class FlowLowerer {
                 testExpression = new BoundIsOperator(
                     _node,
                     output,
-                    Literal(_node, null, baseType),
+                    Literal(_compilation, _node, null, baseType),
                     true,
                     null,
-                    CorLibrary.GetSpecialType(SpecialType.Bool)
+                    _compilation.GetSpecialType(SpecialType.Bool)
                 );
 
                 return true;

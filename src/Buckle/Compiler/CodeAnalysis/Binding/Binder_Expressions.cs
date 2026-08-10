@@ -134,7 +134,7 @@ internal partial class Binder {
                 result = new BoundArrayLength(
                     arrayLength.syntax,
                     arrayLength.receiver,
-                    CorLibrary.GetSpecialType(SpecialType.Int),
+                    compilation.GetSpecialType(SpecialType.Int),
                     arrayLength.hasErrors
                 );
 
@@ -149,7 +149,7 @@ internal partial class Binder {
                         new BoundArrayLength(
                             length.syntax,
                             length.receiver,
-                            CorLibrary.GetSpecialType(SpecialType.Int),
+                            compilation.GetSpecialType(SpecialType.Int),
                             length.hasErrors
                         ),
                         access.type,
@@ -489,7 +489,7 @@ internal partial class Binder {
         BoundExpression result;
 
         var strippedType = destinationType.StrippedType();
-        var fatArray = CorLibrary.GetWellKnownType(WellKnownType.Array);
+        var fatArray = compilation.corLibrary.GetWellKnownType(WellKnownType.Array);
 
         if (strippedType.kind == SymbolKind.ArrayType || strippedType.originalDefinition.Equals(fatArray)) {
             result = BindArrayCreationWithInitializer(
@@ -549,7 +549,7 @@ internal partial class Binder {
             }
         }
 
-        var dictType = CorLibrary.GetWellKnownType(WellKnownType.Dictionary)
+        var dictType = compilation.corLibrary.GetWellKnownType(WellKnownType.Dictionary)
             .Construct([new TypeOrConstant(foundKeyType), new TypeOrConstant(foundValueType)]);
 
         if (failed) {
@@ -580,7 +580,7 @@ internal partial class Binder {
         var result = BindArrayInitializerList(
             diagnostics,
             node,
-            CreateArrayTypeSymbol(CorLibrary.GetNullableType(SpecialType.Any)),
+            CreateArrayTypeSymbol(compilation.corLibrary.GetNullableType(SpecialType.Any)),
             new long?[1],
             1,
             false
@@ -655,7 +655,7 @@ internal partial class Binder {
             builder.Add(casted);
         }
 
-        TypeSymbol type = ArrayTypeSymbol.CreateSZArray(foundTypeWithAnnotations);
+        TypeSymbol type = ArrayTypeSymbol.CreateSZArray(compilation.assembly, foundTypeWithAnnotations);
 
         expression = new BoundInitializerList(
             expression.syntax,
@@ -669,9 +669,10 @@ internal partial class Binder {
         return new BoundArrayCreationExpression(
             expression.syntax,
             [BoundFactory.Literal(
+                compilation,
                 expression.syntax,
                 Convert.ToInt64(expression.items.Length),
-                CorLibrary.GetSpecialType(SpecialType.Int)
+                compilation.GetSpecialType(SpecialType.Int)
             )],
             expression,
             type
@@ -1093,7 +1094,7 @@ internal partial class Binder {
             case BoundKind.IndexerAccessExpression:
                 var index = (BoundIndexerAccessExpression)expression;
 
-                if (CorLibrary.TryGetWellKnownType(WellKnownType.Array, compilation)
+                if (compilation.corLibrary.TryGetWellKnownType(WellKnownType.Array, compilation)
                     .Equals(index.receiver.StrippedType().originalDefinition)) {
                     return true;
                 }
@@ -2381,7 +2382,7 @@ internal partial class Binder {
 
         var countSyntax = rankSpecifiers[0].size;
 
-        var int32 = CorLibrary.GetSpecialType(SpecialType.Int32);
+        var int32 = compilation.GetSpecialType(SpecialType.Int32);
         var count = BindValue(countSyntax, diagnostics, BindValueKind.RValue);
         count = ReduceNumericIfApplicable(int32, count);
         count = GenerateConversionForAssignment(int32, count, diagnostics);
@@ -2612,7 +2613,7 @@ internal partial class Binder {
         }
 
         var boundType = new BoundTypeExpression(typeSyntax, typeWithAnnotations, null, type, type.IsErrorType());
-        return new BoundTypeOfExpression(node, boundType, CorLibrary.GetSpecialType(SpecialType.Type), hasError);
+        return new BoundTypeOfExpression(node, boundType, compilation.GetSpecialType(SpecialType.Type), hasError);
     }
 
     private BoundExpression BindSizeOfExpression(SizeOfExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
@@ -2626,7 +2627,7 @@ internal partial class Binder {
         var typeHasErrors = type.IsErrorType();
 
         var boundType = new BoundTypeExpression(typeSyntax, typeWithAnnotations, alias, type, typeHasErrors);
-        var int32 = CorLibrary.GetSpecialType(SpecialType.Int32);
+        var int32 = compilation.GetSpecialType(SpecialType.Int32);
         var sizeInBytes = boundType.type.specialType.SizeInBytes();
         var constantValue = sizeInBytes > 0 ? new ConstantValue(sizeInBytes, SpecialType.Int32) : null;
 
@@ -2653,7 +2654,7 @@ internal partial class Binder {
         return new BoundLiteralExpression(
             node,
             new ConstantValue(name, SpecialType.String),
-            CorLibrary.GetSpecialType(SpecialType.String)
+            compilation.GetSpecialType(SpecialType.String)
         );
     }
 
@@ -2748,7 +2749,7 @@ internal partial class Binder {
             );
         }
 
-        var intType = CorLibrary.GetSpecialType(SpecialType.Int);
+        var intType = compilation.GetSpecialType(SpecialType.Int);
         var conversion = conversions.ClassifyImplicitConversionFromExpression(argument, intType);
 
         if (!conversion.exists)
@@ -2796,12 +2797,12 @@ internal partial class Binder {
         if (expression.StrippedType().specialType == SpecialType.String) {
             ReportDiagnosticsIfNoThrowContext(node, diagnostics);
 
-            var intType = CorLibrary.GetSpecialType(SpecialType.Int);
-            var charType = CorLibrary.GetSpecialType(SpecialType.Char);
+            var intType = compilation.GetSpecialType(SpecialType.Int);
+            var charType = compilation.GetSpecialType(SpecialType.Char);
 
             // TODO Allow nullable indexing here? Would necessitate a runtime wrapper around System.String.get_Chars
             // if (argument.type is not null && argument.type.IsNullableType())
-            //     intType = CorLibrary.GetNullableType(SpecialType.Int);
+            //     intType = compilation.corLibrary.GetNullableType(SpecialType.Int);
 
             var conversion = conversions.ClassifyImplicitConversionFromExpression(argument, intType);
 
@@ -2825,12 +2826,12 @@ internal partial class Binder {
             return ErrorIndexerExpression(node, expression, analyzedArguments, null, diagnostics);
         }
 
-        var fatArray = CorLibrary.TryGetWellKnownType(WellKnownType.Array, compilation);
+        var fatArray = compilation.corLibrary.TryGetWellKnownType(WellKnownType.Array, compilation);
 
         if (expression.StrippedType().originalDefinition.Equals(fatArray)) {
             ReportDiagnosticsIfNoThrowContext(node, diagnostics);
 
-            var intType = CorLibrary.GetSpecialType(SpecialType.Int);
+            var intType = compilation.GetSpecialType(SpecialType.Int);
             var namedType = (NamedTypeSymbol)expression.StrippedType();
             var resultType = namedType.templateArguments[0].type.type;
 
@@ -2841,7 +2842,7 @@ internal partial class Binder {
 
             var boundConversion = CreateConversion(argument, conversion, intType, diagnostics);
 
-            var method = CorLibrary.GetWellKnownMethod(WellKnownMember.Array_Get).AsMember(namedType);
+            var method = compilation.corLibrary.GetWellKnownMethod(WellKnownMember.Array_Get).AsMember(namedType);
 
             return new BoundIndexerAccessExpression(
                 node,
@@ -3050,7 +3051,7 @@ internal partial class Binder {
         var arrayType = (ArrayTypeSymbol)expression.StrippedType();
         var elementType = arrayType.isSZArray
             ? arrayType.elementType
-            : ArrayTypeSymbol.CreateArray(arrayType.elementTypeWithAnnotations, arrayType.rank - 1);
+            : ArrayTypeSymbol.CreateArray(compilation.assembly, arrayType.elementTypeWithAnnotations, arrayType.rank - 1);
 
         if (analyzedArguments.arguments.Count != 1) {
             diagnostics.Push(Error.BadIndexCount(node.location, 1));
@@ -3069,11 +3070,11 @@ internal partial class Binder {
         ReportDiagnosticsIfNoThrowContext(node, diagnostics);
 
         var argument = analyzedArguments.arguments[0];
-        var intType = CorLibrary.GetSpecialType(SpecialType.Int);
+        var intType = compilation.GetSpecialType(SpecialType.Int);
 
         // TODO Do we want to allow nullable indexing? Probably not
         // if (argument.type is not null && argument.type.IsNullableType())
-        //     intType = CorLibrary.GetNullableType(SpecialType.Int);
+        //     intType = compilation.corLibrary.GetNullableType(SpecialType.Int);
 
         var conversion = conversions.ClassifyImplicitConversionFromExpression(argument.expression, intType);
 
@@ -3136,7 +3137,7 @@ internal partial class Binder {
                     operand.constantValue.specialType,
                     reducedType.specialType,
                     out var newValue)) {
-                    operand = BoundFactory.Literal(operand.syntax, newValue, reducedType);
+                    operand = BoundFactory.Literal(compilation, operand.syntax, newValue, reducedType);
                 }
             }
         }
@@ -3186,7 +3187,7 @@ internal partial class Binder {
         var constantValue = hasErrors ? null : ConstantFolding.FoldBitCast(operand, targetType);
         return new BoundBitCastExpression(node, operand, operand.type, constantValue, targetType);
 
-        static bool CanReduceOperand(BoundExpression operand, TypeSymbol target, out TypeSymbol reducedType) {
+        bool CanReduceOperand(BoundExpression operand, TypeSymbol target, out TypeSymbol reducedType) {
             reducedType = null;
 
             if (!ShouldTryToReduce(operand, target.specialType))
@@ -3203,25 +3204,25 @@ internal partial class Binder {
 
                 switch (targetSize) {
                     case 1:
-                        reducedType = CorLibrary.GetSpecialType(isUnsigned ? SpecialType.UInt8 : SpecialType.Int8);
+                        reducedType = compilation.GetSpecialType(isUnsigned ? SpecialType.UInt8 : SpecialType.Int8);
                         return true;
                     case 2:
-                        reducedType = CorLibrary.GetSpecialType(isUnsigned ? SpecialType.UInt16 : SpecialType.Int16);
+                        reducedType = compilation.GetSpecialType(isUnsigned ? SpecialType.UInt16 : SpecialType.Int16);
                         return true;
                     case 4:
-                        reducedType = CorLibrary.GetSpecialType(isUnsigned ? SpecialType.UInt32 : SpecialType.Int32);
+                        reducedType = compilation.GetSpecialType(isUnsigned ? SpecialType.UInt32 : SpecialType.Int32);
                         return true;
                     case 8:
-                        reducedType = CorLibrary.GetSpecialType(isUnsigned ? SpecialType.UInt64 : SpecialType.Int64);
+                        reducedType = compilation.GetSpecialType(isUnsigned ? SpecialType.UInt64 : SpecialType.Int64);
                         return true;
                 }
             } else if (operandSpecialType.IsFloatingPoint()) {
                 switch (targetSize) {
                     case 4:
-                        reducedType = CorLibrary.GetSpecialType(SpecialType.Float32);
+                        reducedType = compilation.GetSpecialType(SpecialType.Float32);
                         return true;
                     case 8:
-                        reducedType = CorLibrary.GetSpecialType(SpecialType.Float64);
+                        reducedType = compilation.GetSpecialType(SpecialType.Float64);
                         return true;
                 }
             }
@@ -3408,9 +3409,10 @@ internal partial class Binder {
 
             for (var i = 0; i < rank; i++) {
                 sizeArray[i] = BoundFactory.Literal(
+                    compilation,
                     nonNullSyntax,
                     knownSizes[i] ?? 0,
-                    CorLibrary.GetSpecialType(SpecialType.Int)
+                    compilation.GetSpecialType(SpecialType.Int)
                 );
             }
 
@@ -3689,7 +3691,7 @@ internal partial class Binder {
         var (rank, _) = GetArrayRankAndElementType(type);
         var sizes = ArrayBuilder<BoundExpression>.GetInstance();
         var hasErrors = false;
-        var indexType = CorLibrary.GetSpecialType(SpecialType.Int);
+        var indexType = compilation.GetSpecialType(SpecialType.Int);
 
         for (var i = 0; i < rank; i++) {
             var rankSpecifier = rankSpecifiers[i];
@@ -4197,7 +4199,7 @@ internal partial class Binder {
 
     internal BoundExpression BindBooleanExpression(ExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
         var expression = BindValue(node, diagnostics, BindValueKind.RValue);
-        var boolean = CorLibrary.GetNullableType(SpecialType.Bool);
+        var boolean = compilation.corLibrary.GetNullableType(SpecialType.Bool);
 
         if (expression.hasAnyErrors) {
             return new BoundCastExpression(
@@ -5234,7 +5236,7 @@ internal partial class Binder {
             syntax,
             receiver,
             access,
-            access.Type() is null ? access.Type() : CorLibrary.GetOrCreateNullableType(access.Type())
+            access.Type() is null ? access.Type() : compilation.corLibrary.GetOrCreateNullableType(access.Type())
         );
     }
 
@@ -5262,7 +5264,7 @@ internal partial class Binder {
             case BoundKind.IndexerAccessExpression: {
                     var index = ((BoundIndexerAccessExpression)access).index;
 
-                    if (CorLibrary.GetWellKnownType(WellKnownType.Array)
+                    if (compilation.corLibrary.GetWellKnownType(WellKnownType.Array)
                         .Equals(receiver.type.StrippedType().originalDefinition)) {
                         diagnostics.Push(Error.NullableReceiverArray(syntax.location, receiver, index));
                     } else {
@@ -5311,7 +5313,7 @@ internal partial class Binder {
             case BoundKind.IndexerAccessExpression: {
                     var index = ((BoundIndexerAccessExpression)access).index;
 
-                    if (CorLibrary.GetWellKnownType(WellKnownType.Array)
+                    if (compilation.corLibrary.GetWellKnownType(WellKnownType.Array)
                         .Equals(receiver.type.StrippedType().originalDefinition)) {
                         diagnostics.Push(Error.NonNullableReceiverArray(syntax.location, receiver, index));
                     } else {
@@ -5743,7 +5745,7 @@ internal partial class Binder {
             CheckReceiverAndRuntimeSupportForSymbolAccess(node, receiver, fieldSymbol, diagnostics);
 
         var fieldType = (isEnumField && IsInstanceReceiver(receiver))
-            ? CorLibrary.GetSpecialType(SpecialType.Bool)
+            ? compilation.GetSpecialType(SpecialType.Bool)
             : fieldSymbol.GetFieldType(fieldsBeingBound).type;
 
         BoundExpression expr = new BoundFieldAccessExpression(
@@ -6018,7 +6020,7 @@ internal partial class Binder {
                 cond.syntax,
                 cond.receiver,
                 call,
-                call.type.IsVoidType() ? call.type : CorLibrary.GetOrCreateNullableType(call.type)
+                call.type.IsVoidType() ? call.type : compilation.corLibrary.GetOrCreateNullableType(call.type)
             );
         }
 
@@ -6852,7 +6854,7 @@ internal partial class Binder {
             if (defaultConstantValue is null) {
                 defaultValue = new BoundDefaultExpression(syntax, false, null, null, parameterType);
             } else {
-                TypeSymbol constantType = CorLibrary.GetSpecialType(parameterDefaultValue.specialType);
+                TypeSymbol constantType = compilation.GetSpecialType(parameterDefaultValue.specialType);
                 defaultValue = new BoundLiteralExpression(syntax, parameterDefaultValue, constantType);
 
                 if (inAttributeArgument && parameterType.specialType == SpecialType.Object) {
@@ -7471,7 +7473,7 @@ internal partial class Binder {
         InterpolatedStringExpressionSyntax expression,
         BelteDiagnosticQueue diagnostics) {
         var builder = ArrayBuilder<BoundExpression>.GetInstance();
-        var stringType = CorLibrary.GetSpecialType(SpecialType.String);
+        var stringType = compilation.GetSpecialType(SpecialType.String);
         ConstantValue resultConstant = null;
         var isResultConstant = true;
         var isCString = expression.stringStart.text.StartsWith('c');
@@ -7479,10 +7481,10 @@ internal partial class Binder {
 
         TypeSymbol type = isCString
             ? new PointerTypeSymbol(
-                new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.UInt8)))
+                new TypeWithAnnotations(compilation.GetSpecialType(SpecialType.UInt8)))
             : isCWString
                 ? new PointerTypeSymbol(
-                    new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Char)))
+                    new TypeWithAnnotations(compilation.GetSpecialType(SpecialType.Char)))
                 : stringType;
 
         if (expression.contents.Count == 0) {
@@ -7634,19 +7636,19 @@ internal partial class Binder {
 
         if (kind == SyntaxKind.CStringLiteralToken) {
             var pointerType = new PointerTypeSymbol(
-                new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.UInt8))
+                new TypeWithAnnotations(compilation.GetSpecialType(SpecialType.UInt8))
             );
 
             return new BoundCStringLiteral(node, isWide: false, constantValue, pointerType);
         } else if (kind == SyntaxKind.CWStringLiteralToken) {
             var pointerType = new PointerTypeSymbol(
-                new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Char))
+                new TypeWithAnnotations(compilation.GetSpecialType(SpecialType.Char))
             );
 
             return new BoundCStringLiteral(node, isWide: true, constantValue, pointerType);
         }
 
-        var type = CorLibrary.GetSpecialType(specialType);
+        var type = compilation.GetSpecialType(specialType);
         return new BoundLiteralExpression(node, constantValue, type);
     }
 
@@ -7662,16 +7664,18 @@ internal partial class Binder {
             case SpecialType.Int32:
             case SpecialType.Int64:
                 return BoundFactory.Literal(
+                    compilation,
                     node.syntax,
                     Convert.ToInt64(node.constantValue.value),
-                    CorLibrary.GetSpecialType(SpecialType.Int)
+                    compilation.GetSpecialType(SpecialType.Int)
                 );
             case SpecialType.Float32:
             case SpecialType.Float64:
                 return BoundFactory.Literal(
+                    compilation,
                     node.syntax,
                     Convert.ToDouble(node.constantValue.value),
-                    CorLibrary.GetSpecialType(SpecialType.Decimal)
+                    compilation.GetSpecialType(SpecialType.Decimal)
                 );
             default:
                 return node;

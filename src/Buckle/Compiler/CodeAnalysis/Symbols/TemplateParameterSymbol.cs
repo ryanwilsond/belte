@@ -152,7 +152,8 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
         byte defaultTransformFlag,
         ImmutableArray<byte> transforms,
         ref int position,
-        out TypeSymbol result) {
+        out TypeSymbol result,
+        bool isBelteMode) {
         result = this;
         return true;
     }

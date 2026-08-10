@@ -1,7 +1,6 @@
-using System;
 
-[AttributeUsage(AttributeTargets.Method)]
-public sealed class DllImportAttribute extends Attribute {
+[System.AttributeUsage(System.AttributeTargets.Method)]
+public sealed class DllImportAttribute extends System.Attribute {
     public constructor(string libraryName) { }
 
     public constructor(string libraryName, uint32 CallingConvention) { }

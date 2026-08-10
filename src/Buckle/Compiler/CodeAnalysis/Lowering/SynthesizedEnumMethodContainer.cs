@@ -11,18 +11,21 @@ namespace Buckle.CodeAnalysis.Lowering;
 
 internal sealed class SynthesizedEnumMethodContainer : SynthesizedContainer {
     private readonly NamedTypeSymbol _enumType;
+    private readonly Compilation _compilation;
 
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> _lazyMembersDictionary;
     private ImmutableArray<Symbol> _lazyMembersFlattened;
     private Dictionary<MethodSymbol, MethodSymbol> _lazyMethodMap;
 
     internal SynthesizedEnumMethodContainer(
+        Compilation compilation,
         NamedTypeSymbol enumType,
         NamespaceSymbol containingSymbol)
         : base(
             GeneratedNames.MakeEnumMethodContainerName(containingSymbol, enumType.name),
             templateParameters: [],
             templateMap: TemplateMap.Empty) {
+        _compilation = compilation;
         _enumType = enumType;
         this.containingSymbol = containingSymbol;
     }
@@ -35,7 +38,7 @@ internal sealed class SynthesizedEnumMethodContainer : SynthesizedContainer {
 
     internal override Accessibility declaredAccessibility => Accessibility.Public;
 
-    internal override NamedTypeSymbol baseType => CorLibrary.GetSpecialType(SpecialType.Object);
+    internal override NamedTypeSymbol baseType => _compilation.GetSpecialType(SpecialType.Object);
 
     internal override IEnumerable<string> memberNames => GetMembers().Select(m => m.name);
 

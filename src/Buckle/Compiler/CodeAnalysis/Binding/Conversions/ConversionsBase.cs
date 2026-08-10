@@ -3,7 +3,6 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -16,12 +15,20 @@ internal abstract partial class ConversionsBase {
         BoundUnconvertedExtendedLiteralExpression extended,
         TypeSymbol destination);
 
+    internal abstract Conversion GetListExpressionConversion(
+        BoundUnconvertedInitializerList node,
+        TypeSymbol targetType);
+
     private protected abstract bool TryToConstructUserDefinedOperator(
         MethodSymbol op,
         BoundExpression argument,
         TypeSymbol source,
         TypeSymbol target,
         out MethodSymbol result);
+
+    private protected abstract Conversion GetImplicitArrayLengthConversion(
+        BoundUnconvertedArrayLength length,
+        TypeSymbol destination);
 
     internal bool HasTopLevelNullabilityImplicitConversion(TypeWithAnnotations source, TypeWithAnnotations destination) {
         // if (!includeNullability) {
@@ -62,6 +69,7 @@ internal abstract partial class ConversionsBase {
     }
 
     internal static ListExpressionTypeKind GetListExpressionTypeKind(
+        Compilation compilation,
         TypeSymbol destination,
         out TypeWithAnnotations elementType) {
         if (destination.StrippedType() is ArrayTypeSymbol arrayType) {
@@ -70,7 +78,11 @@ internal abstract partial class ConversionsBase {
                 return ListExpressionTypeKind.Array;
             } else {
                 elementType = new TypeWithAnnotations(
-                    ArrayTypeSymbol.CreateArray(arrayType.elementTypeWithAnnotations, arrayType.rank - 1)
+                    ArrayTypeSymbol.CreateArray(
+                        compilation.assembly,
+                        arrayType.elementTypeWithAnnotations,
+                        arrayType.rank - 1
+                    )
                 );
 
                 return ListExpressionTypeKind.Array;
@@ -384,33 +396,6 @@ internal abstract partial class ConversionsBase {
 
         candidates.Free();
         return Conversion.Implicit;
-    }
-
-    internal Conversion GetListExpressionConversion(BoundUnconvertedInitializerList node, TypeSymbol targetType) {
-        var listTypeKind = GetListExpressionTypeKind(targetType, out var elementTypeWithAnnotations);
-        var elementType = elementTypeWithAnnotations?.type;
-
-        switch (listTypeKind) {
-            case ListExpressionTypeKind.None:
-                return Conversion.None;
-        }
-
-        var items = node.items;
-
-        var builder = ArrayBuilder<Conversion>.GetInstance(items.Length);
-
-        foreach (var element in items) {
-            var elementConversion = ClassifyImplicitConversionFromExpression(element, elementType);
-
-            if (!elementConversion.exists) {
-                builder.Free();
-                return Conversion.None;
-            }
-
-            builder.Add(elementConversion);
-        }
-
-        return Conversion.CreateListExpressionConversion(listTypeKind, elementType, builder.ToImmutableAndFree());
     }
 
     internal static Conversion FastClassifyConversion(TypeSymbol source, TypeSymbol target) {
@@ -878,18 +863,6 @@ internal abstract partial class ConversionsBase {
         conversion = GetImplicitUserDefinedConversion(sourceExpression, sourceExpression.Type(), target);
 
         if (conversion.exists)
-            return conversion;
-
-        return Conversion.None;
-    }
-
-    private Conversion GetImplicitArrayLengthConversion(BoundUnconvertedArrayLength length, TypeSymbol destination) {
-        if (destination.specialType is SpecialType.Int32 or SpecialType.Int64 or SpecialType.Int)
-            return Conversion.Identity;
-
-        var conversion = ClassifyConversionFromType(CorLibrary.GetSpecialType(SpecialType.Int), destination);
-
-        if (conversion.isImplicit)
             return conversion;
 
         return Conversion.None;

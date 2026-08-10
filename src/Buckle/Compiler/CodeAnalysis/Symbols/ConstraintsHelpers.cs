@@ -72,7 +72,7 @@ internal static partial class ConstraintsHelpers {
         Compilation currentCompilation,
         BelteDiagnosticQueue diagnostics,
         TextLocation errorLocation) {
-        var effectiveBaseClass = CorLibrary.GetSpecialType(SpecialType.Object);
+        var effectiveBaseClass = currentCompilation.GetSpecialType(SpecialType.Object);
         TypeSymbol deducedBaseType = effectiveBaseClass;
 
         ImmutableArray<NamedTypeSymbol> interfaces;
@@ -171,11 +171,11 @@ internal static partial class ConstraintsHelpers {
                         constraintDeducedBase = constraintType.type;
                         break;
                     case TypeKind.Array:
-                        constraintEffectiveBase = CorLibrary.GetSpecialType(SpecialType.Array);
+                        constraintEffectiveBase = currentCompilation.GetSpecialType(SpecialType.Array);
                         constraintDeducedBase = constraintType.type;
                         break;
                     case TypeKind.Enum:
-                        constraintEffectiveBase = CorLibrary.GetSpecialType(SpecialType.Enum);
+                        constraintEffectiveBase = currentCompilation.GetSpecialType(SpecialType.Enum);
                         constraintDeducedBase = constraintType.type;
                         break;
                     case TypeKind.Error:

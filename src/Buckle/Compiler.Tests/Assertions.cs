@@ -23,14 +23,7 @@ internal static class Assertions {
     private readonly static Compilation BaseCompilation;
 
     static Assertions() {
-        var compilation = LibraryHelpers.LoadLibraries(
-            buildMode: BuildMode.Evaluate,
-            noStdLib: true,
-            includeAllNativeFiles: true
-        );
-
-        _ = compilation.boundProgram;
-        BaseCompilation = compilation;
+        BaseCompilation = GetBaseCompilation();
     }
 
     /// <summary>
@@ -262,5 +255,16 @@ internal static class Assertions {
 
         Assert.Empty(diagnostics.Errors().ToArray());
         Assert.Equal(expectedText, result);
+    }
+
+    private static Compilation GetBaseCompilation() {
+        var compilation = LibraryHelpers.LoadLibraries(
+            buildMode: BuildMode.Evaluate,
+            noStdLib: true,
+            includeAllNativeFiles: true
+        );
+
+        _ = compilation.boundProgram;
+        return compilation;
     }
 }

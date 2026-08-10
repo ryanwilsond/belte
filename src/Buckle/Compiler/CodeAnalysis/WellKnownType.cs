@@ -9,9 +9,11 @@ namespace Buckle.CodeAnalysis;
 internal enum WellKnownType : byte {
     None,
 
+    First = SpecialType.NextAvailable,
+
     // Required
 
-    Enumerator,
+    Enumerator = First,
 
     // Non-required
 
@@ -54,9 +56,13 @@ internal enum WellKnownType : byte {
     Belte_NoThrowAttribute,
     Belte_PureAttribute,
     Belte_CompilerServices_BelteMetadataAttribute,
+    Belte_NullabilityAttribute,
+
 
     LastNativeType = MustUseReturnValueAttribute,
     LastNativeRequiredType = Enumerator,
     FirstPEType = System_Exception,
-    LastPEType = Belte_CompilerServices_BelteMetadataAttribute,
+    LastPEType = Belte_NullabilityAttribute,
+
+    ExtSentinel = 255,
 }

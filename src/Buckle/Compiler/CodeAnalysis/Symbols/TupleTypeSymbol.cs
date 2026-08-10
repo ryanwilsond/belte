@@ -6,7 +6,6 @@ using System.Threading;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -169,12 +168,12 @@ internal partial class NamedTypeSymbol {
             var numElements = elementTypes.Length;
             var chainLength = NumberOfValueTuples(numElements, out var remainder);
 
-            var firstTupleType = CorLibrary.TryGetWellKnownType(GetTupleType(remainder), compilation);
+            var firstTupleType = compilation.corLibrary.TryGetWellKnownType(GetTupleType(remainder), compilation);
 
             NamedTypeSymbol chainedTupleType = null;
 
             if (chainLength > 1)
-                chainedTupleType = CorLibrary.GetWellKnownType(GetTupleType(ValueTupleRestPosition));
+                chainedTupleType = compilation.corLibrary.GetWellKnownType(GetTupleType(ValueTupleRestPosition));
 
             return ConstructTupleUnderlyingType(firstTupleType, chainedTupleType, elementTypes);
         }
@@ -543,14 +542,16 @@ internal partial class NamedTypeSymbol {
         }
 
         static Symbol GetWellKnownMemberInType(ImmutableArray<Symbol> members, WellKnownMember relativeMember) {
-            var wellKnownMember = CorLibrary.GetWellKnownMember(relativeMember);
-
-            foreach (var member in members) {
-                if (member.originalDefinition == wellKnownMember)
-                    return member;
-            }
-
+            // ! TODO This is actually reachable, I just want to verify this works first
             throw ExceptionUtilities.Unreachable();
+            // var relativeDescriptor = WellKnownMembers.GetDescriptor(relativeMember);
+
+            // return Compilation.GetRuntimeMember(
+            //     members,
+            //     relativeDescriptor,
+            //     Compilation.SpecialMembersSignatureComparer.Instance,
+            //     accessWithinOpt: null
+            // );
         }
 
         static ImmutableArray<Symbol> GetOriginalFields(ImmutableArray<Symbol> members) {

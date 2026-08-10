@@ -13,12 +13,16 @@ internal sealed class StateMethodRewriter : BoundTreeExpander {
     private readonly DataContainerSymbol _returnTemp;
     private readonly LabelSymbol _successLabel;
 
+    private readonly Compilation _compilation;
+
     private bool _isTarget;
 
     private StateMethodRewriter(
+        Compilation compilation,
         MethodSymbol stateMethod,
         BoundBlockStatement targetBody,
         BoundBlockStatement stateBody) {
+        _compilation = compilation;
         _returnType = stateMethod.returnType.tupleElementTypes[0].type.type;
         _tupleType = (NamedTypeSymbol)stateMethod.returnType;
         _container = stateMethod;
@@ -27,7 +31,7 @@ internal sealed class StateMethodRewriter : BoundTreeExpander {
         _localNames.AddRange(stateBody.locals.Select(l => l.name));
 
         if (_returnType.IsVoidType())
-            _returnType = CorLibrary.GetSpecialType(SpecialType.Int32);
+            _returnType = compilation.GetSpecialType(SpecialType.Int32);
 
         _returnTemp = GenerateTempLocal(_returnType);
         _successLabel = GenerateLabel("Success");
@@ -36,10 +40,11 @@ internal sealed class StateMethodRewriter : BoundTreeExpander {
     private protected override MethodSymbol _container { get; set; }
 
     internal static BoundBlockStatement Merge(
+        Compilation compilation,
         MethodSymbol stateMethod,
         BoundBlockStatement targetBody,
         BoundBlockStatement stateBody) {
-        var stateMethodRewriter = new StateMethodRewriter(stateMethod, targetBody, stateBody);
+        var stateMethodRewriter = new StateMethodRewriter(compilation, stateMethod, targetBody, stateBody);
 
         var tempDeclaration = LocalDeclaration(stateBody.syntax, stateMethodRewriter._returnTemp, null);
         var successLabel = Label(stateBody.syntax, stateMethodRewriter._successLabel);
@@ -87,7 +92,7 @@ internal sealed class StateMethodRewriter : BoundTreeExpander {
                 Statement(syntax, Assignment(syntax,
                     Local(syntax, _returnTemp),
                     statement.expression is null
-                        ? Literal(syntax, 0, _returnType)
+                        ? Literal(_compilation, syntax, 0, _returnType)
                         : statement.expression,
                     false,
                     _returnType
@@ -95,7 +100,8 @@ internal sealed class StateMethodRewriter : BoundTreeExpander {
                 Goto(syntax, _successLabel)
             ];
         } else {
-            var tupleCtor = CorLibrary.GetWellKnownMethod(WellKnownMember.ValueTuple_T2_ctor).AsMember(_tupleType);
+            var tupleCtor = _compilation.corLibrary.GetWellKnownMethod(WellKnownMember.ValueTuple_T2_ctor)
+                .AsMember(_tupleType);
 
             return [
                 new BoundReturnStatement(syntax,

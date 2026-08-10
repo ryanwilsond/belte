@@ -19,4 +19,6 @@ public struct BuildState {
     public string metaPath;
 
     public string[] arguments;
+
+    public bool noStdLib;
 }

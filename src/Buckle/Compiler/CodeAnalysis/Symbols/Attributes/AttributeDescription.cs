@@ -95,10 +95,11 @@ internal partial struct AttributeDescription {
     private static readonly byte[][] SignaturesOfTypeIdentifierAttribute = [Signature_HasThis_Void, Signature_HasThis_Void_String_String];
     private static readonly byte[][] SignaturesOfCompilationRelaxationsAttribute = [Signature_HasThis_Void_Int32, Signature_HasThis_Void_CompilationRelaxations];
     private static readonly byte[][] SignaturesOfFixedBufferAttribute = [Signature_HasThis_Void_Type_Int32];
-    private static readonly byte[][] SignaturesOfTupleElementNamesAttribute = { Signature_HasThis_Void, Signature_HasThis_Void_SzArray_String };
+    private static readonly byte[][] SignaturesOfTupleElementNamesAttribute = [Signature_HasThis_Void, Signature_HasThis_Void_SzArray_String];
+    private static readonly byte[][] SignaturesOfNullabilityAttribute = [Signature_HasThis_Void_SzArray_Byte];
 
-    private static readonly byte[][] SignaturesOfAttributeUsage = { Signature_HasThis_Void_AttributeTargets };
-    private static readonly byte[][] SignaturesOfAttributeUsageNative = { Signature_HasThis_Void_AttributeTargetsNative };
+    private static readonly byte[][] SignaturesOfAttributeUsage = [Signature_HasThis_Void_AttributeTargets];
+    private static readonly byte[][] SignaturesOfAttributeUsageNative = [Signature_HasThis_Void_AttributeTargetsNative];
 
     internal static readonly AttributeDescription AttributeUsageAttribute = new AttributeDescription("System", "AttributeUsageAttribute", SignaturesOfAttributeUsage);
     internal static readonly AttributeDescription AttributeUsageAttributeNative = new AttributeDescription("", "AttributeUsageAttribute", SignaturesOfAttributeUsageNative);
@@ -126,4 +127,8 @@ internal partial struct AttributeDescription {
     internal static readonly AttributeDescription UnmanagedAttribute = new AttributeDescription("", "UnmanagedAttribute", Signatures_HasThis_Void_Only);
     internal static readonly AttributeDescription MustUseReturnValueAttribute = new AttributeDescription("", "MustUseReturnValueAttribute", Signatures_HasThis_Void_Only);
     internal static readonly AttributeDescription TupleElementNamesAttribute = new AttributeDescription("System.Runtime.CompilerServices", "TupleElementNamesAttribute", SignaturesOfTupleElementNamesAttribute);
+    internal static readonly AttributeDescription PureAttribute = new AttributeDescription("Belte", "PureAttribute", Signatures_HasThis_Void_Only);
+    internal static readonly AttributeDescription NoThrowAttribute = new AttributeDescription("Belte", "NoThrowAttribute", Signatures_HasThis_Void_Only);
+    internal static readonly AttributeDescription NoAllocAttribute = new AttributeDescription("Belte", "NoAllocAttribute", Signatures_HasThis_Void_Only);
+    internal static readonly AttributeDescription NullabilityAttribute = new AttributeDescription("Belte", "NullabilityAttribute", SignaturesOfNullabilityAttribute);
 }

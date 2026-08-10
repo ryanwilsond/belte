@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Threading;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Binding;
@@ -9,33 +10,47 @@ using static Buckle.Libraries.LibraryHelpers;
 
 namespace Buckle.Libraries;
 
-internal static class StandardLibrary {
-    private static SynthesizedFinishedNamedTypeSymbol _lazyDirectory;
-    private static SynthesizedFinishedNamedTypeSymbol _lazyFile;
-    private static SynthesizedFinishedNamedTypeSymbol _lazyConsole;
-    private static SynthesizedFinishedNamedTypeSymbol _lazyMath;
-    private static SynthesizedFinishedNamedTypeSymbol _lazyLowLevel;
-    private static SynthesizedFinishedNamedTypeSymbol _lazyHashCode;
-    private static SynthesizedFinishedNamedTypeSymbol _lazyTime;
-    private static SynthesizedFinishedNamedTypeSymbol _lazyRandom;
-    private static SynthesizedFinishedNamedTypeSymbol _lazyString;
-    private static SynthesizedFinishedNamedTypeSymbol _lazyInt;
-    private static SynthesizedFinishedNamedTypeSymbol _lazyInt64;
-    private static SynthesizedFinishedNamedTypeSymbol _lazyInt32;
-    private static SynthesizedFinishedNamedTypeSymbol _lazyInt16;
-    private static SynthesizedFinishedNamedTypeSymbol _lazyInt8;
-    private static SynthesizedFinishedNamedTypeSymbol _lazyUInt64;
-    private static SynthesizedFinishedNamedTypeSymbol _lazyUInt32;
-    private static SynthesizedFinishedNamedTypeSymbol _lazyUInt16;
-    private static SynthesizedFinishedNamedTypeSymbol _lazyUInt8;
-    private static SynthesizedFinishedNamedTypeSymbol _lazyDecimal;
-    private static SynthesizedFinishedNamedTypeSymbol _lazyFloat64;
-    private static SynthesizedFinishedNamedTypeSymbol _lazyFloat32;
-    private static SynthesizedFinishedNamedTypeSymbol _lazyCallingConvention;
-    private static Dictionary<string, Func<object, object, object, object>> _lazyEvaluatorMap;
-    private static Dictionary<STLWellKnownMembers, MethodSymbol> _lazyWellKnownMembers;
+internal class StandardLibrary {
+#if DEBUG
+    private static int InstantiationCount = 0;
+#endif
 
-    internal static SynthesizedFinishedNamedTypeSymbol LowLevel {
+    private SynthesizedFinishedNamedTypeSymbol _lazyDirectory;
+    private SynthesizedFinishedNamedTypeSymbol _lazyFile;
+    private SynthesizedFinishedNamedTypeSymbol _lazyConsole;
+    private SynthesizedFinishedNamedTypeSymbol _lazyMath;
+    private SynthesizedFinishedNamedTypeSymbol _lazyLowLevel;
+    private SynthesizedFinishedNamedTypeSymbol _lazyHashCode;
+    private SynthesizedFinishedNamedTypeSymbol _lazyTime;
+    private SynthesizedFinishedNamedTypeSymbol _lazyRandom;
+    private SynthesizedFinishedNamedTypeSymbol _lazyString;
+    private SynthesizedFinishedNamedTypeSymbol _lazyInt;
+    private SynthesizedFinishedNamedTypeSymbol _lazyInt64;
+    private SynthesizedFinishedNamedTypeSymbol _lazyInt32;
+    private SynthesizedFinishedNamedTypeSymbol _lazyInt16;
+    private SynthesizedFinishedNamedTypeSymbol _lazyInt8;
+    private SynthesizedFinishedNamedTypeSymbol _lazyUInt64;
+    private SynthesizedFinishedNamedTypeSymbol _lazyUInt32;
+    private SynthesizedFinishedNamedTypeSymbol _lazyUInt16;
+    private SynthesizedFinishedNamedTypeSymbol _lazyUInt8;
+    private SynthesizedFinishedNamedTypeSymbol _lazyDecimal;
+    private SynthesizedFinishedNamedTypeSymbol _lazyFloat64;
+    private SynthesizedFinishedNamedTypeSymbol _lazyFloat32;
+    private SynthesizedFinishedNamedTypeSymbol _lazyCallingConvention;
+    private Dictionary<string, Func<object, object, object, object>> _lazyEvaluatorMap;
+    private Dictionary<STLWellKnownMembers, MethodSymbol> _lazyWellKnownMembers;
+
+    private readonly Compilation _compilation;
+
+    internal StandardLibrary(Compilation compilation) {
+        _compilation = compilation;
+
+#if DEBUG
+        InstantiationCount++;
+#endif
+    }
+
+    internal SynthesizedFinishedNamedTypeSymbol LowLevel {
         get {
             if (_lazyLowLevel is null)
                 Interlocked.CompareExchange(ref _lazyLowLevel, GenerateLowLevel(), null);
@@ -44,7 +59,7 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static SynthesizedFinishedNamedTypeSymbol HashCode {
+    internal SynthesizedFinishedNamedTypeSymbol HashCode {
         get {
             if (_lazyHashCode is null)
                 Interlocked.CompareExchange(ref _lazyHashCode, GenerateHashCode(), null);
@@ -53,7 +68,7 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static SynthesizedFinishedNamedTypeSymbol Directory {
+    internal SynthesizedFinishedNamedTypeSymbol Directory {
         get {
             if (_lazyDirectory is null)
                 Interlocked.CompareExchange(ref _lazyDirectory, GenerateDirectory(), null);
@@ -62,7 +77,7 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static SynthesizedFinishedNamedTypeSymbol File {
+    internal SynthesizedFinishedNamedTypeSymbol File {
         get {
             if (_lazyFile is null)
                 Interlocked.CompareExchange(ref _lazyFile, GenerateFile(), null);
@@ -71,7 +86,7 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static SynthesizedFinishedNamedTypeSymbol Console {
+    internal SynthesizedFinishedNamedTypeSymbol Console {
         get {
             if (_lazyConsole is null)
                 Interlocked.CompareExchange(ref _lazyConsole, GenerateConsole(), null);
@@ -80,7 +95,7 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static SynthesizedFinishedNamedTypeSymbol Math {
+    internal SynthesizedFinishedNamedTypeSymbol Math {
         get {
             if (_lazyMath is null)
                 Interlocked.CompareExchange(ref _lazyMath, GenerateMath(), null);
@@ -89,7 +104,7 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static SynthesizedFinishedNamedTypeSymbol Time {
+    internal SynthesizedFinishedNamedTypeSymbol Time {
         get {
             if (_lazyTime is null)
                 Interlocked.CompareExchange(ref _lazyTime, GenerateTime(), null);
@@ -98,7 +113,7 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static SynthesizedFinishedNamedTypeSymbol Random {
+    internal SynthesizedFinishedNamedTypeSymbol Random {
         get {
             if (_lazyRandom is null)
                 Interlocked.CompareExchange(ref _lazyRandom, GenerateRandom(), null);
@@ -107,7 +122,7 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static SynthesizedFinishedNamedTypeSymbol String {
+    internal SynthesizedFinishedNamedTypeSymbol String {
         get {
             if (_lazyString is null)
                 Interlocked.CompareExchange(ref _lazyString, GenerateString(), null);
@@ -116,7 +131,7 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static SynthesizedFinishedNamedTypeSymbol Int {
+    internal SynthesizedFinishedNamedTypeSymbol Int {
         get {
             if (_lazyInt is null)
                 Interlocked.CompareExchange(ref _lazyInt, GenerateInt(), null);
@@ -125,7 +140,7 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static SynthesizedFinishedNamedTypeSymbol Int64 {
+    internal SynthesizedFinishedNamedTypeSymbol Int64 {
         get {
             if (_lazyInt64 is null)
                 Interlocked.CompareExchange(ref _lazyInt64, GenerateInt64(), null);
@@ -134,7 +149,7 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static SynthesizedFinishedNamedTypeSymbol Int32 {
+    internal SynthesizedFinishedNamedTypeSymbol Int32 {
         get {
             if (_lazyInt32 is null)
                 Interlocked.CompareExchange(ref _lazyInt32, GenerateInt32(), null);
@@ -143,7 +158,7 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static SynthesizedFinishedNamedTypeSymbol Int16 {
+    internal SynthesizedFinishedNamedTypeSymbol Int16 {
         get {
             if (_lazyInt16 is null)
                 Interlocked.CompareExchange(ref _lazyInt16, GenerateInt16(), null);
@@ -152,7 +167,7 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static SynthesizedFinishedNamedTypeSymbol Int8 {
+    internal SynthesizedFinishedNamedTypeSymbol Int8 {
         get {
             if (_lazyInt8 is null)
                 Interlocked.CompareExchange(ref _lazyInt8, GenerateInt8(), null);
@@ -161,7 +176,7 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static SynthesizedFinishedNamedTypeSymbol UInt64 {
+    internal SynthesizedFinishedNamedTypeSymbol UInt64 {
         get {
             if (_lazyUInt64 is null)
                 Interlocked.CompareExchange(ref _lazyUInt64, GenerateUInt64(), null);
@@ -170,7 +185,7 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static SynthesizedFinishedNamedTypeSymbol UInt32 {
+    internal SynthesizedFinishedNamedTypeSymbol UInt32 {
         get {
             if (_lazyUInt32 is null)
                 Interlocked.CompareExchange(ref _lazyUInt32, GenerateUInt32(), null);
@@ -179,7 +194,7 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static SynthesizedFinishedNamedTypeSymbol UInt16 {
+    internal SynthesizedFinishedNamedTypeSymbol UInt16 {
         get {
             if (_lazyUInt16 is null)
                 Interlocked.CompareExchange(ref _lazyUInt16, GenerateUInt16(), null);
@@ -188,7 +203,7 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static SynthesizedFinishedNamedTypeSymbol UInt8 {
+    internal SynthesizedFinishedNamedTypeSymbol UInt8 {
         get {
             if (_lazyUInt8 is null)
                 Interlocked.CompareExchange(ref _lazyUInt8, GenerateUInt8(), null);
@@ -197,7 +212,7 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static SynthesizedFinishedNamedTypeSymbol Decimal {
+    internal SynthesizedFinishedNamedTypeSymbol Decimal {
         get {
             if (_lazyDecimal is null)
                 Interlocked.CompareExchange(ref _lazyDecimal, GenerateDecimal(), null);
@@ -206,7 +221,7 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static SynthesizedFinishedNamedTypeSymbol Float64 {
+    internal SynthesizedFinishedNamedTypeSymbol Float64 {
         get {
             if (_lazyFloat64 is null)
                 Interlocked.CompareExchange(ref _lazyFloat64, GenerateFloat64(), null);
@@ -215,7 +230,7 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static SynthesizedFinishedNamedTypeSymbol Float32 {
+    internal SynthesizedFinishedNamedTypeSymbol Float32 {
         get {
             if (_lazyFloat32 is null)
                 Interlocked.CompareExchange(ref _lazyFloat32, GenerateFloat32(), null);
@@ -224,7 +239,7 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static SynthesizedFinishedNamedTypeSymbol CallingConvention {
+    internal SynthesizedFinishedNamedTypeSymbol CallingConvention {
         get {
             if (_lazyCallingConvention is null)
                 Interlocked.CompareExchange(ref _lazyCallingConvention, GenerateCallingConvention(), null);
@@ -233,7 +248,7 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static Dictionary<string, Func<object, object, object, object>> EvaluatorMap {
+    internal Dictionary<string, Func<object, object, object, object>> EvaluatorMap {
         get {
             if (_lazyEvaluatorMap is null)
                 Interlocked.CompareExchange(ref _lazyEvaluatorMap, GenerateEvaluatorMap(), null);
@@ -242,7 +257,31 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static IEnumerable<SynthesizedFinishedNamedTypeSymbol> GetTypes(bool reduced) {
+    private SpecialOrKnownType SVoid => _compilation.GetSpecialType(SpecialType.Void);
+    private SpecialOrKnownType SString => _compilation.GetSpecialType(SpecialType.String);
+    private SpecialOrKnownType SInt => _compilation.GetSpecialType(SpecialType.Int);
+    private SpecialOrKnownType SBool => _compilation.GetSpecialType(SpecialType.Bool);
+    private SpecialOrKnownType SDecimal => _compilation.GetSpecialType(SpecialType.Decimal);
+    private SpecialOrKnownType SChar => _compilation.GetSpecialType(SpecialType.Char);
+    private SpecialOrKnownType SInt64 => _compilation.GetSpecialType(SpecialType.Int64);
+    private SpecialOrKnownType SInt32 => _compilation.GetSpecialType(SpecialType.Int32);
+    private SpecialOrKnownType SInt16 => _compilation.GetSpecialType(SpecialType.Int16);
+    private SpecialOrKnownType SInt8 => _compilation.GetSpecialType(SpecialType.Int8);
+    private SpecialOrKnownType SUInt64 => _compilation.GetSpecialType(SpecialType.UInt64);
+    private SpecialOrKnownType SUInt32 => _compilation.GetSpecialType(SpecialType.UInt32);
+    private SpecialOrKnownType SUInt16 => _compilation.GetSpecialType(SpecialType.UInt16);
+    private SpecialOrKnownType SUInt8 => _compilation.GetSpecialType(SpecialType.UInt8);
+    private SpecialOrKnownType SFloat64 => _compilation.GetSpecialType(SpecialType.Float64);
+    private SpecialOrKnownType SFloat32 => _compilation.GetSpecialType(SpecialType.Float32);
+    private SpecialOrKnownType SAny => _compilation.GetSpecialType(SpecialType.Any);
+    private SpecialOrKnownType SType => _compilation.GetSpecialType(SpecialType.Type);
+    private SpecialOrKnownType SObject => _compilation.GetSpecialType(SpecialType.Object);
+
+    private SpecialOrKnownType StringBuffer => GetStringBuffer(_compilation);
+    private SpecialOrKnownType CharBuffer => GetCharBuffer(_compilation);
+
+    internal IEnumerable<SynthesizedFinishedNamedTypeSymbol> GetTypes(bool reduced) {
+        Debug.Assert(!reduced);
         yield return LowLevel;
         yield return CallingConvention;
 
@@ -270,14 +309,14 @@ internal static class StandardLibrary {
         }
     }
 
-    internal static MethodSymbol GetWellKnownMember(STLWellKnownMembers wellknownMember) {
+    internal MethodSymbol GetWellKnownMember(STLWellKnownMembers wellknownMember) {
         if (_lazyWellKnownMembers is null)
             Interlocked.CompareExchange(ref _lazyWellKnownMembers, GenerateWellKnownMembers(), null);
 
         return _lazyWellKnownMembers[wellknownMember];
     }
 
-    private static Dictionary<STLWellKnownMembers, MethodSymbol> GenerateWellKnownMembers() {
+    private Dictionary<STLWellKnownMembers, MethodSymbol> GenerateWellKnownMembers() {
         return new Dictionary<STLWellKnownMembers, MethodSymbol>() {
             { STLWellKnownMembers.LowLevel_ThrowNullConditionException, (MethodSymbol)LowLevel.GetMembers("ThrowNullConditionException")[0] },
             { STLWellKnownMembers.LowLevel_BitCast, (MethodSymbol)LowLevel.GetMembers("BitCast")[0] },
@@ -290,11 +329,11 @@ internal static class StandardLibrary {
         };
     }
 
-    internal static MethodSymbol GetPowerMethod(bool isLifted, bool isInt) {
+    internal MethodSymbol GetPowerMethod(bool isLifted, bool isInt) {
         return (MethodSymbol)Math.GetMembers("Pow")[(isLifted ? 0 : 1) + (isInt ? 2 : 0)];
     }
 
-    internal static MethodSymbol GetMinMethod(bool isLifted, BinaryOperatorKind operandTypes) {
+    internal MethodSymbol GetMinMethod(bool isLifted, BinaryOperatorKind operandTypes) {
         var operandOffset = operandTypes switch {
             BinaryOperatorKind.Float64 => 0,
             BinaryOperatorKind.Float32 => 2,
@@ -308,7 +347,7 @@ internal static class StandardLibrary {
         return (MethodSymbol)Math.GetMembers("Min")[(isLifted ? 0 : 1) + operandOffset];
     }
 
-    internal static MethodSymbol GetMaxMethod(bool isLifted, BinaryOperatorKind operandTypes) {
+    internal MethodSymbol GetMaxMethod(bool isLifted, BinaryOperatorKind operandTypes) {
         var operandOffset = operandTypes switch {
             BinaryOperatorKind.Float64 => 0,
             BinaryOperatorKind.Float32 => 2,
@@ -322,7 +361,7 @@ internal static class StandardLibrary {
         return (MethodSymbol)Math.GetMembers("Max")[(isLifted ? 0 : 1) + operandOffset];
     }
 
-    internal static MethodSymbol GetClampMethod(bool isLifted, SpecialType operandTypes) {
+    internal MethodSymbol GetClampMethod(bool isLifted, SpecialType operandTypes) {
         var operandOffset = operandTypes switch {
             SpecialType.Float64 => 0,
             SpecialType.Float32 => 2,
@@ -341,155 +380,155 @@ internal static class StandardLibrary {
         return (MethodSymbol)Math.GetMembers("Clamp")[(isLifted ? 0 : 1) + operandOffset];
     }
 
-    private static SynthesizedFinishedNamedTypeSymbol GenerateRandom() {
-        return StaticClass("Random", [
-            StaticMethod("RandInt", SpecialType.Int, [("max", SpecialType.Int, true)]),
-            StaticMethod("Random", SpecialType.Decimal),
+    private SynthesizedFinishedNamedTypeSymbol GenerateRandom() {
+        return StaticClass(_compilation, "Random", [
+            StaticMethod("RandInt", SInt, [("max", SInt, true)]),
+            StaticMethod("Random", SDecimal),
         ]);
     }
 
-    private static SynthesizedFinishedNamedTypeSymbol GenerateString() {
-        return StaticClass("String", [
-            StaticMethod("Split", StringBuffer, [("text", SpecialType.String), ("separator", SpecialType.String)]),
-            StaticMethod("Ascii", SpecialType.Int, true, [("chr", SpecialType.String)]),
-            StaticMethod("Char", SpecialType.String, [("ascii", SpecialType.Int)]),
-            StaticMethod("Length", SpecialType.Int, [("str", SpecialType.String)]),
-            StaticMethod("IsNullOrWhiteSpace", SpecialType.Bool, [("str", SpecialType.String, true)]),
-            StaticMethod("IsNullOrWhiteSpace", SpecialType.Bool, [("chr", SpecialType.Char, true)]),
-            StaticMethod("IsDigit", SpecialType.Bool, [("chr", SpecialType.Char, true)]),
-            StaticMethod("Substring", SpecialType.String, [("text", SpecialType.String, false), ("start", SpecialType.Int, true), ("length", SpecialType.Int, true)]),
-            StaticMethod("IndexOf", SpecialType.Int, [("text", SpecialType.String), ("chr", SpecialType.Char)]),
-            StaticMethod("PadLeft", SpecialType.String, [("text", SpecialType.String), ("padding", SpecialType.Char), ("totalWidth", SpecialType.Int)]),
-            StaticMethod("PadRight", SpecialType.String, [("text", SpecialType.String), ("padding", SpecialType.Char), ("totalWidth", SpecialType.Int)]),
-            StaticMethod("Replace", SpecialType.String, [("text", SpecialType.String), ("search", SpecialType.String), ("replacement", SpecialType.String)]),
-            StaticMethod("Trim", SpecialType.String, [("text", SpecialType.String)]),
-            StaticMethod("Trim", SpecialType.String, [("text", false, SpecialType.String), ("trimCharacters", true, CharBuffer)]),
-            StaticMethod("TrimStart", SpecialType.String, [("text", SpecialType.String)]),
-            StaticMethod("TrimStart", SpecialType.String, [("text", false, SpecialType.String), ("trimCharacters", true, CharBuffer)]),
-            StaticMethod("TrimEnd", SpecialType.String, [("text", SpecialType.String)]),
-            StaticMethod("TrimEnd", SpecialType.String, [("text", false, SpecialType.String), ("trimCharacters", true, CharBuffer)]),
-            StaticMethod("Contains", SpecialType.Bool, [("text", SpecialType.String), ("substring", SpecialType.String)]),
+    private SynthesizedFinishedNamedTypeSymbol GenerateString() {
+        return StaticClass(_compilation, "String", [
+            StaticMethod("Split", StringBuffer, [("text", SString), ("separator", SString)]),
+            StaticMethod("Ascii", SInt, true, [("chr", SString)]),
+            StaticMethod("Char", SString, [("ascii", SInt)]),
+            StaticMethod("Length", SInt, [("str", SString)]),
+            StaticMethod("IsNullOrWhiteSpace", SBool, [("str", SString, true)]),
+            StaticMethod("IsNullOrWhiteSpace", SBool, [("chr", SChar, true)]),
+            StaticMethod("IsDigit", SBool, [("chr", SChar, true)]),
+            StaticMethod("Substring", SString, [("text", SString, false), ("start", SInt, true), ("length", SInt, true)]),
+            StaticMethod("IndexOf", SInt, [("text", SString), ("chr", SChar)]),
+            StaticMethod("PadLeft", SString, [("text", SString), ("padding", SChar), ("totalWidth", SInt)]),
+            StaticMethod("PadRight", SString, [("text", SString), ("padding", SChar), ("totalWidth", SInt)]),
+            StaticMethod("Replace", SString, [("text", SString), ("search", SString), ("replacement", SString)]),
+            StaticMethod("Trim", SString, [("text", SString)]),
+            StaticMethod("Trim", SString, [("text", false, SString), ("trimCharacters", true, CharBuffer)]),
+            StaticMethod("TrimStart", SString, [("text", SString)]),
+            StaticMethod("TrimStart", SString, [("text", false, SString), ("trimCharacters", true, CharBuffer)]),
+            StaticMethod("TrimEnd", SString, [("text", SString)]),
+            StaticMethod("TrimEnd", SString, [("text", false, SString), ("trimCharacters", true, CharBuffer)]),
+            StaticMethod("Contains", SBool, [("text", SString), ("substring", SString)]),
         ]);
     }
 
-    private static SynthesizedFinishedNamedTypeSymbol GenerateInt() {
-        return StaticClass("Int", [
-            StaticMethod("Parse", SpecialType.Int, true, [("text", SpecialType.String, true)]),
-            StaticMethod("ToString", SpecialType.String, true, [("num", SpecialType.Int), ("format", SpecialType.String)]),
+    private SynthesizedFinishedNamedTypeSymbol GenerateInt() {
+        return StaticClass(_compilation, "Int", [
+            StaticMethod("Parse", SInt, true, [("text", SString, true)]),
+            StaticMethod("ToString", SString, true, [("num", SInt), ("format", SString)]),
         ]);
     }
 
-    private static SynthesizedFinishedNamedTypeSymbol GenerateDecimal() {
-        return StaticClass("Decimal", [
-            StaticMethod("IsNaN", SpecialType.Bool, [("num", SpecialType.Float64)]),
-            StaticMethod("IsNaN", SpecialType.Bool, [("num", SpecialType.Float32)]),
-            StaticMethod("IsPosInfinity", SpecialType.Bool, [("num", SpecialType.Float64)]),
-            StaticMethod("IsPosInfinity", SpecialType.Bool, [("num", SpecialType.Float32)]),
-            StaticMethod("IsNegInfinity", SpecialType.Bool, [("num", SpecialType.Float64)]),
-            StaticMethod("IsNegInfinity", SpecialType.Bool, [("num", SpecialType.Float32)]),
-            StaticMethod("IsInfinity", SpecialType.Bool, [("num", SpecialType.Float64)]),
-            StaticMethod("IsInfinity", SpecialType.Bool, [("num", SpecialType.Float32)]),
-            StaticMethod("Parse", SpecialType.Decimal, true, [("text", SpecialType.String, true)]),
-            StaticMethod("ToString", SpecialType.String, true, [("num", SpecialType.Decimal), ("format", SpecialType.String)]),
+    private SynthesizedFinishedNamedTypeSymbol GenerateDecimal() {
+        return StaticClass(_compilation, "Decimal", [
+            StaticMethod("IsNaN", SBool, [("num", SFloat64)]),
+            StaticMethod("IsNaN", SBool, [("num", SFloat32)]),
+            StaticMethod("IsPosInfinity", SBool, [("num", SFloat64)]),
+            StaticMethod("IsPosInfinity", SBool, [("num", SFloat32)]),
+            StaticMethod("IsNegInfinity", SBool, [("num", SFloat64)]),
+            StaticMethod("IsNegInfinity", SBool, [("num", SFloat32)]),
+            StaticMethod("IsInfinity", SBool, [("num", SFloat64)]),
+            StaticMethod("IsInfinity", SBool, [("num", SFloat32)]),
+            StaticMethod("Parse", SDecimal, true, [("text", SString, true)]),
+            StaticMethod("ToString", SString, true, [("num", SDecimal), ("format", SString)]),
         ]);
     }
 
-    private static SynthesizedFinishedNamedTypeSymbol GenerateFloat64() {
-        return StaticClass("Float64", [
-            ConstExprField("MinValue", SpecialType.Float64, double.MinValue),
-            ConstExprField("MaxValue", SpecialType.Float64, double.MaxValue),
-            ConstExprField("Epsilon", SpecialType.Float64, double.Epsilon),
-            ConstExprField("PositiveInfinity", SpecialType.Float64, double.PositiveInfinity),
-            ConstExprField("NegativeInfinity", SpecialType.Float64, double.NegativeInfinity),
-            ConstExprField("NaN", SpecialType.Float64, double.NaN),
+    private SynthesizedFinishedNamedTypeSymbol GenerateFloat64() {
+        return StaticClass(_compilation, "Float64", [
+            ConstExprField("MinValue", SFloat64, double.MinValue),
+            ConstExprField("MaxValue", SFloat64, double.MaxValue),
+            ConstExprField("Epsilon", SFloat64, double.Epsilon),
+            ConstExprField("PositiveInfinity", SFloat64, double.PositiveInfinity),
+            ConstExprField("NegativeInfinity", SFloat64, double.NegativeInfinity),
+            ConstExprField("NaN", SFloat64, double.NaN),
         ]);
     }
 
-    private static SynthesizedFinishedNamedTypeSymbol GenerateFloat32() {
-        return StaticClass("Float32", [
-            ConstExprField("MinValue", SpecialType.Float32, float.MinValue),
-            ConstExprField("MaxValue", SpecialType.Float32, float.MaxValue),
-            ConstExprField("Epsilon", SpecialType.Float32, float.Epsilon),
-            ConstExprField("PositiveInfinity", SpecialType.Float32, float.PositiveInfinity),
-            ConstExprField("NegativeInfinity", SpecialType.Float32, float.NegativeInfinity),
-            ConstExprField("NaN", SpecialType.Float32, float.NaN),
+    private SynthesizedFinishedNamedTypeSymbol GenerateFloat32() {
+        return StaticClass(_compilation, "Float32", [
+            ConstExprField("MinValue", SFloat32, float.MinValue),
+            ConstExprField("MaxValue", SFloat32, float.MaxValue),
+            ConstExprField("Epsilon", SFloat32, float.Epsilon),
+            ConstExprField("PositiveInfinity", SFloat32, float.PositiveInfinity),
+            ConstExprField("NegativeInfinity", SFloat32, float.NegativeInfinity),
+            ConstExprField("NaN", SFloat32, float.NaN),
         ]);
     }
 
-    private static SynthesizedFinishedNamedTypeSymbol GenerateInt64() {
-        return StaticClass("Int64", [
-            ConstExprField("MinValue", SpecialType.Int64, long.MinValue),
-            ConstExprField("MaxValue", SpecialType.Int64, long.MaxValue),
+    private SynthesizedFinishedNamedTypeSymbol GenerateInt64() {
+        return StaticClass(_compilation, "Int64", [
+            ConstExprField("MinValue", SInt64, long.MinValue),
+            ConstExprField("MaxValue", SInt64, long.MaxValue),
         ]);
     }
 
-    private static SynthesizedFinishedNamedTypeSymbol GenerateInt32() {
-        return StaticClass("Int32", [
-            ConstExprField("MinValue", SpecialType.Int32, int.MinValue),
-            ConstExprField("MaxValue", SpecialType.Int32, int.MaxValue),
+    private SynthesizedFinishedNamedTypeSymbol GenerateInt32() {
+        return StaticClass(_compilation, "Int32", [
+            ConstExprField("MinValue", SInt32, int.MinValue),
+            ConstExprField("MaxValue", SInt32, int.MaxValue),
         ]);
     }
 
-    private static SynthesizedFinishedNamedTypeSymbol GenerateInt16() {
-        return StaticClass("Int16", [
-            ConstExprField("MinValue", SpecialType.Int16, short.MinValue),
-            ConstExprField("MaxValue", SpecialType.Int16, short.MaxValue),
+    private SynthesizedFinishedNamedTypeSymbol GenerateInt16() {
+        return StaticClass(_compilation, "Int16", [
+            ConstExprField("MinValue", SInt16, short.MinValue),
+            ConstExprField("MaxValue", SInt16, short.MaxValue),
         ]);
     }
 
-    private static SynthesizedFinishedNamedTypeSymbol GenerateInt8() {
-        return StaticClass("Int8", [
-            ConstExprField("MinValue", SpecialType.Int8, sbyte.MinValue),
-            ConstExprField("MaxValue", SpecialType.Int8, sbyte.MaxValue),
+    private SynthesizedFinishedNamedTypeSymbol GenerateInt8() {
+        return StaticClass(_compilation, "Int8", [
+            ConstExprField("MinValue", SInt8, sbyte.MinValue),
+            ConstExprField("MaxValue", SInt8, sbyte.MaxValue),
         ]);
     }
 
-    private static SynthesizedFinishedNamedTypeSymbol GenerateUInt64() {
-        return StaticClass("UInt64", [
-            ConstExprField("MinValue", SpecialType.UInt64, ulong.MinValue),
-            ConstExprField("MaxValue", SpecialType.UInt64, ulong.MaxValue),
+    private SynthesizedFinishedNamedTypeSymbol GenerateUInt64() {
+        return StaticClass(_compilation, "UInt64", [
+            ConstExprField("MinValue", SUInt64, ulong.MinValue),
+            ConstExprField("MaxValue", SUInt64, ulong.MaxValue),
         ]);
     }
 
-    private static SynthesizedFinishedNamedTypeSymbol GenerateUInt32() {
-        return StaticClass("UInt32", [
-            ConstExprField("MinValue", SpecialType.UInt32, uint.MinValue),
-            ConstExprField("MaxValue", SpecialType.UInt32, uint.MaxValue),
+    private SynthesizedFinishedNamedTypeSymbol GenerateUInt32() {
+        return StaticClass(_compilation, "UInt32", [
+            ConstExprField("MinValue", SUInt32, uint.MinValue),
+            ConstExprField("MaxValue", SUInt32, uint.MaxValue),
         ]);
     }
 
-    private static SynthesizedFinishedNamedTypeSymbol GenerateUInt16() {
-        return StaticClass("UInt16", [
-            ConstExprField("MinValue", SpecialType.UInt16, ushort.MinValue),
-            ConstExprField("MaxValue", SpecialType.UInt16, ushort.MaxValue),
+    private SynthesizedFinishedNamedTypeSymbol GenerateUInt16() {
+        return StaticClass(_compilation, "UInt16", [
+            ConstExprField("MinValue", SUInt16, ushort.MinValue),
+            ConstExprField("MaxValue", SUInt16, ushort.MaxValue),
         ]);
     }
 
-    private static SynthesizedFinishedNamedTypeSymbol GenerateUInt8() {
-        return StaticClass("UInt8", [
-            ConstExprField("MinValue", SpecialType.UInt8, byte.MinValue),
-            ConstExprField("MaxValue", SpecialType.UInt8, byte.MaxValue),
+    private SynthesizedFinishedNamedTypeSymbol GenerateUInt8() {
+        return StaticClass(_compilation, "UInt8", [
+            ConstExprField("MinValue", SUInt8, byte.MinValue),
+            ConstExprField("MaxValue", SUInt8, byte.MaxValue),
         ]);
     }
 
-    private static SynthesizedFinishedNamedTypeSymbol GenerateCallingConvention() {
-        return StaticClass("CallingConvention", [
-            ConstExprField("Winapi", SpecialType.UInt32, (uint)1),
-            ConstExprField("Cdecl", SpecialType.UInt32, (uint)2),
+    private SynthesizedFinishedNamedTypeSymbol GenerateCallingConvention() {
+        return StaticClass(_compilation, "CallingConvention", [
+            ConstExprField("Winapi", SUInt32, (uint)1),
+            ConstExprField("Cdecl", SUInt32, (uint)2),
         ]);
     }
 
-    private static SynthesizedFinishedNamedTypeSymbol GenerateTime() {
-        return StaticClass("Time", [
-            StaticMethod("Now", SpecialType.Int),
-            StaticMethod("Sleep", SpecialType.Void, [("milliseconds", SpecialType.Int)]),
+    private SynthesizedFinishedNamedTypeSymbol GenerateTime() {
+        return StaticClass(_compilation, "Time", [
+            StaticMethod("Now", SInt),
+            StaticMethod("Sleep", SVoid, [("milliseconds", SInt)]),
         ]);
     }
 
-    private static SynthesizedFinishedNamedTypeSymbol GenerateLowLevel() {
+    private SynthesizedFinishedNamedTypeSymbol GenerateLowLevel() {
         var lengthT = new SynthesizedTemplateParameterSymbol(
             null,
-            new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type)),
+            new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.Type)),
             0,
             "T"
         );
@@ -497,16 +536,16 @@ internal static class StandardLibrary {
         var length = new SynthesizedTemplateMethodSymbol(
             "Length",
             null,
-            new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Int)),
+            new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.Int)),
             [lengthT],
-            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(ArrayTypeSymbol.CreateSZArray(new TypeWithAnnotations(lengthT))), 0, RefKind.None, "array", isConst: true)],
+            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(ArrayTypeSymbol.CreateSZArray(_compilation.assembly, new TypeWithAnnotations(lengthT))), 0, RefKind.None, "array", isConst: true)],
             MethodKind.Ordinary,
             DeclarationModifiers.Static
         );
 
         var sortT = new SynthesizedTemplateParameterSymbol(
             null,
-            new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type)),
+            new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.Type)),
             0,
             "T"
         );
@@ -514,16 +553,16 @@ internal static class StandardLibrary {
         var sort = new SynthesizedTemplateMethodSymbol(
             "Sort",
             null,
-            new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)),
+            new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.Void)),
             [sortT],
-            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(ArrayTypeSymbol.CreateSZArray(new TypeWithAnnotations(sortT))), 0, RefKind.None, "array")],
+            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(ArrayTypeSymbol.CreateSZArray(_compilation.assembly, new TypeWithAnnotations(sortT))), 0, RefKind.None, "array")],
             MethodKind.Ordinary,
             DeclarationModifiers.Static
         );
 
         var fillT = new SynthesizedTemplateParameterSymbol(
             null,
-            new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type)),
+            new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.Type)),
             0,
             "TElem"
         );
@@ -531,9 +570,9 @@ internal static class StandardLibrary {
         var fill = new SynthesizedTemplateMethodSymbol(
             "Fill",
             null,
-            new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)),
+            new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.Void)),
             [fillT],
-            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(ArrayTypeSymbol.CreateSZArray(new TypeWithAnnotations(fillT))), 0, RefKind.None, "array"),
+            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(ArrayTypeSymbol.CreateSZArray(_compilation.assembly, new TypeWithAnnotations(fillT))), 0, RefKind.None, "array"),
              SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(fillT), 0, RefKind.None, "value")],
             MethodKind.Ordinary,
             DeclarationModifiers.Static
@@ -541,7 +580,7 @@ internal static class StandardLibrary {
 
         var sizeOfT = new SynthesizedTemplateParameterSymbol(
             null,
-            new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type)),
+            new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.Type)),
             0,
             "T"
         );
@@ -549,7 +588,7 @@ internal static class StandardLibrary {
         var sizeOf = new SynthesizedTemplateMethodSymbol(
             "SizeOf",
             null,
-            new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Int32)),
+            new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.Int32)),
             [sizeOfT],
             [],
             MethodKind.Ordinary,
@@ -558,14 +597,14 @@ internal static class StandardLibrary {
 
         var bitCastTFrom = new SynthesizedTemplateParameterSymbol(
             null,
-            new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type)),
+            new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.Type)),
             0,
             "TFrom"
         );
 
         var bitCastTTo = new SynthesizedTemplateParameterSymbol(
             null,
-            new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type)),
+            new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.Type)),
             0,
             "TTo"
         );
@@ -584,133 +623,133 @@ internal static class StandardLibrary {
             new SynthesizedFinishedMethodSymbol(
                 new SynthesizedSimpleOrdinaryMethodSymbol(
                     "CreateLPCSTR",
-                    new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.UInt8)))),
+                    new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.UInt8)))),
                     RefKind.None,
                     DeclarationModifiers.Public | DeclarationModifiers.Static
                 ),
             null,
-            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.String)), 0, RefKind.None, "str")]
+            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.String)), 0, RefKind.None, "str")]
         );
 
         var createLPCSTR_UTF =
             new SynthesizedFinishedMethodSymbol(
                 new SynthesizedSimpleOrdinaryMethodSymbol(
                     "CreateLPCSTR_UTF",
-                    new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.UInt8)))),
+                    new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.UInt8)))),
                     RefKind.None,
                     DeclarationModifiers.Public | DeclarationModifiers.Static
                 ),
             null,
-            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.String)), 0, RefKind.None, "str")]
+            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.String)), 0, RefKind.None, "str")]
         );
 
         var createLPCWSTR =
             new SynthesizedFinishedMethodSymbol(
                 new SynthesizedSimpleOrdinaryMethodSymbol(
                     "CreateLPCWSTR",
-                    new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Char)))),
+                    new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.Char)))),
                     RefKind.None,
                     DeclarationModifiers.Public | DeclarationModifiers.Static
                 ),
             null,
-            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.String)), 0, RefKind.None, "str")]
+            [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.String)), 0, RefKind.None, "str")]
         );
 
         var freeLPCSTR =
             new SynthesizedFinishedMethodSymbol(
                 new SynthesizedSimpleOrdinaryMethodSymbol(
                     "FreeLPCSTR",
-                    new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)),
+                    new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.Void)),
                     RefKind.None,
                     DeclarationModifiers.Public | DeclarationModifiers.Static
                 ),
                 null,
-                [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.UInt8)))), 0, RefKind.None, "str")]
+                [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.UInt8)))), 0, RefKind.None, "str")]
         );
 
         var freeLPCWSTR =
             new SynthesizedFinishedMethodSymbol(
                 new SynthesizedSimpleOrdinaryMethodSymbol(
                     "FreeLPCWSTR",
-                    new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)),
+                    new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.Void)),
                     RefKind.None,
                     DeclarationModifiers.Public | DeclarationModifiers.Static
                 ),
                 null,
-                [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Char)))), 0, RefKind.None, "str")]
+                [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.Char)))), 0, RefKind.None, "str")]
         );
 
         var readLPCSTR =
             new SynthesizedFinishedMethodSymbol(
                 new SynthesizedSimpleOrdinaryMethodSymbol(
                     "ReadLPCSTR",
-                    new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.String)),
+                    new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.String)),
                     RefKind.None,
                     DeclarationModifiers.Public | DeclarationModifiers.Static
                 ),
                 null,
-                [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.UInt8)))), 0, RefKind.None, "ptr")]
+                [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.UInt8)))), 0, RefKind.None, "ptr")]
         );
 
         var readLPCWSTR =
             new SynthesizedFinishedMethodSymbol(
                 new SynthesizedSimpleOrdinaryMethodSymbol(
                     "ReadLPCWSTR",
-                    new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.String)),
+                    new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.String)),
                     RefKind.None,
                     DeclarationModifiers.Public | DeclarationModifiers.Static
                 ),
                 null,
-                [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Char)))), 0, RefKind.None, "ptr")]
+                [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.Char)))), 0, RefKind.None, "ptr")]
         );
 
         var getGCPtr =
             new SynthesizedFinishedMethodSymbol(
                 new SynthesizedSimpleOrdinaryMethodSymbol(
                     "GetGCPtr",
-                    new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)))),
+                    new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.Void)))),
                     RefKind.None,
                     DeclarationModifiers.Public | DeclarationModifiers.Static
                 ),
                 null,
-                [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Object)), 0, RefKind.None, "obj")]
+                [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.Object)), 0, RefKind.None, "obj")]
         );
 
         var freeGCHandle =
             new SynthesizedFinishedMethodSymbol(
                 new SynthesizedSimpleOrdinaryMethodSymbol(
                     "FreeGCHandle",
-                    new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)),
+                    new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.Void)),
                     RefKind.None,
                     DeclarationModifiers.Public | DeclarationModifiers.Static
                 ),
                 null,
-                [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)))), 0, RefKind.None, "ptr")]
+                [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.Void)))), 0, RefKind.None, "ptr")]
         );
 
         var getObject =
             new SynthesizedFinishedMethodSymbol(
                 new SynthesizedSimpleOrdinaryMethodSymbol(
                     "GetObject",
-                    new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Object)),
+                    new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.Object)),
                     RefKind.None,
                     DeclarationModifiers.Public | DeclarationModifiers.Static
                 ),
                 null,
-                [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void)))), 0, RefKind.None, "ptr")]
+                [SynthesizedParameterSymbol.Create(null, new TypeWithAnnotations(new PointerTypeSymbol(new TypeWithAnnotations(_compilation.GetSpecialType(SpecialType.Void)))), 0, RefKind.None, "ptr")]
         );
 
-        return StaticClass("LowLevel", [
-            StaticMethod("GetHashCode", SpecialType.Int32, [("object", true, SpecialType.Object)]),
-            StaticMethod("CombineHashCode", SpecialType.Int32, [("hash1", SpecialType.Int32), ("hash2", SpecialType.Int32)]),
-            StaticMethod("GetTypeName", SpecialType.String, [("object", true, SpecialType.Object)]),
-            StaticMethod("GetType", SpecialType.Type, [("value", true, SpecialType.Any)]),
+        return StaticClass(_compilation, "LowLevel", [
+            StaticMethod("GetHashCode", SInt32, [("object", true, SObject)]),
+            StaticMethod("CombineHashCode", SInt32, [("hash1", SInt32), ("hash2", SInt32)]),
+            StaticMethod("GetTypeName", SString, [("object", true, SObject)]),
+            StaticMethod("GetType", SType, [("value", true, SAny)]),
             length,
             sort,
             fill,
             sizeOf,
             bitCast,
-            StaticMethod("ThrowNullConditionException", SpecialType.Void),
+            StaticMethod("ThrowNullConditionException", SVoid),
             createLPCSTR,
             createLPCSTR_UTF,
             createLPCWSTR,
@@ -721,200 +760,200 @@ internal static class StandardLibrary {
             getGCPtr,
             freeGCHandle,
             getObject,
-            StaticMethod("IsLittleEndian", SpecialType.Bool),
-            StaticMethod("ReverseEndianness", SpecialType.Int32, [("value", SpecialType.Int32)]),
+            StaticMethod("IsLittleEndian", SBool),
+            StaticMethod("ReverseEndianness", SInt32, [("value", SInt32)]),
         ]);
     }
 
-    private static SynthesizedFinishedNamedTypeSymbol GenerateHashCode() {
-        return StaticClass("HashCode", [
-            StaticMethod("Combine", SpecialType.Int32, [("hash1", SpecialType.Int32), ("hash2", SpecialType.Int32)]),
-            StaticMethod("Combine", SpecialType.Int32, [("hash1", SpecialType.Int32), ("hash2", SpecialType.Int32), ("hash3", SpecialType.Int32)]),
-            StaticMethod("Combine", SpecialType.Int32, [("hash1", SpecialType.Int32), ("hash2", SpecialType.Int32), ("hash3", SpecialType.Int32), ("hash4", SpecialType.Int32)]),
-            StaticMethod("Combine", SpecialType.Int32, [("hash1", SpecialType.Int32), ("hash2", SpecialType.Int32), ("hash3", SpecialType.Int32), ("hash4", SpecialType.Int32), ("hash5", SpecialType.Int32)]),
-            StaticMethod("Combine", SpecialType.Int32, [("hash1", SpecialType.Int32), ("hash2", SpecialType.Int32), ("hash3", SpecialType.Int32), ("hash4", SpecialType.Int32), ("hash5", SpecialType.Int32), ("hash6", SpecialType.Int32)]),
-            StaticMethod("Combine", SpecialType.Int32, [("hash1", SpecialType.Int32), ("hash2", SpecialType.Int32), ("hash3", SpecialType.Int32), ("hash4", SpecialType.Int32), ("hash5", SpecialType.Int32), ("hash6", SpecialType.Int32), ("hash7", SpecialType.Int32)]),
-            StaticMethod("Combine", SpecialType.Int32, [("hash1", SpecialType.Int32), ("hash2", SpecialType.Int32), ("hash3", SpecialType.Int32), ("hash4", SpecialType.Int32), ("hash5", SpecialType.Int32), ("hash6", SpecialType.Int32), ("hash7", SpecialType.Int32), ("hash8", SpecialType.Int32)]),
+    private SynthesizedFinishedNamedTypeSymbol GenerateHashCode() {
+        return StaticClass(_compilation, "HashCode", [
+            StaticMethod("Combine", SInt32, [("hash1", SInt32), ("hash2", SInt32)]),
+            StaticMethod("Combine", SInt32, [("hash1", SInt32), ("hash2", SInt32), ("hash3", SInt32)]),
+            StaticMethod("Combine", SInt32, [("hash1", SInt32), ("hash2", SInt32), ("hash3", SInt32), ("hash4", SInt32)]),
+            StaticMethod("Combine", SInt32, [("hash1", SInt32), ("hash2", SInt32), ("hash3", SInt32), ("hash4", SInt32), ("hash5", SInt32)]),
+            StaticMethod("Combine", SInt32, [("hash1", SInt32), ("hash2", SInt32), ("hash3", SInt32), ("hash4", SInt32), ("hash5", SInt32), ("hash6", SInt32)]),
+            StaticMethod("Combine", SInt32, [("hash1", SInt32), ("hash2", SInt32), ("hash3", SInt32), ("hash4", SInt32), ("hash5", SInt32), ("hash6", SInt32), ("hash7", SInt32)]),
+            StaticMethod("Combine", SInt32, [("hash1", SInt32), ("hash2", SInt32), ("hash3", SInt32), ("hash4", SInt32), ("hash5", SInt32), ("hash6", SInt32), ("hash7", SInt32), ("hash8", SInt32)]),
         ]);
     }
 
-    private static SynthesizedFinishedNamedTypeSymbol GenerateDirectory() {
-        return StaticClass("Directory", [
-            StaticMethod("Create", SpecialType.Void, [("path", SpecialType.String)]),
-            StaticMethod("Delete", SpecialType.Void, [("path", SpecialType.String)]),
-            StaticMethod("Exists", SpecialType.Bool, [("path", SpecialType.String)]),
-            StaticMethod("GetCurrentDirectory", SpecialType.String),
+    private SynthesizedFinishedNamedTypeSymbol GenerateDirectory() {
+        return StaticClass(_compilation, "Directory", [
+            StaticMethod("Create", SVoid, [("path", SString)]),
+            StaticMethod("Delete", SVoid, [("path", SString)]),
+            StaticMethod("Exists", SBool, [("path", SString)]),
+            StaticMethod("GetCurrentDirectory", SString),
             // StaticMethod("GetDirectories", StringList, [("path", SpecialType.String)]),
             // StaticMethod("GetFiles", StringList, [("path", SpecialType.String)]),
         ]);
     }
 
-    private static SynthesizedFinishedNamedTypeSymbol GenerateFile() {
-        return StaticClass("File", [
+    private SynthesizedFinishedNamedTypeSymbol GenerateFile() {
+        return StaticClass(_compilation, "File", [
             // StaticMethod("AppendLines", SpecialType.Void, [("fileName", SpecialType.String), ("lines", StringList)]),
-            StaticMethod("AppendText", SpecialType.Void, [("fileName", SpecialType.String), ("text", SpecialType.String)]),
-            StaticMethod("Create", SpecialType.Void, [("path", SpecialType.String)]),
-            StaticMethod("Copy", SpecialType.Void, [("sourceFileName", SpecialType.String), ("destinationFileName", SpecialType.String)]),
-            StaticMethod("Delete", SpecialType.Void, [("path", SpecialType.String)]),
-            StaticMethod("Exists", SpecialType.Bool, [("path", SpecialType.String)]),
+            StaticMethod("AppendText", SVoid, [("fileName", SString), ("text", SString)]),
+            StaticMethod("Create", SVoid, [("path", SString)]),
+            StaticMethod("Copy", SVoid, [("sourceFileName", SString), ("destinationFileName", SString)]),
+            StaticMethod("Delete", SVoid, [("path", SString)]),
+            StaticMethod("Exists", SBool, [("path", SString)]),
             // StaticMethod("ReadLines", StringList, [("fileName", SpecialType.String)]),
-            StaticMethod("ReadText", SpecialType.String, true, [("fileName", SpecialType.String)]),
+            StaticMethod("ReadText", SString, true, [("fileName", SString)]),
             // StaticMethod("WriteLines", SpecialType.Void, [("fileName", SpecialType.String), ("lines", StringList)]),
-            StaticMethod("WriteText", SpecialType.Void, [("fileName", SpecialType.String), ("text", SpecialType.String)]),
+            StaticMethod("WriteText", SVoid, [("fileName", SString), ("text", SString)]),
         ]);
     }
 
-    private static SynthesizedFinishedNamedTypeSymbol GenerateConsole() {
-        return StaticClass("Console", [
-            StaticClass("Color", [
-                ConstExprField("Black", SpecialType.Int, 0L),
-                ConstExprField("DarkBlue", SpecialType.Int, 1L),
-                ConstExprField("DarkGreen", SpecialType.Int, 2L),
-                ConstExprField("DarkCyan", SpecialType.Int, 3L),
-                ConstExprField("DarkRed", SpecialType.Int, 4L),
-                ConstExprField("DarkMagenta", SpecialType.Int, 5L),
-                ConstExprField("DarkYellow", SpecialType.Int, 6L),
-                ConstExprField("Gray", SpecialType.Int, 7L),
-                ConstExprField("DarkGray", SpecialType.Int, 8L),
-                ConstExprField("Blue", SpecialType.Int, 9L),
-                ConstExprField("Green", SpecialType.Int, 10L),
-                ConstExprField("Cyan", SpecialType.Int, 11L),
-                ConstExprField("Red", SpecialType.Int, 12L),
-                ConstExprField("Magenta", SpecialType.Int, 13L),
-                ConstExprField("Yellow", SpecialType.Int, 14L),
-                ConstExprField("White", SpecialType.Int, 15L)
+    private SynthesizedFinishedNamedTypeSymbol GenerateConsole() {
+        return StaticClass(_compilation, "Console", [
+            StaticClass(_compilation, "Color", [
+                ConstExprField("Black", SInt, 0L),
+                ConstExprField("DarkBlue", SInt, 1L),
+                ConstExprField("DarkGreen", SInt, 2L),
+                ConstExprField("DarkCyan", SInt, 3L),
+                ConstExprField("DarkRed", SInt, 4L),
+                ConstExprField("DarkMagenta", SInt, 5L),
+                ConstExprField("DarkYellow", SInt, 6L),
+                ConstExprField("Gray", SInt, 7L),
+                ConstExprField("DarkGray", SInt, 8L),
+                ConstExprField("Blue", SInt, 9L),
+                ConstExprField("Green", SInt, 10L),
+                ConstExprField("Cyan", SInt, 11L),
+                ConstExprField("Red", SInt, 12L),
+                ConstExprField("Magenta", SInt, 13L),
+                ConstExprField("Yellow", SInt, 14L),
+                ConstExprField("White", SInt, 15L)
             ]),
-            StaticMethod("Clear", SpecialType.Void),
-            StaticMethod("GetWidth", SpecialType.Int),
-            StaticMethod("GetHeight", SpecialType.Int),
-            StaticMethod("Input", SpecialType.String),
-            StaticMethod("PrintLine", SpecialType.Void),
-            StaticMethod("PrintLine", SpecialType.Void, [("message", true, SpecialType.String, true)]),
-            StaticMethod("PrintLine", SpecialType.Void, [("value", true, SpecialType.Any, true)]),
-            StaticMethod("PrintLine", SpecialType.Void, [("chars", true, CharBuffer, true)]),
-            StaticMethod("Print", SpecialType.Void, [("message", true, SpecialType.String, true)]),
-            StaticMethod("Print", SpecialType.Void, [("value", true, SpecialType.Any, true)]),
-            StaticMethod("Print", SpecialType.Void, [("chars", true, CharBuffer, true)]),
-            StaticMethod("ResetColor", SpecialType.Void),
-            StaticMethod("SetForegroundColor", SpecialType.Void, [("color", SpecialType.Int)]),
-            StaticMethod("SetBackgroundColor", SpecialType.Void, [("color", SpecialType.Int)]),
-            StaticMethod("SetCursorPosition", SpecialType.Void, [("left", SpecialType.Int, true), ("top", SpecialType.Int, true)]),
-            StaticMethod("SetCursorVisibility", SpecialType.Void, [("visible", SpecialType.Bool)]),
+            StaticMethod("Clear", SVoid),
+            StaticMethod("GetWidth", SInt),
+            StaticMethod("GetHeight", SInt),
+            StaticMethod("Input", SString),
+            StaticMethod("PrintLine", SVoid),
+            StaticMethod("PrintLine", SVoid, [("message", true, SString, true)]),
+            StaticMethod("PrintLine", SVoid, [("value", true, SAny, true)]),
+            StaticMethod("PrintLine", SVoid, [("chars", true, CharBuffer, true)]),
+            StaticMethod("Print", SVoid, [("message", true, SString, true)]),
+            StaticMethod("Print", SVoid, [("value", true, SAny, true)]),
+            StaticMethod("Print", SVoid, [("chars", true, CharBuffer, true)]),
+            StaticMethod("ResetColor", SVoid),
+            StaticMethod("SetForegroundColor", SVoid, [("color", SInt)]),
+            StaticMethod("SetBackgroundColor", SVoid, [("color", SInt)]),
+            StaticMethod("SetCursorPosition", SVoid, [("left", SInt, true), ("top", SInt, true)]),
+            StaticMethod("SetCursorVisibility", SVoid, [("visible", SBool)]),
         ]);
     }
 
-    private static SynthesizedFinishedNamedTypeSymbol GenerateMath() {
-        return StaticClass("Math", [
-            ConstExprField("E", SpecialType.Decimal, 2.7182818284590451),
-            ConstExprField("PI", SpecialType.Decimal, 3.1415926535897931),
-            StaticMethod("Abs", SpecialType.Decimal, true, [("value", SpecialType.Decimal, true)]),
-            StaticMethod("Abs", SpecialType.Decimal, [("value", SpecialType.Decimal)]),
-            StaticMethod("Abs", SpecialType.Int, true, [("value", SpecialType.Int, true)]),
-            StaticMethod("Abs", SpecialType.Int, [("value", SpecialType.Int)]),
-            StaticMethod("Acos", SpecialType.Decimal, true, [("d", SpecialType.Decimal, true)]),
-            StaticMethod("Acos", SpecialType.Decimal, [("d", SpecialType.Decimal)]),
-            StaticMethod("Acosh", SpecialType.Decimal, true, [("d", SpecialType.Decimal, true)]),
-            StaticMethod("Acosh", SpecialType.Decimal, [("d", SpecialType.Decimal)]),
-            StaticMethod("Asin", SpecialType.Decimal, true, [("d", SpecialType.Decimal, true)]),
-            StaticMethod("Asin", SpecialType.Decimal, [("d", SpecialType.Decimal)]),
-            StaticMethod("Asinh", SpecialType.Decimal, true, [("d", SpecialType.Decimal, true)]),
-            StaticMethod("Asinh", SpecialType.Decimal, [("d", SpecialType.Decimal)]),
-            StaticMethod("Atan", SpecialType.Decimal, true, [("d", SpecialType.Decimal, true)]),
-            StaticMethod("Atan", SpecialType.Decimal, [("d", SpecialType.Decimal)]),
-            StaticMethod("Atanh", SpecialType.Decimal, true, [("d", SpecialType.Decimal, true)]),
-            StaticMethod("Atanh", SpecialType.Decimal, [("d", SpecialType.Decimal)]),
-            StaticMethod("Ceiling", SpecialType.Decimal, true, [("d", SpecialType.Decimal, true)]),
-            StaticMethod("Ceiling", SpecialType.Decimal, [("d", SpecialType.Decimal)]),
-            StaticMethod("Clamp", SpecialType.Decimal, true, [("value", SpecialType.Decimal, true), ("min", SpecialType.Decimal, true), ("max", SpecialType.Decimal, true)]),
-            StaticMethod("Clamp", SpecialType.Decimal, [("value", SpecialType.Decimal), ("min", SpecialType.Decimal), ("max", SpecialType.Decimal)]),
-            StaticMethod("Clamp", SpecialType.Float32, true, [("value", SpecialType.Float32, true), ("min", SpecialType.Float32, true), ("max", SpecialType.Float32, true)]),
-            StaticMethod("Clamp", SpecialType.Float32, [("value", SpecialType.Float32), ("min", SpecialType.Float32), ("max", SpecialType.Float32)]),
-            StaticMethod("Clamp", SpecialType.Int, true, [("value", SpecialType.Int, true), ("min", SpecialType.Int, true), ("max", SpecialType.Int, true)]),
-            StaticMethod("Clamp", SpecialType.Int, [("value", SpecialType.Int), ("min", SpecialType.Int), ("max", SpecialType.Int)]),
-            StaticMethod("Clamp", SpecialType.UInt64, true, [("value", SpecialType.UInt64, true), ("min", SpecialType.UInt64, true), ("max", SpecialType.UInt64, true)]),
-            StaticMethod("Clamp", SpecialType.UInt64, [("value", SpecialType.UInt64), ("min", SpecialType.UInt64), ("max", SpecialType.UInt64)]),
-            StaticMethod("Clamp", SpecialType.Int32, true, [("value", SpecialType.Int32, true), ("min", SpecialType.Int32, true), ("max", SpecialType.Int32, true)]),
-            StaticMethod("Clamp", SpecialType.Int32, [("value", SpecialType.Int32), ("min", SpecialType.Int32), ("max", SpecialType.Int32)]),
-            StaticMethod("Clamp", SpecialType.UInt32, true, [("value", SpecialType.UInt32, true), ("min", SpecialType.UInt32, true), ("max", SpecialType.UInt32, true)]),
-            StaticMethod("Clamp", SpecialType.UInt32, [("value", SpecialType.UInt32), ("min", SpecialType.UInt32), ("max", SpecialType.UInt32)]),
-            StaticMethod("Clamp", SpecialType.Int16, true, [("value", SpecialType.Int16, true), ("min", SpecialType.Int16, true), ("max", SpecialType.Int16, true)]),
-            StaticMethod("Clamp", SpecialType.Int16, [("value", SpecialType.Int16), ("min", SpecialType.Int16), ("max", SpecialType.Int16)]),
-            StaticMethod("Clamp", SpecialType.UInt16, true, [("value", SpecialType.UInt16, true), ("min", SpecialType.UInt16, true), ("max", SpecialType.UInt16, true)]),
-            StaticMethod("Clamp", SpecialType.UInt16, [("value", SpecialType.UInt16), ("min", SpecialType.UInt16), ("max", SpecialType.UInt16)]),
-            StaticMethod("Clamp", SpecialType.Int8, true, [("value", SpecialType.Int8, true), ("min", SpecialType.Int8, true), ("max", SpecialType.Int8, true)]),
-            StaticMethod("Clamp", SpecialType.Int8, [("value", SpecialType.Int8), ("min", SpecialType.Int8), ("max", SpecialType.Int8)]),
-            StaticMethod("Clamp", SpecialType.UInt8, true, [("value", SpecialType.UInt8, true), ("min", SpecialType.UInt8, true), ("max", SpecialType.UInt8, true)]),
-            StaticMethod("Clamp", SpecialType.UInt8, [("value", SpecialType.UInt8), ("min", SpecialType.UInt8), ("max", SpecialType.UInt8)]),
-            StaticMethod("Clamp", SpecialType.Char, true, [("value", SpecialType.Char, true), ("min", SpecialType.Char, true), ("max", SpecialType.Char, true)]),
-            StaticMethod("Clamp", SpecialType.Char, [("value", SpecialType.Char), ("min", SpecialType.Char), ("max", SpecialType.Char)]),
-            StaticMethod("Cos", SpecialType.Decimal, true, [("d", SpecialType.Decimal, true)]),
-            StaticMethod("Cos", SpecialType.Decimal, [("d", SpecialType.Decimal)]),
-            StaticMethod("Cosh", SpecialType.Decimal, true, [("d", SpecialType.Decimal, true)]),
-            StaticMethod("Cosh", SpecialType.Decimal, [("d", SpecialType.Decimal)]),
-            StaticMethod("Exp", SpecialType.Decimal, true, [("d", SpecialType.Decimal, true)]),
-            StaticMethod("Exp", SpecialType.Decimal, [("d", SpecialType.Decimal)]),
-            StaticMethod("Floor", SpecialType.Decimal, true, [("d", SpecialType.Decimal, true)]),
-            StaticMethod("Floor", SpecialType.Decimal, [("d", SpecialType.Decimal)]),
-            StaticMethod("Lerp", SpecialType.Decimal, true, [("start", SpecialType.Decimal, true), ("end", SpecialType.Decimal, true), ("rate", SpecialType.Decimal, true)]),
-            StaticMethod("Lerp", SpecialType.Decimal, [("start", SpecialType.Decimal), ("end", SpecialType.Decimal), ("rate", SpecialType.Decimal)]),
-            StaticMethod("Log", SpecialType.Decimal, true, [("d", SpecialType.Decimal, true), ("base", SpecialType.Decimal, true)]),
-            StaticMethod("Log", SpecialType.Decimal, [("d", SpecialType.Decimal), ("base", SpecialType.Decimal)]),
-            StaticMethod("Log", SpecialType.Decimal, true, [("d", SpecialType.Decimal, true)]),
-            StaticMethod("Log", SpecialType.Decimal, [("d", SpecialType.Decimal)]),
-            StaticMethod("Max", SpecialType.Decimal, true, [("val1", SpecialType.Decimal, true), ("val2", SpecialType.Decimal, true)]),
-            StaticMethod("Max", SpecialType.Decimal, [("val1", SpecialType.Decimal), ("val2", SpecialType.Decimal)]),
-            StaticMethod("Max", SpecialType.Float32, true, [("val1", SpecialType.Float32, true), ("val2", SpecialType.Float32, true)]),
-            StaticMethod("Max", SpecialType.Float32, [("val1", SpecialType.Float32), ("val2", SpecialType.Float32)]),
-            StaticMethod("Max", SpecialType.Int, true, [("val1", SpecialType.Int, true), ("val2", SpecialType.Int, true)]),
-            StaticMethod("Max", SpecialType.Int, [("val1", SpecialType.Int), ("val2", SpecialType.Int)]),
-            StaticMethod("Max", SpecialType.UInt64, true, [("val1", SpecialType.UInt64, true), ("val2", SpecialType.UInt64, true)]),
-            StaticMethod("Max", SpecialType.UInt64, [("val1", SpecialType.UInt64), ("val2", SpecialType.UInt64)]),
-            StaticMethod("Max", SpecialType.Int32, true, [("val1", SpecialType.Int32, true), ("val2", SpecialType.Int32, true)]),
-            StaticMethod("Max", SpecialType.Int32, [("val1", SpecialType.Int32), ("val2", SpecialType.Int32)]),
-            StaticMethod("Max", SpecialType.UInt32, true, [("val1", SpecialType.UInt32, true), ("val2", SpecialType.UInt32, true)]),
-            StaticMethod("Max", SpecialType.UInt32, [("val1", SpecialType.UInt32), ("val2", SpecialType.UInt32)]),
-            StaticMethod("Min", SpecialType.Decimal, true, [("val1", SpecialType.Decimal, true), ("val2", SpecialType.Decimal, true)]),
-            StaticMethod("Min", SpecialType.Decimal, [("val1", SpecialType.Decimal), ("val2", SpecialType.Decimal)]),
-            StaticMethod("Min", SpecialType.Float32, true, [("val1", SpecialType.Float32, true), ("val2", SpecialType.Float32, true)]),
-            StaticMethod("Min", SpecialType.Float32, [("val1", SpecialType.Float32), ("val2", SpecialType.Float32)]),
-            StaticMethod("Min", SpecialType.Int, true, [("val1", SpecialType.Int, true), ("val2", SpecialType.Int, true)]),
-            StaticMethod("Min", SpecialType.Int, [("val1", SpecialType.Int), ("val2", SpecialType.Int)]),
-            StaticMethod("Min", SpecialType.UInt64, true, [("val1", SpecialType.UInt64, true), ("val2", SpecialType.UInt64, true)]),
-            StaticMethod("Min", SpecialType.UInt64, [("val1", SpecialType.UInt64), ("val2", SpecialType.UInt64)]),
-            StaticMethod("Min", SpecialType.Int32, true, [("val1", SpecialType.Int32, true), ("val2", SpecialType.Int32, true)]),
-            StaticMethod("Min", SpecialType.Int32, [("val1", SpecialType.Int32), ("val2", SpecialType.Int32)]),
-            StaticMethod("Min", SpecialType.UInt32, true, [("val1", SpecialType.UInt32, true), ("val2", SpecialType.UInt32, true)]),
-            StaticMethod("Min", SpecialType.UInt32, [("val1", SpecialType.UInt32), ("val2", SpecialType.UInt32)]),
-            StaticMethod("Pow", SpecialType.Decimal, true, [("x", SpecialType.Decimal, true), ("y", SpecialType.Decimal, true)]),
-            StaticMethod("Pow", SpecialType.Decimal, [("x", SpecialType.Decimal), ("y", SpecialType.Decimal)]),
-            StaticMethod("Pow", SpecialType.Int, true, [("x", SpecialType.Int, true), ("y", SpecialType.Int, true)]),
-            StaticMethod("Pow", SpecialType.Int, [("x", SpecialType.Int), ("y", SpecialType.Int)]),
-            StaticMethod("Round", SpecialType.Decimal, true, [("value", SpecialType.Decimal, true)]),
-            StaticMethod("Round", SpecialType.Decimal, [("value", SpecialType.Decimal)]),
-            StaticMethod("Sign", SpecialType.Int, [("value", SpecialType.Decimal)]),
-            StaticMethod("Sign", SpecialType.Int, true, [("value", SpecialType.Decimal, true)]),
-            StaticMethod("Sign", SpecialType.Int, [("value", SpecialType.Int)]),
-            StaticMethod("Sign", SpecialType.Int, true, [("value", SpecialType.Int, true)]),
-            StaticMethod("Sin", SpecialType.Decimal, true, [("d", SpecialType.Decimal, true)]),
-            StaticMethod("Sin", SpecialType.Decimal, [("d", SpecialType.Decimal)]),
-            StaticMethod("Sinh", SpecialType.Decimal, true, [("d", SpecialType.Decimal, true)]),
-            StaticMethod("Sinh", SpecialType.Decimal, [("d", SpecialType.Decimal)]),
-            StaticMethod("Sqrt", SpecialType.Decimal, true, [("d", SpecialType.Decimal, true)]),
-            StaticMethod("Sqrt", SpecialType.Decimal, [("d", SpecialType.Decimal)]),
-            StaticMethod("Tan", SpecialType.Decimal, true, [("d", SpecialType.Decimal, true)]),
-            StaticMethod("Tan", SpecialType.Decimal, [("d", SpecialType.Decimal)]),
-            StaticMethod("Tanh", SpecialType.Decimal, true, [("d", SpecialType.Decimal, true)]),
-            StaticMethod("Tanh", SpecialType.Decimal, [("d", SpecialType.Decimal)]),
-            StaticMethod("Truncate", SpecialType.Decimal, true, [("value", SpecialType.Decimal, true)]),
-            StaticMethod("Truncate", SpecialType.Decimal, [("value", SpecialType.Decimal)]),
-            StaticMethod("DegToRad", SpecialType.Decimal, true, [("degrees", SpecialType.Decimal, true)]),
-            StaticMethod("DegToRad", SpecialType.Decimal, [("degrees", SpecialType.Decimal)]),
-            StaticMethod("RadToDeg", SpecialType.Decimal, true, [("radians", SpecialType.Decimal, true)]),
-            StaticMethod("RadToDeg", SpecialType.Decimal, [("radians", SpecialType.Decimal)]),
+    private SynthesizedFinishedNamedTypeSymbol GenerateMath() {
+        return StaticClass(_compilation, "Math", [
+            ConstExprField("E", SDecimal, 2.7182818284590451),
+            ConstExprField("PI", SDecimal, 3.1415926535897931),
+            StaticMethod("Abs", SDecimal, true, [("value", SDecimal, true)]),
+            StaticMethod("Abs", SDecimal, [("value", SDecimal)]),
+            StaticMethod("Abs", SInt, true, [("value", SInt, true)]),
+            StaticMethod("Abs", SInt, [("value", SInt)]),
+            StaticMethod("Acos", SDecimal, true, [("d", SDecimal, true)]),
+            StaticMethod("Acos", SDecimal, [("d", SDecimal)]),
+            StaticMethod("Acosh", SDecimal, true, [("d", SDecimal, true)]),
+            StaticMethod("Acosh", SDecimal, [("d", SDecimal)]),
+            StaticMethod("Asin", SDecimal, true, [("d", SDecimal, true)]),
+            StaticMethod("Asin", SDecimal, [("d", SDecimal)]),
+            StaticMethod("Asinh", SDecimal, true, [("d", SDecimal, true)]),
+            StaticMethod("Asinh", SDecimal, [("d", SDecimal)]),
+            StaticMethod("Atan", SDecimal, true, [("d", SDecimal, true)]),
+            StaticMethod("Atan", SDecimal, [("d", SDecimal)]),
+            StaticMethod("Atanh", SDecimal, true, [("d", SDecimal, true)]),
+            StaticMethod("Atanh", SDecimal, [("d", SDecimal)]),
+            StaticMethod("Ceiling", SDecimal, true, [("d", SDecimal, true)]),
+            StaticMethod("Ceiling", SDecimal, [("d", SDecimal)]),
+            StaticMethod("Clamp", SDecimal, true, [("value", SDecimal, true), ("min", SDecimal, true), ("max", SDecimal, true)]),
+            StaticMethod("Clamp", SDecimal, [("value", SDecimal), ("min", SDecimal), ("max", SDecimal)]),
+            StaticMethod("Clamp", SFloat32, true, [("value", SFloat32, true), ("min", SFloat32, true), ("max", SFloat32, true)]),
+            StaticMethod("Clamp", SFloat32, [("value", SFloat32), ("min", SFloat32), ("max", SFloat32)]),
+            StaticMethod("Clamp", SInt, true, [("value", SInt, true), ("min", SInt, true), ("max", SInt, true)]),
+            StaticMethod("Clamp", SInt, [("value", SInt), ("min", SInt), ("max", SInt)]),
+            StaticMethod("Clamp", SUInt64, true, [("value", SUInt64, true), ("min", SUInt64, true), ("max", SUInt64, true)]),
+            StaticMethod("Clamp", SUInt64, [("value", SUInt64), ("min", SUInt64), ("max", SUInt64)]),
+            StaticMethod("Clamp", SInt32, true, [("value", SInt32, true), ("min", SInt32, true), ("max", SInt32, true)]),
+            StaticMethod("Clamp", SInt32, [("value", SInt32), ("min", SInt32), ("max", SInt32)]),
+            StaticMethod("Clamp", SUInt32, true, [("value", SUInt32, true), ("min", SUInt32, true), ("max", SUInt32, true)]),
+            StaticMethod("Clamp", SUInt32, [("value", SUInt32), ("min", SUInt32), ("max", SUInt32)]),
+            StaticMethod("Clamp", SInt16, true, [("value", SInt16, true), ("min", SInt16, true), ("max", SInt16, true)]),
+            StaticMethod("Clamp", SInt16, [("value", SInt16), ("min", SInt16), ("max", SInt16)]),
+            StaticMethod("Clamp", SUInt16, true, [("value", SUInt16, true), ("min", SUInt16, true), ("max", SUInt16, true)]),
+            StaticMethod("Clamp", SUInt16, [("value", SUInt16), ("min", SUInt16), ("max", SUInt16)]),
+            StaticMethod("Clamp", SInt8, true, [("value", SInt8, true), ("min", SInt8, true), ("max", SInt8, true)]),
+            StaticMethod("Clamp", SInt8, [("value", SInt8), ("min", SInt8), ("max", SInt8)]),
+            StaticMethod("Clamp", SUInt8, true, [("value", SUInt8, true), ("min", SUInt8, true), ("max", SUInt8, true)]),
+            StaticMethod("Clamp", SUInt8, [("value", SUInt8), ("min", SUInt8), ("max", SUInt8)]),
+            StaticMethod("Clamp", SChar, true, [("value", SChar, true), ("min", SChar, true), ("max", SChar, true)]),
+            StaticMethod("Clamp", SChar, [("value", SChar), ("min", SChar), ("max", SChar)]),
+            StaticMethod("Cos", SDecimal, true, [("d", SDecimal, true)]),
+            StaticMethod("Cos", SDecimal, [("d", SDecimal)]),
+            StaticMethod("Cosh", SDecimal, true, [("d", SDecimal, true)]),
+            StaticMethod("Cosh", SDecimal, [("d", SDecimal)]),
+            StaticMethod("Exp", SDecimal, true, [("d", SDecimal, true)]),
+            StaticMethod("Exp", SDecimal, [("d", SDecimal)]),
+            StaticMethod("Floor", SDecimal, true, [("d", SDecimal, true)]),
+            StaticMethod("Floor", SDecimal, [("d", SDecimal)]),
+            StaticMethod("Lerp", SDecimal, true, [("start", SDecimal, true), ("end", SDecimal, true), ("rate", SDecimal, true)]),
+            StaticMethod("Lerp", SDecimal, [("start", SDecimal), ("end", SDecimal), ("rate", SDecimal)]),
+            StaticMethod("Log", SDecimal, true, [("d", SDecimal, true), ("base", SDecimal, true)]),
+            StaticMethod("Log", SDecimal, [("d", SDecimal), ("base", SDecimal)]),
+            StaticMethod("Log", SDecimal, true, [("d", SDecimal, true)]),
+            StaticMethod("Log", SDecimal, [("d", SDecimal)]),
+            StaticMethod("Max", SDecimal, true, [("val1", SDecimal, true), ("val2", SDecimal, true)]),
+            StaticMethod("Max", SDecimal, [("val1", SDecimal), ("val2", SDecimal)]),
+            StaticMethod("Max", SFloat32, true, [("val1", SFloat32, true), ("val2", SFloat32, true)]),
+            StaticMethod("Max", SFloat32, [("val1", SFloat32), ("val2", SFloat32)]),
+            StaticMethod("Max", SInt, true, [("val1", SInt, true), ("val2", SInt, true)]),
+            StaticMethod("Max", SInt, [("val1", SInt), ("val2", SInt)]),
+            StaticMethod("Max", SUInt64, true, [("val1", SUInt64, true), ("val2", SUInt64, true)]),
+            StaticMethod("Max", SUInt64, [("val1", SUInt64), ("val2", SUInt64)]),
+            StaticMethod("Max", SInt32, true, [("val1", SInt32, true), ("val2", SInt32, true)]),
+            StaticMethod("Max", SInt32, [("val1", SInt32), ("val2", SInt32)]),
+            StaticMethod("Max", SUInt32, true, [("val1", SUInt32, true), ("val2", SUInt32, true)]),
+            StaticMethod("Max", SUInt32, [("val1", SUInt32), ("val2", SUInt32)]),
+            StaticMethod("Min", SDecimal, true, [("val1", SDecimal, true), ("val2", SDecimal, true)]),
+            StaticMethod("Min", SDecimal, [("val1", SDecimal), ("val2", SDecimal)]),
+            StaticMethod("Min", SFloat32, true, [("val1", SFloat32, true), ("val2", SFloat32, true)]),
+            StaticMethod("Min", SFloat32, [("val1", SFloat32), ("val2", SFloat32)]),
+            StaticMethod("Min", SInt, true, [("val1", SInt, true), ("val2", SInt, true)]),
+            StaticMethod("Min", SInt, [("val1", SInt), ("val2", SInt)]),
+            StaticMethod("Min", SUInt64, true, [("val1", SUInt64, true), ("val2", SUInt64, true)]),
+            StaticMethod("Min", SUInt64, [("val1", SUInt64), ("val2", SUInt64)]),
+            StaticMethod("Min", SInt32, true, [("val1", SInt32, true), ("val2", SInt32, true)]),
+            StaticMethod("Min", SInt32, [("val1", SInt32), ("val2", SInt32)]),
+            StaticMethod("Min", SUInt32, true, [("val1", SUInt32, true), ("val2", SUInt32, true)]),
+            StaticMethod("Min", SUInt32, [("val1", SUInt32), ("val2", SUInt32)]),
+            StaticMethod("Pow", SDecimal, true, [("x", SDecimal, true), ("y", SDecimal, true)]),
+            StaticMethod("Pow", SDecimal, [("x", SDecimal), ("y", SDecimal)]),
+            StaticMethod("Pow", SInt, true, [("x", SInt, true), ("y", SInt, true)]),
+            StaticMethod("Pow", SInt, [("x", SInt), ("y", SInt)]),
+            StaticMethod("Round", SDecimal, true, [("value", SDecimal, true)]),
+            StaticMethod("Round", SDecimal, [("value", SDecimal)]),
+            StaticMethod("Sign", SInt, [("value", SDecimal)]),
+            StaticMethod("Sign", SInt, true, [("value", SDecimal, true)]),
+            StaticMethod("Sign", SInt, [("value", SInt)]),
+            StaticMethod("Sign", SInt, true, [("value", SInt, true)]),
+            StaticMethod("Sin", SDecimal, true, [("d", SDecimal, true)]),
+            StaticMethod("Sin", SDecimal, [("d", SDecimal)]),
+            StaticMethod("Sinh", SDecimal, true, [("d", SDecimal, true)]),
+            StaticMethod("Sinh", SDecimal, [("d", SDecimal)]),
+            StaticMethod("Sqrt", SDecimal, true, [("d", SDecimal, true)]),
+            StaticMethod("Sqrt", SDecimal, [("d", SDecimal)]),
+            StaticMethod("Tan", SDecimal, true, [("d", SDecimal, true)]),
+            StaticMethod("Tan", SDecimal, [("d", SDecimal)]),
+            StaticMethod("Tanh", SDecimal, true, [("d", SDecimal, true)]),
+            StaticMethod("Tanh", SDecimal, [("d", SDecimal)]),
+            StaticMethod("Truncate", SDecimal, true, [("value", SDecimal, true)]),
+            StaticMethod("Truncate", SDecimal, [("value", SDecimal)]),
+            StaticMethod("DegToRad", SDecimal, true, [("degrees", SDecimal, true)]),
+            StaticMethod("DegToRad", SDecimal, [("degrees", SDecimal)]),
+            StaticMethod("RadToDeg", SDecimal, true, [("radians", SDecimal, true)]),
+            StaticMethod("RadToDeg", SDecimal, [("radians", SDecimal)]),
         ]);
     }
 
-    private static Dictionary<string, Func<object, object, object, object>> GenerateEvaluatorMap() {
+    private Dictionary<string, Func<object, object, object, object>> GenerateEvaluatorMap() {
         return new Dictionary<string, Func<object, object, object, object>>() {
             { "Console_Clear", new Func<object, object, object, object>((a, b, c)
                 => { if (!System.Console.IsOutputRedirected) System.Console.Clear(); return null; }) },

@@ -4,7 +4,6 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -153,8 +152,8 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
         ConsList<TemplateParameterSymbol> inProgress,
         BelteDiagnosticQueue diagnostics);
 
-    private static NamedTypeSymbol GetDefaultBaseType() {
-        return CorLibrary.GetSpecialType(SpecialType.Object);
+    private NamedTypeSymbol GetDefaultBaseType() {
+        return containingAssembly.corLibrary.GetSpecialType(SpecialType.Object);
     }
 
     internal override ImmutableArray<NamedTypeSymbol> GetInterfaces(ConsList<TemplateParameterSymbol> inProgress) {
@@ -200,7 +199,7 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
         // This is to avoid calling Binder.BindType to prevent potential recursive overflows in cases like `class A<T<T> T> { }`
         if (syntax.type.SkipNullable() is not IdentifierNameSyntax ident) {
             diagnostics.Push(Error.NonPrimitiveTemplate(syntax.location));
-            return new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type));
+            return new TypeWithAnnotations(binder.compilation.GetSpecialType(SpecialType.Type));
         } else {
             var specialType = SpecialTypes.GetTypeFromMetadataName(
                 string.Concat("global::", ident.identifier.valueText)
@@ -208,7 +207,7 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
 
             if (!specialType.IsPrimitiveType()) {
                 diagnostics.Push(Error.NonPrimitiveTemplate(syntax.location));
-                return new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type));
+                return new TypeWithAnnotations(binder.compilation.GetSpecialType(SpecialType.Type));
             }
         }
 

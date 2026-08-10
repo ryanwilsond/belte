@@ -10,7 +10,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal sealed class SourceAttributeData : AttributeData {
     private readonly Compilation _compilation;
     private readonly NamedTypeSymbol _attributeClass;
-    private readonly MethodSymbol? _attributeConstructor;
+    private readonly MethodSymbol _attributeConstructor;
     private readonly ImmutableArray<TypedConstant> _constructorArguments;
     private readonly ImmutableArray<int> _constructorArgumentsSourceIndices;
     private readonly ImmutableArray<KeyValuePair<string, TypedConstant>> _namedArguments;
@@ -81,6 +81,12 @@ internal sealed class SourceAttributeData : AttributeData {
 
     internal override NamedTypeSymbol attributeClass => _attributeClass;
 
+    internal override MethodSymbol attributeConstructor => _attributeConstructor;
+
+    protected internal override INamedTypeSymbol _commonAttributeClass => _attributeClass;
+
+    protected internal override IMethodSymbol _commonAttributeConstructor => _attributeConstructor;
+
     protected internal sealed override ImmutableArray<TypedConstant> _commonConstructorArguments
         => _constructorArguments;
 
@@ -88,8 +94,6 @@ internal sealed class SourceAttributeData : AttributeData {
         => _namedArguments;
 
     internal override bool hasErrors => _hasErrors;
-
-    protected internal override INamedTypeSymbol _commonAttributeClass => _attributeClass;
 
     internal override TextLocation GetAttributeArgumentLocation(int parameterIndex) {
         return GetAttributeArgumentSyntax(parameterIndex).location;
@@ -150,7 +154,7 @@ internal sealed class SourceAttributeData : AttributeData {
         for (var signatureIndex = 0; signatureIndex < description.signatures.Length; signatureIndex++) {
             var targetSignature = description.signatures[signatureIndex];
 
-            if (Matches(targetSignature, parameters, ref lazySystemType))
+            if (Matches(targetSignature, parameters, compilation, ref lazySystemType))
                 return signatureIndex;
         }
 
@@ -159,6 +163,7 @@ internal sealed class SourceAttributeData : AttributeData {
         static bool Matches(
             byte[] targetSignature,
             ImmutableArray<ParameterSymbol> parameters,
+            Compilation compilation,
             ref TypeSymbol lazySystemType) {
             if (targetSignature[0] != (byte)SignatureAttributes.Instance)
                 return false;
@@ -293,7 +298,7 @@ internal sealed class SourceAttributeData : AttributeData {
                         break;
                     case (byte)SerializationTypeCode.Type:
                         // lazySystemType ??= compilation.GetWellKnownType(WellKnownType.Type);
-                        lazySystemType ??= CorLibrary.GetSpecialType(SpecialType.Type);
+                        lazySystemType ??= compilation.GetSpecialType(SpecialType.Type);
 
                         if (!TypeSymbol.Equals(parameterType, lazySystemType, TypeCompareKind.ConsiderEverything))
                             return false;

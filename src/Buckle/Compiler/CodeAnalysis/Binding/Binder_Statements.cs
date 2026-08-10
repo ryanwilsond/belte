@@ -330,9 +330,9 @@ internal partial class Binder {
             inferredType = ((ArrayTypeSymbol)type).elementTypeWithAnnotations;
             return ForEachLoopKind.Array;
         } else if (type.specialType == SpecialType.String) {
-            inferredType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Char));
+            inferredType = new TypeWithAnnotations(compilation.GetSpecialType(SpecialType.Char));
             return ForEachLoopKind.String;
-        } else if (type.originalDefinition.Equals(CorLibrary.GetWellKnownType(WellKnownType.Enumerator))) {
+        } else if (type.originalDefinition.Equals(compilation.corLibrary.GetWellKnownType(WellKnownType.Enumerator))) {
             inferredType = ((NamedTypeSymbol)type).templateArguments[0].type;
             return ForEachLoopKind.Enumerator;
         } else if (lengthOps.Any() && worseIndexOp is not null) {
@@ -371,7 +371,7 @@ internal partial class Binder {
             if (implementedIEnumerable is not null) {
                 inferredType = implementedIEnumerable.isTemplateType
                     ? implementedIEnumerable.templateArguments[0].type
-                    : new TypeWithAnnotations(CorLibrary.GetNullableType(SpecialType.Object));
+                    : new TypeWithAnnotations(compilation.corLibrary.GetNullableType(SpecialType.Object));
 
                 return ForEachLoopKind.IEnumerable;
             }
@@ -1016,11 +1016,11 @@ internal partial class Binder {
             }
 
             var targetSpecialType = operandKind.ToSpecialType();
-            var targetType = CorLibrary.GetSpecialType(targetSpecialType);
+            var targetType = compilation.GetSpecialType(targetSpecialType);
             var value = literal.value;
             var specialType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(value);
             var constantValue = new ConstantValue(value, specialType);
-            var type = CorLibrary.GetSpecialType(specialType);
+            var type = compilation.GetSpecialType(specialType);
             BoundExpression boundOperand = new BoundLiteralExpression(node, constantValue, type);
             boundOperand = ReduceNumericIfApplicable(targetType, boundOperand);
             boundOperand = GenerateConversionForAssignment(targetType, boundOperand, diagnostics);
@@ -1521,7 +1521,7 @@ internal partial class Binder {
             var elementType = declarationType;
             var type = GetStackAllocType(declaration, elementType, BelteDiagnosticQueue.Discarded, out hasErrors);
 
-            var intType = CorLibrary.GetSpecialType(SpecialType.Int32);
+            var intType = compilation.GetSpecialType(SpecialType.Int32);
 
             if (arguments.Count != 1)
                 diagnostics.Push(Error.BadStackAllocExpression(declaration.argumentList.location));
@@ -1530,7 +1530,7 @@ internal partial class Binder {
                 initializer = new BoundStackAllocExpression(
                     declaration,
                     elementType.type,
-                    BoundFactory.Literal(declaration, 1, intType),
+                    BoundFactory.Literal(compilation, declaration, 1, intType),
                     type,
                     hasErrors
                 );
@@ -1639,7 +1639,7 @@ internal partial class Binder {
 
             var specialType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(literalValue);
             var constantValue = new ConstantValue(literalValue, specialType);
-            var type = CorLibrary.GetSpecialType(specialType);
+            var type = CorLibrary.Instance.GetSpecialType(specialType);
             expression = new BoundLiteralExpression(expression.syntax, constantValue, type);
         }
 
@@ -1724,7 +1724,7 @@ internal partial class Binder {
         if (rank < 1)
             throw new ArgumentException(null, nameof(rank));
 
-        return ArrayTypeSymbol.CreateArray(new TypeWithAnnotations(elementType, true), rank);
+        return ArrayTypeSymbol.CreateArray(compilation.assembly, new TypeWithAnnotations(elementType, true), rank);
     }
 
     internal bool ValidateDeclarationNameConflictsInScope(Symbol symbol, BelteDiagnosticQueue diagnostics) {

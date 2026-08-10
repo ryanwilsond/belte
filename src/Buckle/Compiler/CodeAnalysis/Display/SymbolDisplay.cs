@@ -151,8 +151,8 @@ public static class SymbolDisplay {
                 }
 
                 text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
-            } else if (CorLibrary.HasWellKnownType(WellKnownType.Array) &&
-                CorLibrary.GetWellKnownType(WellKnownType.Array).Equals(namedType.originalDefinition)) {
+            } else if (CorLibrary.Instance.HasWellKnownType(WellKnownType.Array) &&
+                CorLibrary.Instance.GetWellKnownType(WellKnownType.Array).Equals(namedType.originalDefinition)) {
                 DisplayType(text, namedType.templateArguments[0].type.type, format);
                 text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
                 text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));

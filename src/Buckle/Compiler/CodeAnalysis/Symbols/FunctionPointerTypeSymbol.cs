@@ -124,8 +124,15 @@ internal sealed class FunctionPointerTypeSymbol : TypeSymbol {
         byte defaultTransformFlag,
         ImmutableArray<byte> transforms,
         ref int position,
-        out TypeSymbol result) {
-        var newSignature = signature.ApplyNullableTransforms(defaultTransformFlag, transforms, ref position);
+        out TypeSymbol result,
+        bool isBelteMode) {
+        var newSignature = signature.ApplyNullableTransforms(
+            defaultTransformFlag,
+            transforms,
+            ref position,
+            isBelteMode
+        );
+
         var madeChanges = (object)signature != newSignature;
         result = madeChanges ? new FunctionPointerTypeSymbol(newSignature) : this;
         return madeChanges;

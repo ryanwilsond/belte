@@ -35,6 +35,7 @@ internal static class WellKnownTypeExtensions {
         "Belte.NoThrowAttribute",
         "Belte.PureAttribute",
         "Belte.CompilerServices.BelteMetadataAttribute",
+        "Belte.NullabilityAttribute",
     ];
 
     internal static bool ShouldEmit(this WellKnownType wellKnownType, bool noStdLib, bool includeGraphicsTypes) {
@@ -70,6 +71,6 @@ internal static class WellKnownTypeExtensions {
     }
 
     internal static string GetMetadataName(this WellKnownType wellKnownType) {
-        return MetadataNames[(int)wellKnownType - 1];
+        return MetadataNames[(int)(wellKnownType - WellKnownType.First)];
     }
 }

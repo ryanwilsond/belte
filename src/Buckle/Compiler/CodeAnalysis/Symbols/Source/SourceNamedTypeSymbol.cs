@@ -8,7 +8,6 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -378,8 +377,10 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
     private NamedTypeSymbol MakeAcyclicBaseType(BelteDiagnosticQueue diagnostics) {
         var typeKind = this.typeKind;
+        var compilation = declaringCompilation;
+
         var declaredBase = typeKind == TypeKind.Enum
-            ? CorLibrary.GetSpecialType(SpecialType.Enum)
+            ? compilation.GetSpecialType(SpecialType.Enum)
             : GetDeclaredBaseType(basesBeingResolved: null);
 
         if (declaredBase is null) {
@@ -388,10 +389,10 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
                     if (specialType == SpecialType.Object)
                         return null;
 
-                    declaredBase = CorLibrary.GetSpecialType(SpecialType.Object);
+                    declaredBase = compilation.GetSpecialType(SpecialType.Object);
                     break;
                 case TypeKind.Struct:
-                    declaredBase = CorLibrary.GetSpecialType(SpecialType.ValueType);
+                    declaredBase = compilation.GetSpecialType(SpecialType.ValueType);
                     break;
                 case TypeKind.Interface:
                     return null;
@@ -656,7 +657,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
             if (!type.specialType.IsValidEnumUnderlyingType()) {
                 diagnostics.Push(Error.InvalidEnumType(typeSyntax.location));
-                type = CorLibrary.GetSpecialType(SpecialType.Int);
+                type = compilation.GetSpecialType(SpecialType.Int);
             }
 
             if (type.specialType is SpecialType.Char or SpecialType.String &&
@@ -667,7 +668,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
             return (NamedTypeSymbol)type;
         }
 
-        return CorLibrary.GetSpecialType(SpecialType.Int);
+        return compilation.GetSpecialType(SpecialType.Int);
     }
 
     private ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes(

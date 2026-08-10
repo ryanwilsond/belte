@@ -16,11 +16,14 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
     private int _labelCount;
 
     private protected readonly BelteDiagnosticQueue _diagnostics;
+    private protected readonly Compilation _compilation;
 
     private protected SharedFlowLowerer(
+        Compilation compilation,
         MethodSymbol method,
         BoundBlockStatement body,
         BelteDiagnosticQueue diagnostics) {
+        _compilation = compilation;
         _container = method;
         _diagnostics = diagnostics;
         _localNames.AddRange(body.locals.Select(l => l.name));
@@ -29,10 +32,11 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
     private protected MethodSymbol _container { get; set; }
 
     internal static BoundBlockStatement Lower(
+        Compilation compilation,
         MethodSymbol method,
         BoundBlockStatement statement,
         BelteDiagnosticQueue diagnostics) {
-        var lowerer = new SharedFlowLowerer(method, statement, diagnostics);
+        var lowerer = new SharedFlowLowerer(compilation, method, statement, diagnostics);
         return (BoundBlockStatement)lowerer.Visit(statement);
     }
 
@@ -89,21 +93,21 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
 
         var isArray = forEachLoopKind == ForEachLoopKind.Array;
 
-        var index = node.indexLocal ?? GenerateTempLocal(CorLibrary.GetSpecialType(SpecialType.Int));
+        var index = node.indexLocal ?? GenerateTempLocal(_compilation.GetSpecialType(SpecialType.Int));
         var temp = GenerateTempLocal(type);
-        var lengthOrIter = GenerateTempLocal(CorLibrary.GetSpecialType(SpecialType.Int));
+        var lengthOrIter = GenerateTempLocal(_compilation.GetSpecialType(SpecialType.Int));
 
         BoundExpression lengthOrIterInit = isArray
-            ? new BoundArrayLength(syntax, Local(syntax, temp), CorLibrary.GetSpecialType(SpecialType.Int))
+            ? new BoundArrayLength(syntax, Local(syntax, temp), _compilation.GetSpecialType(SpecialType.Int))
             : Call(syntax,
-                StandardLibrary.GetWellKnownMember(STLWellKnownMembers.String_Length),
+                _compilation.standardLibrary.GetWellKnownMember(STLWellKnownMembers.String_Length),
                 Local(syntax, temp));
 
         BoundExpression condition = Binary(syntax,
             Local(syntax, index),
             BinaryOperatorKind.Int64LessThan,
             Local(syntax, lengthOrIter),
-            CorLibrary.GetSpecialType(SpecialType.Bool)
+            _compilation.GetSpecialType(SpecialType.Bool)
         );
 
         BoundExpression indexer = isArray
@@ -132,14 +136,14 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
             )),
             new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                 index,
-                Literal(syntax, 0L, index.type)
+                Literal(_compilation, syntax, 0L, index.type)
             )),
             new BoundForStatement(syntax,
                 [],
                 new BoundNopStatement(syntax),
                 [],
                 condition,
-                new BoundExpressionStatement(syntax, Increment(syntax, Local(syntax, index))),
+                new BoundExpressionStatement(syntax, Increment(_compilation, syntax, Local(syntax, index))),
                 Block(syntax,
                     new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                         node.valueLocal,
@@ -173,7 +177,7 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
         var syntax = node.syntax;
         var type = node.expression.StrippedType();
 
-        var index = node.indexLocal ?? GenerateTempLocal(CorLibrary.GetSpecialType(SpecialType.Int));
+        var index = node.indexLocal ?? GenerateTempLocal(_compilation.GetSpecialType(SpecialType.Int));
         var temp = GenerateTempLocal(type);
         var lengthOrIter = temp;
 
@@ -198,14 +202,14 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
             )),
             new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                 index,
-                Literal(syntax, 0L, index.type)
+                Literal(_compilation, syntax, 0L, index.type)
             )),
             new BoundForStatement(syntax,
                 [],
                 new BoundNopStatement(syntax),
                 [],
                 condition,
-                new BoundExpressionStatement(syntax, Increment(syntax, Local(syntax, index))),
+                new BoundExpressionStatement(syntax, Increment(_compilation, syntax, Local(syntax, index))),
                 Block(syntax,
                     new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                         node.valueLocal,
@@ -250,9 +254,9 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
             .WhereAsArray(m => m is MethodSymbol e && e.GetParameterType(1).StrippedType().specialType == SpecialType.Int)
             .SingleOrDefault() as MethodSymbol;
 
-        var index = node.indexLocal ?? GenerateTempLocal(CorLibrary.GetSpecialType(SpecialType.Int));
+        var index = node.indexLocal ?? GenerateTempLocal(_compilation.GetSpecialType(SpecialType.Int));
         var temp = GenerateTempLocal(type);
-        var lengthOrIter = GenerateTempLocal(CorLibrary.GetSpecialType(SpecialType.Int));
+        var lengthOrIter = GenerateTempLocal(_compilation.GetSpecialType(SpecialType.Int));
 
         BoundExpression lengthOrIterInit = Call(syntax, (MethodSymbol)lengthOps[0], Local(syntax, temp));
 
@@ -260,7 +264,7 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
             Local(syntax, index),
             BinaryOperatorKind.Int64LessThan,
             Local(syntax, lengthOrIter),
-            CorLibrary.GetSpecialType(SpecialType.Bool));
+            _compilation.GetSpecialType(SpecialType.Bool));
 
         BoundExpression indexer = Call(syntax,
             bestIndexOp ?? worseIndexOp,
@@ -268,7 +272,7 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
             bestIndexOp is not null
                 ? Local(syntax, index)
                 : CreateCast(syntax,
-                    CorLibrary.GetNullableType(SpecialType.Int),
+                    _compilation.corLibrary.GetNullableType(SpecialType.Int),
                     Local(syntax, index)));
 
         return Visit(Block(syntax, node.locals, [
@@ -284,14 +288,14 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
             )),
             new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                 index,
-                Literal(syntax, 0L, index.type)
+                Literal(_compilation, syntax, 0L, index.type)
             )),
             new BoundForStatement(syntax,
                 [],
                 new BoundNopStatement(syntax),
                 [],
                 condition,
-                new BoundExpressionStatement(syntax, Increment(syntax, Local(syntax, index))),
+                new BoundExpressionStatement(syntax, Increment(_compilation, syntax, Local(syntax, index))),
                 Block(syntax,
                     new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                         node.valueLocal,
@@ -327,7 +331,7 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
 
         var iterOps = type.GetMembers(WellKnownMemberNames.IterOperatorName);
 
-        var index = node.indexLocal ?? GenerateTempLocal(CorLibrary.GetSpecialType(SpecialType.Int));
+        var index = node.indexLocal ?? GenerateTempLocal(_compilation.GetSpecialType(SpecialType.Int));
         var temp = GenerateTempLocal(type);
         var lengthOrIter = GenerateTempLocal(((MethodSymbol)iterOps[0]).returnType);
 
@@ -354,14 +358,14 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
             )),
             new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                 index,
-                Literal(syntax, 0L, index.type)
+                Literal(_compilation, syntax, 0L, index.type)
             )),
             new BoundForStatement(syntax,
                 [],
                 new BoundNopStatement(syntax),
                 [],
                 condition,
-                new BoundExpressionStatement(syntax, Increment(syntax, Local(syntax, index))),
+                new BoundExpressionStatement(syntax, Increment(_compilation, syntax, Local(syntax, index))),
                 Block(syntax,
                     new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                         node.valueLocal,
@@ -398,7 +402,7 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
         var enumeratorInfo = node.enumeratorInfo;
         var type = node.expression.StrippedType();
 
-        var index = node.indexLocal ?? GenerateTempLocal(CorLibrary.GetSpecialType(SpecialType.Int));
+        var index = node.indexLocal ?? GenerateTempLocal(_compilation.GetSpecialType(SpecialType.Int));
         var temp = GenerateTempLocal(type);
         var iter = GenerateTempLocal(enumeratorInfo.getEnumeratorMethod.returnType);
 
@@ -413,14 +417,14 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
                     ? new BoundNullAssertOperator(syntax, node.expression, true, null, temp.type)
                     : node.expression),
             LocalDeclaration(syntax, iter, iterInit),
-            LocalDeclaration(syntax, index, Literal(syntax, 0L, index.type)),
+            LocalDeclaration(syntax, index, Literal(_compilation, syntax, 0L, index.type)),
             new BoundDeferStatement(syntax, Statement(syntax, dispose)),
             new BoundForStatement(syntax,
                 [],
                 new BoundNopStatement(syntax),
                 [],
                 condition,
-                new BoundExpressionStatement(syntax, Increment(syntax, Local(syntax, index))),
+                new BoundExpressionStatement(syntax, Increment(_compilation, syntax, Local(syntax, index))),
                 Block(syntax,
                     new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                         node.valueLocal,

@@ -10,7 +10,6 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 using static Buckle.CodeAnalysis.Binding.Binder;
@@ -37,6 +36,7 @@ internal sealed partial class CodeGenerator {
         OpCode.Bge_Un, OpCode.Bgt_Un, OpCode.Ble_Un, OpCode.Blt_Un,  // Float Invert
     ];
 
+    private readonly Compilation _compilation;
     private readonly ModuleBuilder _module;
     private readonly MethodSymbol _method;
     private readonly BoundBlockStatement _body;
@@ -54,12 +54,14 @@ internal sealed partial class CodeGenerator {
     private ArrayBuilder<VariableDefinition> _expressionTemps;
 
     internal CodeGenerator(
+        Compilation compilation,
         ModuleBuilder module,
         MethodSymbol method,
         BoundBlockStatement methodBody,
         ILBuilder iLBuilder,
         bool debugMode,
         BelteDiagnosticQueue diagnostics) {
+        _compilation = compilation;
         _module = module;
         _method = method;
         _body = methodBody;
@@ -573,7 +575,7 @@ internal sealed partial class CodeGenerator {
                     // TODO Ensure constantValue is never lying to us
                     var inferredType = constant.specialType == SpecialType.None
                         ? InferType(value)
-                        : CorLibrary.GetSpecialType(constant.specialType);
+                        : _compilation.GetSpecialType(constant.specialType);
 
                     EmitConstantValue(constant, inferredType);
                     EmitBox(inferredType);
@@ -586,7 +588,7 @@ internal sealed partial class CodeGenerator {
     }
 
     private TypeSymbol InferType(object value) {
-        return CorLibrary.GetSpecialType(SpecialTypeExtensions.SpecialTypeFromLiteralValue(value));
+        return _compilation.GetSpecialType(SpecialTypeExtensions.SpecialTypeFromLiteralValue(value));
     }
 
     private void EmitDoubleConstant(double value) {
@@ -783,7 +785,16 @@ internal sealed partial class CodeGenerator {
         object fallThroughLabel,
         LocalOrParameter key,
         SpecialType keyTypeCode) {
-        var emitter = new SwitchIntegralJumpTableEmitter(this, _builder, caseLabels, fallThroughLabel, keyTypeCode, key);
+        var emitter = new SwitchIntegralJumpTableEmitter(
+            _compilation,
+            this,
+            _builder,
+            caseLabels,
+            fallThroughLabel,
+            keyTypeCode,
+            key
+        );
+
         emitter.EmitJumpTable();
     }
 
@@ -1193,7 +1204,7 @@ oneMoreTime:
             _builder.Emit(opCode);
 
             if (constant is not null) {
-                var type = CorLibrary.GetSpecialType(constant.specialType);
+                var type = _compilation.GetSpecialType(constant.specialType);
                 EmitConstantValue(constant, type);
             }
         }
@@ -1710,14 +1721,14 @@ oneMoreTime:
             return true;
 
         if (originalDef.containingType.name == NamedTypeSymbol.ValueTupleTypeName &&
-           (originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T1_ctor) ||
-            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_ctor) ||
-            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T3_ctor) ||
-            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_ctor) ||
-            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_ctor) ||
-            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_ctor) ||
-            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_ctor) ||
-            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_ctor))) {
+           (originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T1_ctor) ||
+            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_ctor) ||
+            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T3_ctor) ||
+            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_ctor) ||
+            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_ctor) ||
+            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_ctor) ||
+            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_ctor) ||
+            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_ctor))) {
             return true;
         }
 
@@ -1736,7 +1747,7 @@ oneMoreTime:
         var receiver = expression.receiver;
         var arguments = expression.arguments;
 
-        if (method.containingType.Equals(StandardLibrary.LowLevel.underlyingNamedType)) {
+        if (method.containingType.Equals(_compilation.standardLibrary.LowLevel.underlyingNamedType)) {
             switch (method.name) {
                 case "ThrowNullConditionException": {
                         _builder.EmitThrowNullCondition();
@@ -1788,7 +1799,7 @@ oneMoreTime:
             }
         }
 
-        if (method.containingType.Equals(StandardLibrary.Random.underlyingNamedType)) {
+        if (method.containingType.Equals(_compilation.standardLibrary.Random.underlyingNamedType)) {
             EmitRandomCall(method, arguments, expression.argumentRefKinds, useKind);
             return;
         }
@@ -1819,6 +1830,7 @@ oneMoreTime:
                     _builder.EmitLdsfldRandom();
 
                     var argument = Lowerer.CreateNullableGetValueCall(
+                        _compilation,
                         null,
                         arguments[0],
                         arguments[0].StrippedType()
@@ -2183,10 +2195,10 @@ oneMoreTime:
         if (methodContainingType.IsNullableType()) {
             var originalMethod = method.originalDefinition;
 
-            if ((object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_getValue) ||
-                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_getHasValue) ||
-                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_GetValueOrDefault) ||
-                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_GetValueOrDefault_T)) {
+            if ((object)originalMethod == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.Nullable_getValue) ||
+                (object)originalMethod == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.Nullable_getHasValue) ||
+                (object)originalMethod == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.Nullable_GetValueOrDefault) ||
+                (object)originalMethod == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.Nullable_GetValueOrDefault_T)) {
                 return true;
             }
         }

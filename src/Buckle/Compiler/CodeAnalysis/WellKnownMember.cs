@@ -70,4 +70,5 @@ internal enum WellKnownMember : byte {
 
 
     LastCorMember = Array_Set,
+    Count = LastCorMember,
 }

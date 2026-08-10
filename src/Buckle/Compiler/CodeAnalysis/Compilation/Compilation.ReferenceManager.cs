@@ -8,6 +8,7 @@ using System.Threading;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -46,18 +47,22 @@ public sealed partial class Compilation {
         private ImmutableArray<MetadataReference> _lazyExplicitReferences;
         private ImmutableArray<ImmutableArray<string>> _lazyAliasesOfReferencedAssemblies;
         private ImmutableDictionary<MetadataReference, ImmutableArray<MetadataReference>> _lazyMergedAssemblyReferencesMap;
-        private AssemblySymbol _lazyCorLibraryOpt;
+        private AssemblySymbol _lazyCorAssemblyOpt;
 
         internal ReferenceManager(
+            CorLibrary corLibrary,
             string simpleAssemblyName,
             AssemblyIdentityComparer identityComparer,
             Dictionary<MetadataReference, object> observedMetadata) {
             this.simpleAssemblyName = simpleAssemblyName;
             this.identityComparer = identityComparer;
             this.observedMetadata = observedMetadata ?? [];
+            this.corLibrary = corLibrary;
         }
 
         internal string simpleAssemblyName { get; }
+
+        internal CorLibrary corLibrary { get; }
 
         internal AssemblyIdentityComparer identityComparer { get; }
 
@@ -119,10 +124,10 @@ public sealed partial class Compilation {
             }
         }
 
-        internal AssemblySymbol corLibraryOpt {
+        internal AssemblySymbol corAssemblyOpt {
             get {
                 AssertBound();
-                return _lazyCorLibraryOpt;
+                return _lazyCorAssemblyOpt;
             }
         }
 
@@ -179,7 +184,13 @@ public sealed partial class Compilation {
             } else if (!hasCircularReference) {
                 CreateAndSetSourceAssemblyReuseData(compilation);
             } else {
-                var newManager = new ReferenceManager(simpleAssemblyName, identityComparer, observedMetadata);
+                var newManager = new ReferenceManager(
+                    corLibrary,
+                    simpleAssemblyName,
+                    identityComparer,
+                    observedMetadata
+                );
+
                 var successful = newManager.CreateAndSetSourceAssemblyFullBind(compilation);
 
                 Debug.Assert(successful);
@@ -222,7 +233,10 @@ public sealed partial class Compilation {
             ImmutableArray<UnifiedAssembly<AssemblySymbol>> unifiedAssemblies) {
             AssertBound();
 
-            // assemblySymbol.SetCorLibrary(this.CorLibraryOpt ?? assemblySymbol);
+            if (corAssemblyOpt is not null)
+                assemblySymbol.SetCorLibrary(corAssemblyOpt);
+            else
+                assemblySymbol.SetCorLibraryInternal(corLibrary);
 
             var sourceModuleReferences = new ModuleReferences<AssemblySymbol>(
                 referencedAssemblies.SelectAsArray(a => a.identity),
@@ -334,7 +348,14 @@ public sealed partial class Compilation {
                 else
                     corLibrary = null;
 
-                // assemblySymbol.SetCorLibrary(corLibrary);
+                if (corLibrary is not null) {
+                    corLibrary.SetCorLibraryInternal(this.corLibrary);
+
+                    if ((object)corLibrary != assemblySymbol)
+                        assemblySymbol.SetCorLibrary(corLibrary);
+                } else {
+                    assemblySymbol.SetCorLibraryInternal(this.corLibrary);
+                }
 
                 Dictionary<AssemblyIdentity, MissingAssemblySymbol> missingAssemblies = null;
                 var totalReferencedAssemblyCount = allAssemblyData.Length - 1;
@@ -404,7 +425,7 @@ public sealed partial class Compilation {
             // ImmutableDictionary<AssemblyIdentity, PortableExecutableReference?> implicitReferenceResolutions,
             bool containsCircularReferences,
             BelteDiagnosticQueue diagnostics,
-            AssemblySymbol corLibraryOpt,
+            AssemblySymbol corAssemblyOpt,
             ImmutableArray<PEModule> referencedModules,
             ImmutableArray<ModuleReferences<AssemblySymbol>> referencedModulesReferences,
             ImmutableArray<AssemblySymbol> referencedAssemblies,
@@ -425,7 +446,7 @@ public sealed partial class Compilation {
             _lazyExplicitReferences = explicitReferences;
             // _lazyImplicitReferenceResolutions = implicitReferenceResolutions;
 
-            _lazyCorLibraryOpt = corLibraryOpt;
+            _lazyCorAssemblyOpt = corAssemblyOpt;
             _lazyReferencedModules = referencedModules;
             _lazyReferencedModulesReferences = referencedModulesReferences;
             _lazyReferencedAssemblies = referencedAssemblies;
@@ -463,7 +484,7 @@ public sealed partial class Compilation {
             Dictionary<AssemblyIdentity, MissingAssemblySymbol>? missingAssemblies) {
             Debug.Assert(newSymbols.Count > 0);
 
-            // var corLibrary = sourceAssembly.corLibrary;
+            var corLibrary = sourceAssembly.corAssembly;
 
             foreach (var i in newSymbols) {
                 // var compilationData = assemblies[i] as AssemblyDataForCompilation;
@@ -514,16 +535,17 @@ public sealed partial class Compilation {
                     );
                 }
 
-                // currentBindingResult.assemblySymbol.SetCorLibrary(corLibrary);
+                // TODO It should always be null, but for some reason isn't
+                if (currentBindingResult.assemblySymbol.corAssembly is null)
+                    currentBindingResult.assemblySymbol.SetCorLibrary(corLibrary);
             }
 
             linkedReferencedAssembliesBuilder.Free();
 
-            // if (missingAssemblies is not null) {
-            //     foreach (var missingAssembly in missingAssemblies.Values) {
-            //         missingAssembly.SetCorLibrary(corLibrary);
-            //     }
-            // }
+            if (missingAssemblies is not null) {
+                foreach (var missingAssembly in missingAssemblies.Values)
+                    missingAssembly.SetCorLibrary(corLibrary);
+            }
         }
 
         private static void SetupReferencesForFileAssembly(
@@ -1493,42 +1515,37 @@ public sealed partial class Compilation {
                                 );
                             }
 
-                            // if (match) {
-                            // AssemblySymbol candidateCorLibrary = GetCorLibrary(candidate.AssemblySymbol);
+                            if (match) {
+                                var candidateCorLibrary = GetCorLibrary(candidate.assemblySymbol);
 
-                            // if (candidateCorLibrary == null) {
-                            //     // If the candidate didn't have a COR library, that is fine as long as we don't have one either.
-                            //     if (corLibraryIndex >= 0) {
-                            //         match = false;
-                            //         break; // Stop processing references.
-                            //     }
-                            // } else {
-                            //     // We can't be compiling corlib and have a corlib reference at the same time:
-                            //     Debug.Assert(corLibraryIndex != 0);
+                                if (candidateCorLibrary is null) {
+                                    if (corLibraryIndex >= 0) {
+                                        match = false;
+                                        break;
+                                    }
+                                } else {
+                                    Debug.Assert(corLibraryIndex != 0);
+                                    Debug.Assert(ReferenceEquals(candidateCorLibrary, GetCorLibrary(candidateCorLibrary)));
 
-                            //     Debug.Assert(ReferenceEquals(candidateCorLibrary, GetCorLibrary(candidateCorLibrary)));
+                                    if (corLibraryIndex < 0) {
+                                        match = false;
+                                        break;
+                                    }
 
-                            //     // Candidate has COR library, we should have one too.
-                            //     if (corLibraryIndex < 0) {
-                            //         match = false;
-                            //         break; // Stop processing references.
-                            //     }
+                                    if (!assemblies[corLibraryIndex].IsMatchingAssembly(candidateCorLibrary)) {
+                                        match = false;
+                                        break;
+                                    }
 
-                            //     // Make sure candidate COR library represent the same assembly/binary
-                            //     if (!assemblies[corLibraryIndex].IsMatchingAssembly(candidateCorLibrary)) {
-                            //         // Mismatch between versions?
-                            //         match = false;
-                            //         break; // Stop processing references.
-                            //     }
+                                    Debug.Assert(!assemblies[corLibraryIndex].containsNoPiaLocalTypes);
+                                    Debug.Assert(!assemblies[corLibraryIndex].isLinked);
+                                    Debug.Assert(!IsLinked(candidateCorLibrary));
 
-                            //     Debug.Assert(!assemblies[corLibraryIndex].ContainsNoPiaLocalTypes);
-                            //     Debug.Assert(!assemblies[corLibraryIndex].IsLinked);
-                            //     Debug.Assert(!IsLinked(candidateCorLibrary));
-
-                            //     // Add the candidate COR library to the queue so that we consider it as a candidate.
-                            //     candidatesToExamine.Enqueue(new AssemblyReferenceCandidate(corLibraryIndex, candidateCorLibrary));
-                            // }
-                            // }
+                                    candidatesToExamine.Enqueue(
+                                        new AssemblyReferenceCandidate(corLibraryIndex, candidateCorLibrary)
+                                    );
+                                }
+                            }
                         }
 
                         if (match) {
@@ -1550,6 +1567,11 @@ public sealed partial class Compilation {
                 CandidatesToExaminePool.Free(candidatesToExamine);
                 CandidateReferencedSymbolsPool.Free(candidateReferencedSymbols);
             }
+        }
+
+        private AssemblySymbol GetCorLibrary(AssemblySymbol candidateAssembly) {
+            var corLibrary = candidateAssembly.corAssembly;
+            return corLibrary.isMissing ? null : corLibrary;
         }
 
         private bool IsLinked(AssemblySymbol candidateAssembly) {

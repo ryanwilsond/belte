@@ -9,7 +9,6 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -357,7 +356,7 @@ internal partial class Binder {
         ImmutableArray<TemplateParameterSymbol> templateParameters,
         BelteDiagnosticQueue diagnostics) {
         var builder = ArrayBuilder<BoundExpression>.GetInstance();
-        var targetType = CorLibrary.GetNullableType(SpecialType.Bool);
+        var targetType = compilation.corLibrary.GetNullableType(SpecialType.Bool);
 
         foreach (var constraint in constraints) {
             var expression = BindExpression(constraint, diagnostics);
@@ -760,7 +759,7 @@ internal partial class Binder {
             var elementType = ((NamedTypeSymbol)type).templateArguments[0].type
                 ?? new TypeWithAnnotations(CreateErrorType());
 
-            return ArrayTypeSymbol.CreateSZArray(elementType);
+            return ArrayTypeSymbol.CreateSZArray(compilation.assembly, elementType);
         }
 
         return type;
@@ -1093,9 +1092,9 @@ internal partial class Binder {
         // instead of a bit vector like the fat array does?
         //  || (element.IsVerifierReference() && !element.IsNullableType())
         if (!useFatArray || rank != 1)
-            return ArrayTypeSymbol.CreateArray(elementType, 1);
+            return ArrayTypeSymbol.CreateArray(compilation.assembly, elementType, 1);
 
-        var fatArray = CorLibrary.TryGetWellKnownType(WellKnownType.Array, compilation);
+        var fatArray = compilation.corLibrary.TryGetWellKnownType(WellKnownType.Array, compilation);
 
         if (fatArray is ErrorTypeSymbol)
             diagnostics.Push(Error.PredefinedTypeNotFound(fatArray.name));
@@ -1139,7 +1138,7 @@ internal partial class Binder {
             var specialType = SpecialTypes.GetTypeFromMetadataName(string.Concat("global::", name));
 
             if (specialType != SpecialType.None)
-                return new TypeWithAnnotations(CorLibrary.GetSpecialType(specialType));
+                return new TypeWithAnnotations(compilation.GetSpecialType(specialType));
         }
 
         if (!performedLookup)
@@ -1405,7 +1404,7 @@ internal partial class Binder {
             var sourceType = (argument.isTypeOrConstant && argument.typeOrConstant.isType)
                 ? (argument.typeOrConstant.type.typeKind == TypeKind.TemplateParameter
                     ? (argument.typeOrConstant.type.type as TemplateParameterSymbol).underlyingType.type
-                    : CorLibrary.GetSpecialType(SpecialType.Type))
+                    : compilation.GetSpecialType(SpecialType.Type))
                 : argument.type;
 
             if (sourceType is not null) {
@@ -1590,7 +1589,7 @@ internal partial class Binder {
             var errorType = UnboundArgumentErrorTypeSymbol.Instance;
 
             analyzedArguments.arguments.Add(
-                new BoundExpressionOrTypeOrConstant(templateArgument, new TypeOrConstant(errorType))
+                new BoundExpressionOrTypeOrConstant(compilation, templateArgument, new TypeOrConstant(errorType))
             );
 
             analyzedArguments.hasErrors.Add(true);
@@ -1611,7 +1610,9 @@ internal partial class Binder {
         if (type.StrippedType() is not ErrorTypeSymbol || SyntaxFacts.IsGuaranteedType(argument.expression.kind)) {
             analyzedArguments.types.Add(type);
             analyzedArguments.hasErrors.Add(type.ContainsErrorType());
-            analyzedArguments.arguments.Add(new BoundExpressionOrTypeOrConstant(argument, new TypeOrConstant(type)));
+            analyzedArguments.arguments.Add(
+                new BoundExpressionOrTypeOrConstant(compilation, argument, new TypeOrConstant(type))
+            );
             diagnostics.PushRangeAndFree(typeDiagnostics);
             return;
         }
@@ -1640,7 +1641,7 @@ internal partial class Binder {
             analyzedArguments.hasErrors.Add(false);
         }
 
-        analyzedArguments.arguments.Add(new BoundExpressionOrTypeOrConstant(argument, typeOrConstant));
+        analyzedArguments.arguments.Add(new BoundExpressionOrTypeOrConstant(compilation, argument, typeOrConstant));
     }
 
     private ImmutableArray<TemplateParameterSymbol> GetEnclosingTemplateParameters() {
@@ -1874,7 +1875,7 @@ internal partial class Binder {
         var localSymbol = LookupLocal(pattern.identifier) ?? throw ExceptionUtilities.Unreachable();
         localSymbol.SetTypeWithAnnotations(patternTypeWithAnnotations);
 
-        var boolType = CorLibrary.GetSpecialType(SpecialType.Bool);
+        var boolType = compilation.GetSpecialType(SpecialType.Bool);
 
         return new BoundIsPatternExpression(
             node,
@@ -1943,7 +1944,7 @@ internal partial class Binder {
 
     private BoundExpression BindIsOperator(BinaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
         var isIsntOperator = node.operatorToken.kind == SyntaxKind.IsntKeyword;
-        var resultType = (TypeSymbol)CorLibrary.GetSpecialType(SpecialType.Bool);
+        var resultType = (TypeSymbol)compilation.GetSpecialType(SpecialType.Bool);
         var operand = BindRValueWithoutTargetType(node.left, diagnostics);
 
         if (node.right is LiteralExpressionSyntax l && l.token.value is null) {
@@ -1999,7 +2000,7 @@ internal partial class Binder {
         var targetType = targetTypeWithAnnotations.type;
         var targetTypeKind = targetType.typeKind;
         var boundType = new BoundTypeExpression(node.right, targetTypeWithAnnotations, alias, targetType);
-        var resultType = CorLibrary.GetOrCreateNullableType(targetType);
+        var resultType = compilation.corLibrary.GetOrCreateNullableType(targetType);
 
         if (operand.hasAnyErrors || targetTypeKind == TypeKind.Error)
             return new BoundAsOperator(node, operand, boundType, null, null, resultType, true);
@@ -2520,7 +2521,7 @@ internal partial class Binder {
             case BinaryOperatorKind.LessThan:
             case BinaryOperatorKind.GreaterThanOrEqual:
             case BinaryOperatorKind.LessThanOrEqual:
-                return CorLibrary.GetSpecialType(SpecialType.Bool);
+                return compilation.GetSpecialType(SpecialType.Bool);
             default:
                 return CreateErrorType();
         }
@@ -2555,7 +2556,7 @@ internal partial class Binder {
         var isEqual = kind == BinaryOperatorKind.Equal;
 
         if (isEquality) {
-            var boolType = CorLibrary.GetSpecialType(SpecialType.Bool); ;
+            var boolType = compilation.GetSpecialType(SpecialType.Bool); ;
 
             if (leftNull && rightNull) {
                 return new BoundLiteralExpression(
@@ -2682,7 +2683,7 @@ internal partial class Binder {
             convertedRight,
             kind,
             operators,
-            CorLibrary.GetSpecialType(SpecialType.Bool)
+            compilation.GetSpecialType(SpecialType.Bool)
         );
     }
 
@@ -2780,7 +2781,7 @@ internal partial class Binder {
         if (!isNullable)
             return tuple;
 
-        var nullableT = CorLibrary.GetSpecialType(SpecialType.Nullable);
+        var nullableT = compilation.GetSpecialType(SpecialType.Nullable);
         return nullableT.Construct([new TypeOrConstant(tuple)]);
     }
 
@@ -2832,7 +2833,7 @@ internal partial class Binder {
         out BoundExpression conversionForBool,
         out BoundValuePlaceholder conversionForBoolPlaceholder,
         out UnaryOperatorSignature boolOperator) {
-        var boolean = CorLibrary.GetSpecialType(SpecialType.Bool);
+        var boolean = compilation.GetSpecialType(SpecialType.Bool);
         var conversion = conversions.ClassifyImplicitConversionFromType(type, boolean);
 
         if (conversion.isImplicit) {
@@ -3039,7 +3040,7 @@ internal partial class Binder {
                     kind | BinaryOperatorKind.NullableNull,
                     null,
                     null,
-                    CorLibrary.GetSpecialType(SpecialType.Bool)
+                    compilation.GetSpecialType(SpecialType.Bool)
                 );
 
                 foundOperator = true;
@@ -3941,7 +3942,7 @@ internal partial class Binder {
             InstanceUserDefinedIncrementUsageMode mode) {
             return mode == InstanceUserDefinedIncrementUsageMode.ResultIsUsed
                 ? operandType
-                : CorLibrary.GetSpecialType(SpecialType.Void);
+                : compilation.GetSpecialType(SpecialType.Void);
         }
     }
 
@@ -4050,7 +4051,7 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics) {
         if (boundRight.type is null || boundRight.type.IsErrorType()) {
             FailRemainingInferences(checkedVariables, diagnostics);
-            var voidType = CorLibrary.GetSpecialType(SpecialType.Void);
+            var voidType = compilation.GetSpecialType(SpecialType.Void);
             var type = boundRight.type ?? voidType;
 
             return new BoundDeconstructionAssignmentOperator(
@@ -5082,7 +5083,7 @@ internal partial class Binder {
         }
 
         TypeSymbol GetResultType(ExpressionSyntax node, TypeSymbol leftType) {
-            return ResultIsUsed(node) ? leftType : CorLibrary.GetSpecialType(SpecialType.Void);
+            return ResultIsUsed(node) ? leftType : compilation.GetSpecialType(SpecialType.Void);
         }
     }
 
@@ -6094,7 +6095,7 @@ internal partial class Binder {
 
         LookupMembersInClass(
             tmp,
-            CorLibrary.GetSpecialType(SpecialType.Object),
+            compilation.GetSpecialType(SpecialType.Object),
             name,
             arity,
             basesBeingResolved,
@@ -6294,7 +6295,7 @@ internal partial class Binder {
                 result.SetFrom(LookupResult.Good(errorType));
             }
 
-            currentType = currentType.GetNextBaseType(basesBeingResolved, ref visited);
+            currentType = currentType.GetNextBaseType(basesBeingResolved, compilation, ref visited);
         }
 
         visited?.Free();
@@ -6344,7 +6345,8 @@ internal partial class Binder {
                         if (!IsDerivedType(
                                 baseType: hiddenContainer,
                                 derivedType: hidingSym.containingType,
-                                basesBeingResolved) &&
+                                basesBeingResolved,
+                                compilation) &&
                             hiddenContainer.specialType != SpecialType.Object) {
                             continue;
                         }
@@ -6365,7 +6367,8 @@ symIsHidden:;
     private static bool IsDerivedType(
         NamedTypeSymbol baseType,
         NamedTypeSymbol derivedType,
-        ConsList<TypeSymbol> basesBeingResolved) {
+        ConsList<TypeSymbol> basesBeingResolved,
+        Compilation compilation) {
         if (basesBeingResolved?.Any() != true) {
             for (var b = derivedType.baseType; b is not null; b = b.baseType) {
                 if (TypeSymbol.Equals(b, baseType, TypeCompareKind.ConsiderEverything))
@@ -6374,9 +6377,9 @@ symIsHidden:;
         } else {
             PooledHashSet<NamedTypeSymbol> visited = null;
 
-            for (var b = (NamedTypeSymbol)derivedType.GetNextBaseType(basesBeingResolved, ref visited);
+            for (var b = (NamedTypeSymbol)derivedType.GetNextBaseType(basesBeingResolved, compilation, ref visited);
                  b is not null;
-                 b = (NamedTypeSymbol)b.GetNextBaseType(basesBeingResolved, ref visited)) {
+                 b = (NamedTypeSymbol)b.GetNextBaseType(basesBeingResolved, compilation, ref visited)) {
                 if (TypeSymbol.Equals(b, baseType, TypeCompareKind.ConsiderEverything)) {
                     visited?.Free();
                     return true;
@@ -6731,7 +6734,7 @@ symIsHidden:;
 
         AddMemberLookupSymbolsInfoInClass(
             result,
-            CorLibrary.GetSpecialType(SpecialType.Object),
+            compilation.GetSpecialType(SpecialType.Object),
             options,
             originalBinder,
             accessThroughType
@@ -6757,7 +6760,7 @@ symIsHidden:;
 
         while (type is not null && !type.IsVoidType()) {
             AddMemberLookupSymbolsInfoWithoutInheritance(result, type, options, originalBinder, accessThroughType);
-            type = type.GetNextBaseType(null, ref visited);
+            type = type.GetNextBaseType(null, compilation, ref visited);
         }
 
         visited?.Free();
@@ -7500,7 +7503,7 @@ symIsHidden:;
                 if (conversion.kind is not ConversionKind.Identity and not ConversionKind.NullLiteral)
                     diagnostics.Push(Error.RefReturnMustHaveIdentityConversion(argument.syntax.location, returnType));
                 else if (conversion.kind == ConversionKind.NullLiteral)
-                    return BoundFactory.Literal(argument.syntax, null, returnType);
+                    return BoundFactory.Literal(compilation, argument.syntax, null, returnType);
                 else
                     return BindToNaturalType(argument, diagnostics);
             } else if (!conversion.isImplicit || !conversion.exists) {
@@ -7712,7 +7715,12 @@ symIsHidden:;
         BoundUnconvertedInitializerList node,
         TypeSymbol targetType,
         BelteDiagnosticQueue diagnostics) {
-        var listTypeKind = Conversions.GetListExpressionTypeKind(targetType, out var elementTypeWithAnnotations);
+        var listTypeKind = Conversions.GetListExpressionTypeKind(
+            compilation,
+            targetType,
+            out var elementTypeWithAnnotations
+        );
+
         var reportedErrors = false;
 
         if (listTypeKind != ListExpressionTypeKind.None) {
@@ -8021,7 +8029,7 @@ symIsHidden:;
                 access.syntax,
                 access.receiver,
                 new BoundArrayLength(arrayLength.syntax, arrayLength.receiver, destination),
-                CorLibrary.GetOrCreateNullableType(destination)
+                compilation.corLibrary.GetOrCreateNullableType(destination)
             );
         }
 
@@ -8033,7 +8041,7 @@ symIsHidden:;
                 access.syntax,
                 access.receiver,
                 naturalLength,
-                CorLibrary.GetOrCreateNullableType(naturalLength.type)
+                compilation.corLibrary.GetOrCreateNullableType(naturalLength.type)
             ),
             conversion,
             null,

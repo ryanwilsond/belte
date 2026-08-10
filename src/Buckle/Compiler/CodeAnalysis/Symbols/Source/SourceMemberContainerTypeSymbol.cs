@@ -9,7 +9,6 @@ using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -2561,7 +2560,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         }
     }
 
-    private static int? MakeExplicitAlignment(PackedArgumentSyntax packedArgument, BelteDiagnosticQueue diagnostics) {
+    private int? MakeExplicitAlignment(PackedArgumentSyntax packedArgument, BelteDiagnosticQueue diagnostics) {
         if (packedArgument.alignment is null)
             return 1;
 
@@ -2573,7 +2572,8 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 Error.CannotConvertConstantValue(
                     packedArgument.alignment.location,
                     result,
-                    CorLibrary.GetSpecialType(SpecialType.Int)
+                    // TODO Use a binder instead of a compilation here?
+                    declaringCompilation.GetSpecialType(SpecialType.Int)
                 )
             );
         } else {

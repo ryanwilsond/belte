@@ -1325,6 +1325,17 @@ internal sealed partial class PEModule : IDisposable {
         return TryExtractByteArrayValueFromAttribute(info.handle, out nullableTransforms);
     }
 
+    internal bool HasNullabilityAttribute(EntityHandle token, out ImmutableArray<byte> nullableTransforms) {
+        var info = FindTargetAttribute(token, AttributeDescription.NullabilityAttribute);
+
+        nullableTransforms = default;
+
+        if (!info.hasValue)
+            return false;
+
+        return TryExtractByteArrayValueFromAttribute(info.handle, out nullableTransforms);
+    }
+
     private bool TryExtractByteArrayValueFromAttribute(CustomAttributeHandle handle, out ImmutableArray<byte> value) {
         return TryExtractValueFromAttribute(handle, out value, AttributeByteArrayValueExtractor);
     }

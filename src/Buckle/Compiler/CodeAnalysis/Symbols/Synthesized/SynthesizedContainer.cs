@@ -4,7 +4,6 @@ using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
-using Buckle.Libraries;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -83,7 +82,7 @@ internal abstract class SynthesizedContainer : NamedTypeSymbol {
 
     // internal sealed override bool isConstant => false;
 
-    internal override NamedTypeSymbol baseType => CorLibrary.GetSpecialType(SpecialType.Object);
+    internal override NamedTypeSymbol baseType => containingAssembly.corLibrary.GetSpecialType(SpecialType.Object);
 
     public override int arity => templateParameters.Length;
 

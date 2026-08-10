@@ -6,10 +6,16 @@ using static Buckle.Libraries.LibraryHelpers;
 
 namespace Buckle.Libraries;
 
-internal static class GraphicsLibrary {
-    private static SynthesizedFinishedNamedTypeSymbol _lazyGraphics;
+internal class GraphicsLibrary {
+    private SynthesizedFinishedNamedTypeSymbol _lazyGraphics;
 
-    internal static SynthesizedFinishedNamedTypeSymbol Graphics {
+    private readonly Compilation _compilation;
+
+    internal GraphicsLibrary(Compilation compilation) {
+        _compilation = compilation;
+    }
+
+    internal SynthesizedFinishedNamedTypeSymbol Graphics {
         get {
             if (_lazyGraphics is null)
                 Interlocked.CompareExchange(ref _lazyGraphics, GenerateGraphics(), null);
@@ -18,37 +24,49 @@ internal static class GraphicsLibrary {
         }
     }
 
-    internal static bool MethodProducesTemp(MethodSymbol method) {
+    private SpecialOrKnownType Void => _compilation.GetSpecialType(SpecialType.Void);
+    private SpecialOrKnownType String => _compilation.GetSpecialType(SpecialType.String);
+    private SpecialOrKnownType Int => _compilation.GetSpecialType(SpecialType.Int);
+    private SpecialOrKnownType Bool => _compilation.GetSpecialType(SpecialType.Bool);
+    private SpecialOrKnownType Decimal => _compilation.GetSpecialType(SpecialType.Decimal);
+    private SpecialOrKnownType Texture => _compilation.corLibrary.GetWellKnownType(WellKnownType.Texture);
+    private SpecialOrKnownType Sprite => _compilation.corLibrary.GetWellKnownType(WellKnownType.Sprite);
+    private SpecialOrKnownType Text => _compilation.corLibrary.GetWellKnownType(WellKnownType.Text);
+    private SpecialOrKnownType Sound => _compilation.corLibrary.GetWellKnownType(WellKnownType.Sound);
+    private SpecialOrKnownType Vec2 => _compilation.corLibrary.GetWellKnownType(WellKnownType.Vec2);
+    private SpecialOrKnownType Rect => _compilation.corLibrary.GetWellKnownType(WellKnownType.Rect);
+
+    internal bool MethodProducesTemp(MethodSymbol method) {
         return method.name == "GetMousePosition" || method.name == "LoadSprite";
     }
 
-    internal static IEnumerable<SynthesizedFinishedNamedTypeSymbol> GetTypes() {
+    internal IEnumerable<SynthesizedFinishedNamedTypeSymbol> GetTypes() {
         yield return Graphics;
     }
 
-    private static SynthesizedFinishedNamedTypeSymbol GenerateGraphics() {
-        return StaticClass("Graphics", [
-            StaticMethod("Initialize", SpecialType.Void, [("title", SpecialType.String, false, null), ("width", SpecialType.Int, false, null), ("height", SpecialType.Int, false, null), ("usePointClamp", SpecialType.Bool, false, false)]),
-            StaticMethod("LockFramerate", SpecialType.Void, [("fps", SpecialType.Int)]),
-            StaticMethod("LoadTexture", WellKnownType.Texture, [("path", SpecialType.String)]),
-            StaticMethod("LoadTexture", WellKnownType.Texture, [("path", SpecialType.String), ("r", SpecialType.Int), ("g", SpecialType.Int), ("b", SpecialType.Int)]),
-            StaticMethod("LoadSprite", WellKnownType.Sprite, [("path", SpecialType.String, false), ("position", WellKnownType.Vec2, false), ("scale", WellKnownType.Vec2, true), ("rotation", SpecialType.Int, true)]),
-            StaticMethod("Draw", SpecialType.Int, true, [("texture", WellKnownType.Texture, false), ("srcRect", WellKnownType.Rect, false), ("dstRect", WellKnownType.Rect, false), ("rotation", SpecialType.Int, true), ("flip", SpecialType.Bool, true), ("alpha", SpecialType.Decimal, true)]),
-            StaticMethod("DrawSprite", SpecialType.Int, true, [("sprite", WellKnownType.Sprite)]),
-            StaticMethod("DrawSprite", SpecialType.Int, true, [("sprite", WellKnownType.Sprite), ("offset", WellKnownType.Vec2)]),
-            StaticMethod("LoadText", WellKnownType.Text, [("text", SpecialType.String, false), ("fontPath", SpecialType.String, false), ("position", WellKnownType.Vec2, false), ("fontSize", SpecialType.Decimal, false), ("angle", SpecialType.Decimal, true), ("r", SpecialType.Int, true), ("g", SpecialType.Int, true), ("b", SpecialType.Int, true)]),
-            StaticMethod("DrawText", SpecialType.Int, true, [("sprite", WellKnownType.Text)]),
-            StaticMethod("DrawRect", SpecialType.Int, true, [("rect", WellKnownType.Rect), ("r", SpecialType.Int), ("g", SpecialType.Int), ("b", SpecialType.Int)]),
-            StaticMethod("DrawRect", SpecialType.Int, true, [("rect", WellKnownType.Rect), ("r", SpecialType.Int), ("g", SpecialType.Int), ("b", SpecialType.Int), ("a", SpecialType.Int)]),
-            StaticMethod("StopDraw", SpecialType.Void, [("id", SpecialType.Int, true)]),
-            StaticMethod("GetKey", SpecialType.Bool, [("key", SpecialType.String)]),
-            StaticMethod("Fill", SpecialType.Void, [("r", SpecialType.Int), ("g", SpecialType.Int), ("b", SpecialType.Int)]),
-            StaticMethod("GetMouseButton", SpecialType.Bool, [("button", SpecialType.String)]),
-            StaticMethod("GetScroll", SpecialType.Int),
-            StaticMethod("GetMousePosition", WellKnownType.Vec2),
-            StaticMethod("LoadSound", WellKnownType.Sound, [("path", SpecialType.String)]),
-            StaticMethod("PlaySound", SpecialType.Void, [("sound", WellKnownType.Sound)]),
-            StaticMethod("SetCursorVisibility", SpecialType.Void, [("visible", SpecialType.Bool)]),
+    private SynthesizedFinishedNamedTypeSymbol GenerateGraphics() {
+        return StaticClass(_compilation, "Graphics", [
+            StaticMethod("Initialize", Void, [("title", String, false, null), ("width", Int, false, null), ("height", Int, false, null), ("usePointClamp", Bool, false, false)]),
+            StaticMethod("LockFramerate", Void, [("fps", Int)]),
+            StaticMethod("LoadTexture", Texture, [("path", String)]),
+            StaticMethod("LoadTexture", Texture, [("path", String), ("r", Int), ("g", Int), ("b", Int)]),
+            StaticMethod("LoadSprite", Sprite, [("path", String, false), ("position", Vec2, false), ("scale", Vec2, true), ("rotation", Int, true)]),
+            StaticMethod("Draw", Int, true, [("texture", Texture, false), ("srcRect", Rect, false), ("dstRect", Rect, false), ("rotation", Int, true), ("flip", Bool, true), ("alpha", Decimal, true)]),
+            StaticMethod("DrawSprite", Int, true, [("sprite", Sprite)]),
+            StaticMethod("DrawSprite", Int, true, [("sprite", Sprite), ("offset", Vec2)]),
+            StaticMethod("LoadText", Text, [("text", String, false), ("fontPath", String, false), ("position", Vec2, false), ("fontSize", Decimal, false), ("angle", Decimal, true), ("r", Int, true), ("g", Int, true), ("b", Int, true)]),
+            StaticMethod("DrawText", Int, true, [("sprite", Text)]),
+            StaticMethod("DrawRect", Int, true, [("rect", Rect), ("r", Int), ("g", Int), ("b", Int)]),
+            StaticMethod("DrawRect", Int, true, [("rect", Rect), ("r", Int), ("g", Int), ("b", Int), ("a", Int)]),
+            StaticMethod("StopDraw", Void, [("id", Int, true)]),
+            StaticMethod("GetKey", Bool, [("key", String)]),
+            StaticMethod("Fill", Void, [("r", Int), ("g", Int), ("b", Int)]),
+            StaticMethod("GetMouseButton", Bool, [("button", String)]),
+            StaticMethod("GetScroll", Int),
+            StaticMethod("GetMousePosition", Vec2),
+            StaticMethod("LoadSound", Sound, [("path", String)]),
+            StaticMethod("PlaySound", Void, [("sound", Sound)]),
+            StaticMethod("SetCursorVisibility", Void, [("visible", Bool)]),
         ]);
     }
 }

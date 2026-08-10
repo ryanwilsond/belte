@@ -22,10 +22,17 @@ internal sealed class PEAttributeData : AttributeData {
         _handle = handle;
     }
 
-    protected internal override INamedTypeSymbol _commonAttributeClass {
+    internal override NamedTypeSymbol attributeClass {
         get {
             EnsureClassAndConstructorSymbolsAreLoaded();
             return _lazyAttributeClass;
+        }
+    }
+
+    internal override MethodSymbol attributeConstructor {
+        get {
+            EnsureClassAndConstructorSymbolsAreLoaded();
+            return _lazyAttributeConstructor;
         }
     }
 
@@ -36,19 +43,16 @@ internal sealed class PEAttributeData : AttributeData {
         }
     }
 
-    internal MethodSymbol attributeConstructor {
-        get {
-            EnsureClassAndConstructorSymbolsAreLoaded();
-            return _lazyAttributeConstructor;
-        }
-    }
-
     protected internal override ImmutableArray<TypedConstant> _commonConstructorArguments {
         get {
             EnsureAttributeArgumentsAreLoaded();
             return _lazyConstructorArguments;
         }
     }
+
+    protected internal override INamedTypeSymbol _commonAttributeClass => attributeClass;
+
+    protected internal override IMethodSymbol _commonAttributeConstructor => attributeConstructor;
 
     internal override bool hasErrors {
         get {

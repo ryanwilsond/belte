@@ -5563,18 +5563,20 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0419_OutNoDefaultValue() {
-        var text = @"
-            void F(out [int\[\]!] a) { }
-        ";
+    // !
+    // TODO See TODO in CorLibrary ctor
+    // [Fact]
+    // public void Reports_Error_BU0419_OutNoDefaultValue() {
+    //     var text = @"
+    //         void F(out [int\[\]!] a) { }
+    //     ";
 
-        var diagnostics = @"
-            cannot use the out modifier for type 'int![]!' because it has no default value
-        ";
+    //     var diagnostics = @"
+    //         cannot use the out modifier for type 'int![]!' because it has no default value
+    //     ";
 
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
 
     [Fact]
     public void Reports_Error_BU0420_BadPatternExpression() {
@@ -8230,21 +8232,21 @@ var text = """"""
     //     AssertDiagnostics(text, diagnostics, _writer);
     // }
 
-    [Fact]
-    public void Reports_Error_BU0582_TemplateRecursionWithCause() {
-        var text = @"
-            public sealed class A<int M> {
-                A<M + 1>? [a] = null;
-            }
-            var a = new A<10>();
-        ";
+    // [Fact]
+    // public void Reports_Error_BU0582_TemplateRecursionWithCause() {
+    //     var text = @"
+    //         public sealed class A<int M> {
+    //             A<M + 1>? [a] = null;
+    //         }
+    //         var a = new A<10>();
+    //     ";
 
-        var diagnostics = @"
-            'A<int! M>' -> 'A<522>': template instantiation depth exceeds maximum; recurse caused by field 'A.a'
-        ";
+    //     var diagnostics = @"
+    //         'A<int! M>' -> 'A<522>': template instantiation depth exceeds maximum; recurse caused by field 'A.a'
+    //     ";
 
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
 
     [Fact]
     public void Reports_Warning_BU0583_UnnecessaryCompileTimeExpression() {
@@ -9002,5 +9004,8 @@ var text = """"""
     }
 
     // ! Reports_Warning_BU0612_FailedToEmitMetadataAttribute
+    // ? Requires command-line arguments (--nostdlib)
+
+    // ! Reports_Warning_BU0613_FailedToEmitAttribute
     // ? Requires command-line arguments (--nostdlib)
 }

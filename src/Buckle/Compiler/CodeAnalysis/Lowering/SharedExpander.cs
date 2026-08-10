@@ -17,9 +17,12 @@ internal class SharedExpander : BoundTreeExpander {
     private Dictionary<BoundValuePlaceholder, BoundExpression> _placeholderReplacementMapDoNotUseDirectly;
 
     private protected readonly BelteDiagnosticQueue _diagnostics;
+    private protected readonly Compilation _compilation;
+
     private readonly Dictionary<TokenSymbol, List<BoundStatement>> _tokenMap;
 
-    internal SharedExpander(MethodSymbol container, BelteDiagnosticQueue diagnostics) {
+    internal SharedExpander(Compilation compilation, MethodSymbol container, BelteDiagnosticQueue diagnostics) {
+        _compilation = compilation;
         _container = container;
         _diagnostics = diagnostics;
         _tokenMap = [];
@@ -81,7 +84,7 @@ internal class SharedExpander : BoundTreeExpander {
         out BoundExpression replacement,
         UseKind useKind = UseKind.Value) {
         if (expression.constantValue is not null) {
-            replacement = Lowerer.VisitConstant(expression);
+            replacement = Lowerer.VisitConstant(_compilation, expression);
             return [];
         }
 
@@ -183,9 +186,9 @@ internal class SharedExpander : BoundTreeExpander {
 
             statements.Add(LocalDeclaration(syntax, temp, newCall));
 
-            var tupleField1 = ((FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item1))
+            var tupleField1 = ((FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item1))
                 .AsMember(tupleType);
-            var tupleField2 = ((FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2))
+            var tupleField2 = ((FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2))
                 .AsMember(tupleType);
 
             replacement = new BoundFieldAccessExpression(syntax,
@@ -297,7 +300,7 @@ internal class SharedExpander : BoundTreeExpander {
         var literal = new BoundLiteralExpression(
             syntax,
             node.literal,
-            CorLibrary.GetSpecialType(node.literal.specialType)
+            _compilation.GetSpecialType(node.literal.specialType)
         );
 
         return CreateCString(syntax, literal, node.type, isWide, out replacement);
@@ -309,10 +312,11 @@ internal class SharedExpander : BoundTreeExpander {
         TypeSymbol type,
         bool isWide,
         out BoundExpression replacement) {
-        var allocMethod = StandardLibrary.GetWellKnownMember(
+        var allocMethod = _compilation.standardLibrary.GetWellKnownMember(
             isWide ? STLWellKnownMembers.LowLevel_CreateLPCWSTR : STLWellKnownMembers.LowLevel_CreateLPCSTR
         );
-        var freeMethod = StandardLibrary.GetWellKnownMember(
+
+        var freeMethod = _compilation.standardLibrary.GetWellKnownMember(
             isWide ? STLWellKnownMembers.LowLevel_FreeLPCWSTR : STLWellKnownMembers.LowLevel_FreeLPCSTR
         );
 
@@ -394,7 +398,7 @@ internal class SharedExpander : BoundTreeExpander {
             var breakLabel = GenerateLabel();
 
             finallyBody = [
-                GotoIf(syntax, breakLabel, IsNull(syntax, Local(syntax, local))),
+                GotoIf(syntax, breakLabel, IsNull(_compilation, syntax, Local(syntax, local))),
                 Statement(syntax, call),
                 Label(syntax, breakLabel)
             ];
@@ -657,14 +661,14 @@ internal class SharedExpander : BoundTreeExpander {
         out BoundExpression replacement,
         UseKind _) {
         var syntax = expression.syntax;
-        var stringType = CorLibrary.GetSpecialType(SpecialType.String);
-        var nullableStringType = CorLibrary.GetNullableType(SpecialType.String);
+        var stringType = _compilation.GetSpecialType(SpecialType.String);
+        var nullableStringType = _compilation.corLibrary.GetNullableType(SpecialType.String);
         var statements = new List<BoundStatement>();
         var tempLocal = GenerateTempLocal(stringType);
         replacement = Local(syntax, tempLocal);
         statements.Add(new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
             tempLocal,
-            Literal(syntax, string.Empty, stringType)
+            Literal(_compilation, syntax, string.Empty, stringType)
         )));
 
         // ? Null turns into empty strings instead of nulling the entire result
@@ -678,7 +682,7 @@ internal class SharedExpander : BoundTreeExpander {
                 if (string.IsNullOrEmpty((string)value))
                     continue;
 
-                right = Literal(syntax, value, stringType);
+                right = Literal(_compilation, syntax, value, stringType);
             } else {
                 if (content.IsLiteralNull())
                     continue;
@@ -712,13 +716,13 @@ internal class SharedExpander : BoundTreeExpander {
                         right = new BoundConditionalOperator(syntax,
                             new BoundIsOperator(syntax,
                                 replacementContent,
-                                Literal(syntax, null, nullableStringType),
+                                Literal(_compilation, syntax, null, nullableStringType),
                                 false,
                                 null,
-                                CorLibrary.GetSpecialType(SpecialType.Bool)
+                                _compilation.GetSpecialType(SpecialType.Bool)
                             ),
                             false,
-                            Literal(syntax, string.Empty, stringType),
+                            Literal(_compilation, syntax, string.Empty, stringType),
                             Cast(syntax,
                                 stringType,
                                 new BoundNullAssertOperator(syntax,
@@ -735,7 +739,7 @@ internal class SharedExpander : BoundTreeExpander {
                         );
                     }
                 } else {
-                    var toString = (MethodSymbol)CorLibrary.GetSpecialType(SpecialType.Object)
+                    var toString = (MethodSymbol)_compilation.GetSpecialType(SpecialType.Object)
                         .GetMembers("ToString").Single(m => m is MethodSymbol);
 
                     var toStringTemp = GenerateTempLocal(nullableStringType);
@@ -746,13 +750,13 @@ internal class SharedExpander : BoundTreeExpander {
                         new BoundConditionalOperator(syntax,
                             new BoundIsOperator(syntax,
                                 replacementContent,
-                                Literal(syntax, null, nullableStringType),
+                                Literal(_compilation, syntax, null, nullableStringType),
                                 false,
                                 null,
-                                CorLibrary.GetSpecialType(SpecialType.Bool)
+                                _compilation.GetSpecialType(SpecialType.Bool)
                             ),
                             false,
-                            Literal(syntax, null, nullableStringType),
+                            Literal(_compilation, syntax, null, nullableStringType),
                             new BoundCallExpression(syntax,
                                 replacementContent,
                                 toString,
@@ -772,7 +776,7 @@ internal class SharedExpander : BoundTreeExpander {
             if (right.Type().IsNullableType()) {
                 statements.AddRange(ExpandExpression(new BoundNullCoalescingOperator(syntax,
                     right,
-                    Literal(syntax, string.Empty, stringType),
+                    Literal(_compilation, syntax, string.Empty, stringType),
                     false,
                     null,
                     stringType
@@ -818,7 +822,7 @@ internal class SharedExpander : BoundTreeExpander {
         return [Statement(syntax,
             Assignment(syntax,
                 Local(syntax, statement.commitLocal),
-                Literal(syntax, true, boolType),
+                Literal(_compilation, syntax, true, boolType),
                 false,
                 boolType
             )
@@ -873,7 +877,7 @@ internal class SharedExpander : BoundTreeExpander {
         List<BoundStatement> statements = [];
 
         if (commitLocal is not null)
-            statements.Add(LocalDeclaration(syntax, commitLocal, Literal(syntax, false, commitLocal.type)));
+            statements.Add(LocalDeclaration(syntax, commitLocal, Literal(_compilation, syntax, false, commitLocal.type)));
 
         statements.AddRange(CreateWithPrologue(syntax, lefts, temps, statement.assignments, out var newLefts));
 
@@ -1014,7 +1018,7 @@ internal class SharedExpander : BoundTreeExpander {
 
                 statements.AddRange(ExpandExpression(call, out var newCall));
 
-                var tupleField = ((FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2))
+                var tupleField = ((FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2))
                     .AsMember(tupleType);
 
                 var initializer = new BoundFieldAccessExpression(syntax, newCall, tupleField, null, tupleField.type);
@@ -1043,7 +1047,7 @@ internal class SharedExpander : BoundTreeExpander {
 
                 statements.AddRange(ExpandExpression(call, out var newCall));
 
-                var tupleField = ((FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2))
+                var tupleField = ((FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2))
                     .AsMember(tupleType);
 
                 var initializer = cast.Update(

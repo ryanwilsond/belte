@@ -88,7 +88,7 @@ libs:
 	@$(MKDIR) lib
 	@dotnet publish $(PUBLISH_FLAGS) $(BELTE_DIR)/Belte.Runtime/Belte.Runtime.csproj -o lib
 # 	@dotnet publish $(PUBLISH_FLAGS) $(BELTE_DIR)/Belte.Graphics/Belte.Graphics.csproj -o lib
-	@cd $(BELTE_CORE_DIR) && buckle build
+	@cd $(BELTE_CORE_DIR) && buckle build --nostdlib
 	@$(MV) $(BELTE_CORE_DIR)/bin/Belte.Core.dll lib/Belte.Core.dll
 	@echo "    Finished"
 

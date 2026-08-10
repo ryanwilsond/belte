@@ -13,11 +13,13 @@ namespace Buckle.Libraries;
 
 internal sealed class SynthesizedBelteNamespaceSymbol : NamespaceSymbol {
     private readonly bool _noStdLib;
+    private readonly Compilation _compilation;
 
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> _nameToMembersMap;
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> _nameToTypeMembersMap;
 
-    internal SynthesizedBelteNamespaceSymbol(string name, bool noStdLib) {
+    internal SynthesizedBelteNamespaceSymbol(Compilation compilation, string name, bool noStdLib) {
+        _compilation = compilation;
         _noStdLib = noStdLib;
         this.name = name;
     }
@@ -79,10 +81,10 @@ internal sealed class SynthesizedBelteNamespaceSymbol : NamespaceSymbol {
         var allMembers = ArrayBuilder<Symbol>.GetInstance();
 
         // TODO Reduced is not the same as noStdLib, we currently never build in a reduced state
-        allMembers.AddRange(StandardLibrary.GetTypes(reduced: false));
+        allMembers.AddRange(_compilation.standardLibrary.GetTypes(reduced: false));
 
         if (!_noStdLib)
-            allMembers.AddRange(GraphicsLibrary.GetTypes());
+            allMembers.AddRange(_compilation.graphicsLibrary.GetTypes());
 
         var builder = NameToObjectPool.Allocate();
 

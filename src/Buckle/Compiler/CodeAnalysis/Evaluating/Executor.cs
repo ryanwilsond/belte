@@ -32,6 +32,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
     private const string DynamicAssemblyName = "DynamicBoundTreeAssembly";
 
+    private readonly Compilation _compilation;
     private readonly BoundProgram _program;
     private readonly ImmutableArray<NamedTypeSymbol> _topLevelTypes;
     private readonly ImmutableArray<NamedTypeSymbol> _linearNestedTypes;
@@ -97,11 +98,12 @@ internal sealed partial class Executor : ModuleBuilder {
     internal Executor(BoundProgram program, string[] arguments, BelteDiagnosticQueue diagnostics) {
         _arguments = arguments;
         _program = program;
+        _compilation = program.compilation;
         _diagnostics = diagnostics;
-        _graphicsEnabled = program.compilation.options.outputKind == OutputKind.GraphicsApplication;
+        _graphicsEnabled = _compilation.options.outputKind == OutputKind.GraphicsApplication;
 
         _topLevelTypes = program.GetTypesToEmit(
-            noStdLib: program.compilation.options.noStdLib,
+            noStdLib: _compilation.options.noStdLib,
             includeGraphicsWellKnownTypes: false
         );
 
@@ -168,7 +170,7 @@ internal sealed partial class Executor : ModuleBuilder {
         if (logTime) {
             timer.Stop();
 
-            if (verbose && !noArtifacts && _program.compilation.options.enableOutput) {
+            if (verbose && !noArtifacts && _compilation.options.enableOutput) {
                 var assemblyName = $"{DynamicAssemblyName}.g.dll";
                 var assemblyPath = verbosePath is null ? assemblyName : Path.Combine(verbosePath, assemblyName);
                 Console.WriteLine($"Dumping dynamic executor assembly to \"{assemblyPath}\"");
@@ -197,7 +199,7 @@ internal sealed partial class Executor : ModuleBuilder {
             timer.Restart();
         }
 
-        if (!_program.compilation.options.enableOutput)
+        if (!_compilation.options.enableOutput)
             return null;
 
         object result;
@@ -265,7 +267,9 @@ internal sealed partial class Executor : ModuleBuilder {
 
         var arrayTypeSymbol = (NamedTypeSymbol)_entryPoint.GetParameterType(0);
 
-        var ctorSymbol = CorLibrary.GetWellKnownMethod(WellKnownMember.Array_ctor_2).AsMember(arrayTypeSymbol);
+        var ctorSymbol = _compilation.corLibrary.GetWellKnownMethod(WellKnownMember.Array_ctor_2)
+            .AsMember(arrayTypeSymbol);
+
         var ctor = GetConstructor(ctorSymbol);
 
         il.Emit(OpCodes.Ldarg_0);
@@ -823,8 +827,8 @@ internal sealed partial class Executor : ModuleBuilder {
         foreach (var type in _topLevelTypes)
             CreateTypeBuilderAndBases(type);
 
-        if (_program.compilation.options.concurrentBuild) {
-            var maxParallels = _program.compilation.options.maxCoreCount;
+        if (_compilation.options.concurrentBuild) {
+            var maxParallels = _compilation.options.maxCoreCount;
             var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = maxParallels };
 
             var topLevelTypes = _topLevelTypes;
@@ -998,44 +1002,44 @@ internal sealed partial class Executor : ModuleBuilder {
     private void CompleteWellKnownTypes() {
         var existingWellKnownTypes = new List<WellKnownType>();
 
-        if (CorLibrary.HasWellKnownType(WellKnownType.Sprite) &&
-            !_topLevelTypes.Contains(CorLibrary.GetWellKnownType(WellKnownType.Sprite))) {
-            _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Sprite), typeof(BSprite));
+        if (_compilation.corLibrary.HasWellKnownType(WellKnownType.Sprite) &&
+            !_topLevelTypes.Contains(_compilation.corLibrary.GetWellKnownType(WellKnownType.Sprite))) {
+            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.Sprite), typeof(BSprite));
             existingWellKnownTypes.Add(WellKnownType.Sprite);
-            _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Rect), typeof(BRect));
+            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.Rect), typeof(BRect));
             existingWellKnownTypes.Add(WellKnownType.Rect);
-            _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Vec2), typeof(BVec2));
+            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.Vec2), typeof(BVec2));
             existingWellKnownTypes.Add(WellKnownType.Vec2);
-            _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Texture), typeof(BTexture));
+            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.Texture), typeof(BTexture));
             existingWellKnownTypes.Add(WellKnownType.Texture);
-            _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Text), typeof(BText));
+            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.Text), typeof(BText));
             existingWellKnownTypes.Add(WellKnownType.Text);
-            _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Sound), typeof(BSound));
+            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.Sound), typeof(BSound));
             existingWellKnownTypes.Add(WellKnownType.Sound);
         }
 
-        if (CorLibrary.HasWellKnownType(WellKnownType.ValueTuple_T1) &&
-            !_topLevelTypes.Contains(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T1))) {
-            _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T1), typeof(ValueTuple<>));
+        if (_compilation.corLibrary.HasWellKnownType(WellKnownType.ValueTuple_T1) &&
+            !_topLevelTypes.Contains(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T1))) {
+            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T1), typeof(ValueTuple<>));
             existingWellKnownTypes.Add(WellKnownType.ValueTuple_T1);
-            _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T2), typeof(ValueTuple<,>));
+            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T2), typeof(ValueTuple<,>));
             existingWellKnownTypes.Add(WellKnownType.ValueTuple_T2);
-            _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T3), typeof(ValueTuple<,,>));
+            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T3), typeof(ValueTuple<,,>));
             existingWellKnownTypes.Add(WellKnownType.ValueTuple_T3);
-            _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T4), typeof(ValueTuple<,,,>));
+            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T4), typeof(ValueTuple<,,,>));
             existingWellKnownTypes.Add(WellKnownType.ValueTuple_T4);
-            _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T5), typeof(ValueTuple<,,,,>));
+            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T5), typeof(ValueTuple<,,,,>));
             existingWellKnownTypes.Add(WellKnownType.ValueTuple_T5);
-            _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T6), typeof(ValueTuple<,,,,,>));
+            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T6), typeof(ValueTuple<,,,,,>));
             existingWellKnownTypes.Add(WellKnownType.ValueTuple_T6);
-            _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T7), typeof(ValueTuple<,,,,,,>));
+            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T7), typeof(ValueTuple<,,,,,,>));
             existingWellKnownTypes.Add(WellKnownType.ValueTuple_T7);
-            _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_TRest), typeof(ValueTuple<,,,,,,,>));
+            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_TRest), typeof(ValueTuple<,,,,,,,>));
             existingWellKnownTypes.Add(WellKnownType.ValueTuple_TRest);
         }
 
         foreach (var type in existingWellKnownTypes) {
-            var typeSymbol = CorLibrary.GetWellKnownType(type);
+            var typeSymbol = _compilation.corLibrary.GetWellKnownType(type);
             var native = _bakedTypes[typeSymbol];
 
             foreach (var member in typeSymbol.GetMembers()) {
@@ -1203,7 +1207,7 @@ internal sealed partial class Executor : ModuleBuilder {
     private string GetTypeName(NamedTypeSymbol type, bool isNested) {
         // TODO Use metadata name?
 
-        if (type.IsFromCompilation(_program.compilation)) {
+        if (type.IsFromCompilation(_compilation)) {
             if (isNested || (type.containingNamespace?.isGlobalNamespace ?? true))
                 return type.name;
 
@@ -1596,7 +1600,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
         var body = _methodBodies[method];
         var ilBuilder = new RefILBuilder(method, this, methodBuilder.GetILGenerator(), _logger);
-        var codeGen = new CodeGenerator(this, method, body, ilBuilder, false, _diagnostics);
+        var codeGen = new CodeGenerator(_compilation, this, method, body, ilBuilder, false, _diagnostics);
         codeGen.Generate();
     }
 
@@ -1606,7 +1610,7 @@ internal sealed partial class Executor : ModuleBuilder {
         if (_logger is not null) lock (_logger) _logger.WriteLine($"Emitting constructor {constructor}");
 
         var ilBuilder = new RefILBuilder(constructor, this, constructorBuilder.GetILGenerator(), _logger);
-        var codeGen = new CodeGenerator(this, constructor, body, ilBuilder, false, _diagnostics);
+        var codeGen = new CodeGenerator(_compilation, this, constructor, body, ilBuilder, false, _diagnostics);
         codeGen.Generate();
     }
 
@@ -1625,9 +1629,9 @@ internal sealed partial class Executor : ModuleBuilder {
     private MethodInfo CheckStandardMap(MethodSymbol method) {
         var mapKey = LibraryHelpers.BuildMapKey(method);
 
-        if (!_program.compilation.options.noStdLib && !_reportedGraphicsCall) {
-            if ((object)method.containingType == GraphicsLibrary.Graphics.underlyingNamedType &&
-                _program.compilation.options.outputKind != OutputKind.GraphicsApplication) {
+        if (!_compilation.options.noStdLib && !_reportedGraphicsCall) {
+            if ((object)method.containingType == _compilation.graphicsLibrary.Graphics.underlyingNamedType &&
+                _compilation.options.outputKind != OutputKind.GraphicsApplication) {
                 lock (_diagnostics) {
                     if (!_reportedGraphicsCall) {
                         _diagnostics.Push(Error.Unsupported.GraphicsCall());
