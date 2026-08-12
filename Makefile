@@ -43,6 +43,7 @@ all: debug
 release: prebuild libs copydlls build postbuild
 releasemf: prebuild libs copylibs copydlls buildmf postbuild
 releasemfnolibs: prebuild copydlls buildmf postbuild
+fortest: prebuild buildmf postbuild
 portable: prebuild libs buildportable postbuildportable
 debug: prebuild builddebug postbuilddebug
 linux: prebuild buildlinux postbuildlinux

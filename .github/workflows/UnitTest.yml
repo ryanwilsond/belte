@@ -19,7 +19,7 @@ jobs:
         run: make setup
 
       - name: Build
-        run: make releasemfnolibs
+        run: make fortest
 
       - name: Test
         run: make test
