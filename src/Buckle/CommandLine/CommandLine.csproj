@@ -65,7 +65,7 @@
     <Copy SourceFiles="$(OutputPath)/lib/x64/freetype6.dll" DestinationFolder="$(OutputPath)" SkipUnchangedFiles="true" />
   </Target>
 
-  <Target Name="CopyBelteCore" AfterTargets="Build" Condition="'$(Configuration)' == 'Debug'">
+  <Target Name="CopyBelteCore" AfterTargets="Build" Condition="'$(CopyRuntimeForDebug)' == 'true'">
     <Copy SourceFiles="$(MSBuildProjectDirectory)/../../../bin/release/Belte.Core.dll" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" />
   </Target>
 
