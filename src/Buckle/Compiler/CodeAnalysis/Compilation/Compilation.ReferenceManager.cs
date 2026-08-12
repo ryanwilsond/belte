@@ -440,7 +440,10 @@ public sealed partial class Compilation {
 
             _lazyReferencedAssembliesMap = referencedAssembliesMap;
             _lazyReferencedModuleIndexMap = referencedModulesMap;
-            _lazyDiagnostics = diagnostics;
+
+            _lazyDiagnostics = new BelteDiagnosticQueue();
+            _lazyDiagnostics.PushRange(diagnostics);
+
             _lazyReferenceDirectiveMap = boundReferenceDirectiveMap;
             _lazyDirectiveReferences = directiveReferences;
             _lazyExplicitReferences = explicitReferences;
@@ -1282,7 +1285,7 @@ public sealed partial class Compilation {
                 if (!assembly.isLinked &&
                     !assembly.containsNoPiaLocalTypes &&
                     (!supersedeLowerVersions || !IsSuperseded(assembly.identity, assemblyReferencesBySimpleName))) {
-                    if (assembly.identity.name == MetadataHelpers.CorLibraryString) {
+                    if (MetadataHelpers.IsCorLibraryName(assembly.identity.name)) {
                         corLibraryCandidates ??= ArrayBuilder<int>.GetInstance();
                         corLibraryCandidates.Add(i);
                     }

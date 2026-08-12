@@ -34,4 +34,9 @@ public struct ShowDialogs {
     /// Display error help.
     /// </summary>
     public string error;
+
+    /// <summary>
+    /// Displays a message when starting and finishing compilation.
+    /// </summary>
+    public bool startStop;
 }

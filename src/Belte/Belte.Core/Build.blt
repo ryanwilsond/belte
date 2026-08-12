@@ -12,7 +12,7 @@ void Build(Builder builder) {
     // builder.SetMaxCores(1);
 
     builder.includeStdLib = false;
-    builder.ExplicitAssemblyName("CorLibrary");
+    builder.ExplicitAssemblyName("Belte.Core");
 
     if (!Directory.Exists("bin"))
         Directory.Create("bin");

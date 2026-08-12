@@ -1808,7 +1808,9 @@ internal partial class Binder {
                 case SyntaxKind.BitCastExpression:
                     return BindBitCastExpression((BitCastExpressionSyntax)node, diagnostics);
                 case SyntaxKind.InitializerListExpression:
-                    return BindUnexpectedArrayInitializer((InitializerListExpressionSyntax)node, diagnostics, true);
+                    // TODO This was this for a long time with no err, but suddenly broken?
+                    // return BindUnexpectedArrayInitializer((InitializerListExpressionSyntax)node, diagnostics, true);
+                    return BindInitializerListExpression((InitializerListExpressionSyntax)node, diagnostics);
                 case SyntaxKind.InitializerDictionaryExpression:
                     return BindInitializerDictionaryExpression((InitializerDictionaryExpressionSyntax)node, diagnostics);
                 case SyntaxKind.ReferenceExpression:

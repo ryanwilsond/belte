@@ -245,7 +245,7 @@ internal partial class NamedTypeSymbol {
 
     internal bool IsTupleTypeOfCardinality(out int tupleCardinality) {
         var isNativeTuple = !isUnboundTemplateType &&
-            originalDefinition.containingAssembly?.name == MetadataHelpers.CorLibraryString &&
+            MetadataHelpers.IsCorLibraryName(originalDefinition.containingAssembly?.name) &&
             name == ValueTupleTypeName;
 
         var isSystemTuple = !isUnboundTemplateType &&

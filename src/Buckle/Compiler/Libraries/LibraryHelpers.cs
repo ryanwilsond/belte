@@ -61,7 +61,7 @@ public static class LibraryHelpers {
         );
 
         var corLibraryCompilation = Compilation.Create(
-            MetadataHelpers.CorLibraryString,
+            "CorLibrary",
             options,
             syntaxTrees.ToArray()
         );

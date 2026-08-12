@@ -106,10 +106,17 @@ public static class SymbolDisplay {
 
         if (type is ArrayTypeSymbol) {
             var array = (ArrayTypeSymbol)stripped;
-            text.Write(CreateIdentifier("Buffer"));
-            text.Write(CreatePunctuation(SyntaxKind.LessThanToken));
-            DisplayType(text, array.elementType, format);
-            text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));
+
+            if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.NetFormat) != 0) {
+                DisplayType(text, array.elementType, format);
+                text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
+                text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
+            } else {
+                text.Write(CreateIdentifier("Buffer"));
+                text.Write(CreatePunctuation(SyntaxKind.LessThanToken));
+                DisplayType(text, array.elementType, format);
+                text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));
+            }
 
             // TODO Consider omitting exclamation mark
             if (outerMostType &&
@@ -151,7 +158,8 @@ public static class SymbolDisplay {
                 }
 
                 text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
-            } else if (CorLibrary.Instance.HasWellKnownType(WellKnownType.Array) &&
+            } else if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.NetFormat) == 0 &&
+                CorLibrary.Instance.HasWellKnownType(WellKnownType.Array) &&
                 CorLibrary.Instance.GetWellKnownType(WellKnownType.Array).Equals(namedType.originalDefinition)) {
                 DisplayType(text, namedType.templateArguments[0].type.type, format);
                 text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));

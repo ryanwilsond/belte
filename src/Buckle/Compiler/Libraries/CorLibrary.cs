@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
+using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Symbols;
@@ -45,9 +46,7 @@ internal sealed class CorLibrary {
 
         RegisterPrimitiveCorTypes();
 
-        // TODO Instance is used by the Display API, this code *tries* to keep the more completed CorLibrary
-        // But is not guaranteed
-        if (Instance is null || Instance._registeredSpecialTypes <= _registeredSpecialTypes)
+        if (Instance is null)
             Interlocked.Exchange(ref Instance, this);
     }
 
@@ -174,7 +173,7 @@ internal sealed class CorLibrary {
     }
 
     private Symbol GetWellKnownMemberCore(WellKnownMember wellKnownMember) {
-        if (!_lazyComplete && wellKnownMember.IsTupleMember())
+        if (!_lazyComplete && wellKnownMember.IsTupleMember() || wellKnownMember.IsArrayMember())
             CompleteLazyMembers();
 
         if (!_wellKnownMembers.TryGetValue(wellKnownMember, out var result))
@@ -322,6 +321,10 @@ internal sealed class CorLibrary {
             if (_lazyComplete)
                 return;
 
+#if DEBUG
+            var completedAnything = false;
+#endif
+
             // We assume if one tuple is missing, all of them are
             if (_wellKnownTypes.ContainsKey(WellKnownType.ValueTuple_T1)) {
                 LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T1));
@@ -332,15 +335,26 @@ internal sealed class CorLibrary {
                 LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T6));
                 LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T7));
                 LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_TRest));
+#if DEBUG
+                completedAnything = true;
+#endif
             }
 
             if (_wellKnownTypes.ContainsKey(WellKnownType.Array)) {
                 var type = GetWellKnownType(WellKnownType.Array);
-                RegisterWellKnownMember(WellKnownMember.Array_ctor_1, type.instanceConstructors[0]);
-                RegisterWellKnownMember(WellKnownMember.Array_ctor_2, type.instanceConstructors[1]);
+                Debug.Assert(type.instanceConstructors.Length == 2);
+                RegisterWellKnownMember(WellKnownMember.Array_ctor_1, type.instanceConstructors.Single(c => c.parameterCount == 1));
+                RegisterWellKnownMember(WellKnownMember.Array_ctor_2, type.instanceConstructors.Single(c => c.parameterCount == 2));
                 RegisterWellKnownMember(WellKnownMember.Array_Get, type.GetMembers("Get")[0]);
                 RegisterWellKnownMember(WellKnownMember.Array_Set, type.GetMembers("Set")[0]);
+#if DEBUG
+                completedAnything = true;
+#endif
             }
+
+#if DEBUG
+            Debug.Assert(completedAnything);
+#endif
 
             _lazyComplete = true;
         }
@@ -348,6 +362,7 @@ internal sealed class CorLibrary {
         void LazyWellKnownTupleMembers(NamedTypeSymbol type) {
             var arity = type.arity;
 
+            Debug.Assert(type.instanceConstructors.Length == 1);
             RegisterWellKnownMember(NamedTypeSymbol.GetTupleCtor(arity), type.instanceConstructors[0]);
 
             for (var i = 0; i < arity; i++) {

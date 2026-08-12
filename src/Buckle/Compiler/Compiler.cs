@@ -80,6 +80,11 @@ public sealed class Compiler {
     public int Compile() {
         diagnostics.Clear();
 
+        if (state.noStdLib || state.noBootStrap)
+            // In cases where the build script target has different cor library options than the build script itself,
+            // we need to invalidate the stored cor library in the compiler to force it to rebuild with the new options
+            InvalidateCorLibraryCache();
+
         if (state.buildMode.RunsImmediately())
             InternalInterpreter();
         else
@@ -133,6 +138,14 @@ public sealed class Compiler {
     public void AddLibraryErrors(BelteDiagnosticQueue libraryDiagnostics) {
         diagnostics.PushRange(libraryDiagnostics.Errors());
         diagnostics.Push(Fatal.LibraryError());
+    }
+
+    /// <summary>
+    /// Removes the cached cor library so it is rebuilt on the next compilation.
+    /// </summary>
+    public void InvalidateCorLibraryCache() {
+        _lazyCorLibrary = null;
+        _lazyCorLibraryDiagnostics = null;
     }
 
     private static int CalculateExitCode(BelteDiagnosticQueue diagnostics) {

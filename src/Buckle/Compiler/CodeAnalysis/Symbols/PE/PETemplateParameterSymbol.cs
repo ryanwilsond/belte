@@ -7,7 +7,6 @@ using System.Threading;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -328,6 +327,7 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
                 ((MethodSymbol)_containingSymbol).isOverride;
 
             var bounds = this.ResolveBounds(
+                containingAssembly.corLibrary,
                 inProgress.Prepend(this),
                 constraintTypes,
                 inherited,

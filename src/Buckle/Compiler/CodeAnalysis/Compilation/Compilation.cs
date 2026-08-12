@@ -1347,7 +1347,9 @@ public sealed partial class Compilation {
             graphicsLibraryOpt: graphicsLibrary
         );
 
-        compilation.declarationDiagnostics.PushRange(declarationDiagnostics);
+        if (_lazyDeclarationDiagnostics is not null)
+            compilation.declarationDiagnostics.PushRange(declarationDiagnostics);
+
         return compilation;
     }
 

@@ -2898,4 +2898,17 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void BufferArgument_InfersType() {
+        var text = @"
+            void F(Buffer<string?>? arg) { }
+
+            F({ ""test"" });
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

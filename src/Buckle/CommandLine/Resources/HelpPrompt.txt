@@ -50,6 +50,7 @@ Options:
   --verbose                   Display additional information about the compilation process.
   --vpath=<path>              Path to dump files produced by verbose mode.
   --info                      Display verbose information without producing artifacts.
+  --infoscript                Display minimal information for use in build pipelines.
   --sae                       Prompt for user input before and after compiling.
 
 Additional Resources:

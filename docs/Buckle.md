@@ -30,8 +30,8 @@ at `src/Program.blt`. Both locations must be unoccupied.
 
 Instead of using normal options, a build script can be used to drive the compilation. The build script is found
 automatically by searching the working directory for a file named `Build.blt`. When using this option, only
-[*--time*](#--time), [*--info*](#--info), and [*--debug*](#--debug) options can be specified in addition. All other
-arguments must be defined in the build script itself.
+[*--time*](#--time), [*--info*](#--info), [*--infoscript*](#--infoscript), and [*--debug*](#--debug) options can be
+specified in addition. All other arguments must be defined in the build script itself.
 
 Optionally, the build script path can be specified manually by passing it's path after a `-f` or `--file` argument.
 
@@ -258,6 +258,14 @@ Specifies the path the *--verbose* mode will dump files. Defaults to the working
 ### *--info*
 
 Displays *--verbose* information without producing file artifacts.
+
+### *--infoscript*
+
+Displays minimal information to indicate when the build started and finished. This is meant for when using the compiler
+as a step of a larger build process.
+
+This option does **not** contain [*--info*](#--info)/[*--verbose*](#--verbose) information so it can be used in junction
+with those.
 
 ### *--sae*
 

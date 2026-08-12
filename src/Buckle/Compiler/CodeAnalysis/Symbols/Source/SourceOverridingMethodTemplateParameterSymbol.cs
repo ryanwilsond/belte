@@ -70,6 +70,7 @@ internal sealed class SourceOverridingMethodTemplateParameterSymbol : SourceTemp
         var constraintTypes = map.SubstituteTypes(templateParameter.constraintTypes).SelectAsArray(t => t.type);
 
         return this.ResolveBounds(
+            containingAssembly.corLibrary,
             inProgress.Prepend(this),
             constraintTypes,
             true,

@@ -164,7 +164,9 @@ internal partial class ILEmitter : ModuleBuilder {
         _assemblies.Add(compilerAssembly);
 
         _belteCompilerGeneratedAttribute = ImportType("Buckle.CodeAnalysis.Emitting.BelteCompilerGeneratedAttribute");
-        _belteCompilerGeneratedAttributeCtor = Resolve(_belteCompilerGeneratedAttribute).GetConstructors().Single();
+        _belteCompilerGeneratedAttributeCtor = _assemblyDefinition.MainModule.ImportReferenceThreadSafe(
+            Resolve(_belteCompilerGeneratedAttribute).GetConstructors().Single()
+        );
     }
 
     internal static void Emit(
@@ -1476,9 +1478,6 @@ internal partial class ILEmitter : ModuleBuilder {
                         ? _specialTypes[SpecialType.IntPtr]
                         : GetType(f.type, f.refKind != RefKind.None)
                 );
-
-                if (TypeNeedsNullabilityAttribute(f.type, f.location))
-                    fieldDefinition.CustomAttributes.Add(CreateNullabilityAttribute(f.type));
 
                 if (type.IsStructType() && f.type.specialType == SpecialType.Bool)
                     fieldDefinition.MarshalInfo = new MarshalInfo(NativeType.I1);

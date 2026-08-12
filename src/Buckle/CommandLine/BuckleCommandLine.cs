@@ -121,11 +121,11 @@ public static partial class BuckleCommandLine {
             me = processName
         };
 
-        var hasDialog = dialogs.machine ||
-                        dialogs.version ||
-                        dialogs.help ||
-                        dialogs.error is not null ||
-                        dialogs.clearCache;
+        var hasEarlyExitDialog = dialogs.machine ||
+                                 dialogs.version ||
+                                 dialogs.help ||
+                                 dialogs.error is not null ||
+                                 dialogs.clearCache;
 
         if (multipleExplains)
             ResolveDiagnostic(Belte.Diagnostics.Error.MultipleExplains(), processName, state);
@@ -133,7 +133,7 @@ public static partial class BuckleCommandLine {
         if (dialogs.clearSubmissions)
             ShowClearSubmissionsDialog();
 
-        if (hasDialog) {
+        if (hasEarlyExitDialog) {
             diagnostics.Clear();
             diagnostics.Move(ShowDialogs(dialogs, multipleExplains));
             ResolveDiagnostics(diagnostics, processName, state);
@@ -185,6 +185,9 @@ public static partial class BuckleCommandLine {
         if (state.verboseMode && !state.noOut)
             LogCompilerState(state, pendingReferenceCopies);
 
+        if (dialogs.startStop)
+            ShowStartDialog(usingBuildScript: false);
+
         compiler.Compile();
 
         err = ResolveDiagnostics(compiler);
@@ -203,6 +206,9 @@ public static partial class BuckleCommandLine {
         }
 
         ResolveReferenceCopies(state.outputFilename, pendingReferenceCopies, processName, state);
+
+        if (dialogs.startStop)
+            ShowStopDialog();
 
         ResolveSae(sae);
         return SuccessExitCode;
@@ -319,7 +325,14 @@ public class {name} {{
     private static int ProcessBuildArgs(string processName, string[] args, out CompilerState state) {
         int err;
 
-        var buildState = DecodeBuildOptions(args, out var diagnostics, out var arguments, out var debugMode);
+        var buildState = DecodeBuildOptions(
+            args,
+            out var diagnostics,
+            out var arguments,
+            out var debugMode,
+            out var startStopDialog
+        );
+
         state = new CompilerState {
             noOut = false,
             diagnosticOptions = new TaskDiagnosticOptions() {
@@ -412,6 +425,9 @@ public class {name} {{
         if (state.verboseMode && !state.noOut)
             LogCompilerState(state, pendingReferenceCopies);
 
+        if (startStopDialog)
+            ShowStartDialog(usingBuildScript: true);
+
         compiler.Compile();
 
         err = ResolveDiagnostics(compiler);
@@ -434,6 +450,9 @@ public class {name} {{
             state,
             pendingDependencyCopies.Item2
         );
+
+        if (startStopDialog)
+            ShowStopDialog();
 
         return SuccessExitCode;
     }
@@ -855,6 +874,17 @@ public class {name} {{
         }
     }
 
+    private static void ShowStartDialog(bool usingBuildScript) {
+        if (usingBuildScript)
+            Console.WriteLine("buckle: starting build using build script");
+        else
+            Console.WriteLine("buckle: starting build using command-line options");
+    }
+
+    private static void ShowStopDialog() {
+        Console.WriteLine("buckle: finished build");
+    }
+
     private static DiagnosticQueue<Diagnostic> ShowDialogs(ShowDialogs dialogs, bool multipleExplains) {
         var diagnostics = new DiagnosticQueue<Diagnostic>();
 
@@ -1226,7 +1256,8 @@ public class {name} {{
         string[] args,
         out DiagnosticQueue<Diagnostic> diagnostics,
         out string[] arguments,
-        out bool debugMode) {
+        out bool debugMode,
+        out bool startStopDialog) {
         var state = new BuildState {
             showTime = false,
             showInfo = false,
@@ -1237,6 +1268,7 @@ public class {name} {{
         diagnostics = new DiagnosticQueue<Diagnostic>();
         arguments = Array.Empty<string>();
         debugMode = false;
+        startStopDialog = false;
 
         List<string> buildArgumentsBuilder = null;
 
@@ -1253,6 +1285,9 @@ public class {name} {{
             switch (arg) {
                 case "--info":
                     state.showInfo = true;
+                    break;
+                case "--infoscript":
+                    startStopDialog = true;
                     break;
                 case "--time":
                     state.showTime = true;
@@ -1327,6 +1362,7 @@ public class {name} {{
             clearSubmissions = false,
             clearCache = false,
             error = null,
+            startStop = false,
         };
 
         multipleExplains = false;
@@ -1427,6 +1463,9 @@ public class {name} {{
                 case "--info":
                     state.verboseMode = true;
                     state.reducedVerboseMode = true;
+                    break;
+                case "--infoscript":
+                    tempDialogs.startStop = true;
                     break;
                 case "--time":
                     state.time = true;

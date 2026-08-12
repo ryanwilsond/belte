@@ -74,6 +74,11 @@ internal static class WellKnownMemberExtensions {
                wellKnownMember <= WellKnownMember.ValueTuple_TRest_ctor;
     }
 
+    internal static bool IsArrayMember(this WellKnownMember wellKnownMember) {
+        return wellKnownMember >= WellKnownMember.Array_ctor_1 &&
+               wellKnownMember <= WellKnownMember.Array_Set;
+    }
+
     internal static string GetMetadataName(this WellKnownMember wellKnownMember) {
         return MetadataNames[(int)wellKnownMember - 1];
     }

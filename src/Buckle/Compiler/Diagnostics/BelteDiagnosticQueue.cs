@@ -15,16 +15,26 @@ namespace Buckle.Diagnostics;
 public partial class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
     internal static readonly BelteDiagnosticQueue Discarded = new DiscardedDiagnosticQueue();
 
+    internal readonly ICollection<AssemblySymbol> dependenciesBag;
+
+#if DEBUG
+    private static readonly DebugObjectPool Pool = new DebugObjectPool(() => new BelteDiagnosticQueue(Pool));
+
+    private readonly DebugObjectPool _pool;
+
+    private BelteDiagnosticQueue(DebugObjectPool pool) : base() {
+        _pool = pool;
+    }
+#else
     private static readonly ObjectPool<BelteDiagnosticQueue> Pool
         = new ObjectPool<BelteDiagnosticQueue>(() => new BelteDiagnosticQueue(Pool));
-
-    internal readonly ICollection<AssemblySymbol> dependenciesBag;
 
     private readonly ObjectPool<BelteDiagnosticQueue> _pool;
 
     private BelteDiagnosticQueue(ObjectPool<BelteDiagnosticQueue> pool) : base() {
         _pool = pool;
     }
+#endif
 
     /// <summary>
     /// Creates a <see cref="BelteDiagnosticQueue" /> with no Diagnostics.
@@ -84,22 +94,44 @@ public partial class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
     }
 
     public virtual DiagnosticInfo Push<T>(T diagnostic) where T : Diagnostic {
+#if DEBUG
+        AssertNotFreed();
+#endif
+
         return base.Push(new BelteDiagnostic(diagnostic));
     }
 
     public new virtual DiagnosticInfo Push(BelteDiagnostic diagnostic) {
+#if DEBUG
+        AssertNotFreed();
+#endif
+
         return base.Push(diagnostic);
     }
 
     public new virtual void PushRange(IEnumerable<BelteDiagnostic> diagnostics) {
+#if DEBUG
+        AssertNotFreed();
+#endif
+
         base.PushRange(diagnostics);
     }
 
     public virtual void PushRange(BelteDiagnosticQueue diagnostics) {
+#if DEBUG
+        AssertNotFreed();
+        diagnostics.AssertNotFreed();
+#endif
+
         base.PushRange(diagnostics);
     }
 
     public virtual void Move(BelteDiagnosticQueue diagnostics) {
+#if DEBUG
+        AssertNotFreed();
+        diagnostics.AssertNotFreed();
+#endif
+
         base.Move(diagnostics);
     }
 
@@ -116,17 +148,30 @@ public partial class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
     }
 
     internal BelteDiagnostic[] ToArrayAndFree() {
+#if DEBUG
+        AssertNotFreed();
+#endif
+
         var diagnostics = ToArray();
         Free();
         return diagnostics;
     }
 
     internal virtual void PushRangeAndFree(BelteDiagnosticQueue diagnostics) {
+#if DEBUG
+        AssertNotFreed();
+        diagnostics.AssertNotFreed();
+#endif
+
         PushRange(diagnostics);
         diagnostics.Free();
     }
 
     internal ImmutableArray<BelteDiagnostic> ToImmutableAndFree() {
+#if DEBUG
+        AssertNotFreed();
+#endif
+
         return ToArrayAndFree().ToImmutableArray();
     }
 
@@ -211,4 +256,35 @@ public partial class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
     private string GetDebuggerDisplay() {
         return "Count = " + (_diagnostics?.Count ?? 0);
     }
+
+#if DEBUG
+    private bool _freedFromPool = false;
+
+    [Conditional("DEBUG")]
+    private void AssertNotFreed() {
+        Debug.Assert(!_freedFromPool, "Use of BelteDiagnosticQueue after Free()");
+    }
+
+    /// <summary>
+    /// A mock ObjectPool that never reuses objects to find use-after-frees.
+    /// This type is only used in debug builds.
+    /// </summary>
+    private sealed class DebugObjectPool {
+        private readonly ObjectPool<BelteDiagnosticQueue>.Factory _factory;
+
+        internal DebugObjectPool(ObjectPool<BelteDiagnosticQueue>.Factory factory) {
+            _factory = factory;
+        }
+
+        internal BelteDiagnosticQueue Allocate() {
+            return _factory();
+        }
+
+        internal void Free(BelteDiagnosticQueue item) {
+            Debug.Assert(!item._freedFromPool, "BelteDiagnosticQueue freed twice");
+            item._freedFromPool = true;
+        }
+    }
+#endif
+
 }

@@ -43,6 +43,7 @@ internal static partial class ConstraintsHelpers {
 
     internal static TypeParameterBounds ResolveBounds(
         this TemplateParameterSymbol templateParameter,
+        CorLibrary corLibrary,
         ConsList<TemplateParameterSymbol> inProgress,
         ImmutableArray<TypeWithAnnotations> constraintTypes,
         bool inherited,
@@ -50,6 +51,7 @@ internal static partial class ConstraintsHelpers {
         BelteDiagnosticQueue diagnostics,
         TextLocation errorLocation) {
         var bounds = templateParameter.ResolveBoundsCore(
+            corLibrary,
             inProgress,
             constraintTypes,
             inherited,
@@ -66,13 +68,17 @@ internal static partial class ConstraintsHelpers {
 
     internal static TypeParameterBounds ResolveBoundsCore(
         this TemplateParameterSymbol templateParameter,
+        CorLibrary corLibrary,
         ConsList<TemplateParameterSymbol> inProgress,
         ImmutableArray<TypeWithAnnotations> constraintTypes,
         bool inherited,
         Compilation currentCompilation,
         BelteDiagnosticQueue diagnostics,
         TextLocation errorLocation) {
-        var effectiveBaseClass = currentCompilation.GetSpecialType(SpecialType.Object);
+        var effectiveBaseClass = corLibrary.GetSpecialType(
+            templateParameter.hasValueTypeConstraint ? SpecialType.ValueType : SpecialType.Object
+        );
+
         TypeSymbol deducedBaseType = effectiveBaseClass;
 
         ImmutableArray<NamedTypeSymbol> interfaces;
