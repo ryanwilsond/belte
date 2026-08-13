@@ -570,7 +570,12 @@ internal sealed class Expander : SharedExpander {
         for (var i = 0; i < arguments.Length; i++) {
             var local = ((BoundDataContainerExpression)arguments[i]).dataContainer;
             var field = GetTupleField(syntax, i, expression.right.type, local.type, newRight);
-            statements.Add(LocalDeclaration(syntax, local, field));
+
+            // TODO This probably breaks if reusing a previous declaration expression variable
+            if (local.declarationKind == DataContainerDeclarationKind.DeclarationExpressionVariable)
+                statements.Add(LocalDeclaration(syntax, local, field));
+            else
+                statements.Add(Statement(syntax, Assignment(syntax, Local(syntax, local), field, false, local.type)));
         }
 
         if (useKind == UseKind.None) {

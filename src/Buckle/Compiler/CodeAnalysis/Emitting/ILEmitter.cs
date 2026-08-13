@@ -132,10 +132,18 @@ internal partial class ILEmitter : ModuleBuilder {
 
         var assemblyName = new AssemblyNameDefinition(assemblySimpleName, new Version(1, 0));
 
+        var assemblyResolver = new DefaultAssemblyResolver();
+        assemblyResolver.AddSearchDirectory(AppContext.BaseDirectory);
+
+        var moduleParams = new ModuleParameters() {
+            AssemblyResolver = assemblyResolver,
+            Kind = _isDll ? ModuleKind.Dll : ModuleKind.Console
+        };
+
         _assemblyDefinition = AssemblyDefinition.CreateAssembly(
             assemblyName,
             assemblySimpleName,
-            _isDll ? ModuleKind.Dll : ModuleKind.Console
+            moduleParams
         );
 
         var belteRuntimeData = File.ReadAllBytes(_belteDllName);
