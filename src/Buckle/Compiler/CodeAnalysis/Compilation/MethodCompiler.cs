@@ -28,6 +28,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
     private readonly Dictionary<NamedTypeSymbol, SynthesizedEnumMethodContainer> _enumMethodContainerTypes;
     private readonly Predicate<Symbol> _filter;
     private readonly bool _collectSymbols;
+    private readonly bool _hasDeclarationErrors;
 
     private ConcurrentQueue<Action> _workQueue;
     private ManualResetEventSlim _signal;
@@ -53,7 +54,8 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder typeLayouts,
         Dictionary<NamedTypeSymbol, SynthesizedEnumMethodContainer> enumMethodContainerTypes,
         Predicate<Symbol> filter,
-        bool collectSymbols) {
+        bool collectSymbols,
+        bool hasDeclarationErrors) {
         _compilation = compilation;
         _diagnostics = diagnostics;
         _entryPoint = entryPoint;
@@ -66,6 +68,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         _synthesizedNestedTypes = [];
         _collectSymbols = collectSymbols;
         _enumMethodContainerTypes = enumMethodContainerTypes;
+        _hasDeclarationErrors = hasDeclarationErrors;
     }
 
     internal bool transpiling => _compilation.options.buildMode == BuildMode.CSharpTranspile;
@@ -78,9 +81,9 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         Compilation compilation,
         BelteDiagnosticQueue diagnostics,
         Predicate<Symbol> filter,
+        bool hasDeclarationErrors,
         bool skipEntryPoint = false,
-        bool collectSymbols = false,
-        bool anyErrors = false) {
+        bool collectSymbols = false) {
         var emittingToDll = compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
         var globalNamespace = compilation.globalNamespaceInternal;
 
@@ -130,7 +133,8 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             typeLayouts,
             enumMethodContainerTypes,
             filter,
-            collectSymbols
+            collectSymbols,
+            hasDeclarationErrors
         );
 
         if (compilation.options.concurrentBuild) {
@@ -149,7 +153,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             methodCompiler.CompileNamespace(globalNamespace);
         }
 
-        if (!anyErrors && !diagnostics.AnyErrors()) {
+        if (!hasDeclarationErrors && !diagnostics.AnyErrors()) {
             if (methodCompiler._sawCompileTimeExpression)
                 methodCompiler.ComputeCompileTimeExpressions();
 
@@ -165,8 +169,10 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         if (compilation.options.optimizationLevel == OptimizationLevel.Debug)
             methodCompiler.InjectSequencePoints();
 
-        if (((SourceModuleSymbol)compilation.sourceModule).hasBadAttributes && !anyErrors && !diagnostics.AnyErrors())
+        if (((SourceModuleSymbol)compilation.sourceModule).hasBadAttributes &&
+            !hasDeclarationErrors && !diagnostics.AnyErrors()) {
             diagnostics.Push(Error.ModuleEmitFailure(compilation.sourceModule.name));
+        }
 
         return methodCompiler.CreateBoundProgram();
     }
@@ -732,9 +738,9 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         state.currentImportChain = importChain;
 
         if (body is not null)
-            DiagnosticPass.ReportDiagnostics(body, currentDiagnostics);
+            DiagnosticPass.ReportDiagnostics(body, currentDiagnostics, _entryPoint?.containingType);
 
-        if (currentDiagnostics.AnyErrors())
+        if (currentDiagnostics.AnyErrors() || _hasDeclarationErrors || processedInitializers.hasErrors)
             return currentDiagnostics;
 
         var loweredBody = LowerBody(
@@ -830,8 +836,6 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                 state.compilation.options.optimizationLevel,
                 method,
                 body,
-                entryPoint?.containingType,
-                currentDiagnostics,
                 sawCompileTimeExpression: out sawCompileTimeExpression,
                 sawNonTypeTemplate: out sawNonTypeTemplate,
                 sawLambda: out var sawLambda,

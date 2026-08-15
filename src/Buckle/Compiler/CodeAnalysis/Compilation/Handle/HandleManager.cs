@@ -5,7 +5,6 @@ using System.Threading;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis;
 
@@ -142,6 +141,7 @@ internal sealed class HandleManager {
 
                 return false;
             },
+            hasDeclarationErrors: false,
             skipEntryPoint: true,
             collectSymbols: true
         );

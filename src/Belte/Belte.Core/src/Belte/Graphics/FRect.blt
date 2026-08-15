@@ -1,4 +1,6 @@
 
+namespace Belte.Graphics;
+
 public class FRect {
     public decimal x;
     public decimal y;

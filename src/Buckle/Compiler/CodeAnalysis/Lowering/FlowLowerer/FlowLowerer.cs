@@ -1,7 +1,5 @@
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.Diagnostics;
-using Buckle.Libraries;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
@@ -14,16 +12,14 @@ internal sealed partial class FlowLowerer : SharedFlowLowerer {
     private FlowLowerer(
         Compilation compilation,
         MethodSymbol method,
-        BoundBlockStatement body,
-        BelteDiagnosticQueue diagnostics)
-        : base(compilation, method, body, diagnostics) { }
+        BoundBlockStatement body)
+        : base(compilation, method, body) { }
 
     internal new static BoundBlockStatement Lower(
         Compilation compilation,
         MethodSymbol method,
-        BoundBlockStatement statement,
-        BelteDiagnosticQueue diagnostics) {
-        var lowerer = new FlowLowerer(compilation, method, statement, diagnostics);
+        BoundBlockStatement statement) {
+        var lowerer = new FlowLowerer(compilation, method, statement);
         return (BoundBlockStatement)lowerer.Visit(statement);
     }
 

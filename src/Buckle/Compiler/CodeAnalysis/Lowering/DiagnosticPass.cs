@@ -1,4 +1,5 @@
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Lowering;
@@ -6,16 +7,21 @@ namespace Buckle.CodeAnalysis.Lowering;
 // TODO Many more warnings we could check for here
 internal sealed class DiagnosticPass : BoundTreeWalkerWithStackGuard {
     private readonly BelteDiagnosticQueue _diagnostics;
+    private readonly NamedTypeSymbol _entryType;
 
     private bool _seenPossibleThrowingNode;
 
-    private DiagnosticPass(BelteDiagnosticQueue diagnostics) {
+    private DiagnosticPass(BelteDiagnosticQueue diagnostics, NamedTypeSymbol entryType) {
         _diagnostics = diagnostics;
+        _entryType = entryType;
     }
 
-    internal static void ReportDiagnostics(BoundNode node, BelteDiagnosticQueue diagnostics) {
+    internal static void ReportDiagnostics(
+        BoundNode node,
+        BelteDiagnosticQueue diagnostics,
+        NamedTypeSymbol entryType) {
         try {
-            var diagnosticPass = new DiagnosticPass(diagnostics);
+            var diagnosticPass = new DiagnosticPass(diagnostics, entryType);
             diagnosticPass.Visit(node);
         } catch (CancelledByStackGuardException ex) {
             ex.AddAnError(diagnostics);
@@ -32,6 +38,20 @@ internal sealed class DiagnosticPass : BoundTreeWalkerWithStackGuard {
         Visit(node.catchBody);
         Visit(node.finallyBody);
         return null;
+    }
+
+    internal override BoundNode VisitExpressionStatement(BoundExpressionStatement node) {
+        if (node.expression is BoundCallExpression call && !call.method.returnsVoid) {
+            if (call.method.hasMustUseReturnValueAttribute)
+                _diagnostics.Push(Error.IgnoringRequiredReturnValue(call.syntax.location, call.method));
+            else if (call.method is not ErrorMethodSymbol)
+                _diagnostics.Push(Warning.IgnoringReturnValue(call.syntax.location, call.method));
+        } else if (node.expression is BoundFunctionPointerCallExpression pCall &&
+            !pCall.functionPointer.signature.returnsVoid) {
+            _diagnostics.Push(Warning.IgnoringReturnValue(pCall.syntax.location, pCall.functionPointer.signature));
+        }
+
+        return base.VisitExpressionStatement(node);
     }
 
     internal override BoundNode VisitAssignmentOperator(BoundAssignmentOperator node) {
@@ -192,6 +212,10 @@ internal sealed class DiagnosticPass : BoundTreeWalkerWithStackGuard {
 
     internal override BoundNode VisitObjectCreationExpression(BoundObjectCreationExpression node) {
         _seenPossibleThrowingNode |= !node.constructor.isNoThrow;
+
+        if (_entryType is not null && node.type.Equals(_entryType))
+            _diagnostics.Push(Error.CannotCreateEntryType(node.syntax.location));
+
         return base.VisitObjectCreationExpression(node);
     }
 

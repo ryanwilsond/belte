@@ -10,12 +10,6 @@ internal static class WellKnownTypes {
         { "global::List`1", WellKnownType.List },
         { "global::Dictionary`2", WellKnownType.Dictionary },
         { "global::Enumerator`1", WellKnownType.Enumerator },
-        { "global::Vec2", WellKnownType.Vec2 },
-        { "global::Sprite", WellKnownType.Sprite },
-        { "global::Text", WellKnownType.Text },
-        { "global::Rect", WellKnownType.Rect },
-        { "global::Texture", WellKnownType.Texture },
-        { "global::Sound", WellKnownType.Sound },
         { "global::ValueTuple`1", WellKnownType.ValueTuple_T1 },
         { "global::ValueTuple`2", WellKnownType.ValueTuple_T2 },
         { "global::ValueTuple`3", WellKnownType.ValueTuple_T3 },
@@ -31,8 +25,8 @@ internal static class WellKnownTypes {
     };
 
     internal static WellKnownType GetTypeFromMetadataName(string metadataName) {
-        if (NameToTypeMap.TryGetValue(metadataName, out var specialType))
-            return specialType;
+        if (NameToTypeMap.TryGetValue(metadataName, out var wellKnownType))
+            return wellKnownType;
 
         return WellKnownType.None;
     }

@@ -19,8 +19,15 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// Nodes can be revisited.
 /// </summary>
 internal sealed class Expander : SharedExpander {
-    internal Expander(Compilation compilation, MethodSymbol container, BelteDiagnosticQueue diagnostics)
-        : base(compilation, container, diagnostics) { }
+    private readonly HashSet<DataContainerSymbol> _declaredLocals = [];
+
+    internal Expander(Compilation compilation, MethodSymbol container) : base(compilation, container) { }
+
+    private protected override List<BoundStatement> ExpandLocalDeclarationStatement(
+        BoundLocalDeclarationStatement statement) {
+        _declaredLocals.Add(statement.declaration.dataContainer);
+        return base.ExpandLocalDeclarationStatement(statement);
+    }
 
     private protected override List<BoundStatement> ExpandFieldAccessExpression(
         BoundFieldAccessExpression expression,
@@ -571,8 +578,7 @@ internal sealed class Expander : SharedExpander {
             var local = ((BoundDataContainerExpression)arguments[i]).dataContainer;
             var field = GetTupleField(syntax, i, expression.right.type, local.type, newRight);
 
-            // TODO This probably breaks if reusing a previous declaration expression variable
-            if (local.declarationKind == DataContainerDeclarationKind.DeclarationExpressionVariable)
+            if (_declaredLocals.Add(local))
                 statements.Add(LocalDeclaration(syntax, local, field));
             else
                 statements.Add(Statement(syntax, Assignment(syntax, Local(syntax, local), field, false, local.type)));

@@ -3,7 +3,6 @@ using System.Collections.Immutable;
 using System.Reflection.Metadata;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
-using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 

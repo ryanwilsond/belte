@@ -38,8 +38,9 @@ public sealed partial class Compilation {
     private readonly static Predicate<Symbol> SkipLibrariesFilter
         = type => type is not SynthesizedFinishedNamedTypeSymbol;
 
+    private static MetadataReferenceResolver GlobalReferenceResolver;
+
     private readonly NamespaceSymbol _specialNamespace;
-    private readonly MetadataReferenceResolver _metadataReferenceResolver;
     // This is not readonly because its possible in a concurrent setup one manager beats the others in creating shared
     // assembly data, in which it will retroactively apply itself to compilations
     private ReferenceManager _referenceManager;
@@ -77,6 +78,7 @@ public sealed partial class Compilation {
         Compilation previous,
         SyntaxAndDeclarationManager syntax,
         ReferenceManager referenceManager,
+        bool reuseReferenceManager,
         NamespaceSymbol namespaceOpt = null,
         bool forwardDiagnostics = false,
         StandardLibrary standardLibraryOpt = null,
@@ -91,19 +93,14 @@ public sealed partial class Compilation {
         if (forwardDiagnostics && previous?.declarationDiagnostics is not null)
             declarationDiagnostics.PushRange(previous.declarationDiagnostics);
 
-        _metadataReferenceResolver = new FileReferenceResolver();
-
-        externalReferences = MakeExternalReferences(
-            options.references,
-            _metadataReferenceResolver,
-            declarationDiagnostics
-        );
+        externalReferences = MakeExternalReferences(options.references, declarationDiagnostics);
 
         _lazyStandardLibrary = standardLibraryOpt;
         _lazyGraphicsLibrary = graphicsLibraryOpt;
 
-        // TODO non-null referenceManager implies reuseReferenceManager, which may not be wanted in all cases
-        if (referenceManager is not null) {
+        if (reuseReferenceManager) {
+            Debug.Assert(referenceManager is not null);
+
             _lazyCorLibrary = referenceManager.corLibrary;
             referenceManager.AssertCanReuseForCompilation(this);
             _referenceManager = referenceManager;
@@ -112,7 +109,7 @@ public sealed partial class Compilation {
                 corLibrary,
                 assemblyName,
                 AssemblyIdentityComparer.Default,
-                observedMetadata: null
+                observedMetadata: referenceManager?.observedMetadata
             );
         }
 
@@ -230,7 +227,12 @@ public sealed partial class Compilation {
         }
     }
 
-    internal MetadataReferenceResolver metadataReferenceResolver => _metadataReferenceResolver;
+    internal MetadataReferenceResolver metadataReferenceResolver {
+        get {
+            Debug.Assert(GlobalReferenceResolver is not null);
+            return GlobalReferenceResolver;
+        }
+    }
 
     internal ModuleSymbol sourceModule => assembly.modules[0];
 
@@ -501,6 +503,7 @@ public sealed partial class Compilation {
             previous,
             _syntax,
             _referenceManager,
+            reuseReferenceManager: true,
             namespaceSymbol,
             standardLibraryOpt: standardLibrary,
             graphicsLibraryOpt: graphicsLibrary
@@ -883,38 +886,45 @@ public sealed partial class Compilation {
 
     private static ImmutableArray<MetadataReference> MakeExternalReferences(
         string[] references,
-        MetadataReferenceResolver referenceResolver,
         BelteDiagnosticQueue diagnostics) {
+        // TODO This logic should probably be moved to Compiler or even BuckleCommandLine
+        // This just shares a resolver for all compilations because we always use the same resolution rules
+        // This also allows caching to prevent recomputing PE assemblies
+        if (GlobalReferenceResolver is null)
+            Interlocked.CompareExchange(ref GlobalReferenceResolver, new FileReferenceResolver(), null);
+
         if (references.Length == 0)
             return [];
 
         var builder = ArrayBuilder<MetadataReference>.GetInstance(references.Length);
         var uniqueReferences = new HashSet<string>();
 
-        foreach (var reference in references) {
-            if (IsDuplicateReferenceByString(reference, uniqueReferences, diagnostics))
-                continue;
+        lock (GlobalReferenceResolver) {
+            foreach (var reference in references) {
+                if (IsDuplicateReferenceByString(reference, uniqueReferences, diagnostics))
+                    continue;
 
-            ImmutableArray<PortableExecutableReference> refs;
+                ImmutableArray<PortableExecutableReference> refs;
 
-            try {
-                refs = referenceResolver.ResolveReference(
-                    reference,
-                    baseFilePath: null,
-                    // TODO We only allow assembly references currently
-                    MetadataReferenceProperties.Assembly
-                );
-            } catch (Exception e) when (e is BadImageFormatException or IOException) {
-                diagnostics.Push(Error.InvalidReference(reference));
-                continue;
+                try {
+                    refs = GlobalReferenceResolver.ResolveReference(
+                        reference,
+                        baseFilePath: null,
+                        // TODO We only allow assembly references currently
+                        MetadataReferenceProperties.Assembly
+                    );
+                } catch (Exception e) when (e is BadImageFormatException or IOException) {
+                    diagnostics.Push(Error.InvalidReference(reference));
+                    continue;
+                }
+
+                if (refs.IsDefaultOrEmpty) {
+                    diagnostics.Push(Error.InvalidReference(reference));
+                    continue;
+                }
+
+                builder.AddRange(refs);
             }
-
-            if (refs.IsDefaultOrEmpty) {
-                diagnostics.Push(Error.InvalidReference(reference));
-                continue;
-            }
-
-            builder.AddRange(refs);
         }
 
         return builder.ToImmutableAndFree();
@@ -1004,6 +1014,16 @@ public sealed partial class Compilation {
 
     internal NamedTypeSymbol GetSpecialType(SpecialType specialType) {
         return corLibrary.GetSpecialType(specialType);
+    }
+
+    internal NamedTypeSymbol GetAnyWellKnownType(WellKnownType type) {
+        // This gets the well known type regardless of if it's native or PE
+        // TODO Eventually all native well known types should be obsoleted
+
+        if (type > WellKnownType.LastNativeType)
+            return GetWellKnownType(type);
+
+        return corLibrary.GetWellKnownType(type);
     }
 
     internal NamedTypeSymbol GetWellKnownType(WellKnownType type) {
@@ -1343,6 +1363,7 @@ public sealed partial class Compilation {
             previous,
             syntax,
             _referenceManager,
+            reuseReferenceManager: true,
             standardLibraryOpt: standardLibrary,
             graphicsLibraryOpt: graphicsLibrary
         );
@@ -1492,7 +1513,8 @@ public sealed partial class Compilation {
             options,
             previous,
             new SyntaxAndDeclarationManager([], null),
-            null
+            previous?._referenceManager,
+            reuseReferenceManager: false
         );
 
         if (syntaxTrees is not null)
@@ -1538,7 +1560,7 @@ public sealed partial class Compilation {
         }
 
         if (includeMethods) {
-            EnsureBoundProgramAndMethodDiagnostics(builder.AnyErrors());
+            EnsureBoundProgramAndMethodDiagnostics(hasDeclarationErrors: builder.AnyErrors());
             ReportUnusedImports();
             builder.PushRange(methodDiagnostics);
         }
@@ -1571,9 +1593,9 @@ public sealed partial class Compilation {
             usedImports.Contains(position);
     }
 
-    private void EnsureBoundProgramAndMethodDiagnostics(bool anyErrors) {
+    private void EnsureBoundProgramAndMethodDiagnostics(bool hasDeclarationErrors) {
         if (_lazyBoundProgram is null)
-            CreateBoundProgramAndMethodDiagnostics(anyErrors);
+            CreateBoundProgramAndMethodDiagnostics(hasDeclarationErrors);
     }
 
     internal void ReplaceBoundProgram(BoundProgram program, BelteDiagnosticQueue methodDiagnostics) {
@@ -1601,13 +1623,13 @@ public sealed partial class Compilation {
         handleManager.SendParsedMessage();
     }
 
-    private void CreateBoundProgramAndMethodDiagnostics(bool anyErrors) {
+    private void CreateBoundProgramAndMethodDiagnostics(bool hasDeclarationErrors) {
         _lazyMethodDiagnostics = new BelteDiagnosticQueue();
         _lazyBoundProgram = MethodCompiler.CompileMethodBodies(
             this,
             _lazyMethodDiagnostics,
             SkipLibrariesFilter,
-            anyErrors: anyErrors
+            hasDeclarationErrors
         );
 
         handleManager.SendBoundMessage();

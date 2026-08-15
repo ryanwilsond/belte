@@ -1,4 +1,6 @@
 
+namespace Belte.Graphics;
+
 public class Text {
     private intptr ptr = nullptr;
     public string text = "";

@@ -1,4 +1,6 @@
 
+namespace Belte.Graphics;
+
 public class Sprite {
     public Vec2 position;
     public int rotation;

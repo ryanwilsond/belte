@@ -7,7 +7,6 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -26,8 +25,6 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
     private readonly bool _transpiling;
     private readonly MethodCompiler _methodCompiler;
     private readonly MethodSymbol _method;
-    private readonly NamedTypeSymbol _entryType;
-    private readonly BelteDiagnosticQueue _diagnostics;
     private readonly Compilation _compilation;
 
     private bool _sawCompileTimeExpression;
@@ -38,16 +35,12 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
     private Lowerer(
         Compilation compilation,
         MethodCompiler methodCompiler,
-        MethodSymbol container,
-        NamedTypeSymbol entryType,
-        BelteDiagnosticQueue diagnostics) {
+        MethodSymbol container) {
         _compilation = compilation;
         _methodCompiler = methodCompiler;
-        _entryType = entryType;
-        _diagnostics = diagnostics;
         _expander = methodCompiler.transpiling
-            ? new SharedExpander(_compilation, container, diagnostics)
-            : new Expander(_compilation, container, diagnostics);
+            ? new SharedExpander(_compilation, container)
+            : new Expander(_compilation, container);
         _method = container;
         _transpiling = methodCompiler.transpiling;
     }
@@ -58,13 +51,11 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         OptimizationLevel optimizationLevel,
         MethodSymbol method,
         BoundBlockStatement statement,
-        NamedTypeSymbol entryType,
-        BelteDiagnosticQueue diagnostics,
         out bool sawCompileTimeExpression,
         out bool sawNonTypeTemplate,
         out bool sawLambda,
         out bool sawLocalFunction) {
-        var lowerer = new Lowerer(compilation, methodCompiler, method, entryType, diagnostics);
+        var lowerer = new Lowerer(compilation, methodCompiler, method);
         var optimize = optimizationLevel == OptimizationLevel.Release && !methodCompiler.transpiling;
 
         var rewrittenStatement = statement;
@@ -82,11 +73,11 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         }
 
         if (methodCompiler.transpiling) {
-            rewrittenStatement = SharedFlowLowerer.Lower(compilation, method, rewrittenStatement, diagnostics);
+            rewrittenStatement = SharedFlowLowerer.Lower(compilation, method, rewrittenStatement);
             rewrittenStatement = lowerer._expander.Expand(rewrittenStatement);
             rewrittenStatement = (BoundBlockStatement)lowerer.Visit(rewrittenStatement);
         } else {
-            rewrittenStatement = FlowLowerer.Lower(compilation, method, rewrittenStatement, diagnostics);
+            rewrittenStatement = FlowLowerer.Lower(compilation, method, rewrittenStatement);
             rewrittenStatement = lowerer._expander.Expand(rewrittenStatement);
             rewrittenStatement = (BoundBlockStatement)lowerer.Visit(rewrittenStatement);
             rewrittenStatement = Flatten(method, rewrittenStatement);
@@ -118,6 +109,19 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
             return VisitConstant(_compilation, e);
 
         return base.Visit(node);
+    }
+
+    internal override BoundNode VisitErrorExpression(BoundErrorExpression node) {
+        // There shouldn't be a case where we need to lower an error expression
+        // Either a diagnostic should have been reported, or in rarer cases declaration errors cover why the error node
+        // was created
+        Debug.Assert(false);
+        return base.VisitErrorExpression(node);
+    }
+
+    internal override BoundNode VisitErrorStatement(BoundErrorStatement node) {
+        Debug.Assert(false);
+        return base.VisitErrorStatement(node);
     }
 
     internal override TypeSymbol VisitType(TypeSymbol type) {
@@ -191,21 +195,6 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         }
 
         return block.Update(builder.Reverse().ToImmutableArray(), block.locals, block.localFunctions);
-    }
-
-    internal override BoundNode VisitExpressionStatement(BoundExpressionStatement node) {
-        // TODO This is the kind of thing that should probably go in DiagnosticPass instead of Lowerer
-        if (node.expression is BoundCallExpression call && !call.method.returnsVoid) {
-            if (call.method.hasMustUseReturnValueAttribute)
-                _diagnostics.Push(Error.IgnoringRequiredReturnValue(call.syntax.location, call.method));
-            else
-                _diagnostics.Push(Warning.IgnoringReturnValue(call.syntax.location, call.method));
-        } else if (node.expression is BoundFunctionPointerCallExpression pCall &&
-            !pCall.functionPointer.signature.returnsVoid) {
-            _diagnostics.Push(Warning.IgnoringReturnValue(pCall.syntax.location, pCall.functionPointer.signature));
-        }
-
-        return base.VisitExpressionStatement(node);
     }
 
     internal override BoundNode VisitBinaryOperator(BoundBinaryOperator node) {
@@ -1228,9 +1217,6 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
 
         if (type.IsStructType() && node.constructor is SynthesizedInstanceConstructorSymbol)
             return new BoundDefaultExpression(node.syntax, false, null, null, type);
-
-        if (_entryType is not null && type.Equals(_entryType))
-            _diagnostics.Push(Error.CannotCreateEntryType(node.syntax.location));
 
         return base.VisitObjectCreationExpression(node);
     }

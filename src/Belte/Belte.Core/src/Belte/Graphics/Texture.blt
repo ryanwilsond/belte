@@ -1,4 +1,6 @@
 
+namespace Belte.Graphics;
+
 public class Texture {
     private const intptr ptr;
     public const int width;

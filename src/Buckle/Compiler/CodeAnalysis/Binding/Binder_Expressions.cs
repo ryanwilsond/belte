@@ -8,7 +8,6 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -7511,6 +7510,20 @@ internal partial class Binder {
 
                         var value = BindValue(interpolation.expression, diagnostics, BindValueKind.RValue);
                         value = BindToNaturalType(value, diagnostics);
+
+                        if (value.type is not null && value.Type().isValueType && !value.Type().IsStructType()) {
+                            // Expander recreates and uses the conversions but we report diagnostics here
+                            if (!value.Type().IsNullableType()) {
+                                _ = CreateConversion(value, stringType, diagnostics);
+                            } else {
+                                var placeholder = new BoundValuePlaceholder(
+                                    interpolation.expression,
+                                    value.StrippedType()
+                                );
+
+                                _ = CreateConversion(placeholder, stringType, diagnostics);
+                            }
+                        }
 
                         builder.Add(value);
 

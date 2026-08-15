@@ -3553,7 +3553,7 @@ internal sealed partial class Evaluator {
 
                     evaluatedArguments[0] = LoadTexture(path);
 
-                    var spriteType = _compilation.corLibrary.GetWellKnownType(WellKnownType.Sprite);
+                    var spriteType = _compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Sprite);
                     var constructor = spriteType.instanceConstructors[0];
 
                     var sprite = CreateObject(spriteType, abort);
@@ -3605,7 +3605,7 @@ internal sealed partial class Evaluator {
                     var path = GetFilePath(evaluatedArguments[1].@string, location)
                         ?? throw new BelteEvaluatorException("Cannot load text: path does not exist.", location);
 
-                    var textType = _compilation.corLibrary.GetWellKnownType(WellKnownType.Text);
+                    var textType = _compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Text);
                     var textPtr = CreateObject(textType, abort);
                     var text = H(textPtr);
 
@@ -3677,7 +3677,7 @@ internal sealed partial class Evaluator {
                 break;
             case "Graphics_GetMousePosition": {
                     var (x, y) = _context.graphicsHandler.GetMousePosition();
-                    var vecType = _compilation.corLibrary.GetWellKnownType(WellKnownType.Vec2);
+                    var vecType = _compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Vec2);
                     var vec = CreateObject(vecType, abort);
 
                     InvokeMethod(
@@ -3771,7 +3771,7 @@ internal sealed partial class Evaluator {
                     var path = GetFilePath(EvaluateExpression(arguments[0], true, abort).@string, location)
                         ?? throw new BelteEvaluatorException("Cannot load sound: path does not exist.", location);
 
-                    var soundType = _compilation.corLibrary.GetWellKnownType(WellKnownType.Sound);
+                    var soundType = _compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Sound);
                     var soundPtr = CreateObject(soundType, abort);
                     var sound = H(soundPtr);
 
@@ -3834,7 +3834,7 @@ internal sealed partial class Evaluator {
         }
 
         EvaluatorValue LoadTexture(string path, bool useColorKey = false, long r = 255, long g = 255, long b = 255) {
-            var textureType = _compilation.corLibrary.GetWellKnownType(WellKnownType.Texture);
+            var textureType = _compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Texture);
             var texturePointer = CreateObject(textureType, abort);
             var texture = _context.heap[texturePointer.ptr];
             var texture2D = (_context.graphicsHandler?.LoadTexture(path, useColorKey, r, g, b))

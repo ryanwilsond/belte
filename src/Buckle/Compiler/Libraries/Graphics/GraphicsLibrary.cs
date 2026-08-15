@@ -29,12 +29,12 @@ internal class GraphicsLibrary {
     private SpecialOrKnownType Int => _compilation.GetSpecialType(SpecialType.Int);
     private SpecialOrKnownType Bool => _compilation.GetSpecialType(SpecialType.Bool);
     private SpecialOrKnownType Decimal => _compilation.GetSpecialType(SpecialType.Decimal);
-    private SpecialOrKnownType Texture => _compilation.corLibrary.GetWellKnownType(WellKnownType.Texture);
-    private SpecialOrKnownType Sprite => _compilation.corLibrary.GetWellKnownType(WellKnownType.Sprite);
-    private SpecialOrKnownType Text => _compilation.corLibrary.GetWellKnownType(WellKnownType.Text);
-    private SpecialOrKnownType Sound => _compilation.corLibrary.GetWellKnownType(WellKnownType.Sound);
-    private SpecialOrKnownType Vec2 => _compilation.corLibrary.GetWellKnownType(WellKnownType.Vec2);
-    private SpecialOrKnownType Rect => _compilation.corLibrary.GetWellKnownType(WellKnownType.Rect);
+    private SpecialOrKnownType Texture => _compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Texture);
+    private SpecialOrKnownType Sprite => _compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Sprite);
+    private SpecialOrKnownType Text => _compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Text);
+    private SpecialOrKnownType Sound => _compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Sound);
+    private SpecialOrKnownType Vec2 => _compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Vec2);
+    private SpecialOrKnownType Rect => _compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Rect);
 
     internal bool MethodProducesTemp(MethodSymbol method) {
         return method.name == "GetMousePosition" || method.name == "LoadSprite";

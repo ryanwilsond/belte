@@ -46,14 +46,14 @@
     <Content Remove="../../Belte/Belte.Core/src/Global/Attributes/DllImportAttribute.blt" />
     <Content Remove="../../Belte/Belte.Core/src/Global/Attributes/UnmanagedAttribute.blt" />
     <Content Remove="../../Belte/Belte.Core/src/Global/Attributes/MustUseReturnValueAttribute.blt" />
-    <Content Remove="../../Belte/Belte.Core/src/Global/Graphics/Vec2.blt" />
-    <Content Remove="../../Belte/Belte.Core/src/Global/Graphics/Sprite.blt" />
-    <Content Remove="../../Belte/Belte.Core/src/Global/Graphics/Text.blt" />
-    <Content Remove="../../Belte/Belte.Core/src/Global/Graphics/Rect.blt" />
-    <Content Remove="../../Belte/Belte.Core/src/Global/Graphics/Texture.blt" />
-    <Content Remove="../../Belte/Belte.Core/src/Global/Graphics/FRect.blt" />
-    <Content Remove="../../Belte/Belte.Core/src/Global/Graphics/Vec4.blt" />
-    <Content Remove="../../Belte/Belte.Core/src/Global/Graphics/Sound.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Belte/Graphics/Vec2.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Belte/Graphics/Sprite.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Belte/Graphics/Text.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Belte/Graphics/Rect.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Belte/Graphics/Texture.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Belte/Graphics/FRect.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Belte/Graphics/Vec4.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Belte/Graphics/Sound.blt" />
 
 
     <Content Remove="../../../docs/images/BelteCapital.png" />
@@ -88,14 +88,14 @@
     <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Attributes/DllImportAttribute.blt" />
     <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Attributes/UnmanagedAttribute.blt" />
     <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Attributes/MustUseReturnValueAttribute.blt" />
-    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Graphics/Vec2.blt" />
-    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Graphics/Sprite.blt" />
-    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Graphics/Text.blt" />
-    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Graphics/Rect.blt" />
-    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Graphics/Texture.blt" />
-    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Graphics/FRect.blt" />
-    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Graphics/Vec4.blt" />
-    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Graphics/Sound.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Belte/Graphics/Vec2.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Belte/Graphics/Sprite.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Belte/Graphics/Text.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Belte/Graphics/Rect.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Belte/Graphics/Texture.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Belte/Graphics/FRect.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Belte/Graphics/Vec4.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Belte/Graphics/Sound.blt" />
 
 
     <EmbeddedResource Include="../../../docs/images/BelteCapital.png" />

@@ -349,7 +349,9 @@ public sealed partial class Compilation {
                     corLibrary = null;
 
                 if (corLibrary is not null) {
-                    corLibrary.SetCorLibraryInternal(this.corLibrary);
+                    // In a reuse scenario this could already be set
+                    if (corLibrary.corLibrary is null)
+                        corLibrary.SetCorLibraryInternal(this.corLibrary);
 
                     if ((object)corLibrary != assemblySymbol)
                         assemblySymbol.SetCorLibrary(corLibrary);

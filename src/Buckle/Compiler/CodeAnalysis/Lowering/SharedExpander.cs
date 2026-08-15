@@ -5,7 +5,6 @@ using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -16,15 +15,13 @@ namespace Buckle.CodeAnalysis.Lowering;
 internal class SharedExpander : BoundTreeExpander {
     private Dictionary<BoundValuePlaceholder, BoundExpression> _placeholderReplacementMapDoNotUseDirectly;
 
-    private protected readonly BelteDiagnosticQueue _diagnostics;
     private protected readonly Compilation _compilation;
 
     private readonly Dictionary<TokenSymbol, List<BoundStatement>> _tokenMap;
 
-    internal SharedExpander(Compilation compilation, MethodSymbol container, BelteDiagnosticQueue diagnostics) {
+    internal SharedExpander(Compilation compilation, MethodSymbol container) {
         _compilation = compilation;
         _container = container;
-        _diagnostics = diagnostics;
         _tokenMap = [];
     }
 
@@ -694,24 +691,16 @@ internal class SharedExpander : BoundTreeExpander {
                 } else if (replacementContent.Type().isValueType && !replacementContent.Type().IsStructType()) {
                     var conversions = TypeConversions.GetInstance();
 
+                    // TODO This error checking should be moved to the Binder or DiagnosticPass otherwise
+
                     if (!replacementContent.Type().IsNullableType()) {
                         var conversion = conversions.ClassifyConversionFromExpression(replacementContent, stringType);
-
-                        if (!conversion.exists) {
-                            _diagnostics.Push(
-                                Error.CannotConvert(syntax.location, replacementContent.Type(), stringType)
-                            );
-                        }
+                        Debug.Assert(conversion.exists);
 
                         right = Cast(syntax, stringType, replacementContent, conversion, null);
                     } else {
                         var conversion = conversions.ClassifyConversionFromExpression(replacementContent, stringType);
-
-                        if (!conversion.exists) {
-                            _diagnostics.Push(
-                                Error.CannotConvert(syntax.location, replacementContent.StrippedType(), stringType)
-                            );
-                        }
+                        Debug.Assert(conversion.exists);
 
                         right = new BoundConditionalOperator(syntax,
                             new BoundIsOperator(syntax,

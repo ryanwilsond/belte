@@ -2911,4 +2911,27 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Deconstruction_AllowsUsingPriorLocals() {
+        var text = @"
+            int a = 3;
+            int b = 0;
+            (a, b) = (4, 5);
+            return a;
+        ";
+
+        AssertValue(text, 4);
+    }
+
+    [Fact]
+    public void Deconstruction_AllowsUsingPriorDeconstructionLocals() {
+        var text = @"
+            (int a, int b) = (6, 7);
+            (a, b) = (4, 5);
+            return a;
+        ";
+
+        AssertValue(text, 4);
+    }
 }

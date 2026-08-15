@@ -29,13 +29,6 @@ internal enum WellKnownType : byte {
     ValueTuple_T7,
     ValueTuple_TRest,
 
-    Vec2,
-    Sprite,
-    Text,
-    Rect,
-    Texture,
-    Sound,
-
     Array,
 
     DllImportAttribute,
@@ -58,11 +51,18 @@ internal enum WellKnownType : byte {
     Belte_CompilerServices_BelteMetadataAttribute,
     Belte_NullabilityAttribute,
 
+    Belte_Graphics_Vec2,
+    Belte_Graphics_Sprite,
+    Belte_Graphics_Text,
+    Belte_Graphics_Rect,
+    Belte_Graphics_Texture,
+    Belte_Graphics_Sound,
+
 
     LastNativeType = MustUseReturnValueAttribute,
     LastNativeRequiredType = Enumerator,
     FirstPEType = System_Exception,
-    LastPEType = Belte_NullabilityAttribute,
+    LastPEType = Belte_Graphics_Sound,
 
     ExtSentinel = 255,
 }

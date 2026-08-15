@@ -14,12 +14,6 @@ internal static class WellKnownTypeExtensions {
         "ValueTuple`6",
         "ValueTuple`7",
         "ValueTuple`8",
-        "Vec2",
-        "Sprite",
-        "Text",
-        "Rect",
-        "Texture",
-        "Sound",
         "Array`1",
         "DllImportAttribute",
         "UnmanagedAttribute",
@@ -36,6 +30,12 @@ internal static class WellKnownTypeExtensions {
         "Belte.PureAttribute",
         "Belte.CompilerServices.BelteMetadataAttribute",
         "Belte.NullabilityAttribute",
+        "Belte.Graphics.Vec2",
+        "Belte.Graphics.Sprite",
+        "Belte.Graphics.Text",
+        "Belte.Graphics.Rect",
+        "Belte.Graphics.Texture",
+        "Belte.Graphics.Sound",
     ];
 
     internal static bool ShouldEmit(this WellKnownType wellKnownType, bool noStdLib, bool includeGraphicsTypes) {
@@ -46,12 +46,12 @@ internal static class WellKnownTypeExtensions {
             case WellKnownType.Enumerator:
             case WellKnownType.Array:
                 return true;
-            case WellKnownType.Vec2 when includeGraphicsTypes || noStdLib:
-            case WellKnownType.Sprite when includeGraphicsTypes || noStdLib:
-            case WellKnownType.Text when includeGraphicsTypes || noStdLib:
-            case WellKnownType.Rect when includeGraphicsTypes || noStdLib:
-            case WellKnownType.Texture when includeGraphicsTypes || noStdLib:
-            case WellKnownType.Sound when includeGraphicsTypes || noStdLib:
+            case WellKnownType.Belte_Graphics_Vec2 when includeGraphicsTypes && noStdLib:
+            case WellKnownType.Belte_Graphics_Sprite when includeGraphicsTypes && noStdLib:
+            case WellKnownType.Belte_Graphics_Text when includeGraphicsTypes && noStdLib:
+            case WellKnownType.Belte_Graphics_Rect when includeGraphicsTypes && noStdLib:
+            case WellKnownType.Belte_Graphics_Texture when includeGraphicsTypes && noStdLib:
+            case WellKnownType.Belte_Graphics_Sound when includeGraphicsTypes && noStdLib:
                 return true;
             case WellKnownType.ValueTuple_T1 when noStdLib:
             case WellKnownType.ValueTuple_T2 when noStdLib:

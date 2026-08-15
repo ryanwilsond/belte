@@ -1,4 +1,6 @@
 
+namespace Belte.Graphics;
+
 public class Sound {
     private intptr ptr = nullptr;
     public decimal volume = 1;

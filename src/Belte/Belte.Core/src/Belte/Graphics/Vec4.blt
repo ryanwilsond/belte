@@ -1,4 +1,6 @@
 
+namespace Belte.Graphics;
+
 public class Vec4 {
     public decimal a;
     public decimal b;

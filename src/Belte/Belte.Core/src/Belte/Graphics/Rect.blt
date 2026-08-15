@@ -1,4 +1,6 @@
 
+namespace Belte.Graphics;
+
 public class Rect {
     public int x;
     public int y;

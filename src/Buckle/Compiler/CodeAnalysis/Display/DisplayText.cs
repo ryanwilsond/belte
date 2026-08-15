@@ -306,6 +306,9 @@ public sealed class DisplayText {
             case BoundKind.PointerIndirectionOperator:
                 DisplayPointerIndirectionOperator(text, (BoundPointerIndirectionOperator)node);
                 break;
+            case BoundKind.ClampOperator:
+                DisplayClampOperator(text, (BoundClampOperator)node);
+                break;
             case BoundKind.DataContainerDeclaration:
                 DisplayDataContainerDeclaration(text, (BoundDataContainerDeclaration)node);
                 break;
@@ -1257,6 +1260,15 @@ public sealed class DisplayText {
     private static void DisplayPointerIndirectionOperator(DisplayText text, BoundPointerIndirectionOperator node) {
         text.Write(CreatePunctuation(SyntaxKind.AsteriskToken));
         DisplayNode(text, node.operand);
+    }
+
+    private static void DisplayClampOperator(DisplayText text, BoundClampOperator node) {
+        DisplayNode(text, node.left);
+        text.Write(CreatePunctuation(" >< ["));
+        DisplayNode(text, node.lower);
+        text.Write(CreatePunctuation(", "));
+        DisplayNode(text, node.upper);
+        text.Write(CreatePunctuation("]"));
     }
 
     private static void DisplayTypeOfExpression(DisplayText text, BoundTypeOfExpression node) {

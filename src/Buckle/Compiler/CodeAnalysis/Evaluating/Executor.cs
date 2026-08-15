@@ -1002,20 +1002,20 @@ internal sealed partial class Executor : ModuleBuilder {
     private void CompleteWellKnownTypes() {
         var existingWellKnownTypes = new List<WellKnownType>();
 
-        if (_compilation.corLibrary.HasWellKnownType(WellKnownType.Sprite) &&
-            !_topLevelTypes.Contains(_compilation.corLibrary.GetWellKnownType(WellKnownType.Sprite))) {
-            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.Sprite), typeof(BSprite));
-            existingWellKnownTypes.Add(WellKnownType.Sprite);
-            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.Rect), typeof(BRect));
-            existingWellKnownTypes.Add(WellKnownType.Rect);
-            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.Vec2), typeof(BVec2));
-            existingWellKnownTypes.Add(WellKnownType.Vec2);
-            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.Texture), typeof(BTexture));
-            existingWellKnownTypes.Add(WellKnownType.Texture);
-            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.Text), typeof(BText));
-            existingWellKnownTypes.Add(WellKnownType.Text);
-            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.Sound), typeof(BSound));
-            existingWellKnownTypes.Add(WellKnownType.Sound);
+        if (_compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Sprite) is not MissingMetadataTypeSymbol &&
+            !_topLevelTypes.Contains(_compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Sprite))) {
+            _bakedTypes.Add(_compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Sprite), typeof(BSprite));
+            existingWellKnownTypes.Add(WellKnownType.Belte_Graphics_Sprite);
+            _bakedTypes.Add(_compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Rect), typeof(BRect));
+            existingWellKnownTypes.Add(WellKnownType.Belte_Graphics_Rect);
+            _bakedTypes.Add(_compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Vec2), typeof(BVec2));
+            existingWellKnownTypes.Add(WellKnownType.Belte_Graphics_Vec2);
+            _bakedTypes.Add(_compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Texture), typeof(BTexture));
+            existingWellKnownTypes.Add(WellKnownType.Belte_Graphics_Texture);
+            _bakedTypes.Add(_compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Text), typeof(BText));
+            existingWellKnownTypes.Add(WellKnownType.Belte_Graphics_Text);
+            _bakedTypes.Add(_compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Sound), typeof(BSound));
+            existingWellKnownTypes.Add(WellKnownType.Belte_Graphics_Sound);
         }
 
         if (_compilation.corLibrary.HasWellKnownType(WellKnownType.ValueTuple_T1) &&
@@ -1039,7 +1039,7 @@ internal sealed partial class Executor : ModuleBuilder {
         }
 
         foreach (var type in existingWellKnownTypes) {
-            var typeSymbol = _compilation.corLibrary.GetWellKnownType(type);
+            var typeSymbol = _compilation.GetAnyWellKnownType(type);
             var native = _bakedTypes[typeSymbol];
 
             foreach (var member in typeSymbol.GetMembers()) {

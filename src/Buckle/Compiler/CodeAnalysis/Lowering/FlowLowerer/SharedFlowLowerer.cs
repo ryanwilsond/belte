@@ -3,7 +3,6 @@ using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
@@ -15,17 +14,14 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
     private int _tempCount = 0;
     private int _labelCount;
 
-    private protected readonly BelteDiagnosticQueue _diagnostics;
     private protected readonly Compilation _compilation;
 
     private protected SharedFlowLowerer(
         Compilation compilation,
         MethodSymbol method,
-        BoundBlockStatement body,
-        BelteDiagnosticQueue diagnostics) {
+        BoundBlockStatement body) {
         _compilation = compilation;
         _container = method;
-        _diagnostics = diagnostics;
         _localNames.AddRange(body.locals.Select(l => l.name));
     }
 
@@ -34,9 +30,8 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
     internal static BoundBlockStatement Lower(
         Compilation compilation,
         MethodSymbol method,
-        BoundBlockStatement statement,
-        BelteDiagnosticQueue diagnostics) {
-        var lowerer = new SharedFlowLowerer(compilation, method, statement, diagnostics);
+        BoundBlockStatement statement) {
+        var lowerer = new SharedFlowLowerer(compilation, method, statement);
         return (BoundBlockStatement)lowerer.Visit(statement);
     }
 
