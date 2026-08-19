@@ -3010,6 +3010,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_PotentialThrowInNoThrowContext, location, message);
     }
 
+    internal static BelteDiagnostic CompileTimeTemplateMustBeType(TextLocation location) {
+        var message = $"compile-time template parameter must have an underlying type of 'type!'";
+        return CreateError(DiagnosticCode.ERR_CompileTimeTemplateMustBeType, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

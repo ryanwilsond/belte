@@ -694,6 +694,9 @@ internal partial class Binder {
                 );
 
                 break;
+            case SyntaxKind.TemplateSpecializedType:
+                var templateTypeSyntax = (TemplateSpecializedTypeSyntax)syntax;
+                return BindType(templateTypeSyntax.type, diagnostics, basesBeingResolved);
             default:
                 return new TypeWithAnnotations(CreateErrorType());
         }
@@ -1418,6 +1421,10 @@ internal partial class Binder {
                         argument.type,
                         targetType
                     );
+                } else if (argument.isTypeOrConstant &&
+                    argument.typeOrConstant.isTemplateSpecializedType &&
+                    parameter.isCompileTimeType) {
+                    diagnostics.Push(Warning.UnnecessaryTemplateSpecialization(argument.syntax.location));
                 }
             } else {
                 Debug.Assert(diagnostics.Count > 0);
@@ -1610,9 +1617,12 @@ internal partial class Binder {
         if (type.StrippedType() is not ErrorTypeSymbol || SyntaxFacts.IsGuaranteedType(argument.expression.kind)) {
             analyzedArguments.types.Add(type);
             analyzedArguments.hasErrors.Add(type.ContainsErrorType());
-            analyzedArguments.arguments.Add(
-                new BoundExpressionOrTypeOrConstant(compilation, argument, new TypeOrConstant(type))
-            );
+
+            var typeOrConst = argument.expression.kind == SyntaxKind.TemplateSpecializedType
+                ? TypeOrConstant.CreateTemplateSpecialized(type)
+                : new TypeOrConstant(type);
+
+            analyzedArguments.arguments.Add(new BoundExpressionOrTypeOrConstant(compilation, argument, typeOrConst));
             diagnostics.PushRangeAndFree(typeDiagnostics);
             return;
         }

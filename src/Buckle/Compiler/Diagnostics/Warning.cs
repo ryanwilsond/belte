@@ -284,6 +284,11 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_FailedToEmitAttribute, location, message);
     }
 
+    internal static BelteDiagnostic UnnecessaryTemplateSpecialization(TextLocation location) {
+        var message = $"template specialization is unnecessary because the target is marked as compile-time only";
+        return CreateWarning(DiagnosticCode.WRN_UnnecessaryTemplateSpecialization, location, message);
+    }
+
     private static BelteDiagnostic CreateWarning(DiagnosticCode code, TextLocation location, string message) {
         return CreateWarning(code, location, message, []);
     }

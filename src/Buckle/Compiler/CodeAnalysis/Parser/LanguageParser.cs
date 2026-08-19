@@ -1941,7 +1941,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         _bracketStack.Push(SyntaxKind.GreaterThanToken);
         var saved = _terminatorState;
         _terminatorState |= TerminatorState.IsEndOfTemplateParameterList;
-        var parameters = ParseParameters();
+        var parameters = ParseParameters(allowDollarToken: true);
         _terminatorState = saved;
         _bracketStack.Pop();
 
@@ -1950,14 +1950,14 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return SyntaxFactory.TemplateParameterList(openAngleBracket, parameters, closeAngleBracket);
     }
 
-    private SeparatedSyntaxList<ParameterSyntax> ParseParameters() {
+    private SeparatedSyntaxList<ParameterSyntax> ParseParameters(bool allowDollarToken = false) {
         var nodesAndSeparators = _pool.Allocate<BelteSyntaxNode>();
         var parseNextParameter = true;
 
         while (parseNextParameter &&
             currentToken.kind != SyntaxKind.CloseParenToken &&
             currentToken.kind != SyntaxKind.EndOfFileToken) {
-            var expression = ParseParameter();
+            var expression = ParseParameter(allowDollarToken);
             nodesAndSeparators.Add(expression);
 
             if (currentToken.kind == SyntaxKind.CommaToken) {
@@ -1992,19 +1992,20 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return _pool.ToSeparatedListAndFree<FunctionPointerParameterSyntax>(nodesAndSeparators);
     }
 
-    private ParameterSyntax ParseParameter() {
+    private ParameterSyntax ParseParameter(bool allowDollarToken = false) {
         if (_isIncrementalAndFactoryContextMatches && CanReuseParameter(currentNode as Syntax.ParameterSyntax))
             return (ParameterSyntax)EatNode();
 
         var attributes = ParseAttributeLists();
         var modifiers = ParseParameterModifiers();
         var type = ParseType(false);
+        var dollar = allowDollarToken ? EatIfMatch(SyntaxKind.DollarToken) : null;
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.EqualsToken);
         var defaultValue = currentToken.kind == SyntaxKind.EqualsToken
             ? ParseEqualsValueClause()
             : null;
 
-        return SyntaxFactory.Parameter(attributes, modifiers, type, identifier, defaultValue);
+        return SyntaxFactory.Parameter(attributes, modifiers, type, dollar, identifier, defaultValue);
     }
 
     private FunctionPointerParameterSyntax ParseFunctionPointerParameter() {
@@ -4436,7 +4437,7 @@ done:
 
         if ((_context & ParserContext.InTemplateArgumentList) != 0) {
             var resetPoint = GetResetPoint();
-            var type = ParseType(allowRef: false);
+            var type = ParseTemplateArgumentType();
 
             if (currentToken.kind is SyntaxKind.CommaToken or SyntaxKind.GreaterThanToken) {
                 expression = type;
@@ -4461,6 +4462,16 @@ done:
         }
 
         return SyntaxFactory.Argument(name, colon, refKindKeyword, expression);
+    }
+
+    private TypeSyntax ParseTemplateArgumentType() {
+        if (currentToken.contextualKind == SyntaxKind.TemplateKeyword) {
+            var keyword = ConvertToKeyword(EatToken());
+            var type = ParseType(allowRef: false);
+            return SyntaxFactory.TemplateSpecializedType(keyword, type);
+        }
+
+        return ParseType(allowRef: false);
     }
 
     private SyntaxList<AttributeListSyntax> ParseAttributeLists() {

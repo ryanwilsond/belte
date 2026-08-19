@@ -188,6 +188,7 @@ public enum SyntaxKind : ushort {
     NoallocKeyword,
     PureKeyword,
     MemoizeKeyword,
+    TemplateKeyword,
 
     // Trivia
     EndOfLineTrivia,
@@ -343,6 +344,7 @@ public enum SyntaxKind : ushort {
     ArrayType,
     NonNullableType,
     NullableType,
+    TemplateSpecializedType,
     PointerType,
     FunctionPointerType,
     FunctionType,

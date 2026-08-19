@@ -46,6 +46,8 @@ internal sealed class SynthesizedTemplateParameterSymbol : TemplateParameterSymb
 
     internal override bool isOptional => false;
 
+    internal override bool isCompileTimeType => false;
+
     internal override TypeOrConstant defaultValue => null;
 
     internal override Symbol containingSymbol { get; }

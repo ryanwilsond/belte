@@ -47,6 +47,8 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
 
     internal sealed override bool isSealed => false;
 
+    internal abstract bool isCompileTimeType { get; }
+
     internal abstract TypeWithAnnotations underlyingType { get; }
 
     internal abstract TemplateParameterKind templateParameterKind { get; }

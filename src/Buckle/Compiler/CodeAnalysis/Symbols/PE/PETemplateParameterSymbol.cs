@@ -88,6 +88,9 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
 
     internal override bool isOptional => false;
 
+    // TODO This will need to be done eventually
+    internal override bool isCompileTimeType => false;
+
     internal override bool hasNotNullConstraint {
         get {
             return false;

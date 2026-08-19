@@ -213,6 +213,7 @@ These keywords only act as keywords inside specific contexts. As such they can b
 - [pure](ClassesAndObjects.md#4223-behavior-specifiers)
 - [set](ClassesAndObjects.md#424-properties)
 - [state](ClassesAndObjects.md#4222-state-and-reverse-clauses)
+- [template](ClassesAndObjects.md#452-compile-time-type-template-parameters)
 - [undef](Preprocessor.md#71-defineundef)
 
 ## 1.4 Nullability and Types

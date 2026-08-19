@@ -97,6 +97,9 @@
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
     <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
     <Field Name="type" Type="TypeSyntax" Override="true"/>
+    <Field Name="dollar" Type="SyntaxToken" Optional="true">
+      <Kind Name="DollarToken"/>
+    </Field>
     <Field Name="identifier" Type="SyntaxToken">
       <Kind Name="IdentifierToken"/>
     </Field>
@@ -472,6 +475,13 @@
     <Kind Name="NullableType"/>
     <Field Name="type" Type="TypeSyntax"/>
     <Field Name="questionToken" Type="SyntaxToken"/>
+  </Node>
+  <Node Name="TemplateSpecializedTypeSyntax" Base="TypeSyntax">
+    <Kind Name="TemplateSpecializedType"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="TemplateKeyword"/>
+    </Field>
+    <Field Name="type" Type="TypeSyntax"/>
   </Node>
   <Node Name="PointerTypeSyntax" Base="TypeSyntax">
     <Kind Name="PointerType"/>

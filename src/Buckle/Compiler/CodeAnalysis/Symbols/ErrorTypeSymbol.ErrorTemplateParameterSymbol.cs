@@ -58,6 +58,8 @@ internal abstract partial class ErrorTypeSymbol {
 
         internal override bool isOptional => false;
 
+        internal override bool isCompileTimeType => false;
+
         internal override void EnsureConstraintsAreResolved() { }
 
         internal override ImmutableArray<TypeWithAnnotations> GetConstraintTypes(

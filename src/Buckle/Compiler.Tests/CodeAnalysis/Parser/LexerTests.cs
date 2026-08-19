@@ -77,6 +77,7 @@ public sealed class LexerTests {
         untestedTokenTypes.Remove(SyntaxKind.PureKeyword);
         untestedTokenTypes.Remove(SyntaxKind.SetKeyword);
         untestedTokenTypes.Remove(SyntaxKind.StateKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.TemplateKeyword);
         untestedTokenTypes.Remove(SyntaxKind.UndefKeyword);
         untestedTokenTypes.ExceptWith(testedTokenTypes);
 

@@ -9008,4 +9008,33 @@ var text = """"""
 
     // ! Reports_Warning_BU0613_FailedToEmitAttribute
     // ? Requires command-line arguments (--nostdlib)
+
+    [Fact]
+    public void Reports_Error_BU0614_CompileTimeTemplateMustBeType() {
+        var text = @"
+            class A<[int $B]> { }
+            ;
+        ";
+
+        var diagnostics = @"
+            compile-time template parameter must have an underlying type of 'type!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0615_UnnecessaryTemplateSpecialization() {
+        var text = @"
+            class A<type $B> { }
+
+            A<[template int]> a = new();
+        ";
+
+        var diagnostics = @"
+            template specialization is unnecessary because the target is marked as compile-time only
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, true);
+    }
 }

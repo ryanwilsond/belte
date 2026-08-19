@@ -44,6 +44,8 @@ internal sealed class IndexedTemplateParameterSymbol : TemplateParameterSymbol {
 
     internal override bool isOptional => false;
 
+    internal override bool isCompileTimeType => false;
+
     internal override Symbol containingSymbol => null;
 
     internal override SyntaxReference syntaxReference => null;

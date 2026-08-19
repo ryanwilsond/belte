@@ -142,6 +142,7 @@
       - [4.5.1](Current/ClassesAndObjects.md#451-constraint-clauses) Constraint Clauses
         - [4.5.1.1](Current/ClassesAndObjects.md#4511-expression-constraints) Expression Constraints
         - [4.5.1.2](Current/ClassesAndObjects.md#4512-special-constraints) Special Constraints
+      - [4.5.2](Current/ClassesAndObjects.md#452-compile-time-type-template-parameters) Compile-Time Type Template Parameters
     - [4.6](Current/ClassesAndObjects.md#46-enums) Enums
       - [4.6.1](Current/ClassesAndObjects.md#461-flags) Flags
       - [4.6.2](Current/ClassesAndObjects.md#462-implicit-enum-fields) Implicit Enum Fields

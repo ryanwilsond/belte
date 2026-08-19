@@ -218,10 +218,7 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
     }
 
     internal static bool ShouldEmit(ISymbolWithTemplates type) {
-        if (type.templateParameters.Any(t => t.underlyingType.specialType != SpecialType.Type))
-            return false;
-
-        return true;
+        return IsGenericOnly(type);
     }
 
     internal TypeWithAnnotations SubstituteType(
@@ -238,7 +235,12 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
 
     private static bool IsGenericOnly(ISymbolWithTemplates symbol) {
         foreach (var templateParameter in symbol.templateParameters) {
-            if (templateParameter.underlyingType.specialType != SpecialType.Type)
+            if (templateParameter.underlyingType.specialType != SpecialType.Type || templateParameter.isCompileTimeType)
+                return false;
+        }
+
+        foreach (var templateArgument in symbol.templateArguments) {
+            if (templateArgument.isTemplateSpecializedType)
                 return false;
         }
 
@@ -255,6 +257,12 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
                 else
                     return false;
             }
+
+            if (symbol.templateParameters[i].isCompileTimeType)
+                return false;
+
+            if (symbol.templateArguments[i].isTemplateSpecializedType)
+                return false;
         }
 
         return true;
@@ -467,9 +475,14 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
 
             var builder = ArrayBuilder<TypeOrConstant>.GetInstance(replacement.arity);
 
-            foreach (var templateArgument in source.templateArguments) {
-                if (templateArgument.isType)
-                    builder.Add(templateArgument);
+            Debug.Assert(source.templateParameters.Length == source.templateArguments.Length);
+
+            for (var i = 0; i < source.templateParameters.Length; i++) {
+                var parameter = source.templateParameters[i];
+                var argument = source.templateArguments[i];
+
+                if (argument.isType && !argument.isTemplateSpecializedType && !parameter.isCompileTimeType)
+                    builder.Add(argument);
             }
 
             Debug.Assert(builder.Count == replacement.arity);

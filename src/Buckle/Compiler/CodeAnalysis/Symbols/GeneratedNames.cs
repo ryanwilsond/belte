@@ -64,13 +64,20 @@ internal static class GeneratedNames {
         var first = true;
 
         for (var i = 0; i < symbol.templateParameters.Length; i++) {
-            if (symbol.templateParameters[i].underlyingType.specialType != SpecialType.Type) {
+            var shouldInclude = symbol.templateParameters[i].underlyingType.specialType != SpecialType.Type ||
+                symbol.templateParameters[i].isCompileTimeType ||
+                symbol.templateArguments[i].isTemplateSpecializedType;
+
+            if (shouldInclude) {
                 if (first)
                     first = false;
                 else
                     builder.Append(',');
 
-                builder.Append(DisplayText.FormatLiteral(symbol.templateArguments[i].constant.value));
+                if (symbol.templateArguments[i].isConstant)
+                    builder.Append(DisplayText.FormatLiteral(symbol.templateArguments[i].constant.value));
+                else
+                    builder.Append(symbol.templateArguments[i].type.ToDisplayString());
             }
         }
 

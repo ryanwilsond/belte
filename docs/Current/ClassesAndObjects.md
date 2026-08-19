@@ -27,6 +27,7 @@
   - [4.5.1](#451-constraint-clauses) Constraint Clauses
     - [4.5.1.1](#4511-expression-constraints) Expression Constraints
     - [4.5.1.2](#4512-special-constraints) Special Constraints
+  - [4.5.2](#452-compile-time-type-template-parameters) Compile-Time Type Template Parameters
 - [4.6](#46-enums) Enums
   - [4.6.1](#461-flags) Flags
   - [4.6.2](#462-implicit-enum-fields) Implicit Enum Fields
@@ -1075,6 +1076,27 @@ struct S {
   int a;
 }
 ```
+
+### 4.5.2 Compile-Time Type Template Parameters
+
+By default, all type template parameters are reified generics that resolve at runtime. To instead have type template
+parameters expand at compile time like non-type template parameters do, they can be marked:
+
+```belte
+// '$' indicates the type template parameter should be evaluated at compile time
+class A<type $T> { }
+```
+
+Alternatively, given a declaration that has runtime type template parameters, a specific instantiation can be expanded
+at compile time using the `template` keyword:
+
+```belte
+class A<type T> { }
+
+A<template int> a = new();
+```
+
+This is useful for when using types that are normally reified generics in performance critical code.
 
 ## 4.6 Enums
 

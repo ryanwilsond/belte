@@ -260,6 +260,7 @@ public static class SyntaxFacts {
             "noalloc" => SyntaxKind.NoallocKeyword,
             "pure" => SyntaxKind.PureKeyword,
             "memoize" => SyntaxKind.MemoizeKeyword,
+            "template" => SyntaxKind.TemplateKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -289,6 +290,7 @@ public static class SyntaxFacts {
             case SyntaxKind.PureKeyword:
             case SyntaxKind.SetKeyword:
             case SyntaxKind.StateKeyword:
+            case SyntaxKind.TemplateKeyword:
             case SyntaxKind.UndefKeyword:
                 return true;
             default:
@@ -465,6 +467,7 @@ public static class SyntaxFacts {
             SyntaxKind.NoallocKeyword => "noalloc",
             SyntaxKind.PureKeyword => "pure",
             SyntaxKind.MemoizeKeyword => "memoize",
+            SyntaxKind.TemplateKeyword => "template",
             _ => null,
         };
     }
@@ -683,6 +686,7 @@ public static class SyntaxFacts {
             case SyntaxKind.ArrayType:
             case SyntaxKind.ReferenceType:
             case SyntaxKind.NullableType:
+            case SyntaxKind.TemplateSpecializedType:
             case SyntaxKind.NonNullableType:
             case SyntaxKind.PointerType:
             case SyntaxKind.FunctionType:
@@ -847,7 +851,8 @@ public static class SyntaxFacts {
     /// </summary>
     /// <returns>Unary operator types (calling code should not depend on order).</returns>
     internal static IEnumerable<SyntaxKind> GetUnaryOperatorTypes() {
-        var types = (SyntaxKind[])Enum.GetValues(typeof(SyntaxKind));
+        var types = Enum.GetValues<SyntaxKind>();
+
         foreach (var type in types) {
             if (GetUnaryPrecedence(type) > 0)
                 yield return type;
@@ -859,7 +864,8 @@ public static class SyntaxFacts {
     /// </summary>
     /// <returns>Binary operator types (calling code should not depend on order).</returns>
     internal static IEnumerable<SyntaxKind> GetBinaryOperatorTypes() {
-        var types = (SyntaxKind[])Enum.GetValues(typeof(SyntaxKind));
+        var types = Enum.GetValues<SyntaxKind>();
+
         foreach (var type in types) {
             if (GetBinaryPrecedence(type) > 0)
                 yield return type;
@@ -867,7 +873,7 @@ public static class SyntaxFacts {
     }
 
     private const int FirstKeyword = (int)SyntaxKind.TypeOfKeyword;
-    private const int LastKeyword = (int)SyntaxKind.MemoizeKeyword;
+    private const int LastKeyword = (int)SyntaxKind.TemplateKeyword;
 
     /// <summary>
     /// Checks if a <see cref="SyntaxKind" /> is a keyword.

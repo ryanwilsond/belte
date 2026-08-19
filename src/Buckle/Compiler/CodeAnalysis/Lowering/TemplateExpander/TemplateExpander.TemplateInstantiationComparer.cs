@@ -20,8 +20,8 @@ internal sealed partial class TemplateExpander {
 
                 Debug.Assert(argX.isConstant == argY.isConstant);
 
-                // Type template arguments are ignored
-                if (argX.isConstant) {
+                // Ordinary type template arguments are ignored
+                if (argX.isConstant || argX.isTemplateSpecializedType || x.templateParameters[i].isCompileTimeType) {
                     if (!argX.IsSameAs(argY))
                         return false;
                 }
@@ -33,9 +33,12 @@ internal sealed partial class TemplateExpander {
         public int GetHashCode(T obj) {
             var code = (obj as Symbol).originalDefinition.GetHashCode();
 
-            foreach (var templateArgument in obj.templateArguments) {
-                if (templateArgument.isConstant)
-                    code = Hash.Combine(templateArgument, code);
+            for (var i = 0; i < obj.templateArguments.Length; i++) {
+                var argument = obj.templateArguments[i];
+                var parameter = obj.templateParameters[i];
+
+                if (argument.isConstant || argument.isTemplateSpecializedType || parameter.isCompileTimeType)
+                    code = Hash.Combine(argument, code);
             }
 
             return code;

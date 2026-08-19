@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
-using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -27,10 +26,22 @@ internal sealed class SynthesizedTemplateMethod : WrappedMethodSymbol, ISynthesi
         name = GeneratedNames.MakeTemplateTypeOrMethodName(originalMethod);
 
         var i = 0;
-        templateParameters = originalMethod.templateParameters
-            .Where(t => t.underlyingType.specialType == SpecialType.Type)
-            .Select(t => new SynthesizedTemplateTypeParameter(this, t, i++))
-            .ToImmutableArray<TemplateParameterSymbol>();
+
+        Debug.Assert(originalMethod.templateParameters.Length == originalMethod.arity);
+        var newTemplatesBuilder = ArrayBuilder<TemplateParameterSymbol>.GetInstance(originalMethod.arity);
+
+        for (var j = 0; j < originalMethod.arity; j++) {
+            var parameter = originalMethod.templateParameters[j];
+            var argument = originalMethod.templateArguments[j];
+
+            if (parameter.underlyingType.specialType == SpecialType.Type &&
+                !parameter.isCompileTimeType &&
+                !argument.isTemplateSpecializedType) {
+                newTemplatesBuilder.Add(new SynthesizedTemplateTypeParameter(this, parameter, i++));
+            }
+        }
+
+        templateParameters = newTemplatesBuilder.ToImmutableAndFree();
 
         i = 0;
         templateSubstitution = new TemplateMap(
@@ -40,7 +51,9 @@ internal sealed class SynthesizedTemplateMethod : WrappedMethodSymbol, ISynthesi
                 originalMethod.constructedFrom.templateParameters,
                 i,
                 (typeOrConstant, templateParameter, i, arg) => {
-                    if (templateParameter.underlyingType.specialType == SpecialType.Type) {
+                    if (templateParameter.underlyingType.specialType == SpecialType.Type &&
+                        !templateParameter.isCompileTimeType &&
+                        !typeOrConstant.isTemplateSpecializedType) {
                         return new TypeOrConstant(templateParameters[templateParameter.ordinal - i]);
                     } else {
                         i++;
@@ -53,9 +66,16 @@ internal sealed class SynthesizedTemplateMethod : WrappedMethodSymbol, ISynthesi
         _replacementTemplateParameters = [];
 
         i = 0;
-        foreach (var templateParameter in originalMethod.constructedFrom.templateParameters) {
-            if (templateParameter.underlyingType.specialType == SpecialType.Type)
-                _replacementTemplateParameters.Add(templateParameter, templateParameters[i++]);
+
+        for (var j = 0; j < originalMethod.constructedFrom.templateParameters.Length; j++) {
+            var parameter = originalMethod.constructedFrom.templateParameters[j];
+            var argument = originalMethod.templateArguments[j];
+
+            if (parameter.underlyingType.specialType == SpecialType.Type &&
+                !parameter.isCompileTimeType &&
+                !argument.isTemplateSpecializedType) {
+                _replacementTemplateParameters.Add(parameter, templateParameters[i++]);
+            }
         }
 
         this.containingSymbol = containingSymbol;

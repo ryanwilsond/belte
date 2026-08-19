@@ -622,6 +622,8 @@ public enum DiagnosticCode : ushort {
     WRN_UnnecessaryTryStatement = 611,
     WRN_FailedToEmitMetadataAttribute = 612,
     WRN_FailedToEmitAttribute = 613,
+    ERR_CompileTimeTemplateMustBeType = 614,
+    WRN_UnnecessaryTemplateSpecialization = 615,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

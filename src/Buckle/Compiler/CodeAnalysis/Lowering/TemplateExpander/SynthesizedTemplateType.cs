@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
@@ -34,10 +33,22 @@ internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol, ISynthes
         name = GeneratedNames.MakeTemplateTypeOrMethodName(originalType);
 
         var i = 0;
-        templateParameters = originalType.templateParameters
-            .Where(t => t.underlyingType.specialType == SpecialType.Type)
-            .Select(t => new SynthesizedTemplateTypeParameter(this, t, i++))
-            .ToImmutableArray<TemplateParameterSymbol>();
+
+        Debug.Assert(originalType.templateParameters.Length == originalType.arity);
+        var newTemplatesBuilder = ArrayBuilder<TemplateParameterSymbol>.GetInstance(originalType.arity);
+
+        for (var j = 0; j < originalType.arity; j++) {
+            var parameter = originalType.templateParameters[j];
+            var argument = originalType.templateArguments[j];
+
+            if (parameter.underlyingType.specialType == SpecialType.Type &&
+                !parameter.isCompileTimeType &&
+                !argument.isTemplateSpecializedType) {
+                newTemplatesBuilder.Add(new SynthesizedTemplateTypeParameter(this, parameter, i++));
+            }
+        }
+
+        templateParameters = newTemplatesBuilder.ToImmutableAndFree();
 
         i = 0;
         templateSubstitution = new TemplateMap(
@@ -47,7 +58,9 @@ internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol, ISynthes
                 originalType.constructedFrom.templateParameters,
                 i,
                 (typeOrConstant, templateParameter, i, arg) => {
-                    if (templateParameter.underlyingType.specialType == SpecialType.Type) {
+                    if (templateParameter.underlyingType.specialType == SpecialType.Type &&
+                        !templateParameter.isCompileTimeType &&
+                        !typeOrConstant.isTemplateSpecializedType) {
                         return new TypeOrConstant(templateParameters[templateParameter.ordinal - i]);
                     } else {
                         i++;
@@ -60,9 +73,15 @@ internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol, ISynthes
         _replacementTemplateParameters = [];
 
         i = 0;
-        foreach (var templateParameter in originalType.constructedFrom.templateParameters) {
-            if (templateParameter.underlyingType.specialType == SpecialType.Type)
-                _replacementTemplateParameters.Add(templateParameter, templateParameters[i++]);
+        for (var j = 0; j < originalType.constructedFrom.templateParameters.Length; j++) {
+            var parameter = originalType.constructedFrom.templateParameters[j];
+            var argument = originalType.templateArguments[j];
+
+            if (parameter.underlyingType.specialType == SpecialType.Type &&
+                !parameter.isCompileTimeType &&
+                !argument.isTemplateSpecializedType) {
+                _replacementTemplateParameters.Add(parameter, templateParameters[i++]);
+            }
         }
 
         this.containingSymbol = containingSymbol;
@@ -202,9 +221,12 @@ internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol, ISynthes
         var baseHashCode = base.GetHashCode();
         var newHashCode = baseHashCode;
 
-        foreach (var templateArgument in _originalType.templateArguments) {
-            if (templateArgument.isConstant)
-                newHashCode = Hash.Combine(templateArgument.constant, newHashCode);
+        for (var i = 0; i < _originalType.templateArguments.Length; i++) {
+            var argument = _originalType.templateArguments[i];
+            var parameter = _originalType.templateParameters[i];
+
+            if (argument.isConstant || argument.isTemplateSpecializedType || parameter.isCompileTimeType)
+                newHashCode = Hash.Combine(argument, newHashCode);
         }
 
         Debug.Assert(baseHashCode != newHashCode);
