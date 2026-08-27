@@ -17,6 +17,7 @@ namespace Buckle.CodeAnalysis.Lowering;
 internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard {
     private const int MaxTemplateRecursionDepth = 512;
 
+    private readonly Compilation _compilation;
     private readonly BelteDiagnosticQueue _diagnostics;
 
     private readonly ArrayBuilder<SynthesizedTemplateType> _typesBuilder;
@@ -49,10 +50,14 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
 
     private bool _inResolutionStage = false;
 
+    private readonly Dictionary<TypeSymbol, ImmutableDictionary<MethodSymbol, BoundBlockStatement>> _templateMetadataMethodBodiesCache = [];
+
     internal TemplateExpander(
+        Compilation compilation,
         ArrayBuilder<SynthesizedTemplateType> typesBuilder,
         ImmutableDictionary<MethodSymbol, BoundBlockStatement>.Builder methodsBuilder,
         BelteDiagnosticQueue diagnostics) {
+        _compilation = compilation;
         _typesBuilder = typesBuilder;
         _methodsBuilder = methodsBuilder;
         _diagnostics = diagnostics;
@@ -157,11 +162,28 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
         Debug.Assert(_inResolutionStage);
         var originalDefinition = templateType.unexpandedSymbol.originalDefinition;
 
+        if (_templateMetadataMethodBodiesCache.TryGetValue(originalDefinition, out var found)) {
+#if DEBUG
+            foreach (var (method, _) in methodBodies)
+                Debug.Assert(!method.containingType.originalDefinition.Equals(originalDefinition));
+#endif
+
+            methodBodies = found;
+        } else if (_compilation.HasTemplateMetadataForType(originalDefinition)) {
+#if DEBUG
+            foreach (var (method, _) in methodBodies)
+                Debug.Assert(!method.containingType.originalDefinition.Equals(originalDefinition));
+#endif
+
+            methodBodies = _compilation.GetTemplateMethodMetadataForType(originalDefinition);
+            _templateMetadataMethodBodiesCache.Add(originalDefinition, methodBodies);
+        }
+
         foreach (var (method, body) in methodBodies) {
             if (method.containingType.originalDefinition.Equals(originalDefinition)) {
-                if (!_typeMethodsMap.TryGetValue((templateType, method), out var newMethod)) {
+                if (!_typeMethodsMap.TryGetValue((templateType, method.originalDefinition), out var newMethod)) {
                     newMethod = new SynthesizedTemplateTypeMethod(this, templateType, method);
-                    _typeMethodsMap.Add((templateType, method), newMethod);
+                    _typeMethodsMap.Add((templateType, method.originalDefinition), newMethod);
                 }
 
                 _replacementMethod = newMethod;
@@ -582,7 +604,7 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
             );
         }
 
-        if (MethodContainsUnexpandedTemplate(node.method, out var templateMethod, null, node.syntax.location)) {
+        if (MethodContainsUnexpandedTemplate(node.method, out var templateMethod, null, node.syntax?.location)) {
             node = node.Update(
                 node.receiver,
                 templateMethod,
@@ -645,7 +667,7 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
             );
         }
 
-        if (MethodContainsUnexpandedTemplate(node.targetMethod, out var templateMethod, null, node.syntax.location)) {
+        if (MethodContainsUnexpandedTemplate(node.targetMethod, out var templateMethod, null, node.syntax?.location)) {
             node = node.Update(
                 node.receiver,
                 templateMethod,
@@ -673,7 +695,7 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
             );
         }
 
-        if (MethodContainsUnexpandedTemplate(node.targetMethod, out var templateMethod, null, node.syntax.location)) {
+        if (MethodContainsUnexpandedTemplate(node.targetMethod, out var templateMethod, null, node.syntax?.location)) {
             node = node.Update(
                 templateMethod,
                 node.constrainedToType,

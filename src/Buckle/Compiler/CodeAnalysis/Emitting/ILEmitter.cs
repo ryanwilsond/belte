@@ -75,6 +75,7 @@ internal partial class ILEmitter : ModuleBuilder {
     private protected ILEmitter(
         BoundProgram program,
         string assemblySimpleName,
+        Version assemblyVersion,
         bool debugMode,
         bool noStdLib,
         BelteDiagnosticQueue diagnostics) {
@@ -130,7 +131,7 @@ internal partial class ILEmitter : ModuleBuilder {
             }
         }
 
-        var assemblyName = new AssemblyNameDefinition(assemblySimpleName, new Version(1, 0));
+        var assemblyName = new AssemblyNameDefinition(assemblySimpleName, assemblyVersion);
 
         var assemblyResolver = new DefaultAssemblyResolver();
         assemblyResolver.AddSearchDirectory(AppContext.BaseDirectory);
@@ -147,15 +148,33 @@ internal partial class ILEmitter : ModuleBuilder {
         );
 
         var belteRuntimeData = File.ReadAllBytes(_belteDllName);
-        var embeddedResource = new EmbeddedResource(_belteDllName, ManifestResourceAttributes.Private, belteRuntimeData);
 
-        _assemblyDefinition.MainModule.Resources.Add(embeddedResource);
+        var belteRuntimeResource = new EmbeddedResource(
+            _belteDllName,
+            ManifestResourceAttributes.Private,
+            belteRuntimeData
+        );
+
+        _assemblyDefinition.MainModule.Resources.Add(belteRuntimeResource);
 
         ResolveTypes();
         ResolveMethods();
         GenerateSTLMap();
 
         _topLevelTypes = program.GetTypesToEmit(noStdLib, includeGraphicsWellKnownTypes: true);
+
+        if (_isDll && !_compilation.options.excludeWritingTemplateMetadata) {
+            var templateMetadataStream = new MemoryStream();
+            TemplateMetadataWriter.Write(_compilation, templateMetadataStream, program.types, program.methodBodies);
+
+            var templateMetadataResource = new EmbeddedResource(
+                TemplateMetadataWriter.ResourceName,
+                ManifestResourceAttributes.Public,
+                templateMetadataStream.ToArray()
+            );
+
+            _assemblyDefinition.MainModule.Resources.Add(templateMetadataResource);
+        }
 
         var linearBuilder = ArrayBuilder<NamedTypeSymbol>.GetInstance();
 
@@ -179,12 +198,13 @@ internal partial class ILEmitter : ModuleBuilder {
 
     internal static void Emit(
         BoundProgram program,
-        string moduleName,
+        string assemblyName,
+        Version assemblyVersion,
         string outputPath,
         BelteDiagnosticQueue diagnostics) {
         var debugMode = program.compilation.options.optimizationLevel == OptimizationLevel.Debug;
         var noStdLib = program.compilation.options.noStdLib;
-        var emitter = new ILEmitter(program, moduleName, debugMode, noStdLib, diagnostics);
+        var emitter = new ILEmitter(program, assemblyName, assemblyVersion, debugMode, noStdLib, diagnostics);
 
         if (SupportedProjectType(program, diagnostics))
             emitter.EmitToFile(outputPath, debugMode);
@@ -192,10 +212,11 @@ internal partial class ILEmitter : ModuleBuilder {
 
     internal static string EmitToString(
         BoundProgram program,
-        string moduleName,
+        string assemblyName,
+        Version assemblyVersion,
         bool programOnly,
         BelteDiagnosticQueue diagnostics) {
-        var emitter = new ILEmitter(program, moduleName, false, false, diagnostics);
+        var emitter = new ILEmitter(program, assemblyName, assemblyVersion, false, false, diagnostics);
 
         if (SupportedProjectType(program, diagnostics))
             return emitter.EmitToString(programOnly);

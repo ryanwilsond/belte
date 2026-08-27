@@ -142,6 +142,22 @@ void Build(Builder builder) {
 }
 ```
 
+If building to a DLL, the `excludeTemplateMetadata` flag can be set to skip emitting template metadata. This does the
+same thing as the [*--notemplatemetadata* CLI option](Buckle.md#--notemplatemetadata).
+
+For example:
+
+```belte
+using Buckle;
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.outputKind = .DynamicallyLinkedLibrary;
+  builder.buildMode = .Dotnet;
+  builder.excludeTemplateMetadata = true;
+}
+```
+
 ## References
 
 DLL references can be added with `Builder.AddRef(path, options)`. By default, directories search for `*.dll` files

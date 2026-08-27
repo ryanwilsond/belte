@@ -9037,4 +9037,7 @@ var text = """"""
 
         AssertDiagnostics(text, diagnostics, _writer, true);
     }
+
+    // ! Reports_Error_BU0616_CannotTemplateSpecializeType
+    // ? Requires referencing a dummy DLL without template metadata
 }

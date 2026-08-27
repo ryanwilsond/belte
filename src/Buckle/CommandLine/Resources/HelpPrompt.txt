@@ -34,6 +34,7 @@ Options:
   -l0                         Compile with core .NET libraries.
   -l1                         l0 plus compiler libraries for meta-programming.
   -lall                       l1 plus all .NET SDK libraries.
+  --notemplatemetadata        Do not emit template metadata.
 
   --type=[console|graphics|dll]           Specify the type of Belte project (default console).
   --entry=<name>              Specify a type name to search for the entry point in.

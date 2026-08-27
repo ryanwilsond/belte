@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -257,6 +258,12 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
 
         if (other is null || !ReferenceEquals(other.originalDefinition, originalDefinition))
             return false;
+
+        if (containingSymbol.containingType is null || other.containingSymbol.containingType is null) {
+            // Should only be reachable in template metadata cases
+            Debug.Assert(this is PETemplateType.MetadataTemplateParameterSymbol || other is PETemplateType.MetadataTemplateParameterSymbol);
+            return other.containingSymbol.Equals(containingSymbol);
+        }
 
         return other.containingSymbol.containingType.Equals(containingSymbol.containingType, compareKind);
     }

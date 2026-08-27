@@ -32,6 +32,12 @@ public sealed class Builder {
     /// </summary>
     public bool includeStdLib;
 
+    /// <summary>
+    /// If to exclude emitting template metadata when building a DLL.
+    /// If not building a DLL this does nothing.
+    /// </summary>
+    public bool excludeTemplateMetadata;
+
     public Builder() {
         buildMode = BuildMode.Execute;
         outputKind = OutputKind.ConsoleApplication;
@@ -42,6 +48,7 @@ public sealed class Builder {
         maxCores = 0;
         debugBuild = false;
         includeStdLib = true;
+        excludeTemplateMetadata = false;
         _diagnosticFlagMode = DiagnosticFlagMode.Global;
         _globalDiagnosticOptions = new();
         _currentDiagnosticOptions = new();

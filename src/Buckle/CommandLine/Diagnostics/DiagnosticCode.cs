@@ -57,4 +57,5 @@ public enum DiagnosticCode : ushort {
     ERR_MissingWErrIncludeCode = 46,
     ERR_MissingWarningLevelAfterWError = 47,
     ERR_MissingFilenameF = 48,
+    FTL_CannotSpecifyNoTemplateMetadataWithoutDll = 49,
 }

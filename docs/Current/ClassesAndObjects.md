@@ -1098,6 +1098,11 @@ A<template int> a = new();
 
 This is useful for when using types that are normally reified generics in performance critical code.
 
+Note that template specialization can only be performed in the type in question is defined in the same assembly, or the
+reference assembly has valid template metadata that can be read from to instantiate it. (For example, a DLL compiled
+with the [*--notemplatemetadata* flag](../Buckle.md#--notemplatemetadata) does not create template metadata so no types
+from it can be specialized or instantiated unless they only have runtime type template parameters.)
+
 ## 4.6 Enums
 
 Enums are value types that contain a list of integral constants. Enum field values implicitly start at 0 and count up,

@@ -113,6 +113,8 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
 
     internal override bool hasSpecialName => HasFlag(MethodAttributes.SpecialName);
 
+    internal override bool hasRuntimeSpecialName => HasFlag(MethodAttributes.RTSpecialName);
+
     internal override bool isExtern => HasFlag(MethodAttributes.PinvokeImpl);
 
     internal MethodAttributes flags => (MethodAttributes)_flags;

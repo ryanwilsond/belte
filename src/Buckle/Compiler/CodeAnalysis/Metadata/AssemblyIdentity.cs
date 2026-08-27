@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
-using System.Linq;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 using AssemblyNameFlags = System.Reflection.AssemblyNameFlags;
@@ -222,7 +221,7 @@ internal sealed partial class AssemblyIdentity : IEquatable<AssemblyIdentity> {
     internal static ImmutableArray<byte> CalculatePublicKeyToken(ImmutableArray<byte> publicKey) {
         var hash = CryptographicHashProvider.ComputeSha1(publicKey);
 
-        int l = hash.Length - 1;
+        var l = hash.Length - 1;
         var result = ArrayBuilder<byte>.GetInstance(PublicKeyTokenSize);
 
         for (var i = 0; i < PublicKeyTokenSize; i++)
@@ -269,11 +268,9 @@ internal sealed partial class AssemblyIdentity : IEquatable<AssemblyIdentity> {
     }
 
     public static AssemblyIdentity FromAssemblyDefinition(System.Reflection.Assembly assembly) {
-        if (assembly == null) {
-            throw new ArgumentNullException(nameof(assembly));
-        }
-
-        return FromAssemblyDefinition(assembly.GetName());
+        return assembly is null
+            ? throw new ArgumentNullException(nameof(assembly))
+            : FromAssemblyDefinition(assembly.GetName());
     }
 
     internal static AssemblyIdentity FromAssemblyDefinition(System.Reflection.AssemblyName name) {

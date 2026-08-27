@@ -673,7 +673,8 @@ public class {name} {{
             entryName = builder.entryName,
             noStdLib = !builder.includeStdLib,
             taskDiagnosticOptions = taskDiagnosticOptions,
-            noBootStrap = false
+            noBootStrap = false,
+            noTemplateMetadata = builder.excludeTemplateMetadata
         };
     }
 
@@ -1386,6 +1387,7 @@ public class {name} {{
         state.concurrentBuild = true;
         state.maxCores = Environment.ProcessorCount - 2;
         state.noBootStrap = false;
+        state.noTemplateMetadata = false;
 
         void DecodeSimpleOption(string arg) {
             switch (arg) {
@@ -1488,6 +1490,9 @@ public class {name} {{
                     break;
                 case "--nobootstrap":
                     state.noBootStrap = true;
+                    break;
+                case "--notemplatemetadata":
+                    state.noTemplateMetadata = true;
                     break;
                 default:
                     diagnosticsCL.Push(Belte.Diagnostics.Error.UnrecognizedOption(arg));
@@ -1797,6 +1802,8 @@ public class {name} {{
                 state.outputFilename = state.moduleName + ".dll";
             else if (!specifyModule)
                 state.moduleName = Path.GetFileNameWithoutExtension(state.outputFilename);
+        } else if (state.noTemplateMetadata) {
+            diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyNoTemplateMetadataWithoutDll());
         }
 
         state.outputFilename = state.outputFilename.Trim();

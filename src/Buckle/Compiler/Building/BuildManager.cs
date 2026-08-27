@@ -61,7 +61,8 @@ public sealed class BuildManager {
             maxCores = 1,
             entryName = null,
             noStdLib = _state.noStdLib,
-            noBootStrap = false
+            noBootStrap = false,
+            noTemplateMetadata = true,
         };
 
         compiler.state = compilerState;

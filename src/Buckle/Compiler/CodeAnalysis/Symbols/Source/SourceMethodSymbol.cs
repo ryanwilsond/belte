@@ -32,6 +32,8 @@ internal abstract partial class SourceMethodSymbol : MethodSymbol, IAttributeTar
         _ => false,
     };
 
+    internal sealed override bool hasRuntimeSpecialName => base.hasRuntimeSpecialName || IsVtableGapInterfaceMethod();
+
     internal virtual Binder outerBinder => null;
 
     internal virtual Binder withTemplateParametersBinder => null;
@@ -640,5 +642,9 @@ internal abstract partial class SourceMethodSymbol : MethodSymbol, IAttributeTar
         }
 
         return false;
+    }
+
+    private bool IsVtableGapInterfaceMethod() {
+        return containingType.isInterface && ModuleExtensions.GetVTableGapSize(metadataName) > 0;
     }
 }

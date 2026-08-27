@@ -309,7 +309,7 @@ internal sealed partial class PEModuleSymbol : NonMissingModuleSymbol {
     }
 
     internal void OnNewTypeDeclarationsLoaded(
-        Dictionary<ReadOnlyMemory<char>, ImmutableArray<PENamedTypeSymbol>> typesDict) {
+        Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> typesDict) {
         // TODO CorLib interop
         // bool keepLookingForDeclaredCorTypes = _ordinal == 0 && _assemblySymbol.KeepLookingForDeclaredSpecialTypes;
 

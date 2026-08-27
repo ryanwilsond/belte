@@ -518,4 +518,15 @@ public sealed class DiagnosticTests {
 
     // ! Error_CL0048_MissingFilenameF
     // ? Requires creating build script
+
+    [Fact]
+    public void Reports_Fatal_CL0049_CannotSpecifyNoTemplateMetadataWithoutDll() {
+        var args = new string[] { "--notemplatemetadata" };
+
+        var diagnostics = @"
+            cannot specify '--notemplatemetadata' when not building a dynamically linked library
+        ";
+
+        AssertDiagnostics(args, diagnostics, _writer);
+    }
 }

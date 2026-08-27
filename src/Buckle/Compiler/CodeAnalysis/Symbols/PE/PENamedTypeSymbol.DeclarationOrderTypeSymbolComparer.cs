@@ -4,7 +4,7 @@ using System.Reflection.Metadata;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract partial class PENamedTypeSymbol {
-    private class DeclarationOrderTypeSymbolComparer : IComparer<Symbol> {
+    internal class DeclarationOrderTypeSymbolComparer : IComparer<Symbol> {
         public static readonly DeclarationOrderTypeSymbolComparer Instance = new DeclarationOrderTypeSymbolComparer();
 
         private DeclarationOrderTypeSymbolComparer() { }

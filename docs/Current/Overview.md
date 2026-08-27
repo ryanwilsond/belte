@@ -566,6 +566,7 @@ To summarize the main differences:
 - [Null-binding contracts](ControlFlow.md#232-null-binding-contracts)
 - [Different generic/template constraints include expression constraints](ClassesAndObjects.md#451-constraint-clauses)
 - [Non-type-permitting templates instead of only type generics](ClassesAndObjects.md#45-templates)
+- [Templates can be resolved either at runtime or compile-time](ClassesAndObjects.md#452-compile-time-type-template-parameters)
 - [Template user-defined operators and conversions](ClassesAndObjects.md#4231-operator-overloading)
 - [Conditionals accept expressions of type `bool?` instead of `bool`](ControlFlow.md#231-null-conditions)
 - [More expressive implicit typing allowing with `var`, `const`, and `constexpr` and nullable annotations](Data.md#332-implicit-typing)

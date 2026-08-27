@@ -15,8 +15,8 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
-    private static readonly Dictionary<ReadOnlyMemory<char>, ImmutableArray<PENamedTypeSymbol>> EmptyNestedTypes =
-        new Dictionary<ReadOnlyMemory<char>, ImmutableArray<PENamedTypeSymbol>>(EmptyReadOnlyMemoryOfCharComparer.Instance);
+    private static readonly Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> EmptyNestedTypes =
+        new Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>>(EmptyReadOnlyMemoryOfCharComparer.Instance);
 
     private static readonly UncommonProperties NoUncommonProperties = new UncommonProperties();
 
@@ -29,7 +29,7 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
     private ICollection<string> _lazyMemberNames;
     private ImmutableArray<Symbol> _lazyMembersInDeclarationOrder;
     private Dictionary<string, ImmutableArray<Symbol>> _lazyMembersByName;
-    private Dictionary<ReadOnlyMemory<char>, ImmutableArray<PENamedTypeSymbol>> _lazyNestedTypes;
+    private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> _lazyNestedTypes;
     private TypeKind _lazyKind;
 
     private NullableContextKind _lazyNullableContextValue;
@@ -517,7 +517,7 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
 
     private void EnsureNestedTypesAreLoaded() {
         if (_lazyNestedTypes is null) {
-            var types = ArrayBuilder<PENamedTypeSymbol>.GetInstance();
+            var types = ArrayBuilder<NamedTypeSymbol>.GetInstance();
             types.AddRange(CreateNestedTypes());
             var typesDict = GroupByName(types);
 
@@ -783,15 +783,15 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
         return symbols.ToDictionary(s => s.name, StringOrdinalComparer.Instance);
     }
 
-    private static Dictionary<ReadOnlyMemory<char>, ImmutableArray<PENamedTypeSymbol>> GroupByName(
-        ArrayBuilder<PENamedTypeSymbol> symbols) {
+    private static Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> GroupByName(
+        ArrayBuilder<NamedTypeSymbol> symbols) {
         if (symbols.Count == 0)
             return EmptyNestedTypes;
 
         return symbols.ToDictionary(s => s.name.AsMemory(), ReadOnlyMemoryOfCharComparer.Instance);
     }
 
-    private IEnumerable<PENamedTypeSymbol> CreateNestedTypes() {
+    private IEnumerable<NamedTypeSymbol> CreateNestedTypes() {
         var moduleSymbol = containingPEModule;
         var module = moduleSymbol.module;
 

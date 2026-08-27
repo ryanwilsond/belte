@@ -44,6 +44,7 @@ public sealed partial class Compilation {
     // This is not readonly because its possible in a concurrent setup one manager beats the others in creating shared
     // assembly data, in which it will retroactively apply itself to compilations
     private ReferenceManager _referenceManager;
+    private TemplateMetadataReader _templateMetadataReader;
     private SyntaxAndDeclarationManager _syntax;
     private WeakReference<BinderFactory>[] _binderFactories;
     private WeakReference<BinderFactory>[] _ignoreAccessibilityBinderFactories;
@@ -95,6 +96,8 @@ public sealed partial class Compilation {
 
         externalReferences = MakeExternalReferences(options.references, declarationDiagnostics);
 
+        _templateMetadataReader = new TemplateMetadataReader(this);
+
         _lazyStandardLibrary = standardLibraryOpt;
         _lazyGraphicsLibrary = graphicsLibraryOpt;
 
@@ -107,6 +110,7 @@ public sealed partial class Compilation {
         } else {
             _referenceManager = new ReferenceManager(
                 corLibrary,
+                _templateMetadataReader,
                 assemblyName,
                 AssemblyIdentityComparer.Default,
                 observedMetadata: referenceManager?.observedMetadata
@@ -311,6 +315,8 @@ public sealed partial class Compilation {
             return _lazyHandleManager;
         }
     }
+
+    internal TemplateMetadataReader templateMetadataReader => _templateMetadataReader;
 
     internal ReferenceManager GetBoundReferenceManager() {
         if (_lazyAssembly is null) {
@@ -618,7 +624,7 @@ public sealed partial class Compilation {
         }
 
         if (options.buildMode == BuildMode.Dotnet)
-            ILEmitter.Emit(program, assemblyName, outputPath, diagnostics);
+            ILEmitter.Emit(program, assemblyName, assembly.identity.version, outputPath, diagnostics);
         else if (options.buildMode == BuildMode.CSharpTranspile)
             CSharpEmitter.Emit(program, outputPath, diagnostics);
 
@@ -694,7 +700,7 @@ public sealed partial class Compilation {
         if (buildMode == BuildMode.CSharpTranspile)
             return CSharpEmitter.EmitToString(program, programOnly, diagnostics);
         else if (buildMode == BuildMode.Dotnet)
-            return ILEmitter.EmitToString(program, assemblyName, programOnly, diagnostics);
+            return ILEmitter.EmitToString(program, assemblyName, assembly.identity.version, programOnly, diagnostics);
 
         return null;
     }
@@ -824,6 +830,25 @@ public sealed partial class Compilation {
 
     internal void RegisterDeclaredWellKnownType(WellKnownType wellKnownType, NamedTypeSymbol type) {
         corLibrary.RegisterDeclaredWellKnownType(wellKnownType, type);
+    }
+
+    internal bool CanTemplateSpecialize(TypeSymbol type) {
+        if (type.originalDefinition is SourceNamedTypeSymbol)
+            return true;
+
+        return HasTemplateMetadataForType(type);
+    }
+
+    internal bool HasTemplateMetadataForType(TypeSymbol type) {
+        if (options.excludeReadingTemplateMetadata)
+            return false;
+
+        return _templateMetadataReader.HasMetadataForType(type);
+    }
+
+    internal ImmutableDictionary<MethodSymbol, BoundBlockStatement> GetTemplateMethodMetadataForType(TypeSymbol type) {
+        Debug.Assert(HasTemplateMetadataForType(type));
+        return _templateMetadataReader.GetMethodMetadataForType(type);
     }
 
     internal Binder GetBinder(BelteSyntaxNode syntax) {

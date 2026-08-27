@@ -72,6 +72,8 @@ internal abstract class WrappedMethodSymbol : MethodSymbol {
 
     internal override MethodSymbol stateMethod => underlyingMethod.stateMethod;
 
+    internal override bool hasRuntimeSpecialName => underlyingMethod.hasRuntimeSpecialName;
+
     internal override bool IsMetadataVirtual(bool forceComplete = false)
         => underlyingMethod.IsMetadataVirtual(forceComplete);
 

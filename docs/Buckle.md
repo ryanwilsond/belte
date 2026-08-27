@@ -236,6 +236,13 @@ Automatically includes certain library references. Each level includes all of th
 | `l1` | `Diagnostics.dll`, `Compiler.dll`, `Shared.dll`, `System.Collections.dll`, `System.Collections.Immutable.dll` |
 | `lall` | All .NET SDK libraries |
 
+### *--notemplatemetadata*
+
+Specify to skip emitting template metadata when building a DLL.
+
+Template metadata is used to allow instantiating templates defined in referenced DLLs. This means that without it,
+consumers of a DLL cannot instantiate templates defined within that DLL.
+
 ### *--time*
 
 Displays how much time each stage of compilation took.

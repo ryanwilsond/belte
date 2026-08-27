@@ -174,6 +174,8 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             diagnostics.Push(Error.ModuleEmitFailure(compilation.sourceModule.name));
         }
 
+        compilation.templateMetadataReader.ForceComplete();
+
         return methodCompiler.CreateBoundProgram();
     }
 
@@ -422,6 +424,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         _lazyExpandedTemplateMethods = ImmutableDictionary.CreateBuilder<MethodSymbol, BoundBlockStatement>();
 
         var templateExpander = new TemplateExpander(
+            _compilation,
             _lazyExpandedTemplateTypes,
             _lazyExpandedTemplateMethods,
             _diagnostics
@@ -979,6 +982,8 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                 default:
                     throw ExceptionUtilities.UnexpectedValue(methodBody.kind);
             }
+        } else if (method is PETemplateType.MetadataMethodSymbol metadataMethod) {
+            body = metadataMethod.TryDecodeMethodBody();
         }
 
         if (method.methodKind == MethodKind.Finalizer && body is not null) {

@@ -103,6 +103,8 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
 
     internal abstract ImmutableArray<MethodSymbol> explicitInterfaceImplementations { get; }
 
+    internal virtual bool hasRuntimeSpecialName => methodKind is MethodKind.Constructor or MethodKind.StaticConstructor;
+
     internal ImmutableArray<TypeWithAnnotations> parameterTypesWithAnnotations {
         get {
             ParameterSignature.PopulateParameterSignature(parameters, ref _lazyParameterSignature);

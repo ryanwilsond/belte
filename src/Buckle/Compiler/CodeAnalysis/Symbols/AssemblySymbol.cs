@@ -15,6 +15,7 @@ internal abstract class AssemblySymbol : Symbol {
 
     private AssemblySymbol _corAssembly;
     private CorLibrary _corLibrary;
+    private TemplateMetadataReader _templateMetadataReader;
 
     public override string name => identity.name;
 
@@ -31,6 +32,8 @@ internal abstract class AssemblySymbol : Symbol {
     internal AssemblySymbol corAssembly => _corAssembly;
 
     internal CorLibrary corLibrary => _corLibrary;
+
+    internal TemplateMetadataReader templateMetadataReader => _templateMetadataReader;
 
     internal abstract bool isMissing { get; }
 
@@ -70,20 +73,23 @@ internal abstract class AssemblySymbol : Symbol {
 
     internal abstract int belteMetadataVersion { get; }
 
-    internal void SetCorLibrary(AssemblySymbol corAssembly) {
+    internal void SetCorLibrary(AssemblySymbol corAssembly, TemplateMetadataReader templateMetadataReader) {
         Debug.Assert(_corAssembly is null);
         Debug.Assert(_corLibrary is null);
         Debug.Assert(corAssembly.corLibrary is not null);
         Debug.Assert(corAssembly.corAssembly == corAssembly);
         _corAssembly = corAssembly;
         _corLibrary = corAssembly.corLibrary;
+        _templateMetadataReader = templateMetadataReader;
     }
 
-    internal void SetCorLibraryInternal(CorLibrary corLibrary) {
+    internal void SetCorLibraryInternal(CorLibrary corLibrary, TemplateMetadataReader templateMetadataReader) {
         Debug.Assert(_corAssembly is null);
         Debug.Assert(_corLibrary is null);
+        Debug.Assert(_templateMetadataReader is null);
         _corAssembly = this;
         _corLibrary = corLibrary;
+        _templateMetadataReader = templateMetadataReader;
     }
 
     internal abstract NamedTypeSymbol LookupDeclaredOrForwardedTopLevelMetadataType(

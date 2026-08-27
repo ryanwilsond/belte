@@ -42,7 +42,8 @@ public sealed class Compiler {
         state.entryName,
         state.noStdLib,
         state.diagnosticOptions,
-        state.taskDiagnosticOptions
+        state.taskDiagnosticOptions,
+        state.noTemplateMetadata
     );
 
     /// <summary>
@@ -213,7 +214,9 @@ public sealed class Compiler {
             _options.entryName,
             _options.noStdLib,
             _options.globalDiagnosticOptions,
-            _options.localDiagnosticOptions
+            _options.localDiagnosticOptions,
+            _options.excludeWritingTemplateMetadata,
+            _options.excludeReadingTemplateMetadata
         );
 
         if (buildMode is BuildMode.Evaluate or BuildMode.Execute or BuildMode.Emulate) {

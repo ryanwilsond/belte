@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -729,7 +730,12 @@ public static class SymbolDisplay {
 
         if (!symbol.isGlobalNamespace ||
             ((format.qualificationStyle & SymbolDisplayQualificationStyle.IncludeGlobalNamespace) == 0)) {
-            text.Write(CreateIdentifier(symbol.name));
+            Debug.Assert(symbol.name == "" == symbol.isGlobalNamespace);
+
+            if (symbol.isGlobalNamespace)
+                text.Write(CreateIdentifier("<global>"));
+            else
+                text.Write(CreateIdentifier(symbol.name));
         }
     }
 

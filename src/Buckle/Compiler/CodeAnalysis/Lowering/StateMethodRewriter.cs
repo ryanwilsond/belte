@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
@@ -32,6 +33,8 @@ internal sealed class StateMethodRewriter : BoundTreeExpander {
         if (_returnType.IsVoidType())
             _returnType = compilation.GetSpecialType(SpecialType.Int32);
 
+        // Frame for just the return local
+        _synthesizedLocals.Push([]);
         _returnTemp = GenerateTempLocal(_returnType);
         _successLabel = GenerateLabel("Success");
     }
@@ -51,6 +54,10 @@ internal sealed class StateMethodRewriter : BoundTreeExpander {
         var rewrittenTarget = stateMethodRewriter.Expand(targetBody, isTarget: true);
         var rewrittenState = stateMethodRewriter.Expand(stateBody, isTarget: false);
 
+        Debug.Assert(stateMethodRewriter._synthesizedLocals.Count == 1);
+        var tempFrame = stateMethodRewriter._synthesizedLocals.Pop();
+        Debug.Assert(tempFrame.Count == 1);
+
         return new BoundBlockStatement(
             stateBody.syntax,
             [
@@ -59,7 +66,7 @@ internal sealed class StateMethodRewriter : BoundTreeExpander {
                 successLabel,
                 .. rewrittenState.statements,
             ],
-            rewrittenTarget.locals.AddRange(rewrittenState.locals),
+            rewrittenTarget.locals.AddRange(rewrittenState.locals).AddRange(tempFrame),
             rewrittenTarget.localFunctions.AddRange(rewrittenState.localFunctions)
         );
     }

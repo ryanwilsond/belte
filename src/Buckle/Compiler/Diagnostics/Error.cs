@@ -3015,6 +3015,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_CompileTimeTemplateMustBeType, location, message);
     }
 
+    internal static BelteDiagnostic CannotTemplateSpecializeType(TextLocation location, TypeSymbol type) {
+        var message = $"cannot use template specialization on type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' because it has no template metadata to instantiate from";
+        return CreateError(DiagnosticCode.ERR_CannotTemplateSpecializeType, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

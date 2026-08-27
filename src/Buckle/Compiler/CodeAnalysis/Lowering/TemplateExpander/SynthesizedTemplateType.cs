@@ -89,6 +89,15 @@ internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol, ISynthes
 
     public override string name { get; }
 
+    public override string metadataName {
+        get {
+            if (mangleName && arity > 0)
+                return $"{name}`{arity}";
+
+            return name;
+        }
+    }
+
     public override ImmutableArray<TemplateParameterSymbol> templateParameters { get; }
 
     public override ImmutableArray<TypeOrConstant> templateArguments => GetTemplateParametersAsTemplateArguments();
@@ -150,6 +159,7 @@ internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol, ISynthes
                     break;
                 case SymbolKind.Method:
                     // Methods are checked using the BoundProgram method map anyways so it shouldn't matter that they are missing here
+                    // TODO Except abstract ones?
                     break;
                 default:
                     throw ExceptionUtilities.UnexpectedValue(member.kind);

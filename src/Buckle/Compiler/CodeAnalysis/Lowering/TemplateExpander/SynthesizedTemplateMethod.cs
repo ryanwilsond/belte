@@ -105,6 +105,15 @@ internal sealed class SynthesizedTemplateMethod : WrappedMethodSymbol, ISynthesi
 
     public override string name { get; }
 
+    public override string metadataName {
+        get {
+            if (arity > 0)
+                return $"{name}`{arity}";
+
+            return name;
+        }
+    }
+
     public override ImmutableArray<TemplateParameterSymbol> templateParameters { get; }
 
     public override ImmutableArray<TypeOrConstant> templateArguments => GetTemplateParametersAsTemplateArguments();

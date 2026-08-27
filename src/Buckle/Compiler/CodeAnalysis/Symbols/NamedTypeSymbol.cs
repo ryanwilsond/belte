@@ -530,7 +530,8 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
         }
 
         if ((thisIsOriginalDefinition || otherIsOriginalDefinition) &&
-            (compareKind & (TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreTupleNames)) == 0) {
+            (compareKind & (TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreTupleNames)) == 0 &&
+            this is not PETemplateType && other is not PETemplateType) {
             return false;
         }
 

@@ -1217,7 +1217,7 @@ internal sealed partial class Executor : ModuleBuilder {
         return $"Belte.{type.name}";
     }
 
-    private TypeAttributes GetTypeAttributes(NamedTypeSymbol type, bool isNested) {
+    internal static TypeAttributes GetTypeAttributes(NamedTypeSymbol type, bool isNested) {
         // Structs use TypeAttributes.Class
         var attributes = type.isInterface ? TypeAttributes.Interface : TypeAttributes.Class;
 
@@ -1243,7 +1243,7 @@ internal sealed partial class Executor : ModuleBuilder {
         return attributes;
     }
 
-    private static FieldAttributes GetFieldAttributes(FieldSymbol field) {
+    internal static FieldAttributes GetFieldAttributes(FieldSymbol field) {
         FieldAttributes attributes = field.declaredAccessibility switch {
             Accessibility.Private => FieldAttributes.Private,
             Accessibility.Public => FieldAttributes.Public,
@@ -1257,7 +1257,7 @@ internal sealed partial class Executor : ModuleBuilder {
         return attributes;
     }
 
-    private static MethodAttributes GetMethodAttributes(MethodSymbol method) {
+    internal static MethodAttributes GetMethodAttributes(MethodSymbol method) {
         var attributes = MethodAttributes.HideBySig;
 
         attributes |= method.declaredAccessibility switch {

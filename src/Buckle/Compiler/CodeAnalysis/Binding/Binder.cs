@@ -1390,6 +1390,8 @@ internal partial class Binder {
             argumentAnalysis.argsToParams
         );
 
+        var reportedTemplateSpecializationError = false;
+
         for (var i = 0; i < type.templateParameters.Length; i++) {
             var parameter = type.templateParameters[i];
             var argument = rearrangedArguments[i];
@@ -1410,6 +1412,13 @@ internal partial class Binder {
                     : compilation.GetSpecialType(SpecialType.Type))
                 : argument.type;
 
+            if (parameter.isCompileTimeType || parameter.underlyingType.specialType != SpecialType.Type) {
+                if (!reportedTemplateSpecializationError && !compilation.CanTemplateSpecialize(type)) {
+                    reportedTemplateSpecializationError = true;
+                    diagnostics.Push(Error.CannotTemplateSpecializeType(typeSyntax.location, type));
+                }
+            }
+
             if (sourceType is not null) {
                 var conversion = conversions.ClassifyImplicitConversionFromType(sourceType, targetType);
 
@@ -1425,6 +1434,11 @@ internal partial class Binder {
                     argument.typeOrConstant.isTemplateSpecializedType &&
                     parameter.isCompileTimeType) {
                     diagnostics.Push(Warning.UnnecessaryTemplateSpecialization(argument.syntax.location));
+                } else if (argument.isTypeOrConstant && argument.typeOrConstant.isTemplateSpecializedType) {
+                    if (!reportedTemplateSpecializationError && !compilation.CanTemplateSpecialize(type)) {
+                        reportedTemplateSpecializationError = true;
+                        diagnostics.Push(Error.CannotTemplateSpecializeType(typeSyntax.location, type));
+                    }
                 }
             } else {
                 Debug.Assert(diagnostics.Count > 0);

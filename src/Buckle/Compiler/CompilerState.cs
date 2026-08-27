@@ -111,4 +111,9 @@ public class CompilerState {
     /// Specific diagnostic related options on a per-task basis
     /// </summary>
     public Dictionary<string, TaskDiagnosticOptions> taskDiagnosticOptions;
+
+    /// <summary>
+    /// If to exclude template metadata when building a DLL
+    /// </summary>
+    public bool noTemplateMetadata;
 }

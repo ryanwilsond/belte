@@ -10,6 +10,7 @@ internal sealed class Emulator : ILEmitter {
         : base(
             program,
             assemblySimpleName: "EmulatingAssembly",
+            assemblyVersion: new Version(0, 0),
             debugMode: program.compilation.options.optimizationLevel == OptimizationLevel.Debug,
             noStdLib: program.compilation.options.noStdLib,
             diagnostics) {

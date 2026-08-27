@@ -329,4 +329,40 @@ internal static class SpecialTypeExtensions {
                 return false;
         }
     }
+
+    internal static bool CanEncodeToTemplateMetadata(this SpecialType type) {
+        switch (type) {
+            case SpecialType.Object:
+            case SpecialType.Any:
+            case SpecialType.String:
+            case SpecialType.Bool:
+            case SpecialType.WinBool:
+            case SpecialType.Char:
+            case SpecialType.Int:
+            case SpecialType.Decimal:
+            case SpecialType.Int8:
+            case SpecialType.UInt8:
+            case SpecialType.Int16:
+            case SpecialType.UInt16:
+            case SpecialType.Int32:
+            case SpecialType.UInt32:
+            case SpecialType.Int64:
+            case SpecialType.UInt64:
+            case SpecialType.Float32:
+            case SpecialType.Float64:
+            case SpecialType.IntPtr:
+            case SpecialType.UIntPtr:
+            case SpecialType.Type:
+            case SpecialType.Void:
+            case SpecialType.ValueType:
+                return true;
+            case SpecialType.Array:
+            case SpecialType.Enum:
+            case SpecialType.Nullable:
+            case SpecialType.TypedReference:
+            case SpecialType.Buffer:
+            default:
+                return false;
+        }
+    }
 }
