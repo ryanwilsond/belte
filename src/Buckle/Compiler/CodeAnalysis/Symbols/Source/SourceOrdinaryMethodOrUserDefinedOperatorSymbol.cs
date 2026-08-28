@@ -333,8 +333,13 @@ internal abstract class SourceOrdinaryMethodOrUserDefinedOperatorSymbol : Source
                     .GetBinderFactory(syntax.syntaxTree)
                     .GetBinder(returnTypeSyntax, syntax, this);
 
+                var signatureFlags = BinderFlags.TemplateConstraintsClause | BinderFlags.SuppressConstraintChecks;
+
+                if (isLowLevel)
+                    signatureFlags |= BinderFlags.LowLevelContext;
+
                 var signatureBinder = withTemplateParametersBinder.WithAdditionalFlagsAndContainingMember(
-                    BinderFlags.TemplateConstraintsClause | BinderFlags.SuppressConstraintChecks,
+                    signatureFlags,
                     this
                 );
 

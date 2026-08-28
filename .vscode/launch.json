@@ -12,7 +12,7 @@
                 "--clearsubmissions",
             ],
             "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal",
+            "console": "externalTerminal",
             "stopAtEntry": false,
         },
         {

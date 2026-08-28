@@ -66,6 +66,7 @@ internal sealed partial class TemplateMetadataReader {
 
         private readonly Dictionary<TypeSymbol, long> _hasMetadataForTypeCache = [];
         private readonly Dictionary<TypeSymbol, ImmutableDictionary<MethodSymbol, BoundBlockStatement>> _decodedMethodsAndBodiesCache = [];
+        private readonly Dictionary<TypeSymbol, PETemplateType> _linkedTypes = [];
 
         internal TemplateMetadata(Compilation compilation, byte[] bytes) {
             _compilation = compilation;
@@ -270,6 +271,54 @@ internal sealed partial class TemplateMetadataReader {
             }
         }
 
+        internal Symbol GetLinkedSymbol(TypeSymbol type, Symbol symbol) {
+            Debug.Assert(HasTemplateEntryForType(type));
+            var linkedType = GetLinkedType(type);
+
+            if ((object)type == symbol)
+                return linkedType;
+
+            return GetMemberOfType(linkedType, (MethodSymbol)symbol);
+
+            static MethodSymbol GetMemberOfType(PETemplateType type, MethodSymbol method) {
+                var candidates = type.GetMembers(method.name);
+                MethodSymbol result = null;
+
+                foreach (var candidate in candidates) {
+                    if (candidate is not MethodSymbol m)
+                        continue;
+
+                    if (m.arity != method.arity ||
+                        m.returnsByRef != method.returnsByRef ||
+                        !m.returnType.Equals(method.returnType, TypeCompareKind.ConsiderEverything)) {
+                        continue;
+                    }
+
+                    if (m.parameterCount != method.parameterCount)
+                        continue;
+
+                    var sameSignature = true;
+
+                    for (var i = 0; i < m.parameterCount; i++) {
+                        var param1 = m.parameters[i];
+                        var param2 = method.parameters[i];
+
+                        if (!param1.type.Equals(param2.type, TypeCompareKind.ConsiderEverything)) {
+                            sameSignature = false;
+                            break;
+                        }
+                    }
+
+                    if (sameSignature) {
+                        result = m;
+                        break;
+                    }
+                }
+
+                return result;
+            }
+        }
+
         internal ImmutableDictionary<MethodSymbol, BoundBlockStatement> DecodeMethodsAndBodiesForType(TypeSymbol type) {
             if (_decodedMethodsAndBodiesCache.TryGetValue(type, out var found))
                 return found;
@@ -281,21 +330,7 @@ internal sealed partial class TemplateMetadataReader {
             Debug.Assert(_typeDefTableIsRead);
             Debug.Assert(_hasMetadataForTypeCache.ContainsKey(type) && _hasMetadataForTypeCache[type] != -1);
 
-            var typeEntryIndex = _hasMetadataForTypeCache[type];
-
-            PETemplateType templateType = null;
-
-            foreach (var decoder in _typeDefTable) {
-                if (decoder.typeEntryIndex == typeEntryIndex) {
-#if DEBUG
-                    Debug.Assert(templateType is null);
-#endif
-                    templateType = new PETemplateType(type.containingNamespace, decoder, (NamedTypeSymbol)type);
-#if !DEBUG
-                    break;
-#endif
-                }
-            }
+            var templateType = GetLinkedType(type);
 
             var builder = ImmutableDictionary.CreateBuilder<MethodSymbol, BoundBlockStatement>();
             var members = templateType.GetMembers();
@@ -312,6 +347,30 @@ internal sealed partial class TemplateMetadataReader {
             var dictionary = builder.ToImmutableDictionary();
             _decodedMethodsAndBodiesCache.Add(type, dictionary);
             return dictionary;
+        }
+
+        private PETemplateType GetLinkedType(TypeSymbol type) {
+            if (_linkedTypes.TryGetValue(type, out var found))
+                return found;
+
+            var typeEntryIndex = _hasMetadataForTypeCache[type];
+            PETemplateType templateType = null;
+
+            foreach (var decoder in _typeDefTable) {
+                if (decoder.typeEntryIndex == typeEntryIndex) {
+#if DEBUG
+                    Debug.Assert(templateType is null);
+#endif
+                    templateType = new PETemplateType(type.containingNamespace, decoder, (NamedTypeSymbol)type);
+#if !DEBUG
+                    break;
+#endif
+                }
+            }
+
+            Debug.Assert(templateType is not null);
+            _linkedTypes.Add(type, templateType);
+            return templateType;
         }
 
         private void ReadHeader() {

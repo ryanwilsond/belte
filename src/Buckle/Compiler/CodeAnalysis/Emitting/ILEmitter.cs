@@ -1936,6 +1936,10 @@ internal partial class ILEmitter : ModuleBuilder {
             Accessibility.Public when isNested => TypeAttributes.NestedPublic,
             Accessibility.Public => TypeAttributes.Public,
             Accessibility.Protected => TypeAttributes.NestedFamily,
+            Accessibility.Internal when isNested => TypeAttributes.NestedAssembly,
+            Accessibility.Internal => TypeAttributes.NotPublic,
+            Accessibility.InternalOrProtected => TypeAttributes.NestedFamORAssem,
+            Accessibility.InternalAndProtected => TypeAttributes.NestedFamANDAssem,
             _ => 0
         };
 
@@ -1947,6 +1951,9 @@ internal partial class ILEmitter : ModuleBuilder {
             Accessibility.Private => FieldAttributes.Private,
             Accessibility.Public => FieldAttributes.Public,
             Accessibility.Protected => FieldAttributes.Family,
+            Accessibility.Internal => FieldAttributes.Assembly,
+            Accessibility.InternalOrProtected => FieldAttributes.FamORAssem,
+            Accessibility.InternalAndProtected => FieldAttributes.FamANDAssem,
             _ => 0
         };
 
@@ -1961,6 +1968,9 @@ internal partial class ILEmitter : ModuleBuilder {
             Accessibility.Private => MethodAttributes.Private,
             Accessibility.Public => MethodAttributes.Public,
             Accessibility.Protected => MethodAttributes.Family,
+            Accessibility.Internal => MethodAttributes.Assembly,
+            Accessibility.InternalOrProtected => MethodAttributes.FamORAssem,
+            Accessibility.InternalAndProtected => MethodAttributes.FamANDAssem,
             _ => 0
         } | MethodAttributes.HideBySig;
 

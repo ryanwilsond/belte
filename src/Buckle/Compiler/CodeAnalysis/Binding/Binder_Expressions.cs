@@ -3741,8 +3741,13 @@ internal partial class Binder {
         if (node.type.kind is SyntaxKind.NonNullableType or SyntaxKind.NullableType)
             diagnostics.Push(Error.AnnotationsDisallowedInObjectCreation(node.location));
 
-        if (type.originalDefinition.specialType == SpecialType.Buffer)
-            return BindBufferCreation(node, RewriteBufferType(type), diagnostics);
+        if (type.originalDefinition.specialType == SpecialType.Buffer) {
+            return BindBufferCreation(
+                node,
+                RewriteAndCheckBufferType(type, node.type.location, diagnostics),
+                diagnostics
+            );
+        }
 
         switch (type.typeKind) {
             case TypeKind.Struct:

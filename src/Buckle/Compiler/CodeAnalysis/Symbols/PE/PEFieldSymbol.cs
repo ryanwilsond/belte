@@ -75,11 +75,10 @@ internal sealed partial class PEFieldSymbol : FieldSymbol {
 
     internal override Accessibility declaredAccessibility {
         get {
-            // TODO We have limited ways to represent full .NET accessibility
             var access = (_flags & FieldAttributes.FieldAccessMask) switch {
-                FieldAttributes.Assembly => Accessibility.Public,// access = Accessibility.Internal;
-                FieldAttributes.FamORAssem => Accessibility.Public,// access = Accessibility.ProtectedOrInternal;
-                FieldAttributes.FamANDAssem => Accessibility.Public,// access = Accessibility.ProtectedAndInternal;
+                FieldAttributes.Assembly => Accessibility.Internal,
+                FieldAttributes.FamORAssem => Accessibility.InternalOrProtected,
+                FieldAttributes.FamANDAssem => Accessibility.InternalAndProtected,
                 FieldAttributes.Private or FieldAttributes.PrivateScope => Accessibility.Private,
                 FieldAttributes.Public => Accessibility.Public,
                 FieldAttributes.Family => Accessibility.Protected,

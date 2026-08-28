@@ -777,15 +777,31 @@ public static class SymbolDisplay {
     }
 
     private static void DisplayAccessibility(DisplayText text, Symbol symbol) {
-        if (symbol.declaredAccessibility == Accessibility.Public) {
-            text.Write(CreateKeyword(SyntaxKind.PublicKeyword));
-            text.Write(CreateSpace());
-        } else if (symbol.declaredAccessibility == Accessibility.Protected) {
-            text.Write(CreateKeyword(SyntaxKind.ProtectedKeyword));
-            text.Write(CreateSpace());
-        } else if (symbol.declaredAccessibility == Accessibility.Private) {
-            text.Write(CreateKeyword(SyntaxKind.PrivateKeyword));
-            text.Write(CreateSpace());
+        switch (symbol.declaredAccessibility) {
+            case Accessibility.Public:
+                text.Write(CreateKeyword(SyntaxKind.PublicKeyword));
+                text.Write(CreateSpace());
+                break;
+            case Accessibility.Protected:
+                text.Write(CreateKeyword(SyntaxKind.ProtectedKeyword));
+                text.Write(CreateSpace());
+                break;
+            case Accessibility.Private:
+                text.Write(CreateKeyword(SyntaxKind.PrivateKeyword));
+                text.Write(CreateSpace());
+                break;
+            case Accessibility.Internal:
+                text.Write(CreateKeyword(SyntaxKind.InternalKeyword));
+                text.Write(CreateSpace());
+                break;
+            case Accessibility.InternalOrProtected:
+                text.Write(CreateKeyword("internal | protected"));
+                text.Write(CreateSpace());
+                break;
+            case Accessibility.InternalAndProtected:
+                text.Write(CreateKeyword("internal & protected"));
+                text.Write(CreateSpace());
+                break;
         }
     }
 

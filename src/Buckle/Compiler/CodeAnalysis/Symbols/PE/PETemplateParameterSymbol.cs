@@ -19,6 +19,10 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
     private readonly ushort _ordinal;
 
     private readonly GenericParameterAttributes _flags;
+    private bool _lazyAdditionalFlagsAreRead;
+    private TemplateMetadataWriter.TemplateParameterFlags _lazyAdditionalFlags;
+    private TypeOrConstant _lazyDefaultValue;
+    private bool _lazyDefaultValueIsRead;
     private ThreeState _lazyHasIsUnmanagedConstraint;
     private TypeParameterBounds _lazyBounds = TypeParameterBounds.Unset;
     private ImmutableArray<TypeWithAnnotations> _lazyDeclaredConstraintTypes;
@@ -88,15 +92,17 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
 
     internal override bool isOptional => false;
 
-    // TODO This will need to be done eventually
-    internal override bool isCompileTimeType => false;
+    internal override bool isCompileTimeType {
+        get {
+            EnsureLazyFlagsAreLoaded();
+            return (_lazyAdditionalFlags & TemplateMetadataWriter.TemplateParameterFlags.CompileTime) != 0;
+        }
+    }
 
     internal override bool hasNotNullConstraint {
         get {
-            return false;
-            // TODO We don't have a direct equivalent to this:
-            // return (_flags & (GenericParameterAttributes.NotNullableValueTypeConstraint |
-            //     GenericParameterAttributes.ReferenceTypeConstraint)) == 0;
+            EnsureLazyFlagsAreLoaded();
+            return (_lazyAdditionalFlags & TemplateMetadataWriter.TemplateParameterFlags.HasNotNullConstraint) != 0;
         }
     }
 
@@ -106,7 +112,12 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
     internal override bool allowsRefLikeType
         => (_flags & MetadataHelpers.GenericParameterAttributesAllowByRefLike) != 0;
 
-    internal override bool hasDefaultConstraint => false;
+    internal override bool hasDefaultConstraint {
+        get {
+            EnsureLazyFlagsAreLoaded();
+            return (_lazyAdditionalFlags & TemplateMetadataWriter.TemplateParameterFlags.HasDefaultConstraint) != 0;
+        }
+    }
 
     internal override bool hasValueTypeConstraint
         => (_flags & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0;
@@ -133,7 +144,12 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
     internal override TypeWithAnnotations underlyingType
         => new TypeWithAnnotations(containingAssembly.corLibrary.GetSpecialType(SpecialType.Type));
 
-    internal override TypeOrConstant defaultValue => null;
+    internal override TypeOrConstant defaultValue {
+        get {
+            EnsureDefaultValueIsLoaded();
+            return _lazyDefaultValue;
+        }
+    }
 
     internal override ImmutableArray<AttributeData> GetAttributes() {
         // TODO
@@ -151,6 +167,45 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
 
         // return _lazyCustomAttributes;
         return [];
+    }
+
+    private void EnsureLazyFlagsAreLoaded() {
+        if (_lazyAdditionalFlagsAreRead)
+            return;
+
+        if (containingModule.containingAssembly.templateMetadataReader
+            .GetLinkedSymbol(_containingSymbol) is not ISymbolWithTemplates linkedSymbol) {
+            Interlocked.Exchange(ref _lazyAdditionalFlagsAreRead, true);
+            return;
+        }
+
+        var additionalFlags = ((PETemplateType.MetadataTemplateParameterSymbol)linkedSymbol.templateParameters[ordinal])
+            .AdditionalFlags();
+
+        if (Interlocked.CompareExchange(
+                ref _lazyAdditionalFlags,
+                additionalFlags,
+                TemplateMetadataWriter.TemplateParameterFlags.None)
+                == TemplateMetadataWriter.TemplateParameterFlags.None) {
+            Interlocked.Exchange(ref _lazyAdditionalFlagsAreRead, true);
+        }
+    }
+
+    private void EnsureDefaultValueIsLoaded() {
+        if (_lazyDefaultValueIsRead)
+            return;
+
+        if (containingModule.containingAssembly.templateMetadataReader
+            .GetLinkedSymbol(_containingSymbol) is not ISymbolWithTemplates linkedSymbol) {
+            Interlocked.Exchange(ref _lazyDefaultValueIsRead, true);
+            return;
+        }
+
+        var defaultValue = ((PETemplateType.MetadataTemplateParameterSymbol)linkedSymbol.templateParameters[ordinal])
+            .defaultValue;
+
+        if (Interlocked.CompareExchange(ref _lazyDefaultValue, defaultValue, null) is null)
+            Interlocked.Exchange(ref _lazyDefaultValueIsRead, true);
     }
 
     private ImmutableArray<TypeWithAnnotations> GetDeclaredConstraintTypes(

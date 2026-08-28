@@ -127,6 +127,9 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
                 diagnostics.Push(Error.OperatorCantHaveTemplates(location, this));
         }
 
+        if (methodKind == MethodKind.ExplicitInterfaceImplementation)
+            return;
+
         if (methodKind == MethodKind.Literal) {
             CheckLiteralOperatorSignature(diagnostics);
             return;
@@ -482,7 +485,12 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
         var binder = declaringCompilation.GetBinderFactory(declarationSyntax.syntaxTree)
             .GetBinder(returnTypeSyntax, declarationSyntax, this);
 
-        var signatureBinder = binder.WithAdditionalFlags(BinderFlags.SuppressConstraintChecks);
+        var signatureFlags = BinderFlags.SuppressConstraintChecks;
+
+        if (isLowLevel)
+            signatureFlags |= BinderFlags.LowLevelContext;
+
+        var signatureBinder = binder.WithAdditionalFlags(signatureFlags);
 
         parameters = ParameterHelpers.MakeParameters(
             signatureBinder,

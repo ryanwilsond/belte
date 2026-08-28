@@ -701,8 +701,13 @@ internal partial class Binder {
                 return new TypeWithAnnotations(CreateErrorType());
         }
 
-        if (namespaceOrNonNullableType.isType && rewriteBufferType)
-            return new TypeWithAnnotations(RewriteBufferType(namespaceOrNonNullableType.typeWithAnnotations.type));
+        if (namespaceOrNonNullableType.isType && rewriteBufferType) {
+            return new TypeWithAnnotations(RewriteAndCheckBufferType(
+                namespaceOrNonNullableType.typeWithAnnotations.type,
+                syntax.location,
+                diagnostics
+            ));
+        }
 
         return namespaceOrNonNullableType;
 
@@ -757,10 +762,19 @@ internal partial class Binder {
         }
     }
 
-    private TypeSymbol RewriteBufferType(TypeSymbol type) {
+    private TypeSymbol RewriteAndCheckBufferType(
+        TypeSymbol type,
+        TextLocation errorLocation,
+        BelteDiagnosticQueue diagnostics) {
         if (type.originalDefinition.specialType == SpecialType.Buffer) {
             var elementType = ((NamedTypeSymbol)type).templateArguments[0].type
                 ?? new TypeWithAnnotations(CreateErrorType());
+
+            if (!elementType.type.IsErrorType() &&
+                !elementType.type.hasDefault &&
+                !flags.Includes(BinderFlags.LowLevelContext)) {
+                diagnostics.Push(Error.BufferNoDefaultValue(errorLocation, elementType.type));
+            }
 
             return ArrayTypeSymbol.CreateSZArray(compilation.assembly, elementType);
         }

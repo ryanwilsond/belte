@@ -189,6 +189,7 @@ public enum SyntaxKind : ushort {
     PureKeyword,
     MemoizeKeyword,
     TemplateKeyword,
+    InternalKeyword,
 
     // Trivia
     EndOfLineTrivia,

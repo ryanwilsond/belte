@@ -396,15 +396,29 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
     }
 
     internal bool IsAtLeastAsVisibleAs(Symbol symbol) {
-        return typeKind switch {
-            TypeKind.Class or TypeKind.Struct or TypeKind.Interface => symbol.declaredAccessibility switch {
-                Accessibility.Public => declaredAccessibility is Accessibility.Public or Accessibility.NotApplicable,
-                Accessibility.Protected => declaredAccessibility is
-                    Accessibility.Public or Accessibility.Protected or Accessibility.NotApplicable,
-                _ => true,
-            },
-            _ => true,
-        };
+        return FindTypeLessVisibleThan(symbol) is null;
+    }
+
+    internal TypeSymbol FindTypeLessVisibleThan(Symbol symbol) {
+        var result = VisitType(
+            static (type1, arg, _) => IsTypeLessVisibleThan(type1, arg),
+            arg: symbol,
+            canDigThroughNullable: true
+        );
+
+        return result;
+    }
+
+    private static bool IsTypeLessVisibleThan(TypeSymbol type, Symbol symbol) {
+        switch (type.typeKind) {
+            case TypeKind.Class:
+            case TypeKind.Struct:
+            case TypeKind.Interface:
+            case TypeKind.Enum:
+                return !((NamedTypeSymbol)type).IsAsRestrictive(symbol);
+            default:
+                return false;
+        }
     }
 
     internal bool IsValidAttributeParameterType(Compilation compilation) {

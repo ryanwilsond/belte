@@ -118,7 +118,7 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
             kind: DeclarationKind.ImplicitClass,
             name: TypeSymbol.ImplicitTypeName,
             arity: 0,
-            modifiers: DeclarationModifiers.Public | DeclarationModifiers.Sealed,
+            modifiers: DeclarationModifiers.Internal | DeclarationModifiers.Sealed,
             declFlags: declFlags,
             syntaxReference: container,
             nameLocation: container.location,

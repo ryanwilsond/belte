@@ -88,7 +88,7 @@ internal sealed class EndBinder : Binder {
         TypeSymbol accessThroughType,
         out bool failedThroughTypeCheck) {
         failedThroughTypeCheck = false;
-        return IsSymbolAccessibleConditional(symbol, compilation.globalNamespaceInternal);
+        return IsSymbolAccessibleConditional(symbol, compilation.assembly);
     }
 
     private protected override bool IsUnboundTypeAllowed(TemplateNameSyntax syntax) {

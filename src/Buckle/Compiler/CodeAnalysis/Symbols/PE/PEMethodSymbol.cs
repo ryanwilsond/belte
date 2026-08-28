@@ -234,9 +234,9 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
     internal override Accessibility declaredAccessibility {
         get {
             return (object)(flags & MethodAttributes.MemberAccessMask) switch {
-                MethodAttributes.Assembly => Accessibility.Public,// return Accessibility.Internal;
-                MethodAttributes.FamORAssem => Accessibility.Public,// return Accessibility.ProtectedOrInternal;
-                MethodAttributes.FamANDAssem => Accessibility.Public,// return Accessibility.ProtectedAndInternal;
+                MethodAttributes.Assembly => Accessibility.Internal,
+                MethodAttributes.FamORAssem => Accessibility.InternalOrProtected,
+                MethodAttributes.FamANDAssem => Accessibility.InternalAndProtected,
                 MethodAttributes.Private or MethodAttributes.PrivateScope => Accessibility.Private,
                 MethodAttributes.Public => Accessibility.Public,
                 MethodAttributes.Family => Accessibility.Protected,

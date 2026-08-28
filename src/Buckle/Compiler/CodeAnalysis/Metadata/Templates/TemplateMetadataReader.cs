@@ -64,6 +64,23 @@ internal sealed partial class TemplateMetadataReader {
         return templateMetadata.DecodeMethodsAndBodiesForType(type);
     }
 
+    internal Symbol GetLinkedSymbol(Symbol symbol) {
+        var type = (symbol as TypeSymbol) ?? symbol.containingType;
+
+        if (type is null)
+            return null;
+
+        EnsureTemplateMetadataIsRead();
+
+        if (!TryGetTemplateMetadata(type.containingAssembly.identity, out var templateMetadata))
+            return null;
+
+        if (!templateMetadata.HasTemplateEntryForType(type))
+            return null;
+
+        return templateMetadata.GetLinkedSymbol(type, symbol);
+    }
+
     private void EnsureTemplateMetadataIsRead() {
         if (_rawTemplateMetadata is not null)
             return;

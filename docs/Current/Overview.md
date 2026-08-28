@@ -139,6 +139,7 @@ These keywords are reserved names and cannot be used as identifiers.
 - [implements](ClassesAndObjects.md#4512-special-constraints) (template constraint)
 - [in](ControlFlow.md#244-for-each-loops)
 - [interface](ClassesAndObjects.md#410-interfaces)
+- [internal](ClassesAndObjects.md#431-accessibility-modifiers)
 - [is](Data.md#32-operators)
 - [isnt](Data.md#32-operators)
 - [lowlevel](LowLevelFeatures.md#61-low-level-contexts) (scope modifier)

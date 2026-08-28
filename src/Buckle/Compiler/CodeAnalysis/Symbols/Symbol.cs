@@ -476,6 +476,118 @@ internal abstract class Symbol : ISymbol {
         return type.StrippedType().IsAtLeastAsVisibleAs(this);
     }
 
+    internal bool IsAsRestrictive(Symbol symbol2) {
+        var acc1 = declaredAccessibility;
+
+        if (acc1 == Accessibility.Public)
+            return true;
+
+        for (var s2 = symbol2; s2.kind != SymbolKind.Namespace; s2 = s2.containingSymbol) {
+            var acc2 = s2.declaredAccessibility;
+
+            switch (acc1) {
+                case Accessibility.Internal: {
+                        if ((acc2 is Accessibility.Private or Accessibility.Internal or Accessibility.InternalAndProtected) &&
+                            s2.containingAssembly.HasInternalAccessTo(containingAssembly)) {
+                            return true;
+                        }
+
+                        break;
+                    }
+                case Accessibility.InternalAndProtected:
+                    if ((acc2 is Accessibility.Private or Accessibility.Internal or Accessibility.InternalAndProtected) &&
+                        s2.containingAssembly.HasInternalAccessTo(containingAssembly)) {
+                        goto case Accessibility.Protected;
+                    }
+
+                    break;
+                case Accessibility.Protected: {
+                        var parent1 = containingType;
+
+                        if (parent1 is null) {
+                        } else if (acc2 == Accessibility.Private) {
+                            for (var parent2 = s2.containingType; parent2 is not null; parent2 = parent2.containingType) {
+                                if (parent1.IsAccessibleViaInheritance(parent2))
+                                    return true;
+                            }
+                        } else if (acc2 is Accessibility.Protected or Accessibility.InternalAndProtected) {
+                            var parent2 = s2.containingType;
+
+                            if (parent2 is not null && parent1.IsAccessibleViaInheritance(parent2))
+                                return true;
+                        }
+
+                        break;
+                    }
+                case Accessibility.InternalOrProtected: {
+                        var parent1 = containingType;
+
+                        if (parent1 is null)
+                            break;
+
+                        switch (acc2) {
+                            case Accessibility.Private:
+                                if (s2.containingAssembly.HasInternalAccessTo(containingAssembly))
+                                    return true;
+
+                                for (var parent2 = s2.containingType; parent2 is not null; parent2 = parent2.containingType) {
+                                    if (parent1.IsAccessibleViaInheritance(parent2))
+                                        return true;
+                                }
+
+                                break;
+                            case Accessibility.Internal:
+                                if (s2.containingAssembly.HasInternalAccessTo(containingAssembly))
+                                    return true;
+
+                                break;
+                            case Accessibility.Protected:
+                                if (parent1.IsAccessibleViaInheritance(s2.containingType))
+                                    return true;
+
+                                break;
+                            case Accessibility.InternalAndProtected:
+                                if (s2.containingAssembly.HasInternalAccessTo(containingAssembly) ||
+                                    parent1.IsAccessibleViaInheritance(s2.containingType)) {
+                                    return true;
+                                }
+
+                                break;
+                            case Accessibility.InternalOrProtected:
+                                if (s2.containingAssembly.HasInternalAccessTo(containingAssembly) &&
+                                    parent1.IsAccessibleViaInheritance(s2.containingType)) {
+                                    return true;
+                                }
+
+                                break;
+                        }
+
+                        break;
+                    }
+                case Accessibility.Private:
+                    if (acc2 == Accessibility.Private) {
+                        var parent1 = containingType;
+
+                        if (parent1 is null)
+                            break;
+
+                        var parent1OriginalDefinition = parent1.originalDefinition;
+
+                        for (var parent2 = s2.containingType; parent2 is not null; parent2 = parent2.containingType) {
+                            if (ReferenceEquals(parent2.originalDefinition, parent1OriginalDefinition))
+                                return true;
+                        }
+                    }
+
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(acc1);
+            }
+        }
+
+        return false;
+    }
+
     internal Symbol GetLeastOverriddenMember(NamedTypeSymbol accessingTypeOpt) {
         switch (kind) {
             case SymbolKind.Method:

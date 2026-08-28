@@ -357,8 +357,11 @@ done:
                 if (nts is not null) {
                     var declaredAccessibility = nts.declaredAccessibility;
 
-                    if (declaredAccessibility is not Accessibility.Public and not Accessibility.NotApplicable)
+                    if (declaredAccessibility is not Accessibility.Public
+                                             and not Accessibility.NotApplicable
+                                             and not Accessibility.Internal) {
                         diagnostics.Push(Error.NoNamespacePrivate(symbol.location));
+                    }
                 }
             }
         }

@@ -1666,9 +1666,12 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
         switch (hidingMember.declaredAccessibility) {
             case Accessibility.Private:
+            case Accessibility.Internal:
+            case Accessibility.InternalAndProtected:
                 break;
             case Accessibility.Public:
             case Accessibility.Protected:
+            case Accessibility.InternalOrProtected:
                 diagnostics.Push(Error.HidingAbstractMember(hidingMemberLocation, hidingMember, hiddenMember));
                 return true;
             default:
@@ -1899,8 +1902,13 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             return Accessibility.Private;
 
         for (var container = containingType; container is not null; container = container.containingType) {
-            if (container.declaredAccessibility == Accessibility.Private)
-                return Accessibility.Private;
+            switch (container.declaredAccessibility) {
+                case Accessibility.Private:
+                    return Accessibility.Private;
+                case Accessibility.Internal:
+                    result = Accessibility.Internal;
+                    continue;
+            }
         }
 
         return result;
@@ -2589,14 +2597,12 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     }
 
     private DeclarationModifiers MakeModifiers(BelteDiagnosticQueue diagnostics) {
-        var defaultAccess = containingSymbol is null or NamespaceSymbol
-            ? DeclarationModifiers.None
-            : DeclarationModifiers.Private;
+        DeclarationModifiers defaultAccess;
 
         var allowedModifiers = DeclarationModifiers.AccessibilityMask;
 
         if (containingSymbol.kind == SymbolKind.Namespace) {
-            // defaultAccess = DeclarationModifiers.Internal;
+            defaultAccess = DeclarationModifiers.Internal;
         } else {
             allowedModifiers |= DeclarationModifiers.New;
 

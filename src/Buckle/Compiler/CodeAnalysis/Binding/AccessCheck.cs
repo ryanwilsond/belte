@@ -177,6 +177,7 @@ internal static class AccessCheck {
 
         var originalContainingType = containingType.originalDefinition;
         var withinType = within as NamedTypeSymbol;
+        var withinAssembly = withinType is not null ? withinType.containingAssembly : (AssemblySymbol)within;
 
         switch (accessibility) {
             case Accessibility.NotApplicable:
@@ -191,6 +192,30 @@ internal static class AccessCheck {
                     out failedThroughTypeCheck,
                     compilation
                 );
+            case Accessibility.InternalAndProtected:
+                if (!withinAssembly.HasInternalAccessTo(containingType.containingAssembly))
+                    return false;
+
+                return IsProtectedSymbolAccessible(
+                    withinType,
+                    originalContainingType,
+                    throughType,
+                    out failedThroughTypeCheck,
+                    compilation
+                );
+            case Accessibility.InternalOrProtected:
+                if (withinAssembly.HasInternalAccessTo(containingType.containingAssembly))
+                    return true;
+
+                return IsProtectedSymbolAccessible(
+                    withinType,
+                    originalContainingType,
+                    throughType,
+                    out failedThroughTypeCheck,
+                    compilation
+                );
+            case Accessibility.Internal:
+                return withinAssembly.HasInternalAccessTo(containingType.containingAssembly);
             default:
                 throw ExceptionUtilities.UnexpectedValue(accessibility);
         }
@@ -293,10 +318,28 @@ internal static class AccessCheck {
                 return true;
             case Accessibility.Private:
             case Accessibility.Protected:
+            case Accessibility.InternalAndProtected:
                 return false;
+            case Accessibility.Internal:
+            case Accessibility.InternalOrProtected:
+                var withinAssembly = within is NamedTypeSymbol withinType
+                    ? withinType.containingAssembly
+                    : (AssemblySymbol)within;
+
+                return (object)withinAssembly == assembly || withinAssembly.HasInternalAccessTo(assembly);
             default:
                 throw ExceptionUtilities.UnexpectedValue(declaredAccessibility);
         }
+    }
+
+    internal static bool HasInternalAccessTo(this AssemblySymbol fromAssembly, AssemblySymbol toAssembly) {
+        if (Equals(fromAssembly, toAssembly))
+            return true;
+
+        if (fromAssembly.AreInternalsVisibleToThisAssembly(toAssembly))
+            return true;
+
+        return false;
     }
 
     internal static bool IsEffectivelyPublicOrInternal(Symbol symbol, out bool isInternal) {
@@ -318,6 +361,11 @@ internal static class AccessCheck {
             switch (symbol.declaredAccessibility) {
                 case Accessibility.Public:
                 case Accessibility.Protected:
+                case Accessibility.InternalOrProtected:
+                    break;
+                case Accessibility.Internal:
+                case Accessibility.InternalAndProtected:
+                    isInternal = true;
                     break;
                 case Accessibility.Private:
                     return false;

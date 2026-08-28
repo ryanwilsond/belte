@@ -3020,6 +3020,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_CannotTemplateSpecializeType, location, message);
     }
 
+    internal static BelteDiagnostic BufferNoDefaultValue(TextLocation location, TypeSymbol type) {
+        var message = $"cannot use a Buffer with element type '{type}' outside of a lowlevel context because it has no default value";
+        return CreateError(DiagnosticCode.ERR_BufferNoDefaultValue, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

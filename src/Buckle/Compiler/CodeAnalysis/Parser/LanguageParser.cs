@@ -181,6 +181,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.PrivateKeyword:
             case SyntaxKind.ProtectedKeyword:
             case SyntaxKind.PublicKeyword:
+            case SyntaxKind.InternalKeyword:
             case SyntaxKind.SealedKeyword:
             case SyntaxKind.StaticKeyword:
             case SyntaxKind.LowlevelKeyword:
@@ -203,6 +204,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.PrivateKeyword:
             case SyntaxKind.ProtectedKeyword:
             case SyntaxKind.PublicKeyword:
+            case SyntaxKind.InternalKeyword:
             case SyntaxKind.PropertyKeyword:
             case SyntaxKind.ConstexprKeyword:
             case SyntaxKind.FinalKeyword:
@@ -1813,6 +1815,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             SyntaxKind.ConstexprKeyword => DeclarationModifiers.ConstExpr,
             SyntaxKind.LowlevelKeyword => DeclarationModifiers.LowLevel,
             SyntaxKind.PublicKeyword => DeclarationModifiers.Public,
+            SyntaxKind.InternalKeyword => DeclarationModifiers.Internal,
             SyntaxKind.PrivateKeyword => DeclarationModifiers.Private,
             SyntaxKind.ProtectedKeyword => DeclarationModifiers.Protected,
             SyntaxKind.SealedKeyword => DeclarationModifiers.Sealed,
@@ -1841,7 +1844,15 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 break;
             }
 
-            modifiers.Add(EatToken());
+            if (modifier == DeclarationModifiers.Internal &&
+                Peek(1).kind is SyntaxKind.PipeToken or SyntaxKind.AmpersandToken &&
+                Peek(2).kind == SyntaxKind.ProtectedKeyword) {
+                modifiers.Add(EatToken());
+                modifiers.Add(EatToken());
+                modifiers.Add(EatToken());
+            } else {
+                modifiers.Add(EatToken());
+            }
         }
 
         return _pool.ToListAndFree(modifiers);

@@ -742,7 +742,7 @@ public sealed class EvaluatorTests {
     [InlineData("class A { public override string? ToString() { return \"a\"; } } var a = new A(); return a.ToString();", "a")]
     [InlineData("struct A { public override string? ToString() { return \"a\"; } } var a = new A(); return a.ToString();", "a")]
     [InlineData("any[]? a = {1, 2, 3}; return a!.Length();", 3)]
-    [InlineData("Buffer<any>? a = {1, 2, 3}; return LowLevel.Length<any>(a!);", 3)]
+    [InlineData("lowlevel { Buffer<any>? a = {1, 2, 3}; return LowLevel.Length<any>(a!); }", 3)]
     // TypeOf expressions
     [InlineData("lowlevel { type a = typeof(int[]); }", null)]
     [InlineData("type? a = typeof(string);", null)]

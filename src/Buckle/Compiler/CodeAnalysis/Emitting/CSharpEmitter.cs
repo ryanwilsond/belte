@@ -174,7 +174,9 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
         builder.Append(type.declaredAccessibility switch {
             Accessibility.Private => "private ",
             Accessibility.Protected => "protected ",
-            Accessibility.Public => "public ",
+            Accessibility.Internal => "internal ",
+            Accessibility.InternalOrProtected => "protected internal ",
+            Accessibility.InternalAndProtected => "private protected ",
             _ => "public "
         });
 
@@ -207,7 +209,9 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
         builder.Append(field.declaredAccessibility switch {
             Accessibility.Private => "private ",
             Accessibility.Protected => "protected ",
-            Accessibility.Public => "public ",
+            Accessibility.Internal => "internal ",
+            Accessibility.InternalOrProtected => "protected internal ",
+            Accessibility.InternalAndProtected => "private protected ",
             _ => "public "
         });
 
@@ -248,7 +252,9 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
             builder.Append(method.declaredAccessibility switch {
                 Accessibility.Private => "private ",
                 Accessibility.Protected => "protected ",
-                Accessibility.Public => "public ",
+                Accessibility.Internal => "internal ",
+                Accessibility.InternalOrProtected => "protected internal ",
+                Accessibility.InternalAndProtected => "private protected ",
                 _ => "public "
             });
         }

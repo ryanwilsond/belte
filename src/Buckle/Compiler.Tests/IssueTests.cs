@@ -2934,4 +2934,20 @@ public sealed class IssueTests {
 
         AssertValue(text, 4);
     }
+
+    [Fact]
+    public void Method_LowLevelModifierApplies() {
+        var text = @"
+            class A {
+                lowlevel Buffer<A!>? M() {
+                    return null;
+                }
+            }
+            ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

@@ -166,16 +166,16 @@ internal sealed partial class PETemplateType : NamedTypeSymbol {
 
     internal override Accessibility declaredAccessibility {
         get {
-            var access = Accessibility.Private;
+            Accessibility access;
 
             access = (_flags & TypeAttributes.VisibilityMask) switch {
-                TypeAttributes.NestedAssembly => Accessibility.Public,// access = Accessibility.Internal;
-                TypeAttributes.NestedFamORAssem => Accessibility.Public,// access = Accessibility.ProtectedOrInternal;
-                TypeAttributes.NestedFamANDAssem => Accessibility.Public,// access = Accessibility.ProtectedAndInternal;
+                TypeAttributes.NestedAssembly => Accessibility.Internal,
+                TypeAttributes.NestedFamORAssem => Accessibility.InternalOrProtected,
+                TypeAttributes.NestedFamANDAssem => Accessibility.InternalAndProtected,
                 TypeAttributes.NestedPrivate => Accessibility.Private,
                 TypeAttributes.Public or TypeAttributes.NestedPublic => Accessibility.Public,
                 TypeAttributes.NestedFamily => Accessibility.Protected,
-                TypeAttributes.NotPublic => Accessibility.Public,// access = Accessibility.Internal;
+                TypeAttributes.NotPublic => Accessibility.Internal,
                 _ => throw ExceptionUtilities.UnexpectedValue(_flags & TypeAttributes.VisibilityMask),
             };
 
@@ -241,7 +241,8 @@ internal sealed partial class PETemplateType : NamedTypeSymbol {
     private static ExtendedErrorTypeSymbol CyclicInheritanceError(TypeSymbol declaredBase) {
         // var info = new CSDiagnosticInfo(ErrorCode.ERR_ImportedCircularBase, declaredBase);
         // TODO error
-        return new ExtendedErrorTypeSymbol(declaredBase, LookupResultKind.NotReferencable, null, true);
+        throw ExceptionUtilities.Unreachable();
+        // return new ExtendedErrorTypeSymbol(declaredBase, LookupResultKind.NotReferencable, null, true);
     }
 
     private void EnsureNonTypeMemberNamesAreLoaded() {

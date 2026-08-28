@@ -463,6 +463,24 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
         return constructedFrom.Construct(templateArguments, true);
     }
 
+    internal bool IsAccessibleViaInheritance(NamedTypeSymbol subType) {
+        var originalSuperType = originalDefinition;
+
+        for (var current = subType; current is not null; current = current.baseType) {
+            if (ReferenceEquals(current.originalDefinition, originalSuperType))
+                return true;
+        }
+
+        if (originalSuperType.isInterface) {
+            foreach (var current in subType.allInterfaces) {
+                if (ReferenceEquals(current.originalDefinition, originalSuperType))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
     internal int ComputeHashCode() {
         if (WasConstructedForAnnotations(this))
             return originalDefinition.GetHashCode();

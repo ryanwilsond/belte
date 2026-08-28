@@ -9040,4 +9040,18 @@ var text = """"""
 
     // ! Reports_Error_BU0616_CannotTemplateSpecializeType
     // ? Requires referencing a dummy DLL without template metadata
+
+    [Fact]
+    public void Reports_Error_BU0617_BufferNoDefaultValue() {
+        var text = @"
+            class A { }
+            [Buffer<A!>]? a;
+        ";
+
+        var diagnostics = @"
+            cannot use a Buffer with element type 'A!' outside of a lowlevel context because it has no default value
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

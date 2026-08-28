@@ -212,6 +212,9 @@ internal sealed class SourceReverseMethodSymbol : SourceMemberMethodSymbol {
             Accessibility.Public => DeclarationModifiers.Public,
             Accessibility.Private => DeclarationModifiers.Private,
             Accessibility.Protected => DeclarationModifiers.Protected,
+            Accessibility.Internal => DeclarationModifiers.Internal,
+            Accessibility.InternalOrProtected => DeclarationModifiers.InternalOrProtected,
+            Accessibility.InternalAndProtected => DeclarationModifiers.InternalAndProtected,
             _ => DeclarationModifiers.None
         };
 

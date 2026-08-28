@@ -89,7 +89,12 @@ internal abstract class SourceConstructorSymbolBase : SourceMemberMethodSymbol {
         var parameterList = GetParameterList();
 
         var bodyBinder = binderFactory.GetBinder(parameterList, syntax, this).WithContainingMember(this);
-        var signatureBinder = bodyBinder.WithAdditionalFlagsAndContainingMember(BinderFlags.SuppressConstraintChecks, this);
+        var signatureFlags = BinderFlags.SuppressConstraintChecks;
+
+        if (isLowLevel)
+            signatureFlags |= BinderFlags.LowLevelContext;
+
+        var signatureBinder = bodyBinder.WithAdditionalFlagsAndContainingMember(signatureFlags, this);
 
         _lazyParameters = ParameterHelpers.MakeParameters(
             signatureBinder,

@@ -261,6 +261,7 @@ public static class SyntaxFacts {
             "pure" => SyntaxKind.PureKeyword,
             "memoize" => SyntaxKind.MemoizeKeyword,
             "template" => SyntaxKind.TemplateKeyword,
+            "internal" => SyntaxKind.InternalKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -468,6 +469,7 @@ public static class SyntaxFacts {
             SyntaxKind.PureKeyword => "pure",
             SyntaxKind.MemoizeKeyword => "memoize",
             SyntaxKind.TemplateKeyword => "template",
+            SyntaxKind.InternalKeyword => "internal",
             _ => null,
         };
     }
@@ -873,7 +875,7 @@ public static class SyntaxFacts {
     }
 
     private const int FirstKeyword = (int)SyntaxKind.TypeOfKeyword;
-    private const int LastKeyword = (int)SyntaxKind.TemplateKeyword;
+    private const int LastKeyword = (int)SyntaxKind.InternalKeyword;
 
     /// <summary>
     /// Checks if a <see cref="SyntaxKind" /> is a keyword.

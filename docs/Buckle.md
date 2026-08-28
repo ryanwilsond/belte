@@ -240,8 +240,13 @@ Automatically includes certain library references. Each level includes all of th
 
 Specify to skip emitting template metadata when building a DLL.
 
-Template metadata is used to allow instantiating templates defined in referenced DLLs. This means that without it,
-consumers of a DLL cannot instantiate templates defined within that DLL.
+Template metadata is primarily used to allow instantiating templates defined in referenced DLLs. This means that without
+it, consumers of a DLL cannot instantiate templates defined within that DLL.
+
+Note that apart from instantiation ability, template metadata also includes Belte related symbol information not tracked
+by .NET. This includes [template parameter default values](Current/ClassesAndObjects.md#45-templates),
+[expression constraints](Current/ClassesAndObjects.md#4511-expression-constraints), etc. This means that if a library
+does not include template metadata, those features will not be available to referencing assemblies.
 
 ### *--time*
 

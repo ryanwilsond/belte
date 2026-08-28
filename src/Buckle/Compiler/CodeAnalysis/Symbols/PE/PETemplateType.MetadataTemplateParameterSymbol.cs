@@ -20,6 +20,7 @@ internal sealed partial class PETemplateType {
         private readonly TypeOrConstant _defaultValue;
 
         private TypeParameterBounds _lazyBounds = TypeParameterBounds.Unset;
+        // TODO
         // private ImmutableArray<TypeWithAnnotations> _lazyDeclaredConstraintTypes;
 
         private readonly TemplateParameterSymbol _symbolToLink;
@@ -132,6 +133,10 @@ internal sealed partial class PETemplateType {
         internal override TypeWithAnnotations underlyingType => _underlyingType;
 
         internal override TypeOrConstant defaultValue => _defaultValue;
+
+        internal TemplateMetadataWriter.TemplateParameterFlags AdditionalFlags() {
+            return _additionalFlags;
+        }
 
         internal override ImmutableArray<AttributeData> GetAttributes() {
             // TODO

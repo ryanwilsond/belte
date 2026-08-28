@@ -819,22 +819,46 @@ to locals, which can be [read about here](Data.md#331-modifiers). Fields can als
 
 ### 4.3.1 Accessibility Modifiers
 
-Public indicates that the member can be
-seen everywhere, including outside the class. Protected indicates that the member can only be seen within the class and
-child classes. Private indicates that the member can only be seen within the class, not even in child classes.
+Most symbols (types, fields, methods, etc.) have an accessibility modifier that describes which symbols can refer to it.
+
+An explicit accessibility modifier is not required. Struct, interface, and file-scoped class members default to public,
+namespace members default to internal, and everything else defaults to private.
+
+For example:
 
 ```belte
-class MyClass {
-  private int a;
-  protected int b;
-  public int c;
+public class A {
+  // Both f1 and f2 are private
+  private int f1;
+  int f2;
+
+  public int f3;
+
+  protected int f4;
+
+  internal int f5;
+
+  // `internal | protected` is a single accessibility
+  internal | protected int f6;
+
+  // `internal & protected` is a single accessibility
+  internal & protected int f7;
 }
 ```
 
-A member can only have one accessibility modifier, but they do not require the modifier. By default, all struct members
-are public and all class members are private.
+The accessibilities are:
 
-All types of members can be marked with all three accessibility modifiers except operators, which must always be public.
+| Modifier | Accessibility |
+| - | - |
+| `public` | Anything can access the symbol |
+| `internal` | Anything in the same assembly can access the symbol |
+| `protected` | The enclosing type and inheritors can access the symbol |
+| `private` | The enclosing type can access the symbol |
+| `internal \| protected` | Anything in the same assembly can access the symbol and inheritors of the enclosing type can access the symbol |
+| `internal & protected` | The enclosing type and inheritors in the same assembly can access the symbol |
+
+Certain members have additional restrictions. For example, [operators](#423-operators) must be public, and namespace
+must be public or internal.
 
 ### 4.3.2 Overriding Modifiers
 

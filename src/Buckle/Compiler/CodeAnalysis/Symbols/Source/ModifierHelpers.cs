@@ -78,7 +78,23 @@ internal static class ModifierHelpers {
             for (var i = 0; i < modifierTokens.Count; i++) {
                 var modifierToken = modifierTokens[i];
                 var nextIsRef = i < modifierTokens.Count - 1 && modifierTokens[i + 1].kind == SyntaxKind.RefKeyword;
-                var currentModifier = ToDeclarationModifier(modifierToken.kind, nextIsRef);
+
+                DeclarationModifiers currentModifier;
+
+                if (modifierToken.kind == SyntaxKind.InternalKeyword &&
+                    i < modifierTokens.Count + 1 &&
+                    modifierTokens[i + 1].kind is SyntaxKind.PipeToken or SyntaxKind.AmpersandToken) {
+                    Debug.Assert(modifierTokens.Count > i + 2);
+                    Debug.Assert(modifierTokens[i + 2].kind == SyntaxKind.ProtectedKeyword);
+
+                    currentModifier = modifierTokens[i + 1].kind == SyntaxKind.PipeToken
+                        ? DeclarationModifiers.InternalOrProtected
+                        : DeclarationModifiers.InternalAndProtected;
+
+                    i += 2;
+                } else {
+                    currentModifier = ToDeclarationModifier(modifierToken.kind, nextIsRef);
+                }
 
                 hasErrors |= SeenModifier(
                     modifierToken,
@@ -168,6 +184,9 @@ internal static class ModifierHelpers {
             DeclarationModifiers.Public => SyntaxFacts.GetText(SyntaxKind.PublicKeyword),
             DeclarationModifiers.Protected => SyntaxFacts.GetText(SyntaxKind.ProtectedKeyword),
             DeclarationModifiers.Private => SyntaxFacts.GetText(SyntaxKind.PrivateKeyword),
+            DeclarationModifiers.Internal => SyntaxFacts.GetText(SyntaxKind.InternalKeyword),
+            DeclarationModifiers.InternalAndProtected => SyntaxFacts.GetText(SyntaxKind.InternalKeyword) + " & " + SyntaxFacts.GetText(SyntaxKind.ProtectedKeyword),
+            DeclarationModifiers.InternalOrProtected => SyntaxFacts.GetText(SyntaxKind.InternalKeyword) + " | " + SyntaxFacts.GetText(SyntaxKind.ProtectedKeyword),
             DeclarationModifiers.ConstExpr => SyntaxFacts.GetText(SyntaxKind.ConstexprKeyword),
             DeclarationModifiers.LowLevel => SyntaxFacts.GetText(SyntaxKind.LowlevelKeyword),
             DeclarationModifiers.Const or
@@ -185,11 +204,19 @@ internal static class ModifierHelpers {
     }
 
     internal static bool IsValidAccessibility(DeclarationModifiers modifiers) {
-        return (modifiers & DeclarationModifiers.AccessibilityMask) switch {
-            DeclarationModifiers.None or DeclarationModifiers.Private or
-            DeclarationModifiers.Protected or DeclarationModifiers.Public => true,
-            _ => false, // This happens when you have multiple accessibilities.
-        };
+        switch (modifiers & DeclarationModifiers.AccessibilityMask) {
+            case DeclarationModifiers.None:
+            case DeclarationModifiers.Private:
+            case DeclarationModifiers.Protected:
+            case DeclarationModifiers.Public:
+            case DeclarationModifiers.Internal:
+            case DeclarationModifiers.InternalAndProtected:
+            case DeclarationModifiers.InternalOrProtected:
+                return true;
+            default:
+                // This happens when you have multiple accessibilities.
+                return false;
+        }
     }
 
     internal static Accessibility EffectiveAccessibility(DeclarationModifiers modifiers, bool defaultToPublic = false) {
@@ -198,6 +225,9 @@ internal static class ModifierHelpers {
             DeclarationModifiers.Private => Accessibility.Private,
             DeclarationModifiers.Protected => Accessibility.Protected,
             DeclarationModifiers.Public => Accessibility.Public,
+            DeclarationModifiers.Internal => Accessibility.Internal,
+            DeclarationModifiers.InternalAndProtected => Accessibility.InternalAndProtected,
+            DeclarationModifiers.InternalOrProtected => Accessibility.InternalOrProtected,
             _ => Accessibility.Public, // This happens when you have multiple accessibilities.
         };
     }
@@ -211,6 +241,7 @@ internal static class ModifierHelpers {
             SyntaxKind.PublicKeyword => DeclarationModifiers.Public,
             SyntaxKind.PrivateKeyword => DeclarationModifiers.Private,
             SyntaxKind.ProtectedKeyword => DeclarationModifiers.Protected,
+            SyntaxKind.InternalKeyword => DeclarationModifiers.Internal,
             SyntaxKind.ConstKeyword when nextIsRef => DeclarationModifiers.ConstRef,
             SyntaxKind.ConstKeyword => DeclarationModifiers.Const,
             SyntaxKind.ConstexprKeyword => DeclarationModifiers.ConstExpr,

@@ -325,8 +325,13 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             .GetBinderFactory(syntax.syntaxTree)
             .GetBinder(returnTypeSyntax, syntax, this);
 
+        var signatureFlags = BinderFlags.SuppressConstraintChecks;
+
+        if (isLowLevel)
+            signatureFlags |= BinderFlags.LowLevelContext;
+
         var signatureBinder = withTemplateParametersBinder.WithAdditionalFlagsAndContainingMember(
-            BinderFlags.SuppressConstraintChecks,
+            signatureFlags,
             this
         );
 
