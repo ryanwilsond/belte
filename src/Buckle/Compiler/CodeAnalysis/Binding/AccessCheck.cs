@@ -40,10 +40,6 @@ internal static class AccessCheck {
         Compilation compilation) {
         failedThroughTypeCheck = false;
 
-        // TODO This is temporary
-        if (symbol.containingAssembly?.isLinked ?? false)
-            return true;
-
         switch (symbol.kind) {
             case SymbolKind.ArrayType:
                 return IsSymbolAccessibleCore(
@@ -276,7 +272,7 @@ internal static class AccessCheck {
         var containingType = type.containingType;
 
         return containingType is null
-            ? IsNonNestedTypeAccessible(type.containingNamespace, type.declaredAccessibility, within)
+            ? IsNonNestedTypeAccessible(type.containingAssembly, type.declaredAccessibility, within)
             : IsMemberAccessible(
                 containingType,
                 type.declaredAccessibility,
@@ -288,7 +284,7 @@ internal static class AccessCheck {
     }
 
     private static bool IsNonNestedTypeAccessible(
-        NamespaceSymbol containingNamespace,
+        AssemblySymbol assembly,
         Accessibility declaredAccessibility,
         Symbol within) {
         switch (declaredAccessibility) {
@@ -298,7 +294,6 @@ internal static class AccessCheck {
             case Accessibility.Private:
             case Accessibility.Protected:
                 return false;
-            // When internal is added, the namespace will become relevant
             default:
                 throw ExceptionUtilities.UnexpectedValue(declaredAccessibility);
         }

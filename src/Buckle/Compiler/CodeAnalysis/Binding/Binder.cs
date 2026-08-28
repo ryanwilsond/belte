@@ -483,7 +483,7 @@ internal partial class Binder {
                             diagnostics.Push(Error.DuplicateConstraint(syntax.location, templateParameter.name));
 
                         continue;
-                    case SyntaxKind.ConstexprKeyword:
+                    case SyntaxKind.ConstructorKeyword:
                         if ((constraints & TypeParameterConstraintKinds.Constructor) == 0)
                             constraints |= TypeParameterConstraintKinds.Constructor;
                         else
@@ -6891,19 +6891,19 @@ symIsHidden:;
             if (!diagnose)
                 error = null;
             else if (inaccessibleViaQualifier)
-                error = Error.InvalidProtectedAccess(symbol.location, symbol, accessThroughType, containingType);
+                error = Error.InvalidProtectedAccess(errorLocation, symbol, accessThroughType, containingType);
             else
-                error = Error.MemberIsInaccessible(symbol.location, symbol);
+                error = Error.MemberIsInaccessible(errorLocation, symbol);
 
             return LookupResult.Inaccessible(symbol, error);
         } else if ((options & LookupOptions.MustBeInstance) != 0 && !IsInstance(unwrappedSymbol)) {
-            error = Error.InstanceRequired(symbol.location, symbol);
+            error = Error.InstanceRequired(errorLocation, symbol);
             return LookupResult.StaticInstanceMismatch(symbol, error);
         } else if ((options & LookupOptions.MustNotBeInstance) != 0 && IsInstance(unwrappedSymbol)) {
-            error = Error.NoInstanceRequired(symbol.location, symbol.name, symbol.containingSymbol);
+            error = Error.NoInstanceRequired(errorLocation, symbol.name, symbol.containingSymbol);
             return LookupResult.StaticInstanceMismatch(symbol, error);
         } else if ((options & LookupOptions.MustNotBeNamespace) != 0 && unwrappedSymbol.kind == SymbolKind.Namespace) {
-            error = diagnose ? Error.BadSKUnknown(symbol.location, unwrappedSymbol, unwrappedSymbol.kind.Localize()) : null;
+            error = diagnose ? Error.BadSKUnknown(errorLocation, unwrappedSymbol, unwrappedSymbol.kind.Localize()) : null;
             return LookupResult.NotTypeOrNamespace(symbol, error);
         } else {
             return LookupResult.Good(symbol);

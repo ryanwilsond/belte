@@ -17,6 +17,7 @@ internal sealed partial class PETemplateType {
         private readonly GenericParameterAttributes _flags;
         private readonly TemplateMetadataWriter.TemplateParameterFlags _additionalFlags;
         private readonly TypeWithAnnotations _underlyingType;
+        private readonly TypeOrConstant _defaultValue;
 
         private TypeParameterBounds _lazyBounds = TypeParameterBounds.Unset;
         // private ImmutableArray<TypeWithAnnotations> _lazyDeclaredConstraintTypes;
@@ -30,7 +31,8 @@ internal sealed partial class PETemplateType {
             _containingSymbol = definingNamedType;
             _ordinal = ordinal;
             containingModule = definingNamedType.containingPEModule;
-            (_name, _flags, _additionalFlags, var underlyingType) = decoder.DecodeTemplateParameter(ordinal);
+            (_name, _flags, _additionalFlags, var underlyingType, _defaultValue)
+                = decoder.DecodeTemplateParameter(ordinal);
             _underlyingType = new TypeWithAnnotations(underlyingType);
         }
 
@@ -50,7 +52,8 @@ internal sealed partial class PETemplateType {
             _containingSymbol = definingMethod;
             _ordinal = ordinal;
             containingModule = ((PETemplateType)definingMethod.containingType).containingPEModule;
-            (_name, _flags, _additionalFlags, var underlyingType) = decoder.DecodeTemplateParameter(ordinal);
+            (_name, _flags, _additionalFlags, var underlyingType, _defaultValue)
+                = decoder.DecodeTemplateParameter(ordinal);
             _underlyingType = new TypeWithAnnotations(underlyingType);
         }
 
@@ -86,19 +89,14 @@ internal sealed partial class PETemplateType {
 
         internal sealed override Compilation declaringCompilation => null;
 
-        internal override bool isOptional => false;
+        internal override bool isOptional
+            => (_additionalFlags & TemplateMetadataWriter.TemplateParameterFlags.HasDefaultValue) != 0;
 
         internal override bool isCompileTimeType
             => (_additionalFlags & TemplateMetadataWriter.TemplateParameterFlags.CompileTime) != 0;
 
-        internal override bool hasNotNullConstraint {
-            get {
-                return false;
-                // TODO We don't have a direct equivalent to this:
-                // return (_flags & (GenericParameterAttributes.NotNullableValueTypeConstraint |
-                //     GenericParameterAttributes.ReferenceTypeConstraint)) == 0;
-            }
-        }
+        internal override bool hasNotNullConstraint
+            => (_additionalFlags & TemplateMetadataWriter.TemplateParameterFlags.HasNotNullConstraint) != 0;
 
         internal override bool hasConstructorConstraint
             => (_flags & GenericParameterAttributes.DefaultConstructorConstraint) != 0;
@@ -106,7 +104,8 @@ internal sealed partial class PETemplateType {
         internal override bool allowsRefLikeType
             => (_flags & MetadataHelpers.GenericParameterAttributesAllowByRefLike) != 0;
 
-        internal override bool hasDefaultConstraint => false;
+        internal override bool hasDefaultConstraint
+            => (_additionalFlags & TemplateMetadataWriter.TemplateParameterFlags.HasDefaultConstraint) != 0;
 
         internal override bool hasValueTypeConstraint
             => (_flags & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0;
@@ -132,7 +131,7 @@ internal sealed partial class PETemplateType {
 
         internal override TypeWithAnnotations underlyingType => _underlyingType;
 
-        internal override TypeOrConstant defaultValue => null;
+        internal override TypeOrConstant defaultValue => _defaultValue;
 
         internal override ImmutableArray<AttributeData> GetAttributes() {
             // TODO

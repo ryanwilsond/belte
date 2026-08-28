@@ -10,6 +10,7 @@ using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 using TemplateMethodDecoder = Buckle.CodeAnalysis.TemplateMetadataReader.TemplateMetadata.TemplateMethodDecoder;
+using TemplateDecoder = Buckle.CodeAnalysis.TemplateMetadataReader.TemplateMetadata.TemplateDecoder;
 
 namespace Buckle.CodeAnalysis;
 
@@ -18,28 +19,28 @@ internal sealed partial class TemplateMetadataReader {
         private readonly uint _startPosition;
         private readonly uint _boundIRSize;
         private readonly BinaryReader _reader;
-        private readonly TemplateMethodDecoder _methodDecoder;
+        private readonly TemplateDecoder _templateDecoder;
         private readonly TemplateMetadata _metadata;
-        private readonly MethodSymbol _methodSymbol;
+        private readonly Symbol _containingSymbol;
         private readonly Dictionary<string, LabelSymbol> _labels = [];
         private readonly Stack<ImmutableArray<DataContainerSymbol>> _enclosingBlocks = [];
 
         private BoundNodeDecoder(
-            MethodSymbol methodSymbol,
-            TemplateMethodDecoder methodDecoder,
+            Symbol containingSymbol,
+            TemplateDecoder templateDecoder,
             TemplateMetadata metadata,
             BinaryReader reader,
             uint startPosition,
             uint boundIRSize) {
             _metadata = metadata;
-            _methodSymbol = methodSymbol;
+            _containingSymbol = containingSymbol;
             _reader = reader;
             _startPosition = startPosition;
             _boundIRSize = boundIRSize;
-            _methodDecoder = methodDecoder;
+            _templateDecoder = templateDecoder;
         }
 
-        internal static BoundBlockStatement Decode(
+        internal static BoundBlockStatement DecodeMethodBody(
             MethodSymbol methodSymbol,
             TemplateMethodDecoder methodDecoder,
             TemplateMetadata metadata,
@@ -50,7 +51,14 @@ internal sealed partial class TemplateMetadataReader {
             reader = new BinaryReader(new MemoryStream(((MemoryStream)reader.BaseStream).ToArray()));
 #endif
 
-            var decoder = new BoundNodeDecoder(methodSymbol, methodDecoder, metadata, reader, startPosition, boundIRSize);
+            var decoder = new BoundNodeDecoder(
+                methodSymbol,
+                methodDecoder,
+                metadata,
+                reader,
+                startPosition,
+                boundIRSize
+            );
 
             lock (reader) lock (reader.BaseStream) {
                 reader.BaseStream.Seek(startPosition, SeekOrigin.Begin);
@@ -73,6 +81,42 @@ internal sealed partial class TemplateMetadataReader {
             }
         }
 
+        internal static BoundExpression DecodeConstraint(
+            Symbol containingSymbol,
+            TemplateDecoder templateDecoder,
+            TemplateMetadata metadata,
+            BinaryReader reader,
+            uint startPosition,
+            uint boundIRSize) {
+#if DEBUG
+            reader = new BinaryReader(new MemoryStream(((MemoryStream)reader.BaseStream).ToArray()));
+#endif
+
+            var decoder = new BoundNodeDecoder(
+                containingSymbol,
+                templateDecoder,
+                metadata,
+                reader,
+                startPosition,
+                boundIRSize
+            );
+
+            lock (reader) lock (reader.BaseStream) {
+                reader.BaseStream.Seek(startPosition, SeekOrigin.Begin);
+
+                var decodedConstraint = decoder.ReadExpression();
+
+                if (decodedConstraint is null || reader.BaseStream.Position != startPosition + boundIRSize) {
+                    Debug.Assert(false);
+                    return null;
+                }
+
+                Debug.Assert(decodedConstraint is BoundExpression);
+
+                return decodedConstraint;
+            }
+        }
+
         private BoundBlockStatement ReadBlockStatement() {
             var localCount = _reader.ReadUInt16();
             var locals = ArrayBuilder<DataContainerSymbol>.GetInstance(localCount);
@@ -81,11 +125,11 @@ internal sealed partial class TemplateMetadataReader {
                 var nameSize = _reader.ReadUInt32();
                 var name = Encoding.UTF8.GetString(_reader.ReadBytes((int)nameSize));
                 var typeKind = _reader.ReadByte();
-                var type = _methodDecoder.ReadTypeSymbol(typeKind, _reader);
+                var type = _templateDecoder.ReadTypeSymbol(typeKind, _reader);
                 var flags = (TemplateMetadataWriter.LocalFlags)_reader.ReadByte();
 
                 locals.Add(new SynthesizedDataContainerSymbol(
-                    _methodSymbol,
+                    _containingSymbol,
                     type,
                     name,
                     (flags & TemplateMetadataWriter.LocalFlags.ByRef) != 0 ? RefKind.Ref : RefKind.None,
@@ -425,6 +469,8 @@ internal sealed partial class TemplateMetadataReader {
                     return ReadObjectCreationExpression();
                 case (byte)BoundKind.ArrayCreationExpression:
                     return ReadArrayCreationExpression();
+                case (byte)BoundKind.InitializerList:
+                    return ReadInitializerList();
                 case (byte)BoundKind.ArrayAccessExpression:
                     return ReadArrayAccessExpression();
                 case (byte)BoundKind.IndexerAccessExpression:
@@ -456,12 +502,16 @@ internal sealed partial class TemplateMetadataReader {
 
         private BoundLiteralExpression ReadLiteralExpression() {
             var value = ReadConstantValue();
-            return new BoundLiteralExpression(null, value, CorLibrary.Instance.GetSpecialType(value.specialType));
+            var type = value.specialType != SpecialType.None
+                ? CorLibrary.Instance.GetSpecialType(value.specialType)
+                : null;
+
+            return new BoundLiteralExpression(null, value, type);
         }
 
         private TypeSymbol ReadType() {
             var typeKind = _reader.ReadByte();
-            return _methodDecoder.ReadTypeSymbol(typeKind, _reader);
+            return _templateDecoder.ReadTypeSymbol(typeKind, _reader);
         }
 
         private BoundThisExpression ReadThisExpression() {
@@ -495,7 +545,8 @@ internal sealed partial class TemplateMetadataReader {
 
         private BoundParameterExpression ReadParameterExpression() {
             var ordinal = _reader.ReadUInt16();
-            var parameter = _methodSymbol.parameters[ordinal];
+            Debug.Assert(_containingSymbol is MethodSymbol);
+            var parameter = ((MethodSymbol)_containingSymbol).parameters[ordinal];
             return new BoundParameterExpression(null, parameter, null, parameter.type);
         }
 
@@ -693,9 +744,20 @@ internal sealed partial class TemplateMetadataReader {
                 sizesBuilder.Add(ReadExpression());
 
             var hasInitializer = _reader.ReadBoolean();
-            var initializer = hasInitializer ? ReadExpression() as BoundInitializerList : null;
+            var initializer = hasInitializer ? (BoundInitializerList)ReadExpression() : null;
 
             return new BoundArrayCreationExpression(null, sizesBuilder.ToImmutableAndFree(), initializer, type);
+        }
+
+        private BoundInitializerList ReadInitializerList() {
+            var type = ReadType();
+            var itemCount = _reader.ReadUInt16();
+            var itemsBuilder = ArrayBuilder<BoundExpression>.GetInstance(itemCount);
+
+            for (var i = 0; i < itemCount; i++)
+                itemsBuilder.Add(ReadExpression());
+
+            return new BoundInitializerList(null, itemsBuilder.ToImmutableAndFree(), type);
         }
 
         private BoundArrayAccessExpression ReadArrayAccessExpression() {

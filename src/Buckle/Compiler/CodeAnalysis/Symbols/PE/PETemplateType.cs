@@ -24,6 +24,7 @@ internal sealed partial class PETemplateType : NamedTypeSymbol {
     private readonly TypeAttributes _flags;
 
     private ImmutableArray<TemplateParameterSymbol> _lazyTemplateParameters;
+    private ImmutableArray<BoundExpression> _lazyTemplateConstraints;
     private ICollection<string> _lazyMemberNames;
     private NamedTypeSymbol _lazyBaseType = ErrorTypeSymbol.UnknownResultType;
     private NamedTypeSymbol _lazyDeclaredBaseType = ErrorTypeSymbol.UnknownResultType;
@@ -182,8 +183,12 @@ internal sealed partial class PETemplateType : NamedTypeSymbol {
         }
     }
 
-    // TODO Constraints encoding (probably same as method bodies?)
-    public override ImmutableArray<BoundExpression> templateConstraints => [];
+    public override ImmutableArray<BoundExpression> templateConstraints {
+        get {
+            EnsureTemplateConstraintsAreLoaded();
+            return _lazyTemplateConstraints;
+        }
+    }
 
     public override ImmutableArray<TypeOrConstant> templateArguments => GetTemplateParametersAsTemplateArguments();
 
@@ -281,6 +286,13 @@ internal sealed partial class PETemplateType : NamedTypeSymbol {
                 ref _lazyTemplateParameters,
                 ownedParams.ToImmutableAndFree()
             );
+        }
+    }
+
+    private void EnsureTemplateConstraintsAreLoaded() {
+        if (_lazyTemplateConstraints.IsDefault) {
+            var constraints = _decoder.DecodeConstraints();
+            ImmutableInterlocked.InterlockedInitialize(ref _lazyTemplateConstraints, constraints.ToImmutableArray());
         }
     }
 

@@ -288,16 +288,16 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
 
     internal override Accessibility declaredAccessibility {
         get {
-            var access = Accessibility.Private;
+            Accessibility access;
 
             access = (_flags & TypeAttributes.VisibilityMask) switch {
-                TypeAttributes.NestedAssembly => Accessibility.Public,// access = Accessibility.Internal;
+                TypeAttributes.NestedAssembly => Accessibility.Private,// access = Accessibility.Internal;
                 TypeAttributes.NestedFamORAssem => Accessibility.Public,// access = Accessibility.ProtectedOrInternal;
-                TypeAttributes.NestedFamANDAssem => Accessibility.Public,// access = Accessibility.ProtectedAndInternal;
+                TypeAttributes.NestedFamANDAssem => Accessibility.Private,// access = Accessibility.ProtectedAndInternal;
                 TypeAttributes.NestedPrivate => Accessibility.Private,
                 TypeAttributes.Public or TypeAttributes.NestedPublic => Accessibility.Public,
                 TypeAttributes.NestedFamily => Accessibility.Protected,
-                TypeAttributes.NotPublic => Accessibility.Public,// access = Accessibility.Internal;
+                TypeAttributes.NotPublic => Accessibility.Private,// access = Accessibility.Internal;
                 _ => throw ExceptionUtilities.UnexpectedValue(_flags & TypeAttributes.VisibilityMask),
             };
 

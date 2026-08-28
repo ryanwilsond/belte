@@ -73,6 +73,8 @@ Method Table
             ...     Return Type Info
             2       Parameter Count
             ...     Parameter Signature
+            2       Expression Constraint Count
+            ...     Expression Constraints
 
             :Template Parameter Entry:
 
@@ -82,14 +84,22 @@ Method Table
             4       Generic Parameter Attributes
             1       Underlying Type Kind
             ...     Underlying Type Info
+            ...     Default Value
 
             :Parameter Signature Entry:
 
             4       Name Size
             ...     Name
             1       Flags
+            4       Attributes
             1       Type Kind
             ...     Type Info
+            ...     Default Value
+
+            :Expression Constraint Entry:
+
+            4       Entry Size
+            ...     IR
 
 Type Definition Table
 
@@ -112,6 +122,8 @@ Type Definition Table
             ...     Fields
             2       Method Count
             ...     Methods
+            2       Expression Constraint Count
+            ...     Expression Constraints
 
             :Template Parameter Entry:
 
@@ -121,6 +133,7 @@ Type Definition Table
             4       Generic Parameter Attributes
             1       Underlying Type Kind
             ...     Underlying Type Info
+            ...     Default Value
 
             :Interface Entry:
 
@@ -139,6 +152,11 @@ Type Definition Table
             :Method Entry:
 
             4       Method Index
+
+            :Expression Constraint Entry:
+
+            4       Entry Size
+            ...     IR
 
 Template Table
 
@@ -176,11 +194,12 @@ Bound Table
     private readonly Dictionary<TypeSymbol, uint> _typeTableIndexes = [];
     private readonly List<(SourceNamedTypeSymbol type, uint firstBoundEntry, uint boundEntryCount)> _templatesNeedingEntries = [];
 
-    private readonly Dictionary<MethodSymbol, (uint index, uint entrySize)> _methodTableIndexes = [];
+    private readonly Dictionary<MethodSymbol, uint> _methodTableIndexes = [];
 
     private readonly Dictionary<AssemblyIdentity, uint> _assemblyTableIndexes = [];
 
     private readonly Dictionary<TypeSymbol, byte[]> _typeDefEntries = [];
+    private readonly Dictionary<MethodSymbol, byte[]> _methodEntries = [];
 
     private uint _assemblyTableSize = 8;
     private uint _assemblyTableCount = 0;
@@ -251,7 +270,7 @@ Bound Table
                 if (method.containingType.Equals(type)) {
                     methodCountForType++;
 
-                    var ir = CreateBoundEntry(method, pair.Value);
+                    var ir = CreateIR(pair.Value);
 
                     _boundEntries.Add((method, ir));
 
@@ -296,8 +315,11 @@ Bound Table
             writer.Write((uint)templateParameter.metadataName.Length);
             writer.Write(Encoding.UTF8.GetBytes(templateParameter.metadataName));
             writer.Write(CreateTemplateParameterFlags(templateParameter));
-            writer.Write((uint)0); // TODO Generic Parameter Attributes
+            writer.Write(CreateGenericParameterFlags(templateParameter));
             writer.Write(CreateTypeKindAndInfo(templateParameter.underlyingType.type));
+
+            if (templateParameter.defaultValue is not null)
+                writer.Write(CreateTemplateParameterDefaultValue(templateParameter));
         }
 
         writer.Write((ushort)type.allInterfaces.Length);
@@ -323,6 +345,14 @@ Bound Table
         for (var i = 0; i < methodCountForType; i++)
             writer.Write(methodIndexes[i]);
 
+        writer.Write((ushort)type.templateConstraints.Length);
+
+        foreach (var constraint in type.templateConstraints) {
+            var ir = CreateIR(constraint);
+            writer.Write((uint)ir.Length + 4);
+            writer.Write(ir);
+        }
+
         writer.BaseStream.Seek(0, SeekOrigin.Begin);
         writer.Write((uint)writer.BaseStream.Length);
 
@@ -340,10 +370,52 @@ Bound Table
     }
 
     private byte CreateTemplateParameterFlags(TemplateParameterSymbol templateParameter) {
-        if (templateParameter.isCompileTimeType)
-            return (byte)TemplateParameterFlags.CompileTime;
+        var flags = (byte)TemplateParameterFlags.None;
 
-        return (byte)TemplateParameterFlags.None;
+        if (templateParameter.isCompileTimeType)
+            flags |= (byte)TemplateParameterFlags.CompileTime;
+
+        if (templateParameter.hasDefaultConstraint)
+            flags |= (byte)TemplateParameterFlags.HasDefaultConstraint;
+
+        if (templateParameter.hasNotNullConstraint)
+            flags |= (byte)TemplateParameterFlags.HasNotNullConstraint;
+
+        if (templateParameter.defaultValue is not null)
+            flags |= (byte)TemplateParameterFlags.HasDefaultValue;
+
+        return flags;
+    }
+
+    private uint CreateGenericParameterFlags(TemplateParameterSymbol templateParameter) {
+        var flags = (uint)GenericParameterAttributes.None;
+
+        if (templateParameter.hasReferenceTypeConstraint)
+            flags |= (uint)GenericParameterAttributes.ReferenceTypeConstraint;
+
+        if (templateParameter.hasConstructorConstraint)
+            flags |= (uint)GenericParameterAttributes.DefaultConstructorConstraint;
+
+        if (templateParameter.hasValueTypeConstraint)
+            flags |= (uint)GenericParameterAttributes.NotNullableValueTypeConstraint;
+
+        return flags;
+    }
+
+    private byte[] CreateTemplateParameterDefaultValue(TemplateParameterSymbol templateParameter) {
+        Debug.Assert(templateParameter.defaultValue is not null);
+
+        using var stream = new MemoryStream();
+        using var writer = new BinaryWriter(stream, Encoding.UTF8);
+
+        Debug.Assert(templateParameter.defaultValue.isType == (templateParameter.underlyingType.specialType == SpecialType.Type));
+
+        if (templateParameter.defaultValue.isType)
+            writer.Write(CreateTypeKindAndInfo(templateParameter.defaultValue.type.type));
+        else
+            WriteConstantValueValue(writer, templateParameter.defaultValue.constant);
+
+        return stream.ToArray();
     }
 
     private byte CreateReturnFlags(MethodSymbol method) {
@@ -354,10 +426,30 @@ Bound Table
     }
 
     private byte CreateParameterFlags(ParameterSymbol parameter) {
-        if (parameter.refKind != RefKind.None)
-            return (byte)ParameterFlags.ByRef;
+        var flags = (byte)ParameterFlags.None;
 
-        return (byte)ParameterFlags.None;
+        if (parameter.refKind != RefKind.None)
+            flags |= (byte)ParameterFlags.ByRef;
+
+        if (parameter.hasOutDefaultValue)
+            flags |= (byte)ParameterFlags.HasOutDefaultValue;
+
+        if (parameter.isConst)
+            flags |= (byte)ParameterFlags.IsConst;
+
+        return flags;
+    }
+
+    private uint CreateParameterAttributes(ParameterSymbol parameter) {
+        var flags = (uint)ParameterAttributes.None;
+
+        if (parameter.refKind == RefKind.Out)
+            flags |= (uint)ParameterAttributes.Out;
+
+        if (parameter.hasExplicitDefaultValue)
+            flags |= (uint)ParameterAttributes.HasDefault;
+
+        return flags;
     }
 
     private byte CreateTypeFlags(TypeSymbol type) {
@@ -499,63 +591,88 @@ Bound Table
     private uint CreateMethodIndex(MethodSymbol method) {
         method = method.originalDefinition;
         LogMethodEntryForMethod(method);
-        return _methodTableIndexes[method].index;
+        return _methodTableIndexes[method];
     }
 
     private uint LogMethodEntryForMethod(MethodSymbol method) {
         method = method.originalDefinition;
 
         if (_methodTableIndexes.TryGetValue(method, out var value))
-            return value.index;
+            return value;
+
+        using var stream = new MemoryStream();
+        using var writer = new BinaryWriter(stream, Encoding.UTF8);
 
         LogTypeEntryForType(method.containingType);
 
-        uint parameterEntriesSize = 0;
-
-        foreach (var parameter in method.parameters) {
-            parameterEntriesSize +=
-                4 +                                                 // Name Size
-                (uint)parameter.metadataName.Length +               // Name
-                1 +                                                 // Flags
-                (uint)CreateTypeKindAndInfo(parameter.type).Length; // Type Kind + Type Info
-        }
-
-        uint templateEntriesSize = 0;
+        writer.Write((uint)0);
+        Debug.Assert((uint)method.metadataName.Length == Encoding.UTF8.GetBytes(method.metadataName).Length);
+        writer.Write((uint)method.metadataName.Length);
+        writer.Write(Encoding.UTF8.GetBytes(method.metadataName));
+        writer.Write((ushort)method.GetArity());
+        writer.Write(_typeTableIndexes[method.containingType]);
+        writer.Write(GetMethodAttributes(method));
+        writer.Write(CreateMethodFlags(method));
+        writer.Write((ushort)method.arity);
 
         foreach (var templateParameter in method.templateParameters) {
-            templateEntriesSize +=
-                4 +                                                 // Name Size
-                (uint)templateParameter.metadataName.Length +       // Name
-                1 +                                                 // Flags
-                4 +                                                 // Generic Parameter Attributes
-                (uint)CreateTypeKindAndInfo(templateParameter.underlyingType.type).Length;  // Underlying Type Kind + Underlying Type Info
+            Debug.Assert((uint)templateParameter.metadataName.Length == Encoding.UTF8.GetBytes(templateParameter.metadataName).Length);
+            writer.Write((uint)templateParameter.metadataName.Length);
+            writer.Write(Encoding.UTF8.GetBytes(templateParameter.metadataName));
+            writer.Write(CreateTemplateParameterFlags(templateParameter));
+            writer.Write(CreateGenericParameterFlags(templateParameter));
+            writer.Write(CreateTypeKindAndInfo(templateParameter.underlyingType.type));
+
+            if (templateParameter.defaultValue is not null)
+                writer.Write(CreateTemplateParameterDefaultValue(templateParameter));
         }
 
+        writer.Write(CreateReturnFlags(method));
+
+        if (method.containingType.specialType == SpecialType.Nullable)
+            writer.Write((byte)0);
+        else
+            writer.Write(CreateTypeKindAndInfo(method.returnType));
+
+        writer.Write((ushort)method.parameterCount);
+
+        foreach (var parameter in method.parameters) {
+            Debug.Assert((uint)parameter.metadataName.Length == Encoding.UTF8.GetBytes(parameter.metadataName).Length);
+            writer.Write((uint)parameter.metadataName.Length);
+            writer.Write(Encoding.UTF8.GetBytes(parameter.metadataName));
+            writer.Write(CreateParameterFlags(parameter));
+            writer.Write(CreateParameterAttributes(parameter));
+            writer.Write(CreateTypeKindAndInfo(parameter.type));
+
+            if (parameter.explicitDefaultConstantValue is not null || parameter.outDefaultValue is not null) {
+                Debug.Assert(parameter.explicitDefaultConstantValue is null || parameter.outDefaultValue is null);
+
+                if (parameter.explicitDefaultConstantValue is not null)
+                    WriteConstantValueValue(writer, parameter.explicitDefaultConstantValue);
+                else
+                    WriteConstantValueValue(writer, parameter.outDefaultValue);
+            }
+        }
+
+        writer.Write((ushort)method.templateConstraints.Length);
+
+        foreach (var constraint in method.templateConstraints) {
+            var ir = CreateIR(constraint);
+            writer.Write((uint)ir.Length + 4);
+            writer.Write(ir);
+        }
+
+        writer.BaseStream.Seek(0, SeekOrigin.Begin);
+        writer.Write((uint)writer.BaseStream.Length);
+
         _methodTableCount++;
-
-        var returnTypeLength = method.containingType.specialType == SpecialType.Nullable
-            ? 1
-            : (uint)CreateTypeKindAndInfo(method.returnType).Length;
-
-        var entrySize =
-            4 +                                                     // Method Entry Size
-            4 +                                                     // Name Size
-            (uint)method.metadataName.Length +                      // Name
-            2 +                                                     // Arity
-            4 +                                                     // Method Attributes
-            2 +                                                     // Flags
-            4 +                                                     // Containing Type Entry Index
-            2 +                                                     // Template Parameter Count
-            templateEntriesSize +                                   // Template Parameters
-            1 +                                                     // Return Flags
-            returnTypeLength +                                      // Return Type Kind + Return Type Info
-            2 +                                                     // Parameter Count
-            parameterEntriesSize;                                   // Parameter Signature
-
-        _methodTableSize += entrySize;
+        _methodTableSize += (uint)writer.BaseStream.Length;
 
         var index = (uint)_methodTableIndexes.Count;
-        _methodTableIndexes.Add(method, (index, entrySize));
+        _methodTableIndexes.Add(method, index);
+
+        _methodEntries.Add(method, stream.ToArray());
+
         return index;
     }
 
@@ -620,11 +737,11 @@ Bound Table
         }
     }
 
-    private byte[] CreateBoundEntry(MethodSymbol method, BoundBlockStatement body) {
+    private byte[] CreateIR(BoundNode node) {
         var stream = new MemoryStream();
         using var writer = new BinaryWriter(stream, Encoding.UTF8);
 
-        BoundNodeEncoder.Encode(body, writer, this);
+        BoundNodeEncoder.Encode(node, writer, this);
 
         return stream.ToArray();
     }
@@ -714,42 +831,8 @@ Bound Table
         writer.Write(_methodTableSize);
         writer.Write(_methodTableCount);
 
-        foreach (var (method, (index, entrySize)) in _methodTableIndexes) {
-            writer.Write(entrySize);
-            Debug.Assert((uint)method.metadataName.Length == Encoding.UTF8.GetBytes(method.metadataName).Length);
-            writer.Write((uint)method.metadataName.Length);
-            writer.Write(Encoding.UTF8.GetBytes(method.metadataName));
-            writer.Write((ushort)method.GetArity());
-            writer.Write(_typeTableIndexes[method.containingType]);
-            writer.Write(GetMethodAttributes(method));
-            writer.Write(CreateMethodFlags(method));
-            writer.Write((ushort)method.arity);
-
-            foreach (var templateParameter in method.templateParameters) {
-                Debug.Assert((uint)templateParameter.metadataName.Length == Encoding.UTF8.GetBytes(templateParameter.metadataName).Length);
-                writer.Write((uint)templateParameter.metadataName.Length);
-                writer.Write(Encoding.UTF8.GetBytes(templateParameter.metadataName));
-                writer.Write(templateParameter.isCompileTimeType ? (byte)1 : (byte)0);
-                writer.Write(CreateTypeKindAndInfo(templateParameter.underlyingType.type));
-            }
-
-            writer.Write(CreateReturnFlags(method));
-
-            if (method.containingType.specialType == SpecialType.Nullable)
-                writer.Write((byte)0);
-            else
-                writer.Write(CreateTypeKindAndInfo(method.returnType));
-
-            writer.Write((ushort)method.parameterCount);
-
-            foreach (var parameter in method.parameters) {
-                Debug.Assert((uint)parameter.metadataName.Length == Encoding.UTF8.GetBytes(parameter.metadataName).Length);
-                writer.Write((uint)parameter.metadataName.Length);
-                writer.Write(Encoding.UTF8.GetBytes(parameter.metadataName));
-                writer.Write(CreateParameterFlags(parameter));
-                writer.Write(CreateTypeKindAndInfo(parameter.type));
-            }
-        }
+        foreach (var methodEntry in _methodEntries)
+            writer.Write(methodEntry.Value);
 
         // Type Definition Table
 
@@ -782,7 +865,7 @@ Bound Table
 
         foreach (var entry in _boundEntries) {
             writer.Write((uint)entry.Item2.Length + 8);
-            writer.Write(_methodTableIndexes[entry.Item1].index);
+            writer.Write(_methodTableIndexes[entry.Item1]);
             writer.Write(entry.Item2);
         }
     }

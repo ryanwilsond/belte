@@ -20,7 +20,7 @@ public struct CompilationOptions {
         TaskDiagnosticOptions globalDiagnosticOptions = null,
         Dictionary<string, TaskDiagnosticOptions> localDiagnosticOptions = null,
         bool excludeWritingTemplateMetadata = false,
-        bool excludeReadingTemplateMetadata = true) {
+        bool excludeReadingTemplateMetadata = false) {
         topLevelBinderFlags = BinderFlags.None;
         this.buildMode = buildMode;
         this.outputKind = outputKind;

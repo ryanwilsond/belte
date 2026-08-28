@@ -141,106 +141,12 @@ internal sealed partial class TemplateMetadataReader {
 
                             for (var i = 0; i < arity; i++) {
                                 var expectedType = namedTypeSymbol.templateParameters[i].underlyingType;
+                                var typeOrConstant = ReadTypeOrConstant(expectedType.type, reader);
 
-                                switch (expectedType.specialType) {
-                                    case SpecialType.Type:
-                                        var argumentKind = reader.ReadByte();
-                                        builder.Add(new TypeOrConstant(ReadTypeSymbol(argumentKind, reader)));
-                                        break;
-                                    case SpecialType.String: {
-                                            var size = reader.ReadUInt32();
-                                            var value = Encoding.UTF8.GetString(reader.ReadBytes((int)size));
-                                            builder.Add(new TypeOrConstant(new ConstantValue(value, SpecialType.String)));
-                                            break;
-                                        }
-                                    case SpecialType.Bool: {
-                                            var value = reader.ReadBoolean();
-                                            builder.Add(new TypeOrConstant(new ConstantValue(value, SpecialType.Bool)));
-                                            break;
-                                        }
-                                    case SpecialType.WinBool: {
-                                            var value = reader.ReadInt32();
-                                            builder.Add(new TypeOrConstant(new ConstantValue(value, SpecialType.WinBool)));
-                                            break;
-                                        }
-                                    case SpecialType.Char: {
-                                            var value = reader.ReadChar();
-                                            builder.Add(new TypeOrConstant(new ConstantValue(value, SpecialType.Char)));
-                                            break;
-                                        }
-                                    case SpecialType.Int8: {
-                                            var value = reader.ReadSByte();
-                                            builder.Add(new TypeOrConstant(new ConstantValue(value, SpecialType.Int8)));
-                                            break;
-                                        }
-                                    case SpecialType.UInt8: {
-                                            var value = reader.ReadByte();
-                                            builder.Add(new TypeOrConstant(new ConstantValue(value, SpecialType.UInt8)));
-                                            break;
-                                        }
-                                    case SpecialType.Int16: {
-                                            var value = reader.ReadInt16();
-                                            builder.Add(new TypeOrConstant(new ConstantValue(value, SpecialType.Int16)));
-                                            break;
-                                        }
-                                    case SpecialType.UInt16: {
-                                            var value = reader.ReadUInt16();
-                                            builder.Add(new TypeOrConstant(new ConstantValue(value, SpecialType.UInt16)));
-                                            break;
-                                        }
-                                    case SpecialType.Int32: {
-                                            var value = reader.ReadInt32();
-                                            builder.Add(new TypeOrConstant(new ConstantValue(value, SpecialType.Int32)));
-                                            break;
-                                        }
-                                    case SpecialType.UInt32: {
-                                            var value = reader.ReadUInt32();
-                                            builder.Add(new TypeOrConstant(new ConstantValue(value, SpecialType.UInt32)));
-                                            break;
-                                        }
-                                    case SpecialType.Int: {
-                                            var value = reader.ReadInt64();
-                                            builder.Add(new TypeOrConstant(new ConstantValue(value, SpecialType.Int)));
-                                            break;
-                                        }
-                                    case SpecialType.Int64: {
-                                            var value = reader.ReadInt64();
-                                            builder.Add(new TypeOrConstant(new ConstantValue(value, SpecialType.Int64)));
-                                            break;
-                                        }
-                                    case SpecialType.UInt64: {
-                                            var value = reader.ReadUInt64();
-                                            builder.Add(new TypeOrConstant(new ConstantValue(value, SpecialType.UInt64)));
-                                            break;
-                                        }
-                                    case SpecialType.Float32: {
-                                            var value = reader.ReadSingle();
-                                            builder.Add(new TypeOrConstant(new ConstantValue(value, SpecialType.Float32)));
-                                            break;
-                                        }
-                                    case SpecialType.Decimal: {
-                                            var value = reader.ReadDouble();
-                                            builder.Add(new TypeOrConstant(new ConstantValue(value, SpecialType.Decimal)));
-                                            break;
-                                        }
-                                    case SpecialType.Float64: {
-                                            var value = reader.ReadDouble();
-                                            builder.Add(new TypeOrConstant(new ConstantValue(value, SpecialType.Float64)));
-                                            break;
-                                        }
-                                    case SpecialType.IntPtr: {
-                                            var value = reader.ReadInt64();
-                                            builder.Add(new TypeOrConstant(new ConstantValue(value, SpecialType.IntPtr)));
-                                            break;
-                                        }
-                                    case SpecialType.UIntPtr: {
-                                            var value = reader.ReadUInt64();
-                                            builder.Add(new TypeOrConstant(new ConstantValue(value, SpecialType.UIntPtr)));
-                                            break;
-                                        }
-                                    default:
-                                        return null;
-                                }
+                                if (typeOrConstant is null)
+                                    return null;
+
+                                builder.Add(typeOrConstant);
                             }
 
                             return namedTypeSymbol.Construct(builder.ToImmutableAndFree());
@@ -250,6 +156,91 @@ internal sealed partial class TemplateMetadataReader {
                             return _metadata.ResolveType(typeEntryIndex);
                         }
                     default:
+                        Debug.Assert(false);
+                        return null;
+                }
+            }
+
+            internal TypeOrConstant ReadTypeOrConstant(TypeSymbol underlyingType, BinaryReader reader) {
+                switch (underlyingType.specialType) {
+                    case SpecialType.Type:
+                        var argumentKind = reader.ReadByte();
+                        return new TypeOrConstant(ReadTypeSymbol(argumentKind, reader));
+                    case SpecialType.String: {
+                            var size = reader.ReadUInt32();
+                            var value = Encoding.UTF8.GetString(reader.ReadBytes((int)size));
+                            return new TypeOrConstant(new ConstantValue(value, SpecialType.String));
+                        }
+                    case SpecialType.Bool: {
+                            var value = reader.ReadBoolean();
+                            return new TypeOrConstant(new ConstantValue(value, SpecialType.Bool));
+                        }
+                    case SpecialType.WinBool: {
+                            var value = reader.ReadInt32();
+                            return new TypeOrConstant(new ConstantValue(value, SpecialType.WinBool));
+                        }
+                    case SpecialType.Char: {
+                            var value = reader.ReadChar();
+                            return new TypeOrConstant(new ConstantValue(value, SpecialType.Char));
+                        }
+                    case SpecialType.Int8: {
+                            var value = reader.ReadSByte();
+                            return new TypeOrConstant(new ConstantValue(value, SpecialType.Int8));
+                        }
+                    case SpecialType.UInt8: {
+                            var value = reader.ReadByte();
+                            return new TypeOrConstant(new ConstantValue(value, SpecialType.UInt8));
+                        }
+                    case SpecialType.Int16: {
+                            var value = reader.ReadInt16();
+                            return new TypeOrConstant(new ConstantValue(value, SpecialType.Int16));
+                        }
+                    case SpecialType.UInt16: {
+                            var value = reader.ReadUInt16();
+                            return new TypeOrConstant(new ConstantValue(value, SpecialType.UInt16));
+                        }
+                    case SpecialType.Int32: {
+                            var value = reader.ReadInt32();
+                            return new TypeOrConstant(new ConstantValue(value, SpecialType.Int32));
+                        }
+                    case SpecialType.UInt32: {
+                            var value = reader.ReadUInt32();
+                            return new TypeOrConstant(new ConstantValue(value, SpecialType.UInt32));
+                        }
+                    case SpecialType.Int: {
+                            var value = reader.ReadInt64();
+                            return new TypeOrConstant(new ConstantValue(value, SpecialType.Int));
+                        }
+                    case SpecialType.Int64: {
+                            var value = reader.ReadInt64();
+                            return new TypeOrConstant(new ConstantValue(value, SpecialType.Int64));
+                        }
+                    case SpecialType.UInt64: {
+                            var value = reader.ReadUInt64();
+                            return new TypeOrConstant(new ConstantValue(value, SpecialType.UInt64));
+                        }
+                    case SpecialType.Float32: {
+                            var value = reader.ReadSingle();
+                            return new TypeOrConstant(new ConstantValue(value, SpecialType.Float32));
+                        }
+                    case SpecialType.Decimal: {
+                            var value = reader.ReadDouble();
+                            return new TypeOrConstant(new ConstantValue(value, SpecialType.Decimal));
+                        }
+                    case SpecialType.Float64: {
+                            var value = reader.ReadDouble();
+                            return new TypeOrConstant(new ConstantValue(value, SpecialType.Float64));
+                        }
+                    case SpecialType.IntPtr: {
+                            var value = reader.ReadInt64();
+                            return new TypeOrConstant(new ConstantValue(value, SpecialType.IntPtr));
+                        }
+                    case SpecialType.UIntPtr: {
+                            var value = reader.ReadUInt64();
+                            return new TypeOrConstant(new ConstantValue(value, SpecialType.UIntPtr));
+                        }
+                    default:
+                        Debug.Assert(false);
                         return null;
                 }
             }

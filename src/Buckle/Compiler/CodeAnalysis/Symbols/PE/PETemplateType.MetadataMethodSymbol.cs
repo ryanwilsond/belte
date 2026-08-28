@@ -26,6 +26,7 @@ internal sealed partial class PETemplateType {
         private bool _lazyMethodKindIsPopulated;
         private MethodKind _lazyMethodKind;
         private ImmutableArray<TemplateParameterSymbol> _lazyTemplateParameters;
+        private ImmutableArray<BoundExpression> _lazyTemplateConstraints;
         private ImmutableArray<ParameterSymbol> _lazyParameters;
 
         private bool _lazyMethodBodyIsPopulated;
@@ -95,8 +96,12 @@ internal sealed partial class PETemplateType {
 
         public override bool returnsVoid => returnType.IsVoidType();
 
-        // TODO
-        public override ImmutableArray<BoundExpression> templateConstraints => [];
+        public override ImmutableArray<BoundExpression> templateConstraints {
+            get {
+                EnsureTemplateConstraintsAreLoaded();
+                return _lazyTemplateConstraints;
+            }
+        }
 
         public override ImmutableArray<TemplateParameterSymbol> templateParameters
             => EnsureTemplateParametersAreLoaded();
@@ -363,6 +368,18 @@ internal sealed partial class PETemplateType {
                 return typeParams;
 
             return InterlockedOperations.Initialize(ref _lazyTemplateParameters, LoadTemplateParameters());
+        }
+
+
+        private void EnsureTemplateConstraintsAreLoaded() {
+            if (_lazyTemplateConstraints.IsDefault) {
+                var constraints = _decoder.DecodeConstraints();
+
+                ImmutableInterlocked.InterlockedInitialize(
+                    ref _lazyTemplateConstraints,
+                    constraints.ToImmutableArray()
+                );
+            }
         }
 
         private ImmutableArray<TemplateParameterSymbol> LoadTemplateParameters() {

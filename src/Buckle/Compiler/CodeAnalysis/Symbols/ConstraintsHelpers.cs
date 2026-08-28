@@ -662,14 +662,19 @@ hasRelatedInterfaces:
                     templateParameters,
                     templateArguments,
                     impliedConstraints)) {
-                diagnostics.Push(Error.ConstraintFailedToEvaluate(location, constraint.syntax.ToString()));
+                // Prefer showing the user exactly what they typed, but in the case of metadata constraints
+                // there is no syntax to refer to
+                var display = constraint.syntax?.ToString() ?? constraint.ToString();
+                diagnostics.Push(Error.ConstraintFailedToEvaluate(location, display));
                 return false;
             }
         } else if (result.value is null) {
-            diagnostics.Push(Error.ConstraintWasNull(location, constraint.syntax.ToString()));
+            var display = constraint.syntax?.ToString() ?? constraint.ToString();
+            diagnostics.Push(Error.ConstraintWasNull(location, display));
             return false;
         } else if (!(bool)result.value) {
-            diagnostics.Push(Error.ConstraintFailed(location, constraint.syntax.ToString()));
+            var display = constraint.syntax?.ToString() ?? constraint.ToString();
+            diagnostics.Push(Error.ConstraintFailed(location, display));
             return false;
         }
 
@@ -699,7 +704,7 @@ hasRelatedInterfaces:
                         binary.right.type,
                         binary.operatorKind,
                         binary.left.Type(),
-                        binary.syntax.location,
+                        binary.syntax?.location,
                         diagnostics);
                 case BoundKind.IsOperator:
                     var isOperator = (BoundIsOperator)expression;
@@ -722,7 +727,7 @@ hasRelatedInterfaces:
                     var cast = (BoundCastExpression)expression;
                     return ConstantFolding.FoldCast(
                         EvaluateConstraintCore(cast.operand, substitution, names, templateArguments, diagnostics),
-                        expression.syntax.location,
+                        expression.syntax?.location,
                         cast.operand.type,
                         new TypeWithAnnotations(cast.type),
                         diagnostics);

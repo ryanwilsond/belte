@@ -57,7 +57,10 @@ public static class LibraryHelpers {
             maxCoreCount: maxCoreCount,
             noStdLib: noStdLib,
             // When Evaluating we recompile the standard library from source to have method bodies available
-            references: Compiler.ResolveLibraryLevel(explicitLibraryLevel, noStdLib || buildMode.Evaluating())
+            references: Compiler.ResolveLibraryLevel(explicitLibraryLevel, noStdLib || buildMode.Evaluating()),
+            // TODO Shouldn't be necessary to have this available?
+            excludeWritingTemplateMetadata: true,
+            excludeReadingTemplateMetadata: true
         );
 
         var corLibraryCompilation = Compilation.Create(

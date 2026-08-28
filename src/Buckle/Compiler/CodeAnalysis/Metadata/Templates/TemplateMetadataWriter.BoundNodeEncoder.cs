@@ -20,7 +20,7 @@ internal sealed partial class TemplateMetadataWriter {
         }
 
         internal static void Encode(
-            BoundBlockStatement node,
+            BoundNode node,
             BinaryWriter writer,
             TemplateMetadataWriter metadataWriter) {
             var encoder = new BoundNodeEncoder(writer, metadataWriter);
@@ -284,6 +284,14 @@ internal sealed partial class TemplateMetadataWriter {
             VisitList(node.sizes);
             _writer.Write(node.initializer is not null);
             Visit(node.initializer);
+            return null;
+        }
+
+        internal override BoundNode VisitInitializerList(BoundInitializerList node) {
+            _writer.Write((byte)BoundKind.InitializerList);
+            _writer.Write(_metadataWriter.CreateTypeKindAndInfo(node.type));
+            _writer.Write((ushort)node.items.Length);
+            VisitList(node.items);
             return null;
         }
 

@@ -158,8 +158,7 @@ internal sealed partial class TemplateMetadataReader {
                     return;
             }
 
-            if (_resolvedTypeTable is null)
-                ResolveTypeTable();
+            ResolveTypeTable();
 
             if (!_boundTableIsRead)
                 ReadBoundTable();
@@ -168,7 +167,18 @@ internal sealed partial class TemplateMetadataReader {
                 var dummyContainer = _compilation.GetBoundReferenceManager().referencedAssemblies[0].globalNamespace;
 
                 foreach (var decoder in _typeDefTable) {
-                    var type = new PETemplateType(dummyContainer, decoder);
+                    PETemplateType type;
+
+                    if (!decoder.isForSpecializationOnly) {
+                        type = new PETemplateType(dummyContainer, decoder);
+                    } else {
+                        type = new PETemplateType(
+                            dummyContainer,
+                            decoder,
+                            (NamedTypeSymbol)ResolveType(decoder.typeEntryIndex)
+                        );
+                    }
+
                     var members = type.GetMembers();
 
                     foreach (var member in members) {
@@ -681,7 +691,7 @@ internal sealed partial class TemplateMetadataReader {
                     var param1 = m.parameters[i];
                     var param2 = methodDecoder.DecodeParameter((uint)i);
 
-                    if (!param1.type.Equals(param2.Item3, TypeCompareKind.ConsiderEverything)) {
+                    if (!param1.type.Equals(param2.Item4, TypeCompareKind.ConsiderEverything)) {
                         sameSignature = false;
                         break;
                     }

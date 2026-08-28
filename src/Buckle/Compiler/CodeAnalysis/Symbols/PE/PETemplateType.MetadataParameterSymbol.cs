@@ -12,9 +12,9 @@ internal sealed partial class PETemplateType {
         private readonly string _name;
         private readonly TypeWithAnnotations _typeWithAnnotations;
         private readonly ParameterAttributes _flags;
-        private readonly PEModuleSymbol _moduleSymbol;
         private readonly ushort _ordinal;
         private readonly TemplateMetadataWriter.ParameterFlags _additionalFlags;
+        private readonly ConstantValue _defaultValue;
 
         private readonly ParameterSymbol _symbolToLink;
 
@@ -24,9 +24,8 @@ internal sealed partial class PETemplateType {
             ushort ordinal) {
             _containingSymbol = containingSymbol;
             _ordinal = ordinal;
-            (_name, _additionalFlags, var underlyingType) = decoder.DecodeParameter(ordinal);
+            (_name, _flags, _additionalFlags, var underlyingType, _defaultValue) = decoder.DecodeParameter(ordinal);
             _typeWithAnnotations = new TypeWithAnnotations(underlyingType);
-            // TODO _flags
         }
 
         internal MetadataParameterSymbol(
@@ -63,24 +62,21 @@ internal sealed partial class PETemplateType {
 
         internal override bool hasUnscopedRefAttribute => false;
 
-        internal bool useUpdatedEscapeRules => _moduleSymbol.useUpdatedEscapeRules;
-
         internal override bool isMetadataOptional => (_flags & ParameterAttributes.Optional) != 0;
 
         internal override bool isMetadataOut => (_flags & ParameterAttributes.Out) != 0;
 
-        internal override bool isConst => false;
+        internal override bool isConst => (_additionalFlags & TemplateMetadataWriter.ParameterFlags.IsConst) != 0;
 
-        internal override ConstantValue outDefaultValue => null;
+        internal override ConstantValue outDefaultValue
+            => (_additionalFlags & TemplateMetadataWriter.ParameterFlags.HasOutDefaultValue) != 0
+                ? _defaultValue
+                : null;
 
         internal override TypeWithAnnotations typeWithAnnotations => _typeWithAnnotations;
 
-        internal override ConstantValue explicitDefaultConstantValue {
-            get {
-                // TODO
-                return null;
-            }
-        }
+        internal override ConstantValue explicitDefaultConstantValue
+            => (_flags & ParameterAttributes.HasDefault) != 0 ? _defaultValue : null;
 
         internal override ImmutableArray<AttributeData> GetAttributes() {
             // TODO

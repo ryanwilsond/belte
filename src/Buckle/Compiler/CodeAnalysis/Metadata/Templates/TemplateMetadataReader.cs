@@ -27,10 +27,12 @@ internal sealed partial class TemplateMetadataReader {
         EnsureTemplateMetadataIsRead();
 
         foreach (var pair in _rawTemplateMetadata) {
-            if (!_templateMetadata.ContainsKey(pair.Key)) {
+            if (!_templateMetadata.TryGetValue(pair.Key, out var value)) {
                 var templateMetadata = new TemplateMetadata(_compilation, pair.Value);
                 templateMetadata.ForceComplete();
                 _templateMetadata[pair.Key] = templateMetadata;
+            } else {
+                value.ForceComplete();
             }
         }
     }
