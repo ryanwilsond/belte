@@ -157,6 +157,10 @@ internal sealed class SynthesizedTemplateMethod : WrappedMethodSymbol, ISynthesi
         return underlyingMethod.GetUnmanagedCallersOnlyAttributeData(forceComplete);
     }
 
+    internal override ImmutableArray<AttributeData> GetAttributes() {
+        return underlyingMethod.GetAttributes();
+    }
+
     public override int GetHashCode() {
         if (_hashCode == 0)
             _hashCode = ComputeHashCode();

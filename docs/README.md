@@ -51,7 +51,6 @@
       - [2.1.5](Current/ControlFlow.md#215-template-arguments) Template Arguments
       - [2.1.6](Current/ControlFlow.md#216-ref-arguments) Ref Arguments
         - [2.1.6.1](Current/ControlFlow.md#2161-out-arguments) Out Arguments
-      - [2.1.7](Current/ControlFlow.md#217-argument-coercion) Argument Coercion
     - [2.2](Current/ControlFlow.md#22-entry-point) Entry Point
       - [2.2.1](Current/ControlFlow.md#221-main) Main
       - [2.2.2](Current/ControlFlow.md#222-program-and-update) Program And Update
@@ -79,6 +78,7 @@
     - [2.9](Current/ControlFlow.md#29-scoped-statements) Scoped Statements
     - [2.10](Current/ControlFlow.md#210-unreachable-statements) Unreachable Statements
     - [2.11](Current/ControlFlow.md#211-reverse-statements) Reverse Statements
+    - [2.12](Current/ControlFlow.md#212-order-of-multiple-implicit-frames-defer-scoped-etc) Order of Multiple Implicit Frames (Defer, Scoped, etc.)
   - [3](Current/Data.md) Data
     - [3.1](Current/Data.md#31-data-types) Data Types
       - [3.1.1](Current/Data.md#311-numerics) Numerics
@@ -102,9 +102,6 @@
         - [3.2.2.7](Current/Data.md#3227-xy) `x..y`
         - [3.2.2.8](Current/Data.md#3228-xy) `x?..y`
         - [3.2.2.9](Current/Data.md#3229-x) `x!!`
-        - [3.2.2.10](Current/Data.md#32210-x--y) `x /\ y`
-        - [3.2.2.11](Current/Data.md#32211-x--y) `x \/ y`
-        - [3.2.2.12](Current/Data.md#32212-x--y-z) `x >< [y, z]`
       - [3.2.3](Current/Data.md#323-isisntas-operators) Is/Isnt/As Operators
     - [3.3](Current/Data.md#33-data-containers) Data Containers
       - [3.3.1](Current/Data.md#331-modifiers) Modifiers
@@ -143,12 +140,12 @@
         - [4.5.1.1](Current/ClassesAndObjects.md#4511-expression-constraints) Expression Constraints
         - [4.5.1.2](Current/ClassesAndObjects.md#4512-special-constraints) Special Constraints
       - [4.5.2](Current/ClassesAndObjects.md#452-compile-time-type-template-parameters) Compile-Time Type Template Parameters
+      - [4.5.3](Current/ClassesAndObjects.md#453-reified-generics-versus-compile-time-templates) Reified Generics versus Compile-Time Templates
     - [4.6](Current/ClassesAndObjects.md#46-enums) Enums
       - [4.6.1](Current/ClassesAndObjects.md#461-flags) Flags
       - [4.6.2](Current/ClassesAndObjects.md#462-implicit-enum-fields) Implicit Enum Fields
-      - [4.6.3](Current/ClassesAndObjects.md#463-experimental-underlying-types) Experimental Underlying Types
-      - [4.6.4](Current/ClassesAndObjects.md#464-bit-testing) Bit Testing
-      - [4.6.5](Current/ClassesAndObjects.md#465-methods) Methods
+      - [4.6.3](Current/ClassesAndObjects.md#463-bit-testing) Bit Testing
+      - [4.6.4](Current/ClassesAndObjects.md#464-methods) Methods
     - [4.7](Current/ClassesAndObjects.md#47-namespaces) Namespaces
     - [4.8](Current/ClassesAndObjects.md#48-using-directives) Using Directives
       - [4.8.1](Current/ClassesAndObjects.md#481-aliasing) Aliasing
@@ -204,7 +201,6 @@
     - [6.14](Current/LowLevelFeatures.md#614-c-strings) C-Strings
     - [6.15](Current/LowLevelFeatures.md#615-lowlevel-fields) LowLevel Fields
     - [6.16](Current/LowLevelFeatures.md#616-lowlevel-default-literal) LowLeve Default Literal
-    - [6.17](Current/LowLevelFeatures.md#617-double-verbatim-identifiers) Double Verbatim Identifiers
   - [7](Current/Preprocessor.md) Preprocessor Directives
     - [7.1](Current/Preprocessor.md#71-defineundef) Define/Undef
     - [7.2](Current/Preprocessor.md#72-control) Control
@@ -218,6 +214,7 @@
       - [8.3.1](Current/Interop.md#831-exceptions) Exceptions
       - [8.3.2](Current/Interop.md#832-for-each-loops) For Each Loops
   - [9](Current/GraphicsLibrary.md) Graphics Library
+  - [10](Current/UndocumentedFeatures.md) "Undocumented" Features
 
 ___
 

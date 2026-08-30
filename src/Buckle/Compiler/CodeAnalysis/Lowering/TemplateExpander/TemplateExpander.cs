@@ -163,18 +163,8 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
         var originalDefinition = templateType.unexpandedSymbol.originalDefinition;
 
         if (_templateMetadataMethodBodiesCache.TryGetValue(originalDefinition, out var found)) {
-#if DEBUG
-            foreach (var (method, _) in methodBodies)
-                Debug.Assert(!method.containingType.originalDefinition.Equals(originalDefinition));
-#endif
-
             methodBodies = found;
         } else if (_compilation.HasTemplateMetadataForType(originalDefinition)) {
-#if DEBUG
-            foreach (var (method, _) in methodBodies)
-                Debug.Assert(!method.containingType.originalDefinition.Equals(originalDefinition));
-#endif
-
             methodBodies = _compilation.GetTemplateMethodMetadataForType(originalDefinition);
             _templateMetadataMethodBodiesCache.Add(originalDefinition, methodBodies);
         }

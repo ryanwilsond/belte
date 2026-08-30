@@ -50,6 +50,8 @@ internal enum WellKnownType : byte {
     Belte_PureAttribute,
     Belte_CompilerServices_BelteMetadataAttribute,
     Belte_NullabilityAttribute,
+    Belte_ConstMethodAttribute,
+    Belte_ConstParamAttribute,
 
     Belte_Graphics_Vec2,
     Belte_Graphics_Sprite,

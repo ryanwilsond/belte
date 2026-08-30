@@ -30,6 +30,8 @@ internal static class WellKnownTypeExtensions {
         "Belte.PureAttribute",
         "Belte.CompilerServices.BelteMetadataAttribute",
         "Belte.NullabilityAttribute",
+        "Belte.ConstMethodAttribute",
+        "Belte.ConstParamAttribute",
         "Belte.Graphics.Vec2",
         "Belte.Graphics.Sprite",
         "Belte.Graphics.Text",

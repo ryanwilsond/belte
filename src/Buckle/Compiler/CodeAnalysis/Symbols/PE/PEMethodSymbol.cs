@@ -26,6 +26,7 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
     private int _lazyIsPure;
     private int _lazyIsNoThrow;
     private int _lazyIsNoAlloc;
+    private int _lazyIsConst;
 
     internal PEMethodSymbol(
         PEModuleSymbol moduleSymbol,
@@ -300,7 +301,12 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
 
                 _packedFlags.InitializeIsReadOnly(isReadOnly);
             }
-            return _packedFlags.isReadOnly;
+
+            if (!_packedFlags.isCustomAttributesPopulated)
+                _ = GetAttributes();
+
+            Debug.Assert(_lazyIsConst != (int)ThreeState.Unknown);
+            return _packedFlags.isReadOnly || _lazyIsConst == (int)ThreeState.True;
         }
     }
 
@@ -381,7 +387,8 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
                 out var hasRequiresUnsafeAttribute,
                 out var isPure,
                 out var isNoThrow,
-                out var isNoAlloc
+                out var isNoAlloc,
+                out var isConst
             );
 
             _packedFlags.InitializeIsExtensionMethod(isExtensionMethod);
@@ -401,6 +408,11 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
             if (_lazyIsNoAlloc == (int)ThreeState.Unknown) {
                 var val = isNoAlloc ? (int)ThreeState.True : (int)ThreeState.False;
                 Interlocked.CompareExchange(ref _lazyIsNoAlloc, val, (int)ThreeState.Unknown);
+            }
+
+            if (_lazyIsConst == (int)ThreeState.Unknown) {
+                var val = isConst ? (int)ThreeState.True : (int)ThreeState.False;
+                Interlocked.CompareExchange(ref _lazyIsConst, val, (int)ThreeState.Unknown);
             }
 
             Debug.Assert(!attributeData.IsDefault);
@@ -434,13 +446,15 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
             out bool hasRequiresUnsafeAttribute,
             out bool isPure,
             out bool isNoThrow,
-            out bool isNoAlloc) {
+            out bool isNoAlloc,
+            out bool isConst) {
             isExtensionMethod = false;
             isReadOnly = false;
             hasRequiresUnsafeAttribute = false;
             isPure = false;
             isNoThrow = false;
             isNoAlloc = false;
+            isConst = false;
 
             var containingModule = _containingType.containingPEModule;
 
@@ -499,6 +513,11 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
 
                 if (containingModule.AttributeMatchesFilter(handle, AttributeDescription.NoAllocAttribute)) {
                     isNoAlloc = true;
+                    continue;
+                }
+
+                if (containingModule.AttributeMatchesFilter(handle, AttributeDescription.ConstMethodAttribute)) {
+                    isConst = true;
                     continue;
                 }
 

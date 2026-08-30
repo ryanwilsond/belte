@@ -244,6 +244,67 @@ internal sealed partial class TemplateMetadataReader {
                         return null;
                 }
             }
+
+            private protected AttributeData[] DecodeCustomAttributesCore(uint startPosition) {
+                lock (_metadata) lock (this) lock (_reader) {
+                    var position = _reader.BaseStream.Seek(startPosition, SeekOrigin.Begin);
+                    Debug.Assert(_reader.BaseStream.Position == position && position == startPosition);
+
+                    var count = _reader.ReadUInt16();
+                    Debug.Assert(_reader.BaseStream.Position == startPosition + 2);
+
+                    var attributes = new AttributeData[count];
+
+                    for (var i = 0; i < count; i++) {
+                        var size = _reader.ReadUInt32();
+                        var constructorIndex = _reader.ReadUInt32();
+                        var constructor = _metadata.ResolveMethod(constructorIndex);
+                        Debug.Assert(constructor.methodKind == MethodKind.Constructor);
+                        var parameterTypes = constructor.GetParameterTypes();
+
+                        var arguments = ArrayBuilder<TypedConstant>.GetInstance(parameterTypes.Length);
+
+                        for (var j = 0; j < parameterTypes.Length; j++) {
+                            var parameterType = parameterTypes[j].type;
+                            arguments.Add(DecodeTypedConstant(parameterType));
+                        }
+
+                        attributes[i] = new MetadataAttributeData(
+                            _compilation,
+                            constructor.containingType,
+                            constructor,
+                            arguments.ToImmutableAndFree()
+                        );
+                    }
+
+                    return attributes;
+                }
+
+                TypedConstant DecodeTypedConstant(TypeSymbol type) {
+                    var typedConstantKind = type.GetAttributeParameterTypedConstantKind(_compilation);
+
+                    if (type.IsNullableType()) {
+                        var isNull = _reader.ReadBoolean();
+
+                        if (isNull)
+                            return new TypedConstant(type, typedConstantKind, null);
+                    }
+
+                    if (type.StrippedType() is ArrayTypeSymbol arrayType) {
+                        var count = _reader.ReadUInt32();
+                        var builder = ArrayBuilder<TypedConstant>.GetInstance((int)count);
+
+                        for (var i = 0; i < count; i++)
+                            builder.Add(DecodeTypedConstant(arrayType.elementType));
+
+                        return new TypedConstant(type, builder.ToImmutableAndFree());
+                    }
+
+                    var value = ReadTypeOrConstant(type.StrippedType(), _reader);
+                    Debug.Assert(value.isConstant);
+                    return new TypedConstant(type, typedConstantKind, value.constant.value);
+                }
+            }
         }
     }
 }

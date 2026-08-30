@@ -7,7 +7,7 @@
 
     `Int.blt` is annotated to explain the features involved.
 
-    This file is mean't to be read, not run
+    This file is meant to be read, not run
         (it will not compile as it leasts malformed code uncommented for demonstrations).
 
 */

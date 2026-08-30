@@ -23,11 +23,16 @@ internal sealed partial class PETemplateType {
         private readonly MethodAttributes _flags;
         private readonly TemplateMetadataWriter.MethodFlags _additionalFlags;
 
+        private ImmutableArray<AttributeData> _lazyAttributes;
+        private ImmutableArray<AttributeData> _lazyReturnAttributes;
         private bool _lazyMethodKindIsPopulated;
         private MethodKind _lazyMethodKind;
         private ImmutableArray<TemplateParameterSymbol> _lazyTemplateParameters;
         private ImmutableArray<BoundExpression> _lazyTemplateConstraints;
         private ImmutableArray<ParameterSymbol> _lazyParameters;
+        private int _lazyIsPure;
+        private int _lazyIsNoThrow;
+        private int _lazyIsNoAlloc;
 
         private bool _lazyMethodBodyIsPopulated;
         private BoundBlockStatement _lazyMethodBody;
@@ -232,22 +237,25 @@ internal sealed partial class PETemplateType {
 
         internal override bool isPure {
             get {
-                // TODO
-                return false;
+                _ = GetAttributes();
+                Debug.Assert(_lazyIsPure != (int)ThreeState.Unknown);
+                return _lazyIsPure == (int)ThreeState.True;
             }
         }
 
         internal override bool isNoThrow {
             get {
-                // TODO
-                return false;
+                _ = GetAttributes();
+                Debug.Assert(_lazyIsNoThrow != (int)ThreeState.Unknown);
+                return _lazyIsNoThrow == (int)ThreeState.True;
             }
         }
 
         internal override bool isNoAlloc {
             get {
-                // TODO
-                return false;
+                _ = GetAttributes();
+                Debug.Assert(_lazyIsNoAlloc != (int)ThreeState.Unknown);
+                return _lazyIsNoAlloc == (int)ThreeState.True;
             }
         }
 
@@ -455,6 +463,63 @@ internal sealed partial class PETemplateType {
         internal override UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete) {
             // TODO
             return null;
+        }
+
+        internal override ImmutableArray<AttributeData> GetAttributes() {
+            if (_lazyAttributes.IsDefault) {
+                var attributes = _decoder.DecodeCustomAttributes();
+                var builder = ArrayBuilder<AttributeData>.GetInstance(attributes.Length);
+                var isPure = false;
+                var isNoThrow = false;
+                var isNoAlloc = false;
+
+                foreach (var attribute in attributes) {
+                    if (attribute.IsTargetAttribute(AttributeDescription.PureAttribute)) {
+                        isPure = true;
+                        continue;
+                    }
+
+                    if (attribute.IsTargetAttribute(AttributeDescription.NoThrowAttribute)) {
+                        isNoThrow = true;
+                        continue;
+                    }
+
+                    if (attribute.IsTargetAttribute(AttributeDescription.NoAllocAttribute)) {
+                        isNoAlloc = true;
+                        continue;
+                    }
+
+                    builder.Add(attribute);
+                }
+
+                ImmutableInterlocked.InterlockedInitialize(ref _lazyAttributes, builder.ToImmutableAndFree());
+
+                if (_lazyIsPure == (int)ThreeState.Unknown) {
+                    var val = isPure ? (int)ThreeState.True : (int)ThreeState.False;
+                    Interlocked.CompareExchange(ref _lazyIsPure, val, (int)ThreeState.Unknown);
+                }
+
+                if (_lazyIsNoThrow == (int)ThreeState.Unknown) {
+                    var val = isNoThrow ? (int)ThreeState.True : (int)ThreeState.False;
+                    Interlocked.CompareExchange(ref _lazyIsNoThrow, val, (int)ThreeState.Unknown);
+                }
+
+                if (_lazyIsNoAlloc == (int)ThreeState.Unknown) {
+                    var val = isNoAlloc ? (int)ThreeState.True : (int)ThreeState.False;
+                    Interlocked.CompareExchange(ref _lazyIsNoAlloc, val, (int)ThreeState.Unknown);
+                }
+            }
+
+            return _lazyAttributes;
+        }
+
+        internal override ImmutableArray<AttributeData> GetReturnTypeAttributes() {
+            if (_lazyReturnAttributes.IsDefault) {
+                var attributes = _decoder.DecodeReturnCustomAttributes().ToImmutableArray();
+                ImmutableInterlocked.InterlockedInitialize(ref _lazyReturnAttributes, attributes);
+            }
+
+            return _lazyReturnAttributes;
         }
     }
 }

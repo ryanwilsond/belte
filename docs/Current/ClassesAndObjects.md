@@ -28,12 +28,12 @@
     - [4.5.1.1](#4511-expression-constraints) Expression Constraints
     - [4.5.1.2](#4512-special-constraints) Special Constraints
   - [4.5.2](#452-compile-time-type-template-parameters) Compile-Time Type Template Parameters
+  - [4.5.3](#453-reified-generics-versus-compile-time-templates) Reified Generics versus Compile-Time Templates
 - [4.6](#46-enums) Enums
   - [4.6.1](#461-flags) Flags
   - [4.6.2](#462-implicit-enum-fields) Implicit Enum Fields
-  - [4.6.3](#463-experimental-underlying-types) Experimental Underlying Types
-  - [4.6.4](#464-bit-testing) Bit Testing
-  - [4.6.5](#465-methods) Methods
+  - [4.6.3](#463-bit-testing) Bit Testing
+  - [4.6.4](#464-methods) Methods
 - [4.7](#47-namespaces) Namespaces
 - [4.8](#48-using-directives) Using Directives
   - [4.8.1](#481-aliasing) Aliasing
@@ -112,6 +112,10 @@ void Main(string[]! args) {
 ```
 
 In the above example, `Main` is public and static and is a valid entry point.
+
+Because file-scoped classes use a different default accessibility and modifier rules, they are not intended to be used
+for general class programming. Instead, they are mean't to reduce boiler plate in procedural areas of a codebase where
+accessibility is not applicable. As such, regular class declarations should be preferred.
 
 ### 4.1.2 Inheritance
 
@@ -430,9 +434,8 @@ a value to those values.
 #### 4.2.2.3 Behavior Specifiers
 
 Methods allow various behavior specifies which constrain behavior and allow certain optimizations to take
-place. They are placed between the parameter list and body (more specifically: after the
-[implicit argument coercion specifier](ControlFlow.md#217-argument-coercion) and before the
-[template constraint clauses](#451-constraint-clauses)).
+place. They are placed between the parameter list and body (before
+[template constraint clauses](#451-constraint-clauses) if any).
 
 ```belte
 int MyMethod(int arg) pure memoize {
@@ -480,10 +483,13 @@ what behavior specifiers they allow:
 | `pure` | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
 
 Note that `memoize` is purely an optimization suggestion and does not guarantee the compiler will cache calls to that
-function.
+function. Note additional restrictions apply, for example, memoization will not occur if the function signature contains
+pointers to avoid stale cache hits.
 
 Note that `nothrow` includes all potential managed exceptions (throw expressions, array accessing out of bounds,
 invalid casts, etc.) but **does not include corrupted state exceptions** (such as pointer related segfaults).
+
+Note that `pure` cannot be used on methods that have a [reverse clause](#4222-state-and-reverse-clauses).
 
 ### 4.2.3 Operators
 
@@ -1127,6 +1133,51 @@ reference assembly has valid template metadata that can be read from to instanti
 with the [*--notemplatemetadata* flag](../Buckle.md#--notemplatemetadata) does not create template metadata so no types
 from it can be specialized or instantiated unless they only have runtime type template parameters.)
 
+### 4.5.3 Reified Generics versus Compile-Time Templates
+
+By default, all type template parameters are implemented as .NET reified generics, a.k.a. normal C# generics. This means
+they are better for binary size, dynamic code, C# interoperability, and public APIs.
+
+All other template parameters are implemented as compile-time templates, similar to C++. This means each unique
+instantiation will add a completely new type definition to the assembly, increasing binary size. This also means they
+are not treated like generics when using .NET Reflection. Templates should be used either when the underlying template
+parameter type is not a type, or in specialized cases.
+
+When creating public APIs, reified generics should be preferred. Consider:
+
+```belte
+class List<type $T> { ... }
+```
+
+and
+
+```belte
+class List<type T> { ... }
+```
+
+The second definition is most likely better because it uses reified generics which is better for general purpose use
+cases.
+
+Also consider using template specialization instead of compile-time templates in the declaration if possible. In other
+words, prefer:
+
+```belte
+class List<type T> { ... }
+
+List<template int> myList = new();
+```
+
+over:
+
+```belte
+class List<type $T> { ... }
+
+List<int> myList = new();
+```
+
+Both options result in the same code for the particular instantiation used by `myList`, but the former keeps the type
+definition reified for general use cases.
+
 ## 4.6 Enums
 
 Enums are value types that contain a list of integral constants. Enum field values implicitly start at 0 and count up,
@@ -1232,19 +1283,7 @@ Func(.Field1);
 void Func(MyEnum param) { /* ... */ }
 ```
 
-### 4.6.3 Experimental Underlying Types
-
-When using the Evaluator, enums can additional represent the `string` and `char` primitives:
-
-```belte
-enum MyEnum extends string {
-  Field1 = "some string",
-}
-```
-
-This feature is experimental and may be removed.
-
-### 4.6.4 Bit Testing
+### 4.6.3 Bit Testing
 
 The traditional way to test for the presence of a enum field is to use a bit test:
 
@@ -1270,7 +1309,7 @@ var f = F.B;
 if (f.B) { /* ... */ }
 ```
 
-### 4.6.5 Methods
+### 4.6.4 Methods
 
 Enums don't contain methods in metadata, but methods can be written inside of an enum for convenience.
 
@@ -1296,7 +1335,7 @@ enum flags F {
 }
 ```
 
-Note that by using the [bit testing shorthand](#464-bit-testing) the method `IsAOrB` could also be written:
+Note that by using the [bit testing shorthand](#463-bit-testing) the method `IsAOrB` could also be written:
 
 ```belte
 public bool IsAOrB() {

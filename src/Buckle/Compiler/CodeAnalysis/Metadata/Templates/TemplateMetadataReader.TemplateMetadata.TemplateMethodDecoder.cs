@@ -15,14 +15,18 @@ internal sealed partial class TemplateMetadataReader {
             private readonly uint _offsetAfterName;
 
             private bool _readTemplateParameters;
-            private (string, GenericParameterAttributes, TemplateMetadataWriter.TemplateParameterFlags, TypeSymbol, TypeOrConstant)[] _templateParameters;
+            private (string, GenericParameterAttributes, TemplateMetadataWriter.TemplateParameterFlags, TypeSymbol, TypeOrConstant, AttributeData[])[] _templateParameters;
             private uint _offsetAfterTemplateParameters;
 
             private TypeSymbol _returnType;
             private uint _offsetAfterReturnType;
 
+            private bool _readReturnAttributes;
+            private AttributeData[] _returnAttributes;
+            private uint _offsetAfterReturnAttributes;
+
             private bool _readParameters;
-            private (string, ParameterAttributes, TemplateMetadataWriter.ParameterFlags, TypeSymbol, ConstantValue)[] _parameters;
+            private (string, ParameterAttributes, TemplateMetadataWriter.ParameterFlags, TypeSymbol, ConstantValue, AttributeData[])[] _parameters;
             private ushort _parameterCount;
             private uint _offsetAfterParameters;
 
@@ -30,6 +34,10 @@ internal sealed partial class TemplateMetadataReader {
 
             private bool _readConstraints;
             private BoundExpression[] _constraints;
+            private uint _offsetAfterConstraints;
+
+            private bool _readAttributes;
+            private AttributeData[] _attributes;
 
             internal TemplateMethodDecoder(
                 TemplateMetadata metadata,
@@ -52,7 +60,7 @@ internal sealed partial class TemplateMetadataReader {
                 return _methodEntry.arity;
             }
 
-            internal (string, GenericParameterAttributes, TemplateMetadataWriter.TemplateParameterFlags, TypeSymbol, TypeOrConstant) DecodeTemplateParameter(uint ordinal) {
+            internal (string, GenericParameterAttributes, TemplateMetadataWriter.TemplateParameterFlags, TypeSymbol, TypeOrConstant, AttributeData[]) DecodeTemplateParameter(uint ordinal) {
                 if (ordinal >= _methodEntry.arity)
                     throw ExceptionUtilities.Unreachable();
 
@@ -61,7 +69,7 @@ internal sealed partial class TemplateMetadataReader {
                 return _templateParameters[ordinal];
             }
 
-            internal (string, ParameterAttributes, TemplateMetadataWriter.ParameterFlags, TypeSymbol, ConstantValue) DecodeParameter(uint ordinal) {
+            internal (string, ParameterAttributes, TemplateMetadataWriter.ParameterFlags, TypeSymbol, ConstantValue, AttributeData[]) DecodeParameter(uint ordinal) {
                 DecodeParameters();
 
                 if (ordinal >= _parameterCount)
@@ -168,10 +176,36 @@ internal sealed partial class TemplateMetadataReader {
                         );
                     }
 
+                    _offsetAfterConstraints = (uint)_reader.BaseStream.Position;
                     _readConstraints = true;
                 }
 
                 return _constraints;
+            }
+
+            internal AttributeData[] DecodeCustomAttributes() {
+                if (_readAttributes)
+                    return _attributes;
+
+                _ = DecodeConstraints();
+
+                _attributes = DecodeCustomAttributesCore(_offsetAfterConstraints);
+                _readAttributes = true;
+
+                return _attributes;
+            }
+
+            internal AttributeData[] DecodeReturnCustomAttributes() {
+                if (_readReturnAttributes)
+                    return _returnAttributes;
+
+                _ = GetReturnType();
+
+                _returnAttributes = DecodeCustomAttributesCore(_offsetAfterReturnType);
+                _offsetAfterReturnAttributes = (uint)_reader.BaseStream.Position;
+                _readReturnAttributes = true;
+
+                return _returnAttributes;
             }
 
             private void DecodeTemplateParameters() {
@@ -185,7 +219,7 @@ internal sealed partial class TemplateMetadataReader {
                     var count = _reader.ReadUInt16();
                     Debug.Assert(count == _methodEntry.arity);
 
-                    _templateParameters = new (string, GenericParameterAttributes, TemplateMetadataWriter.TemplateParameterFlags, TypeSymbol, TypeOrConstant)[count];
+                    _templateParameters = new (string, GenericParameterAttributes, TemplateMetadataWriter.TemplateParameterFlags, TypeSymbol, TypeOrConstant, AttributeData[])[count];
 
                     for (var i = 0; i < count; i++) {
                         var nameSize = _reader.ReadUInt32();
@@ -199,7 +233,9 @@ internal sealed partial class TemplateMetadataReader {
                         if ((flags & TemplateMetadataWriter.TemplateParameterFlags.HasDefaultValue) != 0)
                             defaultValue = ReadTypeOrConstant(underlyingType, _reader);
 
-                        _templateParameters[i] = (name, attributes, flags, underlyingType, defaultValue);
+                        var customAttributes = DecodeCustomAttributesCore((uint)_reader.BaseStream.Position);
+
+                        _templateParameters[i] = (name, attributes, flags, underlyingType, defaultValue, customAttributes);
                     }
 
                     _offsetAfterTemplateParameters = (uint)_reader.BaseStream.Position;
@@ -211,15 +247,15 @@ internal sealed partial class TemplateMetadataReader {
                 if (_readParameters)
                     return;
 
-                _ = GetReturnType();
+                _ = DecodeReturnCustomAttributes();
 
                 lock (_metadata) lock (this) lock (_reader) {
-                    var position = _reader.BaseStream.Seek(_offsetAfterReturnType, SeekOrigin.Begin);
-                    Debug.Assert(_reader.BaseStream.Position == position && position == _offsetAfterReturnType);
+                    var position = _reader.BaseStream.Seek(_offsetAfterReturnAttributes, SeekOrigin.Begin);
+                    Debug.Assert(_reader.BaseStream.Position == position && position == _offsetAfterReturnAttributes);
 
                     _parameterCount = _reader.ReadUInt16();
-                    _parameters = new (string, ParameterAttributes, TemplateMetadataWriter.ParameterFlags, TypeSymbol, ConstantValue)[_parameterCount];
-                    Debug.Assert(_reader.BaseStream.Position == _offsetAfterReturnType + 2);
+                    _parameters = new (string, ParameterAttributes, TemplateMetadataWriter.ParameterFlags, TypeSymbol, ConstantValue, AttributeData[])[_parameterCount];
+                    Debug.Assert(_reader.BaseStream.Position == _offsetAfterReturnAttributes + 2);
 
                     uint endPosition = 0;
 
@@ -227,7 +263,7 @@ internal sealed partial class TemplateMetadataReader {
                         var startPosition = (uint)_reader.BaseStream.Position;
 
                         if (i == 0)
-                            Debug.Assert(startPosition == _offsetAfterReturnType + 2);
+                            Debug.Assert(startPosition == _offsetAfterReturnAttributes + 2);
                         else
                             Debug.Assert(startPosition == endPosition);
 
@@ -250,7 +286,9 @@ internal sealed partial class TemplateMetadataReader {
                             Debug.Assert(defaultValue is not null);
                         }
 
-                        _parameters[i] = (name, attributes, flags, underlyingType, defaultValue);
+                        var customAttributes = DecodeCustomAttributesCore((uint)_reader.BaseStream.Position);
+
+                        _parameters[i] = (name, attributes, flags, underlyingType, defaultValue, customAttributes);
                         endPosition = (uint)_reader.BaseStream.Position;
                     }
 

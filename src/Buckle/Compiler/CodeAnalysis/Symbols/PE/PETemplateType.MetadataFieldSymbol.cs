@@ -13,6 +13,7 @@ internal sealed partial class PETemplateType {
         private readonly TemplateMetadataWriter.FieldFlags _additionalFlags;
         private readonly PETemplateType _containingType;
         private readonly TypeWithAnnotations _type;
+        private readonly ImmutableArray<AttributeData> _attributes;
 
         private readonly FieldSymbol _fieldToLink;
 
@@ -21,7 +22,9 @@ internal sealed partial class PETemplateType {
             string name,
             FieldAttributes flags,
             TemplateMetadataWriter.FieldFlags additionalFlags,
-            TypeSymbol type) {
+            TypeSymbol type,
+            AttributeData[] attributes) {
+            _attributes = attributes.ToImmutableArray();
             _containingType = containingType;
             _name = name;
             _flags = flags;
@@ -35,8 +38,9 @@ internal sealed partial class PETemplateType {
             FieldAttributes flags,
             TemplateMetadataWriter.FieldFlags additionalFlags,
             TypeSymbol type,
+            AttributeData[] attributes,
             FieldSymbol fieldToLink)
-            : this(containingType, name, flags, additionalFlags, type) {
+            : this(containingType, name, flags, additionalFlags, type, attributes) {
             _fieldToLink = fieldToLink;
         }
 
@@ -94,23 +98,7 @@ internal sealed partial class PETemplateType {
         internal sealed override Compilation declaringCompilation => null;
 
         internal override ImmutableArray<AttributeData> GetAttributes() {
-            // TODO
-            // if (_lazyCustomAttributes.IsDefault)
-            // {
-            //     var containingPEModuleSymbol = (PEModuleSymbol)this.ContainingModule;
-
-            //     var attributes = containingPEModuleSymbol.GetCustomAttributesForToken(
-            //         _handle,
-            //         out _,
-            //         FilterOutDecimalConstantAttribute() ? AttributeDescription.DecimalConstantAttribute : default,
-            //         out CustomAttributeHandle required,
-            //         AttributeDescription.RequiredMemberAttribute);
-
-            //     ImmutableInterlocked.InterlockedInitialize(ref _lazyCustomAttributes, attributes);
-            //     _packedFlags.SetHasRequiredMemberAttribute(!required.IsNil);
-            // }
-            // return _lazyCustomAttributes;
-            return [];
+            return _attributes;
         }
 
         internal override TypeWithAnnotations GetFieldType(ConsList<FieldSymbol> fieldsBeingBound) {

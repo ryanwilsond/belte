@@ -22,9 +22,6 @@
     - [3.2.2.7](#3227-xy) `x..y`
     - [3.2.2.8](#3228-xy) `x?..y`
     - [3.2.2.9](#3229-x) `x!!`
-    - [3.2.2.10](#32210-x--y) `x /\ y`
-    - [3.2.2.11](#32211-x--y) `x \/ y`
-    - [3.2.2.12](#32212-x--y-z) `x >< [y, z]`
   - [3.2.3](#323-isisntas-operators) Is/Isnt/As Operators
 - [3.3](#33-data-containers) Data Containers
   - [3.3.1](#331-modifiers) Modifiers
@@ -412,12 +409,12 @@ strict order of precedence:
 | x & y | Bitwise Logical AND |
 | x ^ y | Bitwise Logical XOR |
 | x \| y | Bitwise Logical OR |
-| x < y, x > y, x <= y, x >= y, x /\ y, x \/ y | Relational |
+| x < y, x > y, x <= y, x >= y | Relational |
 | x == y, x != y | Equality |
 | x && y | Conditional AND |
 | x \|\| y | Conditional OR |
 | x ?? y, x ?! y | Null-Coalescing |
-| c ? t : f, x >< \[y, z] | Tertiary Conditional and Clamp |
+| c ? t : f | Tertiary Conditional |
 
 Note that all binary operators are left-associative except for the power operator. For example `2 + 3 + 4` will parse as
 `(2 + 3) + 4` while `2 ** 3 ** 4` will parse as `2 ** (3 ** 4)`.
@@ -499,18 +496,6 @@ non-nullable context with null.
 
 This operator is intended to be used when certain the operand is not null and thus the overhead of checking again is
 unnecessary.
-
-#### 3.2.2.10 `x /\ y`
-
-`x /\ y` is equivalent to `Math.Min(x, y)`.
-
-#### 3.2.2.11 `x \/ y`
-
-`x \/ y` is equivalent to `Math.Max(x, y)`.
-
-#### 3.2.2.12 `x >< [y, z]`
-
-`x >< [y, z]` is equivalent to `Math.Clamp(x, y, z)`.
 
 ### 3.2.3 Is/Isnt/As Operators
 
@@ -642,6 +627,18 @@ a.f = 4; // Invalid, cannot modify data
 class A {
   int f;
 }
+```
+
+Critically: "const-ness" is only enforced through the particular receiver. In other words, it is "shallow". This means
+that if multiple locals point to the same object in memory, a variable one can mutate it causing changes in constant
+locals.
+
+```belte
+var a = new List<int>();
+const b = a;
+
+a.Add(10);
+// b is changed even though it is marked `const`
 ```
 
 Constants cannot be passed as arguments to [parameters not marked `const`](ControlFlow.md#212-const-parameters) unless

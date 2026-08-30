@@ -8,7 +8,6 @@
   - [2.1.5](#215-template-arguments) Template Arguments
   - [2.1.6](#216-ref-arguments) Ref Arguments
     - [2.1.6.1](#2161-out-arguments) Out Arguments
-  - [2.1.7](#217-argument-coercion) Argument Coercion
 - [2.2](#22-entry-point) Entry Point
   - [2.2.1](#221-main) Main
   - [2.2.2](#222-program-and-update) Program And Update
@@ -36,6 +35,7 @@
 - [2.9](#29-scoped-statements) Scoped Statements
 - [2.10](#210-unreachable-statements) Unreachable Statements
 - [2.11](#211-reverse-statements) Reverse Statements
+- [2.12](#212-order-of-multiple-implicit-frames-defer-scoped-etc) Order of Multiple Implicit Frames (Defer, Scoped, etc.)
 
 ## 2.1 Functions
 
@@ -207,6 +207,9 @@ Out parameters do not require assignment and will assign a default value in case
 the scope of the function. Because of this, types without a default value (non-nullable classes and arrays) cannot be
 used as the type for an out parameter.
 
+> Note that out parameters being assigned a default value will likely be removed,
+> instead requiring definite assignment to all out parameters
+
 Out parameters can be given a default value. The following are equivalent:
 
 ```belte
@@ -230,25 +233,6 @@ Func(out _);
 void Func(out int a) {
   // ...
 }
-```
-
-### 2.1.7 Argument Coercion
-
-Normally, passing arguments uses normal casting rules. By using the `implicit` keyword between the parameter list and
-body, explicit casts from arguments to parameters will be treated as though they were implicit:
-
-```belte
-F(3.3); // Explicit decimal -> int cast not needed
-
-void F(int a) implicit { }
-```
-
-Without the `implicit` keyword, the call in the above example would have to be written:
-
-```belte
-F((int)3.3);
-
-void F(int a) { }
 ```
 
 ## 2.2 Entry Point
@@ -786,6 +770,8 @@ A try block must contain one catch body, one finally body, or both.
 
 ## 2.7 With Expressions and Statements
 
+> Note: `with` is experimental
+
 The `with` expression or statement can be used to wrap code inside of an assignment that is reversed when done.
 
 For example:
@@ -1080,6 +1066,8 @@ Note that because this turns into a [`throw`](#261-trycatchfinally), it will be 
 
 ## 2.11 Reverse Statements
 
+> Note: `reverse` and `reversible` are experimental
+
 A `reversible` expression creates a token that can be referenced later with a `reverse` statement.
 
 ```belte
@@ -1116,4 +1104,105 @@ defer reverse T;
 
 ```belte
 reverse defer Method();
+```
+
+## 2.12 Order of Multiple Implicit Frames (Defer, Scoped, etc.)
+
+In the case multiple implicit frames, the order of execution is clearly defined. Try/finally blocks are added in reverse
+order of these constructs placement within a block. For example:
+
+```belte
+int a = 3;
+defer Call1();
+a = 10;
+defer Call2();
+a = 20;
+```
+
+Turns into:
+
+```belte
+int a = 3;
+
+try {
+  a = 10;
+
+  try {
+    a = 20;
+  } finally {
+    Call2();
+  }
+} finally {
+  Call1();
+}
+```
+
+This means an exception thrown in the inner-most block will first call `Call2`, then `Call1`.
+
+This same reverse-ordering applies to `scoped` statements as well. Consider:
+
+```belte
+scoped A a = new A();
+
+defer Call1();
+a.field = 10;
+defer Call2();
+a.field = 20;
+```
+
+This becomes:
+
+```belte
+A a = new A();
+
+try {
+  try {
+    a.field = 10;
+
+    try {
+      a.field = 20;
+    } finally {
+      Call2();
+    }
+  } finally {
+    Call1();
+  }
+} finally {
+  a.Dispose();
+}
+```
+
+Because the try blocks are ordered this way, `defer` and `scoped` statements will "unwind" up in the block.
+
+Explicit try and with blocks interact as expected:
+
+```belte
+int a = 10;
+
+try {
+  with (a = 4) try {
+    Call1();
+  }
+} finally {
+  Call2();
+}
+```
+
+This becomes:
+
+```belte
+int a = 10;
+
+try {
+  int temp = a;
+  a = 4;
+
+  try {
+    Call1();
+  } finally {
+    a = temp;
+  }
+} finally {
+  Call2();
+}
 ```

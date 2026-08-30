@@ -6,6 +6,7 @@ using System.Reflection.Metadata;
 using System.Threading;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
+using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -22,6 +23,7 @@ internal partial class PEParameterSymbol : ParameterSymbol {
 
     private ImmutableArray<AttributeData> _lazyCustomAttributes;
     private ConstantValue? _lazyDefaultValue = ConstantValue.Unset;
+    private int _lazyIsConst;
 
     // private ImmutableArray<int> _lazyInterpolatedStringHandlerAttributeIndexes = DefaultStringHandlerAttributeIndexes;
 
@@ -183,7 +185,13 @@ internal partial class PEParameterSymbol : ParameterSymbol {
 
     internal override bool isMetadataOut => (_flags & ParameterAttributes.Out) != 0;
 
-    internal override bool isConst => false;
+    internal override bool isConst {
+        get {
+            _ = GetAttributes();
+            Debug.Assert(_lazyIsConst != (int)ThreeState.Unknown);
+            return _lazyIsConst == (int)ThreeState.True;
+        }
+    }
 
     internal override ConstantValue outDefaultValue => null;
 
@@ -286,7 +294,8 @@ internal partial class PEParameterSymbol : ParameterSymbol {
             var attributes = LoadAndFilterAttributes(
                 out var hiddenAttributes,
                 out var isParamArray,
-                out var isParamCollection
+                out var isParamCollection,
+                out var isConst
             );
 
             ImmutableInterlocked.InterlockedInitialize(ref _lazyHiddenAttributes, hiddenAttributes);
@@ -306,6 +315,11 @@ internal partial class PEParameterSymbol : ParameterSymbol {
             //     _lazyIsParams = result;
             // }
 
+            if (_lazyIsConst == (int)ThreeState.Unknown) {
+                var val = isConst ? (int)ThreeState.True : (int)ThreeState.False;
+                Interlocked.CompareExchange(ref _lazyIsConst, val, (int)ThreeState.Unknown);
+            }
+
             ImmutableInterlocked.InterlockedInitialize(
                 ref _lazyCustomAttributes,
                 attributes
@@ -318,10 +332,12 @@ internal partial class PEParameterSymbol : ParameterSymbol {
         ImmutableArray<AttributeData> LoadAndFilterAttributes(
             out ImmutableArray<AttributeData> hiddenAttributes,
             out bool isParamArray,
-            out bool isParamCollection) {
+            out bool isParamCollection,
+            out bool isConst) {
             hiddenAttributes = [];
             isParamArray = false;
             isParamCollection = false;
+            isConst = false;
 
             Debug.Assert(!_handle.IsNil);
             var containingModule = (PEModuleSymbol)this.containingModule;
@@ -378,6 +394,11 @@ internal partial class PEParameterSymbol : ParameterSymbol {
 
                 if (containingModule.AttributeMatchesFilter(handle, AttributeDescription.NullabilityAttribute))
                     continue;
+
+                if (containingModule.AttributeMatchesFilter(handle, AttributeDescription.ConstParamAttribute)) {
+                    isConst = true;
+                    continue;
+                }
 
                 builder.Add(new PEAttributeData(containingModule, handle));
             }

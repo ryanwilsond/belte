@@ -23,6 +23,7 @@ internal sealed partial class PETemplateType : NamedTypeSymbol {
     private readonly string _name;
     private readonly TypeAttributes _flags;
 
+    private ImmutableArray<AttributeData> _lazyAttributes;
     private ImmutableArray<TemplateParameterSymbol> _lazyTemplateParameters;
     private ImmutableArray<BoundExpression> _lazyTemplateConstraints;
     private ICollection<string> _lazyMemberNames;
@@ -336,8 +337,12 @@ internal sealed partial class PETemplateType : NamedTypeSymbol {
     }
 
     internal override ImmutableArray<AttributeData> GetAttributes() {
-        // TODO
-        return [];
+        if (_lazyAttributes.IsDefault) {
+            var attributes = _decoder.DecodeCustomAttributes().ToImmutableArray();
+            ImmutableInterlocked.InterlockedInitialize(ref _lazyAttributes, attributes);
+        }
+
+        return _lazyAttributes;
     }
 
     internal override ImmutableArray<Symbol> GetSimpleNonTypeMembers(string name) {
@@ -511,7 +516,8 @@ internal sealed partial class PETemplateType : NamedTypeSymbol {
                     fieldInfo.Item1,
                     fieldInfo.Item2,
                     fieldInfo.Item3,
-                    fieldInfo.Item4
+                    fieldInfo.Item4,
+                    fieldInfo.Item5
                 );
             } else {
                 symbol = new MetadataFieldSymbol(
@@ -520,6 +526,7 @@ internal sealed partial class PETemplateType : NamedTypeSymbol {
                     fieldInfo.Item2,
                     fieldInfo.Item3,
                     fieldInfo.Item4,
+                    fieldInfo.Item5,
                     (FieldSymbol)_typeToLink.GetMembers(fieldInfo.Item1).Single(m => m.kind == SymbolKind.Field)
                 );
             }

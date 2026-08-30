@@ -1067,6 +1067,18 @@ internal partial class ILEmitter : ModuleBuilder {
 
         AddCustomAttributes(methodDefinition.CustomAttributes, method.GetAttributes());
 
+        if (method.isPure)
+            AddWellKnownAttribute(methodDefinition.CustomAttributes, WellKnownType.Belte_PureAttribute);
+
+        if (method.isNoThrow)
+            AddWellKnownAttribute(methodDefinition.CustomAttributes, WellKnownType.Belte_NoThrowAttribute);
+
+        if (method.isNoAlloc)
+            AddWellKnownAttribute(methodDefinition.CustomAttributes, WellKnownType.Belte_NoAllocAttribute);
+
+        if (method.isDeclaredConst)
+            AddWellKnownAttribute(methodDefinition.CustomAttributes, WellKnownType.Belte_ConstMethodAttribute);
+
         for (var i = 0; i < method.arity; i++) {
             var templateParameter = method.templateParameters[i];
             var genericParameter = methodDefinition.GenericParameters[i];
@@ -1084,6 +1096,9 @@ internal partial class ILEmitter : ModuleBuilder {
             var parameterDefinition = methodDefinition.Parameters[i];
 
             AddCustomAttributes(parameterDefinition.CustomAttributes, parameter.GetAttributes());
+
+            if (parameter.isConst)
+                AddWellKnownAttribute(parameterDefinition.CustomAttributes, WellKnownType.Belte_ConstParamAttribute);
 
             if (TypeNeedsNullabilityAttribute(parameter.type, parameter.location))
                 parameterDefinition.CustomAttributes.Add(CreateNullabilityAttribute(parameter.type));
@@ -1810,33 +1825,22 @@ internal partial class ILEmitter : ModuleBuilder {
 
             methodDefinition.CustomAttributes.Add(attr);
         }
+    }
 
-        if (method.isPure)
-            AddWellKnownAttribute(methodDefinition.CustomAttributes, WellKnownType.Belte_PureAttribute);
+    private void AddWellKnownAttribute(
+        Mono.Collections.Generic.Collection<CustomAttribute> customAttributes,
+        WellKnownType wellKnownType) {
+        var attributeSymbol = _compilation.GetWellKnownType(wellKnownType);
 
-        if (method.isNoThrow)
-            AddWellKnownAttribute(methodDefinition.CustomAttributes, WellKnownType.Belte_NoThrowAttribute);
+        Debug.Assert(!attributeSymbol.IsErrorType());
 
-        if (method.isNoAlloc)
-            AddWellKnownAttribute(methodDefinition.CustomAttributes, WellKnownType.Belte_NoAllocAttribute);
+        var attributeType = Resolve(GetType(attributeSymbol, import: false));
+        var ctors = attributeType.GetConstructors();
+        var attributeCtor = _assemblyDefinition.MainModule.ImportReference(ctors.Single());
 
-        void AddWellKnownAttribute(
-            Mono.Collections.Generic.Collection<CustomAttribute> customAttributes,
-            WellKnownType wellKnownType) {
-            var attributeSymbol = _compilation.GetWellKnownType(wellKnownType);
+        var attribute = new CustomAttribute(attributeCtor);
 
-            Debug.Assert(!attributeSymbol.IsErrorType());
-
-            var attributeType = Resolve(GetType(attributeSymbol, import: false));
-
-            var attributeCtor = _assemblyDefinition.MainModule.ImportReference(
-                attributeType.GetConstructors().Single()
-            );
-
-            var attribute = new CustomAttribute(attributeCtor);
-
-            customAttributes.Add(attribute);
-        }
+        customAttributes.Add(attribute);
     }
 
     private TypeReference GetTypeOrIntPtr(TypeSymbol type, bool byRef) {

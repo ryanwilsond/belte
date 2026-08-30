@@ -71,10 +71,14 @@ Method Table
             1       Return Flags
             1       Return Type Kind
             ...     Return Type Info
+            2       Return Custom Attribute Count
+            ...     Return Custom Attributes
             2       Parameter Count
             ...     Parameter Signature
             2       Expression Constraint Count
             ...     Expression Constraints
+            2       Custom Attribute Count
+            ...     Custom Attributes
 
             :Template Parameter Entry:
 
@@ -85,6 +89,8 @@ Method Table
             1       Underlying Type Kind
             ...     Underlying Type Info
             ...     Default Value
+            2       Custom Attribute Count
+            ...     Custom Attributes
 
             :Parameter Signature Entry:
 
@@ -95,11 +101,19 @@ Method Table
             1       Type Kind
             ...     Type Info
             ...     Default Value
+            2       Custom Attribute Count
+            ...     Custom Attributes
 
             :Expression Constraint Entry:
 
             4       Entry Size
             ...     IR
+
+            :Custom Attribute Entry:
+
+            4       Entry Size
+            4       Constructor Method Index
+            ...     Blob
 
 Type Definition Table
 
@@ -124,6 +138,8 @@ Type Definition Table
             ...     Methods
             2       Expression Constraint Count
             ...     Expression Constraints
+            2       Custom Attribute Count
+            ...     Custom Attributes
 
             :Template Parameter Entry:
 
@@ -134,6 +150,8 @@ Type Definition Table
             1       Underlying Type Kind
             ...     Underlying Type Info
             ...     Default Value
+            2       Custom Attribute Count
+            ...     Custom Attributes
 
             :Interface Entry:
 
@@ -148,6 +166,8 @@ Type Definition Table
             4       Field Attributes
             1       Type Kind
             ...     Type Info
+            2       Custom Attribute Count
+            ...     Custom Attributes
 
             :Method Entry:
 
@@ -157,6 +177,12 @@ Type Definition Table
 
             4       Entry Size
             ...     IR
+
+            :Custom Attribute Entry:
+
+            4       Entry Size
+            4       Constructor Method Index
+            ...     Blob
 
 Template Table
 
@@ -320,6 +346,8 @@ Bound Table
 
             if (templateParameter.defaultValue is not null)
                 writer.Write(CreateTemplateParameterDefaultValue(templateParameter));
+
+            WriteAttributes(writer, templateParameter.GetAttributes());
         }
 
         writer.Write((ushort)type.allInterfaces.Length);
@@ -338,6 +366,7 @@ Bound Table
             writer.Write(CreateFieldFlags(field));
             writer.Write((uint)Executor.GetFieldAttributes(field));
             writer.Write(CreateTypeKindAndInfo(field.type));
+            WriteAttributes(writer, field.GetAttributes());
         }
 
         writer.Write((ushort)methodCountForType);
@@ -353,6 +382,8 @@ Bound Table
             writer.Write(ir);
         }
 
+        WriteAttributes(writer, type.GetAttributes());
+
         writer.BaseStream.Seek(0, SeekOrigin.Begin);
         writer.Write((uint)writer.BaseStream.Length);
 
@@ -360,6 +391,62 @@ Bound Table
         _typeDefinitionTableSize += (uint)writer.BaseStream.Length;
 
         _typeDefEntries.Add(type, stream.ToArray());
+    }
+
+    private void WriteAttributes(BinaryWriter writer, ImmutableArray<AttributeData> attributes) {
+        writer.Write((ushort)attributes.Length);
+
+        foreach (var attribute in attributes) {
+            var position = writer.BaseStream.Position;
+            writer.Write((uint)0);
+            Debug.Assert(attribute._commonNamedArguments.Length == 0);
+            var constructor = (MethodSymbol)attribute.attributeConstructor;
+            writer.Write(LogMethodEntryForMethod(constructor));
+
+            uint size = 8;
+
+            for (var i = 0; i < attribute._commonConstructorArguments.Length; i++) {
+                var parameterType = constructor.GetParameterType(i);
+                var value = attribute._commonConstructorArguments[i];
+                size += WriteTypedConstant(writer, parameterType, value);
+            }
+
+            var endPosition = writer.BaseStream.Position;
+            writer.BaseStream.Seek(position, SeekOrigin.Begin);
+            writer.Write(size);
+            writer.BaseStream.Seek(endPosition, SeekOrigin.Begin);
+        }
+
+        static uint WriteTypedConstant(BinaryWriter writer, TypeSymbol type, TypedConstant value) {
+            uint size = 0;
+
+            if (type.IsNullableType()) {
+                size++;
+
+                if (value.isNull) {
+                    writer.Write(true);
+                    return size;
+                }
+
+                writer.Write(false);
+            }
+
+            if (type.StrippedType() is ArrayTypeSymbol arrayType) {
+                var elements = value.values;
+                writer.Write((uint)elements.Length);
+
+                foreach (var element in elements)
+                    size += WriteTypedConstant(writer, arrayType.elementType, element);
+            } else {
+                Debug.Assert(type.StrippedType().specialType != SpecialType.None);
+                size += WriteConstantValueValue(
+                    writer,
+                    new ConstantValue(value.value, type.StrippedType().specialType)
+                );
+            }
+
+            return size;
+        }
     }
 
     private byte CreateFieldFlags(FieldSymbol field) {
@@ -625,6 +712,8 @@ Bound Table
 
             if (templateParameter.defaultValue is not null)
                 writer.Write(CreateTemplateParameterDefaultValue(templateParameter));
+
+            WriteAttributes(writer, templateParameter.GetAttributes());
         }
 
         writer.Write(CreateReturnFlags(method));
@@ -633,6 +722,8 @@ Bound Table
             writer.Write((byte)0);
         else
             writer.Write(CreateTypeKindAndInfo(method.returnType));
+
+        WriteAttributes(writer, method.GetReturnTypeAttributes());
 
         writer.Write((ushort)method.parameterCount);
 
@@ -652,6 +743,8 @@ Bound Table
                 else
                     WriteConstantValueValue(writer, parameter.outDefaultValue);
             }
+
+            WriteAttributes(writer, parameter.GetAttributes());
         }
 
         writer.Write((ushort)method.templateConstraints.Length);
@@ -661,6 +754,8 @@ Bound Table
             writer.Write((uint)ir.Length + 4);
             writer.Write(ir);
         }
+
+        WriteAttributes(writer, method.GetAttributes());
 
         writer.BaseStream.Seek(0, SeekOrigin.Begin);
         writer.Write((uint)writer.BaseStream.Length);
@@ -676,7 +771,7 @@ Bound Table
         return index;
     }
 
-    private static void WriteConstantValueValue(BinaryWriter writer, ConstantValue constant) {
+    private static uint WriteConstantValueValue(BinaryWriter writer, ConstantValue constant) {
         Debug.Assert(constant.value is not null);
 
         switch (constant.specialType) {
@@ -684,54 +779,54 @@ Bound Table
                 var stringValue = Encoding.UTF8.GetBytes((string)constant.value);
                 writer.Write((uint)stringValue.Length);
                 writer.Write(stringValue);
-                break;
+                return 4 + (uint)stringValue.Length;
             case SpecialType.Bool:
                 writer.Write((bool)constant.value);
-                break;
+                return 1;
             case SpecialType.WinBool:
                 writer.Write((int)constant.value);
-                break;
+                return 4;
             case SpecialType.Char:
                 writer.Write((char)constant.value);
-                break;
+                return 2;
             case SpecialType.Int8:
                 writer.Write((sbyte)constant.value);
-                break;
+                return 1;
             case SpecialType.UInt8:
                 writer.Write((byte)constant.value);
-                break;
+                return 1;
             case SpecialType.Int16:
                 writer.Write((short)constant.value);
-                break;
+                return 2;
             case SpecialType.UInt16:
                 writer.Write((ushort)constant.value);
-                break;
+                return 2;
             case SpecialType.Int32:
                 writer.Write((int)constant.value);
-                break;
+                return 4;
             case SpecialType.UInt32:
                 writer.Write((uint)constant.value);
-                break;
+                return 4;
             case SpecialType.Int:
             case SpecialType.Int64:
                 writer.Write((long)constant.value);
-                break;
+                return 8;
             case SpecialType.UInt64:
                 writer.Write((ulong)constant.value);
-                break;
+                return 8;
             case SpecialType.Float32:
                 writer.Write((float)constant.value);
-                break;
+                return 4;
             case SpecialType.Decimal:
             case SpecialType.Float64:
                 writer.Write((double)constant.value);
-                break;
+                return 8;
             case SpecialType.IntPtr:
                 writer.Write((IntPtr)constant.value);
-                break;
+                return 8;
             case SpecialType.UIntPtr:
                 writer.Write((UIntPtr)constant.value);
-                break;
+                return 8;
             default:
                 throw ExceptionUtilities.UnexpectedValue(constant.specialType);
         }

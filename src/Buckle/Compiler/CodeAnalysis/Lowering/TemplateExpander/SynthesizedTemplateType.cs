@@ -294,6 +294,10 @@ internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol, ISynthes
         return result;
     }
 
+    internal override ImmutableArray<AttributeData> GetAttributes() {
+        return underlyingNamedType.GetAttributes();
+    }
+
     ISymbolWithTemplates ISynthesizedTemplate.unexpandedSymbol => _originalType;
 
     Dictionary<TemplateParameterSymbol, TemplateParameterSymbol> ISynthesizedTemplate.replacementTemplateParameters

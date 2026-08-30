@@ -1,0 +1,8 @@
+using System;
+
+namespace Belte;
+
+[AttributeUsage(AttributeTargets.Parameter)]
+public sealed class ConstParamAttribute extends Attribute {
+    public constructor() { }
+}

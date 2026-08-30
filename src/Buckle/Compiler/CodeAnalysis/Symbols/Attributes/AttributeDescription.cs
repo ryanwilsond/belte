@@ -131,4 +131,6 @@ internal partial struct AttributeDescription {
     internal static readonly AttributeDescription NoThrowAttribute = new AttributeDescription("Belte", "NoThrowAttribute", Signatures_HasThis_Void_Only);
     internal static readonly AttributeDescription NoAllocAttribute = new AttributeDescription("Belte", "NoAllocAttribute", Signatures_HasThis_Void_Only);
     internal static readonly AttributeDescription NullabilityAttribute = new AttributeDescription("Belte", "NullabilityAttribute", SignaturesOfNullabilityAttribute);
+    internal static readonly AttributeDescription ConstMethodAttribute = new AttributeDescription("Belte", "ConstMethodAttribute", Signatures_HasThis_Void_Only);
+    internal static readonly AttributeDescription ConstParamAttribute = new AttributeDescription("Belte", "ConstParamAttribute", Signatures_HasThis_Void_Only);
 }

@@ -18,6 +18,7 @@ internal sealed partial class PETemplateType {
         private readonly TemplateMetadataWriter.TemplateParameterFlags _additionalFlags;
         private readonly TypeWithAnnotations _underlyingType;
         private readonly TypeOrConstant _defaultValue;
+        private readonly ImmutableArray<AttributeData> _attributes;
 
         private TypeParameterBounds _lazyBounds = TypeParameterBounds.Unset;
         // TODO
@@ -32,9 +33,12 @@ internal sealed partial class PETemplateType {
             _containingSymbol = definingNamedType;
             _ordinal = ordinal;
             containingModule = definingNamedType.containingPEModule;
-            (_name, _flags, _additionalFlags, var underlyingType, _defaultValue)
+
+            (_name, _flags, _additionalFlags, var underlyingType, _defaultValue, var attributes)
                 = decoder.DecodeTemplateParameter(ordinal);
+
             _underlyingType = new TypeWithAnnotations(underlyingType);
+            _attributes = attributes.ToImmutableArray();
         }
 
         internal MetadataTemplateParameterSymbol(
@@ -53,9 +57,12 @@ internal sealed partial class PETemplateType {
             _containingSymbol = definingMethod;
             _ordinal = ordinal;
             containingModule = ((PETemplateType)definingMethod.containingType).containingPEModule;
-            (_name, _flags, _additionalFlags, var underlyingType, _defaultValue)
+
+            (_name, _flags, _additionalFlags, var underlyingType, _defaultValue, var attributes)
                 = decoder.DecodeTemplateParameter(ordinal);
+
             _underlyingType = new TypeWithAnnotations(underlyingType);
+            _attributes = attributes.ToImmutableArray();
         }
 
         internal MetadataTemplateParameterSymbol(
@@ -139,21 +146,7 @@ internal sealed partial class PETemplateType {
         }
 
         internal override ImmutableArray<AttributeData> GetAttributes() {
-            // TODO
-            // if (_lazyCustomAttributes.IsDefault) {
-            //     var containingPEModuleSymbol = (PEModuleSymbol)this.ContainingModule;
-
-            //     var loadedCustomAttributes = containingPEModuleSymbol.GetCustomAttributesForToken(
-            //         Handle,
-            //         out _,
-            //         // Filter out [IsUnmanagedAttribute]
-            //         HasUnmanagedTypeConstraint ? AttributeDescription.IsUnmanagedAttribute : default);
-
-            //     ImmutableInterlocked.InterlockedInitialize(ref _lazyCustomAttributes, loadedCustomAttributes);
-            // }
-
-            // return _lazyCustomAttributes;
-            return [];
+            return _attributes;
         }
 
         private ImmutableArray<TypeWithAnnotations> GetDeclaredConstraintTypes(

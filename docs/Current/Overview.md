@@ -71,6 +71,9 @@ Some features are not supported across all endpoints for various reasons.
 The following list describes all of the features where full parity is not currently implemented or was not always
 implemented.
 
+> Note that [compile-time expressions](Data.md#37-compile-time-expressions) are planned to switch to using the Executor
+> endpoint for full parity with normal execution
+
 - Evaluator: the internal interpreter endpoint. Used for the [REPL](../Repl.md), `--evaluate` builds, and [compile-time expressions](Data.md#37-compile-time-expressions).
 - Executor: the endpoint for emitting to an in-memory delegate to execute immediately. This is the default endpoint and is used for `--execute` builds and [compile-time handles](LowLevelFeatures.md#613-compiler-handle).
 - IL Emitter: the endpoint for emitting to an executable which relies on .NET. Used for `--dotnet` builds and [build scripts](../Build.md).
@@ -78,7 +81,6 @@ implemented.
 | Feature | Evaluator | Executor | IL Emitter | Explanation |
 | - | - | - | - | - |
 | `--type=graphics` projects | ✓ | ✓ | ✕ | Standalone graphics DLL under development |
-| Non-integral enums | ✓ | ✕ | ✕ | Not supported by the .NET runtime |
 | Pointers | ✕ | ✓ | ✓ | Partially supported the Evaluator but not stable due to internal memory structure |
 | Function pointers | ✕ | ✓ | ✓ | Disallowed in the Evaluator due to internal memory structure |
 | Externs/DllImport | ✕ | ✓ | ✓ | Incompatible with the Evaluator |
