@@ -19,10 +19,9 @@ internal sealed partial class PETemplateType {
         private readonly TypeWithAnnotations _underlyingType;
         private readonly TypeOrConstant _defaultValue;
         private readonly ImmutableArray<AttributeData> _attributes;
+        private readonly ImmutableArray<TypeWithAnnotations> _constraintTypes;
 
         private TypeParameterBounds _lazyBounds = TypeParameterBounds.Unset;
-        // TODO
-        // private ImmutableArray<TypeWithAnnotations> _lazyDeclaredConstraintTypes;
 
         private readonly TemplateParameterSymbol _symbolToLink;
 
@@ -34,11 +33,15 @@ internal sealed partial class PETemplateType {
             _ordinal = ordinal;
             containingModule = definingNamedType.containingPEModule;
 
-            (_name, _flags, _additionalFlags, var underlyingType, _defaultValue, var attributes)
-                = decoder.DecodeTemplateParameter(ordinal);
+            var info = decoder.DecodeTemplateParameter(ordinal);
 
-            _underlyingType = new TypeWithAnnotations(underlyingType);
-            _attributes = attributes.ToImmutableArray();
+            _name = info.name;
+            _flags = info.attributes;
+            _additionalFlags = info.flags;
+            _underlyingType = new TypeWithAnnotations(info.type);
+            _defaultValue = info.defaultValue;
+            _attributes = info.customAttributes.ToImmutableArray();
+            _constraintTypes = info.constraintTypes.SelectAsArray(t => new TypeWithAnnotations(t));
         }
 
         internal MetadataTemplateParameterSymbol(
@@ -58,11 +61,15 @@ internal sealed partial class PETemplateType {
             _ordinal = ordinal;
             containingModule = ((PETemplateType)definingMethod.containingType).containingPEModule;
 
-            (_name, _flags, _additionalFlags, var underlyingType, _defaultValue, var attributes)
-                = decoder.DecodeTemplateParameter(ordinal);
+            var info = decoder.DecodeTemplateParameter(ordinal);
 
-            _underlyingType = new TypeWithAnnotations(underlyingType);
-            _attributes = attributes.ToImmutableArray();
+            _name = info.name;
+            _flags = info.attributes;
+            _additionalFlags = info.flags;
+            _underlyingType = new TypeWithAnnotations(info.type);
+            _defaultValue = info.defaultValue;
+            _attributes = info.customAttributes.ToImmutableArray();
+            _constraintTypes = info.constraintTypes.SelectAsArray(t => new TypeWithAnnotations(t));
         }
 
         internal MetadataTemplateParameterSymbol(
@@ -151,8 +158,7 @@ internal sealed partial class PETemplateType {
 
         private ImmutableArray<TypeWithAnnotations> GetDeclaredConstraintTypes(
             ConsList<PETemplateParameterSymbol> inProgress) {
-            // TODO
-            return [];
+            return _constraintTypes;
         }
 
         internal override ImmutableArray<NamedTypeSymbol> GetInterfaces(ConsList<TemplateParameterSymbol> inProgress) {

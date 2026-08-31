@@ -1078,11 +1078,12 @@ multiple interface types, i.e. `T implements I1, I2, I3` ensures template parame
 A `T has default` constraint ensures template parameter `T` has a default value (i.e. can use the
 [`default` literal](Data.md#315-default-literal) on it).
 
-A `T has constructor` constraint ensures template parameter `T` has a parameterless constructor.
+A `T has constructor` constraint ensures template parameter `T` has a public parameterless constructor (i.e. can create
+using `new T()`).
 
 A `T is struct` constraint ensures template parameter `T` is a value type (struct or primitive).
 
-A `T is class` constraint ensures template parameter `T` is a reference type (class).
+A `T is class` constraint ensures template parameter `T` is a reference type (class or array).
 
 A `T is notnull` constraint constrains the template parameter `T` to being a non-nullable type. Non-nullable annotations
 are disallowed on type template parameters, so this constraint is required for the template class to know the template

@@ -201,7 +201,7 @@ These keywords only act as keywords inside specific contexts. As such they can b
 - [handle](LowLevelFeatures.md#613-compiler-handle)
 - [has](ClassesAndObjects.md#4512-special-constraints)
 - [implicit](ClassesAndObjects.md#4232-casts) (user-defined conversions)
-- [implicit](ControlFlow.md#217-argument-coercion) (argument coercion)
+- [implicit](UndocumentedFeatures.md#102-argument-coercion) (argument coercion)
 - [initializes](ClassesAndObjects.md#4211-definite-assignment)
 - [literal](ClassesAndObjects.md#4233-user-defined-literals)
 - [memoize](ClassesAndObjects.md#4223-behavior-specifiers)
@@ -573,7 +573,7 @@ To summarize the main differences:
 - [Template user-defined operators and conversions](ClassesAndObjects.md#4231-operator-overloading)
 - [Conditionals accept expressions of type `bool?` instead of `bool`](ControlFlow.md#231-null-conditions)
 - [More expressive implicit typing allowing with `var`, `const`, and `constexpr` and nullable annotations](Data.md#332-implicit-typing)
-- [Enums can have methods](ClassesAndObjects.md#465-methods)
+- [Enums can have methods](ClassesAndObjects.md#464-methods)
 - [Built-in MustUseReturnValue attribute](ClassesAndObjects.md#411-attributes)
 
 ### 1.5.2 Language Features
@@ -612,7 +612,6 @@ To summarize the main differences:
 - [C-style stackalloc syntax](LowLevelFeatures.md#6101-stackalloc-locals)
 - [C-style `union`s and anonymous unions](ClassesAndObjects.md#491-unions)
 - [`winbool` type instead of marshalling `bool` as 4-bytes in `extern`s](LowLevelFeatures.md#671-winbool)
-- [Argument coercion with `implicit` keyword](ControlFlow.md#217-argument-coercion)
 - [First-class bit casting](LowLevelFeatures.md#641-bit-casts)
 - [C-string literals](LowLevelFeatures.md#614-c-strings)
 - [Extern block declarations to share modifiers/attributes across members](LowLevelFeatures.md#673-extern-blocks)

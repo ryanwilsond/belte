@@ -9054,4 +9054,23 @@ var text = """"""
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0618_ConstructorConstraintFailed() {
+        var text = @"
+            class A<type T> where { T has constructor; } { }
+
+            class B {
+                private constructor(int a) { }
+            }
+
+            var a = new [A<B>]();
+        ";
+
+        var diagnostics = @"
+            the type 'B!' must have a public parameterless constructor in order to use it as parameter 'T' in the template type or method 'A<type! T>'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

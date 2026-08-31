@@ -963,7 +963,8 @@ internal sealed partial class Executor : ModuleBuilder {
                     if (!_types.ContainsKey(baseType))
                         continue;
 
-                    Debug.Assert(baseType is not PENamedTypeSymbol);
+                    if (baseType is PENamedTypeSymbol)
+                        continue;
 
                     if (!seenBases.Add(baseType))
                         continue;

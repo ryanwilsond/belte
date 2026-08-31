@@ -19,7 +19,7 @@
 
   - [0](Future.md) Future Features Overview
 
-- #### Belte Language Docs in Its Current State
+- #### Belte Language Docs
 
   - [1](Current/Overview.md) Overview
     - [1.1](Current/Overview.md#11-conventions) Conventions
@@ -156,20 +156,6 @@
     - [4.10](Current/ClassesAndObjects.md#410-interfaces) Interfaces
     - [4.11](Current/ClassesAndObjects.md#411-attributes) Attributes
   - [5](Current/StandardLibrary.md) The Standard Library
-    - [5.1](Current/StandardLibrary/Console.md) Console
-    - [5.2](Current/StandardLibrary/Math.md) Math
-    - [5.3](Current/StandardLibrary/Random.md) Random
-    - [5.4](Current/StandardLibrary/String.md) String
-    - [5.5](Current/StandardLibrary/Time.md) Time
-    - [5.6](Current/StandardLibrary/IO.md) IO
-      - [5.6.1](Current/StandardLibrary/IO.md#561-file-methods) File
-      - [5.6.2](Current/StandardLibrary/IO.md#562-directory-methods) Directory
-    - [5.7](Current/StandardLibrary/Collections.md) Collections
-      - [5.7.1](Current/StandardLibrary/List.md) List
-      - [5.7.2](Current/StandardLibrary/Dictionary.md) Dictionary
-    - [5.8](Current/StandardLibrary/LowLevel.md) LowLevel
-    - [5.9](Current/StandardLibrary/Int.md) Int and Other Numerics
-    - [5.10](Current/StandardLibrary/Decimal.md) Decimal, Float64, and Float32
   - [6](Current/LowLevelFeatures.md) Low-Level Features
     - [6.1](Current/LowLevelFeatures.md#61-low-level-contexts) Low-Level Contexts
     - [6.2](Current/LowLevelFeatures.md#62-struct-layout) Struct Layout
@@ -200,7 +186,7 @@
       - [6.13.2](Current/LowLevelFeatures.md#6132-ordering) Ordering
     - [6.14](Current/LowLevelFeatures.md#614-c-strings) C-Strings
     - [6.15](Current/LowLevelFeatures.md#615-lowlevel-fields) LowLevel Fields
-    - [6.16](Current/LowLevelFeatures.md#616-lowlevel-default-literal) LowLeve Default Literal
+    - [6.16](Current/LowLevelFeatures.md#616-lowlevel-default-literal) LowLevel Default Literal
   - [7](Current/Preprocessor.md) Preprocessor Directives
     - [7.1](Current/Preprocessor.md#71-defineundef) Define/Undef
     - [7.2](Current/Preprocessor.md#72-control) Control

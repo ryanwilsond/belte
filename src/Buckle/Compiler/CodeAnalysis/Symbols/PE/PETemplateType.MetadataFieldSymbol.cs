@@ -14,6 +14,7 @@ internal sealed partial class PETemplateType {
         private readonly PETemplateType _containingType;
         private readonly TypeWithAnnotations _type;
         private readonly ImmutableArray<AttributeData> _attributes;
+        private readonly ConstantValue _constantValue;
 
         private readonly FieldSymbol _fieldToLink;
 
@@ -23,13 +24,15 @@ internal sealed partial class PETemplateType {
             FieldAttributes flags,
             TemplateMetadataWriter.FieldFlags additionalFlags,
             TypeSymbol type,
-            AttributeData[] attributes) {
+            AttributeData[] attributes,
+            ConstantValue constantValue) {
             _attributes = attributes.ToImmutableArray();
             _containingType = containingType;
             _name = name;
             _flags = flags;
             _additionalFlags = additionalFlags;
             _type = new TypeWithAnnotations(type);
+            _constantValue = constantValue;
         }
 
         internal MetadataFieldSymbol(
@@ -39,8 +42,9 @@ internal sealed partial class PETemplateType {
             TemplateMetadataWriter.FieldFlags additionalFlags,
             TypeSymbol type,
             AttributeData[] attributes,
+            ConstantValue constantValue,
             FieldSymbol fieldToLink)
-            : this(containingType, name, flags, additionalFlags, type, attributes) {
+            : this(containingType, name, flags, additionalFlags, type, attributes, constantValue) {
             _fieldToLink = fieldToLink;
         }
 
@@ -106,22 +110,7 @@ internal sealed partial class PETemplateType {
         }
 
         internal override ConstantValue GetConstantValue(ConstantFieldsInProgress inProgress) {
-            // TODO
-            return null;
-            // if (_lazyConstantValue == ConstantValue.Unset) {
-            //     ConstantValue value = null;
-
-            //     if ((_flags & FieldAttributes.Literal) != 0)
-            //         value = _containingType.containingPEModule.module.GetConstantFieldValue(_handle);
-
-            //     Interlocked.CompareExchange(
-            //         ref _lazyConstantValue,
-            //         value,
-            //         ConstantValue.Unset
-            //     );
-            // }
-
-            // return _lazyConstantValue;
+            return _constantValue;
         }
     }
 }

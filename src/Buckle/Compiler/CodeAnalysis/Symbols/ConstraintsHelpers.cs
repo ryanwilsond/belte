@@ -881,7 +881,52 @@ hasRelatedInterfaces:
             return false;
         }
 
+        if (templateParameter.hasConstructorConstraint && !SatisfiesConstructorConstraint(templateArgument.type.type)) {
+            diagnostics.Push(Error.ConstructorConstraintFailed(
+                location,
+                containingSymbol.ConstructedFrom(),
+                templateParameter.name,
+                templateArgument.type.type
+            ));
+
+            return false;
+        }
+
         return true;
+
+        static bool SatisfiesConstructorConstraint(TypeSymbol type) {
+            switch (type.typeKind) {
+                case TypeKind.Class:
+                    if (type.isAbstract)
+                        return false;
+
+                    goto case TypeKind.Struct;
+                case TypeKind.Struct:
+                    var namedType = (NamedTypeSymbol)type;
+
+                    foreach (var constructor in namedType.instanceConstructors) {
+                        if (constructor.parameterCount == 0 &&
+                            constructor.declaredAccessibility == Accessibility.Public) {
+                            return true;
+                        }
+                    }
+
+                    return false;
+                case TypeKind.TemplateParameter:
+                    return ((TemplateParameterSymbol)type).hasConstructorConstraint;
+                case TypeKind.Enum:
+                case TypeKind.Primitive:
+                    return true;
+                case TypeKind.Array:
+                case TypeKind.Error:
+                case TypeKind.Interface:
+                case TypeKind.Function:
+                case TypeKind.FunctionPointer:
+                case TypeKind.Pointer:
+                default:
+                    return false;
+            }
+        }
     }
 
     private static void CheckConstraintType(

@@ -750,7 +750,7 @@ internal sealed partial class TemplateMetadataReader {
                     var param1 = m.parameters[i];
                     var param2 = methodDecoder.DecodeParameter((uint)i);
 
-                    if (!param1.type.Equals(param2.Item4, TypeCompareKind.ConsiderEverything)) {
+                    if (!param1.type.Equals(param2.type, TypeCompareKind.ConsiderEverything)) {
                         sameSignature = false;
                         break;
                     }

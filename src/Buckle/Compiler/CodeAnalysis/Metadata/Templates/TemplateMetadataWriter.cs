@@ -91,6 +91,8 @@ Method Table
             ...     Default Value
             2       Custom Attribute Count
             ...     Custom Attributes
+            2       Constraint Type Count
+            ...     Constraint Types
 
             :Parameter Signature Entry:
 
@@ -152,6 +154,8 @@ Type Definition Table
             ...     Default Value
             2       Custom Attribute Count
             ...     Custom Attributes
+            2       Constraint Type Count
+            ...     Constraint Types
 
             :Interface Entry:
 
@@ -168,6 +172,7 @@ Type Definition Table
             ...     Type Info
             2       Custom Attribute Count
             ...     Custom Attributes
+            ...     Default Value
 
             :Method Entry:
 
@@ -348,6 +353,7 @@ Bound Table
                 writer.Write(CreateTemplateParameterDefaultValue(templateParameter));
 
             WriteAttributes(writer, templateParameter.GetAttributes());
+            WriteConstraintTypes(writer, templateParameter);
         }
 
         writer.Write((ushort)type.allInterfaces.Length);
@@ -364,9 +370,12 @@ Bound Table
             writer.Write((uint)field.metadataName.Length);
             writer.Write(Encoding.UTF8.GetBytes(field.metadataName));
             writer.Write(CreateFieldFlags(field));
-            writer.Write((uint)Executor.GetFieldAttributes(field));
+            writer.Write(CreateFieldAttributes(field));
             writer.Write(CreateTypeKindAndInfo(field.type));
             WriteAttributes(writer, field.GetAttributes());
+
+            if (field.hasConstantValue)
+                WriteConstantValueValue(writer, field.GetConstantValue(ConstantFieldsInProgress.Empty));
         }
 
         writer.Write((ushort)methodCountForType);
@@ -449,11 +458,28 @@ Bound Table
         }
     }
 
+    private void WriteConstraintTypes(BinaryWriter writer, TemplateParameterSymbol templateParameter) {
+        var types = templateParameter.constraintTypes;
+        writer.Write((ushort)types.Length);
+
+        foreach (var type in types)
+            writer.Write(CreateTypeKindAndInfo(type.type));
+    }
+
     private byte CreateFieldFlags(FieldSymbol field) {
         if (field.refKind != RefKind.None)
             return (byte)FieldFlags.ByRef;
 
         return (byte)FieldFlags.None;
+    }
+
+    private uint CreateFieldAttributes(FieldSymbol field) {
+        var flags = (uint)Executor.GetFieldAttributes(field);
+
+        if (field.hasConstantValue)
+            flags |= (uint)FieldAttributes.HasDefault;
+
+        return flags;
     }
 
     private byte CreateTemplateParameterFlags(TemplateParameterSymbol templateParameter) {
@@ -714,6 +740,7 @@ Bound Table
                 writer.Write(CreateTemplateParameterDefaultValue(templateParameter));
 
             WriteAttributes(writer, templateParameter.GetAttributes());
+            WriteConstraintTypes(writer, templateParameter);
         }
 
         writer.Write(CreateReturnFlags(method));

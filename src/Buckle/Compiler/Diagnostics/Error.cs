@@ -1743,6 +1743,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NotNullableConstraintFailed, location, message);
     }
 
+    internal static BelteDiagnostic ConstructorConstraintFailed(TextLocation location, Symbol constructed, string parameter, TypeSymbol type) {
+        var message = $"the type '{type}' must have a public parameterless constructor in order to use it as parameter '{parameter}' in the template type or method '{constructed.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        return CreateError(DiagnosticCode.ERR_ConstructorConstraintFailed, location, message);
+    }
+
     internal static BelteDiagnostic DuplicateConstraint(TextLocation location, string parameter) {
         var message = $"duplicate constraint on template parameter '{parameter}'";
         return CreateError(DiagnosticCode.ERR_DuplicateConstraint, location, message);

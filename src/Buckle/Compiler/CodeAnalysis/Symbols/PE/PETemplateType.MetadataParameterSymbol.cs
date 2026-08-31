@@ -15,6 +15,7 @@ internal sealed partial class PETemplateType {
         private readonly ushort _ordinal;
         private readonly TemplateMetadataWriter.ParameterFlags _additionalFlags;
         private readonly ConstantValue _defaultValue;
+        private readonly ImmutableArray<AttributeData> _attributes;
 
         private readonly ParameterSymbol _symbolToLink;
 
@@ -24,8 +25,15 @@ internal sealed partial class PETemplateType {
             ushort ordinal) {
             _containingSymbol = containingSymbol;
             _ordinal = ordinal;
-            (_name, _flags, _additionalFlags, var underlyingType, _defaultValue) = decoder.DecodeParameter(ordinal);
-            _typeWithAnnotations = new TypeWithAnnotations(underlyingType);
+
+            var info = decoder.DecodeParameter(ordinal);
+
+            _name = info.name;
+            _flags = info.attributes;
+            _additionalFlags = info.flags;
+            _typeWithAnnotations = new TypeWithAnnotations(info.type);
+            _defaultValue = info.defaultValue;
+            _attributes = info.customAttributes.ToImmutableArray();
         }
 
         internal MetadataParameterSymbol(
@@ -79,8 +87,7 @@ internal sealed partial class PETemplateType {
             => (_flags & ParameterAttributes.HasDefault) != 0 ? _defaultValue : null;
 
         internal override ImmutableArray<AttributeData> GetAttributes() {
-            // TODO
-            return [];
+            return _attributes;
         }
     }
 }

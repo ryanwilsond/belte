@@ -513,21 +513,23 @@ internal sealed partial class PETemplateType : NamedTypeSymbol {
             if (_typeToLink is null) {
                 symbol = new MetadataFieldSymbol(
                     this,
-                    fieldInfo.Item1,
-                    fieldInfo.Item2,
-                    fieldInfo.Item3,
-                    fieldInfo.Item4,
-                    fieldInfo.Item5
+                    fieldInfo.name,
+                    fieldInfo.attributes,
+                    fieldInfo.flags,
+                    fieldInfo.type,
+                    fieldInfo.customAttributes,
+                    fieldInfo.defaultValue
                 );
             } else {
                 symbol = new MetadataFieldSymbol(
                     this,
-                    fieldInfo.Item1,
-                    fieldInfo.Item2,
-                    fieldInfo.Item3,
-                    fieldInfo.Item4,
-                    fieldInfo.Item5,
-                    (FieldSymbol)_typeToLink.GetMembers(fieldInfo.Item1).Single(m => m.kind == SymbolKind.Field)
+                    fieldInfo.name,
+                    fieldInfo.attributes,
+                    fieldInfo.flags,
+                    fieldInfo.type,
+                    fieldInfo.customAttributes,
+                    fieldInfo.defaultValue,
+                    (FieldSymbol)_typeToLink.GetMembers(fieldInfo.name).Single(m => m.kind == SymbolKind.Field)
                 );
             }
 

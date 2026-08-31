@@ -626,6 +626,7 @@ public enum DiagnosticCode : ushort {
     WRN_UnnecessaryTemplateSpecialization = 615,
     ERR_CannotTemplateSpecializeType = 616,
     ERR_BufferNoDefaultValue = 617,
+    ERR_ConstructorConstraintFailed = 618,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,
