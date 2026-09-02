@@ -98,4 +98,8 @@ internal sealed class SynthesizedStaticConstructor : MethodSymbol {
         var containingType = (SourceMemberContainerTypeSymbol)this.containingType;
         return containingType.CalculateSyntaxOffsetInSynthesizedConstructor(localPosition, localTree, isStatic: true);
     }
+
+    internal override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        return [];
+    }
 }

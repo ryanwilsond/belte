@@ -2776,7 +2776,15 @@ internal partial class Binder {
         if (analyzedArguments.arguments.Count != 1) {
             diagnostics.Push(Error.BadIndexCount(node.location, 1));
             var errorArguments = BuildArgumentsForErrorRecovery(analyzedArguments);
-            return new BoundErrorExpression(node, default, [], [expression], CreateErrorType(), true);
+
+            return new BoundErrorExpression(
+                node,
+                default,
+                [],
+                [expression, .. errorArguments],
+                CreateErrorType(),
+                true
+            );
         }
 
         var argument = analyzedArguments.arguments[0].expression;
@@ -2856,20 +2864,6 @@ internal partial class Binder {
             );
         }
 
-        var lookupResult = LookupResult.GetInstance();
-        var lookupOptions = expression.kind == BoundKind.BaseExpression
-            ? LookupOptions.UseBaseReferenceAccessibility
-            : LookupOptions.Default;
-
-        LookupMembersWithFallback(
-            lookupResult,
-            expression.Type(),
-            WellKnownMemberNames.IndexOperatorName,
-            arity: 0,
-            node.location,
-            options: lookupOptions
-        );
-
         BoundExpression indexerAccessExpression;
         // ? This is a hack to reuse the same overload resolution logic as ordinary methods...but this is only temporary anyways
         analyzedArguments.arguments.Insert(0, new BoundExpressionOrTypeOrConstant(expression));
@@ -2879,6 +2873,20 @@ internal partial class Binder {
         analyzedArguments.types.Insert(0, expression.Type());
         analyzedArguments.names.Add(null);
         analyzedArguments.names.Add(null);
+
+        var lookupResult = LookupResult.GetInstance();
+        var lookupOptions = LookupOptions.MustBeOperator | (expression.kind == BoundKind.BaseExpression
+            ? LookupOptions.UseBaseReferenceAccessibility
+            : LookupOptions.Default);
+
+        LookupMembersWithFallback(
+            lookupResult,
+            expression.Type(),
+            WellKnownMemberNames.IndexOperatorName,
+            arity: 0,
+            node.location,
+            options: lookupOptions
+        );
 
         if (!lookupResult.isMultiViable) {
             if (TryBindIndexOperator(
@@ -2894,7 +2902,7 @@ internal partial class Binder {
                     node,
                     expression,
                     analyzedArguments,
-                    lookupResult.error,
+                    lookupResult.error ?? Error.CannotApplyIndexing(node.location, expression.Type()),
                     diagnostics
                 );
             }

@@ -68,6 +68,13 @@ internal partial class ConstantValue {
         return constant is not null && constant.value is null;
     }
 
+    internal static bool IsString(ConstantValue constant) {
+        if (constant is TemplateConstantValue)
+            return false;
+
+        return constant.specialType == SpecialType.String && constant.value is string;
+    }
+
     internal static bool IsNotNull(ConstantValue constant) {
         if (constant is TemplateConstantValue)
             return false;

@@ -77,6 +77,10 @@ internal sealed class SynthesizedTemplateTypeMethod : WrappedMethodSymbol {
         return underlyingMethod.GetAttributes();
     }
 
+    internal override bool CallsAreOmitted(SyntaxTree syntaxTree) {
+        return underlyingMethod.CallsAreOmitted(syntaxTree);
+    }
+
     public override int GetHashCode() {
         if (_hashCode == 0)
             _hashCode = ComputeHashCode();

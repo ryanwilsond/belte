@@ -143,4 +143,8 @@ internal abstract class SynthesizedContainer : NamedTypeSymbol {
     private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
         throw ExceptionUtilities.Unreachable();
     }
+
+    internal sealed override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        return [];
+    }
 }

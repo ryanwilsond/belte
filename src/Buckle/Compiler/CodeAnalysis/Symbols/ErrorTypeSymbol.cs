@@ -169,4 +169,8 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
             return templateParameters.AsImmutableOrNull();
         }
     }
+
+    internal sealed override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        return [];
+    }
 }

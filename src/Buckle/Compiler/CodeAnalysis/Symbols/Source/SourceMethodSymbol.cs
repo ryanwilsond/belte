@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
@@ -309,6 +310,68 @@ internal abstract partial class SourceMethodSymbol : MethodSymbol, IAttributeTar
         }
     }
 
+    internal override (AttributeData, BoundAttribute) EarlyDecodeWellKnownAttribute(ref EarlyDecodeWellKnownAttributeArguments<EarlyWellKnownAttributeBinder, NamedTypeSymbol, AttributeSyntax, AttributeLocation> arguments) {
+        Debug.Assert(arguments.symbolPart == AttributeLocation.None || arguments.symbolPart == AttributeLocation.Return);
+
+        if (arguments.symbolPart == AttributeLocation.None) {
+            if (AttributeData.IsTargetEarlyAttribute(
+                    arguments.attributeType,
+                    arguments.attributeSyntax,
+                    AttributeDescription.ConditionalAttribute)) {
+                var (attributeData, boundAttribute) = arguments.binder.GetAttribute(
+                    arguments.attributeSyntax,
+                    arguments.attributeType,
+                    beforeAttributePartBound: null,
+                    afterAttributePartBound: null,
+                    out var hasAnyDiagnostics
+                );
+
+                if (!attributeData.hasErrors) {
+                    var name = attributeData.GetConstructorArgument<string>(0, SpecialType.String);
+                    arguments.GetOrCreateData<MethodEarlyWellKnownAttributeData>().AddConditionalSymbol(name);
+                    if (!hasAnyDiagnostics)
+                        return (attributeData, boundAttribute);
+                }
+
+                return (null, null);
+                // } else if (EarlyDecodeDeprecatedOrExperimentalOrObsoleteAttribute(ref arguments, out CSharpAttributeData? attributeData, out BoundAttribute? boundAttribute, out ObsoleteAttributeData? obsoleteData)) {
+                //     if (obsoleteData != null) {
+                //         arguments.GetOrCreateData<MethodEarlyWellKnownAttributeData>().ObsoleteAttributeData = obsoleteData;
+                //     }
+
+                //     return (attributeData, boundAttribute);
+            } else if (AttributeData.IsTargetEarlyAttribute(
+                arguments.attributeType,
+                arguments.attributeSyntax,
+                AttributeDescription.UnmanagedCallersOnlyAttribute)) {
+                arguments.GetOrCreateData<MethodEarlyWellKnownAttributeData>()
+                    .unmanagedCallersOnlyAttributePresent = true;
+
+                return (null, null);
+            }
+            // else if (CSharpAttributeData.IsTargetEarlyAttribute(arguments.AttributeType, arguments.AttributeSyntax, AttributeDescription.OverloadResolutionPriorityAttribute)) {
+            //     if (!CanHaveOverloadResolutionPriority) {
+            //         // Cannot use 'OverloadResolutionPriorityAttribute' on this member.
+            //         return (null, null);
+            //     }
+
+            //     (attributeData, boundAttribute) = arguments.Binder.GetAttribute(arguments.AttributeSyntax, arguments.AttributeType, beforeAttributePartBound: null, afterAttributePartBound: null, out hasAnyDiagnostics);
+
+            //     if (attributeData.CommonConstructorArguments is [{ ValueInternal: int priority }]) {
+            //         arguments.GetOrCreateData<MethodEarlyWellKnownAttributeData>().OverloadResolutionPriority = priority;
+
+            //         if (!hasAnyDiagnostics) {
+            //             return (attributeData, boundAttribute);
+            //         }
+            //     }
+
+            //     return (null, null);
+            // }
+        }
+
+        return base.EarlyDecodeWellKnownAttribute(ref arguments);
+    }
+
     private protected MethodWellKnownAttributeData GetDecodedWellKnownAttributeData() {
         var attributesBag = _lazyAttributesBag;
 
@@ -321,6 +384,7 @@ internal abstract partial class SourceMethodSymbol : MethodSymbol, IAttributeTar
     private void DecodeWellKnownAttributeAppliedToMethod(
         ref DecodeWellKnownAttributeArguments<AttributeSyntax, AttributeData, AttributeLocation> arguments) {
         var attribute = arguments.attribute;
+        var diagnostics = arguments.diagnostics;
 
         if (attribute.IsTargetAttribute(AttributeDescription.DllImportAttribute) ||
             attribute.IsTargetAttribute(AttributeDescription.DllImportAttributeNative)) {
@@ -330,7 +394,66 @@ internal abstract partial class SourceMethodSymbol : MethodSymbol, IAttributeTar
             DecodeUnmanagedAttribute(ref arguments);
         } else if (attribute.IsTargetAttribute(AttributeDescription.MustUseReturnValueAttribute)) {
             DecodeMustUseReturnValueAttribute(ref arguments);
+        } else if (attribute.IsTargetAttribute(AttributeDescription.ConditionalAttribute)) {
+            ValidateConditionalAttribute(attribute, arguments.attributeSyntax, diagnostics);
         }
+    }
+
+    private void ValidateConditionalAttribute(
+        AttributeData attribute,
+        AttributeSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        Debug.Assert(isConditional);
+
+        // if (this.IsAccessor()) {
+        //     // CS1667: Attribute '{0}' is not valid on property or event accessors. It is only valid on '{1}' declarations.
+        //     AttributeUsageInfo attributeUsage = attribute.AttributeClass.GetAttributeUsageInfo();
+        //     diagnostics.Add(ErrorCode.ERR_AttributeNotOnAccessor, node.Name.Location, node.GetErrorDisplayName(), attributeUsage.GetValidTargetsErrorArgument());
+        if (containingType.IsInterfaceType()) {
+            diagnostics.Push(Error.ConditionalOnInterfaceMethod(node.location));
+        } else if (isOverride) {
+            diagnostics.Push(Error.ConditionalOnOverride(node.location, this));
+        } else if (!canBeReferencedByName || methodKind == MethodKind.Finalizer) {
+            diagnostics.Push(Error.ConditionalOnSpecialMethod(node.location, this));
+        } else if (!returnsVoid) {
+            diagnostics.Push(Error.ConditionalMustReturnVoid(node.location, this));
+        } else if (HasAnyOutParameter()) {
+            diagnostics.Push(Error.ConditionalWithOutParam(node.location, this));
+        } else if (this is { methodKind: MethodKind.LocalFunction, isStatic: false }) {
+            diagnostics.Push(Error.ConditionalOnLocalFunction(node.location, this));
+        } else {
+            var name = attribute.GetConstructorArgument<string>(0, SpecialType.String);
+
+            if (name is null/* || !SyntaxFacts.IsValidIdentifier(name)*/) {
+                diagnostics.Push(Error.InvalidAttributeArgument(
+                    attribute.GetAttributeArgumentLocation(0),
+                    node.GetErrorDisplayName()
+                ));
+            }
+        }
+    }
+
+    internal sealed override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        var data = GetEarlyDecodedWellKnownAttributeData();
+        return data is not null ? data.conditionalSymbols : [];
+    }
+
+    internal MethodEarlyWellKnownAttributeData GetEarlyDecodedWellKnownAttributeData() {
+        var attributesBag = _lazyAttributesBag;
+
+        if (attributesBag is null || !attributesBag.isEarlyDecodedWellKnownAttributeDataComputed)
+            attributesBag = GetAttributesBag();
+
+        return (MethodEarlyWellKnownAttributeData)attributesBag.earlyDecodedWellKnownAttributeData;
+    }
+
+    private bool HasAnyOutParameter() {
+        foreach (var param in parameters) {
+            if (param.refKind == RefKind.Out)
+                return true;
+        }
+
+        return false;
     }
 
     private void DecodeMustUseReturnValueAttribute(

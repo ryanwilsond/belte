@@ -25,6 +25,7 @@ internal static class WellKnownTypeExtensions {
         "System.Collections.Generic.IEnumerator`1",
         "System.Attribute",
         "System.AttributeUsageAttribute",
+        "System.String",
         "Belte.NoAllocAttribute",
         "Belte.NoThrowAttribute",
         "Belte.PureAttribute",

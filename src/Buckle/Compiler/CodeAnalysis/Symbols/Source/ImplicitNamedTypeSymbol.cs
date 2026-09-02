@@ -55,4 +55,8 @@ internal sealed class ImplicitNamedTypeSymbol : SourceMemberContainerTypeSymbol 
     private protected override TextLocation GetCorrespondingBaseListLocation(NamedTypeSymbol @base) {
         return null;
     }
+
+    internal override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        return [];
+    }
 }

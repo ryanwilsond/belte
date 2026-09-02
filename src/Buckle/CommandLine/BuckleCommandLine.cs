@@ -443,14 +443,16 @@ public class {name} {{
             return RuntimeErrorExitCode;
         }
 
-        ResolveReferenceCopies(state.outputFilename, pendingReferenceCopies, processName, state);
-        ResolveReferenceCopies(
-            state.outputFilename,
-            pendingDependencyCopies.Item1,
-            processName,
-            state,
-            pendingDependencyCopies.Item2
-        );
+        if (!state.noOut && !state.buildMode.RunsImmediately()) {
+            ResolveReferenceCopies(state.outputFilename, pendingReferenceCopies, processName, state);
+            ResolveReferenceCopies(
+                state.outputFilename,
+                pendingDependencyCopies.Item1,
+                processName,
+                state,
+                pendingDependencyCopies.Item2
+            );
+        }
 
         if (startStopDialog)
             ShowStopDialog();
@@ -1914,7 +1916,7 @@ public class {name} {{
             var destination = Path.Join(destDir, Path.GetFileName(reference));
             var opened = false;
 
-            if (!Directory.Exists(Path.GetDirectoryName(destDir)))
+            if (destDir != "" && !Directory.Exists(Path.GetDirectoryName(destDir)))
                 Directory.CreateDirectory(destDir);
 
             for (var j = 1; j < 4; j++) {

@@ -35,6 +35,7 @@ internal sealed partial class PETemplateType : NamedTypeSymbol {
     private ImmutableArray<Symbol> _lazyMembersInDeclarationOrder;
     private Dictionary<string, ImmutableArray<Symbol>> _lazyMembersByName;
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> _lazyNestedTypes;
+    private ImmutableArray<string> _lazyConditionalSymbols;
 
     private readonly NamedTypeSymbol _typeToLink;
 
@@ -343,6 +344,29 @@ internal sealed partial class PETemplateType : NamedTypeSymbol {
         }
 
         return _lazyAttributes;
+    }
+
+    internal override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        if (_lazyConditionalSymbols.IsDefault) {
+            var attributes = GetAttributes();
+
+            if (attributes.Length == 0) {
+                ImmutableInterlocked.InterlockedInitialize(ref _lazyConditionalSymbols, []);
+            } else {
+                var builder = ArrayBuilder<string>.GetInstance(1);
+
+                foreach (var attribute in attributes) {
+                    if (attribute.IsTargetAttribute(AttributeDescription.ConditionalAttribute)) {
+                        var arg = attribute.GetConstructorArgument<string>(0, SpecialType.String);
+                        builder.Add(arg);
+                    }
+                }
+
+                ImmutableInterlocked.InterlockedInitialize(ref _lazyConditionalSymbols, builder.ToImmutableAndFree());
+            }
+        }
+
+        return _lazyConditionalSymbols;
     }
 
     internal override ImmutableArray<Symbol> GetSimpleNonTypeMembers(string name) {

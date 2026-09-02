@@ -1746,7 +1746,7 @@ public sealed partial class Compilation {
         }
 
         var program = boundProgram;
-        var typeCount = program.types.Length;
+        var typeCount = program.types.WhereAsArray(t => t is not PENamedTypeSymbol).Length;
         var methodCount = program.methodBodies.Count;
 
         var templateInstantiations = 0;

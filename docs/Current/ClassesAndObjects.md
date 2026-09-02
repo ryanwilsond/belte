@@ -491,6 +491,9 @@ invalid casts, etc.) but **does not include corrupted state exceptions** (such a
 
 Note that `pure` cannot be used on methods that have a [reverse clause](#4222-state-and-reverse-clauses).
 
+Note that `pure` can read from instance data but cannot write to it. As such `pure` implies the
+[method modifier `const`](#434-const).
+
 ### 4.2.3 Operators
 
 #### 4.2.3.1 Operator Overloading
@@ -904,8 +907,45 @@ static constructor can be defined for a class that will run the first time a sta
 
 ### 4.3.4 Const
 
-Methods marked as `const` cannot modify instance data or call instance methods not marked `const`. A `const` local of a
-class type can only read fields and call `const` methods.
+Methods marked as `const` cannot modify instance data or call instance methods not marked `const`.
+
+```belte
+class A {
+  int a = 0;
+
+  public const int M1() {
+    return a; // Allowed, read from instance data
+  }
+
+  public const void M2() {
+    a = 1; // Disallowed, write to instance data
+  }
+
+  public const void M3() {
+    ConstMethod(); // Allowed, call to const method
+  }
+
+  public const void M5() {
+    NonConstMethod(); // Disallowed, call to non-const method
+  }
+
+  public void NonConstMethod() {
+    // ...
+  }
+
+  public const void ConstMethod() {
+    // ...
+  }
+}
+```
+
+A `const` local of a class type can only read fields and call `const` methods.
+
+```belte
+const myA = new A();
+myA.ConstMethod(); // Allowed
+myA.NonConstMethod(); // Disallowed
+```
 
 ### 4.3.5 Sealed and Abstract
 

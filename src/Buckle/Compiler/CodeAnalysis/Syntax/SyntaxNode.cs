@@ -130,6 +130,8 @@ public abstract partial class SyntaxNode {
     /// </summary>
     internal GreenNode green { get; }
 
+    internal InternalSyntax.BelteSyntaxNode bltGreen => (InternalSyntax.BelteSyntaxNode)green;
+
     public override string ToString() {
         return green.ToString();
     }

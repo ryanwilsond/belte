@@ -400,9 +400,11 @@ internal sealed partial class Evaluator {
         MethodSymbol method,
         BoundBlockStatement block,
         ValueWrapper<bool> abort,
-        out bool returned) {
+        out bool returned,
+        out LabelSymbol leaveLabel) {
         _hasValue = false;
         returned = false;
+        leaveLabel = null;
 
         try {
             if (block.statements.Length == 0)
@@ -440,14 +442,15 @@ internal sealed partial class Evaluator {
                         var node = (BoundTryStatement)s;
                         var previousInsideTry = _insideTry;
                         _insideTry = true;
+                        LabelSymbol innerLeave = null;
 
                         try {
-                            _lastValue = EvaluateStatement(method, node.body, abort, out returned);
+                            _lastValue = EvaluateStatement(method, node.body, abort, out returned, out innerLeave);
                         } catch (BelteException) {
                             if (node.catchBody is null)
                                 throw;
 
-                            _lastValue = EvaluateStatement(method, node.catchBody, abort, out returned);
+                            _lastValue = EvaluateStatement(method, node.catchBody, abort, out returned, out innerLeave);
                         } finally {
                             _insideTry = previousInsideTry;
 
@@ -455,14 +458,18 @@ internal sealed partial class Evaluator {
                                 var previousHasValue = _hasValue;
                                 var previousLastValue = _lastValue;
 
-                                EvaluateStatement(method, node.finallyBody, abort, out returned);
+                                EvaluateStatement(method, node.finallyBody, abort, out returned, out var unusedLeave);
+                                Debug.Assert(unusedLeave is null);
 
                                 _hasValue = previousHasValue;
                                 _lastValue = previousLastValue;
                             }
                         }
 
-                        index++;
+                        if (innerLeave is null)
+                            index++;
+                        else
+                            index = labelToIndex[innerLeave];
 
                         if (returned)
                             return _lastValue;
@@ -477,25 +484,40 @@ internal sealed partial class Evaluator {
                         _lastValue = EvaluatorValue.None;
                         index++;
                         break;
-                    case BoundKind.GotoStatement:
-                        _lastValue = EvaluatorValue.None;
-                        var gs = (BoundGotoStatement)s;
-                        index = labelToIndex[gs.label];
-                        break;
-                    case BoundKind.ConditionalGotoStatement:
-                        var cgs = (BoundConditionalGotoStatement)s;
-                        var condition = EvaluateExpression(cgs.condition, true, abort);
+                    case BoundKind.GotoStatement: {
+                            _lastValue = EvaluatorValue.None;
+                            var gs = (BoundGotoStatement)s;
 
-                        if (condition.kind == ValueKind.Null)
-                            throw new BelteNullConditionException(cgs.condition.syntax.location);
+                            if (labelToIndex.TryGetValue(gs.label, out var value)) {
+                                index = value;
+                            } else {
+                                leaveLabel = gs.label;
+                                return EvaluatorValue.None;
+                            }
 
-                        if (condition.@bool == cgs.jumpIfTrue)
-                            index = labelToIndex[cgs.label];
-                        else
-                            index++;
+                            break;
+                        }
+                    case BoundKind.ConditionalGotoStatement: {
+                            var cgs = (BoundConditionalGotoStatement)s;
+                            var condition = EvaluateExpression(cgs.condition, true, abort);
 
-                        _lastValue = EvaluatorValue.None;
-                        break;
+                            if (condition.kind == ValueKind.Null)
+                                throw new BelteNullConditionException(cgs.condition.syntax.location);
+
+                            if (condition.@bool == cgs.jumpIfTrue) {
+                                if (labelToIndex.TryGetValue(cgs.label, out var value)) {
+                                    index = value;
+                                } else {
+                                    leaveLabel = cgs.label;
+                                    return EvaluatorValue.None;
+                                }
+                            } else {
+                                index++;
+                            }
+
+                            _lastValue = EvaluatorValue.None;
+                            break;
+                        }
                     case BoundKind.ReturnStatement: {
                             _hasValue = true;
                             returned = true;
@@ -2944,7 +2966,7 @@ internal sealed partial class Evaluator {
 
         _stack.Push(frame);
 
-        var result = EvaluateStatement(method, body, abort, out _);
+        var result = EvaluateStatement(method, body, abort, out _, out _);
 
         _stack.Pop();
 

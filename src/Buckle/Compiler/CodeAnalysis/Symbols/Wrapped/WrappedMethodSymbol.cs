@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 
@@ -79,5 +80,9 @@ internal abstract class WrappedMethodSymbol : MethodSymbol {
 
     internal override DllImportData GetDllImportData() {
         return underlyingMethod.GetDllImportData();
+    }
+
+    internal override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        return underlyingMethod.GetAppliedConditionalSymbols();
     }
 }

@@ -528,6 +528,35 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
         }
     }
 
+    internal override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        if (!_packedFlags.isConditionalPopulated) {
+            var result = _containingType.containingPEModule.module.GetConditionalAttributeValues(_handle);
+            Debug.Assert(!result.IsDefault);
+
+            if (!result.IsEmpty) {
+                result = InterlockedOperations.Initialize(
+                    ref AccessUncommonFields()._lazyConditionalAttributeSymbols,
+                    result
+                );
+            }
+
+            _packedFlags.SetIsConditionalAttributePopulated();
+            return result;
+        }
+
+        var uncommonFields = _uncommonFields;
+
+        if (uncommonFields is null) {
+            return [];
+        } else {
+            var result = uncommonFields._lazyConditionalAttributeSymbols;
+
+            return result.IsDefault
+                ? InterlockedOperations.Initialize(ref uncommonFields._lazyConditionalAttributeSymbols, [])
+                : result;
+        }
+    }
+
     internal override UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete) {
         // TODO
         // if (!_packedFlags.isUnmanagedCallersOnlyAttributePopulated) {

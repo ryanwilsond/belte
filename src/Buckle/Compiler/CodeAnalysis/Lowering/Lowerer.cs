@@ -1097,6 +1097,13 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         }
     }
 
+    internal override BoundNode VisitExpressionStatement(BoundExpressionStatement node) {
+        if (node.expression is BoundCallExpression call && call.method.CallsAreOmitted(call.syntax.syntaxTree))
+            return null;
+
+        return base.VisitExpressionStatement(node);
+    }
+
     internal static BoundExpression CreateNullableGetValueCall(
         Compilation compilation,
         SyntaxNode syntax,

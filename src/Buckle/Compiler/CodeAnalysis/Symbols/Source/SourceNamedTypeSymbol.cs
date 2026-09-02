@@ -861,7 +861,35 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
                 diagnose: true,
                 diagnosticsOpt: diagnostics
             );
+        } else if (attribute.IsTargetAttribute(AttributeDescription.ConditionalAttribute)) {
+            ValidateConditionalAttribute(attribute, arguments.attributeSyntax, diagnostics);
         }
+    }
+
+    private void ValidateConditionalAttribute(
+        AttributeData attribute,
+        AttributeSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        Debug.Assert(isConditional);
+        Debug.Assert(!attribute.hasErrors);
+
+        if (!declaringCompilation.IsAttributeType(this)) {
+            diagnostics.Push(Error.ConditionalOnNonAttributeClass(node.location, node.GetErrorDisplayName()));
+        } else {
+            var name = attribute.GetConstructorArgument<string>(0, SpecialType.String);
+
+            if (name is null/* || !SyntaxFacts.IsValidIdentifier(name)*/) {
+                diagnostics.Push(Error.InvalidAttributeArgument(
+                    attribute.GetAttributeArgumentLocation(0),
+                    node.GetErrorDisplayName()
+                ));
+            }
+        }
+    }
+
+    internal override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        var data = GetEarlyDecodedWellKnownAttributeData();
+        return data is not null ? data.conditionalSymbols : [];
     }
 
     internal override AttributeUsageInfo GetAttributeUsageInfo() {
@@ -886,6 +914,29 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
         ref EarlyDecodeWellKnownAttributeArguments<EarlyWellKnownAttributeBinder, NamedTypeSymbol, AttributeSyntax, AttributeLocation> arguments) {
         AttributeData attributeData;
         BoundAttribute boundAttribute;
+
+        if (AttributeData.IsTargetEarlyAttribute(
+                arguments.attributeType,
+                arguments.attributeSyntax,
+                AttributeDescription.ConditionalAttribute)) {
+            (attributeData, boundAttribute) = arguments.binder.GetAttribute(
+                arguments.attributeSyntax,
+                arguments.attributeType,
+                beforeAttributePartBound: null,
+                afterAttributePartBound: null,
+                out var hasAnyDiagnostics
+            );
+
+            if (!attributeData.hasErrors) {
+                var name = attributeData.GetConstructorArgument<string>(0, SpecialType.String);
+                arguments.GetOrCreateData<TypeEarlyWellKnownAttributeData>().AddConditionalSymbol(name);
+
+                if (!hasAnyDiagnostics)
+                    return (attributeData, boundAttribute);
+            }
+
+            return (null, null);
+        }
 
         if (AttributeData.IsTargetEarlyAttribute(
                 arguments.attributeType,

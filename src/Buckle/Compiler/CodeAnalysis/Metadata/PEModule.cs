@@ -1110,6 +1110,12 @@ internal sealed partial class PEModule : IDisposable {
         }
     }
 
+    internal ImmutableArray<string> GetConditionalAttributeValues(EntityHandle token) {
+        var attrInfos = FindTargetAttributes(token, AttributeDescription.ConditionalAttribute);
+        var result = ExtractStringValuesFromAttributes(attrInfos);
+        return result?.ToImmutableAndFree() ?? [];
+    }
+
     private ConstantValue GetConstantValueOrThrow(ConstantHandle handle) {
         var constantRow = metadataReader.GetConstant(handle);
         var reader = metadataReader.GetBlobReader(constantRow.Value);

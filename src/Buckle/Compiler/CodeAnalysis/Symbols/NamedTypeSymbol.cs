@@ -128,6 +128,16 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
 
     internal abstract bool isInterface { get; }
 
+    internal bool isConditional {
+        get {
+            if (GetAppliedConditionalSymbols().Any())
+                return true;
+
+            var baseType = this.baseType;
+            return baseType is not null && baseType.isConditional;
+        }
+    }
+
     internal override void Accept(SymbolVisitor visitor) {
         visitor.VisitNamedType(this);
     }
@@ -137,6 +147,8 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
         TArgument argument) {
         return visitor.VisitNamedType(this, argument);
     }
+
+    internal abstract ImmutableArray<string> GetAppliedConditionalSymbols();
 
     internal abstract ImmutableArray<NamedTypeSymbol> GetDeclaredInterfaces(ConsList<TypeSymbol> basesBeingResolved);
 

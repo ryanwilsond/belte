@@ -97,4 +97,8 @@ internal sealed class SynthesizedTemplateMethodSymbol : MethodSymbol {
     internal override UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete) {
         return null;
     }
+
+    internal override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        return [];
+    }
 }

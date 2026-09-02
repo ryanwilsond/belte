@@ -308,4 +308,8 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
 
         return code;
     }
+
+    internal sealed override bool CallsAreOmitted(SyntaxTree syntaxTree) {
+        return originalDefinition.CallsAreOmitted(syntaxTree);
+    }
 }

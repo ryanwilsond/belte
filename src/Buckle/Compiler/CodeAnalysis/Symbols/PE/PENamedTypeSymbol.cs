@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Metadata;
@@ -350,6 +351,26 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
     internal override ImmutableArray<AttributeData> GetAttributes() {
         // TODO
         return [];
+    }
+
+
+    internal override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        var uncommon = GetUncommonProperties();
+
+        if (uncommon == NoUncommonProperties)
+            return [];
+
+        if (uncommon.lazyConditionalAttributeSymbols.IsDefault) {
+            var conditionalSymbols = containingPEModule.module.GetConditionalAttributeValues(_handle);
+            Debug.Assert(!conditionalSymbols.IsDefault);
+            ImmutableInterlocked.InterlockedCompareExchange(
+                ref uncommon.lazyConditionalAttributeSymbols,
+                conditionalSymbols,
+                default
+            );
+        }
+
+        return uncommon.lazyConditionalAttributeSymbols;
     }
 
     private void EnsureEnumUnderlyingTypeIsLoaded(UncommonProperties uncommon) {

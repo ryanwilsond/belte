@@ -627,6 +627,13 @@ public enum DiagnosticCode : ushort {
     ERR_CannotTemplateSpecializeType = 616,
     ERR_BufferNoDefaultValue = 617,
     ERR_ConstructorConstraintFailed = 618,
+    ERR_ConditionalOnInterfaceMethod = 619,
+    ERR_ConditionalOnOverride = 620,
+    ERR_ConditionalOnSpecialMethod = 621,
+    ERR_ConditionalMustReturnVoid = 622,
+    ERR_ConditionalWithOutParam = 623,
+    ERR_ConditionalOnLocalFunction = 624,
+    ERR_ConditionalOnNonAttributeClass = 625,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

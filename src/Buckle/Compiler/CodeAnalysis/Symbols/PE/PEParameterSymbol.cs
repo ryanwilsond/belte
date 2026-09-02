@@ -21,6 +21,7 @@ internal partial class PEParameterSymbol : ParameterSymbol {
     private readonly ParameterAttributes _flags;
     private readonly PEModuleSymbol _moduleSymbol;
 
+    private TypeWithAnnotations _lazyActualTypeWithAnnotations;
     private ImmutableArray<AttributeData> _lazyCustomAttributes;
     private ConstantValue? _lazyDefaultValue = ConstantValue.Unset;
     private int _lazyIsConst;
@@ -195,7 +196,55 @@ internal partial class PEParameterSymbol : ParameterSymbol {
 
     internal override ConstantValue outDefaultValue => null;
 
-    internal override TypeWithAnnotations typeWithAnnotations => _typeWithAnnotations;
+    internal override TypeWithAnnotations typeWithAnnotations {
+        get {
+            if (_lazyActualTypeWithAnnotations is null) {
+                var tentativeType = _typeWithAnnotations;
+
+                // Special case where attribute constructor parameters are treated as non-nullable because it's separately
+                // verified that this is the case
+                // TODO The _hasNameInMetadata check ensures this isn't the return parameter (is this the best way to tell?)
+                if (_hasNameInMetadata &&
+                    tentativeType.isNullable &&
+                    tentativeType.type.isReferenceType &&
+                    ContainingMethodIsConstructor()) {
+                    var attributeType = containingAssembly.GetTypeByMetadataName(
+                        WellKnownType.System_Attribute.GetMetadataName(),
+                        includeReferences: false,
+                        useCLSCompliantNameArityEncoding: true,
+                        isWellKnownType: true,
+                        conflicts: out _
+                    );
+
+                    if (attributeType is not null &&
+                        containingType.IsDerivedFrom(attributeType, TypeCompareKind.ConsiderEverything)) {
+                        tentativeType = new TypeWithAnnotations(tentativeType.nullableUnderlyingTypeOrSelf);
+                    }
+                }
+
+                Interlocked.CompareExchange(ref _lazyActualTypeWithAnnotations, tentativeType, null);
+            }
+
+            return _lazyActualTypeWithAnnotations;
+
+            bool ContainingMethodIsConstructor() {
+                var containingMethod = containingSymbol as MethodSymbol;
+
+                if (containingMethod.hasSpecialName &&
+                    containingMethod.name.StartsWith(".", StringComparison.Ordinal)) {
+                    if (containingMethod.hasRuntimeSpecialName &&
+                        !containingMethod.IsMetadataVirtual() &&
+                        containingMethod.name.Equals(WellKnownMemberNames.InstanceConstructorName) &&
+                        containingMethod.returnsVoid &&
+                        containingMethod.arity == 0) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        }
+    }
 
     internal override ConstantValue? explicitDefaultConstantValue {
         get {

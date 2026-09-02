@@ -364,4 +364,8 @@ internal sealed class FunctionMethodSymbol : MethodSymbol {
     internal sealed override UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete) {
         return null;
     }
+
+    internal sealed override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        return [];
+    }
 }

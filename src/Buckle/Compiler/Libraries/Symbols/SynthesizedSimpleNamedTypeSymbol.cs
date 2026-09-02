@@ -127,4 +127,8 @@ internal sealed class SynthesizedSimpleNamedTypeSymbol : NamedTypeSymbol {
     internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
         return SpecializedCollections.EmptyEnumerable<(MethodSymbol Body, MethodSymbol Implemented)>();
     }
+
+    internal override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        return [];
+    }
 }

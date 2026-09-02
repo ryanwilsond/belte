@@ -8701,7 +8701,7 @@ var text = """"""
     public void Reports_Error_BU0602_ImpureWriteInPureContext() {
         var text = @"
             class A {
-                string a = ""test"";
+                static string a = ""test"";
                 void M() pure {
                     [a] = ""test"";
                 }
@@ -9073,4 +9073,127 @@ var text = """"""
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    // !
+    // ? The following require references as we don't expose a source definition for Conditional attribute
+    // [Fact]
+    // public void Reports_Error_BU0619_ConditionalOnInterfaceMethod() {
+    //     var text = @"
+    //         interface A {
+    //             \[[System.Diagnostics.Conditional(""DEBUG"")]\]
+    //             void M();
+    //         }
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         the 'Conditional' attribute is not valid on interface members
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0620_ConditionalOnOverride() {
+    //     var text = @"
+    //         class A {
+    //             public virtual void M() { }
+    //         }
+
+    //         class B extends A {
+    //             \[[System.Diagnostics.Conditional(""DEBUG"")]\]
+    //             public override void M() { }
+    //         }
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         the 'Conditional' attribute is not valid on 'B.M()' because it is an override method
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0621_ConditionalOnSpecialMethod() {
+    //     var text = @"
+    //         class B {
+    //             \[[System.Diagnostics.Conditional(""DEBUG"")]\]
+    //             finalizer() { }
+    //         }
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         the 'Conditional' attribute is not valid on 'B.Finalize()' because it is an override method
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0622_ConditionalMustReturnVoid() {
+    //     var text = @"
+    //         class B {
+    //             \[[System.Diagnostics.Conditional(""DEBUG"")]\]
+    //             int M() { return 0; }
+    //         }
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         the 'Conditional' attribute is not valid on 'B.M()' because its return type is not void
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0623_ConditionalWithOutParam() {
+    //     var text = @"
+    //         class B {
+    //             \[[System.Diagnostics.Conditional(""DEBUG"")]\]
+    //             void M(out int a = 0) { }
+    //         }
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         the 'Conditional' attribute is not valid on 'B.M(out int!)' because it has an out parameter
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0624_ConditionalOnLocalFunction() {
+    //     var text = @"
+    //         void M() {
+    //             \[[System.Diagnostics.Conditional(""DEBUG"")]\]
+    //             void l() { }
+    //         }
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         local function 'l()' must be 'static' in order to use the 'Conditional' attribute
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0625_ConditionalOnNonAttributeClass() {
+    //     var text = @"
+    //         \[[System.Diagnostics.Conditional(""DEBUG"")]\]
+    //         class A { }
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         attribute 'System.Diagnostics.Conditional' is only valid on methods or attribute classes
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
 }

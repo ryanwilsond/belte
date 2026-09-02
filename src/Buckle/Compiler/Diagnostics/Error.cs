@@ -3030,6 +3030,41 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_BufferNoDefaultValue, location, message);
     }
 
+    internal static BelteDiagnostic ConditionalOnInterfaceMethod(TextLocation location) {
+        var message = $"the 'Conditional' attribute is not valid on interface members";
+        return CreateError(DiagnosticCode.ERR_ConditionalOnInterfaceMethod, location, message);
+    }
+
+    internal static BelteDiagnostic ConditionalOnOverride(TextLocation location, MethodSymbol method) {
+        var message = $"the 'Conditional' attribute is not valid on '{method}' because it is an override method";
+        return CreateError(DiagnosticCode.ERR_ConditionalOnOverride, location, message);
+    }
+
+    internal static BelteDiagnostic ConditionalOnSpecialMethod(TextLocation location, MethodSymbol method) {
+        var message = $"the 'Conditional' attribute is not valid on '{method}' because it is a constructor, finalizer, operator, or explicit interface implementation";
+        return CreateError(DiagnosticCode.ERR_ConditionalOnSpecialMethod, location, message);
+    }
+
+    internal static BelteDiagnostic ConditionalMustReturnVoid(TextLocation location, MethodSymbol method) {
+        var message = $"the 'Conditional' attribute is not valid on '{method}' because its return type is not void";
+        return CreateError(DiagnosticCode.ERR_ConditionalMustReturnVoid, location, message);
+    }
+
+    internal static BelteDiagnostic ConditionalWithOutParam(TextLocation location, MethodSymbol method) {
+        var message = $"the 'Conditional' attribute is not valid on '{method}' because it has an out parameter";
+        return CreateError(DiagnosticCode.ERR_ConditionalWithOutParam, location, message);
+    }
+
+    internal static BelteDiagnostic ConditionalOnLocalFunction(TextLocation location, MethodSymbol method) {
+        var message = $"local function '{method}' must be 'static' in order to use the 'Conditional' attribute";
+        return CreateError(DiagnosticCode.ERR_ConditionalOnLocalFunction, location, message);
+    }
+
+    internal static BelteDiagnostic ConditionalOnNonAttributeClass(TextLocation location, string name) {
+        var message = $"attribute '{name}' is only valid on methods or attribute classes";
+        return CreateError(DiagnosticCode.ERR_ConditionalOnNonAttributeClass, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

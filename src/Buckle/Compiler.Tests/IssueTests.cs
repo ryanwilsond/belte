@@ -2950,4 +2950,19 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void TryStatement_BreakOutOfTry() {
+        var text = @"
+            for (var i = 0; i < 10; i++) {
+                try {
+                    break;
+                } catch { }
+            }
+
+            return 5;
+        ";
+
+        AssertValue(text, 5);
+    }
 }

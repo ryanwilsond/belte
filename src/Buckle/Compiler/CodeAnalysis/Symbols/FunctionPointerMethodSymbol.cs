@@ -418,4 +418,8 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
     internal override bool IsMetadataVirtual(bool forceComplete = false) {
         return false;
     }
+
+    internal sealed override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        return [];
+    }
 }

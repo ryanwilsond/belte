@@ -139,6 +139,10 @@ internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
         return [];
     }
 
+    internal override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        return [];
+    }
+
     internal override AttributeUsageInfo GetAttributeUsageInfo() {
         return AttributeUsageInfo.Null;
     }

@@ -33,6 +33,7 @@ internal sealed partial class PETemplateType {
         private int _lazyIsPure;
         private int _lazyIsNoThrow;
         private int _lazyIsNoAlloc;
+        private ImmutableArray<string> _lazyConditionalSymbols;
 
         private bool _lazyMethodBodyIsPopulated;
         private BoundBlockStatement _lazyMethodBody;
@@ -520,6 +521,29 @@ internal sealed partial class PETemplateType {
             }
 
             return _lazyReturnAttributes;
+        }
+
+        internal override ImmutableArray<string> GetAppliedConditionalSymbols() {
+            if (_lazyConditionalSymbols.IsDefault) {
+                var attributes = GetAttributes();
+
+                if (attributes.Length == 0) {
+                    ImmutableInterlocked.InterlockedInitialize(ref _lazyConditionalSymbols, []);
+                } else {
+                    var builder = ArrayBuilder<string>.GetInstance(1);
+
+                    foreach (var attribute in attributes) {
+                        if (attribute.IsTargetAttribute(AttributeDescription.ConditionalAttribute)) {
+                            var arg = attribute.GetConstructorArgument<string>(0, SpecialType.String);
+                            builder.Add(arg);
+                        }
+                    }
+
+                    ImmutableInterlocked.InterlockedInitialize(ref _lazyConditionalSymbols, builder.ToImmutableAndFree());
+                }
+            }
+
+            return _lazyConditionalSymbols;
         }
     }
 }

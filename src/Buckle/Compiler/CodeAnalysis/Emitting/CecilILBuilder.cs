@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -92,6 +93,47 @@ internal sealed partial class CecilILBuilder : ILBuilder {
 
             var instructionFix = iLProcessor.Body.Instructions[instructionIndex];
             instructionFix.Operand = builder.ToArrayAndFree();
+        }
+
+        FixExceptionBranches();
+    }
+
+    private void FixExceptionBranches() {
+        var indexes = new Dictionary<Instruction, int>();
+
+        for (var i = 0; i < iLProcessor.Body.Instructions.Count; i++)
+            indexes.Add(iLProcessor.Body.Instructions[i], i);
+
+        foreach (var instruction in iLProcessor.Body.Instructions) {
+            if (instruction.OpCode != OpCodes.Br && instruction.OpCode != OpCodes.Br_S)
+                continue;
+
+            var target = (Instruction)instruction.Operand;
+
+            if (RequiresLeave(instruction, target))
+                instruction.OpCode = instruction.OpCode == OpCodes.Br ? OpCodes.Leave : OpCodes.Leave_S;
+        }
+
+        bool RequiresLeave(Instruction instruction, Instruction target) {
+            foreach (var handler in iLProcessor.Body.ExceptionHandlers) {
+                if (IsInTry(instruction, handler) && !IsInTry(target, handler))
+                    return true;
+
+                if (IsInHandler(instruction, handler) && !IsInHandler(target, handler))
+                    return true;
+            }
+
+            return false;
+        }
+
+        bool IsInTry(Instruction instruction, ExceptionHandler handler) {
+            return indexes[instruction] >= indexes[handler.TryStart] &&
+                indexes[instruction] < indexes[handler.TryEnd];
+        }
+
+        bool IsInHandler(Instruction instruction, ExceptionHandler handler) {
+            return indexes[instruction] >= indexes[handler.HandlerStart] &&
+                indexes[instruction] < indexes[handler.HandlerEnd];
         }
     }
 
@@ -221,7 +263,7 @@ internal sealed partial class CecilILBuilder : ILBuilder {
         iLProcessor.Emit(ConvertToCil(opCode), _module.GetMethod(method));
     }
 
-    internal override void BeginTry() {
+    internal override void BeginTry(BoundTryStatement _) {
         if (!_needsEpilogue) {
             _needsEpilogue = true;
             _epilogue = new object();
@@ -290,6 +332,9 @@ internal sealed partial class CecilILBuilder : ILBuilder {
             ctx.finallyEnd = iLProcessor.Create(OpCodes.Nop);
             iLProcessor.Append(ctx.finallyEnd);
         } else if (ctx.hasCatch) {
+            // BeginFinally handles this leave, so without a finally we need to handle it here too
+            iLProcessor.Append(iLProcessor.Create(OpCodes.Leave, ctx.leaveTarget));
+
             ctx.handlerEnd ??= iLProcessor.Create(OpCodes.Nop);
             iLProcessor.Append(ctx.handlerEnd);
         }
@@ -298,7 +343,7 @@ internal sealed partial class CecilILBuilder : ILBuilder {
 
         if (ctx.hasCatch) {
             var handler = new ExceptionHandler(ExceptionHandlerType.Catch) {
-                CatchType = _module.GetType(_compilation.corLibrary.GetWellKnownType(WellKnownType.System_Exception)),
+                CatchType = _module.GetType(_compilation.GetWellKnownType(WellKnownType.System_Exception)),
                 TryStart = ctx.innerTryStart,
                 TryEnd = ctx.innerTryEnd,
                 HandlerStart = ctx.handlerStart,

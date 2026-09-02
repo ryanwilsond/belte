@@ -94,8 +94,9 @@ internal sealed partial class FlowLowerer {
                         BoundFactory.Literal(
                             _compilation,
                             node.syntax,
-                            temp.type.IsNullableType() ? null : LiteralUtilities.GetDefaultValue(temp.type.EnumUnderlyingTypeOrSelf().specialType),
-                            temp.type
+                            // TODO Because this is temporary it doesn't really matter we use CLR nullability rules instead of Belte nullability rules
+                            (temp.type.IsNullableType() || temp.type.isReferenceType) ? null : LiteralUtilities.GetDefaultValue(temp.type.EnumUnderlyingTypeOrSelf().specialType),
+                            temp.type.EnumUnderlyingTypeOrSelf()
                         )
                     ))
                 );

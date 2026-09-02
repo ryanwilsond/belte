@@ -44,6 +44,7 @@ internal enum WellKnownType : byte {
     System_Collections_Generic_IEnumerator_T,
     System_Attribute,
     System_AttributeUsageAttribute,
+    System_String,
 
     Belte_NoAllocAttribute,
     Belte_NoThrowAttribute,

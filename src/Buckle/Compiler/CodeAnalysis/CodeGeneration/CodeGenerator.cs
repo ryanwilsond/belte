@@ -776,8 +776,125 @@ internal sealed partial class CodeGenerator {
         LocalOrParameter key,
         SyntaxNode syntaxNode,
         TypeSymbol keyType) {
-        // TODO
-        throw ExceptionUtilities.Unreachable();
+        LocalOrParameter? keyHash = null;
+
+        if (SwitchStringJumpTableEmitter.ShouldGenerateHashTableSwitch(switchCaseLabels.Length)) {
+            // TODO Runtime hash method
+            // MethodSymbol stringHashMethod = null;
+
+            // if (stringHashMethod is not null) {
+            // static uint ComputeStringHash(string s)
+            // pop 1 (s)
+            // push 1 (uint return value)
+            // stackAdjustment = (pushCount - popCount) = 0
+
+            // _builder.EmitLoad(key);
+            // _builder.EmitOpCode(ILOpCode.Call, stackAdjustment: 0);
+            // _builder.EmitToken(stringHashMethodRef, syntaxNode);
+
+            // var UInt32Type = Binder.GetSpecialType(_module.Compilation, SpecialType.System_UInt32, syntaxNode, _diagnostics);
+            // keyHash = AllocateTemp(UInt32Type, syntaxNode);
+
+            // _builder.EmitLocalStore(keyHash);
+            // }
+        }
+
+        var systemStringType = _compilation.GetWellKnownType(WellKnownType.System_String);
+        var stringEqualityMethod = systemStringType.GetOperators(WellKnownMemberNames.EqualityOperatorName)
+            .FirstOrDefault();
+        var lengthMethod = systemStringType.GetMembers("get_Length").FirstOrDefault() as MethodSymbol;
+
+        Debug.Assert(stringEqualityMethod is not null);
+
+        SwitchStringJumpTableEmitter.EmitStringCompareAndBranch emitStringCondBranchDelegate =
+            (keyArg, stringConstant, targetLabel) => {
+                if (stringConstant == ConstantValue.Null) {
+                    EmitLoad(keyArg);
+                    _builder.EmitBranch(OpCode.Brfalse, targetLabel, OpCode.Brtrue);
+                } else if (((string)stringConstant.value).Length == 0 && lengthMethod is not null) {
+                    var skipToNext = new object();
+
+                    EmitLoad(keyArg);
+                    _builder.EmitBranch(OpCode.Brfalse, skipToNext, OpCode.Brtrue);
+
+                    EmitLoad(keyArg);
+
+                    _builder.EmitWithSymbolToken(OpCode.Call, lengthMethod);
+
+                    _builder.EmitBranch(OpCode.Brfalse, targetLabel, OpCode.Brtrue);
+                    _builder.MarkLabel(skipToNext);
+                } else {
+                    EmitStringCompareAndBranch(key, syntaxNode, stringConstant, targetLabel, stringEqualityMethod);
+                }
+            };
+
+        EmitStringSwitchJumpTable(
+            caseLabels: switchCaseLabels,
+            fallThroughLabel: fallThroughLabel,
+            key: key,
+            keyHash: keyHash,
+            emitStringCondBranchDelegate: emitStringCondBranchDelegate,
+            computeStringHashcodeDelegate: ComputeStringHash
+        );
+
+        if (keyHash is not null) {
+            // FreeTemp(keyHash);
+        }
+    }
+
+    private void EmitStringCompareAndBranch(
+        LocalOrParameter key,
+        SyntaxNode syntaxNode,
+        ConstantValue stringConstant,
+        object targetLabel,
+        MethodSymbol stringEqualityMethod) {
+        EmitLoad(key);
+        EmitConstantValue(stringConstant, _compilation.GetSpecialType(SpecialType.String));
+        _builder.EmitWithSymbolToken(OpCode.Call, stringEqualityMethod);
+        _builder.EmitBranch(OpCode.Brtrue, targetLabel, OpCode.Brfalse);
+    }
+
+    private static uint ComputeStringHash(string text) {
+        uint hashCode = 0;
+
+        if (text is not null) {
+            hashCode = unchecked((uint)2166136261);
+
+            int i = 0;
+            goto start;
+
+again:
+            hashCode = unchecked((text[i] ^ hashCode) * 16777619);
+            i = i + 1;
+
+start:
+            if (i < text.Length)
+                goto again;
+        }
+
+        return hashCode;
+    }
+
+    private void EmitStringSwitchJumpTable(
+        KeyValuePair<ConstantValue, object>[] caseLabels,
+        object fallThroughLabel,
+        LocalOrParameter key,
+        LocalOrParameter? keyHash,
+        SwitchStringJumpTableEmitter.EmitStringCompareAndBranch emitStringCondBranchDelegate,
+        SwitchStringJumpTableEmitter.GetStringHashCode computeStringHashcodeDelegate) {
+        var emitter = new SwitchStringJumpTableEmitter(
+            _compilation,
+            this,
+            _builder,
+            key,
+            caseLabels,
+            fallThroughLabel,
+            keyHash,
+            emitStringCondBranchDelegate,
+            computeStringHashcodeDelegate
+        );
+
+        emitter.EmitJumpTable();
     }
 
     private void EmitIntegerSwitchJumpTable(
@@ -1105,12 +1222,14 @@ oneMoreTime:
         var hasCatch = statement.catchBody is not null;
         var hasFinally = statement.finallyBody is not null;
 
-        _builder.BeginTry();
+        _builder.BeginTry(statement);
 
         EmitBlock(statement.body);
 
         if (hasCatch) {
             _builder.BeginCatch();
+            // TODO Currently accessing the exception is not possible, so we pop it always
+            _builder.Emit(OpCode.Pop);
             EmitBlock(statement.catchBody);
         }
 

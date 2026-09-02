@@ -90,4 +90,8 @@ internal class SynthesizedInstanceConstructorSymbol : SynthesizedInstanceMethodS
         var containingType = (SourceMemberContainerTypeSymbol)this.containingType;
         return containingType.CalculateSyntaxOffsetInSynthesizedConstructor(localPosition, localTree, false);
     }
+
+    internal sealed override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        return [];
+    }
 }
