@@ -254,7 +254,11 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
     }
 
     internal override void VisitAttribute(AttributeSyntax node) {
-        var attrBinder = new ExpressionVariableBinder(node, _enclosing);
+        var attrBinder = new ExpressionVariableBinder(
+            node,
+            _enclosing.WithAdditionalFlags(BinderFlags.AttributeArgument)
+        );
+
         AddToMap(node, attrBinder);
 
         if (node.argumentList?.arguments?.Count > 0) {
@@ -276,6 +280,9 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
                 : _enclosing;
 
             binder = new InMethodBinder(match, binder);
+
+            if (BinderFactory.BinderFactoryVisitor.MethodHasAdditionalContext(match, out var additionalFlags))
+                binder = binder.WithAdditionalFlags(additionalFlags);
         }
 
         var blockBody = node.body;

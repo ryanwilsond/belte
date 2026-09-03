@@ -22,6 +22,7 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
 
     private readonly BelteDiagnosticQueue _diagnostics;
     private readonly BoundProgram _program;
+    private readonly Compilation _compilation;
     private readonly bool _debugMode;
     private readonly ImmutableDictionary<MethodSymbol, BoundBlockStatement> _methodBodies;
 
@@ -34,6 +35,7 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
         bool debugMode,
         BelteDiagnosticQueue diagnostics) {
         _program = program;
+        _compilation = program.compilation;
         _debugMode = debugMode;
         _diagnostics = diagnostics;
         _methodBodies = _program.GetAllMethodBodies().ToImmutableDictionary(x => x.Item1, x => x.Item2);
@@ -76,7 +78,7 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
     private void EmitToFile(string outputPath) {
         var text = EmitInternal();
 
-        if (!_program.compilation.options.enableOutput)
+        if (!_compilation.options.enableOutput)
             return;
 
         File.WriteAllText(outputPath, text);
@@ -94,7 +96,7 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
 
         using (var indentedTextWriter = new IndentedTextWriter(stringWriter, IndentString)) {
             if (includePreviousCompilations) {
-                var current = _program.compilation;
+                var current = _compilation;
 
                 do {
                     foreach (var member in current.globalNamespaceInternal.GetMembers())
@@ -103,7 +105,7 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
                     current = current.previous;
                 } while (current is not null);
             } else {
-                foreach (var member in _program.compilation.globalNamespaceInternal.GetMembers())
+                foreach (var member in _compilation.globalNamespaceInternal.GetMembers())
                     member.Accept(this, indentedTextWriter);
             }
 
@@ -133,7 +135,7 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
     }
 
     internal string GetMethodName(MethodSymbol method) {
-        if ((object)method.containingNamespace == LibraryHelpers.BelteNamespace.originalDefinition)
+        if ((object)method.containingNamespace == _compilation.corLibrary.belteNamespace.originalDefinition)
             return CheckStandardMap(method);
 
         string name;
@@ -172,7 +174,9 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
         builder.Append(type.declaredAccessibility switch {
             Accessibility.Private => "private ",
             Accessibility.Protected => "protected ",
-            Accessibility.Public => "public ",
+            Accessibility.Internal => "internal ",
+            Accessibility.InternalOrProtected => "protected internal ",
+            Accessibility.InternalAndProtected => "private protected ",
             _ => "public "
         });
 
@@ -205,7 +209,9 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
         builder.Append(field.declaredAccessibility switch {
             Accessibility.Private => "private ",
             Accessibility.Protected => "protected ",
-            Accessibility.Public => "public ",
+            Accessibility.Internal => "internal ",
+            Accessibility.InternalOrProtected => "protected internal ",
+            Accessibility.InternalAndProtected => "private protected ",
             _ => "public "
         });
 
@@ -246,7 +252,9 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
             builder.Append(method.declaredAccessibility switch {
                 Accessibility.Private => "private ",
                 Accessibility.Protected => "protected ",
-                Accessibility.Public => "public ",
+                Accessibility.Internal => "internal ",
+                Accessibility.InternalOrProtected => "protected internal ",
+                Accessibility.InternalAndProtected => "private protected ",
                 _ => "public "
             });
         }
@@ -506,7 +514,7 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
         }
 
         var body = _methodBodies[symbol];
-        var generator = new CSharpCodeGenerator(this, argument, symbol, body, _debugMode);
+        var generator = new CSharpCodeGenerator(_compilation, this, argument, symbol, body, _debugMode);
         var includeAccessibility = symbol.methodKind != MethodKind.StaticConstructor;
 
         var initializer = body.statements.Length > 0 ? body.statements[0] : null;

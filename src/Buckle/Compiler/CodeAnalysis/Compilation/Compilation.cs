@@ -4,6 +4,7 @@ using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Buckle.CodeAnalysis.Authoring;
@@ -28,14 +29,22 @@ namespace Buckle.CodeAnalysis;
 /// <summary>
 /// Handles evaluation of program, and keeps track of Symbols.
 /// </summary>
+[DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
 public sealed partial class Compilation {
+    internal const string UnspecifiedModuleAssemblyName = "?";
+
     private static readonly Func<SyntaxTree, SmallConcurrentSetOfInts> CreateSetCallback =
         t => new SmallConcurrentSetOfInts();
     private readonly static Predicate<Symbol> SkipLibrariesFilter
         = type => type is not SynthesizedFinishedNamedTypeSymbol;
 
+    private static MetadataReferenceResolver GlobalReferenceResolver;
+
     private readonly NamespaceSymbol _specialNamespace;
-    private readonly ReferenceManager _referenceManager;
+    // This is not readonly because its possible in a concurrent setup one manager beats the others in creating shared
+    // assembly data, in which it will retroactively apply itself to compilations
+    private ReferenceManager _referenceManager;
+    private TemplateMetadataReader _templateMetadataReader;
     private SyntaxAndDeclarationManager _syntax;
     private WeakReference<BinderFactory>[] _binderFactories;
     private WeakReference<BinderFactory>[] _ignoreAccessibilityBinderFactories;
@@ -54,6 +63,15 @@ public sealed partial class Compilation {
     private HandleManager _lazyHandleManager;
     private ConcurrentSet<AssemblySymbol> _lazyUsedAssemblyReferences;
     private ConcurrentDictionary<ImportInfo, ImmutableArray<AssemblySymbol>> _lazyImportInfos;
+    private NamedTypeSymbol[] _lazyWellKnownTypes;
+    // TODO Perf: use SmallDictionary
+    private Dictionary<int, bool> _lazyMakeWellKnownTypeMissingMap;
+    private BuiltInOperators _lazyBuiltInOperators;
+
+    // TODO These will be obsoleted soon, just in a transition period where they are instance instead of static
+    private CorLibrary _lazyCorLibrary;
+    private StandardLibrary _lazyStandardLibrary;
+    private GraphicsLibrary _lazyGraphicsLibrary;
 
     private Compilation(
         string assemblyName,
@@ -61,8 +79,11 @@ public sealed partial class Compilation {
         Compilation previous,
         SyntaxAndDeclarationManager syntax,
         ReferenceManager referenceManager,
+        bool reuseReferenceManager,
         NamespaceSymbol namespaceOpt = null,
-        bool forwardDiagnostics = false) {
+        bool forwardDiagnostics = false,
+        StandardLibrary standardLibraryOpt = null,
+        GraphicsLibrary graphicsLibraryOpt = null) {
         this.assemblyName = assemblyName;
         this.options = options;
         this.previous = previous;
@@ -73,7 +94,30 @@ public sealed partial class Compilation {
         if (forwardDiagnostics && previous?.declarationDiagnostics is not null)
             declarationDiagnostics.PushRange(previous.declarationDiagnostics);
 
-        _referenceManager = referenceManager ?? new ReferenceManager(options.references, declarationDiagnostics);
+        externalReferences = MakeExternalReferences(options.references, declarationDiagnostics);
+
+        _templateMetadataReader = new TemplateMetadataReader(this);
+
+        _lazyStandardLibrary = standardLibraryOpt;
+        _lazyGraphicsLibrary = graphicsLibraryOpt;
+
+        if (reuseReferenceManager) {
+            Debug.Assert(referenceManager is not null);
+
+            _lazyCorLibrary = referenceManager.corLibrary;
+            referenceManager.AssertCanReuseForCompilation(this);
+            _referenceManager = referenceManager;
+        } else {
+            _referenceManager = new ReferenceManager(
+                corLibrary,
+                _templateMetadataReader,
+                assemblyName,
+                AssemblyIdentityComparer.Default,
+                observedMetadata: referenceManager?.observedMetadata
+            );
+        }
+
+        Debug.Assert(_lazyAssembly is null);
 
         handleManager.SendParsedMessage();
     }
@@ -99,34 +143,98 @@ public sealed partial class Compilation {
 
     internal BoundProgram boundProgram {
         get {
-            EnsureBoundProgramAndMethodDiagnostics();
+            EnsureBoundProgramAndMethodDiagnostics(false);
             return _lazyBoundProgram;
         }
     }
 
     internal BelteDiagnosticQueue methodDiagnostics {
         get {
-            EnsureBoundProgramAndMethodDiagnostics();
+            EnsureBoundProgramAndMethodDiagnostics(false);
             return _lazyMethodDiagnostics;
         }
     }
 
     internal ImmutableArray<SyntaxTree> syntaxTrees => _syntax.state.syntaxTrees;
 
-    internal bool keepLookingForCorTypes => CorLibrary.StillLookingForSpecialTypes();
+    internal bool keepLookingForCorTypes => corLibrary.StillLookingForSpecialTypes();
 
-    internal bool keepLookingForWellKnownTypes => CorLibrary.StillLookingForWellKnownTypes();
+    internal bool keepLookingForWellKnownTypes => corLibrary.StillLookingForWellKnownTypes();
 
     internal MergedNamespaceDeclaration mergedRootDeclaration => _syntax.state.declarationTable.GetMergedRoot(this);
 
     internal DeclarationTable declarationTable => _syntax.state.declarationTable;
 
+    internal CorLibrary corLibrary {
+        get {
+            if (_lazyCorLibrary is null) {
+                if (previous is not null) {
+                    Interlocked.CompareExchange(ref _lazyCorLibrary, previous.corLibrary, null);
+                } else {
+                    var corLibrary = new CorLibrary(this);
+                    Interlocked.CompareExchange(ref _lazyCorLibrary, corLibrary, null);
+                }
+            }
+
+            Debug.Assert(_lazyCorLibrary is not null);
+            return _lazyCorLibrary;
+        }
+    }
+
+    internal StandardLibrary standardLibrary {
+        get {
+            if (_lazyStandardLibrary is null) {
+                if (previous is not null) {
+                    Interlocked.CompareExchange(ref _lazyStandardLibrary, previous.standardLibrary, null);
+                } else {
+                    var standard = new StandardLibrary(this);
+                    Interlocked.CompareExchange(ref _lazyStandardLibrary, standard, null);
+                }
+            }
+
+            Debug.Assert(_lazyStandardLibrary is not null);
+            return _lazyStandardLibrary;
+        }
+    }
+
+    internal GraphicsLibrary graphicsLibrary {
+        get {
+            if (_lazyGraphicsLibrary is null) {
+                if (previous is not null) {
+                    Interlocked.CompareExchange(ref _lazyGraphicsLibrary, previous.graphicsLibrary, null);
+                } else {
+                    var graphics = new GraphicsLibrary(this);
+                    Interlocked.CompareExchange(ref _lazyGraphicsLibrary, graphics, null);
+                }
+            }
+
+            Debug.Assert(_lazyGraphicsLibrary is not null);
+            return _lazyGraphicsLibrary;
+        }
+    }
+
+    internal BuiltInOperators builtInOperators {
+        get {
+            return InterlockedOperations.Initialize(
+                ref _lazyBuiltInOperators,
+                static self => new BuiltInOperators(self),
+                this
+            );
+        }
+    }
+
     internal AssemblySymbol assembly {
         get {
-            if (_lazyAssembly is null)
-                Interlocked.CompareExchange(ref _lazyAssembly, new SourceAssemblySymbol(this, assemblyName), null);
-
+            GetBoundReferenceManager();
+            Debug.Assert(_lazyAssembly is not null);
             return _lazyAssembly;
+        }
+    }
+
+    internal MetadataReferenceResolver metadataReferenceResolver {
+        get {
+            Debug.Assert(GlobalReferenceResolver is not null);
+            return GlobalReferenceResolver;
         }
     }
 
@@ -139,7 +247,6 @@ public sealed partial class Compilation {
                 var modules = ArrayBuilder<ModuleSymbol>.GetInstance();
                 GetAllUnaliasedModules(modules);
                 builder.AddRange(modules.SelectDistinct(m => m.globalNamespace));
-                builder.AddRange(_referenceManager.GetGlobalNamespaces());
 
                 if (_specialNamespace is not null)
                     builder.Add(_specialNamespace);
@@ -198,6 +305,8 @@ public sealed partial class Compilation {
         }
     }
 
+    internal ImmutableArray<MetadataReference> externalReferences { get; }
+
     internal HandleManager handleManager {
         get {
             if (_lazyHandleManager is null)
@@ -207,7 +316,25 @@ public sealed partial class Compilation {
         }
     }
 
-    internal ReferenceManager referenceManager => _referenceManager;
+    internal TemplateMetadataReader templateMetadataReader => _templateMetadataReader;
+
+    internal ReferenceManager GetBoundReferenceManager() {
+        if (_lazyAssembly is null) {
+            _referenceManager.CreateSourceAssemblyForCompilation(this);
+            Debug.Assert(_lazyAssembly is not null);
+
+            if (_referenceManager.corAssemblyOpt is not null) {
+                // This PE assembly contains WellKnownType definitions that we need
+                var assembly = _referenceManager.corAssemblyOpt;
+                var members = assembly.globalNamespace.GetTypeMembers();
+
+                NamespaceSymbol.RegisterDeclaredCorTypes(this, members);
+                NamespaceSymbol.RegisterDeclaredWellKnownTypes(this, members);
+            }
+        }
+
+        return _referenceManager;
+    }
 
     private ConcurrentDictionary<SyntaxTree, SmallConcurrentSetOfInts> treeToUsedImportDirectivesMap {
         get {
@@ -248,6 +375,12 @@ public sealed partial class Compilation {
 
             return field;
         }
+    }
+
+    internal string MakeSourceModuleName() {
+        return assemblyName is not null
+            ? assemblyName + ".dll"
+            : UnspecifiedModuleAssemblyName;
     }
 
     public SemanticModel GetSemanticModel(SyntaxTree syntaxTree) {
@@ -370,7 +503,17 @@ public sealed partial class Compilation {
     }
 
     internal Compilation AddNamespace(NamespaceSymbol namespaceSymbol) {
-        return new Compilation(assemblyName, options, previous, _syntax, _referenceManager, namespaceSymbol);
+        return new Compilation(
+            assemblyName,
+            options,
+            previous,
+            _syntax,
+            _referenceManager,
+            reuseReferenceManager: true,
+            namespaceSymbol,
+            standardLibraryOpt: standardLibrary,
+            graphicsLibraryOpt: graphicsLibrary
+        );
     }
 
     public bool ContainsSyntaxTree(SyntaxTree syntaxTree) {
@@ -391,6 +534,9 @@ public sealed partial class Compilation {
         var program = boundProgram;
 
         Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
+
+        if (verbose && options.enableOutput)
+            ComputeStatistics();
 
         if (diagnostics.AnyErrors()) {
             rollingResult = EvaluationResult.Failed(diagnostics);
@@ -464,6 +610,9 @@ public sealed partial class Compilation {
 
         Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
 
+        if (verbose && options.enableOutput)
+            ComputeStatistics();
+
         if (diagnostics.AnyErrors())
             return diagnostics;
 
@@ -475,7 +624,7 @@ public sealed partial class Compilation {
         }
 
         if (options.buildMode == BuildMode.Dotnet)
-            ILEmitter.Emit(program, assemblyName, outputPath, diagnostics);
+            ILEmitter.Emit(program, assemblyName, assembly.identity.version, outputPath, diagnostics);
         else if (options.buildMode == BuildMode.CSharpTranspile)
             CSharpEmitter.Emit(program, outputPath, diagnostics);
 
@@ -506,6 +655,9 @@ public sealed partial class Compilation {
         var program = boundProgram;
 
         Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
+
+        if (verbose && options.enableOutput)
+            ComputeStatistics();
 
         if (diagnostics.AnyErrors()) {
             result = null;
@@ -548,9 +700,55 @@ public sealed partial class Compilation {
         if (buildMode == BuildMode.CSharpTranspile)
             return CSharpEmitter.EmitToString(program, programOnly, diagnostics);
         else if (buildMode == BuildMode.Dotnet)
-            return ILEmitter.EmitToString(program, assemblyName, programOnly, diagnostics);
+            return ILEmitter.EmitToString(program, assemblyName, assembly.identity.version, programOnly, diagnostics);
 
         return null;
+    }
+
+    public BelteDiagnosticQueue Emulate(
+        bool verbose = false,
+        bool logTime = false,
+        string verbosePath = null,
+        bool noArtifacts = false) {
+        return Emulate(verbose, logTime, verbosePath, noArtifacts, out _);
+    }
+
+    internal BelteDiagnosticQueue Emulate(
+        bool verbose,
+        bool logTime,
+        string verbosePath,
+        bool noArtifacts,
+        out object result) {
+        var timer = logTime ? Stopwatch.StartNew() : null;
+        var diagnostics = GetDiagnostics()
+            .ApplyTransformations(options.globalDiagnosticOptions, options.localDiagnosticOptions);
+        var program = boundProgram;
+
+        Log(logTime, timer, diagnostics, $"Bound the program in {timer?.ElapsedMilliseconds} ms");
+
+        if (verbose && options.enableOutput)
+            ComputeStatistics();
+
+        if (diagnostics.AnyErrors()) {
+            result = null;
+            return diagnostics;
+        }
+
+        handleManager.SendBeforeEmitMessage();
+
+        if (verbose && options.enableOutput && !noArtifacts) {
+            EmitCFG(verbosePath);
+            EmitBoundProgram(verbosePath);
+        }
+
+        var emulator = new Emulator(program, options.arguments, diagnostics);
+        result = emulator.Emulate(verbose, logTime, verbosePath, noArtifacts);
+
+        if (verbose && options.enableOutput && result is not null)
+            Console.WriteLine(result);
+
+        handleManager.SendFinishedMessage();
+        return diagnostics;
     }
 
     public BelteDiagnosticQueue GetParseDiagnostics() {
@@ -627,12 +825,30 @@ public sealed partial class Compilation {
     }
 
     internal void RegisterDeclaredSpecialType(NamedTypeSymbol type) {
-        // TODO Maybe make the CorLibrary not static?
-        CorLibrary.RegisterDeclaredSpecialType(type);
+        corLibrary.RegisterDeclaredSpecialType(type);
     }
 
     internal void RegisterDeclaredWellKnownType(WellKnownType wellKnownType, NamedTypeSymbol type) {
-        CorLibrary.RegisterDeclaredWellKnownType(wellKnownType, type);
+        corLibrary.RegisterDeclaredWellKnownType(wellKnownType, type);
+    }
+
+    internal bool CanTemplateSpecialize(TypeSymbol type) {
+        if (type.originalDefinition is SourceNamedTypeSymbol)
+            return true;
+
+        return HasTemplateMetadataForType(type);
+    }
+
+    internal bool HasTemplateMetadataForType(TypeSymbol type) {
+        if (options.excludeReadingTemplateMetadata)
+            return false;
+
+        return _templateMetadataReader.HasMetadataForType(type);
+    }
+
+    internal ImmutableDictionary<MethodSymbol, BoundBlockStatement> GetTemplateMethodMetadataForType(TypeSymbol type) {
+        Debug.Assert(HasTemplateMetadataForType(type));
+        return _templateMetadataReader.GetMethodMetadataForType(type);
     }
 
     internal Binder GetBinder(BelteSyntaxNode syntax) {
@@ -693,6 +909,72 @@ public sealed partial class Compilation {
         return _lazyUsedAssemblyReferences.Add(assembly);
     }
 
+    private static ImmutableArray<MetadataReference> MakeExternalReferences(
+        string[] references,
+        BelteDiagnosticQueue diagnostics) {
+        // TODO This logic should probably be moved to Compiler or even BuckleCommandLine
+        // This just shares a resolver for all compilations because we always use the same resolution rules
+        // This also allows caching to prevent recomputing PE assemblies
+        if (GlobalReferenceResolver is null)
+            Interlocked.CompareExchange(ref GlobalReferenceResolver, new FileReferenceResolver(), null);
+
+        if (references.Length == 0)
+            return [];
+
+        var builder = ArrayBuilder<MetadataReference>.GetInstance(references.Length);
+        var uniqueReferences = new HashSet<string>();
+
+        lock (GlobalReferenceResolver) {
+            foreach (var reference in references) {
+                if (IsDuplicateReferenceByString(reference, uniqueReferences, diagnostics))
+                    continue;
+
+                ImmutableArray<PortableExecutableReference> refs;
+
+                try {
+                    refs = GlobalReferenceResolver.ResolveReference(
+                        reference,
+                        baseFilePath: null,
+                        // TODO We only allow assembly references currently
+                        MetadataReferenceProperties.Assembly
+                    );
+                } catch (Exception e) when (e is BadImageFormatException or IOException) {
+                    diagnostics.Push(Error.InvalidReference(reference));
+                    continue;
+                }
+
+                if (refs.IsDefaultOrEmpty) {
+                    diagnostics.Push(Error.InvalidReference(reference));
+                    continue;
+                }
+
+                builder.AddRange(refs);
+            }
+        }
+
+        return builder.ToImmutableAndFree();
+
+        static bool IsDuplicateReferenceByString(
+            string reference,
+            HashSet<string> unique,
+            BelteDiagnosticQueue diagnostics) {
+            if (unique.Contains(reference)) {
+                diagnostics.Push(Warning.DuplicateReference(reference));
+                return true;
+            }
+
+            foreach (var uniqueReference in unique) {
+                if (Path.GetRelativePath(uniqueReference, reference) == ".") {
+                    diagnostics.Push(Warning.DuplicateReference(reference));
+                    return true;
+                }
+            }
+
+            unique.Add(reference);
+            return false;
+        }
+    }
+
     private MethodSymbol FindUpdatePoint(MethodSymbol entryPoint, BelteDiagnosticQueue diagnostics) {
         if (entryPoint is null)
             return null;
@@ -738,16 +1020,119 @@ public sealed partial class Compilation {
         }
     }
 
+    internal void MakeTypeMissing(WellKnownType type) {
+        MakeTypeMissing((int)type);
+    }
+
+    private void MakeTypeMissing(int type) {
+        _lazyMakeWellKnownTypeMissingMap ??= [];
+        _lazyMakeWellKnownTypeMissingMap[type] = true;
+    }
+
+    internal bool IsTypeMissing(WellKnownType type) {
+        return IsTypeMissing((int)type);
+    }
+
+    private bool IsTypeMissing(int type) {
+        return _lazyMakeWellKnownTypeMissingMap is not null && _lazyMakeWellKnownTypeMissingMap.ContainsKey(type);
+    }
+
+    internal NamedTypeSymbol GetSpecialType(SpecialType specialType) {
+        return corLibrary.GetSpecialType(specialType);
+    }
+
+    internal NamedTypeSymbol GetAnyWellKnownType(WellKnownType type) {
+        // This gets the well known type regardless of if it's native or PE
+        // TODO Eventually all native well known types should be obsoleted
+
+        if (type > WellKnownType.LastNativeType)
+            return GetWellKnownType(type);
+
+        return corLibrary.GetWellKnownType(type);
+    }
+
+    internal NamedTypeSymbol GetWellKnownType(WellKnownType type) {
+        Debug.Assert(type > WellKnownType.LastNativeType, "Native well known types should be accessed through a CorLibrary");
+
+        var index = (int)type - (int)WellKnownType.FirstPEType;
+
+        if (_lazyWellKnownTypes is null || _lazyWellKnownTypes[index] is null) {
+            if (_lazyWellKnownTypes is null)
+                Interlocked.CompareExchange(ref _lazyWellKnownTypes, new NamedTypeSymbol[WellKnownTypes.PECount], null);
+
+            var mdName = type.GetMetadataName();
+            var warnings = BelteDiagnosticQueue.GetInstance();
+            NamedTypeSymbol result;
+            (AssemblySymbol, AssemblySymbol) conflicts = default;
+
+            if (IsTypeMissing(type)) {
+                result = null;
+            } else {
+                result = assembly.GetTypeByMetadataName(
+                    mdName,
+                    includeReferences: true,
+                    useCLSCompliantNameArityEncoding: true,
+                    isWellKnownType: true,
+                    conflicts: out conflicts,
+                    warnings: warnings
+                );
+
+                Debug.Assert(result?.IsErrorType() != true);
+            }
+
+            if (result is null) {
+                var emittedName = MetadataTypeName.FromFullName(mdName, useCLSCompliantNameArityEncoding: true);
+                // TODO Err?
+                result = new MissingMetadataTypeSymbol.TopLevel(assembly.modules[0], ref emittedName, type, null);
+            }
+
+            if (Interlocked.CompareExchange(ref _lazyWellKnownTypes[index], result, null) is not null) {
+                Debug.Assert(
+                    TypeSymbol.Equals(result, _lazyWellKnownTypes[index], TypeCompareKind.ConsiderEverything) ||
+                        (_lazyWellKnownTypes[index]!.IsErrorType() && result.IsErrorType())
+                );
+            } else {
+                declarationDiagnostics.PushRange(warnings);
+            }
+
+            warnings.Free();
+        }
+
+        return _lazyWellKnownTypes[index];
+    }
+
+    internal void GetUnaliasedReferencedAssemblies(ArrayBuilder<AssemblySymbol> assemblies) {
+        var referenceManager = GetBoundReferenceManager();
+        var length = referenceManager.referencedAssemblies.Length;
+
+        assemblies.EnsureCapacity(assemblies.Count + length);
+
+        for (var i = 0; i < length; i++) {
+            if (referenceManager.DeclarationsAccessibleWithoutAlias(i))
+                assemblies.Add(referenceManager.referencedAssemblies[i]);
+        }
+
+        // TODO Is this how we want to handle chained submissions?
+        if (options.isScript) {
+            assemblies.Add(previous.assembly);
+            previous.GetUnaliasedReferencedAssemblies(assemblies);
+        }
+    }
+
+    internal bool IsAttributeType(TypeSymbol type) {
+        return IsEqualOrDerivedFromWellKnownClass(type, WellKnownType.System_Attribute);
+    }
+
     internal bool IsEqualOrDerivedFromWellKnownClass(TypeSymbol type, WellKnownType wellKnownType) {
         // TODO We don't use this method to check for exceptions, we create a conversion instead
         // Technically this is correct but unnecessary, we should use this method instead to check
-        Debug.Assert(wellKnownType == WellKnownType.Attribute ||
-                     wellKnownType == WellKnownType.Exception);
+        Debug.Assert(wellKnownType is WellKnownType.System_Attribute or WellKnownType.System_Exception);
+        Debug.Assert(wellKnownType > WellKnownType.LastNativeType);
 
         if (type.kind != SymbolKind.NamedType || type.typeKind != TypeKind.Class)
             return false;
 
-        var wkType = CorLibrary.GetWellKnownType(wellKnownType);
+        var wkType = GetWellKnownType(wellKnownType);
 
         return type.Equals(wkType, TypeCompareKind.ConsiderEverything) ||
             type.IsDerivedFrom(wkType, TypeCompareKind.ConsiderEverything);
@@ -906,7 +1291,7 @@ public sealed partial class Compilation {
         return entryPoint;
     }
 
-    internal static bool HasEntryPointSignature(MethodSymbol method) {
+    internal bool HasEntryPointSignature(MethodSymbol method) {
         if (!method.name.Equals(WellKnownMemberNames.EntryPointMethodName))
             return false;
 
@@ -934,7 +1319,7 @@ public sealed partial class Compilation {
         var firstType = method.parameters[0].type;
 
         if (firstType.specialType != SpecialType.Array) {
-            if (!firstType.originalDefinition.Equals(CorLibrary.GetWellKnownType(WellKnownType.Array)))
+            if (!firstType.originalDefinition.Equals(corLibrary.GetWellKnownType(WellKnownType.Array)))
                 return false;
 
             if (((NamedTypeSymbol)firstType).templateArguments[0].type.type.specialType != SpecialType.String)
@@ -997,8 +1382,20 @@ public sealed partial class Compilation {
     }
 
     private Compilation Update(SyntaxAndDeclarationManager syntax) {
-        var compilation = new Compilation(assemblyName, options, previous, syntax, _referenceManager);
-        compilation.declarationDiagnostics.PushRange(declarationDiagnostics);
+        var compilation = new Compilation(
+            assemblyName,
+            options,
+            previous,
+            syntax,
+            _referenceManager,
+            reuseReferenceManager: true,
+            standardLibraryOpt: standardLibrary,
+            graphicsLibraryOpt: graphicsLibrary
+        );
+
+        if (_lazyDeclarationDiagnostics is not null)
+            compilation.declarationDiagnostics.PushRange(declarationDiagnostics);
+
         return compilation;
     }
 
@@ -1033,6 +1430,104 @@ public sealed partial class Compilation {
         }
     }
 
+    internal static Symbol GetRuntimeMember(
+        ImmutableArray<Symbol> members,
+        in MemberDescriptor descriptor,
+        SignatureComparer<MethodSymbol, FieldSymbol, PropertySymbol, TypeSymbol, ParameterSymbol> comparer,
+        AssemblySymbol accessWithinOpt) {
+        SymbolKind targetSymbolKind;
+        var targetMethodKind = MethodKind.Ordinary;
+        var isStatic = (descriptor.flags & MemberFlags.Static) != 0;
+
+        Symbol result = null;
+
+        switch (descriptor.flags & MemberFlags.KindMask) {
+            case MemberFlags.Constructor:
+                targetSymbolKind = SymbolKind.Method;
+                targetMethodKind = MethodKind.Constructor;
+                Debug.Assert(!isStatic);
+                break;
+            case MemberFlags.Method:
+                targetSymbolKind = SymbolKind.Method;
+                break;
+            case MemberFlags.PropertyGet:
+                throw ExceptionUtilities.UnexpectedValue(descriptor.flags & MemberFlags.KindMask);
+            // targetSymbolKind = SymbolKind.Method;
+            // targetMethodKind = MethodKind.PropertyGet;
+            // break;
+            case MemberFlags.Field:
+                targetSymbolKind = SymbolKind.Field;
+                break;
+            case MemberFlags.Property:
+                throw ExceptionUtilities.UnexpectedValue(descriptor.flags & MemberFlags.KindMask);
+            // targetSymbolKind = SymbolKind.Property;
+            // break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(descriptor.flags);
+        }
+
+        foreach (var member in members) {
+            if (!member.name.Equals(descriptor.name))
+                continue;
+
+            if (member.kind != targetSymbolKind || member.isStatic != isStatic ||
+                !(member.declaredAccessibility == Accessibility.Public ||
+                    (accessWithinOpt is not null && Symbol.IsSymbolAccessible(member, accessWithinOpt)))) {
+                continue;
+            }
+
+            switch (targetSymbolKind) {
+                case SymbolKind.Method: {
+                        var method = (MethodSymbol)member;
+                        var methodKind = method.methodKind;
+
+                        if (methodKind == MethodKind.Conversion || methodKind == MethodKind.Operator)
+                            methodKind = MethodKind.Ordinary;
+
+                        if (method.arity != descriptor.arity || methodKind != targetMethodKind ||
+                            (descriptor.flags & MemberFlags.Virtual) != 0
+                                != (method.isVirtual || method.isOverride || method.isAbstract)) {
+                            continue;
+                        }
+
+                        if (!comparer.MatchMethodSignature(method, descriptor.signature))
+                            continue;
+                    }
+
+                    break;
+                case SymbolKind.Property: {
+                        var property = (PropertySymbol)member;
+
+                        if ((descriptor.flags & MemberFlags.Virtual) != 0
+                            != (property.isVirtual || property.isOverride || property.isAbstract)) {
+                            continue;
+                        }
+
+                        if (!comparer.MatchPropertySignature(property, descriptor.signature))
+                            continue;
+                    }
+
+                    break;
+                case SymbolKind.Field:
+                    if (!comparer.MatchFieldSignature((FieldSymbol)member, descriptor.signature))
+                        continue;
+
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(targetSymbolKind);
+            }
+
+            if (result is not null) {
+                result = null;
+                break;
+            }
+
+            result = member;
+        }
+
+        return result;
+    }
+
     private static Compilation Create(
         string assemblyName,
         CompilationOptions options,
@@ -1043,7 +1538,8 @@ public sealed partial class Compilation {
             options,
             previous,
             new SyntaxAndDeclarationManager([], null),
-            null
+            previous?._referenceManager,
+            reuseReferenceManager: false
         );
 
         if (syntaxTrees is not null)
@@ -1054,6 +1550,13 @@ public sealed partial class Compilation {
 
     private void GetAllUnaliasedModules(ArrayBuilder<ModuleSymbol> builder) {
         builder.AddRange(assembly.modules);
+
+        var referenceManager = GetBoundReferenceManager();
+
+        for (var i = 0; i < referenceManager.referencedAssemblies.Length; i++) {
+            if (referenceManager.DeclarationsAccessibleWithoutAlias(i))
+                builder.AddRange(referenceManager.referencedAssemblies[i].modules);
+        }
     }
 
     private BelteDiagnosticQueue GetDiagnostics(bool includeParse, bool includeDeclaration, bool includeMethods) {
@@ -1076,11 +1579,13 @@ public sealed partial class Compilation {
             assembly.ForceComplete(null);
 
         // ? We include these on parse to collect early #handle diagnostics
-        if (includeDeclaration || includeParse)
+        if (includeDeclaration || includeParse) {
+            builder.PushRange(GetBoundReferenceManager().diagnostics);
             builder.PushRange(declarationDiagnostics);
+        }
 
         if (includeMethods) {
-            EnsureBoundProgramAndMethodDiagnostics();
+            EnsureBoundProgramAndMethodDiagnostics(hasDeclarationErrors: builder.AnyErrors());
             ReportUnusedImports();
             builder.PushRange(methodDiagnostics);
         }
@@ -1113,9 +1618,9 @@ public sealed partial class Compilation {
             usedImports.Contains(position);
     }
 
-    private void EnsureBoundProgramAndMethodDiagnostics() {
+    private void EnsureBoundProgramAndMethodDiagnostics(bool hasDeclarationErrors) {
         if (_lazyBoundProgram is null)
-            CreateBoundProgramAndMethodDiagnostics();
+            CreateBoundProgramAndMethodDiagnostics(hasDeclarationErrors);
     }
 
     internal void ReplaceBoundProgram(BoundProgram program, BelteDiagnosticQueue methodDiagnostics) {
@@ -1143,12 +1648,13 @@ public sealed partial class Compilation {
         handleManager.SendParsedMessage();
     }
 
-    private void CreateBoundProgramAndMethodDiagnostics() {
+    private void CreateBoundProgramAndMethodDiagnostics(bool hasDeclarationErrors) {
         _lazyMethodDiagnostics = new BelteDiagnosticQueue();
         _lazyBoundProgram = MethodCompiler.CompileMethodBodies(
             this,
             _lazyMethodDiagnostics,
-            SkipLibrariesFilter
+            SkipLibrariesFilter,
+            hasDeclarationErrors
         );
 
         handleManager.SendBoundMessage();
@@ -1163,7 +1669,7 @@ public sealed partial class Compilation {
         var cfgStatement = program.entryPoint is null ? null : program.methodBodies[program.entryPoint];
 
         if (cfgStatement is not null) {
-            var cfg = ControlFlowGraph.Create(program.entryPoint, cfgStatement);
+            var cfg = ControlFlowGraph.Create(this, program.entryPoint, cfgStatement);
 
             using var streamWriter = new StreamWriter(cfgPath);
             cfg.WriteTo(streamWriter);
@@ -1171,7 +1677,7 @@ public sealed partial class Compilation {
     }
 
     private void EmitBoundProgram(string path) {
-        const string BoundProgramName = "BoundProgram.g.blt";
+        const string BoundProgramName = "BoundProgram.gblt";
         var boundProgramPath = path is null ? BoundProgramName : Path.Combine(path, BoundProgramName);
 
         var program = boundProgram;
@@ -1179,12 +1685,12 @@ public sealed partial class Compilation {
 
         var displayText = new DisplayText();
 
-        foreach (var type in program.types) {
+        foreach (var type in program.types.Sort(LexicalOrderSymbolComparer.Instance)) {
             if (type.IsFromCompilation(this))
                 CompilationExtensions.EmitTree(type, displayText, program, compact: true);
         }
 
-        foreach (var pair in program.methodBodies) {
+        foreach (var pair in program.methodBodies.OrderBy(pair => pair.Key, LexicalOrderSymbolComparer.Instance)) {
             if (pair.Key.IsFromCompilation(this))
                 CompilationExtensions.EmitTree(pair.Key, displayText, program);
         }
@@ -1216,5 +1722,48 @@ public sealed partial class Compilation {
             diagnostics.Push(new BelteDiagnostic(DiagnosticSeverity.Debug, message));
             timer.Restart();
         }
+    }
+
+    private void ComputeStatistics() {
+        // This is a non-serious list of statistics that the user may care about
+
+        var fileCount = _syntax.syntaxTrees.Length;
+        var lineCount = 0;
+        var filteredLineCount = 0;
+
+        foreach (var tree in _syntax.syntaxTrees) {
+            var text = tree.text;
+            var textLineCount = text.lineCount;
+
+            lineCount += textLineCount;
+
+            for (var i = 0; i < textLineCount; i++) {
+                var line = text.GetLine(i).ToString().Trim();
+
+                if (!string.IsNullOrEmpty(line) && !line.StartsWith("//"))
+                    filteredLineCount++;
+            }
+        }
+
+        var program = boundProgram;
+        var typeCount = program.types.WhereAsArray(t => t is not PENamedTypeSymbol).Length;
+        var methodCount = program.methodBodies.Count;
+
+        var templateInstantiations = 0;
+
+        foreach (var type in program.types) {
+            if (type is SynthesizedTemplateType)
+                templateInstantiations++;
+        }
+
+        Console.WriteLine("Program Statistics:");
+        Console.WriteLine($"    {fileCount} file{(fileCount == 1 ? "" : "s")}, {lineCount} line{(lineCount == 1 ? "" : "s")} of code ({filteredLineCount} excluding blank/comments)");
+        Console.WriteLine($"    {typeCount} type{(typeCount == 1 ? "" : "s")}, {methodCount} method{(methodCount == 1 ? "" : "s")}");
+        Console.WriteLine($"    {templateInstantiations} non-type template instantiation{(templateInstantiations == 1 ? "" : "s")}");
+        Console.WriteLine();
+    }
+
+    private string GetDebuggerDisplay() {
+        return $"{GetType().Name}: [{assemblyName}]";
     }
 }

@@ -28,15 +28,19 @@ internal sealed class TypeCompilationState {
     internal TypeCompilationState(
         NamedTypeSymbol type,
         Compilation compilation,
-        ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder typeLayouts) {
+        ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder typeLayouts,
+        ArrayBuilder<FieldSymbol> fieldsRequiringAssignment) {
         this.type = type;
         this.compilation = compilation;
         this.typeLayouts = typeLayouts;
+        this.fieldsRequiringAssignment = fieldsRequiringAssignment;
     }
 
     internal Compilation compilation { get; }
 
     internal NamedTypeSymbol type { get; }
+
+    internal ArrayBuilder<FieldSymbol> fieldsRequiringAssignment { get; }
 
     internal int nextWrapperMethodIndex => _wrappers is null ? 0 : _wrappers.Count;
 

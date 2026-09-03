@@ -12,6 +12,20 @@ internal static class LookupPosition {
         return IsBeforeToken(position, node, node.body.closeBrace);
     }
 
+    internal static bool IsInAttributeSpecification(
+        int position,
+        SyntaxList<AttributeListSyntax> attributesSyntaxList) {
+        var count = attributesSyntaxList.Count;
+
+        if (count == 0)
+            return false;
+
+        var startToken = attributesSyntaxList[0].openBracket;
+        var endToken = attributesSyntaxList[count - 1].closeBracket;
+
+        return IsBetweenTokens(position, startToken, endToken);
+    }
+
     private static bool IsBeforeToken(int position, BelteSyntaxNode node, SyntaxToken firstExcluded) {
         return IsBeforeToken(position, firstExcluded) && position >= node.span.start;
     }
@@ -28,14 +42,65 @@ internal static class LookupPosition {
         return block is not null && IsBeforeToken(position, block, block.closeBrace);
     }
 
-    internal static bool IsInMethodTemplateParameterScope(int position, MethodDeclarationSyntax node) {
+    internal static bool IsInMethodTemplateParameterScope(int position, BaseMethodDeclarationSyntax node) {
+        if (node.kind == SyntaxKind.MethodDeclaration)
+            return IsInMethodTemplateParameterScope(position, (MethodDeclarationSyntax)node);
+        else if (node.kind == SyntaxKind.ConversionDeclaration)
+            return IsInMethodTemplateParameterScope(position, (ConversionDeclarationSyntax)node);
+        else if (node.kind == SyntaxKind.OperatorDeclaration)
+            return IsInMethodTemplateParameterScope(position, (OperatorDeclarationSyntax)node);
+
+        return false;
+    }
+
+    private static bool IsInMethodTemplateParameterScope(int position, MethodDeclarationSyntax node) {
         if (node.templateParameterList is null)
             return false;
 
         if (node.returnType.fullSpan.Contains(position))
             return true;
 
-        var firstNameToken = node.identifier;
+        var explicitInterfaceSpecifier = node.explicitInterfaceSpecifier;
+        var firstNameToken = explicitInterfaceSpecifier is null
+            ? node.identifier
+            : explicitInterfaceSpecifier.GetFirstToken();
+
+        var firstPostNameToken = node.templateParameterList.openAngleBracket;
+
+        return !IsBetweenTokens(position, firstNameToken, firstPostNameToken);
+    }
+
+    private static bool IsInMethodTemplateParameterScope(int position, ConversionDeclarationSyntax node) {
+        if (node.templateParameterList is null)
+            return false;
+
+        if (node.type.fullSpan.Contains(position))
+            return true;
+
+        var explicitInterfaceSpecifier = node.explicitInterfaceSpecifier;
+        var firstNameToken = explicitInterfaceSpecifier is null
+            ? node.operatorKeyword
+            : explicitInterfaceSpecifier.GetFirstToken();
+
+        var firstPostNameToken = node.templateParameterList.openAngleBracket;
+
+        return !IsBetweenTokens(position, firstNameToken, firstPostNameToken);
+    }
+
+    private static bool IsInMethodTemplateParameterScope(int position, OperatorDeclarationSyntax node) {
+        if (node.templateParameterList is null)
+            return false;
+
+        if (node.operatorToken.fullSpan.Contains(position) ||
+            (node.rightOperatorToken is not null && node.rightOperatorToken.fullSpan.Contains(position))) {
+            return true;
+        }
+
+        var explicitInterfaceSpecifier = node.explicitInterfaceSpecifier;
+        var firstNameToken = explicitInterfaceSpecifier is null
+            ? node.operatorKeyword
+            : explicitInterfaceSpecifier.GetFirstToken();
+
         var firstPostNameToken = node.templateParameterList.openAngleBracket;
 
         return !IsBetweenTokens(position, firstNameToken, firstPostNameToken);

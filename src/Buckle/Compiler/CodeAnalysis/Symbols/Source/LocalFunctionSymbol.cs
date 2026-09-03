@@ -15,8 +15,10 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
     private readonly BelteDiagnosticQueue _declarationDiagnostics;
     private readonly ImmutableArray<SourceMethodTemplateParameterSymbol> _templateParameters;
 
+    private ImmutableArray<ExpressionSyntax> _unboundConstraints;
     private ImmutableArray<ImmutableArray<TypeWithAnnotations>> _lazyTypeParameterConstraintTypes;
     private ImmutableArray<TypeParameterConstraintKinds> _lazyTypeParameterConstraintKinds;
+    private ImmutableArray<BoundExpression> _lazyTemplateConstraints;
     private ImmutableArray<ParameterSymbol> _lazyParameters;
     private TypeWithAnnotations _lazyReturnType;
 
@@ -121,7 +123,7 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
             var syntax = this.syntax;
             var diagnostics = BelteDiagnosticQueue.GetInstance();
 
-            var constraints = this.MakeTypeParameterConstraintTypes(
+            var allConstraints = this.MakeTypeParameterConstraintTypes(
                 withTemplateParametersBinder,
                 templateParameters,
                 syntax.templateParameterList,
@@ -132,11 +134,23 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
             lock (_declarationDiagnostics) {
                 if (_lazyTypeParameterConstraintTypes.IsDefault) {
                     _declarationDiagnostics.PushRange(diagnostics);
-                    _lazyTypeParameterConstraintTypes = constraints;
+                    _lazyTypeParameterConstraintTypes = allConstraints.SelectAsArray(clause => clause.constraintTypes);
                 }
             }
 
             diagnostics.Free();
+
+            var constraintsBuilder = ArrayBuilder<ExpressionSyntax>.GetInstance();
+
+            foreach (var constraint in allConstraints) {
+                if ((constraint.constraints & TypeParameterConstraintKinds.Expression) != 0)
+                    constraintsBuilder.Add(constraint.expression);
+            }
+
+            ImmutableInterlocked.InterlockedInitialize(
+                ref _unboundConstraints,
+                constraintsBuilder.ToImmutableAndFree()
+            );
         }
 
         return _lazyTypeParameterConstraintTypes;
@@ -158,8 +172,46 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
         return _lazyTypeParameterConstraintKinds;
     }
 
+    internal override ImmutableArray<BoundExpression> GetTemplateConstraints() {
+        if (_lazyTemplateConstraints.IsDefault) {
+            _ = GetTypeParameterConstraintTypes();
+
+            if (_unboundConstraints.IsDefault || _unboundConstraints.Length == 0) {
+                ImmutableInterlocked.InterlockedInitialize(ref _lazyTemplateConstraints, []);
+            } else {
+                var binderFactory = declaringCompilation.GetBinderFactory(syntaxReference.syntaxTree);
+                var binder = binderFactory.GetBinder(_unboundConstraints[0]);
+                binder = binder.WithAdditionalFlags(
+                    BinderFlags.TemplateConstraintsClause | BinderFlags.SuppressConstraintChecks
+                );
+
+                var diagnostics = BelteDiagnosticQueue.GetInstance();
+                var constraints = binder.BindExpressionConstraints(_unboundConstraints, templateParameters, diagnostics);
+
+                if (ImmutableInterlocked.InterlockedInitialize(
+                    ref _lazyTemplateConstraints,
+                    constraints)) {
+                    AddDeclarationDiagnostics(diagnostics);
+                }
+
+                diagnostics.Free();
+            }
+        }
+
+        return _lazyTemplateConstraints;
+    }
+
     internal override OneOrMany<SyntaxList<AttributeListSyntax>> GetAttributeDeclarations() {
         return OneOrMany.Create(syntax.attributeLists);
+    }
+
+    private protected override BehaviorSpecifierInfo MakeSpecifierInfo(BelteDiagnosticQueue diagnostics) {
+        var specifiers = MakeBehaviorSpecifiers(diagnostics, MethodKind.LocalFunction);
+
+        if (specifiers == BehaviorSpecifiers.None)
+            return BehaviorSpecifierInfo.Default;
+
+        return new BehaviorSpecifierInfo(specifiers);
     }
 
     internal override bool IsMetadataVirtual(bool forceComplete = false) => false;
@@ -180,7 +232,11 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
         GetAttributes();
         GetReturnTypeAttributes();
 
+        _ = isPure;
+
         addTo.PushRange(_declarationDiagnostics);
+
+        TemplateChecks(addTo);
     }
 
     internal void ComputeReturnType() {
@@ -252,7 +308,7 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
             this,
             syntax.parameterList.parameters,
             diagnostics,
-            allowRef: true,
+            allowRef: !isPure,
             addRefConstModifier: false,
             allowConst: true
         ).Cast<SourceParameterSymbol, ParameterSymbol>();
@@ -320,5 +376,14 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
 
     internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
         throw ExceptionUtilities.Unreachable();
+    }
+
+    private void TemplateChecks(BelteDiagnosticQueue diagnostics) {
+        foreach (var templateParameter in templateParameters) {
+            if (templateParameter.underlyingType.specialType != SpecialType.Type) {
+                diagnostics.Push(Error.Unsupported.NonTypeTemplateFunction(templateParameter.location));
+                break;
+            }
+        }
     }
 }

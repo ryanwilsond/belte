@@ -1,3 +1,4 @@
+using Belte.Graphics;
 
 class Snake {
     private Sprite _sprite;

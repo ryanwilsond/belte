@@ -12,20 +12,21 @@
     - [3.1.6.1](#3161-user-defined-deconstruction) User-Defined Deconstruction
 - [3.2](#32-operators) Operators
   - [3.2.1](#321-operator-precedence) Operator Precedence
-  - [3.2.2](#322-uncommon-operators) Uncommon Operators
+  - [3.2.2](#322-nullability-operators) Nullability Operators
     - [3.2.2.1](#3221-x) `x!`
     - [3.2.2.2](#3222-x) `x?`
     - [3.2.2.3](#3223-ai) `a?[i]`
     - [3.2.2.4](#3224-xy) `x?.y`
     - [3.2.2.5](#3225-x--y) `x ?? y`
     - [3.2.2.6](#3226-x--y) `x ?! y`
-    - [3.2.2.7](#3227-xy) `x..y`
-    - [3.2.2.8](#3228-xy) `x?..y`
-    - [3.2.2.9](#3229-x) `x!!`
-    - [3.2.2.10](#32210-x--y) `x /\ y`
-    - [3.2.2.11](#32211-x--y) `x \/ y`
-    - [3.2.2.12](#32212-x--y-z) `x >< [y, z]`
+    - [3.2.2.7](#3227-x) `x!!`
   - [3.2.3](#323-isisntas-operators) Is/Isnt/As Operators
+  - [3.2.4](#324-uncommon-operators) Uncommon Operators
+    - [3.2.4.1](#3241-xy) `x..y`
+    - [3.2.4.2](#3242-xy) `x?..y`
+    - [3.2.4.3](#3243-x--y) `x /\ y`
+    - [3.2.4.4](#3244-x--y) `x \/ y`
+    - [3.2.4.5](#3245-x--y-z) `x >< [y, z]`
 - [3.3](#33-data-containers) Data Containers
   - [3.3.1](#331-modifiers) Modifiers
   - [3.3.2](#332-implicit-typing) Implicit Typing
@@ -34,7 +35,7 @@
 - [3.6](#36-arrays) Arrays
 - [3.7](#37-compile-time-expressions) Compile-Time Expressions
   - [3.7.1](#371-examples) Examples
-  - [3.7.2](#372-side-effects) Side Effects
+  - [3.7.2](#372-conditional-compile-time-expressions) Conditional Compile-Time Expressions
 
 ## 3.1 Data Types
 
@@ -417,12 +418,12 @@ strict order of precedence:
 | x && y | Conditional AND |
 | x \|\| y | Conditional OR |
 | x ?? y, x ?! y | Null-Coalescing |
-| c ? t : f, x >< \[y, z] | Tertiary Conditional and Clamp |
+| c ? t : f, x >< \[y, z\] | Tertiary Conditional and Clamp |
 
 Note that all binary operators are left-associative except for the power operator. For example `2 + 3 + 4` will parse as
 `(2 + 3) + 4` while `2 ** 3 ** 4` will parse as `2 ** (3 ** 4)`.
 
-### 3.2.2 Uncommon Operators
+### 3.2.2 Nullability Operators
 
 #### 3.2.2.1 `x!`
 
@@ -451,7 +452,7 @@ This operator is syntax sugar for `x is null ? null : x!.y`.
 `x ?? y` is a null coalescing expression. If `x` is null, `y` is the result. Otherwise `x` is the result. `y` will not
 execute if `x` is not null.
 
-This operator is syntax sugar for `x is null ? y : null`.
+This operator is syntax sugar for `x is null ? y : x`.
 
 #### 3.2.2.6 `x ?! y`
 
@@ -460,57 +461,19 @@ execute if `x` is null.
 
 This operator is syntax sugar for `x is null ? null : y`.
 
-#### 3.2.2.7 `x..y`
+#### 3.2.2.7 `x!!`
 
-`x..y` is a cascade expression. Each cascade performs a field assignment or call on the receiver `x` but the result is
-discarded.
-
-For example:
-
-```belte
-var a = new Obj()..M()..f=3;
-```
-
-The above example is equivalent to:
-
-```belte
-var temp = new Obj();
-temp.M();
-temp.f = 3;
-var a = temp;
-```
-
-Notice that even if `Obj.M()` returns a value, it is ignored.
-
-#### 3.2.2.8 `x?..y`
-
-`x?..y` is a conditional cascade expression. The field assignment or call expression `y` is only performed if `x` is not
-null.
-
-#### 3.2.2.9 `x!!`
-
-`x!!` is a silent null assertion. It converts a nullable `x` into a non-nullable one. `x` must be nullable. The
-operator's result is non-nullable. If `x` is null, a runtime null reference exception is thrown if building in
-debug mode. If in release mode, no runtime check is performed at the assertion site explicitly, meaning exceptions will
-raise elsewhere if the value is null.
+`x!!` is a silent null assertion. This operator is meant for advanced use. It converts a nullable `x` into a
+non-nullable one. `x` must be nullable. The operator's result is non-nullable. If `x` is null, a runtime null reference
+exception is thrown if building in debug mode. If in release mode, no runtime check is performed at the assertion site
+explicitly, meaning exceptions will raise elsewhere if the value is null. This makes it semantically different than
+[`x!`](#3221-x) beyond performance.
 
 In the case that the operand has a class type, using this operator when the operand is null risks polluting a
 non-nullable context with null.
 
 This operator is intended to be used when certain the operand is not null and thus the overhead of checking again is
 unnecessary.
-
-#### 3.2.2.10 `x /\ y`
-
-`x /\ y` is equivalent to `Math.Min(x, y)`.
-
-#### 3.2.2.11 `x \/ y`
-
-`x \/ y` is equivalent to `Math.Max(x, y)`.
-
-#### 3.2.2.12 `x >< [y, z]`
-
-`x >< [y, z]` is equivalent to `Math.Clamp(x, y, z)`.
 
 ### 3.2.3 Is/Isnt/As Operators
 
@@ -559,6 +522,53 @@ if (a is int t) {
   int b = t + 3;
 }
 ```
+
+### 3.2.4 Uncommon Operators
+
+#### 3.2.4.1 `x..y`
+
+`x..y` is a cascade expression. Each cascade performs a field assignment or call on the receiver `x` but the result is
+discarded.
+
+For example:
+
+```belte
+var a = new Obj()..M()..f=3;
+```
+
+The above example is equivalent to:
+
+```belte
+var temp = new Obj();
+temp.M();
+temp.f = 3;
+var a = temp;
+```
+
+Notice that even if `Obj.M()` returns a value, it is ignored.
+
+#### 3.2.4.2 `x?..y`
+
+`x?..y` is a conditional cascade expression. The field assignment or call expression `y` is only performed if `x` is not
+null.
+
+#### 3.2.4.3 `x /\ y`
+
+`x /\ y` is equivalent to `Math.Min(x, y)`.
+
+The min operator has the same precedence as the relational operators (e.g. `x < y`).
+
+#### 3.2.4.4 `x \/ y`
+
+`x \/ y` is equivalent to `Math.Max(x, y)`.
+
+The min operator has the same precedence as the relational operators (e.g. `x < y`).
+
+#### 3.2.4.5 `x >< [y, z]`
+
+`x >< [y, z]` is equivalent to `Math.Clamp(x, y, z)`.
+
+The clamp operator has the same operator precedence as the ternary conditional operator.
 
 ## 3.3 Data Containers
 
@@ -642,6 +652,18 @@ a.f = 4; // Invalid, cannot modify data
 class A {
   int f;
 }
+```
+
+Critically: "const-ness" is only enforced through the particular receiver. In other words, it is "shallow". This means
+that if multiple locals point to the same object in memory, a variable one can mutate it causing changes in constant
+locals.
+
+```belte
+var a = new List<int>();
+const b = a;
+
+a.Add(10);
+// b is changed even though it is marked `const`
 ```
 
 Constants cannot be passed as arguments to [parameters not marked `const`](ControlFlow.md#212-const-parameters) unless
@@ -909,17 +931,11 @@ In certain contexts, a [`Buffer<T>` may be preferable](LowLevelFeatures.md#63-ar
 
 ## 3.7 Compile-Time Expressions
 
-To evaluate an expression at compile-time, you can precede it with `$` or `$?`. The `$` operator tells the compiler to
-evaluate the expression at compile time. The `$?` operator tells the compiler to try and evaluate the expression at
-compile time, and if it cannot be evaluated ignore the failure and compile the expression as normal.
+To evaluate an expression at compile-time, you can precede it with `$`. The `$` operator tells the compiler to
+evaluate the expression at compile time.
 
 Not all expressions are able to be evaluated at compile time. If the type of the expression is an object, pointer, or
 function pointer, the compiler does not attempt to evaluate the expression.
-
-If the expression has a valid result type, the compiler does attempt to evaluate it, but still may not be able to do so.
-If the result of the expression contains an object, pointer, or function pointer (such as a struct field), the
-expression fails to fully evaluate. If the expression throws an uncaught exception, the expression fails to fully
-evaluate. In both of these cases, consider potential [side effects](#372-side-effects).
 
 For more complex compile-time execution/meta-programming consider using
 [compiler handles](LowLevelFeatures.md#613-compiler-handle).
@@ -966,7 +982,15 @@ class MyClass {
 In the above example, the expression cannot be computed at compile-time because it references local `myClass` which is
 defined outside of the scope of the compile-time expression.
 
-If you want to ignore any compile-time evaluation errors and continue you can use `$?`:
+### 3.7.2 Conditional Compile-Time Expressions
+
+The `$?` operator tells the compiler to try and evaluate the expression at compile time, and if it cannot be evaluated
+ignore the failure and compile the expression as normal.
+
+If the expression has a valid result type, the compiler does attempt to evaluate it, but still may not be able to do so.
+If the result of the expression contains an object, pointer, or function pointer (such as a struct field), the
+expression fails to fully evaluate. If the expression throws an uncaught exception, the expression fails to fully
+evaluate. In both of these cases, consider potential side effects
 
 ```belte
 var myClass = new MyClass();
@@ -983,8 +1007,6 @@ class MyClass {
 
 The above example will not replace the `myInt` declaration with anything and will retain its original initializer of
 `myClass.GetF()` because the compile-time evaluation failed.
-
-### 3.7.2 Side Effects
 
 Because whether or not an expression is evaluatable at compile time cannot always be predetermined, it is important to
 note that there may be side effects to expressions marked to evaluate even if the expression fails, such as file IO.

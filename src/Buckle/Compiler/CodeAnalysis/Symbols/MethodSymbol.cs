@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
@@ -57,7 +58,7 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
     internal abstract bool isDeclaredConst { get; }
 
     // TODO This will also check if the containing type is const when const structs are added (if they are added)
-    internal virtual bool isEffectivelyConst => isDeclaredConst || isStatic;
+    internal virtual bool isEffectivelyConst => isDeclaredConst || isStatic || isPure;
 
     internal virtual int parameterCount => parameters.Length;
 
@@ -89,11 +90,21 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
 
     internal virtual MethodSymbol stateMethod => null;
 
+    internal virtual bool isPure => false;
+
+    internal virtual bool shouldMemoizeIfPure => false;
+
+    internal virtual bool isNoThrow => false;
+
+    internal virtual bool isNoAlloc => false;
+
     internal virtual ImmutableArray<FieldSymbol> initFields => [];
 
     internal virtual bool isExplicitInterfaceImplementation => explicitInterfaceImplementations.Any();
 
     internal abstract ImmutableArray<MethodSymbol> explicitInterfaceImplementations { get; }
+
+    internal virtual bool hasRuntimeSpecialName => methodKind is MethodKind.Constructor or MethodKind.StaticConstructor;
 
     internal ImmutableArray<TypeWithAnnotations> parameterTypesWithAnnotations {
         get {
@@ -151,9 +162,53 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
     internal virtual bool isMetadataFinal
         => isSealed || (IsMetadataVirtual() && !(isVirtual || isOverride || isAbstract));
 
+    internal bool isConditional {
+        get {
+            if (GetAppliedConditionalSymbols().Any())
+                return true;
+
+            if (isOverride) {
+                var overriddenMethod = this.overriddenMethod;
+
+                if (overriddenMethod is not null)
+                    return overriddenMethod.isConditional;
+            }
+
+            return false;
+        }
+    }
+
+    internal virtual bool CallsAreOmitted(SyntaxTree syntaxTree) {
+        return syntaxTree is not null && CallsAreConditionallyOmitted(syntaxTree);
+    }
+
+    private bool CallsAreConditionallyOmitted(SyntaxTree syntaxTree) {
+        if (isConditional) {
+            var conditionalSymbols = GetAppliedConditionalSymbols();
+            // Purposely != null
+            Debug.Assert(conditionalSymbols != null);
+
+            if (syntaxTree.IsAnyPreprocessorSymbolDefined(conditionalSymbols))
+                return false;
+
+            if (isOverride) {
+                var overriddenMethod = this.overriddenMethod;
+
+                if (overriddenMethod is not null && overriddenMethod.isConditional)
+                    return overriddenMethod.CallsAreConditionallyOmitted(syntaxTree);
+            }
+
+            return true;
+        } else {
+            return false;
+        }
+    }
+
     internal virtual ImmutableArray<AttributeData> GetReturnTypeAttributes() {
         return [];
     }
+
+    internal abstract ImmutableArray<string> GetAppliedConditionalSymbols();
 
     internal override void Accept(SymbolVisitor visitor) {
         visitor.VisitMethod(this);

@@ -19,4 +19,5 @@ internal enum LookupOptions : int {
     NamespaceAliasesOnly = 1 << 12,
     AttributeTypeOnly = (1 << 13) | NamespacesOrTypesOnly,
     VerbatimNameAttributeTypeOnly = (1 << 14) | AttributeTypeOnly,
+    MustBeOperator = 1 << 15,
 }

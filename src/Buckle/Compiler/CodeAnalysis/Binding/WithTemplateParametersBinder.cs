@@ -9,7 +9,8 @@ internal abstract class WithTemplateParametersBinder : Binder {
 
     private protected abstract Dictionary<string, List<TemplateParameterSymbol>> _templateParameterMap { get; }
 
-    private protected virtual LookupOptions _lookupMask => LookupOptions.MustBeInvocableIfMember;
+    private protected virtual LookupOptions _lookupMask
+        => LookupOptions.NamespaceAliasesOnly | LookupOptions.MustBeInvocableIfMember;
 
     internal override void LookupSymbolsInSingleBinder(
         LookupResult result,

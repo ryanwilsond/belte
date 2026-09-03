@@ -62,13 +62,22 @@ public sealed class LexerTests {
         untestedTokenTypes.Remove(SyntaxKind.OperatorKeyword);
         untestedTokenTypes.Remove(SyntaxKind.LiteralKeyword);
         untestedTokenTypes.Remove(SyntaxKind.ExtendedLiteralToken);
+        untestedTokenTypes.Remove(SyntaxKind.FieldKeyword);
         untestedTokenTypes.Remove(SyntaxKind.FlagsKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.GetKeyword);
         untestedTokenTypes.Remove(SyntaxKind.HandleKeyword);
         untestedTokenTypes.Remove(SyntaxKind.HasKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.MemoizeKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.NoallocKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.NothrowKeyword);
         untestedTokenTypes.Remove(SyntaxKind.NotnullKeyword);
         untestedTokenTypes.Remove(SyntaxKind.NoVerifyKeyword);
         untestedTokenTypes.Remove(SyntaxKind.PackedKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.PropertyKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.PureKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.SetKeyword);
         untestedTokenTypes.Remove(SyntaxKind.StateKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.TemplateKeyword);
         untestedTokenTypes.Remove(SyntaxKind.UndefKeyword);
         untestedTokenTypes.ExceptWith(testedTokenTypes);
 

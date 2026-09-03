@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
-using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -28,7 +27,7 @@ internal class SynthesizedInstanceConstructorSymbol : SynthesizedInstanceMethodS
     public override int arity => 0;
 
     internal override TypeWithAnnotations returnTypeWithAnnotations
-        => new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void));
+        => new TypeWithAnnotations(containingAssembly.corLibrary.GetSpecialType(SpecialType.Void));
 
     internal override ImmutableArray<ParameterSymbol> parameters => [];
 
@@ -61,7 +60,7 @@ internal class SynthesizedInstanceConstructorSymbol : SynthesizedInstanceMethodS
 
     internal override SyntaxReference syntaxReference => null;
 
-    internal override TextLocation location => null;
+    internal override TextLocation location => containingType.location;
 
     internal override bool isImplicitlyDeclared => true;
 
@@ -90,5 +89,9 @@ internal class SynthesizedInstanceConstructorSymbol : SynthesizedInstanceMethodS
     internal sealed override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
         var containingType = (SourceMemberContainerTypeSymbol)this.containingType;
         return containingType.CalculateSyntaxOffsetInSynthesizedConstructor(localPosition, localTree, false);
+    }
+
+    internal sealed override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        return [];
     }
 }

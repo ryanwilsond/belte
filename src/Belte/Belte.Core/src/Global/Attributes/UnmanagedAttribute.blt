@@ -1,0 +1,5 @@
+
+[System.AttributeUsage(System.AttributeTargets.Method)]
+public sealed class UnmanagedAttribute extends System.Attribute {
+    public constructor() { }
+}

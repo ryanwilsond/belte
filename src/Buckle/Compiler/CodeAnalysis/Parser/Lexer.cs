@@ -1160,7 +1160,7 @@ internal sealed partial class Lexer : IDisposable {
 
             if (failed) {
                 AddDiagnostic(
-                    Error.InvalidType(numericText, CorLibrary.GetSpecialType(SpecialType.Int)),
+                    Error.InvalidType(numericText, CorLibrary.Instance.GetSpecialType(SpecialType.Int)),
                     _start,
                     length
                 );
@@ -1170,7 +1170,7 @@ internal sealed partial class Lexer : IDisposable {
         } else {
             if (!double.TryParse(parsedText, out var value)) {
                 AddDiagnostic(
-                    Error.InvalidType(numericText, CorLibrary.GetSpecialType(SpecialType.Decimal)),
+                    Error.InvalidType(numericText, CorLibrary.Instance.GetSpecialType(SpecialType.Decimal)),
                     _start,
                     length
                 );

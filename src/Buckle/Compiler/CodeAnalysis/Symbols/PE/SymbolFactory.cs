@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -19,6 +18,7 @@ internal sealed class SymbolFactory : SymbolFactory<PEModuleSymbol, TypeSymbol> 
             return elementType;
 
         return ArrayTypeSymbol.CreateMDArray(
+            moduleSymbol.containingAssembly,
             CreateType(elementType, customModifiers),
             rank,
             sizes,
@@ -27,7 +27,7 @@ internal sealed class SymbolFactory : SymbolFactory<PEModuleSymbol, TypeSymbol> 
     }
 
     internal override TypeSymbol GetSpecialType(PEModuleSymbol moduleSymbol, SpecialType specialType) {
-        return CorLibrary.GetSpecialType(specialType);
+        return moduleSymbol.containingAssembly.corLibrary.GetSpecialType(specialType);
     }
 
     internal override TypeSymbol GetSZArrayTypeSymbol(
@@ -37,7 +37,7 @@ internal sealed class SymbolFactory : SymbolFactory<PEModuleSymbol, TypeSymbol> 
         if (elementType is UnsupportedMetadataTypeSymbol)
             return elementType;
 
-        return ArrayTypeSymbol.CreateSZArray(CreateType(elementType, customModifiers));
+        return ArrayTypeSymbol.CreateSZArray(moduleSymbol.containingAssembly, CreateType(elementType, customModifiers));
     }
 
     internal override TypeSymbol GetUnsupportedMetadataTypeSymbol(
@@ -80,7 +80,7 @@ internal sealed class SymbolFactory : SymbolFactory<PEModuleSymbol, TypeSymbol> 
             }
         }
 
-        var typeParameters = genericType.GetAllTypeParameters();
+        var typeParameters = genericType.GetAllTemplateParameters();
 
         if (typeParameters.Length != arguments.Length)
             return new UnsupportedMetadataTypeSymbol();
@@ -123,5 +123,13 @@ internal sealed class SymbolFactory : SymbolFactory<PEModuleSymbol, TypeSymbol> 
             return type;
 
         return new PointerTypeSymbol(CreateType(type, customModifiers));
+    }
+
+    internal override TypeSymbol GetSystemTypeSymbol(PEModuleSymbol moduleSymbol) {
+        return moduleSymbol.systemTypeSymbol;
+    }
+
+    internal override TypeSymbol GetEnumUnderlyingType(PEModuleSymbol moduleSymbol, TypeSymbol type) {
+        return type.GetEnumUnderlyingType();
     }
 }

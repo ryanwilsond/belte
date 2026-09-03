@@ -1,13 +1,13 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -293,6 +293,39 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
         return typeKind == TypeKind.Struct;
     }
 
+    internal bool IsPointerType() {
+        return this is PointerTypeSymbol;
+    }
+
+    internal bool TryGetElementTypesWithAnnotationsIfTupleType(out ImmutableArray<TypeOrConstant> elementTypes) {
+        if (isTupleType) {
+            elementTypes = ((NamedTypeSymbol)this).tupleElementTypes;
+            return true;
+        }
+
+        elementTypes = default;
+        return false;
+    }
+
+    internal TypeSymbol GetFunctionOrFunctionPointerType() {
+        return (TypeSymbol)(this as FunctionTypeSymbol) ?? (this as FunctionPointerTypeSymbol);
+    }
+
+    internal bool IsFunctionOrFunctionPointer() {
+        return this is FunctionTypeSymbol or FunctionPointerTypeSymbol;
+    }
+
+    internal ImmutableArray<ParameterSymbol> FunctionOrFunctionPointerParameters() {
+        Debug.Assert(this is FunctionPointerTypeSymbol or FunctionTypeSymbol);
+
+        if (this is FunctionPointerTypeSymbol { signature.parameters: var functionPointerParameters })
+            return functionPointerParameters;
+        else if (this is FunctionTypeSymbol { signature.parameters: var functionParameters })
+            return functionParameters;
+
+        throw ExceptionUtilities.Unreachable();
+    }
+
     internal bool IsTupleTypeOfCardinality(int targetCardinality) {
         if (isTupleType)
             return tupleElementTypes.Length == targetCardinality;
@@ -325,7 +358,8 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
         byte defaultTransformFlag,
         ImmutableArray<byte> transforms,
         ref int position,
-        out TypeSymbol result);
+        out TypeSymbol result,
+        bool isBelteMode);
 
     internal TypeSymbol UnderlyingTemplateTypeOrSelf() {
         if (kind != SymbolKind.TemplateParameter)
@@ -342,7 +376,17 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
     internal bool ContainsErrorType() {
         var result = VisitType(
             (type, unused1, unused2) => type.IsErrorType(),
-            (object?)null,
+            (object)null,
+            canDigThroughNullable: true
+        );
+
+        return result is not null;
+    }
+
+    internal bool ContainsPointerType() {
+        var result = VisitType(
+            (type, unused1, unused2) => type.IsPointerOrFunctionPointer(),
+            (object)null,
             canDigThroughNullable: true
         );
 
@@ -362,19 +406,38 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
     }
 
     internal bool IsAtLeastAsVisibleAs(Symbol symbol) {
-        return typeKind switch {
-            TypeKind.Class or TypeKind.Struct or TypeKind.Interface => symbol.declaredAccessibility switch {
-                Accessibility.Public => declaredAccessibility is Accessibility.Public or Accessibility.NotApplicable,
-                Accessibility.Protected => declaredAccessibility is
-                    Accessibility.Public or Accessibility.Protected or Accessibility.NotApplicable,
-                _ => true,
-            },
-            _ => true,
-        };
+        return FindTypeLessVisibleThan(symbol) is null;
+    }
+
+    internal TypeSymbol FindTypeLessVisibleThan(Symbol symbol) {
+        var result = VisitType(
+            static (type1, arg, _) => IsTypeLessVisibleThan(type1, arg),
+            arg: symbol,
+            canDigThroughNullable: true
+        );
+
+        return result;
+    }
+
+    private static bool IsTypeLessVisibleThan(TypeSymbol type, Symbol symbol) {
+        switch (type.typeKind) {
+            case TypeKind.Class:
+            case TypeKind.Struct:
+            case TypeKind.Interface:
+            case TypeKind.Enum:
+                return !((NamedTypeSymbol)type).IsAsRestrictive(symbol);
+            default:
+                return false;
+        }
+    }
+
+    internal bool IsValidAttributeParameterType(Compilation compilation) {
+        return this.GetAttributeParameterTypedConstantKind(compilation) != TypedConstantKind.Error;
     }
 
     internal TypeSymbol GetNextBaseType(
         ConsList<TypeSymbol> basesBeingResolved,
+        Compilation compilation,
         ref PooledHashSet<NamedTypeSymbol> visited) {
         switch (typeKind) {
             case TypeKind.TemplateParameter:
@@ -383,7 +446,7 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
             case TypeKind.Struct:
             case TypeKind.Error:
             case TypeKind.Interface:
-                return GetNextDeclaredBase((NamedTypeSymbol)this, basesBeingResolved, ref visited);
+                return GetNextDeclaredBase((NamedTypeSymbol)this, basesBeingResolved, compilation, ref visited);
             case TypeKind.Array:
             case TypeKind.Enum:
             case TypeKind.Primitive:
@@ -1216,6 +1279,7 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
 
     internal bool InheritsFromIgnoringConstruction(
         NamedTypeSymbol baseType,
+        Compilation compilation,
         ConsList<TypeSymbol> basesBeingResolved = null) {
         PooledHashSet<NamedTypeSymbol> interfacesLookedAt = null;
         ArrayBuilder<NamedTypeSymbol> baseInterfaces = null;
@@ -1241,7 +1305,7 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
             if (baseTypeIsInterface)
                 GetBaseInterfaces(current, baseInterfaces, interfacesLookedAt, basesBeingResolved);
 
-            var next = current.GetNextBaseType(basesBeingResolved, ref visited);
+            var next = current.GetNextBaseType(basesBeingResolved, compilation, ref visited);
 
             if (next is null)
                 current = null;
@@ -1305,6 +1369,7 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
     private static TypeSymbol GetNextDeclaredBase(
         NamedTypeSymbol type,
         ConsList<TypeSymbol> basesBeingResolved,
+        Compilation compilation,
         ref PooledHashSet<NamedTypeSymbol> visited) {
         if (basesBeingResolved is not null && basesBeingResolved.ContainsReference(type.originalDefinition))
             return null;
@@ -1318,7 +1383,7 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
 
         if (nextType is null) {
             SetKnownToHaveNoDeclaredBaseCycles(ref visited);
-            return GetDefaultBaseOrNull(type);
+            return GetDefaultBaseOrNull(type, compilation);
         }
 
         var origType = type.originalDefinition;
@@ -1330,7 +1395,7 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
             visited.Add(origType);
 
             if (visited.Contains(nextType.originalDefinition))
-                return GetDefaultBaseOrNull(type);
+                return GetDefaultBaseOrNull(type, compilation);
         }
 
         return nextType;
@@ -1346,15 +1411,15 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
         }
     }
 
-    private static NamedTypeSymbol GetDefaultBaseOrNull(NamedTypeSymbol type) {
+    private static NamedTypeSymbol GetDefaultBaseOrNull(NamedTypeSymbol type, Compilation compilation) {
         switch (type.typeKind) {
             case TypeKind.Class:
             case TypeKind.Error:
-                return CorLibrary.GetSpecialType(SpecialType.Object);
+                return compilation.GetSpecialType(SpecialType.Object);
             case TypeKind.Interface:
                 return null;
             case TypeKind.Struct:
-                return CorLibrary.GetSpecialType(SpecialType.ValueType);
+                return compilation.GetSpecialType(SpecialType.ValueType);
             default:
                 throw ExceptionUtilities.UnexpectedValue(type.typeKind);
         }
@@ -1388,6 +1453,41 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
         }
 
         return abstractMembers;
+    }
+
+    internal bool IsWellKnownTypeUnmanagedType() => IsWellKnownInteropServicesTopLevelType("UnmanagedType");
+
+    private bool IsWellKnownInteropServicesTopLevelType(string name) {
+        if (this.name != name || containingType is not null)
+            return false;
+
+        return IsContainedInNamespace("System", "Runtime", "InteropServices");
+    }
+
+    private bool IsContainedInNamespace(string outerNS, string midNS, string innerNS = null) {
+        NamespaceSymbol midNamespace;
+
+        if (innerNS is not null) {
+            var innerNamespace = containingNamespace;
+
+            if (innerNamespace?.name != innerNS)
+                return false;
+
+            midNamespace = innerNamespace.containingNamespace;
+        } else {
+            midNamespace = containingNamespace;
+        }
+
+        if (midNamespace?.name != midNS)
+            return false;
+
+        var outerNamespace = midNamespace.containingNamespace;
+
+        if (outerNamespace?.name != outerNS)
+            return false;
+
+        var globalNamespace = outerNamespace.containingNamespace;
+        return globalNamespace is not null && globalNamespace.isGlobalNamespace;
     }
 
     internal virtual bool Equals(TypeSymbol other, TypeCompareKind compareKind) {

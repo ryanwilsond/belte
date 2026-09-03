@@ -1,0 +1,101 @@
+using System.Collections.Immutable;
+using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
+
+namespace Buckle.CodeAnalysis.Lowering;
+
+internal sealed class SynthesizedTemplateTypeMethod : WrappedMethodSymbol {
+    private readonly SynthesizedTemplateType _containingType;
+    private readonly TypeWithAnnotations _returnType;
+    private readonly ImmutableArray<ParameterSymbol> _parameters;
+
+    private int _hashCode;
+
+    internal SynthesizedTemplateTypeMethod(
+        TemplateExpander templateExpander,
+        SynthesizedTemplateType newOwner,
+        MethodSymbol method)
+        : base(method) {
+        _containingType = newOwner;
+        _returnType = templateExpander.SubstituteType(
+            method.returnTypeWithAnnotations,
+            newOwner,
+            method,
+            method.location
+        );
+
+        var builder = ArrayBuilder<ParameterSymbol>.GetInstance(method.parameterCount);
+
+        foreach (var parameter in method.parameters) {
+            var newType = templateExpander.SubstituteType(
+                parameter.typeWithAnnotations,
+                newOwner,
+                parameter,
+                parameter.location
+            );
+
+            builder.Add(new TypeSubstitutedParameterSymbol(parameter, newType));
+        }
+
+        _parameters = builder.ToImmutableAndFree();
+    }
+
+    internal override Symbol containingSymbol => _containingType;
+
+    public override ImmutableArray<TemplateParameterSymbol> templateParameters => underlyingMethod.templateParameters;
+
+    public override ImmutableArray<BoundExpression> templateConstraints => underlyingMethod.templateConstraints;
+
+    public override ImmutableArray<TypeOrConstant> templateArguments => underlyingMethod.templateArguments;
+
+    internal override TypeWithAnnotations returnTypeWithAnnotations => _returnType;
+
+    internal override ImmutableArray<ParameterSymbol> parameters => _parameters;
+
+    internal override int parameterCount => _parameters.Length;
+
+    internal override bool isExplicitInterfaceImplementation => underlyingMethod.isExplicitInterfaceImplementation;
+
+    internal override ImmutableArray<MethodSymbol> explicitInterfaceImplementations => [];
+
+    internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    internal override DllImportData GetDllImportData() {
+        return underlyingMethod.GetDllImportData();
+    }
+
+    internal override UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete) {
+        return underlyingMethod.GetUnmanagedCallersOnlyAttributeData(forceComplete);
+    }
+
+    internal override ImmutableArray<AttributeData> GetAttributes() {
+        return underlyingMethod.GetAttributes();
+    }
+
+    internal override bool CallsAreOmitted(SyntaxTree syntaxTree) {
+        return underlyingMethod.CallsAreOmitted(syntaxTree);
+    }
+
+    public override int GetHashCode() {
+        if (_hashCode == 0)
+            _hashCode = ComputeHashCode();
+
+        return _hashCode;
+    }
+
+    private int ComputeHashCode() {
+        var code = System.Runtime.CompilerServices.RuntimeHelpers.GetHashCode(this);
+        var containingHashCode = containingType.GetHashCode();
+        code = Hash.Combine(containingHashCode, code);
+
+        if (code == 0)
+            code++;
+
+        return code;
+    }
+}

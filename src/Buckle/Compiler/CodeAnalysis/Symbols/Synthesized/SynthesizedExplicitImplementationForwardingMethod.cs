@@ -17,4 +17,6 @@ internal sealed partial class SynthesizedExplicitImplementationForwardingMethod 
     internal override bool isStatic => implementingMethod.isStatic;
 
     internal override bool hasSpecialName => false;
+
+    internal override bool hasRuntimeSpecialName => false;
 }

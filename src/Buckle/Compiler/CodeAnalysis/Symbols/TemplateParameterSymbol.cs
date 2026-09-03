@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -46,6 +47,8 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
     internal sealed override bool isAbstract => false;
 
     internal sealed override bool isSealed => false;
+
+    internal abstract bool isCompileTimeType { get; }
 
     internal abstract TypeWithAnnotations underlyingType { get; }
 
@@ -152,7 +155,8 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
         byte defaultTransformFlag,
         ImmutableArray<byte> transforms,
         ref int position,
-        out TypeSymbol result) {
+        out TypeSymbol result,
+        bool isBelteMode) {
         result = this;
         return true;
     }
@@ -254,6 +258,12 @@ internal abstract class TemplateParameterSymbol : TypeSymbol {
 
         if (other is null || !ReferenceEquals(other.originalDefinition, originalDefinition))
             return false;
+
+        if (containingSymbol.containingType is null || other.containingSymbol.containingType is null) {
+            // Should only be reachable in template metadata cases
+            Debug.Assert(this is PETemplateType.MetadataTemplateParameterSymbol || other is PETemplateType.MetadataTemplateParameterSymbol);
+            return other.containingSymbol.Equals(containingSymbol);
+        }
 
         return other.containingSymbol.containingType.Equals(containingSymbol.containingType, compareKind);
     }

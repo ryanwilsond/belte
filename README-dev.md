@@ -22,23 +22,32 @@ If you have ever ran this command before, you shouldn't need to run it again.
 
 ### Publishing Buckle
 
-Run `$ make releasemf` or `$ make release` to publish the project for Windows
-machines either multi-file or single-file respectively.
+If Buckle **has** been built before and has been added to path, run
+`$ make releasemf` to publish the project for Windows. The final executable is
+put into `./bin/release/buckle.exe` along with it's dependencies. If moving
+the executable, make sure to copy all of the files inside the release folder.
 
-The final executable is put into `.\bin\release\buckle.exe`.
+If Buckle **has not** been built before, you first need to run
+`$ make releasemfnolibs`. Then you need to compile the Belte Standard Library
+by running `$ cd src/Belte/Belte.Core && ../../../bin/release/buckle.exe build`.
+Move back to the repository root (`$ cd ../../..`) and then copy the resulting
+standard library assembly to the release folder with
+`$ cp src/Belte/Belte.Core/bin/Bete.Core.dll bin/release/Belte.Core.dll`. Now
+the release folder is ready to be added to path. After doing so, Buckle can be
+rebuilt just by using `$ make releasemf`.
 
 ### Publishing a Portable Release of Buckle
 
 Run `$ make portable` to publish the project portably.
 
-The final executable is put into `.\bin\portable\buckle.exe`.
+The final executable is put into `./bin/portable/buckle.exe`.
 
 ### Building Buckle in Debug Mode
 
 Run `$ make` or `$ make debug` to build the project in debug mode.
 
-All debug files are put into `.\bin\debug\` and the final executable is put into
-`.\bin\debug\buckle.exe`.
+All debug files are put into `./bin/debug/` and the final executable is put into
+`./bin/debug/buckle.exe`.
 
 ### Generating
 

@@ -22,6 +22,10 @@ internal class MissingAssemblySymbol : AssemblySymbol {
 
     internal override ImmutableArray<ModuleSymbol> modules { get; }
 
+    internal override bool isBelteAssembly => false;
+
+    internal override int belteMetadataVersion => throw ExceptionUtilities.Unreachable();
+
     public override int GetHashCode() {
         return identity.GetHashCode();
     }

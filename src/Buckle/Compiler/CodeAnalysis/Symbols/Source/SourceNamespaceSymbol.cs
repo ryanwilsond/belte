@@ -8,7 +8,6 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -237,7 +236,7 @@ done:
     }
 
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>> GetNameToMembersMap() {
-        if (_nameToMembersMap == null) {
+        if (_nameToMembersMap is null) {
             var diagnostics = BelteDiagnosticQueue.GetInstance();
 
             if (Interlocked.CompareExchange(ref _nameToMembersMap, MakeNameToMembersMap(diagnostics), null) is null) {
@@ -276,8 +275,8 @@ done:
             ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(builder, symbol.name.AsMemory(), symbol);
         }
 
-        RegisterDeclaredCorTypes(builder);
-        RegisterDeclaredWellKnownTypes(builder);
+        RegisterDeclaredCorTypes(declaringCompilation, builder.Values);
+        RegisterDeclaredWellKnownTypes(declaringCompilation, builder.Values);
 
         var result = new Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>>(
             builder.Count,
@@ -347,7 +346,7 @@ done:
                 }
 
                 if (symbol is SourceNamespaceSymbol ns && !reportedShadows && @namespace.isGlobalNamespace) {
-                    if (ns.name == LibraryHelpers.BelteNamespace.name) {
+                    if (ns.name == ns.declaringCompilation.corLibrary.belteNamespace.name) {
                         diagnostics.Push(Warning.NamespaceNameShadowsBelte(ns.location, ns));
                         reportedShadows = true;
                     }
@@ -358,8 +357,11 @@ done:
                 if (nts is not null) {
                     var declaredAccessibility = nts.declaredAccessibility;
 
-                    if (declaredAccessibility is not Accessibility.Public and not Accessibility.NotApplicable)
+                    if (declaredAccessibility is not Accessibility.Public
+                                             and not Accessibility.NotApplicable
+                                             and not Accessibility.Internal) {
                         diagnostics.Push(Error.NoNamespacePrivate(symbol.location));
+                    }
                 }
             }
         }
@@ -382,50 +384,6 @@ done:
                 return new ImplicitNamedTypeSymbol(this, (MergedTypeDeclaration)declaration, diagnostics);
             default:
                 throw ExceptionUtilities.UnexpectedValue(declaration.kind);
-        }
-    }
-
-    private void RegisterDeclaredCorTypes(PooledDictionary<ReadOnlyMemory<char>, object> members) {
-        if (declaringCompilation.keepLookingForCorTypes) {
-            foreach (var member in members.Values) {
-                if (member is NamedTypeSymbol type && type.specialType != SpecialType.None) {
-                    declaringCompilation.RegisterDeclaredSpecialType(type);
-
-                    if (!declaringCompilation.keepLookingForCorTypes)
-                        return;
-                }
-            }
-        }
-    }
-
-    private void RegisterDeclaredWellKnownTypes(PooledDictionary<ReadOnlyMemory<char>, object> members) {
-        if (declaringCompilation.keepLookingForWellKnownTypes) {
-            foreach (var member in members.Values) {
-                if (member is NamedTypeSymbol type) {
-                    if (CheckWellKnownType(type))
-                        return;
-                } else if (member is IEnumerable<NamespaceOrTypeSymbol> enumerable) {
-                    foreach (var m in enumerable) {
-                        if (m is NamedTypeSymbol t) {
-                            if (CheckWellKnownType(t))
-                                return;
-                        }
-                    }
-                }
-            }
-        }
-
-        bool CheckWellKnownType(NamedTypeSymbol type) {
-            var wellKnownType = WellKnownTypes.GetTypeFromMetadataName(type);
-
-            if (wellKnownType != WellKnownType.None) {
-                declaringCompilation.RegisterDeclaredWellKnownType(wellKnownType, type);
-
-                if (!declaringCompilation.keepLookingForWellKnownTypes)
-                    return true;
-            }
-
-            return false;
         }
     }
 

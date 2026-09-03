@@ -97,4 +97,8 @@ internal abstract class SynthesizedImplementationMethod : SynthesizedMethodSymbo
     internal sealed override DllImportData GetDllImportData() {
         return null;
     }
+
+    internal sealed override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        return [];
+    }
 }

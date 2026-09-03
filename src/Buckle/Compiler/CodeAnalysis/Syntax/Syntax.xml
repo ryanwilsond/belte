@@ -97,6 +97,9 @@
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
     <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
     <Field Name="type" Type="TypeSyntax" Override="true"/>
+    <Field Name="dollar" Type="SyntaxToken" Optional="true">
+      <Kind Name="DollarToken"/>
+    </Field>
     <Field Name="identifier" Type="SyntaxToken">
       <Kind Name="IdentifierToken"/>
     </Field>
@@ -154,14 +157,14 @@
     <Field Name="extendsKeyword" Type="SyntaxToken">
       <Kind Name="ExtendsKeyword"/>
     </Field>
-    <Field Name="type" Type="SimpleNameSyntax"/>
+    <Field Name="type" Type="TypeSyntax"/>
   </Node>
   <Node Name="InterfaceListSyntax" Base="SyntaxNode">
     <Kind Name="InterfaceList"/>
     <Field Name="implementsKeyword" Type="SyntaxToken">
       <Kind Name="ImplementsKeyword"/>
     </Field>
-    <Field Name="types" Type="SeparatedSyntaxList&lt;SimpleNameSyntax&gt;"/>
+    <Field Name="types" Type="SeparatedSyntaxList&lt;TypeSyntax&gt;"/>
   </Node>
   <Node Name="TemplateConstraintClauseListSyntax" Base="SyntaxNode">
     <Kind Name="TemplateConstraintClauseList"/>
@@ -192,7 +195,7 @@
     <Field Name="extendsKeyword" Type="SyntaxToken">
       <Kind Name="ExtendsKeyword"/>
     </Field>
-    <Field Name="type" Type="SimpleNameSyntax"/>
+    <Field Name="type" Type="TypeSyntax"/>
     <Field Name="semicolon" Type="SyntaxToken">
       <Kind Name="SemicolonToken"/>
     </Field>
@@ -205,7 +208,7 @@
     <Field Name="implementsKeyword" Type="SyntaxToken">
       <Kind Name="ImplementsKeyword"/>
     </Field>
-    <Field Name="types" Type="SeparatedSyntaxList&lt;SimpleNameSyntax&gt;"/>
+    <Field Name="types" Type="SeparatedSyntaxList&lt;TypeSyntax&gt;"/>
     <Field Name="semicolon" Type="SyntaxToken">
       <Kind Name="SemicolonToken"/>
     </Field>
@@ -473,6 +476,13 @@
     <Field Name="type" Type="TypeSyntax"/>
     <Field Name="questionToken" Type="SyntaxToken"/>
   </Node>
+  <Node Name="TemplateSpecializedTypeSyntax" Base="TypeSyntax">
+    <Kind Name="TemplateSpecializedType"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="TemplateKeyword"/>
+    </Field>
+    <Field Name="type" Type="TypeSyntax"/>
+  </Node>
   <Node Name="PointerTypeSyntax" Base="TypeSyntax">
     <Kind Name="PointerType"/>
     <Field Name="elementType" Type="TypeSyntax"/>
@@ -602,6 +612,7 @@
     <Field Name="implicitKeyword" Type="SyntaxToken" Optional="true">
       <Kind Name="ImplicitKeyword"/>
     </Field>
+    <Field Name="specifierList" Type="SyntaxList&lt;SyntaxToken&gt;" Optional="true"/>
     <Field Name="body" Type="BlockStatementSyntax" Optional="true"/>
     <Field Name="semicolon" Type="SyntaxToken" Optional="true">
       <Kind Name="SemicolonToken"/>
@@ -808,6 +819,7 @@
     <Field Name="implicitKeyword" Type="SyntaxToken" Optional="true" Override="true">
       <Kind Name="ImplicitKeyword"/>
     </Field>
+    <Field Name="specifierList" Type="SyntaxList&lt;SyntaxToken&gt;" Optional="true" Override="true"/>
     <Field Name="constructorInitializer" Type="ConstructorInitializerSyntax" Optional="true"/>
     <Field Name="body" Type="BlockStatementSyntax" Override="true" Optional="true"/>
     <Field Name="semicolon" Type="SyntaxToken" Override="true" Optional="true">
@@ -825,6 +837,7 @@
     <Field Name="implicitKeyword" Type="SyntaxToken" Optional="true" Override="true">
       <Kind Name="ImplicitKeyword"/>
     </Field>
+    <Field Name="specifierList" Type="SyntaxList&lt;SyntaxToken&gt;" Optional="true" Override="true"/>
     <Field Name="body" Type="BlockStatementSyntax" Override="true" Optional="true"/>
     <Field Name="semicolon" Type="SyntaxToken" Override="true" Optional="true">
       <Kind Name="SemicolonToken"/>
@@ -841,6 +854,7 @@
     <Field Name="implicitKeyword" Type="SyntaxToken" Optional="true" Override="true">
       <Kind Name="ImplicitKeyword"/>
     </Field>
+    <Field Name="specifierList" Type="SyntaxList&lt;SyntaxToken&gt;" Optional="true" Override="true"/>
     <Field Name="body" Type="BlockStatementSyntax" Override="true" Optional="true"/>
     <Field Name="semicolon" Type="SyntaxToken" Override="true" Optional="true">
       <Kind Name="SemicolonToken"/>
@@ -862,6 +876,52 @@
       <Kind Name="PeriodToken"/>
     </Field>
   </Node>
+  <Node Name="PropertyDeclarationSyntax" Base="MemberDeclarationSyntax">
+    <Kind Name="PropertyDeclaration"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;" Override="true"/>
+    <Field Name="propertyKeyword" Type="SyntaxToken">
+      <Kind Name="PropertyKeyword"/>
+    </Field>
+    <Field Name="type" Type="TypeSyntax"/>
+    <Field Name="explicitInterfaceSpecifier" Type="ExplicitInterfaceSpecifierSyntax" Optional="true"/>
+    <Field Name="identifier" Type="SyntaxToken">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="accessorList" Type="AccessorListSyntax" Optional="true"/>
+    <Field Name="expressionBody" Type="ArrowExpressionClauseSyntax" Optional="true"/>
+    <Field Name="semicolonToken" Type="SyntaxToken" Optional="true">
+      <Kind Name="SemicolonToken" />
+    </Field>
+  </Node>
+  <Node Name="ArrowExpressionClauseSyntax" Base="SyntaxNode">
+    <Kind Name="ArrowExpressionClause" />
+    <Field Name="arrowToken" Type="SyntaxToken">
+      <Kind Name="EqualsGreaterThanToken"/>
+    </Field>
+    <Field Name="expression" Type="ExpressionSyntax"/>
+  </Node>
+  <Node Name="AccessorListSyntax" Base="SyntaxNode">
+    <Kind Name="AccessorList"/>
+    <Field Name="openBraceToken" Type="SyntaxToken">
+      <Kind Name="OpenBraceToken"/>
+    </Field>
+    <Field Name="accessors" Type="SyntaxList&lt;AccessorDeclarationSyntax&gt;"/>
+    <Field Name="closeBraceToken" Type="SyntaxToken">
+      <Kind Name="CloseBraceToken"/>
+    </Field>
+  </Node>
+  <Node Name="AccessorDeclarationSyntax" Base="SyntaxNode">
+    <Kind Name="AccessorDeclaration"/>
+    <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;"/>
+    <Field Name="modifiers" Type="SyntaxList&lt;SyntaxToken&gt;"/>
+    <Field Name="keyword" Type="SyntaxToken"/>
+    <Field Name="body" Type="BlockStatementSyntax" Optional="true"/>
+    <Field Name="expressionBody" Type="ArrowExpressionClauseSyntax" Optional="true"/>
+    <Field Name="semicolonToken" Type="SyntaxToken" Optional="true">
+      <Kind Name="SemicolonToken"/>
+    </Field>
+  </Node>
   <Node Name="MethodDeclarationSyntax" Base="BaseMethodDeclarationSyntax">
     <Kind Name="MethodDeclaration"/>
     <Field Name="attributeLists" Type="SyntaxList&lt;AttributeListSyntax&gt;" Override="true"/>
@@ -876,6 +936,7 @@
     <Field Name="implicitKeyword" Type="SyntaxToken" Optional="true" Override="true">
       <Kind Name="ImplicitKeyword"/>
     </Field>
+    <Field Name="specifierList" Type="SyntaxList&lt;SyntaxToken&gt;" Optional="true" Override="true"/>
     <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Optional="true"/>
     <Field Name="initConstraintClauseSyntax" Type="InitConstraintClauseSyntax" Optional="true"/>
     <Field Name="body" Type="BlockStatementSyntax" Override="true" Optional="true"/>
@@ -938,11 +999,14 @@
     <Field Name="operatorKeyword" Type="SyntaxToken">
       <Kind Name="OperatorKeyword"/>
     </Field>
+    <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Optional="true"/>
     <Field Name="type" Type="TypeSyntax"/>
     <Field Name="parameterList" Type="ParameterListSyntax" Override="true"/>
     <Field Name="implicitKeyword" Type="SyntaxToken" Optional="true" Override="true">
       <Kind Name="ImplicitKeyword"/>
     </Field>
+    <Field Name="specifierList" Type="SyntaxList&lt;SyntaxToken&gt;" Optional="true" Override="true"/>
+    <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Optional="true"/>
     <Field Name="body" Type="BlockStatementSyntax" Override="true" Optional="true"/>
     <Field Name="semicolon" Type="SyntaxToken" Override="true" Optional="true">
       <Kind Name="SemicolonToken"/>
@@ -957,12 +1021,15 @@
     <Field Name="operatorKeyword" Type="SyntaxToken">
       <Kind Name="OperatorKeyword"/>
     </Field>
+    <Field Name="templateParameterList" Type="TemplateParameterListSyntax" Optional="true"/>
     <Field Name="operatorToken" Type="SyntaxToken"/>
     <Field Name="rightOperatorToken" Type="SyntaxToken" Optional="true"/>
     <Field Name="parameterList" Type="ParameterListSyntax" Override="true"/>
     <Field Name="implicitKeyword" Type="SyntaxToken" Optional="true" Override="true">
       <Kind Name="ImplicitKeyword"/>
     </Field>
+    <Field Name="specifierList" Type="SyntaxList&lt;SyntaxToken&gt;" Optional="true" Override="true"/>
+    <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Optional="true"/>
     <Field Name="body" Type="BlockStatementSyntax" Override="true" Optional="true"/>
     <Field Name="semicolon" Type="SyntaxToken" Override="true" Optional="true">
       <Kind Name="SemicolonToken"/>
@@ -983,6 +1050,7 @@
     <Field Name="implicitKeyword" Type="SyntaxToken" Optional="true" Override="true">
       <Kind Name="ImplicitKeyword"/>
     </Field>
+    <Field Name="specifierList" Type="SyntaxList&lt;SyntaxToken&gt;" Optional="true" Override="true"/>
     <Field Name="body" Type="BlockStatementSyntax" Override="true" Optional="true"/>
     <Field Name="semicolon" Type="SyntaxToken" Override="true" Optional="true">
       <Kind Name="SemicolonToken"/>
@@ -1040,6 +1108,7 @@
     <Field Name="implicitKeyword" Type="SyntaxToken" Optional="true">
       <Kind Name="ImplicitKeyword"/>
     </Field>
+    <Field Name="specifierList" Type="SyntaxList&lt;SyntaxToken&gt;" Optional="true"/>
     <Field Name="constraintClauseList" Type="TemplateConstraintClauseListSyntax" Optional="true"/>
     <Field Name="body" Type="BlockStatementSyntax"/>
   </Node>
@@ -1434,6 +1503,12 @@
   </Node>
   <!-- Expressions -->
   <AbstractNode Name="ExpressionSyntax" Base="SyntaxNode"/>
+  <Node Name="FieldExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="FieldExpression"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="FieldKeyword"/>
+    </Field>
+  </Node>
   <Node Name="AssignmentExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="AssignmentExpression"/>
     <Field Name="left" Type="ExpressionSyntax"/>

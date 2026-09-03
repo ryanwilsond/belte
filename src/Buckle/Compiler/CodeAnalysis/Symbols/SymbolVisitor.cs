@@ -48,6 +48,10 @@ internal abstract class SymbolVisitor {
         DefaultVisit(symbol);
     }
 
+    internal virtual void VisitProperty(PropertySymbol symbol) {
+        DefaultVisit(symbol);
+    }
+
     internal virtual void VisitParameter(ParameterSymbol symbol) {
         DefaultVisit(symbol);
     }

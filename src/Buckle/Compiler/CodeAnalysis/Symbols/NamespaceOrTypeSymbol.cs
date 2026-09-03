@@ -147,4 +147,6 @@ Done:
 
     ImmutableArray<INamedTypeSymbol> INamespaceOrTypeSymbol.GetTypeMembers(string name)
         => GetTypeMembers(name.AsMemory()).Cast<NamedTypeSymbol, INamedTypeSymbol>();
+
+    INamespaceSymbol INamespaceOrTypeSymbol.containingNamespace => containingNamespace;
 }

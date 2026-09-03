@@ -42,13 +42,15 @@ internal class TemplateMap {
             var templateParameter = from[i];
             var templateArgument = to[i];
 
-            if (!templateArgument.Equals(templateParameter))
+            if (templateArgument.type?.type?.Equals(templateParameter) != true)
                 _mapping.Add(templateParameter, templateArgument);
         }
     }
 
     internal TemplateMap(ImmutableArray<TemplateParameterSymbol> from, ImmutableArray<TemplateParameterSymbol> to)
         : this(from, TemplateParametersAsTypeOrConstants(to)) { }
+
+    internal Dictionary<TemplateParameterSymbol, TypeOrConstant> mapping => _mapping;
 
     private static Dictionary<TemplateParameterSymbol, TypeOrConstant> ForType(NamedTypeSymbol containingType) {
         return containingType is SubstitutedNamedTypeSymbol substituted
@@ -158,7 +160,8 @@ internal class TemplateMap {
             previous.rank,
             previous.sizes,
             previous.lowerBounds,
-            previous.baseType);
+            previous.baseType
+        );
     }
 
     internal NamedTypeSymbol SubstituteNamedType(NamedTypeSymbol previous) {
@@ -174,18 +177,12 @@ internal class TemplateMap {
 
         for (var i = 0; i < oldTemplateArguments.Length; i++) {
             var oldArgument = oldTemplateArguments[i];
+            var newArgument = oldArgument.Substitute(this);
 
-            if (oldArgument.isConstant) {
-                newTypeArguments.Add(oldArgument);
-                continue;
-            }
-
-            var newArgument = oldArgument.type.SubstituteType(this).type;
-
-            if (!changed && !oldArgument.type.IsSameAs(newArgument))
+            if (!changed && !oldArgument.IsSameAs(newArgument))
                 changed = true;
 
-            newTypeArguments.Add(new TypeOrConstant(newArgument));
+            newTypeArguments.Add(newArgument);
         }
 
         if (!changed)

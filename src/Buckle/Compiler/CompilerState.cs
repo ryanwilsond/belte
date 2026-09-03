@@ -103,7 +103,17 @@ public class CompilerState {
     public bool noStdLib;
 
     /// <summary>
+    /// If the Standard Library should be re-compiled from source
+    /// </summary>
+    public bool noBootStrap;
+
+    /// <summary>
     /// Specific diagnostic related options on a per-task basis
     /// </summary>
     public Dictionary<string, TaskDiagnosticOptions> taskDiagnosticOptions;
+
+    /// <summary>
+    /// If to exclude template metadata when building a DLL
+    /// </summary>
+    public bool noTemplateMetadata;
 }

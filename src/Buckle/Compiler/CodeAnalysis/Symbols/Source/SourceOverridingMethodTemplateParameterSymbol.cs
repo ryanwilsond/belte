@@ -16,7 +16,7 @@ internal sealed class SourceOverridingMethodTemplateParameterSymbol : SourceTemp
         _map = map;
     }
 
-    internal SourceOrdinaryMethodSymbol owner => _map.overridingMethod;
+    internal SourceOrdinaryMethodOrUserDefinedOperatorSymbol owner => _map.overridingMethod;
 
     internal override TemplateParameterKind templateParameterKind => TemplateParameterKind.Method;
 
@@ -70,6 +70,7 @@ internal sealed class SourceOverridingMethodTemplateParameterSymbol : SourceTemp
         var constraintTypes = map.SubstituteTypes(templateParameter.constraintTypes).SelectAsArray(t => t.type);
 
         return this.ResolveBounds(
+            containingAssembly.corLibrary,
             inProgress.Prepend(this),
             constraintTypes,
             true,

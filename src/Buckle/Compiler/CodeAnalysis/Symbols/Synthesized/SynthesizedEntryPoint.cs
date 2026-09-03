@@ -7,7 +7,6 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -26,8 +25,8 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
             MakeModifiersAndFlags(containingType, declaration)
         ) {
         _returnType = declaration.hasReturnWithExpression
-            ? CorLibrary.GetNullableType(SpecialType.Any)
-            : CorLibrary.GetSpecialType(SpecialType.Void);
+            ? containingAssembly.corLibrary.GetNullableType(SpecialType.Any)
+            : containingAssembly.corLibrary.GetSpecialType(SpecialType.Void);
 
         _declaration = declaration;
     }
@@ -86,6 +85,10 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
     }
 
     internal override ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes() {
+        return [];
+    }
+
+    internal override ImmutableArray<BoundExpression> GetTemplateConstraints() {
         return [];
     }
 

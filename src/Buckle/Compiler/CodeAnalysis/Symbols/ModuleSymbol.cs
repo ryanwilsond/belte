@@ -58,9 +58,7 @@ internal abstract class ModuleSymbol : Symbol {
 
         var assembly = containingAssembly;
 
-        // TODO confirm condition
-        // if ((object)assembly != assembly.CorLibrary) {
-        if (assembly.declaringCompilation.assemblyName != MetadataHelpers.CorLibraryString)
+        if ((object)assembly != assembly.corAssembly)
             throw new ArgumentOutOfRangeException(nameof(referencedAssemblyIndex));
 
         return null;

@@ -2,6 +2,7 @@ using System;
 using System.Diagnostics;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -39,6 +40,35 @@ internal abstract class BoundNode {
 
     internal virtual BoundNode Accept(BoundTreeVisitor visitor) {
         throw new NotImplementedException();
+    }
+
+    internal static Conversion GetConversion(BoundExpression conversion, BoundValuePlaceholder placeholder) {
+        switch (conversion) {
+            case null:
+                return Conversion.None;
+            case BoundCastExpression boundConversion:
+                if ((object)boundConversion.operand == placeholder)
+                    return boundConversion.conversion;
+
+                if (!boundConversion.conversion.isUserDefined)
+                    boundConversion = (BoundCastExpression)boundConversion.operand;
+
+                if (boundConversion.conversion.isUserDefined) {
+                    BoundCastExpression next;
+
+                    if ((object)boundConversion.operand == placeholder ||
+                        (object)(next = (BoundCastExpression)boundConversion.operand).operand == placeholder ||
+                        (object)((BoundCastExpression)next.operand).operand == placeholder) {
+                        return boundConversion.conversion;
+                    }
+                }
+
+                goto default;
+            case BoundValuePlaceholder valuePlaceholder when (object)valuePlaceholder == placeholder:
+                return Conversion.Identity;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(conversion);
+        }
     }
 
     public override string ToString() {

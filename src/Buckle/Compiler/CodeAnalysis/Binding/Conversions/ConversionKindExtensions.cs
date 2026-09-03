@@ -24,6 +24,7 @@ internal static class ConversionKindExtensions {
             case ConversionKind.ConditionalExpression:
             case ConversionKind.ImplicitTupleLiteral:
             case ConversionKind.Deconstruction:
+            case ConversionKind.ListExpression:
                 return true;
             default:
                 return false;

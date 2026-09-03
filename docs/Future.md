@@ -4,39 +4,26 @@ Belte in its current state is largely similar to C#, but many ambitious divergin
 (near-ish) future. This document goes over some of the planned features as well as smaller features needed before taking
 them on. This includes features present in C# that aren't in Belte yet.
 
-- [0.1](#01-tuples) Tuples
+- [0.1](#01-properties) Properties
 - [0.2](#02-lambdas) Lambdas
-- [0.3](#03-interfaces) Interfaces
-- [0.4](#04-verse-style-concurrencyasync) Verse-Style Concurrency/Async
-  - [0.4.1](#041-sync) `sync`
-    - [0.4.1.1](#0411-async-and-suspend) `async` and `suspend`
-  - [0.4.2](#042-race) `race`
-    - [0.4.2.1](#0421-cancel) `cancel`
-  - [0.4.3](#043-branch) `branch`
-  - [0.4.4](#044-spawn) `spawn`
-  - [0.4.5](#045-lock) `lock`
-- [0.5](#05-lsp) LSP
-- [0.6](#06-has-constraints) Has Constraints
+- [0.3](#03-verse-style-concurrencyasync) Verse-Style Concurrency/Async
+  - [0.3.1](#031-sync) `sync`
+    - [0.3.1.1](#0311-async-and-suspend) `async` and `suspend`
+  - [0.3.2](#032-race) `race`
+    - [0.3.2.1](#0321-cancel) `cancel`
+  - [0.3.3](#033-branch) `branch`
+  - [0.3.4](#034-spawn) `spawn`
+  - [0.3.5](#035-lock) `lock`
+- [0.4](#04-lsp) LSP
+- [0.5](#05-has-constraints) Has Constraints
 
-## 0.1 Tuples
+## 0.1 Properties
 
-C#-style tuples that represent a small collection of values. This includes implicit-typing and deconstruction:
-
-```belte
-(int, bool) MyFunc() {
-  return (10, true);
-}
-
-var (myInt, myBool) = MyFunc();
-```
-
-For-each loops would also support deconstruction:
+C# style properties in every way, except adding a keyword to visually distinguish them from fields more clearly:
 
 ```belte
-(int, string)[] myArr = /* ... */;
-
-for ((iInt, iString), idx in myArr) {
-  // ...
+class A {
+  public property int myProperty { get; set; }
 }
 ```
 
@@ -61,33 +48,16 @@ var squareFunc = x => x * x; // What is the type of x?
 var squareFunc = int(int x) => x * x; // Gives enough information to deduce the type of squareFunc as `int(int)`
 ```
 
-## 0.3 Interfaces
-
-Interfaces make generics much more useful. These would be C#-style interfaces with the only notable difference being
-a non-combined base-list for classes (Java-style):
-
-*C#*
-
-```cs
-class A : BaseClass, IInterface1, IInterface2 { }
-```
-
-*Belte*
-
-```belte
-class A extends BaseClass implements Interface1, Interface2 { }
-```
-
-## 0.4 Verse-Style Concurrency/Async
+## 0.3 Verse-Style Concurrency/Async
 
 Unreal 6 comes with a new scripting language called "Verse". I believe its approach to concurrency/async code execution
 is much cleaner that C#'s design.
 
-### 0.4.1 `sync`
+### 0.3.1 `sync`
 
-This relies on [tuples](#01-tuples). A `sync` block is a list of operations that run concurrently (this means shared
-state must be thread-safe or locked, and the order in which operations finish is nondeterministic). In its most verbose
-form, each nested block indicates a concurrent operation:
+A `sync` block is a list of operations that run concurrently (this means shared state must be thread-safe or locked,
+and the order in which operations finish is nondeterministic). In its most verbose form, each nested block indicates a
+concurrent operation:
 
 ```belte
 var (result1, result2) = sync {
@@ -125,7 +95,7 @@ var (result1, result2) = sync {
 }
 ```
 
-#### 0.4.1.1 `async` and `suspend`
+#### 0.3.1.1 `async` and `suspend`
 
 An operation in a `sync` block can be any ordinary code, but `async` code is also supported. A block marked `async`
 supports suspending that task in a non-blocking way.
@@ -153,7 +123,7 @@ var (result1, result2) = sync {
 }
 ```
 
-### 0.4.2 `race`
+### 0.3.2 `race`
 
 The `race` block executes a list of `cancellable` methods and returns the result of the first one that succeeds
 (non-except):
@@ -181,7 +151,7 @@ cancellable int MyMethod() {
 }
 ```
 
-#### 0.4.2.1 `cancel`
+#### 0.3.2.1 `cancel`
 
 To forcibly make an async method cancel and fail in a race, a `cancel` statement can be used.
 
@@ -201,7 +171,7 @@ cancellable int SomeMethod1() {
 }
 ```
 
-### 0.4.3 `branch`
+### 0.3.3 `branch`
 
 The `branch` block runs code in the background while continuing execution immediately past the block. The block is
 awaited at scope exit:
@@ -221,9 +191,9 @@ int MyMethod() {
 }
 ```
 
-The branch task cannot be cancelled. To do that, a [`spawn`](#044-spawn) expression should be used instead.
+The branch task cannot be cancelled. To do that, a [`spawn`](#034-spawn) expression should be used instead.
 
-### 0.4.4 `spawn`
+### 0.3.4 `spawn`
 
 The `spawn` expression creates and starts a task. It can be managed or let free (which should only be done in rare
 circumstances). A captured task must be a `cancellable` method. Tasks support `.Cancel()` and `.Await()`.
@@ -242,7 +212,7 @@ void MyMethod() {
 } // task keeps running even after `MyMethod` returns
 ```
 
-### 0.4.5 `lock`
+### 0.3.5 `lock`
 
 Many structures are not concurrency-safe. In such a case, a `lock` can be used to ensure only the task with the lock is
 reading or writing the captured value:
@@ -253,12 +223,12 @@ lock (myList) {
 }
 ```
 
-## 0.5 LSP
+## 0.4 LSP
 
 A Language Server Protocol would massively boost ergonomics by offering intellisense to code editors. This requires a
 semantic model which is a large undertaking. This change is mostly behind the scenes, but know its coming (eventually)!
 
-## 0.6 Has Constraints
+## 0.5 Has Constraints
 
 An alternative to interfaces. Instead of using virtual dispatch at runtime, `has` constraints would allow static
 duck-typing at compile-time which improves performance. The main complication is integrating this with the .NET runtime,

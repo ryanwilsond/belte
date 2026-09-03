@@ -68,11 +68,11 @@ internal sealed class ControlFlowGraph {
     /// </summary>
     /// <param name="body"><see cref="BoundBlockStatement" /> to create from.</param>
     /// <returns><see cref="ControlFlowGraph" />.</returns>
-    internal static ControlFlowGraph Create(MethodSymbol method, BoundBlockStatement body) {
+    internal static ControlFlowGraph Create(Compilation compilation, MethodSymbol method, BoundBlockStatement body) {
         var (slotMap, symbolsBySlot) = SlotCounter.Count(method, body);
         var basicBlockBuilder = new ControlFlowGraphBuilder.BasicBlockBuilder(symbolsBySlot.Count);
         var blocks = basicBlockBuilder.Build(body);
-        var graphBuilder = new ControlFlowGraphBuilder(method, slotMap, symbolsBySlot);
+        var graphBuilder = new ControlFlowGraphBuilder(compilation, method, slotMap, symbolsBySlot);
         var controlFlowGraph = graphBuilder.Build(blocks, basicBlockBuilder.regions);
         return controlFlowGraph;
     }
@@ -98,7 +98,9 @@ internal sealed class ControlFlowGraph {
         return true;
     }
 
-    internal HashSet<Symbol> CheckDefiniteAssignment(BelteDiagnosticQueue diagnostics) {
+    internal HashSet<Symbol> CheckDefiniteAssignment(
+        BelteDiagnosticQueue diagnostics,
+        ArrayBuilder<FieldSymbol> fieldsRequiringAssignment = null) {
         try {
             var result = DefiniteAssignment.CheckDefiniteAssignment(
                 this,
@@ -106,6 +108,7 @@ internal sealed class ControlFlowGraph {
                 _slotMap,
                 _method,
                 _closureCaptures,
+                fieldsRequiringAssignment,
                 diagnostics
             );
 

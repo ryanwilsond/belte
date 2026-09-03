@@ -92,4 +92,8 @@ internal sealed class SynthesizedSimpleOrdinaryMethodSymbol : MethodSymbol {
     internal override UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete) {
         return null;
     }
+
+    internal override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        return [];
+    }
 }

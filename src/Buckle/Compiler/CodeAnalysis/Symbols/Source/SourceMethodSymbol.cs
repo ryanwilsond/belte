@@ -1,5 +1,7 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
+using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -8,9 +10,10 @@ using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbol {
+internal abstract partial class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbol {
     private CustomAttributesBag<AttributeData> _lazyAttributesBag;
     private CustomAttributesBag<AttributeData> _lazyReturnTypeAttributesBag;
+    private BehaviorSpecifierInfo _lazySpecifierInfo;
 
     private protected SourceMethodSymbol(SyntaxReference syntaxReference) {
         this.syntaxReference = syntaxReference;
@@ -30,11 +33,73 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
         _ => false,
     };
 
+    internal sealed override bool hasRuntimeSpecialName => base.hasRuntimeSpecialName || IsVtableGapInterfaceMethod();
+
     internal virtual Binder outerBinder => null;
 
     internal virtual Binder withTemplateParametersBinder => null;
 
     internal override bool coerceArguments { get; }
+
+    internal override bool isPure {
+        get {
+            if (_lazySpecifierInfo is null) {
+                var diagnostics = BelteDiagnosticQueue.GetInstance();
+
+                if (Interlocked.CompareExchange(ref _lazySpecifierInfo, MakeSpecifierInfo(diagnostics), null) is null) {
+                    AddDeclarationDiagnostics(diagnostics);
+                    diagnostics.Free();
+                }
+            }
+
+            return _lazySpecifierInfo.isPure;
+        }
+    }
+
+    internal override bool shouldMemoizeIfPure {
+        get {
+            if (_lazySpecifierInfo is null) {
+                var diagnostics = BelteDiagnosticQueue.GetInstance();
+
+                if (Interlocked.CompareExchange(ref _lazySpecifierInfo, MakeSpecifierInfo(diagnostics), null) is null) {
+                    AddDeclarationDiagnostics(diagnostics);
+                    diagnostics.Free();
+                }
+            }
+
+            return _lazySpecifierInfo.shouldMemoizeIfPure;
+        }
+    }
+
+    internal override bool isNoThrow {
+        get {
+            if (_lazySpecifierInfo is null) {
+                var diagnostics = BelteDiagnosticQueue.GetInstance();
+
+                if (Interlocked.CompareExchange(ref _lazySpecifierInfo, MakeSpecifierInfo(diagnostics), null) is null) {
+                    AddDeclarationDiagnostics(diagnostics);
+                    diagnostics.Free();
+                }
+            }
+
+            return _lazySpecifierInfo.isNoThrow;
+        }
+    }
+
+    internal override bool isNoAlloc {
+        get {
+            if (_lazySpecifierInfo is null) {
+                var diagnostics = BelteDiagnosticQueue.GetInstance();
+
+                if (Interlocked.CompareExchange(ref _lazySpecifierInfo, MakeSpecifierInfo(diagnostics), null) is null) {
+                    AddDeclarationDiagnostics(diagnostics);
+                    diagnostics.Free();
+                }
+            }
+
+            return _lazySpecifierInfo.isNoAlloc;
+        }
+    }
 
     internal BelteSyntaxNode syntaxNode => (BelteSyntaxNode)syntaxReference.node;
 
@@ -43,6 +108,8 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
     internal abstract ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes();
 
     internal abstract ImmutableArray<TypeParameterConstraintKinds> GetTypeParameterConstraintKinds();
+
+    internal abstract ImmutableArray<BoundExpression> GetTemplateConstraints();
 
     // internal sealed override bool hasUnscopedRefAttribute => GetDecodedWellKnownAttributeData()?.hasUnscopedRefAttribute == true;
     internal sealed override bool hasUnscopedRefAttribute => false;
@@ -55,6 +122,64 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
 
     internal override ImmutableArray<AttributeData> GetAttributes() {
         return GetAttributesBag().attributes;
+    }
+
+    private protected abstract BehaviorSpecifierInfo MakeSpecifierInfo(BelteDiagnosticQueue diagnostics);
+
+    private protected BehaviorSpecifiers MakeBehaviorSpecifiers(
+        BelteDiagnosticQueue diagnostics,
+        MethodKind methodKind) {
+        var specifierList = ExtractSpecifierList();
+
+        if (specifierList is null || specifierList.Count == 0)
+            return BehaviorSpecifiers.None;
+
+        var seenSpecifiers = BehaviorSpecifiers.None;
+        SyntaxToken memoizeToken = null;
+
+        foreach (var specifierToken in specifierList) {
+            var specifier = ToBehaviorSpecifier(specifierToken.kind);
+
+            if ((seenSpecifiers & specifier) != 0)
+                diagnostics.Push(Error.DuplicateBehaviorSpecifier(specifierToken.location, specifierToken));
+            else if (specifier == BehaviorSpecifiers.Memoize)
+                memoizeToken = specifierToken;
+
+            switch (specifier) {
+                case BehaviorSpecifiers.Memoize:
+                    if (!isStatic)
+                        diagnostics.Push(Error.MemoizeRequiresStatic(specifierToken.location));
+
+                    goto case BehaviorSpecifiers.Pure;
+                case BehaviorSpecifiers.Pure:
+                    if (methodKind is MethodKind.Constructor or MethodKind.Destructor or MethodKind.Finalizer)
+                        diagnostics.Push(Error.InvalidBehaviorSpecifier(specifierToken.location, specifierToken));
+
+                    break;
+                case BehaviorSpecifiers.NoAlloc:
+                    if (methodKind == MethodKind.Constructor)
+                        diagnostics.Push(Error.InvalidBehaviorSpecifier(specifierToken.location, specifierToken));
+
+                    break;
+            }
+
+            seenSpecifiers |= specifier;
+        }
+
+        if ((seenSpecifiers & BehaviorSpecifiers.Pure) == 0 && memoizeToken is not null)
+            diagnostics.Push(Error.MemoizeRequiresPureSpecifier(memoizeToken.location));
+
+        return seenSpecifiers;
+
+        static BehaviorSpecifiers ToBehaviorSpecifier(SyntaxKind syntaxKind) {
+            return syntaxKind switch {
+                SyntaxKind.PureKeyword => BehaviorSpecifiers.Pure,
+                SyntaxKind.NoallocKeyword => BehaviorSpecifiers.NoAlloc,
+                SyntaxKind.NothrowKeyword => BehaviorSpecifiers.NoThrow,
+                SyntaxKind.MemoizeKeyword => BehaviorSpecifiers.Memoize,
+                _ => throw ExceptionUtilities.Unreachable()
+            };
+        }
     }
 
     internal override ImmutableArray<AttributeData> GetReturnTypeAttributes() {
@@ -168,8 +293,7 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
 
         var lazyAttributesBag = _lazyAttributesBag;
 
-        // TODO What is the purpose of this second check
-        if (lazyAttributesBag is null/* || !lazyAttributesBag.isEarlyDecodedWellKnownAttributeDataComputed*/)
+        if (lazyAttributesBag is null || !lazyAttributesBag.isEarlyDecodedWellKnownAttributeDataComputed)
             return UnmanagedCallersOnlyAttributeData.Uninitialized;
 
         if (lazyAttributesBag.isDecodedWellKnownAttributeDataComputed) {
@@ -190,6 +314,68 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
         }
     }
 
+    internal override (AttributeData, BoundAttribute) EarlyDecodeWellKnownAttribute(ref EarlyDecodeWellKnownAttributeArguments<EarlyWellKnownAttributeBinder, NamedTypeSymbol, AttributeSyntax, AttributeLocation> arguments) {
+        Debug.Assert(arguments.symbolPart == AttributeLocation.None || arguments.symbolPart == AttributeLocation.Return);
+
+        if (arguments.symbolPart == AttributeLocation.None) {
+            if (AttributeData.IsTargetEarlyAttribute(
+                    arguments.attributeType,
+                    arguments.attributeSyntax,
+                    AttributeDescription.ConditionalAttribute)) {
+                var (attributeData, boundAttribute) = arguments.binder.GetAttribute(
+                    arguments.attributeSyntax,
+                    arguments.attributeType,
+                    beforeAttributePartBound: null,
+                    afterAttributePartBound: null,
+                    out var hasAnyDiagnostics
+                );
+
+                if (!attributeData.hasErrors) {
+                    var name = attributeData.GetConstructorArgument<string>(0, SpecialType.String);
+                    arguments.GetOrCreateData<MethodEarlyWellKnownAttributeData>().AddConditionalSymbol(name);
+                    if (!hasAnyDiagnostics)
+                        return (attributeData, boundAttribute);
+                }
+
+                return (null, null);
+                // } else if (EarlyDecodeDeprecatedOrExperimentalOrObsoleteAttribute(ref arguments, out CSharpAttributeData? attributeData, out BoundAttribute? boundAttribute, out ObsoleteAttributeData? obsoleteData)) {
+                //     if (obsoleteData != null) {
+                //         arguments.GetOrCreateData<MethodEarlyWellKnownAttributeData>().ObsoleteAttributeData = obsoleteData;
+                //     }
+
+                //     return (attributeData, boundAttribute);
+            } else if (AttributeData.IsTargetEarlyAttribute(
+                arguments.attributeType,
+                arguments.attributeSyntax,
+                AttributeDescription.UnmanagedCallersOnlyAttribute)) {
+                arguments.GetOrCreateData<MethodEarlyWellKnownAttributeData>()
+                    .unmanagedCallersOnlyAttributePresent = true;
+
+                return (null, null);
+            }
+            // else if (CSharpAttributeData.IsTargetEarlyAttribute(arguments.AttributeType, arguments.AttributeSyntax, AttributeDescription.OverloadResolutionPriorityAttribute)) {
+            //     if (!CanHaveOverloadResolutionPriority) {
+            //         // Cannot use 'OverloadResolutionPriorityAttribute' on this member.
+            //         return (null, null);
+            //     }
+
+            //     (attributeData, boundAttribute) = arguments.Binder.GetAttribute(arguments.AttributeSyntax, arguments.AttributeType, beforeAttributePartBound: null, afterAttributePartBound: null, out hasAnyDiagnostics);
+
+            //     if (attributeData.CommonConstructorArguments is [{ ValueInternal: int priority }]) {
+            //         arguments.GetOrCreateData<MethodEarlyWellKnownAttributeData>().OverloadResolutionPriority = priority;
+
+            //         if (!hasAnyDiagnostics) {
+            //             return (attributeData, boundAttribute);
+            //         }
+            //     }
+
+            //     return (null, null);
+            // }
+        }
+
+        return base.EarlyDecodeWellKnownAttribute(ref arguments);
+    }
+
     private protected MethodWellKnownAttributeData GetDecodedWellKnownAttributeData() {
         var attributesBag = _lazyAttributesBag;
 
@@ -202,13 +388,76 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
     private void DecodeWellKnownAttributeAppliedToMethod(
         ref DecodeWellKnownAttributeArguments<AttributeSyntax, AttributeData, AttributeLocation> arguments) {
         var attribute = arguments.attribute;
+        var diagnostics = arguments.diagnostics;
 
-        if (attribute.IsTargetAttribute(AttributeDescription.DllImportAttribute))
+        if (attribute.IsTargetAttribute(AttributeDescription.DllImportAttribute) ||
+            attribute.IsTargetAttribute(AttributeDescription.DllImportAttributeNative)) {
             DecodeDllImportAttribute(ref arguments);
-        else if (attribute.IsTargetAttribute(AttributeDescription.UnmanagedAttribute))
+        } else if (attribute.IsTargetAttribute(AttributeDescription.UnmanagedAttribute) ||
+                   attribute.IsTargetAttribute(AttributeDescription.UnmanagedCallersOnlyAttribute)) {
             DecodeUnmanagedAttribute(ref arguments);
-        else if (attribute.IsTargetAttribute(AttributeDescription.MustUseReturnValueAttribute))
+        } else if (attribute.IsTargetAttribute(AttributeDescription.MustUseReturnValueAttribute)) {
             DecodeMustUseReturnValueAttribute(ref arguments);
+        } else if (attribute.IsTargetAttribute(AttributeDescription.ConditionalAttribute)) {
+            ValidateConditionalAttribute(attribute, arguments.attributeSyntax, diagnostics);
+        }
+    }
+
+    private void ValidateConditionalAttribute(
+        AttributeData attribute,
+        AttributeSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        Debug.Assert(isConditional);
+
+        // if (this.IsAccessor()) {
+        //     // CS1667: Attribute '{0}' is not valid on property or event accessors. It is only valid on '{1}' declarations.
+        //     AttributeUsageInfo attributeUsage = attribute.AttributeClass.GetAttributeUsageInfo();
+        //     diagnostics.Add(ErrorCode.ERR_AttributeNotOnAccessor, node.Name.Location, node.GetErrorDisplayName(), attributeUsage.GetValidTargetsErrorArgument());
+        if (containingType.IsInterfaceType()) {
+            diagnostics.Push(Error.ConditionalOnInterfaceMethod(node.location));
+        } else if (isOverride) {
+            diagnostics.Push(Error.ConditionalOnOverride(node.location, this));
+        } else if (!canBeReferencedByName || methodKind == MethodKind.Finalizer) {
+            diagnostics.Push(Error.ConditionalOnSpecialMethod(node.location, this));
+        } else if (!returnsVoid) {
+            diagnostics.Push(Error.ConditionalMustReturnVoid(node.location, this));
+        } else if (HasAnyOutParameter()) {
+            diagnostics.Push(Error.ConditionalWithOutParam(node.location, this));
+        } else if (this is { methodKind: MethodKind.LocalFunction, isStatic: false }) {
+            diagnostics.Push(Error.ConditionalOnLocalFunction(node.location, this));
+        } else {
+            var name = attribute.GetConstructorArgument<string>(0, SpecialType.String);
+
+            if (name is null/* || !SyntaxFacts.IsValidIdentifier(name)*/) {
+                diagnostics.Push(Error.InvalidAttributeArgument(
+                    attribute.GetAttributeArgumentLocation(0),
+                    node.GetErrorDisplayName()
+                ));
+            }
+        }
+    }
+
+    internal sealed override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        var data = GetEarlyDecodedWellKnownAttributeData();
+        return data is not null ? data.conditionalSymbols : [];
+    }
+
+    internal MethodEarlyWellKnownAttributeData GetEarlyDecodedWellKnownAttributeData() {
+        var attributesBag = _lazyAttributesBag;
+
+        if (attributesBag is null || !attributesBag.isEarlyDecodedWellKnownAttributeDataComputed)
+            attributesBag = GetAttributesBag();
+
+        return (MethodEarlyWellKnownAttributeData)attributesBag.earlyDecodedWellKnownAttributeData;
+    }
+
+    private bool HasAnyOutParameter() {
+        foreach (var param in parameters) {
+            if (param.refKind == RefKind.Out)
+                return true;
+        }
+
+        return false;
     }
 
     private void DecodeMustUseReturnValueAttribute(
@@ -349,6 +598,17 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
             return methodDeclaration.implicitKeyword;
         else if (node is LocalFunctionStatementSyntax statement)
             return statement.implicitKeyword;
+
+        return null;
+    }
+
+    internal SyntaxTokenList ExtractSpecifierList() {
+        var node = syntaxReference.node;
+
+        if (node is BaseMethodDeclarationSyntax methodDeclaration)
+            return methodDeclaration.specifierList;
+        else if (node is LocalFunctionStatementSyntax statement)
+            return statement.specifierList;
 
         return null;
     }
@@ -498,5 +758,20 @@ internal abstract class SourceMethodSymbol : MethodSymbol, IAttributeTargetSymbo
                 preserveSig
             );
         }
+    }
+
+    internal static bool IsInstanceIncrementDecrementOrCompoundAssignmentOperator(MethodSymbol target) {
+        if (target.methodKind == MethodKind.Operator && !target.isStatic) {
+            var syntaxKind = SyntaxFacts.GetOperatorKind(target.name);
+
+            return syntaxKind is SyntaxKind.PlusPlusToken or SyntaxKind.MinusMinusToken ||
+                SyntaxFacts.IsOverloadableCompoundAssignmentOperator(syntaxKind);
+        }
+
+        return false;
+    }
+
+    private bool IsVtableGapInterfaceMethod() {
+        return containingType.isInterface && ModuleExtensions.GetVTableGapSize(metadataName) > 0;
     }
 }

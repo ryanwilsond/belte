@@ -1,3 +1,5 @@
+using System.Runtime.CompilerServices;
+using System.Threading;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
@@ -8,6 +10,12 @@ internal sealed class DirectiveStack {
 
     private DirectiveStack(ConsList<Directive> directives) {
         _directives = directives;
+    }
+
+    internal bool isNull => _directives is null;
+
+    internal static void InterlockedInitialize(ref DirectiveStack location, DirectiveStack value) {
+        Interlocked.CompareExchange(ref Unsafe.AsRef(in location._directives), value._directives, null);
     }
 
     internal DefineState IsDefined(string id) {

@@ -16,6 +16,8 @@ internal abstract class TypeNameDecoder<ModuleSymbol, TypeSymbol>
         _moduleSymbol = moduleSymbol;
     }
 
+    private protected TypeSymbol SystemTypeSymbol => _factory.GetSystemTypeSymbol(_moduleSymbol);
+
     private protected abstract bool IsContainingAssembly(AssemblyIdentity identity);
 
     private protected abstract TypeSymbol LookupTopLevelTypeDefSymbol(ref MetadataTypeName emittedName, out bool isNoPiaLocalType);
@@ -63,6 +65,10 @@ internal abstract class TypeNameDecoder<ModuleSymbol, TypeSymbol>
 
     private protected TypeSymbol MakePointerTypeSymbol(TypeSymbol type, ImmutableArray<ModifierInfo<TypeSymbol>> customModifiers) {
         return _factory.MakePointerTypeSymbol(_moduleSymbol, type, customModifiers);
+    }
+
+    private protected TypeSymbol GetEnumUnderlyingType(TypeSymbol type) {
+        return _factory.GetEnumUnderlyingType(_moduleSymbol, type);
     }
 
     private protected TypeSymbol MakeFunctionPointerTypeSymbol(

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.FlowAnalysis;
@@ -13,18 +14,33 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// Optimizes BoundExpressions and BoundStatements. Can be run multiple times.
 /// </summary>
 internal sealed class Optimizer : BoundTreeRewriterWithStackGuard {
-    private Optimizer() { }
+    private readonly bool _isFirstPass;
 
-    internal static BoundStatement Optimize(BoundStatement statement) {
-        var optimizer = new Optimizer();
-        return (BoundStatement)optimizer.Visit(statement);
+    // TODO CSE/GVN on pure operations
+    private bool _createdCompileTimeExpression = false;
+
+    private Optimizer(bool isFirstPass) {
+        _isFirstPass = isFirstPass;
+    }
+
+    internal static BoundStatement Optimize(
+        BoundStatement statement,
+        out bool createdCompileTimeExpression,
+        bool isFirstPass) {
+        var optimizer = new Optimizer(isFirstPass);
+
+        var result = (BoundStatement)optimizer.Visit(statement);
+        createdCompileTimeExpression = optimizer._createdCompileTimeExpression;
+
+        return result;
     }
 
     internal static BoundBlockStatement RemoveDeadCode(
+        Compilation compilation,
         MethodSymbol method,
         BoundBlockStatement block,
         BelteDiagnosticQueue diagnostics) {
-        var controlFlow = ControlFlowGraph.Create(method, block);
+        var controlFlow = ControlFlowGraph.Create(compilation, method, block);
         var reachableStatements = new HashSet<BoundStatement>(controlFlow.blocks.SelectMany(b => b.statements));
 
         var builder = block.statements.ToBuilder();
@@ -233,5 +249,65 @@ again:
 
         var index = (int)expression.index.constantValue.value;
         return Visit(i.items[index]);
+    }
+
+    internal override BoundNode VisitExpressionStatement(BoundExpressionStatement node) {
+        /*
+
+        <expression>
+
+        ----> <expression> is call and method is pure and nothrow and the result is unused
+
+        <args>
+
+        */
+        if (node.expression is BoundCallExpression call) {
+            var syntax = node.syntax;
+            var method = call.method;
+
+            if (method.isPure && method.isNoThrow) {
+                Debug.Assert(call.arguments.Length == method.parameterCount);
+
+                if (method.parameterCount == 0)
+                    return new BoundNopStatement(syntax);
+
+                if (method.parameterCount == 1)
+                    return Visit(Statement(syntax, call.arguments[0]));
+
+                return Visit(Block(syntax, call.arguments.Select(a => Statement(a.syntax, a)).ToArray()));
+            }
+        }
+
+        return base.VisitExpressionStatement(node);
+    }
+
+    internal override BoundNode VisitCallExpression(BoundCallExpression node) {
+        /*
+
+        <method>(<args>)
+
+        ----> <method> is pure and the arguments are constant
+
+        $?<method>(<args>)
+
+        */
+        if (!_isFirstPass && node.method.isPure) {
+            var constArgs = true;
+
+            foreach (var arg in node.arguments) {
+                if (arg.constantValue is null) {
+                    constArgs = false;
+                    break;
+                }
+            }
+
+            if (constArgs) {
+                var rewritten = (BoundExpression)base.VisitCallExpression(node);
+                _createdCompileTimeExpression = true;
+                return new BoundCompileTimeExpression(node.syntax, rewritten, conditional: true, null, rewritten.type);
+            }
+        }
+
+        return base.VisitCallExpression(node);
     }
 }

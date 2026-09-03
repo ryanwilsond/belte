@@ -3,7 +3,6 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -51,11 +50,21 @@ internal abstract class SourceConstructorSymbolBase : SourceMemberMethodSymbol {
 
     private protected abstract bool _allowRef { get; }
 
-    internal sealed override void AfterAddingTypeMembersChecks(BelteDiagnosticQueue diagnostics) {
-        base.AfterAddingTypeMembersChecks(diagnostics);
+    internal sealed override void AfterAddingTypeMembersChecks(
+        ConversionsBase conversions,
+        BelteDiagnosticQueue diagnostics) {
+        base.AfterAddingTypeMembersChecks(conversions, diagnostics);
 
-        foreach (var parameter in parameters)
-            parameter.type.CheckAllConstraints(parameter.syntaxReference.location, diagnostics);
+        var impliedConstraints = GetEnclosingTemplateConstraints();
+
+        foreach (var parameter in parameters) {
+            parameter.type.CheckAllConstraints(
+                conversions,
+                parameter.syntaxReference.location,
+                impliedConstraints,
+                diagnostics
+            );
+        }
     }
 
     internal sealed override ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes() {
@@ -66,27 +75,38 @@ internal abstract class SourceConstructorSymbolBase : SourceMemberMethodSymbol {
         return [];
     }
 
+    internal sealed override ImmutableArray<BoundExpression> GetTemplateConstraints() {
+        return [];
+    }
+
     private protected abstract ParameterListSyntax GetParameterList();
 
     private protected sealed override void MethodChecks(BelteDiagnosticQueue diagnostics) {
+        _ = isPure;
+
         var syntax = (BelteSyntaxNode)syntaxReference.node;
         var binderFactory = declaringCompilation.GetBinderFactory(syntax.syntaxTree);
         var parameterList = GetParameterList();
 
         var bodyBinder = binderFactory.GetBinder(parameterList, syntax, this).WithContainingMember(this);
-        var signatureBinder = bodyBinder.WithAdditionalFlagsAndContainingMember(BinderFlags.SuppressConstraintChecks, this);
+        var signatureFlags = BinderFlags.SuppressConstraintChecks;
+
+        if (isLowLevel)
+            signatureFlags |= BinderFlags.LowLevelContext;
+
+        var signatureBinder = bodyBinder.WithAdditionalFlagsAndContainingMember(signatureFlags, this);
 
         _lazyParameters = ParameterHelpers.MakeParameters(
             signatureBinder,
             this,
             parameterList.parameters,
             diagnostics,
-            _allowRef,
+            _allowRef && !isPure,
             addRefConstModifier: false,
             allowConst: true
         ).Cast<SourceParameterSymbol, ParameterSymbol>();
 
-        _lazyReturnType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void));
+        _lazyReturnType = new TypeWithAnnotations(bodyBinder.compilation.GetSpecialType(SpecialType.Void));
 
         if (methodKind == MethodKind.StaticConstructor && (_lazyParameters.Length != 0))
             diagnostics.Push(Error.StaticConstructorParameter(location));

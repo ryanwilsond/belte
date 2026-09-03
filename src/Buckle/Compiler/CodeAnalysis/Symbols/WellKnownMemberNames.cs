@@ -38,6 +38,22 @@ internal static class WellKnownMemberNames {
     internal const string ExplicitConversionName = "op_Explicit";
     internal const string LengthOperatorName = "op_Length";
     internal const string IterOperatorName = "op_Iter";
+    internal const string PowerAssignmentOperatorName = "op_PowerAssignment";
+    internal const string AdditionAssignmentOperatorName = "op_AdditionAssignment";
+    internal const string SubtractionAssignmentOperatorName = "op_SubtractionAssignment";
+    internal const string MultiplicationAssignmentOperatorName = "op_MultiplicationAssignment";
+    internal const string DivisionAssignmentOperatorName = "op_DivisionAssignment";
+    internal const string ModulusAssignmentOperatorName = "op_ModulusAssignment";
+    internal const string BitwiseAndAssignmentOperatorName = "op_BitwiseAndAssignment";
+    internal const string BitwiseOrAssignmentOperatorName = "op_BitwiseOrAssignment";
+    internal const string ExclusiveOrAssignmentOperatorName = "op_ExclusiveOrAssignment";
+    internal const string LeftShiftAssignmentOperatorName = "op_LeftShiftAssignment";
+    internal const string RightShiftAssignmentOperatorName = "op_RightShiftAssignment";
+    internal const string UnsignedRightShiftAssignmentOperatorName = "op_UnsignedRightShiftAssignment";
+    internal const string SlashBackslashAssignmentOperatorName = "op_MinAssignment";
+    internal const string BackslashSlashAssignmentOperatorName = "op_MaxAssignment";
+    internal const string IncrementAssignmentOperatorName = "op_IncrementAssignment";
+    internal const string DecrementAssignmentOperatorName = "op_DecrementAssignment";
     internal const string EntryPointMethodName = "Main";
     internal const string UpdatePointMethodName = "Update";
     internal const string TopLevelStatementsEntryPointTypeName = "<Program>";
@@ -47,6 +63,9 @@ internal static class WellKnownMemberNames {
     internal const string Deconstruct = "Deconstruct";
     internal const string BufferLength = "Length";
     internal new const string ToString = "ToString";
+    internal const string GetEnumeratorMethodName = "GetEnumerator";
+    internal const string MoveNextMethodName = "MoveNext";
+    internal const string CurrentPropertyName = "get_Current";
 
     internal static string GetLiteralOperatorName(string suffix) {
         return $"op_Literal_{suffix}";

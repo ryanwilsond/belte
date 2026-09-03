@@ -13,6 +13,7 @@ namespace Buckle.CodeAnalysis.Binding;
 /// </summary>
 internal abstract partial class BoundTreeExpander {
     private protected readonly List<string> _localNames = [];
+    private protected readonly Stack<List<DataContainerSymbol>> _synthesizedLocals = [];
 
     private protected int _tempCount = 0;
     private protected int _labelCount = 0;
@@ -42,12 +43,16 @@ internal abstract partial class BoundTreeExpander {
             name = $"temp{_tempCount++}";
         } while (_localNames.Contains(name));
 
-        return new SynthesizedDataContainerSymbol(
+        var local = new SynthesizedDataContainerSymbol(
             _container,
             new TypeWithAnnotations(type),
             SynthesizedLocalKind.ExpanderTemp,
             name
         );
+
+        _synthesizedLocals.Peek().Add(local);
+
+        return local;
     }
 
     private protected virtual List<BoundStatement> ExpandStatement(BoundStatement statement) {
@@ -168,13 +173,18 @@ internal abstract partial class BoundTreeExpander {
     private protected virtual List<BoundStatement> ExpandBlockStatement(BoundBlockStatement statement) {
         var statements = new List<BoundStatement>();
 
+        _synthesizedLocals.Push([]);
+
         foreach (var childStatement in statement.statements)
             statements.AddRange(ExpandStatement(childStatement));
+
+        var frameLocals = _synthesizedLocals.Pop();
+        frameLocals.AddRange(statement.locals);
 
         return [new BoundBlockStatement(
             statement.syntax,
             statements.ToImmutableArray(),
-            statement.locals,
+            frameLocals.ToImmutableArray(),
             statement.localFunctions
         )];
     }
@@ -457,8 +467,17 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.ReversibleExpression => ExpandReversibleExpression((BoundReversibleExpression)expression, out replacement, useKind),
             BoundKind.ArrayLength => ExpandArrayLength((BoundArrayLength)expression, out replacement, useKind),
             BoundKind.UnconvertedArrayLength => ExpandUnconvertedArrayLength((BoundUnconvertedArrayLength)expression, out replacement, useKind),
+            BoundKind.ValuePlaceholder => ExpandValuePlaceholder((BoundValuePlaceholder)expression, out replacement, useKind),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
+    }
+
+    private protected virtual List<BoundStatement> ExpandValuePlaceholder(
+        BoundValuePlaceholder expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        replacement = expression;
+        return [];
     }
 
     private protected virtual List<BoundStatement> ExpandArrayLength(
@@ -638,6 +657,7 @@ internal abstract partial class BoundTreeExpander {
             replacement = expression.Update(
                 newExpression,
                 expression.conditional,
+                expression.constantValue,
                 expression.type
             );
 
@@ -1465,7 +1485,7 @@ internal abstract partial class BoundTreeExpander {
                 //     c.receiver is not null &&
                 //     c.receiver.StrippedType().IsStructType());
                 // TODO What nodes actually count here
-                expression.receiver.kind is BoundKind.FieldAccessExpression;
+                expression.receiver.kind is BoundKind.FieldAccessExpression or BoundKind.ArrayAccessExpression;
 
             var statements = ExpandExpression(
                 expression.receiver,

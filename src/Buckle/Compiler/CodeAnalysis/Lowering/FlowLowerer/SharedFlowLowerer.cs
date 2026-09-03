@@ -1,9 +1,10 @@
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.Diagnostics;
 using Buckle.Libraries;
+using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
@@ -13,24 +14,24 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
     private int _tempCount = 0;
     private int _labelCount;
 
-    private protected readonly BelteDiagnosticQueue _diagnostics;
+    private protected readonly Compilation _compilation;
 
     private protected SharedFlowLowerer(
+        Compilation compilation,
         MethodSymbol method,
-        BoundBlockStatement body,
-        BelteDiagnosticQueue diagnostics) {
+        BoundBlockStatement body) {
+        _compilation = compilation;
         _container = method;
-        _diagnostics = diagnostics;
         _localNames.AddRange(body.locals.Select(l => l.name));
     }
 
     private protected MethodSymbol _container { get; set; }
 
     internal static BoundBlockStatement Lower(
+        Compilation compilation,
         MethodSymbol method,
-        BoundBlockStatement statement,
-        BelteDiagnosticQueue diagnostics) {
-        var lowerer = new SharedFlowLowerer(method, statement, diagnostics);
+        BoundBlockStatement statement) {
+        var lowerer = new SharedFlowLowerer(compilation, method, statement);
         return (BoundBlockStatement)lowerer.Visit(statement);
     }
 
@@ -40,84 +41,69 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
         for (<value>, <index> in <collection>)
             <body>
 
-        ----> <collection> is array or string
+        */
+
+        // TODO Theres a lot of code duplicate here but I think its more readable this way that it was before
+        // There is still room to cut out duplicate code especially for the final node creation step
+        // Another improvement would be to store info from binding in ForEachEnumeratorInfo to avoid doing the same
+        // lookup work again, currently we only use that for IEnumerable
+
+        switch (node.forEachLoopKind) {
+            case ForEachLoopKind.Array:
+            case ForEachLoopKind.String:
+                return VisitArrayOrStringForEach(node);
+            case ForEachLoopKind.Enumerator:
+                return VisitEnumeratorForEach(node);
+            case ForEachLoopKind.Length:
+                return VisitLengthForEach(node);
+            case ForEachLoopKind.Iter:
+                return VisitIterForEach(node);
+            case ForEachLoopKind.IEnumerable:
+                return VisitIEnumerableForEach(node);
+            default:
+                throw ExceptionUtilities.UnexpectedValue(node.kind);
+        }
+    }
+
+    private BoundNode VisitArrayOrStringForEach(BoundForEachStatement node) {
+        /*
 
         {
             var temp = <collection>
             var length = temp.Length
             <index> = 0;
 
-            for (; <index> < length; index++) {
+            for (; <index> < length; <index>++) {
                 <value> = temp[<index>]
                 <body>
             }
         }
 
-        ----> <collection> defines length and [] operators
-
-        {
-            var temp = <collection>
-            var length = temp.op_Length()
-            <index> = 0;
-
-            for (; <index> < length; index++) {
-                <value> = temp.op_Index(<index>)
-                <body>
-            }
-        }
-
-        ----> <collection> defines iter operator
-
-        {
-            var temp = <collection>
-            var iter = temp.op_Iter()
-            <index> = 0;
-
-            for (; iter.MoveNext(); index++) {
-                <value> = iter.Current()
-                <body>
-            }
-        }
         */
+        Debug.Assert(node.forEachLoopKind is ForEachLoopKind.Array or ForEachLoopKind.String);
+
         var syntax = node.syntax;
+        var forEachLoopKind = node.forEachLoopKind;
         var type = node.expression.StrippedType();
-        var isString = type.specialType == SpecialType.String;
-        var isArray = type.IsArray();
-        var isEnumerator = type.originalDefinition.Equals(CorLibrary.GetWellKnownType(WellKnownType.Enumerator));
-        var iterOps = type.GetMembers(WellKnownMemberNames.IterOperatorName);
-        var lengthOps = type.GetMembers(WellKnownMemberNames.LengthOperatorName);
-        var bestIndexOp = type.GetMembers(WellKnownMemberNames.IndexOperatorName)
-            .WhereAsArray(m => m is MethodSymbol e && e.GetParameterType(1).specialType == SpecialType.Int)
-            .SingleOrDefault() as MethodSymbol;
-        var worseIndexOp = type.GetMembers(WellKnownMemberNames.IndexOperatorName)
-            .WhereAsArray(m => m is MethodSymbol e && e.GetParameterType(1).StrippedType().specialType == SpecialType.Int)
-            .SingleOrDefault() as MethodSymbol;
 
-        var index = node.indexLocal ?? GenerateTempLocal(CorLibrary.GetSpecialType(SpecialType.Int));
+        var isArray = forEachLoopKind == ForEachLoopKind.Array;
+
+        var index = node.indexLocal ?? GenerateTempLocal(_compilation.GetSpecialType(SpecialType.Int));
         var temp = GenerateTempLocal(type);
-        var lengthOrIter = isEnumerator ? temp : (isArray || isString || lengthOps.Any())
-            ? GenerateTempLocal(CorLibrary.GetSpecialType(SpecialType.Int))
-            : GenerateTempLocal(((MethodSymbol)iterOps[0]).returnType);
+        var lengthOrIter = GenerateTempLocal(_compilation.GetSpecialType(SpecialType.Int));
 
-        BoundExpression lengthOrIterInit = isEnumerator ? null : isArray
-            ? new BoundArrayLength(syntax, Local(syntax, temp), CorLibrary.GetSpecialType(SpecialType.Int))
-            : isString
-                ? Call(syntax,
-                    StandardLibrary.GetWellKnownMember(STLWellKnownMembers.String_Length),
-                    Local(syntax, temp))
-                : lengthOps.Any()
-                    ? Call(syntax, (MethodSymbol)lengthOps[0], Local(syntax, temp))
-                    : Call(syntax, (MethodSymbol)iterOps[0], Local(syntax, temp));
+        BoundExpression lengthOrIterInit = isArray
+            ? new BoundArrayLength(syntax, Local(syntax, temp), _compilation.GetSpecialType(SpecialType.Int))
+            : Call(syntax,
+                _compilation.standardLibrary.GetWellKnownMember(STLWellKnownMembers.String_Length),
+                Local(syntax, temp));
 
-        BoundExpression condition = (isString || isArray || lengthOps.Any())
-            ? Binary(syntax,
-                Local(syntax, index),
-                BinaryOperatorKind.Int64LessThan,
-                Local(syntax, lengthOrIter),
-                CorLibrary.GetSpecialType(SpecialType.Bool))
-            : InstanceCall(syntax,
-                Local(syntax, lengthOrIter),
-                (MethodSymbol)lengthOrIter.type.GetMembers("MoveNext").Single());
+        BoundExpression condition = Binary(syntax,
+            Local(syntax, index),
+            BinaryOperatorKind.Int64LessThan,
+            Local(syntax, lengthOrIter),
+            _compilation.GetSpecialType(SpecialType.Bool)
+        );
 
         BoundExpression indexer = isArray
             ? new BoundArrayAccessExpression(syntax,
@@ -125,25 +111,12 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
                 Local(syntax, index),
                 null,
                 node.valueLocal.type)
-            : isString
-                ? new BoundIndexerAccessExpression(syntax,
-                    Local(syntax, temp),
-                    Local(syntax, index),
-                    null,
-                    null,
-                    node.valueLocal.type)
-                : lengthOps.Any()
-                    ? Call(syntax,
-                        bestIndexOp ?? worseIndexOp,
-                        Local(syntax, temp),
-                        bestIndexOp is not null
-                            ? Local(syntax, index)
-                            : CreateCast(syntax,
-                                CorLibrary.GetNullableType(SpecialType.Int),
-                                Local(syntax, index)))
-                    : InstanceCall(syntax,
-                        Local(syntax, lengthOrIter),
-                        (MethodSymbol)lengthOrIter.type.GetMembers("Current").Single());
+            : new BoundIndexerAccessExpression(syntax,
+                Local(syntax, temp),
+                Local(syntax, index),
+                null,
+                null,
+                node.valueLocal.type);
 
         return Visit(Block(syntax, node.locals, [
             new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
@@ -152,23 +125,307 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
                     ? new BoundNullAssertOperator(syntax, node.expression, true, null, temp.type)
                     : node.expression
             )),
-            !isEnumerator ? new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+            new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                 lengthOrIter,
                 lengthOrIterInit
-            )) : new BoundExpressionStatement(syntax, InstanceCall(syntax,
-                Local(syntax, temp),
-                (MethodSymbol)type.GetMembers("Reset").Single()
             )),
             new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                 index,
-                Literal(syntax, 0L, index.type)
+                Literal(_compilation, syntax, 0L, index.type)
             )),
             new BoundForStatement(syntax,
                 [],
                 new BoundNopStatement(syntax),
                 [],
                 condition,
-                new BoundExpressionStatement(syntax, Increment(syntax, Local(syntax, index))),
+                new BoundExpressionStatement(syntax, Increment(_compilation, syntax, Local(syntax, index))),
+                Block(syntax,
+                    new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                        node.valueLocal,
+                        indexer
+                    )),
+                    node.body
+                ),
+                node.breakLabel,
+                node.continueLabel
+            )
+        ]));
+    }
+
+    private BoundNode VisitEnumeratorForEach(BoundForEachStatement node) {
+        /*
+
+        {
+            var temp = <collection>
+            temp.Reset();
+            <index> = 0;
+
+            for (; temp.MoveNext(); <index>++) {
+                <value> = temp.Current()
+                <body>
+            }
+        }
+
+        */
+        Debug.Assert(node.forEachLoopKind == ForEachLoopKind.Enumerator);
+
+        var syntax = node.syntax;
+        var type = node.expression.StrippedType();
+
+        var index = node.indexLocal ?? GenerateTempLocal(_compilation.GetSpecialType(SpecialType.Int));
+        var temp = GenerateTempLocal(type);
+        var lengthOrIter = temp;
+
+        BoundExpression condition = InstanceCall(syntax,
+            Local(syntax, lengthOrIter),
+            (MethodSymbol)lengthOrIter.type.GetMembers("MoveNext").Single());
+
+        BoundExpression indexer = InstanceCall(syntax,
+            Local(syntax, lengthOrIter),
+            (MethodSymbol)lengthOrIter.type.GetMembers("Current").Single());
+
+        return Visit(Block(syntax, node.locals, [
+            new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                temp,
+                node.expression.Type().IsNullableType()
+                    ? new BoundNullAssertOperator(syntax, node.expression, true, null, temp.type)
+                    : node.expression
+            )),
+            new BoundExpressionStatement(syntax, InstanceCall(syntax,
+                Local(syntax, temp),
+                (MethodSymbol)type.GetMembers("Reset").Single()
+            )),
+            new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                index,
+                Literal(_compilation, syntax, 0L, index.type)
+            )),
+            new BoundForStatement(syntax,
+                [],
+                new BoundNopStatement(syntax),
+                [],
+                condition,
+                new BoundExpressionStatement(syntax, Increment(_compilation, syntax, Local(syntax, index))),
+                Block(syntax,
+                    new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                        node.valueLocal,
+                        indexer
+                    )),
+                    node.body
+                ),
+                node.breakLabel,
+                node.continueLabel
+            )
+        ]));
+    }
+
+    private BoundNode VisitLengthForEach(BoundForEachStatement node) {
+        /*
+
+        {
+            var temp = <collection>
+            var length = temp.op_Length()
+            <index> = 0;
+
+            for (; <index> < length; <index>++) {
+                <value> = temp.op_Index(<index>)
+                <body>
+            }
+        }
+
+        */
+        Debug.Assert(node.forEachLoopKind == ForEachLoopKind.Length);
+
+        var syntax = node.syntax;
+        var kind = node.kind;
+        var type = node.expression.StrippedType();
+
+        var lengthOps = type.GetMembers(WellKnownMemberNames.LengthOperatorName);
+
+        var bestIndexOp = type.GetMembers(WellKnownMemberNames.IndexOperatorName)
+            .WhereAsArray(m => m is MethodSymbol e && e.GetParameterType(1).specialType == SpecialType.Int)
+            .SingleOrDefault() as MethodSymbol;
+
+        var worseIndexOp = type.GetMembers(WellKnownMemberNames.IndexOperatorName)
+            .WhereAsArray(m => m is MethodSymbol e && e.GetParameterType(1).StrippedType().specialType == SpecialType.Int)
+            .SingleOrDefault() as MethodSymbol;
+
+        var index = node.indexLocal ?? GenerateTempLocal(_compilation.GetSpecialType(SpecialType.Int));
+        var temp = GenerateTempLocal(type);
+        var lengthOrIter = GenerateTempLocal(_compilation.GetSpecialType(SpecialType.Int));
+
+        BoundExpression lengthOrIterInit = Call(syntax, (MethodSymbol)lengthOps[0], Local(syntax, temp));
+
+        BoundExpression condition = Binary(syntax,
+            Local(syntax, index),
+            BinaryOperatorKind.Int64LessThan,
+            Local(syntax, lengthOrIter),
+            _compilation.GetSpecialType(SpecialType.Bool));
+
+        BoundExpression indexer = Call(syntax,
+            bestIndexOp ?? worseIndexOp,
+            Local(syntax, temp),
+            bestIndexOp is not null
+                ? Local(syntax, index)
+                : CreateCast(syntax,
+                    _compilation.corLibrary.GetNullableType(SpecialType.Int),
+                    Local(syntax, index)));
+
+        return Visit(Block(syntax, node.locals, [
+            new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                temp,
+                node.expression.Type().IsNullableType()
+                    ? new BoundNullAssertOperator(syntax, node.expression, true, null, temp.type)
+                    : node.expression
+            )),
+            new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                lengthOrIter,
+                lengthOrIterInit
+            )),
+            new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                index,
+                Literal(_compilation, syntax, 0L, index.type)
+            )),
+            new BoundForStatement(syntax,
+                [],
+                new BoundNopStatement(syntax),
+                [],
+                condition,
+                new BoundExpressionStatement(syntax, Increment(_compilation, syntax, Local(syntax, index))),
+                Block(syntax,
+                    new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                        node.valueLocal,
+                        indexer
+                    )),
+                    node.body
+                ),
+                node.breakLabel,
+                node.continueLabel
+            )
+        ]));
+    }
+
+    private BoundNode VisitIterForEach(BoundForEachStatement node) {
+        /*
+
+        {
+            var temp = <collection>
+            var iter = temp.op_Iter()
+            <index> = 0;
+
+            for (; iter.MoveNext(); <index>++) {
+                <value> = iter.Current()
+                <body>
+            }
+        }
+
+        */
+        Debug.Assert(node.forEachLoopKind == ForEachLoopKind.Iter);
+
+        var syntax = node.syntax;
+        var type = node.expression.StrippedType();
+
+        var iterOps = type.GetMembers(WellKnownMemberNames.IterOperatorName);
+
+        var index = node.indexLocal ?? GenerateTempLocal(_compilation.GetSpecialType(SpecialType.Int));
+        var temp = GenerateTempLocal(type);
+        var lengthOrIter = GenerateTempLocal(((MethodSymbol)iterOps[0]).returnType);
+
+        BoundExpression lengthOrIterInit = Call(syntax, (MethodSymbol)iterOps[0], Local(syntax, temp));
+
+        BoundExpression condition = InstanceCall(syntax,
+            Local(syntax, lengthOrIter),
+            (MethodSymbol)lengthOrIter.type.GetMembers("MoveNext").Single());
+
+        BoundExpression indexer = InstanceCall(syntax,
+            Local(syntax, lengthOrIter),
+            (MethodSymbol)lengthOrIter.type.GetMembers("Current").Single());
+
+        return Visit(Block(syntax, node.locals, [
+            new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                temp,
+                node.expression.Type().IsNullableType()
+                    ? new BoundNullAssertOperator(syntax, node.expression, true, null, temp.type)
+                    : node.expression
+            )),
+            new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                lengthOrIter,
+                lengthOrIterInit
+            )),
+            new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                index,
+                Literal(_compilation, syntax, 0L, index.type)
+            )),
+            new BoundForStatement(syntax,
+                [],
+                new BoundNopStatement(syntax),
+                [],
+                condition,
+                new BoundExpressionStatement(syntax, Increment(_compilation, syntax, Local(syntax, index))),
+                Block(syntax,
+                    new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                        node.valueLocal,
+                        indexer
+                    )),
+                    node.body
+                ),
+                node.breakLabel,
+                node.continueLabel
+            )
+        ]));
+    }
+
+    private BoundNode VisitIEnumerableForEach(BoundForEachStatement node) {
+        /*
+
+        {
+            var temp = <collection>
+            var iter = temp.GetEnumerator()
+            <index> = 0;
+            defer iter.Dispose();
+
+            for (; iter.MoveNext(); <index>++) {
+                <value> = iter.get_Current()
+                <body>
+            }
+        }
+
+        */
+        Debug.Assert(node.forEachLoopKind == ForEachLoopKind.IEnumerable);
+        Debug.Assert(node.enumeratorInfo is not null);
+
+        var syntax = node.syntax;
+        var enumeratorInfo = node.enumeratorInfo;
+        var type = node.expression.StrippedType();
+
+        var index = node.indexLocal ?? GenerateTempLocal(_compilation.GetSpecialType(SpecialType.Int));
+        var temp = GenerateTempLocal(type);
+        var iter = GenerateTempLocal(enumeratorInfo.getEnumeratorMethod.returnType);
+
+        var iterInit = InstanceCall(syntax, Local(syntax, temp), enumeratorInfo.getEnumeratorMethod);
+
+        var condition = InstanceCall(syntax, Local(syntax, iter), enumeratorInfo.moveNextMethod);
+        var indexer = InstanceCall(syntax, Local(syntax, iter), enumeratorInfo.getCurrentMethod);
+
+        BoundStatement deferDispose = enumeratorInfo.disposeMethod is null
+            ? new BoundNopStatement(syntax)
+            : new BoundDeferStatement(
+                syntax,
+                Statement(syntax, InstanceCall(syntax, Local(syntax, iter), enumeratorInfo.disposeMethod))
+              );
+
+        return Visit(Block(syntax, node.locals, [
+            LocalDeclaration(syntax, temp, node.expression.Type().IsNullableType()
+                    ? new BoundNullAssertOperator(syntax, node.expression, true, null, temp.type)
+                    : node.expression),
+            LocalDeclaration(syntax, iter, iterInit),
+            LocalDeclaration(syntax, index, Literal(_compilation, syntax, 0L, index.type)),
+            deferDispose,
+            new BoundForStatement(syntax,
+                [],
+                new BoundNopStatement(syntax),
+                [],
+                condition,
+                new BoundExpressionStatement(syntax, Increment(_compilation, syntax, Local(syntax, index))),
                 Block(syntax,
                     new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                         node.valueLocal,

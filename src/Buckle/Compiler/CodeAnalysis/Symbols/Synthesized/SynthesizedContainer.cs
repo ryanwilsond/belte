@@ -4,7 +4,6 @@ using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
-using Buckle.Libraries;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -83,7 +82,7 @@ internal abstract class SynthesizedContainer : NamedTypeSymbol {
 
     // internal sealed override bool isConstant => false;
 
-    internal override NamedTypeSymbol baseType => CorLibrary.GetSpecialType(SpecialType.Object);
+    internal override NamedTypeSymbol baseType => containingAssembly.corLibrary.GetSpecialType(SpecialType.Object);
 
     public override int arity => templateParameters.Length;
 
@@ -105,6 +104,10 @@ internal abstract class SynthesizedContainer : NamedTypeSymbol {
         return [];
     }
 
+    internal override AttributeUsageInfo GetAttributeUsageInfo() {
+        return AttributeUsageInfo.Null;
+    }
+
     internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
         return SpecializedCollections.EmptyEnumerable<(MethodSymbol Body, MethodSymbol Implemented)>();
     }
@@ -112,6 +115,14 @@ internal abstract class SynthesizedContainer : NamedTypeSymbol {
     internal override ImmutableArray<Symbol> GetMembers() {
         Symbol constructor = this.constructor;
         return constructor is null ? [] : [constructor];
+    }
+
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers() {
+        return GetMembersUnordered();
+    }
+
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers(string name) {
+        return GetMembers(name);
     }
 
     internal override ImmutableArray<Symbol> GetMembers(string name) {
@@ -131,5 +142,9 @@ internal abstract class SynthesizedContainer : NamedTypeSymbol {
 
     private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
         throw ExceptionUtilities.Unreachable();
+    }
+
+    internal sealed override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        return [];
     }
 }

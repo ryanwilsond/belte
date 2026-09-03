@@ -1,6 +1,5 @@
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.Libraries;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -105,101 +104,109 @@ internal static class OperatorFacts {
         };
     }
 
-    internal static BinaryOperatorSignature GetSignature(BinaryOperatorKind kind) {
-        var left = TypeFromKind(kind);
-
-        switch (kind.Operator()) {
-            case BinaryOperatorKind.Multiplication:
-            case BinaryOperatorKind.Division:
-            case BinaryOperatorKind.Subtraction:
-            case BinaryOperatorKind.Modulo:
-            case BinaryOperatorKind.And:
-            case BinaryOperatorKind.Or:
-            case BinaryOperatorKind.Xor:
-            case BinaryOperatorKind.Min:
-            case BinaryOperatorKind.Max:
-                return new BinaryOperatorSignature(kind, left, left, left);
-            case BinaryOperatorKind.Addition:
-                return new BinaryOperatorSignature(kind, left, TypeFromKind(kind), TypeFromKind(kind));
-            case BinaryOperatorKind.LeftShift:
-            case BinaryOperatorKind.RightShift:
-            case BinaryOperatorKind.UnsignedRightShift:
-                var rightType = CorLibrary.GetSpecialType(SpecialType.Int);
-
-                if (kind.IsLifted())
-                    rightType = CorLibrary.GetOrCreateNullableType(rightType);
-
-                return new BinaryOperatorSignature(kind, left, rightType, left);
-            case BinaryOperatorKind.Equal:
-            case BinaryOperatorKind.NotEqual:
-            case BinaryOperatorKind.GreaterThan:
-            case BinaryOperatorKind.LessThan:
-            case BinaryOperatorKind.GreaterThanOrEqual:
-            case BinaryOperatorKind.LessThanOrEqual:
-                return new BinaryOperatorSignature(
-                    kind,
-                    left,
-                    left,
-                    kind.IsLifted()
-                        ? CorLibrary.GetNullableType(SpecialType.Bool)
-                        : CorLibrary.GetSpecialType(SpecialType.Bool)
-                );
+    internal static string GetCompoundOperatorNameFromKind(SyntaxKind kind) {
+        switch (kind) {
+            case SyntaxKind.SlashBackslashEqualsToken: return WellKnownMemberNames.SlashBackslashAssignmentOperatorName;
+            case SyntaxKind.BackslashSlashEqualsToken: return WellKnownMemberNames.BackslashSlashAssignmentOperatorName;
+            case SyntaxKind.AsteriskAsteriskEqualsToken: return WellKnownMemberNames.PowerAssignmentOperatorName;
+            case SyntaxKind.PlusEqualsToken: return WellKnownMemberNames.AdditionAssignmentOperatorName;
+            case SyntaxKind.MinusEqualsToken: return WellKnownMemberNames.SubtractionAssignmentOperatorName;
+            case SyntaxKind.AsteriskEqualsToken: return WellKnownMemberNames.MultiplicationAssignmentOperatorName;
+            case SyntaxKind.SlashEqualsToken: return WellKnownMemberNames.DivisionAssignmentOperatorName;
+            case SyntaxKind.PercentEqualsToken: return WellKnownMemberNames.ModulusAssignmentOperatorName;
+            case SyntaxKind.CaretEqualsToken: return WellKnownMemberNames.ExclusiveOrAssignmentOperatorName;
+            case SyntaxKind.AmpersandEqualsToken: return WellKnownMemberNames.BitwiseAndAssignmentOperatorName;
+            case SyntaxKind.PipeEqualsToken: return WellKnownMemberNames.BitwiseOrAssignmentOperatorName;
+            case SyntaxKind.LessThanLessThanEqualsToken: return WellKnownMemberNames.LeftShiftAssignmentOperatorName;
+            case SyntaxKind.GreaterThanGreaterThanEqualsToken: return WellKnownMemberNames.RightShiftAssignmentOperatorName;
+            case SyntaxKind.GreaterThanGreaterThanGreaterThanEqualsToken: return WellKnownMemberNames.UnsignedRightShiftAssignmentOperatorName;
+            case SyntaxKind.PlusPlusToken: return WellKnownMemberNames.IncrementAssignmentOperatorName;
+            case SyntaxKind.MinusMinusToken: return WellKnownMemberNames.DecrementAssignmentOperatorName;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(kind);
         }
-
-        return new BinaryOperatorSignature(kind, left, TypeFromKind(kind), TypeFromKind(kind));
     }
 
-    internal static UnaryOperatorSignature GetSignature(UnaryOperatorKind kind) {
-        var opType = kind.OperandTypes() switch {
-            UnaryOperatorKind.Int8 => CorLibrary.GetSpecialType(SpecialType.Int8),
-            UnaryOperatorKind.Int16 => CorLibrary.GetSpecialType(SpecialType.Int16),
-            UnaryOperatorKind.Int32 => CorLibrary.GetSpecialType(SpecialType.Int32),
-            UnaryOperatorKind.UInt8 => CorLibrary.GetSpecialType(SpecialType.UInt8),
-            UnaryOperatorKind.UInt16 => CorLibrary.GetSpecialType(SpecialType.UInt16),
-            UnaryOperatorKind.UInt32 => CorLibrary.GetSpecialType(SpecialType.UInt32),
-            // UnaryOperatorKind.Int => CorLibrary.GetSpecialType(SpecialType.Int64),
-            UnaryOperatorKind.Int64 => CorLibrary.GetSpecialType(SpecialType.Int),
-            UnaryOperatorKind.UInt64 => CorLibrary.GetSpecialType(SpecialType.UInt64),
-            UnaryOperatorKind.Char => CorLibrary.GetSpecialType(SpecialType.Char),
-            UnaryOperatorKind.Float32 => CorLibrary.GetSpecialType(SpecialType.Float32),
-            // UnaryOperatorKind.Float64 => CorLibrary.GetSpecialType(SpecialType.Float64),
-            UnaryOperatorKind.Float64 => CorLibrary.GetSpecialType(SpecialType.Decimal),
-            UnaryOperatorKind.Bool => CorLibrary.GetSpecialType(SpecialType.Bool),
-            _ => throw ExceptionUtilities.UnexpectedValue(kind.OperandTypes()),
-        };
-
-        if (kind.IsLifted())
-            opType = CorLibrary.GetOrCreateNullableType(opType);
-
-        return new UnaryOperatorSignature(kind, opType, opType);
+    internal static bool OperatorAllowsTemplate(string name) {
+        switch (name) {
+            case WellKnownMemberNames.IndexOperatorName:
+                return false;
+            case WellKnownMemberNames.PowerOperatorName:
+            case WellKnownMemberNames.MultiplyOperatorName:
+            case WellKnownMemberNames.DivideOperatorName:
+            case WellKnownMemberNames.ModulusOperatorName:
+            case WellKnownMemberNames.AdditionOperatorName:
+            case WellKnownMemberNames.UnaryPlusOperatorName:
+            case WellKnownMemberNames.SubtractionOperatorName:
+            case WellKnownMemberNames.UnaryNegationOperatorName:
+            case WellKnownMemberNames.LeftShiftOperatorName:
+            case WellKnownMemberNames.RightShiftOperatorName:
+            case WellKnownMemberNames.UnsignedRightShiftOperatorName:
+            case WellKnownMemberNames.BitwiseAndOperatorName:
+            case WellKnownMemberNames.BitwiseExclusiveOrOperatorName:
+            case WellKnownMemberNames.BitwiseOrOperatorName:
+            case WellKnownMemberNames.IncrementOperatorName:
+            case WellKnownMemberNames.DecrementOperatorName:
+            case WellKnownMemberNames.LogicalNotOperatorName:
+            case WellKnownMemberNames.BitwiseNotOperatorName:
+            case WellKnownMemberNames.EqualityOperatorName:
+            case WellKnownMemberNames.InequalityOperatorName:
+            case WellKnownMemberNames.LessThanOperatorName:
+            case WellKnownMemberNames.GreaterThanOperatorName:
+            case WellKnownMemberNames.LessThanOrEqualOperatorName:
+            case WellKnownMemberNames.GreaterThanOrEqualOperatorName:
+            case WellKnownMemberNames.SlashBackslashOperatorName:
+            case WellKnownMemberNames.BackslashSlashOperatorName:
+                return true;
+            case WellKnownMemberNames.ImplicitConversionName:
+            case WellKnownMemberNames.ExplicitConversionName:
+                return true;
+            case WellKnownMemberNames.LengthOperatorName:
+            case WellKnownMemberNames.IterOperatorName:
+                return false;
+            case WellKnownMemberNames.PowerAssignmentOperatorName:
+            case WellKnownMemberNames.AdditionAssignmentOperatorName:
+            case WellKnownMemberNames.SubtractionAssignmentOperatorName:
+            case WellKnownMemberNames.MultiplicationAssignmentOperatorName:
+            case WellKnownMemberNames.DivisionAssignmentOperatorName:
+            case WellKnownMemberNames.ModulusAssignmentOperatorName:
+            case WellKnownMemberNames.BitwiseAndAssignmentOperatorName:
+            case WellKnownMemberNames.BitwiseOrAssignmentOperatorName:
+            case WellKnownMemberNames.ExclusiveOrAssignmentOperatorName:
+            case WellKnownMemberNames.LeftShiftAssignmentOperatorName:
+            case WellKnownMemberNames.RightShiftAssignmentOperatorName:
+            case WellKnownMemberNames.UnsignedRightShiftAssignmentOperatorName:
+            case WellKnownMemberNames.SlashBackslashAssignmentOperatorName:
+            case WellKnownMemberNames.BackslashSlashAssignmentOperatorName:
+            case WellKnownMemberNames.IncrementAssignmentOperatorName:
+            case WellKnownMemberNames.DecrementAssignmentOperatorName:
+                return false;
+            default:
+                return false;
+        }
     }
 
-    internal static TypeSymbol TypeFromKind(BinaryOperatorKind kind) {
-        var type = kind.OperandTypes() switch {
-            BinaryOperatorKind.Int8 => CorLibrary.GetSpecialType(SpecialType.Int8),
-            BinaryOperatorKind.Int16 => CorLibrary.GetSpecialType(SpecialType.Int16),
-            BinaryOperatorKind.Int32 => CorLibrary.GetSpecialType(SpecialType.Int32),
-            BinaryOperatorKind.UInt8 => CorLibrary.GetSpecialType(SpecialType.UInt8),
-            BinaryOperatorKind.UInt16 => CorLibrary.GetSpecialType(SpecialType.UInt16),
-            BinaryOperatorKind.UInt32 => CorLibrary.GetSpecialType(SpecialType.UInt32),
-            // BinaryOperatorKind.Int => CorLibrary.GetSpecialType(SpecialType.Int64),
-            BinaryOperatorKind.Int64 => CorLibrary.GetSpecialType(SpecialType.Int),
-            BinaryOperatorKind.UInt64 => CorLibrary.GetSpecialType(SpecialType.UInt64),
-            BinaryOperatorKind.Float32 => CorLibrary.GetSpecialType(SpecialType.Float32),
-            // BinaryOperatorKind.Float64 => CorLibrary.GetSpecialType(SpecialType.Float64),
-            BinaryOperatorKind.Float64 => CorLibrary.GetSpecialType(SpecialType.Decimal),
-            BinaryOperatorKind.Bool => CorLibrary.GetSpecialType(SpecialType.Bool),
-            BinaryOperatorKind.Object => CorLibrary.GetSpecialType(SpecialType.Object),
-            BinaryOperatorKind.String => CorLibrary.GetSpecialType(SpecialType.String),
-            BinaryOperatorKind.Char => CorLibrary.GetSpecialType(SpecialType.Char),
-            BinaryOperatorKind.Type => CorLibrary.GetSpecialType(SpecialType.Type),
-            BinaryOperatorKind.Any => CorLibrary.GetSpecialType(SpecialType.Any),
-            _ => throw ExceptionUtilities.UnexpectedValue(kind.OperandTypes()),
-        };
-
-        if (kind.IsLifted())
-            type = CorLibrary.GetOrCreateNullableType(type);
-
-        return type;
+    internal static bool IsCompoundAssignmentOperatorName(string operatorMetadataName) {
+        switch (operatorMetadataName) {
+            case WellKnownMemberNames.DecrementAssignmentOperatorName:
+            case WellKnownMemberNames.IncrementAssignmentOperatorName:
+            case WellKnownMemberNames.SlashBackslashAssignmentOperatorName:
+            case WellKnownMemberNames.BackslashSlashAssignmentOperatorName:
+            case WellKnownMemberNames.PowerAssignmentOperatorName:
+            case WellKnownMemberNames.AdditionAssignmentOperatorName:
+            case WellKnownMemberNames.SubtractionAssignmentOperatorName:
+            case WellKnownMemberNames.MultiplicationAssignmentOperatorName:
+            case WellKnownMemberNames.DivisionAssignmentOperatorName:
+            case WellKnownMemberNames.ModulusAssignmentOperatorName:
+            case WellKnownMemberNames.BitwiseAndAssignmentOperatorName:
+            case WellKnownMemberNames.BitwiseOrAssignmentOperatorName:
+            case WellKnownMemberNames.ExclusiveOrAssignmentOperatorName:
+            case WellKnownMemberNames.LeftShiftAssignmentOperatorName:
+            case WellKnownMemberNames.RightShiftAssignmentOperatorName:
+            case WellKnownMemberNames.UnsignedRightShiftAssignmentOperatorName:
+                return true;
+            default:
+                return false;
+        }
     }
 }

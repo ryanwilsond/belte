@@ -7,7 +7,6 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
@@ -20,7 +19,15 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// Nodes can be revisited.
 /// </summary>
 internal sealed class Expander : SharedExpander {
-    internal Expander(MethodSymbol container, BelteDiagnosticQueue diagnostics) : base(container, diagnostics) { }
+    private readonly HashSet<DataContainerSymbol> _declaredLocals = [];
+
+    internal Expander(Compilation compilation, MethodSymbol container) : base(compilation, container) { }
+
+    private protected override List<BoundStatement> ExpandLocalDeclarationStatement(
+        BoundLocalDeclarationStatement statement) {
+        _declaredLocals.Add(statement.declaration.dataContainer);
+        return base.ExpandLocalDeclarationStatement(statement);
+    }
 
     private protected override List<BoundStatement> ExpandFieldAccessExpression(
         BoundFieldAccessExpression expression,
@@ -50,7 +57,7 @@ internal sealed class Expander : SharedExpander {
             expression.receiver.type.GetNullableUnderlyingType().IsStructType()) {
             statements = CreateNullableStructAccess(expression, null, out replacement, useKind);
         } else {
-            statements = base.ExpandFieldAccessExpression(expression, out replacement, UseKind.Value);
+            statements = base.ExpandFieldAccessExpression(expression, out replacement, useKind);
         }
 
         if (useKind == UseKind.StableValue)
@@ -68,7 +75,7 @@ internal sealed class Expander : SharedExpander {
         var underlyingType = access.receiver.type.GetNullableUnderlyingType();
 
         var statements = receiver is null ? ExpandExpression(access.receiver, out receiver, UseKind.Writable) : [];
-        receiver = Lowerer.CreateNullableGetValueCall(syntax, receiver, underlyingType);
+        receiver = Lowerer.CreateNullableGetValueCall(_compilation, syntax, receiver, underlyingType);
 
         if (useKind == UseKind.Writable) {
             var tempLocal = GenerateTempLocal(underlyingType);
@@ -113,28 +120,56 @@ internal sealed class Expander : SharedExpander {
 
         */
         Debug.Assert(useKind != UseKind.Writable);
+
+        if (expression.op.method?.isStatic == false)
+            return ExpandInstanceCompoundAssignmentOperator(expression, out replacement, useKind);
+
         var syntax = expression.syntax;
 
         var statements = ExpandExpression(expression.left, out var newLeft, UseKind.Writable);
         statements.AddRange(ExpandExpression(expression.right, out var newRight));
 
-        statements.AddRange(ExpandAssignmentOperator(Assignment(syntax,
-            newLeft,
-            new BoundBinaryOperator(syntax,
+        BoundExpression convertedLeft;
+
+        if (expression.leftConversion is not null) {
+            statements.AddRange(ApplyConversionIfNotIdentity(
+                expression.leftConversion,
+                expression.leftPlaceholder,
+                newLeft,
+                out convertedLeft
+            ));
+        } else {
+            convertedLeft = newLeft;
+        }
+
+        BoundExpression binary = new BoundBinaryOperator(syntax,
+            convertedLeft,
+            newRight,
+            expression.op.kind,
+            expression.op.method,
+            ConstantFolding.FoldBinary(
                 newLeft,
                 newRight,
                 expression.op.kind,
-                expression.op.method,
-                ConstantFolding.FoldBinary(
-                    newLeft,
-                    newRight,
-                    expression.op.kind,
-                    expression.Type(),
-                    syntax.location,
-                    BelteDiagnosticQueue.Discarded
-                ),
-                expression.type
+                expression.Type(),
+                syntax.location,
+                BelteDiagnosticQueue.Discarded
             ),
+            expression.op.returnType
+        );
+
+        if (expression.finalConversion is not null) {
+            statements.AddRange(ApplyConversionIfNotIdentity(
+                expression.finalConversion,
+                expression.finalPlaceholder,
+                binary,
+                out binary
+            ));
+        }
+
+        statements.AddRange(ExpandAssignmentOperator(Assignment(syntax,
+            newLeft,
+            binary,
             false,
             expression.type
         ), out var assignment, UseKind.Value));
@@ -144,6 +179,36 @@ internal sealed class Expander : SharedExpander {
             return statements;
         } else {
             statements.Add(Statement(syntax, assignment));
+            replacement = newLeft;
+            return statements;
+        }
+    }
+
+    private List<BoundStatement> ExpandInstanceCompoundAssignmentOperator(
+        BoundCompoundAssignmentOperator expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        Debug.Assert(expression.leftConversion is null);
+        Debug.Assert(expression.leftPlaceholder is null);
+        Debug.Assert(expression.finalConversion is null);
+        Debug.Assert(expression.finalConversion is null);
+
+        var syntax = expression.syntax;
+        var method = expression.op.method;
+
+        var statements = ExpandExpression(expression.left, out var newLeft);
+        statements.AddRange(ExpandExpression(expression.right, out var newRight));
+        statements.Add(Statement(syntax, InstanceCall(
+            syntax,
+            newLeft,
+            method,
+            newRight
+        )));
+
+        if (useKind == UseKind.None) {
+            replacement = null;
+            return statements;
+        } else {
             replacement = newLeft;
             return statements;
         }
@@ -247,7 +312,7 @@ internal sealed class Expander : SharedExpander {
             var temp = GenerateTempLocal(newLeft.type);
             statements.Add(LocalDeclaration(syntax, temp, newLeft));
 
-            var condition = IsNull(syntax, Local(syntax, temp));
+            var condition = IsNull(_compilation, syntax, Local(syntax, temp));
             var breakLabel = GenerateLabel();
             statements.Add(GotoIf(syntax, breakLabel, condition));
 
@@ -266,6 +331,7 @@ internal sealed class Expander : SharedExpander {
                 var statements = ExpandExpression(expression.left, out var newLeft);
 
                 replacement = Lowerer.CreateNullableGetValueOrDefaultTCall(
+                    _compilation,
                     syntax,
                     newLeft,
                     expression.right,
@@ -280,7 +346,7 @@ internal sealed class Expander : SharedExpander {
                 var breakLabel = GenerateLabel();
 
                 statements.Add(LocalDeclaration(syntax, temp, null));
-                statements.Add(GotoIfNot(syntax, continueLabel, IsNull(syntax, newLeft)));
+                statements.Add(GotoIfNot(syntax, continueLabel, IsNull(_compilation, syntax, newLeft)));
                 statements.AddRange(ExpandExpression(expression.right, out var newRight));
                 statements.Add(Statement(syntax, Assignment(syntax, Local(syntax, temp), newRight, false, temp.type)));
                 statements.Add(Goto(syntax, breakLabel));
@@ -328,12 +394,12 @@ internal sealed class Expander : SharedExpander {
         var temp = GenerateTempLocal(newOperand.type);
         statements.Add(LocalDeclaration(syntax, temp, newOperand));
 
-        var condition = IsNull(syntax, Local(syntax, temp));
+        var condition = IsNull(_compilation, syntax, Local(syntax, temp));
         var breakLabel = GenerateLabel();
         statements.Add(GotoIfNot(syntax, breakLabel, condition));
 
-        var defaultValue = Literal(syntax, expression.defaultValue.value, expression.type);
-        var assignment = Assignment(syntax, Local(syntax, temp), defaultValue, false, expression.type);
+        var defaultValue = Literal(_compilation, syntax, expression.defaultValue.value, expression.type);
+        var assignment = Assignment(syntax, Local(syntax, temp), defaultValue, false, temp.type);
         statements.Add(Statement(syntax, assignment));
         statements.Add(Label(syntax, breakLabel));
 
@@ -370,7 +436,7 @@ internal sealed class Expander : SharedExpander {
 
         var statements = ExpandExpression(expression.left, out var newLeft, UseKind.Writable);
 
-        var condition = IsNull(syntax, newLeft);
+        var condition = IsNull(_compilation, syntax, newLeft);
         var breakLabel = GenerateLabel();
         statements.Add(
             expression.isPropagation
@@ -379,7 +445,7 @@ internal sealed class Expander : SharedExpander {
         );
 
         statements.AddRange(ExpandExpression(expression.right, out var newRight));
-        var assignment = Assignment(syntax, newLeft, newRight, false, expression.type);
+        var assignment = Assignment(syntax, newLeft, newRight, false, newLeft.type);
         statements.Add(Statement(syntax, assignment));
         statements.Add(Label(syntax, breakLabel));
 
@@ -511,7 +577,11 @@ internal sealed class Expander : SharedExpander {
         for (var i = 0; i < arguments.Length; i++) {
             var local = ((BoundDataContainerExpression)arguments[i]).dataContainer;
             var field = GetTupleField(syntax, i, expression.right.type, local.type, newRight);
-            statements.Add(LocalDeclaration(syntax, local, field));
+
+            if (_declaredLocals.Add(local))
+                statements.Add(LocalDeclaration(syntax, local, field));
+            else
+                statements.Add(Statement(syntax, Assignment(syntax, Local(syntax, local), field, false, local.type)));
         }
 
         if (useKind == UseKind.None) {
@@ -538,7 +608,7 @@ internal sealed class Expander : SharedExpander {
         Debug.Assert(useKind != UseKind.Writable);
 
         var syntax = expression.syntax;
-        var boolType = CorLibrary.GetSpecialType(SpecialType.Bool);
+        var boolType = _compilation.GetSpecialType(SpecialType.Bool);
         var statements = new List<BoundStatement>();
 
         replacement = null;
@@ -635,7 +705,7 @@ internal sealed class Expander : SharedExpander {
             var position = Math.Min(i + 1, 8);
             i -= 7;
 
-            var field = ((FieldSymbol)CorLibrary.GetWellKnownMember(
+            var field = ((FieldSymbol)_compilation.corLibrary.GetWellKnownMember(
                 NamedTypeSymbol.GetTupleTypeMember(namedReceiver.arity, position)
             )).AsMember(namedReceiver);
 
@@ -698,6 +768,8 @@ internal sealed class Expander : SharedExpander {
         var op = expression.operatorKind;
 
         if (op.IsConditional()) {
+            Debug.Assert(expression.method is null);
+
             if (op.Operator() == BinaryOperatorKind.And)
                 return ExpandConditionalAndOperator(expression, out replacement);
             else if (op.Operator() == BinaryOperatorKind.Or)
@@ -727,7 +799,7 @@ internal sealed class Expander : SharedExpander {
             statements.AddRange(ExpandExpression(expression.right, out var newRight));
             replacement = Call(
                 syntax,
-                StandardLibrary.GetPowerMethod(op.IsLifted(), op.OperandTypes() == BinaryOperatorKind.Int64),
+                _compilation.standardLibrary.GetPowerMethod(op.IsLifted(), op.OperandTypes() == BinaryOperatorKind.Int64),
                 newLeft,
                 newRight
             );
@@ -740,7 +812,7 @@ internal sealed class Expander : SharedExpander {
             statements.AddRange(ExpandExpression(expression.right, out var newRight));
             replacement = Call(
                 syntax,
-                StandardLibrary.GetMinMethod(op.IsLifted(), op.OperandTypes()),
+                _compilation.standardLibrary.GetMinMethod(op.IsLifted(), op.OperandTypes()),
                 newLeft,
                 newRight
             );
@@ -753,7 +825,7 @@ internal sealed class Expander : SharedExpander {
             statements.AddRange(ExpandExpression(expression.right, out var newRight));
             replacement = Call(
                 syntax,
-                StandardLibrary.GetMaxMethod(op.IsLifted(), op.OperandTypes()),
+                _compilation.standardLibrary.GetMaxMethod(op.IsLifted(), op.OperandTypes()),
                 newLeft,
                 newRight
             );
@@ -783,12 +855,12 @@ internal sealed class Expander : SharedExpander {
         if (op == BinaryOperatorKind.NullableNullEqual) {
             if (left.IsLiteralNull()) {
                 var statements = ExpandExpression(right, out var newRight);
-                replacement = IsNull(syntax, newRight);
+                replacement = IsNull(_compilation, syntax, newRight);
                 return statements;
             } else {
                 Debug.Assert(right.IsLiteralNull());
                 var statements = ExpandExpression(left, out var newLeft);
-                replacement = IsNull(syntax, newLeft);
+                replacement = IsNull(_compilation, syntax, newLeft);
                 return statements;
             }
         }
@@ -796,12 +868,12 @@ internal sealed class Expander : SharedExpander {
         if (op == BinaryOperatorKind.NullableNullNotEqual) {
             if (left.IsLiteralNull()) {
                 var statements = ExpandExpression(right, out var newRight);
-                replacement = HasValue(syntax, newRight);
+                replacement = HasValue(_compilation, syntax, newRight);
                 return statements;
             } else {
                 Debug.Assert(right.IsLiteralNull());
                 var statements = ExpandExpression(left, out var newLeft);
-                replacement = HasValue(syntax, newLeft);
+                replacement = HasValue(_compilation, syntax, newLeft);
                 return statements;
             }
         }
@@ -813,11 +885,11 @@ internal sealed class Expander : SharedExpander {
             var statements = ExpandExpression(left, out var newLeft, UseKind.StableValue);
             statements.AddRange(ExpandExpression(right, out var newRight, UseKind.StableValue));
             replacement = Conditional(syntax,
-                @if: And(syntax,
-                    HasValue(syntax, newLeft),
-                    HasValue(syntax, newRight)
+                @if: And(_compilation, syntax,
+                    HasValue(_compilation, syntax, newLeft),
+                    HasValue(_compilation, syntax, newRight)
                 ),
-                @then: Lowerer.CreateNullable(syntax,
+                @then: Lowerer.CreateNullable(_compilation, syntax,
                     Binary(syntax,
                         Value(syntax, newLeft, newLeft.Type().StrippedType()),
                         op,
@@ -826,7 +898,7 @@ internal sealed class Expander : SharedExpander {
                         ),
                     type
                 ),
-                @else: Literal(syntax, null, type),
+                @else: Literal(_compilation, syntax, null, type),
                 type
             );
             return StabilizeIfNecessary(syntax, useKind, statements, replacement, out replacement);
@@ -834,8 +906,8 @@ internal sealed class Expander : SharedExpander {
             var statements = ExpandExpression(left, out var newLeft, UseKind.StableValue);
             statements.AddRange(ExpandExpression(right, out var newRight));
             replacement = Conditional(syntax,
-                @if: HasValue(syntax, newLeft),
-                @then: Lowerer.CreateNullable(syntax,
+                @if: HasValue(_compilation, syntax, newLeft),
+                @then: Lowerer.CreateNullable(_compilation, syntax,
                     Binary(syntax,
                         Value(syntax, newLeft, newLeft.Type().StrippedType()),
                         op,
@@ -844,7 +916,7 @@ internal sealed class Expander : SharedExpander {
                     ),
                     type
                 ),
-                @else: Literal(syntax, null, type),
+                @else: Literal(_compilation, syntax, null, type),
                 type
             );
             return StabilizeIfNecessary(syntax, useKind, statements, replacement, out replacement);
@@ -852,8 +924,8 @@ internal sealed class Expander : SharedExpander {
             var statements = ExpandExpression(left, out var newLeft);
             statements.AddRange(ExpandExpression(right, out var newRight, UseKind.StableValue));
             replacement = Conditional(syntax,
-                @if: HasValue(syntax, newRight),
-                @then: Lowerer.CreateNullable(syntax,
+                @if: HasValue(_compilation, syntax, newRight),
+                @then: Lowerer.CreateNullable(_compilation, syntax,
                     Binary(syntax,
                         Lowerer.DeNull(newLeft),
                         op,
@@ -862,7 +934,7 @@ internal sealed class Expander : SharedExpander {
                     ),
                     type
                 ),
-                @else: Literal(syntax, null, type),
+                @else: Literal(_compilation, syntax, null, type),
                 type
             );
             return StabilizeIfNecessary(syntax, useKind, statements, replacement, out replacement);
@@ -915,28 +987,28 @@ internal sealed class Expander : SharedExpander {
 
         */
         var syntax = expression.syntax;
-        var boolType = CorLibrary.GetSpecialType(SpecialType.Bool);
+        var boolType = _compilation.GetSpecialType(SpecialType.Bool);
 
         if (expression.left.Type().IsNullableType() && expression.right.Type().IsNullableType()) {
             var statements = ExpandExpression(expression.left, out var newLeft, UseKind.StableValue);
             var temp = GenerateTempLocal(boolType);
             var breakLabel = GenerateLabel();
-            statements.Add(LocalDeclaration(syntax, temp, Literal(syntax, false, boolType)));
+            statements.Add(LocalDeclaration(syntax, temp, Literal(_compilation, syntax, false, boolType)));
             statements.Add(GotoIf(syntax, breakLabel,
                 Binary(syntax,
-                    IsNull(syntax, newLeft),
+                    IsNull(_compilation, syntax, newLeft),
                     BinaryOperatorKind.BoolConditionalOr,
                     Binary(syntax,
                         new BoundNullAssertOperator(syntax, newLeft, false, null, newLeft.StrippedType()),
                         BinaryOperatorKind.BoolEqual,
-                        Literal(syntax, false, boolType),
+                        Literal(_compilation, syntax, false, boolType),
                         boolType
                     ),
                     boolType
                 )
             ));
             statements.AddRange(ExpandExpression(expression.right, out var newRight, UseKind.StableValue));
-            statements.Add(GotoIf(syntax, breakLabel, IsNull(syntax, newRight)));
+            statements.Add(GotoIf(syntax, breakLabel, IsNull(_compilation, syntax, newRight)));
             statements.Add(Statement(syntax,
                 Assignment(syntax,
                     Local(syntax, temp),
@@ -953,22 +1025,22 @@ internal sealed class Expander : SharedExpander {
             var statements = ExpandExpression(expression.left, out var newLeft, UseKind.StableValue);
             var temp = GenerateTempLocal(boolType);
             var breakLabel = GenerateLabel();
-            statements.Add(LocalDeclaration(syntax, temp, Literal(syntax, false, boolType)));
+            statements.Add(LocalDeclaration(syntax, temp, Literal(_compilation, syntax, false, boolType)));
             statements.Add(GotoIf(syntax, breakLabel,
                 Binary(syntax,
-                    IsNull(syntax, newLeft),
+                    IsNull(_compilation, syntax, newLeft),
                     BinaryOperatorKind.BoolConditionalOr,
                     Binary(syntax,
                         new BoundNullAssertOperator(syntax, newLeft, false, null, newLeft.StrippedType()),
                         BinaryOperatorKind.BoolEqual,
-                        Literal(syntax, false, boolType),
+                        Literal(_compilation, syntax, false, boolType),
                         boolType
                     ),
                     boolType
                 )
             ));
             statements.AddRange(ExpandExpression(expression.right, out var newRight));
-            statements.Add(GotoIf(syntax, breakLabel, IsNull(syntax, newRight)));
+            statements.Add(GotoIf(syntax, breakLabel, IsNull(_compilation, syntax, newRight)));
             statements.Add(Statement(syntax,
                 Assignment(syntax,
                     Local(syntax, temp),
@@ -985,17 +1057,17 @@ internal sealed class Expander : SharedExpander {
             var statements = ExpandExpression(expression.left, out var newLeft);
             var temp = GenerateTempLocal(boolType);
             var breakLabel = GenerateLabel();
-            statements.Add(LocalDeclaration(syntax, temp, Literal(syntax, false, boolType)));
+            statements.Add(LocalDeclaration(syntax, temp, Literal(_compilation, syntax, false, boolType)));
             statements.Add(GotoIf(syntax, breakLabel,
                 Binary(syntax,
                     newLeft,
                     BinaryOperatorKind.BoolEqual,
-                    Literal(syntax, false, boolType),
+                    Literal(_compilation, syntax, false, boolType),
                     boolType
                 )
             ));
             statements.AddRange(ExpandExpression(expression.right, out var newRight, UseKind.StableValue));
-            statements.Add(GotoIf(syntax, breakLabel, IsNull(syntax, newRight)));
+            statements.Add(GotoIf(syntax, breakLabel, IsNull(_compilation, syntax, newRight)));
             statements.Add(Statement(syntax,
                 Assignment(syntax,
                     Local(syntax, temp),
@@ -1012,12 +1084,12 @@ internal sealed class Expander : SharedExpander {
             var statements = ExpandExpression(expression.left, out var newLeft);
             var temp = GenerateTempLocal(boolType);
             var breakLabel = GenerateLabel();
-            statements.Add(LocalDeclaration(syntax, temp, Literal(syntax, false, boolType)));
+            statements.Add(LocalDeclaration(syntax, temp, Literal(_compilation, syntax, false, boolType)));
             statements.Add(GotoIf(syntax, breakLabel,
                 Binary(syntax,
                     newLeft,
                     BinaryOperatorKind.BoolEqual,
-                    Literal(syntax, false, boolType),
+                    Literal(_compilation, syntax, false, boolType),
                     boolType
                 )
             ));
@@ -1088,19 +1160,21 @@ internal sealed class Expander : SharedExpander {
         var type = local.type;
         var operand = expression.expression;
 
+        Debug.Assert(expression.type.specialType == SpecialType.Bool);
+
         if (operand.type.Equals(type, TypeCompareKind.ConsiderEverything)) {
             var statements = ExpandExpression(operand, out var newOperand);
             statements.Add(LocalDeclaration(syntax, local, newOperand));
             replacement = type.IsNullableType()
-                ? HasValue(syntax, Local(syntax, local))
-                : Literal(syntax, true, expression.type);
+                ? HasValue(_compilation, syntax, Local(syntax, local))
+                : Literal(_compilation, syntax, true, expression.type);
             return statements;
         } else if (operand.type.StrippedType().Equals(type, TypeCompareKind.ConsiderEverything)) {
             var breakLabel = GenerateLabel();
             var statements = ExpandExpression(operand, out var newOperand, UseKind.StableValue);
             var temp = GenerateTempLocal(expression.type);
-            statements.Add(LocalDeclaration(syntax, temp, Literal(syntax, false, expression.type)));
-            statements.Add(GotoIf(syntax, breakLabel, IsNull(syntax, newOperand)));
+            statements.Add(LocalDeclaration(syntax, temp, Literal(_compilation, syntax, false, expression.type)));
+            statements.Add(GotoIf(syntax, breakLabel, IsNull(_compilation, syntax, newOperand)));
             statements.Add(
                 LocalDeclaration(syntax,
                     local,
@@ -1108,7 +1182,12 @@ internal sealed class Expander : SharedExpander {
                 )
             );
             statements.Add(Statement(syntax,
-                Assignment(syntax, Local(syntax, temp), Literal(syntax, true, expression.type), false, expression.type)
+                Assignment(syntax,
+                    Local(syntax, temp),
+                    Literal(_compilation, syntax, true, expression.type),
+                    false,
+                    expression.type
+                )
             ));
             statements.Add(Label(syntax, breakLabel));
             replacement = Local(syntax, temp);
@@ -1125,13 +1204,13 @@ internal sealed class Expander : SharedExpander {
                     local.type
                 )
             ));
-            replacement = HasValue(syntax, Local(syntax, local));
+            replacement = HasValue(_compilation, syntax, Local(syntax, local));
             return statements;
         } else {
             var breakLabel = GenerateLabel();
             var statements = ExpandExpression(operand, out var newOperand, UseKind.StableValue);
             var temp = GenerateTempLocal(expression.type);
-            statements.Add(LocalDeclaration(syntax, temp, Literal(syntax, false, expression.type)));
+            statements.Add(LocalDeclaration(syntax, temp, Literal(_compilation, syntax, false, expression.type)));
             statements.Add(GotoIfNot(syntax,
                 breakLabel,
                 new BoundIsOperator(syntax,
@@ -1141,16 +1220,72 @@ internal sealed class Expander : SharedExpander {
                     null,
                     expression.type
                 ),
-                assignedOnFallthrough: [temp]
+                assignedOnFallthrough: [local]
             ));
             statements.AddRange(ExpandExpression(CreateCast(syntax, local.type, newOperand), out var cast));
             statements.Add(LocalDeclaration(syntax, local, cast));
             statements.Add(Statement(syntax,
-                Assignment(syntax, Local(syntax, temp), Literal(syntax, true, expression.type), false, expression.type)
+                Assignment(syntax,
+                    Local(syntax, temp),
+                    Literal(_compilation, syntax, true, expression.type),
+                    false,
+                    expression.type
+                )
             ));
             statements.Add(Label(syntax, breakLabel));
             replacement = Local(syntax, temp);
             return statements;
+
+            // TODO This structure may be preferable
+            // TODO It has an extra jump but prevents double assignment to the result temporary
+            // TODO This means if we ever do jump elision this could be optimized better
+            /*
+
+            goto false unless <expression> is <local.type>
+            <local> = (<local.type>)<expression>
+            result = true
+            goto end
+            false:
+            result = false
+            end:
+            result
+
+            */
+            // var falseLabel = GenerateLabel();
+            // var endLabel = GenerateLabel();
+
+            // var statements = ExpandExpression(operand, out var newOperand, UseKind.StableValue);
+            // var temp = GenerateTempLocal(expression.type);
+
+            // statements.Add(LocalDeclaration(syntax, temp, null));
+            // statements.Add(GotoIfNot(syntax,
+            //     falseLabel,
+            //     new BoundIsOperator(syntax,
+            //         newOperand,
+            //         new BoundTypeExpression(syntax, null, null, local.type),
+            //         false,
+            //         null,
+            //         expression.type
+            //     ),
+            //     assignedOnFallthrough: [local]
+            // ));
+            // statements.AddRange(ExpandExpression(CreateCast(syntax, local.type, newOperand), out var cast));
+            // statements.Add(LocalDeclaration(syntax, local, cast));
+            // statements.Add(Statement(syntax,
+            //     Assignment(syntax, Local(syntax, temp), Literal(syntax, true, expression.type), false, expression.type)
+            // ));
+
+            // statements.Add(Goto(syntax, endLabel));
+            // statements.Add(Label(syntax, falseLabel));
+
+            // statements.Add(Statement(syntax,
+            //     Assignment(syntax, Local(syntax, temp), Literal(syntax, false, expression.type), false, expression.type)
+            // ));
+
+            // statements.Add(Label(syntax, endLabel));
+
+            // replacement = Local(syntax, temp);
+            // return statements;
         }
     }
 
@@ -1203,33 +1338,33 @@ internal sealed class Expander : SharedExpander {
 
         */
         var syntax = expression.syntax;
-        var boolType = CorLibrary.GetSpecialType(SpecialType.Bool);
+        var boolType = _compilation.GetSpecialType(SpecialType.Bool);
 
         if (expression.left.Type().IsNullableType() && expression.right.Type().IsNullableType()) {
             var statements = ExpandExpression(expression.left, out var newLeft, UseKind.StableValue);
             var temp = GenerateTempLocal(boolType);
             var breakLabel = GenerateLabel();
             var continueLabel = GenerateLabel();
-            statements.Add(LocalDeclaration(syntax, temp, Literal(syntax, true, boolType)));
+            statements.Add(LocalDeclaration(syntax, temp, Literal(_compilation, syntax, true, boolType)));
             statements.Add(GotoIfNot(syntax, breakLabel,
                 Binary(syntax,
-                    IsNull(syntax, newLeft),
+                    IsNull(_compilation, syntax, newLeft),
                     BinaryOperatorKind.BoolConditionalOr,
                     Binary(syntax,
                         new BoundNullAssertOperator(syntax, newLeft, false, null, newLeft.StrippedType()),
                         BinaryOperatorKind.BoolEqual,
-                        Literal(syntax, false, boolType),
+                        Literal(_compilation, syntax, false, boolType),
                         boolType
                     ),
                     boolType
                 )
             ));
             statements.AddRange(ExpandExpression(expression.right, out var newRight, UseKind.StableValue));
-            statements.Add(GotoIfNot(syntax, continueLabel, IsNull(syntax, newRight)));
+            statements.Add(GotoIfNot(syntax, continueLabel, IsNull(_compilation, syntax, newRight)));
             statements.Add(Statement(syntax,
                 Assignment(syntax,
                     Local(syntax, temp),
-                    Literal(syntax, false, temp.type),
+                    Literal(_compilation, syntax, false, temp.type),
                     false,
                     temp.type
                 )
@@ -1252,15 +1387,15 @@ internal sealed class Expander : SharedExpander {
             var statements = ExpandExpression(expression.left, out var newLeft, UseKind.StableValue);
             var temp = GenerateTempLocal(boolType);
             var breakLabel = GenerateLabel();
-            statements.Add(LocalDeclaration(syntax, temp, Literal(syntax, true, boolType)));
+            statements.Add(LocalDeclaration(syntax, temp, Literal(_compilation, syntax, true, boolType)));
             statements.Add(GotoIfNot(syntax, breakLabel,
                 Binary(syntax,
-                    IsNull(syntax, newLeft),
+                    IsNull(_compilation, syntax, newLeft),
                     BinaryOperatorKind.BoolConditionalOr,
                     Binary(syntax,
                         new BoundNullAssertOperator(syntax, newLeft, false, null, newLeft.StrippedType()),
                         BinaryOperatorKind.BoolEqual,
-                        Literal(syntax, false, boolType),
+                        Literal(_compilation, syntax, false, boolType),
                         boolType
                     ),
                     boolType
@@ -1284,21 +1419,21 @@ internal sealed class Expander : SharedExpander {
             var temp = GenerateTempLocal(boolType);
             var breakLabel = GenerateLabel();
             var continueLabel = GenerateLabel();
-            statements.Add(LocalDeclaration(syntax, temp, Literal(syntax, true, boolType)));
+            statements.Add(LocalDeclaration(syntax, temp, Literal(_compilation, syntax, true, boolType)));
             statements.Add(GotoIf(syntax, breakLabel,
                 Binary(syntax,
                     newLeft,
                     BinaryOperatorKind.BoolEqual,
-                    Literal(syntax, true, boolType),
+                    Literal(_compilation, syntax, true, boolType),
                     boolType
                 )
             ));
             statements.AddRange(ExpandExpression(expression.right, out var newRight, UseKind.StableValue));
-            statements.Add(GotoIfNot(syntax, continueLabel, IsNull(syntax, newRight)));
+            statements.Add(GotoIfNot(syntax, continueLabel, IsNull(_compilation, syntax, newRight)));
             statements.Add(Statement(syntax,
                 Assignment(syntax,
                     Local(syntax, temp),
-                    Literal(syntax, false, temp.type),
+                    Literal(_compilation, syntax, false, temp.type),
                     false,
                     temp.type
                 )
@@ -1326,7 +1461,7 @@ internal sealed class Expander : SharedExpander {
                 Binary(syntax,
                     newLeft,
                     BinaryOperatorKind.BoolEqual,
-                    Literal(syntax, true, boolType),
+                    Literal(_compilation, syntax, true, boolType),
                     boolType
                 )
             ));
@@ -1419,8 +1554,8 @@ internal sealed class Expander : SharedExpander {
         if (operand.Type().IsNullableType()) {
             var statements = ExpandExpression(operand, out var newOperand);
             replacement = Conditional(syntax,
-                @if: HasValue(syntax, newOperand),
-                @then: Lowerer.CreateNullable(syntax,
+                @if: HasValue(_compilation, syntax, newOperand),
+                @then: Lowerer.CreateNullable(_compilation, syntax,
                     Unary(syntax,
                         op,
                         Value(syntax, newOperand, newOperand.Type().GetNullableUnderlyingType()),
@@ -1428,7 +1563,7 @@ internal sealed class Expander : SharedExpander {
                     ),
                     expression.type
                 ),
-                @else: Literal(syntax, null, expression.Type()),
+                @else: Literal(_compilation, syntax, null, expression.Type()),
                 expression.Type()
             );
             return StabilizeIfNecessary(syntax, useKind, statements, replacement, out replacement);
@@ -1526,8 +1661,8 @@ internal sealed class Expander : SharedExpander {
         if (operandType.IsNullableType() && type.IsNullableType()) {
             var statements = ExpandExpression(operand, out var newOperand, UseKind.StableValue);
             statements.AddRange(ExpandExpression(Conditional(syntax,
-                @if: HasValue(syntax, newOperand),
-                @then: Lowerer.CreateNullable(syntax,
+                @if: HasValue(_compilation, syntax, newOperand),
+                @then: Lowerer.CreateNullable(_compilation, syntax,
                     Cast(syntax,
                         type.GetNullableUnderlyingType(),
                         Value(syntax, newOperand, operandType.GetNullableUnderlyingType()),
@@ -1536,7 +1671,7 @@ internal sealed class Expander : SharedExpander {
                     ),
                     type
                 ),
-                @else: Literal(syntax, null, type),
+                @else: Literal(_compilation, syntax, null, type),
                 type
             ), out replacement, UseKind.Value));
             return StabilizeIfNecessary(syntax, useKind, statements, replacement, out replacement);
@@ -1548,6 +1683,7 @@ internal sealed class Expander : SharedExpander {
             switch (expression.conversion.kind) {
                 case ConversionKind.ImplicitNullable:
                     statements = ExpandExpression(Lowerer.CreateNullable(
+                        _compilation,
                         syntax,
                         Cast(
                             syntax,
@@ -1600,35 +1736,37 @@ internal sealed class Expander : SharedExpander {
         */
         Debug.Assert(useKind != UseKind.Writable);
 
+        if (expression.method?.isStatic == false)
+            return ExpandInstanceIncrementOperator(expression, out replacement, useKind);
+
+        if (expression.method is not null)
+            return ExpandStaticIncrementOperator(expression, out replacement, useKind);
+
         var syntax = expression.syntax;
         var operand = expression.operand;
-        var method = expression.method;
-
-        if (method is not null) {
-            var statements = ExpandExpression(operand, out var newOperand);
-            replacement = Call(
-                syntax,
-                method,
-                newOperand
-            );
-
-            return StabilizeCallIfNecessary(syntax, method, useKind, statements, replacement, out replacement);
-        }
 
         var op = expression.operatorKind.Operator();
         var isIsolated = useKind == UseKind.None;
 
+        if (expression.operand.StrippedType().specialType == SpecialType.None)
+            return ExpandUserDefinedIncrementOperator(expression, op, isIsolated, out replacement, useKind);
+
+        Debug.Assert(expression.operandConversion is null || !HasNonIdentityConversion(expression.operandConversion));
+        Debug.Assert(expression.operandPlaceholder is null || !HasNonIdentityConversion(expression.operandConversion));
+        Debug.Assert(expression.resultConversion is null || !HasNonIdentityConversion(expression.resultConversion));
+        Debug.Assert(expression.resultPlaceholder is null || !HasNonIdentityConversion(expression.resultConversion));
+
         if (op == UnaryOperatorKind.PrefixIncrement || (op == UnaryOperatorKind.PostfixIncrement && isIsolated))
-            return ExpandCompoundAssignmentOperator(Increment(syntax, operand), out replacement, useKind);
+            return ExpandCompoundAssignmentOperator(Increment(_compilation, syntax, operand), out replacement, useKind);
 
         if (op == UnaryOperatorKind.PrefixDecrement || (op == UnaryOperatorKind.PostfixDecrement && isIsolated))
-            return ExpandCompoundAssignmentOperator(Decrement(syntax, operand), out replacement, useKind);
+            return ExpandCompoundAssignmentOperator(Decrement(_compilation, syntax, operand), out replacement, useKind);
 
         if (op == UnaryOperatorKind.PostfixIncrement) {
             var statements = ExpandExpression(operand, out var newOperand, UseKind.Writable);
             var temp = GenerateTempLocal(newOperand.type);
             statements.Add(LocalDeclaration(syntax, temp, newOperand));
-            statements.AddRange(ExpandCompoundAssignmentOperator(Increment(syntax, newOperand), out var expr, useKind));
+            statements.AddRange(ExpandCompoundAssignmentOperator(Increment(_compilation, syntax, newOperand), out var expr, useKind));
             statements.Add(Statement(syntax, expr));
             replacement = Local(syntax, temp);
             return statements;
@@ -1636,13 +1774,240 @@ internal sealed class Expander : SharedExpander {
             var statements = ExpandExpression(operand, out var newOperand, UseKind.Writable);
             var temp = GenerateTempLocal(newOperand.type);
             statements.Add(LocalDeclaration(syntax, temp, newOperand));
-            statements.AddRange(ExpandCompoundAssignmentOperator(Decrement(syntax, newOperand), out var expr, useKind));
+            statements.AddRange(ExpandCompoundAssignmentOperator(Decrement(_compilation, syntax, newOperand), out var expr, useKind));
             statements.Add(Statement(syntax, expr));
             replacement = Local(syntax, temp);
             return statements;
         } else {
             throw ExceptionUtilities.UnexpectedValue(op);
         }
+    }
+
+    private List<BoundStatement> ExpandUserDefinedIncrementOperator(
+        BoundIncrementOperator expression,
+        UnaryOperatorKind op,
+        bool isIsolated,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        Debug.Assert(expression.operandConversion is not null);
+        Debug.Assert(expression.operandPlaceholder is not null);
+        Debug.Assert(expression.resultConversion is not null);
+        Debug.Assert(expression.resultPlaceholder is not null);
+        var syntax = expression.syntax;
+
+        var shouldCreateTemp = !isIsolated &&
+            op.Operator() is UnaryOperatorKind.PostfixIncrement or UnaryOperatorKind.PostfixDecrement;
+
+        SynthesizedDataContainerSymbol temp = null;
+
+        List<BoundStatement> statements = [];
+
+        if (shouldCreateTemp) {
+            temp = GenerateTempLocal(expression.operand.type);
+            statements.Add(LocalDeclaration(syntax, temp, expression.operand));
+        }
+
+        statements.AddRange(ApplyConversionIfNotIdentity(
+            expression.operandConversion,
+            expression.operandPlaceholder,
+            expression.operand,
+            out var newOperand
+        ));
+
+        if (op == UnaryOperatorKind.PrefixIncrement || op == UnaryOperatorKind.PostfixIncrement) {
+            statements.AddRange(ExpandIncrementContinued(
+                expression.resultConversion,
+                expression.resultPlaceholder,
+                expression.operand,
+                Increment(_compilation, syntax, newOperand),
+                out replacement,
+                useKind
+            ));
+        } else if (op == UnaryOperatorKind.PrefixDecrement || op == UnaryOperatorKind.PostfixDecrement) {
+            statements.AddRange(ExpandIncrementContinued(
+                expression.resultConversion,
+                expression.resultPlaceholder,
+                expression.operand,
+                Decrement(_compilation, syntax, newOperand),
+                out replacement,
+                useKind
+            ));
+        } else {
+            throw ExceptionUtilities.Unreachable();
+        }
+
+        if (shouldCreateTemp) {
+            statements.Add(Statement(syntax, replacement));
+            replacement = Local(syntax, temp);
+        }
+
+        return statements;
+
+        List<BoundStatement> ExpandIncrementContinued(
+            BoundExpression resultConversion,
+            BoundValuePlaceholder resultPlaceholder,
+            BoundExpression operand,
+            BoundCompoundAssignmentOperator increment,
+            out BoundExpression replacement,
+            UseKind useKind) {
+            // Replacement is the result of the increment
+            Debug.Assert(useKind != UseKind.Writable);
+
+            var statements = ExpandExpression(operand, out var newOperand, UseKind.Writable);
+            statements.AddRange(ExpandExpression(increment.left, out var newLeft));
+            statements.AddRange(ExpandExpression(increment.right, out var newRight));
+
+            var binary = new BoundBinaryOperator(syntax,
+                newLeft,
+                newRight,
+                increment.op.kind,
+                increment.op.method,
+                null,
+                increment.type
+            );
+
+            statements.AddRange(
+                ApplyConversionIfNotIdentity(resultConversion, resultPlaceholder, binary, out var newBinary)
+            );
+
+            statements.AddRange(ExpandAssignmentOperator(Assignment(syntax,
+                newOperand,
+                newBinary,
+                false,
+                newOperand.type
+            ), out var assignment, UseKind.Value));
+
+            if (useKind is UseKind.Value or UseKind.None) {
+                replacement = assignment;
+                return statements;
+            } else {
+                statements.Add(Statement(syntax, assignment));
+                replacement = newLeft;
+                return statements;
+            }
+        }
+    }
+
+    private List<BoundStatement> ApplyConversionIfNotIdentity(
+        BoundExpression conversion,
+        BoundValuePlaceholder placeholder,
+        BoundExpression expression,
+        out BoundExpression replacement) {
+        if (HasNonIdentityConversion(conversion)) {
+            Debug.Assert(placeholder is not null);
+            return ApplyConversion(conversion, placeholder, expression, out replacement);
+        }
+
+        replacement = expression;
+        return [];
+    }
+
+    private static bool HasNonIdentityConversion(BoundExpression expression) {
+        while (expression is BoundCastExpression conversion) {
+            if (!conversion.conversion.isIdentity)
+                return true;
+
+            expression = conversion.operand;
+        }
+
+        return false;
+    }
+
+    private List<BoundStatement> ExpandInstanceIncrementOperator(
+        BoundIncrementOperator expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        Debug.Assert(expression.operandConversion is null);
+        Debug.Assert(expression.operandPlaceholder is null);
+        Debug.Assert(expression.resultConversion is null);
+        Debug.Assert(expression.resultPlaceholder is null);
+
+        var syntax = expression.syntax;
+        var method = expression.method;
+
+        var statements = ExpandExpression(expression.operand, out var newOperand);
+        statements.Add(Statement(syntax, InstanceCall(
+            syntax,
+            newOperand,
+            method
+        )));
+
+        if (useKind == UseKind.None) {
+            replacement = null;
+            return statements;
+        } else {
+            replacement = newOperand;
+            return statements;
+        }
+    }
+
+    private List<BoundStatement> ExpandStaticIncrementOperator(
+        BoundIncrementOperator expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        Debug.Assert(expression.operandConversion is null || !HasNonIdentityConversion(expression.operandConversion));
+        Debug.Assert(expression.operandPlaceholder is null || !HasNonIdentityConversion(expression.operandConversion));
+        Debug.Assert(expression.resultConversion is null || !HasNonIdentityConversion(expression.resultConversion));
+        Debug.Assert(expression.resultPlaceholder is null || !HasNonIdentityConversion(expression.resultConversion));
+
+        var syntax = expression.syntax;
+
+        var shouldCreateTemp = !(useKind == UseKind.None) &&
+            expression.operatorKind.Operator() is UnaryOperatorKind.PostfixIncrement or
+                                                  UnaryOperatorKind.PostfixDecrement;
+
+        SynthesizedDataContainerSymbol temp = null;
+
+        List<BoundStatement> statements = [];
+
+        statements.AddRange(ExpandExpression(expression.operand, out var newOperand, UseKind.Writable));
+
+        if (shouldCreateTemp) {
+            temp = GenerateTempLocal(expression.operand.type);
+            statements.Add(LocalDeclaration(syntax, temp, newOperand));
+        }
+
+        replacement = Call(
+            syntax,
+            expression.method,
+            newOperand
+        );
+
+        if (useKind == UseKind.None) {
+            statements.Add(Statement(syntax, Assignment(
+                syntax,
+                newOperand,
+                replacement,
+                false,
+                newOperand.type
+            )));
+
+            replacement = null;
+            return statements;
+        }
+
+        if (shouldCreateTemp) {
+            statements.Add(Statement(syntax, Assignment(
+                syntax,
+                newOperand,
+                replacement,
+                false,
+                newOperand.type
+            )));
+
+            replacement = Local(syntax, temp);
+            return statements;
+        }
+
+        replacement = Assignment(
+            syntax,
+            newOperand,
+            replacement,
+            false,
+            newOperand.type
+        );
+
+        return statements;
     }
 
     private protected override List<BoundStatement> ExpandConditionalOperator(
@@ -1671,7 +2036,28 @@ internal sealed class Expander : SharedExpander {
         out BoundExpression replacement,
         UseKind useKind) {
         Debug.Assert(useKind != UseKind.Writable);
-        var statements = base.ExpandAsOperator(expression, out replacement, UseKind.Value);
+        Debug.Assert(expression.operandConversion is null == expression.operandPlaceholder is null);
+        Debug.Assert(!expression.type.isValueType || expression.type.IsNullableType());
+
+        List<BoundStatement> statements;
+
+        if (expression.operandConversion is null && expression.operandPlaceholder is null) {
+            statements = base.ExpandAsOperator(expression, out replacement, UseKind.Value);
+        } else {
+            var conversion = BoundNode.GetConversion(expression.operandConversion, expression.operandPlaceholder);
+
+            if (conversion.isImplicit) {
+                statements = ApplyConversion(
+                    expression.operandConversion,
+                    expression.operandPlaceholder,
+                    expression.left,
+                    out replacement
+                );
+            } else {
+                statements = base.ExpandAsOperator(expression, out replacement, UseKind.Value);
+            }
+        }
+
         return StabilizeIfNecessary(expression.syntax, useKind, statements, replacement, out replacement);
     }
 
@@ -1831,7 +2217,7 @@ internal sealed class Expander : SharedExpander {
             var temp = GenerateTempLocal(expression.Type());
 
             if (!isIsolated)
-                statements.Add(LocalDeclaration(syntax, temp, Literal(syntax, null, temp.type)));
+                statements.Add(LocalDeclaration(syntax, temp, Literal(_compilation, syntax, null, temp.type)));
 
             var linearChain = new List<BoundConditionalAccessExpression>();
             var current = condAccess;
@@ -1842,7 +2228,7 @@ internal sealed class Expander : SharedExpander {
             }
 
             statements.AddRange(ExpandExpression(linearChain.Last().receiver, out var newReceiver, UseKind.StableValue));
-            statements.Add(GotoIf(syntax, breakLabel, IsNull(syntax, newReceiver)));
+            statements.Add(GotoIf(syntax, breakLabel, IsNull(_compilation, syntax, newReceiver)));
 
             for (var i = linearChain.Count - 1; i > 0; i--) {
                 var cur = linearChain[i];
@@ -1850,7 +2236,7 @@ internal sealed class Expander : SharedExpander {
                 statements.AddRange(CreateConditionalAccess(cur, newReceiver, out var conditionalAccess));
                 statements.Add(LocalDeclaration(syntax, innerTemp, conditionalAccess));
                 newReceiver = Local(syntax, innerTemp);
-                statements.Add(GotoIf(syntax, breakLabel, IsNull(syntax, newReceiver)));
+                statements.Add(GotoIf(syntax, breakLabel, IsNull(_compilation, syntax, newReceiver)));
             }
 
             statements.AddRange(ExpandExpression(expression.right, out var newRight));
@@ -1860,7 +2246,7 @@ internal sealed class Expander : SharedExpander {
                 finalReceiver,
                 newRight,
                 false,
-                newReceiver.type
+                finalReceiver.type
             );
 
             if (isIsolated) {
@@ -2099,14 +2485,14 @@ internal sealed class Expander : SharedExpander {
         }
 
         if (!trueExpression.Type().IsNullableType() && trueExpression.Type().isValueType)
-            trueExpression = Lowerer.CreateNullable(syntax, trueExpression, expression.type);
+            trueExpression = Lowerer.CreateNullable(_compilation, syntax, trueExpression, expression.type);
 
         replacement = new BoundConditionalOperator(
             syntax,
-            HasValue(syntax, newReceiver),
+            HasValue(_compilation, syntax, newReceiver),
             false,
             trueExpression,
-            Literal(syntax, null, expression.type),
+            Literal(_compilation, syntax, null, expression.type),
             null,
             expression.type
         );

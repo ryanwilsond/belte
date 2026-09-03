@@ -1,0 +1,19 @@
+using Buckle;
+using Buckle.Building;
+
+void Build(Builder builder) {
+    builder.AddInput("src");
+    builder.SetOutput("bin/Belte.Core.dll");
+    builder.buildMode = .Dotnet;
+    builder.outputKind = .DynamicallyLinkedLibrary;
+
+    builder.ExcludeWarnings({ "BU0321" });
+
+    // builder.SetMaxCores(1);
+
+    builder.includeStdLib = false;
+    builder.ExplicitAssemblyName("Belte.Core");
+
+    if (!Directory.Exists("bin"))
+        Directory.Create("bin");
+}

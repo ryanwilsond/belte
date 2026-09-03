@@ -11,6 +11,7 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
@@ -22,15 +23,19 @@ using Shared;
 
 namespace Buckle.CodeAnalysis.Emitting;
 
-internal sealed partial class ILEmitter : ModuleBuilder {
+internal partial class ILEmitter : ModuleBuilder {
     internal readonly static Lock GlobalCecilLock = new();
     internal readonly static ConcurrentSet<TypeReference> Imports = [];
 
     private readonly MethodReference _belteCompilerGeneratedAttributeCtor;
     private readonly TypeReference _belteCompilerGeneratedAttribute;
 
-    private readonly BelteDiagnosticQueue _diagnostics;
-    private readonly AssemblyDefinition _assemblyDefinition;
+    // TODO Add these to native implementations of System types like tuples
+    // private readonly MethodReference _belteCompilerOnlyAttributeCtor;
+    // private readonly TypeReference _belteCompilerOnlyAttribute;
+
+    private protected readonly BelteDiagnosticQueue _diagnostics;
+    private protected readonly AssemblyDefinition _assemblyDefinition;
     private readonly List<AssemblyDefinition> _assemblies;
     private readonly List<AssemblyDefinition> _backupAssemblies;
     private readonly BoundProgram _program;
@@ -39,12 +44,14 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private readonly ImmutableArray<(MethodSymbol, BoundBlockStatement)> _methodBodies;
     private readonly bool _isDll;
     private readonly bool _debugMode;
+    private readonly Compilation _compilation;
 
     private readonly Dictionary<SpecialType, TypeReference> _specialTypes = [];
     private readonly Dictionary<TypeSymbol, TypeDefinition> _types = [];
     private readonly ConcurrentDictionary<MethodSymbol, MethodDefinition> _methods = [];
     private readonly ConcurrentDictionary<MethodDefinition, (MethodSymbol, BoundBlockStatement)> _methodBodyMap = [];
     private readonly ConcurrentDictionary<FieldSymbol, FieldDefinition> _fields = [];
+    private readonly ConcurrentDictionary<(TemplateParameterSymbol, Symbol), GenericParameter> _templateParameters = [];
     private readonly ConcurrentDictionary<MethodSymbol, TypeReference[]> _methodTypeParameters = [];
     private readonly string _belteDllName;
     private readonly string _tfm;
@@ -63,16 +70,20 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private MethodDefinition _init;
     internal FieldDefinition randomField;
 
-    private ILEmitter(
+    private int _nullabilityAttributeFailedToEmit;
+
+    private protected ILEmitter(
         BoundProgram program,
         string assemblySimpleName,
+        Version assemblyVersion,
         bool debugMode,
-        bool reduced,
+        bool noStdLib,
         BelteDiagnosticQueue diagnostics) {
         _diagnostics = diagnostics;
         _program = program;
+        _compilation = program.compilation;
         _debugMode = debugMode;
-        _isDll = program.compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
+        _isDll = _compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
 
         _tfm = DotnetReferenceResolver.GetTFM();
         var refPackPath = DotnetReferenceResolver.ResolveNetCoreAppRefPath(_tfm, out _version);
@@ -81,37 +92,35 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 #pragma warning disable IL3000
 #endif
 
-        var objectDll = typeof(object).Assembly.Location;
-        var consoleDll = typeof(Console).Assembly.Location;
         _belteDllName = typeof(Belte.Runtime.Utilities).Assembly.Location;
 
         if (string.IsNullOrEmpty(_belteDllName))
             _belteDllName = Path.Join(AppContext.BaseDirectory, "Belte.Runtime.dll");
 
-        if (string.IsNullOrEmpty(objectDll))
-            objectDll = Path.Join(refPackPath, "System.Runtime.dll");
-
-        if (string.IsNullOrEmpty(consoleDll))
-            consoleDll = Path.Join(refPackPath, "System.Console.dll");
+        var objectDll = Path.Join(refPackPath, "System.Runtime.dll");
+        var consoleDll = Path.Join(refPackPath, "System.Console.dll");
+        var memoryDll = Path.Join(refPackPath, "System.Memory.dll");
+        var interopServices = Path.Join(refPackPath, "System.Runtime.InteropServices.dll");
 
         _assemblies = [
-            AssemblyDefinition.ReadAssembly(objectDll),
             AssemblyDefinition.ReadAssembly(_belteDllName),
         ];
 
-        if (reduced) {
-            _backupAssemblies = [];
-        } else {
-            _backupAssemblies = [
-                AssemblyDefinition.ReadAssembly(consoleDll),
-            ];
-        }
+        // The reference manager *should* pick up System.Runtime and System.Console already
+        _backupAssemblies = [
+            AssemblyDefinition.ReadAssembly(objectDll),
+            AssemblyDefinition.ReadAssembly(consoleDll),
+            AssemblyDefinition.ReadAssembly(memoryDll),
+            AssemblyDefinition.ReadAssembly(interopServices),
+        ];
 
 #if !DEBUG
 #pragma warning restore IL3000
 #endif
 
-        var references = program.compilation.referenceManager.assemblies.Select(a => a.location);
+        var references = _compilation.GetBoundReferenceManager().explicitReferences
+            .Where(e => e is PortableExecutableReference)
+            .Select(e => ((PortableExecutableReference)e).filePath);
 
         foreach (var reference in references) {
             try {
@@ -122,24 +131,50 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             }
         }
 
-        var assemblyName = new AssemblyNameDefinition(assemblySimpleName, new Version(1, 0));
+        var assemblyName = new AssemblyNameDefinition(assemblySimpleName, assemblyVersion);
+
+        var assemblyResolver = new DefaultAssemblyResolver();
+        assemblyResolver.AddSearchDirectory(AppContext.BaseDirectory);
+
+        var moduleParams = new ModuleParameters() {
+            AssemblyResolver = assemblyResolver,
+            Kind = _isDll ? ModuleKind.Dll : ModuleKind.Console
+        };
 
         _assemblyDefinition = AssemblyDefinition.CreateAssembly(
             assemblyName,
             assemblySimpleName,
-            _isDll ? ModuleKind.Dll : ModuleKind.Console
+            moduleParams
         );
 
         var belteRuntimeData = File.ReadAllBytes(_belteDllName);
-        var embeddedResource = new EmbeddedResource(_belteDllName, ManifestResourceAttributes.Private, belteRuntimeData);
 
-        _assemblyDefinition.MainModule.Resources.Add(embeddedResource);
+        var belteRuntimeResource = new EmbeddedResource(
+            _belteDllName,
+            ManifestResourceAttributes.Private,
+            belteRuntimeData
+        );
+
+        _assemblyDefinition.MainModule.Resources.Add(belteRuntimeResource);
 
         ResolveTypes();
         ResolveMethods();
         GenerateSTLMap();
 
-        _topLevelTypes = program.GetTypesToEmit(includeGraphicsWellKnownTypes: true);
+        _topLevelTypes = program.GetTypesToEmit(noStdLib, includeGraphicsWellKnownTypes: true);
+
+        if (_isDll && !_compilation.options.excludeWritingTemplateMetadata) {
+            var templateMetadataStream = new MemoryStream();
+            TemplateMetadataWriter.Write(_compilation, templateMetadataStream, program.types, program.methodBodies);
+
+            var templateMetadataResource = new EmbeddedResource(
+                TemplateMetadataWriter.ResourceName,
+                ManifestResourceAttributes.Public,
+                templateMetadataStream.ToArray()
+            );
+
+            _assemblyDefinition.MainModule.Resources.Add(templateMetadataResource);
+        }
 
         var linearBuilder = ArrayBuilder<NamedTypeSymbol>.GetInstance();
 
@@ -147,25 +182,29 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             linearBuilder.AddRange(set.Value);
 
         _linearNestedTypes = linearBuilder.ToImmutable();
-        _methodBodies = program.GetAllMethodBodies();
+        _methodBodies = program.GetMethodsToEmit();
 
-        _belteCompilerGeneratedAttributeCtor = _assemblyDefinition.MainModule.ImportReference(
-            typeof(BelteCompilerGeneratedAttribute).GetConstructor(Type.EmptyTypes)
+        var compilerAssembly = AssemblyDefinition.ReadAssembly(
+            typeof(BelteCompilerGeneratedAttribute).Assembly.Location
         );
 
-        _belteCompilerGeneratedAttribute = _assemblyDefinition.MainModule.ImportReference(
-            typeof(BelteCompilerGeneratedAttribute)
+        _assemblies.Add(compilerAssembly);
+
+        _belteCompilerGeneratedAttribute = ImportType("Buckle.CodeAnalysis.Emitting.BelteCompilerGeneratedAttribute");
+        _belteCompilerGeneratedAttributeCtor = _assemblyDefinition.MainModule.ImportReferenceThreadSafe(
+            Resolve(_belteCompilerGeneratedAttribute).GetConstructors().Single()
         );
     }
 
     internal static void Emit(
         BoundProgram program,
-        string moduleName,
+        string assemblyName,
+        Version assemblyVersion,
         string outputPath,
         BelteDiagnosticQueue diagnostics) {
         var debugMode = program.compilation.options.optimizationLevel == OptimizationLevel.Debug;
-        var reduced = program.compilation.options.noStdLib;
-        var emitter = new ILEmitter(program, moduleName, debugMode, reduced, diagnostics);
+        var noStdLib = program.compilation.options.noStdLib;
+        var emitter = new ILEmitter(program, assemblyName, assemblyVersion, debugMode, noStdLib, diagnostics);
 
         if (SupportedProjectType(program, diagnostics))
             emitter.EmitToFile(outputPath, debugMode);
@@ -173,10 +212,11 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
     internal static string EmitToString(
         BoundProgram program,
-        string moduleName,
+        string assemblyName,
+        Version assemblyVersion,
         bool programOnly,
         BelteDiagnosticQueue diagnostics) {
-        var emitter = new ILEmitter(program, moduleName, false, false, diagnostics);
+        var emitter = new ILEmitter(program, assemblyName, assemblyVersion, false, false, diagnostics);
 
         if (SupportedProjectType(program, diagnostics))
             return emitter.EmitToString(programOnly);
@@ -197,11 +237,13 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
     private void EmitToFile(string outputPath, bool debugMode) {
         EmitInternal();
+        // This has to be done after main emit phase in case the attribute definition is in this assembly
+        EmitMetadataAttribute();
 
-        if (!_program.compilation.options.enableOutput)
+        if (!_compilation.options.enableOutput)
             return;
 
-        var isDll = _program.compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
+        var isDll = _compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
 
         if (!isDll)
             EmitRuntimeConfig(outputPath);
@@ -228,6 +270,32 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             EmitAppHost(Path.ChangeExtension(outputPath, ".exe"), dllPath);
     }
 
+    private void EmitMetadataAttribute() {
+        var metadataAttribute = _compilation
+            .GetWellKnownType(WellKnownType.Belte_CompilerServices_BelteMetadataAttribute);
+
+        if (metadataAttribute.IsErrorType()) {
+            // Non-fatal, but the user should know
+            // This should only really happen when emitting the build script that handles creating the standard library
+            _diagnostics.Push(Warning.FailedToEmitMetadataAttribute());
+            return;
+        }
+
+        var attributeType = Resolve(GetType(metadataAttribute, import: false));
+
+        var metadataAttributeCtor = _assemblyDefinition.MainModule.ImportReference(
+            attributeType.GetConstructors().Single(c => c.Parameters.Count == 1)
+        );
+
+        var attribute = new CustomAttribute(metadataAttributeCtor);
+
+        attribute.ConstructorArguments.Add(
+            new CustomAttributeArgument(_specialTypes[SpecialType.Int32], Compiler.BelteMetadataVersion)
+        );
+
+        _assemblyDefinition.CustomAttributes.Add(attribute);
+    }
+
     private void EmitRuntimeConfig(string outputPath) {
         var runtimeConfigPath = Path.ChangeExtension(outputPath, ".runtimeconfig.json");
 
@@ -252,7 +320,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         using (var indentedTextWriter = new System.CodeDom.Compiler.IndentedTextWriter(stringWriter, "    ")) {
             foreach (var type in _topLevelTypes) {
-                if (!programOnly || type.IsFromCompilation(_program.compilation)) {
+                if (!programOnly || type.IsFromCompilation(_compilation)) {
                     var typeDefinition = _types[type.originalDefinition];
                     WriteType(stringWriter, indentedTextWriter, typeDefinition);
                 }
@@ -306,15 +374,18 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     internal TypeReference GetType(TypeSymbol type, bool byRef = false, bool import = true) {
         var typeRef = GetTypeCore(type);
 
-        if (byRef)
-            typeRef = typeRef.MakeByReferenceType();
+        if (!byRef) {
+            if (typeRef.IsGenericParameter)
+                return typeRef;
 
-        if (typeRef.IsGenericParameter)
-            return typeRef;
+            if (import)
+                return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeRef);
+        }
 
-        if (import)
-            return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeRef);
+        if (import && !typeRef.IsGenericParameter)
+            typeRef = _assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeRef);
 
+        typeRef = typeRef.MakeByReferenceType();
         return typeRef;
 
         TypeReference GetTypeCore(TypeSymbol type) {
@@ -870,7 +941,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         var current = type;
 
         while (current is not null) {
-            if (current.specialType is SpecialType.Object)
+            if (current.specialType is SpecialType.Object or SpecialType.Enum or SpecialType.ValueType)
                 break;
 
             baseStack.Push(current);
@@ -883,6 +954,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             if (_types.ContainsKey(baseType.originalDefinition))
                 continue;
 
+            if (baseType is PENamedTypeSymbol)
+                continue;
+
             var typeDefinition = CreateNamedTypeDefinition(baseType);
 
             lock (GlobalCecilLock)
@@ -890,14 +964,14 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
     }
 
-    private void EmitInternal(bool programOnly = false) {
+    private protected void EmitInternal(bool programOnly = false) {
         CompleteWellKnownTypes();
 
         foreach (var type in _topLevelTypes)
             CreateTypeDefinitionAndBases(type);
 
-        if (_program.compilation.options.concurrentBuild && !programOnly) {
-            var maxParallels = _program.compilation.options.maxCoreCount;
+        if (_compilation.options.concurrentBuild && !programOnly) {
+            var maxParallels = _compilation.options.maxCoreCount;
             var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = maxParallels };
 
             var topLevelTypes = _topLevelTypes;
@@ -906,20 +980,43 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             var linearTypes = _linearNestedTypes;
             Parallel.For(0, linearTypes.Length, parallelOptions, i => CreateMemberDefinitions(linearTypes[i]));
 
+            Parallel.Invoke(parallelOptions,
+                () => Parallel.ForEach(_types, CreateTypeMetadata),
+                () => Parallel.ForEach(_fields, CreateFieldMetadata),
+                () => Parallel.ForEach(_methods, CreateMethodMetadata)
+            );
+
             Parallel.ForEach(_methods, parallelOptions, method => EmitMethod(method.Value));
         } else {
             foreach (var type in _topLevelTypes) {
-                if (!programOnly || type.IsFromCompilation(_program.compilation))
+                if (!programOnly || type.IsFromCompilation(_compilation))
                     CreateMemberDefinitions(type);
             }
 
             foreach (var type in _linearNestedTypes) {
-                if (!programOnly || type.IsFromCompilation(_program.compilation))
+                if (!programOnly || type.IsFromCompilation(_compilation))
                     CreateMemberDefinitions(type);
             }
 
+            {
+                foreach (var pair in _types) {
+                    if (!programOnly || pair.Key.IsFromCompilation(_compilation))
+                        CreateTypeMetadata(pair);
+                }
+
+                foreach (var pair in _fields) {
+                    if (!programOnly || pair.Key.IsFromCompilation(_compilation))
+                        CreateFieldMetadata(pair);
+                }
+
+                foreach (var pair in _methods) {
+                    if (!programOnly || pair.Key.IsFromCompilation(_compilation))
+                        CreateMethodMetadata(pair);
+                }
+            }
+
             foreach (var method in _methods) {
-                if (!programOnly || method.Key.IsFromCompilation(_program.compilation))
+                if (!programOnly || method.Key.IsFromCompilation(_compilation))
                     EmitMethod(method.Value);
             }
         }
@@ -948,145 +1045,222 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         }
     }
 
+    private void CreateTypeMetadata(KeyValuePair<TypeSymbol, TypeDefinition> pair) {
+        var type = pair.Key;
+        var typeDefinition = pair.Value;
+
+        AddCustomAttributes(typeDefinition.CustomAttributes, type.GetAttributes());
+
+        if (type is NamedTypeSymbol namedType) {
+            for (var i = 0; i < namedType.templateParameters.Length; i++) {
+                var templateParameter = namedType.templateParameters[i];
+                var genericParameter = typeDefinition.GenericParameters[i];
+
+                AddCustomAttributes(genericParameter.CustomAttributes, templateParameter.GetAttributes());
+            }
+        }
+    }
+
+    private void CreateMethodMetadata(KeyValuePair<MethodSymbol, MethodDefinition> pair) {
+        var method = pair.Key;
+        var methodDefinition = pair.Value;
+
+        AddCustomAttributes(methodDefinition.CustomAttributes, method.GetAttributes());
+
+        if (method.isPure)
+            AddWellKnownAttribute(methodDefinition.CustomAttributes, WellKnownType.Belte_PureAttribute);
+
+        if (method.isNoThrow)
+            AddWellKnownAttribute(methodDefinition.CustomAttributes, WellKnownType.Belte_NoThrowAttribute);
+
+        if (method.isNoAlloc)
+            AddWellKnownAttribute(methodDefinition.CustomAttributes, WellKnownType.Belte_NoAllocAttribute);
+
+        if (method.isDeclaredConst)
+            AddWellKnownAttribute(methodDefinition.CustomAttributes, WellKnownType.Belte_ConstMethodAttribute);
+
+        for (var i = 0; i < method.arity; i++) {
+            var templateParameter = method.templateParameters[i];
+            var genericParameter = methodDefinition.GenericParameters[i];
+
+            AddCustomAttributes(genericParameter.CustomAttributes, templateParameter.GetAttributes());
+        }
+
+        AddCustomAttributes(methodDefinition.MethodReturnType.CustomAttributes, method.GetReturnTypeAttributes());
+
+        if (TypeNeedsNullabilityAttribute(method.returnType, method.location))
+            methodDefinition.MethodReturnType.CustomAttributes.Add(CreateNullabilityAttribute(method.returnType));
+
+        for (var i = 0; i < method.parameterCount; i++) {
+            var parameter = method.parameters[i];
+            var parameterDefinition = methodDefinition.Parameters[i];
+
+            AddCustomAttributes(parameterDefinition.CustomAttributes, parameter.GetAttributes());
+
+            if (parameter.isConst)
+                AddWellKnownAttribute(parameterDefinition.CustomAttributes, WellKnownType.Belte_ConstParamAttribute);
+
+            if (TypeNeedsNullabilityAttribute(parameter.type, parameter.location))
+                parameterDefinition.CustomAttributes.Add(CreateNullabilityAttribute(parameter.type));
+        }
+    }
+
+    private void CreateFieldMetadata(KeyValuePair<FieldSymbol, FieldDefinition> pair) {
+        var field = pair.Key;
+        var fieldDefinition = pair.Value;
+
+        AddCustomAttributes(fieldDefinition.CustomAttributes, field.GetAttributes());
+
+        if (TypeNeedsNullabilityAttribute(field.type, field.location))
+            fieldDefinition.CustomAttributes.Add(CreateNullabilityAttribute(field.type));
+    }
+
     private void CompleteWellKnownTypes() {
-        _types.Add(
-            CorLibrary.GetWellKnownType(WellKnownType.Exception),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(Exception))));
-        _types.Add(
-            CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T1),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<>))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T1_Item1),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<>).GetField("Item1"))));
-        _types.Add(
-            CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T2),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,>))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item1),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,>).GetField("Item1"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,>).GetField("Item2"))));
-        _types.Add(
-            CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T3),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,>))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T3_Item1),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,>).GetField("Item1"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T3_Item2),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,>).GetField("Item2"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T3_Item3),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,>).GetField("Item3"))));
-        _types.Add(
-            CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T4),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,>))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_Item1),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,>).GetField("Item1"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_Item2),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,>).GetField("Item2"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_Item3),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,>).GetField("Item3"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_Item4),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,>).GetField("Item4"))));
-        _types.Add(
-            CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T5),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,>))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_Item1),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,>).GetField("Item1"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_Item2),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,>).GetField("Item2"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_Item3),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,>).GetField("Item3"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_Item4),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,>).GetField("Item4"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_Item5),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,>).GetField("Item5"))));
-        _types.Add(
-            CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T6),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,>))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item1),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,>).GetField("Item1"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item2),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,>).GetField("Item2"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item3),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,>).GetField("Item3"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item4),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,>).GetField("Item4"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item5),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,>).GetField("Item5"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item6),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,>).GetField("Item6"))));
-        _types.Add(
-            CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T7),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,,>))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item1),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,,>).GetField("Item1"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item2),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,,>).GetField("Item2"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item3),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,,>).GetField("Item3"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item4),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,,>).GetField("Item4"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item5),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,,>).GetField("Item5"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item6),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,,>).GetField("Item6"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item7),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,,>).GetField("Item7"))));
-        _types.Add(
-            CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_TRest),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,,,>))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item1),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,,,>).GetField("Item1"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item2),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,,,>).GetField("Item2"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item3),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,,,>).GetField("Item3"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item4),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,,,>).GetField("Item4"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item5),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,,,>).GetField("Item5"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item6),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,,,>).GetField("Item6"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item7),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,,,>).GetField("Item7"))));
-        _fields.Add(
-            (FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Rest),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(ValueTuple<,,,,,,,>).GetField("Rest"))));
-        _types.Add(
-            CorLibrary.GetWellKnownType(WellKnownType.Attribute),
-            Resolve(_assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(Attribute))));
+        // We check if the CorLibrary contains them first in the case we are emitting a build script
+        // that is building the CorLibrary, in which case they don't exist yet
+        // We also check that this isn't the CorLibrary because in that case we want to refer to the actual definitions
+        // in this module, not the .NET ones
+
+        // TODO Necessary?
+        // if (_compilation.GetWellKnownType(WellKnownType.System_Exception) is SourceNamedTypeSymbol exception) {
+        //     _types.Add(exception, Resolve(ImportType("System.Exception")));
+        // }
+
+        if (_compilation.corLibrary.HasWellKnownType(WellKnownType.ValueTuple_T1) &&
+            !_topLevelTypes.Contains(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T1))) {
+            _types.Add(
+                _compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T1),
+                Resolve(ImportType("System.ValueTuple`1")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T1_Item1),
+                Resolve(Resolve(ImportType("System.ValueTuple`1")).Fields.Single(f => f.Name == "Item1")));
+            _types.Add(
+                _compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T2),
+                Resolve(ImportType("System.ValueTuple`2")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item1),
+                Resolve(Resolve(ImportType("System.ValueTuple`2")).Fields.Single(f => f.Name == "Item1")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2),
+                Resolve(Resolve(ImportType("System.ValueTuple`2")).Fields.Single(f => f.Name == "Item2")));
+            _types.Add(
+                _compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T3),
+                Resolve(ImportType("System.ValueTuple`3")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T3_Item1),
+                Resolve(Resolve(ImportType("System.ValueTuple`3")).Fields.Single(f => f.Name == "Item1")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T3_Item2),
+                Resolve(Resolve(ImportType("System.ValueTuple`3")).Fields.Single(f => f.Name == "Item2")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T3_Item3),
+                Resolve(Resolve(ImportType("System.ValueTuple`3")).Fields.Single(f => f.Name == "Item3")));
+            _types.Add(
+                _compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T4),
+                Resolve(ImportType("System.ValueTuple`4")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_Item1),
+                Resolve(Resolve(ImportType("System.ValueTuple`4")).Fields.Single(f => f.Name == "Item1")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_Item2),
+                Resolve(Resolve(ImportType("System.ValueTuple`4")).Fields.Single(f => f.Name == "Item2")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_Item3),
+                Resolve(Resolve(ImportType("System.ValueTuple`4")).Fields.Single(f => f.Name == "Item3")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_Item4),
+                Resolve(Resolve(ImportType("System.ValueTuple`4")).Fields.Single(f => f.Name == "Item4")));
+            _types.Add(
+                _compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T5),
+                Resolve(ImportType("System.ValueTuple`5")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_Item1),
+                Resolve(Resolve(ImportType("System.ValueTuple`5")).Fields.Single(f => f.Name == "Item1")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_Item2),
+                Resolve(Resolve(ImportType("System.ValueTuple`5")).Fields.Single(f => f.Name == "Item2")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_Item3),
+                Resolve(Resolve(ImportType("System.ValueTuple`5")).Fields.Single(f => f.Name == "Item3")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_Item4),
+                Resolve(Resolve(ImportType("System.ValueTuple`5")).Fields.Single(f => f.Name == "Item4")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_Item5),
+                Resolve(Resolve(ImportType("System.ValueTuple`5")).Fields.Single(f => f.Name == "Item5")));
+            _types.Add(
+                _compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T6),
+                Resolve(ImportType("System.ValueTuple`6")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item1),
+                Resolve(Resolve(ImportType("System.ValueTuple`6")).Fields.Single(f => f.Name == "Item1")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item2),
+                Resolve(Resolve(ImportType("System.ValueTuple`6")).Fields.Single(f => f.Name == "Item2")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item3),
+                Resolve(Resolve(ImportType("System.ValueTuple`6")).Fields.Single(f => f.Name == "Item3")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item4),
+                Resolve(Resolve(ImportType("System.ValueTuple`6")).Fields.Single(f => f.Name == "Item4")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item5),
+                Resolve(Resolve(ImportType("System.ValueTuple`6")).Fields.Single(f => f.Name == "Item5")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item6),
+                Resolve(Resolve(ImportType("System.ValueTuple`6")).Fields.Single(f => f.Name == "Item6")));
+            _types.Add(
+                _compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T7),
+                Resolve(ImportType("System.ValueTuple`7")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item1),
+                Resolve(Resolve(ImportType("System.ValueTuple`7")).Fields.Single(f => f.Name == "Item1")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item2),
+                Resolve(Resolve(ImportType("System.ValueTuple`7")).Fields.Single(f => f.Name == "Item2")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item3),
+                Resolve(Resolve(ImportType("System.ValueTuple`7")).Fields.Single(f => f.Name == "Item3")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item4),
+                Resolve(Resolve(ImportType("System.ValueTuple`7")).Fields.Single(f => f.Name == "Item4")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item5),
+                Resolve(Resolve(ImportType("System.ValueTuple`7")).Fields.Single(f => f.Name == "Item5")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item6),
+                Resolve(Resolve(ImportType("System.ValueTuple`7")).Fields.Single(f => f.Name == "Item6")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item7),
+                Resolve(Resolve(ImportType("System.ValueTuple`7")).Fields.Single(f => f.Name == "Item7")));
+            _types.Add(
+                _compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_TRest),
+                Resolve(ImportType("System.ValueTuple`8")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item1),
+                Resolve(Resolve(ImportType("System.ValueTuple`8")).Fields.Single(f => f.Name == "Item1")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item2),
+                Resolve(Resolve(ImportType("System.ValueTuple`8")).Fields.Single(f => f.Name == "Item2")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item3),
+                Resolve(Resolve(ImportType("System.ValueTuple`8")).Fields.Single(f => f.Name == "Item3")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item4),
+                Resolve(Resolve(ImportType("System.ValueTuple`8")).Fields.Single(f => f.Name == "Item4")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item5),
+                Resolve(Resolve(ImportType("System.ValueTuple`8")).Fields.Single(f => f.Name == "Item5")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item6),
+                Resolve(Resolve(ImportType("System.ValueTuple`8")).Fields.Single(f => f.Name == "Item6")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item7),
+                Resolve(Resolve(ImportType("System.ValueTuple`8")).Fields.Single(f => f.Name == "Item7")));
+            _fields.Add(
+                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Rest),
+                Resolve(Resolve(ImportType("System.ValueTuple`8")).Fields.Single(f => f.Name == "Rest")));
+        }
     }
 
     private MethodDefinition CreateEntryWrapperIfApplicable(MethodSymbol entrySymbol) {
@@ -1104,17 +1278,19 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         wrapper.Parameters.Add(new Mono.Cecil.ParameterDefinition(
             "args",
             ParameterAttributes.None,
-            _assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(string[]))
+            _specialTypes[SpecialType.String].MakeArrayType()
         ));
 
         programType.Methods.Add(wrapper);
 
-        var wrapperBuilder = new CecilILBuilder(null, this, wrapper);
+        var wrapperBuilder = new CecilILBuilder(_compilation, null, this, wrapper);
         var il = wrapperBuilder.iLProcessor;
 
         var arrayTypeSymbol = (NamedTypeSymbol)entrySymbol.GetParameterType(0);
 
-        var ctorSymbol = CorLibrary.GetWellKnownMethod(WellKnownMember.Array_ctor_2).AsMember(arrayTypeSymbol);
+        var ctorSymbol = _compilation.corLibrary.GetWellKnownMethod(WellKnownMember.Array_ctor_2)
+            .AsMember(arrayTypeSymbol);
+
         var ctor = GetMethod(ctorSymbol);
 
         il.Emit(OpCodes.Ldarg_0);
@@ -1160,7 +1336,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         staticClass.Methods.Add(staticEntry);
 
-        var staticBuilder = new CecilILBuilder(null, this, staticEntry);
+        var staticBuilder = new CecilILBuilder(_compilation, null, this, staticEntry);
         var il = staticBuilder.iLProcessor;
 
         il.Emit(OpCodes.Newobj, GetMethod(programCtor));
@@ -1183,13 +1359,13 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         if (type.isInterface) {
             typeDefinition = new TypeDefinition(
                 GetNamespaceName(type),
-                type.name,
+                type.metadataName,
                 GetTypeAttributes(type, isNested)
             );
         } else {
             typeDefinition = new TypeDefinition(
                 GetNamespaceName(type),
-                type.name,
+                type.metadataName,
                 GetTypeAttributes(type, isNested),
                 GetBaseType(type)
             );
@@ -1201,21 +1377,23 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             typeDefinition.PackingSize = (short)type.explicitAlignment;
 
         if (type.enumFlagsAttribute) {
-            var flagsCtor = _assemblyDefinition.MainModule.ImportReferenceThreadSafe(
-                typeof(FlagsAttribute).GetConstructor(Type.EmptyTypes)
-            );
-
+            var flagsCtor = ResolveMethod("System.FlagsAttribute", ".ctor", []);
             var flagsAttr = new CustomAttribute(flagsCtor);
             typeDefinition.CustomAttributes.Add(flagsAttr);
         }
 
-        GenericParameter[] workingParams = [];
+        Debug.Assert(type.arity == type.templateParameters.Length);
+        var workingParams = new (TemplateParameterSymbol, GenericParameter)[type.arity];
 
         if (type.arity > 0) {
-            workingParams = type.templateParameters.Select(t => new GenericParameter(t.name, typeDefinition)).ToArray();
+            for (var i = 0; i < type.arity; i++) {
+                var templateParameter = type.templateParameters[i];
+                var genericDefinition = new GenericParameter(templateParameter.name, typeDefinition);
 
-            foreach (var generic in workingParams)
-                typeDefinition.GenericParameters.Add(generic);
+                _templateParameters.Add((templateParameter, type), genericDefinition);
+                workingParams[i] = (templateParameter, genericDefinition);
+                typeDefinition.GenericParameters.Add(genericDefinition);
+            }
         }
 
         _types.Add(type.originalDefinition, typeDefinition);
@@ -1246,7 +1424,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     private void CreateNestedTypes(
         NamedTypeSymbol type,
         TypeDefinition typeDefinition,
-        GenericParameter[] workingParams) {
+        (TemplateParameterSymbol, GenericParameter)[] workingParams) {
         foreach (var member in type.GetTypeMembers())
             CreateNestedType(member, workingParams);
 
@@ -1255,14 +1433,17 @@ internal sealed partial class ILEmitter : ModuleBuilder {
                 CreateNestedType(nestedType, workingParams);
         }
 
-        void CreateNestedType(NamedTypeSymbol nestedType, GenericParameter[] workingParams) {
+        void CreateNestedType(NamedTypeSymbol nestedType, (TemplateParameterSymbol, GenericParameter)[] workingParams) {
             var nestedDefinition = CreateNamedTypeDefinition(nestedType, isNested: true);
 
             workingParams = workingParams.Concat(
-                nestedType.templateParameters.Select(t => new GenericParameter(t.name, nestedDefinition))).ToArray();
+                nestedType.templateParameters.Select(t => (t, new GenericParameter(t.name, nestedDefinition))))
+                    .ToArray();
 
-            foreach (var generic in workingParams)
-                nestedDefinition.GenericParameters.Add(new GenericParameter(generic.Name, nestedDefinition));
+            foreach (var generic in workingParams) {
+                nestedDefinition.GenericParameters.Add(new GenericParameter(generic.Item2.Name, nestedDefinition));
+                _templateParameters.Add((generic.Item1, nestedType), generic.Item2);
+            }
 
             CreateNestedTypes(nestedType, nestedDefinition, workingParams);
             typeDefinition.NestedTypes.Add(nestedDefinition);
@@ -1270,9 +1451,11 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     private string GetNamespaceName(Symbol symbol) {
-        var namespaceName = symbol.containingNamespace?.isGlobalNamespace == true ? "" : symbol.containingNamespace?.name ?? "";
+        var namespaceName = symbol.containingNamespace?.isGlobalNamespace == true
+            ? ""
+            : symbol.containingNamespace?.ToDisplayString(SymbolDisplayFormat.NamespaceQualifiedNameFormat) ?? "";
 
-        if (symbol.IsFromCompilation(_program.compilation))
+        if (symbol.IsFromCompilation(_compilation))
             return namespaceName;
 
         if (namespaceName == "")
@@ -1460,6 +1643,21 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             GetTypeOrIntPtr(method.returnType, method.returnsByRef)
         );
 
+        if (method.arity > 0) {
+            var genericBuilder = ArrayBuilder<GenericParameter>.GetInstance();
+
+            foreach (var templateParameter in method.templateParameters) {
+                var genericParameter = new GenericParameter(templateParameter.name, methodDefinition);
+
+                _templateParameters.Add((templateParameter, method), genericParameter);
+
+                methodDefinition.GenericParameters.Add(genericParameter);
+                genericBuilder.Add(genericParameter);
+            }
+
+            _methodTypeParameters.Add(method, genericBuilder.ToArrayAndFree());
+        }
+
         foreach (var parameter in method.parameters) {
             var parameterDefinition = new Mono.Cecil.ParameterDefinition(
                 parameter.name,
@@ -1470,19 +1668,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             methodDefinition.Parameters.Add(parameterDefinition);
         }
 
-        if (method.arity > 0) {
-            var genericBuilder = ArrayBuilder<GenericParameter>.GetInstance();
-
-            foreach (var templateParameter in method.templateParameters) {
-                var genericParameter = new GenericParameter(templateParameter.name, methodDefinition);
-                methodDefinition.GenericParameters.Add(genericParameter);
-                genericBuilder.Add(genericParameter);
-            }
-
-            _methodTypeParameters.Add(method, genericBuilder.ToArrayAndFree());
-        }
-
-        SetCustomAttributes(method, methodDefinition);
+        AddMethodCustomAttributes(method, methodDefinition);
 
         _methods.Add(method, methodDefinition);
 
@@ -1499,39 +1685,143 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         return methodDefinition;
     }
 
-    private void SetCustomAttributes(MethodSymbol method, MethodDefinition methodDefinition) {
+    private bool TypeNeedsNullabilityAttribute(TypeSymbol type, TextLocation errorLocation) {
+        var flag = Volatile.Read(ref _nullabilityAttributeFailedToEmit);
+
+        if (flag == (int)ThreeState.True)
+            return false;
+
+        if (type.specialType.CanSkipNullabilityAttributeCheck())
+            return false;
+
+        if (!type.isReferenceType && (type is not NamedTypeSymbol namedType || namedType.arity == 0))
+            return false;
+
+        ValueWrapper<bool> sawNonNullableReferenceType = false;
+
+        type.VisitType(VisitTypePredicate, sawNonNullableReferenceType, canDigThroughNullable: false);
+
+        if ((bool)sawNonNullableReferenceType) {
+            if (flag == (int)ThreeState.Unknown) {
+                var nullabilityAttribute = _compilation.GetWellKnownType(WellKnownType.Belte_NullabilityAttribute);
+
+                var val = nullabilityAttribute.IsErrorType() ? (int)ThreeState.True : (int)ThreeState.False;
+
+                if (Interlocked.Exchange(ref _nullabilityAttributeFailedToEmit, val) == (int)ThreeState.Unknown) {
+                    if (val == (int)ThreeState.True)
+                        _diagnostics.Push(Warning.FailedToEmitAttribute(errorLocation, nullabilityAttribute));
+                }
+
+                return val != (int)ThreeState.True;
+            }
+
+            return true;
+        }
+
+        return false;
+
+        static bool VisitTypePredicate(TypeSymbol type, ValueWrapper<bool> arg, bool canDigThroughNullable = false) {
+            if (type.isReferenceType && !type.IsNullableType()) {
+                arg.Value = true;
+                return true;
+            }
+
+            return false;
+        }
+    }
+
+    private CustomAttribute CreateNullabilityAttribute(TypeSymbol type) {
+        Debug.Assert(Volatile.Read(ref _nullabilityAttributeFailedToEmit) == (int)ThreeState.False);
+
+        var nullabilityAttribute = _compilation.GetWellKnownType(WellKnownType.Belte_NullabilityAttribute);
+
+        Debug.Assert(!nullabilityAttribute.IsErrorType());
+
+        var attributeType = Resolve(GetType(nullabilityAttribute, import: false));
+
+        var attributeCtor = _assemblyDefinition.MainModule.ImportReference(
+            attributeType.GetConstructors().Single(c => c.Parameters.Count == 1)
+        );
+
+        var attribute = new CustomAttribute(attributeCtor);
+
+        attribute.ConstructorArguments.Add(
+            new CustomAttributeArgument(
+                _specialTypes[SpecialType.UInt8].MakeArrayType(),
+                EncodeNullability(type)
+            )
+        );
+
+        return attribute;
+
+        CustomAttributeArgument[] EncodeNullability(TypeSymbol type) {
+            // Most of the time this will either be 1 or 2 so lets optimize for that case
+            var builder = ArrayBuilder<byte>.GetInstance(2);
+
+            type.VisitType(EncodePredicate, builder, canDigThroughNullable: true);
+
+            Debug.Assert(builder.Contains(1));
+
+            var arguments = new CustomAttributeArgument[builder.Count];
+
+            for (var i = 0; i < builder.Count; i++)
+                arguments[i] = new CustomAttributeArgument(_specialTypes[SpecialType.UInt8], builder[i]);
+
+            builder.Free();
+
+            return arguments;
+        }
+
+        static bool EncodePredicate(TypeSymbol type, ArrayBuilder<byte> arg, bool canDigThroughNullable = true) {
+            if (type.isReferenceType && !type.IsNullableType())
+                arg.Add(1);
+            else
+                arg.Add(0);
+
+            return false;
+        }
+    }
+
+    private void AddCustomAttributes(
+        Mono.Collections.Generic.Collection<CustomAttribute> customAttributes,
+        ImmutableArray<AttributeData> attributes) {
+        foreach (var attribute in attributes) {
+            var ctor = GetMethod((MethodSymbol)attribute.attributeConstructor);
+            var customAttribute = new CustomAttribute(ctor);
+
+            // TODO Named arguments
+            foreach (var argument in attribute._commonConstructorArguments) {
+                var customArgument = new CustomAttributeArgument(
+                    GetType(argument.type),
+                    argument.value
+                );
+
+                customAttribute.ConstructorArguments.Add(customArgument);
+            }
+
+            customAttributes.Add(customAttribute);
+        }
+    }
+
+    private void AddMethodCustomAttributes(MethodSymbol method, MethodDefinition methodDefinition) {
         var unmanagedAttribute = method.GetUnmanagedCallersOnlyAttributeData(true);
 
         if (unmanagedAttribute is not null && unmanagedAttribute != UnmanagedCallersOnlyAttributeData.Uninitialized) {
-            var unmanagedAttr = _assemblyDefinition.MainModule
-                .ImportReferenceThreadSafe(typeof(System.Runtime.InteropServices.UnmanagedCallersOnlyAttribute));
-            var callConvCdecl = _assemblyDefinition.MainModule
-                .ImportReferenceThreadSafe(typeof(System.Runtime.CompilerServices.CallConvCdecl));
+            var unmanagedAttr = ImportType("System.Runtime.InteropServices.UnmanagedCallersOnlyAttribute");
+            var callConvCdecl = ImportType("System.Runtime.CompilerServices.CallConvCdecl");
 
-            var attrCtor = _assemblyDefinition.MainModule.ImportReferenceThreadSafe(
-                typeof(System.Runtime.InteropServices.UnmanagedCallersOnlyAttribute)
-                    .GetConstructor(Type.EmptyTypes)
-            );
-
+            var attrCtor = ResolveMethod("System.Runtime.InteropServices.UnmanagedCallersOnlyAttribute", ".ctor", []);
             var attr = new CustomAttribute(attrCtor);
 
             var typeArray = new CustomAttributeArgument(
-                _assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(Type[])),
+                _specialTypes[SpecialType.Type].MakeArrayType(),
                 new CustomAttributeArgument[] {
-                new CustomAttributeArgument(
-                    _assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeof(Type)),
-                    callConvCdecl)
+                    new CustomAttributeArgument(ImportType("System.Type"), callConvCdecl)
                 }
             );
 
-            var callConvsField = typeof(System.Runtime.InteropServices.UnmanagedCallersOnlyAttribute)
-                .GetField(nameof(System.Runtime.InteropServices.UnmanagedCallersOnlyAttribute.CallConvs));
-
-            // var propRef = new PropertyDefinition(
-            //     callConvsField.Name,
-            //     PropertyAttributes.None,
-            //     _assemblyDefinition.MainModule.ImportReference(typeof(Type[]))
-            // );
+            var callConvsField = Resolve(unmanagedAttr).Fields
+                .Single(f => f.Name == nameof(System.Runtime.InteropServices.UnmanagedCallersOnlyAttribute.CallConvs));
 
             attr.Fields.Add(new CustomAttributeNamedArgument(
                 callConvsField.Name,
@@ -1540,6 +1830,22 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
             methodDefinition.CustomAttributes.Add(attr);
         }
+    }
+
+    private void AddWellKnownAttribute(
+        Mono.Collections.Generic.Collection<CustomAttribute> customAttributes,
+        WellKnownType wellKnownType) {
+        var attributeSymbol = _compilation.GetWellKnownType(wellKnownType);
+
+        Debug.Assert(!attributeSymbol.IsErrorType());
+
+        var attributeType = Resolve(GetType(attributeSymbol, import: false));
+        var ctors = attributeType.GetConstructors();
+        var attributeCtor = _assemblyDefinition.MainModule.ImportReference(ctors.Single());
+
+        var attribute = new CustomAttribute(attributeCtor);
+
+        customAttributes.Add(attribute);
     }
 
     private TypeReference GetTypeOrIntPtr(TypeSymbol type, bool byRef) {
@@ -1569,6 +1875,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         methodDefinition.PInvokeInfo = pInvoke;
         methodDefinition.IsPreserveSig = true;
 
+        Debug.Assert(method.arity == 0);
+
         foreach (var parameter in method.parameters) {
             var parameterDefinition = new Mono.Cecil.ParameterDefinition(
                 parameter.name,
@@ -1585,7 +1893,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         if (method.returnType.specialType == SpecialType.Bool)
             methodDefinition.MethodReturnType.MarshalInfo = new MarshalInfo(NativeType.I1);
 
-        SetCustomAttributes(method, methodDefinition);
+        AddMethodCustomAttributes(method, methodDefinition);
 
         _methods.Add(method, methodDefinition);
 
@@ -1637,6 +1945,10 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             Accessibility.Public when isNested => TypeAttributes.NestedPublic,
             Accessibility.Public => TypeAttributes.Public,
             Accessibility.Protected => TypeAttributes.NestedFamily,
+            Accessibility.Internal when isNested => TypeAttributes.NestedAssembly,
+            Accessibility.Internal => TypeAttributes.NotPublic,
+            Accessibility.InternalOrProtected => TypeAttributes.NestedFamORAssem,
+            Accessibility.InternalAndProtected => TypeAttributes.NestedFamANDAssem,
             _ => 0
         };
 
@@ -1648,6 +1960,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             Accessibility.Private => FieldAttributes.Private,
             Accessibility.Public => FieldAttributes.Public,
             Accessibility.Protected => FieldAttributes.Family,
+            Accessibility.Internal => FieldAttributes.Assembly,
+            Accessibility.InternalOrProtected => FieldAttributes.FamORAssem,
+            Accessibility.InternalAndProtected => FieldAttributes.FamANDAssem,
             _ => 0
         };
 
@@ -1662,6 +1977,9 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             Accessibility.Private => MethodAttributes.Private,
             Accessibility.Public => MethodAttributes.Public,
             Accessibility.Protected => MethodAttributes.Family,
+            Accessibility.Internal => MethodAttributes.Assembly,
+            Accessibility.InternalOrProtected => MethodAttributes.FamORAssem,
+            Accessibility.InternalAndProtected => MethodAttributes.FamANDAssem,
             _ => 0
         } | MethodAttributes.HideBySig;
 
@@ -1689,8 +2007,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
             return;
 
         var (method, body) = _methodBodyMap[methodDefinition];
-        var ilBuilder = new CecilILBuilder(method, this, methodDefinition);
-        var codeGen = new CodeGenerator(this, method, body, ilBuilder, _debugMode, _diagnostics);
+        var ilBuilder = new CecilILBuilder(_compilation, method, this, methodDefinition);
+        var codeGen = new CodeGenerator(_compilation, this, method, body, ilBuilder, _debugMode, _diagnostics);
 
         if (_program.entryPoint == method)
             EmitAssemblyResolver(methodDefinition);
@@ -1811,7 +2129,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
     private void EmitAssemblyResolver(MethodDefinition mainMethod) {
         // TODO Maybe instead of finding dlls from compiler, embed and extract them?
-        var cctorBuilder = new CecilILBuilder(null, this, _cctor);
+        var cctorBuilder = new CecilILBuilder(_compilation, null, this, _cctor);
         var cctorIL = cctorBuilder.iLProcessor;
 
         cctorIL.Emit(OpCodes.Newobj, _ctor);
@@ -1820,7 +2138,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         cctorBuilder.Finish();
 
-        var ctorBuilder = new CecilILBuilder(null, this, _ctor);
+        var ctorBuilder = new CecilILBuilder(_compilation, null, this, _ctor);
         var ctorIL = ctorBuilder.iLProcessor;
 
         ctorIL.Emit(OpCodes.Ldarg_0);
@@ -1829,7 +2147,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         ctorBuilder.Finish();
 
-        var cBuilder = new CecilILBuilder(null, this, _cInit);
+        var cBuilder = new CecilILBuilder(_compilation, null, this, _cInit);
 
         cBuilder.AllocateSlot(_specialTypes[SpecialType.String], LocalSlotConstraints.None);
         cBuilder.AllocateSlot(_specialTypes[SpecialType.String], LocalSlotConstraints.None);
@@ -1860,7 +2178,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         cBuilder.Finish();
 
-        var amBuilder = new CecilILBuilder(null, this, _init);
+        var amBuilder = new CecilILBuilder(_compilation, null, this, _init);
         var amIL = amBuilder.iLProcessor;
 
         var endAM = new object();
@@ -1902,7 +2220,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
                 moduleType.Methods.Add(cctor);
 
-                var mBuilder = new CecilILBuilder(null, this, cctor);
+                var mBuilder = new CecilILBuilder(_compilation, null, this, cctor);
                 var mIL = mBuilder.iLProcessor;
 
                 mIL.Emit(OpCodes.Call, _init);
@@ -1932,7 +2250,7 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
         while (stack.Count > 0) {
             var nestedType = stack.Pop();
-            currentFoundType = Resolve(currentFoundType).NestedTypes.First(t => t.Name == nestedType.name);
+            currentFoundType = Resolve(currentFoundType).NestedTypes.First(t => t.Name == nestedType.metadataName);
             // _assemblyDefinition.MainModule.ImportReferenceThreadSafe(Resolve(currentFoundType));
             // TODO Resolving may be unnecessary here?
             // _assemblyDefinition.MainModule.ImportReferenceThreadSafe(currentFoundType);
@@ -1963,6 +2281,23 @@ internal sealed partial class ILEmitter : ModuleBuilder {
 
                     if (type.FullName == metadataName)
                         foundTypes.Add(type);
+                }
+            }
+        }
+
+        if (foundTypes.Count == 0) {
+            for (var i = 0; i < _backupAssemblies.Count; i++) {
+                var modules = _backupAssemblies[i].Modules;
+
+                for (var j = 0; j < modules.Count; j++) {
+                    var types = modules[j].Types;
+
+                    for (var k = 0; k < types.Count; k++) {
+                        var type = types[k];
+
+                        if (type.FullName == metadataName)
+                            foundTypes.Add(type);
+                    }
                 }
             }
         }
@@ -2083,7 +2418,8 @@ internal sealed partial class ILEmitter : ModuleBuilder {
         };
 
         foreach (var (type, metadataName) in builtInTypes) {
-            var typeReference = ImportType(CorLibrary.GetSpecialType(type).name, metadataName);
+            Debug.Assert(_compilation.GetSpecialType(type).name == _compilation.GetSpecialType(type).metadataName);
+            var typeReference = ImportType(_compilation.GetSpecialType(type).name, metadataName);
             _specialTypes.Add(type, typeReference);
         }
 
@@ -2188,228 +2524,198 @@ internal sealed partial class ILEmitter : ModuleBuilder {
     }
 
     private void GenerateSTLMap() {
-        if (_program.compilation.options.noStdLib) {
-            _stlMap = new Dictionary<string, MethodReference>() {
-                { "Object<>_.ctor", ResolveMethod("System.Object", ".ctor", []) },
-                { "Object<>_ToString", ResolveMethod("System.Object", "ToString", []) },
-                { "Object<>_Equals_O?", ResolveMethod("System.Object", "Equals", ["System.Object"]) },
-                { "Object<>_GetHashCode", ResolveMethod("System.Object", "GetHashCode", []) },
-                { "Object<>_Finalize", ResolveMethod("System.Object", "Finalize", []) },
-                { "Exception_.ctor", ResolveMethod("System.Exception", ".ctor", []) },
-                { "Exception_.ctor_S?", ResolveMethod("System.Exception", ".ctor", ["System.String"]) },
-                { "LowLevel_GetHashCode_O", ResolveMethod("Belte.Runtime.Utilities", "GetHashCode", ["System.Object"]) },
-                { "LowLevel_CombineHashCode_I4I4", ResolveMethod("Belte.Runtime.Utilities", "CombineHashCode", ["System.Int32", "System.Int32"]) },
-                { "LowLevel_GetTypeName_O", ResolveMethod("Belte.Runtime.Utilities", "GetTypeName", ["System.Object"]) },
-                { "LowLevel_ThrowNullConditionException", ResolveMethod("Belte.Runtime.ThrowHelper", "ThrowNullConditionException", []) },
-                { "LowLevel_CreateLPCSTR_S", ResolveMethod("Belte.Runtime.Utilities", "CreateLPCSTR", ["System.String"]) },
-                { "LowLevel_CreateLPCSTR_UTF_S", ResolveMethod("Belte.Runtime.Utilities", "CreateLPCSTR_UTF", ["System.String"]) },
-                { "LowLevel_CreateLPCWSTR_S", ResolveMethod("Belte.Runtime.Utilities", "CreateLPCWSTR", ["System.String"]) },
-                { "LowLevel_FreeLPCSTR_U*", ResolveMethod("Belte.Runtime.Utilities", "FreeLPCSTR", ["System.Byte*"]) },
-                { "LowLevel_FreeLPCWSTR_C*", ResolveMethod("Belte.Runtime.Utilities", "FreeLPCWSTR", ["System.Char*"]) },
-                { "LowLevel_ReadLPCSTR_U*", ResolveMethod("Belte.Runtime.Utilities", "ReadLPCSTR", ["System.Byte*"]) },
-                { "LowLevel_ReadLPCWSTR_C*", ResolveMethod("Belte.Runtime.Utilities", "ReadLPCWSTR", ["System.Char*"]) },
-                { "LowLevel_GetGCPtr_O", ResolveMethod("Belte.Runtime.Utilities", "GetGCPtr", ["System.Object"]) },
-                { "LowLevel_FreeGCHandle_V*", ResolveMethod("Belte.Runtime.Utilities", "FreeGCHandle", ["System.Void*"]) },
-                { "LowLevel_GetObject_V*", ResolveMethod("Belte.Runtime.Utilities", "GetObject", ["System.Void*"]) },
-                { "LowLevel_IsLittleEndian", ResolveMethod("Belte.Runtime.Utilities", "IsLittleEndian", []) },
-                { "LowLevel_ReverseEndianness_I4", ResolveMethod("System.Buffers.Binary.BinaryPrimitives", "ReverseEndianness", ["System.Int32"]) },
-            };
-        } else {
-            _stlMap = new Dictionary<string, MethodReference>() {
-                { "Object<>_.ctor", ResolveMethod("System.Object", ".ctor", []) },
-                { "Object<>_ToString", ResolveMethod("System.Object", "ToString", []) },
-                { "Object<>_Equals_O?", ResolveMethod("System.Object", "Equals", ["System.Object"]) },
-                { "Object<>_GetHashCode", ResolveMethod("System.Object", "GetHashCode", []) },
-                { "Object<>_Finalize", ResolveMethod("System.Object", "Finalize", []) },
-                { "Exception_.ctor", ResolveMethod("System.Exception", ".ctor", []) },
-                { "Exception_.ctor_S?", ResolveMethod("System.Exception", ".ctor", ["System.String"]) },
-                { "Console_Clear", ResolveMethod("System.Console", "Clear", []) },
-                { "Console_GetWidth", ResolveMethod("Belte.Runtime.Console", "GetWidth", []) },
-                { "Console_GetHeight", ResolveMethod("Belte.Runtime.Console", "GetHeight", []) },
-                { "Console_Print_S?", ResolveMethod("System.Console", "Write", ["System.String"]) },
-                { "Console_Print_A?", ResolveMethod("System.Console", "Write", ["System.Object"]) },
-                { "Console_Print_[?", ResolveMethod("System.Console", "Write", ["System.Char[]"]) },
-                { "Console_PrintLine", ResolveMethod("System.Console", "WriteLine", []) },
-                { "Console_PrintLine_S?", ResolveMethod("System.Console", "WriteLine", ["System.String"]) },
-                { "Console_PrintLine_A?", ResolveMethod("System.Console", "WriteLine", ["System.Object"]) },
-                { "Console_PrintLine_[?", ResolveMethod("System.Console", "WriteLine", ["System.Char[]"]) },
-                { "Console_Input", ResolveMethod("System.Console", "ReadLine", []) },
-                { "Console_ResetColor", ResolveMethod("System.Console", "ResetColor", []) },
-                { "Console_SetForegroundColor_I", ResolveMethod("Belte.Runtime.Console", "SetForegroundColor", ["System.Int64"]) },
-                { "Console_SetBackgroundColor_I", ResolveMethod("Belte.Runtime.Console", "SetBackgroundColor", ["System.Int64"]) },
-                { "Console_SetCursorPosition_I?I?", ResolveMethod("Belte.Runtime.Console", "SetCursorPosition", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
-                { "Console_SetCursorVisibility_B", ResolveMethod("Belte.Runtime.Console", "SetCursorVisibility", ["System.Boolean"]) },
-                { "Directory_Create_S", ResolveMethod("Belte.Runtime.Utilities", "CreateDirectory", ["System.String"]) },
-                { "Directory_Delete_S", ResolveMethod("Belte.Runtime.Utilities", "DeleteDirectory", ["System.String"]) },
-                { "Directory_Exists_S", ResolveMethod("System.IO.Directory", "Exists", ["System.String"]) },
-                { "Directory_GetCurrentDirectory", ResolveMethod("System.IO.Directory", "GetCurrentDirectory", []) },
-                { "File_AppendText_SS", ResolveMethod("System.IO.File", "AppendAllText", ["System.String", "System.String"]) },
-                { "File_Create_S", ResolveMethod("System.IO.File", "Create", ["System.String"]) },
-                { "File_Copy_S", ResolveMethod("System.IO.File", "Copy", ["System.String", "System.String"]) },
-                { "File_Delete_S", ResolveMethod("System.IO.File", "Delete", ["System.String"]) },
-                { "File_Exists_S", ResolveMethod("System.IO.File", "Exists", ["System.String"]) },
-                { "File_ReadText_S", ResolveMethod("System.IO.File", "ReadAllText", ["System.String"]) },
-                { "File_WriteText_SS", ResolveMethod("System.IO.File", "WriteAllText", ["System.String", "System.String"]) },
-                { "String_Ascii_S", ResolveMethod("Belte.Runtime.Utilities", "Ascii", ["System.String"]) },
-                { "String_Char_I", ResolveMethod("Belte.Runtime.Utilities", "Char", ["System.Int64"]) },
-                { "String_Split_SS", ResolveMethod("Belte.Runtime.Utilities", "Split", ["System.String", "System.String"]) },
-                { "String_Length_S", ResolveMethod("Belte.Runtime.Utilities", "StringLength", ["System.String"]) },
-                { "String_IndexOf_SC", ResolveMethod("Belte.Runtime.Utilities", "StringIndexOf", ["System.String", "System.Char"]) },
-                { "String_IsNullOrWhiteSpace_S?", ResolveMethod("System.String", "IsNullOrWhiteSpace", ["System.String"]) },
-                { "String_IsNullOrWhiteSpace_C?", ResolveMethod("Belte.Runtime.Utilities", "IsNullOrWhiteSpace", ["System.Nullable`1<System.Char>"]) },
-                { "String_IsDigit_C?", ResolveMethod("Belte.Runtime.Utilities", "IsDigit", ["System.Nullable`1<System.Char>"]) },
-                { "String_Substring_SI?I?", ResolveMethod("Belte.Runtime.Utilities", "Substring", ["System.String", "System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
-                { "String_PadLeft_SCI", ResolveMethod("Belte.Runtime.Utilities", "StringPadLeft", ["System.String", "System.Char", "System.Int64"]) },
-                { "String_PadRight_SCI", ResolveMethod("Belte.Runtime.Utilities", "StringPadRight", ["System.String", "System.Char", "System.Int64"]) },
-                { "String_Replace_SSS", ResolveMethod("Belte.Runtime.Utilities", "StringReplace", ["System.String", "System.String", "System.String"]) },
-                { "String_Trim_S", ResolveMethod("Belte.Runtime.Utilities", "StringTrim", ["System.String"]) },
-                { "String_Trim_S[", ResolveMethod("Belte.Runtime.Utilities", "StringTrim", ["System.String", "System.Char[]"]) },
-                { "String_TrimStart_S", ResolveMethod("Belte.Runtime.Utilities", "StringTrimStart", ["System.String"]) },
-                { "String_TrimStart_S[", ResolveMethod("Belte.Runtime.Utilities", "StringTrimStart", ["System.String", "System.Char[]"]) },
-                { "String_TrimEnd_S", ResolveMethod("Belte.Runtime.Utilities", "StringTrimEnd", ["System.String"]) },
-                { "String_TrimEnd_S[", ResolveMethod("Belte.Runtime.Utilities", "StringTrimEnd", ["System.String", "System.Char[]"]) },
-                { "String_Contains_SS", ResolveMethod("Belte.Runtime.Utilities", "StringContains", ["System.String", "System.String"]) },
-                { "Int_Parse_S?", ResolveMethod("Belte.Runtime.Utilities", "IntParse", ["System.String"]) },
-                { "Int_ToString_IS", ResolveMethod("Belte.Runtime.Utilities", "IntToString", ["System.Int64", "System.String"]) },
-                { "Decimal_IsNaN_F4", ResolveMethod("System.Single", "IsNaN", ["System.Single"]) },
-                { "Decimal_IsPosInfinity_F4", ResolveMethod("System.Single", "IsPositiveInfinity", ["System.Single"]) },
-                { "Decimal_IsNegInfinity_F4", ResolveMethod("System.Single", "IsNegativeInfinity", ["System.Single"]) },
-                { "Decimal_IsInfinity_F4", ResolveMethod("System.Single", "IsInfinity", ["System.Single"]) },
-                { "Decimal_IsNaN_F8", ResolveMethod("System.Double", "IsNaN", ["System.Double"]) },
-                { "Decimal_IsPosInfinity_F8", ResolveMethod("System.Double", "IsPositiveInfinity", ["System.Double"]) },
-                { "Decimal_IsNegInfinity_F8", ResolveMethod("System.Double", "IsNegativeInfinity", ["System.Double"]) },
-                { "Decimal_IsInfinity_F8", ResolveMethod("System.Double", "IsInfinity", ["System.Double"]) },
-                { "Decimal_Parse_S?", ResolveMethod("Belte.Runtime.Utilities", "DecimalParse", ["System.String"]) },
-                { "Decimal_ToString_DS", ResolveMethod("Belte.Runtime.Utilities", "DecimalToString", ["System.Double", "System.String"]) },
-                { "LowLevel_GetHashCode_O", ResolveMethod("Belte.Runtime.Utilities", "GetHashCode", ["System.Object"]) },
-                { "LowLevel_GetTypeName_O", ResolveMethod("Belte.Runtime.Utilities", "GetTypeName", ["System.Object"]) },
-                { "LowLevel_ThrowNullConditionException", ResolveMethod("Belte.Runtime.ThrowHelper", "ThrowNullConditionException", []) },
-                { "LowLevel_CreateLPCSTR_S", ResolveMethod("Belte.Runtime.Utilities", "CreateLPCSTR", ["System.String"]) },
-                { "LowLevel_CreateLPCSTR_UTF_S", ResolveMethod("Belte.Runtime.Utilities", "CreateLPCSTR_UTF", ["System.String"]) },
-                { "LowLevel_CreateLPCWSTR_S", ResolveMethod("Belte.Runtime.Utilities", "CreateLPCWSTR", ["System.String"]) },
-                { "LowLevel_FreeLPCSTR_U*", ResolveMethod("Belte.Runtime.Utilities", "FreeLPCSTR", ["System.Byte*"]) },
-                { "LowLevel_FreeLPCWSTR_C*", ResolveMethod("Belte.Runtime.Utilities", "FreeLPCWSTR", ["System.Char*"]) },
-                { "LowLevel_ReadLPCSTR_U*", ResolveMethod("Belte.Runtime.Utilities", "ReadLPCSTR", ["System.Byte*"]) },
-                { "LowLevel_ReadLPCWSTR_C*", ResolveMethod("Belte.Runtime.Utilities", "ReadLPCWSTR", ["System.Char*"]) },
-                { "LowLevel_GetGCPtr_O", ResolveMethod("Belte.Runtime.Utilities", "GetGCPtr", ["System.Object"]) },
-                { "LowLevel_FreeGCHandle_V*", ResolveMethod("Belte.Runtime.Utilities", "FreeGCHandle", ["System.Void*"]) },
-                { "LowLevel_GetObject_V*", ResolveMethod("Belte.Runtime.Utilities", "GetObject", ["System.Void*"]) },
-                { "LowLevel_IsLittleEndian", ResolveMethod("Belte.Runtime.Utilities", "IsLittleEndian", []) },
-                { "LowLevel_ReverseEndianness_I4", ResolveMethod("System.Buffers.Binary.BinaryPrimitives", "ReverseEndianness", ["System.Int32"]) },
-                { "HashCode_Combine_I4I4", ResolveMethod("Belte.Runtime.Utilities", "HashCodeCombine", ["System.Int32", "System.Int32"]) },
-                { "HashCode_Combine_I4I4I4", ResolveMethod("Belte.Runtime.Utilities", "HashCodeCombine", ["System.Int32", "System.Int32", "System.Int32"]) },
-                { "HashCode_Combine_I4I4I4I4", ResolveMethod("Belte.Runtime.Utilities", "HashCodeCombine", ["System.Int32", "System.Int32", "System.Int32", "System.Int32"]) },
-                { "HashCode_Combine_I4I4I4I4I4", ResolveMethod("Belte.Runtime.Utilities", "HashCodeCombine", ["System.Int32", "System.Int32", "System.Int32", "System.Int32", "System.Int32"]) },
-                { "HashCode_Combine_I4I4I4I4I4I4", ResolveMethod("Belte.Runtime.Utilities", "HashCodeCombine", ["System.Int32", "System.Int32", "System.Int32", "System.Int32", "System.Int32", "System.Int32"]) },
-                { "HashCode_Combine_I4I4I4I4I4I4I4", ResolveMethod("Belte.Runtime.Utilities", "HashCodeCombine", ["System.Int32", "System.Int32", "System.Int32", "System.Int32", "System.Int32", "System.Int32", "System.Int32"]) },
-                { "HashCode_Combine_I4I4I4I4I4I4I4I4", ResolveMethod("Belte.Runtime.Utilities", "HashCodeCombine", ["System.Int32", "System.Int32", "System.Int32", "System.Int32", "System.Int32", "System.Int32", "System.Int32", "System.Int32"]) },
-                { "Time_Now", ResolveMethod("Belte.Runtime.Utilities", "TimeNow", []) },
-                { "Time_Sleep_I", ResolveMethod("Belte.Runtime.Utilities", "TimeSleep", ["System.Int64"]) },
-                { "Math_Abs_D?", ResolveMethod("Belte.Runtime.Math", "Abs", ["System.Nullable`1<System.Double>"]) },
-                { "Math_Abs_D", ResolveMethod("System.Math", "Abs", ["System.Double"]) },
-                { "Math_Abs_I?", ResolveMethod("Belte.Runtime.Math", "Abs", ["System.Nullable`1<System.Int64>"]) },
-                { "Math_Abs_I", ResolveMethod("System.Math", "Abs", ["System.Int64"]) },
-                { "Math_Acos_D?", ResolveMethod("Belte.Runtime.Math", "Acos", ["System.Nullable`1<System.Double>"]) },
-                { "Math_Acos_D", ResolveMethod("System.Math", "Acos", ["System.Double"]) },
-                { "Math_Acosh_D?", ResolveMethod("Belte.Runtime.Math", "Acosh", ["System.Nullable`1<System.Double>"]) },
-                { "Math_Acosh_D", ResolveMethod("System.Math", "Acosh", ["System.Double"]) },
-                { "Math_Asin_D?", ResolveMethod("Belte.Runtime.Math", "Asin", ["System.Nullable`1<System.Double>"]) },
-                { "Math_Asin_D", ResolveMethod("System.Math", "Asin", ["System.Double"]) },
-                { "Math_Asinh_D?", ResolveMethod("Belte.Runtime.Math", "Asinh", ["System.Nullable`1<System.Double>"]) },
-                { "Math_Asinh_D", ResolveMethod("System.Math", "Asinh", ["System.Double"]) },
-                { "Math_Atan_D?", ResolveMethod("Belte.Runtime.Math", "Atan", ["System.Nullable`1<System.Double>"]) },
-                { "Math_Atan_D", ResolveMethod("System.Math", "Atan", ["System.Double"]) },
-                { "Math_Atanh_D?", ResolveMethod("Belte.Runtime.Math", "Atanh", ["System.Nullable`1<System.Double>"]) },
-                { "Math_Atanh_D", ResolveMethod("System.Math", "Atanh", ["System.Double"]) },
-                { "Math_Ceiling_D?", ResolveMethod("Belte.Runtime.Math", "Ceiling", ["System.Nullable`1<System.Double>"]) },
-                { "Math_Ceiling_D", ResolveMethod("System.Math", "Ceiling", ["System.Double"]) },
-                { "Math_Clamp_D?D?D?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
-                { "Math_Clamp_DDD", ResolveMethod("System.Math", "Clamp", ["System.Double","System.Double", "System.Double"]) },
-                { "Math_Clamp_F4?F4?F4?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Single>", "System.Nullable`1<System.Single>", "System.Nullable`1<System.Single>"]) },
-                { "Math_Clamp_F4F4F4", ResolveMethod("System.Math", "Clamp", ["System.Single","System.Single", "System.Single"]) },
-                { "Math_Clamp_I?I?I?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
-                { "Math_Clamp_III", ResolveMethod("System.Math", "Clamp", ["System.Int64","System.Int64", "System.Int64"]) },
-                { "Math_Clamp_U8?U8?U8?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.UInt64>", "System.Nullable`1<System.UInt64>", "System.Nullable`1<System.UInt64>"]) },
-                { "Math_Clamp_U8U8U8", ResolveMethod("System.Math", "Clamp", ["System.UInt64","System.UInt64", "System.UInt64"]) },
-                { "Math_Clamp_I4?I4?I4?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Int32>", "System.Nullable`1<System.Int32>", "System.Nullable`1<System.Int32>"]) },
-                { "Math_Clamp_I4I4I4", ResolveMethod("System.Math", "Clamp", ["System.Int32","System.Int32", "System.Int32"]) },
-                { "Math_Clamp_U4?U4?U4?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.UInt32>", "System.Nullable`1<System.UInt32>", "System.Nullable`1<System.UInt32>"]) },
-                { "Math_Clamp_U4U4U4", ResolveMethod("System.Math", "Clamp", ["System.UInt32","System.UInt32", "System.UInt32"]) },
-                { "Math_Clamp_I2?I2?I2?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Int16>", "System.Nullable`1<System.Int16>", "System.Nullable`1<System.Int16>"]) },
-                { "Math_Clamp_I2I2I2", ResolveMethod("System.Math", "Clamp", ["System.Int16","System.Int16", "System.Int16"]) },
-                { "Math_Clamp_U2?U2?U2?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.UInt16>", "System.Nullable`1<System.UInt16>", "System.Nullable`1<System.UInt16>"]) },
-                { "Math_Clamp_U2U2U2", ResolveMethod("System.Math", "Clamp", ["System.UInt16","System.UInt16", "System.UInt16"]) },
-                { "Math_Clamp_I1?I1?I1?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.SByte>", "System.Nullable`1<System.SByte>", "System.Nullable`1<System.SByte>"]) },
-                { "Math_Clamp_I1I1I1", ResolveMethod("System.Math", "Clamp", ["System.SByte","System.SByte", "System.SByte"]) },
-                { "Math_Clamp_U1?U1?U1?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Byte>", "System.Nullable`1<System.Byte>", "System.Nullable`1<System.Byte>"]) },
-                { "Math_Clamp_U1U1U1", ResolveMethod("System.Math", "Clamp", ["System.Byte","System.Byte", "System.Byte"]) },
-                { "Math_Clamp_C?C?C?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Char>", "System.Nullable`1<System.Char>", "System.Nullable`1<System.Char>"]) },
-                { "Math_Clamp_CCC", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Char","System.Char", "System.Char"]) },
-                { "Math_Cos_D?", ResolveMethod("Belte.Runtime.Math", "Cos", ["System.Nullable`1<System.Double>"]) },
-                { "Math_Cos_D", ResolveMethod("System.Math", "Cos", ["System.Double"]) },
-                { "Math_Cosh_D?", ResolveMethod("Belte.Runtime.Math", "Cosh", ["System.Nullable`1<System.Double>"]) },
-                { "Math_Cosh_D", ResolveMethod("System.Math", "Cosh", ["System.Double"]) },
-                { "Math_Exp_D?", ResolveMethod("Belte.Runtime.Math", "Exp", ["System.Nullable`1<System.Double>"]) },
-                { "Math_Exp_D", ResolveMethod("System.Math", "Exp", ["System.Double"]) },
-                { "Math_Floor_D?", ResolveMethod("Belte.Runtime.Math", "Floor", ["System.Nullable`1<System.Double>"]) },
-                { "Math_Floor_D", ResolveMethod("System.Math", "Floor", ["System.Double"]) },
-                { "Math_Lerp_D?D?D?", ResolveMethod("Belte.Runtime.Math", "Lerp", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
-                { "Math_Lerp_DDD", ResolveMethod("Belte.Runtime.Math", "Lerp", ["System.Double", "System.Double", "System.Double"]) },
-                { "Math_Log_D?D?", ResolveMethod("Belte.Runtime.Math", "Log", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
-                { "Math_Log_DD", ResolveMethod("System.Math", "Log", ["System.Double", "System.Double"]) },
-                { "Math_Log_D?", ResolveMethod("Belte.Runtime.Math", "Log", ["System.Nullable`1<System.Double>"]) },
-                { "Math_Log_D", ResolveMethod("System.Math", "Log", ["System.Double"]) },
-                { "Math_Max_D?D?", ResolveMethod("Belte.Runtime.Math", "Max", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
-                { "Math_Max_DD", ResolveMethod("System.Math", "Max", ["System.Double", "System.Double"]) },
-                { "Math_Max_F4?F4?", ResolveMethod("Belte.Runtime.Math", "Max", ["System.Nullable`1<System.Single>", "System.Nullable`1<System.Single>"]) },
-                { "Math_Max_F4F4", ResolveMethod("System.Math", "Max", ["System.Single", "System.Single"]) },
-                { "Math_Max_I?I?", ResolveMethod("Belte.Runtime.Math", "Max", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
-                { "Math_Max_II", ResolveMethod("System.Math", "Max", ["System.Int64", "System.Int64"]) },
-                { "Math_Max_I4?I4?", ResolveMethod("Belte.Runtime.Math", "Max", ["System.Nullable`1<System.Int32>", "System.Nullable`1<System.Int32>"]) },
-                { "Math_Max_I4I4", ResolveMethod("System.Math", "Max", ["System.Int32", "System.Int32"]) },
-                { "Math_Max_U8?U8?", ResolveMethod("Belte.Runtime.Math", "Max", ["System.Nullable`1<System.UInt64>", "System.Nullable`1<System.UInt64>"]) },
-                { "Math_Max_U8U8", ResolveMethod("System.Math", "Max", ["System.UInt64", "System.UInt64"]) },
-                { "Math_Max_U4?U4?", ResolveMethod("Belte.Runtime.Math", "Max", ["System.Nullable`1<System.UInt32>", "System.Nullable`1<System.UInt32>"]) },
-                { "Math_Max_U4U4", ResolveMethod("System.Math", "Max", ["System.UInt32", "System.UInt32"]) },
-                { "Math_Min_D?D?", ResolveMethod("Belte.Runtime.Math", "Min", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
-                { "Math_Min_DD", ResolveMethod("System.Math", "Min", ["System.Double", "System.Double"]) },
-                { "Math_Min_F4?F4?", ResolveMethod("Belte.Runtime.Math", "Min", ["System.Nullable`1<System.Single>", "System.Nullable`1<System.Single>"]) },
-                { "Math_Min_F4F4", ResolveMethod("System.Math", "Min", ["System.Single", "System.Single"]) },
-                { "Math_Min_I?I?", ResolveMethod("Belte.Runtime.Math", "Min", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
-                { "Math_Min_II", ResolveMethod("System.Math", "Min", ["System.Int64", "System.Int64"]) },
-                { "Math_Min_I4?I4?", ResolveMethod("Belte.Runtime.Math", "Min", ["System.Nullable`1<System.Int32>", "System.Nullable`1<System.Int32>"]) },
-                { "Math_Min_I4I4", ResolveMethod("System.Math", "Min", ["System.Int32", "System.Int32"]) },
-                { "Math_Min_U8?U8?", ResolveMethod("Belte.Runtime.Math", "Min", ["System.Nullable`1<System.UInt64>", "System.Nullable`1<System.UInt64>"]) },
-                { "Math_Min_U8U8", ResolveMethod("System.Math", "Min", ["System.UInt64", "System.UInt64"]) },
-                { "Math_Min_U4?U4?", ResolveMethod("Belte.Runtime.Math", "Min", ["System.Nullable`1<System.UInt32>", "System.Nullable`1<System.UInt32>"]) },
-                { "Math_Min_U4U4", ResolveMethod("System.Math", "Min", ["System.UInt32", "System.UInt32"]) },
-                { "Math_Pow_DD", ResolveMethod("System.Math", "Pow", ["System.Double", "System.Double"]) },
-                { "Math_Pow_D?D?", ResolveMethod("Belte.Runtime.Math", "Pow", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
-                { "Math_Pow_II", ResolveMethod("Belte.Runtime.Math", "Pow", ["System.Int64", "System.Int64"]) },
-                { "Math_Pow_I?I?", ResolveMethod("Belte.Runtime.Math", "Pow", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
-                { "Math_Round_D?", ResolveMethod("Belte.Runtime.Math", "Round", ["System.Nullable`1<System.Double>"]) },
-                { "Math_Round_D", ResolveMethod("System.Math", "Round", ["System.Double"]) },
-                { "Math_Sign_D?", ResolveMethod("Belte.Runtime.Math", "Sign", ["System.Nullable`1<System.Double>"]) },
-                { "Math_Sign_D", ResolveMethod("System.Math", "Sign", ["System.Double"]) },
-                { "Math_Sign_I?", ResolveMethod("Belte.Runtime.Math", "Sign", ["System.Nullable`1<System.Int64>"]) },
-                { "Math_Sign_I", ResolveMethod("System.Math", "Sign", ["System.Int64"]) },
-                { "Math_Sin_D?", ResolveMethod("Belte.Runtime.Math", "Sin", ["System.Nullable`1<System.Double>"]) },
-                { "Math_Sin_D", ResolveMethod("System.Math", "Sin", ["System.Double"]) },
-                { "Math_Sinh_D?", ResolveMethod("Belte.Runtime.Math", "Sinh", ["System.Nullable`1<System.Double>"]) },
-                { "Math_Sinh_D", ResolveMethod("System.Math", "Sinh", ["System.Double"]) },
-                { "Math_Sqrt_D?", ResolveMethod("Belte.Runtime.Math", "Sqrt", ["System.Nullable`1<System.Double>"]) },
-                { "Math_Sqrt_D", ResolveMethod("System.Math", "Sqrt", ["System.Double"]) },
-                { "Math_Tan_D?", ResolveMethod("Belte.Runtime.Math", "Tan", ["System.Nullable`1<System.Double>"]) },
-                { "Math_Tan_D", ResolveMethod("System.Math", "Tan", ["System.Double"]) },
-                { "Math_Tanh_D?", ResolveMethod("Belte.Runtime.Math", "Tanh", ["System.Nullable`1<System.Double>"]) },
-                { "Math_Tanh_D", ResolveMethod("System.Math", "Tanh", ["System.Double"]) },
-                { "Math_Truncate_D?", ResolveMethod("Belte.Runtime.Math", "Truncate", ["System.Nullable`1<System.Double>"]) },
-                { "Math_Truncate_D", ResolveMethod("System.Math", "Truncate", ["System.Double"]) },
-                { "Math_DegToRad_D?", ResolveMethod("Belte.Runtime.Math", "DegToRad", ["System.Nullable`1<System.Double>"]) },
-                { "Math_DegToRad_D", ResolveMethod("System.Double", "DegreesToRadians", ["System.Double"]) },
-                { "Math_RadToDeg_D?", ResolveMethod("Belte.Runtime.Math", "RadToDeg", ["System.Nullable`1<System.Double>"]) },
-                { "Math_RadToDeg_D", ResolveMethod("System.Double", "RadiansToDegrees", ["System.Double"]) },
-            };
-        }
+        _stlMap = new Dictionary<string, MethodReference>() {
+            { "Object<>_.ctor", ResolveMethod("System.Object", ".ctor", []) },
+            { "Object<>_ToString", ResolveMethod("System.Object", "ToString", []) },
+            { "Object<>_Equals_O?", ResolveMethod("System.Object", "Equals", ["System.Object"]) },
+            { "Object<>_GetHashCode", ResolveMethod("System.Object", "GetHashCode", []) },
+            { "Object<>_Finalize", ResolveMethod("System.Object", "Finalize", []) },
+            { "Console_Clear", ResolveMethod("System.Console", "Clear", []) },
+            { "Console_GetWidth", ResolveMethod("Belte.Runtime.Console", "GetWidth", []) },
+            { "Console_GetHeight", ResolveMethod("Belte.Runtime.Console", "GetHeight", []) },
+            { "Console_Print_S?", ResolveMethod("System.Console", "Write", ["System.String"]) },
+            { "Console_Print_A?", ResolveMethod("System.Console", "Write", ["System.Object"]) },
+            { "Console_Print_[?", ResolveMethod("System.Console", "Write", ["System.Char[]"]) },
+            { "Console_PrintLine", ResolveMethod("System.Console", "WriteLine", []) },
+            { "Console_PrintLine_S?", ResolveMethod("System.Console", "WriteLine", ["System.String"]) },
+            { "Console_PrintLine_A?", ResolveMethod("System.Console", "WriteLine", ["System.Object"]) },
+            { "Console_PrintLine_[?", ResolveMethod("System.Console", "WriteLine", ["System.Char[]"]) },
+            { "Console_Input", ResolveMethod("System.Console", "ReadLine", []) },
+            { "Console_ResetColor", ResolveMethod("System.Console", "ResetColor", []) },
+            { "Console_SetForegroundColor_I", ResolveMethod("Belte.Runtime.Console", "SetForegroundColor", ["System.Int64"]) },
+            { "Console_SetBackgroundColor_I", ResolveMethod("Belte.Runtime.Console", "SetBackgroundColor", ["System.Int64"]) },
+            { "Console_SetCursorPosition_I?I?", ResolveMethod("Belte.Runtime.Console", "SetCursorPosition", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
+            { "Console_SetCursorVisibility_B", ResolveMethod("Belte.Runtime.Console", "SetCursorVisibility", ["System.Boolean"]) },
+            { "Directory_Create_S", ResolveMethod("Belte.Runtime.Utilities", "CreateDirectory", ["System.String"]) },
+            { "Directory_Delete_S", ResolveMethod("Belte.Runtime.Utilities", "DeleteDirectory", ["System.String"]) },
+            { "Directory_Exists_S", ResolveMethod("System.IO.Directory", "Exists", ["System.String"]) },
+            { "Directory_GetCurrentDirectory", ResolveMethod("System.IO.Directory", "GetCurrentDirectory", []) },
+            { "File_AppendText_SS", ResolveMethod("System.IO.File", "AppendAllText", ["System.String", "System.String"]) },
+            { "File_Create_S", ResolveMethod("System.IO.File", "Create", ["System.String"]) },
+            { "File_Copy_S", ResolveMethod("System.IO.File", "Copy", ["System.String", "System.String"]) },
+            { "File_Delete_S", ResolveMethod("System.IO.File", "Delete", ["System.String"]) },
+            { "File_Exists_S", ResolveMethod("System.IO.File", "Exists", ["System.String"]) },
+            { "File_ReadText_S", ResolveMethod("System.IO.File", "ReadAllText", ["System.String"]) },
+            { "File_WriteText_SS", ResolveMethod("System.IO.File", "WriteAllText", ["System.String", "System.String"]) },
+            { "String_Ascii_S", ResolveMethod("Belte.Runtime.Utilities", "Ascii", ["System.String"]) },
+            { "String_Char_I", ResolveMethod("Belte.Runtime.Utilities", "Char", ["System.Int64"]) },
+            { "String_Split_SS", ResolveMethod("Belte.Runtime.Utilities", "Split", ["System.String", "System.String"]) },
+            { "String_Length_S", ResolveMethod("Belte.Runtime.Utilities", "StringLength", ["System.String"]) },
+            { "String_IndexOf_SC", ResolveMethod("Belte.Runtime.Utilities", "StringIndexOf", ["System.String", "System.Char"]) },
+            { "String_IsNullOrWhiteSpace_S?", ResolveMethod("System.String", "IsNullOrWhiteSpace", ["System.String"]) },
+            { "String_IsNullOrWhiteSpace_C?", ResolveMethod("Belte.Runtime.Utilities", "IsNullOrWhiteSpace", ["System.Nullable`1<System.Char>"]) },
+            { "String_IsDigit_C?", ResolveMethod("Belte.Runtime.Utilities", "IsDigit", ["System.Nullable`1<System.Char>"]) },
+            { "String_Substring_SI?I?", ResolveMethod("Belte.Runtime.Utilities", "Substring", ["System.String", "System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
+            { "String_PadLeft_SCI", ResolveMethod("Belte.Runtime.Utilities", "StringPadLeft", ["System.String", "System.Char", "System.Int64"]) },
+            { "String_PadRight_SCI", ResolveMethod("Belte.Runtime.Utilities", "StringPadRight", ["System.String", "System.Char", "System.Int64"]) },
+            { "String_Replace_SSS", ResolveMethod("Belte.Runtime.Utilities", "StringReplace", ["System.String", "System.String", "System.String"]) },
+            { "String_Trim_S", ResolveMethod("Belte.Runtime.Utilities", "StringTrim", ["System.String"]) },
+            { "String_Trim_S[", ResolveMethod("Belte.Runtime.Utilities", "StringTrim", ["System.String", "System.Char[]"]) },
+            { "String_TrimStart_S", ResolveMethod("Belte.Runtime.Utilities", "StringTrimStart", ["System.String"]) },
+            { "String_TrimStart_S[", ResolveMethod("Belte.Runtime.Utilities", "StringTrimStart", ["System.String", "System.Char[]"]) },
+            { "String_TrimEnd_S", ResolveMethod("Belte.Runtime.Utilities", "StringTrimEnd", ["System.String"]) },
+            { "String_TrimEnd_S[", ResolveMethod("Belte.Runtime.Utilities", "StringTrimEnd", ["System.String", "System.Char[]"]) },
+            { "String_Contains_SS", ResolveMethod("Belte.Runtime.Utilities", "StringContains", ["System.String", "System.String"]) },
+            { "Int_Parse_S?", ResolveMethod("Belte.Runtime.Utilities", "IntParse", ["System.String"]) },
+            { "Int_ToString_IS", ResolveMethod("Belte.Runtime.Utilities", "IntToString", ["System.Int64", "System.String"]) },
+            { "Decimal_IsNaN_F4", ResolveMethod("System.Single", "IsNaN", ["System.Single"]) },
+            { "Decimal_IsPosInfinity_F4", ResolveMethod("System.Single", "IsPositiveInfinity", ["System.Single"]) },
+            { "Decimal_IsNegInfinity_F4", ResolveMethod("System.Single", "IsNegativeInfinity", ["System.Single"]) },
+            { "Decimal_IsInfinity_F4", ResolveMethod("System.Single", "IsInfinity", ["System.Single"]) },
+            { "Decimal_IsNaN_F8", ResolveMethod("System.Double", "IsNaN", ["System.Double"]) },
+            { "Decimal_IsPosInfinity_F8", ResolveMethod("System.Double", "IsPositiveInfinity", ["System.Double"]) },
+            { "Decimal_IsNegInfinity_F8", ResolveMethod("System.Double", "IsNegativeInfinity", ["System.Double"]) },
+            { "Decimal_IsInfinity_F8", ResolveMethod("System.Double", "IsInfinity", ["System.Double"]) },
+            { "Decimal_Parse_S?", ResolveMethod("Belte.Runtime.Utilities", "DecimalParse", ["System.String"]) },
+            { "Decimal_ToString_DS", ResolveMethod("Belte.Runtime.Utilities", "DecimalToString", ["System.Double", "System.String"]) },
+            { "LowLevel_GetHashCode_O", ResolveMethod("Belte.Runtime.Utilities", "GetHashCode", ["System.Object"]) },
+            { "LowLevel_GetTypeName_O", ResolveMethod("Belte.Runtime.Utilities", "GetTypeName", ["System.Object"]) },
+            { "LowLevel_ThrowNullConditionException", ResolveMethod("Belte.Runtime.ThrowHelper", "ThrowNullConditionException", []) },
+            { "LowLevel_CreateLPCSTR_S", ResolveMethod("Belte.Runtime.Utilities", "CreateLPCSTR", ["System.String"]) },
+            { "LowLevel_CreateLPCSTR_UTF_S", ResolveMethod("Belte.Runtime.Utilities", "CreateLPCSTR_UTF", ["System.String"]) },
+            { "LowLevel_CreateLPCWSTR_S", ResolveMethod("Belte.Runtime.Utilities", "CreateLPCWSTR", ["System.String"]) },
+            { "LowLevel_FreeLPCSTR_U*", ResolveMethod("Belte.Runtime.Utilities", "FreeLPCSTR", ["System.Byte*"]) },
+            { "LowLevel_FreeLPCWSTR_C*", ResolveMethod("Belte.Runtime.Utilities", "FreeLPCWSTR", ["System.Char*"]) },
+            { "LowLevel_ReadLPCSTR_U*", ResolveMethod("Belte.Runtime.Utilities", "ReadLPCSTR", ["System.Byte*"]) },
+            { "LowLevel_ReadLPCWSTR_C*", ResolveMethod("Belte.Runtime.Utilities", "ReadLPCWSTR", ["System.Char*"]) },
+            { "LowLevel_GetGCPtr_O", ResolveMethod("Belte.Runtime.Utilities", "GetGCPtr", ["System.Object"]) },
+            { "LowLevel_FreeGCHandle_V*", ResolveMethod("Belte.Runtime.Utilities", "FreeGCHandle", ["System.Void*"]) },
+            { "LowLevel_GetObject_V*", ResolveMethod("Belte.Runtime.Utilities", "GetObject", ["System.Void*"]) },
+            { "LowLevel_IsLittleEndian", ResolveMethod("Belte.Runtime.Utilities", "IsLittleEndian", []) },
+            { "LowLevel_ReverseEndianness_I4", ResolveMethod("System.Buffers.Binary.BinaryPrimitives", "ReverseEndianness", ["System.Int32"]) },
+            { "HashCode_Combine_I4I4", ResolveMethod("Belte.Runtime.Utilities", "HashCodeCombine", ["System.Int32", "System.Int32"]) },
+            { "HashCode_Combine_I4I4I4", ResolveMethod("Belte.Runtime.Utilities", "HashCodeCombine", ["System.Int32", "System.Int32", "System.Int32"]) },
+            { "HashCode_Combine_I4I4I4I4", ResolveMethod("Belte.Runtime.Utilities", "HashCodeCombine", ["System.Int32", "System.Int32", "System.Int32", "System.Int32"]) },
+            { "HashCode_Combine_I4I4I4I4I4", ResolveMethod("Belte.Runtime.Utilities", "HashCodeCombine", ["System.Int32", "System.Int32", "System.Int32", "System.Int32", "System.Int32"]) },
+            { "HashCode_Combine_I4I4I4I4I4I4", ResolveMethod("Belte.Runtime.Utilities", "HashCodeCombine", ["System.Int32", "System.Int32", "System.Int32", "System.Int32", "System.Int32", "System.Int32"]) },
+            { "HashCode_Combine_I4I4I4I4I4I4I4", ResolveMethod("Belte.Runtime.Utilities", "HashCodeCombine", ["System.Int32", "System.Int32", "System.Int32", "System.Int32", "System.Int32", "System.Int32", "System.Int32"]) },
+            { "HashCode_Combine_I4I4I4I4I4I4I4I4", ResolveMethod("Belte.Runtime.Utilities", "HashCodeCombine", ["System.Int32", "System.Int32", "System.Int32", "System.Int32", "System.Int32", "System.Int32", "System.Int32", "System.Int32"]) },
+            { "Time_Now", ResolveMethod("Belte.Runtime.Utilities", "TimeNow", []) },
+            { "Time_Sleep_I", ResolveMethod("Belte.Runtime.Utilities", "TimeSleep", ["System.Int64"]) },
+            { "Math_Abs_D?", ResolveMethod("Belte.Runtime.Math", "Abs", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Abs_D", ResolveMethod("System.Math", "Abs", ["System.Double"]) },
+            { "Math_Abs_I?", ResolveMethod("Belte.Runtime.Math", "Abs", ["System.Nullable`1<System.Int64>"]) },
+            { "Math_Abs_I", ResolveMethod("System.Math", "Abs", ["System.Int64"]) },
+            { "Math_Acos_D?", ResolveMethod("Belte.Runtime.Math", "Acos", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Acos_D", ResolveMethod("System.Math", "Acos", ["System.Double"]) },
+            { "Math_Acosh_D?", ResolveMethod("Belte.Runtime.Math", "Acosh", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Acosh_D", ResolveMethod("System.Math", "Acosh", ["System.Double"]) },
+            { "Math_Asin_D?", ResolveMethod("Belte.Runtime.Math", "Asin", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Asin_D", ResolveMethod("System.Math", "Asin", ["System.Double"]) },
+            { "Math_Asinh_D?", ResolveMethod("Belte.Runtime.Math", "Asinh", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Asinh_D", ResolveMethod("System.Math", "Asinh", ["System.Double"]) },
+            { "Math_Atan_D?", ResolveMethod("Belte.Runtime.Math", "Atan", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Atan_D", ResolveMethod("System.Math", "Atan", ["System.Double"]) },
+            { "Math_Atanh_D?", ResolveMethod("Belte.Runtime.Math", "Atanh", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Atanh_D", ResolveMethod("System.Math", "Atanh", ["System.Double"]) },
+            { "Math_Ceiling_D?", ResolveMethod("Belte.Runtime.Math", "Ceiling", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Ceiling_D", ResolveMethod("System.Math", "Ceiling", ["System.Double"]) },
+            { "Math_Clamp_D?D?D?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
+            { "Math_Clamp_DDD", ResolveMethod("System.Math", "Clamp", ["System.Double","System.Double", "System.Double"]) },
+            { "Math_Clamp_F4?F4?F4?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Single>", "System.Nullable`1<System.Single>", "System.Nullable`1<System.Single>"]) },
+            { "Math_Clamp_F4F4F4", ResolveMethod("System.Math", "Clamp", ["System.Single","System.Single", "System.Single"]) },
+            { "Math_Clamp_I?I?I?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
+            { "Math_Clamp_III", ResolveMethod("System.Math", "Clamp", ["System.Int64","System.Int64", "System.Int64"]) },
+            { "Math_Clamp_U8?U8?U8?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.UInt64>", "System.Nullable`1<System.UInt64>", "System.Nullable`1<System.UInt64>"]) },
+            { "Math_Clamp_U8U8U8", ResolveMethod("System.Math", "Clamp", ["System.UInt64","System.UInt64", "System.UInt64"]) },
+            { "Math_Clamp_I4?I4?I4?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Int32>", "System.Nullable`1<System.Int32>", "System.Nullable`1<System.Int32>"]) },
+            { "Math_Clamp_I4I4I4", ResolveMethod("System.Math", "Clamp", ["System.Int32","System.Int32", "System.Int32"]) },
+            { "Math_Clamp_U4?U4?U4?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.UInt32>", "System.Nullable`1<System.UInt32>", "System.Nullable`1<System.UInt32>"]) },
+            { "Math_Clamp_U4U4U4", ResolveMethod("System.Math", "Clamp", ["System.UInt32","System.UInt32", "System.UInt32"]) },
+            { "Math_Clamp_I2?I2?I2?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Int16>", "System.Nullable`1<System.Int16>", "System.Nullable`1<System.Int16>"]) },
+            { "Math_Clamp_I2I2I2", ResolveMethod("System.Math", "Clamp", ["System.Int16","System.Int16", "System.Int16"]) },
+            { "Math_Clamp_U2?U2?U2?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.UInt16>", "System.Nullable`1<System.UInt16>", "System.Nullable`1<System.UInt16>"]) },
+            { "Math_Clamp_U2U2U2", ResolveMethod("System.Math", "Clamp", ["System.UInt16","System.UInt16", "System.UInt16"]) },
+            { "Math_Clamp_I1?I1?I1?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.SByte>", "System.Nullable`1<System.SByte>", "System.Nullable`1<System.SByte>"]) },
+            { "Math_Clamp_I1I1I1", ResolveMethod("System.Math", "Clamp", ["System.SByte","System.SByte", "System.SByte"]) },
+            { "Math_Clamp_U1?U1?U1?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Byte>", "System.Nullable`1<System.Byte>", "System.Nullable`1<System.Byte>"]) },
+            { "Math_Clamp_U1U1U1", ResolveMethod("System.Math", "Clamp", ["System.Byte","System.Byte", "System.Byte"]) },
+            { "Math_Clamp_C?C?C?", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Nullable`1<System.Char>", "System.Nullable`1<System.Char>", "System.Nullable`1<System.Char>"]) },
+            { "Math_Clamp_CCC", ResolveMethod("Belte.Runtime.Math", "Clamp", ["System.Char","System.Char", "System.Char"]) },
+            { "Math_Cos_D?", ResolveMethod("Belte.Runtime.Math", "Cos", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Cos_D", ResolveMethod("System.Math", "Cos", ["System.Double"]) },
+            { "Math_Cosh_D?", ResolveMethod("Belte.Runtime.Math", "Cosh", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Cosh_D", ResolveMethod("System.Math", "Cosh", ["System.Double"]) },
+            { "Math_Exp_D?", ResolveMethod("Belte.Runtime.Math", "Exp", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Exp_D", ResolveMethod("System.Math", "Exp", ["System.Double"]) },
+            { "Math_Floor_D?", ResolveMethod("Belte.Runtime.Math", "Floor", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Floor_D", ResolveMethod("System.Math", "Floor", ["System.Double"]) },
+            { "Math_Lerp_D?D?D?", ResolveMethod("Belte.Runtime.Math", "Lerp", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
+            { "Math_Lerp_DDD", ResolveMethod("Belte.Runtime.Math", "Lerp", ["System.Double", "System.Double", "System.Double"]) },
+            { "Math_Log_D?D?", ResolveMethod("Belte.Runtime.Math", "Log", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
+            { "Math_Log_DD", ResolveMethod("System.Math", "Log", ["System.Double", "System.Double"]) },
+            { "Math_Log_D?", ResolveMethod("Belte.Runtime.Math", "Log", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Log_D", ResolveMethod("System.Math", "Log", ["System.Double"]) },
+            { "Math_Max_D?D?", ResolveMethod("Belte.Runtime.Math", "Max", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
+            { "Math_Max_DD", ResolveMethod("System.Math", "Max", ["System.Double", "System.Double"]) },
+            { "Math_Max_F4?F4?", ResolveMethod("Belte.Runtime.Math", "Max", ["System.Nullable`1<System.Single>", "System.Nullable`1<System.Single>"]) },
+            { "Math_Max_F4F4", ResolveMethod("System.Math", "Max", ["System.Single", "System.Single"]) },
+            { "Math_Max_I?I?", ResolveMethod("Belte.Runtime.Math", "Max", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
+            { "Math_Max_II", ResolveMethod("System.Math", "Max", ["System.Int64", "System.Int64"]) },
+            { "Math_Max_I4?I4?", ResolveMethod("Belte.Runtime.Math", "Max", ["System.Nullable`1<System.Int32>", "System.Nullable`1<System.Int32>"]) },
+            { "Math_Max_I4I4", ResolveMethod("System.Math", "Max", ["System.Int32", "System.Int32"]) },
+            { "Math_Max_U8?U8?", ResolveMethod("Belte.Runtime.Math", "Max", ["System.Nullable`1<System.UInt64>", "System.Nullable`1<System.UInt64>"]) },
+            { "Math_Max_U8U8", ResolveMethod("System.Math", "Max", ["System.UInt64", "System.UInt64"]) },
+            { "Math_Max_U4?U4?", ResolveMethod("Belte.Runtime.Math", "Max", ["System.Nullable`1<System.UInt32>", "System.Nullable`1<System.UInt32>"]) },
+            { "Math_Max_U4U4", ResolveMethod("System.Math", "Max", ["System.UInt32", "System.UInt32"]) },
+            { "Math_Min_D?D?", ResolveMethod("Belte.Runtime.Math", "Min", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
+            { "Math_Min_DD", ResolveMethod("System.Math", "Min", ["System.Double", "System.Double"]) },
+            { "Math_Min_F4?F4?", ResolveMethod("Belte.Runtime.Math", "Min", ["System.Nullable`1<System.Single>", "System.Nullable`1<System.Single>"]) },
+            { "Math_Min_F4F4", ResolveMethod("System.Math", "Min", ["System.Single", "System.Single"]) },
+            { "Math_Min_I?I?", ResolveMethod("Belte.Runtime.Math", "Min", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
+            { "Math_Min_II", ResolveMethod("System.Math", "Min", ["System.Int64", "System.Int64"]) },
+            { "Math_Min_I4?I4?", ResolveMethod("Belte.Runtime.Math", "Min", ["System.Nullable`1<System.Int32>", "System.Nullable`1<System.Int32>"]) },
+            { "Math_Min_I4I4", ResolveMethod("System.Math", "Min", ["System.Int32", "System.Int32"]) },
+            { "Math_Min_U8?U8?", ResolveMethod("Belte.Runtime.Math", "Min", ["System.Nullable`1<System.UInt64>", "System.Nullable`1<System.UInt64>"]) },
+            { "Math_Min_U8U8", ResolveMethod("System.Math", "Min", ["System.UInt64", "System.UInt64"]) },
+            { "Math_Min_U4?U4?", ResolveMethod("Belte.Runtime.Math", "Min", ["System.Nullable`1<System.UInt32>", "System.Nullable`1<System.UInt32>"]) },
+            { "Math_Min_U4U4", ResolveMethod("System.Math", "Min", ["System.UInt32", "System.UInt32"]) },
+            { "Math_Pow_DD", ResolveMethod("System.Math", "Pow", ["System.Double", "System.Double"]) },
+            { "Math_Pow_D?D?", ResolveMethod("Belte.Runtime.Math", "Pow", ["System.Nullable`1<System.Double>", "System.Nullable`1<System.Double>"]) },
+            { "Math_Pow_II", ResolveMethod("Belte.Runtime.Math", "Pow", ["System.Int64", "System.Int64"]) },
+            { "Math_Pow_I?I?", ResolveMethod("Belte.Runtime.Math", "Pow", ["System.Nullable`1<System.Int64>", "System.Nullable`1<System.Int64>"]) },
+            { "Math_Round_D?", ResolveMethod("Belte.Runtime.Math", "Round", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Round_D", ResolveMethod("System.Math", "Round", ["System.Double"]) },
+            { "Math_Sign_D?", ResolveMethod("Belte.Runtime.Math", "Sign", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Sign_D", ResolveMethod("System.Math", "Sign", ["System.Double"]) },
+            { "Math_Sign_I?", ResolveMethod("Belte.Runtime.Math", "Sign", ["System.Nullable`1<System.Int64>"]) },
+            { "Math_Sign_I", ResolveMethod("System.Math", "Sign", ["System.Int64"]) },
+            { "Math_Sin_D?", ResolveMethod("Belte.Runtime.Math", "Sin", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Sin_D", ResolveMethod("System.Math", "Sin", ["System.Double"]) },
+            { "Math_Sinh_D?", ResolveMethod("Belte.Runtime.Math", "Sinh", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Sinh_D", ResolveMethod("System.Math", "Sinh", ["System.Double"]) },
+            { "Math_Sqrt_D?", ResolveMethod("Belte.Runtime.Math", "Sqrt", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Sqrt_D", ResolveMethod("System.Math", "Sqrt", ["System.Double"]) },
+            { "Math_Tan_D?", ResolveMethod("Belte.Runtime.Math", "Tan", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Tan_D", ResolveMethod("System.Math", "Tan", ["System.Double"]) },
+            { "Math_Tanh_D?", ResolveMethod("Belte.Runtime.Math", "Tanh", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Tanh_D", ResolveMethod("System.Math", "Tanh", ["System.Double"]) },
+            { "Math_Truncate_D?", ResolveMethod("Belte.Runtime.Math", "Truncate", ["System.Nullable`1<System.Double>"]) },
+            { "Math_Truncate_D", ResolveMethod("System.Math", "Truncate", ["System.Double"]) },
+            { "Math_DegToRad_D?", ResolveMethod("Belte.Runtime.Math", "DegToRad", ["System.Nullable`1<System.Double>"]) },
+            { "Math_DegToRad_D", ResolveMethod("System.Double", "DegreesToRadians", ["System.Double"]) },
+            { "Math_RadToDeg_D?", ResolveMethod("Belte.Runtime.Math", "RadToDeg", ["System.Nullable`1<System.Double>"]) },
+            { "Math_RadToDeg_D", ResolveMethod("System.Double", "RadiansToDegrees", ["System.Double"]) },
+        };
     }
 }

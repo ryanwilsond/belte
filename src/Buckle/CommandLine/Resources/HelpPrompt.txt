@@ -34,10 +34,10 @@ Options:
   -l0                         Compile with core .NET libraries.
   -l1                         l0 plus compiler libraries for meta-programming.
   -lall                       l1 plus all .NET SDK libraries.
+  --notemplatemetadata        Do not emit template metadata.
 
   --type=[console|graphics|dll]           Specify the type of Belte project (default console).
   --entry=<name>              Specify a type name to search for the entry point in.
-  --nostdlib                  Disable compiling with the Standard Library.
 
   --severity=<severity>       Specify a reporting severity; defaults to warning.
   --warnlevel=<warning level> Specify a warning reporting level; defaults to 1.
@@ -51,6 +51,7 @@ Options:
   --verbose                   Display additional information about the compilation process.
   --vpath=<path>              Path to dump files produced by verbose mode.
   --info                      Display verbose information without producing artifacts.
+  --infoscript                Display minimal information for use in build pipelines.
   --sae                       Prompt for user input before and after compiling.
 
 Additional Resources:

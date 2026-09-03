@@ -6,6 +6,7 @@
   <ValueType Name="UnaryOperatorKind"/>
   <ValueType Name="BinaryOperatorKind"/>
   <ValueType Name="LookupResultKind"/>
+  <ValueType Name="ForEachLoopKind"/>
   <ValueType Name="RefKind"/>
   <!-- Abstract Types -->
   <AbstractNode Name="BoundInitializer" Base="BoundNode"/>
@@ -116,6 +117,7 @@
   <Node Name="BoundCompileTimeExpression" Base="BoundExpression">
     <Field Name="expression" Type="BoundExpression"/>
     <Field Name="conditional" Type="bool"/>
+    <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
   <Node Name="BoundUnconvertedNullptrExpression" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
@@ -452,15 +454,9 @@
     <Field Name="resultKind" Type="LookupResultKind" PropertyOverrides="true"/>
     <Field Name="originalUserDefinedOperators" Type="ImmutableArray&lt;MethodSymbol&gt;" Null="allow"/>
   </Node>
-  <Node Name="BoundConsumeStackValue" Base="BoundExpression">
-    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
-  </Node>
   <!-- Statements -->
   <Node Name="BoundErrorStatement" Base="BoundStatement">
     <Field Name="childBoundNodes" Type="ImmutableArray&lt;BoundNode&gt;"/>
-  </Node>
-  <Node Name="BoundStackValue" Base="BoundStatement">
-    <Field Name="value" Type="BoundExpression"/>
   </Node>
   <Node Name="BoundBreakStatement" Base="BoundStatement">
     <Field Name="label" Type="SynthesizedLabelSymbol"/>
@@ -504,6 +500,8 @@
     <Field Name="body" Type="BoundStatement"/>
   </Node>
   <Node Name="BoundForEachStatement" Base="BoundLoopStatement">
+    <Field Name="enumeratorInfo" Type="ForEachEnumeratorInfo?"/>
+    <Field Name="forEachLoopKind" Type="ForEachLoopKind"/>
     <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
     <Field Name="expression" Type="BoundExpression"/>
     <Field Name="innerLocals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>

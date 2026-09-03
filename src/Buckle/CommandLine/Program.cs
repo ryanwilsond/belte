@@ -2,7 +2,7 @@ using CommandLine;
 
 public static class Program {
     public static int Main(string[] args) {
-#if !DEBUG
+#if SINGLE_FILE_BUILD
         DllImportHelper.ExtractAndLoadDlls();
 #endif
 

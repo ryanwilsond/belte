@@ -7,6 +7,68 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis;
 
 internal static class ImmutableArrayExtensions {
+    internal static ImmutableArray<TResult> ZipAsArray<T1, T2, TArg, TResult>(
+        this ImmutableArray<T1> self,
+        ImmutableArray<T2> other,
+        TArg arg,
+        Func<T1, T2, int, TArg, TResult> map) {
+        if (self.IsEmpty)
+            return [];
+
+        var builder = ArrayBuilder<TResult>.GetInstance(self.Length);
+
+        for (var i = 0; i < self.Length; i++)
+            builder.Add(map(self[i], other[i], i, arg));
+
+        return builder.ToImmutableAndFree();
+    }
+
+    internal static bool SequenceEqual<TElement, TArg>(
+        this ImmutableArray<TElement> array1,
+        ImmutableArray<TElement> array2,
+        TArg arg,
+        Func<TElement, TElement, TArg, bool> predicate) {
+        if (array1.IsDefault)
+            throw new NullReferenceException();
+
+        if (array2.IsDefault)
+            throw new NullReferenceException();
+
+        if (array1.Length != array2.Length)
+            return false;
+
+        for (var i = 0; i < array1.Length; i++) {
+            if (!predicate(array1[i], array2[i], arg))
+                return false;
+        }
+
+        return true;
+    }
+
+    internal static bool SequenceEqual<TDerived, TBase>(
+        this ImmutableArray<TBase> array1,
+        ImmutableArray<TDerived> array2,
+        IEqualityComparer<TBase> comparer = null)
+            where TDerived : TBase {
+        if (array1.IsDefault)
+            throw new NullReferenceException();
+
+        if (array2.IsDefault)
+            throw new NullReferenceException();
+
+        if (array1.Length != array2.Length)
+            return false;
+
+        comparer ??= EqualityComparer<TBase>.Default;
+
+        for (var i = 0; i < array1.Length; i++) {
+            if (!comparer.Equals(array1[i], array2[i]))
+                return false;
+        }
+
+        return true;
+    }
+
     internal static int BinarySearch<TElement, TValue>(
         this ImmutableArray<TElement> array,
         TValue value,
@@ -195,6 +257,27 @@ internal static class ImmutableArrayExtensions {
         Func<TItem, TArg, TResult> map,
         TArg arg) {
         return ImmutableArray.CreateRange(items, map, arg);
+    }
+
+    internal static ImmutableArray<TResult> SelectAsArray<TItem, TArg, TResult>(
+        this ImmutableArray<TItem> items,
+        Func<TItem, int, TArg, TResult> map,
+        TArg arg) {
+        switch (items.Length) {
+            case 0: return [];
+            case 1: return [map(items[0], 0, arg)];
+            case 2: return [map(items[0], 0, arg), map(items[1], 1, arg)];
+            case 3: return [map(items[0], 0, arg), map(items[1], 1, arg), map(items[2], 2, arg)];
+            case 4: return [map(items[0], 0, arg), map(items[1], 1, arg), map(items[2], 2, arg), map(items[3], 3, arg)];
+
+            default:
+                var builder = new FixedSizeArrayBuilder<TResult>(items.Length);
+
+                for (var i = 0; i < items.Length; i++)
+                    builder.Add(map(items[i], i, arg));
+
+                return builder.MoveToImmutable();
+        }
     }
 
     internal static ImmutableArray<T> AsImmutableOrNull<T>(this T[]? items) {

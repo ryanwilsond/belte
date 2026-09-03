@@ -7,6 +7,9 @@
         "**/obj": true,
         "**/.vs": true,
         "**/*.lscache": true,
+        ".clj-kondo": true,
+        ".idea": true,
+        ".lsp": true,
     },
     "editor.rulers": [
         80,

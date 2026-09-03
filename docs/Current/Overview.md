@@ -71,6 +71,9 @@ Some features are not supported across all endpoints for various reasons.
 The following list describes all of the features where full parity is not currently implemented or was not always
 implemented.
 
+> Note that [compile-time expressions](Data.md#37-compile-time-expressions) are planned to switch to using the Executor
+> endpoint for full parity with normal execution
+
 - Evaluator: the internal interpreter endpoint. Used for the [REPL](../Repl.md), `--evaluate` builds, and [compile-time expressions](Data.md#37-compile-time-expressions).
 - Executor: the endpoint for emitting to an in-memory delegate to execute immediately. This is the default endpoint and is used for `--execute` builds and [compile-time handles](LowLevelFeatures.md#613-compiler-handle).
 - IL Emitter: the endpoint for emitting to an executable which relies on .NET. Used for `--dotnet` builds and [build scripts](../Build.md).
@@ -78,8 +81,6 @@ implemented.
 | Feature | Evaluator | Executor | IL Emitter | Explanation |
 | - | - | - | - | - |
 | `--type=graphics` projects | ✓ | ✓ | ✕ | Standalone graphics DLL under development |
-| Non-type templates | ✓ | ✕ | ✕ | Not supported by the .NET runtime |
-| Non-integral enums | ✓ | ✕ | ✕ | Not supported by the .NET runtime |
 | Pointers | ✕ | ✓ | ✓ | Partially supported the Evaluator but not stable due to internal memory structure |
 | Function pointers | ✕ | ✓ | ✓ | Disallowed in the Evaluator due to internal memory structure |
 | Externs/DllImport | ✕ | ✓ | ✓ | Incompatible with the Evaluator |
@@ -140,6 +141,7 @@ These keywords are reserved names and cannot be used as identifiers.
 - [implements](ClassesAndObjects.md#4512-special-constraints) (template constraint)
 - [in](ControlFlow.md#244-for-each-loops)
 - [interface](ClassesAndObjects.md#410-interfaces)
+- [internal](ClassesAndObjects.md#431-accessibility-modifiers)
 - [is](Data.md#32-operators)
 - [isnt](Data.md#32-operators)
 - [lowlevel](LowLevelFeatures.md#61-low-level-contexts) (scope modifier)
@@ -193,19 +195,28 @@ These keywords only act as keywords inside specific contexts. As such they can b
 - [elif](Preprocessor.md#72-control)
 - [endif](Preprocessor.md#72-control)
 - [explicit](ClassesAndObjects.md#4232-casts)
+- [field](ClassesAndObjects.md#424-properties)
 - [flags](ClassesAndObjects.md#461-flags)
+- [get](ClassesAndObjects.md#424-properties)
 - [handle](LowLevelFeatures.md#613-compiler-handle)
 - [has](ClassesAndObjects.md#4512-special-constraints)
 - [implicit](ClassesAndObjects.md#4232-casts) (user-defined conversions)
 - [implicit](ControlFlow.md#217-argument-coercion) (argument coercion)
 - [initializes](ClassesAndObjects.md#4211-definite-assignment)
 - [literal](ClassesAndObjects.md#4233-user-defined-literals)
+- [memoize](ClassesAndObjects.md#4223-behavior-specifiers)
+- [noalloc](ClassesAndObjects.md#4223-behavior-specifiers)
+- [nothrow](ClassesAndObjects.md#4223-behavior-specifiers)
 - [notnull](ClassesAndObjects.md#4512-special-constraints)
 - [noverify](LowLevelFeatures.md#6111-verification)
 - [operator](ClassesAndObjects.md#423-operators) (normal operators)
 - [operator](ControlFlow.md#244-for-each-loops) (for each operators)
 - [packed](LowLevelFeatures.md#621-packing)
+- [properties](ClassesAndObjects.md#424-properties)
+- [pure](ClassesAndObjects.md#4223-behavior-specifiers)
+- [set](ClassesAndObjects.md#424-properties)
 - [state](ClassesAndObjects.md#4222-state-and-reverse-clauses)
+- [template](ClassesAndObjects.md#452-compile-time-type-template-parameters)
 - [undef](Preprocessor.md#71-defineundef)
 
 ## 1.4 Nullability and Types
@@ -222,7 +233,8 @@ To summarize:
 
 A type is "nullable" when it permits the sentinel value `null`.
 
-A slightly more in-depth explanation of nullability can be found at this [end of the section].
+A slightly more in-depth explanation of nullability can be found at this
+[end of the section](#148-nullability-in-depth).
 
 ### 1.4.1 Normal Types
 
@@ -546,7 +558,7 @@ To summarize the main differences:
 - Compile-time metaprogramming
 - Reversible execution
 - First-class low-level programming without unsafe contexts
-- No properties
+- Non-type-permitting templates instead of only type generics including template operators
 
 ### 1.5.1 Type System
 
@@ -555,11 +567,13 @@ To summarize the main differences:
 - [Class field definite assignment guarantees](ClassesAndObjects.md#4211-definite-assignment)
 - [Arrays prevent reading before writing to elements](#147-arrays)
 - [Null-binding contracts](ControlFlow.md#232-null-binding-contracts)
-- No properties
 - [Different generic/template constraints include expression constraints](ClassesAndObjects.md#451-constraint-clauses)
+- [Non-type-permitting templates instead of only type generics](ClassesAndObjects.md#45-templates)
+- [Templates can be resolved either at runtime or compile-time](ClassesAndObjects.md#452-compile-time-type-template-parameters)
+- [Template user-defined operators and conversions](ClassesAndObjects.md#4231-operator-overloading)
 - [Conditionals accept expressions of type `bool?` instead of `bool`](ControlFlow.md#231-null-conditions)
 - [More expressive implicit typing allowing with `var`, `const`, and `constexpr` and nullable annotations](Data.md#332-implicit-typing)
-- [Enums can have methods](ClassesAndObjects.md#465-methods)
+- [Enums can have methods](ClassesAndObjects.md#464-methods)
 - [Built-in MustUseReturnValue attribute](ClassesAndObjects.md#411-attributes)
 
 ### 1.5.2 Language Features
@@ -572,13 +586,14 @@ To summarize the main differences:
 - [User-defined literals](ClassesAndObjects.md#4233-user-defined-literals)
 - [Duck-typed `for` "each" loops with index support](ControlFlow.md#244-for-each-loops)
 - [`const` methods](ClassesAndObjects.md#434-const)
+- [`pure`, `noalloc`, and `nothrow` methods](ClassesAndObjects.md#4223-behavior-specifiers)
 - [`constexpr` locals and fields](ClassesAndObjects.md#433-static-and-constexpr)
 - [File-scoped classes](ClassesAndObjects.md#411-declaring-and-using-classes)
 - [`unreachable` statements](ControlFlow.md#210-unreachable-statements)
 - [First-class `flags` enums](ClassesAndObjects.md#461-flags)
 - [`out` parameters don't require assignment](ControlFlow.md#216-ref-arguments)
 - [`out` parameters can have a default value](ControlFlow.md#2161-out-arguments)
-- [More operators (`x!`, `x!!`, `x?`, `x /\ y`, `x \/ y`, `x..y`, etc.)](Data.md#322-uncommon-operators)
+- [More operators (`x!`, `x!!`, `x?`, `x /\ y`, `x \/ y`, `x..y`, etc.)](Data.md#324-uncommon-operators)
 - Numeric literals automatically shrink/expand to fit the context (i.e. `f` suffix for float literals is unnecessary)
 
 ### 1.5.3 Metaprogramming
@@ -597,7 +612,6 @@ To summarize the main differences:
 - [C-style stackalloc syntax](LowLevelFeatures.md#6101-stackalloc-locals)
 - [C-style `union`s and anonymous unions](ClassesAndObjects.md#491-unions)
 - [`winbool` type instead of marshalling `bool` as 4-bytes in `extern`s](LowLevelFeatures.md#671-winbool)
-- [Argument coercion with `implicit` keyword](ControlFlow.md#217-argument-coercion)
 - [First-class bit casting](LowLevelFeatures.md#641-bit-casts)
 - [C-string literals](LowLevelFeatures.md#614-c-strings)
 - [Extern block declarations to share modifiers/attributes across members](LowLevelFeatures.md#673-extern-blocks)

@@ -21,9 +21,9 @@ internal static class Error {
     /// Once the compiler is finished, this class will be unnecessary.
     /// </summary>
     internal static class Unsupported {
-        internal static BelteDiagnostic NonTypeTemplate(TextLocation location) {
-            var message = "unsupported: cannot declare a non-type template when building for .NET, transpiling to C#, or executing";
-            return CreateError(DiagnosticCode.UNS_NonTypeTemplate, location, message);
+        internal static BelteDiagnostic NonTypeTemplateFunction(TextLocation location) {
+            var message = "unsupported: cannot declare a non-type template local function";
+            return CreateError(DiagnosticCode.UNS_NonTypeTemplateFunction, location, message);
         }
 
         internal static BelteDiagnostic GraphicsDll() {
@@ -485,9 +485,19 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_IncorrectUnaryOperatorArgs, message);
     }
 
-    internal static BelteDiagnostic OperatorMustBePublicAndStatic(TextLocation location) {
-        var message = $"overloaded operators must be marked as public and static";
+    internal static Diagnostic IncorrectCompoundOperatorArgs(string @operator) {
+        var message = $"overloaded compound assignment operator '{@operator}' takes 1 parameter";
+        return CreateError(DiagnosticCode.ERR_IncorrectCompoundOperatorArgs, message);
+    }
+
+    internal static BelteDiagnostic OperatorMustBePublicAndStatic(TextLocation location, MethodSymbol symbol) {
+        var message = $"user-defined operator '{symbol}' must be declared public and static";
         return CreateError(DiagnosticCode.ERR_OperatorMustBePublicAndStatic, location, message);
+    }
+
+    internal static BelteDiagnostic OperatorMustBePublic(TextLocation location, MethodSymbol symbol) {
+        var message = $"user-defined operator '{symbol}' must be declared public";
+        return CreateError(DiagnosticCode.ERR_OperatorMustBePublic, location, message);
     }
 
     internal static BelteDiagnostic OperatorInStaticClass(TextLocation location) {
@@ -1198,9 +1208,8 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic InvalidRefParameter(TextLocation location) {
-        throw ExceptionUtilities.Unreachable();
-        // var message = $"'ref' is not valid in this context";
-        // return CreateError(DiagnosticCode.ERR_InvalidRefParameter, location, message);
+        var message = $"'ref' and 'out' are not valid in this context";
+        return CreateError(DiagnosticCode.ERR_InvalidRefParameter, location, message);
     }
 
     internal static BelteDiagnostic RefConstWrongOrder(TextLocation location) {
@@ -1734,6 +1743,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_NotNullableConstraintFailed, location, message);
     }
 
+    internal static BelteDiagnostic ConstructorConstraintFailed(TextLocation location, Symbol constructed, string parameter, TypeSymbol type) {
+        var message = $"the type '{type}' must have a public parameterless constructor in order to use it as parameter '{parameter}' in the template type or method '{constructed.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
+        return CreateError(DiagnosticCode.ERR_ConstructorConstraintFailed, location, message);
+    }
+
     internal static BelteDiagnostic DuplicateConstraint(TextLocation location, string parameter) {
         var message = $"duplicate constraint on template parameter '{parameter}'";
         return CreateError(DiagnosticCode.ERR_DuplicateConstraint, location, message);
@@ -1839,6 +1853,11 @@ internal static class Error {
     internal static BelteDiagnostic InvalidAttributeArgument(TextLocation location, string name) {
         var message = $"invalid value for argument to '{name}' attribute";
         return CreateError(DiagnosticCode.ERR_InvalidAttributeArgument, location, message);
+    }
+
+    internal static BelteDiagnostic BadAttributeArgument(TextLocation location) {
+        var message = $"an attribute argument must be a constant expression, typeof expression, or array creation expression of an attribute parameter type";
+        return CreateError(DiagnosticCode.ERR_BadAttributeArgument, location, message);
     }
 
     internal static BelteDiagnostic FixedBufferTooManyDimensions(TextLocation location) {
@@ -2869,6 +2888,211 @@ internal static class Error {
     internal static BelteDiagnostic MustUseReturnValueAttributeOnVoid(TextLocation location) {
         var message = $"'MustUseReturnValue' can only be applied to methods returning a value";
         return CreateError(DiagnosticCode.ERR_MustUseReturnValueAttributeOnVoid, location, message);
+    }
+
+    internal static Diagnostic GetOrSetExpected() {
+        var message = $"a get or set accessor expected";
+        return CreateError(DiagnosticCode.ERR_GetOrSetExpected, message);
+    }
+
+    internal static BelteDiagnostic PointerTypeInPatternMatch(TextLocation location) {
+        var message = $"patterns are not permitted for pointer types";
+        return CreateError(DiagnosticCode.ERR_PointerTypeInPatternMatch, location, message);
+    }
+
+    internal static BelteDiagnostic TemplateRecursionWithCause(TextLocation location, Symbol template, Symbol original, string kind, Symbol cause) {
+        var message = $"'{original.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' -> '{template.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': template instantiation depth exceeds maximum; recurse caused by {kind} '{cause}'";
+        return CreateError(DiagnosticCode.ERR_TemplateRecursionWithCause, location, message);
+    }
+
+    internal static BelteDiagnostic OperatorMustReturnVoid(TextLocation location) {
+        var message = $"the return type for assignment operators must be void";
+        return CreateError(DiagnosticCode.ERR_OperatorMustReturnVoid, location, message);
+    }
+
+    internal static BelteDiagnostic OperatorCantHaveTemplates(TextLocation location, MethodSymbol symbol) {
+        var message = $"user-defined operator '{symbol}' cannot have template parameters";
+        return CreateError(DiagnosticCode.ERR_OperatorCantHaveTemplates, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidTypeOf(TextLocation location) {
+        var message = $"the typeof operator cannot be used on a nullable reference type";
+        return CreateError(DiagnosticCode.ERR_InvalidTypeOf, location, message);
+    }
+
+    internal static BelteDiagnostic ReverseMethodInEnum(TextLocation location) {
+        var message = $"enum methods cannot have a reverse clause";
+        return CreateError(DiagnosticCode.ERR_ReverseMethodInEnum, location, message);
+    }
+
+    internal static BelteDiagnostic AttributeUsageOnNonAttributeClass(TextLocation location, string name) {
+        var message = $"attribute '{name}' is only valid on classes derived from Attribute";
+        return CreateError(DiagnosticCode.ERR_AttributeUsageOnNonAttributeClass, location, message);
+    }
+
+    internal static BelteDiagnostic DuplicateAttribute(TextLocation location, string name) {
+        var message = $"duplicate '{name}' attribute";
+        return CreateError(DiagnosticCode.ERR_DuplicateAttribute, location, message);
+    }
+
+    internal static BelteDiagnostic AttributeOnBadSymbolType(TextLocation location, string name, object kind) {
+        var message = $"attribute '{name}' is not valid on this declaration type; it is only valid on '{kind}' declarations";
+        return CreateError(DiagnosticCode.ERR_AttributeOnBadSymbolType, location, message);
+    }
+
+    internal static Diagnostic ModuleEmitFailure(string name) {
+        var message = $"failed to emit module '{name}'";
+        return CreateError(DiagnosticCode.ERR_ModuleEmitFailure, message);
+    }
+
+    internal static BelteDiagnostic InvalidAttributeParamType(TextLocation location, string name, TypeSymbol type) {
+        var message = $"attribute constructor parameter '{name}' has type '{type}', which is not a valid attribute parameter type";
+        return CreateError(DiagnosticCode.ERR_InvalidAttributeParamType, location, message);
+    }
+
+    internal static BelteDiagnostic UnmanagedCannotBeCalledDirectly(TextLocation location, Symbol symbol) {
+        var message = $"'{symbol}' is attributed with 'Unmanaged' and cannot be called directly; obtain an unmanaged function pointer to this method";
+        return CreateError(DiagnosticCode.ERR_UnmanagedCannotBeCalledDirectly, location, message);
+    }
+
+    internal static BelteDiagnostic DuplicateBehaviorSpecifier(TextLocation location, SyntaxToken token) {
+        var message = $"behavior specifier '{token.text}' has already been applied to this item";
+        return CreateError(DiagnosticCode.ERR_DuplicateBehaviorSpecifier, location, message);
+    }
+
+    internal static BelteDiagnostic MemoizeRequiresPureSpecifier(TextLocation location) {
+        var message = $"behavior specifier 'memoize' can only be used with the behavior specifier 'pure'";
+        return CreateError(DiagnosticCode.ERR_MemoizeRequiresPureSpecifier, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidBehaviorSpecifier(TextLocation location, SyntaxToken token) {
+        var message = $"behavior specifier '{token.text}' is not valid for this item";
+        return CreateError(DiagnosticCode.ERR_InvalidBehaviorSpecifier, location, message);
+    }
+
+    internal static BelteDiagnostic CannotAllocateInNoAllocContext(TextLocation location) {
+        var message = $"cannot allocate a new object in a 'noalloc' context";
+        return CreateError(DiagnosticCode.ERR_CannotAllocateInNoAllocContext, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidCallInSpecifierContext(TextLocation location, MethodSymbol method, string context) {
+        var message = $"cannot call method '{method}' in the current context because it is not marked '{context}'";
+        return CreateError(DiagnosticCode.ERR_InvalidCallInSpecifierContext, location, message);
+    }
+
+    internal static BelteDiagnostic ImpureWriteInPureContext(TextLocation location) {
+        var message = $"cannot write to a member of a reference type in a method marked as 'pure'";
+        return CreateError(DiagnosticCode.ERR_ImpureWriteInPureContext, location, message);
+    }
+
+    internal static BelteDiagnostic ImpureReadInPureContext(TextLocation location) {
+        var message = $"cannot read from a mutable member of a reference type in a method marked as 'pure'";
+        return CreateError(DiagnosticCode.ERR_ImpureReadInPureContext, location, message);
+    }
+
+    internal static BelteDiagnostic ThrowInNoThrowContext(TextLocation location) {
+        var message = $"cannot throw an uncaught exception in a 'nothrow' context";
+        return CreateError(DiagnosticCode.ERR_ThrowInNoThrowContext, location, message);
+    }
+
+    internal static BelteDiagnostic PureMethodCannotHaveReverse(TextLocation location) {
+        var message = $"method marked as 'pure' cannot have a reverse clause";
+        return CreateError(DiagnosticCode.ERR_PureMethodCannotHaveReverse, location, message);
+    }
+
+    internal static BelteDiagnostic CantChangeSpecifierOnOverride(TextLocation location, Symbol symbol, Symbol hiddenMember, string specifier) {
+        var message = $"'{symbol}': member must be marked '{specifier}' when overriding inherited member '{hiddenMember}' because it is marked '{specifier}'";
+        return CreateError(DiagnosticCode.ERR_CantChangeSpecifierOnOverride, location, message);
+    }
+
+    internal static BelteDiagnostic ThisDownCastInConstructor(TextLocation location, TypeSymbol type) {
+        var message = $"cannot downcast 'this' to derived type '{type}' in a constructor";
+        return CreateError(DiagnosticCode.ERR_ThisDownCastInConstructor, location, message);
+    }
+
+    internal static BelteDiagnostic PotentialThrowInNoThrowContext(TextLocation location) {
+        var message = $"expression potentially throws; cannot throw an uncaught exception in a 'nothrow' context";
+        return CreateError(DiagnosticCode.ERR_PotentialThrowInNoThrowContext, location, message);
+    }
+
+    internal static BelteDiagnostic CompileTimeTemplateMustBeType(TextLocation location) {
+        var message = $"compile-time template parameter must have an underlying type of 'type!'";
+        return CreateError(DiagnosticCode.ERR_CompileTimeTemplateMustBeType, location, message);
+    }
+
+    internal static BelteDiagnostic CannotTemplateSpecializeType(TextLocation location, TypeSymbol type) {
+        var message = $"cannot use template specialization on type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' because it has no template metadata to instantiate from";
+        return CreateError(DiagnosticCode.ERR_CannotTemplateSpecializeType, location, message);
+    }
+
+    internal static BelteDiagnostic BufferNoDefaultValue(TextLocation location, TypeSymbol type) {
+        var message = $"cannot use a Buffer with element type '{type}' outside of a lowlevel context because it has no default value";
+        return CreateError(DiagnosticCode.ERR_BufferNoDefaultValue, location, message);
+    }
+
+    internal static BelteDiagnostic ConditionalOnInterfaceMethod(TextLocation location) {
+        var message = $"the 'Conditional' attribute is not valid on interface members";
+        return CreateError(DiagnosticCode.ERR_ConditionalOnInterfaceMethod, location, message);
+    }
+
+    internal static BelteDiagnostic ConditionalOnOverride(TextLocation location, MethodSymbol method) {
+        var message = $"the 'Conditional' attribute is not valid on '{method}' because it is an override method";
+        return CreateError(DiagnosticCode.ERR_ConditionalOnOverride, location, message);
+    }
+
+    internal static BelteDiagnostic ConditionalOnSpecialMethod(TextLocation location, MethodSymbol method) {
+        var message = $"the 'Conditional' attribute is not valid on '{method}' because it is a constructor, finalizer, operator, or explicit interface implementation";
+        return CreateError(DiagnosticCode.ERR_ConditionalOnSpecialMethod, location, message);
+    }
+
+    internal static BelteDiagnostic ConditionalMustReturnVoid(TextLocation location, MethodSymbol method) {
+        var message = $"the 'Conditional' attribute is not valid on '{method}' because its return type is not void";
+        return CreateError(DiagnosticCode.ERR_ConditionalMustReturnVoid, location, message);
+    }
+
+    internal static BelteDiagnostic ConditionalWithOutParam(TextLocation location, MethodSymbol method) {
+        var message = $"the 'Conditional' attribute is not valid on '{method}' because it has an out parameter";
+        return CreateError(DiagnosticCode.ERR_ConditionalWithOutParam, location, message);
+    }
+
+    internal static BelteDiagnostic ConditionalOnLocalFunction(TextLocation location, MethodSymbol method) {
+        var message = $"local function '{method}' must be 'static' in order to use the 'Conditional' attribute";
+        return CreateError(DiagnosticCode.ERR_ConditionalOnLocalFunction, location, message);
+    }
+
+    internal static BelteDiagnostic ConditionalOnNonAttributeClass(TextLocation location, string name) {
+        var message = $"attribute '{name}' is only valid on methods or attribute classes";
+        return CreateError(DiagnosticCode.ERR_ConditionalOnNonAttributeClass, location, message);
+    }
+
+    internal static BelteDiagnostic MemoizeRequiresStatic(TextLocation location) {
+        var message = $"methods marked with 'memoize' must be static";
+        return CreateError(DiagnosticCode.ERR_MemoizeRequiresStatic, location, message);
+    }
+
+    internal static BelteDiagnostic MemoizeDisallowsPointers(TextLocation location) {
+        var message = $"methods marked with 'memoize' cannot have pointer types in their signature";
+        return CreateError(DiagnosticCode.ERR_MemoizeDisallowsPointers, location, message);
+    }
+
+    internal static BelteDiagnostic MemoizeDisallowsRef(TextLocation location) {
+        var message = $"methods marked with 'memoize' cannot have ref parameters or return by-reference";
+        return CreateError(DiagnosticCode.ERR_MemoizeDisallowsRef, location, message);
+    }
+
+    internal static BelteDiagnostic InlineILInPureContext(TextLocation location) {
+        var message = $"cannot use inline IL inside of a 'pure' context";
+        return CreateError(DiagnosticCode.ERR_InlineILInPureContext, location, message);
+    }
+
+    internal static BelteDiagnostic NoTypeDef(TypeSymbol type, AssemblySymbol assembly) {
+        var message = $"the type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is defined in an assembly that is not referenced; you must add a reference to assembly '{assembly}'";
+        return CreateError(DiagnosticCode.ERR_NoTypeDef, null, message);
+    }
+
+    internal static BelteDiagnostic NoTypeDefFromModule(TypeSymbol type, string name) {
+        var message = $"the type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is defined in a module that has not been added; you must add the module '{name}'";
+        return CreateError(DiagnosticCode.ERR_NoTypeDefFromModule, null, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

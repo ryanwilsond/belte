@@ -2,7 +2,6 @@ using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
-using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -33,14 +32,12 @@ internal sealed class SynthesizedStaticConstructor : MethodSymbol {
 
     internal override Accessibility declaredAccessibility => Accessibility.Private;
 
-    internal override TextLocation location => null;
-
-    internal override ImmutableArray<TextLocation> locations => [];
+    internal override TextLocation location => containingType.location;
 
     internal override SyntaxReference syntaxReference => null;
 
     internal override TypeWithAnnotations returnTypeWithAnnotations
-        => new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void));
+        => new TypeWithAnnotations(containingAssembly.corLibrary.GetSpecialType(SpecialType.Void));
 
     internal override Symbol containingSymbol => containingType;
 
@@ -84,6 +81,11 @@ internal sealed class SynthesizedStaticConstructor : MethodSymbol {
         return null;
     }
 
+    internal override bool TryGetThisParameter(out ParameterSymbol thisParameter) {
+        thisParameter = null;
+        return true;
+    }
+
     internal sealed override UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete) {
         return null;
     }
@@ -95,5 +97,9 @@ internal sealed class SynthesizedStaticConstructor : MethodSymbol {
     internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
         var containingType = (SourceMemberContainerTypeSymbol)this.containingType;
         return containingType.CalculateSyntaxOffsetInSynthesizedConstructor(localPosition, localTree, isStatic: true);
+    }
+
+    internal override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        return [];
     }
 }

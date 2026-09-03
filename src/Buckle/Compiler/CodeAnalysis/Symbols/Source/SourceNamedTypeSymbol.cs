@@ -8,7 +8,6 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -16,7 +15,6 @@ namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, IAttributeTargetSymbol {
     private ImmutableArray<ExpressionSyntax> _unboundConstraints;
-    private ImmutableArray<BoundExpression> _lazyTemplateConstraints;
     private CustomAttributesBag<AttributeData> _lazyAttributesBag;
     private Tuple<NamedTypeSymbol, ImmutableArray<NamedTypeSymbol>> _lazyDeclaredBases;
     private NamedTypeSymbol _lazyBaseType = ErrorTypeSymbol.UnknownResultType;
@@ -63,11 +61,11 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
     public override ImmutableArray<BoundExpression> templateConstraints {
         get {
-            if (_lazyTemplateConstraints.IsDefault) {
+            if (_templateParameterInfo.lazyTemplateConstraints.IsDefault) {
                 var diagnostics = BelteDiagnosticQueue.GetInstance();
 
                 ImmutableInterlocked.InterlockedInitialize(
-                    ref _lazyTemplateConstraints,
+                    ref _templateParameterInfo.lazyTemplateConstraints,
                     MakeTemplateConstraints(diagnostics)
                 );
 
@@ -75,7 +73,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
                 diagnostics.Free();
             }
 
-            return _lazyTemplateConstraints;
+            return _templateParameterInfo.lazyTemplateConstraints;
         }
     }
 
@@ -227,7 +225,8 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
         if (singleDeclaration is not null) {
             var location = singleDeclaration.nameLocation;
-            localBase.CheckAllConstraints(location, diagnostics);
+            var conversions = TypeConversions.GetInstance();
+            localBase.CheckAllConstraints(conversions, location, GetEnclosingTemplateConstraints(), diagnostics);
         }
     }
 
@@ -238,15 +237,17 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
             return;
 
         var singleDeclaration = FirstDeclarationWithExplicitBases();
+        var impliedConstraints = GetEnclosingTemplateConstraints();
 
         if (singleDeclaration is not null) {
             var location = singleDeclaration.nameLocation;
+            var conversions = TypeConversions.GetInstance();
 
             foreach (var pair in interfaces) {
                 var set = pair.Value;
 
                 foreach (var @interface in set)
-                    @interface.CheckAllConstraints(location, diagnostics);
+                    @interface.CheckAllConstraints(conversions, location, impliedConstraints, diagnostics);
 
                 if (set.Count > 1) {
                     var other = pair.Key;
@@ -376,8 +377,10 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
     private NamedTypeSymbol MakeAcyclicBaseType(BelteDiagnosticQueue diagnostics) {
         var typeKind = this.typeKind;
+        var compilation = declaringCompilation;
+
         var declaredBase = typeKind == TypeKind.Enum
-            ? CorLibrary.GetSpecialType(SpecialType.Enum)
+            ? compilation.GetSpecialType(SpecialType.Enum)
             : GetDeclaredBaseType(basesBeingResolved: null);
 
         if (declaredBase is null) {
@@ -386,10 +389,10 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
                     if (specialType == SpecialType.Object)
                         return null;
 
-                    declaredBase = CorLibrary.GetSpecialType(SpecialType.Object);
+                    declaredBase = compilation.GetSpecialType(SpecialType.Object);
                     break;
                 case TypeKind.Struct:
-                    declaredBase = CorLibrary.GetSpecialType(SpecialType.ValueType);
+                    declaredBase = compilation.GetSpecialType(SpecialType.ValueType);
                     break;
                 case TypeKind.Interface:
                     return null;
@@ -654,18 +657,18 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
             if (!type.specialType.IsValidEnumUnderlyingType()) {
                 diagnostics.Push(Error.InvalidEnumType(typeSyntax.location));
-                type = CorLibrary.GetSpecialType(SpecialType.Int);
+                type = compilation.GetSpecialType(SpecialType.Int);
             }
 
             if (type.specialType is SpecialType.Char or SpecialType.String &&
-                declaringCompilation.options.buildMode is BuildMode.CSharpTranspile or BuildMode.Execute or BuildMode.Dotnet) {
+                !declaringCompilation.options.buildMode.SupportsNonIntegralEnums()) {
                 diagnostics.Push(Error.Unsupported.NonIntegralEnum(typeSyntax.location));
             }
 
             return (NamedTypeSymbol)type;
         }
 
-        return CorLibrary.GetSpecialType(SpecialType.Int);
+        return compilation.GetSpecialType(SpecialType.Int);
     }
 
     private ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes(
@@ -843,5 +846,165 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
     private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
         return new SourceNamedTypeSymbol(containingType, _declaration, BelteDiagnosticQueue.Discarded, newData);
+    }
+
+    private protected sealed override void DecodeWellKnownAttributeImpl(
+        ref DecodeWellKnownAttributeArguments<AttributeSyntax, AttributeData, AttributeLocation> arguments) {
+        var diagnostics = arguments.diagnostics;
+        var attribute = arguments.attribute;
+
+        if (attribute.IsTargetAttribute(AttributeDescription.AttributeUsageAttribute) ||
+            attribute.IsTargetAttribute(AttributeDescription.AttributeUsageAttributeNative)) {
+            DecodeAttributeUsageAttribute(
+                attribute,
+                arguments.attributeSyntax,
+                diagnose: true,
+                diagnosticsOpt: diagnostics
+            );
+        } else if (attribute.IsTargetAttribute(AttributeDescription.ConditionalAttribute)) {
+            ValidateConditionalAttribute(attribute, arguments.attributeSyntax, diagnostics);
+        }
+    }
+
+    private void ValidateConditionalAttribute(
+        AttributeData attribute,
+        AttributeSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        Debug.Assert(isConditional);
+        Debug.Assert(!attribute.hasErrors);
+
+        if (!declaringCompilation.IsAttributeType(this)) {
+            diagnostics.Push(Error.ConditionalOnNonAttributeClass(node.location, node.GetErrorDisplayName()));
+        } else {
+            var name = attribute.GetConstructorArgument<string>(0, SpecialType.String);
+
+            if (name is null/* || !SyntaxFacts.IsValidIdentifier(name)*/) {
+                diagnostics.Push(Error.InvalidAttributeArgument(
+                    attribute.GetAttributeArgumentLocation(0),
+                    node.GetErrorDisplayName()
+                ));
+            }
+        }
+    }
+
+    internal override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        var data = GetEarlyDecodedWellKnownAttributeData();
+        return data is not null ? data.conditionalSymbols : [];
+    }
+
+    internal override AttributeUsageInfo GetAttributeUsageInfo() {
+        var data = GetEarlyDecodedWellKnownAttributeData();
+
+        if (data is not null && !data.attributeUsageInfo.isNull)
+            return data.attributeUsageInfo;
+
+        return baseType is not null ? baseType.GetAttributeUsageInfo() : AttributeUsageInfo.Default;
+    }
+
+    internal TypeEarlyWellKnownAttributeData GetEarlyDecodedWellKnownAttributeData() {
+        var attributesBag = _lazyAttributesBag;
+
+        if (attributesBag is null || !attributesBag.isEarlyDecodedWellKnownAttributeDataComputed)
+            attributesBag = GetAttributesBag();
+
+        return (TypeEarlyWellKnownAttributeData)attributesBag.earlyDecodedWellKnownAttributeData;
+    }
+
+    internal override (AttributeData, BoundAttribute) EarlyDecodeWellKnownAttribute(
+        ref EarlyDecodeWellKnownAttributeArguments<EarlyWellKnownAttributeBinder, NamedTypeSymbol, AttributeSyntax, AttributeLocation> arguments) {
+        AttributeData attributeData;
+        BoundAttribute boundAttribute;
+
+        if (AttributeData.IsTargetEarlyAttribute(
+                arguments.attributeType,
+                arguments.attributeSyntax,
+                AttributeDescription.ConditionalAttribute)) {
+            (attributeData, boundAttribute) = arguments.binder.GetAttribute(
+                arguments.attributeSyntax,
+                arguments.attributeType,
+                beforeAttributePartBound: null,
+                afterAttributePartBound: null,
+                out var hasAnyDiagnostics
+            );
+
+            if (!attributeData.hasErrors) {
+                var name = attributeData.GetConstructorArgument<string>(0, SpecialType.String);
+                arguments.GetOrCreateData<TypeEarlyWellKnownAttributeData>().AddConditionalSymbol(name);
+
+                if (!hasAnyDiagnostics)
+                    return (attributeData, boundAttribute);
+            }
+
+            return (null, null);
+        }
+
+        if (AttributeData.IsTargetEarlyAttribute(
+                arguments.attributeType,
+                arguments.attributeSyntax,
+                AttributeDescription.AttributeUsageAttribute) ||
+            AttributeData.IsTargetEarlyAttribute(
+                arguments.attributeType,
+                arguments.attributeSyntax,
+                AttributeDescription.AttributeUsageAttributeNative)) {
+            (attributeData, boundAttribute) = arguments.binder.GetAttribute(
+                arguments.attributeSyntax,
+                arguments.attributeType,
+                beforeAttributePartBound: null,
+                afterAttributePartBound: null,
+                out var hasAnyDiagnostics
+            );
+
+            if (!attributeData.hasErrors) {
+                var info = DecodeAttributeUsageAttribute(attributeData, arguments.attributeSyntax, diagnose: false);
+
+                if (!info.isNull) {
+                    var typeData = arguments.GetOrCreateData<TypeEarlyWellKnownAttributeData>();
+
+                    if (typeData.attributeUsageInfo.isNull)
+                        typeData.attributeUsageInfo = info;
+
+                    if (!hasAnyDiagnostics)
+                        return (attributeData, boundAttribute);
+                }
+            }
+
+            return (null, null);
+        }
+
+        return base.EarlyDecodeWellKnownAttribute(ref arguments);
+    }
+
+    private AttributeUsageInfo DecodeAttributeUsageAttribute(
+        AttributeData attribute,
+        AttributeSyntax node,
+        bool diagnose,
+        BelteDiagnosticQueue diagnosticsOpt = null) {
+        Debug.Assert(!IsErrorType());
+
+        if (!declaringCompilation.IsAttributeType(this)) {
+            if (diagnose) {
+                diagnosticsOpt.Push(Error.AttributeUsageOnNonAttributeClass(
+                    node.name.location,
+                    node.GetErrorDisplayName()
+                ));
+            }
+
+            return AttributeUsageInfo.Null;
+        } else {
+            var info = attribute.DecodeAttributeUsageAttribute();
+
+            if (!info.hasValidAttributeTargets) {
+                if (diagnose) {
+                    diagnosticsOpt.Push(Error.InvalidAttributeArgument(
+                        attribute.GetAttributeArgumentLocation(0),
+                        node.GetErrorDisplayName()
+                    ));
+                }
+
+                return AttributeUsageInfo.Null;
+            }
+
+            return info;
+        }
     }
 }

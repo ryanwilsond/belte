@@ -50,9 +50,13 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
         return GetTypeAndRefKind(fieldsBeingBound).type;
     }
 
-    internal override void AfterAddingTypeMembersChecks(BelteDiagnosticQueue diagnostics) {
-        type.UnderlyingTemplateTypeOrSelf().CheckAllConstraints(errorLocation, diagnostics);
-        base.AfterAddingTypeMembersChecks(diagnostics);
+    internal override void AfterAddingTypeMembersChecks(ConversionsBase conversions, BelteDiagnosticQueue diagnostics) {
+        if (!isFixedSizeBuffer) {
+            type.UnderlyingTemplateTypeOrSelf()
+                .CheckAllConstraints(conversions, errorLocation, GetEnclosingTemplateConstraints(), diagnostics);
+        }
+
+        base.AfterAddingTypeMembersChecks(conversions, diagnostics);
     }
 
     internal bool FieldTypeInferred(ConsList<FieldSymbol> fieldsBeingBound) {

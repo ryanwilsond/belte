@@ -30,7 +30,8 @@ namespace Buckle.CodeAnalysis.Evaluating;
 /// <summary>
 /// Evaluates BoundStatements inline similar to an interpreter.
 /// </summary>
-internal sealed class Evaluator {
+internal sealed partial class Evaluator {
+    private readonly Compilation _compilation;
     private readonly BoundProgram _program;
     private readonly EvaluatorContext _context;
     private readonly Stack<StackFrame> _stack;
@@ -46,6 +47,9 @@ internal sealed class Evaluator {
     private bool _insideUpdate;
     private bool _insideExpressionEvaluation;
 
+    // These are used if layouts need to be computed while evaluating if the precomputed layout maps are incomplete
+    // This should only happen when reusing the same cor compilation for multiple programs because normally each program
+    // always computes layouts even if not evaluating
     private ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder _lazyTypeLayouts;
     private Dictionary<MethodSymbol, (BoundBlockStatement, EvaluatorSlotManager)> _lazyMethodLayouts;
 
@@ -56,6 +60,7 @@ internal sealed class Evaluator {
         _context = context;
         _context.program = program;
         _program = program;
+        _compilation = program.compilation;
         _args = arguments;
         _stack = [];
         exceptions = [];
@@ -81,7 +86,7 @@ internal sealed class Evaluator {
     private MethodSymbol _toStringMethod {
         get {
             if (_lazyToString is null) {
-                var toString = CorLibrary.GetSpecialType(SpecialType.Object)
+                var toString = _compilation.GetSpecialType(SpecialType.Object)
                     .GetMembers(WellKnownMemberNames.ToString).First() as MethodSymbol;
 
                 Interlocked.CompareExchange(ref _lazyToString, toString, null);
@@ -117,11 +122,39 @@ internal sealed class Evaluator {
         } else {
             var rootLayout = new EvaluatorSlotManager(programType);
 
-            var argsType = LibraryHelpers.StringBuffer.knownType;
-            var args = new HeapObject(argsType, _args.Select(a => EvaluatorValue.Literal(a)).ToArray());
+            TypeSymbol argsType;
+            EvaluatorValue argsPtr;
 
-            var index = _context.heap.Allocate(args, _stack, _context);
-            var argsPtr = EvaluatorValue.HeapPtr(index);
+            if (entryPoint.GetParameterType(0).IsArray()) {
+                argsType = LibraryHelpers.GetStringBuffer(_compilation).knownType;
+                var args = new HeapObject(argsType, _args.Select(a => EvaluatorValue.Literal(a)).ToArray());
+
+                var index = _context.heap.Allocate(args, _stack, _context);
+                argsPtr = EvaluatorValue.HeapPtr(index);
+            } else {
+                Debug.Assert(_compilation.corLibrary.GetWellKnownType(WellKnownType.Array)
+                    .Equals(entryPoint.GetParameterType(0).originalDefinition));
+
+                argsType = entryPoint.GetParameterType(0);
+
+                var bufferType = LibraryHelpers.GetStringBuffer(_compilation).knownType;
+                var bufferArgs = new HeapObject(bufferType, _args.Select(a => EvaluatorValue.Literal(a)).ToArray());
+
+                var bufferIndex = _context.heap.Allocate(bufferArgs, _stack, _context);
+                var bufferPtr = EvaluatorValue.HeapPtr(bufferIndex);
+
+                var conversionMethod = ((NamedTypeSymbol)argsType)
+                    .GetOperators(WellKnownMemberNames.ImplicitConversionName)
+                    .Single(m => m.GetParameterType(0).IsArray());
+
+                argsPtr = InvokeMethod(
+                    conversionMethod,
+                    SynthesizeCallObject(conversionMethod.containingType, abort),
+                    [bufferPtr],
+                    abort
+                );
+            }
+
             arguments = [argsPtr];
 
             rootLayout.AllocateSlot(argsType, LocalSlotConstraints.None);
@@ -133,7 +166,7 @@ internal sealed class Evaluator {
         }
 
         if (!programType.isStatic) {
-            _programObject = CreateObject(programType);
+            _programObject = CreateObject(programType, abort);
             var constructor = programType.instanceConstructors.Where(c => c.parameterCount == 0).FirstOrDefault();
 
             if (constructor is not null)
@@ -179,33 +212,33 @@ internal sealed class Evaluator {
     private TypeSymbol GetResultType(EvaluatorValue result) {
         switch (result.kind) {
             case ValueKind.Int8:
-                return CorLibrary.GetSpecialType(SpecialType.Int8);
+                return _compilation.GetSpecialType(SpecialType.Int8);
             case ValueKind.Int16:
-                return CorLibrary.GetSpecialType(SpecialType.Int16);
+                return _compilation.GetSpecialType(SpecialType.Int16);
             case ValueKind.Int32:
-                return CorLibrary.GetSpecialType(SpecialType.Int32);
+                return _compilation.GetSpecialType(SpecialType.Int32);
             case ValueKind.Int64:
-                return CorLibrary.GetSpecialType(SpecialType.Int64);
+                return _compilation.GetSpecialType(SpecialType.Int64);
             case ValueKind.UInt8:
-                return CorLibrary.GetSpecialType(SpecialType.UInt8);
+                return _compilation.GetSpecialType(SpecialType.UInt8);
             case ValueKind.UInt16:
-                return CorLibrary.GetSpecialType(SpecialType.UInt16);
+                return _compilation.GetSpecialType(SpecialType.UInt16);
             case ValueKind.UInt32:
-                return CorLibrary.GetSpecialType(SpecialType.UInt32);
+                return _compilation.GetSpecialType(SpecialType.UInt32);
             case ValueKind.UInt64:
-                return CorLibrary.GetSpecialType(SpecialType.UInt64);
+                return _compilation.GetSpecialType(SpecialType.UInt64);
             case ValueKind.Float32:
-                return CorLibrary.GetSpecialType(SpecialType.Float32);
+                return _compilation.GetSpecialType(SpecialType.Float32);
             case ValueKind.Float64:
-                return CorLibrary.GetSpecialType(SpecialType.Float64);
+                return _compilation.GetSpecialType(SpecialType.Float64);
             case ValueKind.Bool:
-                return CorLibrary.GetSpecialType(SpecialType.Bool);
+                return _compilation.GetSpecialType(SpecialType.Bool);
             case ValueKind.Char:
-                return CorLibrary.GetSpecialType(SpecialType.Char);
+                return _compilation.GetSpecialType(SpecialType.Char);
             case ValueKind.String:
-                return CorLibrary.GetSpecialType(SpecialType.String);
+                return _compilation.GetSpecialType(SpecialType.String);
             case ValueKind.Type:
-                return CorLibrary.GetSpecialType(SpecialType.Type);
+                return _compilation.GetSpecialType(SpecialType.Type);
             case ValueKind.Struct:
                 return result.@struct.type;
             case ValueKind.HeapPtr:
@@ -227,12 +260,12 @@ internal sealed class Evaluator {
         var staticConstructor = type.staticConstructors.SingleOrDefault();
 
         if (type.IsEnumType()) {
-            var enumValue = CreateEnum(type);
+            var enumValue = CreateEnum(type, abort);
             _context.AddStaticType(type, enumValue);
             return enumValue;
         }
 
-        var ptr = CreateObject(type, isStatic: true);
+        var ptr = CreateObject(type, abort, isStatic: true);
         _context.AddStaticType(type, ptr);
 
         if (staticConstructor is not null)
@@ -241,28 +274,32 @@ internal sealed class Evaluator {
         return ptr;
     }
 
-    private EvaluatorValue CreateObject(NamedTypeSymbol type, bool isStatic = false) {
-        var heapObject = CreateHeapObject(type, isStatic: isStatic);
+    private EvaluatorValue CreateObject(NamedTypeSymbol type, ValueWrapper<bool> abort, bool isStatic = false) {
+        var heapObject = CreateHeapObject(type, abort, isStatic: isStatic);
         var index = _context.heap.Allocate(heapObject, _stack, _context);
         return EvaluatorValue.HeapPtr(index);
     }
 
-    private EvaluatorValue CreateEnum(NamedTypeSymbol type) {
-        return EvaluatorValue.Struct(CreateHeapObject(type));
+    private EvaluatorValue CreateEnum(NamedTypeSymbol type, ValueWrapper<bool> abort) {
+        return EvaluatorValue.Struct(CreateHeapObject(type, abort));
     }
 
-    private EvaluatorValue CreateStruct(NamedTypeSymbol type) {
-        return EvaluatorValue.Struct(CreateHeapObject(type));
+    private EvaluatorValue CreateStruct(NamedTypeSymbol type, ValueWrapper<bool> abort) {
+        return EvaluatorValue.Struct(CreateHeapObject(type, abort));
     }
 
-    private HeapObject CreateHeapObject(NamedTypeSymbol type, bool isStatic = false) {
-        if (!_program.TryGetTypeLayoutIncludingParents(type, out var layout)) {
-            _program.TryGetTypeLayoutIncludingParents(type, out _);
+    private HeapObject CreateHeapObject(NamedTypeSymbol type, ValueWrapper<bool> abort, bool isStatic = false) {
+        if (!_program.TryGetTypeLayoutIncludingParents(type, out var layout))
             throw new BelteInternalException($"Failed to get type layout ({type}).");
-        }
+
+#if DEBUG
+        var substitutedType = (NamedTypeSymbol)SubstituteAsType(type);
+#else
+        var substitutedType = type;
+#endif
 
         var fields = layout.LocalsInOrder();
-        var heapObject = new HeapObject(type, fields.Length);
+        var heapObject = new HeapObject(substitutedType, fields.Length);
 
         foreach (var field in fields) {
             if (field.symbol is FieldSymbol f && f.isStatic && !isStatic)
@@ -270,31 +307,39 @@ internal sealed class Evaluator {
 
             var fieldType = field.type;
 
-            if (type.templateSubstitution is not null)
-                fieldType = type.templateSubstitution.SubstituteType(field.type).type.type;
+            if (substitutedType.templateSubstitution is not null)
+                fieldType = substitutedType.templateSubstitution.SubstituteType(field.type).type.type;
 
             heapObject.fields[field.slot] = GetDefaultValue(
                 fieldType,
-                (field.symbol as FieldSymbol)?.constantValue
+                (field.symbol as FieldSymbol)?.constantValue,
+                abort
             );
         }
 
-        if (type.arity > 0) {
-            for (var i = 0; i < type.arity; i++) {
-                var parameter = type.templateParameters[i];
-                var argument = type.templateArguments[i];
+        if (substitutedType.arity > 0) {
+            for (var i = 0; i < substitutedType.arity; i++) {
+                var parameter = substitutedType.templateParameters[i];
+                var argument = substitutedType.templateArguments[i];
                 var arg = layout.GetLocal(parameter);
 
                 if (argument.isType) {
                     var t = argument.type.type;
 
-                    if (t is TemplateParameterSymbol templateParameter)
-                        t = SubstituteTemplateParameter(templateParameter);
+                    if (t is TemplateParameterSymbol templateParameter) {
+                        if (templateParameter.underlyingType.specialType == SpecialType.Type) {
+                            t = SubstituteTemplateParameterType(templateParameter);
+                        } else {
+                            var substituted = SubstituteTemplateParameter(templateParameter);
+                            heapObject.fields[arg.slot] = substituted;
+                            continue;
+                        }
+                    }
 
                     heapObject.fields[arg.slot] = EvaluatorValue.Type(t);
                 } else {
                     heapObject.fields[arg.slot] = EvaluatorValue.Literal(
-                        argument.constant.value,
+                        EvaluateTemplateConstant(argument.constant, abort),
                         argument.constant.specialType
                     );
                 }
@@ -304,16 +349,28 @@ internal sealed class Evaluator {
         return heapObject;
     }
 
+    private object EvaluateTemplateConstant(ConstantValue constantValue, ValueWrapper<bool> abort) {
+        if (constantValue is not TemplateConstantValue t)
+            return constantValue.value;
+
+        var value = EvaluateExpression(t.expression, true, abort);
+        return EvaluatorValue.Format(value, context: null);
+    }
+
     private EvaluatorValue GetHeapFieldSlotOrStructFieldSlot(EvaluatorValue ptr, int slot) {
-        if (ptr.kind == ValueKind.Ref)
-            return GetHeapFieldSlotOrStructFieldSlot(ptr.loc[ptr.ptr], slot);
-        else if (ptr.kind == ValueKind.Struct)
+        if (ptr.kind == ValueKind.Ref) {
+            var value = GetHeapFieldSlotOrStructFieldSlot(ptr.loc[ptr.ptr], slot);
+            return value;
+        } else if (ptr.kind == ValueKind.Struct) {
             return ptr.@struct.fields[slot];
-        else if (ptr.kind == ValueKind.HeapPtr)
-            return _context.heap[ptr.ptr].fields[slot];
-        else
-            // throw ExceptionUtilities.UnexpectedValue(ptr.kind);
+        } else if (ptr.kind == ValueKind.HeapPtr) {
+            var heapObject = _context.heap[ptr.ptr];
+            return heapObject.fields[slot];
+        } else if (ptr.kind == ValueKind.Null) {
             throw new BelteNullReferenceException(null);
+        } else {
+            throw ExceptionUtilities.UnexpectedValue(ptr.kind);
+        }
     }
 
     private EvaluatorValue GetHeapFieldSlotOrStructFieldSlotRef(EvaluatorValue ptr, int slot) {
@@ -343,9 +400,11 @@ internal sealed class Evaluator {
         MethodSymbol method,
         BoundBlockStatement block,
         ValueWrapper<bool> abort,
-        out bool returned) {
+        out bool returned,
+        out LabelSymbol leaveLabel) {
         _hasValue = false;
         returned = false;
+        leaveLabel = null;
 
         try {
             if (block.statements.Length == 0)
@@ -383,14 +442,15 @@ internal sealed class Evaluator {
                         var node = (BoundTryStatement)s;
                         var previousInsideTry = _insideTry;
                         _insideTry = true;
+                        LabelSymbol innerLeave = null;
 
                         try {
-                            _lastValue = EvaluateStatement(method, node.body, abort, out returned);
+                            _lastValue = EvaluateStatement(method, node.body, abort, out returned, out innerLeave);
                         } catch (BelteException) {
                             if (node.catchBody is null)
                                 throw;
 
-                            _lastValue = EvaluateStatement(method, node.catchBody, abort, out returned);
+                            _lastValue = EvaluateStatement(method, node.catchBody, abort, out returned, out innerLeave);
                         } finally {
                             _insideTry = previousInsideTry;
 
@@ -398,14 +458,18 @@ internal sealed class Evaluator {
                                 var previousHasValue = _hasValue;
                                 var previousLastValue = _lastValue;
 
-                                EvaluateStatement(method, node.finallyBody, abort, out returned);
+                                EvaluateStatement(method, node.finallyBody, abort, out returned, out var unusedLeave);
+                                Debug.Assert(unusedLeave is null);
 
                                 _hasValue = previousHasValue;
                                 _lastValue = previousLastValue;
                             }
                         }
 
-                        index++;
+                        if (innerLeave is null)
+                            index++;
+                        else
+                            index = labelToIndex[innerLeave];
 
                         if (returned)
                             return _lastValue;
@@ -420,25 +484,40 @@ internal sealed class Evaluator {
                         _lastValue = EvaluatorValue.None;
                         index++;
                         break;
-                    case BoundKind.GotoStatement:
-                        _lastValue = EvaluatorValue.None;
-                        var gs = (BoundGotoStatement)s;
-                        index = labelToIndex[gs.label];
-                        break;
-                    case BoundKind.ConditionalGotoStatement:
-                        var cgs = (BoundConditionalGotoStatement)s;
-                        var condition = EvaluateExpression(cgs.condition, true, abort);
+                    case BoundKind.GotoStatement: {
+                            _lastValue = EvaluatorValue.None;
+                            var gs = (BoundGotoStatement)s;
 
-                        if (condition.kind == ValueKind.Null)
-                            throw new BelteNullConditionException(cgs.condition.syntax.location);
+                            if (labelToIndex.TryGetValue(gs.label, out var value)) {
+                                index = value;
+                            } else {
+                                leaveLabel = gs.label;
+                                return EvaluatorValue.None;
+                            }
 
-                        if (condition.@bool == cgs.jumpIfTrue)
-                            index = labelToIndex[cgs.label];
-                        else
-                            index++;
+                            break;
+                        }
+                    case BoundKind.ConditionalGotoStatement: {
+                            var cgs = (BoundConditionalGotoStatement)s;
+                            var condition = EvaluateExpression(cgs.condition, true, abort);
 
-                        _lastValue = EvaluatorValue.None;
-                        break;
+                            if (condition.kind == ValueKind.Null)
+                                throw new BelteNullConditionException(cgs.condition.syntax.location);
+
+                            if (condition.@bool == cgs.jumpIfTrue) {
+                                if (labelToIndex.TryGetValue(cgs.label, out var value)) {
+                                    index = value;
+                                } else {
+                                    leaveLabel = cgs.label;
+                                    return EvaluatorValue.None;
+                                }
+                            } else {
+                                index++;
+                            }
+
+                            _lastValue = EvaluatorValue.None;
+                            break;
+                        }
                     case BoundKind.ReturnStatement: {
                             _hasValue = true;
                             returned = true;
@@ -544,8 +623,8 @@ internal sealed class Evaluator {
         if (node.constantValue is not null)
             return EvaluatorValue.Literal(node.constantValue.value, node.constantValue.specialType);
 
-        return node.kind switch {
-            BoundKind.DefaultExpression => EvaluateDefaultExpression((BoundDefaultExpression)node, used),
+        var result = node.kind switch {
+            BoundKind.DefaultExpression => EvaluateDefaultExpression((BoundDefaultExpression)node, used, abort),
             BoundKind.ThisExpression => EvaluateThisExpression((BoundThisExpression)node),
             BoundKind.BaseExpression => EvaluateBaseExpression((BoundBaseExpression)node),
             BoundKind.DataContainerExpression => EvaluateDataContainerExpression((BoundDataContainerExpression)node, used),
@@ -579,6 +658,9 @@ internal sealed class Evaluator {
             BoundKind.ArrayLength => EvaluateArrayLength((BoundArrayLength)node, used, abort),
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
+
+        CheckResultIsCoherent(node, used, result);
+        return result;
     }
 
     private EvaluatorValue EvaluateFunctionLoad(BoundFunctionLoad node, bool used) {
@@ -598,11 +680,11 @@ internal sealed class Evaluator {
         throw ExceptionUtilities.Unreachable();
     }
 
-    private EvaluatorValue EvaluateDefaultExpression(BoundDefaultExpression node, bool used) {
+    private EvaluatorValue EvaluateDefaultExpression(BoundDefaultExpression node, bool used, ValueWrapper<bool> abort) {
         if (!used)
             return EvaluatorValue.None;
 
-        return GetDefaultValue(node.type, null);
+        return GetDefaultValue(node.type, null, abort);
     }
 
     private EvaluatorValue EvaluateArrayLength(BoundArrayLength node, bool used, ValueWrapper<bool> abort) {
@@ -693,8 +775,10 @@ internal sealed class Evaluator {
     private EvaluatorValue EvaluateThisExpression(BoundThisExpression node) {
         var value = _stack.Peek().values[0];
 
-        if (node.type.isValueType)
+        if (node.type.isValueType) {
+            Debug.Assert(value.kind == ValueKind.Ref);
             return value.loc[value.ptr];
+        }
 
         return value;
     }
@@ -715,10 +799,10 @@ internal sealed class Evaluator {
         var type = node.sourceType.type;
 
         if (type.StrippedType() is TemplateParameterSymbol t) {
-            var substituted = SubstituteTemplateParameter(t);
+            var substituted = SubstituteTemplateParameterType(t);
 
             if (type.IsNullableType())
-                substituted = CorLibrary.GetOrCreateNullableType(substituted);
+                substituted = _compilation.corLibrary.GetOrCreateNullableType(substituted);
 
             type = substituted;
         }
@@ -726,18 +810,25 @@ internal sealed class Evaluator {
         return EvaluatorValue.Type(type);
     }
 
-    private TypeSymbol SubstituteTemplateParameter(TemplateParameterSymbol templateParameter) {
+    private TypeSymbol SubstituteTemplateParameterType(TemplateParameterSymbol templateParameter) {
+        Debug.Assert(templateParameter.underlyingType.specialType == SpecialType.Type);
+        return (TypeSymbol)SubstituteTemplateParameter(templateParameter).type;
+    }
+
+    private EvaluatorValue SubstituteTemplateParameter(TemplateParameterSymbol templateParameter) {
         if (templateParameter.templateParameterKind == TemplateParameterKind.Method)
-            return (TypeSymbol)_stack.Peek().values[templateParameter.ordinal + 1].type;
+            return _stack.Peek().values[templateParameter.ordinal + 1];
 
         var thisParameter = _stack.Peek().values[0];
-        var heapObject = _context.heap[thisParameter.ptr];
+        var heapObject = GetHeapObjectFromPointer(thisParameter);
+
+        Debug.Assert(heapObject.type.originalDefinition.Equals(templateParameter.containingType.originalDefinition));
 
         if (!_program.TryGetTypeLayoutIncludingParents((NamedTypeSymbol)heapObject.type, out var layout))
             throw new BelteInternalException($"Failed to get type layout ({heapObject.type}).");
 
         var field = layout.GetLocal(templateParameter);
-        return (TypeSymbol)heapObject.fields[field.slot].type;
+        return heapObject.fields[field.slot];
     }
 
     private EvaluatorValue EvaluateMethodGroup(BoundMethodGroup node) {
@@ -752,7 +843,7 @@ internal sealed class Evaluator {
             throw new BelteNullReferenceException(location);
 
         var exception = _context.heap[value.ptr];
-        // The message will always be the first field as Object has no fields
+        // The message will always be the first field as base type Object has no fields
         var message = exception.fields[0].@string;
 
         throw new BelteEvaluatorException(message, location);
@@ -766,7 +857,7 @@ internal sealed class Evaluator {
                 return _stack.Peek().values[template.ordinal + 1];
 
             var thisParameter = _stack.Peek().values[0];
-            var heapObject = _context.heap[thisParameter.ptr];
+            var heapObject = GetHeapObjectFromPointer(thisParameter);
 
             if (!_program.TryGetTypeLayoutIncludingParents((NamedTypeSymbol)heapObject.type, out var layout))
                 throw new BelteInternalException($"Failed to get type layout ({heapObject.type}).");
@@ -776,6 +867,19 @@ internal sealed class Evaluator {
         }
 
         return EvaluatorValue.None;
+    }
+
+    private HeapObject GetHeapObjectFromPointer(EvaluatorValue pointer) {
+        switch (pointer.kind) {
+            case ValueKind.HeapPtr:
+                return _context.heap[pointer.ptr];
+            case ValueKind.Ref:
+                var value = pointer.loc[pointer.ptr].@struct;
+                Debug.Assert(value is not null);
+                return value;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(pointer.kind);
+        }
     }
 
     private EvaluatorValue EvaluateDataContainerExpression(BoundDataContainerExpression node, bool used) {
@@ -855,8 +959,10 @@ internal sealed class Evaluator {
             } else {
                 var receiverValue = EvaluateFieldLoadReceiver(receiver, abort);
 
-                if (receiverValue.kind == ValueKind.Int64)
+                if (receiverValue.kind == ValueKind.Int64) {
+                    Debug.Assert(false);
                     receiverValue = EvaluateFieldLoadReceiver(receiver, abort);
+                }
 
                 return GetHeapFieldSlotOrStructFieldSlot(receiverValue, node.slot);
             }
@@ -1334,13 +1440,15 @@ internal sealed class Evaluator {
         BoundObjectCreationExpression node,
         bool used,
         ValueWrapper<bool> abort) {
-        if (node.constructor.originalDefinition == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_ctor))
+        if (node.constructor.originalDefinition ==
+                _compilation.corLibrary.GetWellKnownMember(WellKnownMember.Nullable_ctor)) {
             return EvaluateExpression(node.arguments[0], used, abort);
+        }
 
         var type = (NamedTypeSymbol)node.StrippedType();
 
         if (node.type.IsStructType()) {
-            var value = CreateStruct(type);
+            var value = CreateStruct(type, abort);
 
             var temp = AllocateTemp(type);
             _stack.Peek().values[temp.slot] = value;
@@ -1356,7 +1464,7 @@ internal sealed class Evaluator {
 
             return EvaluatorValue.None;
         } else {
-            var ptr = CreateObject(type);
+            var ptr = CreateObject(type, abort);
 
             var temp = AllocateTemp(type);
             _stack.Peek().values[temp.slot] = ptr;
@@ -1414,7 +1522,7 @@ internal sealed class Evaluator {
         BoundArrayCreationExpression node,
         ValueWrapper<bool> abort) {
         var sizes = node.sizes.Select(s => (int)EvaluateExpression(s, true, abort).int64);
-        var heapObject = CreateArray((ArrayTypeSymbol)node.StrippedType(), sizes.ToArray(), 0);
+        var heapObject = CreateArray((ArrayTypeSymbol)node.StrippedType(), sizes.ToArray(), 0, abort);
         var index = _context.heap.Allocate(heapObject, _stack, _context);
         var ptr = EvaluatorValue.HeapPtr(index);
 
@@ -1448,25 +1556,31 @@ internal sealed class Evaluator {
         }
     }
 
-    private HeapObject CreateArray(ArrayTypeSymbol type, int[] sizes, int depth) {
+    private HeapObject CreateArray(ArrayTypeSymbol type, int[] sizes, int depth, ValueWrapper<bool> abort) {
+#if DEBUG
+        var substitutedType = (ArrayTypeSymbol)SubstituteAsType(type);
+#else
+        var substitutedType = type;
+#endif
+
         var length = sizes[depth];
         var elements = new EvaluatorValue[length];
 
         if (depth == sizes.Length - 1) {
             for (var i = 0; i < length; i++)
-                elements[i] = GetDefaultValue(type.elementType, null);
+                elements[i] = GetDefaultValue(substitutedType.elementType, null, abort);
         } else {
             for (var i = 0; i < length; i++) {
-                var array = CreateArray(type, sizes, depth + 1);
+                var array = CreateArray(substitutedType, sizes, depth + 1, abort);
                 var index = _context.heap.Allocate(array, _stack, _context);
                 elements[i] = EvaluatorValue.HeapPtr(index);
             }
         }
 
-        return new HeapObject(type, elements);
+        return new HeapObject(substitutedType, elements);
     }
 
-    private EvaluatorValue GetDefaultValue(TypeSymbol type, object constantValueForEnum) {
+    private EvaluatorValue GetDefaultValue(TypeSymbol type, object constantValueForEnum, ValueWrapper<bool> abort) {
         if (type.IsNullableType())
             return EvaluatorValue.Null;
 
@@ -1480,10 +1594,10 @@ internal sealed class Evaluator {
         if (type.IsPointerOrFunctionPointer() || type.specialType is SpecialType.UIntPtr or SpecialType.IntPtr) {
             return new EvaluatorValue() { kind = ValueKind.Ref, uint64 = 0 };
         } else if (type.IsTemplateParameter()) {
-            var targetType = SubstituteTemplateParameter((TemplateParameterSymbol)type);
-            return GetDefaultValue(targetType, constantValueForEnum);
+            var targetType = SubstituteTemplateParameterType((TemplateParameterSymbol)type);
+            return GetDefaultValue(targetType, constantValueForEnum, abort);
         } else if (type.IsStructType()) {
-            return CreateStruct((NamedTypeSymbol)type);
+            return CreateStruct((NamedTypeSymbol)type, abort);
         } else if (type.IsEnumType()) {
             return EvaluatorValue.Literal(
                 constantValueForEnum,
@@ -1492,7 +1606,7 @@ internal sealed class Evaluator {
         } else if (type.IsVerifierReference()) {
             return EvaluatorValue.Null;
         } else {
-            return CreateObject((NamedTypeSymbol)type);
+            return CreateObject((NamedTypeSymbol)type, abort);
         }
     }
 
@@ -1570,7 +1684,7 @@ internal sealed class Evaluator {
             var operandType = _context.heap[value.ptr].type.StrippedType();
 
             if (operandType.Equals(targetType) ||
-                targetType is NamedTypeSymbol t && operandType.InheritsFromIgnoringConstruction(t)) {
+                targetType is NamedTypeSymbol t && operandType.InheritsFromIgnoringConstruction(t, _compilation)) {
                 value.@bool = !node.isNot;
                 value.kind = ValueKind.Bool;
                 return value;
@@ -1581,7 +1695,7 @@ internal sealed class Evaluator {
             var operandType = value.@struct.type.StrippedType();
 
             if (operandType.Equals(targetType) ||
-                targetType is NamedTypeSymbol t && operandType.InheritsFromIgnoringConstruction(t)) {
+                targetType is NamedTypeSymbol t && operandType.InheritsFromIgnoringConstruction(t, _compilation)) {
                 value.@bool = !node.isNot;
                 value.kind = ValueKind.Bool;
                 return value;
@@ -1627,7 +1741,7 @@ internal sealed class Evaluator {
             var operandType = _context.heap[value.ptr].type.StrippedType();
 
             if (operandType.Equals(targetType) ||
-                targetType is NamedTypeSymbol t && operandType.InheritsFromIgnoringConstruction(t)) {
+                targetType is NamedTypeSymbol t && operandType.InheritsFromIgnoringConstruction(t, _compilation)) {
                 return value;
             }
         }
@@ -1636,7 +1750,7 @@ internal sealed class Evaluator {
             var operandType = value.@struct.type.StrippedType();
 
             if (operandType.Equals(targetType) ||
-                targetType is NamedTypeSymbol t && operandType.InheritsFromIgnoringConstruction(t)) {
+                targetType is NamedTypeSymbol t && operandType.InheritsFromIgnoringConstruction(t, _compilation)) {
                 return value;
             }
         }
@@ -1697,7 +1811,14 @@ internal sealed class Evaluator {
         if (useKind != UseKind.Unused && value.kind == ValueKind.Struct) {
             var original = value.@struct;
             var slotCount = original.fields.Length;
-            var duplicate = new HeapObject(original.type, slotCount);
+
+#if DEBUG
+            var substitutedType = (NamedTypeSymbol)SubstituteAsType(original.type);
+#else
+            var substitutedType = original.type;
+#endif
+
+            var duplicate = new HeapObject(substitutedType, slotCount);
 
             for (var i = 0; i < slotCount; i++)
                 duplicate.fields[i] = EvaluateAssignmentDuplication(useKind, original.fields[i]);
@@ -2523,8 +2644,19 @@ internal sealed class Evaluator {
 
     private EvaluatorValue EvaluateAddressOfTempClone(BoundExpression node, ValueWrapper<bool> abort) {
         // Should only be reachable with uninitialized ref locals and structs
-        if (!node.IsLiteralNull() && !(node is BoundCallExpression c && c.receiver.type.StrippedType().IsStructType()))
-            throw ExceptionUtilities.UnexpectedValue(node.kind);
+#if DEBUG
+        if (!node.IsLiteralNull()) {
+            if (node is BoundCallExpression c) {
+                if (c.receiver.type.StrippedType().IsStructType()) {
+                } else if (c.method.returnType.StrippedType().IsStructType()) {
+                } else {
+                    Debug.Assert(false);
+                }
+            } else {
+                Debug.Assert(false);
+            }
+        }
+#endif
 
         var value = EvaluateExpression(node, true, abort);
         var temp = AllocateTemp(node.type);
@@ -2596,7 +2728,7 @@ internal sealed class Evaluator {
         if (method.isExtern)
             throw new BelteEvaluatorException("Extern method calls are not supported in the Evaluator.", node.syntax.location);
 
-        var value = InvokeMethod(method, SynthesizeCallObject(method.containingType), evaluatedArguments, abort);
+        var value = InvokeMethod(method, SynthesizeCallObject(method.containingType, abort), evaluatedArguments, abort);
 
         if (exceptions.Count == 0 && useKind == UseKind.UsedAsValue && method.refKind != RefKind.None)
             return value.loc[value.ptr];
@@ -2604,7 +2736,7 @@ internal sealed class Evaluator {
             return value;
     }
 
-    private EvaluatorValue SynthesizeCallObject(NamedTypeSymbol type) {
+    private EvaluatorValue SynthesizeCallObject(NamedTypeSymbol type, ValueWrapper<bool> abort) {
         var layout = new EvaluatorSlotManager(type);
         var current = type;
         var builder = ArrayBuilder<EvaluatorValue>.GetInstance();
@@ -2628,7 +2760,7 @@ internal sealed class Evaluator {
                         builder.Add(EvaluatorValue.Type(argument.type.type));
                     } else {
                         builder.Add(EvaluatorValue.Literal(
-                            argument.constant.value,
+                            EvaluateTemplateConstant(argument.constant, abort),
                             argument.constant.specialType
                         ));
                     }
@@ -2638,8 +2770,14 @@ internal sealed class Evaluator {
             current = current.containingType;
         }
 
+#if DEBUG
+        var substitutedType = (NamedTypeSymbol)SubstituteAsType(type);
+#else
+        var substitutedType = type;
+#endif
+
         var fields = layout.LocalsInOrder();
-        var heapObject = new HeapObject(type, fields.Length);
+        var heapObject = new HeapObject(substitutedType, fields.Length);
 
         for (var i = 0; i < builder.Count; i++)
             heapObject.fields[i] = builder[i];
@@ -2650,6 +2788,12 @@ internal sealed class Evaluator {
         return EvaluatorValue.HeapPtr(index);
     }
 
+    private EvaluatorValue EvaluateThisParameter(BoundExpression receiver, ValueWrapper<bool> abort) {
+        return receiver.type.isValueType
+            ? EvaluateAddress(receiver, AddressKind.Writeable, abort)
+            : EvaluateExpression(receiver, true, abort);
+    }
+
     private EvaluatorValue EvaluateInstanceCallExpression(
         BoundCallExpression node,
         UseKind useKind,
@@ -2658,10 +2802,12 @@ internal sealed class Evaluator {
         var arguments = node.arguments;
         var receiver = node.receiver;
 
-        var thisParameter = EvaluateExpression(receiver, true, abort);
+        var thisParameter = EvaluateThisParameter(receiver, abort);
 
-        if (thisParameter.kind == ValueKind.Int64)
+        if (thisParameter.kind == ValueKind.Int64) {
+            Debug.Assert(false);
             thisParameter = EvaluateExpression(receiver, true, abort);
+        }
 
         if (thisParameter.kind == ValueKind.Null)
             throw new BelteNullReferenceException(receiver.syntax.location);
@@ -2689,11 +2835,18 @@ internal sealed class Evaluator {
         EvaluatorValue thisParameter) {
         if ((method.isAbstract || method.isVirtual) &&
             receiver?.StrippedType()?.typeKind != TypeKind.TemplateParameter) {
-            var typeToLookup = receiver?.kind == BoundKind.BaseExpression
-                ? receiver.StrippedType()
-                : thisParameter.kind == ValueKind.Struct
-                    ? thisParameter.@struct.type.StrippedType()
-                    : _context.heap[thisParameter.ptr].type.StrippedType();
+            TypeSymbol typeToLookup;
+
+            if (receiver?.kind == BoundKind.BaseExpression) {
+                typeToLookup = receiver.StrippedType();
+            } else if (thisParameter.kind == ValueKind.Ref) {
+                var temp = thisParameter.loc[thisParameter.ptr];
+                Debug.Assert(temp.kind == ValueKind.Struct);
+                typeToLookup = temp.@struct.type.StrippedType();
+            } else {
+                Debug.Assert(thisParameter.kind == ValueKind.HeapPtr);
+                typeToLookup = _context.heap[thisParameter.ptr].type.StrippedType();
+            }
 
             // TODO Use GetLeastOverriddenMember instead
             // var newMethod = method.GetLeastOverriddenMethod((NamedTypeSymbol)typeToLookup);
@@ -2722,12 +2875,16 @@ internal sealed class Evaluator {
         ImmutableArray<ParameterSymbol> parameters,
         ImmutableArray<RefKind> argRefKindsOpt,
         ValueWrapper<bool> abort) {
+        _context.heap.SuppressGC();
+
         var builder = ArrayBuilder<EvaluatorValue>.GetInstance(arguments.Length);
 
         for (var i = 0; i < arguments.Length; i++) {
             var argRefKind = GetArgumentRefKind(parameters, argRefKindsOpt, i);
             builder.Add(EvaluateArgument(arguments[i], argRefKind, abort));
         }
+
+        _context.heap.UnsuppressGC();
 
         return builder.ToArray();
     }
@@ -2773,8 +2930,17 @@ internal sealed class Evaluator {
 
         var frame = new StackFrame(layout);
 
-        if (!thisParameter.Equals(EvaluatorValue.None))
-            frame.values[0] = thisParameter;
+        if (!thisParameter.Equals(EvaluatorValue.None)) {
+            switch (thisParameter.kind) {
+                case ValueKind.Ref:
+                case ValueKind.HeapPtr:
+                case ValueKind.MethodGroup:
+                    frame.values[0] = thisParameter;
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(thisParameter.kind);
+            }
+        }
 
         if (method.arity > 0) {
             for (var i = 0; i < method.arity; i++) {
@@ -2784,7 +2950,7 @@ internal sealed class Evaluator {
                     frame.values[i + 1] = EvaluatorValue.Type(templateArgument.type.type);
                 } else {
                     frame.values[i + 1] = EvaluatorValue.Literal(
-                        templateArgument.constant.value,
+                        EvaluateTemplateConstant(templateArgument.constant, abort),
                         templateArgument.constant.specialType
                     );
                 }
@@ -2796,9 +2962,11 @@ internal sealed class Evaluator {
             frame.values[slot] = arguments[i];
         }
 
+        CheckArgumentsAreCoherent(method, arguments);
+
         _stack.Push(frame);
 
-        var result = EvaluateStatement(method, body, abort, out _);
+        var result = EvaluateStatement(method, body, abort, out _, out _);
 
         _stack.Pop();
 
@@ -2818,6 +2986,7 @@ internal sealed class Evaluator {
         }
 
         body = EvaluatorSlotRewriter.Rewrite(
+            _compilation,
             method,
             body,
             _lazyTypeLayouts,
@@ -2846,22 +3015,22 @@ internal sealed class Evaluator {
         io = false;
         result = null;
 
-        if ((object)method.containingNamespace != LibraryHelpers.BelteNamespace.originalDefinition) {
+        if ((object)method.containingNamespace != _compilation.corLibrary.belteNamespace.originalDefinition) {
             if (method.containingType?.specialType != SpecialType.Nullable &&
                 method.containingType?.specialType != SpecialType.Object) {
                 return false;
             }
         }
 
-        var reduced = _program.compilation.options.noStdLib;
+        var reduced = _compilation.options.noStdLib;
 
-        if (!reduced && (object)method.containingType == GraphicsLibrary.Graphics.underlyingNamedType)
+        if (!reduced && (object)method.containingType == _compilation.graphicsLibrary.Graphics.underlyingNamedType)
             return HandleGraphicsCall(location, method, arguments, abort, out result);
 
         // TODO If we deem these string checks too slow, we could probably compute unique Int64 mapKeys instead
         var mapKey = LibraryHelpers.BuildMapKey(method);
 
-        if ((object)method.containingNamespace == LibraryHelpers.BelteNamespace.originalDefinition) {
+        if ((object)method.containingNamespace == _compilation.corLibrary.belteNamespace.originalDefinition) {
             switch (mapKey) {
                 case "LowLevel_GetHashCode_O": {
                         var argument = EvaluateExpression(arguments[0], true, abort);
@@ -2912,19 +3081,19 @@ internal sealed class Evaluator {
                             type = argument.@struct.type;
                         } else {
                             type = argument.kind switch {
-                                ValueKind.Int8 => CorLibrary.GetSpecialType(SpecialType.Int8),
-                                ValueKind.Int16 => CorLibrary.GetSpecialType(SpecialType.Int16),
-                                ValueKind.Int32 => CorLibrary.GetSpecialType(SpecialType.Int32),
-                                ValueKind.Int64 => CorLibrary.GetSpecialType(SpecialType.Int64),
-                                ValueKind.UInt8 => CorLibrary.GetSpecialType(SpecialType.UInt8),
-                                ValueKind.UInt16 => CorLibrary.GetSpecialType(SpecialType.UInt16),
-                                ValueKind.UInt32 => CorLibrary.GetSpecialType(SpecialType.UInt32),
-                                ValueKind.UInt64 => CorLibrary.GetSpecialType(SpecialType.UInt64),
-                                ValueKind.Float32 => CorLibrary.GetSpecialType(SpecialType.Float32),
-                                ValueKind.Float64 => CorLibrary.GetSpecialType(SpecialType.Float64),
-                                ValueKind.Bool => CorLibrary.GetSpecialType(SpecialType.Bool),
-                                ValueKind.Char => CorLibrary.GetSpecialType(SpecialType.Char),
-                                ValueKind.String => CorLibrary.GetSpecialType(SpecialType.String),
+                                ValueKind.Int8 => _compilation.GetSpecialType(SpecialType.Int8),
+                                ValueKind.Int16 => _compilation.GetSpecialType(SpecialType.Int16),
+                                ValueKind.Int32 => _compilation.GetSpecialType(SpecialType.Int32),
+                                ValueKind.Int64 => _compilation.GetSpecialType(SpecialType.Int64),
+                                ValueKind.UInt8 => _compilation.GetSpecialType(SpecialType.UInt8),
+                                ValueKind.UInt16 => _compilation.GetSpecialType(SpecialType.UInt16),
+                                ValueKind.UInt32 => _compilation.GetSpecialType(SpecialType.UInt32),
+                                ValueKind.UInt64 => _compilation.GetSpecialType(SpecialType.UInt64),
+                                ValueKind.Float32 => _compilation.GetSpecialType(SpecialType.Float32),
+                                ValueKind.Float64 => _compilation.GetSpecialType(SpecialType.Float64),
+                                ValueKind.Bool => _compilation.GetSpecialType(SpecialType.Bool),
+                                ValueKind.Char => _compilation.GetSpecialType(SpecialType.Char),
+                                ValueKind.String => _compilation.GetSpecialType(SpecialType.String),
                                 _ => throw ExceptionUtilities.UnexpectedValue(argument.kind)
                             };
                         }
@@ -2938,10 +3107,12 @@ internal sealed class Evaluator {
 
                         if (argument.kind == ValueKind.HeapPtr) {
                             var type = _context.heap[argument.ptr].type;
-                            result = GetTypeName(type);
-                        } else if (argument.kind == ValueKind.Struct) {
-                            var type = argument.@struct.type;
-                            result = GetTypeName(type);
+                            result = GetTypeName(type, abort);
+                        } else if (argument.kind == ValueKind.Ref) {
+                            var temp = argument.loc[argument.ptr];
+                            Debug.Assert(temp.kind == ValueKind.Struct);
+                            var type = temp.@struct.type;
+                            result = GetTypeName(type, abort);
                         } else {
                             // TODO These are .NET types not Belte types! (to ensure parity with IL code gen)
                             result = argument.kind switch {
@@ -3046,7 +3217,7 @@ internal sealed class Evaluator {
                         if (argument.kind is ValueKind.HeapPtr or ValueKind.Struct) {
                             var toStringMethod = ResolveVirtualMethod(_toStringMethod, null, argument);
                             var toStringResult = InvokeMethod(toStringMethod, argument, [], abort);
-                            var func = StandardLibrary.EvaluatorMap[mapKey];
+                            var func = _compilation.standardLibrary.EvaluatorMap[mapKey];
                             result = func(toStringResult.@string, null, null);
                             return true;
                         }
@@ -3188,7 +3359,7 @@ internal sealed class Evaluator {
                     break;
             }
 
-            var function = StandardLibrary.EvaluatorMap[mapKey];
+            var function = _compilation.standardLibrary.EvaluatorMap[mapKey];
             var valueArguments = arguments
                 .Select(a => EvaluatorValue.Format(EvaluateExpression(a, true, abort), _context))
                 .ToArray();
@@ -3244,12 +3415,13 @@ internal sealed class Evaluator {
                         return true;
                     }
                 case "Object<>_ToString":
-                    var thisParameter = EvaluateExpression(receiver, true, abort);
+                    var thisParameter = EvaluateThisParameter(receiver, abort);
 
                     if (thisParameter.kind == ValueKind.Null)
                         throw new BelteNullReferenceException(receiver.syntax.location);
 
-                    result = thisParameter.kind is ValueKind.HeapPtr or ValueKind.Struct
+                    result = thisParameter.kind == ValueKind.HeapPtr ||
+                        (thisParameter.kind == ValueKind.Ref && thisParameter.loc[thisParameter.ptr].kind == ValueKind.Struct)
                         ? InvokeMethod(ResolveVirtualMethod(method, receiver, thisParameter), thisParameter, [], abort)
                         : EvaluatorValue.Format(thisParameter, _context);
 
@@ -3260,18 +3432,18 @@ internal sealed class Evaluator {
         }
     }
 
-    private static string GetTypeName(TypeSymbol type) {
+    private string GetTypeName(TypeSymbol type, ValueWrapper<bool> abort) {
         var builder = new StringBuilder();
-        GetTypeNameCore(type, builder);
+        GetTypeNameCore(type, builder, abort);
         return builder.ToString();
     }
 
-    private static void GetTypeNameCore(TypeSymbol type, StringBuilder builder) {
+    private void GetTypeNameCore(TypeSymbol type, StringBuilder builder, ValueWrapper<bool> abort) {
         // ? The goal here is IL parity, not Belte-correctness
         // TODO This always adds the arity distinguisher (`1) even if the type name is unique unlike .NET
         switch (type.typeKind) {
             case TypeKind.Array:
-                GetTypeNameCore(((ArrayTypeSymbol)type).elementType, builder);
+                GetTypeNameCore(((ArrayTypeSymbol)type).elementType, builder, abort);
                 builder.Append("[]");
                 break;
             case TypeKind.Primitive:
@@ -3306,9 +3478,9 @@ internal sealed class Evaluator {
                     var argument = namedType.templateArguments[i];
 
                     if (argument.isConstant)
-                        builder.Append(argument.constant.value);
+                        builder.Append(EvaluateTemplateConstant(argument.constant, abort));
                     else
-                        GetTypeNameCore(argument.type.type, builder);
+                        GetTypeNameCore(argument.type.type, builder, abort);
 
                     if (i < arity - 1)
                         builder.Append(',');
@@ -3347,7 +3519,7 @@ internal sealed class Evaluator {
         out object result) {
         result = null;
 
-        if (_program.compilation.options.outputKind != OutputKind.GraphicsApplication)
+        if (_compilation.options.outputKind != OutputKind.GraphicsApplication)
             throw new InvalidOperationException("Cannot make Graphics calls when the output kind is not graphics");
 
         var mapKey = LibraryHelpers.BuildMapKey(method);
@@ -3371,6 +3543,8 @@ internal sealed class Evaluator {
 
         while (_context.graphicsHandler?.GraphicsDevice is null)
             Thread.SpinWait(1);
+
+        _context.heap.SuppressGC();
 
         switch (mapKey) {
             case "Graphics_LoadTexture_S": {
@@ -3399,26 +3573,19 @@ internal sealed class Evaluator {
                     var path = GetFilePath(evaluatedArguments[0].@string, location)
                         ?? throw new BelteEvaluatorException("Cannot load sprite: path does not exist.", location);
 
-                    var spriteType = CorLibrary.GetWellKnownType(WellKnownType.Sprite);
-                    var sprite = CreateObject(spriteType);
+                    evaluatedArguments[0] = LoadTexture(path);
 
-                    // TODO Pretty sure creating a temp to ensure the heap doesn't clear the value is unnecessary here
-                    // var temp = AllocateTemp(spriteType);
-                    // _stack.Peek().values[temp.slot] = sprite;
+                    var spriteType = _compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Sprite);
+                    var constructor = spriteType.instanceConstructors[0];
+
+                    var sprite = CreateObject(spriteType, abort);
 
                     InvokeMethod(
                         spriteType.instanceConstructors[0],
                         sprite,
-                        [
-                            LoadTexture(path),
-                            evaluatedArguments[1],
-                            evaluatedArguments[2],
-                            evaluatedArguments[3]
-                        ],
+                        evaluatedArguments,
                         abort
                     );
-
-                    // _stack.Peek().layout.FreeSlot(temp);
 
                     result = sprite;
                 }
@@ -3428,7 +3595,7 @@ internal sealed class Evaluator {
                     var argument = EvaluateExpression(arguments[0], true, abort);
 
                     if (argument.kind == ValueKind.Null)
-                        return true;
+                        break;
 
                     DrawSprite(argument, EvaluatorValue.None, out result);
                 }
@@ -3439,7 +3606,7 @@ internal sealed class Evaluator {
                     var spritePtr = evaluatedArguments[0];
 
                     if (spritePtr.kind == ValueKind.Null)
-                        return true;
+                        break;
 
                     DrawSprite(spritePtr, evaluatedArguments[1], out result);
                 }
@@ -3449,7 +3616,7 @@ internal sealed class Evaluator {
                     var argument = EvaluateExpression(arguments[0], true, abort);
 
                     if (argument.kind == ValueKind.Null)
-                        return true;
+                        break;
 
                     _context.graphicsHandler.RemoveAction((int)argument.int64);
                 }
@@ -3460,8 +3627,8 @@ internal sealed class Evaluator {
                     var path = GetFilePath(evaluatedArguments[1].@string, location)
                         ?? throw new BelteEvaluatorException("Cannot load text: path does not exist.", location);
 
-                    var textType = CorLibrary.GetWellKnownType(WellKnownType.Text);
-                    var textPtr = CreateObject(textType);
+                    var textType = _compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Text);
+                    var textPtr = CreateObject(textType, abort);
                     var text = H(textPtr);
 
                     var fontSize = (float)evaluatedArguments[3].@double;
@@ -3488,7 +3655,7 @@ internal sealed class Evaluator {
                     var argument = EvaluateExpression(arguments[0], true, abort);
 
                     if (argument.kind == ValueKind.Null)
-                        return true;
+                        break;
 
                     var fields = H(argument);
 
@@ -3532,12 +3699,8 @@ internal sealed class Evaluator {
                 break;
             case "Graphics_GetMousePosition": {
                     var (x, y) = _context.graphicsHandler.GetMousePosition();
-                    var vecType = CorLibrary.GetWellKnownType(WellKnownType.Vec2);
-                    var vec = CreateObject(vecType);
-
-                    // TODO Pretty sure creating a temp to ensure the heap doesn't clear the value is unnecessary here
-                    // var temp = AllocateTemp(vecType);
-                    // _stack.Peek().values[temp.slot] = vec;
+                    var vecType = _compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Vec2);
+                    var vec = CreateObject(vecType, abort);
 
                     InvokeMethod(
                         vecType.instanceConstructors[0],
@@ -3548,8 +3711,6 @@ internal sealed class Evaluator {
                         ],
                         abort
                     );
-
-                    // _stack.Peek().layout.FreeSlot(temp);
 
                     result = vec;
                 }
@@ -3632,8 +3793,8 @@ internal sealed class Evaluator {
                     var path = GetFilePath(EvaluateExpression(arguments[0], true, abort).@string, location)
                         ?? throw new BelteEvaluatorException("Cannot load sound: path does not exist.", location);
 
-                    var soundType = CorLibrary.GetWellKnownType(WellKnownType.Sound);
-                    var soundPtr = CreateObject(soundType);
+                    var soundType = _compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Sound);
+                    var soundPtr = CreateObject(soundType, abort);
                     var sound = H(soundPtr);
 
                     sound[0].data = _context.graphicsHandler.LoadSound(path);
@@ -3668,6 +3829,7 @@ internal sealed class Evaluator {
                 throw ExceptionUtilities.UnexpectedValue(mapKey);
         }
 
+        _context.heap.UnsuppressGC();
         return true;
 
         void DrawRect(bool includeAlpha, out object result) {
@@ -3694,8 +3856,8 @@ internal sealed class Evaluator {
         }
 
         EvaluatorValue LoadTexture(string path, bool useColorKey = false, long r = 255, long g = 255, long b = 255) {
-            var textureType = CorLibrary.GetWellKnownType(WellKnownType.Texture);
-            var texturePointer = CreateObject(textureType);
+            var textureType = _compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Texture);
+            var texturePointer = CreateObject(textureType, abort);
             var texture = _context.heap[texturePointer.ptr];
             var texture2D = (_context.graphicsHandler?.LoadTexture(path, useColorKey, r, g, b))
                 ?? throw new BelteEvaluatorException("Failed to load texture.", location);
@@ -3740,7 +3902,10 @@ internal sealed class Evaluator {
         return ((int)fields[0].int64, (int)fields[1].int64, (int)fields[2].int64, (int)fields[3].int64);
     }
 
-    private EvaluatorValue[] H(EvaluatorValue ptr) => _context.heap[ptr.ptr].fields;
+    private EvaluatorValue[] H(EvaluatorValue ptr) {
+        Debug.Assert(ptr.kind == ValueKind.HeapPtr);
+        return _context.heap[ptr.ptr].fields;
+    }
 
     private void StartGraphics(string title, int width, int height, bool usePointClamp, ValueWrapper<bool> abort) {
         _context.maintainThread = true;

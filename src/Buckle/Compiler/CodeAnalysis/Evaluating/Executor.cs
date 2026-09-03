@@ -32,6 +32,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
     private const string DynamicAssemblyName = "DynamicBoundTreeAssembly";
 
+    private readonly Compilation _compilation;
     private readonly BoundProgram _program;
     private readonly ImmutableArray<NamedTypeSymbol> _topLevelTypes;
     private readonly ImmutableArray<NamedTypeSymbol> _linearNestedTypes;
@@ -97,10 +98,14 @@ internal sealed partial class Executor : ModuleBuilder {
     internal Executor(BoundProgram program, string[] arguments, BelteDiagnosticQueue diagnostics) {
         _arguments = arguments;
         _program = program;
+        _compilation = program.compilation;
         _diagnostics = diagnostics;
-        _graphicsEnabled = program.compilation.options.outputKind == OutputKind.GraphicsApplication;
+        _graphicsEnabled = _compilation.options.outputKind == OutputKind.GraphicsApplication;
 
-        _topLevelTypes = program.GetTypesToEmit(includeGraphicsWellKnownTypes: false);
+        _topLevelTypes = program.GetTypesToEmit(
+            noStdLib: _compilation.options.noStdLib,
+            includeGraphicsWellKnownTypes: false
+        );
 
         var assemblyName = new AssemblyName(DynamicAssemblyName);
         var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
@@ -112,7 +117,7 @@ internal sealed partial class Executor : ModuleBuilder {
             linearBuilder.AddRange(set.Value);
 
         _linearNestedTypes = linearBuilder.ToImmutable();
-        _methodBodies = program.GetAllMethodBodies().ToImmutableDictionary(pair => pair.Item1, pair => pair.Item2);
+        _methodBodies = program.GetMethodsToEmit().ToImmutableDictionary(pair => pair.Item1, pair => pair.Item2);
 
         _entryPoint = _program.entryPoint;
     }
@@ -165,7 +170,7 @@ internal sealed partial class Executor : ModuleBuilder {
         if (logTime) {
             timer.Stop();
 
-            if (verbose && !noArtifacts && _program.compilation.options.enableOutput) {
+            if (verbose && !noArtifacts && _compilation.options.enableOutput) {
                 var assemblyName = $"{DynamicAssemblyName}.g.dll";
                 var assemblyPath = verbosePath is null ? assemblyName : Path.Combine(verbosePath, assemblyName);
                 Console.WriteLine($"Dumping dynamic executor assembly to \"{assemblyPath}\"");
@@ -194,7 +199,7 @@ internal sealed partial class Executor : ModuleBuilder {
             timer.Restart();
         }
 
-        if (!_program.compilation.options.enableOutput)
+        if (!_compilation.options.enableOutput)
             return null;
 
         object result;
@@ -262,7 +267,9 @@ internal sealed partial class Executor : ModuleBuilder {
 
         var arrayTypeSymbol = (NamedTypeSymbol)_entryPoint.GetParameterType(0);
 
-        var ctorSymbol = CorLibrary.GetWellKnownMethod(WellKnownMember.Array_ctor_2).AsMember(arrayTypeSymbol);
+        var ctorSymbol = _compilation.corLibrary.GetWellKnownMethod(WellKnownMember.Array_ctor_2)
+            .AsMember(arrayTypeSymbol);
+
         var ctor = GetConstructor(ctorSymbol);
 
         il.Emit(OpCodes.Ldarg_0);
@@ -405,11 +412,11 @@ internal sealed partial class Executor : ModuleBuilder {
         }
 
         Type GetTypeCoreInternal(NamedTypeSymbol type) {
-            if (type.originalDefinition is PENamedTypeSymbol or MissingMetadataTypeSymbol)
-                return ResolveType(type.originalDefinition);
-
             if (_bakedTypes.TryGetValue(type.originalDefinition, out var baked))
                 return baked;
+
+            if (type.originalDefinition is PENamedTypeSymbol or MissingMetadataTypeSymbol)
+                return ResolveType(type.originalDefinition);
 
             if (_types.TryGetValue(type.originalDefinition, out var found))
                 return found;
@@ -494,6 +501,8 @@ internal sealed partial class Executor : ModuleBuilder {
             var flags = nestedType.declaredAccessibility == Accessibility.Public
                 ? BindingFlags.Public
                 : BindingFlags.NonPublic;
+
+            // TODO Use metadata name?
             currentFoundType = currentFoundType.GetNestedType(nestedType.name, flags);
         }
 
@@ -818,8 +827,8 @@ internal sealed partial class Executor : ModuleBuilder {
         foreach (var type in _topLevelTypes)
             CreateTypeBuilderAndBases(type);
 
-        if (_program.compilation.options.concurrentBuild) {
-            var maxParallels = _program.compilation.options.maxCoreCount;
+        if (_compilation.options.concurrentBuild) {
+            var maxParallels = _compilation.options.maxCoreCount;
             var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = maxParallels };
 
             var topLevelTypes = _topLevelTypes;
@@ -861,6 +870,9 @@ internal sealed partial class Executor : ModuleBuilder {
     private void BakeTypes() {
         // Topologically sorts struct types tracking dependencies (field types) so that when the struct is created it's
         // layout is fully known
+        // Bakes non-structs by first baking their bases
+        // TODO Could both of these passes be combined? I.e. track class bases in the structs dependency graph?
+
         var deps = new Dictionary<NamedTypeSymbol, List<NamedTypeSymbol>>();
 
         foreach (var type in _types.Keys) {
@@ -928,10 +940,37 @@ internal sealed partial class Executor : ModuleBuilder {
             }
         }
 
-        foreach (var (type, tb) in _types) {
+        var seenBases = new HashSet<NamedTypeSymbol>();
+
+        foreach (var (type, _) in _types) {
             if (!type.IsStructType()) {
                 var namedType = (NamedTypeSymbol)type;
-                BakeNonStructType(namedType, tb);
+
+                var baseStack = new Stack<NamedTypeSymbol>();
+                var current = namedType;
+
+                while (current is not null) {
+                    if (current.specialType is SpecialType.Object or SpecialType.Enum or SpecialType.ValueType)
+                        break;
+
+                    baseStack.Push(current);
+                    current = current.baseType;
+                }
+
+                while (baseStack.Count > 0) {
+                    var baseType = baseStack.Pop().originalDefinition;
+
+                    if (!_types.ContainsKey(baseType))
+                        continue;
+
+                    if (baseType is PENamedTypeSymbol)
+                        continue;
+
+                    if (!seenBases.Add(baseType))
+                        continue;
+
+                    BakeNonStructType(baseType, _types[baseType]);
+                }
             } else {
                 Debug.Assert(_bakedTypes.ContainsKey((NamedTypeSymbol)type));
             }
@@ -942,7 +981,10 @@ internal sealed partial class Executor : ModuleBuilder {
 
             if (_bakedTypes.ContainsKey(type)) {
                 Debug.Assert(WellKnownTypes.GetTypeFromMetadataName(type) != WellKnownType.None ||
-                    result.Contains(type));
+                    result.Contains(type) ||
+                    // Special case
+                    type.metadataName == "Exception"
+                );
 
                 return;
             }
@@ -962,37 +1004,51 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private void CompleteWellKnownTypes() {
-        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Exception), typeof(Exception));
+        var existingWellKnownTypes = new List<WellKnownType>();
 
-        if (_program.compilation.options.noStdLib)
-            return;
+        if (_compilation.GetWellKnownType(WellKnownType.System_Exception) is SourceNamedTypeSymbol exception) {
+            _bakedTypes.Add(exception, typeof(Exception));
+            existingWellKnownTypes.Add(WellKnownType.System_Exception);
+        }
 
-        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Sprite), typeof(BSprite));
-        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Rect), typeof(BRect));
-        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Vec2), typeof(BVec2));
-        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Texture), typeof(BTexture));
-        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Text), typeof(BText));
-        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Sound), typeof(BSound));
+        if (_compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Sprite) is not MissingMetadataTypeSymbol &&
+            !_topLevelTypes.Contains(_compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Sprite))) {
+            _bakedTypes.Add(_compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Sprite), typeof(BSprite));
+            existingWellKnownTypes.Add(WellKnownType.Belte_Graphics_Sprite);
+            _bakedTypes.Add(_compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Rect), typeof(BRect));
+            existingWellKnownTypes.Add(WellKnownType.Belte_Graphics_Rect);
+            _bakedTypes.Add(_compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Vec2), typeof(BVec2));
+            existingWellKnownTypes.Add(WellKnownType.Belte_Graphics_Vec2);
+            _bakedTypes.Add(_compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Texture), typeof(BTexture));
+            existingWellKnownTypes.Add(WellKnownType.Belte_Graphics_Texture);
+            _bakedTypes.Add(_compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Text), typeof(BText));
+            existingWellKnownTypes.Add(WellKnownType.Belte_Graphics_Text);
+            _bakedTypes.Add(_compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Sound), typeof(BSound));
+            existingWellKnownTypes.Add(WellKnownType.Belte_Graphics_Sound);
+        }
 
-        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T1), typeof(ValueTuple<>));
-        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T2), typeof(ValueTuple<,>));
-        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T3), typeof(ValueTuple<,,>));
-        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T4), typeof(ValueTuple<,,,>));
-        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T5), typeof(ValueTuple<,,,,>));
-        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T6), typeof(ValueTuple<,,,,,>));
-        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_T7), typeof(ValueTuple<,,,,,,>));
-        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.ValueTuple_TRest), typeof(ValueTuple<,,,,,,,>));
+        if (_compilation.corLibrary.HasWellKnownType(WellKnownType.ValueTuple_T1) &&
+            !_topLevelTypes.Contains(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T1))) {
+            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T1), typeof(ValueTuple<>));
+            existingWellKnownTypes.Add(WellKnownType.ValueTuple_T1);
+            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T2), typeof(ValueTuple<,>));
+            existingWellKnownTypes.Add(WellKnownType.ValueTuple_T2);
+            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T3), typeof(ValueTuple<,,>));
+            existingWellKnownTypes.Add(WellKnownType.ValueTuple_T3);
+            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T4), typeof(ValueTuple<,,,>));
+            existingWellKnownTypes.Add(WellKnownType.ValueTuple_T4);
+            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T5), typeof(ValueTuple<,,,,>));
+            existingWellKnownTypes.Add(WellKnownType.ValueTuple_T5);
+            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T6), typeof(ValueTuple<,,,,,>));
+            existingWellKnownTypes.Add(WellKnownType.ValueTuple_T6);
+            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T7), typeof(ValueTuple<,,,,,,>));
+            existingWellKnownTypes.Add(WellKnownType.ValueTuple_T7);
+            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_TRest), typeof(ValueTuple<,,,,,,,>));
+            existingWellKnownTypes.Add(WellKnownType.ValueTuple_TRest);
+        }
 
-        _bakedTypes.Add(CorLibrary.GetWellKnownType(WellKnownType.Attribute), typeof(Attribute));
-
-        foreach (var type in new[] { WellKnownType.Rect, WellKnownType.Text, WellKnownType.Sprite,
-                                     WellKnownType.Vec2, WellKnownType.Texture, WellKnownType.Sound,
-                                     WellKnownType.ValueTuple_T1, WellKnownType.ValueTuple_T2,
-                                     WellKnownType.ValueTuple_T3, WellKnownType.ValueTuple_T4,
-                                     WellKnownType.ValueTuple_T5, WellKnownType.ValueTuple_T6,
-                                     WellKnownType.ValueTuple_T7, WellKnownType.ValueTuple_TRest,
-                                     WellKnownType.Attribute }) {
-            var typeSymbol = CorLibrary.GetWellKnownType(type);
+        foreach (var type in existingWellKnownTypes) {
+            var typeSymbol = _compilation.GetAnyWellKnownType(type);
             var native = _bakedTypes[typeSymbol];
 
             foreach (var member in typeSymbol.GetMembers()) {
@@ -1000,12 +1056,11 @@ internal sealed partial class Executor : ModuleBuilder {
                     _fields.Add(f, native.GetField(f.name));
                 } else if (member is MethodSymbol m) {
                     if (m.methodKind == MethodKind.Constructor) {
-                        _constructors.Add(
-                            m,
-                            native.GetConstructor(
-                                m.parameters.Select(p => GetType(p.type, p.refKind != RefKind.None)).ToArray()
-                            )
-                        );
+                        var parameters = m.parameters.Select(p => GetType(p.type, p.refKind != RefKind.None)).ToArray();
+                        var ctor = native.GetConstructor(parameters);
+
+                        Debug.Assert(ctor is not null);
+                        _constructors.Add(m, ctor);
                     } else {
                         _methods.Add(m, native.GetMethod(
                             m.name,
@@ -1159,7 +1214,9 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private string GetTypeName(NamedTypeSymbol type, bool isNested) {
-        if (type.IsFromCompilation(_program.compilation)) {
+        // TODO Use metadata name?
+
+        if (type.IsFromCompilation(_compilation)) {
             if (isNested || (type.containingNamespace?.isGlobalNamespace ?? true))
                 return type.name;
 
@@ -1169,7 +1226,7 @@ internal sealed partial class Executor : ModuleBuilder {
         return $"Belte.{type.name}";
     }
 
-    private TypeAttributes GetTypeAttributes(NamedTypeSymbol type, bool isNested) {
+    internal static TypeAttributes GetTypeAttributes(NamedTypeSymbol type, bool isNested) {
         // Structs use TypeAttributes.Class
         var attributes = type.isInterface ? TypeAttributes.Interface : TypeAttributes.Class;
 
@@ -1188,6 +1245,10 @@ internal sealed partial class Executor : ModuleBuilder {
             Accessibility.Public when isNested => TypeAttributes.NestedPublic,
             Accessibility.Public => TypeAttributes.Public,
             Accessibility.Protected => TypeAttributes.NestedFamily,
+            Accessibility.Internal when isNested => TypeAttributes.NestedAssembly,
+            Accessibility.Internal => TypeAttributes.NotPublic,
+            Accessibility.InternalOrProtected => TypeAttributes.NestedFamORAssem,
+            Accessibility.InternalAndProtected => TypeAttributes.NestedFamANDAssem,
             Accessibility.NotApplicable => 0,
             _ => throw ExceptionUtilities.UnexpectedValue(type.declaredAccessibility)
         };
@@ -1195,11 +1256,14 @@ internal sealed partial class Executor : ModuleBuilder {
         return attributes;
     }
 
-    private static FieldAttributes GetFieldAttributes(FieldSymbol field) {
+    internal static FieldAttributes GetFieldAttributes(FieldSymbol field) {
         FieldAttributes attributes = field.declaredAccessibility switch {
             Accessibility.Private => FieldAttributes.Private,
             Accessibility.Public => FieldAttributes.Public,
             Accessibility.Protected => FieldAttributes.Family,
+            Accessibility.Internal => FieldAttributes.Assembly,
+            Accessibility.InternalOrProtected => FieldAttributes.FamORAssem,
+            Accessibility.InternalAndProtected => FieldAttributes.FamANDAssem,
             _ => 0
         };
 
@@ -1209,13 +1273,16 @@ internal sealed partial class Executor : ModuleBuilder {
         return attributes;
     }
 
-    private static MethodAttributes GetMethodAttributes(MethodSymbol method) {
+    internal static MethodAttributes GetMethodAttributes(MethodSymbol method) {
         var attributes = MethodAttributes.HideBySig;
 
         attributes |= method.declaredAccessibility switch {
             Accessibility.Private => MethodAttributes.Private,
             Accessibility.Public => MethodAttributes.Public,
             Accessibility.Protected => MethodAttributes.Family,
+            Accessibility.Internal => MethodAttributes.Assembly,
+            Accessibility.InternalOrProtected => MethodAttributes.FamORAssem,
+            Accessibility.InternalAndProtected => MethodAttributes.FamANDAssem,
             _ => 0
         };
 
@@ -1290,6 +1357,9 @@ internal sealed partial class Executor : ModuleBuilder {
 
             return;
         }
+
+        if (_bakedTypes.ContainsKey(type))
+            return;
 
         var typeBuilder = _types[type.originalDefinition];
         var isAnonymousUnion = type is AnonymousUnionType;
@@ -1415,6 +1485,7 @@ internal sealed partial class Executor : ModuleBuilder {
             method.parameters.Select(p => GetTypeOrIntPtr(p.type, p.refKind != RefKind.None)).ToArray()
         );
 
+        Debug.Assert(constructorBuilder is not null);
         _constructors.Add(method, constructorBuilder);
         _constructorBodies.Add(constructorBuilder, (method, body));
     }
@@ -1551,7 +1622,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
         var body = _methodBodies[method];
         var ilBuilder = new RefILBuilder(method, this, methodBuilder.GetILGenerator(), _logger);
-        var codeGen = new CodeGenerator(this, method, body, ilBuilder, false, _diagnostics);
+        var codeGen = new CodeGenerator(_compilation, this, method, body, ilBuilder, false, _diagnostics);
         codeGen.Generate();
     }
 
@@ -1561,7 +1632,7 @@ internal sealed partial class Executor : ModuleBuilder {
         if (_logger is not null) lock (_logger) _logger.WriteLine($"Emitting constructor {constructor}");
 
         var ilBuilder = new RefILBuilder(constructor, this, constructorBuilder.GetILGenerator(), _logger);
-        var codeGen = new CodeGenerator(this, constructor, body, ilBuilder, false, _diagnostics);
+        var codeGen = new CodeGenerator(_compilation, this, constructor, body, ilBuilder, false, _diagnostics);
         codeGen.Generate();
     }
 
@@ -1580,9 +1651,9 @@ internal sealed partial class Executor : ModuleBuilder {
     private MethodInfo CheckStandardMap(MethodSymbol method) {
         var mapKey = LibraryHelpers.BuildMapKey(method);
 
-        if (!_program.compilation.options.noStdLib && !_reportedGraphicsCall) {
-            if ((object)method.containingType == GraphicsLibrary.Graphics.underlyingNamedType &&
-                _program.compilation.options.outputKind != OutputKind.GraphicsApplication) {
+        if (!_compilation.options.noStdLib && !_reportedGraphicsCall) {
+            if ((object)method.containingType == _compilation.graphicsLibrary.Graphics.underlyingNamedType &&
+                _compilation.options.outputKind != OutputKind.GraphicsApplication) {
                 lock (_diagnostics) {
                     if (!_reportedGraphicsCall) {
                         _diagnostics.Push(Error.Unsupported.GraphicsCall());
