@@ -163,7 +163,7 @@ internal sealed class DiagnosticPass : BoundTreeWalkerWithStackGuard {
         // so its easier to check whether or not they are all marked nothrow
 
         if (node.enumeratorInfo is not null) {
-            _seenPossibleThrowingNode |= !node.enumeratorInfo.disposeMethod.isNoThrow ||
+            _seenPossibleThrowingNode |= !(node.enumeratorInfo.disposeMethod?.isNoThrow ?? true) ||
                                          !node.enumeratorInfo.getCurrentMethod.isNoThrow ||
                                          !node.enumeratorInfo.getEnumeratorMethod.isNoThrow ||
                                          !node.enumeratorInfo.moveNextMethod.isNoThrow;

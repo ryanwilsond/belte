@@ -8521,7 +8521,7 @@ var text = """"""
     [Fact]
     public void Reports_Error_BU0598_MemoizeRequiresPureSpecifier() {
         var text = @"
-            void MyFunc() [memoize] { }
+            static void MyFunc() [memoize] { }
             ;
         ";
 
@@ -9196,4 +9196,74 @@ var text = """"""
 
     //     AssertDiagnostics(text, diagnostics, _writer);
     // }
+
+    [Fact]
+    public void Reports_Error_BU0626_MemoizeRequiresStatic() {
+        var text = @"
+            class A {
+                void M() pure [memoize] { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            methods marked with 'memoize' must be static
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0627_MemoizeDisallowsPointers() {
+        var text = @"
+            class A {
+                static void [M](int* ptr) pure memoize { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            methods marked with 'memoize' cannot have pointer types in their signature
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0628_MemoizeDisallowsRef() {
+        var text = @"
+            class A {
+                static ref int [M]() pure memoize { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            methods marked with 'memoize' cannot have ref parameters or return by-reference
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0629_InlineILInPureContext() {
+        var text = @"
+            void M() pure {
+                [il] {
+                }
+            }
+        ";
+
+        var diagnostics = @"
+            cannot use inline IL inside of a 'pure' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Reports_Error_BU0630_NoTypeDef
+    // ? Requires references
+
+    // ! Reports_Error_BU0631_NoTypeDefFromModule
+    // ? Requires references
 }

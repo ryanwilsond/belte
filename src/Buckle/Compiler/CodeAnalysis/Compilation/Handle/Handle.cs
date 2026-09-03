@@ -1,4 +1,3 @@
-using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;

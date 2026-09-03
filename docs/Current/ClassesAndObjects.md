@@ -492,7 +492,9 @@ invalid casts, etc.) but **does not include corrupted state exceptions** (such a
 Note that `pure` cannot be used on methods that have a [reverse clause](#4222-state-and-reverse-clauses).
 
 Note that `pure` can read from instance data but cannot write to it. As such `pure` implies the
-[method modifier `const`](#434-const).
+[method modifier `const`](#434-const). This means mutations to the underlying object can change the results of the
+`pure` call as the object can be treated as though it was implicitly passed as an argument. To avoid stale cache hits,
+`memoize` cannot be specified on non-static methods.
 
 ### 4.2.3 Operators
 
@@ -1534,7 +1536,7 @@ struct A {
 }
 ```
 
-A [cascade expression](Data.md#3227-xy) can be used to simplify this process:
+A [cascade expression](Data.md#3241-xy) can be used to simplify this process:
 
 ```belte
 var myStruct = new A()

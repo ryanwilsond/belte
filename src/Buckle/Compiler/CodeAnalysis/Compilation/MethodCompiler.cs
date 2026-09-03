@@ -781,6 +781,8 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             state.AddConstructorDefiniteAssignments(method.methodKind == MethodKind.StaticConstructor, assignments);
         }
 
+        loweredBody = PostLoweringOptimization(method, loweredBody);
+
         if (isStateMethod)
             loweredBody = StateMethodRewriter.Merge(_compilation, method, partialTargetBody, loweredBody);
 
@@ -879,6 +881,10 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                 hasErrors: true
             );
         }
+    }
+
+    private BoundBlockStatement PostLoweringOptimization(MethodSymbol method, BoundBlockStatement loweredBody) {
+        return PostLoweringOptimizationPass.Optimize(method, loweredBody);
     }
 
     internal static BoundBlockStatement BindSynthesizedMethodBody(

@@ -23,6 +23,9 @@ internal partial class ConstantValue {
 
 #if DEBUG
         if (value is not null) {
+            if (value is ConstantValue)
+                throw ExceptionUtilities.UnexpectedValue(value);
+
             if (specialType is SpecialType.Nullable or SpecialType.None)
                 throw ExceptionUtilities.UnexpectedValue(specialType);
 

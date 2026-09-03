@@ -2965,4 +2965,21 @@ public sealed class IssueTests {
 
         AssertValue(text, 5);
     }
+
+    [Fact]
+    public void InlineIL_CallCanFindSignature() {
+        var text = @"
+            float64 a = 0;
+
+            il {
+                ldc.r8 3.5;
+                call Math.Sin : (float64);
+                stloc.0;
+            }
+
+            return a;
+        ";
+
+        AssertValue(text, -0.35078322768961984, evaluator: false);
+    }
 }

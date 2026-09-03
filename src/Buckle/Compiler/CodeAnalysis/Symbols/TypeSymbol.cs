@@ -376,7 +376,17 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
     internal bool ContainsErrorType() {
         var result = VisitType(
             (type, unused1, unused2) => type.IsErrorType(),
-            (object?)null,
+            (object)null,
+            canDigThroughNullable: true
+        );
+
+        return result is not null;
+    }
+
+    internal bool ContainsPointerType() {
+        var result = VisitType(
+            (type, unused1, unused2) => type.IsPointerOrFunctionPointer(),
+            (object)null,
             canDigThroughNullable: true
         );
 

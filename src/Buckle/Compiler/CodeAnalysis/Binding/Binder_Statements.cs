@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
@@ -541,6 +542,9 @@ internal partial class Binder {
             hasAnyErrors = true;
         }
 
+        if (flags.Includes(BinderFlags.PureContext))
+            diagnostics.Push(Error.InlineILInPureContext(node.keyword.location));
+
         return new BoundInlineILStatement(node, instructions.ToImmutableAndFree(), hasErrors: hasAnyErrors);
     }
 
@@ -1041,6 +1045,9 @@ internal partial class Binder {
             return (null, null);
         }
 
+        if (opCode.PotentiallyAllocates())
+            ReportDiagnosticsIfNoAllocContext(node, diagnostics);
+
         switch (operandKind) {
             case OperandKind.Token:
             case OperandKind.TypeToken: {
@@ -1078,6 +1085,9 @@ internal partial class Binder {
                         return (null, null);
                     }
 
+                    if (opCode == OpCode.Call)
+                        ReportDiagnosticsIfNoAllocContext(node, diagnostics);
+
                     return (null, constructors.FirstOrDefault());
                 }
             case OperandKind.Field: {
@@ -1109,7 +1119,17 @@ internal partial class Binder {
                         return (null, null);
                     }
 
-                    return (null, methods.FirstOrDefault());
+                    var method = methods.FirstOrDefault();
+
+                    if (method is not null) {
+                        if ((opCode == OpCode.Callvirt || opCode == OpCode.Call) && !method.isNoAlloc)
+                            ReportDiagnosticsIfNoAllocContext(node, diagnostics);
+
+                        if ((opCode == OpCode.Callvirt || opCode == OpCode.Call) && !method.isNoThrow)
+                            ReportDiagnosticsIfNoThrowContext(node, diagnostics);
+                    }
+
+                    return (null, method);
                 }
             case OperandKind.FunctionPointer: {
                     var boundSymbol = BindType(symbol, diagnostics);
@@ -1396,24 +1416,31 @@ internal partial class Binder {
                 false /*!isNonNullable || isNullable*/
             );
 
-            if (initializer is not null && initializer.IsLiteralNull()) {
-                diagnostics.Push(Error.NullAssignOnImplicit(declaration.location));
-                hasErrors = true;
-            }
+            if (initializer is not null) {
+                if (initializer.StrippedType() is ErrorTypeSymbol errorType && errorType.unreported) {
+                    var error = errorType.error;
+                    diagnostics.Push(error);
+                    hasErrors = true;
+                }
 
-            if (initializer is not null && initializer.kind == BoundKind.UnconvertedNullptrExpression) {
-                diagnostics.Push(Error.NullptrNoTargetType(initializer.syntax.location));
-                hasErrors = true;
-            }
+                if (initializer.IsLiteralNull()) {
+                    diagnostics.Push(Error.NullAssignOnImplicit(declaration.location));
+                    hasErrors = true;
+                }
 
-            if (initializer is not null &&
-                initializer.kind == BoundKind.ArrayCreationExpression &&
-                initializer.type is ArrayTypeSymbol arrayType &&
-                // This node means we have something like `new Buffer...` which is obviously intentionally not a fat array
-                // TODO Just need to double check there aren't any other nodes to not "fatify" on
-                initializer.syntax.kind != SyntaxKind.ObjectCreationExpression) {
-                var fatArray = CreateArrayOrFatArray(arrayType.elementTypeWithAnnotations, arrayType.rank, diagnostics);
-                initializer = GenerateConversionForAssignment(fatArray, initializer, diagnostics);
+                if (initializer.kind == BoundKind.UnconvertedNullptrExpression) {
+                    diagnostics.Push(Error.NullptrNoTargetType(initializer.syntax.location));
+                    hasErrors = true;
+                }
+
+                if (initializer.kind == BoundKind.ArrayCreationExpression &&
+                    initializer.type is ArrayTypeSymbol arrayType &&
+                    // This node means we have something like `new Buffer...` which is obviously intentionally not a fat array
+                    // TODO Just need to double check there aren't any other nodes to not "fatify" on
+                    initializer.syntax.kind != SyntaxKind.ObjectCreationExpression) {
+                    var fatArray = CreateArrayOrFatArray(arrayType.elementTypeWithAnnotations, arrayType.rank, diagnostics);
+                    initializer = GenerateConversionForAssignment(fatArray, initializer, diagnostics);
+                }
             }
 
             var initializerType = initializer?.Type();
@@ -1604,11 +1631,30 @@ internal partial class Binder {
             if (lookupResult.isMultiViable) {
                 disposeMethod = lookupResult.symbols.SingleOrDefault(s => s is MethodSymbol m && m.parameterCount == 0)
                     as MethodSymbol;
+
+                Debug.Assert(associatedSyntaxNode?.location is not null); // Use `?? declaration.location` otherwise
+                Debug.Assert(!disposeMethod.isPure);
+
+                if (!disposeMethod.isNoThrow)
+                    ReportDiagnosticsIfNoThrowContext(associatedSyntaxNode, diagnostics);
+
+                if (!disposeMethod.isNoAlloc)
+                    ReportDiagnosticsIfNoAllocContext(associatedSyntaxNode, diagnostics);
+
+                if (flags.Includes(BinderFlags.PureContext)) {
+                    diagnostics.Push(Error.InvalidCallInSpecifierContext(
+                        associatedSyntaxNode.location,
+                        disposeMethod,
+                        "pure"
+                    ));
+                }
             }
 
             if (!lookupResult.isMultiViable || disposeMethod is null) {
+                Debug.Assert(associatedSyntaxNode?.location is not null); // Use `?? declaration.location` otherwise
+
                 diagnostics.Push(Error.ScopedWithoutDispose(
-                    associatedSyntaxNode?.location ?? declaration.location,
+                    associatedSyntaxNode.location,
                     stripped
                 ));
             }

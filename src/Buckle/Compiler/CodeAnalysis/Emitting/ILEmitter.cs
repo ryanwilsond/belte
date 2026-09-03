@@ -1121,6 +1121,11 @@ internal partial class ILEmitter : ModuleBuilder {
         // We also check that this isn't the CorLibrary because in that case we want to refer to the actual definitions
         // in this module, not the .NET ones
 
+        // TODO Necessary?
+        // if (_compilation.GetWellKnownType(WellKnownType.System_Exception) is SourceNamedTypeSymbol exception) {
+        //     _types.Add(exception, Resolve(ImportType("System.Exception")));
+        // }
+
         if (_compilation.corLibrary.HasWellKnownType(WellKnownType.ValueTuple_T1) &&
             !_topLevelTypes.Contains(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T1))) {
             _types.Add(

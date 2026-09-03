@@ -3065,6 +3065,36 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_ConditionalOnNonAttributeClass, location, message);
     }
 
+    internal static BelteDiagnostic MemoizeRequiresStatic(TextLocation location) {
+        var message = $"methods marked with 'memoize' must be static";
+        return CreateError(DiagnosticCode.ERR_MemoizeRequiresStatic, location, message);
+    }
+
+    internal static BelteDiagnostic MemoizeDisallowsPointers(TextLocation location) {
+        var message = $"methods marked with 'memoize' cannot have pointer types in their signature";
+        return CreateError(DiagnosticCode.ERR_MemoizeDisallowsPointers, location, message);
+    }
+
+    internal static BelteDiagnostic MemoizeDisallowsRef(TextLocation location) {
+        var message = $"methods marked with 'memoize' cannot have ref parameters or return by-reference";
+        return CreateError(DiagnosticCode.ERR_MemoizeDisallowsRef, location, message);
+    }
+
+    internal static BelteDiagnostic InlineILInPureContext(TextLocation location) {
+        var message = $"cannot use inline IL inside of a 'pure' context";
+        return CreateError(DiagnosticCode.ERR_InlineILInPureContext, location, message);
+    }
+
+    internal static BelteDiagnostic NoTypeDef(TypeSymbol type, AssemblySymbol assembly) {
+        var message = $"the type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is defined in an assembly that is not referenced; you must add a reference to assembly '{assembly}'";
+        return CreateError(DiagnosticCode.ERR_NoTypeDef, null, message);
+    }
+
+    internal static BelteDiagnostic NoTypeDefFromModule(TypeSymbol type, string name) {
+        var message = $"the type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is defined in a module that has not been added; you must add the module '{name}'";
+        return CreateError(DiagnosticCode.ERR_NoTypeDefFromModule, null, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

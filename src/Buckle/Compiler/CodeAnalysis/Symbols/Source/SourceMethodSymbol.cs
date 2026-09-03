@@ -147,6 +147,10 @@ internal abstract partial class SourceMethodSymbol : MethodSymbol, IAttributeTar
 
             switch (specifier) {
                 case BehaviorSpecifiers.Memoize:
+                    if (!isStatic)
+                        diagnostics.Push(Error.MemoizeRequiresStatic(specifierToken.location));
+
+                    goto case BehaviorSpecifiers.Pure;
                 case BehaviorSpecifiers.Pure:
                     if (methodKind is MethodKind.Constructor or MethodKind.Destructor or MethodKind.Finalizer)
                         diagnostics.Push(Error.InvalidBehaviorSpecifier(specifierToken.location, specifierToken));

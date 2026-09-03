@@ -1320,12 +1320,36 @@ oneMoreTime:
                 }
             }
 
-            _builder.Emit(opCode);
-
             if (constant is not null) {
-                var type = _compilation.GetSpecialType(constant.specialType);
-                EmitConstantValue(constant, type);
+                if (opCode.RequiresValue()) {
+                    switch (constant.specialType) {
+                        case SpecialType.Int:
+                        case SpecialType.Int64:
+                            _builder.Emit(opCode, (long)constant.value);
+                            break;
+                        case SpecialType.Int32:
+                            _builder.Emit(opCode, (int)constant.value);
+                            break;
+                        case SpecialType.Float32:
+                            _builder.Emit(opCode, (float)constant.value);
+                            break;
+                        case SpecialType.Decimal:
+                        case SpecialType.Float64:
+                            _builder.Emit(opCode, (double)constant.value);
+                            break;
+                        default:
+                            throw ExceptionUtilities.UnexpectedValue(constant.specialType);
+                    }
+                } else {
+                    _builder.Emit(opCode);
+                    var type = _compilation.GetSpecialType(constant.specialType);
+                    EmitConstantValue(constant, type);
+                }
+
+                continue;
             }
+
+            _builder.Emit(opCode);
         }
     }
 
@@ -2267,7 +2291,7 @@ oneMoreTime:
                 var constantValue = LiteralUtilities.TryGetDefaultValue(type);
 
                 if (constantValue is not null) {
-                    EmitConstantValue(new ConstantValue(constantValue, type.specialType), type);
+                    EmitConstantValue(constantValue, type);
                     return;
                 }
             }

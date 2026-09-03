@@ -981,7 +981,10 @@ internal sealed partial class Executor : ModuleBuilder {
 
             if (_bakedTypes.ContainsKey(type)) {
                 Debug.Assert(WellKnownTypes.GetTypeFromMetadataName(type) != WellKnownType.None ||
-                    result.Contains(type));
+                    result.Contains(type) ||
+                    // Special case
+                    type.metadataName == "Exception"
+                );
 
                 return;
             }
@@ -1002,6 +1005,11 @@ internal sealed partial class Executor : ModuleBuilder {
 
     private void CompleteWellKnownTypes() {
         var existingWellKnownTypes = new List<WellKnownType>();
+
+        if (_compilation.GetWellKnownType(WellKnownType.System_Exception) is SourceNamedTypeSymbol exception) {
+            _bakedTypes.Add(exception, typeof(Exception));
+            existingWellKnownTypes.Add(WellKnownType.System_Exception);
+        }
 
         if (_compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Sprite) is not MissingMetadataTypeSymbol &&
             !_topLevelTypes.Contains(_compilation.GetWellKnownType(WellKnownType.Belte_Graphics_Sprite))) {
@@ -1349,6 +1357,9 @@ internal sealed partial class Executor : ModuleBuilder {
 
             return;
         }
+
+        if (_bakedTypes.ContainsKey(type))
+            return;
 
         var typeBuilder = _types[type.originalDefinition];
         var isAnonymousUnion = type is AnonymousUnionType;

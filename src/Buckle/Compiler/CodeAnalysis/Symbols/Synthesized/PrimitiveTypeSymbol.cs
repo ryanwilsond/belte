@@ -99,7 +99,7 @@ internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
     internal override bool isImplicitlyDeclared => true;
 
     internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {
-        throw new InvalidOperationException();
+        return baseType;
     }
 
     internal override ImmutableArray<NamedTypeSymbol> GetDeclaredInterfaces(ConsList<TypeSymbol> basesBeingResolved) {

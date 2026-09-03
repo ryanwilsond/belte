@@ -100,6 +100,8 @@ internal abstract class SourceOrdinaryMethodOrUserDefinedOperatorSymbol : Source
 
         CheckEffectiveAccessibility(_lazyReturnType, _lazyParameters, diagnostics);
 
+        CheckSpecifiers(diagnostics);
+
         // TODO Warn if explicitly defining a destructor or finalizer signature?
 
         MethodSymbol overriddenOrExplicitlyImplementedMethod = null;
@@ -131,6 +133,26 @@ internal abstract class SourceOrdinaryMethodOrUserDefinedOperatorSymbol : Source
         }
 
         return overriddenOrExplicitlyImplementedMethod;
+    }
+
+    private void CheckSpecifiers(BelteDiagnosticQueue diagnostics) {
+        if (isPure && isStatic && shouldMemoizeIfPure) {
+            if (returnType.ContainsPointerType()) {
+                diagnostics.Push(Error.MemoizeDisallowsPointers(location));
+            } else if (returnsByRef) {
+                diagnostics.Push(Error.MemoizeDisallowsRef(location));
+            } else {
+                foreach (var parameter in parameters) {
+                    if (parameter.type.ContainsPointerType()) {
+                        diagnostics.Push(Error.MemoizeDisallowsPointers(location));
+                        break;
+                    } else if (parameter.refKind != RefKind.None) {
+                        diagnostics.Push(Error.MemoizeDisallowsRef(location));
+                        break;
+                    }
+                }
+            }
+        }
     }
 
     private protected ImmutableArray<TemplateParameterSymbol> MakeTemplateParameters(

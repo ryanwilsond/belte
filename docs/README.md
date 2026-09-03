@@ -51,6 +51,7 @@
       - [2.1.5](Current/ControlFlow.md#215-template-arguments) Template Arguments
       - [2.1.6](Current/ControlFlow.md#216-ref-arguments) Ref Arguments
         - [2.1.6.1](Current/ControlFlow.md#2161-out-arguments) Out Arguments
+      - [2.1.7](Current/ControlFlow.md#217-argument-coercion) Argument Coercion
     - [2.2](Current/ControlFlow.md#22-entry-point) Entry Point
       - [2.2.1](Current/ControlFlow.md#221-main) Main
       - [2.2.2](Current/ControlFlow.md#222-program-and-update) Program And Update
@@ -92,17 +93,21 @@
         - [3.1.6.1](Current/Data.md#3161-user-defined-deconstruction) User-Defined Deconstruction
     - [3.2](Current/Data.md#32-operators) Operators
       - [3.2.1](Current/Data.md#321-operator-precedence) Operator Precedence
-      - [3.2.2](Current/Data.md#322-uncommon-operators) Uncommon Operators
+      - [3.2.2](Current/Data.md#322-nullability-operators) Nullability Operators
         - [3.2.2.1](Current/Data.md#3221-x) `x!`
         - [3.2.2.2](Current/Data.md#3222-x) `x?`
         - [3.2.2.3](Current/Data.md#3223-ai) `a?[i]`
         - [3.2.2.4](Current/Data.md#3224-xy) `x?.y`
         - [3.2.2.5](Current/Data.md#3225-x--y) `x ?? y`
         - [3.2.2.6](Current/Data.md#3226-x--y) `x ?! y`
-        - [3.2.2.7](Current/Data.md#3227-xy) `x..y`
-        - [3.2.2.8](Current/Data.md#3228-xy) `x?..y`
-        - [3.2.2.9](Current/Data.md#3229-x) `x!!`
+        - [3.2.2.7](Current/Data.md#3227-x) `x!!`
       - [3.2.3](Current/Data.md#323-isisntas-operators) Is/Isnt/As Operators
+      - [3.2.4](Current/Data.md#324-uncommon-operators) Uncommon Operators
+        - [3.2.4.1](Current/Data.md#3241-xy) `x..y`
+        - [3.2.4.2](Current/Data.md#3242-xy) `x?..y`
+        - [3.2.4.3](Current/Data.md#3243-x--y) `x /\ y`
+        - [3.2.4.4](Current/Data.md#3244-x--y) `x \/ y`
+        - [3.2.4.5](Current/Data.md#3245-x--y-z) `x >< [y, z]`
     - [3.3](Current/Data.md#33-data-containers) Data Containers
       - [3.3.1](Current/Data.md#331-modifiers) Modifiers
       - [3.3.1](Current/Data.md#332-implicit-typing) Implicit Typing
@@ -111,7 +116,7 @@
     - [3.6](Current/Data.md#36-arrays) Arrays
     - [3.7](Current/Data.md#37-compile-time-expressions) Compile-Time Expressions
       - [3.7.1](Current/Data.md#371-examples) Examples
-      - [3.7.2](Current/Data.md#372-side-effects) Side Effects
+      - [3.7.2](Current/Data.md#372-conditional-compile-time-expressions) Conditional Compile-Time Expressions
   - [4](Current/ClassesAndObjects.md) Namespaces, Classes, and Objects
     - [4.1](Current/ClassesAndObjects.md#41-classes) Classes
       - [4.1.1](Current/ClassesAndObjects.md#411-declaring-and-using-classes) Declaring And Using Classes

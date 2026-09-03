@@ -134,7 +134,8 @@ internal sealed class ForEachLoopBinder : LoopBinder {
             diagnostics
         );
 
-        var enumeratorType = getEnumeratorMethod.returnType;
+        Debug.Assert(getEnumeratorMethod is not null || diagnostics.AnyErrors());
+        var enumeratorType = getEnumeratorMethod?.returnType?.StrippedType();
 
         var moveNextMethod = FindForEachMethod(
             syntax,
@@ -159,7 +160,7 @@ internal sealed class ForEachLoopBinder : LoopBinder {
             collectionSyntax,
             enumeratorType,
             WellKnownMemberNames.Dispose,
-            false,
+            true,
             diagnostics
         );
 
@@ -292,14 +293,22 @@ internal sealed class ForEachLoopBinder : LoopBinder {
                 // Debug.Assert(argsToParams.IsDefault);
                 // info = new MethodArgumentInfo(result, analyzedArguments.Arguments.ToImmutable(), defaultArguments, expanded);
             }
+        } else {
+            var memberGroup = candidateMethods.ToImmutable();
+
+            overloadResolutionResult.ReportDiagnostics(
+                binder: this,
+                location: syntax.location,
+                node: syntax,
+                diagnostics: diagnostics,
+                name: candidateMethods[0].name,
+                receiver: null,
+                invokedExpression: null,
+                arguments: analyzedArguments,
+                memberGroup: memberGroup,
+                typeContainingConstructor: null
+            );
         }
-        // else if (overloadResolutionResult.GetAllApplicableMembers() is var applicableMembers &&
-        //     applicableMembers.Length > 1) {
-        //     if (warningsOnly) {
-        // diagnostics.Add(ErrorCode.WRN_PatternIsAmbiguous, collectionSyntax.Location, patternType, MessageID.IDS_Collection.Localize(),
-        //     applicableMembers[0], applicableMembers[1]);
-        //     }
-        // }
 
         overloadResolutionResult.Free();
         analyzedArguments.Free();

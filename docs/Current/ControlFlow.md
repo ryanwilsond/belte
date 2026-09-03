@@ -8,6 +8,7 @@
   - [2.1.5](#215-template-arguments) Template Arguments
   - [2.1.6](#216-ref-arguments) Ref Arguments
     - [2.1.6.1](#2161-out-arguments) Out Arguments
+  - [2.1.7](#217-argument-coercion) Argument Coercion
 - [2.2](#22-entry-point) Entry Point
   - [2.2.1](#221-main) Main
   - [2.2.2](#222-program-and-update) Program And Update
@@ -234,6 +235,30 @@ void Func(out int a) {
   // ...
 }
 ```
+
+### 2.1.7 Argument Coercion
+
+Argument coercion is not meant for ordinary use, but because it can potentially affect overload resolution, it is
+important to understand how it works.
+
+Normally, passing arguments uses normal casting rules. By using the `implicit` keyword between the parameter list and
+body, explicit casts from arguments to parameters will be treated as though they were implicit:
+
+```belte
+F(3.3); // Explicit decimal -> int cast not needed
+
+void F(int a) implicit { }
+```
+
+Without the `implicit` keyword, the call in the above example would have to be written:
+
+```belte
+F((int)3.3);
+
+void F(int a) { }
+```
+
+The `implicit` keyword must be placed before any [behavior specifiers](ClassesAndObjects.md#4223-behavior-specifiers).
 
 ## 2.2 Entry Point
 

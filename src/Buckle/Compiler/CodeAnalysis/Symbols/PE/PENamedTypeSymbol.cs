@@ -453,6 +453,12 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
                     ).type;
 
                     var namedTypeSymbol = typeSymbol as NamedTypeSymbol ?? new UnsupportedMetadataTypeSymbol();
+
+                    if (namedTypeSymbol.isReferenceType) {
+                        namedTypeSymbol = namedTypeSymbol.StrippedType() as NamedTypeSymbol
+                            ?? new UnsupportedMetadataTypeSymbol();
+                    }
+
                     symbols.Add(namedTypeSymbol);
                 }
 

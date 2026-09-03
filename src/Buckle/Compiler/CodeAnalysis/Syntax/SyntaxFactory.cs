@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using Buckle.CodeAnalysis.Syntax.InternalSyntax;
 using Buckle.CodeAnalysis.Text;
-using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Syntax;
 

@@ -451,6 +451,7 @@ public sealed class EvaluatorTests {
     [InlineData("struct A { public int a; } A? a; a = new A(); return a!.a;", 0)]
     [InlineData("struct A { public int a; } A? a; return a?.a;", null)]
     [InlineData("class A { public int a = default; } A? a; return a?.a;", null)]
+    [InlineData("class A { public int a = 0; public int b = 3; public int c = 0; } A a = new(); return a.b;", 3)]
     // This expression
     [InlineData("class A { public int? a; public void SetA(int? a) { this.a = 1; this.a = a; } public int? GetA() { return a; } } var myA = new A(); myA.SetA(3); return myA.GetA();", 3)]
     [InlineData("class A { public int? a; public void SetA(int? a) { this.a = 1; a = a; } public int? GetA() { return a; } } var myA = new A(); myA.SetA(3); return myA.GetA();", 1)]
@@ -643,6 +644,22 @@ public sealed class EvaluatorTests {
         }
         with (A.M(3)) ;
         return A.s;", 30)]
+    [InlineData(@"
+        int a = 0;
+        try {
+            with (a = 10) {
+                throw new System.Exception();
+            }
+        } catch { }
+        return a;", 10)]
+    [InlineData(@"
+        int a = 0;
+        try {
+            with (a = 10) try {
+                throw new System.Exception();
+            }
+        } catch { }
+        return a;", 0)]
     // Compile-time expressions
     [InlineData("int a = $3; return a;", 3)]
     [InlineData("constexpr int? a = 3; int b = $a?; return b;", 3)]
@@ -981,6 +998,21 @@ public sealed class EvaluatorTests {
         defer a = 1;
         defer a = 2;
         return a;", 0)]
+    [InlineData(@"
+        int M(out int a) {
+            a = 3;
+            defer a = 6;
+            return a;
+        }
+        return M(out _);", 3)]
+    [InlineData(@"
+        int M(out int a) {
+            a = 3;
+            defer a = 6;
+            return a;
+        }
+        M(out var a);
+        return a;", 6)]
     // Scoped statements
     [InlineData(@"
         class A {

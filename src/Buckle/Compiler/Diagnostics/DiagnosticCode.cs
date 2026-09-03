@@ -634,6 +634,12 @@ public enum DiagnosticCode : ushort {
     ERR_ConditionalWithOutParam = 623,
     ERR_ConditionalOnLocalFunction = 624,
     ERR_ConditionalOnNonAttributeClass = 625,
+    ERR_MemoizeRequiresStatic = 626,
+    ERR_MemoizeDisallowsPointers = 627,
+    ERR_MemoizeDisallowsRef = 628,
+    ERR_InlineILInPureContext = 629,
+    ERR_NoTypeDef = 630,
+    ERR_NoTypeDefFromModule = 631,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

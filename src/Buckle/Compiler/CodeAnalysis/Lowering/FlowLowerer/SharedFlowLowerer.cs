@@ -405,7 +405,13 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
 
         var condition = InstanceCall(syntax, Local(syntax, iter), enumeratorInfo.moveNextMethod);
         var indexer = InstanceCall(syntax, Local(syntax, iter), enumeratorInfo.getCurrentMethod);
-        var dispose = InstanceCall(syntax, Local(syntax, iter), enumeratorInfo.disposeMethod);
+
+        BoundStatement deferDispose = enumeratorInfo.disposeMethod is null
+            ? new BoundNopStatement(syntax)
+            : new BoundDeferStatement(
+                syntax,
+                Statement(syntax, InstanceCall(syntax, Local(syntax, iter), enumeratorInfo.disposeMethod))
+              );
 
         return Visit(Block(syntax, node.locals, [
             LocalDeclaration(syntax, temp, node.expression.Type().IsNullableType()
@@ -413,7 +419,7 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
                     : node.expression),
             LocalDeclaration(syntax, iter, iterInit),
             LocalDeclaration(syntax, index, Literal(_compilation, syntax, 0L, index.type)),
-            new BoundDeferStatement(syntax, Statement(syntax, dispose)),
+            deferDispose,
             new BoundForStatement(syntax,
                 [],
                 new BoundNopStatement(syntax),
