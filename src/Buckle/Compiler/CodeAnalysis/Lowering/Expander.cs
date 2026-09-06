@@ -2347,6 +2347,19 @@ internal sealed class Expander : SharedExpander {
                         newReceiver = arrayLength.Update(currentReceiver, arrayLength.type);
                         return [];
                     }
+                case BoundKind.PropertyAccessExpression: {
+                        var propertyAccess = (BoundPropertyAccessExpression)access;
+
+                        newReceiver = propertyAccess.Update(
+                            currentReceiver,
+                            propertyAccess.property,
+                            propertyAccess.autoPropertyAccessorKind,
+                            propertyAccess.resultKind,
+                            propertyAccess.type
+                        );
+
+                        return [];
+                    }
                 default:
                     throw ExceptionUtilities.UnexpectedValue(access.kind);
             }
@@ -2480,6 +2493,8 @@ internal sealed class Expander : SharedExpander {
             );
         } else if (access is BoundArrayLength l) {
             trueExpression = l.Update(newReceiver, l.type);
+        } else if (access is BoundPropertyAccessExpression p) {
+            trueExpression = p.Update(newReceiver, p.property, p.autoPropertyAccessorKind, p.resultKind, p.type);
         } else {
             throw ExceptionUtilities.Unreachable();
         }

@@ -114,6 +114,7 @@ internal static class AccessCheck {
                 return true;
             case SymbolKind.Field:
             case SymbolKind.Method:
+            case SymbolKind.Property:
                 if (!symbol.RequiresInstanceReceiver())
                     throughType = null;
 
@@ -347,6 +348,7 @@ internal static class AccessCheck {
             case SymbolKind.NamedType:
             case SymbolKind.Field:
             case SymbolKind.Method:
+            case SymbolKind.Property:
                 break;
             case SymbolKind.TemplateParameter:
                 symbol = symbol.containingSymbol;

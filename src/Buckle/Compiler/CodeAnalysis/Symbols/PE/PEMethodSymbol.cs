@@ -27,6 +27,7 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
     private int _lazyIsNoThrow;
     private int _lazyIsNoAlloc;
     private int _lazyIsConst;
+    private Symbol _associatedPropertyOrEventOpt;
 
     internal PEMethodSymbol(
         PEModuleSymbol moduleSymbol,
@@ -95,6 +96,8 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
 
     public override ImmutableArray<TypeOrConstant> templateArguments
         => isTemplateMethod ? GetTemplateParametersAsTemplateArguments() : [];
+
+    public override Symbol associatedSymbol => _associatedPropertyOrEventOpt;
 
     internal override Symbol containingSymbol => _containingType;
 
@@ -812,5 +815,30 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
 
     internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
         throw ExceptionUtilities.Unreachable();
+    }
+
+    internal bool SetAssociatedProperty(PEPropertySymbol propertySymbol, MethodKind methodKind) {
+        Debug.Assert((methodKind == MethodKind.PropertyGet) || (methodKind == MethodKind.PropertySet));
+        return SetAssociatedPropertyOrEvent(propertySymbol, methodKind);
+    }
+
+    private bool SetAssociatedPropertyOrEvent(Symbol propertyOrEventSymbol, MethodKind methodKind) {
+        if (_associatedPropertyOrEventOpt is null) {
+            Debug.Assert(TypeSymbol.Equals(propertyOrEventSymbol.containingType, _containingType, TypeCompareKind.ConsiderEverything));
+
+            _associatedPropertyOrEventOpt = propertyOrEventSymbol;
+
+            Debug.Assert(
+                _packedFlags.methodKind == default ||
+                _packedFlags.methodKind == MethodKind.Ordinary ||
+                _packedFlags.methodKind == MethodKind.ExplicitInterfaceImplementation
+            );
+
+            _packedFlags.methodKind = methodKind;
+
+            return true;
+        }
+
+        return false;
     }
 }

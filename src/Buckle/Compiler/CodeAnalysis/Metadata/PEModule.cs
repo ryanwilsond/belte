@@ -1071,6 +1071,27 @@ internal sealed partial class PEModule : IDisposable {
         flags = fieldRow.Attributes;
     }
 
+    internal BlobHandle GetPropertySignatureOrThrow(PropertyDefinitionHandle propertyDef) {
+        return metadataReader.GetPropertyDefinition(propertyDef).Signature;
+    }
+
+    internal void GetPropertyDefPropsOrThrow(
+        PropertyDefinitionHandle propertyDef,
+        out string name,
+        out PropertyAttributes flags) {
+        var property = metadataReader.GetPropertyDefinition(propertyDef);
+        name = metadataReader.GetString(property.Name);
+        flags = property.Attributes;
+    }
+
+    internal PropertyDefinitionHandleCollection GetPropertiesOfTypeOrThrow(TypeDefinitionHandle typeDef) {
+        return metadataReader.GetTypeDefinition(typeDef).GetProperties();
+    }
+
+    internal PropertyAccessors GetPropertyMethodsOrThrow(PropertyDefinitionHandle propertyDef) {
+        return metadataReader.GetPropertyDefinition(propertyDef).GetAccessors();
+    }
+
     internal bool HasFixedBufferAttribute(EntityHandle token, out string elementTypeName, out int bufferSize) {
         return HasStringAndIntValuedAttribute(token, AttributeDescription.FixedBufferAttribute, out elementTypeName, out bufferSize);
     }

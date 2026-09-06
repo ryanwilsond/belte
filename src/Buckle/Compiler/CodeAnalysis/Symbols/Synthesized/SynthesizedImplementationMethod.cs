@@ -37,6 +37,8 @@ internal abstract class SynthesizedImplementationMethod : SynthesizedMethodSymbo
 
     public sealed override bool returnsVoid => _interfaceMethod.returnsVoid;
 
+    public override Symbol associatedSymbol => null;
+
     internal sealed override CallingConvention callingConvention => _interfaceMethod.callingConvention;
 
     public sealed override ImmutableArray<TemplateParameterSymbol> templateParameters => _typeParameters;

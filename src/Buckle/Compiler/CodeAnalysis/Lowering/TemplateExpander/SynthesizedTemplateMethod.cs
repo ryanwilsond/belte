@@ -142,6 +142,13 @@ internal sealed class SynthesizedTemplateMethod : WrappedMethodSymbol, ISynthesi
 
     internal ConstructedMethodSymbol unexpandedSymbol => _originalMethod;
 
+    public sealed override Symbol associatedSymbol {
+        get {
+            var underlying = originalDefinition.associatedSymbol;
+            return underlying?.SymbolAsMember(containingType);
+        }
+    }
+
     internal Dictionary<TemplateParameterSymbol, TemplateParameterSymbol> replacementTemplateParameters
         => _replacementTemplateParameters;
 

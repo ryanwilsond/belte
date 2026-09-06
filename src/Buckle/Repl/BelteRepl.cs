@@ -549,6 +549,8 @@ public sealed partial class BelteRepl : Repl {
         return EvaluatorValue.Format(evaluatorValue, state.context);
     }
 
+    #region Commands
+
     [MetaCommand("showTree", "Toggle display of the parse tree")]
     private void EvaluateShowTree() {
         state.showTree = !state.showTree;
@@ -1179,4 +1181,6 @@ public sealed partial class BelteRepl : Repl {
         state.showCS = !state.showCS;
         writer.WriteLine(state.showCS ? "C# visible" : "C# hidden");
     }
+
+    #endregion
 }

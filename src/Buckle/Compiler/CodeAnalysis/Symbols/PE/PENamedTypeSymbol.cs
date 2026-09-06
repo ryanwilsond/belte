@@ -746,6 +746,8 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
                         nonFieldMembers.Insert(0, new SynthesizedInstanceConstructorSymbol(this));
                 }
 
+                CreateProperties(methodHandleToSymbol, nonFieldMembers);
+
                 foreach (var field in fieldMembers)
                     members.Add(field);
 
@@ -894,6 +896,38 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
         } catch (BadImageFormatException) { }
 
         return privateFieldNameToSymbols;
+    }
+
+    private void CreateProperties(Dictionary<MethodDefinitionHandle, PEMethodSymbol> methodHandleToSymbol, ArrayBuilder<Symbol> members) {
+        var moduleSymbol = containingPEModule;
+        var module = moduleSymbol.module;
+
+        try {
+            foreach (var propertyDef in module.GetPropertiesOfTypeOrThrow(_handle)) {
+                try {
+                    var methods = module.GetPropertyMethodsOrThrow(propertyDef);
+
+                    var getMethod = GetAccessorMethod(module, methodHandleToSymbol, _handle, methods.Getter);
+                    var setMethod = GetAccessorMethod(module, methodHandleToSymbol, _handle, methods.Setter);
+
+                    if (getMethod is not null || setMethod is not null)
+                        members.Add(PEPropertySymbol.Create(moduleSymbol, this, propertyDef, getMethod, setMethod));
+                } catch (BadImageFormatException) { }
+            }
+        } catch (BadImageFormatException) { }
+    }
+
+    private PEMethodSymbol GetAccessorMethod(
+        PEModule module,
+        Dictionary<MethodDefinitionHandle, PEMethodSymbol> methodHandleToSymbol,
+        TypeDefinitionHandle typeDef,
+        MethodDefinitionHandle methodDef) {
+        if (methodDef.IsNil)
+            return null;
+
+        var found = methodHandleToSymbol.TryGetValue(methodDef, out var method);
+        Debug.Assert(found || !module.ShouldImportMethod(typeDef, methodDef, containingPEModule.importOptions));
+        return method;
     }
 
     private PooledDictionary<MethodDefinitionHandle, PEMethodSymbol> CreateMethods(ArrayBuilder<Symbol> members) {

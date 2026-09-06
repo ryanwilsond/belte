@@ -598,6 +598,14 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                     }
 
                     break;
+                case PropertySymbol p:
+                    // TODO Properties
+                    // var sourceProperty = member as SourcePropertySymbolBase;
+                    // if ((object)sourceProperty != null && sourceProperty.IsSealed && compilationState.Emitting) {
+                    //     CompileSynthesizedSealedAccessors(sourceProperty, compilationState);
+                    // }
+                    break;
+
             }
         }
 

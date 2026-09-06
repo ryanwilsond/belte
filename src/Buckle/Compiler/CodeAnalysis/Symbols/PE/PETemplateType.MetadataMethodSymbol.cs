@@ -126,6 +126,9 @@ internal sealed partial class PETemplateType {
             }
         }
 
+        // TODO
+        public sealed override Symbol associatedSymbol => null;
+
         internal override Symbol containingSymbol => _containingType;
 
         internal override NamedTypeSymbol containingType => _containingType;

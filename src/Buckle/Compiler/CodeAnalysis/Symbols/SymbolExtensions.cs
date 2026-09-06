@@ -30,6 +30,7 @@ internal static class SymbolExtensions {
             SymbolKind.Field => ((FieldSymbol)s).AsMember(newOwner),
             SymbolKind.Method => ((MethodSymbol)s).AsMember(newOwner),
             SymbolKind.NamedType => ((NamedTypeSymbol)s).AsMember(newOwner),
+            SymbolKind.Property => ((PropertySymbol)s).AsMember(newOwner),
             _ => throw ExceptionUtilities.UnexpectedValue(s.kind),
         };
     }

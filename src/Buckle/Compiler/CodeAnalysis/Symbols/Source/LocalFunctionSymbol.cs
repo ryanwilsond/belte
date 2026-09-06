@@ -56,6 +56,8 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
 
     public override ImmutableArray<TypeOrConstant> templateArguments => GetTemplateParametersAsTemplateArguments();
 
+    public override Symbol associatedSymbol => null;
+
     // TODO this should be something
     public override ImmutableArray<BoundExpression> templateConstraints => [];
 

@@ -329,6 +329,14 @@ internal sealed partial class TemplateMetadataWriter {
             throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
 
+        internal override BoundNode VisitPropertyGroup(BoundPropertyGroup node) {
+            throw ExceptionUtilities.UnexpectedValue(node.kind);
+        }
+
+        internal override BoundNode VisitPropertyAccessExpression(BoundPropertyAccessExpression node) {
+            throw ExceptionUtilities.UnexpectedValue(node.kind);
+        }
+
         internal override BoundNode VisitThrowExpression(BoundThrowExpression node) {
             _writer.Write((byte)BoundKind.ThrowExpression);
             return base.VisitThrowExpression(node);

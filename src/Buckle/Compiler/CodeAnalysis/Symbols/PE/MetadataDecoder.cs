@@ -1007,6 +1007,36 @@ tryAgain:
         return paramInfo;
     }
 
+    internal ParamInfo<TypeSymbol>[] GetSignatureForProperty(
+        PropertyDefinitionHandle handle,
+        out SignatureHeader signatureHeader,
+        out BadImageFormatException badImageFormatException) {
+        ParamInfo<TypeSymbol>[] paramInfo = null;
+        signatureHeader = default;
+
+        try {
+            var signature = module.GetPropertySignatureOrThrow(handle);
+            var signatureReader = DecodeSignatureHeaderOrThrow(signature, out signatureHeader);
+
+            paramInfo = DecodeSignatureParametersOrThrow(
+                ref signatureReader,
+                signatureHeader,
+                out var typeParameterCount
+            );
+
+            badImageFormatException = null;
+        } catch (BadImageFormatException mrEx) {
+            badImageFormatException = mrEx;
+
+            if (paramInfo is null) {
+                paramInfo = new ParamInfo<TypeSymbol>[1];
+                paramInfo[0].type = GetUnsupportedMetadataTypeSymbol(mrEx);
+            }
+        }
+
+        return paramInfo;
+    }
+
     private protected ParamInfo<TypeSymbol>[] DecodeSignatureParametersOrThrow(
         ref BlobReader signatureReader,
         SignatureHeader signatureHeader,
@@ -1612,5 +1642,37 @@ tryAgain:
         return type == HandleKind.MethodDefinition
             ? FindMethodSymbolInType(container, (MethodDefinitionHandle)memberToken)
             : GetMethodSymbolForMemberRef((MemberReferenceHandle)memberToken, container);
+    }
+
+    internal bool DoPropertySignaturesMatch(
+        ParamInfo<TypeSymbol>[] signature1,
+        ParamInfo<TypeSymbol>[] signature2,
+        bool comparingToSetter,
+        bool compareParamByRef,
+        bool compareReturnType) {
+        var additionalParamCount = comparingToSetter ? 1 : 0;
+
+        if ((signature2.Length - additionalParamCount) != signature1.Length)
+            return false;
+
+        if (comparingToSetter && signature2[0].type.specialType != SpecialType.Void)
+            return false;
+
+        for (var paramIndex1 = compareReturnType ? 0 : 1; paramIndex1 < signature1.Length; paramIndex1++) {
+            var paramIndex2 = ((paramIndex1 == 0) && comparingToSetter)
+                ? signature1.Length
+                : paramIndex1;
+
+            var param1 = signature1[paramIndex1];
+            var param2 = signature2[paramIndex2];
+
+            if (compareParamByRef && (param2.isByRef != param1.isByRef))
+                return false;
+
+            if (!param2.type.Equals(param1.type, TypeCompareKind.ConsiderEverything))
+                return false;
+        }
+
+        return true;
     }
 }

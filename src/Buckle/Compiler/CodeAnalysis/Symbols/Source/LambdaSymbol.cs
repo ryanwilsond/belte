@@ -48,6 +48,8 @@ internal sealed class LambdaSymbol : SourceMethodSymbol {
 
     public override MethodKind methodKind => MethodKind.AnonymousFunction;
 
+    public override Symbol associatedSymbol => null;
+
     internal override bool isExtern => false;
 
     internal override bool isSealed => false;

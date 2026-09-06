@@ -26,6 +26,8 @@ internal class SynthesizedInstanceConstructorSymbol : SynthesizedInstanceMethodS
 
     public override int arity => 0;
 
+    public override Symbol associatedSymbol => null;
+
     internal override TypeWithAnnotations returnTypeWithAnnotations
         => new TypeWithAnnotations(containingAssembly.corLibrary.GetSpecialType(SpecialType.Void));
 

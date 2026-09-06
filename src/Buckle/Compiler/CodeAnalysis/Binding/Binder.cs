@@ -3621,7 +3621,9 @@ internal partial class Binder {
         var operandType = operand.Type();
 
         if (!operandType.IsNullableType() && operand.kind != BoundKind.ObjectCreationExpression) {
-            diagnostics.Push(Error.NullAssertOnNonNullableType(node.location, operandType));
+            if (!operandType.IsErrorType())
+                diagnostics.Push(Error.NullAssertOnNonNullableType(node.location, operandType));
+
             return new BoundNullAssertOperator(node, operand, true, null, operandType, true);
         }
 
@@ -6910,6 +6912,10 @@ symIsHidden:;
                 error = Error.MemberIsInaccessible(errorLocation, symbol);
 
             return LookupResult.Inaccessible(symbol, error);
+        } else if (unwrappedSymbol.MustCallMethodsDirectly()) {
+            error = diagnose ? MakeCallMethodsDirectlyDiagnostic(unwrappedSymbol) : null;
+            throw ExceptionUtilities.Unreachable();
+            // return LookupResult.NotReferencable(symbol, error);
         } else if ((options & LookupOptions.MustBeInstance) != 0 && !IsInstance(unwrappedSymbol)) {
             error = Error.InstanceRequired(errorLocation, symbol);
             return LookupResult.StaticInstanceMismatch(symbol, error);
@@ -6922,6 +6928,10 @@ symIsHidden:;
         } else {
             return LookupResult.Good(symbol);
         }
+    }
+
+    private BelteDiagnostic MakeCallMethodsDirectlyDiagnostic(Symbol symbol) {
+        throw ExceptionUtilities.Unreachable();
     }
 
     private static bool WrongArity(
@@ -7027,6 +7037,7 @@ symIsHidden:;
             case SymbolKind.Method:
             case SymbolKind.Field:
             case SymbolKind.NamedType:
+            case SymbolKind.Property:
                 return !IsInvocableMember(symbol);
             default:
                 return false;
@@ -7095,6 +7106,9 @@ symIsHidden:;
             case SymbolKind.Field:
                 type = ((FieldSymbol)symbol).GetFieldType(fieldsBeingBound).type;
                 break;
+            case SymbolKind.Property:
+                type = ((PropertySymbol)symbol).type;
+                break;
         }
 
         return type is not null && type.StrippedType().typeKind is TypeKind.FunctionPointer or TypeKind.Function;
@@ -7104,6 +7118,7 @@ symIsHidden:;
         switch (symbol.kind) {
             case SymbolKind.Field:
             case SymbolKind.Method:
+            case SymbolKind.Property:
                 return symbol.RequiresInstanceReceiver();
             default:
                 return false;

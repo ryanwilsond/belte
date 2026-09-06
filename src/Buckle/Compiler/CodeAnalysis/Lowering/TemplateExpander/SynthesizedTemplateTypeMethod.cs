@@ -51,6 +51,13 @@ internal sealed class SynthesizedTemplateTypeMethod : WrappedMethodSymbol {
 
     public override ImmutableArray<TypeOrConstant> templateArguments => underlyingMethod.templateArguments;
 
+    public sealed override Symbol associatedSymbol {
+        get {
+            var underlying = originalDefinition.associatedSymbol;
+            return underlying?.SymbolAsMember(containingType);
+        }
+    }
+
     internal override TypeWithAnnotations returnTypeWithAnnotations => _returnType;
 
     internal override ImmutableArray<ParameterSymbol> parameters => _parameters;

@@ -294,6 +294,8 @@ internal sealed class FunctionMethodSymbol : MethodSymbol {
 
     public override RefKind refKind { get; }
 
+    public override Symbol associatedSymbol => null;
+
     internal override CallingConvention callingConvention => CallingConvention.Default;
 
     internal override TypeWithAnnotations returnTypeWithAnnotations { get; }

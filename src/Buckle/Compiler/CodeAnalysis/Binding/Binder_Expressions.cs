@@ -854,6 +854,23 @@ internal partial class Binder {
                 break;
             case BoundKind.DiscardExpression:
                 return expression;
+            case BoundKind.PropertyAccessExpression:
+                var propertyAccess = (BoundPropertyAccessExpression)expression;
+
+                // TODO Properties
+                // if (!inAttributeArgument) {
+                //     if (HasSynthesizedBackingField(propertyAccess.property, out _)) {
+                //         expression = propertyAccess.Update(
+                //             propertyAccess.receiver,
+                //             propertyAccess.property,
+                //             autoPropertyAccessorKind: GetAccessorKind(valueKind),
+                //             propertyAccess.resultKind,
+                //             propertyAccess.type
+                //         );
+                //     }
+                // }
+
+                break;
         }
 
         var hasResolutionErrors = false;
@@ -1835,6 +1852,8 @@ internal partial class Binder {
                     return BindWithExpression((WithExpressionSyntax)node, diagnostics);
                 case SyntaxKind.ReversibleExpression:
                     return BindReversibleExpression((ReversibleExpressionSyntax)node, diagnostics);
+                case SyntaxKind.FieldExpression:
+                    return BindFieldExpression((FieldExpressionSyntax)node, diagnostics);
                 case SyntaxKind.NonNullableType:
                     Debug.Assert(false);
                     return ErrorExpression(node);
@@ -1950,6 +1969,57 @@ internal partial class Binder {
                 true
             );
         }
+    }
+
+    private BoundExpression BindFieldExpression(FieldExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        // TODO Properties
+        throw ExceptionUtilities.Unreachable();
+        // Debug.Assert(containingType is not null);
+        // FieldSymbol field = null;
+
+        // if (HasOtherFieldSymbolInScope()) {
+        //     // TODO
+        //     // diagnostics.Add(ErrorCode.WRN_FieldIsAmbiguous, node, Compilation.LanguageVersion.ToDisplayString());
+        //     throw ExceptionUtilities.Unreachable();
+        // }
+
+        // // TODO ContainingMember() when lambdas are added
+        // switch (containingMember) {
+        //     // TODO
+        //     // case SynthesizedBackingFieldSymbolBase backingField:
+        //     //     field = backingField;
+        //     //     break;
+        //     // case MethodSymbol { associatedSymbol: SourcePropertySymbol property }:
+        //     //     field = property.BackingField;
+        //     //     break;
+        //     default: {
+        //             Debug.Assert((flags & BinderFlags.InContextualAttributeBinder) != 0);
+        //             var contextualAttributeBinder = TryGetContextualAttributeBinder(this);
+
+        //             if (contextualAttributeBinder is { AttributeTarget: MethodSymbol { AssociatedSymbol: SourcePropertySymbol property } }) {
+        //                 field = property.BackingField;
+        //             }
+
+        //             break;
+        //         }
+        // }
+
+        // if (field is null) {
+        //     diagnostics.Add(ErrorCode.ERR_NoSuchMember, node, ContainingMember(), "field");
+        //     return BadExpression(node);
+        // }
+
+        // var implicitReceiver = field.isStatic ? null : ThisReference(node, field.containingType, wasCompilerGenerated: true);
+        // return new BoundFieldAccess(node, implicitReceiver, field, constantValueOpt: null);
+
+        // bool HasOtherFieldSymbolInScope() {
+        //     var lookupResult = LookupResult.GetInstance();
+        //     LookupIdentifier(lookupResult, name: "field", arity: 0, called: false, errorLocation: node.location);
+        //     var result = lookupResult.kind != LookupResultKind.Empty;
+        //     Debug.Assert(!result || lookupResult.symbols.Count > 0);
+        //     lookupResult.Free();
+        //     return result;
+        // }
     }
 
     private BoundExpression BindReversibleExpression(
@@ -4302,7 +4372,7 @@ internal partial class Binder {
 
         if (lookupResult.kind != LookupResultKind.Empty) {
             var members = ArrayBuilder<Symbol>.GetInstance();
-            var symbol = GetSymbolOrMethodGroup(
+            var symbol = GetSymbolOrMethodOrPropertyGroup(
                 lookupResult,
                 node,
                 name,
@@ -4449,7 +4519,6 @@ internal partial class Binder {
                     methodGroupFlags,
                     receiver,
                     lookupResult.kind,
-                    null,
                     hasErrors
                 );
             default:
@@ -4536,6 +4605,17 @@ internal partial class Binder {
             case SymbolKind.ErrorType:
             case SymbolKind.TemplateParameter:
                 return new BoundTypeExpression(node, null, null, (TypeSymbol)symbol, isError);
+            case SymbolKind.Property: {
+                    var receiver = SynthesizeReceiver(node, symbol, diagnostics);
+                    return BindPropertyAccess(
+                        node,
+                        receiver,
+                        (PropertySymbol)symbol,
+                        diagnostics,
+                        resultKind,
+                        hasErrors: isError
+                    );
+                }
             case SymbolKind.Field: {
                     var receiver = SynthesizeReceiver(node, symbol, diagnostics);
                     return BindFieldAccess(
@@ -4551,6 +4631,60 @@ internal partial class Binder {
             default:
                 throw ExceptionUtilities.UnexpectedValue(symbol.kind);
         }
+    }
+
+    private BoundExpression BindPropertyAccess(
+        SyntaxNode node,
+        BoundExpression receiver,
+        PropertySymbol propertySymbol,
+        BelteDiagnosticQueue diagnostics,
+        LookupResultKind lookupResult,
+        bool hasErrors) {
+        var hasError = CheckInstanceOrStatic(node, receiver, propertySymbol, ref lookupResult, diagnostics);
+
+        if (!propertySymbol.isStatic) {
+            // WarnOnAccessOfOffDefault(node, receiver, diagnostics);
+        }
+
+        return new BoundPropertyAccessExpression(
+            node,
+            receiver,
+            // TODO This and on calls as well
+            // initialBindingReceiverIsSubjectToCloning: ReceiverIsSubjectToCloning(receiver, propertySymbol),
+            propertySymbol,
+            autoPropertyAccessorKind: AccessorKind.Unknown,
+            lookupResult,
+            propertySymbol.type,
+            hasErrors: hasErrors || hasError
+        );
+    }
+
+    internal ThreeState ReceiverIsSubjectToCloning(BoundExpression receiver, PropertySymbol property) {
+        var method = property.getMethod ?? property.setMethod;
+
+        if (method is null)
+            return ThreeState.False;
+
+        return ReceiverIsSubjectToCloning(receiver, method);
+    }
+
+    internal ThreeState ReceiverIsSubjectToCloning(BoundExpression receiver, MethodSymbol method) {
+        if (receiver is BoundValuePlaceholder || receiver?.type is null or { isReferenceType: true })
+            return ThreeState.False;
+
+        var valueKind = method.isEffectivelyConst
+            ? BindValueKind.RefersToLocation
+            : BindValueKind.RefersToLocation | BindValueKind.Assignable;
+
+        var result = !CheckValueKind(
+            receiver.syntax,
+            receiver,
+            valueKind,
+            checkingReceiver: true,
+            BelteDiagnosticQueue.Discarded
+        );
+
+        return result.ToThreeState();
     }
 
     private bool IsBadLocalOrParameterCapture(Symbol symbol, TypeSymbol type, RefKind refKind) {
@@ -4735,6 +4869,9 @@ internal partial class Binder {
                 break;
             case SymbolKind.Parameter:
                 leftType = ((ParameterSymbol)leftSymbol).type;
+                break;
+            case SymbolKind.Property:
+                leftType = ((PropertySymbol)leftSymbol).type;
                 break;
         }
 
@@ -5289,6 +5426,7 @@ internal partial class Binder {
                 }
             case BoundKind.UnconvertedArrayLength:
             case BoundKind.ArrayLength:
+            case BoundKind.PropertyAccessExpression:
                 diagnostics.Push(Error.NullableReceiverProperty(
                     syntax.location,
                     receiver,
@@ -5338,6 +5476,7 @@ internal partial class Binder {
                 }
             case BoundKind.UnconvertedArrayLength:
             case BoundKind.ArrayLength:
+            case BoundKind.PropertyAccessExpression:
                 diagnostics.Push(Error.NonNullableReceiverProperty(
                     syntax.location,
                     receiver,
@@ -5377,7 +5516,6 @@ internal partial class Binder {
                 BoundMethodGroupFlags.None,
                 boundLeft,
                 lookupKind,
-                null,
                 true
             );
         }
@@ -5400,6 +5538,9 @@ internal partial class Binder {
             switch (symbol.kind) {
                 case SymbolKind.Field:
                     resultType = ((FieldSymbol)symbol).GetFieldType(fieldsBeingBound).type;
+                    break;
+                case SymbolKind.Property:
+                    resultType = ((PropertySymbol)symbol).type;
                     break;
             }
         }
@@ -5536,7 +5677,7 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics) {
         var members = ArrayBuilder<Symbol>.GetInstance();
         BoundExpression result;
-        var symbol = GetSymbolOrMethodGroup(
+        var symbol = GetSymbolOrMethodOrPropertyGroup(
             lookupResult,
             right,
             plainName,
@@ -5586,6 +5727,17 @@ internal partial class Binder {
 
                     result = new BoundTypeExpression(node, new TypeWithAnnotations(type), null, type);
                     break;
+                case SymbolKind.Property:
+                    result = BindPropertyAccess(
+                        node,
+                        left,
+                        (PropertySymbol)symbol,
+                        diagnostics,
+                        lookupResult.kind,
+                        hasErrors: wasError
+                    );
+
+                    break;
                 case SymbolKind.Field:
                     result = BindFieldAccess(
                         node,
@@ -5607,12 +5759,12 @@ internal partial class Binder {
         return result;
     }
 
-    private Symbol GetSymbolOrMethodGroup(
+    private Symbol GetSymbolOrMethodOrPropertyGroup(
         LookupResult result,
         SyntaxNode node,
         string plainName,
         int arity,
-        ArrayBuilder<Symbol> methodGroup,
+        ArrayBuilder<Symbol> methodOrPropertyGroup,
         BelteDiagnosticQueue diagnostics,
         out bool wasError,
         NamespaceOrTypeSymbol qualifier) {
@@ -5623,28 +5775,29 @@ internal partial class Binder {
         foreach (var symbol in result.symbols) {
             var kind = symbol.kind;
 
-            if (methodGroup.Count > 0) {
-                var existingKind = methodGroup[0].kind;
+            if (methodOrPropertyGroup.Count > 0) {
+                var existingKind = methodOrPropertyGroup[0].kind;
 
                 if (existingKind != kind) {
-                    if (existingKind == SymbolKind.Method) {
+                    if ((existingKind == SymbolKind.Method) ||
+                        ((existingKind == SymbolKind.Property) && (kind != SymbolKind.Method))) {
                         other = symbol;
                         continue;
                     }
 
-                    other = methodGroup[0];
-                    methodGroup.Clear();
+                    other = methodOrPropertyGroup[0];
+                    methodOrPropertyGroup.Clear();
                 }
             }
 
-            if (kind == SymbolKind.Method)
-                methodGroup.Add(symbol);
+            if (kind is SymbolKind.Method or SymbolKind.Property)
+                methodOrPropertyGroup.Add(symbol);
             else
                 other = symbol;
         }
 
-        if ((methodGroup.Count > 0) && methodGroup[0].kind == SymbolKind.Method) {
-            if ((methodGroup[0].kind == SymbolKind.Method) || (other is null)) {
+        if ((methodOrPropertyGroup.Count > 0) && IsMethodOrPropertyGroup(methodOrPropertyGroup)) {
+            if ((methodOrPropertyGroup[0].kind == SymbolKind.Method) || (other is null)) {
                 if (result.error is not null) {
                     diagnostics.Push(result.error);
                     wasError = result.error.info.severity == DiagnosticSeverity.Error;
@@ -5654,8 +5807,25 @@ internal partial class Binder {
             }
         }
 
-        methodGroup.Clear();
+        methodOrPropertyGroup.Clear();
         return ResultSymbol(result, plainName, arity, node, diagnostics, out wasError, qualifier);
+    }
+
+    private static bool IsMethodOrPropertyGroup(ArrayBuilder<Symbol> members) {
+        Debug.Assert(members.Count > 0);
+
+        var member = members[0];
+
+        Debug.Assert(members.All(m => m.kind == member.kind));
+
+        switch (member.kind) {
+            case SymbolKind.Method:
+                return true;
+            case SymbolKind.Property:
+                return false;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(member.kind);
+        }
     }
 
     private static NameSyntax GetNameSyntax(SyntaxNode syntax) {
@@ -5844,6 +6014,8 @@ internal partial class Binder {
         BoundExpression receiver,
         Symbol member,
         BelteDiagnosticQueue diagnostics) {
+        Debug.Assert(member.kind != SymbolKind.Property);
+
         if (receiver?.kind == BoundKind.BaseExpression && member.isAbstract) {
             diagnostics.Push(Error.AbstractBaseCall(node.location, member));
             return true;
@@ -7754,7 +7926,7 @@ internal partial class Binder {
         var member = containingMember;
 
         if (member?.isStatic == true) {
-            inStaticContext = member.kind == SymbolKind.Field || member.kind == SymbolKind.Method;
+            inStaticContext = member.kind is SymbolKind.Field or SymbolKind.Method or SymbolKind.Property;
             return false;
         }
 

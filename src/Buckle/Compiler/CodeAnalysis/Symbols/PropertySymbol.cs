@@ -48,6 +48,8 @@ internal abstract class PropertySymbol : Symbol, IPropertySymbol {
 
     internal abstract bool hasSpecialName { get; }
 
+    internal abstract bool hasRuntimeSpecialName { get; }
+
     internal abstract MethodSymbol getMethod { get; }
 
     internal abstract MethodSymbol setMethod { get; }
@@ -147,6 +149,15 @@ internal abstract class PropertySymbol : Symbol, IPropertySymbol {
         }
 
         return null;
+    }
+
+    internal bool CanCallMethodsDirectly() {
+        if (mustCallMethodsDirectly)
+            return true;
+
+        // TODO Indexers
+        return false;
+        // return this.isIndexedProperty && (!property.isIndexer || property.HasRefOrOutParameter());
     }
 
     internal override bool Equals(Symbol symbol, TypeCompareKind compareKind) {

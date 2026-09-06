@@ -143,6 +143,10 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
         return info;
     }
 
+    internal bool IsWellKnownTypeInAttribute() {
+        return IsWellKnownInteropServicesTopLevelType("InAttribute");
+    }
+
     private protected virtual ImmutableArray<NamedTypeSymbol> MakeAllInterfaces() {
         var result = ArrayBuilder<NamedTypeSymbol>.GetInstance();
         var visited = new HashSet<NamedTypeSymbol>(SymbolEqualityComparer.ConsiderEverything);
@@ -517,6 +521,7 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
 
         switch (interfaceMember.kind) {
             case SymbolKind.Method:
+            case SymbolKind.Property:
                 var info = GetInterfaceInfo();
 
                 if (info == NoInterfaces)
@@ -567,6 +572,8 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
         BelteDiagnosticQueue diagnostics,
         bool ignoreImplementationInInterfaces,
         out bool implementationInInterfacesMightChangeResult) {
+        Debug.Assert(interfaceMember.kind is SymbolKind.Method or SymbolKind.Property);
+
         var interfaceType = interfaceMember.containingType;
         var seenTypeDeclaringInterface = false;
         var implementingTypeIsFromSomeCompilation = false;
@@ -949,6 +956,34 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
         if (!implementingMember.isImplicitlyDeclared) {
             // TODO Bunch of random modifier warnings we could have here
             switch (interfaceMember.kind) {
+                case SymbolKind.Property:
+                    // var implementingProperty = (PropertySymbol)implementingMember;
+                    // var implementedProperty = (PropertySymbol)interfaceMember;
+                    // var implementingGetMethod = implementedProperty.getMethod.IsImplementable()
+                    //     ? implementingProperty.GetOwnOrInheritedGetMethod()
+                    //     : null;
+                    // var implementingSetMethod = implementedProperty.setMethod.IsImplementable()
+                    //     ? implementingProperty.GetOwnOrInheritedSetMethod()
+                    //     : null;
+
+                    // if (implementingGetMethod is { }) {
+                    //     checkMethodOverride(
+                    //         implementingType,
+                    //         implementedProperty.GetMethod,
+                    //         implementingGetMethod,
+                    //         isExplicit: isExplicit,
+                    //         diagnostics);
+                    // }
+
+                    // if (implementingSetMethod is { }) {
+                    //     checkMethodOverride(
+                    //         implementingType,
+                    //         implementedProperty.SetMethod,
+                    //         implementingSetMethod,
+                    //         isExplicit: isExplicit,
+                    //         diagnostics);
+                    // }
+                    break;
                 case SymbolKind.Method:
                     var implementingMethod = (MethodSymbol)implementingMember;
                     var implementedMethod = (MethodSymbol)interfaceMember;
@@ -1437,6 +1472,10 @@ internal abstract partial class TypeSymbol : NamespaceOrTypeSymbol, ITypeSymbol 
             switch (member.kind) {
                 case SymbolKind.Method: {
                         overriddenMember = ((MethodSymbol)member).overriddenMethod;
+                        break;
+                    }
+                case SymbolKind.Property: {
+                        overriddenMember = ((PropertySymbol)member).overriddenProperty;
                         break;
                     }
             }

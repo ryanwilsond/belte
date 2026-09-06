@@ -39,6 +39,8 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
 
     public override bool returnsVoid => returnType.IsVoidType();
 
+    public override Symbol associatedSymbol => null;
+
     internal override TypeWithAnnotations returnTypeWithAnnotations => new TypeWithAnnotations(_returnType);
 
     internal override ImmutableArray<ParameterSymbol> parameters => [];

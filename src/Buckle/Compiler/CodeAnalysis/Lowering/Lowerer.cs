@@ -330,6 +330,36 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         return base.VisitLocalDeclarationStatement(statement);
     }
 
+    internal override BoundNode VisitPropertyAccessExpression(BoundPropertyAccessExpression node) {
+        return VisitPropertyAccessCore(node, isLeftOfAssignment: false);
+    }
+
+    private BoundNode VisitPropertyAccessCore(BoundPropertyAccessExpression node, bool isLeftOfAssignment) {
+        /*
+
+        <receiver>.<property>
+
+        ----> isLeftOfAssignment
+
+        <receiver>.set_Property(value)
+
+        ---->
+
+        <receiver>.get_Property()
+
+        */
+        var syntax = node.syntax;
+
+        if (isLeftOfAssignment) {
+            // AssignmentOperator will rewrite
+            return node;
+        } else {
+            var getMethod = node.property.GetOwnOrInheritedGetMethod();
+            Debug.Assert(getMethod.parameterCount == 0);
+            return Visit(InstanceCall(syntax, node.receiver, getMethod, []));
+        }
+    }
+
     internal override BoundNode VisitAssignmentOperator(BoundAssignmentOperator expression) {
         /*
 
@@ -347,10 +377,16 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
 
         <left.Set(<index>, <right>)>
 
+        ----> <left> is property
+
+        <left.set_(<right>)>
+
         */
         if (expression.left.Type().IsNullableType() &&
             (!expression.right.Type().IsNullableType() || expression.right.constantValue?.value is not null) &&
             expression.right.Type().isValueType) {
+            Debug.Assert(expression.left.kind != BoundKind.PropertyAccessExpression);
+
             var syntax = expression.syntax;
 
             return VisitAssignmentOperator(
@@ -380,6 +416,21 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
                     [indexer.index, expression.right]
                 ));
             }
+        }
+
+        if (expression.left.kind == BoundKind.PropertyAccessExpression) {
+            var syntax = expression.syntax;
+
+            var rewritten = VisitPropertyAccessCore(
+                (BoundPropertyAccessExpression)expression.left,
+                isLeftOfAssignment: true
+            ) as BoundPropertyAccessExpression;
+
+            Debug.Assert(rewritten is not null);
+
+            var setMethod = rewritten.property.GetOwnOrInheritedSetMethod();
+            Debug.Assert(setMethod.parameterCount == 1);
+            return Visit(InstanceCall(syntax, rewritten.receiver, setMethod, [expression.right]));
         }
 
         return base.VisitAssignmentOperator(expression);

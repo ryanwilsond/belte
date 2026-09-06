@@ -7,6 +7,7 @@
   <ValueType Name="BinaryOperatorKind"/>
   <ValueType Name="LookupResultKind"/>
   <ValueType Name="ForEachLoopKind"/>
+  <ValueType Name="AccessorKind"/>
   <ValueType Name="RefKind"/>
   <!-- Abstract Types -->
   <AbstractNode Name="BoundInitializer" Base="BoundNode"/>
@@ -252,6 +253,13 @@
     <Field Name="field" Type="FieldSymbol"/>
     <Field Name="slot" Type="int"/>
   </Node>
+  <Node Name="BoundPropertyAccessExpression" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+    <Field Name="receiver" Type="BoundExpression?"/>
+    <Field Name="property" Type="PropertySymbol"/>
+    <Field Name="autoPropertyAccessorKind" Type="AccessorKind" />
+    <Field Name="resultKind" PropertyOverrides="true" Type="LookupResultKind"/>
+  </Node>
   <Node Name="BoundInitializerDictionary" Base="BoundExpression">
     <Field Name="items" Type="ImmutableArray&lt;(BoundExpression, BoundExpression)&gt;"/>
   </Node>
@@ -327,15 +335,21 @@
     <Field Name="isCWString" Type="bool"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
-  <Node Name="BoundMethodGroup" Base="BoundExpression">
+  <AbstractNode Name="BoundMethodOrPropertyGroup" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
+    <Field Name="receiver" Type="BoundExpression?"/>
+    <Field Name="resultKind" PropertyOverrides="true" Type="LookupResultKind"/>
+  </AbstractNode>
+  <Node Name="BoundMethodGroup" Base="BoundMethodOrPropertyGroup">
     <Field Name="name" Type="string"/>
     <Field Name="methods" Type="ImmutableArray&lt;MethodSymbol&gt;"/>
     <Field Name="templateArguments" Type="ImmutableArray&lt;TypeOrConstant&gt;"/>
     <Field Name="lookupSymbol" Type="Symbol?"/>
     <Field Name="lookupError" Type="BelteDiagnostic?"/>
     <Field Name="flags" Type="BoundMethodGroupFlags?"/>
-    <Field Name="receiver" Type="BoundExpression?"/>
-    <Field Name="resultKind" Type="LookupResultKind" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundPropertyGroup" Base="BoundMethodOrPropertyGroup">
+    <Field Name="properties" Type="ImmutableArray&lt;PropertySymbol&gt;"/>
   </Node>
   <Node Name="BoundNullAssertOperator" Base="BoundExpression">
     <Field Name="operand" Type="BoundExpression"/>

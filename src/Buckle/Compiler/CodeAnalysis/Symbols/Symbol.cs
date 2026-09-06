@@ -167,6 +167,12 @@ internal abstract class Symbol : ISymbol {
                         case MethodKind.Destructor:
                         case MethodKind.Finalizer:
                             return true;
+                        case MethodKind.PropertyGet:
+                        case MethodKind.PropertySet:
+                            if (!((PropertySymbol)method.associatedSymbol).CanCallMethodsDirectly())
+                                return false;
+
+                            break;
                         default:
                             return false;
                     }
@@ -304,7 +310,7 @@ internal abstract class Symbol : ISymbol {
         return kind switch {
             SymbolKind.Method => ((MethodSymbol)this).templateParameters,
             SymbolKind.NamedType or SymbolKind.ErrorType => ((NamedTypeSymbol)this).templateParameters,
-            SymbolKind.Field => [],
+            SymbolKind.Field or SymbolKind.Property => [],
             _ => throw ExceptionUtilities.UnexpectedValue(kind),
         };
     }
@@ -317,10 +323,15 @@ internal abstract class Symbol : ISymbol {
         };
     }
 
+    internal virtual bool IsAccessor() {
+        return kind == SymbolKind.Method && ((MethodSymbol)this).IsAccessor();
+    }
+
     internal int GetParameterCount() {
         return kind switch {
             SymbolKind.Method => ((MethodSymbol)this).parameterCount,
             SymbolKind.Field => 0,
+            SymbolKind.Property => ((PropertySymbol)this).parameterCount,
             _ => throw ExceptionUtilities.UnexpectedValue(kind),
         };
     }
@@ -403,6 +414,7 @@ internal abstract class Symbol : ISymbol {
     internal bool RequiresInstanceReceiver() {
         return kind switch {
             SymbolKind.Method => ((MethodSymbol)this).requiresInstanceReceiver,
+            SymbolKind.Property => ((PropertySymbol)this).requiresInstanceReceiver,
             SymbolKind.Field => ((FieldSymbol)this).requiresInstanceReceiver,
             _ => throw ExceptionUtilities.UnexpectedValue(kind)
         };

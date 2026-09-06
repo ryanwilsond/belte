@@ -98,7 +98,10 @@ internal partial class PEParameterSymbol : ParameterSymbol {
             // var typeSymbol = DynamicTypeDecoder.TransformType(typeWithAnnotations.Type, countOfCustomModifiers, handle, moduleSymbol, refKind);
             // typeSymbol = NativeIntegerTypeDecoder.TransformType(typeSymbol, handle, moduleSymbol, containingSymbol.ContainingType);
             // typeWithAnnotations = typeWithAnnotations.WithTypeAndModifiers(typeSymbol, typeWithAnnotations.CustomModifiers);
-            var accessSymbol = containingSymbol;
+
+            var accessSymbol = containingSymbol.kind == SymbolKind.Property
+                ? containingSymbol.containingSymbol
+                : containingSymbol;
 
             typeWithAnnotations = NullableTypeDecoder.TransformType(
                 typeWithAnnotations,
@@ -278,6 +281,31 @@ internal partial class PEParameterSymbol : ParameterSymbol {
             nullableContext,
             parameterInfo.customModifiers,
             isReturn,
+            out isBad
+        );
+    }
+
+    internal static PEParameterSymbol Create(
+        PEModuleSymbol moduleSymbol,
+        PEPropertySymbol containingSymbol,
+        bool isContainingSymbolVirtual,
+        int ordinal,
+        ParameterHandle handle,
+        ParamInfo<TypeSymbol> parameterInfo,
+        Symbol nullableContext,
+        out bool isBad) {
+        return Create(
+            moduleSymbol,
+            containingSymbol,
+            isContainingSymbolVirtual,
+            ordinal,
+            parameterInfo.isByRef,
+            parameterInfo.refCustomModifiers,
+            parameterInfo.type,
+            handle,
+            nullableContext,
+            parameterInfo.customModifiers,
+            isReturn: false,
             out isBad
         );
     }

@@ -24,6 +24,13 @@ internal sealed class TypeSubstitutedMethodSymbol : WrappedMethodSymbol {
 
     public override ImmutableArray<TypeOrConstant> templateArguments => underlyingMethod.templateArguments;
 
+    public sealed override Symbol associatedSymbol {
+        get {
+            var underlying = originalDefinition.associatedSymbol;
+            return underlying?.SymbolAsMember(containingType);
+        }
+    }
+
     internal override Symbol containingSymbol => underlyingMethod.containingSymbol;
 
     internal override TypeWithAnnotations returnTypeWithAnnotations => _returnType;

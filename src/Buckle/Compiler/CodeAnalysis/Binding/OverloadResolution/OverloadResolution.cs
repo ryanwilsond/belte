@@ -3195,6 +3195,7 @@ internal sealed partial class OverloadResolution {
     private static bool HidesByName(Symbol member) {
         return member.kind switch {
             SymbolKind.Method => ((MethodSymbol)member).hidesBaseMethodsByName,
+            SymbolKind.Property => ((PropertySymbol)member).hidesBasePropertiesByName,
             _ => throw ExceptionUtilities.UnexpectedValue(member.kind),
         };
     }
@@ -3202,6 +3203,7 @@ internal sealed partial class OverloadResolution {
     private static TMember GetConstructedFrom<TMember>(TMember member) where TMember : Symbol {
         return member.kind switch {
             SymbolKind.Method => (TMember)(Symbol)(member as MethodSymbol).constructedFrom,
+            SymbolKind.Property => member,
             _ => throw ExceptionUtilities.UnexpectedValue(member.kind),
         };
     }

@@ -436,6 +436,7 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.ObjectCreationExpression => ExpandObjectCreationExpression((BoundObjectCreationExpression)expression, out replacement, useKind),
             BoundKind.ArrayCreationExpression => ExpandArrayCreationExpression((BoundArrayCreationExpression)expression, out replacement, useKind),
             BoundKind.FieldAccessExpression => ExpandFieldAccessExpression((BoundFieldAccessExpression)expression, out replacement, useKind),
+            BoundKind.PropertyAccessExpression => ExpandPropertyAccessExpression((BoundPropertyAccessExpression)expression, out replacement, useKind),
             BoundKind.ConditionalAccessExpression => ExpandConditionalAccessExpression((BoundConditionalAccessExpression)expression, out replacement, useKind),
             BoundKind.ThisExpression => ExpandThisExpression((BoundThisExpression)expression, out replacement, useKind),
             BoundKind.BaseExpression => ExpandBaseExpression((BoundBaseExpression)expression, out replacement, useKind),
@@ -444,6 +445,7 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.NamespaceExpression => ExpandNamespaceExpression((BoundNamespaceExpression)expression, out replacement, useKind),
             BoundKind.ParameterExpression => ExpandParameterExpression((BoundParameterExpression)expression, out replacement, useKind),
             BoundKind.MethodGroup => ExpandMethodGroup((BoundMethodGroup)expression, out replacement, useKind),
+            BoundKind.PropertyGroup => ExpandPropertyGroup((BoundPropertyGroup)expression, out replacement, useKind),
             BoundKind.FunctionPointerLoad => ExpandFunctionPointerLoad((BoundFunctionPointerLoad)expression, out replacement, useKind),
             BoundKind.FunctionPointerCallExpression => ExpandFunctionPointerCallExpression((BoundFunctionPointerCallExpression)expression, out replacement, useKind),
             BoundKind.UnconvertedNullptrExpression => ExpandUnconvertedNullptrExpression((BoundUnconvertedNullptrExpression)expression, out replacement, useKind),
@@ -641,6 +643,14 @@ internal abstract partial class BoundTreeExpander {
 
     private protected virtual List<BoundStatement> ExpandMethodGroup(
         BoundMethodGroup expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandPropertyGroup(
+        BoundPropertyGroup expression,
         out BoundExpression replacement,
         UseKind useKind) {
         replacement = expression;
@@ -1503,6 +1513,28 @@ internal abstract partial class BoundTreeExpander {
 
                 return statements;
             }
+        }
+
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandPropertyAccessExpression(
+        BoundPropertyAccessExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        var statements = ExpandExpression(expression.receiver, out var newReceiver);
+
+        if (statements.Count != 0 || expression.receiver != newReceiver) {
+            replacement = expression.Update(
+                newReceiver,
+                expression.property,
+                expression.autoPropertyAccessorKind,
+                expression.resultKind,
+                expression.type
+            );
+
+            return statements;
         }
 
         replacement = expression;

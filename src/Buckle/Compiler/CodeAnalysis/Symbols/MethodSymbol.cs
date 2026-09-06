@@ -45,6 +45,8 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
 
     public bool returnTypeIsNullable => returnTypeWithAnnotations.isNullable;
 
+    public abstract Symbol associatedSymbol { get; }
+
     internal abstract TypeWithAnnotations returnTypeWithAnnotations { get; }
 
     internal abstract ImmutableArray<ParameterSymbol> parameters { get; }
@@ -371,6 +373,10 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
             default:
                 return true;
         }
+    }
+
+    internal override bool IsAccessor() {
+        return associatedSymbol is not null;
     }
 
     internal override bool Equals(Symbol other, TypeCompareKind compareKind) {

@@ -365,6 +365,8 @@ internal sealed class FunctionPointerMethodSymbol : MethodSymbol {
 
     public override ImmutableArray<BoundExpression> templateConstraints => [];
 
+    public override Symbol associatedSymbol => null;
+
     internal override bool hidesBaseMethodsByName => false;
 
     internal override ImmutableArray<TextLocation> locations => [];

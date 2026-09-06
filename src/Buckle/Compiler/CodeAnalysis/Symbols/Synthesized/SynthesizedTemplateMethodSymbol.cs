@@ -84,6 +84,8 @@ internal sealed class SynthesizedTemplateMethodSymbol : MethodSymbol {
 
     internal override ImmutableArray<MethodSymbol> explicitInterfaceImplementations => [];
 
+    public override Symbol associatedSymbol => null;
+
     internal override bool IsMetadataVirtual(bool forceComplete = false) => false;
 
     internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {

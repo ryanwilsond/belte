@@ -323,6 +323,16 @@ internal abstract class AssemblySymbol : Symbol {
         return assemblyContainer.GetNestedNamespace(namespaceSymbol.name);
     }
 
+    internal bool HasInternalAccessTo(AssemblySymbol toAssembly) {
+        if (Equals(this, toAssembly))
+            return true;
+
+        if (AreInternalsVisibleToThisAssembly(toAssembly))
+            return true;
+
+        return false;
+    }
+
     internal override void Accept(SymbolVisitor visitor) {
         visitor.VisitAssembly(this);
     }

@@ -362,6 +362,21 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                     break;
 
                 return GetRefEscape(assignment.left, scopeOfTheContainingExpression);
+
+            case BoundKind.PropertyAccessExpression:
+                var propertyAccess = (BoundPropertyAccessExpression)expression;
+
+                return GetInvocationEscape(
+                    MethodInfo.Create(propertyAccess.property),
+                    receiver: propertyAccess.receiver,
+                    receiverIsSubjectToCloning: ThreeState.Unknown,
+                    default,
+                    default,
+                    default,
+                    argsToParamsOpt: default,
+                    scopeOfTheContainingExpression,
+                    isRefEscape: true
+                );
             case BoundKind.DiscardExpression:
                 break;
         }
@@ -542,6 +557,28 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                 return true;
             case BoundKind.DiscardExpression:
                 break;
+            case BoundKind.PropertyAccessExpression:
+                var propertyAccess = (BoundPropertyAccessExpression)expression;
+                var propertySymbol = propertyAccess.property;
+
+                if (propertySymbol.refKind == RefKind.None)
+                    break;
+
+                return CheckInvocationEscape(
+                    propertyAccess.syntax,
+                    MethodInfo.Create(propertySymbol),
+                    propertyAccess.receiver,
+                    ThreeState.Unknown,
+                    default,
+                    default,
+                    default,
+                    default,
+                    checkingReceiver,
+                    escapeFrom,
+                    escapeTo,
+                    diagnostics,
+                    isRefEscape: true
+                );
         }
 
         diagnostics.Push(GetStandardRValueRefEscapeError(node.location, escapeTo));
@@ -729,6 +766,20 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                 return scopeOfTheContainingExpression;
             default:
                 return scopeOfTheContainingExpression;
+            case BoundKind.PropertyAccessExpression:
+                var propertyAccess = (BoundPropertyAccessExpression)expression;
+
+                return GetInvocationEscape(
+                    MethodInfo.Create(propertyAccess.property),
+                    receiver: propertyAccess.receiver,
+                    receiverIsSubjectToCloning: ThreeState.Unknown,
+                    default,
+                    argsOpt: default,
+                    argRefKindsOpt: default,
+                    argsToParamsOpt: default,
+                    scopeOfTheContainingExpression: scopeOfTheContainingExpression,
+                    isRefEscape: false
+                );
         }
     }
 
@@ -1051,6 +1102,25 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                 return true;
             case BoundKind.DiscardExpression:
                 return true;
+
+            case BoundKind.PropertyAccessExpression:
+                var propertyAccess = (BoundPropertyAccessExpression)expression;
+
+                return CheckInvocationEscape(
+                    propertyAccess.syntax,
+                    MethodInfo.Create(propertyAccess.property),
+                    receiver: propertyAccess.receiver,
+                    receiverIsSubjectToCloning: ThreeState.Unknown,
+                    default,
+                    argsOpt: default,
+                    argRefKindsOpt: default,
+                    argsToParamsOpt: default,
+                    checkingReceiver: checkingReceiver,
+                    escapeFrom: escapeFrom,
+                    escapeTo: escapeTo,
+                    diagnostics,
+                    isRefEscape: false
+                );
             default:
                 diagnostics.Push(Error.InternalError(node.location));
                 return false;

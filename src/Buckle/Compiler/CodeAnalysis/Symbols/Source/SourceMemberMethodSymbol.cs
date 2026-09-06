@@ -39,6 +39,8 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol, I
 
     public sealed override RefKind refKind => _flags.refKind;
 
+    public override Symbol associatedSymbol => null;
+
     internal sealed override TextLocation location { get; }
 
     internal sealed override OverriddenOrHiddenMembersResult overriddenOrHiddenMembers {

@@ -28,6 +28,8 @@ internal sealed class SynthesizedStaticConstructor : MethodSymbol {
 
     public override MethodKind methodKind => MethodKind.StaticConstructor;
 
+    public override Symbol associatedSymbol => null;
+
     internal override ImmutableArray<ParameterSymbol> parameters => [];
 
     internal override Accessibility declaredAccessibility => Accessibility.Private;

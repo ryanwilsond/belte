@@ -25,6 +25,8 @@ internal sealed class ErrorPropertySymbol : PropertySymbol {
 
     internal override bool hasSpecialName => false;
 
+    internal override bool hasRuntimeSpecialName => false;
+
     internal override MethodSymbol getMethod => null;
 
     internal override MethodSymbol setMethod => null;

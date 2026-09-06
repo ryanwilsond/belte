@@ -516,6 +516,8 @@ internal sealed partial class BinderFactory {
             TextSpan memberSpan,
             NamedTypeSymbol container,
             SymbolKind kind) {
+            Debug.Assert(kind is SymbolKind.Method or SymbolKind.Property);
+
             foreach (var sym in container.GetMembers(memberName)) {
                 if (CheckSymbol(sym, memberSpan, kind, out var result))
                     return result;
@@ -532,7 +534,7 @@ internal sealed partial class BinderFactory {
 
             var syntaxReference = sym.syntaxReference;
 
-            if (kind is SymbolKind.Method) {
+            if (kind is SymbolKind.Method or SymbolKind.Property) {
                 if (InSpan(syntaxReference?.location, syntaxReference?.syntaxTree, _syntaxTree, memberSpan))
                     return true;
             } else if (InSpan(syntaxReference?.location, syntaxReference?.syntaxTree, _syntaxTree, memberSpan)) {
