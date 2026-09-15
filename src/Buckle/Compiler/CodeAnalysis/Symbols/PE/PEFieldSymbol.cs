@@ -54,6 +54,8 @@ internal sealed partial class PEFieldSymbol : FieldSymbol {
         }
     }
 
+    public override Symbol associatedSymbol => null;
+
     internal override Symbol containingSymbol => _containingType;
 
     internal override NamedTypeSymbol containingType => _containingType;

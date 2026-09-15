@@ -48,8 +48,6 @@ internal abstract class PropertySymbol : Symbol, IPropertySymbol {
 
     internal abstract bool hasSpecialName { get; }
 
-    internal abstract bool hasRuntimeSpecialName { get; }
-
     internal abstract MethodSymbol getMethod { get; }
 
     internal abstract MethodSymbol setMethod { get; }

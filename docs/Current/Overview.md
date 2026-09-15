@@ -212,7 +212,7 @@ These keywords only act as keywords inside specific contexts. As such they can b
 - [operator](ClassesAndObjects.md#423-operators) (normal operators)
 - [operator](ControlFlow.md#244-for-each-loops) (for each operators)
 - [packed](LowLevelFeatures.md#621-packing)
-- [properties](ClassesAndObjects.md#424-properties)
+- [property](ClassesAndObjects.md#424-properties)
 - [pure](ClassesAndObjects.md#4223-behavior-specifiers)
 - [set](ClassesAndObjects.md#424-properties)
 - [state](ClassesAndObjects.md#4222-state-and-reverse-clauses)

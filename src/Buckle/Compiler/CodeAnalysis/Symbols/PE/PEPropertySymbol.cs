@@ -500,8 +500,6 @@ internal partial class PEPropertySymbol : PropertySymbol {
         return parameters.AsImmutableOrNull();
     }
 
-    internal override bool hasRuntimeSpecialName => _flags.isRuntimeSpecialName;
-
     internal sealed override Compilation declaringCompilation => null;
 
     private UncommonFields AccessUncommonFields() {

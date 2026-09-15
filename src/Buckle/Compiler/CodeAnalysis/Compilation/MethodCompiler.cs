@@ -599,13 +599,10 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
 
                     break;
                 case PropertySymbol p:
-                    // TODO Properties
-                    // var sourceProperty = member as SourcePropertySymbolBase;
-                    // if ((object)sourceProperty != null && sourceProperty.IsSealed && compilationState.Emitting) {
-                    //     CompileSynthesizedSealedAccessors(sourceProperty, compilationState);
-                    // }
-                    break;
+                    if (member is SourcePropertySymbolBase sourceProperty && sourceProperty.isSealed)
+                        CompileSynthesizedSealedAccessors(sourceProperty, state);
 
+                    break;
             }
         }
 
@@ -671,6 +668,18 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             _types.Add(synthesizedContainer);
 
         return synthesizedContainer.methodMap[originalMethod];
+    }
+
+    private void CompileSynthesizedSealedAccessors(
+        SourcePropertySymbolBase sourceProperty,
+        TypeCompilationState compilationState) {
+        var synthesizedAccessor = sourceProperty.synthesizedSealedAccessor;
+
+        if (synthesizedAccessor is not null) {
+            Debug.Assert(synthesizedAccessor.synthesizesLoweredBoundBody);
+            var discardedDiagnostics = BelteDiagnosticQueue.Discarded;
+            synthesizedAccessor.GenerateMethodBody(compilationState, discardedDiagnostics);
+        }
     }
 
     private void CompileMethod(
@@ -945,56 +954,60 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
 
             var bodyBinder = sourceMethod.TryGetBodyBinder(null, state.compilation.options.isScript);
 
-            if (bodyBinder is null)
+            if (bodyBinder is not null) {
+                importChain = bodyBinder.importChain;
+
+                var methodBody = bodyBinder.BindMethodBody(syntaxNode, diagnostics);
+
+                RefSafetyAnalysis.Analyze(state.compilation, method, methodBody, diagnostics);
+
+                switch (methodBody) {
+                    case BoundConstructorMethodBody constructor:
+                        body = constructor.body;
+
+                        if (constructor.initializer is BoundExpressionStatement expressionStatement) {
+                            ReportConstructorInitializerCycles(
+                                method,
+                                expressionStatement.expression,
+                                state,
+                                syntaxNode,
+                                diagnostics
+                            );
+
+                            if (includeInitializers)
+                                builder.Add(initializersBody);
+
+                            builder.Add(constructor.initializer);
+
+                            if (outInitializersBody is not null)
+                                builder.Add(outInitializersBody);
+
+                            if (body is not null)
+                                builder.Add(body);
+
+                            body = new BoundBlockStatement(syntax, builder.ToImmutableAndFree(), constructor.locals, []);
+                            return body;
+                        }
+
+                        // TODO Roslyn returns here even in the static constructor case
+                        // But for the life of me I can't figure out where the static initializers are added so i'm just
+                        // going to break here instead
+                        // return body;
+                        break;
+                    case BoundNonConstructorMethodBody nonConstructor:
+                        body = nonConstructor.body;
+                        break;
+                    case BoundBlockStatement block:
+                        body = block;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(methodBody.kind);
+                }
+            } else {
+                if (sourceMethod is SourcePropertyAccessorSymbol { isAutoPropertyAccessor: true })
+                    return MethodBodySynthesizer.ConstructAutoPropertyAccessorBody(sourceMethod);
+
                 return null;
-
-            importChain = bodyBinder.importChain;
-
-            var methodBody = bodyBinder.BindMethodBody(syntaxNode, diagnostics);
-
-            RefSafetyAnalysis.Analyze(state.compilation, method, methodBody, diagnostics);
-
-            switch (methodBody) {
-                case BoundConstructorMethodBody constructor:
-                    body = constructor.body;
-
-                    if (constructor.initializer is BoundExpressionStatement expressionStatement) {
-                        ReportConstructorInitializerCycles(
-                            method,
-                            expressionStatement.expression,
-                            state,
-                            syntaxNode,
-                            diagnostics
-                        );
-
-                        if (includeInitializers)
-                            builder.Add(initializersBody);
-
-                        builder.Add(constructor.initializer);
-
-                        if (outInitializersBody is not null)
-                            builder.Add(outInitializersBody);
-
-                        if (body is not null)
-                            builder.Add(body);
-
-                        body = new BoundBlockStatement(syntax, builder.ToImmutableAndFree(), constructor.locals, []);
-                        return body;
-                    }
-
-                    // TODO Roslyn returns here even in the static constructor case
-                    // But for the life of me I can't figure out where the static initializers are added so i'm just
-                    // going to break here instead
-                    // return body;
-                    break;
-                case BoundNonConstructorMethodBody nonConstructor:
-                    body = nonConstructor.body;
-                    break;
-                case BoundBlockStatement block:
-                    body = block;
-                    break;
-                default:
-                    throw ExceptionUtilities.UnexpectedValue(methodBody.kind);
             }
         } else if (method is PETemplateType.MetadataMethodSymbol metadataMethod) {
             body = metadataMethod.TryDecodeMethodBody();

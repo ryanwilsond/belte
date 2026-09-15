@@ -69,6 +69,16 @@ internal enum CompletionParts : uint {
     TemplateParameterConstraints = 1 << 14,
     TemplateParameterSymbolAll = Attributes | TemplateParameterConstraints | StartDefaultSyntaxValue | EndDefaultSyntaxValue,
 
+    // For property symbols
+    StartPropertyEnsureSignature = 1 << 4,
+    FinishPropertyEnsureSignature = 1 << 5,
+    StartPropertyParameters = 1 << 6,
+    FinishPropertyParameters = 1 << 7,
+    StartPropertyType = 1 << 8,
+    FinishPropertyType = 1 << 9,
+    PropertySymbolAll = Attributes | StartPropertyEnsureSignature | FinishPropertyEnsureSignature | StartPropertyParameters |
+        FinishPropertyParameters | StartPropertyType | FinishPropertyType,
+
     // For alias symbols
     AliasTarget = 1 << 4,
 

@@ -25,8 +25,6 @@ internal abstract class WrappedPropertySymbol : PropertySymbol {
 
     internal override bool hasSpecialName => _underlyingProperty.hasSpecialName;
 
-    internal override bool hasRuntimeSpecialName => _underlyingProperty.hasRuntimeSpecialName;
-
     internal override ImmutableArray<TextLocation> locations => _underlyingProperty.locations;
 
     internal override TextLocation location => _underlyingProperty.location;

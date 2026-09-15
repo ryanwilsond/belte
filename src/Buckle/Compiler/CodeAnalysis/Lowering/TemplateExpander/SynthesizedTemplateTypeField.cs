@@ -21,6 +21,8 @@ internal sealed class SynthesizedTemplateTypeField : WrappedFieldSymbol {
 
     internal override Symbol containingSymbol => _containingType;
 
+    public override Symbol associatedSymbol => underlyingField.associatedSymbol;
+
     internal override ImmutableArray<AttributeData> GetAttributes() {
         return underlyingField.GetAttributes();
     }

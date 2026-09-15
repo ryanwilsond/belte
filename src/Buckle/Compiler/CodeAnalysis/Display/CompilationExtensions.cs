@@ -114,6 +114,18 @@ public static class CompilationExtensions {
                 }
 
                 break;
+            case SymbolKind.Property: {
+                    var property = (PropertySymbol)symbol;
+                    SymbolDisplay.AppendToDisplayText(text, property, SymbolDisplayFormat.BoundDisplayFormat);
+                    var type = property.type.StrippedType();
+
+                    if (type is NamedTypeSymbol s && s is not PrimitiveTypeSymbol)
+                        WriteMembers(s, compact);
+                    else
+                        text.WriteLine();
+                }
+
+                break;
             case SymbolKind.Local: {
                     var local = (DataContainerSymbol)symbol;
                     SymbolDisplay.AppendToDisplayText(text, local, SymbolDisplayFormat.BoundDisplayFormat);

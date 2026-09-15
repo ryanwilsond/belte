@@ -98,7 +98,7 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol, I
 
     internal override bool isDeclaredConst => (_modifiers & DeclarationModifiers.Const) != 0;
 
-    internal bool isLowLevel => (_modifiers & DeclarationModifiers.LowLevel) != 0;
+    internal virtual bool isLowLevel => (_modifiers & DeclarationModifiers.LowLevel) != 0;
 
     internal bool isNew => (_modifiers & DeclarationModifiers.New) != 0;
 

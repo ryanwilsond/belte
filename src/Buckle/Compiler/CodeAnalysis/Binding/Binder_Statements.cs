@@ -2062,11 +2062,103 @@ internal partial class Binder {
                 return BindMethodBody(reverseMethod, reverseMethod.body, diagnostics);
             case StateClauseSyntax stateMethod:
                 return BindMethodBody(stateMethod, stateMethod.body, diagnostics);
+            case ArrowExpressionClauseSyntax arrowExpression:
+                return BindExpressionBodyAsBlock(arrowExpression, diagnostics);
             case CompilationUnitSyntax compilationUnit:
                 return BindSimpleProgram(compilationUnit, diagnostics);
             default:
                 throw ExceptionUtilities.UnexpectedValue(syntax.kind);
         }
+    }
+
+    internal virtual BoundBlockStatement BindExpressionBodyAsBlock(
+        ArrowExpressionClauseSyntax expressionBody,
+        BelteDiagnosticQueue diagnostics) {
+        var bodyBinder = GetBinder(expressionBody);
+        Debug.Assert(bodyBinder is not null);
+
+        return BindExpressionBodyAsBlockInternal(expressionBody, bodyBinder, diagnostics);
+
+        static BoundBlockStatement BindExpressionBodyAsBlockInternal(
+            ArrowExpressionClauseSyntax expressionBody,
+            Binder bodyBinder,
+            BelteDiagnosticQueue diagnostics) {
+            var expressionSyntax = expressionBody.expression.UnwrapRefExpression(out var refKind);
+            var requiredValueKind = bodyBinder.GetRequiredReturnValueKind(refKind);
+            var expression = bodyBinder.BindValue(expressionSyntax, diagnostics, requiredValueKind);
+
+            return bodyBinder.CreateBlockFromExpression(
+                expressionBody,
+                bodyBinder.GetDeclaredLocalsForScope(expressionBody),
+                refKind,
+                expression,
+                expressionSyntax,
+                diagnostics
+            );
+        }
+    }
+
+    internal BoundBlockStatement CreateBlockFromExpression(
+        BelteSyntaxNode node,
+        ImmutableArray<DataContainerSymbol> locals,
+        RefKind refKind,
+        BoundExpression expression,
+        ExpressionSyntax expressionSyntax,
+        BelteDiagnosticQueue diagnostics) {
+        var returnType = GetCurrentReturnType(out var returnRefKind);
+        var syntax = expressionSyntax ?? expression.syntax;
+
+        BoundStatement statement;
+
+        if (returnType is not null) {
+            if (refKind != RefKind.None != (returnRefKind != RefKind.None) &&
+                expression.kind != BoundKind.ThrowExpression) {
+                if (refKind != RefKind.None)
+                    diagnostics.Push(Error.MustNotHaveRefReturn(syntax.location));
+                else
+                    diagnostics.Push(Error.MustHaveRefReturn(syntax.location));
+
+                expression = BindToTypeForErrorRecovery(expression);
+                statement = new BoundReturnStatement(syntax, RefKind.None, expression);
+            } else if (returnType.IsVoidType()) {
+                var errors = false;
+
+                if (expressionSyntax is null || !IsValidExpressionBody(expression)) {
+                    expression = BindToTypeForErrorRecovery(expression);
+                    diagnostics.Push(Error.InvalidExpressionStatement(syntax.location));
+                    errors = true;
+                } else {
+                    expression = BindToNaturalType(expression, diagnostics);
+                }
+
+                var expressionStatement = new BoundExpressionStatement(syntax, expression, errors);
+                statement = expressionStatement;
+            } else {
+                if (returnType.IsErrorType())
+                    expression = BindToTypeForErrorRecovery(expression);
+                else
+                    expression = CreateReturnConversion(syntax, diagnostics, expression, refKind, returnType);
+
+                statement = new BoundReturnStatement(syntax, refKind, expression);
+            }
+        } else if (expression.type?.specialType == SpecialType.Void) {
+            expression = BindToNaturalType(expression, diagnostics);
+            statement = new BoundExpressionStatement(syntax, expression);
+        } else {
+            expression = BindToNaturalType(expression, diagnostics);
+            statement = new BoundReturnStatement(syntax, refKind, expression);
+        }
+
+        return new BoundBlockStatement(
+            node,
+            [statement],
+            locals,
+            []
+        );
+    }
+
+    private static bool IsValidExpressionBody(BoundExpression expression) {
+        return !IsInvalidExpressionStatement(expression);
     }
 
     private BoundNode BindSimpleProgram(CompilationUnitSyntax compilationUnit, BelteDiagnosticQueue diagnostics) {

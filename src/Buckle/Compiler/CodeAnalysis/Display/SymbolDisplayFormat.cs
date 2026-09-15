@@ -31,7 +31,7 @@ public sealed class SymbolDisplayFormat {
         templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters | SymbolDisplayTemplateOptions.IncludeTemplateConstraints,
         memberOptions: SymbolDisplayMemberOptions.Everything,
         parameterOptions: SymbolDisplayParameterOptions.Everything,
-        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.None
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.IncludePropertyBody
     );
 
     public static readonly SymbolDisplayFormat CompactBoundDisplayFormat = new SymbolDisplayFormat(

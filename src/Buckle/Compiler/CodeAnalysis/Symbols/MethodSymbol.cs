@@ -312,6 +312,8 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
             case MethodKind.Literal:
             case MethodKind.Conversion:
             case MethodKind.Ordinary:
+            case MethodKind.PropertyGet:
+            case MethodKind.PropertySet:
                 return true;
             default:
                 throw ExceptionUtilities.UnexpectedValue(kind);

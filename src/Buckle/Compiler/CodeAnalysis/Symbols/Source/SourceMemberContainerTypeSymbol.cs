@@ -2326,6 +2326,25 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                     }
 
                     break;
+                case SyntaxKind.PropertyDeclaration: {
+                        var propertySyntax = (PropertyDeclarationSyntax)m;
+
+                        if (isImplicitClass && reportMisplacedGlobalCode)
+                            diagnostics.Push(Error.NamespaceUnexpected(propertySyntax.identifier.location));
+
+                        var property = SourcePropertySymbol.Create(this, bodyBinder, propertySyntax, diagnostics);
+                        builder.nonTypeMembers.Add(property);
+
+                        AddAccessorIfAvailable(builder.nonTypeMembers, property.getMethod);
+                        AddAccessorIfAvailable(builder.nonTypeMembers, property.setMethod);
+
+                        var backingField = property.declaredBackingField;
+
+                        if (backingField is not null)
+                            builder.nonTypeMembers.Add(backingField);
+                    }
+
+                    break;
                 case SyntaxKind.GlobalStatement:
                     var globalStatement = ((GlobalStatementSyntax)m).statement;
                     // AddInitializer(ref initializers, null, globalStatement);
@@ -2431,6 +2450,11 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                 _lazyScopeInheritorInfo.Add(syntax, scopeInfo);
             }
+        }
+
+        void AddAccessorIfAvailable(ArrayBuilder<Symbol> symbols, MethodSymbol accessor) {
+            if (accessor is not null)
+                symbols.Add(accessor);
         }
     }
 

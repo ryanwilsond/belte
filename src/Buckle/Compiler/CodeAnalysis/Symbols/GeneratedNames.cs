@@ -55,6 +55,10 @@ internal static class GeneratedNames {
         return "<" + methodName + ">a__Reversible";
     }
 
+    internal static string MakeBackingFieldName(string propertyName) {
+        return "<" + propertyName + ">k__BackingField";
+    }
+
     internal static string MakeTemplateTypeOrMethodName(ISymbolWithTemplates symbol) {
         var result = PooledStringBuilder.GetInstance();
         var builder = result.Builder;

@@ -55,6 +55,9 @@ public static class SymbolDisplay {
             case SymbolKind.Field:
                 DisplayField(text, (FieldSymbol)symbol, format);
                 break;
+            case SymbolKind.Property:
+                DisplayProperty(text, (PropertySymbol)symbol, format);
+                break;
             case SymbolKind.NamedType:
                 DisplayType(text, (NamedTypeSymbol)symbol, format);
                 break;
@@ -436,6 +439,63 @@ public static class SymbolDisplay {
             DisplayContainedNames(text, field, format);
 
         text.Write(CreateIdentifier(field.name));
+    }
+
+    private static void DisplayProperty(DisplayText text, PropertySymbol property, SymbolDisplayFormat format) {
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeAttributes) != 0)
+            DisplayAttributes(text, property.GetAttributes());
+
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeAccessibility) != 0)
+            DisplayAccessibility(text, property);
+
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeTypeModifiers) != 0)
+            DisplayModifiers(text, property);
+
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeModifiers) != 0)
+            DisplayConstExprRef(text, false, false, false, property.refKind);
+
+        text.Write(CreateKeyword(SyntaxKind.PropertyKeyword));
+        text.Write(CreateSpace());
+
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeType) != 0) {
+            DisplayType(text, property.type, ToMemberTypeFormat(format));
+            text.Write(CreateSpace());
+        }
+
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeContainingType) != 0)
+            DisplayContainedNames(text, property, format);
+
+        text.Write(CreateIdentifier(property.name));
+
+        if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.IncludePropertyBody) != 0) {
+            text.Write(CreateSpace());
+
+            text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
+            text.indent++;
+            text.WriteLine();
+
+            if (property.getMethod is { } getMethod) {
+                text.Write(CreateKeyword(SyntaxKind.GetKeyword));
+                text.Write(CreatePunctuation(" => "));
+                text.Write(CreateIdentifier(getMethod.name));
+                text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+                text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+                text.WriteLine();
+            }
+
+            if (property.setMethod is { } setMethod) {
+                text.Write(CreateKeyword(SyntaxKind.SetKeyword));
+                text.Write(CreatePunctuation(" => "));
+                text.Write(CreateIdentifier(setMethod.name));
+                text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+                text.Write(CreateIdentifier("value"));
+                text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+                text.WriteLine();
+            }
+
+            text.indent--;
+            text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
+        }
     }
 
     private static void DisplayParameter(DisplayText text, ParameterSymbol parameter, SymbolDisplayFormat format) {

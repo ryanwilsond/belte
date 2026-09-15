@@ -140,6 +140,12 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
         Visit(node.body);
     }
 
+    internal override void VisitArrowExpressionClause(ArrowExpressionClauseSyntax node) {
+        var arrowBinder = new ExpressionVariableBinder(node, _enclosing);
+        AddToMap(node, arrowBinder);
+        Visit(node.expression, arrowBinder);
+    }
+
     internal override void VisitConstructorDeclaration(ConstructorDeclarationSyntax node) {
         var enclosing = new ExpressionVariableBinder(node, _enclosing);
         AddToMap(node, enclosing);
