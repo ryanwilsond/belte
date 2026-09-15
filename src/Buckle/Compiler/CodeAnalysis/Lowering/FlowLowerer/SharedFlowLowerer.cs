@@ -45,8 +45,6 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
 
         // TODO Theres a lot of code duplicate here but I think its more readable this way that it was before
         // There is still room to cut out duplicate code especially for the final node creation step
-        // Another improvement would be to store info from binding in ForEachEnumeratorInfo to avoid doing the same
-        // lookup work again, currently we only use that for IEnumerable
 
         switch (node.forEachLoopKind) {
             case ForEachLoopKind.Array:
@@ -60,6 +58,8 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
                 return VisitIterForEach(node);
             case ForEachLoopKind.IEnumerable:
                 return VisitIEnumerableForEach(node);
+            case ForEachLoopKind.Range:
+                return VisitRangeForEach(node);
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -81,6 +81,7 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
 
         */
         Debug.Assert(node.forEachLoopKind is ForEachLoopKind.Array or ForEachLoopKind.String);
+        Debug.Assert(node.enumeratorInfo is null);
 
         var syntax = node.syntax;
         var forEachLoopKind = node.forEachLoopKind;
@@ -168,6 +169,10 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
 
         */
         Debug.Assert(node.forEachLoopKind == ForEachLoopKind.Enumerator);
+        Debug.Assert(node.enumeratorInfo is not null);
+        Debug.Assert(node.enumeratorInfo.moveNextMethod is not null);
+        Debug.Assert(node.enumeratorInfo.getCurrentMethod is not null);
+        Debug.Assert(node.enumeratorInfo.disposeMethod is not null);
 
         var syntax = node.syntax;
         var type = node.expression.StrippedType();
@@ -178,11 +183,13 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
 
         BoundExpression condition = InstanceCall(syntax,
             Local(syntax, lengthOrIter),
-            (MethodSymbol)lengthOrIter.type.GetMembers("MoveNext").Single());
+            node.enumeratorInfo.moveNextMethod
+        );
 
         BoundExpression indexer = InstanceCall(syntax,
             Local(syntax, lengthOrIter),
-            (MethodSymbol)lengthOrIter.type.GetMembers("Current").Single());
+            node.enumeratorInfo.getCurrentMethod
+        );
 
         return Visit(Block(syntax, node.locals, [
             new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
@@ -193,7 +200,7 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
             )),
             new BoundExpressionStatement(syntax, InstanceCall(syntax,
                 Local(syntax, temp),
-                (MethodSymbol)type.GetMembers("Reset").Single()
+                node.enumeratorInfo.disposeMethod
             )),
             new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                 index,
@@ -234,26 +241,18 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
 
         */
         Debug.Assert(node.forEachLoopKind == ForEachLoopKind.Length);
+        Debug.Assert(node.enumeratorInfo is not null);
+        Debug.Assert(node.enumeratorInfo.lengthOp is not null);
+        Debug.Assert(node.enumeratorInfo.indexOp is not null);
 
         var syntax = node.syntax;
-        var kind = node.kind;
         var type = node.expression.StrippedType();
-
-        var lengthOps = type.GetMembers(WellKnownMemberNames.LengthOperatorName);
-
-        var bestIndexOp = type.GetMembers(WellKnownMemberNames.IndexOperatorName)
-            .WhereAsArray(m => m is MethodSymbol e && e.GetParameterType(1).specialType == SpecialType.Int)
-            .SingleOrDefault() as MethodSymbol;
-
-        var worseIndexOp = type.GetMembers(WellKnownMemberNames.IndexOperatorName)
-            .WhereAsArray(m => m is MethodSymbol e && e.GetParameterType(1).StrippedType().specialType == SpecialType.Int)
-            .SingleOrDefault() as MethodSymbol;
 
         var index = node.indexLocal ?? GenerateTempLocal(_compilation.GetSpecialType(SpecialType.Int));
         var temp = GenerateTempLocal(type);
         var lengthOrIter = GenerateTempLocal(_compilation.GetSpecialType(SpecialType.Int));
 
-        BoundExpression lengthOrIterInit = Call(syntax, (MethodSymbol)lengthOps[0], Local(syntax, temp));
+        BoundExpression lengthOrIterInit = Call(syntax, node.enumeratorInfo.lengthOp, Local(syntax, temp));
 
         BoundExpression condition = Binary(syntax,
             Local(syntax, index),
@@ -262,9 +261,9 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
             _compilation.GetSpecialType(SpecialType.Bool));
 
         BoundExpression indexer = Call(syntax,
-            bestIndexOp ?? worseIndexOp,
+            node.enumeratorInfo.indexOp,
             Local(syntax, temp),
-            bestIndexOp is not null
+            !node.enumeratorInfo.indexOpNeedsCast
                 ? Local(syntax, index)
                 : CreateCast(syntax,
                     _compilation.corLibrary.GetNullableType(SpecialType.Int),
@@ -320,17 +319,17 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
 
         */
         Debug.Assert(node.forEachLoopKind == ForEachLoopKind.Iter);
+        Debug.Assert(node.enumeratorInfo is not null);
+        Debug.Assert(node.enumeratorInfo.iterOp is not null);
 
         var syntax = node.syntax;
         var type = node.expression.StrippedType();
 
-        var iterOps = type.GetMembers(WellKnownMemberNames.IterOperatorName);
-
         var index = node.indexLocal ?? GenerateTempLocal(_compilation.GetSpecialType(SpecialType.Int));
         var temp = GenerateTempLocal(type);
-        var lengthOrIter = GenerateTempLocal(((MethodSymbol)iterOps[0]).returnType);
+        var lengthOrIter = GenerateTempLocal(node.enumeratorInfo.iterOp.returnType);
 
-        BoundExpression lengthOrIterInit = Call(syntax, (MethodSymbol)iterOps[0], Local(syntax, temp));
+        BoundExpression lengthOrIterInit = Call(syntax, node.enumeratorInfo.iterOp, Local(syntax, temp));
 
         BoundExpression condition = InstanceCall(syntax,
             Local(syntax, lengthOrIter),
@@ -392,6 +391,9 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
         */
         Debug.Assert(node.forEachLoopKind == ForEachLoopKind.IEnumerable);
         Debug.Assert(node.enumeratorInfo is not null);
+        Debug.Assert(node.enumeratorInfo.getEnumeratorMethod is not null);
+        Debug.Assert(node.enumeratorInfo.moveNextMethod is not null);
+        Debug.Assert(node.enumeratorInfo.getCurrentMethod is not null);
 
         var syntax = node.syntax;
         var enumeratorInfo = node.enumeratorInfo;
@@ -430,6 +432,56 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
                     new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                         node.valueLocal,
                         indexer
+                    )),
+                    node.body
+                ),
+                node.breakLabel,
+                node.continueLabel
+            )
+        ]));
+    }
+
+    private BoundNode VisitRangeForEach(BoundForEachStatement node) {
+        /*
+
+        {
+            for (int i = start; i < end; i++) {
+                <value> = i
+                <body>
+            }
+        }
+
+        */
+        Debug.Assert(node.forEachLoopKind == ForEachLoopKind.Range);
+        Debug.Assert(node.enumeratorInfo is not null);
+        Debug.Assert(node.enumeratorInfo.start is not null);
+        Debug.Assert(node.enumeratorInfo.end is not null);
+
+        var syntax = node.syntax;
+
+        var i = GenerateTempLocal(node.enumeratorInfo.start.type);
+
+        var condition = Binary(
+            syntax,
+            Local(syntax, i),
+            node.enumeratorInfo.inclusiveEnd
+                ? BinaryOperatorKind.Int64LessThanOrEqual
+                : BinaryOperatorKind.Int64LessThan,
+            node.enumeratorInfo.end,
+            _compilation.GetSpecialType(SpecialType.Bool)
+        );
+
+        return Visit(Block(syntax, node.locals, [
+            new BoundForStatement(syntax,
+                [i],
+                LocalDeclaration(syntax, i, node.enumeratorInfo.start),
+                [],
+                condition,
+                new BoundExpressionStatement(syntax, Increment(_compilation, syntax, Local(syntax, i))),
+                Block(syntax,
+                    new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
+                        node.valueLocal,
+                        Local(syntax, i)
                     )),
                     node.body
                 ),

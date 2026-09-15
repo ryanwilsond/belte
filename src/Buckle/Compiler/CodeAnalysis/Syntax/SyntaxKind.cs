@@ -81,6 +81,8 @@ public enum SyntaxKind : ushort {
     GreaterThanLessThanToken,
     GreaterThanLessThanEqualsToken,
     EqualsGreaterThanToken,
+    PeriodPeriodLessThanToken,
+    PeriodPeriodEqualsToken,
 
     // Tokens with text
     BadToken,
@@ -218,6 +220,7 @@ public enum SyntaxKind : ushort {
     ThrowExpression,
     DeclarationExpression,
     WithExpression,
+    RangeExpression,
 
     // Operator expressions
     TernaryExpression,

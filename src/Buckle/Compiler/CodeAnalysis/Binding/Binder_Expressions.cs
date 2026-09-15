@@ -857,18 +857,17 @@ internal partial class Binder {
             case BoundKind.PropertyAccessExpression:
                 var propertyAccess = (BoundPropertyAccessExpression)expression;
 
-                // TODO Properties
-                // if (!inAttributeArgument) {
-                //     if (HasSynthesizedBackingField(propertyAccess.property, out _)) {
-                //         expression = propertyAccess.Update(
-                //             propertyAccess.receiver,
-                //             propertyAccess.property,
-                //             autoPropertyAccessorKind: GetAccessorKind(valueKind),
-                //             propertyAccess.resultKind,
-                //             propertyAccess.type
-                //         );
-                //     }
-                // }
+                if (!inAttributeArgument) {
+                    if (HasSynthesizedBackingField(propertyAccess.property, out _)) {
+                        expression = propertyAccess.Update(
+                            propertyAccess.receiver,
+                            propertyAccess.property,
+                            autoPropertyAccessorKind: GetAccessorKind(kind),
+                            propertyAccess.resultKind,
+                            propertyAccess.type
+                        );
+                    }
+                }
 
                 break;
         }
@@ -922,6 +921,34 @@ internal partial class Binder {
             : LookupResultKind.NotADataContainer;
 
         return ToErrorExpression(expression, resultKind);
+    }
+
+    private static bool HasSynthesizedBackingField(
+        PropertySymbol propertySymbol,
+        out SourcePropertySymbolBase sourcePropertyDefinition) {
+        if (!propertySymbol.isDefinition && propertySymbol.containingType.Equals(
+            propertySymbol.containingType.originalDefinition,
+            TypeCompareKind.ConsiderEverything)) {
+            propertySymbol = propertySymbol.originalDefinition;
+        }
+
+        if (propertySymbol is SourcePropertySymbolBase { backingField: { } } sourceProperty) {
+            sourcePropertyDefinition = sourceProperty;
+            return true;
+        }
+
+        sourcePropertyDefinition = null;
+        return false;
+    }
+
+    private static AccessorKind GetAccessorKind(BindValueKind valueKind) {
+        var coreValueKind = valueKind & ValueKindSignificantBitsMask;
+
+        return coreValueKind switch {
+            BindValueKind.CompoundAssignment => AccessorKind.Both,
+            BindValueKind.Assignable => AccessorKind.Set,
+            _ => AccessorKind.Get,
+        };
     }
 
     private static bool RequiresRValueOnly(BindValueKind kind) {
@@ -1854,6 +1881,8 @@ internal partial class Binder {
                     return BindReversibleExpression((ReversibleExpressionSyntax)node, diagnostics);
                 case SyntaxKind.FieldExpression:
                     return BindFieldExpression((FieldExpressionSyntax)node, diagnostics);
+                case SyntaxKind.RangeExpression:
+                    return BindRangeExpression((RangeExpressionSyntax)node, diagnostics);
                 case SyntaxKind.NonNullableType:
                     Debug.Assert(false);
                     return ErrorExpression(node);
@@ -1972,54 +2001,69 @@ internal partial class Binder {
     }
 
     private BoundExpression BindFieldExpression(FieldExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
-        // TODO Properties
-        throw ExceptionUtilities.Unreachable();
-        // Debug.Assert(containingType is not null);
-        // FieldSymbol field = null;
+        Debug.Assert(containingType is not null);
+        FieldSymbol field = null;
 
-        // if (HasOtherFieldSymbolInScope()) {
-        //     // TODO
-        //     // diagnostics.Add(ErrorCode.WRN_FieldIsAmbiguous, node, Compilation.LanguageVersion.ToDisplayString());
-        //     throw ExceptionUtilities.Unreachable();
-        // }
+        if (HasOtherFieldSymbolInScope()) {
+            // TODO
+            // diagnostics.Add(ErrorCode.WRN_FieldIsAmbiguous, node, Compilation.LanguageVersion.ToDisplayString());
+            throw ExceptionUtilities.Unreachable();
+        }
 
-        // // TODO ContainingMember() when lambdas are added
-        // switch (containingMember) {
-        //     // TODO
-        //     // case SynthesizedBackingFieldSymbolBase backingField:
-        //     //     field = backingField;
-        //     //     break;
-        //     // case MethodSymbol { associatedSymbol: SourcePropertySymbol property }:
-        //     //     field = property.BackingField;
-        //     //     break;
-        //     default: {
-        //             Debug.Assert((flags & BinderFlags.InContextualAttributeBinder) != 0);
-        //             var contextualAttributeBinder = TryGetContextualAttributeBinder(this);
+        // TODO ContainingMember() when lambdas are added
+        switch (containingMember) {
+            case SynthesizedBackingFieldSymbolBase backingField:
+                field = backingField;
+                break;
+            case MethodSymbol { associatedSymbol: SourcePropertySymbol property }:
+                field = property.backingField;
+                break;
+            default: {
+                    Debug.Assert((flags & BinderFlags.InContextualAttributeBinder) != 0);
+                    var contextualAttributeBinder = TryGetContextualAttributeBinder(this);
 
-        //             if (contextualAttributeBinder is { AttributeTarget: MethodSymbol { AssociatedSymbol: SourcePropertySymbol property } }) {
-        //                 field = property.BackingField;
-        //             }
+                    if (contextualAttributeBinder is {
+                        attributeTarget: MethodSymbol { associatedSymbol: SourcePropertySymbol property }
+                    }) {
+                        field = property.backingField;
+                    }
 
-        //             break;
-        //         }
-        // }
+                    break;
+                }
+        }
 
-        // if (field is null) {
-        //     diagnostics.Add(ErrorCode.ERR_NoSuchMember, node, ContainingMember(), "field");
-        //     return BadExpression(node);
-        // }
+        if (field is null) {
+            // TODO ContainingMember() when lambdas are added
+            diagnostics.Push(Error.NoSuchMember(node.location, containingType, "field"));
+            return ErrorExpression(node);
+        }
 
-        // var implicitReceiver = field.isStatic ? null : ThisReference(node, field.containingType, wasCompilerGenerated: true);
-        // return new BoundFieldAccess(node, implicitReceiver, field, constantValueOpt: null);
+        var implicitReceiver = field.isStatic ? null : new BoundThisExpression(node, field.containingType);
+        return new BoundFieldAccessExpression(node, implicitReceiver, field, constantValue: null, field.type);
 
-        // bool HasOtherFieldSymbolInScope() {
-        //     var lookupResult = LookupResult.GetInstance();
-        //     LookupIdentifier(lookupResult, name: "field", arity: 0, called: false, errorLocation: node.location);
-        //     var result = lookupResult.kind != LookupResultKind.Empty;
-        //     Debug.Assert(!result || lookupResult.symbols.Count > 0);
-        //     lookupResult.Free();
-        //     return result;
-        // }
+        bool HasOtherFieldSymbolInScope() {
+            var lookupResult = LookupResult.GetInstance();
+            LookupIdentifier(lookupResult, name: "field", arity: 0, called: false, errorLocation: node.location);
+            var result = lookupResult.kind != LookupResultKind.Empty;
+            Debug.Assert(!result || lookupResult.symbols.Count > 0);
+            lookupResult.Free();
+            return result;
+        }
+    }
+
+    internal static ContextualAttributeBinder TryGetContextualAttributeBinder(Binder binder) {
+        if ((binder.flags & BinderFlags.InContextualAttributeBinder) != 0) {
+            do {
+                if (binder is ContextualAttributeBinder contextualAttributeBinder)
+                    return contextualAttributeBinder;
+
+                binder = binder.next;
+            } while (binder is not null);
+
+            Debug.Assert(false);
+        }
+
+        return null;
     }
 
     private BoundExpression BindReversibleExpression(
@@ -4823,6 +4867,44 @@ internal partial class Binder {
                 BindValue(node.expression, BelteDiagnosticQueue.Discarded, BindValueKind.RefersToLocation)
             )],
             CreateErrorType("ref"),
+            true
+        );
+    }
+
+    internal BoundExpression BindRangeOrRValue(
+        ExpressionSyntax expression,
+        BelteDiagnosticQueue diagnostics) {
+        if (expression.kind == SyntaxKind.RangeExpression)
+            return BindValidRangeExpression((RangeExpressionSyntax)expression, diagnostics);
+
+        return BindRValueWithoutTargetType(expression, diagnostics);
+    }
+
+    private BoundExpression BindValidRangeExpression(RangeExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var int64 = compilation.GetSpecialType(SpecialType.Int);
+        var left = BindValue(node.left, diagnostics, BindValueKind.RValue);
+        left = CreateConversion(left, int64, diagnostics);
+        var right = BindValue(node.right, diagnostics, BindValueKind.RValue);
+        right = CreateConversion(right, int64, diagnostics);
+
+        var includeEnd = node.operatorToken.kind == SyntaxKind.PeriodPeriodEqualsToken;
+
+        return new BoundRangeExpression(node, left, right, includeEnd);
+    }
+
+    private BoundExpression BindRangeExpression(RangeExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        diagnostics.Push(Error.UnexpectedToken(node.operatorToken.location, node.operatorToken.kind));
+
+        return new BoundErrorExpression(
+            node,
+            LookupResultKind.Empty,
+            [],
+            [BindToTypeForErrorRecovery(
+                BindValue(node.left, BelteDiagnosticQueue.Discarded, BindValueKind.RValue)
+            ),BindToTypeForErrorRecovery(
+                BindValue(node.right, BelteDiagnosticQueue.Discarded, BindValueKind.RValue)
+            )],
+            CreateErrorType("range"),
             true
         );
     }

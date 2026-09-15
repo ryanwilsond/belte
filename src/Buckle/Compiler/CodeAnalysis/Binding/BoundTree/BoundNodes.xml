@@ -281,6 +281,12 @@
     <Field Name="local" Type="DataContainerSymbol"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
+  <Node Name="BoundRangeExpression" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
+    <Field Name="left" Type="BoundExpression"/>
+    <Field Name="right" Type="BoundExpression"/>
+    <Field Name="inclusiveEnd" Type="bool"/>
+  </Node>
   <Node Name="BoundLiteralExpression" Base="BoundExpression">
     <Field Name="constantValue" Type="ConstantValue" PropertyOverrides="true"/>
   </Node>

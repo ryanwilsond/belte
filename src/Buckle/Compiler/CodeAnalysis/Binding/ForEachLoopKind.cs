@@ -8,5 +8,6 @@ internal enum ForEachLoopKind : byte {
     Enumerator,
     Length,
     Iter,
-    IEnumerable
+    IEnumerable,
+    Range
 }

@@ -15,5 +15,6 @@ internal sealed partial class LanguageParser {
         InPattern = 1 << 6,
         InInterfaceDefinition = 1 << 7,
         InPropertyAccessor = 1 << 8,
+        InForEach = 1 << 9,
     }
 }

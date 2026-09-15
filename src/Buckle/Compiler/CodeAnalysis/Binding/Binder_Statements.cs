@@ -315,8 +315,17 @@ internal partial class Binder {
         SyntaxNode collectionSyntax,
         ref BoundExpression collectionExpr,
         BelteDiagnosticQueue diagnostics,
-        out TypeWithAnnotations inferredType) {
+        out TypeWithAnnotations inferredType,
+        out ForEachEnumeratorInfo enumeratorInfo) {
+        if (collectionExpr.kind == BoundKind.RangeExpression) {
+            var range = (BoundRangeExpression)collectionExpr;
+            inferredType = new TypeWithAnnotations(range.left.type);
+            enumeratorInfo = ForEachEnumeratorInfo.CreateRangeInfo(range.left, range.right, range.inclusiveEnd);
+            return ForEachLoopKind.Range;
+        }
+
         var type = collectionExpr.StrippedType();
+
         var iterOps = type.GetMembers(WellKnownMemberNames.IterOperatorName);
         var lengthOps = type.GetMembers(WellKnownMemberNames.LengthOperatorName);
         var bestIndexOp = type.GetMembers(WellKnownMemberNames.IndexOperatorName)
@@ -329,20 +338,34 @@ internal partial class Binder {
         // Prefer native options, then fallback to System.Collections.Generic.IEnumerable<T>
         if (type.IsArray()) {
             inferredType = ((ArrayTypeSymbol)type).elementTypeWithAnnotations;
+            enumeratorInfo = null;
             return ForEachLoopKind.Array;
         } else if (type.specialType == SpecialType.String) {
             inferredType = new TypeWithAnnotations(compilation.GetSpecialType(SpecialType.Char));
+            enumeratorInfo = null;
             return ForEachLoopKind.String;
         } else if (type.originalDefinition.Equals(compilation.corLibrary.GetWellKnownType(WellKnownType.Enumerator))) {
             inferredType = ((NamedTypeSymbol)type).templateArguments[0].type;
+            enumeratorInfo = null;
             return ForEachLoopKind.Enumerator;
         } else if (lengthOps.Any() && worseIndexOp is not null) {
-            inferredType = (bestIndexOp ?? worseIndexOp).returnTypeWithAnnotations;
+            var indexOp = bestIndexOp ?? worseIndexOp;
+            inferredType = indexOp.returnTypeWithAnnotations;
+
+            enumeratorInfo = ForEachEnumeratorInfo.CreateLengthOpInfo(
+                (MethodSymbol)lengthOps[0],
+                indexOp,
+                bestIndexOp is null
+            );
+
             return ForEachLoopKind.Length;
         } else if (iterOps.Any()) {
-            inferredType = ((NamedTypeSymbol)((MethodSymbol)iterOps.Single()).returnType).templateArguments[0].type;
+            var iterOp = (MethodSymbol)iterOps.Single();
+            inferredType = ((NamedTypeSymbol)iterOp.returnType).templateArguments[0].type;
+            enumeratorInfo = ForEachEnumeratorInfo.CreateIterOpInfo(iterOp);
             return ForEachLoopKind.Iter;
         } else {
+            enumeratorInfo = null;
             return BindForEachCollectionContinued(syntax, collectionSyntax, type, diagnostics, out inferredType);
         }
     }

@@ -2676,7 +2676,12 @@ internal sealed partial class LanguageParser : SyntaxParser {
         }
 
         var inKeyword = Match(SyntaxKind.InKeyword);
+
+        var saved = _context;
+        _context |= ParserContext.InForEach;
         var expression = ParseExpression();
+        _context = saved;
+
         var closeParenthesis = MatchCloseParen();
         var body = ParseStatement();
 
@@ -3620,7 +3625,6 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 case SyntaxKind.QuestionPeriodToken:
                 case SyntaxKind.MinusGreaterThanToken when !IsNullBindingContractTarget():
                     return ParseMemberAccessExpression(expression);
-                case SyntaxKind.PeriodPeriodToken:
                 case SyntaxKind.QuestionPeriodPeriodToken:
                     return ParseCascadeListExpression(expression);
                 case SyntaxKind.MinusMinusToken:
@@ -3628,6 +3632,29 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 case SyntaxKind.ExclamationToken:
                 case SyntaxKind.ExclamationExclamationToken:
                     return ParsePostfixExpression(expression);
+                case SyntaxKind.PeriodPeriodToken:
+                    if ((_context & ParserContext.InForEach) != 0) {
+                        SyntaxKind combinedTokenKind;
+
+                        if (Peek(1).kind is SyntaxKind.LessThanToken or SyntaxKind.EqualsToken &&
+                            NoTriviaBetween(currentToken, Peek(1))) {
+                            combinedTokenKind = Peek(1).kind == SyntaxKind.LessThanToken
+                                ? SyntaxKind.PeriodPeriodLessThanToken
+                                : SyntaxKind.PeriodPeriodEqualsToken;
+                        } else {
+                            goto case SyntaxKind.QuestionPeriodPeriodToken;
+                        }
+
+                        var operatorToken = SyntaxFactory.Token(
+                            EatToken().GetLeadingTrivia(),
+                            combinedTokenKind,
+                            EatToken().GetTrailingTrivia()
+                        );
+
+                        return ParseRangeExpression(expression, operatorToken);
+                    } else {
+                        goto case SyntaxKind.QuestionPeriodPeriodToken;
+                    }
                 default:
                     return expression;
             }
@@ -4319,6 +4346,11 @@ done:
         var operatorToken = EatToken();
         var name = ParseSimpleName();
         return SyntaxFactory.MemberAccessExpression(expression, operatorToken, name);
+    }
+
+    private ExpressionSyntax ParseRangeExpression(ExpressionSyntax expressionSyntax, SyntaxToken operatorToken) {
+        var right = ParseOperatorExpression();
+        return SyntaxFactory.RangeExpression(expressionSyntax, operatorToken, right);
     }
 
     private ExpressionSyntax ParseCascadeListExpression(ExpressionSyntax expression) {

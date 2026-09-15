@@ -375,6 +375,8 @@ public static class SyntaxFacts {
             SyntaxKind.BackslashSlashEqualsToken => "\\/=",
             SyntaxKind.GreaterThanLessThanToken => "><",
             SyntaxKind.GreaterThanLessThanEqualsToken => "><=",
+            SyntaxKind.PeriodPeriodLessThanToken => "..<",
+            SyntaxKind.PeriodPeriodEqualsToken => "..=",
             SyntaxKind.TrueKeyword => "true",
             SyntaxKind.FalseKeyword => "false",
             SyntaxKind.NullKeyword => "null",

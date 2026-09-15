@@ -8198,20 +8198,18 @@ var text = """"""
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // !
-    // TODO Properties
+    // TODO Broken location
     // [Fact]
     // public void Reports_Error_BU0580_GetOrSetExpected() {
     //     var text = @"
     //         class A {
-    //             \[[MustUseReturnValue]\]
-    //             public static void M() { }
+    //             property int a { [if] }
     //         }
     //         ;
     //     ";
 
     //     var diagnostics = @"
-    //         'MustUseReturnValue' can only be applied to methods returning a value
+    //         a get or set accessor expected
     //     ";
 
     //     AssertDiagnostics(text, diagnostics, _writer);

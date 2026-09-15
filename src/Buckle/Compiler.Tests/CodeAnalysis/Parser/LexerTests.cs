@@ -44,6 +44,8 @@ public sealed class LexerTests {
         untestedTokenTypes.Remove(SyntaxKind.AsteriskAsteriskToken);
         untestedTokenTypes.Remove(SyntaxKind.GreaterThanLessThanToken);
         untestedTokenTypes.Remove(SyntaxKind.GreaterThanLessThanEqualsToken);
+        untestedTokenTypes.Remove(SyntaxKind.PeriodPeriodEqualsToken);
+        untestedTokenTypes.Remove(SyntaxKind.PeriodPeriodLessThanToken);
         untestedTokenTypes.Remove(SyntaxKind.HashToken);
         untestedTokenTypes.Remove(SyntaxKind.EndOfDirectiveToken);
         untestedTokenTypes.Remove(SyntaxKind.OmittedArgumentToken);
@@ -188,7 +190,9 @@ public sealed class LexerTests {
                          and not SyntaxKind.HashToken
                          and not SyntaxKind.AsteriskAsteriskToken
                          and not SyntaxKind.GreaterThanLessThanToken
-                         and not SyntaxKind.GreaterThanLessThanEqualsToken)
+                         and not SyntaxKind.GreaterThanLessThanEqualsToken
+                         and not SyntaxKind.PeriodPeriodEqualsToken
+                         and not SyntaxKind.PeriodPeriodLessThanToken)
             .Select(k => (kind: k, text: SyntaxFacts.GetText(k)))
             .Where(t => t.text is not null && !SyntaxFacts.IsContextualKeyword(t.kind));
 
@@ -360,6 +364,8 @@ public sealed class LexerTests {
         if (t1Kind == SyntaxKind.StringLiteralToken && t2Kind == SyntaxKind.IdentifierToken) return true;
         if (t1Kind == SyntaxKind.NumericLiteralToken && t2Kind == SyntaxKind.IdentifierToken) return true;
         if (t1Kind == SyntaxKind.CharacterLiteralToken && t2Kind == SyntaxKind.IdentifierToken) return true;
+        if (t1Kind == SyntaxKind.PeriodPeriodToken && t2Kind == SyntaxKind.EqualsToken) return true;
+        if (t1Kind == SyntaxKind.PeriodPeriodToken && t2Kind == SyntaxKind.LessThanToken) return true;
 
         return false;
     }

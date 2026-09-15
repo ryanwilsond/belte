@@ -65,6 +65,8 @@ internal static class WellKnownMemberNames {
     internal new const string ToString = "ToString";
     internal const string GetEnumeratorMethodName = "GetEnumerator";
     internal const string MoveNextMethodName = "MoveNext";
+    internal const string CurrentMethodName = "Current";
+    internal const string ResetMethodName = "Reset";
     internal const string CurrentPropertyName = "get_Current";
 
     internal static string GetLiteralOperatorName(string suffix) {

@@ -733,6 +733,8 @@ public sealed class EvaluatorTests {
             sum += i;
         }
         return sum;", 10)]
+    [InlineData(@"int sum = 0; for (i in 0..<10) sum += i; return sum;", 45)]
+    [InlineData(@"int sum = 0; for (i in 0..=10) sum += i; return sum;", 55)]
     // While statements
     [InlineData("int? i = 0; int? result = 1; while (i <= 10) { result += result; i++; } return result;", 2048)]
     [InlineData("int? i = 0; int? result = 0; while (i < 5) { result++; i++; } return result;", 5)]

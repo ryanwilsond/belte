@@ -1891,4 +1891,10 @@
     </Field>
     <Field Name="expression" Type="ExpressionSyntax"/>
   </Node>
+  <Node Name="RangeExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="RangeExpression"/>
+    <Field Name="left" Type="ExpressionSyntax"/>
+    <Field Name="operatorToken" Type="SyntaxToken"/>
+    <Field Name="right" Type="ExpressionSyntax"/>
+  </Node>
 </Tree>

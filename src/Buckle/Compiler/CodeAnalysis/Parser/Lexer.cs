@@ -1112,7 +1112,7 @@ internal sealed partial class Lexer : IDisposable {
         }
 
         while (true) {
-            if (_current == '.' && !isBinary && !isHexadecimal && !hasDecimal && !hasExponent) {
+            if (_current == '.' && !isBinary && !isHexadecimal && !hasDecimal && !hasExponent && Peek(1) != '.') {
                 hasDecimal = true;
                 _position++;
             } else if (char.ToLower(_current) == 'e' && !isBinary && !isHexadecimal && !hasExponent &&

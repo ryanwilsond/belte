@@ -159,14 +159,25 @@ internal sealed class DiagnosticPass : BoundTreeWalkerWithStackGuard {
     }
 
     internal override BoundNode VisitForEachStatement(BoundForEachStatement node) {
-        // TODO We need to restructure foreach to always use enumeratorInfo to consolidate the methods
-        // so its easier to check whether or not they are all marked nothrow
-
         if (node.enumeratorInfo is not null) {
-            _seenPossibleThrowingNode |= !(node.enumeratorInfo.disposeMethod?.isNoThrow ?? true) ||
-                                         !node.enumeratorInfo.getCurrentMethod.isNoThrow ||
-                                         !node.enumeratorInfo.getEnumeratorMethod.isNoThrow ||
-                                         !node.enumeratorInfo.moveNextMethod.isNoThrow;
+            var info = node.enumeratorInfo;
+
+            if (info.getCurrentMethod is not null && !info.getCurrentMethod.isNoThrow)
+                _seenPossibleThrowingNode = true;
+            else if (info.getEnumeratorMethod is not null && !info.getEnumeratorMethod.isNoThrow)
+                _seenPossibleThrowingNode = true;
+            else if (info.moveNextMethod is not null && !info.moveNextMethod.isNoThrow)
+                _seenPossibleThrowingNode = true;
+            else if (info.disposeMethod is not null && !info.disposeMethod.isNoThrow)
+                _seenPossibleThrowingNode = true;
+            else if (info.lengthOp is not null && !info.lengthOp.isNoThrow)
+                _seenPossibleThrowingNode = true;
+            else if (info.indexOp is not null && !info.indexOp.isNoThrow)
+                _seenPossibleThrowingNode = true;
+            else if (info.iterOp is not null && !info.iterOp.isNoThrow)
+                _seenPossibleThrowingNode = true;
+
+            // TODO Can range foreach throw?
         }
 
         return base.VisitForEachStatement(node);

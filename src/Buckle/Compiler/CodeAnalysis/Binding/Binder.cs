@@ -5144,10 +5144,11 @@ internal partial class Binder {
                 // case SyntaxKind.ParenthesizedLambdaExpression:
                 //     resultIsUsed = (((ParenthesizedLambdaExpressionSyntax)parent).Body != node) || MethodOrLambdaRequiresValue(ContainingMemberOrLambda, Compilation);
                 //     break;
-                // TODO properties
-                // case SyntaxKind.ArrowExpressionClause:
-                //     resultIsUsed = (((ArrowExpressionClauseSyntax)parent).Expression != node) || MethodOrLambdaRequiresValue(ContainingMemberOrLambda, Compilation);
-                //     break;
+                case SyntaxKind.ArrowExpressionClause:
+                    resultIsUsed = (((ArrowExpressionClauseSyntax)parent).expression != node) ||
+                        MethodOrLambdaRequiresValue(containingMember);
+
+                    break;
                 case SyntaxKind.ForStatement:
                     var loop = (ForStatementSyntax)parent;
                     resultIsUsed = !loop.step.Contains(node) && !loop.initializer.Contains(node);
@@ -5156,6 +5157,10 @@ internal partial class Binder {
         }
 
         return resultIsUsed;
+    }
+
+    internal static bool MethodOrLambdaRequiresValue(Symbol symbol) {
+        return symbol is MethodSymbol method && !method.returnsVoid;
     }
 
     private ArrayBuilder<MethodSymbol> LookupUserDefinedInstanceOperators(
@@ -7397,7 +7402,8 @@ symIsHidden:;
             syntax,
             ref collectionExpr,
             BelteDiagnosticQueue.Discarded,
-            out iterationType
+            out iterationType,
+            out _
         );
 
         if (result == ForEachLoopKind.Invalid) {

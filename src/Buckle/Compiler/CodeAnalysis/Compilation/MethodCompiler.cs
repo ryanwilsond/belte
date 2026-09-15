@@ -5,6 +5,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.FlowAnalysis;
@@ -161,6 +162,8 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             // Is there a way to get around doing this?
             if (methodCompiler._sawNonTypeTemplate/* && !allowNonTypeTemplates*/)
                 methodCompiler.ExpandTemplates();
+
+            methodCompiler.PerformEntireProgramOptimizationPass(shouldInline: false);
         }
 
         if (compilation.options.isScript && methodCompiler._updatePoint is null)
@@ -259,6 +262,66 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             _updatePoint,
             _compilation.previous?.boundProgram
         );
+    }
+
+    private void PerformEntireProgramOptimizationPass(bool shouldInline) {
+        if (_compilation.options.optimizationLevel != OptimizationLevel.Release || !shouldInline)
+            return;
+
+        // TODO Many optimizations could happen here
+
+        var inlineableMethods = new ConcurrentDictionary<MethodSymbol, CanInlineVisitor.InlineInformation>();
+
+        foreach (var (method, body) in _methodBodies) {
+            if (!MethodIsInlineable(method)) {
+                inlineableMethods[method] = default;
+                continue;
+            }
+
+            if (!CanInlineVisitor.MethodBodyIsInlineable(method, body, out var inlineInformation)) {
+                inlineableMethods[method] = default;
+                continue;
+            }
+
+            inlineableMethods[method] = inlineInformation;
+        }
+
+        Parallel.ForEach(_methodBodies, OptimizeBody);
+
+        static bool MethodIsInlineable(MethodSymbol method) {
+            switch (method.methodKind) {
+                case MethodKind.Destructor:
+                case MethodKind.Ordinary:
+                case MethodKind.LocalFunction:
+                case MethodKind.Operator:
+                case MethodKind.Conversion:
+                case MethodKind.AnonymousFunction:
+                case MethodKind.Lambda:
+                case MethodKind.Literal:
+                case MethodKind.PropertyGet:
+                case MethodKind.PropertySet:
+                    break;
+                case MethodKind.Constructor:
+                case MethodKind.StaticConstructor:
+                case MethodKind.Finalizer:
+                case MethodKind.FunctionPointerSignature:
+                case MethodKind.FunctionSignature:
+                case MethodKind.ExplicitInterfaceImplementation:
+                    return false;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(method.methodKind);
+            }
+
+            // TODO Could potentially do some devirtualization
+            if (method.isOverride && !method.isSealed)
+                return false;
+
+            return true;
+        }
+
+        void OptimizeBody(KeyValuePair<MethodSymbol, BoundBlockStatement> pair) {
+            MethodInliner.Visit(pair.Key, pair.Value, inlineableMethods, _methodBodies);
+        }
     }
 
     private void ComputeCompileTimeExpressions() {

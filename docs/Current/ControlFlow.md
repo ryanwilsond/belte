@@ -25,6 +25,7 @@
     - [2.4.4.2](#2442-array-collections) Array Collections
     - [2.4.4.3](#2443-indexed-collections) Indexed Collections
     - [2.4.4.4](#2444-enumerated-collections) Enumerated Collections
+    - [2.4.4.5](#2445-ranges) Ranges
   - [2.4.5](#245-break) Break
   - [2.4.6](#246-continue) Continue
 - [2.5](#25-switch) Switch
@@ -629,6 +630,42 @@ public class A {
     }
   }
 }
+```
+
+#### 2.4.4.5 Ranges
+
+A range can be used to iterate over a sequence of numbers:
+
+```belte
+for (i in 0..<10)
+  Console.PrintLine(i);
+```
+
+`start..<end` counts from `start` inclusive to `end` exclusive, and `start..=end` counts from `start` inclusive to
+`end` inclusive.
+
+The following are equivalent:
+
+```belte
+for (i in 0..<10)
+  Console.PrintLine(i);
+```
+
+```belte
+for (int i = 0; i < 10; i++)
+  Console.PrintLine(i);
+```
+
+Likewise, the following are equivalent:
+
+```belte
+for (i in 0..=10)
+  Console.PrintLine(i);
+```
+
+```belte
+for (int i = 0; i <= 10; i++)
+  Console.PrintLine(i);
 ```
 
 ### 2.4.5 Break

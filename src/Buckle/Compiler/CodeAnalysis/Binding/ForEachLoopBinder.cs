@@ -60,14 +60,15 @@ internal sealed class ForEachLoopBinder : LoopBinder {
         BelteDiagnosticQueue diagnostics,
         Binder originalBinder) {
         var collectionExpr = originalBinder.GetBinder(_syntax.expression)
-            .BindRValueWithoutTargetType(_syntax.expression, diagnostics);
+            .BindRangeOrRValue(_syntax.expression, diagnostics);
 
         _ = BindForEachCollection(
             _syntax,
             _syntax.expression,
             ref collectionExpr,
             diagnostics,
-            out var inferredType
+            out var inferredType,
+            out _
         );
 
         _valueSymbol.SetTypeWithAnnotations(inferredType);
@@ -83,21 +84,30 @@ internal sealed class ForEachLoopBinder : LoopBinder {
         _ = locals;
 
         var collectionExpr = originalBinder.GetBinder(_syntax.expression)
-            .BindRValueWithoutTargetType(_syntax.expression, diagnostics);
+            .BindRangeOrRValue(_syntax.expression, diagnostics);
 
         var forEachKind = BindForEachCollection(
             _syntax,
             _syntax.expression,
             ref collectionExpr,
             diagnostics,
-            out var inferredType
+            out var inferredType,
+            out var potentialEnumeratorInfo
         );
 
-        var enumeratorInfo = forEachKind == ForEachLoopKind.IEnumerable
-            ? BindEnumeratorInfo(_syntax, _syntax.expression, collectionExpr.type, diagnostics)
-            : null;
+        ForEachEnumeratorInfo enumeratorInfo;
 
-        if (enumeratorInfo is not null)
+        if (forEachKind == ForEachLoopKind.IEnumerable) {
+            Debug.Assert(potentialEnumeratorInfo is null);
+            enumeratorInfo = BindIEnumerableInfo(_syntax, _syntax.expression, collectionExpr.type, diagnostics);
+        } else if (forEachKind == ForEachLoopKind.Enumerator) {
+            Debug.Assert(potentialEnumeratorInfo is null);
+            enumeratorInfo = BindEnumeratorInfo(_syntax, _syntax.expression, collectionExpr.type, diagnostics);
+        } else {
+            enumeratorInfo = potentialEnumeratorInfo;
+        }
+
+        if (forEachKind == ForEachLoopKind.IEnumerable && enumeratorInfo is not null)
             ReportDiagnosticsIfUnmanagedCallersOnly(diagnostics, enumeratorInfo.getEnumeratorMethod, _syntax.keyword);
 
         _valueSymbol.SetTypeWithAnnotations(inferredType);
@@ -120,7 +130,7 @@ internal sealed class ForEachLoopBinder : LoopBinder {
         );
     }
 
-    private ForEachEnumeratorInfo BindEnumeratorInfo(
+    private ForEachEnumeratorInfo BindIEnumerableInfo(
         SyntaxNode syntax,
         SyntaxNode collectionSyntax,
         TypeSymbol type,
@@ -164,7 +174,51 @@ internal sealed class ForEachLoopBinder : LoopBinder {
             diagnostics
         );
 
-        return new ForEachEnumeratorInfo(getEnumeratorMethod, moveNextMethod, getCurrentMethod, disposeMethod);
+        return ForEachEnumeratorInfo.CreateIEnumerableInfo(
+            getEnumeratorMethod,
+            moveNextMethod,
+            getCurrentMethod,
+            disposeMethod
+        );
+    }
+
+    private ForEachEnumeratorInfo BindEnumeratorInfo(
+        SyntaxNode syntax,
+        SyntaxNode collectionSyntax,
+        TypeSymbol type,
+        BelteDiagnosticQueue diagnostics) {
+        var moveNextMethod = FindForEachMethod(
+            syntax,
+            collectionSyntax,
+            type,
+            WellKnownMemberNames.MoveNextMethodName,
+            false,
+            diagnostics
+        );
+
+        var currentMethod = FindForEachMethod(
+            syntax,
+            collectionSyntax,
+            type,
+            WellKnownMemberNames.CurrentMethodName,
+            false,
+            diagnostics
+        );
+
+        var resetMethod = FindForEachMethod(
+            syntax,
+            collectionSyntax,
+            type,
+            WellKnownMemberNames.ResetMethodName,
+            true,
+            diagnostics
+        );
+
+        return ForEachEnumeratorInfo.CreateEnumeratorInfo(
+            moveNextMethod,
+            currentMethod,
+            resetMethod
+        );
     }
 
     private MethodSymbol FindForEachMethod(

@@ -68,6 +68,7 @@
         - [2.4.4.2](Current/ControlFlow.md#2442-array-collections) Array Collections
         - [2.4.4.3](Current/ControlFlow.md#2443-indexed-collections) Indexed Collections
         - [2.4.4.4](Current/ControlFlow.md#2444-enumerated-collections) Enumerated Collections
+        - [2.4.4.5](Current/ControlFlow.md#2445-ranges) Ranges
       - [2.4.5](Current/ControlFlow.md#245-break) Break
       - [2.4.6](Current/ControlFlow.md#246-continue) Continue
     - [2.5](Current/ControlFlow.md#25-switch) Switch
