@@ -371,23 +371,60 @@ internal static class WellKnownMembers {
                     2,                                                                                                      // Method Signature
                     (byte)SignatureTypeCode.TypeHandle, (byte)SpecialType.Void, // Return Type
                     (byte)SignatureTypeCode.TypeHandle, (byte)SpecialType.Int,
-                    (byte)SignatureTypeCode.TypeHandle, (byte)SignatureTypeCode.SZArray, (byte)SignatureTypeCode.GenericTypeParameter, 0,
+                    (byte)SignatureTypeCode.SZArray, (byte)SignatureTypeCode.GenericTypeParameter, 0,
 
                 // Array_Get
                 (byte)MemberFlags.Method,                                                                                   // Flags
-                (byte)SpecialType.Array,                                                                                    // DeclaringTypeId
+                (byte)WellKnownType.Array,                                                                                    // DeclaringTypeId
                 0,                                                                                                          // Arity
                     0,                                                                                                      // Method Signature
                     (byte)SignatureTypeCode.ByReference, (byte)SignatureTypeCode.GenericTypeParameter, 0, // Return Type
 
                 // Array_Set
                 (byte)MemberFlags.Method,                                                                                   // Flags
-                (byte)SpecialType.Array,                                                                                    // DeclaringTypeId
+                (byte)WellKnownType.Array,                                                                                    // DeclaringTypeId
                 0,                                                                                                          // Arity
                     2,                                                                                                      // Method Signature
                     (byte)SignatureTypeCode.GenericTypeParameter, 0,            // Return Type
                     (byte)SignatureTypeCode.TypeHandle, (byte)SpecialType.Int,
-                    (byte)SignatureTypeCode.GenericTypeParameter, 0
+                    (byte)SignatureTypeCode.GenericTypeParameter, 0,
+
+                // Result_Failure
+                (byte)(MemberFlags.Method | MemberFlags.Static),                                                            // Flags
+                (byte)WellKnownType.Belte_Result,                                                                           // DeclaringTypeId
+                0,                                                                                                          // Arity
+                    1,                                                                                                      // Method Signature
+                    (byte)SignatureTypeCode.TypeHandle, (byte)WellKnownType.Belte_Result, // Return Type
+                    (byte)SignatureTypeCode.GenericTypeParameter, 1,
+
+                // Result_getIsSuccess
+                (byte)MemberFlags.PropertyGet,                                                                              // Flags
+                (byte)WellKnownType.Belte_Result,                                                                           // DeclaringTypeId
+                0,                                                                                                          // Arity
+                    0,                                                                                                      // Method Signature
+                    (byte)SignatureTypeCode.TypeHandle, (byte)SpecialType.Bool, // Return Type
+
+                // Result_getError
+                (byte)MemberFlags.PropertyGet,                                                                              // Flags
+                (byte)WellKnownType.Belte_Result,                                                                           // DeclaringTypeId
+                0,                                                                                                          // Arity
+                    0,                                                                                                      // Method Signature
+                    (byte)SignatureTypeCode.GenericTypeParameter, 1,            // Return Type
+
+                // Result_getValue
+                (byte)MemberFlags.PropertyGet,                                                                              // Flags
+                (byte)WellKnownType.Belte_Result,                                                                           // DeclaringTypeId
+                0,                                                                                                          // Arity
+                    0,                                                                                                      // Method Signature
+                    (byte)SignatureTypeCode.GenericTypeParameter, 0,            // Return Type
+
+                // WrappedErrorException_ctor
+                (byte)MemberFlags.Constructor,                                                                              // Flags
+                (byte)WellKnownType.Belte_WrappedErrorException,                                                            // DeclaringTypeId
+                0,                                                                                                          // Arity
+                    1,                                                                                                      // Method Signature
+                    (byte)SignatureTypeCode.TypeHandle, (byte)SpecialType.Void, // Return Type
+                    (byte)SignatureTypeCode.TypeHandle, (byte)SpecialType.Any,
         };
 
         var allNames = new string[(int)WellKnownMember.Count] {
@@ -444,6 +481,11 @@ internal static class WellKnownMembers {
             ".ctor",                    // Array_ctor_2,
             "Get",                      // Array_Get,
             "Set",                      // Array_Set,
+            "Failure",                  // Result_Failure
+            "get_isSuccess",            // Result_getIsSuccess
+            "get_error",                // Result_getError
+            "get_value",                // Result_getValue
+            ".ctor",                    // WrappedErrorException_ctor
         };
 
         Descriptors = MemberDescriptor.InitializeFromStream(
@@ -453,12 +495,12 @@ internal static class WellKnownMembers {
 
 #if DEBUG
         foreach (var descriptor in Descriptors) {
-            Debug.Assert(!descriptor.isSpecialTypeMember);
+            Debug.Assert(!descriptor.isSpecialTypeMember || descriptor.declaringSpecialType == SpecialType.Nullable);
         }
 #endif
     }
 
     internal static MemberDescriptor GetDescriptor(WellKnownMember member) {
-        return Descriptors[(int)member];
+        return Descriptors[(int)member - 1];
     }
 }

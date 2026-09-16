@@ -81,6 +81,12 @@
     - [2.10](Current/ControlFlow.md#210-unreachable-statements) Unreachable Statements
     - [2.11](Current/ControlFlow.md#211-reverse-statements) Reverse Statements
     - [2.12](Current/ControlFlow.md#212-order-of-multiple-implicit-frames-defer-scoped-etc) Order of Multiple Implicit Frames (Defer, Scoped, etc.)
+    - [2.13](Current/ControlFlow.md#213-errors-as-values) Errors as Values
+      - [2.13.1](Current/ControlFlow.md#2131-or-return) `or return`
+      - [2.13.2](Current/ControlFlow.md#2132-or-throw) `or throw`
+      - [2.13.3](Current/ControlFlow.md#2133-or-break) `or break`
+      - [2.13.4](Current/ControlFlow.md#2134-or-continue) `or continue`
+      - [2.13.5](Current/ControlFlow.md#2135-or-value) `or value`
   - [3](Current/Data.md) Data
     - [3.1](Current/Data.md#31-data-types) Data Types
       - [3.1.1](Current/Data.md#311-numerics) Numerics

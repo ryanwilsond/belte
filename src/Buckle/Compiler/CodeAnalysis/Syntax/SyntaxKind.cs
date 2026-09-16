@@ -192,6 +192,7 @@ public enum SyntaxKind : ushort {
     MemoizeKeyword,
     TemplateKeyword,
     InternalKeyword,
+    OrKeyword,
 
     // Trivia
     EndOfLineTrivia,
@@ -257,6 +258,8 @@ public enum SyntaxKind : ushort {
     SimpleLambdaExpression,
     TupleExpression,
     FieldExpression,
+    OrJumpExpression,
+    OrValueExpression,
     InterpolatedStringText,
     Interpolation,
     InterpolatedStringStartToken,

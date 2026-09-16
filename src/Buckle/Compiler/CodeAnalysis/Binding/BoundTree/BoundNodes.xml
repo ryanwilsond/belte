@@ -177,7 +177,6 @@
     <Field Name="defaultArguments" Type="BitVector"/>
     <Field Name="resultKind" Type="LookupResultKind" PropertyOverrides="true"/>
   </Node>
-
   <Node Name="BoundAttribute" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
     <Field Name="constructor" Type="MethodSymbol?"/>
@@ -474,6 +473,32 @@
     <Field Name="resultConversion" Type="BoundExpression?" SkipInVisitor="true"/>
     <Field Name="resultKind" Type="LookupResultKind" PropertyOverrides="true"/>
     <Field Name="originalUserDefinedOperators" Type="ImmutableArray&lt;MethodSymbol&gt;" Null="allow"/>
+  </Node>
+  <Node Name="BoundOrReturnExpression" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+    <Field Name="expression" Type="BoundExpression"/>
+    <Field Name="identicalMatch" Type="bool"/>
+  </Node>
+  <Node Name="BoundOrThrowExpression" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+    <Field Name="expression" Type="BoundExpression"/>
+    <Field Name="conversion" Type="BoundCastExpression?"/>
+    <Field Name="conversionPlaceholder" Type="BoundValuePlaceholder?"/>
+  </Node>
+  <Node Name="BoundOrBreakExpression" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+    <Field Name="expression" Type="BoundExpression"/>
+    <Field Name="label" Type="SynthesizedLabelSymbol"/>
+  </Node>
+  <Node Name="BoundOrContinueExpression" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+    <Field Name="expression" Type="BoundExpression"/>
+    <Field Name="label" Type="SynthesizedLabelSymbol"/>
+  </Node>
+  <Node Name="BoundOrValueExpression" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+    <Field Name="expression" Type="BoundExpression"/>
+    <Field Name="value" Type="BoundExpression"/>
   </Node>
   <!-- Statements -->
   <Node Name="BoundErrorStatement" Base="BoundStatement">

@@ -440,7 +440,9 @@ internal sealed partial class OverloadResolution {
             GetEnumOperation(kind, leftType, right, results);
 
         if (rightType is not null && (leftType is null ||
-            !(useIdentityConversion ? Conversions.HasIdentityConversion(rightType, leftType) : rightType.Equals(leftType)))) {
+            !(useIdentityConversion
+                ? ConversionsBase.HasIdentityConversion(rightType, leftType)
+                : rightType.Equals(leftType)))) {
             GetEnumOperation(kind, rightType, right, results);
         }
     }
@@ -690,7 +692,7 @@ internal sealed partial class OverloadResolution {
         if (better == BetterResult.Left || better == BetterResult.Right)
             return better;
 
-        if (Conversions.HasIdentityConversion(op1.operandType, op2.operandType)) {
+        if (ConversionsBase.HasIdentityConversion(op1.operandType, op2.operandType)) {
             var lifted1 = op1.kind.IsLifted();
             var lifted2 = op2.kind.IsLifted();
 
@@ -866,8 +868,8 @@ internal sealed partial class OverloadResolution {
             return BetterResult.Right;
         }
 
-        if (Conversions.HasIdentityConversion(op1.leftType, op2.leftType) &&
-            Conversions.HasIdentityConversion(op1.rightType, op2.rightType)) {
+        if (ConversionsBase.HasIdentityConversion(op1.leftType, op2.leftType) &&
+            ConversionsBase.HasIdentityConversion(op1.rightType, op2.rightType)) {
             var result = MoreSpecificOperator(op1, op2);
 
             if (result == BetterResult.Left || result == BetterResult.Right)

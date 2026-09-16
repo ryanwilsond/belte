@@ -115,7 +115,6 @@ internal abstract class SignatureComparer<MethodSymbol, FieldSymbol, PropertySym
             case SignatureTypeCode.GenericTypeParameter:
                 paramPosition = signature[position++];
                 return IsGenericTypeParam(type, paramPosition);
-
             case SignatureTypeCode.GenericMethodParameter:
                 paramPosition = signature[position++];
                 return IsGenericMethodTypeParam(type, paramPosition);

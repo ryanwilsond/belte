@@ -38,6 +38,12 @@
 - [2.10](#210-unreachable-statements) Unreachable Statements
 - [2.11](#211-reverse-statements) Reverse Statements
 - [2.12](#212-order-of-multiple-implicit-frames-defer-scoped-etc) Order of Multiple Implicit Frames (Defer, Scoped, etc.)
+- [2.13](#213-errors-as-values) Errors as Values
+  - [2.13.1](#2131-or-return) `or return`
+  - [2.13.2](#2132-or-throw) `or throw`
+  - [2.13.3](#2133-or-break) `or break`
+  - [2.13.4](#2134-or-continue) `or continue`
+  - [2.13.5](#2135-or-value) `or value`
 
 ## 2.1 Functions
 
@@ -1267,4 +1273,188 @@ try {
 } finally {
   Call2();
 }
+```
+
+## 2.13 Errors as Values
+
+Instead of using exceptions, the built-in `Result<type T, type E>` type can be used to treat errors as values.
+
+For example:
+
+```belte
+var result = TrySomeOperation();
+
+if (result.isSuccess) {
+  UseResult(result.value);
+} else {
+  HandleError(result.error);
+}
+
+Result<int, string> TrySomeOperation() { /* ... */ }
+```
+
+Types `T` and `E` can be any type.
+
+A Result can be constructed uses the two helpers `Result.Success` and `Result.Failure`:
+
+```belte
+var errorResult = Result<int, string>.Failure("Some error");
+var successResult = Result<int, string>.Success(50);
+```
+
+Accessing the `value` property will throw if the result is not a value. Likewise, accessing the `error` property will
+throw if the result is not an error.
+
+For example:
+
+```belte
+var errorResult = Result<int, string>.Failure("Some error");
+var value = errorResult.value; // Throws
+```
+
+### 2.13.1 `or return`
+
+To extract a successful result or return from the enclosing method, an `or return` expression can be used:
+
+```belte
+Result<int, string> M() {
+  int value = TrySomeOperation() or return;
+  // ...
+  return Result<int, string>.Success(value);
+}
+
+Result<int, string> TrySomeOperation() { /* ... */ }
+```
+
+The above is equivalent to:
+
+```belte
+Result<int, string> M() {
+  var result = TrySomeOperation();
+
+  if (!result.isSuccess)
+    return result;
+
+  int value = result.value;
+
+  // ...
+  return Result<int, string>.Success(value);
+}
+
+Result<int, string> TrySomeOperation() { /* ... */ }
+```
+
+The operand of the `or return` expression must have a `Result<type T, type E>` type where the error type template
+argument matches the return type of the enclosing method. For example, in this example the value type of the Result is
+different but `or return` can still be used:
+
+```belte
+Result<bool, string> M() {
+  int value = TrySomeOperator() or return;
+  // ...
+  return Result<bool, string>.Success(true);
+}
+
+Result<int, string> TrySomeOperation() { /* ... */ }
+```
+
+The above is equivalent to:
+
+```belte
+Result<bool, string> M() {
+  var result = TrySomeOperation();
+
+  if (!result.isSuccess)
+    return Result<bool, string>.Failure(result.error);
+
+  int value = result.value;
+
+  // ...
+  return Result<bool, string>.Success(true);
+}
+
+Result<int, string> TrySomeOperation() { /* ... */ }
+```
+
+### 2.13.2 `or throw`
+
+To treat a Result as always successful, an `or throw` expression can be used. If the Result is an error, it is wrapped
+and thrown as an exception.
+
+For example:
+
+```belte
+void M() {
+  int value = TrySomeOperation() or throw;
+}
+
+Result<int, string> TrySomeOperation() { /* ... */ }
+```
+
+The above is equivalent to:
+
+```belte
+void M() {
+  var result = TrySomeOperation();
+
+  if (!result.isSuccess)
+    throw new WrappedErrorException(result.error);
+
+  int value = result.value;
+}
+
+Result<int, string> TrySomeOperation() { /* ... */ }
+```
+
+Because the error is thrown and not returned, the enclosing method does not have to have a `Result<type T, type E>`
+return type.
+
+### 2.13.3 `or break`
+
+An `or break` expression can be used to unwrap the value of a successful result or break from the enclosing loop:
+
+```belte
+int[] array = /* ... */;
+
+for (item in array) {
+  int value = TryProcess(item) or break;
+}
+
+Result<int, string> TryProcess(int item) { /* ... */ }
+```
+
+### 2.13.4 `or continue`
+
+An `or continue` expression can be used to unwrap the value of a successful result or continue the enclosing loop:
+
+```belte
+int[] array = /* ... */;
+
+for (item in array) {
+  int value = TryProcess(item) or continue;
+}
+
+Result<int, string> TryProcess(int item) { /* ... */ }
+```
+
+### 2.13.5 `or value`
+
+To supply an alternative value when a Result is not successful, a `or value` expression can be used where the `value`
+type matches the Result value type.
+
+For example:
+
+```belte
+int value = TryProcess(10) or 0;
+
+Result<int, string> TryProcess(int item) { /* ... */ }
+```
+
+The above is equivalent to:
+
+```belte
+var result = TryProcess(10);
+int value = result.isSuccess ? result.value : 0;
+
+Result<int, string> TryProcess(int item) { /* ... */ }
 ```

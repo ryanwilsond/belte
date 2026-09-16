@@ -137,7 +137,8 @@ internal sealed partial class Evaluator {
 
         switch (value.kind) {
             case ValueKind.Null:
-                Debug.Assert(false);
+                // Possible with a lowlevel default
+                Debug.Assert(strippedType.isReferenceType);
                 break;
             case ValueKind.Int8:
                 Debug.Assert(strippedType.specialType == SpecialType.Int8);

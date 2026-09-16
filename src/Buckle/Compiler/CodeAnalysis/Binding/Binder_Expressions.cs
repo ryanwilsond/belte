@@ -2098,6 +2098,10 @@ internal partial class Binder {
                     return BindFieldExpression((FieldExpressionSyntax)node, diagnostics);
                 case SyntaxKind.RangeExpression:
                     return BindRangeExpression((RangeExpressionSyntax)node, diagnostics);
+                case SyntaxKind.OrJumpExpression:
+                    return BindOrJumpExpression((OrJumpExpressionSyntax)node, diagnostics);
+                case SyntaxKind.OrValueExpression:
+                    return BindOrValueExpression((OrValueExpressionSyntax)node, diagnostics);
                 case SyntaxKind.NonNullableType:
                     Debug.Assert(false);
                     return ErrorExpression(node);
@@ -5122,6 +5126,162 @@ internal partial class Binder {
             CreateErrorType("range"),
             true
         );
+    }
+
+    private BoundExpression BindOrJumpExpression(OrJumpExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        // TODO Allow nullability on the Result type?
+
+        var expression = BindRValueWithoutTargetType(node.expression, diagnostics);
+        var hasError = false;
+
+        TypeSymbol type;
+
+        if (!compilation.IsEqualOrDerivedFromWellKnownClass(
+                expression.type.originalDefinition,
+                WellKnownType.Belte_Result)) {
+            diagnostics.Push(Error.OrRequiresResultType(node.location));
+            hasError = true;
+            type = CreateErrorType("result");
+        } else {
+            type = ((NamedTypeSymbol)expression.type).templateArguments[0].type.type;
+        }
+
+        switch (node.keyword.kind) {
+            case SyntaxKind.ReturnKeyword:
+                return BindOrReturnExpression(node, expression, type, diagnostics, hasError);
+            case SyntaxKind.ThrowKeyword:
+                return BindOrThrowExpression(node, expression, type, diagnostics, hasError);
+            case SyntaxKind.BreakKeyword:
+                return BindOrBreakExpression(node, expression, type, diagnostics, hasError);
+            case SyntaxKind.ContinueKeyword:
+                return BindOrContinueExpression(node, expression, type, diagnostics, hasError);
+            default:
+                throw ExceptionUtilities.UnexpectedValue(node.keyword.kind);
+        }
+    }
+
+    private BoundExpression BindOrReturnExpression(
+        SyntaxNode syntax,
+        BoundExpression expression,
+        TypeSymbol type,
+        BelteDiagnosticQueue diagnostics,
+        bool hasError) {
+        var identicalMatch = false;
+
+        // TODO We should use conversions instead of exact matches here?
+        // Would be complicated considering we only care about the error type
+        if (!hasError) {
+            var returnType = (NamedTypeSymbol)containingMember.GetTypeOrReturnType().type;
+            var expressionType = (NamedTypeSymbol)expression.type;
+            var errorType = expressionType.templateArguments[1].type.type;
+
+            if (!compilation.IsEqualOrDerivedFromWellKnownClass(
+                    returnType.originalDefinition,
+                    WellKnownType.Belte_Result)) {
+                diagnostics.Push(Error.OrRequiresResultTypeInContainingMember(
+                    syntax.location,
+                    expression.type,
+                    errorType
+                ));
+            } else if (returnType.Equals(expressionType)) {
+                identicalMatch = true;
+            } else if (!errorType.Equals(
+                    returnType.templateArguments[1].type.type)) {
+                diagnostics.Push(Error.OrRequiresResultTypeInContainingMember(
+                    syntax.location,
+                    expression.type,
+                    errorType
+                ));
+            }
+        }
+
+        return new BoundOrReturnExpression(syntax, expression, identicalMatch, type, hasError);
+    }
+
+    private BoundExpression BindOrThrowExpression(
+        SyntaxNode syntax,
+        BoundExpression expression,
+        TypeSymbol type,
+        BelteDiagnosticQueue diagnostics,
+        bool hasError) {
+        ReportDiagnosticsIfNoThrowContext(syntax, diagnostics);
+
+        BoundExpression conversion = null;
+        BoundValuePlaceholder placeholder = null;
+
+        if (!hasError) {
+            placeholder = new BoundValuePlaceholder(
+                expression.syntax,
+                ((NamedTypeSymbol)expression.type).templateArguments[1].type.type
+            );
+
+            conversion = CreateConversion(placeholder, compilation.GetSpecialType(SpecialType.Any), diagnostics);
+        }
+
+        return new BoundOrThrowExpression(
+            syntax,
+            expression,
+            conversion as BoundCastExpression,
+            placeholder,
+            type,
+            hasError
+        );
+    }
+
+    private BoundExpression BindOrBreakExpression(
+        OrJumpExpressionSyntax syntax,
+        BoundExpression expression,
+        TypeSymbol type,
+        BelteDiagnosticQueue diagnostics,
+        bool hasError) {
+        var target = breakLabel;
+
+        if (target is null) {
+            diagnostics.Push(Error.InvalidBreakOrContinue(syntax.keyword.location));
+            return ErrorExpression(syntax, expression);
+        }
+
+        return new BoundOrBreakExpression(syntax, expression, target, type, hasError);
+    }
+
+    private BoundExpression BindOrContinueExpression(
+        OrJumpExpressionSyntax syntax,
+        BoundExpression expression,
+        TypeSymbol type,
+        BelteDiagnosticQueue diagnostics,
+        bool hasError) {
+        var target = continueLabel;
+
+        if (target is null) {
+            diagnostics.Push(Error.InvalidBreakOrContinue(syntax.keyword.location));
+            return ErrorExpression(syntax, expression);
+        }
+
+        return new BoundOrContinueExpression(syntax, expression, target, type, hasError);
+    }
+
+    private BoundExpression BindOrValueExpression(OrValueExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var expression = BindRValueWithoutTargetType(node.expression, diagnostics);
+        var hasError = false;
+
+        TypeSymbol type;
+
+        if (!compilation.IsEqualOrDerivedFromWellKnownClass(
+                expression.type.originalDefinition,
+                WellKnownType.Belte_Result)) {
+            diagnostics.Push(Error.OrRequiresResultType(node.location));
+            hasError = true;
+            type = CreateErrorType("result");
+        } else {
+            type = ((NamedTypeSymbol)expression.type).templateArguments[0].type.type;
+        }
+
+        var alternative = BindRValueWithoutTargetType(node.value, diagnostics);
+
+        if (!hasError)
+            alternative = CreateConversion(alternative, type, diagnostics);
+
+        return new BoundOrValueExpression(node, expression, alternative, type, hasError);
     }
 
     private BoundExpression BindQualifiedName(QualifiedNameSyntax node, BelteDiagnosticQueue diagnostics) {

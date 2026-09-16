@@ -3140,6 +3140,16 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_InaccessibleGetter, location, message);
     }
 
+    internal static BelteDiagnostic OrRequiresResultType(TextLocation location) {
+        var message = $"'or' expressions require an operand of type 'Result<type! T, type! E>!'";
+        return CreateError(DiagnosticCode.ERR_OrRequiresResultType, location, message);
+    }
+
+    internal static BelteDiagnostic OrRequiresResultTypeInContainingMember(TextLocation location, TypeSymbol type, TypeSymbol type2) {
+        var message = $"'or return' expression requires the containing member to have a return type of '{type}' or a Result type with the same second template argument '{type2}'";
+        return CreateError(DiagnosticCode.ERR_OrRequiresResultTypeInContainingMember, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

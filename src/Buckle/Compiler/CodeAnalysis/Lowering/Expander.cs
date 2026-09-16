@@ -1888,31 +1888,6 @@ internal sealed class Expander : SharedExpander {
         }
     }
 
-    private List<BoundStatement> ApplyConversionIfNotIdentity(
-        BoundExpression conversion,
-        BoundValuePlaceholder placeholder,
-        BoundExpression expression,
-        out BoundExpression replacement) {
-        if (HasNonIdentityConversion(conversion)) {
-            Debug.Assert(placeholder is not null);
-            return ApplyConversion(conversion, placeholder, expression, out replacement);
-        }
-
-        replacement = expression;
-        return [];
-    }
-
-    private static bool HasNonIdentityConversion(BoundExpression expression) {
-        while (expression is BoundCastExpression conversion) {
-            if (!conversion.conversion.isIdentity)
-                return true;
-
-            expression = conversion.operand;
-        }
-
-        return false;
-    }
-
     private List<BoundStatement> ExpandInstanceIncrementOperator(
         BoundIncrementOperator expression,
         out BoundExpression replacement,

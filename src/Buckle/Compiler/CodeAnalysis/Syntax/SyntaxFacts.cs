@@ -86,6 +86,7 @@ public static class SyntaxFacts {
             case SyntaxKind.ExclamationToken:
             case SyntaxKind.ExclamationExclamationToken:
             case SyntaxKind.NewKeyword:
+            case SyntaxKind.OrKeyword:
                 return 19;
             // ! Precedence 16 must remain unused (it is used to correctly parse cascade lists)
             case SyntaxKind.PeriodPeriodToken:
@@ -262,6 +263,7 @@ public static class SyntaxFacts {
             "memoize" => SyntaxKind.MemoizeKeyword,
             "template" => SyntaxKind.TemplateKeyword,
             "internal" => SyntaxKind.InternalKeyword,
+            "or" => SyntaxKind.OrKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -472,6 +474,7 @@ public static class SyntaxFacts {
             SyntaxKind.MemoizeKeyword => "memoize",
             SyntaxKind.TemplateKeyword => "template",
             SyntaxKind.InternalKeyword => "internal",
+            SyntaxKind.OrKeyword => "or",
             _ => null,
         };
     }
@@ -877,7 +880,7 @@ public static class SyntaxFacts {
     }
 
     private const int FirstKeyword = (int)SyntaxKind.TypeOfKeyword;
-    private const int LastKeyword = (int)SyntaxKind.InternalKeyword;
+    private const int LastKeyword = (int)SyntaxKind.OrKeyword;
 
     /// <summary>
     /// Checks if a <see cref="SyntaxKind" /> is a keyword.

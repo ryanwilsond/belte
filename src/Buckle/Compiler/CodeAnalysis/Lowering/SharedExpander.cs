@@ -68,6 +68,31 @@ internal class SharedExpander : BoundTreeExpander {
         return value;
     }
 
+    private protected List<BoundStatement> ApplyConversionIfNotIdentity(
+        BoundExpression conversion,
+        BoundValuePlaceholder placeholder,
+        BoundExpression expression,
+        out BoundExpression replacement) {
+        if (HasNonIdentityConversion(conversion)) {
+            Debug.Assert(placeholder is not null);
+            return ApplyConversion(conversion, placeholder, expression, out replacement);
+        }
+
+        replacement = expression;
+        return [];
+    }
+
+    private protected static bool HasNonIdentityConversion(BoundExpression expression) {
+        while (expression is BoundCastExpression conversion) {
+            if (!conversion.conversion.isIdentity)
+                return true;
+
+            expression = conversion.operand;
+        }
+
+        return false;
+    }
+
     private protected override List<BoundStatement> ExpandValuePlaceholder(
         BoundValuePlaceholder expression,
         out BoundExpression replacement,
@@ -1175,5 +1200,307 @@ internal class SharedExpander : BoundTreeExpander {
             default:
                 throw ExceptionUtilities.UnexpectedValue(expression.kind);
         }
+    }
+
+    private protected override List<BoundStatement> ExpandOrReturnExpression(
+        BoundOrReturnExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        /*
+
+        <expression> or return
+
+        ----> identicalMatch
+
+        goto Success if <expression>.isSuccess
+        return <expression>
+    Success:
+        <expression>.value
+
+        ---->
+
+        goto Success if <expression>.isSuccess
+        return Result.Failure(<expression>.error)
+    Success:
+        <expression>.value
+
+        */
+        Debug.Assert(useKind != UseKind.Writable);
+
+        var syntax = expression.syntax;
+        var success = GenerateLabel();
+
+        var statements = ExpandExpression(expression.expression, out var newExpression, UseKind.StableValue);
+
+        var expressionType = (NamedTypeSymbol)expression.expression.type;
+        var resultMembers = expressionType.originalDefinition.GetMembers();
+
+        var isSuccessMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
+            resultMembers,
+            WellKnownMembers.GetDescriptor(WellKnownMember.Result_getIsSuccess),
+            _compilation.wellKnownMemberSignatureComparer,
+            accessWithinOpt: null
+        )).AsMember(expressionType);
+
+        var valueMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
+            resultMembers,
+            WellKnownMembers.GetDescriptor(WellKnownMember.Result_getValue),
+            _compilation.wellKnownMemberSignatureComparer,
+            accessWithinOpt: null
+        )).AsMember(expressionType);
+
+        statements.Add(GotoIf(syntax,
+            success,
+            InstanceCall(syntax, newExpression, isSuccessMethod, [])
+        ));
+
+        Debug.Assert(_container.refKind == RefKind.None);
+
+        if (expression.identicalMatch) {
+            statements.Add(new BoundReturnStatement(syntax, RefKind.None, newExpression));
+        } else {
+            var returnType = (NamedTypeSymbol)_container.returnType;
+
+            var errorMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
+                resultMembers,
+                WellKnownMembers.GetDescriptor(WellKnownMember.Result_getError),
+                _compilation.wellKnownMemberSignatureComparer,
+                accessWithinOpt: null
+            )).AsMember(expressionType);
+
+            var failureMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
+                resultMembers,
+                WellKnownMembers.GetDescriptor(WellKnownMember.Result_Failure),
+                _compilation.wellKnownMemberSignatureComparer,
+                accessWithinOpt: null
+            )).AsMember(returnType);
+
+            statements.Add(new BoundReturnStatement(syntax, RefKind.None,
+                Call(syntax, failureMethod, [
+                    InstanceCall(syntax, newExpression, errorMethod, [])
+                ])
+            ));
+        }
+
+        statements.Add(Label(syntax, success));
+        replacement = InstanceCall(syntax, newExpression, valueMethod, []);
+        return statements;
+    }
+
+    private protected override List<BoundStatement> ExpandOrThrowExpression(
+        BoundOrThrowExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        /*
+
+        <expression> or throw
+
+        ---->
+
+        goto Success if <expression>.isSuccess
+        throw new WrappedErrorException(<expression>.error)
+    Success:
+        <expression>.value
+
+        */
+        Debug.Assert(useKind != UseKind.Writable);
+
+        var syntax = expression.syntax;
+        var success = GenerateLabel();
+
+        var statements = ExpandExpression(expression.expression, out var newExpression, UseKind.StableValue);
+
+        var expressionType = (NamedTypeSymbol)expression.expression.type;
+        var resultMembers = expressionType.originalDefinition.GetMembers();
+
+        var isSuccessMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
+            resultMembers,
+            WellKnownMembers.GetDescriptor(WellKnownMember.Result_getIsSuccess),
+            _compilation.wellKnownMemberSignatureComparer,
+            accessWithinOpt: null
+        )).AsMember(expressionType);
+
+        var valueMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
+            resultMembers,
+            WellKnownMembers.GetDescriptor(WellKnownMember.Result_getValue),
+            _compilation.wellKnownMemberSignatureComparer,
+            accessWithinOpt: null
+        )).AsMember(expressionType);
+
+        statements.Add(GotoIf(syntax,
+            success,
+            InstanceCall(syntax, newExpression, isSuccessMethod, [])
+        ));
+
+        Debug.Assert(_container.refKind == RefKind.None);
+
+        var errorMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
+            resultMembers,
+            WellKnownMembers.GetDescriptor(WellKnownMember.Result_getError),
+            _compilation.wellKnownMemberSignatureComparer,
+            accessWithinOpt: null
+        )).AsMember(expressionType);
+
+        var exceptionType = _compilation.GetWellKnownType(WellKnownType.System_Exception);
+        var wrappedExceptionType = _compilation.GetWellKnownType(WellKnownType.Belte_WrappedErrorException);
+        var exceptionCtor = wrappedExceptionType.instanceConstructors.Single();
+
+        Debug.Assert(exceptionCtor.parameterCount == 1 &&
+            exceptionCtor.parameters[0].type.specialType is SpecialType.Any or SpecialType.Object);
+
+        Debug.Assert(expression.conversion is not null);
+        Debug.Assert(expression.conversionPlaceholder is not null);
+
+        var errorValue = InstanceCall(syntax, newExpression, errorMethod, []);
+
+        statements.AddRange(ApplyConversionIfNotIdentity(
+            expression.conversion,
+            expression.conversionPlaceholder,
+            errorValue,
+            out var convertedArgument
+        ));
+
+        statements.Add(Statement(syntax, new BoundThrowExpression(syntax,
+            new BoundObjectCreationExpression(syntax,
+                exceptionCtor,
+                [convertedArgument],
+                default,
+                default,
+                default,
+                false,
+                wrappedExceptionType
+            ),
+            exceptionType
+        )));
+
+        statements.Add(Label(syntax, success));
+        replacement = InstanceCall(syntax, newExpression, valueMethod, []);
+        return statements;
+    }
+
+    private protected override List<BoundStatement> ExpandOrBreakExpression(
+        BoundOrBreakExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        /*
+
+        <expression> or break
+
+        ---->
+
+        goto Success if <expression>.isSuccess
+        break
+    Success:
+        <expression>.value
+
+        */
+        Debug.Assert(useKind != UseKind.Writable);
+        return ExpandOrBreakOrContinue(expression.syntax, expression.expression, expression.label, out replacement);
+    }
+
+    private protected override List<BoundStatement> ExpandOrContinueExpression(
+        BoundOrContinueExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        /*
+
+        <expression> or continue
+
+        ---->
+
+        goto Success if <expression>.isSuccess
+        continue
+    Success:
+        <expression>.value
+
+        */
+        Debug.Assert(useKind != UseKind.Writable);
+        return ExpandOrBreakOrContinue(expression.syntax, expression.expression, expression.label, out replacement);
+    }
+
+    private List<BoundStatement> ExpandOrBreakOrContinue(
+        SyntaxNode syntax,
+        BoundExpression expression,
+        LabelSymbol label,
+        out BoundExpression replacement) {
+        var success = GenerateLabel();
+
+        var statements = ExpandExpression(expression, out var newExpression, UseKind.StableValue);
+
+        var expressionType = (NamedTypeSymbol)expression.type;
+        var resultMembers = expressionType.originalDefinition.GetMembers();
+
+        var isSuccessMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
+            resultMembers,
+            WellKnownMembers.GetDescriptor(WellKnownMember.Result_getIsSuccess),
+            _compilation.wellKnownMemberSignatureComparer,
+            accessWithinOpt: null
+        )).AsMember(expressionType);
+
+        var valueMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
+            resultMembers,
+            WellKnownMembers.GetDescriptor(WellKnownMember.Result_getValue),
+            _compilation.wellKnownMemberSignatureComparer,
+            accessWithinOpt: null
+        )).AsMember(expressionType);
+
+        statements.Add(GotoIf(syntax,
+            success,
+            InstanceCall(syntax, newExpression, isSuccessMethod, [])
+        ));
+
+        statements.Add(Goto(syntax, label));
+
+        statements.Add(Label(syntax, success));
+        replacement = InstanceCall(syntax, newExpression, valueMethod, []);
+        return statements;
+    }
+
+    private protected override List<BoundStatement> ExpandOrValueExpression(
+        BoundOrValueExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        /*
+
+        <expression> or <value>
+
+        ---->
+
+        <expression>.isSuccess ? <expression>.value : <value>
+
+        */
+        Debug.Assert(useKind != UseKind.Writable);
+
+        var syntax = expression.syntax;
+
+        var statements = ExpandExpression(expression.expression, out var newExpression, UseKind.StableValue);
+
+        var expressionType = (NamedTypeSymbol)expression.expression.type;
+        var resultMembers = expressionType.originalDefinition.GetMembers();
+
+        var isSuccessMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
+            resultMembers,
+            WellKnownMembers.GetDescriptor(WellKnownMember.Result_getIsSuccess),
+            _compilation.wellKnownMemberSignatureComparer,
+            accessWithinOpt: null
+        )).AsMember(expressionType);
+
+        var valueMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
+            resultMembers,
+            WellKnownMembers.GetDescriptor(WellKnownMember.Result_getValue),
+            _compilation.wellKnownMemberSignatureComparer,
+            accessWithinOpt: null
+        )).AsMember(expressionType);
+
+        statements.AddRange(ExpandExpression(expression.value, out var newValue));
+
+        replacement = Conditional(syntax,
+            InstanceCall(syntax, newExpression, isSuccessMethod, []),
+            InstanceCall(syntax, newExpression, valueMethod, []),
+            newValue,
+            expression.type
+        );
+
+        return statements;
     }
 }

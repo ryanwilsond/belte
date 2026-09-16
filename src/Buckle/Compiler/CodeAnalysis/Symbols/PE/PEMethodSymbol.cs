@@ -887,7 +887,6 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
             );
 
             _packedFlags.methodKind = methodKind;
-
             return true;
         }
 

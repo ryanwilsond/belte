@@ -2148,6 +2148,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
             _recursionDepth++;
             StackGuard.EnsureSufficientExecutionStack(_recursionDepth);
 
+            if (currentToken.kind == SyntaxKind.LowlevelKeyword && Peek(1).kind == SyntaxKind.OpenBraceToken)
+                modifiers ??= ParseModifiers();
+
             switch (currentToken.kind) {
                 case SyntaxKind.OpenBraceToken:
                     consumedModifiers = true;
@@ -3660,6 +3663,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                     } else {
                         goto case SyntaxKind.QuestionPeriodPeriodToken;
                     }
+                case SyntaxKind.OrKeyword:
+                    return ParseOrExpression(expression);
                 default:
                     return expression;
             }
@@ -4154,6 +4159,22 @@ done:
     private ExpressionSyntax ParsePostfixExpression(ExpressionSyntax operand) {
         var operatorToken = EatToken();
         return SyntaxFactory.PostfixExpression(operand, operatorToken);
+    }
+
+    private ExpressionSyntax ParseOrExpression(ExpressionSyntax expression) {
+        var orKeyword = EatToken();
+
+        switch (currentToken.kind) {
+            case SyntaxKind.ReturnKeyword:
+            case SyntaxKind.ThrowKeyword:
+            case SyntaxKind.BreakKeyword:
+            case SyntaxKind.ContinueKeyword:
+                var keyword = EatToken();
+                return SyntaxFactory.OrJumpExpression(expression, orKeyword, keyword);
+            default:
+                var value = ParseExpression();
+                return SyntaxFactory.OrValueExpression(expression, orKeyword, value);
+        }
     }
 
     private ExpressionSyntax ParseInitializerListOrDictionaryExpression() {

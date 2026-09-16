@@ -1595,6 +1595,7 @@ internal sealed partial class Evaluator {
             return new EvaluatorValue() { kind = ValueKind.Ref, uint64 = 0 };
         } else if (type.IsTemplateParameter()) {
             var targetType = SubstituteTemplateParameterType((TemplateParameterSymbol)type);
+            Debug.Assert(!targetType.ContainsTemplateParameter());
             return GetDefaultValue(targetType, constantValueForEnum, abort);
         } else if (type.IsStructType()) {
             return CreateStruct((NamedTypeSymbol)type, abort);
@@ -2947,6 +2948,7 @@ internal sealed partial class Evaluator {
                 var templateArgument = method.templateArguments[i];
 
                 if (templateArgument.isType) {
+                    Debug.Assert(!templateArgument.type.type.ContainsTemplateParameter());
                     frame.values[i + 1] = EvaluatorValue.Type(templateArgument.type.type);
                 } else {
                     frame.values[i + 1] = EvaluatorValue.Literal(

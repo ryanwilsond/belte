@@ -3932,6 +3932,7 @@ oneMoreTime:
 
         switch (cast.conversion.kind) {
             case ConversionKind.MethodGroup:
+            case ConversionKind.ImplicitThrow:
                 throw ExceptionUtilities.UnexpectedValue(cast.conversion.kind);
             case ConversionKind.Identity:
                 break;

@@ -1897,4 +1897,20 @@
     <Field Name="operatorToken" Type="SyntaxToken"/>
     <Field Name="right" Type="ExpressionSyntax"/>
   </Node>
+  <Node Name="OrJumpExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="OrJumpExpression"/>
+    <Field Name="expression" Type="ExpressionSyntax"/>
+    <Field Name="orKeyword" Type="SyntaxToken">
+      <Kind Name="OrKeyword"/>
+    </Field>
+    <Field Name="keyword" Type="SyntaxToken"/>
+  </Node>
+  <Node Name="OrValueExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="OrValueExpression"/>
+    <Field Name="expression" Type="ExpressionSyntax"/>
+    <Field Name="orKeyword" Type="SyntaxToken">
+      <Kind Name="OrKeyword"/>
+    </Field>
+    <Field Name="value" Type="ExpressionSyntax"/>
+  </Node>
 </Tree>

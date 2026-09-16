@@ -1243,13 +1243,18 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
     }
 
     internal override BoundNode VisitCastExpression(BoundCastExpression node) {
-        if (node.conversion.kind == ConversionKind.ImplicitNullToPointer)
-            return node;
-
-        if (node.conversion.kind is ConversionKind.ObjectCreation or ConversionKind.ConditionalExpression)
-            return Visit(node.operand);
-
-        return base.VisitCastExpression(node);
+        switch (node.conversion.kind) {
+            case ConversionKind.ImplicitNullToPointer:
+                return node;
+            case ConversionKind.ObjectCreation:
+            case ConversionKind.ConditionalExpression:
+                return Visit(node.operand);
+            case ConversionKind.ImplicitThrow:
+                var operand = (BoundThrowExpression)node.operand;
+                return Visit(new BoundThrowExpression(operand.syntax, operand.expression, node.type));
+            default:
+                return base.VisitCastExpression(node);
+        }
     }
 
     internal override BoundNode VisitThisExpression(BoundThisExpression node) {

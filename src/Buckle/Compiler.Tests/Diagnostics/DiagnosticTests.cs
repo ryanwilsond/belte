@@ -9419,4 +9419,38 @@ var text = """"""
 
     //     AssertDiagnostics(text, diagnostics, _writer);
     // }
+
+    [Fact]
+    public void Reports_Error_BU0641_OrRequiresResultType() {
+        var text = @"
+            int M() { return 0; }
+
+            [M() or return];
+        ";
+
+        var diagnostics = @"
+            'or' expressions require an operand of type 'Result<type! T, type! E>!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0642_OrRequiresResultTypeInContainingMember() {
+        var text = @"
+            void M() {
+                [E() or return];
+            }
+
+            Result<int, int> E() { return Result<int, int>.Success(40); }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            'or return' expression requires the containing member to have a return type of 'Result<int, int>!' or a Result type with the same second template argument 'int!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

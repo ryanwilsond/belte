@@ -17,6 +17,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
     internal static Conversion ImplicitNullable => new Conversion(ConversionKind.ImplicitNullable);
     internal static Conversion ImplicitReference => new Conversion(ConversionKind.ImplicitReference);
     internal static Conversion ImplicitNumeric => new Conversion(ConversionKind.ImplicitNumeric);
+    internal static Conversion ImplicitThrow => new Conversion(ConversionKind.ImplicitThrow);
     internal static Conversion NullLiteral => new Conversion(ConversionKind.NullLiteral);
     internal static Conversion AnyBoxing => new Conversion(ConversionKind.AnyBoxing);
     internal static Conversion Explicit => new Conversion(ConversionKind.Explicit);
@@ -215,6 +216,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
             case ConversionKind.ObjectCreation:
             case ConversionKind.ConditionalExpression:
             case ConversionKind.Deconstruction:
+            case ConversionKind.ImplicitThrow:
                 return true;
             case ConversionKind.ExplicitPointerToPointer:
             case ConversionKind.ExplicitIntegerToPointer:

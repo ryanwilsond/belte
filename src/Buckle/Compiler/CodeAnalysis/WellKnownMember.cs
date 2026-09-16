@@ -68,7 +68,13 @@ internal enum WellKnownMember : byte {
     Array_Get,
     Array_Set,
 
+    Result_Failure,
+    Result_getIsSuccess,
+    Result_getError,
+    Result_getValue,
+
+    WrappedErrorException_ctor,
 
     LastCorMember = Array_Set,
-    Count = LastCorMember,
+    Count = WrappedErrorException_ctor,
 }

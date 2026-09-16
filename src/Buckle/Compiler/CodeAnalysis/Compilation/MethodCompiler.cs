@@ -689,7 +689,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                 _methodLayouts.Add(methodLayout.Item1, methodLayout.Item2);
         }
 
-        if (fieldsRequiringAssignment.Count > 0)
+        if (fieldsRequiringAssignment.Count > 0 && !_hasDeclarationErrors)
             state.ReportFieldsRequiringAssignment(fieldsRequiringAssignment, _diagnostics);
 
         fieldsRequiringAssignment.Free();

@@ -73,6 +73,8 @@ public sealed partial class Compilation {
     private StandardLibrary _lazyStandardLibrary;
     private GraphicsLibrary _lazyGraphicsLibrary;
 
+    private WellKnownMembersSignatureComparer? _lazyWellKnownMemberSignatureComparer;
+
     private Compilation(
         string assemblyName,
         CompilationOptions options,
@@ -317,6 +319,13 @@ public sealed partial class Compilation {
     }
 
     internal TemplateMetadataReader templateMetadataReader => _templateMetadataReader;
+
+    internal WellKnownMembersSignatureComparer wellKnownMemberSignatureComparer
+        => InterlockedOperations.Initialize(
+            ref _lazyWellKnownMemberSignatureComparer,
+            static self => new WellKnownMembersSignatureComparer(self),
+            this
+        );
 
     internal ReferenceManager GetBoundReferenceManager() {
         if (_lazyAssembly is null) {
@@ -1126,10 +1135,12 @@ public sealed partial class Compilation {
     internal bool IsEqualOrDerivedFromWellKnownClass(TypeSymbol type, WellKnownType wellKnownType) {
         // TODO We don't use this method to check for exceptions, we create a conversion instead
         // Technically this is correct but unnecessary, we should use this method instead to check
-        Debug.Assert(wellKnownType is WellKnownType.System_Attribute or WellKnownType.System_Exception);
+        Debug.Assert(wellKnownType is WellKnownType.System_Attribute or
+                                      WellKnownType.System_Exception or
+                                      WellKnownType.Belte_Result);
         Debug.Assert(wellKnownType > WellKnownType.LastNativeType);
 
-        if (type.kind != SymbolKind.NamedType || type.typeKind != TypeKind.Class)
+        if (type.kind != SymbolKind.NamedType)
             return false;
 
         var wkType = GetWellKnownType(wellKnownType);
@@ -1451,17 +1462,15 @@ public sealed partial class Compilation {
                 targetSymbolKind = SymbolKind.Method;
                 break;
             case MemberFlags.PropertyGet:
-                throw ExceptionUtilities.UnexpectedValue(descriptor.flags & MemberFlags.KindMask);
-            // targetSymbolKind = SymbolKind.Method;
-            // targetMethodKind = MethodKind.PropertyGet;
-            // break;
+                targetSymbolKind = SymbolKind.Method;
+                targetMethodKind = MethodKind.PropertyGet;
+                break;
             case MemberFlags.Field:
                 targetSymbolKind = SymbolKind.Field;
                 break;
             case MemberFlags.Property:
-                throw ExceptionUtilities.UnexpectedValue(descriptor.flags & MemberFlags.KindMask);
-            // targetSymbolKind = SymbolKind.Property;
-            // break;
+                targetSymbolKind = SymbolKind.Property;
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(descriptor.flags);
         }

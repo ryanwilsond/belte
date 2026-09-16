@@ -409,6 +409,24 @@ public sealed class DisplayText {
             case BoundKind.UnconvertedArrayLength:
                 DisplayUnconvertedArrayLength(text, (BoundUnconvertedArrayLength)node);
                 break;
+            case BoundKind.RangeExpression:
+                DisplayRangeExpression(text, (BoundRangeExpression)node);
+                break;
+            case BoundKind.OrReturnExpression:
+                DisplayOrReturnExpression(text, (BoundOrReturnExpression)node);
+                break;
+            case BoundKind.OrThrowExpression:
+                DisplayOrThrowExpression(text, (BoundOrThrowExpression)node);
+                break;
+            case BoundKind.OrContinueExpression:
+                DisplayOrContinueExpression(text, (BoundOrContinueExpression)node);
+                break;
+            case BoundKind.OrBreakExpression:
+                DisplayOrBreakExpression(text, (BoundOrBreakExpression)node);
+                break;
+            case BoundKind.OrValueExpression:
+                DisplayOrValueExpression(text, (BoundOrValueExpression)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -550,6 +568,54 @@ public sealed class DisplayText {
         DisplayNode(text, node.receiver);
         text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
         text.Write(CreateIdentifier(WellKnownMemberNames.BufferLength));
+    }
+
+    private static void DisplayRangeExpression(DisplayText text, BoundRangeExpression node) {
+        DisplayNode(text, node.left);
+        text.Write(CreatePunctuation(node.inclusiveEnd
+            ? SyntaxKind.PeriodPeriodEqualsToken
+            : SyntaxKind.PeriodPeriodLessThanToken));
+        DisplayNode(text, node.right);
+    }
+
+    private static void DisplayOrReturnExpression(DisplayText text, BoundOrReturnExpression node) {
+        DisplayNode(text, node.expression);
+        text.Write(CreateSpace());
+        text.Write(CreateKeyword(SyntaxKind.OrKeyword));
+        text.Write(CreateSpace());
+        text.Write(CreateKeyword(SyntaxKind.ReturnKeyword));
+    }
+
+    private static void DisplayOrThrowExpression(DisplayText text, BoundOrThrowExpression node) {
+        DisplayNode(text, node.expression);
+        text.Write(CreateSpace());
+        text.Write(CreateKeyword(SyntaxKind.OrKeyword));
+        text.Write(CreateSpace());
+        text.Write(CreateKeyword(SyntaxKind.ThrowKeyword));
+    }
+
+    private static void DisplayOrBreakExpression(DisplayText text, BoundOrBreakExpression node) {
+        DisplayNode(text, node.expression);
+        text.Write(CreateSpace());
+        text.Write(CreateKeyword(SyntaxKind.OrKeyword));
+        text.Write(CreateSpace());
+        text.Write(CreateKeyword(SyntaxKind.BreakKeyword));
+    }
+
+    private static void DisplayOrContinueExpression(DisplayText text, BoundOrContinueExpression node) {
+        DisplayNode(text, node.expression);
+        text.Write(CreateSpace());
+        text.Write(CreateKeyword(SyntaxKind.OrKeyword));
+        text.Write(CreateSpace());
+        text.Write(CreateKeyword(SyntaxKind.ContinueKeyword));
+    }
+
+    private static void DisplayOrValueExpression(DisplayText text, BoundOrValueExpression node) {
+        DisplayNode(text, node.expression);
+        text.Write(CreateSpace());
+        text.Write(CreateKeyword(SyntaxKind.OrKeyword));
+        text.Write(CreateSpace());
+        DisplayNode(text, node.value);
     }
 
     private static void DisplayReverseStatement(DisplayText text, BoundReverseStatement node) {

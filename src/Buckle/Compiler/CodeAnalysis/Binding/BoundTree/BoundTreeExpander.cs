@@ -470,8 +470,115 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.ArrayLength => ExpandArrayLength((BoundArrayLength)expression, out replacement, useKind),
             BoundKind.UnconvertedArrayLength => ExpandUnconvertedArrayLength((BoundUnconvertedArrayLength)expression, out replacement, useKind),
             BoundKind.ValuePlaceholder => ExpandValuePlaceholder((BoundValuePlaceholder)expression, out replacement, useKind),
+            BoundKind.OrReturnExpression => ExpandOrReturnExpression((BoundOrReturnExpression)expression, out replacement, useKind),
+            BoundKind.OrThrowExpression => ExpandOrThrowExpression((BoundOrThrowExpression)expression, out replacement, useKind),
+            BoundKind.OrBreakExpression => ExpandOrBreakExpression((BoundOrBreakExpression)expression, out replacement, useKind),
+            BoundKind.OrContinueExpression => ExpandOrContinueExpression((BoundOrContinueExpression)expression, out replacement, useKind),
+            BoundKind.OrValueExpression => ExpandOrValueExpression((BoundOrValueExpression)expression, out replacement, useKind),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
+    }
+
+    private protected virtual List<BoundStatement> ExpandOrReturnExpression(
+        BoundOrReturnExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        var statements = ExpandExpression(expression.expression, out var newOperand);
+
+        if (statements.Count != 0 || expression.expression != newOperand) {
+            replacement = expression.Update(
+                newOperand,
+                expression.identicalMatch,
+                expression.type
+            );
+
+            return statements;
+        }
+
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandOrThrowExpression(
+        BoundOrThrowExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        var statements = ExpandExpression(expression.expression, out var newOperand);
+
+        if (statements.Count != 0 || expression.expression != newOperand) {
+            replacement = expression.Update(
+                newOperand,
+                expression.conversion,
+                expression.conversionPlaceholder,
+                expression.type
+            );
+
+            return statements;
+        }
+
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandOrBreakExpression(
+        BoundOrBreakExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        var statements = ExpandExpression(expression.expression, out var newOperand);
+
+        if (statements.Count != 0 || expression.expression != newOperand) {
+            replacement = expression.Update(
+                newOperand,
+                expression.label,
+                expression.type
+            );
+
+            return statements;
+        }
+
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandOrContinueExpression(
+        BoundOrContinueExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        var statements = ExpandExpression(expression.expression, out var newOperand);
+
+        if (statements.Count != 0 || expression.expression != newOperand) {
+            replacement = expression.Update(
+                newOperand,
+                expression.label,
+                expression.type
+            );
+
+            return statements;
+        }
+
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandOrValueExpression(
+        BoundOrValueExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        var statements = ExpandExpression(expression.expression, out var newOperand);
+        statements.AddRange(ExpandExpression(expression.value, out var newValue));
+
+        if (statements.Count != 0 || expression.expression != newOperand) {
+            replacement = expression.Update(
+                newOperand,
+                newValue,
+                expression.type
+            );
+
+            return statements;
+        }
+
+        replacement = expression;
+        return [];
     }
 
     private protected virtual List<BoundStatement> ExpandValuePlaceholder(

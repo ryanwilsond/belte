@@ -649,6 +649,8 @@ public enum DiagnosticCode : ushort {
     ERR_InaccessibleSetter = 638,
     ERR_PropertyLacksGet = 639,
     ERR_InaccessibleGetter = 640,
+    ERR_OrRequiresResultType = 641,
+    ERR_OrRequiresResultTypeInContainingMember = 642,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

@@ -1,0 +1,65 @@
+
+public struct Result<type T, type E> {
+    private T _value;
+    private E _error;
+    private bool _isSuccess;
+
+    private constructor(T value, E error, bool isSuccess) {
+        _value = value;
+        _error = error;
+        _isSuccess = isSuccess;
+    }
+
+    public property bool isSuccess => _isSuccess;
+
+    public property bool isError => !_isSuccess;
+
+    public property T value => _isSuccess ? _value : throw new InvalidResultException();
+
+    public property E error => !_isSuccess ? _error : throw new InvalidResultException();
+
+    public static Result<T, E> Success(T value) {
+        lowlevel {
+            return new (value, lowlevel default, isSuccess: true);
+        }
+    }
+
+    public static Result<T, E> Failure(E error) {
+        lowlevel {
+            return new (lowlevel default, error, isSuccess: false);
+        }
+    }
+
+    public override string? ToString() {
+        return _isSuccess
+            ? f"Success({_value?.ToString()})"
+            : f"Failure({_error?.ToString()})";
+    }
+
+    public override bool Equals(Object? object) {
+        return object is Result<T, E> result && Equals(result);
+    }
+
+    public bool Equals(Result<T, E> other) {
+        if (_isSuccess != other._isSuccess)
+            return false;
+
+        return _isSuccess
+            ? EqualityComparer<T>.Default.Equals(_value, other._value)
+            : EqualityComparer<E>.Default.Equals(_error, other._error);
+    }
+
+    public override int32 GetHashCode() {
+        return _isSuccess
+            ? HashCode.Combine(1, _value?.GetHashCode() ?? 0)
+            : HashCode.Combine(2, _error?.GetHashCode() ?? 0);
+    }
+}
+
+public class InvalidResultException extends System.Exception {
+    public constructor() : base("Attempted to retrieve the value or error of a result that doesn't exist.") { }
+}
+
+public class WrappedErrorException extends System.Exception {
+    public constructor(any error) : base(f"Result was an error: {error}.") { }
+}

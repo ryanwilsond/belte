@@ -30,6 +30,7 @@
     <Content Remove="../../Belte/Belte.Core/src/Global/HashHelpers.blt" />
     <Content Remove="../../Belte/Belte.Core/src/Global/Tuple.blt" />
     <Content Remove="../../Belte/Belte.Core/src/Global/EqualityComparer.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Global/Result.blt" />
     <Content Remove="../../Belte/Belte.Core/src/Global/Collections/Array.blt" />
     <Content Remove="../../Belte/Belte.Core/src/Global/Collections/BitArray.blt" />
     <Content Remove="../../Belte/Belte.Core/src/Global/Collections/Dictionary.blt" />
@@ -72,6 +73,7 @@
     <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/HashHelpers.blt" />
     <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Tuple.blt" />
     <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/EqualityComparer.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Result.blt" />
     <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Collections/Array.blt" />
     <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Collections/BitArray.blt" />
     <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Collections/Dictionary.blt" />

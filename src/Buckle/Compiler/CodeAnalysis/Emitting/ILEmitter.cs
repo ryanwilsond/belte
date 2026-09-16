@@ -1125,6 +1125,12 @@ internal partial class ILEmitter : ModuleBuilder {
 
         if (TypeNeedsNullabilityAttribute(property.type, property.location))
             propertyDefinition.CustomAttributes.Add(CreateNullabilityAttribute(property.type));
+
+        if (property.getMethod is not null)
+            propertyDefinition.GetMethod = _methods[property.getMethod];
+
+        if (property.setMethod is not null)
+            propertyDefinition.SetMethod = _methods[property.setMethod];
     }
 
     private void CompleteWellKnownTypes() {

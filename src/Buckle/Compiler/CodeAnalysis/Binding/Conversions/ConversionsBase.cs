@@ -819,6 +819,8 @@ internal abstract partial class ConversionsBase {
             case BoundConditionalAccessExpression conditionalAccess
                 when conditionalAccess.accessExpression is BoundUnconvertedArrayLength length:
                 return GetImplicitArrayLengthConversion(length, target);
+            case BoundThrowExpression:
+                return Conversion.ImplicitThrow;
         }
 
         if (sourceExpression.IsLiteralNull()) {
@@ -1500,6 +1502,7 @@ internal abstract partial class ConversionsBase {
             case ConversionKind.ImplicitConstant:
             case ConversionKind.NullLiteral:
             case ConversionKind.DefaultLiteral:
+            case ConversionKind.ImplicitThrow:
                 return true;
             // TODO Should remove Implicit as a conversion kind because its vague
             case ConversionKind.Implicit:

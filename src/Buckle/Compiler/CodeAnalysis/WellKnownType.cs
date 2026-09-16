@@ -54,6 +54,9 @@ internal enum WellKnownType : byte {
     Belte_ConstMethodAttribute,
     Belte_ConstParamAttribute,
 
+    Belte_Result,
+    Belte_WrappedErrorException,
+
     Belte_Graphics_Vec2,
     Belte_Graphics_Sprite,
     Belte_Graphics_Text,

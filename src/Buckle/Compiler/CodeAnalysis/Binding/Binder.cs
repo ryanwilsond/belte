@@ -4358,7 +4358,7 @@ internal partial class Binder {
 
         if (candidates.Length == 1) {
             var method = candidates[0];
-            CheckCandidate(receiverSyntax, method, null, variables, out placeholders);
+            method = CheckCandidate(receiverSyntax, method, null, variables, out placeholders);
 
             return new BoundCallExpression(
                 rightSyntax,
@@ -4381,7 +4381,7 @@ internal partial class Binder {
 
         if (filteredCandidates.Length == 1) {
             var method = filteredCandidates[0];
-            CheckCandidate(receiverSyntax, method, null, variables, out placeholders);
+            method = CheckCandidate(receiverSyntax, method, null, variables, out placeholders);
 
             return new BoundCallExpression(
                 rightSyntax,
@@ -4399,7 +4399,7 @@ internal partial class Binder {
 
         return ErrorExpression(rightSyntax, receiver);
 
-        void CheckCandidate(
+        MethodSymbol CheckCandidate(
             SyntaxNode syntax,
             MethodSymbol candidate,
             ArrayBuilder<MethodSymbol> builder,
@@ -4423,10 +4423,37 @@ internal partial class Binder {
                     failed = true;
             }
 
+            if (!TryToConstruct(candidate, receiver, out var result))
+                failed = true;
+
             if (!failed)
                 builder?.Add(candidate);
 
             placeholders = placeholdersBuilder.ToImmutableAndFree();
+            return result;
+        }
+
+        bool TryToConstruct(MethodSymbol candidate, BoundExpression argument, out MethodSymbol result) {
+            if (candidate.arity == 0) {
+                result = candidate;
+                return true;
+            }
+
+            if (Conversions.TryToConstructUserDefinedOperator(
+                this,
+                conversions,
+                candidate,
+                [new BoundExpressionOrTypeOrConstant(argument)],
+                [candidate.parameterTypesWithAnnotations[0]],
+                [candidate.parameterRefKinds == default ? RefKind.None : candidate.parameterRefKinds[0]],
+                returnType: null,
+                out var resultMethod)) {
+                result = resultMethod;
+                return true;
+            }
+
+            result = candidate;
+            return false;
         }
     }
 

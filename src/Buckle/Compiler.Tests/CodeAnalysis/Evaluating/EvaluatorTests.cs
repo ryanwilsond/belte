@@ -1568,6 +1568,9 @@ public sealed class EvaluatorTests {
         }
         return A.Get(true);", true)]
     [InlineData(@"Buffer<int> a = { 1, 2, 3 }; return LowLevel.Length(a);", 3)]
+    // Or Expressions
+    [InlineData(@"var result = Result<int, string>.Success(10); return result or 0;", 10)]
+    [InlineData(@"var result = Result<int, string>.Failure(""failed""); return result or 0;", 0)]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue, evaluator: true, executor: true);
     }

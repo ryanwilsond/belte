@@ -254,6 +254,11 @@ internal sealed class DiagnosticPass : BoundTreeWalkerWithStackGuard {
         return base.VisitUnreachableStatement(node);
     }
 
+    internal override BoundNode VisitOrThrowExpression(BoundOrThrowExpression node) {
+        _seenPossibleThrowingNode = true;
+        return base.VisitOrThrowExpression(node);
+    }
+
     #endregion
 
 }

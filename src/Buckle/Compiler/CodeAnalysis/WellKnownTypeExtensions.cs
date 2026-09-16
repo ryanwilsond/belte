@@ -1,4 +1,6 @@
 
+using System.Diagnostics;
+
 namespace Buckle.CodeAnalysis;
 
 internal static class WellKnownTypeExtensions {
@@ -33,6 +35,8 @@ internal static class WellKnownTypeExtensions {
         "Belte.NullabilityAttribute",
         "Belte.ConstMethodAttribute",
         "Belte.ConstParamAttribute",
+        "Result`2",
+        "WrappedErrorException",
         "Belte.Graphics.Vec2",
         "Belte.Graphics.Sprite",
         "Belte.Graphics.Text",
@@ -40,6 +44,11 @@ internal static class WellKnownTypeExtensions {
         "Belte.Graphics.Texture",
         "Belte.Graphics.Sound",
     ];
+
+    internal static bool IsWellKnownType(this WellKnownType typeId) {
+        Debug.Assert(typeId != WellKnownType.ExtSentinel);
+        return typeId >= WellKnownType.First && typeId <= WellKnownType.LastPEType;
+    }
 
     internal static bool ShouldEmit(this WellKnownType wellKnownType, bool noStdLib, bool includeGraphicsTypes) {
         switch (wellKnownType) {

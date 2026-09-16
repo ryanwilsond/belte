@@ -542,16 +542,14 @@ internal partial class NamedTypeSymbol {
         }
 
         static Symbol GetWellKnownMemberInType(ImmutableArray<Symbol> members, WellKnownMember relativeMember) {
-            // ! TODO This is actually reachable, I just want to verify this works first
-            throw ExceptionUtilities.Unreachable();
-            // var relativeDescriptor = WellKnownMembers.GetDescriptor(relativeMember);
+            var relativeDescriptor = WellKnownMembers.GetDescriptor(relativeMember);
 
-            // return Compilation.GetRuntimeMember(
-            //     members,
-            //     relativeDescriptor,
-            //     Compilation.SpecialMembersSignatureComparer.Instance,
-            //     accessWithinOpt: null
-            // );
+            return Compilation.GetRuntimeMember(
+                members,
+                relativeDescriptor,
+                Compilation.SpecialMembersSignatureComparer.Instance,
+                accessWithinOpt: null
+            );
         }
 
         static ImmutableArray<Symbol> GetOriginalFields(ImmutableArray<Symbol> members) {

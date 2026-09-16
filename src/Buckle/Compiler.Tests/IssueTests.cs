@@ -3088,4 +3088,45 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Conditional_InfersTypeWithException() {
+        var text = @"
+            var a = true ? 3 : throw new System.Exception();
+            return a;
+        ";
+
+        AssertValue(text, 3);
+    }
+
+    [Fact]
+    public void Conditional_InfersTypeWithException2() {
+        var text = @"
+            try {
+                var a = false ? 3 : throw new System.Exception();
+            } catch {
+                return 5;
+            }
+
+            return 0;
+        ";
+
+        AssertValue(text, 5);
+    }
+
+    [Fact]
+    public void DefiniteAssignment_DoesntReportIfOtherDiagnostics() {
+        var text = @"
+            public struct packed([3]) A<type T> {
+                T a;
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            struct pack alignment must be 1, 2, 4, 8, 16, 32, 64, or 128
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }
