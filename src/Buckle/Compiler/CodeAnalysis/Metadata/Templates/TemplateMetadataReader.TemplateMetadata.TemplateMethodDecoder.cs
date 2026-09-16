@@ -189,7 +189,7 @@ internal sealed partial class TemplateMetadataReader {
 
                 _ = DecodeConstraints();
 
-                _attributes = DecodeCustomAttributesCore(_offsetAfterConstraints);
+                _attributes = DecodeCustomAttributesCore(_offsetAfterConstraints, out _);
                 _readAttributes = true;
 
                 return _attributes;
@@ -201,7 +201,7 @@ internal sealed partial class TemplateMetadataReader {
 
                 _ = GetReturnType();
 
-                _returnAttributes = DecodeCustomAttributesCore(_offsetAfterReturnType);
+                _returnAttributes = DecodeCustomAttributesCore(_offsetAfterReturnType, out _);
                 _offsetAfterReturnAttributes = (uint)_reader.BaseStream.Position;
                 _readReturnAttributes = true;
 
@@ -233,7 +233,7 @@ internal sealed partial class TemplateMetadataReader {
                         if ((flags & TemplateMetadataWriter.TemplateParameterFlags.HasDefaultValue) != 0)
                             defaultValue = ReadTypeOrConstant(underlyingType, _reader);
 
-                        var customAttributes = DecodeCustomAttributesCore((uint)_reader.BaseStream.Position);
+                        var customAttributes = DecodeCustomAttributesCore((uint)_reader.BaseStream.Position, out _);
                         var constraintTypeCount = _reader.ReadUInt16();
                         var constraintTypes = new TypeSymbol[constraintTypeCount];
 
@@ -301,7 +301,7 @@ internal sealed partial class TemplateMetadataReader {
                             Debug.Assert(defaultValue is not null);
                         }
 
-                        var customAttributes = DecodeCustomAttributesCore((uint)_reader.BaseStream.Position);
+                        var customAttributes = DecodeCustomAttributesCore((uint)_reader.BaseStream.Position, out _);
 
                         _parameters[i] = new ParameterInfo(
                             name,

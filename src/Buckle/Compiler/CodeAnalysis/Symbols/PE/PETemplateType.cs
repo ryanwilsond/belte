@@ -461,6 +461,7 @@ internal sealed partial class PETemplateType : NamedTypeSymbol {
 
             CreateFields(fieldMembers);
             CreateMethods(nonFieldMembers);
+            CreateProperties(nonFieldMembers);
 
             foreach (var field in fieldMembers)
                 members.Add(field);
@@ -571,6 +572,43 @@ internal sealed partial class PETemplateType : NamedTypeSymbol {
                 members.Add(new MetadataMethodSymbol(this, methodDecoder));
             else
                 members.Add(new MetadataMethodSymbol(this, methodDecoder, _typeToLink));
+        }
+    }
+
+    private void CreateProperties(ArrayBuilder<Symbol> members) {
+        var propertyInfos = _decoder.DecodeProperties();
+
+        foreach (var propertyInfo in propertyInfos) {
+            MetadataPropertySymbol symbol;
+
+            if (_typeToLink is null) {
+                symbol = new MetadataPropertySymbol(
+                    _decoder,
+                    this,
+                    propertyInfo.name,
+                    propertyInfo.attributes,
+                    propertyInfo.flags,
+                    propertyInfo.type,
+                    propertyInfo.getMethodIndex,
+                    propertyInfo.setMethodIndex,
+                    propertyInfo.customAttributes
+                );
+            } else {
+                symbol = new MetadataPropertySymbol(
+                    _decoder,
+                    this,
+                    propertyInfo.name,
+                    propertyInfo.attributes,
+                    propertyInfo.flags,
+                    propertyInfo.type,
+                    propertyInfo.getMethodIndex,
+                    propertyInfo.setMethodIndex,
+                    propertyInfo.customAttributes,
+                    (PropertySymbol)_typeToLink.GetMembers(propertyInfo.name).Single(m => m.kind == SymbolKind.Property)
+                );
+            }
+
+            members.Add(symbol);
         }
     }
 

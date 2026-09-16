@@ -430,7 +430,13 @@ internal sealed class SourcePropertySymbol : SourcePropertySymbolBase {
         var binderFactory = compilation.GetBinderFactory(syntaxTree);
         var binder = binderFactory.GetBinder(syntax, syntax, this);
         var modifiers = GetModifierTokensSyntax(syntax);
-        return binder.WithAdditionalFlagsAndContainingMember(BinderFlags.SuppressConstraintChecks, this);
+
+        var signatureFlags = BinderFlags.SuppressConstraintChecks;
+
+        if (hasLowLevelModifier)
+            signatureFlags |= BinderFlags.LowLevelContext;
+
+        return binder.WithAdditionalFlagsAndContainingMember(signatureFlags, this);
     }
 
     private protected override (TypeWithAnnotations Type, ImmutableArray<ParameterSymbol> Parameters) MakeParametersAndBindType(

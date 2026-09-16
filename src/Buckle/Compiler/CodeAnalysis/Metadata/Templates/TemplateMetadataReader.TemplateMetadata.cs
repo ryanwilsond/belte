@@ -266,7 +266,11 @@ internal sealed partial class TemplateMetadataReader {
             return CacheResult(-1);
 
             bool CacheResult(long result) {
-                _hasMetadataForTypeCache.Add(type, result);
+                lock (_hasMetadataForTypeCache) {
+                    if (!_hasMetadataForTypeCache.TryAdd(type, result))
+                        Debug.Assert(result == _hasMetadataForTypeCache[type]);
+                }
+
                 return result != -1;
             }
         }
@@ -369,7 +373,16 @@ internal sealed partial class TemplateMetadataReader {
             }
 
             Debug.Assert(templateType is not null);
-            _linkedTypes.Add(type, templateType);
+
+            if (!_linkedTypes.TryGetValue(type, out var value)) {
+                lock (_linkedTypes) {
+                    if (!_linkedTypes.TryAdd(type, templateType))
+                        return _linkedTypes[type];
+                }
+            } else {
+                return value;
+            }
+
             return templateType;
         }
 
@@ -515,7 +528,7 @@ internal sealed partial class TemplateMetadataReader {
                         if (string.Equals(
                             referencedAssembly.identity.GetDisplayName(fullKey: true),
                             identityDisplay,
-                            System.StringComparison.Ordinal)) {
+                            StringComparison.Ordinal)) {
                             Debug.Assert(symbol is null);
                             symbol = referencedAssembly;
 #if !DEBUG

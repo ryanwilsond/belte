@@ -51,6 +51,7 @@ internal partial class ILEmitter : ModuleBuilder {
     private readonly ConcurrentDictionary<MethodSymbol, MethodDefinition> _methods = [];
     private readonly ConcurrentDictionary<MethodDefinition, (MethodSymbol, BoundBlockStatement)> _methodBodyMap = [];
     private readonly ConcurrentDictionary<FieldSymbol, FieldDefinition> _fields = [];
+    private readonly ConcurrentDictionary<PropertySymbol, PropertyDefinition> _properties = [];
     private readonly ConcurrentDictionary<(TemplateParameterSymbol, Symbol), GenericParameter> _templateParameters = [];
     private readonly ConcurrentDictionary<MethodSymbol, TypeReference[]> _methodTypeParameters = [];
     private readonly string _belteDllName;
@@ -983,7 +984,8 @@ internal partial class ILEmitter : ModuleBuilder {
             Parallel.Invoke(parallelOptions,
                 () => Parallel.ForEach(_types, CreateTypeMetadata),
                 () => Parallel.ForEach(_fields, CreateFieldMetadata),
-                () => Parallel.ForEach(_methods, CreateMethodMetadata)
+                () => Parallel.ForEach(_methods, CreateMethodMetadata),
+                () => Parallel.ForEach(_properties, CreatePropertyMetadata)
             );
 
             Parallel.ForEach(_methods, parallelOptions, method => EmitMethod(method.Value));
@@ -1113,6 +1115,16 @@ internal partial class ILEmitter : ModuleBuilder {
 
         if (TypeNeedsNullabilityAttribute(field.type, field.location))
             fieldDefinition.CustomAttributes.Add(CreateNullabilityAttribute(field.type));
+    }
+
+    private void CreatePropertyMetadata(KeyValuePair<PropertySymbol, PropertyDefinition> pair) {
+        var property = pair.Key;
+        var propertyDefinition = pair.Value;
+
+        AddCustomAttributes(propertyDefinition.CustomAttributes, property.GetAttributes());
+
+        if (TypeNeedsNullabilityAttribute(property.type, property.location))
+            propertyDefinition.CustomAttributes.Add(CreateNullabilityAttribute(property.type));
     }
 
     private void CompleteWellKnownTypes() {
@@ -1540,6 +1552,17 @@ internal partial class ILEmitter : ModuleBuilder {
                 CreateMemberDefinitions(t);
             } else if (member is MethodSymbol m && m.isAbstract) {
                 CreateMethodDefinition(m, null, typeDefinition);
+            } else if (member is PropertySymbol p) {
+                var propertyDefinition = new PropertyDefinition(
+                    p.name,
+                    GetPropertyAttributes(p),
+                    (p.type.typeKind == TypeKind.FunctionPointer)
+                        ? _specialTypes[SpecialType.IntPtr]
+                        : GetType(p.type, p.refKind != RefKind.None)
+                );
+
+                _properties.Add(p, propertyDefinition);
+                typeDefinition.Properties.Add(propertyDefinition);
             }
         }
 
@@ -1970,6 +1993,10 @@ internal partial class ILEmitter : ModuleBuilder {
             attributes |= FieldAttributes.Static;
 
         return attributes;
+    }
+
+    private static PropertyAttributes GetPropertyAttributes(PropertySymbol property) {
+        return PropertyAttributes.None;
     }
 
     private static MethodAttributes GetMethodAttributes(MethodSymbol method) {

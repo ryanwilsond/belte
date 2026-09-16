@@ -12,7 +12,9 @@ internal sealed partial class TemplateMetadataWriter {
     private sealed class BoundNodeEncoder : BoundTreeWalkerWithStackGuard {
         private readonly BinaryWriter _writer;
         private readonly TemplateMetadataWriter _metadataWriter;
-        private readonly HashSet<string> _seenLocals = [];
+        private readonly Dictionary<string, uint> _seenLocals = [];
+
+        private uint _localCount = 0;
 
         private BoundNodeEncoder(BinaryWriter writer, TemplateMetadataWriter metadataWriter) {
             _writer = writer;
@@ -29,35 +31,52 @@ internal sealed partial class TemplateMetadataWriter {
 
         internal override BoundNode VisitBlockStatement(BoundBlockStatement node) {
             _writer.Write((byte)BoundKind.BlockStatement);
-            _writer.Write((ushort)node.locals.Length);
+            var countPosition = _writer.BaseStream.Position;
+            _writer.Write((ushort)0);
 
-            foreach (var local in node.locals)
-                WriteLocal(local);
+            ushort localCount = 0;
+
+            foreach (var local in node.locals) {
+                if (WriteLocal(local))
+                    localCount++;
+            }
+
+            var endPosition = _writer.BaseStream.Position;
+
+            _writer.Seek((int)countPosition, SeekOrigin.Begin);
+            _writer.Write(localCount);
+
+            _writer.Seek((int)endPosition, SeekOrigin.Begin);
 
             _writer.Write((ushort)node.statements.Length);
 
             return base.VisitBlockStatement(node);
         }
 
-        private void WriteLocal(DataContainerSymbol local) {
+        private bool WriteLocal(DataContainerSymbol local) {
             /*
 
     Size
 
-    4       Name Size
-    ...     Name
+    4       ID
     1       Type Kind
     ...     Type Info
     1       Flags (Ref Kind, IsPinned)
 
             */
-            Debug.Assert((uint)local.metadataName.Length == Encoding.UTF8.GetBytes(local.metadataName).Length);
-            _writer.Write((uint)local.metadataName.Length);
-            _writer.Write(Encoding.UTF8.GetBytes(local.metadataName));
+            // TODO This shouldn't ever be happening but blocks contain duplicate locals sometimes
+            if (_seenLocals.ContainsKey(local.metadataName))
+                return false;
+
+            var id = _localCount++;
+
+            _writer.Write(id);
             _writer.Write(_metadataWriter.CreateTypeKindAndInfo(local.type));
             _writer.Write(CreateLocalFlags(local));
 
-            _seenLocals.Add(local.metadataName);
+            _seenLocals.Add(local.metadataName, id);
+
+            return true;
         }
 
         private static byte CreateLocalFlags(DataContainerSymbol local) {
@@ -110,13 +129,8 @@ internal sealed partial class TemplateMetadataWriter {
 
         internal override BoundNode VisitDataContainerExpression(BoundDataContainerExpression node) {
             _writer.Write((byte)BoundKind.DataContainerExpression);
-            // TODO We should probably use slots instead of names...
-            Debug.Assert((uint)node.dataContainer.metadataName.Length == Encoding.UTF8.GetBytes(node.dataContainer.metadataName).Length);
-            _writer.Write((uint)node.dataContainer.metadataName.Length);
-            _writer.Write(Encoding.UTF8.GetBytes(node.dataContainer.metadataName));
-
-            Debug.Assert(_seenLocals.Contains(node.dataContainer.metadataName));
-
+            var id = _seenLocals[node.dataContainer.metadataName];
+            _writer.Write(id);
             return base.VisitDataContainerExpression(node);
         }
 
@@ -393,9 +407,8 @@ internal sealed partial class TemplateMetadataWriter {
 
         internal override BoundNode VisitLocalDeclarationStatement(BoundLocalDeclarationStatement node) {
             _writer.Write((byte)BoundKind.LocalDeclarationStatement);
-            Debug.Assert((uint)node.declaration.dataContainer.metadataName.Length == Encoding.UTF8.GetBytes(node.declaration.dataContainer.metadataName).Length);
-            _writer.Write((uint)node.declaration.dataContainer.metadataName.Length);
-            _writer.Write(Encoding.UTF8.GetBytes(node.declaration.dataContainer.metadataName));
+            var id = _seenLocals[node.declaration.dataContainer.metadataName];
+            _writer.Write(id);
             Visit(node.declaration.initializer);
             return null;
         }

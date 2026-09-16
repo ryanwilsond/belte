@@ -1142,7 +1142,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         SyntaxList<AttributeListSyntax> attributeLists,
         SyntaxList<SyntaxToken> modifiers,
         TypeSyntax returnType) {
-        var (explicitInterfaceSpecifier, identifier) = ParseMemberName();
+        var (explicitInterfaceSpecifier, identifier) = ParseMemberName(SyntaxKind.OpenParenToken);
         var templateParameterList = currentToken.kind == SyntaxKind.LessThanToken
             ? ParseTemplateParameterList()
             : null;
@@ -1219,9 +1219,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
         }
     }
 
-    private (ExplicitInterfaceSpecifierSyntax, SyntaxToken) ParseMemberName() {
+    private (ExplicitInterfaceSpecifierSyntax, SyntaxToken) ParseMemberName(
+        SyntaxKind? nextWanted = null,
+        SyntaxKind? nextWantedAlternative = null) {
         if (currentToken.kind != SyntaxKind.IdentifierToken) {
-            var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenParenToken);
+            var identifier = Match(SyntaxKind.IdentifierToken, nextWanted, nextWantedAlternative);
             return (null, identifier);
         }
 
@@ -1232,7 +1234,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             return (null, identifierName.identifier);
 
         var period = Match(SyntaxKind.PeriodToken, SyntaxKind.IdentifierToken);
-        var actualIdentifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.OpenParenToken);
+        var actualIdentifier = Match(SyntaxKind.IdentifierToken, nextWanted, nextWantedAlternative);
 
         return (SyntaxFactory.ExplicitInterfaceSpecifier(name, period), actualIdentifier);
     }
@@ -1584,7 +1586,10 @@ internal sealed partial class LanguageParser : SyntaxParser {
         SyntaxList<SyntaxToken> modifiers) {
         var propertyKeyword = ConvertToKeyword(EatToken());
         var type = ParseType();
-        var (explicitInterfaceSpecifier, identifier) = ParseMemberName();
+        var (explicitInterfaceSpecifier, identifier) = ParseMemberName(
+            SyntaxKind.OpenBraceToken,
+            SyntaxKind.EqualsGreaterThanToken
+        );
 
         AccessorListSyntax accessorList;
         ArrowExpressionClauseSyntax arrowExpressionClause;

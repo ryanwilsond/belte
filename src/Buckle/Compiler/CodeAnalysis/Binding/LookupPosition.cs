@@ -44,6 +44,10 @@ internal static class LookupPosition {
         return IsInBlock(position, method.body);
     }
 
+    internal static bool IsInBody(int position, PropertyDeclarationSyntax property) {
+        return IsInBody(position, block: null, property.expressionBody, property.semicolonToken);
+    }
+
     internal static bool IsInBody(int position, AccessorDeclarationSyntax method) {
         return IsInBody(position, method.body, method.expressionBody, method.semicolonToken);
     }

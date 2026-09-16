@@ -714,50 +714,102 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
                 return MethodKind.Ordinary;
             }
 
-            if (/*!this.hasRuntimeSpecialName && */isStatic && declaredAccessibility == Accessibility.Public) {
-                switch (_name) {
-                    case WellKnownMemberNames.AdditionOperatorName:
-                    case WellKnownMemberNames.BitwiseAndOperatorName:
-                    case WellKnownMemberNames.BitwiseOrOperatorName:
-                    case WellKnownMemberNames.DivideOperatorName:
-                    case WellKnownMemberNames.EqualityOperatorName:
-                    case WellKnownMemberNames.BitwiseExclusiveOrOperatorName:
-                    case WellKnownMemberNames.GreaterThanOperatorName:
-                    case WellKnownMemberNames.GreaterThanOrEqualOperatorName:
-                    case WellKnownMemberNames.InequalityOperatorName:
-                    case WellKnownMemberNames.LeftShiftOperatorName:
-                    case WellKnownMemberNames.LessThanOperatorName:
-                    case WellKnownMemberNames.LessThanOrEqualOperatorName:
-                    case WellKnownMemberNames.ModulusOperatorName:
-                    case WellKnownMemberNames.MultiplyOperatorName:
-                    case WellKnownMemberNames.RightShiftOperatorName:
-                    case WellKnownMemberNames.UnsignedRightShiftOperatorName:
-                    case WellKnownMemberNames.SubtractionOperatorName:
-                        return IsValidUserDefinedOperatorSignature(2) ? MethodKind.Operator : MethodKind.Ordinary;
-                    case WellKnownMemberNames.DecrementOperatorName:
-                    case WellKnownMemberNames.IncrementOperatorName:
-                    case WellKnownMemberNames.LogicalNotOperatorName:
-                    case WellKnownMemberNames.BitwiseNotOperatorName:
-                    case WellKnownMemberNames.UnaryNegationOperatorName:
-                    case WellKnownMemberNames.UnaryPlusOperatorName:
-                        return IsValidUserDefinedOperatorSignature(1) ? MethodKind.Operator : MethodKind.Ordinary;
-                    case WellKnownMemberNames.ImplicitConversionName:
-                    case WellKnownMemberNames.ExplicitConversionName:
-                        return IsValidUserDefinedOperatorSignature(1) ? MethodKind.Conversion : MethodKind.Ordinary;
-
-                        //case WellKnownMemberNames.ConcatenateOperatorName:
-                        //case WellKnownMemberNames.ExponentOperatorName:
-                        //case WellKnownMemberNames.IntegerDivisionOperatorName:
-                        //case WellKnownMemberNames.LikeOperatorName:
-                        //// Non-C#-supported overloaded operator
-                        // return MethodKind.Ordinary;
+            if (!hasRuntimeSpecialName && declaredAccessibility == Accessibility.Public) {
+                if (isStatic) {
+                    switch (_name) {
+                        case WellKnownMemberNames.AdditionOperatorName:
+                        case WellKnownMemberNames.BitwiseAndOperatorName:
+                        case WellKnownMemberNames.BitwiseOrOperatorName:
+                        case WellKnownMemberNames.DivideOperatorName:
+                        case WellKnownMemberNames.EqualityOperatorName:
+                        case WellKnownMemberNames.BitwiseExclusiveOrOperatorName:
+                        case WellKnownMemberNames.GreaterThanOperatorName:
+                        case WellKnownMemberNames.GreaterThanOrEqualOperatorName:
+                        case WellKnownMemberNames.InequalityOperatorName:
+                        case WellKnownMemberNames.LeftShiftOperatorName:
+                        case WellKnownMemberNames.LessThanOperatorName:
+                        case WellKnownMemberNames.LessThanOrEqualOperatorName:
+                        case WellKnownMemberNames.ModulusOperatorName:
+                        case WellKnownMemberNames.MultiplyOperatorName:
+                        case WellKnownMemberNames.RightShiftOperatorName:
+                        case WellKnownMemberNames.UnsignedRightShiftOperatorName:
+                        case WellKnownMemberNames.SubtractionOperatorName:
+                            return IsValidUserDefinedOperatorSignature(2) ? MethodKind.Operator : MethodKind.Ordinary;
+                        case WellKnownMemberNames.DecrementOperatorName:
+                        case WellKnownMemberNames.IncrementOperatorName:
+                        case WellKnownMemberNames.LogicalNotOperatorName:
+                        case WellKnownMemberNames.BitwiseNotOperatorName:
+                        case WellKnownMemberNames.UnaryNegationOperatorName:
+                        case WellKnownMemberNames.UnaryPlusOperatorName:
+                            return IsValidUserDefinedOperatorSignature(1) ? MethodKind.Operator : MethodKind.Ordinary;
+                        case WellKnownMemberNames.ImplicitConversionName:
+                        case WellKnownMemberNames.ExplicitConversionName:
+                            return IsValidUserDefinedOperatorSignature(1) ? MethodKind.Conversion : MethodKind.Ordinary;
+                    }
+                } else {
+                    switch (_name) {
+                        case WellKnownMemberNames.DecrementAssignmentOperatorName:
+                        case WellKnownMemberNames.IncrementAssignmentOperatorName:
+                            return IsValidInstanceUserDefinedOperatorSignature(0) ? MethodKind.Operator : MethodKind.Ordinary;
+                        case WellKnownMemberNames.AdditionAssignmentOperatorName:
+                        case WellKnownMemberNames.SubtractionAssignmentOperatorName:
+                        case WellKnownMemberNames.MultiplicationAssignmentOperatorName:
+                        case WellKnownMemberNames.DivisionAssignmentOperatorName:
+                        case WellKnownMemberNames.ModulusAssignmentOperatorName:
+                        case WellKnownMemberNames.BitwiseAndAssignmentOperatorName:
+                        case WellKnownMemberNames.BitwiseOrAssignmentOperatorName:
+                        case WellKnownMemberNames.ExclusiveOrAssignmentOperatorName:
+                        case WellKnownMemberNames.LeftShiftAssignmentOperatorName:
+                        case WellKnownMemberNames.RightShiftAssignmentOperatorName:
+                        case WellKnownMemberNames.UnsignedRightShiftAssignmentOperatorName:
+                            return IsValidInstanceUserDefinedOperatorSignature(1) ? MethodKind.Operator : MethodKind.Ordinary;
+                    }
                 }
 
                 return MethodKind.Ordinary;
             }
+        } else {
+            // Non CLR special names
+            if (declaredAccessibility == Accessibility.Public && isStatic) {
+                switch (_name) {
+                    case WellKnownMemberNames.IndexOperatorName:
+                        return IsValidUserDefinedOperatorSignature(2) ? MethodKind.Operator : MethodKind.Ordinary;
+                    case WellKnownMemberNames.LengthOperatorName:
+                    case WellKnownMemberNames.IterOperatorName:
+                        return IsValidUserDefinedOperatorSignature(1) ? MethodKind.Operator : MethodKind.Ordinary;
+                }
+            }
         }
 
         return MethodKind.Ordinary;
+    }
+
+    private bool IsValidInstanceUserDefinedOperatorSignature(int parameterCount) {
+        if (!returnsVoid || isTemplateMethod || this.parameterCount != parameterCount)
+            return false;
+
+        return HasValidOperatorParameterRefKinds();
+    }
+
+    private bool HasValidOperatorParameterRefKinds() {
+        if (parameterRefKinds.IsDefault)
+            return true;
+
+        foreach (var kind in parameterRefKinds) {
+            switch (kind) {
+                case RefKind.None:
+                    continue;
+                case RefKind.Out:
+                case RefKind.Ref:
+                case RefKind.RefConst:
+                case RefKind.RefFinal:
+                    return false;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(kind);
+            }
+        }
+
+        return true;
     }
 
     private bool IsValidUserDefinedOperatorSignature(int parameterCount) {

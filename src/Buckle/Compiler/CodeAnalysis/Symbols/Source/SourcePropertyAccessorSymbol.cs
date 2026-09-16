@@ -431,7 +431,7 @@ internal class SourcePropertyAccessorSymbol : SourceMemberMethodSymbol {
         TextLocation location,
         BelteDiagnosticQueue diagnostics,
         out bool modifierErrors) {
-        const DeclarationModifiers defaultAccess = DeclarationModifiers.None;
+        const DeclarationModifiers DefaultAccess = DeclarationModifiers.None;
 
         var allowedModifiers = isExplicitInterfaceImplementation
             ? DeclarationModifiers.None
@@ -439,17 +439,17 @@ internal class SourcePropertyAccessorSymbol : SourceMemberMethodSymbol {
 
         allowedModifiers |= DeclarationModifiers.LowLevel | DeclarationModifiers.Const;
 
-        var defaultInterfaceImplementationModifiers = DeclarationModifiers.None;
+        // var defaultInterfaceImplementationModifiers = DeclarationModifiers.None;
         var isInterface = containingType.isInterface;
 
-        if (isInterface && !isExplicitInterfaceImplementation)
-            defaultInterfaceImplementationModifiers = DeclarationModifiers.AccessibilityMask;
+        // if (isInterface && !isExplicitInterfaceImplementation)
+        //     defaultInterfaceImplementationModifiers = DeclarationModifiers.AccessibilityMask;
 
         var mods = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
             // isOrdinaryMethod: false,
             modifiers,
             isForInterfaceMember: isInterface,
-            defaultAccess,
+            DefaultAccess,
             allowedModifiers,
             location,
             diagnostics,

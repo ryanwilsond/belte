@@ -387,6 +387,11 @@ internal abstract class Symbol : ISymbol {
                 refKind = RefKind.None;
                 returnType = field.typeWithAnnotations;
                 break;
+            case SymbolKind.Property:
+                var property = (PropertySymbol)this;
+                refKind = property.refKind;
+                returnType = property.typeWithAnnotations;
+                break;
             case SymbolKind.Method:
                 var method = (MethodSymbol)this;
                 refKind = method.refKind;
@@ -425,6 +430,7 @@ internal abstract class Symbol : ISymbol {
             ParameterSymbol p => p.refKind,
             DataContainerSymbol d => d.refKind,
             FieldSymbol f => f.refKind,
+            PropertySymbol p => p.refKind,
             _ => throw ExceptionUtilities.UnexpectedValue(kind)
         };
     }
@@ -434,6 +440,7 @@ internal abstract class Symbol : ISymbol {
             FieldSymbol f => f.isLowLevel,
             NamedTypeSymbol n => n.isLowLevel,
             SourceMemberMethodSymbol s => s.isLowLevel,
+            SourcePropertySymbolBase s => s.hasLowLevelModifier,
             _ => false
         };
     }

@@ -3026,4 +3026,66 @@ public sealed class IssueTests {
 
         AssertValue(text, 3);
     }
+
+    [Fact]
+    public void Property_LowLevelModifierApplies() {
+        var text = @"
+            class A {
+                lowlevel property Buffer<A!>? a => null;
+            }
+            ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Property_LowLevelModifierApplies2() {
+        var text = @"
+            class A {
+                lowlevel property Buffer<A!>? a => new Buffer<A!>(10);
+            }
+            ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Property_ConstModifierApplies() {
+        var text = @"
+            class A {
+                int a = 0;
+                const property int p => [a]++;
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot assign to an instance member in a method marked as constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Property_MissingTypeMinimalDiagnostics() {
+        var text = @"
+            class A {
+                int a = 0;
+                const property p [=>] a++;
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            expected identifier
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

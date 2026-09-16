@@ -330,6 +330,35 @@ internal sealed partial class BinderFactory {
             return Visit(node.parent);
         }
 
+        internal override Binder VisitPropertyDeclaration(PropertyDeclarationSyntax node) {
+            if (!LookupPosition.IsInBody(_position, node))
+                return VisitCore(node.parent);
+
+            return VisitPropertyExpressionBody(node);
+        }
+
+        private Binder VisitPropertyExpressionBody(PropertyDeclarationSyntax parent) {
+            var key = CreateBinderCacheKey(parent, NodeUsage.AccessorBody);
+
+            if (!_binderCache.TryGetValue(key, out var resultBinder)) {
+                resultBinder = VisitCore(parent.parent);
+
+                var propertySymbol = GetPropertySymbol(parent, resultBinder);
+                var accessor = propertySymbol.getMethod;
+
+                if (accessor is not null) {
+                    resultBinder = new InMethodBinder(accessor, resultBinder);
+
+                    if (MethodHasAdditionalContext(accessor, out var additionalFlags))
+                        resultBinder = resultBinder.WithAdditionalFlags(additionalFlags);
+                }
+
+                _binderCache.TryAdd(key, resultBinder);
+            }
+
+            return resultBinder;
+        }
+
         internal override Binder VisitAccessorDeclaration(AccessorDeclarationSyntax node) {
             if (!LookupPosition.IsInMethodDeclaration(_position, node))
                 return VisitCore(node.parent);
@@ -366,8 +395,12 @@ internal sealed partial class BinderFactory {
                             throw ExceptionUtilities.UnexpectedValue(propertyDecl.kind);
                     }
 
-                    if (accessor is not null)
+                    if (accessor is not null) {
                         resultBinder = new InMethodBinder(accessor, resultBinder);
+
+                        if (MethodHasAdditionalContext(accessor, out var additionalFlags))
+                            resultBinder = resultBinder.WithAdditionalFlags(additionalFlags);
+                    }
                 }
 
                 _binderCache.TryAdd(key, resultBinder);
@@ -545,6 +578,9 @@ internal sealed partial class BinderFactory {
 
             if (method.isNoThrow)
                 additionalFlags |= BinderFlags.NoThrowContext;
+
+            if (method.IsLowLevel())
+                additionalFlags |= BinderFlags.LowLevelContext;
 
             return additionalFlags != BinderFlags.None;
         }

@@ -245,7 +245,7 @@ internal sealed partial class TemplateMetadataReader {
                 }
             }
 
-            private protected AttributeData[] DecodeCustomAttributesCore(uint startPosition) {
+            private protected AttributeData[] DecodeCustomAttributesCore(uint startPosition, out uint endPosition) {
                 lock (_metadata) lock (this) lock (_reader) {
                     var position = _reader.BaseStream.Seek(startPosition, SeekOrigin.Begin);
                     Debug.Assert(_reader.BaseStream.Position == position && position == startPosition);
@@ -276,6 +276,8 @@ internal sealed partial class TemplateMetadataReader {
                             arguments.ToImmutableAndFree()
                         );
                     }
+
+                    endPosition = (uint)_reader.BaseStream.Position;
 
                     return attributes;
                 }

@@ -39,6 +39,10 @@ internal sealed partial class TemplateMetadataReader {
 
             private bool _readAttributes;
             private AttributeData[] _attributes;
+            private uint _offsetAfterAttributes;
+
+            private bool _readProperties;
+            private PropertyInfo[] _properties;
 
             internal TemplateTypeDecoder(
                 TemplateMetadata metadata,
@@ -138,7 +142,7 @@ internal sealed partial class TemplateMetadataReader {
                         var attributes = (FieldAttributes)_reader.ReadUInt32();
                         var typeKind = _reader.ReadByte();
                         var type = ReadTypeSymbol(typeKind, _reader);
-                        var customAttributes = DecodeCustomAttributesCore((uint)_reader.BaseStream.Position);
+                        var customAttributes = DecodeCustomAttributesCore((uint)_reader.BaseStream.Position, out _);
 
                         ConstantValue defaultValue = null;
 
@@ -229,10 +233,60 @@ internal sealed partial class TemplateMetadataReader {
 
                 _ = DecodeConstraints();
 
-                _attributes = DecodeCustomAttributesCore(_offsetAfterConstraints);
+                _attributes = DecodeCustomAttributesCore(_offsetAfterConstraints, out _offsetAfterAttributes);
                 _readAttributes = true;
 
                 return _attributes;
+            }
+
+            internal PropertyInfo[] DecodeProperties() {
+                if (_readProperties)
+                    return _properties;
+
+                _ = DecodeCustomAttributes();
+
+                lock (_metadata) lock (this) lock (_reader) {
+                    var position = _reader.BaseStream.Seek(_offsetAfterAttributes, SeekOrigin.Begin);
+                    Debug.Assert(_reader.BaseStream.Position == position && position == _offsetAfterAttributes);
+
+                    var count = _reader.ReadUInt16();
+
+                    _properties = new PropertyInfo[count];
+
+                    for (var i = 0; i < count; i++) {
+                        var nameSize = _reader.ReadUInt32();
+                        var name = Encoding.UTF8.GetString(_reader.ReadBytes((int)nameSize));
+                        var flags = (TemplateMetadataWriter.PropertyFlags)_reader.ReadByte();
+                        var attributes = (PropertyAttributes)_reader.ReadUInt16();
+                        var typeKind = _reader.ReadByte();
+                        var type = ReadTypeSymbol(typeKind, _reader);
+
+                        uint getMethodIndex = 0;
+                        uint setMethodIndex = 0;
+
+                        if ((flags & TemplateMetadataWriter.PropertyFlags.HasGetter) != 0)
+                            getMethodIndex = _reader.ReadUInt32();
+
+                        if ((flags & TemplateMetadataWriter.PropertyFlags.HasSetter) != 0)
+                            setMethodIndex = _reader.ReadUInt32();
+
+                        var customAttributes = DecodeCustomAttributesCore((uint)_reader.BaseStream.Position, out _);
+
+                        _properties[i] = new PropertyInfo(
+                            name,
+                            attributes,
+                            flags,
+                            type,
+                            getMethodIndex,
+                            setMethodIndex,
+                            customAttributes
+                        );
+                    }
+
+                    _readProperties = true;
+                }
+
+                return _properties;
             }
 
             private void DecodeTemplateParameters() {
@@ -265,7 +319,7 @@ internal sealed partial class TemplateMetadataReader {
                         if ((flags & TemplateMetadataWriter.TemplateParameterFlags.HasDefaultValue) != 0)
                             defaultValue = ReadTypeOrConstant(underlyingType, _reader);
 
-                        var customAttributes = DecodeCustomAttributesCore((uint)_reader.BaseStream.Position);
+                        var customAttributes = DecodeCustomAttributesCore((uint)_reader.BaseStream.Position, out _);
                         var constraintTypeCount = _reader.ReadUInt16();
                         var constraintTypes = new TypeSymbol[constraintTypeCount];
 
@@ -309,6 +363,10 @@ internal sealed partial class TemplateMetadataReader {
                 }
 
                 return _baseType;
+            }
+
+            internal MethodSymbol ResolveMethod(uint index) {
+                return _metadata.ResolveMethod(index);
             }
         }
     }

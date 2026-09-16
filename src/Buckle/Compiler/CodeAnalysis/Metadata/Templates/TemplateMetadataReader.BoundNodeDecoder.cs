@@ -122,8 +122,7 @@ internal sealed partial class TemplateMetadataReader {
             var locals = ArrayBuilder<DataContainerSymbol>.GetInstance(localCount);
 
             for (var i = 0; i < localCount; i++) {
-                var nameSize = _reader.ReadUInt32();
-                var name = Encoding.UTF8.GetString(_reader.ReadBytes((int)nameSize));
+                var id = _reader.ReadUInt32();
                 var typeKind = _reader.ReadByte();
                 var type = _templateDecoder.ReadTypeSymbol(typeKind, _reader);
                 var flags = (TemplateMetadataWriter.LocalFlags)_reader.ReadByte();
@@ -131,7 +130,7 @@ internal sealed partial class TemplateMetadataReader {
                 locals.Add(new SynthesizedDataContainerSymbol(
                     _containingSymbol,
                     type,
-                    name,
+                    $"local{id}",
                     (flags & TemplateMetadataWriter.LocalFlags.ByRef) != 0 ? RefKind.Ref : RefKind.None,
                     (flags & TemplateMetadataWriter.LocalFlags.IsPinned) != 0
                 ));
@@ -310,10 +309,10 @@ internal sealed partial class TemplateMetadataReader {
             return newLabel;
         }
 
-        private DataContainerSymbol GetLocal(string name) {
+        private DataContainerSymbol GetLocal(uint id) {
             foreach (var frame in _enclosingBlocks) {
-                if (frame.Any(t => t.name == name))
-                    return frame.First(t => t.name == name);
+                if (frame.Any(t => t.name == $"local{id}"))
+                    return frame.First(t => t.name == $"local{id}");
             }
 
             Debug.Assert(false);
@@ -351,9 +350,8 @@ internal sealed partial class TemplateMetadataReader {
         }
 
         private BoundLocalDeclarationStatement ReadLocalDeclarationStatement() {
-            var nameSize = _reader.ReadUInt32();
-            var name = Encoding.UTF8.GetString(_reader.ReadBytes((int)nameSize));
-            var local = GetLocal(name);
+            var id = _reader.ReadUInt32();
+            var local = GetLocal(id);
             var initializer = ReadExpression(backtrackIfNotExpression: true);
 
             return new BoundLocalDeclarationStatement(
@@ -537,9 +535,8 @@ internal sealed partial class TemplateMetadataReader {
         }
 
         private BoundDataContainerExpression ReadDataContainerExpression() {
-            var nameSize = _reader.ReadUInt32();
-            var name = Encoding.UTF8.GetString(_reader.ReadBytes((int)nameSize));
-            var local = GetLocal(name);
+            var id = _reader.ReadUInt32();
+            var local = GetLocal(id);
             return new BoundDataContainerExpression(null, local, null, local.type);
         }
 

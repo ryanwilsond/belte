@@ -142,6 +142,8 @@ Type Definition Table
             ...     Expression Constraints
             2       Custom Attribute Count
             ...     Custom Attributes
+            2       Property Count
+            ...     Properties
 
             :Template Parameter Entry:
 
@@ -188,6 +190,19 @@ Type Definition Table
             4       Entry Size
             4       Constructor Method Index
             ...     Blob
+
+            :Property Entry:
+
+            4       Name Size
+            ...     Name
+            1       Flags
+            2       Property Attributes
+            1       Type Kind
+            ...     Type Info
+            4       Get Method Index
+            4       Set Method Index
+            2       Custom Attribute Count
+            ...     Custom Attributes
 
 Template Table
 
@@ -393,6 +408,27 @@ Bound Table
 
         WriteAttributes(writer, type.GetAttributes());
 
+        var properties = type.GetMembers().WhereAsArray(t => t is PropertySymbol);
+
+        writer.Write((ushort)properties.Length);
+
+        foreach (PropertySymbol property in properties) {
+            Debug.Assert((uint)property.metadataName.Length == Encoding.UTF8.GetBytes(property.metadataName).Length);
+            writer.Write((uint)property.metadataName.Length);
+            writer.Write(Encoding.UTF8.GetBytes(property.metadataName));
+            writer.Write(CreatePropertyFlags(property));
+            writer.Write(CreatePropertyAttributes(property));
+            writer.Write(CreateTypeKindAndInfo(property.type));
+
+            if (property.getMethod is { } getMethod)
+                writer.Write(LogMethodEntryForMethod(getMethod));
+
+            if (property.setMethod is { } setMethod)
+                writer.Write(LogMethodEntryForMethod(setMethod));
+
+            WriteAttributes(writer, property.GetAttributes());
+        }
+
         writer.BaseStream.Seek(0, SeekOrigin.Begin);
         writer.Write((uint)writer.BaseStream.Length);
 
@@ -479,6 +515,23 @@ Bound Table
         if (field.hasConstantValue)
             flags |= (uint)FieldAttributes.HasDefault;
 
+        return flags;
+    }
+
+    private byte CreatePropertyFlags(PropertySymbol property) {
+        var flags = (byte)PropertyFlags.None;
+
+        if (property.getMethod is not null)
+            flags |= (byte)PropertyFlags.HasGetter;
+
+        if (property.setMethod is not null)
+            flags |= (byte)PropertyFlags.HasSetter;
+
+        return flags;
+    }
+
+    private ushort CreatePropertyAttributes(PropertySymbol property) {
+        var flags = (ushort)Executor.GetPropertyAttributes(property);
         return flags;
     }
 

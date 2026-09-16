@@ -8,7 +8,6 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
-using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -30,8 +29,6 @@ internal abstract partial class SourcePropertySymbolBase : PropertySymbol, IAttr
 
     private string _lazySourceName;
 
-    private string _lazyDocComment;
-    private string _lazyExpandedDocComment;
     private OverriddenOrHiddenMembersResult _lazyOverriddenOrHiddenMembers;
     private SynthesizedSealedPropertyAccessor _lazySynthesizedSealedAccessor;
     private CustomAttributesBag<AttributeData> _lazyCustomAttributesBag;
@@ -335,11 +332,11 @@ internal abstract partial class SourcePropertySymbolBase : PropertySymbol, IAttr
         var isExplicitInterfaceImplementation = this.isExplicitInterfaceImplementation;
 
         if (isExplicitInterfaceImplementation || isOverride) {
-            var isOverride = false;
+            // var isOverride = false;
             PropertySymbol overriddenOrImplementedProperty;
 
             if (!isExplicitInterfaceImplementation) {
-                isOverride = true;
+                // isOverride = true;
                 overriddenOrImplementedProperty = overriddenProperty;
             } else {
                 var syntax = belteSyntaxNode;

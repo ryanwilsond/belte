@@ -1273,6 +1273,10 @@ internal sealed partial class Executor : ModuleBuilder {
         return attributes;
     }
 
+    internal static PropertyAttributes GetPropertyAttributes(PropertySymbol property) {
+        return PropertyAttributes.None;
+    }
+
     internal static MethodAttributes GetMethodAttributes(MethodSymbol method) {
         var attributes = MethodAttributes.HideBySig;
 
