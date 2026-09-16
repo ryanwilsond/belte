@@ -1,9 +1,7 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -61,11 +59,21 @@ internal sealed class SourceReverseMethodSymbol : SourceMemberMethodSymbol {
         }
     }
 
-    internal sealed override void AfterAddingTypeMembersChecks(BelteDiagnosticQueue diagnostics) {
-        base.AfterAddingTypeMembersChecks(diagnostics);
+    internal sealed override void AfterAddingTypeMembersChecks(
+        ConversionsBase conversions,
+        BelteDiagnosticQueue diagnostics) {
+        base.AfterAddingTypeMembersChecks(conversions, diagnostics);
 
-        foreach (var parameter in parameters)
-            parameter.type.CheckAllConstraints(parameter.syntaxReference.location, diagnostics);
+        var impliedConstraints = GetEnclosingTemplateConstraints();
+
+        foreach (var parameter in parameters) {
+            parameter.type.CheckAllConstraints(
+                conversions,
+                parameter.syntaxReference.location,
+                impliedConstraints,
+                diagnostics
+            );
+        }
     }
 
     internal sealed override ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes() {
@@ -73,6 +81,10 @@ internal sealed class SourceReverseMethodSymbol : SourceMemberMethodSymbol {
     }
 
     internal sealed override ImmutableArray<TypeParameterConstraintKinds> GetTypeParameterConstraintKinds() {
+        return [];
+    }
+
+    internal sealed override ImmutableArray<BoundExpression> GetTemplateConstraints() {
         return [];
     }
 
@@ -165,8 +177,14 @@ internal sealed class SourceReverseMethodSymbol : SourceMemberMethodSymbol {
             _lazyParameters = [];
         }
 
-        _lazyReturnType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void));
+        _lazyReturnType = new TypeWithAnnotations(declaringCompilation.GetSpecialType(SpecialType.Void));
         CheckEffectiveAccessibility(_lazyReturnType, _lazyParameters, diagnostics);
+
+        if (containingType.IsEnumType())
+            diagnostics.Push(Error.ReverseMethodInEnum(location));
+
+        if (_containingMethod.isPure)
+            diagnostics.Push(Error.PureMethodCannotHaveReverse(_containingMethod.location));
     }
 
     private static (DeclarationModifiers, Flags) MakeModifiersAndFlags(
@@ -194,6 +212,9 @@ internal sealed class SourceReverseMethodSymbol : SourceMemberMethodSymbol {
             Accessibility.Public => DeclarationModifiers.Public,
             Accessibility.Private => DeclarationModifiers.Private,
             Accessibility.Protected => DeclarationModifiers.Protected,
+            Accessibility.Internal => DeclarationModifiers.Internal,
+            Accessibility.InternalOrProtected => DeclarationModifiers.InternalOrProtected,
+            Accessibility.InternalAndProtected => DeclarationModifiers.InternalAndProtected,
             _ => DeclarationModifiers.None
         };
 

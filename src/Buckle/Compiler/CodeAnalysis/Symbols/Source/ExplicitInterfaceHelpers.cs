@@ -109,6 +109,22 @@ internal static class ExplicitInterfaceHelpers {
         FindExplicitImplementationCollisions(implementingMember, implementedMember, diagnostics);
     }
 
+    internal static PropertySymbol FindExplicitlyImplementedProperty(
+        this PropertySymbol implementingProperty,
+        TypeSymbol explicitInterfaceType,
+        string interfacePropertyName,
+        ExplicitInterfaceSpecifierSyntax explicitInterfaceSpecifierSyntax,
+        BelteDiagnosticQueue diagnostics) {
+        return (PropertySymbol)FindExplicitlyImplementedMember(
+            implementingProperty,
+            isOperator: false,
+            explicitInterfaceType,
+            interfacePropertyName,
+            explicitInterfaceSpecifierSyntax,
+            diagnostics
+        );
+    }
+
     private static void FindExplicitImplementationCollisions(
         Symbol implementingMember,
         Symbol implementedMember,

@@ -9,7 +9,6 @@ using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -66,6 +65,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     private SynthesizedExplicitImplementations _lazySynthesizedExplicitImplementations;
     private ThreeState _lazyAnyMemberHasAttributes;
     private Dictionary<SyntaxNode, ScopeInheritorInfo> _lazyScopeInheritorInfo;
+    private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> _lazyEarlyAttributeDecodingMembersDictionary;
     private int _lazyKnownCircularStruct;
     private int _lazyHasStructDefault;
     private int _lazyKnownToBeImmutable;
@@ -1228,6 +1228,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             );
 
             CheckConstMismatch(overridingMemberLocation, overriddenMethod, overridingMethod, diagnostics);
+            CheckSpecifiersMismatch(overridingMemberLocation, overriddenMethod, overridingMethod, diagnostics);
         }
     }
 
@@ -1270,6 +1271,36 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                         overridingMethod,
                         overriddenMethod,
                         overridingParameter.name
+                    ));
+                }
+            }
+        }
+    }
+
+    private static void CheckSpecifiersMismatch(
+        TextLocation overridingMemberLocation,
+        MethodSymbol overriddenMethod,
+        MethodSymbol overridingMethod,
+        BelteDiagnosticQueue diagnostics) {
+        CheckSpecifier(overriddenMethod.isPure, overridingMethod.isPure, "pure");
+        CheckSpecifier(overriddenMethod.isNoThrow, overridingMethod.isNoThrow, "nothrow");
+        CheckSpecifier(overriddenMethod.isNoAlloc, overridingMethod.isNoAlloc, "noalloc");
+
+        void CheckSpecifier(bool overridden, bool overriding, string specifier) {
+            if (overridden != overriding) {
+                if (overridden) {
+                    diagnostics.Push(Error.CantChangeSpecifierOnOverride(
+                        overridingMemberLocation,
+                        overridingMethod,
+                        overriddenMethod,
+                        specifier
+                    ));
+                } else {
+                    diagnostics.Push(Warning.DifferentSpecifierOnOverride(
+                        overridingMemberLocation,
+                        overridingMethod,
+                        overriddenMethod,
+                        specifier
                     ));
                 }
             }
@@ -1635,9 +1666,12 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
         switch (hidingMember.declaredAccessibility) {
             case Accessibility.Private:
+            case Accessibility.Internal:
+            case Accessibility.InternalAndProtected:
                 break;
             case Accessibility.Public:
             case Accessibility.Protected:
+            case Accessibility.InternalOrProtected:
                 diagnostics.Push(Error.HidingAbstractMember(hidingMemberLocation, hidingMember, hiddenMember));
                 return true;
             default:
@@ -1684,7 +1718,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
     private void CheckSpecialMemberErrors(BelteDiagnosticQueue diagnostics) {
         foreach (var member in GetMembersUnordered())
-            member.AfterAddingTypeMembersChecks(diagnostics);
+            member.AfterAddingTypeMembersChecks(TypeConversions.GetInstance(), diagnostics);
     }
 
     private void CheckMemberNameConflicts(BelteDiagnosticQueue diagnostics) {
@@ -1868,8 +1902,13 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             return Accessibility.Private;
 
         for (var container = containingType; container is not null; container = container.containingType) {
-            if (container.declaredAccessibility == Accessibility.Private)
-                return Accessibility.Private;
+            switch (container.declaredAccessibility) {
+                case Accessibility.Private:
+                    return Accessibility.Private;
+                case Accessibility.Internal:
+                    result = Accessibility.Internal;
+                    continue;
+            }
         }
 
         return result;
@@ -2287,6 +2326,25 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                     }
 
                     break;
+                case SyntaxKind.PropertyDeclaration: {
+                        var propertySyntax = (PropertyDeclarationSyntax)m;
+
+                        if (isImplicitClass && reportMisplacedGlobalCode)
+                            diagnostics.Push(Error.NamespaceUnexpected(propertySyntax.identifier.location));
+
+                        var property = SourcePropertySymbol.Create(this, bodyBinder, propertySyntax, diagnostics);
+                        builder.nonTypeMembers.Add(property);
+
+                        AddAccessorIfAvailable(builder.nonTypeMembers, property.getMethod);
+                        AddAccessorIfAvailable(builder.nonTypeMembers, property.setMethod);
+
+                        var backingField = property.declaredBackingField;
+
+                        if (backingField is not null)
+                            builder.nonTypeMembers.Add(backingField);
+                    }
+
+                    break;
                 case SyntaxKind.GlobalStatement:
                     var globalStatement = ((GlobalStatementSyntax)m).statement;
                     // AddInitializer(ref initializers, null, globalStatement);
@@ -2392,6 +2450,11 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                 _lazyScopeInheritorInfo.Add(syntax, scopeInfo);
             }
+        }
+
+        void AddAccessorIfAvailable(ArrayBuilder<Symbol> symbols, MethodSymbol accessor) {
+            if (accessor is not null)
+                symbols.Add(accessor);
         }
     }
 
@@ -2516,26 +2579,33 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         if (!hasInstanceConstructor && !isStatic && !isInterface)
             builder.AddNonTypeMember(new SynthesizedInstanceConstructorSymbol(this), declaredMembersAndInitializers);
 
+        // TODO This is problematic because we can't check if a field requires late constant evaluating (compile-time expr)
+        // without resolving what the constant is, which causes a loop
+        // instead we probably just have to delete static constructors if they are empty
         static bool HasNonConstExprInitializer(ImmutableArray<ImmutableArray<FieldInitializer>> initializers) {
-            return initializers.Any(
-                static siblings => siblings.Any(static initializer => !initializer.field.isConstExpr)
-            );
+            return initializers.Any();
+            //     return initializers.Any(
+            //         static siblings => siblings.Any(
+            //             static initializer => !initializer.field.isConstExpr || initializer.field.constantValue is null
+            //         )
+            //     );
         }
     }
 
-    private static int? MakeExplicitAlignment(PackedArgumentSyntax packedArgument, BelteDiagnosticQueue diagnostics) {
+    private int? MakeExplicitAlignment(PackedArgumentSyntax packedArgument, BelteDiagnosticQueue diagnostics) {
         if (packedArgument.alignment is null)
             return 1;
 
         var alignmentValue = packedArgument.alignment.value;
-        var alignmentType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(alignmentValue);
+        var alignmentType = CodeAnalysis.SpecialTypeExtensions.SpecialTypeFromLiteralValue(alignmentValue);
 
         if (!LiteralUtilities.TrySpecialCastCore(alignmentValue, alignmentType, SpecialType.Int, out var result)) {
             diagnostics.Push(
                 Error.CannotConvertConstantValue(
                     packedArgument.alignment.location,
                     result,
-                    CorLibrary.GetSpecialType(SpecialType.Int)
+                    // TODO Use a binder instead of a compilation here?
+                    declaringCompilation.GetSpecialType(SpecialType.Int)
                 )
             );
         } else {
@@ -2551,14 +2621,12 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     }
 
     private DeclarationModifiers MakeModifiers(BelteDiagnosticQueue diagnostics) {
-        var defaultAccess = containingSymbol is null or NamespaceSymbol
-            ? DeclarationModifiers.None
-            : DeclarationModifiers.Private;
+        DeclarationModifiers defaultAccess;
 
         var allowedModifiers = DeclarationModifiers.AccessibilityMask;
 
         if (containingSymbol.kind == SymbolKind.Namespace) {
-            // defaultAccess = DeclarationModifiers.Internal;
+            defaultAccess = DeclarationModifiers.Internal;
         } else {
             allowedModifiers |= DeclarationModifiers.New;
 
@@ -2943,6 +3011,33 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         }
     }
 
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers() {
+        return GetEarlyAttributeDecodingMembersDictionary().Flatten();
+    }
+
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers(string name) {
+        return GetEarlyAttributeDecodingMembersDictionary()
+            .TryGetValue(name.AsMemory(), out var result) ? result : [];
+    }
+
+    private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> GetEarlyAttributeDecodingMembersDictionary() {
+        if (_lazyEarlyAttributeDecodingMembersDictionary is null) {
+            if (Volatile.Read(ref _lazyMembersDictionary) is
+                Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> result) {
+                return result;
+            }
+
+            var membersAndInitializers = GetMembersAndInitializers();
+
+            Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> membersByName;
+            membersByName = ToNameKeyedDictionary(membersAndInitializers.nonTypeMembers);
+            AddNestedTypesToDictionary(membersByName, GetTypeMembersDictionary());
+
+            Interlocked.CompareExchange(ref _lazyEarlyAttributeDecodingMembersDictionary, membersByName, null);
+        }
+
+        return _lazyEarlyAttributeDecodingMembersDictionary;
+    }
 
     [MethodImpl(MethodImplOptions.AggressiveInlining)]
     private bool HasFlag(DeclarationModifiers flag) => (_modifiers & flag) != 0;

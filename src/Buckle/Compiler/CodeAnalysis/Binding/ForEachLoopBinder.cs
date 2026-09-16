@@ -1,8 +1,8 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -60,18 +60,19 @@ internal sealed class ForEachLoopBinder : LoopBinder {
         BelteDiagnosticQueue diagnostics,
         Binder originalBinder) {
         var collectionExpr = originalBinder.GetBinder(_syntax.expression)
-            .BindRValueWithoutTargetType(_syntax.expression, diagnostics);
+            .BindRangeOrRValue(_syntax.expression, diagnostics);
 
-        BindForEachCollection(
+        _ = BindForEachCollection(
             _syntax,
             _syntax.expression,
             ref collectionExpr,
             diagnostics,
-            out var inferredType
+            out var inferredType,
+            out _
         );
 
         _valueSymbol.SetTypeWithAnnotations(inferredType);
-        _indexSymbol?.SetTypeWithAnnotations(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Int)));
+        _indexSymbol?.SetTypeWithAnnotations(new TypeWithAnnotations(compilation.GetSpecialType(SpecialType.Int)));
 
         return new BoundExpressionStatement(_syntax, BoundFactory.Local(_syntax, _valueSymbol));
     }
@@ -83,23 +84,41 @@ internal sealed class ForEachLoopBinder : LoopBinder {
         _ = locals;
 
         var collectionExpr = originalBinder.GetBinder(_syntax.expression)
-            .BindRValueWithoutTargetType(_syntax.expression, diagnostics);
+            .BindRangeOrRValue(_syntax.expression, diagnostics);
 
-        BindForEachCollection(
+        var forEachKind = BindForEachCollection(
             _syntax,
             _syntax.expression,
             ref collectionExpr,
             diagnostics,
-            out var inferredType
+            out var inferredType,
+            out var potentialEnumeratorInfo
         );
 
+        ForEachEnumeratorInfo enumeratorInfo;
+
+        if (forEachKind == ForEachLoopKind.IEnumerable) {
+            Debug.Assert(potentialEnumeratorInfo is null);
+            enumeratorInfo = BindIEnumerableInfo(_syntax, _syntax.expression, collectionExpr.type, diagnostics);
+        } else if (forEachKind == ForEachLoopKind.Enumerator) {
+            Debug.Assert(potentialEnumeratorInfo is null);
+            enumeratorInfo = BindEnumeratorInfo(_syntax, _syntax.expression, collectionExpr.type, diagnostics);
+        } else {
+            enumeratorInfo = potentialEnumeratorInfo;
+        }
+
+        if (forEachKind == ForEachLoopKind.IEnumerable && enumeratorInfo is not null)
+            ReportDiagnosticsIfUnmanagedCallersOnly(diagnostics, enumeratorInfo.getEnumeratorMethod, _syntax.keyword);
+
         _valueSymbol.SetTypeWithAnnotations(inferredType);
-        _indexSymbol?.SetTypeWithAnnotations(new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Int)));
+        _indexSymbol?.SetTypeWithAnnotations(new TypeWithAnnotations(compilation.GetSpecialType(SpecialType.Int)));
 
         var body = originalBinder.BindPossibleEmbeddedStatement(node.body, diagnostics);
 
         return new BoundForEachStatement(
             node,
+            enumeratorInfo,
+            forEachKind,
             locals,
             collectionExpr,
             [],
@@ -109,6 +128,291 @@ internal sealed class ForEachLoopBinder : LoopBinder {
             breakLabel,
             continueLabel
         );
+    }
+
+    private ForEachEnumeratorInfo BindIEnumerableInfo(
+        SyntaxNode syntax,
+        SyntaxNode collectionSyntax,
+        TypeSymbol type,
+        BelteDiagnosticQueue diagnostics) {
+        var getEnumeratorMethod = FindForEachMethod(
+            syntax,
+            collectionSyntax,
+            type,
+            WellKnownMemberNames.GetEnumeratorMethodName,
+            false,
+            diagnostics
+        );
+
+        Debug.Assert(getEnumeratorMethod is not null || diagnostics.AnyErrors());
+        var enumeratorType = getEnumeratorMethod?.returnType?.StrippedType();
+
+        var moveNextMethod = FindForEachMethod(
+            syntax,
+            collectionSyntax,
+            enumeratorType,
+            WellKnownMemberNames.MoveNextMethodName,
+            false,
+            diagnostics
+        );
+
+        var getCurrentMethod = FindForEachMethod(
+            syntax,
+            collectionSyntax,
+            enumeratorType,
+            WellKnownMemberNames.CurrentPropertyName,
+            false,
+            diagnostics
+        );
+
+        var disposeMethod = FindForEachMethod(
+            syntax,
+            collectionSyntax,
+            enumeratorType,
+            WellKnownMemberNames.Dispose,
+            true,
+            diagnostics
+        );
+
+        return ForEachEnumeratorInfo.CreateIEnumerableInfo(
+            getEnumeratorMethod,
+            moveNextMethod,
+            getCurrentMethod,
+            disposeMethod
+        );
+    }
+
+    private ForEachEnumeratorInfo BindEnumeratorInfo(
+        SyntaxNode syntax,
+        SyntaxNode collectionSyntax,
+        TypeSymbol type,
+        BelteDiagnosticQueue diagnostics) {
+        var moveNextMethod = FindForEachMethod(
+            syntax,
+            collectionSyntax,
+            type,
+            WellKnownMemberNames.MoveNextMethodName,
+            false,
+            diagnostics
+        );
+
+        var currentMethod = FindForEachMethod(
+            syntax,
+            collectionSyntax,
+            type,
+            WellKnownMemberNames.CurrentMethodName,
+            false,
+            diagnostics
+        );
+
+        var resetMethod = FindForEachMethod(
+            syntax,
+            collectionSyntax,
+            type,
+            WellKnownMemberNames.ResetMethodName,
+            true,
+            diagnostics
+        );
+
+        return ForEachEnumeratorInfo.CreateEnumeratorInfo(
+            moveNextMethod,
+            currentMethod,
+            resetMethod
+        );
+    }
+
+    private MethodSymbol FindForEachMethod(
+        SyntaxNode syntax,
+        SyntaxNode collectionSyntax,
+        TypeSymbol type,
+        string methodName,
+        bool warningsOnly,
+        BelteDiagnosticQueue diagnostics) {
+        var lookupResult = LookupResult.GetInstance();
+
+        try {
+            LookupMembersInType(
+                lookupResult,
+                type,
+                methodName,
+                arity: 0,
+                basesBeingResolved: null,
+                options: LookupOptions.Default,
+                originalBinder: this,
+                errorLocation: collectionSyntax.location,
+                diagnose: false
+            );
+
+            if (!lookupResult.isMultiViable) {
+                ReportPatternMemberLookupDiagnostics(
+                    collectionSyntax,
+                    lookupResult,
+                    type,
+                    methodName,
+                    warningsOnly,
+                    diagnostics
+                );
+
+                return null;
+            }
+
+            var candidateMethods = ArrayBuilder<MethodSymbol>.GetInstance();
+
+            foreach (var member in lookupResult.symbols) {
+                if (member.kind != SymbolKind.Method) {
+                    candidateMethods.Free();
+
+                    if (warningsOnly)
+                        ReportEnumerableWarning(collectionSyntax, diagnostics, type, member);
+
+                    return null;
+                }
+
+                var method = (MethodSymbol)member;
+
+                if (method.parameterCount == 0)
+                    candidateMethods.Add((MethodSymbol)member);
+            }
+
+            var methodSymbol = PerformForEachOverloadResolution(
+                syntax,
+                collectionSyntax,
+                type,
+                candidateMethods,
+                warningsOnly,
+                diagnostics
+            );
+
+            candidateMethods.Free();
+
+            return methodSymbol;
+        } finally {
+            lookupResult.Free();
+        }
+    }
+
+    private MethodSymbol PerformForEachOverloadResolution(
+        SyntaxNode syntax,
+        SyntaxNode collectionSyntax,
+        TypeSymbol patternType,
+        ArrayBuilder<MethodSymbol> candidateMethods,
+        bool warningsOnly,
+        BelteDiagnosticQueue diagnostics) {
+        var analyzedArguments = AnalyzedArguments.GetInstance();
+        var templateArguments = ArrayBuilder<TypeOrConstant>.GetInstance();
+        var overloadResolutionResult = OverloadResolutionResult<MethodSymbol>.GetInstance();
+
+        var dummyReceiver = new BoundValuePlaceholder(collectionSyntax, patternType);
+
+        overloadResolution.MethodOverloadResolution(
+            members: candidateMethods,
+            templateArguments: templateArguments,
+            receiver: dummyReceiver,
+            arguments: analyzedArguments,
+            result: overloadResolutionResult,
+            callErrorLocation: null
+        );
+
+        MethodSymbol result = null;
+
+        if (overloadResolutionResult.succeeded) {
+            result = overloadResolutionResult.bestResult.member;
+
+            if (result.isStatic || result.declaredAccessibility != Accessibility.Public) {
+                if (warningsOnly) {
+                    throw ExceptionUtilities.Unreachable();
+                    // MessageID patternName = isAsync ? MessageID.IDS_FeatureAsyncStreams : MessageID.IDS_Collection;
+                    // diagnostics.Add(ErrorCode.WRN_PatternNotPublicOrNotInstance, collectionSyntax.Location, patternType, patternName.Localize(), result);
+                }
+
+                result = null;
+            } else {
+                var argsToParams = overloadResolutionResult.bestResult.result.argsToParams;
+                var expanded = overloadResolutionResult.bestResult.result.kind == MemberResolutionKind.Applicable;
+
+                BindDefaultArguments(
+                    syntax,
+                    result.parameters,
+                    analyzedArguments.arguments,
+                    analyzedArguments.refKinds,
+                    analyzedArguments.names,
+                    ref argsToParams,
+                    out var defaultArguments,
+                    expanded,
+                    diagnostics
+                );
+
+                // TODO Currently we never are finding methods with any parameters
+                Debug.Assert(result.parameterCount == 0);
+                // Debug.Assert(argsToParams.IsDefault);
+                // info = new MethodArgumentInfo(result, analyzedArguments.Arguments.ToImmutable(), defaultArguments, expanded);
+            }
+        } else {
+            var memberGroup = candidateMethods.ToImmutable();
+
+            overloadResolutionResult.ReportDiagnostics(
+                binder: this,
+                location: syntax.location,
+                node: syntax,
+                diagnostics: diagnostics,
+                name: candidateMethods[0].name,
+                receiver: null,
+                invokedExpression: null,
+                arguments: analyzedArguments,
+                memberGroup: memberGroup,
+                typeContainingConstructor: null
+            );
+        }
+
+        overloadResolutionResult.Free();
+        analyzedArguments.Free();
+        templateArguments.Free();
+
+        return result;
+    }
+
+    private void ReportPatternMemberLookupDiagnostics(
+        SyntaxNode collectionSyntax,
+        LookupResult lookupResult,
+        TypeSymbol type,
+        string memberName,
+        bool warningsOnly,
+        BelteDiagnosticQueue diagnostics) {
+        if (lookupResult.symbols.Any()) {
+            if (warningsOnly) {
+                ReportEnumerableWarning(collectionSyntax, diagnostics, type, lookupResult.symbols.First());
+            } else {
+                lookupResult.Clear();
+
+                LookupMembersInType(
+                    lookupResult,
+                    type,
+                    memberName,
+                    arity: 0,
+                    basesBeingResolved: null,
+                    options: LookupOptions.Default,
+                    originalBinder: this,
+                    errorLocation: collectionSyntax.location,
+                    diagnose: true
+                );
+
+                if (lookupResult.error is not null)
+                    diagnostics.Push(lookupResult.error);
+            }
+        } else if (!warningsOnly) {
+            diagnostics.Push(Error.NoSuchMember(collectionSyntax.location, type, memberName));
+        }
+    }
+
+    private void ReportEnumerableWarning(
+        SyntaxNode collectionSyntax,
+        BelteDiagnosticQueue diagnostics,
+        TypeSymbol enumeratorType,
+        Symbol patternMemberCandidate) {
+        if (IsAccessible(patternMemberCandidate)) {
+            throw ExceptionUtilities.Unreachable();
+            // diagnostics.Add(ErrorCode.WRN_PatternBadSignature, collectionSyntax.Location, enumeratorType, MessageID.IDS_Collection.Localize(), patternMemberCandidate);
+        }
     }
 
     internal override ImmutableArray<DataContainerSymbol> GetDeclaredLocalsForScope(SyntaxNode scopeDesignator) {

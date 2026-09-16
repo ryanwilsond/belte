@@ -1,0 +1,12 @@
+using System;
+
+namespace Belte.CompilerServices;
+
+[AttributeUsage(AttributeTargets.Assembly)]
+public sealed class BelteMetadataAttribute extends Attribute {
+    public int32 metadataVersion;
+
+    public constructor(int32 metadataVersion) {
+        this.metadataVersion = metadataVersion;
+    }
+}

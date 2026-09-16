@@ -23,6 +23,7 @@ internal sealed class SynthesizedDataContainerSymbol : DataContainerSymbol {
         _syntax = syntax;
         synthesizedKind = kind;
         name = GeneratedNames.MakeSynthedLocalName(type, _synthCount++);
+        isPinned = false;
     }
 
     internal SynthesizedDataContainerSymbol(
@@ -36,6 +37,21 @@ internal sealed class SynthesizedDataContainerSymbol : DataContainerSymbol {
         typeWithAnnotations = type;
         this.name = name;
         synthesizedKind = kind;
+        isPinned = false;
+    }
+
+    internal SynthesizedDataContainerSymbol(
+        Symbol containingSymbol,
+        TypeSymbol type,
+        string name,
+        RefKind refKind,
+        bool isPinned) {
+        this.containingSymbol = containingSymbol;
+        typeWithAnnotations = new TypeWithAnnotations(type);
+        this.name = name;
+        this.refKind = refKind;
+        synthesizedKind = SynthesizedLocalKind.UserDefined;
+        this.isPinned = isPinned;
     }
 
     public override string name { get; }
@@ -56,7 +72,7 @@ internal sealed class SynthesizedDataContainerSymbol : DataContainerSymbol {
 
     internal override SyntaxToken identifierToken => null;
 
-    internal override bool isPinned => false;
+    internal override bool isPinned { get; }
 
     internal override bool isImplicitlyDeclared => true;
 

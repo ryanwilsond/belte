@@ -19,73 +19,85 @@
 
   <ItemGroup>
     <Content Remove="../../Belte/Native/Standard/Object.blt" />
-    <Content Remove="../../Belte/Native/Standard/HashHelpers.blt" />
-    <Content Remove="../../Belte/Native/Standard/Tuple.blt" />
     <Content Remove="../../Belte/Native/Standard/Buffer.blt" />
-    <Content Remove="../../Belte/Native/Standard/Collections/KeyNotFoundException.blt" />
-    <Content Remove="../../Belte/Native/Standard/Collections/EqualityComparer.blt" />
-    <Content Remove="../../Belte/Native/Standard/Collections/Array.blt" />
-    <Content Remove="../../Belte/Native/Standard/Collections/BitArray.blt" />
-    <Content Remove="../../Belte/Native/Standard/Collections/List.blt" />
-    <Content Remove="../../Belte/Native/Standard/Collections/Enumerator.blt" />
-    <Content Remove="../../Belte/Native/Standard/Collections/ReducedEnumerator.blt" />
-    <Content Remove="../../Belte/Native/Standard/Collections/Dictionary.blt" />
-    <Content Remove="../../Belte/Native/Standard/Collections/KeyValuePair.blt" />
-    <Content Remove="../../Belte/Native/Standard/Exceptions/ArgumentException.blt" />
-    <Content Remove="../../Belte/Native/Standard/Exceptions/ArgumentNullException.blt" />
-    <Content Remove="../../Belte/Native/Standard/Exceptions/ArgumentOutOfRangeException.blt" />
-    <Content Remove="../../Belte/Native/Standard/Exceptions/Exception.blt" />
-    <Content Remove="../../Belte/Native/Standard/Exceptions/InvalidCastException.blt" />
-    <Content Remove="../../Belte/Native/Standard/Exceptions/InvalidOperationException.blt" />
-    <Content Remove="../../Belte/Native/Standard/Exceptions/NotSupportedException.blt" />
+
+
+    <!-- Evaluator Only -->
     <Content Remove="../../Belte/Native/Standard/Attributes/Attribute.blt" />
-    <Content Remove="../../Belte/Native/Standard/Attributes/DllImportAttribute.blt" />
-    <Content Remove="../../Belte/Native/Standard/Attributes/UnmanagedAttribute.blt" />
-    <Content Remove="../../Belte/Native/Standard/Attributes/MustUseReturnValueAttribute.blt" />
-    <Content Remove="../../Belte/Native/Graphics/Vec2.blt" />
-    <Content Remove="../../Belte/Native/Graphics/Sprite.blt" />
-    <Content Remove="../../Belte/Native/Graphics/Text.blt" />
-    <Content Remove="../../Belte/Native/Graphics/Rect.blt" />
-    <Content Remove="../../Belte/Native/Graphics/Texture.blt" />
-    <Content Remove="../../Belte/Native/Graphics/FRect.blt" />
-    <Content Remove="../../Belte/Native/Graphics/Vec4.blt" />
-    <Content Remove="../../Belte/Native/Graphics/Sound.blt" />
+    <Content Remove="../../Belte/Native/Standard/Attributes/AttributeUsageAttribute.blt" />
+    <Content Remove="../../Belte/Native/Standard/Exception.blt" />
+
+    <Content Remove="../../Belte/Belte.Core/src/Global/HashHelpers.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Global/Tuple.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Global/EqualityComparer.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Global/Collections/Array.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Global/Collections/BitArray.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Global/Collections/Dictionary.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Global/Collections/Enumerator.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Global/Collections/KeyNotFoundException.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Global/Collections/KeyValuePair.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Global/Collections/List.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Global/Exceptions/ArgumentException.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Global/Exceptions/ArgumentNullException.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Global/Exceptions/ArgumentOutOfRangeException.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Global/Exceptions/InvalidCastException.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Global/Exceptions/InvalidOperationException.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Global/Exceptions/NotSupportedException.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Global/Attributes/DllImportAttribute.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Global/Attributes/UnmanagedAttribute.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Global/Attributes/MustUseReturnValueAttribute.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Belte/Graphics/Vec2.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Belte/Graphics/Sprite.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Belte/Graphics/Text.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Belte/Graphics/Rect.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Belte/Graphics/Texture.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Belte/Graphics/FRect.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Belte/Graphics/Vec4.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Belte/Graphics/Sound.blt" />
+
+
     <Content Remove="../../../docs/images/BelteCapital.png" />
   </ItemGroup>
 
   <ItemGroup>
     <EmbeddedResource Include="../../Belte/Native/Standard/Object.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Standard/HashHelpers.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Standard/Tuple.blt" />
     <EmbeddedResource Include="../../Belte/Native/Standard/Buffer.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Standard/Collections/KeyNotFoundException.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Standard/Collections/EqualityComparer.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Standard/Collections/Array.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Standard/Collections/BitArray.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Standard/Collections/List.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Standard/Collections/Enumerator.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Standard/Collections/ReducedEnumerator.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Standard/Collections/Dictionary.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Standard/Collections/KeyValuePair.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Standard/Exceptions/ArgumentException.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Standard/Exceptions/ArgumentNullException.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Standard/Exceptions/ArgumentOutOfRangeException.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Standard/Exceptions/Exception.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Standard/Exceptions/InvalidCastException.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Standard/Exceptions/InvalidOperationException.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Standard/Exceptions/NotSupportedException.blt" />
+
+
+    <!-- Evaluator Only -->
     <EmbeddedResource Include="../../Belte/Native/Standard/Attributes/Attribute.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Standard/Attributes/DllImportAttribute.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Standard/Attributes/UnmanagedAttribute.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Standard/Attributes/MustUseReturnValueAttribute.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Graphics/Vec2.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Graphics/Sprite.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Graphics/Text.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Graphics/Rect.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Graphics/Texture.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Graphics/FRect.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Graphics/Vec4.blt" />
-    <EmbeddedResource Include="../../Belte/Native/Graphics/Sound.blt" />
+    <EmbeddedResource Include="../../Belte/Native/Standard/Attributes/AttributeUsageAttribute.blt" />
+    <EmbeddedResource Include="../../Belte/Native/Standard/Exception.blt" />
+
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/HashHelpers.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Tuple.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/EqualityComparer.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Collections/Array.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Collections/BitArray.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Collections/Dictionary.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Collections/Enumerator.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Collections/KeyNotFoundException.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Collections/KeyValuePair.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Collections/List.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Exceptions/ArgumentException.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Exceptions/ArgumentNullException.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Exceptions/ArgumentOutOfRangeException.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Exceptions/InvalidCastException.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Exceptions/InvalidOperationException.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Exceptions/NotSupportedException.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Attributes/DllImportAttribute.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Attributes/UnmanagedAttribute.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Global/Attributes/MustUseReturnValueAttribute.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Belte/Graphics/Vec2.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Belte/Graphics/Sprite.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Belte/Graphics/Text.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Belte/Graphics/Rect.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Belte/Graphics/Texture.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Belte/Graphics/FRect.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Belte/Graphics/Vec4.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Belte/Graphics/Sound.blt" />
+
+
     <EmbeddedResource Include="../../../docs/images/BelteCapital.png" />
   </ItemGroup>
 

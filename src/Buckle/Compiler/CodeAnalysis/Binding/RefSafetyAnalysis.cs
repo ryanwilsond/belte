@@ -5,7 +5,6 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -18,28 +17,36 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
 
     private readonly MethodSymbol _symbol;
     private readonly BelteDiagnosticQueue _diagnostics;
+    private readonly Compilation _compilation;
+
     private uint _localScopeDepth;
     private Dictionary<DataContainerSymbol, (uint refEscapeScope, uint valEscapeScope)> _localEscapeScopes;
     private Dictionary<BoundValuePlaceholder, uint>? _placeholderScopes;
 
-    internal static void Analyze(MethodSymbol method, BoundNode node, BelteDiagnosticQueue diagnostics) {
-        var visitor = new RefSafetyAnalysis(method, diagnostics);
+    private RefSafetyAnalysis(
+        Compilation compilation,
+        MethodSymbol symbol,
+        BelteDiagnosticQueue diagnostics,
+        Dictionary<DataContainerSymbol, (uint RefEscapeScope, uint ValEscapeScope)> localEscapeScopes = null) {
+        _compilation = compilation;
+        _symbol = symbol;
+        _diagnostics = diagnostics;
+        _localScopeDepth = CurrentMethodScope - 1;
+        _localEscapeScopes = localEscapeScopes;
+    }
+
+    internal static void Analyze(
+        Compilation compilation,
+        MethodSymbol method,
+        BoundNode node,
+        BelteDiagnosticQueue diagnostics) {
+        var visitor = new RefSafetyAnalysis(compilation, method, diagnostics);
 
         try {
             visitor.Visit(node);
         } catch (CancelledByStackGuardException ex) {
             ex.AddAnError(diagnostics);
         }
-    }
-
-    private RefSafetyAnalysis(
-        MethodSymbol symbol,
-        BelteDiagnosticQueue diagnostics,
-        Dictionary<DataContainerSymbol, (uint RefEscapeScope, uint ValEscapeScope)> localEscapeScopes = null) {
-        _symbol = symbol;
-        _diagnostics = diagnostics;
-        _localScopeDepth = CurrentMethodScope - 1;
-        _localEscapeScopes = localEscapeScopes;
     }
 
     private (uint refEscapeScope, uint valEscapeScope) GetLocalScopes(DataContainerSymbol local) {
@@ -99,7 +106,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
 
     internal override BoundNode VisitLocalFunctionStatement(BoundLocalFunctionStatement node) {
         var localFunction = node.symbol;
-        var analysis = new RefSafetyAnalysis(localFunction, _diagnostics, _localEscapeScopes);
+        var analysis = new RefSafetyAnalysis(_compilation, localFunction, _diagnostics, _localEscapeScopes);
         analysis.Visit(node.body);
         return null;
     }
@@ -148,6 +155,18 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
             }
         }
 
+        return null;
+    }
+
+    internal override BoundNode VisitDeconstructionAssignmentOperator(BoundDeconstructionAssignmentOperator node) {
+        base.VisitDeconstructionAssignmentOperator(node);
+
+        // TODO
+        // var left = node.left;
+        // var right = node.right;
+        // var variables = GetDeconstructionAssignmentVariables(left);
+        // VisitDeconstructionArguments(variables, right.syntax, right.conversion, right.operand);
+        // variables.FreeAll(v => v.NestedVariables);
         return null;
     }
 
@@ -343,6 +362,21 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                     break;
 
                 return GetRefEscape(assignment.left, scopeOfTheContainingExpression);
+
+            case BoundKind.PropertyAccessExpression:
+                var propertyAccess = (BoundPropertyAccessExpression)expression;
+
+                return GetInvocationEscape(
+                    MethodInfo.Create(propertyAccess.property),
+                    receiver: propertyAccess.receiver,
+                    receiverIsSubjectToCloning: ThreeState.Unknown,
+                    default,
+                    default,
+                    default,
+                    argsToParamsOpt: default,
+                    scopeOfTheContainingExpression,
+                    isRefEscape: true
+                );
             case BoundKind.DiscardExpression:
                 break;
         }
@@ -491,7 +525,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
             case BoundKind.IndexerAccessExpression: {
                     var indexerAccess = (BoundIndexerAccessExpression)expression;
 
-                    if (CorLibrary.GetWellKnownType(WellKnownType.Array)
+                    if (_compilation.corLibrary.GetWellKnownType(WellKnownType.Array)
                         .Equals(indexerAccess.receiver.StrippedType().originalDefinition)) {
                         return true;
                     }
@@ -523,6 +557,28 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                 return true;
             case BoundKind.DiscardExpression:
                 break;
+            case BoundKind.PropertyAccessExpression:
+                var propertyAccess = (BoundPropertyAccessExpression)expression;
+                var propertySymbol = propertyAccess.property;
+
+                if (propertySymbol.refKind == RefKind.None)
+                    break;
+
+                return CheckInvocationEscape(
+                    propertyAccess.syntax,
+                    MethodInfo.Create(propertySymbol),
+                    propertyAccess.receiver,
+                    ThreeState.Unknown,
+                    default,
+                    default,
+                    default,
+                    default,
+                    checkingReceiver,
+                    escapeFrom,
+                    escapeTo,
+                    diagnostics,
+                    isRefEscape: true
+                );
         }
 
         diagnostics.Push(GetStandardRValueRefEscapeError(node.location, escapeTo));
@@ -710,6 +766,20 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                 return scopeOfTheContainingExpression;
             default:
                 return scopeOfTheContainingExpression;
+            case BoundKind.PropertyAccessExpression:
+                var propertyAccess = (BoundPropertyAccessExpression)expression;
+
+                return GetInvocationEscape(
+                    MethodInfo.Create(propertyAccess.property),
+                    receiver: propertyAccess.receiver,
+                    receiverIsSubjectToCloning: ThreeState.Unknown,
+                    default,
+                    argsOpt: default,
+                    argRefKindsOpt: default,
+                    argsToParamsOpt: default,
+                    scopeOfTheContainingExpression: scopeOfTheContainingExpression,
+                    isRefEscape: false
+                );
         }
     }
 
@@ -1032,6 +1102,25 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
                 return true;
             case BoundKind.DiscardExpression:
                 return true;
+
+            case BoundKind.PropertyAccessExpression:
+                var propertyAccess = (BoundPropertyAccessExpression)expression;
+
+                return CheckInvocationEscape(
+                    propertyAccess.syntax,
+                    MethodInfo.Create(propertyAccess.property),
+                    receiver: propertyAccess.receiver,
+                    receiverIsSubjectToCloning: ThreeState.Unknown,
+                    default,
+                    argsOpt: default,
+                    argRefKindsOpt: default,
+                    argsToParamsOpt: default,
+                    checkingReceiver: checkingReceiver,
+                    escapeFrom: escapeFrom,
+                    escapeTo: escapeTo,
+                    diagnostics,
+                    isRefEscape: false
+                );
             default:
                 diagnostics.Push(Error.InternalError(node.location));
                 return false;

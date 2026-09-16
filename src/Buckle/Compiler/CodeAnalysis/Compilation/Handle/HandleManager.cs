@@ -5,7 +5,6 @@ using System.Threading;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis;
 
@@ -80,7 +79,7 @@ internal sealed class HandleManager {
                     Error.CannotConvertConstantValue(
                         syntax.priority.location,
                         result,
-                        CorLibrary.GetSpecialType(SpecialType.Int32)
+                        _compilation.GetSpecialType(SpecialType.Int32)
                     )
                 );
             } else {
@@ -142,6 +141,7 @@ internal sealed class HandleManager {
 
                 return false;
             },
+            hasDeclarationErrors: false,
             skipEntryPoint: true,
             collectSymbols: true
         );

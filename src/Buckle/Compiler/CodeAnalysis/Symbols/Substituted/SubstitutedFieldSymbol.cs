@@ -20,6 +20,13 @@ internal sealed class SubstitutedFieldSymbol : WrappedFieldSymbol {
 
     internal override FieldSymbol originalDefinition => underlyingField;
 
+    public override Symbol associatedSymbol {
+        get {
+            var underlying = originalDefinition.associatedSymbol;
+            return underlying?.SymbolAsMember(containingType);
+        }
+    }
+
     internal override ImmutableArray<AttributeData> GetAttributes() {
         return originalDefinition.GetAttributes();
     }

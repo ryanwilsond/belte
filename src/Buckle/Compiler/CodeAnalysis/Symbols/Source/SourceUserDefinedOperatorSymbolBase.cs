@@ -3,7 +3,6 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -16,6 +15,7 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
         MethodKind methodKind,
         TypeSymbol explicitInterfaceType,
         string name,
+        bool isCompoundAssignmentOrIncrementAssignment,
         SourceMemberContainerTypeSymbol containingType,
         TextLocation location,
         BelteSyntaxNode syntax,
@@ -46,10 +46,13 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
         }
 
         if (isExplicitInterfaceImplementation) {
-            if (!isStatic)
+            if (!isStatic && !isCompoundAssignmentOrIncrementAssignment)
                 diagnostics.Push(Error.ExplicitImplementationOfOperatorsMustBeStatic(location, this));
+        } else if (isCompoundAssignmentOrIncrementAssignment) {
+            if (declaredAccessibility != Accessibility.Public)
+                diagnostics.Push(Error.OperatorMustBePublic(location, this));
         } else if (declaredAccessibility != Accessibility.Public || !isStatic) {
-            diagnostics.Push(Error.OperatorMustBePublicAndStatic(location));
+            diagnostics.Push(Error.OperatorMustBePublicAndStatic(location, this));
         }
 
         if (isAbstract && isExtern) {
@@ -81,21 +84,28 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
 
     public sealed override string name { get; }
 
-    public sealed override ImmutableArray<TemplateParameterSymbol> templateParameters => [];
+    public override ImmutableArray<TemplateParameterSymbol> templateParameters => [];
 
-    public sealed override ImmutableArray<BoundExpression> templateConstraints => [];
+    public override ImmutableArray<BoundExpression> templateConstraints => [];
 
     private protected sealed override TypeSymbol _explicitInterfaceType => _fieldExplicitInterfaceType;
 
-    internal sealed override ImmutableArray<TypeParameterConstraintKinds> GetTypeParameterConstraintKinds() {
+    internal override ImmutableArray<TypeParameterConstraintKinds> GetTypeParameterConstraintKinds() {
         return [];
     }
 
-    internal sealed override ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes() {
+    internal override ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes() {
+        return [];
+    }
+
+    internal override ImmutableArray<BoundExpression> GetTemplateConstraints() {
         return [];
     }
 
     private protected override void MethodChecks(BelteDiagnosticQueue diagnostics) {
+        _ = GetTemplateConstraints();
+        _ = isPure;
+
         var (returnType, parameters) = MakeParametersAndBindReturnType(diagnostics);
 
         MethodChecks(returnType, parameters, diagnostics);
@@ -108,10 +118,18 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
         CheckOperatorSignatures(diagnostics);
     }
 
-    private protected abstract (TypeWithAnnotations ReturnType, ImmutableArray<ParameterSymbol> Parameters)
-        MakeParametersAndBindReturnType(BelteDiagnosticQueue diagnostics);
+    private protected abstract (TypeWithAnnotations ReturnType, ImmutableArray<ParameterSymbol> Parameters) MakeParametersAndBindReturnType(
+        BelteDiagnosticQueue diagnostics);
 
     private void CheckOperatorSignatures(BelteDiagnosticQueue diagnostics) {
+        if (!templateParameters.IsEmpty) {
+            if (!OperatorFacts.OperatorAllowsTemplate(name))
+                diagnostics.Push(Error.OperatorCantHaveTemplates(location, this));
+        }
+
+        if (methodKind == MethodKind.ExplicitInterfaceImplementation)
+            return;
+
         if (methodKind == MethodKind.Literal) {
             CheckLiteralOperatorSignature(diagnostics);
             return;
@@ -152,6 +170,26 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
                     CheckAbstractEqualitySignature(diagnostics);
                 else
                     CheckBinarySignature(diagnostics);
+
+                break;
+            case WellKnownMemberNames.PowerAssignmentOperatorName:
+            case WellKnownMemberNames.SlashBackslashAssignmentOperatorName:
+            case WellKnownMemberNames.BackslashSlashAssignmentOperatorName:
+            case WellKnownMemberNames.AdditionAssignmentOperatorName:
+            case WellKnownMemberNames.DivisionAssignmentOperatorName:
+            case WellKnownMemberNames.MultiplicationAssignmentOperatorName:
+            case WellKnownMemberNames.SubtractionAssignmentOperatorName:
+            case WellKnownMemberNames.ModulusAssignmentOperatorName:
+            case WellKnownMemberNames.BitwiseAndAssignmentOperatorName:
+            case WellKnownMemberNames.BitwiseOrAssignmentOperatorName:
+            case WellKnownMemberNames.ExclusiveOrAssignmentOperatorName:
+            case WellKnownMemberNames.LeftShiftAssignmentOperatorName:
+            case WellKnownMemberNames.RightShiftAssignmentOperatorName:
+            case WellKnownMemberNames.UnsignedRightShiftAssignmentOperatorName:
+            case WellKnownMemberNames.IncrementAssignmentOperatorName:
+            case WellKnownMemberNames.DecrementAssignmentOperatorName:
+                if (!returnsVoid)
+                    diagnostics.Push(Error.OperatorMustReturnVoid(location));
 
                 break;
             default:
@@ -357,8 +395,10 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
                 diagnostics.Push(Error.BadUnaryOperatorSignature(location));
         }
 
-        if (!returnType.originalDefinition.Equals(CorLibrary.GetWellKnownType(WellKnownType.Enumerator)))
+        if (!returnType.originalDefinition
+                .Equals(declaringCompilation.corLibrary.GetWellKnownType(WellKnownType.Enumerator))) {
             diagnostics.Push(Error.IterMustReturnEnumerator(location));
+        }
     }
 
     private bool MatchesContainingType(TypeSymbol type) {
@@ -398,6 +438,24 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
             case WellKnownMemberNames.ImplicitConversionName:
             case WellKnownMemberNames.ExplicitConversionName:
                 return parameterCount == 1;
+            case WellKnownMemberNames.PowerAssignmentOperatorName:
+            case WellKnownMemberNames.SlashBackslashAssignmentOperatorName:
+            case WellKnownMemberNames.BackslashSlashAssignmentOperatorName:
+            case WellKnownMemberNames.AdditionAssignmentOperatorName:
+            case WellKnownMemberNames.DivisionAssignmentOperatorName:
+            case WellKnownMemberNames.MultiplicationAssignmentOperatorName:
+            case WellKnownMemberNames.SubtractionAssignmentOperatorName:
+            case WellKnownMemberNames.ModulusAssignmentOperatorName:
+            case WellKnownMemberNames.BitwiseAndAssignmentOperatorName:
+            case WellKnownMemberNames.BitwiseOrAssignmentOperatorName:
+            case WellKnownMemberNames.ExclusiveOrAssignmentOperatorName:
+            case WellKnownMemberNames.LeftShiftAssignmentOperatorName:
+            case WellKnownMemberNames.RightShiftAssignmentOperatorName:
+            case WellKnownMemberNames.UnsignedRightShiftAssignmentOperatorName:
+                return parameterCount == 1;
+            case WellKnownMemberNames.IncrementAssignmentOperatorName:
+            case WellKnownMemberNames.DecrementAssignmentOperatorName:
+                return parameterCount == 0;
             default:
                 return parameterCount == 2;
         }
@@ -417,25 +475,29 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
             diagnostics.Push(Error.OperatorRefReturn(location));
     }
 
-    private protected (TypeWithAnnotations ReturnType, ImmutableArray<ParameterSymbol> Parameters)
-        MakeParametersAndBindReturnType(
-            BaseMethodDeclarationSyntax declarationSyntax,
-            TypeSyntax returnTypeSyntax,
-            BelteDiagnosticQueue diagnostics) {
+    private protected (TypeWithAnnotations ReturnType, ImmutableArray<ParameterSymbol> Parameters) MakeParametersAndBindReturnType(
+        BaseMethodDeclarationSyntax declarationSyntax,
+        TypeSyntax returnTypeSyntax,
+        BelteDiagnosticQueue diagnostics) {
         TypeWithAnnotations returnType;
         ImmutableArray<ParameterSymbol> parameters;
 
         var binder = declaringCompilation.GetBinderFactory(declarationSyntax.syntaxTree)
             .GetBinder(returnTypeSyntax, declarationSyntax, this);
 
-        var signatureBinder = binder.WithAdditionalFlags(BinderFlags.SuppressConstraintChecks);
+        var signatureFlags = BinderFlags.SuppressConstraintChecks;
+
+        if (isLowLevel)
+            signatureFlags |= BinderFlags.LowLevelContext;
+
+        var signatureBinder = binder.WithAdditionalFlags(signatureFlags);
 
         parameters = ParameterHelpers.MakeParameters(
             signatureBinder,
             this,
             declarationSyntax.parameterList.parameters,
             diagnostics,
-            allowRef: true,
+            allowRef: !isPure,
             isVirtual || isAbstract,
             allowConst: true
         ).Cast<SourceParameterSymbol, ParameterSymbol>();

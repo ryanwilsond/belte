@@ -310,7 +310,7 @@ public sealed partial class BelteRepl : Repl {
     }
 
     private BelteDiagnosticQueue LoadLibraries() {
-        var compilation = LibraryHelpers.LoadLibraries(BuildMode.Repl);
+        var compilation = LibraryHelpers.LoadLibraries(BuildMode.Repl, explicitLibraryLevel: -1);
         state.baseCompilation = compilation;
         return compilation.GetDiagnostics();
     }
@@ -548,6 +548,8 @@ public sealed partial class BelteRepl : Repl {
     private object EvaluatorValueToNativeObject(EvaluatorValue evaluatorValue) {
         return EvaluatorValue.Format(evaluatorValue, state.context);
     }
+
+    #region Commands
 
     [MetaCommand("showTree", "Toggle display of the parse tree")]
     private void EvaluateShowTree() {
@@ -1179,4 +1181,6 @@ public sealed partial class BelteRepl : Repl {
         state.showCS = !state.showCS;
         writer.WriteLine(state.showCS ? "C# visible" : "C# hidden");
     }
+
+    #endregion
 }

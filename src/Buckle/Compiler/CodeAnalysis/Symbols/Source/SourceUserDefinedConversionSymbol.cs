@@ -7,6 +7,8 @@ using Buckle.Diagnostics;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class SourceUserDefinedConversionSymbol : SourceUserDefinedOperatorSymbolBase {
+    private TemplateParameterInfo _templateParameterInfo;
+
     private SourceUserDefinedConversionSymbol(
         MethodKind methodKind,
         SourceMemberContainerTypeSymbol containingType,
@@ -18,6 +20,7 @@ internal sealed class SourceUserDefinedConversionSymbol : SourceUserDefinedOpera
             methodKind,
             explicitInterfaceType,
             name,
+            isCompoundAssignmentOrIncrementAssignment: false,
             containingType,
             syntax.type.location,
             syntax,
@@ -27,7 +30,18 @@ internal sealed class SourceUserDefinedConversionSymbol : SourceUserDefinedOpera
             diagnostics) {
         if (isStatic && (isAbstract || isVirtual))
             ReportDefaultInterfaceImplementation(location, syntax.body is not null, diagnostics);
+
+        var templateParameters = MakeTemplateParameters(syntax, diagnostics);
+        _templateParameterInfo = templateParameters.IsEmpty
+            ? TemplateParameterInfo.Empty
+            : new TemplateParameterInfo { lazyTemplateParameters = templateParameters };
     }
+
+    public override ImmutableArray<TemplateParameterSymbol> templateParameters
+        => _templateParameterInfo?.lazyTemplateParameters ?? [];
+
+    public override ImmutableArray<BoundExpression> templateConstraints
+        => _templateParameterInfo?.lazyTemplateConstraints ?? [];
 
     private protected override TextLocation _returnTypeLocation => GetSyntax().type.location;
 
@@ -85,5 +99,17 @@ internal sealed class SourceUserDefinedConversionSymbol : SourceUserDefinedOpera
         MakeParametersAndBindReturnType(BelteDiagnosticQueue diagnostics) {
         var declarationSyntax = GetSyntax();
         return MakeParametersAndBindReturnType(declarationSyntax, declarationSyntax.type, diagnostics);
+    }
+
+    internal override ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes() {
+        return GetTypeParameterConstraintTypesCore(ref _templateParameterInfo, GetSyntax());
+    }
+
+    internal override ImmutableArray<TypeParameterConstraintKinds> GetTypeParameterConstraintKinds() {
+        return GetTypeParameterConstraintKindsCore(ref _templateParameterInfo, GetSyntax());
+    }
+
+    internal override ImmutableArray<BoundExpression> GetTemplateConstraints() {
+        return GetTemplateConstraintsCore(ref _templateParameterInfo, GetSyntax());
     }
 }

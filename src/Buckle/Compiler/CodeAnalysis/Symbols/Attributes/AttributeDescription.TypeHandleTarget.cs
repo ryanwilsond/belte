@@ -4,6 +4,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal partial struct AttributeDescription {
     internal enum TypeHandleTarget : byte {
         AttributeTargets,
+        AttributeTargetsNative,
         AssemblyNameFlags,
         MethodImplOptions,
         CharSet,
@@ -16,6 +17,7 @@ internal partial struct AttributeDescription {
         DebuggingModes,
         SecurityCriticalScope,
         CallingConvention,
+        CallingConventionNative,
         AssemblyHashAlgorithm,
         TransactionOption,
         SecurityAction,

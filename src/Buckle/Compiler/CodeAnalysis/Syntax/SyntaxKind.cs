@@ -81,6 +81,8 @@ public enum SyntaxKind : ushort {
     GreaterThanLessThanToken,
     GreaterThanLessThanEqualsToken,
     EqualsGreaterThanToken,
+    PeriodPeriodLessThanToken,
+    PeriodPeriodEqualsToken,
 
     // Tokens with text
     BadToken,
@@ -179,7 +181,17 @@ public enum SyntaxKind : ushort {
     CommitKeyword,
     ImplementsKeyword,
     InterfaceKeyword,
+    PropertyKeyword,
+    SetKeyword,
+    GetKeyword,
     HandleKeyword,
+    FieldKeyword,
+    NothrowKeyword,
+    NoallocKeyword,
+    PureKeyword,
+    MemoizeKeyword,
+    TemplateKeyword,
+    InternalKeyword,
 
     // Trivia
     EndOfLineTrivia,
@@ -208,6 +220,7 @@ public enum SyntaxKind : ushort {
     ThrowExpression,
     DeclarationExpression,
     WithExpression,
+    RangeExpression,
 
     // Operator expressions
     TernaryExpression,
@@ -243,6 +256,7 @@ public enum SyntaxKind : ushort {
     ParenthesizedLambdaExpression,
     SimpleLambdaExpression,
     TupleExpression,
+    FieldExpression,
     InterpolatedStringText,
     Interpolation,
     InterpolatedStringStartToken,
@@ -308,6 +322,10 @@ public enum SyntaxKind : ushort {
     EnumDeclaration,
     EnumMemberDeclaration,
     FieldDeclaration,
+    PropertyDeclaration,
+    ArrowExpressionClause,
+    AccessorList,
+    AccessorDeclaration,
     ExplicitInterfaceSpecifier,
     MethodDeclaration,
     ReverseClause,
@@ -330,6 +348,7 @@ public enum SyntaxKind : ushort {
     ArrayType,
     NonNullableType,
     NullableType,
+    TemplateSpecializedType,
     PointerType,
     FunctionPointerType,
     FunctionType,

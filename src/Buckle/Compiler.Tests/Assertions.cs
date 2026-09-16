@@ -23,9 +23,7 @@ internal static class Assertions {
     private readonly static Compilation BaseCompilation;
 
     static Assertions() {
-        var compilation = LibraryHelpers.LoadLibraries();
-        _ = compilation.boundProgram;
-        BaseCompilation = compilation;
+        BaseCompilation = GetBaseCompilation();
     }
 
     /// <summary>
@@ -120,6 +118,32 @@ internal static class Assertions {
 
         for (var i = 0; i < exceptions.Length; i++)
             Assert.Equal(exceptions[i].GetType(), result.exceptions[i].GetType());
+    }
+
+    internal static void AssertExceptions(string text, ITestOutputHelper writer, string exceptionsText) {
+        var syntaxTree = SyntaxTree.Parse(text);
+        var compilation = Compilation.CreateScript(
+            "Tests",
+            DefaultEvalOptions,
+            syntaxTree,
+            BaseCompilation
+        );
+
+        var result = compilation.Evaluate(false);
+
+        var expectedExceptions = AnnotatedText.UnindentLines(exceptionsText);
+
+        if (expectedExceptions.Length != result.exceptions.Count) {
+            writer.WriteLine($"Input: {text}");
+
+            foreach (var exception in result.exceptions)
+                writer.WriteLine($"Exception ({exception}): {exception.Message}");
+        }
+
+        Assert.Equal(expectedExceptions.Length, result.exceptions.Count);
+
+        for (var i = 0; i < expectedExceptions.Length; i++)
+            Assert.Equal(expectedExceptions[i], result.exceptions[i].Message);
     }
 
     /// <summary>
@@ -231,5 +255,16 @@ internal static class Assertions {
 
         Assert.Empty(diagnostics.Errors().ToArray());
         Assert.Equal(expectedText, result);
+    }
+
+    private static Compilation GetBaseCompilation() {
+        var compilation = LibraryHelpers.LoadLibraries(
+            buildMode: BuildMode.Evaluate,
+            noStdLib: true,
+            includeAllNativeFiles: true
+        );
+
+        _ = compilation.boundProgram;
+        return compilation;
     }
 }

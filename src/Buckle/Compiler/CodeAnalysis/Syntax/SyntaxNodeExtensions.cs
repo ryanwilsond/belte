@@ -40,12 +40,16 @@ internal static class SyntaxNodeExtensions {
                     stack.Push(arrayTypeSyntax.elementType);
                     break;
                 case SyntaxKind.NonNullableType:
-                    var nullableTypeSyntax = (NonNullableTypeSyntax)type;
-                    stack.Push(nullableTypeSyntax.type);
+                    var nonNullableTypeSyntax = (NonNullableTypeSyntax)type;
+                    stack.Push(nonNullableTypeSyntax.type);
                     break;
                 case SyntaxKind.NullableType:
-                    var underlyingTypeSyntax = (NullableTypeSyntax)type;
-                    stack.Push(underlyingTypeSyntax.type);
+                    var nullableTypeSyntax = (NullableTypeSyntax)type;
+                    stack.Push(nullableTypeSyntax.type);
+                    break;
+                case SyntaxKind.TemplateSpecializedType:
+                    var templateTypeSyntax = (TemplateSpecializedTypeSyntax)type;
+                    stack.Push(templateTypeSyntax.type);
                     break;
                 case SyntaxKind.PointerType:
                     var pointerTypeSyntax = (PointerTypeSyntax)type;

@@ -17,6 +17,7 @@ internal abstract partial class BoundExpression : BoundNode {
             BoundKind.DataContainerExpression => ((BoundDataContainerExpression)this).dataContainer.refKind,
             BoundKind.ParameterExpression => ((BoundParameterExpression)this).parameter.refKind,
             BoundKind.FieldAccessExpression => ((BoundFieldAccessExpression)this).field.refKind,
+            BoundKind.PropertyAccessExpression => ((BoundPropertyAccessExpression)this).property.refKind,
             BoundKind.CallExpression => ((BoundCallExpression)this).method.refKind,
             _ => RefKind.None,
         };

@@ -98,10 +98,16 @@ internal sealed class PointerTypeSymbol : TypeSymbol {
         byte defaultTransformFlag,
         ImmutableArray<byte> transforms,
         ref int position,
-        out TypeSymbol result) {
+        out TypeSymbol result,
+        bool isBelteMode) {
         var oldPointedAtType = pointedAtTypeWithAnnotations;
 
-        if (!oldPointedAtType.ApplyNullableTransforms(defaultTransformFlag, transforms, ref position, out var newPointedAtType)) {
+        if (!oldPointedAtType.ApplyNullableTransforms(
+                defaultTransformFlag,
+                transforms,
+                ref position,
+                out var newPointedAtType,
+                isBelteMode)) {
             result = this;
             return false;
         }

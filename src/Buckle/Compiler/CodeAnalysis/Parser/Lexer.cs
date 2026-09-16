@@ -1112,7 +1112,7 @@ internal sealed partial class Lexer : IDisposable {
         }
 
         while (true) {
-            if (_current == '.' && !isBinary && !isHexadecimal && !hasDecimal && !hasExponent) {
+            if (_current == '.' && !isBinary && !isHexadecimal && !hasDecimal && !hasExponent && Peek(1) != '.') {
                 hasDecimal = true;
                 _position++;
             } else if (char.ToLower(_current) == 'e' && !isBinary && !isHexadecimal && !hasExponent &&
@@ -1160,7 +1160,7 @@ internal sealed partial class Lexer : IDisposable {
 
             if (failed) {
                 AddDiagnostic(
-                    Error.InvalidType(numericText, CorLibrary.GetSpecialType(SpecialType.Int)),
+                    Error.InvalidType(numericText, CorLibrary.Instance.GetSpecialType(SpecialType.Int)),
                     _start,
                     length
                 );
@@ -1170,7 +1170,7 @@ internal sealed partial class Lexer : IDisposable {
         } else {
             if (!double.TryParse(parsedText, out var value)) {
                 AddDiagnostic(
-                    Error.InvalidType(numericText, CorLibrary.GetSpecialType(SpecialType.Decimal)),
+                    Error.InvalidType(numericText, CorLibrary.Instance.GetSpecialType(SpecialType.Decimal)),
                     _start,
                     length
                 );

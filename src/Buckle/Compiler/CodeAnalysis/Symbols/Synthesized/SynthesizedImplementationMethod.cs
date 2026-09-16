@@ -37,6 +37,8 @@ internal abstract class SynthesizedImplementationMethod : SynthesizedMethodSymbo
 
     public sealed override bool returnsVoid => _interfaceMethod.returnsVoid;
 
+    public override Symbol associatedSymbol => null;
+
     internal sealed override CallingConvention callingConvention => _interfaceMethod.callingConvention;
 
     public sealed override ImmutableArray<TemplateParameterSymbol> templateParameters => _typeParameters;
@@ -96,5 +98,9 @@ internal abstract class SynthesizedImplementationMethod : SynthesizedMethodSymbo
 
     internal sealed override DllImportData GetDllImportData() {
         return null;
+    }
+
+    internal sealed override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        return [];
     }
 }

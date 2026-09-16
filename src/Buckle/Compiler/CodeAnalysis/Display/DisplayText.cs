@@ -306,6 +306,9 @@ public sealed class DisplayText {
             case BoundKind.PointerIndirectionOperator:
                 DisplayPointerIndirectionOperator(text, (BoundPointerIndirectionOperator)node);
                 break;
+            case BoundKind.ClampOperator:
+                DisplayClampOperator(text, (BoundClampOperator)node);
+                break;
             case BoundKind.DataContainerDeclaration:
                 DisplayDataContainerDeclaration(text, (BoundDataContainerDeclaration)node);
                 break;
@@ -415,7 +418,11 @@ public sealed class DisplayText {
     /// Renders a <see cref="ConstantValue" /> and appends it to the given <see cref="DisplayText" />.
     /// </summary>
     internal static void DisplayConstant(DisplayText text, ConstantValue constant) {
-        if (constant.value is ImmutableArray<ConstantValue> il) {
+        if (constant is null) {
+            text.Write(CreateKeyword(SyntaxKind.QuestionToken));
+        } else if (constant is TemplateConstantValue t) {
+            DisplayNode(text, t.expression);
+        } else if (constant.value is ImmutableArray<ConstantValue> il) {
             text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
             var isFirst = true;
 
@@ -617,7 +624,7 @@ public sealed class DisplayText {
     }
 
     private static void DisplayTypeExpression(DisplayText text, BoundTypeExpression node) {
-        SymbolDisplay.DisplayType(text, node.Type());
+        SymbolDisplay.DisplayType(text, node.type);
     }
 
     private static void DisplayNamespaceExpression(DisplayText text, BoundNamespaceExpression node) {
@@ -1253,6 +1260,15 @@ public sealed class DisplayText {
     private static void DisplayPointerIndirectionOperator(DisplayText text, BoundPointerIndirectionOperator node) {
         text.Write(CreatePunctuation(SyntaxKind.AsteriskToken));
         DisplayNode(text, node.operand);
+    }
+
+    private static void DisplayClampOperator(DisplayText text, BoundClampOperator node) {
+        DisplayNode(text, node.left);
+        text.Write(CreatePunctuation(" >< ["));
+        DisplayNode(text, node.lower);
+        text.Write(CreatePunctuation(", "));
+        DisplayNode(text, node.upper);
+        text.Write(CreatePunctuation("]"));
     }
 
     private static void DisplayTypeOfExpression(DisplayText text, BoundTypeOfExpression node) {

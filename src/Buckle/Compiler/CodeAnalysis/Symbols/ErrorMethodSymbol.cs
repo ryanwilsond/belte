@@ -38,6 +38,8 @@ internal sealed class ErrorMethodSymbol : MethodSymbol {
 
     public override ImmutableArray<BoundExpression> templateConstraints => [];
 
+    public override Symbol associatedSymbol => null;
+
     internal override bool hasSpecialName => false;
 
     internal override bool isSealed => false;
@@ -94,5 +96,9 @@ internal sealed class ErrorMethodSymbol : MethodSymbol {
 
     internal sealed override UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete) {
         return null;
+    }
+
+    internal sealed override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        return [];
     }
 }

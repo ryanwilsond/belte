@@ -31,6 +31,8 @@ internal abstract class WrappedTemplateParameterSymbol : TemplateParameterSymbol
 
     internal override bool isOptional => underlyingTemplateParameter.isOptional;
 
+    internal override bool isCompileTimeType => underlyingTemplateParameter.isCompileTimeType;
+
     internal override bool isValueTypeFromConstraintTypes
         => underlyingTemplateParameter.isValueTypeFromConstraintTypes ||
             CalculateIsValueTypeFromConstraintTypes(constraintTypes);

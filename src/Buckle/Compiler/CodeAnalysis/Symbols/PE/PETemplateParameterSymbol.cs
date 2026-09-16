@@ -1,12 +1,12 @@
 using System;
 using System.Collections.Immutable;
+using System.Linq;
 using System.Reflection;
 using System.Reflection.Metadata;
 using System.Threading;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -19,6 +19,10 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
     private readonly ushort _ordinal;
 
     private readonly GenericParameterAttributes _flags;
+    private bool _lazyAdditionalFlagsAreRead;
+    private TemplateMetadataWriter.TemplateParameterFlags _lazyAdditionalFlags;
+    private TypeOrConstant _lazyDefaultValue;
+    private bool _lazyDefaultValueIsRead;
     private ThreeState _lazyHasIsUnmanagedConstraint;
     private TypeParameterBounds _lazyBounds = TypeParameterBounds.Unset;
     private ImmutableArray<TypeWithAnnotations> _lazyDeclaredConstraintTypes;
@@ -88,12 +92,17 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
 
     internal override bool isOptional => false;
 
+    internal override bool isCompileTimeType {
+        get {
+            EnsureLazyFlagsAreLoaded();
+            return (_lazyAdditionalFlags & TemplateMetadataWriter.TemplateParameterFlags.CompileTime) != 0;
+        }
+    }
+
     internal override bool hasNotNullConstraint {
         get {
-            return false;
-            // TODO We don't have a direct equivalent to this:
-            // return (_flags & (GenericParameterAttributes.NotNullableValueTypeConstraint |
-            //     GenericParameterAttributes.ReferenceTypeConstraint)) == 0;
+            EnsureLazyFlagsAreLoaded();
+            return (_lazyAdditionalFlags & TemplateMetadataWriter.TemplateParameterFlags.HasNotNullConstraint) != 0;
         }
     }
 
@@ -103,7 +112,12 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
     internal override bool allowsRefLikeType
         => (_flags & MetadataHelpers.GenericParameterAttributesAllowByRefLike) != 0;
 
-    internal override bool hasDefaultConstraint => false;
+    internal override bool hasDefaultConstraint {
+        get {
+            EnsureLazyFlagsAreLoaded();
+            return (_lazyAdditionalFlags & TemplateMetadataWriter.TemplateParameterFlags.HasDefaultConstraint) != 0;
+        }
+    }
 
     internal override bool hasValueTypeConstraint
         => (_flags & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0;
@@ -128,9 +142,14 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
     internal override SyntaxReference syntaxReference => null;
 
     internal override TypeWithAnnotations underlyingType
-        => new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type));
+        => new TypeWithAnnotations(containingAssembly.corLibrary.GetSpecialType(SpecialType.Type));
 
-    internal override TypeOrConstant defaultValue => null;
+    internal override TypeOrConstant defaultValue {
+        get {
+            EnsureDefaultValueIsLoaded();
+            return _lazyDefaultValue;
+        }
+    }
 
     internal override ImmutableArray<AttributeData> GetAttributes() {
         // TODO
@@ -148,6 +167,45 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
 
         // return _lazyCustomAttributes;
         return [];
+    }
+
+    private void EnsureLazyFlagsAreLoaded() {
+        if (_lazyAdditionalFlagsAreRead)
+            return;
+
+        if (containingModule.containingAssembly.templateMetadataReader
+            .GetLinkedSymbol(_containingSymbol) is not ISymbolWithTemplates linkedSymbol) {
+            Interlocked.Exchange(ref _lazyAdditionalFlagsAreRead, true);
+            return;
+        }
+
+        var additionalFlags = ((PETemplateType.MetadataTemplateParameterSymbol)linkedSymbol.templateParameters[ordinal])
+            .AdditionalFlags();
+
+        if (Interlocked.CompareExchange(
+                ref _lazyAdditionalFlags,
+                additionalFlags,
+                TemplateMetadataWriter.TemplateParameterFlags.None)
+                == TemplateMetadataWriter.TemplateParameterFlags.None) {
+            Interlocked.Exchange(ref _lazyAdditionalFlagsAreRead, true);
+        }
+    }
+
+    private void EnsureDefaultValueIsLoaded() {
+        if (_lazyDefaultValueIsRead)
+            return;
+
+        if (containingModule.containingAssembly.templateMetadataReader
+            .GetLinkedSymbol(_containingSymbol) is not ISymbolWithTemplates linkedSymbol) {
+            Interlocked.Exchange(ref _lazyDefaultValueIsRead, true);
+            return;
+        }
+
+        var defaultValue = ((PETemplateType.MetadataTemplateParameterSymbol)linkedSymbol.templateParameters[ordinal])
+            .defaultValue;
+
+        if (Interlocked.CompareExchange(ref _lazyDefaultValue, defaultValue, null) is null)
+            Interlocked.Exchange(ref _lazyDefaultValueIsRead, true);
     }
 
     private ImmutableArray<TypeWithAnnotations> GetDeclaredConstraintTypes(
@@ -241,37 +299,34 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
         MetadataDecoder tokenDecoder,
         GenericParameterConstraintHandle constraintHandle,
         ref bool hasUnmanagedModreqPattern) {
-        // var constraint = metadataReader.GetGenericParameterConstraint(constraintHandle);
-        // var typeSymbol = tokenDecoder.DecodeGenericParameterConstraint(constraint.Type, out var modifiers);
+        var constraint = metadataReader.GetGenericParameterConstraint(constraintHandle);
+        var typeSymbol = tokenDecoder.DecodeGenericParameterConstraint(constraint.Type, out var modifiers);
 
-        // if (!modifiers.IsDefaultOrEmpty && modifiers.Length > 1) {
-        //     typeSymbol = new UnsupportedMetadataTypeSymbol();
-        // } else if (typeSymbol.SpecialType == SpecialType.System_ValueType) {
-        //     // recognize "(class [mscorlib]System.ValueType modreq([mscorlib]System.Runtime.InteropServices.UnmanagedType" pattern as "unmanaged"
-        //     if (!modifiers.IsDefaultOrEmpty) {
-        //         ModifierInfo<TypeSymbol> m = modifiers.Single();
-        //         if (!m.IsOptional && m.Modifier.IsWellKnownTypeUnmanagedType()) {
-        //             hasUnmanagedModreqPattern = true;
-        //         } else {
-        //             // Any other modifiers, optional or not, are not allowed: http://vstfdevdiv:8080/DevDiv2/DevDiv/_workitems/edit/528856
-        //             typeSymbol = new UnsupportedMetadataTypeSymbol();
-        //         }
-        //     }
+        if (!modifiers.IsDefaultOrEmpty && modifiers.Length > 1) {
+            typeSymbol = new UnsupportedMetadataTypeSymbol();
+        } else if (typeSymbol.specialType == SpecialType.ValueType) {
+            if (!modifiers.IsDefaultOrEmpty) {
+                var m = modifiers.Single();
 
-        //     // Drop 'System.ValueType' constraint type if the 'valuetype' constraint was also specified.
-        //     if (typeSymbol.SpecialType == SpecialType.System_ValueType && ((_flags & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0)) {
-        //         return default;
-        //     }
-        // } else if (!modifiers.IsDefaultOrEmpty) {
-        //     typeSymbol = new UnsupportedMetadataTypeSymbol();
-        // }
+                if (!m.isOptional && m.modifier.IsWellKnownTypeUnmanagedType())
+                    hasUnmanagedModreqPattern = true;
+                else
+                    typeSymbol = new UnsupportedMetadataTypeSymbol();
+            }
 
-        // var type = TypeWithAnnotations.Create(typeSymbol);
-        // type = NullableTypeDecoder.TransformType(type, constraintHandle, moduleSymbol, accessSymbol: _containingSymbol, nullableContext: _containingSymbol);
-        // type = TupleTypeDecoder.DecodeTupleTypesIfApplicable(type, constraintHandle, moduleSymbol);
-        // return type;
-        // TODO
-        return null;
+            if (typeSymbol.specialType == SpecialType.ValueType &&
+                ((_flags & GenericParameterAttributes.NotNullableValueTypeConstraint) != 0)) {
+                return default;
+            }
+        } else if (!modifiers.IsDefaultOrEmpty) {
+            typeSymbol = new UnsupportedMetadataTypeSymbol();
+        }
+
+        var type = new TypeWithAnnotations(typeSymbol);
+        type = NullableTypeDecoder.TransformType(type, constraintHandle, moduleSymbol, accessSymbol: _containingSymbol, nullableContext: _containingSymbol);
+        type = TupleTypeDecoder.DecodeTupleTypesIfApplicable(type, constraintHandle, moduleSymbol);
+
+        return type;
     }
 
     internal override ImmutableArray<NamedTypeSymbol> GetInterfaces(ConsList<TemplateParameterSymbol> inProgress) {
@@ -330,6 +385,7 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
                 ((MethodSymbol)_containingSymbol).isOverride;
 
             var bounds = this.ResolveBounds(
+                containingAssembly.corLibrary,
                 inProgress.Prepend(this),
                 constraintTypes,
                 inherited,
@@ -346,6 +402,6 @@ internal sealed class PETemplateParameterSymbol : TemplateParameterSymbol {
     }
 
     private NamedTypeSymbol GetDefaultBaseType() {
-        return CorLibrary.GetSpecialType(SpecialType.Object);
+        return containingAssembly.corLibrary.GetSpecialType(SpecialType.Object);
     }
 }

@@ -61,6 +61,17 @@ internal sealed partial class MemberSignatureComparer : IEqualityComparer<Symbol
         typeComparison: TypeCompareKind.IgnoreTupleNames
     );
 
+    // ? AKA CSharpAccessorOverrideComparer
+    internal static readonly MemberSignatureComparer AccessorOverrideComparer = new MemberSignatureComparer(
+        considerName: false,
+        considerExplicitlyImplementedInterfaces: false,
+        considerReturnType: false,
+        considerTemplateConstraints: false,
+        considerCallingConvention: false,
+        refKindCompareMode: RefKindCompareMode.ConsiderDifferences,
+        typeComparison: TypeCompareKind.AllIgnoreOptions
+    );
+
     internal static readonly MemberSignatureComparer DuplicateSourceComparer = new MemberSignatureComparer(
         considerName: true,
         considerExplicitlyImplementedInterfaces: true,

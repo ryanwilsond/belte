@@ -17,6 +17,8 @@ internal abstract class SourceMemberFieldSymbol : SourceFieldSymbolWithSyntaxRef
 
     internal abstract bool hasInitializer { get; }
 
+    public override Symbol associatedSymbol => null;
+
     private protected sealed override DeclarationModifiers _modifiers { get; }
 
     private protected abstract TypeSyntax _typeSyntax { get; }
@@ -35,6 +37,7 @@ internal abstract class SourceMemberFieldSymbol : SourceFieldSymbolWithSyntaxRef
 
     internal override int unionGroupId => !isAnonymousUnionMember
         ? -1
+        // TODO This could just be a volatile counter instead
         : syntaxReference.node.parent.parent.position;
 
     internal static DeclarationModifiers MakeModifiers(

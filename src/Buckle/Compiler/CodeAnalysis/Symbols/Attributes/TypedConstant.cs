@@ -111,13 +111,17 @@ internal readonly struct TypedConstant : IEquatable<TypedConstant> {
                 switch (type.typeKind) {
                     case TypeKind.Array:
                         return TypedConstantKind.Array;
+                    case TypeKind.Enum:
+                        return TypedConstantKind.Enum;
                     case TypeKind.Error:
                         return TypedConstantKind.Error;
                 }
 
-                if (compilation is not null /*&& compilation.IsSystemTypeReference(type)*/) {
+                if (type.specialType == SpecialType.Type)
                     return TypedConstantKind.Type;
-                }
+                // if (compilation is not null && compilation.IsSystemTypeReference(type)) {
+                //     return TypedConstantKind.Type;
+                // }
 
                 return TypedConstantKind.Error;
         }

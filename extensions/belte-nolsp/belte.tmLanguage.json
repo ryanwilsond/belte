@@ -33,7 +33,7 @@
                 },
                 {
                     "name": "keyword.other.belte",
-                    "match": "\\b(this|base|var|ref|new|operator|lowlevel|implicit|explicit|nameof|typeof|sizeof|stackalloc|primitive|notnull|is|isnt|as|global|il|noverify|out|union|literal|has|initializes)\\b"
+                    "match": "\\b(this|base|var|ref|new|operator|lowlevel|implicit|explicit|nameof|typeof|sizeof|stackalloc|primitive|notnull|is|isnt|as|global|il|noverify|out|union|literal|has|initializes|property|get|set|noalloc|nothrow|pure|memoize|template)\\b"
                 },
                 {
                     "name": "keyword.operator.arithmetic.belte",
@@ -103,7 +103,7 @@
                 },
                 {
                     "name": "storage.modifier.belte",
-                    "match": "\\b(public|private|abstract|virtual|override|sealed|static|const|constexpr|new|protected|extern|pinned|final)\\b"
+                    "match": "\\b(public|private|abstract|virtual|override|sealed|static|const|constexpr|new|protected|extern|pinned|final|internal)\\b"
                 },
                 {
                     "name": "storage.type.doxygen.belte",
@@ -163,7 +163,7 @@
                 },
                 {
                     "name": "entity.name.type.belte",
-                    "match": "(?<!\\S)\\b([a-zA-Z_]+\\w*)\\s*((?=\\s+[a-zA-Z_]+\\w*)|(?=\\[\\]\\s+[a-zA-Z_]+\\w*))\\b"
+                    "match": "(?<!\\S)\\b([a-zA-Z_]+\\w*)\\s*((?=\\??!?\\s+[a-zA-Z_]+\\w*)|(?=(?:\\??!?\\[\\])*\\??!?\\s+[a-zA-Z_]+\\w*))\\b"
                 },
                 {
                     "name": "entity.name.type.parameter.belte",

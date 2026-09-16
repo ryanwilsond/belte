@@ -96,7 +96,7 @@ internal sealed class SynthesizedClosureMethod : SynthesizedMethodSymbolBase {
     }
 
     private static DeclarationModifiers MakeDeclarationModifiers(ClosureKind closureKind, MethodSymbol originalMethod) {
-        var mods = closureKind == ClosureKind.ThisOnly ? DeclarationModifiers.Private : DeclarationModifiers.Public;
+        var mods = closureKind == ClosureKind.ThisOnly ? DeclarationModifiers.Private : DeclarationModifiers.Internal;
 
         if (closureKind == ClosureKind.Static)
             mods |= DeclarationModifiers.Static;

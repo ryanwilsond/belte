@@ -39,6 +39,8 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol, I
 
     public sealed override RefKind refKind => _flags.refKind;
 
+    public override Symbol associatedSymbol => null;
+
     internal sealed override TextLocation location { get; }
 
     internal sealed override OverriddenOrHiddenMembersResult overriddenOrHiddenMembers {
@@ -96,7 +98,7 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol, I
 
     internal override bool isDeclaredConst => (_modifiers & DeclarationModifiers.Const) != 0;
 
-    internal bool isLowLevel => (_modifiers & DeclarationModifiers.LowLevel) != 0;
+    internal virtual bool isLowLevel => (_modifiers & DeclarationModifiers.LowLevel) != 0;
 
     internal bool isNew => (_modifiers & DeclarationModifiers.New) != 0;
 
@@ -162,6 +164,15 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol, I
 
 done:
         _state.SpinWaitComplete(CompletionParts.MethodSymbolAll);
+    }
+
+    private protected override BehaviorSpecifierInfo MakeSpecifierInfo(BelteDiagnosticQueue diagnostics) {
+        var specifiers = MakeBehaviorSpecifiers(diagnostics, methodKind);
+
+        if (specifiers == BehaviorSpecifiers.None)
+            return BehaviorSpecifierInfo.Default;
+
+        return new BehaviorSpecifierInfo(specifiers);
     }
 
     private protected void ReportDefaultInterfaceImplementation(

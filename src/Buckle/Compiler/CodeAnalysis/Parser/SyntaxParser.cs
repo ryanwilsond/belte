@@ -362,6 +362,12 @@ internal abstract partial class SyntaxParser : IDisposable {
         return Match(kind, saved.kind);
     }
 
+    private protected SyntaxToken EatTokenWithPrejudice(Diagnostic error) {
+        var token = EatToken();
+        token = WithAdditionalDiagnostics(token, error);
+        return token;
+    }
+
     private protected void ReadCurrentNode() {
         if (_tokenOffset == 0)
             _currentNode = _firstBlender.ReadNode();

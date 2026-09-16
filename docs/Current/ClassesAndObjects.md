@@ -10,10 +10,12 @@
   - [4.2.2](#422-methods) Methods
     - [4.2.2.1](#4221-overloading) Overloading
     - [4.2.2.2](#4222-state-and-reverse-clauses) State and Reverse Clauses
+    - [4.2.2.3](#4223-behavior-specifiers) Behavior Specifiers
   - [4.2.3](#423-operators) Operators
     - [4.2.3.1](#4231-operator-overloading) Operator Overloading
     - [4.2.3.2](#4232-casts) Casts
     - [4.2.3.3](#4233-user-defined-literals) User-Defined Literals
+  - [4.2.4](#424-properties) Properties
 - [4.3](#43-modifiers) Modifiers
   - [4.3.1](#431-accessibility-modifiers) Accessibility Modifiers
   - [4.3.2](#432-overriding-modifiers) Overriding Modifiers
@@ -25,12 +27,13 @@
   - [4.5.1](#451-constraint-clauses) Constraint Clauses
     - [4.5.1.1](#4511-expression-constraints) Expression Constraints
     - [4.5.1.2](#4512-special-constraints) Special Constraints
+  - [4.5.2](#452-compile-time-type-template-parameters) Compile-Time Type Template Parameters
+  - [4.5.3](#453-reified-generics-versus-compile-time-templates) Reified Generics versus Compile-Time Templates
 - [4.6](#46-enums) Enums
   - [4.6.1](#461-flags) Flags
   - [4.6.2](#462-implicit-enum-fields) Implicit Enum Fields
-  - [4.6.3](#463-experimental-underlying-types) Experimental Underlying Types
-  - [4.6.4](#464-bit-testing) Bit Testing
-  - [4.6.5](#465-methods) Methods
+  - [4.6.3](#463-bit-testing) Bit Testing
+  - [4.6.4](#464-methods) Methods
 - [4.7](#47-namespaces) Namespaces
 - [4.8](#48-using-directives) Using Directives
   - [4.8.1](#481-aliasing) Aliasing
@@ -109,6 +112,10 @@ void Main(string[]! args) {
 ```
 
 In the above example, `Main` is public and static and is a valid entry point.
+
+Because file-scoped classes use a different default accessibility and modifier rules, they are not intended to be used
+for general class programming. Instead, they are mean't to reduce boiler plate in procedural areas of a codebase where
+accessibility is not applicable. As such, regular class declarations should be preferred.
 
 ### 4.1.2 Inheritance
 
@@ -424,6 +431,71 @@ with (myList.Append(4)) {
 The state clause can use any values of the target method (parameters and locals) as long as all code paths have assigned
 a value to those values.
 
+#### 4.2.2.3 Behavior Specifiers
+
+Methods allow various behavior specifies which constrain behavior and allow certain optimizations to take
+place. They are placed between the parameter list and body (before
+[template constraint clauses](#451-constraint-clauses) if any).
+
+```belte
+int MyMethod(int arg) pure memoize {
+  // ...
+}
+```
+
+The following is a list of all the behavior specifiers. Some may be composed with each other:
+
+| Specifier | Behavior | Composability |
+| - | - | - |
+| `memoize` | Compiler may cache results of the pure function using a map | Must be used with the `pure` specifier |
+| `noalloc` | Heap allocations are not allowed (i.e. no `new` expressions) | Can be used with any other specifiers |
+| `nothrow` | Exceptions cannot be thrown (i.e. no uncaught `throw` expressions) | Can be used with any other specifiers |
+| `pure` | Method is a pure function (i.e. method has no side effects) | Can be used with any other specifiers |
+
+One example of an optimization that may take place is the caching of pure function calls to avoid performing duplicate
+work. Consider the following method definition:
+
+```belte
+int PureFunc(int arg) pure { /* ... */ }
+```
+
+Because it is pure, the following code:
+
+```belte
+int myNum = PureFunc(10) * PureFunc(10);
+```
+
+May be rewritten into the following by the compiler:
+
+```belte
+int temp = PureFunc(10);
+int myNum = temp * temp;
+```
+
+Specific types of functions may prohibit the use of certain specifiers. The following is a list of function types and
+what behavior specifiers they allow:
+
+| | [Ordinary Method](#422-methods) | [Local Function](ControlFlow.md#21-functions) | [Ordinary Operator](#4231-operator-overloading) | [Conversion Operator](#4232-casts) | [Literal Operator](#4233-user-defined-literals) | [Constructor](#44-constructors-and-finalizers) | [Destructor](ControlFlow.md#291-destructors) | [Finalizer](#44-constructors-and-finalizers) | [Reverse Funclet](#4222-state-and-reverse-clauses) | [State Funclet](#4222-state-and-reverse-clauses) |
+| - | - | - | - | - | - | - | - | - | - | - |
+| `memoize` | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| `noalloc` | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✗ |
+| `nothrow` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ |
+| `pure` | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
+
+Note that `memoize` is purely an optimization suggestion and does not guarantee the compiler will cache calls to that
+function. Note additional restrictions apply, for example, memoization will not occur if the function signature contains
+pointers to avoid stale cache hits.
+
+Note that `nothrow` includes all potential managed exceptions (throw expressions, array accessing out of bounds,
+invalid casts, etc.) but **does not include corrupted state exceptions** (such as pointer related segfaults).
+
+Note that `pure` cannot be used on methods that have a [reverse clause](#4222-state-and-reverse-clauses).
+
+Note that `pure` can read from instance data but cannot write to it. As such `pure` implies the
+[method modifier `const`](#434-const). This means mutations to the underlying object can change the results of the
+`pure` call as the object can be treated as though it was implicitly passed as an argument. To avoid stale cache hits,
+`memoize` cannot be specified on non-static methods.
+
 ### 4.2.3 Operators
 
 #### 4.2.3.1 Operator Overloading
@@ -438,15 +510,51 @@ class MyClass {
 }
 ```
 
-Operator overloading is used to allow custom classes to use syntactical operators. The overloadable operators are:
+Operator overloading is used to allow custom classes to use syntactical operators. Compound assignment and certain
+increment operators must be public while all other operators must be both public and static.
 
 | Operators | Notes |
 | - | - |
 | `+x`, `-x`, `!x`, `~x`, `++`, `--`, `x[]` | |
-| `x + y`, `x - y`, `x * y`, `x / y`, `x % y`, `x & y`, `x \| y`, `x ^ y`, `x << y`, `x >> y`, `x >>> y` | |
+| `x + y`, `x - y`, `x * y`, `x / y`, `x ** y`, `x /\ y`, `x \/ y`, `x % y`, `x & y`, `x \| y`, `x ^ y`, `x << y`, `x >> y`, `x >>> y` | Must be static |
 | `x == y`, `x != y`, `x < y`, `x > y`, `x <= y`, `x >= y` | Must be overloaded in the following pairs: `==` and `!=`, `<` and `>`, `<=` and `>=` |
+| `+=`, `-=`, `*=`, `/=`, `**=`, `/\=`, `\/=`, `%=`, `&=`, `\|=`, `^=`, `<<=`, `>>=`, `>>>=` | Must be non-static |
 
-Note that operators must be marked [public](#431-accessibility-modifiers) and [static](#433-static-and-constexpr).
+The increment (`++` and `--`) operators have a static and non-static variant. If both are defined for a type, the
+instance version is preferred:
+
+```belte
+MyClass myClass = /* ... */;
+myClass++; // Instance increment is used
+
+class MyClass {
+  public static MyClass operator ++(MyClass operand) {
+    // ...
+  }
+
+  public void operator ++() {
+    // ...
+  }
+}
+```
+
+Operators can be templated as long as one of the parameters matches the containing type exactly:
+
+```belte
+class MyClass<type T> {
+  public static MyClass<TOther> operator<type TOther> +(MyClass<TOther> left, MyClass<T> right) {
+    // ...
+  }
+}
+```
+
+These operators will infer their template arguments from usage:
+
+```belte
+MyClass<int> a = /* ... */;
+MyClass<bool> b = /* ... */;
+MyClass<int> c = a + b; // Okay
+```
 
 #### 4.2.3.2 Casts
 
@@ -480,6 +588,69 @@ A a = (A)3;
 
 ```belte
 int a = new A();
+```
+
+Like operators, user-defined casts can be templated as long as either the parameter type or return type matches the
+containing type exactly:
+
+```belte
+class MyClass<type T> {
+  public static implicit operator<type TOther> MyClass<TOther>(MyClass<T> operand) {
+    // ...
+  }
+}
+```
+
+Also like operators, their template arguments will be inferred from usage:
+
+```belte
+MyClass<int> a = /* ... */;
+MyClass<bool> b = a; // Okay
+```
+
+Template argument inference will account for constraints. Consider this slightly more complex example with a bounded
+integer type:
+
+```belte
+public struct Int<int Min = Int64.MinValue, int Max = Int64.MaxValue>
+    where { Min <= Max; } {
+  private int64 _value;
+
+  public constructor(int64 value) {
+    if (value < Min || value > Max)
+      throw new ValueOutOfRangeException(value, Min, Max);
+
+    _value = value;
+  }
+
+  public static implicit operator Int<Min, Max>(int64 value) {
+    return new(value);
+  }
+
+  public static explicit operator<int TMin, int TMax> Int<TMin, TMax>(Int<Min, Max> bigger)
+      where { !(TMax < Min || TMin > Max); TMin <= TMax; } {
+    return new Int<TMin, TMax>(bigger._value);
+  }
+
+  public static implicit operator<int TMin, int TMax> Int<TMin, TMax>(Int<Min, Max> smaller)
+      where { TMax >= Max; TMin <= TMax; TMin <= Min; } {
+    return new Int<TMin, TMax>(smaller._value);
+  }
+}
+```
+
+The last two user-defined casts on the type have identical signatures apart from their constraints, as such those
+constraints will determine which call is used (note that implicit casts are always preferred over explicit casts):
+
+```belte
+Int<0, 5> a = 3;
+Int<0, 6> b = a; // Implicit because the target bounds fully encompass the source bounds
+
+Int<0, 5> a = 3;
+Int<0, 3> b = (Int<0, 3>)a; // Explicit because the target bounds don't fully encompass the source bounds
+
+Int<0, 5> a = 3;
+Int<6, 10> b = a; // Invalid because neither cast allows bounds with no overlap
 ```
 
 #### 4.2.3.3 User-Defined Literals
@@ -539,6 +710,118 @@ class A {
 }
 ```
 
+### 4.2.4 Properties
+
+Properties are members that are accessed similarly to fields but behave more like methods. They consist of a getter
+and setter method that is called when the property is read from or assigned to respectively. If a getter is not defined,
+the property cannot be read from. Likewise, if a setter is not defined, the property cannot be assigned to. Accessors
+without a body automatically read/write to a backing field. The following declarations are equivalent:
+
+```belte
+class A {
+  private int _backingField = 0;
+
+  public property int myProperty {
+    get {
+      return _backingField;
+    }
+    set {
+      _backingField = value;
+    }
+  }
+}
+```
+
+```belte
+class A {
+  private int _backingField = 0;
+
+  public property int myProperty {
+    get => _backingField;
+    set => _backingField = value;
+  }
+}
+```
+
+```belte
+class A {
+  public property int myProperty { get; set; }
+}
+```
+
+In setters, a local `value` is defined which acts as the value being assigned:
+
+```belte
+myA.myProperty = 3; // value = 3
+
+class A {
+  private int _backingField = 0;
+
+  public property int myProperty {
+    get => _backingField;
+    set => _backingField = value;
+  }
+}
+```
+
+In both accessors, a field expression can be used to read/write to a backing field without explicitly defining one. The
+following declarations are equivalent:
+
+```belte
+class A {
+  private int _backingField = 0;
+
+  public property int myProperty {
+    get => _backingField;
+    set => _backingField = value;
+  }
+}
+```
+
+```belte
+class A {
+  public property int myProperty {
+    get => field;
+    set => field = value;
+  }
+}
+```
+
+Like methods, properties can be overridden. Properties can also be marked `const` meaning they do not affect instance
+data like in methods marked likewise. Properties cannot be `final` or `constexpr`.
+
+A read-only property (one that cannot be assigned to and does not have it's own backing storage) can be written
+concisely as such:
+
+```belte
+class A {
+  public property int myProperty => GetSomeData();
+
+  private int GetSomeData() {
+    // ...
+  }
+}
+```
+
+As the properties do not have inherent storage, the value of the property is recalculated for every read:
+
+```belte
+var myA = new A();
+var local1 = myA.myProperty; // local1 = 0
+var local2 = myA.myProperty; // local2 = 1
+var local3 = myA.myProperty; // local3 = 2
+
+class A {
+  private int _backingField = 0;
+
+  public property int myProperty => GetSomeData();
+
+  private int GetSomeData() {
+    return _backingField++;
+  }
+}
+```
+
 ## 4.3 Modifiers
 
 Fields can be marked `const`, `final`, and `constexpr` which shares the same meaning as when those modifiers are applied
@@ -547,22 +830,46 @@ to locals, which can be [read about here](Data.md#331-modifiers). Fields can als
 
 ### 4.3.1 Accessibility Modifiers
 
-Public indicates that the member can be
-seen everywhere, including outside the class. Protected indicates that the member can only be seen within the class and
-child classes. Private indicates that the member can only be seen within the class, not even in child classes.
+Most symbols (types, fields, methods, etc.) have an accessibility modifier that describes which symbols can refer to it.
+
+An explicit accessibility modifier is not required. Struct, interface, and file-scoped class members default to public,
+namespace members default to internal, and everything else defaults to private.
+
+For example:
 
 ```belte
-class MyClass {
-  private int a;
-  protected int b;
-  public int c;
+public class A {
+  // Both f1 and f2 are private
+  private int f1;
+  int f2;
+
+  public int f3;
+
+  protected int f4;
+
+  internal int f5;
+
+  // `internal | protected` is a single accessibility
+  internal | protected int f6;
+
+  // `internal & protected` is a single accessibility
+  internal & protected int f7;
 }
 ```
 
-A member can only have one accessibility modifier, but they do not require the modifier. By default, all struct members
-are public and all class members are private.
+The accessibilities are:
 
-All types of members can be marked with all three accessibility modifiers except operators, which must always be public.
+| Modifier | Accessibility |
+| - | - |
+| `public` | Anything can access the symbol |
+| `internal` | Anything in the same assembly can access the symbol |
+| `protected` | The enclosing type and inheritors can access the symbol |
+| `private` | The enclosing type can access the symbol |
+| `internal \| protected` | Anything in the same assembly can access the symbol and inheritors of the enclosing type can access the symbol |
+| `internal & protected` | The enclosing type and inheritors in the same assembly can access the symbol |
+
+Certain members have additional restrictions. For example, [operators](#423-operators) must be public, and namespace
+must be public or internal.
 
 ### 4.3.2 Overriding Modifiers
 
@@ -602,8 +909,45 @@ static constructor can be defined for a class that will run the first time a sta
 
 ### 4.3.4 Const
 
-Methods marked as `const` cannot modify instance data or call instance methods not marked `const`. A `const` local of a
-class type can only read fields and call `const` methods.
+Methods marked as `const` cannot modify instance data or call instance methods not marked `const`.
+
+```belte
+class A {
+  int a = 0;
+
+  public const int M1() {
+    return a; // Allowed, read from instance data
+  }
+
+  public const void M2() {
+    a = 1; // Disallowed, write to instance data
+  }
+
+  public const void M3() {
+    ConstMethod(); // Allowed, call to const method
+  }
+
+  public const void M5() {
+    NonConstMethod(); // Disallowed, call to non-const method
+  }
+
+  public void NonConstMethod() {
+    // ...
+  }
+
+  public const void ConstMethod() {
+    // ...
+  }
+}
+```
+
+A `const` local of a class type can only read fields and call `const` methods.
+
+```belte
+const myA = new A();
+myA.ConstMethod(); // Allowed
+myA.NonConstMethod(); // Disallowed
+```
 
 ### 4.3.5 Sealed and Abstract
 
@@ -669,7 +1013,7 @@ class List<type t> {
 
   public constructor(t[] array) {
     this.array = array;
-    length = Length(array);
+    length = array.Length())
   }
 
   public static ref t operator[](List<t> list, int index) {
@@ -706,6 +1050,22 @@ var myList = new List<List<int>>({
   new List<int>({ 3 }),
   new List<int>({ 3, 3, 2, 45 })
 });
+```
+
+Template parameters can have default values similar to method or function parameters:
+
+```belte
+class A<int T = 10> { }
+
+A a; // Same as `A<10> a;`
+```
+
+For default types, a `typeof(<type>)` expression can be used:
+
+```belte
+class A<type T = typeof(int)> { }
+
+A a; // Same as `A<int> a;`
 ```
 
 ### 4.5.1 Constraint Clauses
@@ -760,11 +1120,12 @@ multiple interface types, i.e. `T implements I1, I2, I3` ensures template parame
 A `T has default` constraint ensures template parameter `T` has a default value (i.e. can use the
 [`default` literal](Data.md#315-default-literal) on it).
 
-A `T has constructor` constraint ensures template parameter `T` has a parameterless constructor.
+A `T has constructor` constraint ensures template parameter `T` has a public parameterless constructor (i.e. can create
+using `new T()`).
 
 A `T is struct` constraint ensures template parameter `T` is a value type (struct or primitive).
 
-A `T is class` constraint ensures template parameter `T` is a reference type (class).
+A `T is class` constraint ensures template parameter `T` is a reference type (class or array).
 
 A `T is notnull` constraint constrains the template parameter `T` to being a non-nullable type. Non-nullable annotations
 are disallowed on type template parameters, so this constraint is required for the template class to know the template
@@ -788,6 +1149,77 @@ struct S {
   int a;
 }
 ```
+
+### 4.5.2 Compile-Time Type Template Parameters
+
+By default, all type template parameters are reified generics that resolve at runtime. To instead have type template
+parameters expand at compile time like non-type template parameters do, they can be marked:
+
+```belte
+// '$' indicates the type template parameter should be evaluated at compile time
+class A<type $T> { }
+```
+
+Alternatively, given a declaration that has runtime type template parameters, a specific instantiation can be expanded
+at compile time using the `template` keyword:
+
+```belte
+class A<type T> { }
+
+A<template int> a = new();
+```
+
+This is useful for when using types that are normally reified generics in performance critical code.
+
+Note that template specialization can only be performed in the type in question is defined in the same assembly, or the
+reference assembly has valid template metadata that can be read from to instantiate it. (For example, a DLL compiled
+with the [*--notemplatemetadata* flag](../Buckle.md#--notemplatemetadata) does not create template metadata so no types
+from it can be specialized or instantiated unless they only have runtime type template parameters.)
+
+### 4.5.3 Reified Generics versus Compile-Time Templates
+
+By default, all type template parameters are implemented as .NET reified generics, a.k.a. normal C# generics. This means
+they are better for binary size, dynamic code, C# interoperability, and public APIs.
+
+All other template parameters are implemented as compile-time templates, similar to C++. This means each unique
+instantiation will add a completely new type definition to the assembly, increasing binary size. This also means they
+are not treated like generics when using .NET Reflection. Templates should be used either when the underlying template
+parameter type is not a type, or in specialized cases.
+
+When creating public APIs, reified generics should be preferred. Consider:
+
+```belte
+class List<type $T> { ... }
+```
+
+and
+
+```belte
+class List<type T> { ... }
+```
+
+The second definition is most likely better because it uses reified generics which is better for general purpose use
+cases.
+
+Also consider using template specialization instead of compile-time templates in the declaration if possible. In other
+words, prefer:
+
+```belte
+class List<type T> { ... }
+
+List<template int> myList = new();
+```
+
+over:
+
+```belte
+class List<type $T> { ... }
+
+List<int> myList = new();
+```
+
+Both options result in the same code for the particular instantiation used by `myList`, but the former keeps the type
+definition reified for general use cases.
 
 ## 4.6 Enums
 
@@ -894,19 +1326,7 @@ Func(.Field1);
 void Func(MyEnum param) { /* ... */ }
 ```
 
-### 4.6.3 Experimental Underlying Types
-
-When using the Evaluator, enums can additional represent the `string` and `char` primitives:
-
-```belte
-enum MyEnum extends string {
-  Field1 = "some string",
-}
-```
-
-This feature is experimental and may be removed.
-
-### 4.6.4 Bit Testing
+### 4.6.3 Bit Testing
 
 The traditional way to test for the presence of a enum field is to use a bit test:
 
@@ -932,7 +1352,7 @@ var f = F.B;
 if (f.B) { /* ... */ }
 ```
 
-### 4.6.5 Methods
+### 4.6.4 Methods
 
 Enums don't contain methods in metadata, but methods can be written inside of an enum for convenience.
 
@@ -958,7 +1378,7 @@ enum flags F {
 }
 ```
 
-Note that by using the [bit testing shorthand](#464-bit-testing) the method `IsAOrB` could also be written:
+Note that by using the [bit testing shorthand](#463-bit-testing) the method `IsAOrB` could also be written:
 
 ```belte
 public bool IsAOrB() {
@@ -1116,7 +1536,7 @@ struct A {
 }
 ```
 
-A [cascade expression](Data.md#3227-xy) can be used to simplify this process:
+A [cascade expression](Data.md#3241-xy) can be used to simplify this process:
 
 ```belte
 var myStruct = new A()

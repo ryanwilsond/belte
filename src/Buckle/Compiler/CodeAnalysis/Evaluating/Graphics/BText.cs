@@ -1,3 +1,4 @@
+using System;
 using MonoGame.Extended.Text;
 
 namespace Buckle.CodeAnalysis.Evaluating;
@@ -33,5 +34,9 @@ public sealed class BText {
         this.g = g;
         this.b = b;
         this.mFont = mFont;
+    }
+
+    public BText() {
+        throw new InvalidOperationException();
     }
 }

@@ -1,9 +1,7 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -52,8 +50,17 @@ internal sealed class SourceFinalizerSymbol : SourceMemberMethodSymbol {
         return [];
     }
 
+    internal sealed override ImmutableArray<BoundExpression> GetTemplateConstraints() {
+        return [];
+    }
+
     private protected override void MethodChecks(BelteDiagnosticQueue diagnostics) {
-        _lazyReturnType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void));
+        var syntax = GetSyntax();
+        var bodyBinder = declaringCompilation.GetBinderFactory(syntaxReference.syntaxTree)
+            .GetBinder(syntax, syntax, this);
+
+        _lazyReturnType = new TypeWithAnnotations(bodyBinder.compilation.GetSpecialType(SpecialType.Void));
+        _ = isPure;
     }
 
     private static (DeclarationModifiers, Flags) MakeModifiersAndFlags(

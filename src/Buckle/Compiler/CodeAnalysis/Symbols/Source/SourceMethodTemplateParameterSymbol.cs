@@ -107,6 +107,7 @@ internal sealed class SourceMethodTemplateParameterSymbol : SourceTemplateParame
 
         return ConstraintsHelpers.ResolveBounds(
             this,
+            containingAssembly.corLibrary,
             inProgress.Prepend(this),
             constraintTypes,
             false,

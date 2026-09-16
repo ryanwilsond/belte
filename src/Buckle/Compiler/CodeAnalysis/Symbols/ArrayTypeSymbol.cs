@@ -1,10 +1,8 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
-using System.Linq;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
-using Buckle.Libraries;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -18,11 +16,14 @@ internal abstract partial class ArrayTypeSymbol : TypeSymbol {
         baseType = array;
     }
 
-    internal static ArrayTypeSymbol CreateArray(TypeWithAnnotations elementType, int rank = 1) {
+    internal static ArrayTypeSymbol CreateArray(
+        AssemblySymbol declaringAssembly,
+        TypeWithAnnotations elementType,
+        int rank = 1) {
         if (rank == 1)
-            return CreateSZArray(elementType);
+            return CreateSZArray(declaringAssembly, elementType);
 
-        return CreateMDArray(elementType, rank, default, default);
+        return CreateMDArray(declaringAssembly, elementType, rank, default, default);
     }
 
     internal static ArrayTypeSymbol CreateMDArray(
@@ -38,23 +39,30 @@ internal abstract partial class ArrayTypeSymbol : TypeSymbol {
     }
 
     internal static ArrayTypeSymbol CreateMDArray(
+        AssemblySymbol declaringAssembly,
         TypeWithAnnotations elementType,
         int rank,
         ImmutableArray<int> sizes,
         ImmutableArray<int> lowerBounds) {
-        return CreateMDArray(elementType, rank, sizes, lowerBounds, CorLibrary.GetSpecialType(SpecialType.Array));
+        return CreateMDArray(
+            elementType,
+            rank,
+            sizes,
+            lowerBounds,
+            declaringAssembly.corLibrary.GetSpecialType(SpecialType.Array)
+        );
     }
 
     internal static ArrayTypeSymbol CreateSZArray(TypeWithAnnotations elementType, NamedTypeSymbol array) {
         return new SZArray(elementType, array);
     }
 
-    internal static ArrayTypeSymbol CreateSZArray(TypeWithAnnotations elementType) {
-        return new SZArray(elementType, CorLibrary.GetSpecialType(SpecialType.Array));
+    internal static ArrayTypeSymbol CreateSZArray(AssemblySymbol declaringAssembly, TypeWithAnnotations elementType) {
+        return new SZArray(elementType, declaringAssembly.corLibrary.GetSpecialType(SpecialType.Array));
     }
 
-    internal static ArrayTypeSymbol FromFatArray(NamedTypeSymbol fatArray) {
-        return CreateSZArray(fatArray.templateArguments[0].type);
+    internal static ArrayTypeSymbol FromFatArray(AssemblySymbol declaringAssembly, NamedTypeSymbol fatArray) {
+        return CreateSZArray(declaringAssembly, fatArray.templateArguments[0].type);
     }
 
     public override SymbolKind kind => SymbolKind.ArrayType;
@@ -123,10 +131,16 @@ internal abstract partial class ArrayTypeSymbol : TypeSymbol {
         byte defaultTransformFlag,
         ImmutableArray<byte> transforms,
         ref int position,
-        out TypeSymbol result) {
+        out TypeSymbol result,
+        bool isBelteMode) {
         var oldElementType = elementTypeWithAnnotations;
 
-        if (!oldElementType.ApplyNullableTransforms(defaultTransformFlag, transforms, ref position, out var newElementType)) {
+        if (!oldElementType.ApplyNullableTransforms(
+                defaultTransformFlag,
+                transforms,
+                ref position,
+                out var newElementType,
+                isBelteMode)) {
             result = this;
             return false;
         }

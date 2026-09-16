@@ -6,7 +6,6 @@ using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Lowering;
@@ -17,19 +16,22 @@ internal sealed class CompileTimeLowerer : BoundTreeExpander {
     private readonly EvaluatorContext _context;
     private readonly BoundProgram _program;
     private readonly Compilation _compilation;
+    private readonly Dictionary<Symbol, ConstantValue> _constantMap;
 
     private CompileTimeLowerer(
         MethodSymbol containingMethod,
         BoundProgram program,
         EvaluatorContext context,
         BelteDiagnosticQueue diagnostics,
-        Compilation compilation) {
+        Compilation compilation,
+        Dictionary<Symbol, ConstantValue> constantMap) {
         _diagnostics = diagnostics;
         _evaluator = new Evaluator(program, context, []);
         _context = context;
         _container = containingMethod;
         _program = program;
         _compilation = compilation;
+        _constantMap = constantMap;
     }
 
     private protected override MethodSymbol _container { get; set; }
@@ -40,8 +42,9 @@ internal sealed class CompileTimeLowerer : BoundTreeExpander {
         BelteDiagnosticQueue diagnostics,
         BoundProgram program,
         EvaluatorContext context,
-        Compilation compilation) {
-        var lowerer = new CompileTimeLowerer(method, program, context, diagnostics, compilation);
+        Compilation compilation,
+        Dictionary<Symbol, ConstantValue> constantMap) {
+        var lowerer = new CompileTimeLowerer(method, program, context, diagnostics, compilation, constantMap);
         lowerer._localNames.AddRange(statement.locals.Select(l => l.name));
         return lowerer.Expand(statement);
     }
@@ -54,13 +57,19 @@ internal sealed class CompileTimeLowerer : BoundTreeExpander {
         BoundCompileTimeExpression node,
         out BoundExpression replacement,
         UseKind _) {
+        // Avoid evaluator if possible. This also gives better diagnostics by letting ConstantFoldingPass handle it
+        if (!node.conditional && Binder.EnsureExpressionIsCompileTime(node.expression, []))
+            return ExpandExpression(node.expression, out replacement);
+
+        var statements = ExpandExpression(node.expression, out var newExpression);
+
         try {
             var methodLayout = _program.methodLayouts[_container.originalDefinition];
-            var result = _evaluator.EvaluateExpression(node.expression, methodLayout, out var hasValue);
+            var result = _evaluator.EvaluateExpression(newExpression, methodLayout, out var hasValue);
 
             if (node.type.IsVoidType()) {
                 replacement = node;
-                return [BoundFactory.Nop()];
+                return statements.Count == 0 ? [BoundFactory.Nop()] : statements;
             }
 
             var nodeType = node.StrippedType();
@@ -68,29 +77,28 @@ internal sealed class CompileTimeLowerer : BoundTreeExpander {
             if (!nodeType.IsPrimitiveType() && !nodeType.IsStructType() && !nodeType.IsArray()) {
                 _diagnostics.Push(Error.InvalidCompileTimeType(node.syntax.location));
                 replacement = node;
-                return [BoundFactory.Nop()];
+                return statements.Count == 0 ? [BoundFactory.Nop()] : statements;
             }
 
             if (nodeType.IsArray()) {
                 var isEvaluating = _compilation.options.buildMode.Evaluating();
                 var syntax = node.syntax;
-                var statements = new List<BoundStatement>();
                 statements.AddRange(BuildArray(isEvaluating, syntax, _context.heap[result.ptr], out replacement));
                 return statements;
             }
 
             if (nodeType.IsPrimitiveType()) {
-                replacement = (BoundExpression)Lowerer.VisitConstant(
-                    BoundFactory.Literal(node.syntax, EvaluatorValue.Format(result, _context), node.type)
+                replacement = Lowerer.VisitConstant(
+                    _compilation,
+                    BoundFactory.Literal(_compilation, node.syntax, EvaluatorValue.Format(result, _context), node.type)
                 );
 
-                return [BoundFactory.Nop()];
+                return statements.Count == 0 ? [BoundFactory.Nop()] : statements;
             }
 
             if (nodeType.IsStructType()) {
                 var isEvaluating = _compilation.options.buildMode.Evaluating();
                 var syntax = node.syntax;
-                var statements = new List<BoundStatement>();
                 statements.AddRange(BuildStruct(isEvaluating, syntax, result.@struct, out replacement));
                 return statements;
             }
@@ -100,7 +108,7 @@ internal sealed class CompileTimeLowerer : BoundTreeExpander {
             if (!node.conditional)
                 _diagnostics.Push(Error.InvalidCompileTimeExpression(node.syntax.location));
 
-            replacement = node.expression;
+            replacement = newExpression;
             return [];
         }
     }
@@ -147,7 +155,7 @@ internal sealed class CompileTimeLowerer : BoundTreeExpander {
         }
 
         var initializer = new BoundArrayCreationExpression(syntax,
-            [BoundFactory.Literal(syntax, fieldValues.Length, CorLibrary.GetSpecialType(SpecialType.Int))],
+            [BoundFactory.Literal(_compilation, syntax, fieldValues.Length, _compilation.GetSpecialType(SpecialType.Int))],
             new BoundInitializerList(syntax,
                 fieldValues.Select(p => {
                     BoundExpression result;
@@ -158,7 +166,8 @@ internal sealed class CompileTimeLowerer : BoundTreeExpander {
                         statements.AddRange(BuildArray(isEvaluating, syntax, _context.heap[p.ptr], out result));
                     } else if (arrayType.elementType.StrippedType().IsPrimitiveType()) {
                         result = (BoundExpression)Lowerer.VisitConstant(
-                            BoundFactory.Literal(syntax, EvaluatorValue.Format(p, _context), arrayType.elementType)
+                            _compilation,
+                            BoundFactory.Literal(_compilation, syntax, EvaluatorValue.Format(p, _context), arrayType.elementType)
                         );
                     } else {
                         throw ExceptionUtilities.UnexpectedValue(p.kind);
@@ -302,7 +311,8 @@ internal sealed class CompileTimeLowerer : BoundTreeExpander {
                 statements.AddRange(BuildArray(isEvaluating, syntax, _context.heap[fieldValue.ptr], out right));
             } else if (field.type.StrippedType().IsPrimitiveType()) {
                 right = (BoundExpression)Lowerer.VisitConstant(
-                    BoundFactory.Literal(syntax, EvaluatorValue.Format(fieldValue, _context), field.type)
+                    _compilation,
+                    BoundFactory.Literal(_compilation, syntax, EvaluatorValue.Format(fieldValue, _context), field.type)
                 );
             } else {
                 throw ExceptionUtilities.UnexpectedValue(fieldValue.kind);
@@ -321,5 +331,48 @@ internal sealed class CompileTimeLowerer : BoundTreeExpander {
         }
 
         return statements;
+    }
+
+    // These would technically be discovered in ConstantFoldingPass anyway, but might as well add them to the map early
+    private protected override List<BoundStatement> ExpandAssignmentOperator(
+        BoundAssignmentOperator expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        var statements = ExpandExpression(expression.left, out var newLeft, UseKind.Writable);
+        statements.AddRange(ExpandExpression(expression.right, out var newRight));
+
+        if (newLeft.expressionSymbol is { } symbol && symbol.IsConstExpr() &&
+            newRight.constantValue is { } constant) {
+            _constantMap.Add(symbol, constant);
+            replacement = null;
+            return statements;
+        }
+
+        replacement = expression.Update(newLeft, newRight, expression.isRef, expression.type);
+        return statements;
+    }
+
+    private protected override List<BoundStatement> ExpandLocalDeclarationStatement(
+        BoundLocalDeclarationStatement statement) {
+        var statements = ExpandExpression(statement.declaration.initializer, out var newInitializer);
+        var dataContainer = statement.declaration.dataContainer;
+
+        if (dataContainer.isConstExpr && newInitializer.constantValue is { } constant) {
+            _constantMap.Add(dataContainer, constant);
+            return statements;
+        }
+
+        if (statements.Count > 0 || statement.declaration.initializer != newInitializer) {
+            statements.Add(new BoundLocalDeclarationStatement(
+                statement.syntax,
+                new BoundDataContainerDeclaration(statement.syntax, statement.declaration.dataContainer, newInitializer),
+                statement.isScoped,
+                statement.disposeMethod
+            ));
+
+            return statements;
+        }
+
+        return [statement];
     }
 }

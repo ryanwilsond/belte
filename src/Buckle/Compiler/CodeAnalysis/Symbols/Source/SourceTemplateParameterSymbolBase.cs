@@ -1,10 +1,11 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -14,6 +15,7 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
     private TypeWithAnnotations _lazyUnderlyingType;
     private TypeOrConstant _lazyDefaultValue;
     private CustomAttributesBag<AttributeData> _lazyAttributesBag;
+    private ThreeState _lazyIsCompileTimeType;
 
     private protected SourceTemplateParameterSymbolBase(
         string name,
@@ -59,6 +61,17 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
 
             _state.NotePartComplete(CompletionParts.EndDefaultSyntaxValue);
             return _lazyDefaultValue;
+        }
+    }
+
+    internal sealed override bool isCompileTimeType {
+        get {
+            if (_lazyIsCompileTimeType == ThreeState.Unknown) {
+                _ = underlyingType;
+                Debug.Assert(_lazyIsCompileTimeType != ThreeState.Unknown);
+            }
+
+            return _lazyIsCompileTimeType == ThreeState.True;
         }
     }
 
@@ -153,8 +166,8 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
         ConsList<TemplateParameterSymbol> inProgress,
         BelteDiagnosticQueue diagnostics);
 
-    private static NamedTypeSymbol GetDefaultBaseType() {
-        return CorLibrary.GetSpecialType(SpecialType.Object);
+    private NamedTypeSymbol GetDefaultBaseType() {
+        return containingAssembly.corLibrary.GetSpecialType(SpecialType.Object);
     }
 
     internal override ImmutableArray<NamedTypeSymbol> GetInterfaces(ConsList<TemplateParameterSymbol> inProgress) {
@@ -196,11 +209,23 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
         var syntax = (ParameterSyntax)syntaxReference.node;
         var binder = declaringCompilation.GetBinder(syntax);
 
+        var typeSyntax = syntax.type;
+        var reportTemplateSpecializationErrors = false;
+
+        if (syntax.dollar is not null) {
+            if (Interlocked.CompareExchange(ref _lazyIsCompileTimeType, ThreeState.True, ThreeState.Unknown)
+                == ThreeState.Unknown) {
+                reportTemplateSpecializationErrors = true;
+            }
+        } else {
+            Interlocked.CompareExchange(ref _lazyIsCompileTimeType, ThreeState.False, ThreeState.Unknown);
+        }
+
         // Template underlying types are a special case that doesn't allow aliasing
         // This is to avoid calling Binder.BindType to prevent potential recursive overflows in cases like `class A<T<T> T> { }`
-        if (syntax.type.SkipNullable() is not IdentifierNameSyntax ident) {
+        if (typeSyntax.SkipNullable() is not IdentifierNameSyntax ident) {
             diagnostics.Push(Error.NonPrimitiveTemplate(syntax.location));
-            return new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type));
+            return new TypeWithAnnotations(binder.compilation.GetSpecialType(SpecialType.Type));
         } else {
             var specialType = SpecialTypes.GetTypeFromMetadataName(
                 string.Concat("global::", ident.identifier.valueText)
@@ -208,24 +233,20 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
 
             if (!specialType.IsPrimitiveType()) {
                 diagnostics.Push(Error.NonPrimitiveTemplate(syntax.location));
-                return new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type));
+                return new TypeWithAnnotations(binder.compilation.GetSpecialType(SpecialType.Type));
             }
         }
 
-        var type = binder.BindType(syntax.type, diagnostics);
+        var type = binder.BindType(typeSyntax, diagnostics);
         var underlying = type.nullableUnderlyingTypeOrSelf;
 
         if (underlying.specialType == SpecialType.Type) {
-            if (syntax.type.kind == SyntaxKind.NullableType)
-                diagnostics.Push(Error.CannotAnnotateTypeTemplate(syntax.type.location));
+            if (typeSyntax.kind == SyntaxKind.NullableType)
+                diagnostics.Push(Error.CannotAnnotateTypeTemplate(typeSyntax.location));
 
             return new TypeWithAnnotations(underlying);
-        }
-
-        if (declaringCompilation.options.buildMode is BuildMode.CSharpTranspile or
-                                                      BuildMode.Execute or
-                                                      BuildMode.Dotnet) {
-            diagnostics.Push(Error.Unsupported.NonTypeTemplate(syntax.location));
+        } else if (reportTemplateSpecializationErrors) {
+            diagnostics.Push(Error.CompileTimeTemplateMustBeType(syntax.location));
         }
 
         // TODO This seems wrong/unnecessary:
@@ -273,6 +294,9 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
 
         if (convertedExpression is BoundTypeExpression t)
             return new TypeOrConstant(t.type);
+
+        if (convertedExpression is BoundTypeOfExpression to)
+            return new TypeOrConstant(to.sourceType.type);
 
         var constant = convertedExpression.constantValue;
 

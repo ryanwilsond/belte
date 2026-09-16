@@ -1,0 +1,257 @@
+
+// `Int` has 2 template parameters specifying a min and max value for the number
+// They have default values that will be used if no template arguments are specified when instantiated
+public struct Int<int Min = Int64.MinValue, int Max = Int64.MaxValue>
+        // This constraint ensures that the bounds are valid
+        where { Min <= Max; } {
+
+    private int64 _value;
+
+    public constructor(int64 value, bool checkBounds = true) {
+        _value = value;
+
+        if (checkBounds)
+            CheckValueOutOfRange();
+    }
+
+    // Arithmetic operators keep the bounds the same and recheck the value
+    public static Int<Min, Max> operator +(Int<Min, Max> left, Int<Min, Max> right) {
+        return new(left._value + right._value);
+    }
+
+    // Alternatively, a bounds-increasing operator could be defined as such:
+    /*
+    public static Int<TMin + Min, TMax + Max> operator<int TMin, int TMax> +(Int<TMin, TMax> left, Int<Min, Max> right)
+            where { TMax + Max <= Int64.MaxValue; TMin + Min >= Int64.MinValue; } {
+        // The result number is never out of bounds
+        return new(left._value + right._value, checkBounds: false);
+    }
+    */
+
+    public void operator +=(Int<Min, Max> right) {
+        _value += right._value;
+        CheckValueOutOfRange();
+    }
+
+    public static Int<Min, Max> operator -(Int<Min, Max> left, Int<Min, Max> right) {
+        return new(left._value - right._value);
+    }
+
+    public void operator -=(Int<Min, Max> right) {
+        _value -= right._value;
+        CheckValueOutOfRange();
+    }
+
+    public static Int<Min, Max> operator *(Int<Min, Max> left, Int<Min, Max> right) {
+        return new(left._value * right._value);
+    }
+
+    public void operator *=(Int<Min, Max> right) {
+        _value *= right._value;
+        CheckValueOutOfRange();
+    }
+
+    public static Int<Min, Max> operator /(Int<Min, Max> left, Int<Min, Max> right) {
+        return new(left._value / right._value);
+    }
+
+    public void operator /=(Int<Min, Max> right) {
+        _value /= right._value;
+        CheckValueOutOfRange();
+    }
+
+    // Power operator
+    public static Int<Min, Max> operator **(Int<Min, Max> left, Int<Min, Max> right) {
+        return new(left._value ** right._value);
+    }
+
+    public void operator **=(Int<Min, Max> right) {
+        _value **= right._value;
+        CheckValueOutOfRange();
+    }
+
+    public static Int<Min, Max> operator %(Int<Min, Max> left, Int<Min, Max> right) {
+        return new(left._value % right._value);
+    }
+
+    public void operator %=(Int<Min, Max> right) {
+        _value %= right._value;
+        CheckValueOutOfRange();
+    }
+
+    public static bool operator <(Int<Min, Max> left, Int<Min, Max> right) {
+        return left._value < right._value;
+    }
+
+    public static bool operator <=(Int<Min, Max> left, Int<Min, Max> right) {
+        return left._value <= right._value;
+    }
+
+    public static bool operator >(Int<Min, Max> left, Int<Min, Max> right) {
+        return left._value > right._value;
+    }
+
+    public static bool operator >=(Int<Min, Max> left, Int<Min, Max> right) {
+        return left._value >= right._value;
+    }
+
+    public static Int<Min, Max> operator <<(Int<Min, Max> left, Int<Min, Max> right) {
+        return new(left._value << right._value);
+    }
+
+    public void operator <<=(Int<Min, Max> right) {
+        _value <<= right._value;
+        CheckValueOutOfRange();
+    }
+
+    public static Int<Min, Max> operator >>(Int<Min, Max> left, Int<Min, Max> right) {
+        return new(left._value >> right._value);
+    }
+
+    public void operator >>=(Int<Min, Max> right) {
+        _value >>= right._value;
+        CheckValueOutOfRange();
+    }
+
+    public static Int<Min, Max> operator >>>(Int<Min, Max> left, Int<Min, Max> right) {
+        return new(left._value >>> right._value);
+    }
+
+    public void operator >>>=(Int<Min, Max> right) {
+        _value >>>= right._value;
+        CheckValueOutOfRange();
+    }
+
+    public static Int<Min, Max> operator &(Int<Min, Max> left, Int<Min, Max> right) {
+        return new(left._value & right._value);
+    }
+
+    public void operator &=(Int<Min, Max> right) {
+        _value &= right._value;
+        CheckValueOutOfRange();
+    }
+
+    public static Int<Min, Max> operator |(Int<Min, Max> left, Int<Min, Max> right) {
+        return new(left._value | right._value);
+    }
+
+    public void operator |=(Int<Min, Max> right) {
+        _value |= right._value;
+        CheckValueOutOfRange();
+    }
+
+    public static Int<Min, Max> operator ^(Int<Min, Max> left, Int<Min, Max> right) {
+        return new(left._value ^ right._value);
+    }
+
+    public void operator ^=(Int<Min, Max> right) {
+        _value ^= right._value;
+        CheckValueOutOfRange();
+    }
+
+    // Minimum operator, i.e. `Math.Min(left, right)`
+    public static Int<Min, Max> operator /\(Int<Min, Max> left, Int<Min, Max> right) {
+        return new(left._value /\ right._value, checkBounds: false);
+    }
+
+    public void operator /\=(Int<Min, Max> right) {
+        _value /\= right._value;
+    }
+
+    // Maximum operator, i.e. `Math.Max(left, right)`
+    public static Int<Min, Max> operator \/(Int<Min, Max> left, Int<Min, Max> right) {
+        return new(left._value \/ right._value, checkBounds: false);
+    }
+
+    public void operator \/=(Int<Min, Max> right) {
+        _value \/= right._value;
+    }
+
+    public static Int<Min, Max> operator +(Int<Min, Max> operand) {
+        return operand;
+    }
+
+    public static Int<Min, Max> operator -(Int<Min, Max> operand) {
+        return new(-operand._value);
+    }
+
+    public static Int<Min, Max> operator ~(Int<Min, Max> operand) {
+        return new(~operand._value);
+    }
+
+    public static Int<Min, Max> operator ++(Int<Min, Max> operand) {
+        return new(operand._value + 1);
+    }
+
+    public static Int<Min, Max> operator --(Int<Min, Max> operand) {
+        return new(operand._value - 1);
+    }
+
+    public void operator ++() {
+        _value++;
+        CheckValueOutOfRange();
+    }
+
+    public void operator --() {
+        _value--;
+        CheckValueOutOfRange();
+    }
+
+    // Implicit conversions to/from an `int64` primitive
+    public static implicit operator Int<Min, Max>(int64 value) {
+        return new(value);
+    }
+
+    public static implicit operator int64(Int<Min, Max> value) {
+        return value._value;
+    }
+
+    // Explicit conversion to an `Int<,>` with partially overlapping bounds
+    public static explicit operator<int TMin, int TMax> Int<TMin, TMax>(Int<Min, Max> bigger)
+        where { !(TMax < Min || TMin > Max); TMin <= TMax; } {
+        return new Int<TMin, TMax>(bigger._value);
+    }
+
+    // Implicit conversion to an `Int<,>` with encompassed bounds
+    // In the case that the constraints for both implicit and explicit operators are valid, the implicit is preferred
+    public static implicit operator<int TMin, int TMax> Int<TMin, TMax>(Int<Min, Max> smaller)
+        where { TMax >= Max; TMin <= TMax; TMin <= Min; } {
+        return new Int<TMin, TMax>(smaller._value);
+    }
+
+    public override string? ToString() {
+        return (string)_value;
+    }
+
+    public static bool operator ==(Int<Min, Max> left, Int<Min, Max> right) {
+        return left._value == right._value;
+    }
+
+    public static bool operator !=(Int<Min, Max> left, Int<Min, Max> right) {
+        return left._value != right._value;
+    }
+
+    public override bool Equals(Object? object) {
+        if (object is Int<Min, Max> number)
+            return _value == number._value;
+
+        return false;
+    }
+
+    public override int32 GetHashCode() {
+        return LowLevel.GetHashCode(_value);
+    }
+
+    private void CheckValueOutOfRange() {
+        if (_value < Min || _value > Max)
+            throw new ValueOutOfRangeException(_value, Min, Max);
+    }
+}
+
+public sealed class ValueOutOfRangeException extends Exception {
+    public constructor()
+        : base("Value was out of the range of valid values.") { }
+
+    public constructor(any value, any min, any max)
+        : base(f"Value '{value}' was out of the range of valid values [{min}..{max}].") { }
+}

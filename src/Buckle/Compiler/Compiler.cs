@@ -17,12 +17,14 @@ namespace Buckle;
 
 /// <summary>
 /// Handles compiling and handling a single <see cref="CompilerState" />.
-/// Multiple can be created and run asynchronously.
 /// </summary>
 public sealed class Compiler {
     private const int SuccessExitCode = 0;
     private const int ErrorExitCode = 1;
     private const int FatalExitCode = 2;
+
+    // TODO Maybe move this somewhere else
+    internal const int BelteMetadataVersion = 1;
 
     private Compilation _lazyCorLibrary;
     private BelteDiagnosticQueue _lazyCorLibraryDiagnostics;
@@ -40,7 +42,9 @@ public sealed class Compiler {
         state.entryName,
         state.noStdLib,
         state.diagnosticOptions,
-        state.taskDiagnosticOptions
+        state.taskDiagnosticOptions,
+        state.noTemplateMetadata,
+        state.noTemplateMetadata
     );
 
     /// <summary>
@@ -78,7 +82,12 @@ public sealed class Compiler {
     public int Compile() {
         diagnostics.Clear();
 
-        if (state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute)
+        if (state.noStdLib || state.noBootStrap)
+            // In cases where the build script target has different cor library options than the build script itself,
+            // we need to invalidate the stored cor library in the compiler to force it to rebuild with the new options
+            InvalidateCorLibraryCache();
+
+        if (state.buildMode.RunsImmediately())
             InternalInterpreter();
         else
             InternalCompiler();
@@ -89,14 +98,17 @@ public sealed class Compiler {
     /// <summary>
     /// Gets .NET library paths for a given library level.
     /// </summary>
-    public static string[] ResolveLibraryLevel(int l) {
-        if (l < 0)
+    public static string[] ResolveLibraryLevel(int l, bool noStdLib) {
+        if (l < 0 && noStdLib)
             return [];
 
         var tfm = DotnetReferenceResolver.GetTFM();
         var refPackPath = DotnetReferenceResolver.ResolveNetCoreAppRefPath(tfm, out _);
 
         var references = new List<string>();
+
+        if (!noStdLib)
+            references.Add(Path.Join(AppContext.BaseDirectory, "Belte.Core.dll"));
 
         if (l == 0 || l == 1) {
             references.Add(Path.Join(refPackPath, "System.Runtime.dll"));
@@ -122,6 +134,22 @@ public sealed class Compiler {
         return references.ToArray();
     }
 
+    /// <summary>
+    /// Adds diagnostics from compiling the native libraries to the given queue.
+    /// </summary>
+    public void AddLibraryErrors(BelteDiagnosticQueue libraryDiagnostics) {
+        diagnostics.PushRange(libraryDiagnostics.Errors());
+        diagnostics.Push(Fatal.LibraryError());
+    }
+
+    /// <summary>
+    /// Removes the cached cor library so it is rebuilt on the next compilation.
+    /// </summary>
+    public void InvalidateCorLibraryCache() {
+        _lazyCorLibrary = null;
+        _lazyCorLibraryDiagnostics = null;
+    }
+
     private static int CalculateExitCode(BelteDiagnosticQueue diagnostics) {
         var worst = SuccessExitCode;
 
@@ -133,18 +161,14 @@ public sealed class Compiler {
         return worst;
     }
 
-    public void AddLibraryErrors(BelteDiagnosticQueue libraryDiagnostics) {
-        diagnostics.PushRange(libraryDiagnostics.Errors());
-        diagnostics.Push(Fatal.LibraryError());
-    }
-
     private BelteDiagnosticQueue GetCorLibrary(out Compilation compilation) {
         if (_lazyCorLibrary is null || _lazyCorLibraryDiagnostics is null) {
             var corLibrary = LibraryHelpers.LoadLibraries(
                 _options.buildMode,
                 _options.concurrentBuild,
                 _options.maxCoreCount,
-                state.noStdLib
+                noStdLib: state.noStdLib || state.noBootStrap,
+                includeAllNativeFiles: state.noBootStrap
             );
 
             var corLibraryDiagnostics = corLibrary.GetDiagnostics();
@@ -191,10 +215,12 @@ public sealed class Compiler {
             _options.entryName,
             _options.noStdLib,
             _options.globalDiagnosticOptions,
-            _options.localDiagnosticOptions
+            _options.localDiagnosticOptions,
+            _options.excludeWritingTemplateMetadata,
+            _options.excludeReadingTemplateMetadata
         );
 
-        if (buildMode is BuildMode.Evaluate or BuildMode.Execute) {
+        if (buildMode is BuildMode.Evaluate or BuildMode.Execute or BuildMode.Emulate) {
             if (GetCorLibrary(out var corLibrary).AnyErrors()) {
                 ReportAndReturnLibraryErrors();
                 return;
@@ -216,7 +242,14 @@ public sealed class Compiler {
             LogParseTime(timer, libTime, syntaxTrees.Length);
 
             void Wrapper(object parameter) {
-                if (buildMode == BuildMode.Evaluate) {
+                if (buildMode == BuildMode.Execute) {
+                    diagnostics.PushRange(compilation.Execute(
+                        state.verboseMode,
+                        state.time,
+                        state.verbosePath,
+                        state.reducedVerboseMode
+                    ));
+                } else if (buildMode == BuildMode.Evaluate) {
                     var result = compilation.Evaluate(
                         (ValueWrapper<bool>)parameter,
                         state.verboseMode,
@@ -228,7 +261,8 @@ public sealed class Compiler {
                     exceptions = result.exceptions;
                     diagnostics.PushRange(result.diagnostics);
                 } else {
-                    diagnostics.PushRange(compilation.Execute(
+                    Debug.Assert(buildMode == BuildMode.Emulate);
+                    diagnostics.PushRange(compilation.Emulate(
                         state.verboseMode,
                         state.time,
                         state.verbosePath,
@@ -242,6 +276,7 @@ public sealed class Compiler {
             else
                 InternalInterpreterStart(Wrapper);
         } else {
+            Debug.Assert(buildMode == BuildMode.Interpret);
             Debug.Assert(state.tasks.Length == 1, "multiple tasks while in script mode");
 
             if (GetCorLibrary(out var corLibrary).AnyErrors()) {

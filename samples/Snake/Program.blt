@@ -8,6 +8,8 @@
 
 */
 
+using Belte.Graphics;
+
 class Program {
     string direction = "";
     string pendingDirection = "";

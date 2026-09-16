@@ -10,7 +10,6 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 using static Buckle.CodeAnalysis.Binding.Binder;
@@ -37,6 +36,7 @@ internal sealed partial class CodeGenerator {
         OpCode.Bge_Un, OpCode.Bgt_Un, OpCode.Ble_Un, OpCode.Blt_Un,  // Float Invert
     ];
 
+    private readonly Compilation _compilation;
     private readonly ModuleBuilder _module;
     private readonly MethodSymbol _method;
     private readonly BoundBlockStatement _body;
@@ -54,12 +54,14 @@ internal sealed partial class CodeGenerator {
     private ArrayBuilder<VariableDefinition> _expressionTemps;
 
     internal CodeGenerator(
+        Compilation compilation,
         ModuleBuilder module,
         MethodSymbol method,
         BoundBlockStatement methodBody,
         ILBuilder iLBuilder,
         bool debugMode,
         BelteDiagnosticQueue diagnostics) {
+        _compilation = compilation;
         _module = module;
         _method = method;
         _body = methodBody;
@@ -573,7 +575,7 @@ internal sealed partial class CodeGenerator {
                     // TODO Ensure constantValue is never lying to us
                     var inferredType = constant.specialType == SpecialType.None
                         ? InferType(value)
-                        : CorLibrary.GetSpecialType(constant.specialType);
+                        : _compilation.GetSpecialType(constant.specialType);
 
                     EmitConstantValue(constant, inferredType);
                     EmitBox(inferredType);
@@ -586,7 +588,7 @@ internal sealed partial class CodeGenerator {
     }
 
     private TypeSymbol InferType(object value) {
-        return CorLibrary.GetSpecialType(SpecialTypeExtensions.SpecialTypeFromLiteralValue(value));
+        return _compilation.GetSpecialType(SpecialTypeExtensions.SpecialTypeFromLiteralValue(value));
     }
 
     private void EmitDoubleConstant(double value) {
@@ -774,8 +776,125 @@ internal sealed partial class CodeGenerator {
         LocalOrParameter key,
         SyntaxNode syntaxNode,
         TypeSymbol keyType) {
-        // TODO
-        throw ExceptionUtilities.Unreachable();
+        LocalOrParameter? keyHash = null;
+
+        if (SwitchStringJumpTableEmitter.ShouldGenerateHashTableSwitch(switchCaseLabels.Length)) {
+            // TODO Runtime hash method
+            // MethodSymbol stringHashMethod = null;
+
+            // if (stringHashMethod is not null) {
+            // static uint ComputeStringHash(string s)
+            // pop 1 (s)
+            // push 1 (uint return value)
+            // stackAdjustment = (pushCount - popCount) = 0
+
+            // _builder.EmitLoad(key);
+            // _builder.EmitOpCode(ILOpCode.Call, stackAdjustment: 0);
+            // _builder.EmitToken(stringHashMethodRef, syntaxNode);
+
+            // var UInt32Type = Binder.GetSpecialType(_module.Compilation, SpecialType.System_UInt32, syntaxNode, _diagnostics);
+            // keyHash = AllocateTemp(UInt32Type, syntaxNode);
+
+            // _builder.EmitLocalStore(keyHash);
+            // }
+        }
+
+        var systemStringType = _compilation.GetWellKnownType(WellKnownType.System_String);
+        var stringEqualityMethod = systemStringType.GetOperators(WellKnownMemberNames.EqualityOperatorName)
+            .FirstOrDefault();
+        var lengthMethod = systemStringType.GetMembers("get_Length").FirstOrDefault() as MethodSymbol;
+
+        Debug.Assert(stringEqualityMethod is not null);
+
+        SwitchStringJumpTableEmitter.EmitStringCompareAndBranch emitStringCondBranchDelegate =
+            (keyArg, stringConstant, targetLabel) => {
+                if (stringConstant == ConstantValue.Null) {
+                    EmitLoad(keyArg);
+                    _builder.EmitBranch(OpCode.Brfalse, targetLabel, OpCode.Brtrue);
+                } else if (((string)stringConstant.value).Length == 0 && lengthMethod is not null) {
+                    var skipToNext = new object();
+
+                    EmitLoad(keyArg);
+                    _builder.EmitBranch(OpCode.Brfalse, skipToNext, OpCode.Brtrue);
+
+                    EmitLoad(keyArg);
+
+                    _builder.EmitWithSymbolToken(OpCode.Call, lengthMethod);
+
+                    _builder.EmitBranch(OpCode.Brfalse, targetLabel, OpCode.Brtrue);
+                    _builder.MarkLabel(skipToNext);
+                } else {
+                    EmitStringCompareAndBranch(key, syntaxNode, stringConstant, targetLabel, stringEqualityMethod);
+                }
+            };
+
+        EmitStringSwitchJumpTable(
+            caseLabels: switchCaseLabels,
+            fallThroughLabel: fallThroughLabel,
+            key: key,
+            keyHash: keyHash,
+            emitStringCondBranchDelegate: emitStringCondBranchDelegate,
+            computeStringHashcodeDelegate: ComputeStringHash
+        );
+
+        if (keyHash is not null) {
+            // FreeTemp(keyHash);
+        }
+    }
+
+    private void EmitStringCompareAndBranch(
+        LocalOrParameter key,
+        SyntaxNode syntaxNode,
+        ConstantValue stringConstant,
+        object targetLabel,
+        MethodSymbol stringEqualityMethod) {
+        EmitLoad(key);
+        EmitConstantValue(stringConstant, _compilation.GetSpecialType(SpecialType.String));
+        _builder.EmitWithSymbolToken(OpCode.Call, stringEqualityMethod);
+        _builder.EmitBranch(OpCode.Brtrue, targetLabel, OpCode.Brfalse);
+    }
+
+    private static uint ComputeStringHash(string text) {
+        uint hashCode = 0;
+
+        if (text is not null) {
+            hashCode = unchecked((uint)2166136261);
+
+            int i = 0;
+            goto start;
+
+again:
+            hashCode = unchecked((text[i] ^ hashCode) * 16777619);
+            i = i + 1;
+
+start:
+            if (i < text.Length)
+                goto again;
+        }
+
+        return hashCode;
+    }
+
+    private void EmitStringSwitchJumpTable(
+        KeyValuePair<ConstantValue, object>[] caseLabels,
+        object fallThroughLabel,
+        LocalOrParameter key,
+        LocalOrParameter? keyHash,
+        SwitchStringJumpTableEmitter.EmitStringCompareAndBranch emitStringCondBranchDelegate,
+        SwitchStringJumpTableEmitter.GetStringHashCode computeStringHashcodeDelegate) {
+        var emitter = new SwitchStringJumpTableEmitter(
+            _compilation,
+            this,
+            _builder,
+            key,
+            caseLabels,
+            fallThroughLabel,
+            keyHash,
+            emitStringCondBranchDelegate,
+            computeStringHashcodeDelegate
+        );
+
+        emitter.EmitJumpTable();
     }
 
     private void EmitIntegerSwitchJumpTable(
@@ -783,7 +902,16 @@ internal sealed partial class CodeGenerator {
         object fallThroughLabel,
         LocalOrParameter key,
         SpecialType keyTypeCode) {
-        var emitter = new SwitchIntegralJumpTableEmitter(this, _builder, caseLabels, fallThroughLabel, keyTypeCode, key);
+        var emitter = new SwitchIntegralJumpTableEmitter(
+            _compilation,
+            this,
+            _builder,
+            caseLabels,
+            fallThroughLabel,
+            keyTypeCode,
+            key
+        );
+
         emitter.EmitJumpTable();
     }
 
@@ -1094,12 +1222,14 @@ oneMoreTime:
         var hasCatch = statement.catchBody is not null;
         var hasFinally = statement.finallyBody is not null;
 
-        _builder.BeginTry();
+        _builder.BeginTry(statement);
 
         EmitBlock(statement.body);
 
         if (hasCatch) {
             _builder.BeginCatch();
+            // TODO Currently accessing the exception is not possible, so we pop it always
+            _builder.Emit(OpCode.Pop);
             EmitBlock(statement.catchBody);
         }
 
@@ -1190,12 +1320,36 @@ oneMoreTime:
                 }
             }
 
-            _builder.Emit(opCode);
-
             if (constant is not null) {
-                var type = CorLibrary.GetSpecialType(constant.specialType);
-                EmitConstantValue(constant, type);
+                if (opCode.RequiresValue()) {
+                    switch (constant.specialType) {
+                        case SpecialType.Int:
+                        case SpecialType.Int64:
+                            _builder.Emit(opCode, (long)constant.value);
+                            break;
+                        case SpecialType.Int32:
+                            _builder.Emit(opCode, (int)constant.value);
+                            break;
+                        case SpecialType.Float32:
+                            _builder.Emit(opCode, (float)constant.value);
+                            break;
+                        case SpecialType.Decimal:
+                        case SpecialType.Float64:
+                            _builder.Emit(opCode, (double)constant.value);
+                            break;
+                        default:
+                            throw ExceptionUtilities.UnexpectedValue(constant.specialType);
+                    }
+                } else {
+                    _builder.Emit(opCode);
+                    var type = _compilation.GetSpecialType(constant.specialType);
+                    EmitConstantValue(constant, type);
+                }
+
+                continue;
             }
+
+            _builder.Emit(opCode);
         }
     }
 
@@ -1710,14 +1864,14 @@ oneMoreTime:
             return true;
 
         if (originalDef.containingType.name == NamedTypeSymbol.ValueTupleTypeName &&
-           (originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T1_ctor) ||
-            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_ctor) ||
-            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T3_ctor) ||
-            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_ctor) ||
-            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_ctor) ||
-            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_ctor) ||
-            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_ctor) ||
-            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_ctor))) {
+           (originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T1_ctor) ||
+            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_ctor) ||
+            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T3_ctor) ||
+            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_ctor) ||
+            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_ctor) ||
+            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_ctor) ||
+            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_ctor) ||
+            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_ctor))) {
             return true;
         }
 
@@ -1736,13 +1890,13 @@ oneMoreTime:
         var receiver = expression.receiver;
         var arguments = expression.arguments;
 
-        if (method.containingType.Equals(StandardLibrary.LowLevel.underlyingNamedType)) {
+        if (method.containingType.Equals(_compilation.standardLibrary.LowLevel.underlyingNamedType)) {
             switch (method.name) {
                 case "ThrowNullConditionException": {
                         _builder.EmitThrowNullCondition();
                         // This is to balance the stack
                         EmitDefaultValue(
-                            CorLibrary.GetWellKnownType(WellKnownType.Exception),
+                            _method.declaringCompilation.GetWellKnownType(WellKnownType.System_Exception),
                             useKind != UseKind.Unused,
                             expression.syntax
                         );
@@ -1788,7 +1942,7 @@ oneMoreTime:
             }
         }
 
-        if (method.containingType.Equals(StandardLibrary.Random.underlyingNamedType)) {
+        if (method.containingType.Equals(_compilation.standardLibrary.Random.underlyingNamedType)) {
             EmitRandomCall(method, arguments, expression.argumentRefKinds, useKind);
             return;
         }
@@ -1819,6 +1973,7 @@ oneMoreTime:
                     _builder.EmitLdsfldRandom();
 
                     var argument = Lowerer.CreateNullableGetValueCall(
+                        _compilation,
                         null,
                         arguments[0],
                         arguments[0].StrippedType()
@@ -2136,7 +2291,7 @@ oneMoreTime:
                 var constantValue = LiteralUtilities.TryGetDefaultValue(type);
 
                 if (constantValue is not null) {
-                    EmitConstantValue(new ConstantValue(constantValue, type.specialType), type);
+                    EmitConstantValue(constantValue, type);
                     return;
                 }
             }
@@ -2183,10 +2338,10 @@ oneMoreTime:
         if (methodContainingType.IsNullableType()) {
             var originalMethod = method.originalDefinition;
 
-            if ((object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_getValue) ||
-                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_getHasValue) ||
-                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_GetValueOrDefault) ||
-                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_GetValueOrDefault_T)) {
+            if ((object)originalMethod == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.Nullable_getValue) ||
+                (object)originalMethod == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.Nullable_getHasValue) ||
+                (object)originalMethod == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.Nullable_GetValueOrDefault) ||
+                (object)originalMethod == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.Nullable_GetValueOrDefault_T)) {
                 return true;
             }
         }
@@ -3667,8 +3822,12 @@ oneMoreTime:
     }
 
     private void EmitParameterLoad(ParameterSymbol parameter) {
-        var slot = ParameterSlot(parameter);
-        _builder.EmitLoadArgument(slot);
+        if (parameter.isThis) {
+            _builder.EmitLoadArgument0();
+        } else {
+            var slot = ParameterSlot(parameter);
+            _builder.EmitLoadArgument(slot);
+        }
 
         if (parameter.refKind != RefKind.None) {
             var parameterType = parameter.type;

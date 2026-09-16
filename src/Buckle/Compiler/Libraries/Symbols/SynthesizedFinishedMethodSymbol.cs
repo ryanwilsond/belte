@@ -22,6 +22,8 @@ internal sealed class SynthesizedFinishedMethodSymbol : WrappedMethodSymbol {
 
     public override ImmutableArray<TypeOrConstant> templateArguments => underlyingMethod.templateArguments;
 
+    public override Symbol associatedSymbol => null;
+
     internal override TypeWithAnnotations returnTypeWithAnnotations => underlyingMethod.returnTypeWithAnnotations;
 
     internal override ImmutableArray<ParameterSymbol> parameters { get; }

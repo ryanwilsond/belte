@@ -182,6 +182,17 @@ internal sealed class FunctionMethodSymbol : MethodSymbol {
         );
     }
 
+    internal FunctionMethodSymbol ReplaceParameterSymbols(
+        TypeWithAnnotations replacedReturnType,
+        ImmutableArray<TypeWithAnnotations> replacedParameterTypes) {
+        return new FunctionMethodSymbol(
+            refKind,
+            replacedReturnType,
+            parameters,
+            replacedParameterTypes.SelectAsArray(t => new TypeOrConstant(t))
+        );
+    }
+
     internal override bool Equals(Symbol other, TypeCompareKind compareKind) {
         if (!(other is FunctionMethodSymbol method)) {
             return false;
@@ -229,12 +240,14 @@ internal sealed class FunctionMethodSymbol : MethodSymbol {
     internal FunctionMethodSymbol ApplyNullableTransforms(
         byte defaultTransformFlag,
         ImmutableArray<byte> transforms,
-        ref int position) {
+        ref int position,
+        bool isBelteMode) {
         var madeChanges = returnTypeWithAnnotations.ApplyNullableTransforms(
             defaultTransformFlag,
             transforms,
             ref position,
-            out var newReturnType
+            out var newReturnType,
+            isBelteMode
         );
 
         var newParamTypes = ImmutableArray<TypeOrConstant>.Empty;
@@ -245,7 +258,14 @@ internal sealed class FunctionMethodSymbol : MethodSymbol {
 
             foreach (var param in parameters) {
                 madeParamChanges |= param.typeWithAnnotations
-                    .ApplyNullableTransforms(defaultTransformFlag, transforms, ref position, out var newParamType);
+                    .ApplyNullableTransforms(
+                        defaultTransformFlag,
+                        transforms,
+                        ref position,
+                        out var newParamType,
+                        isBelteMode
+                    );
+
                 paramTypesBuilder.Add(new TypeOrConstant(newParamType));
             }
 
@@ -273,6 +293,8 @@ internal sealed class FunctionMethodSymbol : MethodSymbol {
     public override bool returnsVoid => returnTypeWithAnnotations.IsVoidType();
 
     public override RefKind refKind { get; }
+
+    public override Symbol associatedSymbol => null;
 
     internal override CallingConvention callingConvention => CallingConvention.Default;
 
@@ -343,5 +365,9 @@ internal sealed class FunctionMethodSymbol : MethodSymbol {
 
     internal sealed override UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete) {
         return null;
+    }
+
+    internal sealed override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        return [];
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -20,6 +21,7 @@ internal static class TypeWithAnnotationsExtensions {
 
                 if (containingType is not null) {
                     isNestedNamedType = true;
+
                     var result = VisitType(
                         default,
                         containingType,
@@ -44,6 +46,9 @@ internal static class TypeWithAnnotationsExtensions {
 
             TypeWithAnnotations next;
 
+            if (current.specialType == SpecialType.Nullable && !canDigThroughNullable)
+                current = current.GetNullableUnderlyingType();
+
             switch (current.typeKind) {
                 case TypeKind.Primitive:
                 case TypeKind.TemplateParameter:
@@ -53,7 +58,8 @@ internal static class TypeWithAnnotationsExtensions {
                 case TypeKind.Interface:
                 case TypeKind.Struct:
                 case TypeKind.Enum:
-                    var templateArguments = ((NamedTypeSymbol)current).templateArguments;
+                    var templateArguments = ((NamedTypeSymbol)current).templateArguments
+                        .WhereAsArray(t => !t.isConstant && t.type is not null);
 
                     if (templateArguments.IsEmpty)
                         return null;
@@ -79,8 +85,9 @@ internal static class TypeWithAnnotationsExtensions {
                     }
 
                     next = templateArguments[i].type;
-                    break;
+                    Debug.Assert(next is not null);
 
+                    break;
                 case TypeKind.Array:
                     next = ((ArrayTypeSymbol)current).elementTypeWithAnnotations;
                     break;
@@ -240,5 +247,9 @@ internal static class TypeWithAnnotationsExtensions {
                 ? (null, type.nullableUnderlyingTypeOrSelf)
                 : (type, null);
         }
+    }
+
+    internal static bool HasType(this TypeWithAnnotations typeWithAnnotations) {
+        return typeWithAnnotations is not null && typeWithAnnotations.hasType;
     }
 }

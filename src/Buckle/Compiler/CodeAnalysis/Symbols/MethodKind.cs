@@ -16,4 +16,6 @@ public enum MethodKind : byte {
     Lambda,
     Literal,
     ExplicitInterfaceImplementation,
+    PropertyGet,
+    PropertySet,
 }

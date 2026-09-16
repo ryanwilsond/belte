@@ -95,9 +95,8 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
             return;
         }
 
-        // if (HadConstraintFailure(location, diagnostics)) {
-        //     return;
-        // }
+        if (HadConstraintFailure(location, diagnostics))
+            return;
 
         if (HadBadArguments(
             diagnostics,
@@ -112,9 +111,13 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
             return;
         }
 
-        // if (HadConstructedParameterFailedConstraintCheck(binder.Conversions, binder.Compilation, diagnostics, location)) {
-        //     return;
-        // }
+        if (HadConstructedParameterFailedConstraintCheck(
+            binder.conversions,
+            binder.compilation,
+            diagnostics,
+            location)) {
+            return;
+        }
 
         // if (InaccessibleTypeArgument(diagnostics, symbols, location)) {
         //     return;
@@ -224,6 +227,44 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
 
         if (!isMethodGroupConversion)
             ReportBadParameterCount(diagnostics, name, arguments, symbols, location, typeContainingConstructor);
+    }
+
+
+    private bool HadConstructedParameterFailedConstraintCheck(
+        ConversionsBase conversions,
+        Compilation compilation,
+        BelteDiagnosticQueue diagnostics,
+        TextLocation location) {
+        var result = GetFirstMemberKind(MemberResolutionKind.ConstructedParameterFailedConstraintCheck);
+
+        if (result.isNull)
+            return false;
+
+        var method = (MethodSymbol)(Symbol)result.member;
+
+        if (!method.CheckConstraints(conversions, location, method.GetEnclosingTemplateConstraints(), diagnostics))
+            return true;
+
+        var formalParameterType = method.GetParameterType(result.result.badParameter);
+
+        formalParameterType.CheckAllConstraints(
+            conversions,
+            location,
+            method.parameters[result.result.badParameter].GetEnclosingTemplateConstraints(),
+            diagnostics
+        );
+
+        return true;
+    }
+
+    private bool HadConstraintFailure(TextLocation location, BelteDiagnosticQueue diagnostics) {
+        var constraintFailure = GetFirstMemberKind(MemberResolutionKind.ConstraintFailure);
+
+        if (constraintFailure.isNull)
+            return false;
+
+        diagnostics.PushRangeAndFree(constraintFailure.result.constraintFailureDiagnostics);
+        return true;
     }
 
     private bool HadReturnMismatch(

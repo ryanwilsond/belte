@@ -60,6 +60,14 @@ internal sealed class FunctionTypeSymbol : TypeSymbol {
         );
     }
 
+    internal FunctionTypeSymbol ReplaceTypeSymbol(
+        TypeWithAnnotations replacedReturnType,
+        ImmutableArray<TypeWithAnnotations> replacedParameterTypes) {
+        return new FunctionTypeSymbol(
+            signature.ReplaceParameterSymbols(replacedReturnType, replacedParameterTypes)
+        );
+    }
+
     internal FunctionMethodSymbol signature { get; }
 
     public override bool isReferenceType => true;
@@ -104,8 +112,15 @@ internal sealed class FunctionTypeSymbol : TypeSymbol {
         byte defaultTransformFlag,
         ImmutableArray<byte> transforms,
         ref int position,
-        out TypeSymbol result) {
-        var newSignature = signature.ApplyNullableTransforms(defaultTransformFlag, transforms, ref position);
+        out TypeSymbol result,
+        bool isBelteMode) {
+        var newSignature = signature.ApplyNullableTransforms(
+            defaultTransformFlag,
+            transforms,
+            ref position,
+            isBelteMode
+        );
+
         var madeChanges = (object)signature != newSignature;
         result = madeChanges ? new FunctionTypeSymbol(newSignature) : this;
         return madeChanges;

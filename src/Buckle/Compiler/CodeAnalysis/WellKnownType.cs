@@ -9,10 +9,11 @@ namespace Buckle.CodeAnalysis;
 internal enum WellKnownType : byte {
     None,
 
+    First = SpecialType.NextAvailable,
+
     // Required
 
-    Enumerator,
-    Exception,
+    Enumerator = First,
 
     // Non-required
 
@@ -28,17 +29,43 @@ internal enum WellKnownType : byte {
     ValueTuple_T7,
     ValueTuple_TRest,
 
-    Vec2,
-    Sprite,
-    Text,
-    Rect,
-    Texture,
-    Sound,
-
     Array,
 
-    Attribute,
     DllImportAttribute,
     UnmanagedAttribute,
     MustUseReturnValueAttribute,
+
+    // PE
+
+    System_Exception,
+    System_Collections_IEnumerable,
+    System_Collections_Generic_IEnumerable_T,
+    System_Collections_IEnumerator,
+    System_Collections_Generic_IEnumerator_T,
+    System_Attribute,
+    System_AttributeUsageAttribute,
+    System_String,
+
+    Belte_NoAllocAttribute,
+    Belte_NoThrowAttribute,
+    Belte_PureAttribute,
+    Belte_CompilerServices_BelteMetadataAttribute,
+    Belte_NullabilityAttribute,
+    Belte_ConstMethodAttribute,
+    Belte_ConstParamAttribute,
+
+    Belte_Graphics_Vec2,
+    Belte_Graphics_Sprite,
+    Belte_Graphics_Text,
+    Belte_Graphics_Rect,
+    Belte_Graphics_Texture,
+    Belte_Graphics_Sound,
+
+
+    LastNativeType = MustUseReturnValueAttribute,
+    LastNativeRequiredType = Enumerator,
+    FirstPEType = System_Exception,
+    LastPEType = Belte_Graphics_Sound,
+
+    ExtSentinel = 255,
 }

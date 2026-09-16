@@ -140,6 +140,12 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
         Visit(node.body);
     }
 
+    internal override void VisitArrowExpressionClause(ArrowExpressionClauseSyntax node) {
+        var arrowBinder = new ExpressionVariableBinder(node, _enclosing);
+        AddToMap(node, arrowBinder);
+        Visit(node.expression, arrowBinder);
+    }
+
     internal override void VisitConstructorDeclaration(ConstructorDeclarationSyntax node) {
         var enclosing = new ExpressionVariableBinder(node, _enclosing);
         AddToMap(node, enclosing);
@@ -254,7 +260,11 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
     }
 
     internal override void VisitAttribute(AttributeSyntax node) {
-        var attrBinder = new ExpressionVariableBinder(node, _enclosing);
+        var attrBinder = new ExpressionVariableBinder(
+            node,
+            _enclosing.WithAdditionalFlags(BinderFlags.AttributeArgument)
+        );
+
         AddToMap(node, attrBinder);
 
         if (node.argumentList?.arguments?.Count > 0) {
@@ -276,6 +286,9 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
                 : _enclosing;
 
             binder = new InMethodBinder(match, binder);
+
+            if (BinderFactory.BinderFactoryVisitor.MethodHasAdditionalContext(match, out var additionalFlags))
+                binder = binder.WithAdditionalFlags(additionalFlags);
         }
 
         var blockBody = node.body;

@@ -30,13 +30,14 @@ at `src/Program.blt`. Both locations must be unoccupied.
 
 Instead of using normal options, a build script can be used to drive the compilation. The build script is found
 automatically by searching the working directory for a file named `Build.blt`. When using this option, only
-[*--time*](#--time), [*--info*](#--info), and [*--debug*](#--debug) options can be specified in addition. All other
-arguments must be defined in the build script itself.
+[*--time*](#--time), [*--info*](#--info), [*--infoscript*](#--infoscript), and [*--debug*](#--debug) options can be
+specified in addition. All other arguments must be defined in the build script itself.
 
-Optionally, the build script can be specified manually by passing it's path as an argument immediately following
-*build*.
+Optionally, the build script path can be specified manually by passing it's path after a `-f` or `--file` argument.
 
 For relevant build modes, arguments can be passed with the [*--*](#---arg) option.
+
+All other arguments not starting with `-` are passed directly to the build script.
 
 > [Build script info](Build.md)
 
@@ -82,12 +83,6 @@ Specifies the project type.
 
 Specifies a type name to search for the entry point (and update point) symbols in. The type can be namespace qualified
 but cannot be nested.
-
-### *--nostdlib*
-
-Disables compiling with the higher-level Standard Library (collections, IO, etc.). Certain parts of the Standard Library
-are still compiled with where removing them would break core language functionality (such as primitive type
-definitions).
 
 ### *--evaluate*
 
@@ -241,6 +236,18 @@ Automatically includes certain library references. Each level includes all of th
 | `l1` | `Diagnostics.dll`, `Compiler.dll`, `Shared.dll`, `System.Collections.dll`, `System.Collections.Immutable.dll` |
 | `lall` | All .NET SDK libraries |
 
+### *--notemplatemetadata*
+
+Specify to skip emitting template metadata when building a DLL.
+
+Template metadata is primarily used to allow instantiating templates defined in referenced DLLs. This means that without
+it, consumers of a DLL cannot instantiate templates defined within that DLL.
+
+Note that apart from instantiation ability, template metadata also includes Belte related symbol information not tracked
+by .NET. This includes [template parameter default values](Current/ClassesAndObjects.md#45-templates),
+[expression constraints](Current/ClassesAndObjects.md#4511-expression-constraints), etc. This means that if a library
+does not include template metadata, those features will not be available to referencing assemblies.
+
 ### *--time*
 
 Displays how much time each stage of compilation took.
@@ -263,6 +270,14 @@ Specifies the path the *--verbose* mode will dump files. Defaults to the working
 ### *--info*
 
 Displays *--verbose* information without producing file artifacts.
+
+### *--infoscript*
+
+Displays minimal information to indicate when the build started and finished. This is meant for when using the compiler
+as a step of a larger build process.
+
+This option does **not** contain [*--info*](#--info)/[*--verbose*](#--verbose) information so it can be used in junction
+with those.
 
 ### *--sae*
 

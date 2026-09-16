@@ -8,6 +8,10 @@
 
 */
 
+// Many graphics types are included in the Belte.Graphics namespace
+// These types include: Vec2, Sprite, Text
+using Belte.Graphics;
+
 // When `Main` is present in a non-static class, a single instance of that class is automatically created and managed
 // by the compiler, allowing you to modify and access instance data.
 class Program;
@@ -30,9 +34,6 @@ bool aiOn = true;
 bool previousEnter = false;
 
 void Main() {
-    // When building a graphics project, many additional types are added to the global namespace
-    // These types include: Vec2, Sprite, Text, Graphics
-
     // `Graphics.Initialize` creates the window and must be the first Graphics call made
     Graphics.Initialize("Pong", Settings.ScreenWidth, Settings.ScreenHeight);
     Graphics.LockFramerate(120);

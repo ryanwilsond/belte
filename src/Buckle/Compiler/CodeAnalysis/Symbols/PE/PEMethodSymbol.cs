@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Metadata;
 using System.Threading;
@@ -22,6 +23,11 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
     private SignatureData _lazySignature;
     private ImmutableArray<MethodSymbol> _lazyExplicitMethodImplementations;
     private UncommonFields _uncommonFields;
+    private int _lazyIsPure;
+    private int _lazyIsNoThrow;
+    private int _lazyIsNoAlloc;
+    private int _lazyIsConst;
+    private Symbol _associatedPropertyOrEventOpt;
 
     internal PEMethodSymbol(
         PEModuleSymbol moduleSymbol,
@@ -91,6 +97,8 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
     public override ImmutableArray<TypeOrConstant> templateArguments
         => isTemplateMethod ? GetTemplateParametersAsTemplateArguments() : [];
 
+    public override Symbol associatedSymbol => _associatedPropertyOrEventOpt;
+
     internal override Symbol containingSymbol => _containingType;
 
     internal override NamedTypeSymbol containingType => _containingType;
@@ -108,6 +116,8 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
     internal MethodDefinitionHandle handle => _handle;
 
     internal override bool hasSpecialName => HasFlag(MethodAttributes.SpecialName);
+
+    internal override bool hasRuntimeSpecialName => HasFlag(MethodAttributes.RTSpecialName);
 
     internal override bool isExtern => HasFlag(MethodAttributes.PinvokeImpl);
 
@@ -228,9 +238,9 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
     internal override Accessibility declaredAccessibility {
         get {
             return (object)(flags & MethodAttributes.MemberAccessMask) switch {
-                MethodAttributes.Assembly => Accessibility.Public,// return Accessibility.Internal;
-                MethodAttributes.FamORAssem => Accessibility.Public,// return Accessibility.ProtectedOrInternal;
-                MethodAttributes.FamANDAssem => Accessibility.Public,// return Accessibility.ProtectedAndInternal;
+                MethodAttributes.Assembly => Accessibility.Internal,
+                MethodAttributes.FamORAssem => Accessibility.InternalOrProtected,
+                MethodAttributes.FamANDAssem => Accessibility.InternalAndProtected,
                 MethodAttributes.Private or MethodAttributes.PrivateScope => Accessibility.Private,
                 MethodAttributes.Public => Accessibility.Public,
                 MethodAttributes.Family => Accessibility.Protected,
@@ -294,7 +304,12 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
 
                 _packedFlags.InitializeIsReadOnly(isReadOnly);
             }
-            return _packedFlags.isReadOnly;
+
+            if (!_packedFlags.isCustomAttributesPopulated)
+                _ = GetAttributes();
+
+            Debug.Assert(_lazyIsConst != (int)ThreeState.Unknown);
+            return _packedFlags.isReadOnly || _lazyIsConst == (int)ThreeState.True;
         }
     }
 
@@ -326,9 +341,223 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
         }
     }
 
+    internal override bool isPure {
+        get {
+            if (!_packedFlags.isCustomAttributesPopulated)
+                _ = GetAttributes();
+
+            Debug.Assert(_lazyIsPure != (int)ThreeState.Unknown);
+            return _lazyIsPure == (int)ThreeState.True;
+        }
+    }
+
+    internal override bool isNoThrow {
+        get {
+            if (!_packedFlags.isCustomAttributesPopulated)
+                _ = GetAttributes();
+
+            Debug.Assert(_lazyIsNoThrow != (int)ThreeState.Unknown);
+            return _lazyIsNoThrow == (int)ThreeState.True;
+        }
+    }
+
+    internal override bool isNoAlloc {
+        get {
+            if (!_packedFlags.isCustomAttributesPopulated)
+                _ = GetAttributes();
+
+            Debug.Assert(_lazyIsNoAlloc != (int)ThreeState.Unknown);
+            return _lazyIsNoAlloc == (int)ThreeState.True;
+        }
+    }
+
+    internal override bool TryGetThisParameter(out ParameterSymbol? thisParameter) {
+        thisParameter = isStatic/* || this.IsExtensionBlockMember()*/
+            ? null
+            : _uncommonFields?._lazyThisParameter ??
+                InterlockedOperations.Initialize(ref
+                    AccessUncommonFields()._lazyThisParameter,
+                    new ThisParameterSymbol(this));
+
+        return true;
+    }
+
     internal override ImmutableArray<AttributeData> GetAttributes() {
-        // TODO
-        return [];
+        if (!_packedFlags.isCustomAttributesPopulated) {
+            var attributeData = LoadAndFilterAttributes(
+                out var isExtensionMethod,
+                out var isReadOnly,
+                out var hasRequiresUnsafeAttribute,
+                out var isPure,
+                out var isNoThrow,
+                out var isNoAlloc,
+                out var isConst
+            );
+
+            _packedFlags.InitializeIsExtensionMethod(isExtensionMethod);
+            _packedFlags.InitializeIsReadOnly(isReadOnly);
+            // _packedFlags.InitializeRequiresUnsafe(ComputeRequiresUnsafe(hasRequiresUnsafeAttribute));
+
+            if (_lazyIsPure == (int)ThreeState.Unknown) {
+                var val = isPure ? (int)ThreeState.True : (int)ThreeState.False;
+                Interlocked.CompareExchange(ref _lazyIsPure, val, (int)ThreeState.Unknown);
+            }
+
+            if (_lazyIsNoThrow == (int)ThreeState.Unknown) {
+                var val = isNoThrow ? (int)ThreeState.True : (int)ThreeState.False;
+                Interlocked.CompareExchange(ref _lazyIsNoThrow, val, (int)ThreeState.Unknown);
+            }
+
+            if (_lazyIsNoAlloc == (int)ThreeState.Unknown) {
+                var val = isNoAlloc ? (int)ThreeState.True : (int)ThreeState.False;
+                Interlocked.CompareExchange(ref _lazyIsNoAlloc, val, (int)ThreeState.Unknown);
+            }
+
+            if (_lazyIsConst == (int)ThreeState.Unknown) {
+                var val = isConst ? (int)ThreeState.True : (int)ThreeState.False;
+                Interlocked.CompareExchange(ref _lazyIsConst, val, (int)ThreeState.Unknown);
+            }
+
+            Debug.Assert(!attributeData.IsDefault);
+
+            if (!attributeData.IsEmpty) {
+                attributeData = InterlockedOperations.Initialize(
+                    ref AccessUncommonFields()._lazyCustomAttributes,
+                    attributeData
+                );
+            }
+
+            _packedFlags.SetIsCustomAttributesPopulated();
+            return attributeData;
+        }
+
+        var uncommonFields = _uncommonFields;
+
+        if (uncommonFields is null) {
+            return [];
+        } else {
+            var attributeData = uncommonFields._lazyCustomAttributes;
+
+            return attributeData.IsDefault
+                ? InterlockedOperations.Initialize(ref uncommonFields._lazyCustomAttributes, [])
+                : attributeData;
+        }
+
+        ImmutableArray<AttributeData> LoadAndFilterAttributes(
+            out bool isExtensionMethod,
+            out bool isReadOnly,
+            out bool hasRequiresUnsafeAttribute,
+            out bool isPure,
+            out bool isNoThrow,
+            out bool isNoAlloc,
+            out bool isConst) {
+            isExtensionMethod = false;
+            isReadOnly = false;
+            hasRequiresUnsafeAttribute = false;
+            isPure = false;
+            isNoThrow = false;
+            isNoAlloc = false;
+            isConst = false;
+
+            var containingModule = _containingType.containingPEModule;
+
+            if (!containingModule.TryGetNonEmptyCustomAttributes(_handle, out var customAttributeHandles))
+                return [];
+
+            // TODO
+            // bool checkForRequiredMembers = this.ShouldCheckRequiredMembers() && containingType.hasAnyRequiredMembers;
+
+            // var isInstanceIncrementDecrementOrCompoundAssignmentOperator = SourceMethodSymbol.
+            //     IsInstanceIncrementDecrementOrCompoundAssignmentOperator(this);
+
+            // var filterCompilerFeatureRequiredAttribute = (checkForRequiredMembers ||
+            //     isInstanceIncrementDecrementOrCompoundAssignmentOperator) &&
+            //         DeriveCompilerFeatureRequiredDiagnostic() is null;
+
+            // var filterObsoleteAttribute = checkForRequiredMembers && ObsoleteAttributeData is null;
+
+            using var builder = TemporaryArray<AttributeData>.Empty;
+
+            foreach (var handle in customAttributeHandles) {
+                if (containingModule
+                    .AttributeMatchesFilter(handle, AttributeDescription.CaseSensitiveExtensionAttribute)) {
+                    isExtensionMethod = true;
+                    continue;
+                }
+
+                if (containingModule.AttributeMatchesFilter(handle, AttributeDescription.IsReadOnlyAttribute)) {
+                    isReadOnly = true;
+                    continue;
+                }
+
+                // if (filterCompilerFeatureRequiredAttribute && containingModule.AttributeMatchesFilter(handle, AttributeDescription.CompilerFeatureRequiredAttribute))
+                //     continue;
+
+                // if (filterObsoleteAttribute && containingModule.AttributeMatchesFilter(handle, AttributeDescription.ObsoleteAttribute))
+                //     continue;
+
+                // if (containingModule.AttributeMatchesFilter(handle, AttributeDescription.ExtensionMarkerAttribute))
+                //     continue;
+
+                // if (containingModule.AttributeMatchesFilter(handle, AttributeDescription.RequiresUnsafeAttribute)) {
+                //     hasRequiresUnsafeAttribute = true;
+                //     continue;
+                // }
+
+                if (containingModule.AttributeMatchesFilter(handle, AttributeDescription.PureAttribute)) {
+                    isPure = true;
+                    continue;
+                }
+
+                if (containingModule.AttributeMatchesFilter(handle, AttributeDescription.NoThrowAttribute)) {
+                    isNoThrow = true;
+                    continue;
+                }
+
+                if (containingModule.AttributeMatchesFilter(handle, AttributeDescription.NoAllocAttribute)) {
+                    isNoAlloc = true;
+                    continue;
+                }
+
+                if (containingModule.AttributeMatchesFilter(handle, AttributeDescription.ConstMethodAttribute)) {
+                    isConst = true;
+                    continue;
+                }
+
+                builder.Add(new PEAttributeData(containingModule, handle));
+            }
+
+            return builder.ToImmutableAndClear();
+        }
+    }
+
+    internal override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        if (!_packedFlags.isConditionalPopulated) {
+            var result = _containingType.containingPEModule.module.GetConditionalAttributeValues(_handle);
+            Debug.Assert(!result.IsDefault);
+
+            if (!result.IsEmpty) {
+                result = InterlockedOperations.Initialize(
+                    ref AccessUncommonFields()._lazyConditionalAttributeSymbols,
+                    result
+                );
+            }
+
+            _packedFlags.SetIsConditionalAttributePopulated();
+            return result;
+        }
+
+        var uncommonFields = _uncommonFields;
+
+        if (uncommonFields is null) {
+            return [];
+        } else {
+            var result = uncommonFields._lazyConditionalAttributeSymbols;
+
+            return result.IsDefault
+                ? InterlockedOperations.Initialize(ref uncommonFields._lazyConditionalAttributeSymbols, [])
+                : result;
+        }
     }
 
     internal override UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete) {
@@ -428,7 +657,7 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
         var paramInfo = new MetadataDecoder(moduleSymbol, this)
             .GetSignatureForMethod(_handle, out var signatureHeader, out var mrEx);
 
-        var makeBad = mrEx != null;
+        var makeBad = mrEx is not null;
 
         if (!signatureHeader.IsGeneric && _lazyTypeParameters.IsDefault)
             ImmutableInterlocked.InterlockedInitialize(ref _lazyTypeParameters, []);
@@ -485,50 +714,102 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
                 return MethodKind.Ordinary;
             }
 
-            if (/*!this.hasRuntimeSpecialName && */isStatic && declaredAccessibility == Accessibility.Public) {
-                switch (_name) {
-                    case WellKnownMemberNames.AdditionOperatorName:
-                    case WellKnownMemberNames.BitwiseAndOperatorName:
-                    case WellKnownMemberNames.BitwiseOrOperatorName:
-                    case WellKnownMemberNames.DivideOperatorName:
-                    case WellKnownMemberNames.EqualityOperatorName:
-                    case WellKnownMemberNames.BitwiseExclusiveOrOperatorName:
-                    case WellKnownMemberNames.GreaterThanOperatorName:
-                    case WellKnownMemberNames.GreaterThanOrEqualOperatorName:
-                    case WellKnownMemberNames.InequalityOperatorName:
-                    case WellKnownMemberNames.LeftShiftOperatorName:
-                    case WellKnownMemberNames.LessThanOperatorName:
-                    case WellKnownMemberNames.LessThanOrEqualOperatorName:
-                    case WellKnownMemberNames.ModulusOperatorName:
-                    case WellKnownMemberNames.MultiplyOperatorName:
-                    case WellKnownMemberNames.RightShiftOperatorName:
-                    case WellKnownMemberNames.UnsignedRightShiftOperatorName:
-                    case WellKnownMemberNames.SubtractionOperatorName:
-                        return IsValidUserDefinedOperatorSignature(2) ? MethodKind.Operator : MethodKind.Ordinary;
-                    case WellKnownMemberNames.DecrementOperatorName:
-                    case WellKnownMemberNames.IncrementOperatorName:
-                    case WellKnownMemberNames.LogicalNotOperatorName:
-                    case WellKnownMemberNames.BitwiseNotOperatorName:
-                    case WellKnownMemberNames.UnaryNegationOperatorName:
-                    case WellKnownMemberNames.UnaryPlusOperatorName:
-                        return IsValidUserDefinedOperatorSignature(1) ? MethodKind.Operator : MethodKind.Ordinary;
-                    case WellKnownMemberNames.ImplicitConversionName:
-                    case WellKnownMemberNames.ExplicitConversionName:
-                        return IsValidUserDefinedOperatorSignature(1) ? MethodKind.Conversion : MethodKind.Ordinary;
-
-                        //case WellKnownMemberNames.ConcatenateOperatorName:
-                        //case WellKnownMemberNames.ExponentOperatorName:
-                        //case WellKnownMemberNames.IntegerDivisionOperatorName:
-                        //case WellKnownMemberNames.LikeOperatorName:
-                        //// Non-C#-supported overloaded operator
-                        // return MethodKind.Ordinary;
+            if (!hasRuntimeSpecialName && declaredAccessibility == Accessibility.Public) {
+                if (isStatic) {
+                    switch (_name) {
+                        case WellKnownMemberNames.AdditionOperatorName:
+                        case WellKnownMemberNames.BitwiseAndOperatorName:
+                        case WellKnownMemberNames.BitwiseOrOperatorName:
+                        case WellKnownMemberNames.DivideOperatorName:
+                        case WellKnownMemberNames.EqualityOperatorName:
+                        case WellKnownMemberNames.BitwiseExclusiveOrOperatorName:
+                        case WellKnownMemberNames.GreaterThanOperatorName:
+                        case WellKnownMemberNames.GreaterThanOrEqualOperatorName:
+                        case WellKnownMemberNames.InequalityOperatorName:
+                        case WellKnownMemberNames.LeftShiftOperatorName:
+                        case WellKnownMemberNames.LessThanOperatorName:
+                        case WellKnownMemberNames.LessThanOrEqualOperatorName:
+                        case WellKnownMemberNames.ModulusOperatorName:
+                        case WellKnownMemberNames.MultiplyOperatorName:
+                        case WellKnownMemberNames.RightShiftOperatorName:
+                        case WellKnownMemberNames.UnsignedRightShiftOperatorName:
+                        case WellKnownMemberNames.SubtractionOperatorName:
+                            return IsValidUserDefinedOperatorSignature(2) ? MethodKind.Operator : MethodKind.Ordinary;
+                        case WellKnownMemberNames.DecrementOperatorName:
+                        case WellKnownMemberNames.IncrementOperatorName:
+                        case WellKnownMemberNames.LogicalNotOperatorName:
+                        case WellKnownMemberNames.BitwiseNotOperatorName:
+                        case WellKnownMemberNames.UnaryNegationOperatorName:
+                        case WellKnownMemberNames.UnaryPlusOperatorName:
+                            return IsValidUserDefinedOperatorSignature(1) ? MethodKind.Operator : MethodKind.Ordinary;
+                        case WellKnownMemberNames.ImplicitConversionName:
+                        case WellKnownMemberNames.ExplicitConversionName:
+                            return IsValidUserDefinedOperatorSignature(1) ? MethodKind.Conversion : MethodKind.Ordinary;
+                    }
+                } else {
+                    switch (_name) {
+                        case WellKnownMemberNames.DecrementAssignmentOperatorName:
+                        case WellKnownMemberNames.IncrementAssignmentOperatorName:
+                            return IsValidInstanceUserDefinedOperatorSignature(0) ? MethodKind.Operator : MethodKind.Ordinary;
+                        case WellKnownMemberNames.AdditionAssignmentOperatorName:
+                        case WellKnownMemberNames.SubtractionAssignmentOperatorName:
+                        case WellKnownMemberNames.MultiplicationAssignmentOperatorName:
+                        case WellKnownMemberNames.DivisionAssignmentOperatorName:
+                        case WellKnownMemberNames.ModulusAssignmentOperatorName:
+                        case WellKnownMemberNames.BitwiseAndAssignmentOperatorName:
+                        case WellKnownMemberNames.BitwiseOrAssignmentOperatorName:
+                        case WellKnownMemberNames.ExclusiveOrAssignmentOperatorName:
+                        case WellKnownMemberNames.LeftShiftAssignmentOperatorName:
+                        case WellKnownMemberNames.RightShiftAssignmentOperatorName:
+                        case WellKnownMemberNames.UnsignedRightShiftAssignmentOperatorName:
+                            return IsValidInstanceUserDefinedOperatorSignature(1) ? MethodKind.Operator : MethodKind.Ordinary;
+                    }
                 }
 
                 return MethodKind.Ordinary;
             }
+        } else {
+            // Non CLR special names
+            if (declaredAccessibility == Accessibility.Public && isStatic) {
+                switch (_name) {
+                    case WellKnownMemberNames.IndexOperatorName:
+                        return IsValidUserDefinedOperatorSignature(2) ? MethodKind.Operator : MethodKind.Ordinary;
+                    case WellKnownMemberNames.LengthOperatorName:
+                    case WellKnownMemberNames.IterOperatorName:
+                        return IsValidUserDefinedOperatorSignature(1) ? MethodKind.Operator : MethodKind.Ordinary;
+                }
+            }
         }
 
         return MethodKind.Ordinary;
+    }
+
+    private bool IsValidInstanceUserDefinedOperatorSignature(int parameterCount) {
+        if (!returnsVoid || isTemplateMethod || this.parameterCount != parameterCount)
+            return false;
+
+        return HasValidOperatorParameterRefKinds();
+    }
+
+    private bool HasValidOperatorParameterRefKinds() {
+        if (parameterRefKinds.IsDefault)
+            return true;
+
+        foreach (var kind in parameterRefKinds) {
+            switch (kind) {
+                case RefKind.None:
+                    continue;
+                case RefKind.Out:
+                case RefKind.Ref:
+                case RefKind.RefConst:
+                case RefKind.RefFinal:
+                    return false;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(kind);
+            }
+        }
+
+        return true;
     }
 
     private bool IsValidUserDefinedOperatorSignature(int parameterCount) {
@@ -586,5 +867,30 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
 
     internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
         throw ExceptionUtilities.Unreachable();
+    }
+
+    internal bool SetAssociatedProperty(PEPropertySymbol propertySymbol, MethodKind methodKind) {
+        Debug.Assert((methodKind == MethodKind.PropertyGet) || (methodKind == MethodKind.PropertySet));
+        return SetAssociatedPropertyOrEvent(propertySymbol, methodKind);
+    }
+
+    private bool SetAssociatedPropertyOrEvent(Symbol propertyOrEventSymbol, MethodKind methodKind) {
+        if (_associatedPropertyOrEventOpt is null) {
+            Debug.Assert(TypeSymbol.Equals(propertyOrEventSymbol.containingType, _containingType, TypeCompareKind.ConsiderEverything));
+
+            _associatedPropertyOrEventOpt = propertyOrEventSymbol;
+
+            Debug.Assert(
+                _packedFlags.methodKind == default ||
+                _packedFlags.methodKind == MethodKind.Ordinary ||
+                _packedFlags.methodKind == MethodKind.ExplicitInterfaceImplementation
+            );
+
+            _packedFlags.methodKind = methodKind;
+
+            return true;
+        }
+
+        return false;
     }
 }

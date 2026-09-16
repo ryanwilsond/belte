@@ -37,7 +37,6 @@ a lowlevel context.
 - [6.14](#614-c-strings) C-Strings
 - [6.15](#615-lowlevel-fields) LowLevel Fields
 - [6.16](#616-lowlevel-default-literal) LowLevel Default Literal
-- [6.17](#617-double-verbatim-identifiers) Double Verbatim Identifiers
 
 Additionally, the
 [Standard Library contains a class named LowLevel that provides various helper methods](StandardLibrary/LowLevel.md).
@@ -822,8 +821,3 @@ Lowlevel default literals can only be used in lowlevel contexts.
 
 This should only be used in cases where read access to a data container is tightly controlled to avoid reading while
 not initialized to a valid value.
-
-## 6.17 Double Verbatim Identifiers
-
-The double verbatim specifier `@@` reads all trailing characters as a part of the identifier terminating at whitespace
-or a subsequent `@`. This could be used to directly reference compiler-generated symbols. Here be dragons.

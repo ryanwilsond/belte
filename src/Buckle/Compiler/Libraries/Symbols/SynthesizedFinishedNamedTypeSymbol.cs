@@ -57,6 +57,14 @@ internal sealed class SynthesizedFinishedNamedTypeSymbol : WrappedNamedTypeSymbo
         return [];
     }
 
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers() {
+        return GetMembersUnordered();
+    }
+
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers(string name) {
+        return GetMembers(name);
+    }
+
     internal override ImmutableArray<Symbol> GetMembers() {
         return _allMembers;
     }
