@@ -96,6 +96,7 @@ internal abstract partial class MethodToClassRewriter : BoundTreeRewriterWithSta
             newInnerLocals,
             condition,
             increment,
+            node.unroll,
             body,
             node.breakLabel,
             node.continueLabel

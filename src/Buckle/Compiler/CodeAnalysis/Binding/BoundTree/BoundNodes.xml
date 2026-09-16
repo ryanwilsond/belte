@@ -543,6 +543,7 @@
     <Field Name="innerLocals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
     <Field Name="condition" Type="BoundExpression?"/>
     <Field Name="step" Type="BoundStatement?"/>
+    <Field Name="unroll" Type="bool"/>
     <Field Name="body" Type="BoundStatement"/>
   </Node>
   <Node Name="BoundForEachStatement" Base="BoundLoopStatement">
@@ -553,6 +554,7 @@
     <Field Name="innerLocals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
     <Field Name="valueLocal" Type="DataContainerSymbol"/>
     <Field Name="indexLocal" Type="DataContainerSymbol?"/>
+    <Field Name="unroll" Type="bool"/>
     <Field Name="body" Type="BoundStatement"/>
   </Node>
   <Node Name="BoundNullBindingStatement" Base="BoundStatement">

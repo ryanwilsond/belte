@@ -193,6 +193,7 @@ public enum SyntaxKind : ushort {
     TemplateKeyword,
     InternalKeyword,
     OrKeyword,
+    UnrollKeyword,
 
     // Trivia
     EndOfLineTrivia,

@@ -115,6 +115,24 @@ internal sealed class ForEachLoopBinder : LoopBinder {
 
         var body = originalBinder.BindPossibleEmbeddedStatement(node.body, diagnostics);
 
+        var shouldUnroll = node.unrollKeyword is not null;
+
+        // TODO Consider allowing more complex compile-time expressions
+        // Hard part is that compile-time expressions are evaluated after for loops are lowered away
+        if (shouldUnroll) {
+            if (forEachKind != ForEachLoopKind.Range) {
+                diagnostics.Push(Error.CannotUnrollNonRange(node.unrollKeyword.location));
+                shouldUnroll = false;
+            } else if (enumeratorInfo?.start is { } start && start.constantValue is null ||
+                enumeratorInfo?.end is { } end && end.constantValue is null) {
+                diagnostics.Push(Error.UnrollRequiresCompileTimeRange(node.expression.location));
+                shouldUnroll = false;
+            }
+        }
+
+        if (_indexSymbol is not null && forEachKind == ForEachLoopKind.Range)
+            diagnostics.Push(Error.RangeCannotUseIndexLocal(_indexSymbol.location));
+
         return new BoundForEachStatement(
             node,
             enumeratorInfo,
@@ -124,6 +142,7 @@ internal sealed class ForEachLoopBinder : LoopBinder {
             [],
             _valueSymbol,
             _indexSymbol,
+            unroll: shouldUnroll,
             body,
             breakLabel,
             continueLabel

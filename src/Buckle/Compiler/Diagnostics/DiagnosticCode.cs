@@ -651,6 +651,9 @@ public enum DiagnosticCode : ushort {
     ERR_InaccessibleGetter = 640,
     ERR_OrRequiresResultType = 641,
     ERR_OrRequiresResultTypeInContainingMember = 642,
+    ERR_CannotUnrollNonRange = 643,
+    ERR_UnrollRequiresCompileTimeRange = 644,
+    ERR_RangeCannotUseIndexLocal = 645,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

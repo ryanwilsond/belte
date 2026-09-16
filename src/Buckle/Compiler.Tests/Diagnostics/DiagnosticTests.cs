@@ -9453,4 +9453,44 @@ var text = """"""
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0643_CannotUnrollNonRange() {
+        var text = @"
+            for (c in ""str"") [unroll] ;
+        ";
+
+        var diagnostics = @"
+            only range for loops can use the 'unroll' specifier
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0644_UnrollRequiresCompileTimeRange() {
+        var text = @"
+            var end = 10;
+            for (c in [0..<end]) unroll ;
+        ";
+
+        var diagnostics = @"
+            range must be compile-time to use the 'unroll' specifier
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0645_RangeCannotUseIndexLocal() {
+        var text = @"
+            for (i, [idx] in 0..<10) ;
+        ";
+
+        var diagnostics = @"
+            range for loops cannot use an index local
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

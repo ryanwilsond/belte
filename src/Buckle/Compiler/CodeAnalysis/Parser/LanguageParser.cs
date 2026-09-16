@@ -2642,6 +2642,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             semicolon,
             step,
             closeParenthesis,
+            unrollKeyword: null,
             body
         );
     }
@@ -2691,6 +2692,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
         _context = saved;
 
         var closeParenthesis = MatchCloseParen();
+        var unrollKeyword = currentToken.contextualKind == SyntaxKind.UnrollKeyword
+            ? ConvertToKeyword(EatToken())
+            : null;
         var body = ParseStatement();
 
         return SyntaxFactory.ForEachStatement(
@@ -2702,6 +2706,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             inKeyword,
             expression,
             closeParenthesis,
+            unrollKeyword,
             body
         );
     }

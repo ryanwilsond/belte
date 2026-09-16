@@ -219,6 +219,7 @@ These keywords only act as keywords inside specific contexts. As such they can b
 - [state](ClassesAndObjects.md#4222-state-and-reverse-clauses)
 - [template](ClassesAndObjects.md#452-compile-time-type-template-parameters)
 - [undef](Preprocessor.md#71-defineundef)
+- [unroll](LowLevelFeatures.md#617-loop-unrolling)
 
 ## 1.4 Nullability and Types
 

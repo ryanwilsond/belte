@@ -264,6 +264,7 @@ public static class SyntaxFacts {
             "template" => SyntaxKind.TemplateKeyword,
             "internal" => SyntaxKind.InternalKeyword,
             "or" => SyntaxKind.OrKeyword,
+            "unroll" => SyntaxKind.UnrollKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -295,6 +296,7 @@ public static class SyntaxFacts {
             case SyntaxKind.StateKeyword:
             case SyntaxKind.TemplateKeyword:
             case SyntaxKind.UndefKeyword:
+            case SyntaxKind.UnrollKeyword:
                 return true;
             default:
                 return false;
@@ -475,6 +477,7 @@ public static class SyntaxFacts {
             SyntaxKind.TemplateKeyword => "template",
             SyntaxKind.InternalKeyword => "internal",
             SyntaxKind.OrKeyword => "or",
+            SyntaxKind.UnrollKeyword => "unroll",
             _ => null,
         };
     }
@@ -880,7 +883,7 @@ public static class SyntaxFacts {
     }
 
     private const int FirstKeyword = (int)SyntaxKind.TypeOfKeyword;
-    private const int LastKeyword = (int)SyntaxKind.OrKeyword;
+    private const int LastKeyword = (int)SyntaxKind.UnrollKeyword;
 
     /// <summary>
     /// Checks if a <see cref="SyntaxKind" /> is a keyword.

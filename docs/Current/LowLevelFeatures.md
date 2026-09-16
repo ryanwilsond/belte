@@ -37,6 +37,7 @@ a lowlevel context.
 - [6.14](#614-c-strings) C-Strings
 - [6.15](#615-lowlevel-fields) LowLevel Fields
 - [6.16](#616-lowlevel-default-literal) LowLevel Default Literal
+- [6.17](#617-loop-unrolling) Loop Unrolling
 
 Additionally, the
 [Standard Library contains a class named LowLevel that provides various helper methods](StandardLibrary/LowLevel.md).
@@ -821,3 +822,29 @@ Lowlevel default literals can only be used in lowlevel contexts.
 
 This should only be used in cases where read access to a data container is tightly controlled to avoid reading while
 not initialized to a valid value.
+
+## 6.17 Loop Unrolling
+
+[Range for loops](ControlFlow.md#2445-ranges) with compile-time bounds can be unrolled using the `unroll` specifier:
+
+```belte
+for (i in 0..<5) unroll
+  Console.PrintLine(i);
+```
+
+The above will approximately turn into:
+
+```belte
+i = 0;
+Console.PrintLine(i);
+i = 1;
+Console.PrintLine(i);
+i = 2;
+Console.PrintLine(i);
+i = 3;
+Console.PrintLine(i);
+i = 4;
+Console.PrintLine(i);
+```
+
+Note the local remains because it is mutable. However, it is often optimized out later.

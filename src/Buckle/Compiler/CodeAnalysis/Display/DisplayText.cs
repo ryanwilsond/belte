@@ -982,6 +982,12 @@ public sealed class DisplayText {
         DisplayNode(text, node.step);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
         text.Write(CreateSpace());
+
+        if (node.unroll) {
+            text.Write(CreateKeyword(SyntaxKind.UnrollKeyword));
+            text.Write(CreateSpace());
+        }
+
         text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
         text.WriteLine();
         DisplayNestedStatement(text, node.body);
@@ -1007,6 +1013,12 @@ public sealed class DisplayText {
         DisplayNode(text, node.expression);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
         text.Write(CreateSpace());
+
+        if (node.unroll) {
+            text.Write(CreateKeyword(SyntaxKind.UnrollKeyword));
+            text.Write(CreateSpace());
+        }
+
         text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
         text.WriteLine();
         DisplayNestedStatement(text, node.body);

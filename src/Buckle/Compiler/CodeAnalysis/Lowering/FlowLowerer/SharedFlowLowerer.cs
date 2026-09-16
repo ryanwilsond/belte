@@ -5,11 +5,15 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Libraries;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
 internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
+    // TODO Tune
+    private const int MaxUnroll = 64;
+
     private readonly List<string> _localNames = [];
     private int _tempCount = 0;
     private int _labelCount;
@@ -140,6 +144,7 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
                 [],
                 condition,
                 new BoundExpressionStatement(syntax, Increment(_compilation, syntax, Local(syntax, index))),
+                node.unroll,
                 Block(syntax,
                     new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                         node.valueLocal,
@@ -212,6 +217,7 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
                 [],
                 condition,
                 new BoundExpressionStatement(syntax, Increment(_compilation, syntax, Local(syntax, index))),
+                node.unroll,
                 Block(syntax,
                     new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                         node.valueLocal,
@@ -290,6 +296,7 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
                 [],
                 condition,
                 new BoundExpressionStatement(syntax, Increment(_compilation, syntax, Local(syntax, index))),
+                node.unroll,
                 Block(syntax,
                     new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                         node.valueLocal,
@@ -360,6 +367,7 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
                 [],
                 condition,
                 new BoundExpressionStatement(syntax, Increment(_compilation, syntax, Local(syntax, index))),
+                node.unroll,
                 Block(syntax,
                     new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                         node.valueLocal,
@@ -428,6 +436,7 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
                 [],
                 condition,
                 new BoundExpressionStatement(syntax, Increment(_compilation, syntax, Local(syntax, index))),
+                node.unroll,
                 Block(syntax,
                     new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                         node.valueLocal,
@@ -457,6 +466,13 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
         Debug.Assert(node.enumeratorInfo.start is not null);
         Debug.Assert(node.enumeratorInfo.end is not null);
 
+        var shouldUnroll = node.unroll &&
+            (long)node.enumeratorInfo.end.constantValue.value -
+            (long)node.enumeratorInfo.start.constantValue.value <= MaxUnroll;
+
+        if (shouldUnroll)
+            return UnrollForEach(node);
+
         var syntax = node.syntax;
 
         var i = GenerateTempLocal(node.enumeratorInfo.start.type);
@@ -478,6 +494,7 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
                 [],
                 condition,
                 new BoundExpressionStatement(syntax, Increment(_compilation, syntax, Local(syntax, i))),
+                node.unroll,
                 Block(syntax,
                     new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                         node.valueLocal,
@@ -489,6 +506,52 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
                 node.continueLabel
             )
         ]));
+    }
+
+    private BoundNode UnrollForEach(BoundForEachStatement node) {
+        /*
+
+        {
+            {
+                <value> = <start>
+                <body>
+            }
+            {
+                <value> = <start> + 1
+                <body>
+            }
+            ...
+        }
+
+        */
+        // TODO Could do some optimization here
+        Debug.Assert(node.forEachLoopKind == ForEachLoopKind.Range);
+
+        var syntax = node.syntax;
+        var info = node.enumeratorInfo;
+
+        var start = (long)info.start.constantValue.value;
+        var end = (long)info.end.constantValue.value;
+
+        if (info.inclusiveEnd)
+            end++;
+
+        var statements = ArrayBuilder<BoundStatement>.GetInstance((int)(start - end));
+        var valueType = node.valueLocal.type;
+
+        for (var ind = start; ind < end; ind++) {
+            statements.Add(Block(syntax, node.innerLocals, [
+                Statement(syntax, Assignment(syntax,
+                    Local(syntax, node.valueLocal),
+                    Literal(_compilation, syntax, ind, valueType),
+                    false,
+                    valueType
+                )),
+                node.body
+            ]));
+        }
+
+        return Visit(Block(syntax, node.locals, statements.ToArrayAndFree()));
     }
 
     internal override BoundNode VisitLocalFunctionStatement(BoundLocalFunctionStatement node) {

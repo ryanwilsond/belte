@@ -199,6 +199,7 @@
     - [6.14](Current/LowLevelFeatures.md#614-c-strings) C-Strings
     - [6.15](Current/LowLevelFeatures.md#615-lowlevel-fields) LowLevel Fields
     - [6.16](Current/LowLevelFeatures.md#616-lowlevel-default-literal) LowLevel Default Literal
+    - [6.17](Current/LowLevelFeatures.md#617-loop-unrolling) Loop Unrolling
   - [7](Current/Preprocessor.md) Preprocessor Directives
     - [7.1](Current/Preprocessor.md#71-defineundef) Define/Undef
     - [7.2](Current/Preprocessor.md#72-control) Control

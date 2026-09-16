@@ -3150,6 +3150,21 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_OrRequiresResultTypeInContainingMember, location, message);
     }
 
+    internal static BelteDiagnostic CannotUnrollNonRange(TextLocation location) {
+        var message = $"only range for loops can use the 'unroll' specifier";
+        return CreateError(DiagnosticCode.ERR_CannotUnrollNonRange, location, message);
+    }
+
+    internal static BelteDiagnostic UnrollRequiresCompileTimeRange(TextLocation location) {
+        var message = $"range must be compile-time to use the 'unroll' specifier";
+        return CreateError(DiagnosticCode.ERR_UnrollRequiresCompileTimeRange, location, message);
+    }
+
+    internal static BelteDiagnostic RangeCannotUseIndexLocal(TextLocation location) {
+        var message = $"range for loops cannot use an index local";
+        return CreateError(DiagnosticCode.ERR_RangeCannotUseIndexLocal, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }
