@@ -599,7 +599,31 @@ public sealed partial class BelteRepl : Repl {
             return;
         }
 
-        var text = File.ReadAllText(path);
+        var opened = false;
+        string text = null;
+
+        for (var j = 1; j < 4; j++) {
+            try {
+                text = File.ReadAllText(path);
+                opened = true;
+                break;
+            } catch (IOException) {
+                if (j < 3)
+                    Thread.Sleep(j * 10);
+            }
+        }
+
+        if (!opened) {
+            handle.diagnostics.Push(new BelteDiagnostic(Diagnostics.Error.UnableToOpenFile(path)));
+
+            if (_hasDiagnosticHandle)
+                _diagnosticHandle(handle, "repl", state.colorTheme.textDefault);
+            else
+                handle.diagnostics.Clear();
+
+            return;
+        }
+
         EvaluateSubmission(text);
     }
 

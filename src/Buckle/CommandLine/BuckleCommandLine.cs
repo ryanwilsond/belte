@@ -349,25 +349,10 @@ public class {name} {{
 
         var inputFileName = buildState.buildScript;
 
-        if (!File.Exists(inputFileName)) {
+        if (!File.Exists(inputFileName))
             diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(inputFileName));
-        } else {
-            var opened = false;
-
-            for (var j = 1; j < 4; j++) {
-                try {
-                    buildState.buildScriptText = File.ReadAllText(inputFileName);
-                    opened = true;
-                    break;
-                } catch (IOException) {
-                    if (j < 3)
-                        Thread.Sleep(j * 10);
-                }
-            }
-
-            if (!opened)
-                diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(inputFileName));
-        }
+        else
+            buildState.buildScriptText = ReadAllTextOrDiagnose(inputFileName, diagnostics);
 
         err = ResolveDiagnostics(diagnostics, processName, state);
 
@@ -1119,41 +1104,14 @@ public class {name} {{
     private static void ReadInputFiles(Compiler compiler, DiagnosticQueue<Diagnostic> diagnostics) {
         for (var i = 0; i < compiler.state.tasks.Length; i++) {
             ref var task = ref compiler.state.tasks[i];
-            var opened = false;
 
             switch (task.stage) {
                 case CompilerStage.Raw:
                 case CompilerStage.Compiled:
-                    for (var j = 1; j < 4; j++) {
-                        try {
-                            task.fileContent.text = File.ReadAllText(task.inputFileName);
-                            opened = true;
-                            break;
-                        } catch (IOException) {
-                            if (j < 3)
-                                Thread.Sleep(j * 10);
-                        }
-                    }
-
-                    if (!opened)
-                        diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(task.inputFileName));
-
+                    task.fileContent.text = ReadAllTextOrDiagnose(task.inputFileName, diagnostics);
                     break;
                 case CompilerStage.Assembled:
-                    for (var j = 1; j < 4; j++) {
-                        try {
-                            task.fileContent.bytes = File.ReadAllBytes(task.inputFileName).ToList();
-                            opened = true;
-                            break;
-                        } catch (IOException) {
-                            if (j < 3)
-                                Thread.Sleep(j * 10);
-                        }
-                    }
-
-                    if (!opened)
-                        diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(task.inputFileName));
-
+                    task.fileContent.bytes = ReadAllBytesOrDiagnose(task.inputFileName, diagnostics);
                     break;
                 case CompilerStage.Finished:
                     diagnostics.Push(Belte.Diagnostics.Info.IgnoringCompiledFile(task.inputFileName));
@@ -2091,5 +2049,33 @@ public class {name} {{
         }
 
         return fileStates.ToArray();
+    }
+
+    private static string ReadAllTextOrDiagnose(string path, DiagnosticQueue<Diagnostic> diagnostics) {
+        for (var j = 1; j < 4; j++) {
+            try {
+                return File.ReadAllText(path);
+            } catch (IOException) {
+                if (j < 3)
+                    Thread.Sleep(j * 10);
+            }
+        }
+
+        diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(path));
+        return null;
+    }
+
+    private static List<byte> ReadAllBytesOrDiagnose(string path, DiagnosticQueue<Diagnostic> diagnostics) {
+        for (var j = 1; j < 4; j++) {
+            try {
+                return File.ReadAllBytes(path).ToList();
+            } catch (IOException) {
+                if (j < 3)
+                    Thread.Sleep(j * 10);
+            }
+        }
+
+        diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(path));
+        return null;
     }
 }

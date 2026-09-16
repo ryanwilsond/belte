@@ -91,6 +91,11 @@ internal static class Error {
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_FailedILGeneration), message);
     }
 
+    internal static Diagnostic UnableToOpenFile(string fileName) {
+        var message = $"failed to open file '{fileName}'; most likely due to the file being used by another process";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnableToOpenFile), message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "RE", DiagnosticSeverity.Error);
     }

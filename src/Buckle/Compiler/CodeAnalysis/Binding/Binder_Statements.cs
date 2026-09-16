@@ -344,8 +344,8 @@ internal partial class Binder {
             inferredType = new TypeWithAnnotations(compilation.GetSpecialType(SpecialType.Char));
             enumeratorInfo = null;
             return ForEachLoopKind.String;
-        } else if (type.originalDefinition.Equals(compilation.corLibrary.GetWellKnownType(WellKnownType.Enumerator))) {
-            inferredType = ((NamedTypeSymbol)type).templateArguments[0].type;
+        } else if (TypeIsEnumerator(type, out var enumeratorType)) {
+            inferredType = enumeratorType.templateArguments[0].type;
             enumeratorInfo = null;
             return ForEachLoopKind.Enumerator;
         } else if (lengthOps.Any() && worseIndexOp is not null) {
@@ -367,6 +367,25 @@ internal partial class Binder {
         } else {
             enumeratorInfo = null;
             return BindForEachCollectionContinued(syntax, collectionSyntax, type, diagnostics, out inferredType);
+        }
+
+        bool TypeIsEnumerator(TypeSymbol type, out NamedTypeSymbol enumeratorType) {
+            var enumerator = compilation.corLibrary.GetWellKnownType(WellKnownType.Enumerator);
+            Debug.Assert(enumerator is not null && !enumerator.IsErrorType());
+
+            var current = type;
+
+            while ((object)current is not null) {
+                if (enumerator.Equals(current.originalDefinition)) {
+                    enumeratorType = (NamedTypeSymbol)current;
+                    return true;
+                }
+
+                current = current.baseType;
+            }
+
+            enumeratorType = null;
+            return false;
         }
     }
 

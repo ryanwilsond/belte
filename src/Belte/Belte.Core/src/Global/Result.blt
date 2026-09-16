@@ -1,8 +1,8 @@
 
 public struct Result<type T, type E> {
-    private T _value;
-    private E _error;
-    private bool _isSuccess;
+    private final T _value;
+    private final E _error;
+    private final bool _isSuccess;
 
     private constructor(T value, E error, bool isSuccess) {
         _value = value;
@@ -10,9 +10,9 @@ public struct Result<type T, type E> {
         _isSuccess = isSuccess;
     }
 
-    public property bool isSuccess => _isSuccess;
+    public const property bool isSuccess => _isSuccess;
 
-    public property bool isError => !_isSuccess;
+    public const property bool isError => !_isSuccess;
 
     public property T value => _isSuccess ? _value : throw new InvalidResultException();
 

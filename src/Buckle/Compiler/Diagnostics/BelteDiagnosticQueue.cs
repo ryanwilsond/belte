@@ -15,6 +15,10 @@ namespace Buckle.Diagnostics;
 public partial class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
     internal static readonly BelteDiagnosticQueue Discarded = new DiscardedDiagnosticQueue();
 
+#if DEBUG
+    private protected virtual bool _isDiscarded => false;
+#endif
+
     internal readonly ICollection<AssemblySymbol> dependenciesBag;
 
 #if DEBUG

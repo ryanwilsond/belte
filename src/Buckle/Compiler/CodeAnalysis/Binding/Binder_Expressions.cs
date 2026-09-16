@@ -5102,9 +5102,22 @@ internal partial class Binder {
     private BoundExpression BindValidRangeExpression(RangeExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
         var int64 = compilation.GetSpecialType(SpecialType.Int);
         var left = BindValue(node.left, diagnostics, BindValueKind.RValue);
-        left = CreateConversion(left, int64, diagnostics);
+
+        var leftConversion = conversions.ClassifyImplicitConversionFromExpression(left, int64);
+
+        if (!leftConversion.exists)
+            GenerateImplicitConversionError(diagnostics, node.left, leftConversion, left, int64);
+        else
+            left = CreateConversion(left, leftConversion, int64, diagnostics);
+
         var right = BindValue(node.right, diagnostics, BindValueKind.RValue);
-        right = CreateConversion(right, int64, diagnostics);
+
+        var rightConversion = conversions.ClassifyImplicitConversionFromExpression(right, int64);
+
+        if (!rightConversion.exists)
+            GenerateImplicitConversionError(diagnostics, node.right, rightConversion, right, int64);
+        else
+            right = CreateConversion(right, rightConversion, int64, diagnostics);
 
         var includeEnd = node.operatorToken.kind == SyntaxKind.PeriodPeriodEqualsToken;
 
@@ -5206,7 +5219,7 @@ internal partial class Binder {
         bool hasError) {
         ReportDiagnosticsIfNoThrowContext(syntax, diagnostics);
 
-        BoundExpression conversion = null;
+        BoundExpression cast = null;
         BoundValuePlaceholder placeholder = null;
 
         if (!hasError) {
@@ -5215,13 +5228,18 @@ internal partial class Binder {
                 ((NamedTypeSymbol)expression.type).templateArguments[1].type.type
             );
 
-            conversion = CreateConversion(placeholder, compilation.GetSpecialType(SpecialType.Any), diagnostics);
+            var destination = compilation.GetSpecialType(SpecialType.Any);
+            var conversion = conversions.ClassifyConversionFromExpression(placeholder, destination);
+
+            Debug.Assert(conversion.exists);
+
+            cast = CreateConversion(placeholder, conversion, destination, diagnostics);
         }
 
         return new BoundOrThrowExpression(
             syntax,
             expression,
-            conversion as BoundCastExpression,
+            cast as BoundCastExpression,
             placeholder,
             type,
             hasError
@@ -5278,8 +5296,14 @@ internal partial class Binder {
 
         var alternative = BindRValueWithoutTargetType(node.value, diagnostics);
 
-        if (!hasError)
-            alternative = CreateConversion(alternative, type, diagnostics);
+        if (!hasError) {
+            var conversion = conversions.ClassifyImplicitConversionFromExpression(alternative, type);
+
+            if (!conversion.exists)
+                GenerateImplicitConversionError(diagnostics, node.value, conversion, alternative, type);
+            else
+                alternative = CreateConversion(alternative, conversion, type, diagnostics);
+        }
 
         return new BoundOrValueExpression(node, expression, alternative, type, hasError);
     }

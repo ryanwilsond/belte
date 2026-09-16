@@ -733,6 +733,88 @@ public sealed class EvaluatorTests {
             sum += i;
         }
         return sum;", 10)]
+    [InlineData(@"
+        int[] a = { 1, 2, 3, 4, 5 };
+        int sum = 0;
+        for (i in a) sum += i;
+        return sum;
+    ", 15)]
+    [InlineData(@"
+        int[] a = { 1, 2, 3, 4, 5 };
+        int sum = 0;
+        for (i, idx in a) sum += i + idx;
+        return sum;
+    ", 25)]
+    [InlineData(@"
+        constexpr t = ""test"";
+        char[] a = new char[$String.Length(t)];
+        for (c, idx in t) a[idx] = c;
+        return a[1];
+    ", 'e')]
+    [InlineData(@"
+        class MyList {
+            public static Enumerator<int>! operator iter(MyList _) { return new MyIter(); }
+
+            class MyIter extends Enumerator<int> {
+                private int count = -1;
+                public override bool MoveNext() { return count++ < 5;}
+                public override int Current() { return count * 2; }
+            }
+        }
+        var t = new MyList();
+        int sum = 0;
+        for (i in t) sum += i;
+        return sum;
+    ", 30)]
+    [InlineData(@"
+        class MyList {
+            public static Enumerator<int>! operator iter(MyList _) { return new MyIter(); }
+
+            class MyIter extends Enumerator<int> {
+                private int count = -1;
+                public override bool MoveNext() { return count++ < 5;}
+                public override int Current() { return count * 2; }
+            }
+        }
+        var t = new MyList();
+        int sum = 0;
+        for (i, idx in t) sum += i + idx;
+        return sum;
+    ", 45)]
+    [InlineData(@"
+        class MyIter extends Enumerator<int> {
+            private int count = -1;
+            public override void Reset() { count = -1; }
+            public override bool MoveNext() { return count++ < 5;}
+            public override int Current() { return count * 2; }
+        }
+        var t = new MyIter();
+        int sum = 0;
+        for (i in t) sum += i;
+        return sum;
+    ", 30)]
+    [InlineData(@"
+        class MyIter extends Enumerator<int> {
+            private int count = -1;
+            public override void Reset() { count = -1; }
+            public override bool MoveNext() { return count++ < 5;}
+            public override int Current() { return count * 2; }
+        }
+        var t = new MyIter();
+        int sum = 0;
+        for (i, idx in t) sum += i + idx;
+        return sum;
+    ", 45)]
+    [InlineData(@"
+        class MyList {
+            public static int operator[](MyList _, int index) { return index * 2; }
+            public static int operator length(MyList _) { return 5; }
+        }
+        var a = new MyList();
+        int sum = 0;
+        for (i in a) sum += i;
+        return sum;
+    ", 20)]
     [InlineData(@"int sum = 0; for (i in 0..<10) sum += i; return sum;", 45)]
     [InlineData(@"int sum = 0; for (i in 0..=10) sum += i; return sum;", 55)]
     // While statements
@@ -1571,6 +1653,92 @@ public sealed class EvaluatorTests {
     // Or Expressions
     [InlineData(@"var result = Result<int, string>.Success(10); return result or 0;", 10)]
     [InlineData(@"var result = Result<int, string>.Failure(""failed""); return result or 0;", 0)]
+    [InlineData(@"
+        try {
+            var a = Result<int, int>.Failure(0) or throw;
+        } catch {
+            return 10;
+        }
+        return 20;
+    ", 10)]
+    [InlineData(@"
+        try {
+            var a = Result<int, int>.Success(0) or throw;
+        } catch {
+            return 10;
+        }
+        return 20;
+    ", 20)]
+    [InlineData(@"
+        int sum = 0;
+        for (i in 1..<10) {
+            sum += i;
+            var _ = Result<int, int>.Failure(0) or break;
+        }
+        return sum;
+    ", 1)]
+    [InlineData(@"
+        int sum = 0;
+        for (i in 1..<10) {
+            sum += i;
+            var _ = Result<int, int>.Success(0) or break;
+        }
+        return sum;
+    ", 45)]
+    [InlineData(@"
+        int sum = 0;
+        for (i in 1..<10) {
+            sum += i;
+            var _ = Result<int, int>.Failure(0) or continue;
+        }
+        return sum;
+    ", 45)]
+    [InlineData(@"
+        int sum = 0;
+        for (i in 1..<10) {
+            sum += i;
+            var _ = Result<int, int>.Success(0) or continue;
+        }
+        return sum;
+    ", 45)]
+    [InlineData(@"
+        Result<bool, int> M() {
+            var a = E() or return;
+            return Result<bool, int>.Failure(5);
+        }
+        Result<int, int> E() {
+            return Result<int, int>.Success(10);
+        }
+        return M().error;
+    ", 5)]
+    [InlineData(@"
+        Result<bool, int> M() {
+            var a = E() or return;
+            return Result<bool, int>.Failure(5);
+        }
+        Result<int, int> E() {
+            return Result<int, int>.Failure(10);
+        }
+        return M().error;
+    ", 10)]
+    // Properties
+    [InlineData(@"
+        class A { public static property int a => 3; }
+        return A.a;
+    ", 3)]
+    [InlineData(@"
+        class A { public static property int a { get => 3; } }
+        return A.a;
+    ", 3)]
+    [InlineData(@"
+        class A { public static property int a { get => field; } }
+        return A.a;
+    ", 0)]
+    [InlineData(@"
+        class A { public static property int a { get => field; set => field = value; } }
+        A.a = 10;
+        return A.a;
+    ", 10)]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue, evaluator: true, executor: true);
     }
