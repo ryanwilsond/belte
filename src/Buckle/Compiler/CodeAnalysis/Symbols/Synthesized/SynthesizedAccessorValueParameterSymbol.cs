@@ -12,6 +12,7 @@ internal abstract class SynthesizedAccessorValueParameterSymbol : SourceComplexP
             isConst: false,
             ValueParameterName,
             syntax: null,
+            location: accessor.location,
             scope: ScopedKind.None) {
         Debug.Assert(accessor.locations.Length <= 1);
     }

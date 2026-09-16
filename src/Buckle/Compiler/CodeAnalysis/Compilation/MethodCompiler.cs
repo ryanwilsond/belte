@@ -1058,7 +1058,8 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                         // return body;
                         break;
                     case BoundNonConstructorMethodBody nonConstructor:
-                        body = nonConstructor.body;
+                        body = nonConstructor.body ?? nonConstructor.expressionBody;
+                        Debug.Assert(body is not null);
                         break;
                     case BoundBlockStatement block:
                         body = block;

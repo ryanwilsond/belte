@@ -20,7 +20,8 @@
   </AbstractNode>
   <AbstractNode Name="BoundStatement" Base="BoundNode"/>
   <AbstractNode Name="BoundMethodBodyBase" Base="BoundNode">
-    <Field Name="body" Type="BoundBlockStatement"/>
+    <Field Name="body" Type="BoundBlockStatement?"/>
+    <Field Name="expressionBody" Type="BoundBlockStatement?"/>
   </AbstractNode>
   <AbstractNode Name="BoundLoopStatement" Base="BoundStatement">
     <Field Name="breakLabel" Type="SynthesizedLabelSymbol"/>

@@ -330,6 +330,52 @@ internal sealed partial class BinderFactory {
             return Visit(node.parent);
         }
 
+        internal override Binder VisitAccessorDeclaration(AccessorDeclarationSyntax node) {
+            if (!LookupPosition.IsInMethodDeclaration(_position, node))
+                return VisitCore(node.parent);
+
+            var inBody = LookupPosition.IsInBody(_position, node);
+            var extraInfo = inBody ? NodeUsage.AccessorBody : NodeUsage.Normal;
+            var key = CreateBinderCacheKey(node, extraInfo);
+
+            if (!_binderCache.TryGetValue(key, out var resultBinder)) {
+                resultBinder = VisitCore(node.parent);
+
+                if (inBody) {
+                    var propertyDecl = node.parent.parent;
+                    MethodSymbol accessor = null;
+
+                    switch (propertyDecl.kind) {
+                        case SyntaxKind.PropertyDeclaration: {
+                                var propertySymbol = GetPropertySymbol(
+                                    (PropertyDeclarationSyntax)propertyDecl,
+                                    resultBinder
+                                );
+
+                                if (propertySymbol is not null) {
+                                    accessor = (node.keyword.kind == SyntaxKind.GetKeyword)
+                                        ? propertySymbol.getMethod
+                                        : propertySymbol.setMethod;
+
+                                    Debug.Assert(accessor is not null || node.containsDiagnostics);
+                                }
+
+                                break;
+                            }
+                        default:
+                            throw ExceptionUtilities.UnexpectedValue(propertyDecl.kind);
+                    }
+
+                    if (accessor is not null)
+                        resultBinder = new InMethodBinder(accessor, resultBinder);
+                }
+
+                _binderCache.TryAdd(key, resultBinder);
+            }
+
+            return resultBinder;
+        }
+
         internal override Binder VisitMethodDeclaration(MethodDeclarationSyntax node) {
             if (!LookupPosition.IsInMethodDeclaration(_position, node)) {
                 var reverseClause = node.reverseClause;
@@ -359,6 +405,27 @@ internal sealed partial class BinderFactory {
                 usage = NodeUsage.Normal;
 
             return VisitMethodDeclarationCore(node, usage);
+        }
+
+        private SourcePropertySymbol GetPropertySymbol(
+            PropertyDeclarationSyntax basePropertyDeclarationSyntax,
+            Binder outerBinder) {
+            if (basePropertyDeclarationSyntax == _memberDeclaration)
+                return (SourcePropertySymbol)_member;
+
+            var container = GetContainerType(outerBinder);
+
+            if (container is null)
+                return null;
+
+            var propertyName = GetPropertyName(basePropertyDeclarationSyntax, outerBinder);
+
+            return (SourcePropertySymbol)GetMemberSymbol(
+                propertyName,
+                basePropertyDeclarationSyntax.span,
+                container,
+                SymbolKind.Property
+            );
         }
 
         private Binder VisitMethodDeclarationCore(MethodDeclarationSyntax node, NodeUsage nodeUsage) {
@@ -550,6 +617,19 @@ internal sealed partial class BinderFactory {
             SyntaxTree secondSyntaxTree,
             TextSpan span) {
             return (firstSyntaxTree == secondSyntaxTree) && span.Contains(location.span);
+        }
+
+        private static string GetPropertyName(
+            PropertyDeclarationSyntax basePropertyDeclarationSyntax,
+            Binder outerBinder) {
+            var explicitInterfaceSpecifierSyntax = basePropertyDeclarationSyntax.explicitInterfaceSpecifier;
+
+            return ExplicitInterfaceHelpers.GetMemberName(
+                outerBinder,
+                basePropertyDeclarationSyntax.modifiers,
+                explicitInterfaceSpecifierSyntax,
+                basePropertyDeclarationSyntax.identifier.valueText
+            );
         }
 
         private static string GetMethodName(BaseMethodDeclarationSyntax syntax, Binder outerBinder) {

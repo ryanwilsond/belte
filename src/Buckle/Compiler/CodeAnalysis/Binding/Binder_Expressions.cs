@@ -1037,6 +1037,11 @@ internal partial class Binder {
         if (expression is BoundConditionalAccessExpression c)
             expression = c.accessExpression;
 
+        switch (expression.kind) {
+            case BoundKind.PropertyAccessExpression:
+                return CheckPropertyValueKind(node, expression, valueKind, checkingReceiver, diagnostics);
+        }
+
         if (RequiresRValueOnly(valueKind))
             return CheckNotNamespaceOrType(expression, diagnostics);
 
@@ -1238,6 +1243,216 @@ internal partial class Binder {
 
         diagnostics.Push(GetStandardLValueError(valueKind, node.location));
         return false;
+    }
+
+    internal static PropertySymbol GetPropertySymbol(
+        BoundExpression expression,
+        out BoundExpression receiver,
+        out SyntaxNode propertySyntax) {
+        if (expression is null) {
+            receiver = null;
+            propertySyntax = null;
+            return null;
+        }
+
+        PropertySymbol propertySymbol;
+
+        switch (expression.kind) {
+            case BoundKind.PropertyAccessExpression: {
+                    var propertyAccess = (BoundPropertyAccessExpression)expression;
+                    receiver = propertyAccess.receiver;
+                    propertySymbol = propertyAccess.property;
+                }
+
+                break;
+            default:
+                receiver = null;
+                propertySyntax = null;
+                return null;
+        }
+
+        var syntax = expression.syntax;
+
+        switch (syntax.kind) {
+            case SyntaxKind.MemberAccessExpression:
+                propertySyntax = ((MemberAccessExpressionSyntax)syntax).name;
+                break;
+            case SyntaxKind.IdentifierName:
+                propertySyntax = syntax;
+                break;
+            default:
+                propertySyntax = syntax;
+                break;
+        }
+
+        return propertySymbol;
+    }
+
+    private bool CheckPropertyValueKind(
+        SyntaxNode node,
+        BoundExpression expr,
+        BindValueKind valueKind,
+        bool checkingReceiver,
+        BelteDiagnosticQueue diagnostics) {
+        var propertySymbol = GetPropertySymbol(expr, out var receiver, out var propertySyntax);
+
+        Debug.Assert(propertySymbol is not null);
+        Debug.Assert(propertySyntax is not null);
+
+        if ((RequiresReferenceToLocation(valueKind) || checkingReceiver) && propertySymbol.refKind == RefKind.None) {
+            if (checkingReceiver) {
+                Debug.Assert(propertySymbol.typeWithAnnotations.hasType);
+                diagnostics.Push(Error.ReturnNotLValue(expr.syntax.location, propertySymbol));
+            } else if (valueKind == BindValueKind.RefOrOut) {
+                diagnostics.Push(Error.RefProperty(node.location));
+            } else {
+                diagnostics.Push(GetStandardLValueError(valueKind, node.location));
+            }
+
+            return false;
+        }
+
+        if (RequiresAssignableVariable(valueKind) && propertySymbol.refKind == RefKind.RefConst) {
+            ReportConstantError(propertySymbol, node, valueKind, checkingReceiver, diagnostics);
+            return false;
+        }
+
+        var requiresSet = RequiresAssignableVariable(valueKind) && propertySymbol.refKind == RefKind.None;
+
+        if (requiresSet) {
+            var setMethod = propertySymbol.GetOwnOrInheritedSetMethod();
+
+            if (setMethod is null) {
+                var containing = containingMember;
+
+                if (!AccessingAutoPropertyFromConstructor(receiver, propertySymbol, containing, AccessorKind.Set)) {
+                    diagnostics.Push(Error.AssignmentConstProperty(node.location, propertySymbol));
+                    return false;
+                }
+            } else {
+                var accessThroughType = GetAccessThroughType(receiver);
+                var isAccessible = IsAccessible(
+                    setMethod,
+                    accessThroughType,
+                    out var failedThroughTypeCheck
+                );
+
+                if (!isAccessible) {
+                    if (failedThroughTypeCheck) {
+                        diagnostics.Push(Error.InvalidProtectedAccess(
+                            node.location,
+                            propertySymbol,
+                            accessThroughType,
+                            containingType
+                        ));
+                    } else {
+                        diagnostics.Push(Error.InaccessibleSetter(node.location, propertySymbol));
+                    }
+
+                    return false;
+                }
+
+                var setValueKind = setMethod.isEffectivelyConst ? BindValueKind.RValue : BindValueKind.Assignable;
+
+                if (RequiresVariableReceiver(receiver, setMethod) &&
+                    !CheckIsValidReceiverForVariable(node, receiver, setValueKind, diagnostics)) {
+                    return false;
+                }
+
+                if (IsBadBaseAccess(node, receiver, setMethod, diagnostics, propertySymbol))
+                    return false;
+
+                CheckReceiverAndRuntimeSupportForSymbolAccess(node, receiver, setMethod, diagnostics);
+            }
+        }
+
+        var requiresGet = !RequiresAssignmentOnly(valueKind) || propertySymbol.refKind != RefKind.None;
+
+        if (requiresGet) {
+            var getMethod = propertySymbol.GetOwnOrInheritedGetMethod();
+
+            if (getMethod is null) {
+                diagnostics.Push(Error.PropertyLacksGet(node.location, propertySymbol));
+                return false;
+            } else {
+                var accessThroughType = GetAccessThroughType(receiver);
+                var isAccessible = IsAccessible(getMethod, accessThroughType, out var failedThroughTypeCheck);
+
+                if (!isAccessible) {
+                    if (failedThroughTypeCheck) {
+                        diagnostics.Push(Error.InvalidProtectedAccess(
+                            node.location,
+                            propertySymbol,
+                            accessThroughType,
+                            containingType
+                        ));
+                    } else {
+                        diagnostics.Push(Error.InaccessibleGetter(node.location, propertySymbol));
+                    }
+
+                    return false;
+                }
+
+                // TODO Warning
+                // CheckImplicitThisCopyInConstMember(receiver, getMethod, diagnostics);
+
+                if (IsBadBaseAccess(node, receiver, getMethod, diagnostics, propertySymbol)) {
+                    return false;
+                }
+
+                CheckReceiverAndRuntimeSupportForSymbolAccess(node, receiver, getMethod, diagnostics);
+            }
+        }
+
+        if (RequiresRefAssignableVariable(valueKind)) {
+            diagnostics.Push(Error.RefLocalOrParameterExpected(node.location));
+            return false;
+        }
+
+        return true;
+    }
+
+    private static bool RequiresVariableReceiver(BoundExpression receiver, Symbol symbol) {
+        return symbol.RequiresInstanceReceiver() && receiver?.type?.isValueType == true;
+    }
+
+    private static bool RequiresAssignmentOnly(BindValueKind kind) {
+        return (kind & ValueKindSignificantBitsMask) == BindValueKind.Assignable;
+    }
+
+    private static bool AccessingAutoPropertyFromConstructor(
+        BoundExpression receiver,
+        PropertySymbol propertySymbol,
+        Symbol fromMember,
+        AccessorKind accessorKind) {
+        if (!HasSynthesizedBackingField(propertySymbol, out var sourceProperty))
+            return false;
+
+        var propertyIsStatic = propertySymbol.isStatic;
+
+        return sourceProperty is { } &&
+            sourceProperty.CanUseBackingFieldDirectlyInConstructor(useAsLvalue: accessorKind != AccessorKind.Get) &&
+            TypeSymbol.Equals(sourceProperty.containingType, fromMember.containingType, TypeCompareKind.AllIgnoreOptions) &&
+            IsConstructorOrField(fromMember, isStatic: propertyIsStatic) &&
+            (propertyIsStatic || receiver?.kind == BoundKind.ThisExpression);
+    }
+
+    private static bool IsConstructorOrField(Symbol member, bool isStatic) {
+        return (member as MethodSymbol)?.methodKind == (isStatic
+                                                            ? MethodKind.StaticConstructor
+                                                            : MethodKind.Constructor) ||
+                (member as FieldSymbol)?.isStatic == isStatic;
+    }
+
+    private TypeSymbol GetAccessThroughType(BoundExpression receiver) {
+        if (receiver is null) {
+            return containingType;
+        } else if (receiver.kind == BoundKind.BaseExpression) {
+            return null;
+        } else {
+            Debug.Assert(receiver.type is not null);
+            return receiver.type;
+        }
     }
 
     private static BelteDiagnostic GetMethodGroupOrFunctionPointerLvalueError(
@@ -6095,11 +6310,12 @@ internal partial class Binder {
         SyntaxNode node,
         BoundExpression receiver,
         Symbol member,
-        BelteDiagnosticQueue diagnostics) {
+        BelteDiagnosticQueue diagnostics,
+        Symbol property = null) {
         Debug.Assert(member.kind != SymbolKind.Property);
 
         if (receiver?.kind == BoundKind.BaseExpression && member.isAbstract) {
-            diagnostics.Push(Error.AbstractBaseCall(node.location, member));
+            diagnostics.Push(Error.AbstractBaseCall(node.location, property ?? member));
             return true;
         }
 

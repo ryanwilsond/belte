@@ -640,6 +640,15 @@ public enum DiagnosticCode : ushort {
     ERR_InlineILInPureContext = 629,
     ERR_NoTypeDef = 630,
     ERR_NoTypeDefFromModule = 631,
+    ERR_PropertyWithNoAccessors = 632,
+    ERR_AutoPropertyCannotBeRefReturning = 633,
+    ERR_RefPropertyMustHaveGetAccessor = 634,
+    ERR_RefPropertyCannotHaveSetAccessor = 635,
+    ERR_RefProperty = 636,
+    ERR_AssignmentConstProperty = 637,
+    ERR_InaccessibleSetter = 638,
+    ERR_PropertyLacksGet = 639,
+    ERR_InaccessibleGetter = 640,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

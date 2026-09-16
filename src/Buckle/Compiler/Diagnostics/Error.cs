@@ -1007,7 +1007,7 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_ConstantAssignmentThis, location, message);
     }
 
-    internal static BelteDiagnostic ReturnNotLValue(TextLocation location, MethodSymbol symbol) {
+    internal static BelteDiagnostic ReturnNotLValue(TextLocation location, Symbol symbol) {
         throw ExceptionUtilities.Unreachable();
         // var message = $"cannot modify the return value of '{symbol}' because it is not variable";
         // return CreateError(DiagnosticCode.ERR_ReturnNotLValue, location, message);
@@ -3093,6 +3093,51 @@ internal static class Error {
     internal static BelteDiagnostic NoTypeDefFromModule(TypeSymbol type, string name) {
         var message = $"the type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' is defined in a module that has not been added; you must add the module '{name}'";
         return CreateError(DiagnosticCode.ERR_NoTypeDefFromModule, null, message);
+    }
+
+    internal static BelteDiagnostic PropertyWithNoAccessors(TextLocation location, PropertySymbol property) {
+        var message = $"'{property}': property must have at least one accessor";
+        return CreateError(DiagnosticCode.ERR_PropertyWithNoAccessors, location, message);
+    }
+
+    internal static BelteDiagnostic AutoPropertyCannotBeRefReturning(TextLocation location) {
+        var message = $"auto-implemented properties cannot return by reference";
+        return CreateError(DiagnosticCode.ERR_AutoPropertyCannotBeRefReturning, location, message);
+    }
+
+    internal static BelteDiagnostic RefPropertyMustHaveGetAccessor(TextLocation location) {
+        var message = $"properties which return by reference must have a get accessor";
+        return CreateError(DiagnosticCode.ERR_RefPropertyMustHaveGetAccessor, location, message);
+    }
+
+    internal static BelteDiagnostic RefPropertyCannotHaveSetAccessor(TextLocation location) {
+        var message = $"properties which return by reference cannot have set accessors";
+        return CreateError(DiagnosticCode.ERR_RefPropertyCannotHaveSetAccessor, location, message);
+    }
+
+    internal static BelteDiagnostic RefProperty(TextLocation location) {
+        var message = $"a non ref-returning property may not be used as an out or ref value";
+        return CreateError(DiagnosticCode.ERR_RefProperty, location, message);
+    }
+
+    internal static BelteDiagnostic AssignmentConstProperty(TextLocation location, PropertySymbol property) {
+        var message = $"property '{property}' cannot be assigned to";
+        return CreateError(DiagnosticCode.ERR_AssignmentConstProperty, location, message);
+    }
+
+    internal static BelteDiagnostic InaccessibleSetter(TextLocation location, PropertySymbol property) {
+        var message = $"the property '{property}' cannot be used in this context because the set accessor is inaccessible";
+        return CreateError(DiagnosticCode.ERR_InaccessibleSetter, location, message);
+    }
+
+    internal static BelteDiagnostic PropertyLacksGet(TextLocation location, PropertySymbol property) {
+        var message = $"the property '{property}' cannot be used in this context because it lacks the get accessor";
+        return CreateError(DiagnosticCode.ERR_PropertyLacksGet, location, message);
+    }
+
+    internal static BelteDiagnostic InaccessibleGetter(TextLocation location, PropertySymbol property) {
+        var message = $"the property '{property}' cannot be used in this context because the get accessor is inaccessible";
+        return CreateError(DiagnosticCode.ERR_InaccessibleGetter, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

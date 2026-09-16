@@ -482,11 +482,8 @@ internal abstract partial class SourcePropertySymbolBase : PropertySymbol, IAttr
                 }
             }
 
-            if (refKind != RefKind.None) {
-                // TODO
-                throw ExceptionUtilities.Unreachable();
-                // diagnostics.Add(ErrorCode.ERR_AutoPropertyCannotBeRefReturning, location);
-            }
+            if (refKind != RefKind.None)
+                diagnostics.Push(Error.AutoPropertyCannotBeRefReturning(location));
 
             if (isOverride) {
                 var overriddenProperty = (PropertySymbol)GetLeastOverriddenMember(containingType);
@@ -516,16 +513,12 @@ internal abstract partial class SourcePropertySymbolBase : PropertySymbol, IAttr
                 Debug.Assert(_setMethod is not null);
 
                 if (_refKind != RefKind.None) {
-                    // TODO
-                    throw ExceptionUtilities.Unreachable();
-                    // diagnostics.Add(ErrorCode.ERR_RefPropertyCannotHaveSetAccessor, _setMethod.GetFirstlocation());
+                    diagnostics.Push(Error.RefPropertyCannotHaveSetAccessor(_setMethod.location));
                 } else if ((_getMethod.localAccessibility != Accessibility.NotApplicable) &&
                       (_setMethod.localAccessibility != Accessibility.NotApplicable)) {
-                    // TODO
                     throw ExceptionUtilities.Unreachable();
                     // diagnostics.Add(ErrorCode.ERR_DuplicatePropertyAccessMods, location, this);
                 } else if (_getMethod.localDeclaredConst && _setMethod.localDeclaredConst) {
-                    // TODO
                     throw ExceptionUtilities.Unreachable();
                     // diagnostics.Add(ErrorCode.ERR_DuplicatePropertyReadOnlyMods, location, this);
                 } else if (isAbstract) {
@@ -534,15 +527,10 @@ internal abstract partial class SourcePropertySymbolBase : PropertySymbol, IAttr
                 }
             } else {
                 if (!hasGetAccessor && !hasSetAccessor) {
-                    // TODO
-                    throw ExceptionUtilities.Unreachable();
-                    // diagnostics.Add(ErrorCode.ERR_PropertyWithNoAccessors, location, this);
+                    diagnostics.Push(Error.PropertyWithNoAccessors(location, this));
                 } else if (refKind != RefKind.None) {
-                    if (!hasGetAccessor) {
-                        // TODO
-                        throw ExceptionUtilities.Unreachable();
-                        // diagnostics.Add(ErrorCode.ERR_RefPropertyMustHaveGetAccessor, location);
-                    }
+                    if (!hasGetAccessor)
+                        diagnostics.Push(Error.RefPropertyMustHaveGetAccessor(location));
                 } else if (!hasGetAccessor && hasAutoPropertySet) {
                     // TODO
                     throw ExceptionUtilities.Unreachable();

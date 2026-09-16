@@ -12,6 +12,12 @@ internal static class LookupPosition {
         return IsBeforeToken(position, node, node.body.closeBrace);
     }
 
+    internal static bool IsInMethodDeclaration(int position, AccessorDeclarationSyntax accessorDecl) {
+        var body = accessorDecl.body;
+        var lastToken = body is null ? accessorDecl.semicolonToken : body.closeBrace;
+        return IsBeforeToken(position, accessorDecl, lastToken);
+    }
+
     internal static bool IsInAttributeSpecification(
         int position,
         SyntaxList<AttributeListSyntax> attributesSyntaxList) {
@@ -36,6 +42,25 @@ internal static class LookupPosition {
 
     internal static bool IsInBody(int position, BaseMethodDeclarationSyntax method) {
         return IsInBlock(position, method.body);
+    }
+
+    internal static bool IsInBody(int position, AccessorDeclarationSyntax method) {
+        return IsInBody(position, method.body, method.expressionBody, method.semicolonToken);
+    }
+
+    private static bool IsInBody(
+        int position,
+        BlockStatementSyntax block,
+        ArrowExpressionClauseSyntax expr,
+        SyntaxToken semi) {
+        return IsInExpressionBody(position, expr, semi) || IsInBlock(position, block);
+    }
+
+    internal static bool IsInExpressionBody(
+        int position,
+        ArrowExpressionClauseSyntax expressionBody,
+        SyntaxToken semicolonToken) {
+        return expressionBody is not null && IsBeforeToken(position, expressionBody, semicolonToken);
     }
 
     internal static bool IsInBlock(int position, BlockStatementSyntax block) {

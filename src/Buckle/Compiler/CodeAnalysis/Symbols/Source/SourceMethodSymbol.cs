@@ -270,6 +270,7 @@ internal abstract partial class SourceMethodSymbol : MethodSymbol, IAttributeTar
             BaseMethodDeclarationSyntax method => method.body,
             ReverseClauseSyntax reverse => reverse.body,
             StateClauseSyntax state => state.body,
+            AccessorDeclarationSyntax accessor => (BelteSyntaxNode)accessor.body ?? accessor.expressionBody,
             ArrowExpressionClauseSyntax arrowExpression => arrowExpression,
             CompilationUnitSyntax _ when this is SynthesizedEntryPoint entryPoint
                 => (BelteSyntaxNode)entryPoint.returnTypeSyntax,

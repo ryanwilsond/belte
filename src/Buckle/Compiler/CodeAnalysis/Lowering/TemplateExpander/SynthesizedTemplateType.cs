@@ -161,6 +161,10 @@ internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol, ISynthes
                     // Methods are checked using the BoundProgram method map anyways so it shouldn't matter that they are missing here
                     // TODO Except abstract ones?
                     break;
+                case SymbolKind.Property:
+                    // Properties are lowered out by this point and we never use these symbols for metadata so it
+                    // is fine that it is missing
+                    break;
                 default:
                     throw ExceptionUtilities.UnexpectedValue(member.kind);
             }

@@ -480,24 +480,20 @@ internal class SourcePropertyAccessorSymbol : SourceMemberMethodSymbol {
         } else if (containingType.isSealed && localAccessibility.HasProtected() && !isOverride) {
             diagnostics.Push(AccessCheck.GetProtectedMemberInSealedTypeError(containingType, location));
         } else if (localDeclaredConst && _property.hasConstModifier) {
-            // TODO
             throw ExceptionUtilities.Unreachable();
             // // Cannot specify 'readonly' modifiers on both property or indexer '{0}' and its accessors.
             // diagnostics.Add(ErrorCode.ERR_InvalidPropertyReadOnlyMods, location, _property);
         } else if (localDeclaredConst && isStatic) {
             diagnostics.Push(Error.StaticAndConst(location, this));
         } else if (localDeclaredConst && isInitOnly) {
-            // TODO
             throw ExceptionUtilities.Unreachable();
             // // 'init' accessors cannot be marked 'readonly'. Mark '{0}' readonly instead.
             // diagnostics.Add(ErrorCode.ERR_InitCannotBeReadonly, location, _property);
         } else if (localDeclaredConst && _isAutoPropertyAccessor && methodKind == MethodKind.PropertySet) {
-            // TODO
             throw ExceptionUtilities.Unreachable();
             // // Auto-implemented accessor '{0}' cannot be marked 'readonly'.
             // diagnostics.Add(ErrorCode.ERR_AutoSetterCantBeReadOnly, location, this);
         } else if (_usesInit && isStatic) {
-            // TODO
             throw ExceptionUtilities.Unreachable();
             // // The 'init' accessor is not valid on static members
             // diagnostics.Add(ErrorCode.ERR_BadInitAccessor, location);

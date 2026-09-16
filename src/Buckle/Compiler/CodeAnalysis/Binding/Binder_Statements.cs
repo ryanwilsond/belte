@@ -2080,13 +2080,15 @@ internal partial class Binder {
                 if (method.kind == SyntaxKind.ConstructorDeclaration)
                     return BindConstructorBody((ConstructorDeclarationSyntax)method, diagnostics);
 
-                return BindMethodBody(method, method.body, diagnostics);
+                return BindMethodBody(method, method.body, null, diagnostics);
             case ReverseClauseSyntax reverseMethod:
-                return BindMethodBody(reverseMethod, reverseMethod.body, diagnostics);
+                return BindMethodBody(reverseMethod, reverseMethod.body, null, diagnostics);
             case StateClauseSyntax stateMethod:
-                return BindMethodBody(stateMethod, stateMethod.body, diagnostics);
+                return BindMethodBody(stateMethod, stateMethod.body, null, diagnostics);
             case ArrowExpressionClauseSyntax arrowExpression:
                 return BindExpressionBodyAsBlock(arrowExpression, diagnostics);
+            case AccessorDeclarationSyntax accessor:
+                return BindMethodBody(accessor, accessor.body, accessor.expressionBody, diagnostics);
             case CompilationUnitSyntax compilationUnit:
                 return BindSimpleProgram(compilationUnit, diagnostics);
             default:
@@ -2214,7 +2216,8 @@ internal partial class Binder {
 
         return new BoundNonConstructorMethodBody(
             compilationUnit,
-            FinishBindBlockParts(compilationUnit, boundStatements.ToImmutableAndFree())
+            FinishBindBlockParts(compilationUnit, boundStatements.ToImmutableAndFree()),
+            null
         );
     }
 
@@ -2229,16 +2232,23 @@ internal partial class Binder {
         var body = (BoundBlockStatement)bodyBinder.BindStatement(constructor.body, diagnostics);
         var locals = bodyBinder.GetDeclaredLocalsForScope(constructor);
 
-        return new BoundConstructorMethodBody(constructor, locals, initializerCall, body);
+        return new BoundConstructorMethodBody(constructor, locals, initializerCall, body, null);
     }
 
     private BoundNode BindMethodBody(
         BelteSyntaxNode declaration,
         BlockStatementSyntax body,
+        ArrowExpressionClauseSyntax expressionBody,
         BelteDiagnosticQueue diagnostics) {
-        if (body is null)
+        if (body is null && expressionBody is null)
             return null;
 
-        return new BoundNonConstructorMethodBody(declaration, (BoundBlockStatement)BindStatement(body, diagnostics));
+        return new BoundNonConstructorMethodBody(
+            declaration,
+            body is null ? null : (BoundBlockStatement)BindStatement(body, diagnostics),
+            expressionBody is null
+                ? null
+                : BindExpressionBodyAsBlock(expressionBody, body is null ? diagnostics : BelteDiagnosticQueue.Discarded)
+        );
     }
 }

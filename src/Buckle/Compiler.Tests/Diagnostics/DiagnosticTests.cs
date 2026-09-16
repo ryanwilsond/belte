@@ -9264,4 +9264,159 @@ var text = """"""
 
     // ! Reports_Error_BU0631_NoTypeDefFromModule
     // ? Requires references
+
+    [Fact]
+    public void Reports_Error_BU0632_PropertyWithNoAccessor() {
+        var text = @"
+            class A {
+                property int [a] { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'A.a': property must have at least one accessor
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0633_AutoPropertyCannotBeRefReturning() {
+        var text = @"
+            class A {
+                property ref int [a] { get => ref field; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            auto-implemented properties cannot return by reference
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0634_RefPropertyMustHaveGetAccessor() {
+        var text = @"
+            class A {
+                property ref int [[a]] { set => [field = value]; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            auto-implemented properties cannot return by reference
+            properties which return by reference must have a get accessor
+            must return by-reference in a method with a reference return type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0635_RefPropertyCannotHaveSetAccessor() {
+        var text = @"
+            class A {
+                property ref int [a] { get => ref field; [set] => [field = value]; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            auto-implemented properties cannot return by reference
+            properties which return by reference cannot have set accessors
+            must return by-reference in a method with a reference return type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0636_RefProperty() {
+        var text = @"
+            class A {
+                public property int a => 3;
+            }
+            var a = new A();
+            ref int b = ref [a.a];
+        ";
+
+        var diagnostics = @"
+            a non ref-returning property may not be used as an out or ref value
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0637_AssignmentConstProperty() {
+        var text = @"
+            class A {
+                public property int a => 3;
+            }
+            var a = new A();
+            [a.a] = 4;
+        ";
+
+        var diagnostics = @"
+            property 'A.a' cannot be assigned to
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // TODO Accessor modifiers
+    // [Fact]
+    // public void Reports_Error_BU0638_InaccessibleSetter() {
+    //     var text = @"
+    //         class A {
+    //             public property int a { get => field; private set => field = value; }
+    //         }
+    //         var a = new A();
+    //         [a.a] = 4;
+    //     ";
+
+    //     var diagnostics = @"
+    //         the property 'A.a' cannot be used in this context because the set accessor is inaccessible
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    [Fact]
+    public void Reports_Error_BU0639_PropertyLacksGet() {
+        var text = @"
+            class A {
+                public property int a { set => field = value; }
+            }
+            var a = new A();
+            var b = [a.a];
+        ";
+
+        var diagnostics = @"
+            the property 'A.a' cannot be used in this context because it lacks the get accessor
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // TODO Accessor modifiers
+    // [Fact]
+    // public void Reports_Error_BU0640_InaccessibleGetter() {
+    //     var text = @"
+    //         class A {
+    //             public property int a { get => field; private set => field = value; }
+    //         }
+    //         var a = new A();
+    //         [a.a] = 4;
+    //     ";
+
+    //     var diagnostics = @"
+    //         the
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
 }

@@ -2982,4 +2982,48 @@ public sealed class IssueTests {
 
         AssertValue(text, -0.35078322768961984, evaluator: false);
     }
+
+    [Fact]
+    public void Property_GetIsTypeChecked() {
+        var text = @"
+            class A {
+                property ref int a { get => [3]; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            must return by-reference in a method with a reference return type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Property_ValueIsDefined() {
+        var text = @"
+            class A {
+                property int a { set => field = value; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Property_CanAssign() {
+        var text = @"
+            class A {
+                public property int a { get => field; set => field = value; }
+            }
+            var a = new A();
+            a.a = 3;
+            return a.a;
+        ";
+
+        AssertValue(text, 3);
+    }
 }
