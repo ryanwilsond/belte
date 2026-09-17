@@ -1,7 +1,7 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -15,7 +15,7 @@ internal sealed class ImplicitNamedTypeSymbol : SourceMemberContainerTypeSymbol 
         _state.NotePartComplete(CompletionParts.EnumUnderlyingType);
     }
 
-    internal override NamedTypeSymbol baseType => CorLibrary.GetSpecialType(SpecialType.Object);
+    internal override NamedTypeSymbol baseType => declaringCompilation.GetSpecialType(SpecialType.Object);
 
     private protected override void CheckBase(BelteDiagnosticQueue diagnostics) { }
 
@@ -28,6 +28,20 @@ internal sealed class ImplicitNamedTypeSymbol : SourceMemberContainerTypeSymbol 
         return baseType;
     }
 
+    internal override ImmutableArray<NamedTypeSymbol> GetDeclaredInterfaces(ConsList<TypeSymbol> basesBeingResolved) {
+        return [];
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> Interfaces(ConsList<TypeSymbol> basesBeingResolved = null) {
+        return [];
+    }
+
+    internal override AttributeUsageInfo GetAttributeUsageInfo() {
+        return AttributeUsageInfo.Null;
+    }
+
+    private protected override void CheckInterfaces(BelteDiagnosticQueue diagnostics) { }
+
     public override ImmutableArray<TemplateParameterSymbol> templateParameters => [];
 
     public override ImmutableArray<TypeOrConstant> templateArguments => [];
@@ -36,5 +50,13 @@ internal sealed class ImplicitNamedTypeSymbol : SourceMemberContainerTypeSymbol 
 
     private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
         throw ExceptionUtilities.Unreachable();
+    }
+
+    private protected override TextLocation GetCorrespondingBaseListLocation(NamedTypeSymbol @base) {
+        return null;
+    }
+
+    internal override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        return [];
     }
 }

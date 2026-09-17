@@ -1,7 +1,6 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
-using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -25,9 +24,9 @@ internal sealed class SynthesizedTemplateParameterSymbol : TemplateParameterSymb
 
     internal override int ordinal { get; }
 
-    internal override bool hasPrimitiveTypeConstraint => false;
+    internal override bool hasValueTypeConstraint => false;
 
-    internal override bool hasObjectTypeConstraint => false;
+    internal override bool hasReferenceTypeConstraint => false;
 
     internal override bool hasDefaultConstraint => false;
 
@@ -47,6 +46,8 @@ internal sealed class SynthesizedTemplateParameterSymbol : TemplateParameterSymb
 
     internal override bool isOptional => false;
 
+    internal override bool isCompileTimeType => false;
+
     internal override TypeOrConstant defaultValue => null;
 
     internal override Symbol containingSymbol { get; }
@@ -63,10 +64,14 @@ internal sealed class SynthesizedTemplateParameterSymbol : TemplateParameterSymb
     }
 
     internal override TypeSymbol GetDeducedBaseType(ConsList<TemplateParameterSymbol> inProgress) {
-        return CorLibrary.GetSpecialType(SpecialType.Object);
+        return containingAssembly.corLibrary.GetSpecialType(SpecialType.Object);
     }
 
     internal override NamedTypeSymbol GetEffectiveBaseClass(ConsList<TemplateParameterSymbol> inProgress) {
-        return CorLibrary.GetSpecialType(SpecialType.Object);
+        return containingAssembly.corLibrary.GetSpecialType(SpecialType.Object);
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> GetInterfaces(ConsList<TemplateParameterSymbol> inProgress) {
+        return [];
     }
 }

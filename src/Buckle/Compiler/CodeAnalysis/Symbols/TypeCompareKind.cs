@@ -8,8 +8,10 @@ namespace Buckle.CodeAnalysis.Symbols;
 [Flags]
 internal enum TypeCompareKind : byte {
     ConsiderEverything = 0,
-    IgnoreNullability = 1 << 0,
+    IgnoreTupleNames = 1 << 0,
     IgnoreArraySizesAndLowerBounds = 1 << 1,
 
-    AllIgnoreOptions = IgnoreNullability | IgnoreArraySizesAndLowerBounds,
+    AllIgnoreOptions = IgnoreTupleNames | IgnoreArraySizesAndLowerBounds,
+
+    CLRSignatureCompareOptions = AllIgnoreOptions & ~IgnoreArraySizesAndLowerBounds,
 }

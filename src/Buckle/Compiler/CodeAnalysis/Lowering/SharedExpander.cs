@@ -1,11 +1,10 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
-using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -14,12 +13,15 @@ using static Buckle.CodeAnalysis.Binding.BoundFactory;
 namespace Buckle.CodeAnalysis.Lowering;
 
 internal class SharedExpander : BoundTreeExpander {
-    private protected readonly BelteDiagnosticQueue _diagnostics;
+    private Dictionary<BoundValuePlaceholder, BoundExpression> _placeholderReplacementMapDoNotUseDirectly;
+
+    private protected readonly Compilation _compilation;
+
     private readonly Dictionary<TokenSymbol, List<BoundStatement>> _tokenMap;
 
-    internal SharedExpander(MethodSymbol container, BelteDiagnosticQueue diagnostics) {
+    internal SharedExpander(Compilation compilation, MethodSymbol container) {
+        _compilation = compilation;
         _container = container;
-        _diagnostics = diagnostics;
         _tokenMap = [];
     }
 
@@ -30,12 +32,81 @@ internal class SharedExpander : BoundTreeExpander {
         return (BoundBlockStatement)Simplify(statement.syntax, ExpandStatement(statement));
     }
 
+    private protected List<BoundStatement> ApplyConversion(
+        BoundExpression conversion,
+        BoundValuePlaceholder placeholder,
+        BoundExpression expression,
+        out BoundExpression replacement) {
+        AddPlaceholderReplacement(placeholder, expression);
+        var statements = ExpandExpression(conversion, out replacement);
+        RemovePlaceholderReplacement(placeholder);
+        return statements;
+    }
+
+    [Conditional("DEBUG")]
+    private static void AssertPlaceholderReplacement(BoundValuePlaceholder placeholder, BoundExpression value) {
+        Debug.Assert(value.type is { } && (value.type.Equals(placeholder.type, TypeCompareKind.AllIgnoreOptions) || value.hasErrors));
+    }
+
+    private void AddPlaceholderReplacement(BoundValuePlaceholder placeholder, BoundExpression value) {
+        AssertPlaceholderReplacement(placeholder, value);
+        _placeholderReplacementMapDoNotUseDirectly ??= new Dictionary<BoundValuePlaceholder, BoundExpression>();
+        _placeholderReplacementMapDoNotUseDirectly.Add(placeholder, value);
+    }
+
+    private void RemovePlaceholderReplacement(BoundValuePlaceholder placeholder) {
+        Debug.Assert(placeholder is { });
+        Debug.Assert(_placeholderReplacementMapDoNotUseDirectly is { });
+        var removed = _placeholderReplacementMapDoNotUseDirectly.Remove(placeholder);
+        Debug.Assert(removed);
+    }
+
+    private BoundExpression PlaceholderReplacement(BoundValuePlaceholder placeholder) {
+        Debug.Assert(_placeholderReplacementMapDoNotUseDirectly is { });
+        var value = _placeholderReplacementMapDoNotUseDirectly[placeholder];
+        AssertPlaceholderReplacement(placeholder, value);
+        return value;
+    }
+
+    private protected List<BoundStatement> ApplyConversionIfNotIdentity(
+        BoundExpression conversion,
+        BoundValuePlaceholder placeholder,
+        BoundExpression expression,
+        out BoundExpression replacement) {
+        if (HasNonIdentityConversion(conversion)) {
+            Debug.Assert(placeholder is not null);
+            return ApplyConversion(conversion, placeholder, expression, out replacement);
+        }
+
+        replacement = expression;
+        return [];
+    }
+
+    private protected static bool HasNonIdentityConversion(BoundExpression expression) {
+        while (expression is BoundCastExpression conversion) {
+            if (!conversion.conversion.isIdentity)
+                return true;
+
+            expression = conversion.operand;
+        }
+
+        return false;
+    }
+
+    private protected override List<BoundStatement> ExpandValuePlaceholder(
+        BoundValuePlaceholder expression,
+        out BoundExpression replacement,
+        UseKind _) {
+        replacement = PlaceholderReplacement(expression);
+        return [];
+    }
+
     private protected override List<BoundStatement> ExpandExpression(
         BoundExpression expression,
         out BoundExpression replacement,
         UseKind useKind = UseKind.Value) {
         if (expression.constantValue is not null) {
-            replacement = Lowerer.VisitConstant(expression);
+            replacement = Lowerer.VisitConstant(_compilation, expression);
             return [];
         }
 
@@ -137,9 +208,9 @@ internal class SharedExpander : BoundTreeExpander {
 
             statements.Add(LocalDeclaration(syntax, temp, newCall));
 
-            var tupleField1 = ((FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item1))
+            var tupleField1 = ((FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item1))
                 .AsMember(tupleType);
-            var tupleField2 = ((FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2))
+            var tupleField2 = ((FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2))
                 .AsMember(tupleType);
 
             replacement = new BoundFieldAccessExpression(syntax,
@@ -251,7 +322,7 @@ internal class SharedExpander : BoundTreeExpander {
         var literal = new BoundLiteralExpression(
             syntax,
             node.literal,
-            CorLibrary.GetSpecialType(node.literal.specialType)
+            _compilation.GetSpecialType(node.literal.specialType)
         );
 
         return CreateCString(syntax, literal, node.type, isWide, out replacement);
@@ -263,10 +334,11 @@ internal class SharedExpander : BoundTreeExpander {
         TypeSymbol type,
         bool isWide,
         out BoundExpression replacement) {
-        var allocMethod = StandardLibrary.GetWellKnownMember(
+        var allocMethod = _compilation.standardLibrary.GetWellKnownMember(
             isWide ? STLWellKnownMembers.LowLevel_CreateLPCWSTR : STLWellKnownMembers.LowLevel_CreateLPCSTR
         );
-        var freeMethod = StandardLibrary.GetWellKnownMember(
+
+        var freeMethod = _compilation.standardLibrary.GetWellKnownMember(
             isWide ? STLWellKnownMembers.LowLevel_FreeLPCWSTR : STLWellKnownMembers.LowLevel_FreeLPCSTR
         );
 
@@ -348,7 +420,7 @@ internal class SharedExpander : BoundTreeExpander {
             var breakLabel = GenerateLabel();
 
             finallyBody = [
-                GotoIf(syntax, breakLabel, IsNull(syntax, Local(syntax, local))),
+                GotoIf(syntax, breakLabel, IsNull(_compilation, syntax, Local(syntax, local))),
                 Statement(syntax, call),
                 Label(syntax, breakLabel)
             ];
@@ -459,7 +531,7 @@ internal class SharedExpander : BoundTreeExpander {
         out BoundExpression replacement,
         UseKind _) {
         var syntax = expression.syntax;
-        var statements = ExpandExpression(expression.receiver, out var newReceiver, UseKind.Writable);
+        var statements = ExpandExpression(expression.receiver, out var newReceiver, UseKind.StableValue);
         var tempLocal = GenerateTempLocal(expression.Type());
 
         statements.Add(
@@ -611,14 +683,14 @@ internal class SharedExpander : BoundTreeExpander {
         out BoundExpression replacement,
         UseKind _) {
         var syntax = expression.syntax;
-        var stringType = CorLibrary.GetSpecialType(SpecialType.String);
-        var nullableStringType = CorLibrary.GetNullableType(SpecialType.String);
+        var stringType = _compilation.GetSpecialType(SpecialType.String);
+        var nullableStringType = _compilation.corLibrary.GetNullableType(SpecialType.String);
         var statements = new List<BoundStatement>();
         var tempLocal = GenerateTempLocal(stringType);
         replacement = Local(syntax, tempLocal);
         statements.Add(new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
             tempLocal,
-            Literal(syntax, string.Empty, stringType)
+            Literal(_compilation, syntax, string.Empty, stringType)
         )));
 
         // ? Null turns into empty strings instead of nulling the entire result
@@ -627,7 +699,12 @@ internal class SharedExpander : BoundTreeExpander {
             BoundExpression right;
 
             if (content.constantValue?.specialType == SpecialType.String) {
-                right = Literal(syntax, content.constantValue.value, stringType);
+                var value = content.constantValue.value;
+
+                if (string.IsNullOrEmpty((string)value))
+                    continue;
+
+                right = Literal(_compilation, syntax, value, stringType);
             } else {
                 if (content.IsLiteralNull())
                     continue;
@@ -637,35 +714,29 @@ internal class SharedExpander : BoundTreeExpander {
                 if (replacementContent.StrippedType().specialType == SpecialType.String) {
                     right = replacementContent;
                 } else if (replacementContent.Type().isValueType && !replacementContent.Type().IsStructType()) {
-                    if (!replacementContent.Type().IsNullableType()) {
-                        var conversion = Conversion.Classify(replacementContent.Type(), stringType);
+                    var conversions = TypeConversions.GetInstance();
 
-                        if (!conversion.exists) {
-                            _diagnostics.Push(
-                                Error.CannotConvert(syntax.location, replacementContent.Type(), stringType)
-                            );
-                        }
+                    // TODO This error checking should be moved to the Binder or DiagnosticPass otherwise
+
+                    if (!replacementContent.Type().IsNullableType()) {
+                        var conversion = conversions.ClassifyConversionFromExpression(replacementContent, stringType);
+                        Debug.Assert(conversion.exists);
 
                         right = Cast(syntax, stringType, replacementContent, conversion, null);
                     } else {
-                        var conversion = Conversion.Classify(replacementContent.StrippedType(), stringType);
-
-                        if (!conversion.exists) {
-                            _diagnostics.Push(
-                                Error.CannotConvert(syntax.location, replacementContent.StrippedType(), stringType)
-                            );
-                        }
+                        var conversion = conversions.ClassifyConversionFromExpression(replacementContent, stringType);
+                        Debug.Assert(conversion.exists);
 
                         right = new BoundConditionalOperator(syntax,
                             new BoundIsOperator(syntax,
                                 replacementContent,
-                                Literal(syntax, null, nullableStringType),
+                                Literal(_compilation, syntax, null, nullableStringType),
                                 false,
                                 null,
-                                CorLibrary.GetSpecialType(SpecialType.Bool)
+                                _compilation.GetSpecialType(SpecialType.Bool)
                             ),
                             false,
-                            Literal(syntax, string.Empty, stringType),
+                            Literal(_compilation, syntax, string.Empty, stringType),
                             Cast(syntax,
                                 stringType,
                                 new BoundNullAssertOperator(syntax,
@@ -682,7 +753,7 @@ internal class SharedExpander : BoundTreeExpander {
                         );
                     }
                 } else {
-                    var toString = (MethodSymbol)CorLibrary.GetSpecialType(SpecialType.Object)
+                    var toString = (MethodSymbol)_compilation.GetSpecialType(SpecialType.Object)
                         .GetMembers("ToString").Single(m => m is MethodSymbol);
 
                     var toStringTemp = GenerateTempLocal(nullableStringType);
@@ -693,13 +764,13 @@ internal class SharedExpander : BoundTreeExpander {
                         new BoundConditionalOperator(syntax,
                             new BoundIsOperator(syntax,
                                 replacementContent,
-                                Literal(syntax, null, nullableStringType),
+                                Literal(_compilation, syntax, null, nullableStringType),
                                 false,
                                 null,
-                                CorLibrary.GetSpecialType(SpecialType.Bool)
+                                _compilation.GetSpecialType(SpecialType.Bool)
                             ),
                             false,
-                            Literal(syntax, null, nullableStringType),
+                            Literal(_compilation, syntax, null, nullableStringType),
                             new BoundCallExpression(syntax,
                                 replacementContent,
                                 toString,
@@ -719,7 +790,7 @@ internal class SharedExpander : BoundTreeExpander {
             if (right.Type().IsNullableType()) {
                 statements.AddRange(ExpandExpression(new BoundNullCoalescingOperator(syntax,
                     right,
-                    Literal(syntax, string.Empty, stringType),
+                    Literal(_compilation, syntax, string.Empty, stringType),
                     false,
                     null,
                     stringType
@@ -765,7 +836,7 @@ internal class SharedExpander : BoundTreeExpander {
         return [Statement(syntax,
             Assignment(syntax,
                 Local(syntax, statement.commitLocal),
-                Literal(syntax, true, boolType),
+                Literal(_compilation, syntax, true, boolType),
                 false,
                 boolType
             )
@@ -820,7 +891,7 @@ internal class SharedExpander : BoundTreeExpander {
         List<BoundStatement> statements = [];
 
         if (commitLocal is not null)
-            statements.Add(LocalDeclaration(syntax, commitLocal, Literal(syntax, false, commitLocal.type)));
+            statements.Add(LocalDeclaration(syntax, commitLocal, Literal(_compilation, syntax, false, commitLocal.type)));
 
         statements.AddRange(CreateWithPrologue(syntax, lefts, temps, statement.assignments, out var newLefts));
 
@@ -961,7 +1032,7 @@ internal class SharedExpander : BoundTreeExpander {
 
                 statements.AddRange(ExpandExpression(call, out var newCall));
 
-                var tupleField = ((FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2))
+                var tupleField = ((FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2))
                     .AsMember(tupleType);
 
                 var initializer = new BoundFieldAccessExpression(syntax, newCall, tupleField, null, tupleField.type);
@@ -990,7 +1061,7 @@ internal class SharedExpander : BoundTreeExpander {
 
                 statements.AddRange(ExpandExpression(call, out var newCall));
 
-                var tupleField = ((FieldSymbol)CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2))
+                var tupleField = ((FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2))
                     .AsMember(tupleType);
 
                 var initializer = cast.Update(
@@ -1129,5 +1200,307 @@ internal class SharedExpander : BoundTreeExpander {
             default:
                 throw ExceptionUtilities.UnexpectedValue(expression.kind);
         }
+    }
+
+    private protected override List<BoundStatement> ExpandOrReturnExpression(
+        BoundOrReturnExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        /*
+
+        <expression> or return
+
+        ----> identicalMatch
+
+        goto Success if <expression>.isSuccess
+        return <expression>
+    Success:
+        <expression>.value
+
+        ---->
+
+        goto Success if <expression>.isSuccess
+        return Result.Failure(<expression>.error)
+    Success:
+        <expression>.value
+
+        */
+        Debug.Assert(useKind != UseKind.Writable);
+
+        var syntax = expression.syntax;
+        var success = GenerateLabel();
+
+        var statements = ExpandExpression(expression.expression, out var newExpression, UseKind.StableValue);
+
+        var expressionType = (NamedTypeSymbol)expression.expression.type;
+        var resultMembers = expressionType.originalDefinition.GetMembers();
+
+        var isSuccessMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
+            resultMembers,
+            WellKnownMembers.GetDescriptor(WellKnownMember.Result_getIsSuccess),
+            _compilation.wellKnownMemberSignatureComparer,
+            accessWithinOpt: null
+        )).AsMember(expressionType);
+
+        var valueMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
+            resultMembers,
+            WellKnownMembers.GetDescriptor(WellKnownMember.Result_getValue),
+            _compilation.wellKnownMemberSignatureComparer,
+            accessWithinOpt: null
+        )).AsMember(expressionType);
+
+        statements.Add(GotoIf(syntax,
+            success,
+            InstanceCall(syntax, newExpression, isSuccessMethod, [])
+        ));
+
+        Debug.Assert(_container.refKind == RefKind.None);
+
+        if (expression.identicalMatch) {
+            statements.Add(new BoundReturnStatement(syntax, RefKind.None, newExpression));
+        } else {
+            var returnType = (NamedTypeSymbol)_container.returnType;
+
+            var errorMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
+                resultMembers,
+                WellKnownMembers.GetDescriptor(WellKnownMember.Result_getError),
+                _compilation.wellKnownMemberSignatureComparer,
+                accessWithinOpt: null
+            )).AsMember(expressionType);
+
+            var failureMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
+                resultMembers,
+                WellKnownMembers.GetDescriptor(WellKnownMember.Result_Failure),
+                _compilation.wellKnownMemberSignatureComparer,
+                accessWithinOpt: null
+            )).AsMember(returnType);
+
+            statements.Add(new BoundReturnStatement(syntax, RefKind.None,
+                Call(syntax, failureMethod, [
+                    InstanceCall(syntax, newExpression, errorMethod, [])
+                ])
+            ));
+        }
+
+        statements.Add(Label(syntax, success));
+        replacement = InstanceCall(syntax, newExpression, valueMethod, []);
+        return statements;
+    }
+
+    private protected override List<BoundStatement> ExpandOrThrowExpression(
+        BoundOrThrowExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        /*
+
+        <expression> or throw
+
+        ---->
+
+        goto Success if <expression>.isSuccess
+        throw new WrappedErrorException(<expression>.error)
+    Success:
+        <expression>.value
+
+        */
+        Debug.Assert(useKind != UseKind.Writable);
+
+        var syntax = expression.syntax;
+        var success = GenerateLabel();
+
+        var statements = ExpandExpression(expression.expression, out var newExpression, UseKind.StableValue);
+
+        var expressionType = (NamedTypeSymbol)expression.expression.type;
+        var resultMembers = expressionType.originalDefinition.GetMembers();
+
+        var isSuccessMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
+            resultMembers,
+            WellKnownMembers.GetDescriptor(WellKnownMember.Result_getIsSuccess),
+            _compilation.wellKnownMemberSignatureComparer,
+            accessWithinOpt: null
+        )).AsMember(expressionType);
+
+        var valueMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
+            resultMembers,
+            WellKnownMembers.GetDescriptor(WellKnownMember.Result_getValue),
+            _compilation.wellKnownMemberSignatureComparer,
+            accessWithinOpt: null
+        )).AsMember(expressionType);
+
+        statements.Add(GotoIf(syntax,
+            success,
+            InstanceCall(syntax, newExpression, isSuccessMethod, [])
+        ));
+
+        Debug.Assert(_container.refKind == RefKind.None);
+
+        var errorMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
+            resultMembers,
+            WellKnownMembers.GetDescriptor(WellKnownMember.Result_getError),
+            _compilation.wellKnownMemberSignatureComparer,
+            accessWithinOpt: null
+        )).AsMember(expressionType);
+
+        var exceptionType = _compilation.GetWellKnownType(WellKnownType.System_Exception);
+        var wrappedExceptionType = _compilation.GetWellKnownType(WellKnownType.Belte_WrappedErrorException);
+        var exceptionCtor = wrappedExceptionType.instanceConstructors.Single();
+
+        Debug.Assert(exceptionCtor.parameterCount == 1 &&
+            exceptionCtor.parameters[0].type.specialType is SpecialType.Any or SpecialType.Object);
+
+        Debug.Assert(expression.conversion is not null);
+        Debug.Assert(expression.conversionPlaceholder is not null);
+
+        var errorValue = InstanceCall(syntax, newExpression, errorMethod, []);
+
+        statements.AddRange(ApplyConversionIfNotIdentity(
+            expression.conversion,
+            expression.conversionPlaceholder,
+            errorValue,
+            out var convertedArgument
+        ));
+
+        statements.Add(Statement(syntax, new BoundThrowExpression(syntax,
+            new BoundObjectCreationExpression(syntax,
+                exceptionCtor,
+                [convertedArgument],
+                default,
+                default,
+                default,
+                false,
+                wrappedExceptionType
+            ),
+            exceptionType
+        )));
+
+        statements.Add(Label(syntax, success));
+        replacement = InstanceCall(syntax, newExpression, valueMethod, []);
+        return statements;
+    }
+
+    private protected override List<BoundStatement> ExpandOrBreakExpression(
+        BoundOrBreakExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        /*
+
+        <expression> or break
+
+        ---->
+
+        goto Success if <expression>.isSuccess
+        break
+    Success:
+        <expression>.value
+
+        */
+        Debug.Assert(useKind != UseKind.Writable);
+        return ExpandOrBreakOrContinue(expression.syntax, expression.expression, expression.label, out replacement);
+    }
+
+    private protected override List<BoundStatement> ExpandOrContinueExpression(
+        BoundOrContinueExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        /*
+
+        <expression> or continue
+
+        ---->
+
+        goto Success if <expression>.isSuccess
+        continue
+    Success:
+        <expression>.value
+
+        */
+        Debug.Assert(useKind != UseKind.Writable);
+        return ExpandOrBreakOrContinue(expression.syntax, expression.expression, expression.label, out replacement);
+    }
+
+    private List<BoundStatement> ExpandOrBreakOrContinue(
+        SyntaxNode syntax,
+        BoundExpression expression,
+        LabelSymbol label,
+        out BoundExpression replacement) {
+        var success = GenerateLabel();
+
+        var statements = ExpandExpression(expression, out var newExpression, UseKind.StableValue);
+
+        var expressionType = (NamedTypeSymbol)expression.type;
+        var resultMembers = expressionType.originalDefinition.GetMembers();
+
+        var isSuccessMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
+            resultMembers,
+            WellKnownMembers.GetDescriptor(WellKnownMember.Result_getIsSuccess),
+            _compilation.wellKnownMemberSignatureComparer,
+            accessWithinOpt: null
+        )).AsMember(expressionType);
+
+        var valueMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
+            resultMembers,
+            WellKnownMembers.GetDescriptor(WellKnownMember.Result_getValue),
+            _compilation.wellKnownMemberSignatureComparer,
+            accessWithinOpt: null
+        )).AsMember(expressionType);
+
+        statements.Add(GotoIf(syntax,
+            success,
+            InstanceCall(syntax, newExpression, isSuccessMethod, [])
+        ));
+
+        statements.Add(Goto(syntax, label));
+
+        statements.Add(Label(syntax, success));
+        replacement = InstanceCall(syntax, newExpression, valueMethod, []);
+        return statements;
+    }
+
+    private protected override List<BoundStatement> ExpandOrValueExpression(
+        BoundOrValueExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        /*
+
+        <expression> or <value>
+
+        ---->
+
+        <expression>.isSuccess ? <expression>.value : <value>
+
+        */
+        Debug.Assert(useKind != UseKind.Writable);
+
+        var syntax = expression.syntax;
+
+        var statements = ExpandExpression(expression.expression, out var newExpression, UseKind.StableValue);
+
+        var expressionType = (NamedTypeSymbol)expression.expression.type;
+        var resultMembers = expressionType.originalDefinition.GetMembers();
+
+        var isSuccessMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
+            resultMembers,
+            WellKnownMembers.GetDescriptor(WellKnownMember.Result_getIsSuccess),
+            _compilation.wellKnownMemberSignatureComparer,
+            accessWithinOpt: null
+        )).AsMember(expressionType);
+
+        var valueMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
+            resultMembers,
+            WellKnownMembers.GetDescriptor(WellKnownMember.Result_getValue),
+            _compilation.wellKnownMemberSignatureComparer,
+            accessWithinOpt: null
+        )).AsMember(expressionType);
+
+        statements.AddRange(ExpandExpression(expression.value, out var newValue));
+
+        replacement = Conditional(syntax,
+            InstanceCall(syntax, newExpression, isSuccessMethod, []),
+            InstanceCall(syntax, newExpression, valueMethod, []),
+            newValue,
+            expression.type
+        );
+
+        return statements;
     }
 }

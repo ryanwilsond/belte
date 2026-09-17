@@ -17,6 +17,8 @@ internal abstract class SourceMemberFieldSymbol : SourceFieldSymbolWithSyntaxRef
 
     internal abstract bool hasInitializer { get; }
 
+    public override Symbol associatedSymbol => null;
+
     private protected sealed override DeclarationModifiers _modifiers { get; }
 
     private protected abstract TypeSyntax _typeSyntax { get; }
@@ -35,6 +37,7 @@ internal abstract class SourceMemberFieldSymbol : SourceFieldSymbolWithSyntaxRef
 
     internal override int unionGroupId => !isAnonymousUnionMember
         ? -1
+        // TODO This could just be a volatile counter instead
         : syntaxReference.node.parent.parent.position;
 
     internal static DeclarationModifiers MakeModifiers(
@@ -43,6 +46,7 @@ internal abstract class SourceMemberFieldSymbol : SourceFieldSymbolWithSyntaxRef
         SyntaxTokenList modifiers,
         BelteDiagnosticQueue diagnostics,
         out bool hasErrors) {
+        var isInterface = containingSymbol.isInterface;
         var allowedModifiers =
             DeclarationModifiers.AccessibilityMask |
             DeclarationModifiers.Const |
@@ -54,6 +58,7 @@ internal abstract class SourceMemberFieldSymbol : SourceFieldSymbolWithSyntaxRef
 
         var result = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
             modifiers,
+            isInterface,
             (containingSymbol.IsStructType() || containingSymbol.IsFileScoped())
                 ? DeclarationModifiers.Public
                 : DeclarationModifiers.Private,

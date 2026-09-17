@@ -8,6 +8,10 @@
 
 */
 
+// Many graphics types are included in the Belte.Graphics namespace
+// These types include: Vec2, Sprite, Text
+using Belte.Graphics;
+
 // When `Main` is present in a non-static class, a single instance of that class is automatically created and managed
 // by the compiler, allowing you to modify and access instance data.
 class Program;
@@ -30,9 +34,6 @@ bool aiOn = true;
 bool previousEnter = false;
 
 void Main() {
-    // When building a graphics project, many additional types are added to the global namespace
-    // These types include: Vec2, Sprite, Text, Graphics
-
     // `Graphics.Initialize` creates the window and must be the first Graphics call made
     Graphics.Initialize("Pong", Settings.ScreenWidth, Settings.ScreenHeight);
     Graphics.LockFramerate(120);
@@ -62,12 +63,12 @@ void Main() {
 
     var leftOffset = Settings.ScreenWidth / 4;
     var scoreOnePosition = new Vec2(leftOffset, 40);
-    scoreOne = Graphics.LoadText("0", "samples/Pong/Assets/arial.ttf", scoreOnePosition, 60, 0, 255, 255, 255)!;
+    scoreOne = Graphics.LoadText("0", "samples/Pong/Assets/arial.ttf", scoreOnePosition, 60, 0, 255, 255, 255);
 
     var rightOffset = Settings.ScreenWidth - Settings.ScreenWidth / 4;
     var scoreTwoPosition = new Vec2(rightOffset, 40);
     // `Graphics.LoadText` renders a string using a given font, position, font size, angle, and color values
-    scoreTwo = Graphics.LoadText("0", "samples/Pong/Assets/arial.ttf", scoreTwoPosition, 60, 0, 255, 255, 255)!;
+    scoreTwo = Graphics.LoadText("0", "samples/Pong/Assets/arial.ttf", scoreTwoPosition, 60, 0, 255, 255, 255);
 
     var infoPosition = new Vec2(centerOfScreen.x, Settings.ScreenHeight - 60);
     info = Graphics.LoadText(
@@ -75,7 +76,7 @@ void Main() {
         "samples/Pong/Assets/arial.ttf",
         infoPosition,
         15, 0, 255, 255, 255
-    )!;
+    );
 
     ballVelocity = new Vec2(Settings.BallSpeed, Settings.BallSpeed);
 }
@@ -165,7 +166,7 @@ private void HandleBallBounce() {
     var topEdge = ballY - scaleY / 2;
     var bottomEdge = ballY + scaleY / 2;
 
-    if (topEdge <= 0 || bottomEdge! >= Settings.ScreenHeight) {
+    if (topEdge <= 0 || bottomEdge >= Settings.ScreenHeight) {
         var vX = ballVelocity.x;
         var vY = ballVelocity.y;
         vY *= -1;

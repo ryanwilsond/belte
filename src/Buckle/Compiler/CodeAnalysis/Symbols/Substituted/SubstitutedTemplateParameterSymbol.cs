@@ -35,6 +35,10 @@ internal class SubstitutedTemplateParameterSymbol : WrappedTemplateParameterSymb
         return _templateMap.SubstituteType(underlyingTemplateParameter.GetDeducedBaseType(inProgress)).type.type;
     }
 
+    internal override ImmutableArray<NamedTypeSymbol> GetInterfaces(ConsList<TemplateParameterSymbol> inProgress) {
+        return _templateMap.SubstituteNamedTypes(underlyingTemplateParameter.GetInterfaces(inProgress));
+    }
+
     internal override ImmutableArray<TypeWithAnnotations> GetConstraintTypes(ConsList<TemplateParameterSymbol> inProgress) {
         var builder = ArrayBuilder<TypeWithAnnotations>.GetInstance();
         _templateMap.SubstituteConstraintTypesDistinctWithoutModifiers(

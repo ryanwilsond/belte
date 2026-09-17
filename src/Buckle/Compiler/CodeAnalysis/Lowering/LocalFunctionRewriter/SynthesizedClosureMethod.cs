@@ -50,23 +50,19 @@ internal sealed class SynthesizedClosureMethod : SynthesizedMethodSymbolBase {
         switch (closureKind) {
             case ClosureKind.Singleton:
             case ClosureKind.General:
-                templateMap = lambdaFrame.templateMap.WithConcatAlphaRename(
-                    originalMethod,
+                templateMap = lambdaFrame.templateMap.WithAlphaRename(
+                    TemplateMap.ConcatMethodTemplateParameters(originalMethod, stopAt: lambdaFrame.originalContainingMethod),
                     this,
-                    out templateParameters,
-                    out _,
-                    lambdaFrame.originalContainingMethod
+                    out templateParameters
                 );
 
                 break;
             case ClosureKind.ThisOnly:
             case ClosureKind.Static:
-                templateMap = TemplateMap.Empty.WithConcatAlphaRename(
-                    originalMethod,
+                templateMap = TemplateMap.Empty.WithAlphaRename(
+                    TemplateMap.ConcatMethodTemplateParameters(originalMethod, stopAt: null),
                     this,
-                    out templateParameters,
-                    out _,
-                    stopAt: null
+                    out templateParameters
                 );
 
                 break;
@@ -100,7 +96,7 @@ internal sealed class SynthesizedClosureMethod : SynthesizedMethodSymbolBase {
     }
 
     private static DeclarationModifiers MakeDeclarationModifiers(ClosureKind closureKind, MethodSymbol originalMethod) {
-        var mods = closureKind == ClosureKind.ThisOnly ? DeclarationModifiers.Private : DeclarationModifiers.Public;
+        var mods = closureKind == ClosureKind.ThisOnly ? DeclarationModifiers.Private : DeclarationModifiers.Internal;
 
         if (closureKind == ClosureKind.Static)
             mods |= DeclarationModifiers.Static;

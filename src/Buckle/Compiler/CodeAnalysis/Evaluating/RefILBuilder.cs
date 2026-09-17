@@ -3,12 +3,14 @@ using System.Collections.Generic;
 using System.IO;
 using System.Linq;
 using System.Reflection.Emit;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
+using Shared;
 
 namespace Buckle.CodeAnalysis.Evaluating;
 
@@ -18,7 +20,7 @@ internal sealed class RefILBuilder : ILBuilder {
     private readonly MethodSymbol _method;
     private readonly StringWriter _logger;
     private readonly List<Label> _labelCounts;
-    private readonly Stack<object> _tryStack;
+    private readonly Stack<(object sigil, BoundTryStatement source, ValueWrapper<bool> inHandler)> _tryStack;
 
     private object _epilogue;
     private LocalBuilder _returnLocal;
@@ -31,7 +33,7 @@ internal sealed class RefILBuilder : ILBuilder {
         _iLGenerator = iLGenerator;
         _module = module;
         _labelCounts = [];
-        _tryStack = new Stack<object>();
+        _tryStack = new Stack<(object, BoundTryStatement, ValueWrapper<bool>)>();
         _logger = logger;
         _localSlotManager = new RefLocalSlotManager();
     }
@@ -64,7 +66,7 @@ internal sealed class RefILBuilder : ILBuilder {
 
     internal override void DefineInitialHiddenSequencePoint() { }
 
-    internal override void BeginTry() {
+    internal override void BeginTry(BoundTryStatement tryStatement) {
         if (!_needsEpilogue) {
             _needsEpilogue = true;
             _epilogue = new object();
@@ -79,10 +81,12 @@ internal sealed class RefILBuilder : ILBuilder {
 
         _iLGenerator.BeginExceptionBlock();
         if (_logger is not null) lock (_logger) _logger.WriteLine("Try {");
-        _tryStack.Push(new object());
+        _tryStack.Push((new object(), tryStatement, false));
     }
 
     internal override void BeginCatch() {
+        _tryStack.Peek().inHandler.Value = true;
+
         // ? Reflection.Emit seems to automatically insert this instruction
         // EmitBranch(CodeGeneration.OpCode.Leave, _tryStack.Peek());
         _iLGenerator.BeginCatchBlock(typeof(Exception));
@@ -105,7 +109,7 @@ internal sealed class RefILBuilder : ILBuilder {
 
         _iLGenerator.EndExceptionBlock();
         if (_logger is not null) lock (_logger) _logger.WriteLine("} // Try end");
-        MarkLabel(_tryStack.Pop());
+        MarkLabel(_tryStack.Pop().sigil);
 
         // TODO Turns out this is wrong, but what was this trying to accomplish?
         // if (_tryStack.Count > 0)
@@ -539,6 +543,17 @@ internal sealed class RefILBuilder : ILBuilder {
         // var cRevOpCode = ConvertToRef(revOpCode);
         var cOpCode = ConvertToRef(opCode);
 
+        if ((opCode == CodeGeneration.OpCode.Br || opCode == CodeGeneration.OpCode.Br_S) &&
+            _tryStack.Count > 0 &&
+            label is LabelSymbol symbol) {
+            var (_, source, inHandler) = _tryStack.Peek();
+
+            if ((!inHandler && !BlockContainsLabel(source.body, symbol)) ||
+                (inHandler && !BlockContainsLabel(source.catchBody, symbol))) {
+                cOpCode = opCode == CodeGeneration.OpCode.Br ? OpCodes.Leave : OpCodes.Leave_S;
+            }
+        }
+
         if (!_labels.TryGetValue(label, out var labelInfo)) {
             labelInfo = new RefLabelInfo(_iLGenerator);
             _labelCounts.Add(((RefLabelInfo)labelInfo).label);
@@ -546,6 +561,15 @@ internal sealed class RefILBuilder : ILBuilder {
         }
 
         EmitWithSymbolToken(cOpCode, ((RefLabelInfo)labelInfo).label);
+
+        static bool BlockContainsLabel(BoundBlockStatement block, LabelSymbol label) {
+            foreach (var statement in block.statements) {
+                if (statement is BoundLabelStatement labelStatement && labelStatement.label == label)
+                    return true;
+            }
+
+            return false;
+        }
     }
 
     internal override void EmitSwitch(object[] labels) {

@@ -14,4 +14,6 @@ internal interface ISymbolWithTemplates : ISymbol {
     abstract ImmutableArray<TypeOrConstant> templateArguments { get; }
 
     abstract TemplateMap templateSubstitution { get; }
+
+    int arity { get; }
 }

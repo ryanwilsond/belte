@@ -555,7 +555,7 @@ internal sealed partial class DecisionDagBuilder {
         ArrayBuilder<Tests> tests) {
         MakeCheckNotNull(input, syntax, isExplicitTest, tests);
 
-        if (!input.type.Equals(type, TypeCompareKind.IgnoreArraySizesAndLowerBounds)) {
+        if (!input.type.Equals(type, TypeCompareKind.AllIgnoreOptions)) {
             var inputType = input.type.StrippedType();
             var conversion = _conversions.ClassifyBuiltInConversion(inputType, type);
 

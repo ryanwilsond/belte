@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -54,6 +55,9 @@ public static class SymbolDisplay {
             case SymbolKind.Field:
                 DisplayField(text, (FieldSymbol)symbol, format);
                 break;
+            case SymbolKind.Property:
+                DisplayProperty(text, (PropertySymbol)symbol, format);
+                break;
             case SymbolKind.NamedType:
                 DisplayType(text, (NamedTypeSymbol)symbol, format);
                 break;
@@ -82,6 +86,9 @@ public static class SymbolDisplay {
             case SymbolKind.Assembly:
                 DisplayAssembly(text, (AssemblySymbol)symbol);
                 break;
+            case SymbolKind.Module:
+                DisplayModule(text, (ModuleSymbol)symbol);
+                break;
             case SymbolKind.Preprocessing:
                 DisplayPreprocessingSymbol(text, (PreprocessingSymbol)symbol);
                 break;
@@ -98,12 +105,22 @@ public static class SymbolDisplay {
         format ??= SymbolDisplayFormat.ErrorMessageFormat;
         var stripped = ((TypeSymbol)type).StrippedType();
 
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeAttributes) != 0)
+            DisplayAttributes(text, stripped.GetAttributes());
+
         if (type is ArrayTypeSymbol) {
             var array = (ArrayTypeSymbol)stripped;
-            text.Write(CreateIdentifier("Buffer"));
-            text.Write(CreatePunctuation(SyntaxKind.LessThanToken));
-            DisplayType(text, array.elementType, format);
-            text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));
+
+            if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.NetFormat) != 0) {
+                DisplayType(text, array.elementType, format);
+                text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
+                text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
+            } else {
+                text.Write(CreateIdentifier("Buffer"));
+                text.Write(CreatePunctuation(SyntaxKind.LessThanToken));
+                DisplayType(text, array.elementType, format);
+                text.Write(CreatePunctuation(SyntaxKind.GreaterThanToken));
+            }
 
             // TODO Consider omitting exclamation mark
             if (outerMostType &&
@@ -121,23 +138,33 @@ public static class SymbolDisplay {
                 return;
             }
 
-            if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyNullable) != 0 &&
+            if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.SimplifyTuple) != 0 &&
                 namedType.isTupleType) {
                 text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
 
                 var isFirst = true;
 
-                foreach (var elementType in namedType.tupleElementTypes) {
+                var tupleTypes = namedType.tupleElementTypes;
+                var tupleNames = namedType.tupleElementNames;
+
+                for (var i = 0; i < tupleTypes.Length; i++) {
                     if (isFirst)
                         isFirst = false;
                     else
                         text.Write(CreatePunctuation(", "));
 
-                    DisplayType(text, elementType.type.type, format);
+                    DisplayType(text, tupleTypes[i].type.type, format);
+
+                    if (!tupleNames.IsDefaultOrEmpty) {
+                        text.Write(CreateSpace());
+                        text.Write(CreateIdentifier(tupleNames[i]));
+                    }
                 }
 
                 text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
-            } else if (CorLibrary.GetWellKnownType(WellKnownType.Array).Equals(namedType.originalDefinition)) {
+            } else if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.NetFormat) == 0 &&
+                CorLibrary.Instance.HasWellKnownType(WellKnownType.Array) &&
+                CorLibrary.Instance.GetWellKnownType(WellKnownType.Array).Equals(namedType.originalDefinition)) {
                 DisplayType(text, namedType.templateArguments[0].type.type, format);
                 text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
                 text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
@@ -231,6 +258,9 @@ public static class SymbolDisplay {
                 case TypeKind.Class:
                     text.Write(CreateKeyword(SyntaxKind.ClassKeyword));
                     break;
+                case TypeKind.Interface:
+                    text.Write(CreateKeyword(SyntaxKind.InterfaceKeyword));
+                    break;
                 case TypeKind.Struct:
                     if (namedType.isUnionStruct) {
                         text.Write(CreateKeyword(SyntaxKind.UnionKeyword));
@@ -240,7 +270,7 @@ public static class SymbolDisplay {
                     text.Write(CreateKeyword(SyntaxKind.StructKeyword));
                     break;
                 case TypeKind.Primitive:
-                    text.Write(CreateKeyword(SyntaxKind.PrimitiveKeyword));
+                    text.Write(CreateKeyword("primitive"));
                     break;
                 case TypeKind.Enum:
                     text.Write(CreateKeyword(SyntaxKind.EnumKeyword));
@@ -282,12 +312,32 @@ public static class SymbolDisplay {
         else
             DisplayTemplateArguments(text, namedType.templateArguments, format);
 
-        if (namedType.baseType is not null &&
-            (format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.IncludeBaseList) != 0) {
-            text.Write(CreateSpace());
-            text.Write(CreateKeyword(SyntaxKind.ExtendsKeyword));
-            text.Write(CreateSpace());
-            DisplayType(text, namedType.baseType, SymbolDisplayFormat.ObjectCreationFormat);
+        if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.IncludeBaseList) != 0) {
+            if (namedType.baseType is not null) {
+                text.Write(CreateSpace());
+                text.Write(CreateKeyword(SyntaxKind.ExtendsKeyword));
+                text.Write(CreateSpace());
+                DisplayType(text, namedType.baseType, SymbolDisplayFormat.ObjectCreationFormat);
+            }
+
+            var interfaces = namedType.Interfaces();
+
+            if (interfaces.Length > 0) {
+                text.Write(CreateSpace());
+                text.Write(CreateKeyword(SyntaxKind.ImplementsKeyword));
+                text.Write(CreateSpace());
+
+                var first = true;
+
+                foreach (var @interface in interfaces) {
+                    if (first)
+                        first = false;
+                    else
+                        text.Write(CreatePunctuation(", "));
+
+                    DisplayType(text, @interface, SymbolDisplayFormat.ObjectCreationFormat);
+                }
+            }
         }
 
         DisplayTemplateConstraints(text, namedType.templateConstraints, format);
@@ -335,9 +385,11 @@ public static class SymbolDisplay {
     }
 
     private static void DisplayAssembly(DisplayText text, AssemblySymbol assembly) {
-        text.Write(CreateKeyword("assembly"));
-        text.Write(CreateSpace());
-        text.Write(CreateIdentifier(assembly.name));
+        text.Write(CreateIdentifier(assembly.identity.GetDisplayName()));
+    }
+
+    private static void DisplayModule(DisplayText text, ModuleSymbol module) {
+        text.Write(CreateIdentifier(module.name));
     }
 
     private static void DisplayAlias(DisplayText text, AliasSymbol alias) {
@@ -366,6 +418,9 @@ public static class SymbolDisplay {
     }
 
     private static void DisplayField(DisplayText text, FieldSymbol field, SymbolDisplayFormat format) {
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeAttributes) != 0)
+            DisplayAttributes(text, field.GetAttributes());
+
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeAccessibility) != 0)
             DisplayAccessibility(text, field);
 
@@ -386,8 +441,70 @@ public static class SymbolDisplay {
         text.Write(CreateIdentifier(field.name));
     }
 
+    private static void DisplayProperty(DisplayText text, PropertySymbol property, SymbolDisplayFormat format) {
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeAttributes) != 0)
+            DisplayAttributes(text, property.GetAttributes());
+
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeAccessibility) != 0)
+            DisplayAccessibility(text, property);
+
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeTypeModifiers) != 0)
+            DisplayModifiers(text, property);
+
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeModifiers) != 0)
+            DisplayConstExprRef(text, false, false, false, property.refKind);
+
+        if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.IncludeKeywords) != 0) {
+            text.Write(CreateKeyword(SyntaxKind.PropertyKeyword));
+            text.Write(CreateSpace());
+        }
+
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeType) != 0) {
+            DisplayType(text, property.type, ToMemberTypeFormat(format));
+            text.Write(CreateSpace());
+        }
+
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeContainingType) != 0)
+            DisplayContainedNames(text, property, format);
+
+        text.Write(CreateIdentifier(property.name));
+
+        if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.IncludePropertyBody) != 0) {
+            text.Write(CreateSpace());
+
+            text.Write(CreatePunctuation(SyntaxKind.OpenBraceToken));
+            text.indent++;
+            text.WriteLine();
+
+            if (property.getMethod is { } getMethod) {
+                text.Write(CreateKeyword(SyntaxKind.GetKeyword));
+                text.Write(CreatePunctuation(" => "));
+                text.Write(CreateIdentifier(getMethod.name));
+                text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+                text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+                text.WriteLine();
+            }
+
+            if (property.setMethod is { } setMethod) {
+                text.Write(CreateKeyword(SyntaxKind.SetKeyword));
+                text.Write(CreatePunctuation(" => "));
+                text.Write(CreateIdentifier(setMethod.name));
+                text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+                text.Write(CreateIdentifier("value"));
+                text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+                text.WriteLine();
+            }
+
+            text.indent--;
+            text.Write(CreatePunctuation(SyntaxKind.CloseBraceToken));
+        }
+    }
+
     private static void DisplayParameter(DisplayText text, ParameterSymbol parameter, SymbolDisplayFormat format) {
         var needSpace = false;
+
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeAttributes) != 0)
+            DisplayAttributes(text, parameter.GetAttributes());
 
         if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeModifiers) != 0)
             DisplayConstExprRef(text, parameter.isConst, false, false, parameter.refKind);
@@ -418,8 +535,9 @@ public static class SymbolDisplay {
     }
 
     private static SymbolDisplayFormat ToMemberTypeFormat(SymbolDisplayFormat format) {
-        return format.WithOptions(format.memberOptions & ~(SymbolDisplayMemberOptions.IncludeTypeModifiers |
-                                                           SymbolDisplayMemberOptions.IncludeAccessibility));
+        format = format.WithOptions(format.memberOptions & ~(SymbolDisplayMemberOptions.IncludeTypeModifiers |
+                                                             SymbolDisplayMemberOptions.IncludeAccessibility));
+        return format.WithOptions(format.templateOptions & ~SymbolDisplayTemplateOptions.IncludeTemplateConstraints);
     }
 
     private static void DisplayTemplateParameter(
@@ -427,6 +545,9 @@ public static class SymbolDisplay {
         TemplateParameterSymbol templateParameter,
         SymbolDisplayFormat format) {
         var needSpace = false;
+
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeAttributes) != 0)
+            DisplayAttributes(text, templateParameter.GetAttributes());
 
         if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.ExpandTemplateParameter) != 0) {
             DisplayType(text, templateParameter.underlyingType.type, format);
@@ -464,7 +585,7 @@ public static class SymbolDisplay {
             }
         }
 
-        if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeDefaultValue) != 0) {
+        if ((format.templateOptions & SymbolDisplayTemplateOptions.IncludeTemplateDefaultValues) != 0) {
             var defaultValue = templateParameter.defaultValue;
 
             if (defaultValue is not null) {
@@ -604,18 +725,23 @@ public static class SymbolDisplay {
         else
             text.Write(CreateIdentifier(method.name));
 
-        DisplayTemplateParameters(text, method.templateParameters, format);
+        if ((object)method.constructedFrom == method)
+            DisplayTemplateParameters(text, method.templateParameters, format);
+        else
+            DisplayTemplateArguments(text, method.templateArguments, format);
 
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeParameters) != 0) {
             text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
 
-            for (var i = 0; i < method.parameterCount; i++) {
-                if (i > 0) {
-                    text.Write(CreatePunctuation(SyntaxKind.CommaToken));
-                    text.Write(CreateSpace());
-                }
+            if (!method.parameters.IsDefault) {
+                for (var i = 0; i < method.parameterCount; i++) {
+                    if (i > 0) {
+                        text.Write(CreatePunctuation(SyntaxKind.CommaToken));
+                        text.Write(CreateSpace());
+                    }
 
-                DisplayParameter(text, method.parameters[i], format);
+                    DisplayParameter(text, method.parameters[i], format);
+                }
             }
 
             text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
@@ -635,7 +761,14 @@ public static class SymbolDisplay {
             text.Write(CreateIdentifier(attribute.attributeClass.name));
             text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
 
+            var isFirst = true;
+
             foreach (var argument in attribute._commonConstructorArguments) {
+                if (isFirst)
+                    isFirst = false;
+                else
+                    text.Write(CreatePunctuation(", "));
+
                 var constantValue = new ConstantValue(
                     argument.value,
                     SpecialTypeExtensions.SpecialTypeFromLiteralValue(argument.value)
@@ -659,11 +792,21 @@ public static class SymbolDisplay {
 
         if (!symbol.isGlobalNamespace ||
             ((format.qualificationStyle & SymbolDisplayQualificationStyle.IncludeGlobalNamespace) == 0)) {
-            text.Write(CreateIdentifier(symbol.name));
+            Debug.Assert(symbol.name == "" == symbol.isGlobalNamespace);
+
+            if (symbol.isGlobalNamespace)
+                text.Write(CreateIdentifier("<global>"));
+            else
+                text.Write(CreateIdentifier(symbol.name));
         }
     }
 
     private static void DisplayModifiers(DisplayText text, Symbol symbol) {
+        if (symbol.IsLowLevel()) {
+            text.Write(CreateKeyword(SyntaxKind.LowlevelKeyword));
+            text.Write(CreateSpace());
+        }
+
         if (symbol.isStatic) {
             text.Write(CreateKeyword(SyntaxKind.StaticKeyword));
             text.Write(CreateSpace());
@@ -696,15 +839,31 @@ public static class SymbolDisplay {
     }
 
     private static void DisplayAccessibility(DisplayText text, Symbol symbol) {
-        if (symbol.declaredAccessibility == Accessibility.Public) {
-            text.Write(CreateKeyword(SyntaxKind.PublicKeyword));
-            text.Write(CreateSpace());
-        } else if (symbol.declaredAccessibility == Accessibility.Protected) {
-            text.Write(CreateKeyword(SyntaxKind.ProtectedKeyword));
-            text.Write(CreateSpace());
-        } else if (symbol.declaredAccessibility == Accessibility.Private) {
-            text.Write(CreateKeyword(SyntaxKind.PrivateKeyword));
-            text.Write(CreateSpace());
+        switch (symbol.declaredAccessibility) {
+            case Accessibility.Public:
+                text.Write(CreateKeyword(SyntaxKind.PublicKeyword));
+                text.Write(CreateSpace());
+                break;
+            case Accessibility.Protected:
+                text.Write(CreateKeyword(SyntaxKind.ProtectedKeyword));
+                text.Write(CreateSpace());
+                break;
+            case Accessibility.Private:
+                text.Write(CreateKeyword(SyntaxKind.PrivateKeyword));
+                text.Write(CreateSpace());
+                break;
+            case Accessibility.Internal:
+                text.Write(CreateKeyword(SyntaxKind.InternalKeyword));
+                text.Write(CreateSpace());
+                break;
+            case Accessibility.InternalOrProtected:
+                text.Write(CreateKeyword("internal | protected"));
+                text.Write(CreateSpace());
+                break;
+            case Accessibility.InternalAndProtected:
+                text.Write(CreateKeyword("internal & protected"));
+                text.Write(CreateSpace());
+                break;
         }
     }
 

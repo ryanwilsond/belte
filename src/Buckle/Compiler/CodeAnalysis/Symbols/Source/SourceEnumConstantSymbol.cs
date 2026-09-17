@@ -42,6 +42,8 @@ internal abstract partial class SourceEnumConstantSymbol : SourceFieldSymbolWith
 
     public sealed override RefKind refKind => RefKind.None;
 
+    public override Symbol associatedSymbol => null;
+
     internal override TypeWithAnnotations GetFieldType(ConsList<FieldSymbol> fieldsBeingBound) {
         return new TypeWithAnnotations(containingType);
     }

@@ -1,9 +1,7 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -17,8 +15,12 @@ internal sealed class SourceStateMethodSymbol : SourceMemberMethodSymbol {
         StateClauseSyntax syntax,
         NamedTypeSymbol containingType,
         SourceMemberMethodSymbol containingMethod)
-        : base(containingType, new SyntaxReference(syntax), MakeModifiersAndFlags(syntax, containingMethod)) {
-        location = syntax.keyword.location;
+        : base(
+            containingType,
+            new SyntaxReference(syntax),
+            syntax.keyword.location,
+             MakeModifiersAndFlags(syntax, containingMethod)
+        ) {
         _syntax = syntax;
         _containingMethod = containingMethod;
         name = GeneratedNames.MakeStateMethodName(containingMethod.name);
@@ -29,8 +31,6 @@ internal sealed class SourceStateMethodSymbol : SourceMemberMethodSymbol {
     public sealed override ImmutableArray<TemplateParameterSymbol> templateParameters => [];
 
     public sealed override ImmutableArray<BoundExpression> templateConstraints => [];
-
-    internal override TextLocation location { get; }
 
     internal sealed override int parameterCount => _containingMethod.parameterCount;
 
@@ -43,11 +43,21 @@ internal sealed class SourceStateMethodSymbol : SourceMemberMethodSymbol {
         }
     }
 
-    internal sealed override void AfterAddingTypeMembersChecks(BelteDiagnosticQueue diagnostics) {
-        base.AfterAddingTypeMembersChecks(diagnostics);
+    internal sealed override void AfterAddingTypeMembersChecks(
+        ConversionsBase conversions,
+        BelteDiagnosticQueue diagnostics) {
+        base.AfterAddingTypeMembersChecks(conversions, diagnostics);
 
-        foreach (var parameter in parameters)
-            parameter.type.CheckAllConstraints(parameter.syntaxReference.location, diagnostics);
+        var impliedConstraints = GetEnclosingTemplateConstraints();
+
+        foreach (var parameter in parameters) {
+            parameter.type.CheckAllConstraints(
+                conversions,
+                parameter.syntaxReference.location,
+                impliedConstraints,
+                diagnostics
+            );
+        }
     }
 
     internal sealed override ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes() {
@@ -55,6 +65,10 @@ internal sealed class SourceStateMethodSymbol : SourceMemberMethodSymbol {
     }
 
     internal sealed override ImmutableArray<TypeParameterConstraintKinds> GetTypeParameterConstraintKinds() {
+        return [];
+    }
+
+    internal sealed override ImmutableArray<BoundExpression> GetTemplateConstraints() {
         return [];
     }
 
@@ -76,7 +90,7 @@ internal sealed class SourceStateMethodSymbol : SourceMemberMethodSymbol {
 
         if (t1.IsVoidType())
             // This is purely a placeholder
-            t1 = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Int32));
+            t1 = new TypeWithAnnotations(declaringCompilation.GetSpecialType(SpecialType.Int32));
 
         var binderFactory = declaringCompilation.GetBinderFactory(_syntax.syntaxTree);
 
@@ -129,6 +143,9 @@ internal sealed class SourceStateMethodSymbol : SourceMemberMethodSymbol {
             Accessibility.Public => DeclarationModifiers.Public,
             Accessibility.Private => DeclarationModifiers.Private,
             Accessibility.Protected => DeclarationModifiers.Protected,
+            Accessibility.Internal => DeclarationModifiers.Internal,
+            Accessibility.InternalOrProtected => DeclarationModifiers.InternalOrProtected,
+            Accessibility.InternalAndProtected => DeclarationModifiers.InternalAndProtected,
             _ => DeclarationModifiers.None
         };
 

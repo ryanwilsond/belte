@@ -1,11 +1,13 @@
+using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -13,13 +15,13 @@ namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, IAttributeTargetSymbol {
     private ImmutableArray<ExpressionSyntax> _unboundConstraints;
-    private ImmutableArray<BoundExpression> _lazyTemplateConstraints;
     private CustomAttributesBag<AttributeData> _lazyAttributesBag;
-    private NamedTypeSymbol _lazyDeclaredBase;
+    private Tuple<NamedTypeSymbol, ImmutableArray<NamedTypeSymbol>> _lazyDeclaredBases;
     private NamedTypeSymbol _lazyBaseType = ErrorTypeSymbol.UnknownResultType;
     private TemplateParameterInfo _lazyTemplateParameterInfo;
     private SynthesizedEnumValueFieldSymbol _lazyEnumValueField;
     private NamedTypeSymbol _lazyEnumUnderlyingType = ErrorTypeSymbol.UnknownResultType;
+    private ImmutableArray<NamedTypeSymbol> _lazyInterfaces;
 
     internal SourceNamedTypeSymbol(
         NamespaceOrTypeSymbol containingSymbol,
@@ -59,11 +61,11 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
     public override ImmutableArray<BoundExpression> templateConstraints {
         get {
-            if (_lazyTemplateConstraints.IsDefault) {
+            if (_templateParameterInfo.lazyTemplateConstraints.IsDefault) {
                 var diagnostics = BelteDiagnosticQueue.GetInstance();
 
                 ImmutableInterlocked.InterlockedInitialize(
-                    ref _lazyTemplateConstraints,
+                    ref _templateParameterInfo.lazyTemplateConstraints,
                     MakeTemplateConstraints(diagnostics)
                 );
 
@@ -71,7 +73,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
                 diagnostics.Free();
             }
 
-            return _lazyTemplateConstraints;
+            return _templateParameterInfo.lazyTemplateConstraints;
         }
     }
 
@@ -156,20 +158,29 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
     internal bool isSimpleProgram => _declaration.declarations.Any(static d => d.isSimpleProgram);
 
-    internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {
-        if (_lazyDeclaredBase is null) {
+    internal Tuple<NamedTypeSymbol, ImmutableArray<NamedTypeSymbol>> GetDeclaredBases(
+        ConsList<TypeSymbol> basesBeingResolved) {
+        if (_lazyDeclaredBases is null) {
             var diagnostics = BelteDiagnosticQueue.GetInstance();
 
             if (Interlocked.CompareExchange(
-                ref _lazyDeclaredBase,
-                MakeDeclaredBase(basesBeingResolved, diagnostics), null) is null) {
+                ref _lazyDeclaredBases,
+                MakeDeclaredBases(basesBeingResolved, diagnostics), null) is null) {
                 AddDeclarationDiagnostics(diagnostics);
             }
 
             diagnostics.Free();
         }
 
-        return _lazyDeclaredBase;
+        return _lazyDeclaredBases;
+    }
+
+    internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {
+        return GetDeclaredBases(basesBeingResolved).Item1;
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> GetDeclaredInterfaces(ConsList<TypeSymbol> basesBeingResolved) {
+        return GetDeclaredBases(basesBeingResolved).Item2;
     }
 
     private CustomAttributesBag<AttributeData> GetAttributesBag() {
@@ -214,42 +225,162 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
         if (singleDeclaration is not null) {
             var location = singleDeclaration.nameLocation;
-            localBase.CheckAllConstraints(location, diagnostics);
+            var conversions = TypeConversions.GetInstance();
+            localBase.CheckAllConstraints(conversions, location, GetEnclosingTemplateConstraints(), diagnostics);
         }
+    }
+
+    private protected override void CheckInterfaces(BelteDiagnosticQueue diagnostics) {
+        var interfaces = interfacesAndTheirBaseInterfaces;
+
+        if (interfaces.IsEmpty)
+            return;
+
+        var singleDeclaration = FirstDeclarationWithExplicitBases();
+        var impliedConstraints = GetEnclosingTemplateConstraints();
+
+        if (singleDeclaration is not null) {
+            var location = singleDeclaration.nameLocation;
+            var conversions = TypeConversions.GetInstance();
+
+            foreach (var pair in interfaces) {
+                var set = pair.Value;
+
+                foreach (var @interface in set)
+                    @interface.CheckAllConstraints(conversions, location, impliedConstraints, diagnostics);
+
+                if (set.Count > 1) {
+                    var other = pair.Key;
+
+                    foreach (var @interface in set) {
+                        if ((object)other == @interface)
+                            continue;
+
+                        if (other.Equals(@interface, TypeCompareKind.ConsiderEverything)) {
+                        } else if (other.Equals(@interface, TypeCompareKind.IgnoreTupleNames)) {
+                            diagnostics.Push(Error.DuplicateInterfaceWithTupleNamesInBaseList(
+                                location,
+                                @interface,
+                                other,
+                                this
+                            ));
+                        } else {
+                            diagnostics.Push(Error.DuplicateInterfaceWithDifferencesInBaseList(
+                                location,
+                                @interface,
+                                other,
+                                this
+                            ));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    private protected override TextLocation GetCorrespondingBaseListLocation(NamedTypeSymbol @base) {
+        TextLocation backupLocation = null;
+
+        foreach (var part in declaringSyntaxReferences) {
+            var typeBlock = (TypeDeclarationSyntax)part.node;
+
+            BaseTypeSyntax baseTypeSyntax = null;
+            InterfaceListSyntax interfaceListSyntax;
+
+            switch (typeBlock.kind) {
+                case SyntaxKind.ClassDeclaration:
+                    var classDecl = (ClassDeclarationSyntax)typeBlock;
+                    baseTypeSyntax = classDecl.baseType;
+                    interfaceListSyntax = classDecl.interfaceList;
+                    break;
+                case SyntaxKind.FileScopedClassDeclaration:
+                    var fileScopedClassDecl = (FileScopedClassDeclarationSyntax)typeBlock;
+                    baseTypeSyntax = fileScopedClassDecl.baseType;
+                    interfaceListSyntax = fileScopedClassDecl.interfaceList;
+                    break;
+                case SyntaxKind.InterfaceDeclaration:
+                    var interfaceDecl = (InterfaceDeclarationSyntax)typeBlock;
+                    interfaceListSyntax = interfaceDecl.interfaceList;
+                    break;
+                case SyntaxKind.StructDeclaration:
+                    var structDecl = (StructDeclarationSyntax)typeBlock;
+                    interfaceListSyntax = structDecl.interfaceList;
+                    break;
+                default:
+                    continue;
+            }
+
+            if (interfaceListSyntax is null && baseTypeSyntax is null)
+                continue;
+
+            var baseBinder = declaringCompilation.GetBinder((BelteSyntaxNode)baseTypeSyntax ?? interfaceListSyntax);
+            baseBinder = baseBinder.WithAdditionalFlagsAndContainingMember(BinderFlags.SuppressConstraintChecks, this);
+
+            backupLocation ??= interfaceListSyntax?.types?[0]?.location ?? baseTypeSyntax.location;
+
+            if (baseTypeSyntax is not null) {
+                var t = baseTypeSyntax.type;
+                var bt = baseBinder.BindType(t, BelteDiagnosticQueue.Discarded).type;
+
+                if (Equals(bt, @base, TypeCompareKind.ConsiderEverything))
+                    return t.location;
+            }
+
+            if (interfaceListSyntax is not null) {
+                foreach (var t in interfaceListSyntax.types) {
+                    var bt = baseBinder.BindType(t, BelteDiagnosticQueue.Discarded).type;
+
+                    if (Equals(bt, @base, TypeCompareKind.ConsiderEverything))
+                        return t.location;
+                }
+            }
+        }
+
+        return backupLocation;
     }
 
     private SingleTypeDeclaration FirstDeclarationWithExplicitBases() {
         foreach (var singleDeclaration in _declaration.declarations) {
-            var bases = GetBaseListOpt(singleDeclaration);
+            var (baseSyntax, interfacesSyntax) = GetBaseListOpt(singleDeclaration);
 
-            if (bases is not null)
+            if (baseSyntax is not null || interfacesSyntax is not null)
                 return singleDeclaration;
         }
 
         return null;
     }
 
-    private static BaseTypeSyntax GetBaseListOpt(SingleTypeDeclaration decl) {
+    private static (BaseTypeSyntax, InterfaceListSyntax) GetBaseListOpt(SingleTypeDeclaration decl) {
         if (decl.hasBaseDeclarations) {
             switch (decl.syntaxReference.node.kind) {
-                case SyntaxKind.ClassDeclaration:
-                    return ((ClassDeclarationSyntax)decl.syntaxReference.node).baseType;
-                case SyntaxKind.FileScopedClassDeclaration:
-                    return ((FileScopedClassDeclarationSyntax)decl.syntaxReference.node).baseType;
+                case SyntaxKind.ClassDeclaration: {
+                        var node = (ClassDeclarationSyntax)decl.syntaxReference.node;
+                        return (node.baseType, node.interfaceList);
+                    }
+                case SyntaxKind.FileScopedClassDeclaration: {
+                        var node = (FileScopedClassDeclarationSyntax)decl.syntaxReference.node;
+                        return (node.baseType, node.interfaceList);
+                    }
                 case SyntaxKind.EnumDeclaration:
-                    return ((EnumDeclarationSyntax)decl.syntaxReference.node).baseType;
+                    return (((EnumDeclarationSyntax)decl.syntaxReference.node).baseType, null);
+                case SyntaxKind.StructDeclaration:
+                    return (null, ((StructDeclarationSyntax)decl.syntaxReference.node).interfaceList);
+                case SyntaxKind.InterfaceDeclaration:
+                    return (null, ((InterfaceDeclarationSyntax)decl.syntaxReference.node).interfaceList);
                 default:
                     throw ExceptionUtilities.UnexpectedValue(decl.syntaxReference.node.kind);
             }
         }
 
-        return null;
+        return (null, null);
     }
 
     private NamedTypeSymbol MakeAcyclicBaseType(BelteDiagnosticQueue diagnostics) {
         var typeKind = this.typeKind;
+        var compilation = declaringCompilation;
+
         var declaredBase = typeKind == TypeKind.Enum
-            ? CorLibrary.GetSpecialType(SpecialType.Enum)
+            ? compilation.GetSpecialType(SpecialType.Enum)
             : GetDeclaredBaseType(basesBeingResolved: null);
 
         if (declaredBase is null) {
@@ -258,11 +389,13 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
                     if (specialType == SpecialType.Object)
                         return null;
 
-                    declaredBase = CorLibrary.GetSpecialType(SpecialType.Object);
+                    declaredBase = compilation.GetSpecialType(SpecialType.Object);
                     break;
                 case TypeKind.Struct:
-                    declaredBase = CorLibrary.GetSpecialType(SpecialType.ValueType);
+                    declaredBase = compilation.GetSpecialType(SpecialType.ValueType);
                     break;
+                case TypeKind.Interface:
+                    return null;
                 default:
                     throw ExceptionUtilities.UnexpectedValue(typeKind);
             }
@@ -295,16 +428,73 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
         return binder.BindExpressionConstraints(_unboundConstraints, templateParameters, diagnostics);
     }
 
-    private NamedTypeSymbol MakeDeclaredBase(
+    internal sealed override ImmutableArray<NamedTypeSymbol> Interfaces(ConsList<TypeSymbol> basesBeingResolved) {
+        if (_lazyInterfaces.IsDefault) {
+            if (basesBeingResolved is not null && basesBeingResolved.ContainsReference(originalDefinition))
+                return [];
+
+            var diagnostics = BelteDiagnosticQueue.GetInstance();
+            var acyclicInterfaces = MakeAcyclicInterfaces(basesBeingResolved, diagnostics);
+
+            if (ImmutableInterlocked.InterlockedCompareExchange(ref _lazyInterfaces, acyclicInterfaces, default).IsDefault)
+                AddDeclarationDiagnostics(diagnostics);
+
+            diagnostics.Free();
+        }
+
+        return _lazyInterfaces;
+    }
+
+    private ImmutableArray<NamedTypeSymbol> MakeAcyclicInterfaces(
+        ConsList<TypeSymbol> basesBeingResolved,
+        BelteDiagnosticQueue diagnostics) {
+        var typeKind = this.typeKind;
+
+        if (typeKind == TypeKind.Enum)
+            return [];
+
+        var declaredInterfaces = GetDeclaredInterfaces(basesBeingResolved: basesBeingResolved);
+        var isInterface = typeKind == TypeKind.Interface;
+        var result = isInterface ? ArrayBuilder<NamedTypeSymbol>.GetInstance() : null;
+
+        foreach (var t in declaredInterfaces) {
+            if (isInterface) {
+                if (BaseTypeAnalysis.TypeDependsOn(depends: t, on: this)) {
+                    var error = Error.CycleInInterfaceInheritance(location, this, t);
+                    diagnostics.Push(error);
+                    result.Add(new ExtendedErrorTypeSymbol(t, LookupResultKind.NotReferencable, error));
+                    continue;
+                } else {
+                    result.Add(t);
+                }
+            }
+        }
+
+        return isInterface ? result.ToImmutableAndFree() : declaredInterfaces;
+    }
+
+    private Tuple<NamedTypeSymbol, ImmutableArray<NamedTypeSymbol>> MakeDeclaredBases(
         ConsList<TypeSymbol> basesBeingResolved,
         BelteDiagnosticQueue diagnostics) {
         if (typeKind == TypeKind.Enum)
-            return null;
+            return new(null, []);
 
         var decl = _declaration.declarations[0];
         var newBasesBeingResolved = basesBeingResolved.Prepend(originalDefinition);
-        var baseType = MakeOneDeclaredBase(newBasesBeingResolved, decl, diagnostics);
+        var baseInterfaces = ArrayBuilder<NamedTypeSymbol>.GetInstance();
+
+        var interfaceLocations = SpecializedSymbolCollections
+            .GetPooledSymbolDictionaryInstance<NamedTypeSymbol, TextLocation>();
+
+        var (baseType, partInterfaces) = MakeOneDeclaredBases(newBasesBeingResolved, decl, diagnostics);
         var baseTypeLocation = decl.nameLocation;
+
+        foreach (var t in partInterfaces) {
+            if (!interfaceLocations.ContainsKey(t)) {
+                baseInterfaces.Add(t);
+                interfaceLocations.Add(t, decl.nameLocation);
+            }
+        }
 
         if (baseType is not null) {
             if (baseType.isStatic)
@@ -314,28 +504,40 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
                 diagnostics.Push(Error.InconsistentAccessibilityClass(baseTypeLocation, baseType, this));
         }
 
-        return baseType;
+        var baseInterfacesImmutable = baseInterfaces.ToImmutableAndFree();
+
+        if (declaredAccessibility != Accessibility.Private && isInterface) {
+            foreach (var i in baseInterfacesImmutable) {
+                if (!i.IsAtLeastAsVisibleAs(this))
+                    diagnostics.Push(Error.InconsistentAccessibilityInterface(interfaceLocations[i], this, i));
+            }
+        }
+
+        interfaceLocations.Free();
+        return new(baseType, baseInterfacesImmutable);
     }
 
-    private NamedTypeSymbol MakeOneDeclaredBase(
+    private Tuple<NamedTypeSymbol, ImmutableArray<NamedTypeSymbol>> MakeOneDeclaredBases(
         ConsList<TypeSymbol> newBasesBeingResolved,
         SingleTypeDeclaration decl,
         BelteDiagnosticQueue diagnostics) {
-        var baseSyntax = GetBaseListOpt(decl);
+        var (baseSyntax, interfacesSyntax) = GetBaseListOpt(decl);
 
-        if (baseSyntax is null)
-            return null;
+        if (baseSyntax is null && interfacesSyntax is null)
+            return new(null, []);
 
         NamedTypeSymbol localBase = null;
-        var baseBinder = declaringCompilation.GetBinder(baseSyntax);
+        var localInterfaces = ArrayBuilder<NamedTypeSymbol>.GetInstance();
+        var baseBinder = declaringCompilation.GetBinder((BelteSyntaxNode)baseSyntax ?? interfacesSyntax);
         baseBinder = baseBinder.WithAdditionalFlagsAndContainingMember(BinderFlags.SuppressConstraintChecks, this);
-        var typeSyntax = baseSyntax.type;
-        var location = typeSyntax.location;
+        var baseTypeSyntax = baseSyntax?.type;
+        var location = baseTypeSyntax?.location;
 
-        TypeSymbol baseType;
+        TypeSymbol baseType = null;
 
-        if (typeKind == TypeKind.Class) {
-            baseType = baseBinder.BindType(typeSyntax, diagnostics, newBasesBeingResolved).type.StrippedType();
+        if (baseTypeSyntax is not null) {
+            Debug.Assert(typeKind == TypeKind.Class);
+            baseType = baseBinder.BindType(baseTypeSyntax, diagnostics, newBasesBeingResolved).type.StrippedType();
             var baseSpecialType = baseType.specialType;
 
             if (IsRestrictedBaseType(baseSpecialType))
@@ -354,14 +556,39 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
                     localBase = new ExtendedErrorTypeSymbol(localBase, LookupResultKind.NotReferencable, error);
                 }
             }
-        } else {
-            baseType = baseBinder.BindType(typeSyntax, diagnostics, newBasesBeingResolved).type;
         }
 
-        if (baseType.typeKind == TypeKind.TemplateParameter)
+        if (interfacesSyntax is not null) {
+            foreach (var interfaceSyntax in interfacesSyntax.types) {
+                location = interfaceSyntax.location;
+                baseType = baseBinder.BindType(interfaceSyntax, diagnostics, newBasesBeingResolved).type;
+
+                switch (baseType.typeKind) {
+                    case TypeKind.Interface:
+                        foreach (var t in localInterfaces) {
+                            if (t.Equals(baseType, TypeCompareKind.ConsiderEverything))
+                                diagnostics.Push(Error.DuplicateInterfaceInInterfaceList(location, baseType));
+                        }
+
+                        if (isStatic)
+                            diagnostics.Push(Error.StaticClassInterfaceImpl(location, this));
+
+                        localInterfaces.Add((NamedTypeSymbol)baseType);
+                        continue;
+                    case TypeKind.Error:
+                        localInterfaces.Add((NamedTypeSymbol)baseType);
+                        continue;
+                    default:
+                        diagnostics.Push(Error.NonInterfaceInInterfaceList(location, baseType));
+                        continue;
+                }
+            }
+        }
+
+        if (baseType?.typeKind == TypeKind.TemplateParameter)
             diagnostics.Push(Error.CannotDeriveTemplate(location, baseType));
 
-        return localBase;
+        return new(localBase, localInterfaces.ToImmutableAndFree());
 
         static bool IsRestrictedBaseType(SpecialType specialType) {
             if (specialType.IsNumeric())
@@ -419,28 +646,29 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
         var compilation = declaringCompilation;
         var decl = _declaration.declarations[0];
-        var bases = GetBaseListOpt(decl);
+        var (baseSyntax, interfacesSyntax) = GetBaseListOpt(decl);
+        Debug.Assert(interfacesSyntax is null);
 
-        if (bases is not null) {
-            var typeSyntax = bases.type;
+        if (baseSyntax is not null) {
+            var typeSyntax = baseSyntax.type;
 
-            var baseBinder = compilation.GetBinder(bases);
+            var baseBinder = compilation.GetBinder(baseSyntax);
             var type = baseBinder.BindType(typeSyntax, diagnostics).type.StrippedType();
 
             if (!type.specialType.IsValidEnumUnderlyingType()) {
                 diagnostics.Push(Error.InvalidEnumType(typeSyntax.location));
-                type = CorLibrary.GetSpecialType(SpecialType.Int);
+                type = compilation.GetSpecialType(SpecialType.Int);
             }
 
             if (type.specialType is SpecialType.Char or SpecialType.String &&
-                declaringCompilation.options.buildMode is BuildMode.CSharpTranspile or BuildMode.Execute or BuildMode.Dotnet) {
+                !declaringCompilation.options.buildMode.SupportsNonIntegralEnums()) {
                 diagnostics.Push(Error.Unsupported.NonIntegralEnum(typeSyntax.location));
             }
 
             return (NamedTypeSymbol)type;
         }
 
-        return CorLibrary.GetSpecialType(SpecialType.Int);
+        return compilation.GetSpecialType(SpecialType.Int);
     }
 
     private ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes(
@@ -607,6 +835,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
             case SyntaxKind.FileScopedClassDeclaration:
             case SyntaxKind.StructDeclaration:
             case SyntaxKind.UnionDeclaration:
+            case SyntaxKind.InterfaceDeclaration:
                 var typeDeclaration = (TypeDeclarationSyntax)node;
                 templateParameterList = typeDeclaration.templateParameterList;
                 return typeDeclaration.constraintClauseList?.constraintClauses;
@@ -617,5 +846,165 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
     private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
         return new SourceNamedTypeSymbol(containingType, _declaration, BelteDiagnosticQueue.Discarded, newData);
+    }
+
+    private protected sealed override void DecodeWellKnownAttributeImpl(
+        ref DecodeWellKnownAttributeArguments<AttributeSyntax, AttributeData, AttributeLocation> arguments) {
+        var diagnostics = arguments.diagnostics;
+        var attribute = arguments.attribute;
+
+        if (attribute.IsTargetAttribute(AttributeDescription.AttributeUsageAttribute) ||
+            attribute.IsTargetAttribute(AttributeDescription.AttributeUsageAttributeNative)) {
+            DecodeAttributeUsageAttribute(
+                attribute,
+                arguments.attributeSyntax,
+                diagnose: true,
+                diagnosticsOpt: diagnostics
+            );
+        } else if (attribute.IsTargetAttribute(AttributeDescription.ConditionalAttribute)) {
+            ValidateConditionalAttribute(attribute, arguments.attributeSyntax, diagnostics);
+        }
+    }
+
+    private void ValidateConditionalAttribute(
+        AttributeData attribute,
+        AttributeSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        Debug.Assert(isConditional);
+        Debug.Assert(!attribute.hasErrors);
+
+        if (!declaringCompilation.IsAttributeType(this)) {
+            diagnostics.Push(Error.ConditionalOnNonAttributeClass(node.location, node.GetErrorDisplayName()));
+        } else {
+            var name = attribute.GetConstructorArgument<string>(0, SpecialType.String);
+
+            if (name is null/* || !SyntaxFacts.IsValidIdentifier(name)*/) {
+                diagnostics.Push(Error.InvalidAttributeArgument(
+                    attribute.GetAttributeArgumentLocation(0),
+                    node.GetErrorDisplayName()
+                ));
+            }
+        }
+    }
+
+    internal override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        var data = GetEarlyDecodedWellKnownAttributeData();
+        return data is not null ? data.conditionalSymbols : [];
+    }
+
+    internal override AttributeUsageInfo GetAttributeUsageInfo() {
+        var data = GetEarlyDecodedWellKnownAttributeData();
+
+        if (data is not null && !data.attributeUsageInfo.isNull)
+            return data.attributeUsageInfo;
+
+        return baseType is not null ? baseType.GetAttributeUsageInfo() : AttributeUsageInfo.Default;
+    }
+
+    internal TypeEarlyWellKnownAttributeData GetEarlyDecodedWellKnownAttributeData() {
+        var attributesBag = _lazyAttributesBag;
+
+        if (attributesBag is null || !attributesBag.isEarlyDecodedWellKnownAttributeDataComputed)
+            attributesBag = GetAttributesBag();
+
+        return (TypeEarlyWellKnownAttributeData)attributesBag.earlyDecodedWellKnownAttributeData;
+    }
+
+    internal override (AttributeData, BoundAttribute) EarlyDecodeWellKnownAttribute(
+        ref EarlyDecodeWellKnownAttributeArguments<EarlyWellKnownAttributeBinder, NamedTypeSymbol, AttributeSyntax, AttributeLocation> arguments) {
+        AttributeData attributeData;
+        BoundAttribute boundAttribute;
+
+        if (AttributeData.IsTargetEarlyAttribute(
+                arguments.attributeType,
+                arguments.attributeSyntax,
+                AttributeDescription.ConditionalAttribute)) {
+            (attributeData, boundAttribute) = arguments.binder.GetAttribute(
+                arguments.attributeSyntax,
+                arguments.attributeType,
+                beforeAttributePartBound: null,
+                afterAttributePartBound: null,
+                out var hasAnyDiagnostics
+            );
+
+            if (!attributeData.hasErrors) {
+                var name = attributeData.GetConstructorArgument<string>(0, SpecialType.String);
+                arguments.GetOrCreateData<TypeEarlyWellKnownAttributeData>().AddConditionalSymbol(name);
+
+                if (!hasAnyDiagnostics)
+                    return (attributeData, boundAttribute);
+            }
+
+            return (null, null);
+        }
+
+        if (AttributeData.IsTargetEarlyAttribute(
+                arguments.attributeType,
+                arguments.attributeSyntax,
+                AttributeDescription.AttributeUsageAttribute) ||
+            AttributeData.IsTargetEarlyAttribute(
+                arguments.attributeType,
+                arguments.attributeSyntax,
+                AttributeDescription.AttributeUsageAttributeNative)) {
+            (attributeData, boundAttribute) = arguments.binder.GetAttribute(
+                arguments.attributeSyntax,
+                arguments.attributeType,
+                beforeAttributePartBound: null,
+                afterAttributePartBound: null,
+                out var hasAnyDiagnostics
+            );
+
+            if (!attributeData.hasErrors) {
+                var info = DecodeAttributeUsageAttribute(attributeData, arguments.attributeSyntax, diagnose: false);
+
+                if (!info.isNull) {
+                    var typeData = arguments.GetOrCreateData<TypeEarlyWellKnownAttributeData>();
+
+                    if (typeData.attributeUsageInfo.isNull)
+                        typeData.attributeUsageInfo = info;
+
+                    if (!hasAnyDiagnostics)
+                        return (attributeData, boundAttribute);
+                }
+            }
+
+            return (null, null);
+        }
+
+        return base.EarlyDecodeWellKnownAttribute(ref arguments);
+    }
+
+    private AttributeUsageInfo DecodeAttributeUsageAttribute(
+        AttributeData attribute,
+        AttributeSyntax node,
+        bool diagnose,
+        BelteDiagnosticQueue diagnosticsOpt = null) {
+        Debug.Assert(!IsErrorType());
+
+        if (!declaringCompilation.IsAttributeType(this)) {
+            if (diagnose) {
+                diagnosticsOpt.Push(Error.AttributeUsageOnNonAttributeClass(
+                    node.name.location,
+                    node.GetErrorDisplayName()
+                ));
+            }
+
+            return AttributeUsageInfo.Null;
+        } else {
+            var info = attribute.DecodeAttributeUsageAttribute();
+
+            if (!info.hasValidAttributeTargets) {
+                if (diagnose) {
+                    diagnosticsOpt.Push(Error.InvalidAttributeArgument(
+                        attribute.GetAttributeArgumentLocation(0),
+                        node.GetErrorDisplayName()
+                    ));
+                }
+
+                return AttributeUsageInfo.Null;
+            }
+
+            return info;
+        }
     }
 }

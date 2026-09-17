@@ -16,7 +16,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_NullCoalescing_Report_NoDefinedForNullOperand() {
+    public void NullCoalescing_NotDefinedForNullOperand() {
         var text = @"
             [null ?? 2];
         ";
@@ -29,7 +29,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_ConditionalOr_Report_NoDefinedForNullOperand() {
+    public void ConditionalOr_NotDefinedForNullOperand() {
         var text = @"
             [null || true];
         ";
@@ -42,7 +42,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_VariableDeclaration_Reports_UndefinedSymbol() {
+    public void VariableDeclaration_UndefinedSymbol() {
         var text = @"
             ref int? a = ref [b];
         ";
@@ -55,7 +55,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_InitializerList_AllowsNull() {
+    public void InitializerList_AllowsNull() {
         var text = @"
             lowlevel {
                 var! a = { 1, 2, 3 };
@@ -71,7 +71,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_TernaryExpression_AllowsNull() {
+    public void TernaryExpression_AllowsNull() {
         var text = @"
             null ? 3 : 5;
         ";
@@ -80,7 +80,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_CastExpression_NonNullableOnNull() {
+    public void CastExpression_NonNullableOnNull() {
         var text = @"
             [(int!)null];
         ";
@@ -93,7 +93,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_CastExpression_Versus_ParenthesizedExpression() {
+    public void CastExpression_Versus_ParenthesizedExpression() {
         var text = @"
             int? x = 3;
             int? y = (x) + 1;
@@ -107,7 +107,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_ReferenceExpression_Reports_CannotConvert() {
+    public void ReferenceExpression_CannotConvert() {
         var text = @"
             class A {
                 public int? num;
@@ -131,7 +131,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_AssignmentExpression_Reports_CannotAssignConstReference() {
+    public void AssignmentExpression_CannotAssignConstReference() {
         var text = @"
             int? x = 3;
             const ref int? y = ref x;
@@ -146,7 +146,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_AssignmentExpression_Reports_CannotAssignConst() {
+    public void AssignmentExpression_CannotAssignConst() {
         var text = @"
             const x = 3;
             [x] = 56;
@@ -160,7 +160,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Classes_Reports_NoImplicitTyping() {
+    public void Classes_NoImplicitTyping() {
         var text = @"
             class A {
                 [var] num;
@@ -175,7 +175,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Classes_ReassignNull() {
+    public void Classes_ReassignNull() {
         var text = @"
             class A {
                 public int? num;
@@ -191,7 +191,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_IfStatement_AllowsNull() {
+    public void IfStatement_AllowsNull() {
         var text = @"
             if (null) {
                 Console.PrintLine(3);
@@ -202,7 +202,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_CompoundExpression_Reports_Undefined() {
+    public void CompoundExpression_Undefined() {
         var text = @"
             var? x = 10;
             [x += false];
@@ -216,7 +216,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_CompoundExpression_Assignment_NonDefinedVariable_Reports_Undefined() {
+    public void CompoundExpression_Assignment_NonDefinedVariable_Undefined() {
         var text = @"
             [x] += 10;
         ";
@@ -229,7 +229,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_CompoundDeclarationExpression_Reports_CannotAssign() {
+    public void CompoundDeclarationExpression_CannotAssign() {
         var text = @"
             {
                 const int? x = 10;
@@ -245,7 +245,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_InvokeFunctionArguments_NoInfiniteLoop() {
+    public void InvokeFunctionArguments_NoInfiniteLoop() {
         var text = @"Console.PrintLine(""Hi""[=]);";
 
         var diagnostics = @"
@@ -256,7 +256,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_InvokeFunctionArguments_Missing() {
+    public void InvokeFunctionArguments_Missing() {
         var text = @"
             void myFunc(int? a) { }
             [myFunc]();
@@ -270,7 +270,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_InvokeFunctionArguments_Exceeding() {
+    public void InvokeFunctionArguments_Exceeding() {
         var text = @"
             void myFunc(int? a) { }
             [myFunc](1, 2, 3);
@@ -284,7 +284,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_FunctionParameters_NoInfiniteLoop() {
+    public void FunctionParameters_NoInfiniteLoop() {
         var text = @"
             void hi(string? name=[)] {
                 Console.PrintLine(""Hi "" + name + ""!"");
@@ -299,7 +299,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_FunctionReturn_Missing() {
+    public void FunctionReturn_Missing() {
         var text = @"
             int? [add](int? a, int? b) {
             }
@@ -313,7 +313,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Block_NoInfiniteLoop() {
+    public void Block_NoInfiniteLoop() {
         var text = @"
             {[]
             )[]
@@ -328,7 +328,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Block_MinimalDiagnostics() {
+    public void Block_MinimalDiagnostics() {
         var text = @"
             {[]
             )
@@ -343,7 +343,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_IfStatement_Reports_CannotConvert() {
+    public void IfStatement_CannotConvert() {
         var text = @"
             var x = 0;
             if ([10])
@@ -358,7 +358,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_WhileStatement_Reports_CannotConvert() {
+    public void WhileStatement_CannotConvert() {
         var text = @"
             var x = 0;
             while ([10]) { x = 10; }
@@ -372,7 +372,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_DoWhileStatement_Reports_CannotConvert() {
+    public void DoWhileStatement_CannotConvert() {
         var text = @"
             var x = 0;
             do { x = 10; } while ([10]);
@@ -386,7 +386,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_ForStatement_Reports_CannotConvert() {
+    public void ForStatement_CannotConvert() {
         var text = @"
             for (int? i = 0; [i]; i++) {}
         ";
@@ -399,7 +399,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_VariableDeclaration_Reports_Redeclaration() {
+    public void VariableDeclaration_Redeclaration() {
         var text = @"
             var x = 10;
             var y = 100;
@@ -418,7 +418,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_NameExpression_Reports_Undefined() {
+    public void NameExpression_Undefined() {
         var text = @"
             [x] * 10;
         ";
@@ -431,12 +431,12 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_NameExpression_Reports_NoErrorForInsertedToken() {
+    public void NameExpression_NoErrorForInsertedToken() {
         AssertDiagnostics("", "", _writer);
     }
 
     [Fact]
-    public void Evaluator_AssignmentExpression_Reports_Undefined() {
+    public void AssignmentExpression_Undefined() {
         var text = @"
             [x] = 10;
         ";
@@ -449,7 +449,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_AssignmentExpression_Reports_Readonly() {
+    public void AssignmentExpression_Readonly() {
         var text = @"
             const int? x = 10;
             [x] = 0;
@@ -463,7 +463,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_AssignmentExpression_Reports_CannotConvert() {
+    public void AssignmentExpression_CannotConvert() {
         var text = @"
             var? x = 10;
             x = [false];
@@ -477,7 +477,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_CallExpression_Reports_Undefined() {
+    public void CallExpression_Undefined() {
         var text = @"
             [foo]();
         ";
@@ -490,7 +490,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_CallExpression_Reports_CannotCall() {
+    public void CallExpression_CannotCall() {
         var text = @"
             var foo = 4;
             [foo]();
@@ -504,7 +504,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Function_ShouldNotReturnValue() {
+    public void Function_ShouldNotReturnValue() {
         var text = @"
             void func() {
                 [return] 5;
@@ -519,7 +519,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Function_ShouldNotReturnVoid() {
+    public void Function_ShouldNotReturnVoid() {
         var text = @"
             int? func() {
                 [return];
@@ -534,7 +534,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Script_Return() {
+    public void Script_Return() {
         var text = @"
             return;
         ";
@@ -543,7 +543,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Expression_MustHaveValue() {
+    public void Expression_MustHaveValue() {
         var text = @"
             void func() {}
             [var x = func()];
@@ -557,7 +557,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Break_Invalid() {
+    public void Break_Invalid() {
         var text = @"
             [break;]
         ";
@@ -570,7 +570,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Parameter_AlreadyDeclared() {
+    public void Parameter_AlreadyDeclared() {
         var text = @"
             void func(int? a, int? [a]) {}
         ";
@@ -583,7 +583,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Function_WrongArgumentType() {
+    public void Function_WrongArgumentType() {
         var text = @"
             void func(int? a) {}
             func([false]);
@@ -597,7 +597,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_InvalidType() {
+    public void InvalidType() {
         var text = @"
             void func([invalidType] a) {}
         ";
@@ -610,7 +610,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_UnaryOperator_Reports_Undefined() {
+    public void UnaryOperator_Undefined() {
         var text = @"
             [+true];
         ";
@@ -623,7 +623,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_BinaryOperator_Reports_Undefined() {
+    public void BinaryOperator_Undefined() {
         var text = @"
             [10+true];
         ";
@@ -636,7 +636,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Function_CanDeclare() {
+    public void Function_CanDeclare() {
         var text = @"
             void myFunction(int? num1, int? num2) {
                 Console.Print(num1 + num2 / 3.14159);
@@ -650,7 +650,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Function_CanCall() {
+    public void Function_CanCall() {
         var text = @"
             void myFunction(int? num) {
                 Console.Print(num ** 2);
@@ -664,7 +664,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_CallExpression_ExpectedTokens() {
+    public void CallExpression_ExpectedTokens() {
         var text = @"
             Console.Print(num ** 2 ([][][]
         ";
@@ -679,7 +679,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_MethodInvoke_DoNotPopLocalsInStatic() {
+    public void MethodInvoke_DoNotPopLocalsInStatic() {
         var text = @"
             class A {
                 public static void Util() {
@@ -700,7 +700,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_ClassDefinition_SeeSubClasses() {
+    public void ClassDefinition_SeeSubClasses() {
         var text = @"
             class A {
                 class B { }
@@ -714,7 +714,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_IndexExpression_NotTreatedAsTypeClause() {
+    public void IndexExpression_NotTreatedAsTypeClause() {
         var text = @"
             lowlevel {
                 int a = 1;
@@ -729,7 +729,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_MemberAccessExpression_NestedCalls() {
+    public void MemberAccessExpression_NestedCalls() {
         var text = @"
             class A {
                 public void Test() { }
@@ -747,7 +747,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_CallExpression_ExceedingArgumentsOnZero() {
+    public void CallExpression_ExceedingArgumentsOnZero() {
         var text = @"
             void Test() {}
             [Test](,);
@@ -761,7 +761,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_PostfixExpression_AllowedOnRef() {
+    public void PostfixExpression_AllowedOnRef() {
         var text = @"
             int? x = 3;
             ref var y = ref x;
@@ -774,7 +774,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_CallExpression_CorrectErrorFormattingOnNonMethod() {
+    public void CallExpression_CorrectErrorFormattingOnNonMethod() {
         var text = @"
             [3]();
         ";
@@ -787,7 +787,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_FieldDeclaration_CorrectErrorOnInvalidType() {
+    public void FieldDeclaration_CorrectErrorOnInvalidType() {
         var text = @"
             class A {
                 [coasdf] G = 4;
@@ -802,7 +802,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Cast_CannotConvertConstRefToRef() {
+    public void Cast_CannotConvertConstRefToRef() {
         var text = @"
             void Test(ref int? a) { a++; }
             const int? a = 3;
@@ -817,7 +817,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Assignment_HonorsConstantMemberAccess() {
+    public void Assignment_HonorsConstantMemberAccess() {
         var text = @"
             class A {
                 public int? a = 3;
@@ -834,7 +834,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_MethodBody_StaticMethodCannotAccessMembers() {
+    public void MethodBody_StaticMethodCannotAccessMembers() {
         var text = @"
             class A {
                 int? a;
@@ -850,7 +850,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_MethodBody_StaticMethodCannotAccessMethods() {
+    public void MethodBody_StaticMethodCannotAccessMethods() {
         var text = @"
             class A {
                 int? Test() { return 3; }
@@ -866,7 +866,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Constexpr_AllowsImplicitTyping() {
+    public void Constexpr_AllowsImplicitTyping() {
         var text = @"
             constexpr y = 3;
         ";
@@ -877,7 +877,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_ReferenceExpression_NoInfiniteLoop() {
+    public void ReferenceExpression_NoInfiniteLoop() {
         var text = @"
             ref int? y;
             y = ref y;
@@ -889,7 +889,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_TypeExpression_NotAllowedInContext() {
+    public void TypeExpression_NotAllowedInContext() {
         var text = @"
             static class A { }
             return [A];
@@ -903,7 +903,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_CallExpression_NonInvocableType() {
+    public void CallExpression_NonInvocableType() {
         var text = @"
             static class A { }
             return [A]();
@@ -917,7 +917,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_ClassDeclaration_StaticCanSeeTemplates() {
+    public void ClassDeclaration_StaticCanSeeTemplates() {
         var text = @"
             class A<int? a> {
                 public static A<a> operator~(A<a> a) {
@@ -932,7 +932,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_OperatorOverloading_ReturnsCorrectType() {
+    public void OperatorOverloading_ReturnsCorrectType() {
         var text = @"
             class A<type t> {
                 public int? v = 3;
@@ -953,7 +953,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Structs_InitializesProperly() {
+    public void Structs_InitializesProperly() {
         var text = @"
             lowlevel struct A<type T> where { T has default; } {
                 T a;
@@ -969,7 +969,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Casts_CorrectlyParses() {
+    public void Casts_CorrectlyParses() {
         var text = @"
             class A { }
             A a = (A)new A();
@@ -981,7 +981,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Function_ParametersCanUseTemplates() {
+    public void Function_ParametersCanUseTemplates() {
         var text = @"
             void M<type T>(T x) { }
         ";
@@ -992,10 +992,10 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Template_TemplatesSeeConstraints() {
+    public void Template_TemplatesSeeConstraints() {
         var text = @"
             string? M<type T>(T x) where { T extends Object; } {
-                return x.ToString();
+                return x?.ToString();
             }
         ";
 
@@ -1005,7 +1005,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_ElseStatement_Reports_NotReachableCode_Warning() {
+    public void ElseStatement_NotReachableCode_Warning() {
         var text = @"
             int test() {
                 if (true)
@@ -1023,7 +1023,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_WhileStatement_Reports_NotReachableCode_Warning() {
+    public void WhileStatement_NotReachableCode_Warning() {
         var text = @"
             void test() {
                 while (false) {
@@ -1040,7 +1040,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_IfStatement_Reports_NotReachableCode_Warning() {
+    public void IfStatement_NotReachableCode_Warning() {
         var text = @"
             void test() {
                 constexpr int x = 4 * 3;
@@ -1060,7 +1060,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Enum_ArgumentAllowsImplicitField() {
+    public void Enum_ArgumentAllowsImplicitField() {
         var text = @"
             M(.B);
             void M(A a) { }
@@ -1073,7 +1073,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_BinaryExpression_DoesNotParseAsTemplate() {
+    public void BinaryExpression_DoesNotParseAsTemplate() {
         var text = @"
             var ch = '0';
             var b = ((ch < 'A' || ch > 'Z') && (ch < 'a' || ch > 'z'));
@@ -1085,7 +1085,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_BinaryExpression_DoesNotParseAsTemplate2() {
+    public void BinaryExpression_DoesNotParseAsTemplate2() {
         var text = @"
             struct A { int f; }
             var a = new A();
@@ -1099,7 +1099,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_BinaryExpression_DoesNotParseAsTemplate3() {
+    public void BinaryExpression_DoesNotParseAsTemplate3() {
         var text = @"
             struct A { int f; }
             var a = new A();
@@ -1112,7 +1112,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_ConditionalOperator_GetsTargetTyped() {
+    public void ConditionalOperator_GetsTargetTyped() {
         var text = @"
             int? M() {
                 var cond = true;
@@ -1126,7 +1126,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_ImplicitTyping_CannotConvert() {
+    public void ImplicitTyping_CannotConvert() {
         var text = @"
             int? M() {
                 int a = 3;
@@ -1142,7 +1142,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Assignment_NoInfiniteLoop() {
+    public void Assignment_NoInfiniteLoop() {
         var text = @"
             var a = [a];
         ";
@@ -1155,7 +1155,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_IndexExpression_NoCrashOnNoIndex() {
+    public void IndexExpression_NoCrashOnNoIndex() {
         var text = @"
             int\[\] a = { 1 };
             var b = [a\[\]];
@@ -1169,7 +1169,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_StackallocLocal_NoCrashOnNoIndex() {
+    public void StackallocLocal_NoCrashOnNoIndex() {
         var text = @"
             int a[\[\]];
         ";
@@ -1182,7 +1182,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_TypeDeclaration_MissingClosingBraceMinimalDiagnostics() {
+    public void TypeDeclaration_MissingClosingBraceMinimalDiagnostics() {
         var text = @"
             class A {
                 public int M() {
@@ -1202,7 +1202,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_UsingDirective_AllowsPlacementBetweenMembers() {
+    public void UsingDirective_AllowsPlacementBetweenMembers() {
         var text = @"
             using static A;
 
@@ -1221,7 +1221,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_ForEach_AllowsModification() {
+    public void ForEach_AllowsModification() {
         var text = @"
             class Elem {
                 public int e;
@@ -1243,7 +1243,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_MisplacedKeyword_MinimalDiagnostics() {
+    public void MisplacedKeyword_MinimalDiagnostics() {
         var text = @"
             var [out] = 3;
         ";
@@ -1257,7 +1257,7 @@ public sealed class IssueTests {
 
     // TODO It would be more ideal if this actually mentioned the issue of using `a` before being declared
     [Fact]
-    public void Evaluator_DeconstructAssignment_NoInfiniteLoop() {
+    public void DeconstructAssignment_NoInfiniteLoop() {
         var text = @"
             (var [a], var [b]) = a;
         ";
@@ -1271,7 +1271,7 @@ public sealed class IssueTests {
     }
 
     [Fact]
-    public void Evaluator_Parameter_AcceptsKnownImmutableArgument() {
+    public void Parameter_AcceptsKnownImmutableArgument() {
         var text = @"
             class A { }
 
@@ -1283,6 +1283,1890 @@ public sealed class IssueTests {
 
         var diagnostics = @"";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void NestedStruct_BakesWithoutCrashing() {
+        var text = @"
+            class C {
+                struct S {
+                    int32 f\[10\];
+                }
+            }
+            ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void LocalFunction_CanCallInConstMethod() {
+        var text = @"
+            class C {
+                public const void M() {
+                    F();
+                    void F() { }
+                }
+            }
+            ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void NullCoalescing_DoesNotAllowNonNull() {
+        var text = @"
+            int a = [3 ?? 5];
+        ";
+
+        var diagnostics = @"
+            binary operator '??' is not defined for operands of types 'int!' and 'int!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void NullAssert_PreventsStructAssignment() {
+        var text = @"
+            class A {
+                public S? b;
+
+                public struct S {
+                    public int? a;
+                }
+            }
+
+            var a = ((A?)new A())?..b = (new A.S()..a = 4);
+            [a?.b!.a] = 10;
+            return a?.b!.a;
+        ";
+
+        var diagnostics = @"
+            left side of assignment operation must be a variable, parameter, field, or indexer
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Struct_PassesCopy() {
+        var text = @"
+            void Func(int? num) {
+                num = 10;
+            }
+
+            int? a = 5;
+            Func(a);
+            return a!;
+        ";
+
+        AssertValue(text, 5);
+    }
+
+    [Fact]
+    public void Template_WorksWithRecursion() {
+        var text = @"
+            abstract class Comparable<type T> {
+                abstract public int compareTo(T other);
+            }
+
+            class Int extends Comparable<Int> {
+                public int value;
+
+                public constructor(int value) {
+                    this.value = value;
+                }
+
+                override public int compareTo(Int other) {
+                    return this.value - other.value;
+                }
+            }
+
+            class Tree<type T> where { T extends Comparable<T>; } { }
+
+            var i1 = new Int(10);
+            var i2 = new Int(15);
+            return i1.compareTo(i2);
+        ";
+
+        AssertValue(text, -5);
+    }
+
+    [Fact]
+    public void Template_ErrsWithRecursion() {
+        var text = @"
+            abstract class Comparable<type T> {
+                abstract public int compareTo(T other);
+            }
+
+            class Tree<[Comparable<T> T]> { }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            template parameter underlying type must be 'type' or a primitive
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Override_ReturnIsNullabilitySensitive() {
+        var text = @"
+            class A {
+                public virtual bool M() { return false; }
+            }
+            class B extends  A {
+                public override bool? [M]() { return false; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'B.M()': return type must be 'bool!' to match overridden member 'A.M()'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Override_ParametersAreNullabilitySensitive() {
+        var text = @"
+            class A {
+                public virtual void M(bool b) { }
+            }
+            class B extends  A {
+                public override void [M](bool? b) { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'B.M(bool?)': no suitable method found to override
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Method_AllowsConstRefConstParameter() {
+        var text = @"
+            class A {
+                public void M(const ref const bool b) { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Interface_SeesTemplateSubstitution() {
+        var text = @"
+            interface A<type T> {
+                void B(T t);
+            }
+            class C implements A<int> {
+                public void B(int t) { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Conversion_AllowsDownCast() {
+        var text = @"
+            abstract class Decl { }
+
+            class TDecl extends Decl { }
+
+            Decl decl = new TDecl();
+            TDecl tdecl = (TDecl)decl;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void ScopedStatement_AllPathsReturn() {
+        var text = @"
+            class A { destructor() { } }
+
+            int M() {
+                scoped var a = new A();
+                scoped var b = new A();
+                return 0;
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Interface_BakesWithoutErr() {
+        var text = @"
+            class A implements I { }
+            interface I { }
+            ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void TemplateParameter_BindsSelfReferentialTypeWithoutOverflow() {
+        var text = @"
+            class A<[T<T> T]> { }
+            ;
+        ";
+
+        var diagnostics = @"
+            template parameter underlying type must be 'type' or a primitive
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void TemplateConstraint_AllowsNullableReferenceType() {
+        var text = @"
+            class A { }
+            class B extends A { }
+
+            void Func<type T>() where { T extends A; } { }
+
+            Func<B>();
+            Func<B?>();
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void IsPattern_TypeIsChecked() {
+        var text = @"
+            int a = 3;
+            bool b = a is [not] int;
+        ";
+
+        var diagnostics = @"
+            the type or namespace name 'not' could not be found
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void TemplateConstraint_BogusConstraintDoesntEffectInstantiation() {
+        var text = @"
+            class A<int M> where { M < [N]; } { }
+            A<10> a = new();
+        ";
+
+        var diagnostics = @"
+            undefined symbol 'N'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void NonTypeTemplate_SubstitutesField() {
+        var text = @"
+            class A<int M> {
+                int a = M;
+
+                public int GetA() {
+                    return a;
+                }
+            }
+            var a = new A<10>();
+            return a.GetA();
+        ";
+
+        AssertValue(text, 10);
+    }
+
+    [Fact]
+    public void NonTypeTemplate_SubstitutesParameters() {
+        var text = @"
+            public static class Int64 {
+                public constexpr int64 MinValue = -9223372036854775808;
+                public constexpr int64 MaxValue = 9223372036854775807;
+            }
+
+            public sealed class ValueOutOfRangeException extends System.Exception {
+                public constructor()
+                    : base(""Value was out of the range of valid values."") { }
+
+                public constructor(any value, any min, any max)
+                    : base(f""Value '{value}' was out of the range of valid values [{min}..{max}]."") { }
+            }
+
+            public struct Int<int Min = Int64.MinValue, int Max = Int64.MaxValue>
+                where { Min <= Max; Min >= Int64.MinValue; Max <= Int64.MaxValue; } {
+                private int64 _value;
+
+                public constructor(int64 value) {
+                    if (value < Min || value > Max)
+                        throw new ValueOutOfRangeException(value, Min, Max);
+
+                    _value = value;
+                }
+
+                public static Int<Min, Max> operator +(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value + right._value);
+                }
+
+                public static implicit operator Int<Min, Max>(int64 value) {
+                    return new(value);
+                }
+            }
+
+            Int<0, 10> a = 11;
+        ";
+
+        var exceptions = @"
+            Value '11' was out of the range of valid values [0..10].
+        ";
+
+        AssertExceptions(text, _writer, exceptions);
+    }
+
+    [Fact]
+    public void Field_AllowsExpressionTemplateArgumentInType() {
+        var text = @"
+            public sealed class A<int M> {
+                A<M + 1>? a;
+            }
+            ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Field_AllowsCompileTimeExpressionAsConstExpr() {
+        var text = @"
+            class A {
+                public constexpr int a = $Calc();
+
+                private static int Calc() {
+                    return 10;
+                }
+            }
+
+            constexpr int local = A.a;
+            return local;
+        ";
+
+        AssertValue(text, 10);
+    }
+
+    [Fact]
+    public void Field_AllowsCompileTimeExpressionAsConstExpr2() {
+        var text = @"
+            class A {
+                public constexpr int a = $Calc() + B.b;
+
+                private static int Calc() {
+                    return 10;
+                }
+            }
+
+            class B {
+                public constexpr int b = $Calc();
+
+                private static int Calc() {
+                    return 5;
+                }
+            }
+
+            constexpr int local = A.a + 3;
+            return local;
+        ";
+
+        AssertValue(text, 18);
+    }
+
+    [Fact]
+    public void Buffer_BogusElementTypeDoesntCrash() {
+        var text = @"
+            struct Data {
+                public int item1;
+                public int item2;
+            }
+            Buffer<Data> data = new Buffer<[Entry]>(3);
+        ";
+
+        var diagnostics = @"
+            undefined symbol 'Entry'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void CompileTimeExpression_ReportsDiagnostics() {
+        var text = @"
+            class A {
+                public constexpr string a = $Calc();
+
+                private static string Calc() {
+                    return ""asdf"";
+                }
+            }
+
+            constexpr uint8 local = (uint8)[A.a];
+            return local;
+        ";
+
+        var diagnostics = @"
+            constant value 'asdf' cannot be converted to 'uint8!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Cast_LiteralShrinkingSeesThroughCompileTimeExpression() {
+        var text = @"
+            uint8 a = $10;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void CompileTimeExpression_AvoidsEvaluatorIfPossible() {
+        var text = @"
+            class A {
+                public constexpr string a = $Calc();
+
+                private static string Calc() {
+                    return ""asdf"";
+                }
+            }
+
+            constexpr uint8 local = $(uint8)[A.a];
+            return local;
+        ";
+
+        var diagnostics = @"
+            constant value 'asdf' cannot be converted to 'uint8!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void SimpleName_HonorsTemplateDefaultValues() {
+        var text = @"
+            class A<int T = 3> {
+                public int GetT() {
+                    return T;
+                }
+            }
+            A a = new ();
+            return a.GetT();
+        ";
+
+        AssertValue(text, 3);
+    }
+
+    [Fact]
+    public void TemplateName_HonorsTemplateWithCloserArity() {
+        var text = @"
+            class A<int T1 = 3, int T2 = 5> {
+                public int GetT() {
+                    return T1 + T2;
+                }
+            }
+
+            class A<int T = 3> {
+                public int GetT() {
+                    return T;
+                }
+            }
+
+            A<10> a = new ();
+            return a.GetT();
+        ";
+
+        AssertValue(text, 10);
+    }
+
+    [Fact]
+    public void TemplateParameter_AllowsTypeOfDefaultValue() {
+        var text = @"
+            class A<type T = typeof(int)> where { T has default; } {
+                public T a = default;
+            }
+
+            var a = new A();
+            return a.a;
+        ";
+
+        AssertValue(text, 0);
+    }
+
+    [Fact]
+    public void TemplateParameter_AllowsTypeOfDefaultValue2() {
+        var text = @"
+            static class A {
+                public static T Get<type T = typeof(int)>() where { T has default; } {
+                    return default;
+                }
+            }
+
+            return A.Get();
+        ";
+
+        AssertValue(text, 0);
+    }
+
+    [Fact]
+    public void SimpleCall_HonorsTemplateDefaultValues() {
+        var text = @"
+            static class A {
+                public static T Get<type T = typeof(int)>() where { T has default; } {
+                    return default;
+                }
+            }
+
+            return A.Get();
+        ";
+
+        AssertValue(text, 0);
+    }
+
+    [Fact]
+    public void SimpleCall_HonorsTemplateDefaultValues2() {
+        var text = @"
+            static class A {
+                public static T Get<type T = typeof(int)>(int _) where { T has default; } {
+                    return default;
+                }
+            }
+
+            return A.Get(10);
+        ";
+
+        AssertValue(text, 0);
+    }
+
+    [Fact]
+    public void Conversions_AllowTemplate() {
+        var text = @"
+            class A<type T> {
+                public int value;
+
+                public constructor(int value) {
+                    this.value = value;
+                }
+
+                public static implicit operator<type TOther> A<TOther>(A<T> a) {
+                    return new (a.value);
+                }
+            }
+
+            A<int> a = new (10);
+            A<bool> b = a;
+            return b.value;
+        ";
+
+        AssertValue(text, 10);
+    }
+
+    [Fact]
+    public void Conversions_AllowTemplate2() {
+        var text = @"
+            class A<int T> {
+                public int value;
+
+                public constructor(int value) {
+                    this.value = value;
+                }
+
+                public static implicit operator<int TOther> A<TOther>(A<T> a) {
+                    return new (a.value);
+                }
+            }
+
+            A<2> a = new (10);
+            A<3> b = a;
+            return b.value;
+        ";
+
+        AssertValue(text, 10);
+    }
+
+    [Fact]
+    public void Constraints_SubstitutionSeesSameShapeConstraint() {
+        var text = @"
+            class A<int T> where { T != 0; } {
+                public static void Create<int TOther>() where { TOther != 0; } {
+                    var a = new A<TOther>();
+                }
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void MethodConstraints_ExpressionConstraintsAreCompiled() {
+        var text = @"
+            class A {
+                public static void M<int TOther>() where { [TOther != false]; } { }
+            }
+        ";
+
+        var diagnostics = @"
+            binary operator '!=' is not defined for operands of types 'int!' and 'bool!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Template_InfersOperatorAndExpandsTemplateMethodNestedInTemplateType() {
+        var text = @"
+            public static class Int64 {
+                public constexpr int64 MinValue = -9223372036854775808;
+                public constexpr int64 MaxValue = 9223372036854775807;
+            }
+
+            public sealed class ValueOutOfRangeException extends System.Exception {
+                public constructor()
+                    : base(""Value was out of the range of valid values."") { }
+
+                public constructor(any value, any min, any max)
+                    : base(f""Value '{value}' was out of the range of valid values [{min}..{max}]."") { }
+            }
+
+            public struct Int<int Min = Int64.MinValue, int Max = Int64.MaxValue>
+                where { Min <= Max; Min >= Int64.MinValue; Max <= Int64.MaxValue; } {
+                private int64 _value;
+
+                public constructor(int64 value) {
+                    if (value < Min || value > Max)
+                        throw new ValueOutOfRangeException(value, Min, Max);
+
+                    _value = value;
+                }
+
+                public static Int<Min, Max> operator +(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value + right._value);
+                }
+
+                public static implicit operator Int<Min, Max>(int64 value) {
+                    return new(value);
+                }
+
+                public static implicit operator int64(Int<Min, Max> value) {
+                    return value._value;
+                }
+
+                public static explicit operator<int TMin, int TMax> Int<TMin, TMax>(Int<Min, Max> bigger)
+                    where {
+                        TMin <= TMax; TMin > Min || TMax < Max;
+                        TMin >= Int64.MinValue; TMax <= Int64.MaxValue;
+                    } {
+                    return new Int<TMin, TMax>(bigger._value);
+                }
+
+                public static implicit operator<int TMin, int TMax> Int<TMin, TMax>(Int<Min, Max> smaller)
+                    where {
+                        TMin <= TMax; TMin <= Min; TMax >= Max;
+                        TMin >= Int64.MinValue; TMax <= Int64.MaxValue;
+                    } {
+                    return new Int<TMin, TMax>(smaller._value);
+                }
+
+                public override string? ToString() {
+                    return (string)_value;
+                }
+            }
+
+            Int<0, 5> a = 5;
+            Int b = a;
+            return (int)b;
+        ";
+
+        AssertValue(text, 5);
+    }
+
+    [Fact]
+    public void MethodConstraints_ConstraintsAreChecked() {
+        var text = @"
+            class A {
+                public static void M<int T>() where { T != 0; } { }
+            }
+            [A.M<0>]();
+        ";
+
+        var diagnostics = @"
+            template constraint fails ('T != 0')
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Template_SeesTemplateExplicitConversion() {
+        var text = @"
+            public static class Int64 {
+                public constexpr int64 MinValue = -9223372036854775808;
+                public constexpr int64 MaxValue = 9223372036854775807;
+            }
+
+            public sealed class ValueOutOfRangeException extends System.Exception {
+                public constructor()
+                    : base(""Value was out of the range of valid values."") { }
+
+                public constructor(any value, any min, any max)
+                    : base(f""Value '{value}' was out of the range of valid values \[{min}..{max}\]."") { }
+            }
+
+            public struct Int<int Min = Int64.MinValue, int Max = Int64.MaxValue>
+                where { Min <= Max; Min >= Int64.MinValue; Max <= Int64.MaxValue; } {
+                private int64 _value;
+
+                public constructor(int64 value) {
+                    if (value < Min || value > Max)
+                        throw new ValueOutOfRangeException(value, Min, Max);
+
+                    _value = value;
+                }
+
+                public static Int<Min, Max> operator +(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value + right._value);
+                }
+
+                public static implicit operator Int<Min, Max>(int64 value) {
+                    return new(value);
+                }
+
+                public static implicit operator int64(Int<Min, Max> value) {
+                    return value._value;
+                }
+
+                public static explicit operator<int TMin, int TMax> Int<TMin, TMax>(Int<Min, Max> bigger)
+                    where {
+                        TMin <= TMax; TMin > Min || TMax < Max;
+                        TMin >= Int64.MinValue; TMax <= Int64.MaxValue;
+                    } {
+                    return new Int<TMin, TMax>(bigger._value);
+                }
+
+                public static implicit operator<int TMin, int TMax> Int<TMin, TMax>(Int<Min, Max> smaller)
+                    where {
+                        TMin <= TMax; TMin <= Min; TMax >= Max;
+                        TMin >= Int64.MinValue; TMax <= Int64.MaxValue;
+                    } {
+                    return new Int<TMin, TMax>(smaller._value);
+                }
+
+                public override string? ToString() {
+                    return (string)_value;
+                }
+            }
+
+            Int<0, 5> a = 5;
+            Int<0, 3> b = [a];
+        ";
+
+        var diagnostics = @"
+            cannot convert from type 'Int<0, 5>!' to 'Int<0, 3>!' implicitly; an explicit conversion exists (are you missing a cast?)
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_CanDefineCombinedTokenOps() {
+        var text = @"
+            class A {
+                public static A operator >>>(A left, A right) {
+                    return left;
+                }
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_IncrementsProperly() {
+        var text = @"
+            class A {
+                int _value;
+
+                public constructor(int value) { _value = value; }
+
+                public static A operator +(A left, A right) {
+                    return new (left._value + right._value);
+                }
+
+                public static implicit operator int(A a) {
+                    return a._value;
+                }
+
+                public static implicit operator A(int a) {
+                    return new (a);
+                }
+            }
+
+            var a = new A(4);
+            int b = a++;
+            return b;
+        ";
+
+        AssertValue(text, 4);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_PrefersInstanceIncrementOverOtherOps() {
+        var text = @"
+            class A {
+                int _value;
+
+                public constructor(int value) { _value = value; }
+
+                public static A operator +(A left, A right) {
+                    return new (30);
+                }
+
+                public static A operator ++(A op) {
+                    return new (20);
+                }
+
+                public void operator ++() {
+                    _value = 10;
+                }
+
+                public static implicit operator int(A a) {
+                    return a._value;
+                }
+
+                public static implicit operator A(int a) {
+                    return new (a);
+                }
+            }
+
+            var a = new A(4);
+            a++;
+            return (int)a;
+        ";
+
+        AssertValue(text, 10);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_IncrementsProperly2() {
+        var text = @"
+            class A {
+                int _value;
+
+                public constructor(int value) { _value = value; }
+
+                public static A operator +(A left, A right) {
+                    return new (left._value + right._value);
+                }
+
+                public static implicit operator int(A a) {
+                    return a._value;
+                }
+
+                public static implicit operator A(int a) {
+                    return new (a);
+                }
+            }
+
+            var a = new A(4);
+            int b = a++;
+            return b;
+        ";
+
+        AssertValue(text, 4);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_IncrementsProperly3() {
+        var text = @"
+            class A {
+                int _value;
+
+                public constructor(int value) { _value = value; }
+
+                public static A operator ++(A left) {
+                    return new (left._value + 1);
+                }
+
+                public static implicit operator int(A a) {
+                    return a._value;
+                }
+
+                public static implicit operator A(int a) {
+                    return new (a);
+                }
+            }
+
+            var a = new A(4);
+            int b = a++;
+            return b;
+        ";
+
+        AssertValue(text, 4);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_IncrementsProperly4() {
+        var text = @"
+            class A {
+                int _value;
+
+                public constructor(int value) { _value = value; }
+
+                public void operator ++() {
+                    _value++;
+                }
+
+                public static implicit operator int(A a) {
+                    return a._value;
+                }
+
+                public static implicit operator A(int a) {
+                    return new (a);
+                }
+            }
+
+            var a = new A(4);
+            int b = a++;
+            return b;
+        ";
+
+        AssertValue(text, 4);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_IncrementsProperly5() {
+        var text = @"
+            class A {
+                int _value;
+
+                public constructor(int value) { _value = value; }
+
+                public static A operator +(A left, A right) {
+                    return new (left._value + right._value);
+                }
+
+                public static implicit operator int(A a) {
+                    return a._value;
+                }
+
+                public static implicit operator A(int a) {
+                    return new (a);
+                }
+            }
+
+            var a = new A(4);
+            a++;
+            return (int)a;
+        ";
+
+        AssertValue(text, 5);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_IncrementsProperly6() {
+        var text = @"
+            class A {
+                int _value;
+
+                public constructor(int value) { _value = value; }
+
+                public static A operator ++(A left) {
+                    return new (left._value + 1);
+                }
+
+                public static implicit operator int(A a) {
+                    return a._value;
+                }
+
+                public static implicit operator A(int a) {
+                    return new (a);
+                }
+            }
+
+            var a = new A(4);
+            a++;
+            return (int)a;
+        ";
+
+        AssertValue(text, 5);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_IncrementsProperly7() {
+        var text = @"
+            class A {
+                int _value;
+
+                public constructor(int value) { _value = value; }
+
+                public void operator ++() {
+                    _value++;
+                }
+
+                public static implicit operator int(A a) {
+                    return a._value;
+                }
+
+                public static implicit operator A(int a) {
+                    return new (a);
+                }
+            }
+
+            var a = new A(4);
+            a++;
+            return (int)a;
+        ";
+
+        AssertValue(text, 5);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_IncrementsProperly8() {
+        var text = @"
+            struct A {
+                int _value;
+
+                public constructor(int value) { _value = value; }
+
+                public static A operator +(A left, A right) {
+                    return new (left._value + right._value);
+                }
+
+                public static implicit operator int(A a) {
+                    return a._value;
+                }
+
+                public static implicit operator A(int a) {
+                    return new (a);
+                }
+            }
+
+            var a = new A(4);
+            a++;
+            return (int)a;
+        ";
+
+        AssertValue(text, 5);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_IncrementsProperly9() {
+        var text = @"
+            struct A {
+                int _value;
+
+                public constructor(int value) { _value = value; }
+
+                public static A operator ++(A left) {
+                    return new (left._value + 1);
+                }
+
+                public static implicit operator int(A a) {
+                    return a._value;
+                }
+
+                public static implicit operator A(int a) {
+                    return new (a);
+                }
+            }
+
+            var a = new A(4);
+            a++;
+            return (int)a;
+        ";
+
+        AssertValue(text, 5);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_IncrementsProperly10() {
+        var text = @"
+            struct A {
+                int _value;
+
+                public constructor(int value) { _value = value; }
+
+                public void operator ++() {
+                    _value++;
+                }
+
+                public static implicit operator int(A a) {
+                    return a._value;
+                }
+
+                public static implicit operator A(int a) {
+                    return new (a);
+                }
+            }
+
+            var a = new A(4);
+            a++;
+            return (int)a;
+        ";
+
+        AssertValue(text, 5);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_AllOperatorsAreParsed() {
+        var text = @"
+            public static class Int64 {
+                public constexpr int64 MinValue = -9223372036854775808;
+                public constexpr int64 MaxValue = 9223372036854775807;
+            }
+
+            public sealed class ValueOutOfRangeException extends System.Exception {
+                public constructor()
+                    : base(""Value was out of the range of valid values."") { }
+
+                public constructor(any value, any min, any max)
+                    : base(f""Value '{value}' was out of the range of valid values \[{min}..{max}\]."") { }
+            }
+
+            public struct Int<int Min = Int64.MinValue, int Max = Int64.MaxValue> where { Min <= Max; } {
+                private int64 _value;
+
+                public constructor(int64 value) {
+                    if (value < Min || value > Max)
+                        throw new ValueOutOfRangeException(value, Min, Max);
+
+                    _value = value;
+                }
+
+                public static Int<Min, Max> operator +(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value + right._value);
+                }
+
+                public void operator +=(Int<Min, Max> right) {
+                    _value += right._value;
+                    CheckValueOutOfRange();
+                }
+
+                public static Int<Min, Max> operator -(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value - right._value);
+                }
+
+                public void operator -=(Int<Min, Max> right) {
+                    _value -= right._value;
+                    CheckValueOutOfRange();
+                }
+
+                public static Int<Min, Max> operator *(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value * right._value);
+                }
+
+                public void operator *=(Int<Min, Max> right) {
+                    _value *= right._value;
+                    CheckValueOutOfRange();
+                }
+
+                public static Int<Min, Max> operator /(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value / right._value);
+                }
+
+                public void operator /=(Int<Min, Max> right) {
+                    _value /= right._value;
+                    CheckValueOutOfRange();
+                }
+
+                public static Int<Min, Max> operator **(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value ** right._value);
+                }
+
+                public void operator **=(Int<Min, Max> right) {
+                    _value **= right._value;
+                    CheckValueOutOfRange();
+                }
+
+                public static Int<Min, Max> operator %(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value % right._value);
+                }
+
+                public void operator %=(Int<Min, Max> right) {
+                    _value %= right._value;
+                    CheckValueOutOfRange();
+                }
+
+                public static bool operator <(Int<Min, Max> left, Int<Min, Max> right) {
+                    return left._value < right._value;
+                }
+
+                public static bool operator <=(Int<Min, Max> left, Int<Min, Max> right) {
+                    return left._value <= right._value;
+                }
+
+                public static bool operator >(Int<Min, Max> left, Int<Min, Max> right) {
+                    return left._value > right._value;
+                }
+
+                public static bool operator >=(Int<Min, Max> left, Int<Min, Max> right) {
+                    return left._value >= right._value;
+                }
+
+                public static Int<Min, Max> operator <<(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value << right._value);
+                }
+
+                public void operator <<=(Int<Min, Max> right) {
+                    _value <<= right._value;
+                    CheckValueOutOfRange();
+                }
+
+                public static Int<Min, Max> operator >>(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value >> right._value);
+                }
+
+                public void operator >>=(Int<Min, Max> right) {
+                    _value >>= right._value;
+                    CheckValueOutOfRange();
+                }
+
+                public static Int<Min, Max> operator >>>(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value >>> right._value);
+                }
+
+                public void operator >>>=(Int<Min, Max> right) {
+                    _value >>>= right._value;
+                    CheckValueOutOfRange();
+                }
+
+                public static Int<Min, Max> operator &(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value & right._value);
+                }
+
+                public void operator &=(Int<Min, Max> right) {
+                    _value &= right._value;
+                    CheckValueOutOfRange();
+                }
+
+                public static Int<Min, Max> operator |(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value | right._value);
+                }
+
+                public void operator |=(Int<Min, Max> right) {
+                    _value |= right._value;
+                    CheckValueOutOfRange();
+                }
+
+                public static Int<Min, Max> operator ^(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value ^ right._value);
+                }
+
+                public void operator ^=(Int<Min, Max> right) {
+                    _value ^= right._value;
+                    CheckValueOutOfRange();
+                }
+
+                public static Int<Min, Max> operator /\(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value /\ right._value);
+                }
+
+                public void operator /\=(Int<Min, Max> right) {
+                    _value /\= right._value;
+                }
+
+                public static Int<Min, Max> operator \/(Int<Min, Max> left, Int<Min, Max> right) {
+                    return new(left._value \/ right._value);
+                }
+
+                public void operator \/=(Int<Min, Max> right) {
+                    _value \/= right._value;
+                }
+
+                public static Int<Min, Max> operator +(Int<Min, Max> operand) {
+                    return operand;
+                }
+
+                public static Int<Min, Max> operator -(Int<Min, Max> operand) {
+                    return new(-operand._value);
+                }
+
+                public static Int<Min, Max> operator ~(Int<Min, Max> operand) {
+                    return new(~operand._value);
+                }
+
+                public static Int<Min, Max> operator ++(Int<Min, Max> operand) {
+                    return new(operand._value + 1);
+                }
+
+                public static Int<Min, Max> operator --(Int<Min, Max> operand) {
+                    return new(operand._value - 1);
+                }
+
+                public void operator ++() {
+                    _value++;
+                    CheckValueOutOfRange();
+                }
+
+                public void operator --() {
+                    _value--;
+                    CheckValueOutOfRange();
+                }
+
+                public static implicit operator Int<Min, Max>(int64 value) {
+                    return new(value);
+                }
+
+                public static implicit operator int64(Int<Min, Max> value) {
+                    return value._value;
+                }
+
+                public static explicit operator<int TMin, int TMax> Int<TMin, TMax>(Int<Min, Max> bigger)
+                    where { !(TMax < Min || TMin > Max); TMin <= TMax; } {
+                    return new Int<TMin, TMax>(bigger._value);
+                }
+
+                public static implicit operator<int TMin, int TMax> Int<TMin, TMax>(Int<Min, Max> smaller)
+                    where { TMax >= Max; TMin <= TMax; TMin <= Min; } {
+                    return new Int<TMin, TMax>(smaller._value);
+                }
+
+                public override string? ToString() {
+                    return (string)_value;
+                }
+
+                public static bool operator ==(Int<Min, Max> left, Int<Min, Max> right) {
+                    return left._value == right._value;
+                }
+
+                public static bool operator !=(Int<Min, Max> left, Int<Min, Max> right) {
+                    return left._value != right._value;
+                }
+
+                public override bool Equals(Object? object) {
+                    if (object is Int<Min, Max> number)
+                        return _value == number._value;
+
+                    return false;
+                }
+
+                public override int32 GetHashCode() {
+                    return LowLevel.GetHashCode(_value);
+                }
+
+                private void CheckValueOutOfRange() {
+                    if (_value < Min || _value > Max)
+                        throw new ValueOutOfRangeException(_value, Min, Max);
+                }
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_SeesTemplates() {
+        var text = @"
+            class A<type T> {
+                public static A<TOther> operator<type TOther> +(A<TOther> left, A<T> right) {
+                    return left;
+                }
+            }
+
+            A<int> a = new();
+            A<bool> b = new();
+            A<int> c = a + b;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_AllowsTemplateConstantInReturnType() {
+        var text = @"
+            public static class Int64 {
+                public constexpr int64 MinValue = -9223372036854775808;
+                public constexpr int64 MaxValue = 9223372036854775807;
+            }
+
+            public sealed class ValueOutOfRangeException extends System.Exception {
+                public constructor()
+                    : base(""Value was out of the range of valid values."") { }
+
+                public constructor(any value, any min, any max)
+                    : base(f""Value '{value}' was out of the range of valid values [{min}..{max}]."") { }
+            }
+
+            public struct Int<int Min = Int64.MinValue, int Max = Int64.MaxValue> where { Min <= Max; } {
+                public int64 _value;
+
+                public constructor(int64 value) {
+                    if (value < Min || value > Max)
+                        throw new ValueOutOfRangeException(value, Min, Max);
+
+                    _value = value;
+                }
+
+                public static Int<Min + TMin, Max + TMax> operator<int TMin, int TMax> +(Int<Min, Max> left, Int<TMin, TMax> right)
+                    where {
+                        Min + TMin >= Int64.MinValue;
+                        Max + TMax <= Int64.MaxValue;
+                    } {
+                    return new(left._value + right._value);
+                }
+
+                public static explicit operator<int TMin, int TMax> Int<TMin, TMax>(Int<Min, Max> bigger)
+                    where { !(TMax < Min || TMin > Max); TMin <= TMax; } {
+                    return new Int<TMin, TMax>(bigger._value);
+                }
+
+                public static implicit operator<int TMin, int TMax> Int<TMin, TMax>(Int<Min, Max> smaller)
+                    where { TMax >= Max; TMin <= TMax; TMin <= Min; } {
+                    return new Int<TMin, TMax>(smaller._value);
+                }
+            }
+
+            Int<0, 5> a = new (5);
+            Int<0, 5> b = new (5);
+            var c = a + b;
+            return c._value;
+        ";
+
+        AssertValue(text, 10);
+    }
+
+    [Fact]
+    public void UserDefinedOperator_HexadecimalReduces() {
+        var text = @"
+            class A {
+                public static implicit operator A(int64 num) {
+                    return new();
+                }
+            }
+            A a = 0x0;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void TemplateArgument_ParsesErrorTypeNotAsExpression() {
+        var text = @"
+            class A<type T> where { T has default; } {
+                public static T Method() {
+                    return default(T);
+                }
+            }
+            A<[FileStream]!>.Method();
+        ";
+
+        var diagnostics = @"
+            the type or namespace name 'FileStream' could not be found
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void ImplicitBaseInitializer_ReportsAccessibility() {
+        var text = @"
+            class A {
+                constructor() { }
+            }
+
+            class [B] extends A { }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            'A..ctor()' is inaccessible due to its protection level
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, script: false);
+    }
+
+    [Fact]
+    public void AsOperator_AllowsDownCast() {
+        var text = @"
+            class A { }
+
+            class B extends A { }
+
+            var a = new A();
+            var b = a as B;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void NoThrow_AllowsThrowingInTry() {
+        var text = @"
+            void F1() { }
+
+            void F2() nothrow {
+                try {
+                    F1();
+                } catch {
+
+                }
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void NoThrow_AllowsPotentialThrowingInTry() {
+        var text = @"
+            void F1() { }
+
+            void F2() nothrow {
+                try {
+                    int32 a = 0;
+                    uint8 b = (uint8)a;
+                } catch {
+
+                }
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void BaseList_AllowsNonSimpleName() {
+        var text = @"
+            namespace A {
+                public class B { }
+            }
+            class C extends A.B { }
+            ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void BufferArgument_InfersType() {
+        var text = @"
+            void F(Buffer<string?>? arg) { }
+
+            F({ ""test"" });
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Deconstruction_AllowsUsingPriorLocals() {
+        var text = @"
+            int a = 3;
+            int b = 0;
+            (a, b) = (4, 5);
+            return a;
+        ";
+
+        AssertValue(text, 4);
+    }
+
+    [Fact]
+    public void Deconstruction_AllowsUsingPriorDeconstructionLocals() {
+        var text = @"
+            (int a, int b) = (6, 7);
+            (a, b) = (4, 5);
+            return a;
+        ";
+
+        AssertValue(text, 4);
+    }
+
+    [Fact]
+    public void Method_LowLevelModifierApplies() {
+        var text = @"
+            class A {
+                lowlevel Buffer<A!>? M() {
+                    return null;
+                }
+            }
+            ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void TryStatement_BreakOutOfTry() {
+        var text = @"
+            for (var i = 0; i < 10; i++) {
+                try {
+                    break;
+                } catch { }
+            }
+
+            return 5;
+        ";
+
+        AssertValue(text, 5);
+    }
+
+    [Fact]
+    public void InlineIL_CallCanFindSignature() {
+        var text = @"
+            float64 a = 0;
+
+            il {
+                ldc.r8 3.5;
+                call Math.Sin : (float64);
+                stloc.0;
+            }
+
+            return a;
+        ";
+
+        AssertValue(text, -0.35078322768961984, evaluator: false);
+    }
+
+    [Fact]
+    public void Property_GetIsTypeChecked() {
+        var text = @"
+            class A {
+                property ref int a { get => [3]; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            must return by-reference in a method with a reference return type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Property_ValueIsDefined() {
+        var text = @"
+            class A {
+                property int a { set => field = value; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Property_CanAssign() {
+        var text = @"
+            class A {
+                public property int a { get => field; set => field = value; }
+            }
+            var a = new A();
+            a.a = 3;
+            return a.a;
+        ";
+
+        AssertValue(text, 3);
+    }
+
+    [Fact]
+    public void Property_LowLevelModifierApplies() {
+        var text = @"
+            class A {
+                lowlevel property Buffer<A!>? a => null;
+            }
+            ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Property_LowLevelModifierApplies2() {
+        var text = @"
+            class A {
+                lowlevel property Buffer<A!>? a => new Buffer<A!>(10);
+            }
+            ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Property_ConstModifierApplies() {
+        var text = @"
+            class A {
+                int a = 0;
+                const property int p => [a]++;
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot assign to an instance member in a method marked as constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Property_MissingTypeMinimalDiagnostics() {
+        var text = @"
+            class A {
+                int a = 0;
+                const property p [=>] a++;
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            expected identifier
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Conditional_InfersTypeWithException() {
+        var text = @"
+            var a = true ? 3 : throw new System.Exception();
+            return a;
+        ";
+
+        AssertValue(text, 3);
+    }
+
+    [Fact]
+    public void Conditional_InfersTypeWithException2() {
+        var text = @"
+            try {
+                var a = false ? 3 : throw new System.Exception();
+            } catch {
+                return 5;
+            }
+
+            return 0;
+        ";
+
+        AssertValue(text, 5);
+    }
+
+    [Fact]
+    public void DefiniteAssignment_DoesntReportIfOtherDiagnostics() {
+        var text = @"
+            public struct packed([3]) A<type T> {
+                T a;
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            struct pack alignment must be 1, 2, 4, 8, 16, 32, 64, or 128
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void InitializerList_InfersTypeToApplyUserConversion() {
+        var text = @"
+            int XorList(const List<int> arr) {
+                var result = 0;
+
+                for (item in arr)
+                    result ^= item;
+
+                return result;
+            }
+
+            List<int> PartitionList(const List<int> list, int lsb) {
+                final result = new List<int>();
+
+                for (item in list) {
+                    if ((item & lsb) == 0)
+                        result.Append(item);
+                }
+
+                return result;
+            }
+
+            List<int> FindDoubleMissing(const List<int> given, const List<int> total) {
+                const uv = XorList(given) ^ XorList(total);
+                const lsb = uv & ~(uv - 1);
+                const par0 = PartitionList(given, lsb);
+                const par1 = PartitionList(total, lsb);
+                const u = XorList(par0) ^ XorList(par1);
+                const v = uv ^ u;
+                return { u, v };
+            }
+
+            final result = FindDoubleMissing({ 1, 2, 3, 4, 5, 6 }, { 1, 3, 4, 6 });
+            return result[0] + result[1];
+        ";
+
+        AssertValue(text, 7);
     }
 }

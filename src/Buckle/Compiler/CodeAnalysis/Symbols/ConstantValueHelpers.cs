@@ -56,7 +56,7 @@ internal static class ConstantValueHelpers {
 
                 if (constantValue is not null)
                     value = constantValue;
-                else
+                else if (!Binder.EnsureExpressionIsCompileTime(boundValue, []))
                     diagnostics.Push(Error.ConstantExpected(initValueNode.location));
             }
         }

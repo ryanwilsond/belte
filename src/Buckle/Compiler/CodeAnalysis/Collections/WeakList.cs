@@ -91,7 +91,7 @@ internal sealed partial class WeakList<T> where T : class {
         _items[_size++] = new WeakReference<T>(item);
     }
 
-    internal Enumerator GetEnumerator() {
+    public Enumerator GetEnumerator() {
         return new Enumerator(this);
     }
 }

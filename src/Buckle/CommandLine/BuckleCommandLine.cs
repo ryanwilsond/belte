@@ -59,6 +59,16 @@ public static partial class BuckleCommandLine {
         new DiagnosticInfo(0509, "BU"),
         new DiagnosticInfo(0512, "BU"),
         new DiagnosticInfo(0514, "BU"),
+        new DiagnosticInfo(0524, "BU"),
+        new DiagnosticInfo(0525, "BU"),
+        new DiagnosticInfo(0528, "BU"),
+        new DiagnosticInfo(0573, "BU"),
+        new DiagnosticInfo(0583, "BU"),
+        new DiagnosticInfo(0607, "BU"),
+        new DiagnosticInfo(0611, "BU"),
+        new DiagnosticInfo(0612, "BU"),
+        new DiagnosticInfo(0613, "BU"),
+        new DiagnosticInfo(0615, "BU"),
     ];
 
     private static readonly DiagnosticInfo[] WarningLevel2 = [
@@ -72,6 +82,8 @@ public static partial class BuckleCommandLine {
         new DiagnosticInfo(0447, "BU"),
         new DiagnosticInfo(0467, "BU"),
         new DiagnosticInfo(0471, "BU"),
+        new DiagnosticInfo(0527, "BU"),
+        new DiagnosticInfo(0609, "BU"),
     ];
 
     private static readonly DiagnosticInfo[] WarningLevel3 = [];
@@ -110,11 +122,11 @@ public static partial class BuckleCommandLine {
             me = processName
         };
 
-        var hasDialog = dialogs.machine ||
-                        dialogs.version ||
-                        dialogs.help ||
-                        dialogs.error is not null ||
-                        dialogs.clearCache;
+        var hasEarlyExitDialog = dialogs.machine ||
+                                 dialogs.version ||
+                                 dialogs.help ||
+                                 dialogs.error is not null ||
+                                 dialogs.clearCache;
 
         if (multipleExplains)
             ResolveDiagnostic(Belte.Diagnostics.Error.MultipleExplains(), processName, state);
@@ -122,7 +134,7 @@ public static partial class BuckleCommandLine {
         if (dialogs.clearSubmissions)
             ShowClearSubmissionsDialog();
 
-        if (hasDialog) {
+        if (hasEarlyExitDialog) {
             diagnostics.Clear();
             diagnostics.Move(ShowDialogs(dialogs, multipleExplains));
             ResolveDiagnostics(diagnostics, processName, state);
@@ -174,6 +186,9 @@ public static partial class BuckleCommandLine {
         if (state.verboseMode && !state.noOut)
             LogCompilerState(state, pendingReferenceCopies);
 
+        if (dialogs.startStop)
+            ShowStartDialog(usingBuildScript: false);
+
         compiler.Compile();
 
         err = ResolveDiagnostics(compiler);
@@ -192,6 +207,9 @@ public static partial class BuckleCommandLine {
         }
 
         ResolveReferenceCopies(state.outputFilename, pendingReferenceCopies, processName, state);
+
+        if (dialogs.startStop)
+            ShowStopDialog();
 
         ResolveSae(sae);
         return SuccessExitCode;
@@ -247,9 +265,10 @@ void Build(Builder builder) {{
                 programContent =
 @$"
 namespace {name};
+
 static class Program;
 
-void Main(string[]! args) {{
+void Main(string[] args) {{
     Console.PrintLine(""Hello, world!"");
 }}
 ";
@@ -259,9 +278,10 @@ void Main(string[]! args) {{
                 programContent =
 @$"
 namespace {name};
+
 class Program;
 
-void Main(string[]! args) {{
+void Main(string[] args) {{
     Graphics.Initialize(""{name}"", 1280, 720, false);
 }}
 
@@ -306,7 +326,14 @@ public class {name} {{
     private static int ProcessBuildArgs(string processName, string[] args, out CompilerState state) {
         int err;
 
-        var buildState = DecodeBuildOptions(args, out var diagnostics, out var arguments, out var debugMode);
+        var buildState = DecodeBuildOptions(
+            args,
+            out var diagnostics,
+            out var arguments,
+            out var debugMode,
+            out var startStopDialog
+        );
+
         state = new CompilerState {
             noOut = false,
             diagnosticOptions = new TaskDiagnosticOptions() {
@@ -322,25 +349,10 @@ public class {name} {{
 
         var inputFileName = buildState.buildScript;
 
-        if (!File.Exists(inputFileName)) {
+        if (!File.Exists(inputFileName))
             diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(inputFileName));
-        } else {
-            var opened = false;
-
-            for (var j = 1; j < 4; j++) {
-                try {
-                    buildState.buildScriptText = File.ReadAllText(inputFileName);
-                    opened = true;
-                    break;
-                } catch (IOException) {
-                    if (j < 3)
-                        Thread.Sleep(j * 10);
-                }
-            }
-
-            if (!opened)
-                diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(inputFileName));
-        }
+        else
+            buildState.buildScriptText = ReadAllTextOrDiagnose(inputFileName, diagnostics);
 
         err = ResolveDiagnostics(diagnostics, processName, state);
 
@@ -399,6 +411,9 @@ public class {name} {{
         if (state.verboseMode && !state.noOut)
             LogCompilerState(state, pendingReferenceCopies);
 
+        if (startStopDialog)
+            ShowStartDialog(usingBuildScript: true);
+
         compiler.Compile();
 
         err = ResolveDiagnostics(compiler);
@@ -413,14 +428,19 @@ public class {name} {{
             return RuntimeErrorExitCode;
         }
 
-        ResolveReferenceCopies(state.outputFilename, pendingReferenceCopies, processName, state);
-        ResolveReferenceCopies(
-            state.outputFilename,
-            pendingDependencyCopies.Item1,
-            processName,
-            state,
-            pendingDependencyCopies.Item2
-        );
+        if (!state.noOut && !state.buildMode.RunsImmediately()) {
+            ResolveReferenceCopies(state.outputFilename, pendingReferenceCopies, processName, state);
+            ResolveReferenceCopies(
+                state.outputFilename,
+                pendingDependencyCopies.Item1,
+                processName,
+                state,
+                pendingDependencyCopies.Item2
+            );
+        }
+
+        if (startStopDialog)
+            ShowStopDialog();
 
         return SuccessExitCode;
     }
@@ -443,6 +463,7 @@ public class {name} {{
             case BuildMode.Evaluate:
             case BuildMode.Execute:
             case BuildMode.Interpret:
+            case BuildMode.Emulate:
                 // Already executed from build
                 break;
             case BuildMode.Dotnet:
@@ -529,9 +550,11 @@ public class {name} {{
         var copies = new List<string>();
 
         foreach (var (reference, options) in builder.refs) {
-            if (Directory.Exists(reference)) {
+            var foundPath = SearchPathFileOrDir(reference);
+
+            if (Directory.Exists(foundPath)) {
                 var files = Directory.GetFiles(
-                    reference,
+                    foundPath,
                     "*.dll",
                     ((options & RefOptions.Flat) != 0) ? SearchOption.TopDirectoryOnly : SearchOption.AllDirectories
                 );
@@ -540,13 +563,13 @@ public class {name} {{
 
                 if ((options & RefOptions.Copy) != 0)
                     copies.AddRange(files);
-            } else if (File.Exists(reference)) {
-                references.Add(reference);
+            } else if (File.Exists(foundPath)) {
+                references.Add(foundPath);
 
                 if ((options & RefOptions.Copy) != 0)
-                    copies.Add(reference);
+                    copies.Add(foundPath);
             } else {
-                diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(reference));
+                diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(foundPath));
             }
         }
 
@@ -556,9 +579,11 @@ public class {name} {{
         var depsDest = new List<string>();
 
         foreach (var (path, filter, options) in builder.deps) {
-            if (Directory.Exists(path)) {
+            var foundPath = SearchPathFileOrDir(path);
+
+            if (Directory.Exists(foundPath)) {
                 var searchOption = options.flatSearch ? SearchOption.TopDirectoryOnly : SearchOption.AllDirectories;
-                var files = Directory.GetFiles(path, filter ?? "*", searchOption);
+                var files = Directory.GetFiles(foundPath, filter ?? "*", searchOption);
 
                 foreach (var file in files) {
                     depsSource.Add(file);
@@ -567,26 +592,29 @@ public class {name} {{
 
                     if (options.preserveStructure) {
                         dest = dest is null
-                            ? Path.GetRelativePath(path, Path.GetDirectoryName(file))
-                            : Path.Join(dest, Path.GetRelativePath(path, Path.GetDirectoryName(file)));
+                            ? Path.GetRelativePath(foundPath, Path.GetDirectoryName(file))
+                            : Path.Join(dest, Path.GetRelativePath(foundPath, Path.GetDirectoryName(file)));
                     }
 
                     depsDest.Add(dest);
                 }
-            } else if (File.Exists(path)) {
-                depsSource.Add(path);
+            } else if (File.Exists(foundPath)) {
+                depsSource.Add(foundPath);
                 depsDest.Add(options.outSubDir);
             } else {
-                diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(path));
+                diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(foundPath));
             }
         }
 
         pendingDependencyCopies = (depsSource.ToArray(), depsDest.ToArray());
 
-        references.AddRange(Compiler.ResolveLibraryLevel(builder.l));
+        references.AddRange(Compiler.ResolveLibraryLevel(
+            builder.l,
+            noStdLib: !builder.includeStdLib || builder.buildMode == BuildMode.Evaluate
+        ));
 
         var outputFilename = builder.output ?? "a.exe";
-        var moduleName = Path.GetFileNameWithoutExtension(outputFilename);
+        var moduleName = builder.assemblyName ?? Path.GetFileNameWithoutExtension(outputFilename);
 
         var tasks = new List<FileState>();
         var taskDiagnosticOptions = new Dictionary<string, TaskDiagnosticOptions>();
@@ -634,8 +662,28 @@ public class {name} {{
             maxCores = maxCores,
             entryName = builder.entryName,
             noStdLib = !builder.includeStdLib,
-            taskDiagnosticOptions = taskDiagnosticOptions
+            taskDiagnosticOptions = taskDiagnosticOptions,
+            noBootStrap = false,
+            skipTemplateMetadata = builder.excludeTemplateMetadata,
+            noTemplateMetadata = builder.excludeTemplateMetadata,
         };
+    }
+
+    private static string SearchPathFileOrDir(string path) {
+        if (Directory.Exists(path) || File.Exists(path))
+            return path;
+
+        var pathEnv = Environment.GetEnvironmentVariable("PATH");
+
+        if (string.IsNullOrEmpty(pathEnv))
+            return path;
+
+        var directories = pathEnv.Split(Path.PathSeparator);
+
+        return directories
+            .Select(dir => Path.Combine(dir.Trim(), path))
+            .FirstOrDefault(File.Exists)
+            ?? path;
     }
 
     private static TaskDiagnosticOptions TranslateDiagnosticOptions(
@@ -682,7 +730,7 @@ public class {name} {{
                 if (state.showInfo)
                     Console.WriteLine("    Existing cache data is malformed: clearing and recreating");
 
-                Directory.Delete(cacheDirectory);
+                Directory.Delete(cacheDirectory, true);
                 reuse = false;
             } else {
                 UpdateLastAccess(
@@ -819,6 +867,17 @@ public class {name} {{
         }
     }
 
+    private static void ShowStartDialog(bool usingBuildScript) {
+        if (usingBuildScript)
+            Console.WriteLine("buckle: starting build using build script");
+        else
+            Console.WriteLine("buckle: starting build using command-line options");
+    }
+
+    private static void ShowStopDialog() {
+        Console.WriteLine("buckle: finished build");
+    }
+
     private static DiagnosticQueue<Diagnostic> ShowDialogs(ShowDialogs dialogs, bool multipleExplains) {
         var diagnostics = new DiagnosticQueue<Diagnostic>();
 
@@ -890,6 +949,7 @@ public class {name} {{
 
     private static void ShowVersionDialog() {
         Console.WriteLine($"Version: Buckle {GetVersionString()}");
+        Console.WriteLine($"Installed Dir: {AppContext.BaseDirectory}");
     }
 
     private static string GetVersionString() {
@@ -1048,41 +1108,14 @@ public class {name} {{
     private static void ReadInputFiles(Compiler compiler, DiagnosticQueue<Diagnostic> diagnostics) {
         for (var i = 0; i < compiler.state.tasks.Length; i++) {
             ref var task = ref compiler.state.tasks[i];
-            var opened = false;
 
             switch (task.stage) {
                 case CompilerStage.Raw:
                 case CompilerStage.Compiled:
-                    for (var j = 1; j < 4; j++) {
-                        try {
-                            task.fileContent.text = File.ReadAllText(task.inputFileName);
-                            opened = true;
-                            break;
-                        } catch (IOException) {
-                            if (j < 3)
-                                Thread.Sleep(j * 10);
-                        }
-                    }
-
-                    if (!opened)
-                        diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(task.inputFileName));
-
+                    task.fileContent.text = ReadAllTextOrDiagnose(task.inputFileName, diagnostics);
                     break;
                 case CompilerStage.Assembled:
-                    for (var j = 1; j < 4; j++) {
-                        try {
-                            task.fileContent.bytes = File.ReadAllBytes(task.inputFileName).ToList();
-                            opened = true;
-                            break;
-                        } catch (IOException) {
-                            if (j < 3)
-                                Thread.Sleep(j * 10);
-                        }
-                    }
-
-                    if (!opened)
-                        diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(task.inputFileName));
-
+                    task.fileContent.bytes = ReadAllBytesOrDiagnose(task.inputFileName, diagnostics);
                     break;
                 case CompilerStage.Finished:
                     diagnostics.Push(Belte.Diagnostics.Info.IgnoringCompiledFile(task.inputFileName));
@@ -1189,16 +1222,21 @@ public class {name} {{
         string[] args,
         out DiagnosticQueue<Diagnostic> diagnostics,
         out string[] arguments,
-        out bool debugMode) {
+        out bool debugMode,
+        out bool startStopDialog) {
         var state = new BuildState {
             showTime = false,
             showInfo = false,
-            buildScript = "Build.blt"
+            buildScript = "Build.blt",
+            noStdLib = false
         };
 
         diagnostics = new DiagnosticQueue<Diagnostic>();
         arguments = Array.Empty<string>();
         debugMode = false;
+        startStopDialog = false;
+
+        List<string> buildArgumentsBuilder = null;
 
         for (var i = 1; i < args.Length; i++) {
             var arg = args[i];
@@ -1214,21 +1252,39 @@ public class {name} {{
                 case "--info":
                     state.showInfo = true;
                     break;
+                case "--infoscript":
+                    startStopDialog = true;
+                    break;
                 case "--time":
                     state.showTime = true;
                     break;
                 case "--debug":
                     debugMode = true;
                     break;
-                default:
-                    if (i == 1 && !arg.StartsWith('-'))
-                        state.buildScript = arg;
+                case "--nostdlib":
+                    state.noStdLib = true;
+                    break;
+                case "-f":
+                case "--file":
+                    if (i < args.Length - 1)
+                        state.buildScript = args[++i];
                     else
+                        diagnostics.Push(Belte.Diagnostics.Error.MissingFilenameF(arg));
+
+                    break;
+                default:
+                    if (!arg.StartsWith('-')) {
+                        buildArgumentsBuilder ??= [];
+                        buildArgumentsBuilder.Add(arg);
+                    } else {
                         diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedOption(arg));
+                    }
 
                     break;
             }
         }
+
+        state.arguments = buildArgumentsBuilder is null ? Array.Empty<string>() : buildArgumentsBuilder.ToArray();
 
         return state;
     }
@@ -1259,7 +1315,8 @@ public class {name} {{
         var specifyWarningLevel = false;
         var wErrorLevel = 2;
 
-        var l = -1;
+        var anyExplicitReferences = false;
+        var l = 0;
         var sae = false;
 
         string currentFileAssociation = null;
@@ -1271,6 +1328,7 @@ public class {name} {{
             clearSubmissions = false,
             clearCache = false,
             error = null,
+            startStop = false,
         };
 
         multipleExplains = false;
@@ -1292,6 +1350,9 @@ public class {name} {{
         state.debugMode = false;
         state.concurrentBuild = true;
         state.maxCores = Environment.ProcessorCount - 2;
+        state.noBootStrap = false;
+        state.skipTemplateMetadata = false;
+        state.noTemplateMetadata = false;
 
         void DecodeSimpleOption(string arg) {
             switch (arg) {
@@ -1327,6 +1388,10 @@ public class {name} {{
                 case "--execute":
                     specifyBuildMode = true;
                     state.buildMode = BuildMode.Execute;
+                    break;
+                case "--emulate":
+                    specifyBuildMode = true;
+                    state.buildMode = BuildMode.Emulate;
                     break;
                 case "-t":
                 case "--transpile":
@@ -1367,6 +1432,9 @@ public class {name} {{
                     state.verboseMode = true;
                     state.reducedVerboseMode = true;
                     break;
+                case "--infoscript":
+                    tempDialogs.startStop = true;
+                    break;
                 case "--time":
                     state.time = true;
                     break;
@@ -1384,6 +1452,15 @@ public class {name} {{
                     break;
                 case "--nostdlib":
                     state.noStdLib = true;
+                    break;
+                case "--nobootstrap":
+                    state.noBootStrap = true;
+                    break;
+                case "--skiptm":
+                    state.skipTemplateMetadata = true;
+                    break;
+                case "--notm":
+                    state.noTemplateMetadata = true;
                     break;
                 default:
                     diagnosticsCL.Push(Belte.Diagnostics.Error.UnrecognizedOption(arg));
@@ -1439,12 +1516,17 @@ public class {name} {{
             } else if (arg.StartsWith("--ref")) {
                 bool err;
 
+                var previousCount = references.Count;
+
                 if (arg != "--reference" && arg != "--reference=" && arg.StartsWith("--reference"))
                     err = ResolveInputRefs(arg.Substring(11), references, copies, diagnostics);
                 else if (arg != "--ref" && arg != "--ref=")
                     err = ResolveInputRefs(arg.Substring(5), references, copies, diagnostics);
                 else
                     err = true;
+
+                if (references.Count > previousCount)
+                    anyExplicitReferences = true;
 
                 if (err)
                     diagnostics.Push(Belte.Diagnostics.Error.MissingReference(arg));
@@ -1615,7 +1697,11 @@ public class {name} {{
         if (state.maxCores == 1)
             state.concurrentBuild = false;
 
-        references.AddRange(Compiler.ResolveLibraryLevel(l));
+        references.AddRange(Compiler.ResolveLibraryLevel(
+            l,
+            state.noStdLib || state.noBootStrap || state.buildMode == BuildMode.Evaluate
+        ));
+
         pendingReferenceCopies = copies.ToArray();
 
         dialogs = tempDialogs;
@@ -1647,10 +1733,8 @@ public class {name} {{
                 state.outputFilename = "a.dll";
         }
 
-        if (!specifyWarningLevel &&
-            state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute) {
+        if (!specifyWarningLevel && state.buildMode.RunsImmediately())
             state.diagnosticOptions.warningLevel = 0;
-        }
 
         if (!specifyOut && state.buildMode == BuildMode.CSharpTranspile)
             state.outputFilename = "a.cs";
@@ -1664,10 +1748,8 @@ public class {name} {{
         if (specifyOut && specifyStage && state.tasks.Length > 1 && state.buildMode != BuildMode.Dotnet)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyWithMultipleFiles());
 
-        if ((specifyStage || specifyOut) &&
-            state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute) {
+        if ((specifyStage || specifyOut) && state.buildMode.RunsImmediately())
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyWithInterpreter());
-        }
 
         if (state.tasks.Length > 1 && state.buildMode == BuildMode.Interpret)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotInterpretWithMultipleFiles());
@@ -1677,11 +1759,8 @@ public class {name} {{
         if (specifyModule && state.buildMode != BuildMode.Dotnet)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyModuleNameWithoutDotnet());
 
-        if (references.Count > 0 && state.buildMode is not BuildMode.Dotnet and not
-                                                           BuildMode.AutoRun and not
-                                                           BuildMode.Execute) {
+        if (anyExplicitReferences && !state.buildMode.SupportsDotnetReferences())
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyReferencesWithoutDotnet());
-        }
 
         foreach (var reference in references) {
             if (!File.Exists(reference))
@@ -1695,6 +1774,8 @@ public class {name} {{
                 state.outputFilename = state.moduleName + ".dll";
             else if (!specifyModule)
                 state.moduleName = Path.GetFileNameWithoutExtension(state.outputFilename);
+        } else if (state.skipTemplateMetadata) {
+            diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifySkipTemplateMetadataWithoutDll());
         }
 
         state.outputFilename = state.outputFilename.Trim();
@@ -1805,7 +1886,7 @@ public class {name} {{
             var destination = Path.Join(destDir, Path.GetFileName(reference));
             var opened = false;
 
-            if (!Directory.Exists(Path.GetDirectoryName(destDir)))
+            if (destDir != "" && !Directory.Exists(Path.GetDirectoryName(destDir)))
                 Directory.CreateDirectory(destDir);
 
             for (var j = 1; j < 4; j++) {
@@ -1980,5 +2061,33 @@ public class {name} {{
         }
 
         return fileStates.ToArray();
+    }
+
+    private static string ReadAllTextOrDiagnose(string path, DiagnosticQueue<Diagnostic> diagnostics) {
+        for (var j = 1; j < 4; j++) {
+            try {
+                return File.ReadAllText(path);
+            } catch (IOException) {
+                if (j < 3)
+                    Thread.Sleep(j * 10);
+            }
+        }
+
+        diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(path));
+        return null;
+    }
+
+    private static List<byte> ReadAllBytesOrDiagnose(string path, DiagnosticQueue<Diagnostic> diagnostics) {
+        for (var j = 1; j < 4; j++) {
+            try {
+                return File.ReadAllBytes(path).ToList();
+            } catch (IOException) {
+                if (j < 3)
+                    Thread.Sleep(j * 10);
+            }
+        }
+
+        diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(path));
+        return null;
     }
 }

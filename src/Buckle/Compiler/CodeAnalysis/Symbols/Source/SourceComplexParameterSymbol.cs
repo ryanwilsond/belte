@@ -12,7 +12,7 @@ internal sealed class SourceComplexParameterSymbol : SourceComplexParameterSymbo
         string name,
         ParameterSyntax syntax,
         ScopedKind scope)
-        : base(owner, ordinal, refKind, isConst, name, syntax, scope) {
+        : base(owner, ordinal, refKind, isConst, name, syntax, syntax.identifier.location, scope) {
         typeWithAnnotations = type;
     }
 

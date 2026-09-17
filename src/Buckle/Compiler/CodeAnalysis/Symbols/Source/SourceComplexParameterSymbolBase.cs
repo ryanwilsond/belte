@@ -20,8 +20,9 @@ internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol
         bool isConst,
         string name,
         ParameterSyntax syntax,
+        TextLocation location,
         ScopedKind scope)
-        : base(owner, ordinal, refKind, isConst, scope, name, new SyntaxReference(syntax), syntax.identifier.location) {
+        : base(owner, ordinal, refKind, isConst, scope, name, new SyntaxReference(syntax), location) {
         _hasDefaultValue = syntax is not null && syntax.defaultValue is not null;
     }
 

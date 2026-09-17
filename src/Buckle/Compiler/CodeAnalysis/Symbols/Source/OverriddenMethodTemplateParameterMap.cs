@@ -2,10 +2,10 @@
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class OverriddenMethodTemplateParameterMap : OverriddenMethodTemplateParameterMapBase {
-    internal OverriddenMethodTemplateParameterMap(SourceOrdinaryMethodSymbol overridingMethod)
+    internal OverriddenMethodTemplateParameterMap(SourceOrdinaryMethodOrUserDefinedOperatorSymbol overridingMethod)
         : base(overridingMethod) { }
 
-    private protected override MethodSymbol GetOverriddenMethod(SourceOrdinaryMethodSymbol overridingMethod) {
+    private protected override MethodSymbol GetOverriddenMethod(SourceOrdinaryMethodOrUserDefinedOperatorSymbol overridingMethod) {
         MethodSymbol method = overridingMethod;
 
         do {

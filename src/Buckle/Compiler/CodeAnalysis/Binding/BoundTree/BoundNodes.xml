@@ -6,6 +6,8 @@
   <ValueType Name="UnaryOperatorKind"/>
   <ValueType Name="BinaryOperatorKind"/>
   <ValueType Name="LookupResultKind"/>
+  <ValueType Name="ForEachLoopKind"/>
+  <ValueType Name="AccessorKind"/>
   <ValueType Name="RefKind"/>
   <!-- Abstract Types -->
   <AbstractNode Name="BoundInitializer" Base="BoundNode"/>
@@ -18,12 +20,20 @@
   </AbstractNode>
   <AbstractNode Name="BoundStatement" Base="BoundNode"/>
   <AbstractNode Name="BoundMethodBodyBase" Base="BoundNode">
-    <Field Name="body" Type="BoundBlockStatement"/>
+    <Field Name="body" Type="BoundBlockStatement?"/>
+    <Field Name="expressionBody" Type="BoundBlockStatement?"/>
   </AbstractNode>
   <AbstractNode Name="BoundLoopStatement" Base="BoundStatement">
     <Field Name="breakLabel" Type="SynthesizedLabelSymbol"/>
     <Field Name="continueLabel" Type="SynthesizedLabelSymbol"/>
   </AbstractNode>
+  <Node Name="BoundArrayLength" Base="BoundExpression">
+    <Field Name="receiver" Type="BoundExpression"/>
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+  </Node>
+  <Node Name="BoundUnconvertedArrayLength" Base="BoundExpression">
+    <Field Name="receiver" Type="BoundExpression"/>
+  </Node>
   <AbstractNode Name="BoundObjectCreationExpressionBase" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
   </AbstractNode>
@@ -109,6 +119,7 @@
   <Node Name="BoundCompileTimeExpression" Base="BoundExpression">
     <Field Name="expression" Type="BoundExpression"/>
     <Field Name="conditional" Type="bool"/>
+    <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
   <Node Name="BoundUnconvertedNullptrExpression" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
@@ -166,7 +177,6 @@
     <Field Name="defaultArguments" Type="BitVector"/>
     <Field Name="resultKind" Type="LookupResultKind" PropertyOverrides="true"/>
   </Node>
-
   <Node Name="BoundAttribute" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
     <Field Name="constructor" Type="MethodSymbol?"/>
@@ -243,6 +253,13 @@
     <Field Name="field" Type="FieldSymbol"/>
     <Field Name="slot" Type="int"/>
   </Node>
+  <Node Name="BoundPropertyAccessExpression" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+    <Field Name="receiver" Type="BoundExpression?"/>
+    <Field Name="property" Type="PropertySymbol"/>
+    <Field Name="autoPropertyAccessorKind" Type="AccessorKind" />
+    <Field Name="resultKind" PropertyOverrides="true" Type="LookupResultKind"/>
+  </Node>
   <Node Name="BoundInitializerDictionary" Base="BoundExpression">
     <Field Name="items" Type="ImmutableArray&lt;(BoundExpression, BoundExpression)&gt;"/>
   </Node>
@@ -263,6 +280,12 @@
     <Field Name="expression" Type="BoundExpression" Null="disallow"/>
     <Field Name="local" Type="DataContainerSymbol"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundRangeExpression" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
+    <Field Name="left" Type="BoundExpression"/>
+    <Field Name="right" Type="BoundExpression"/>
+    <Field Name="inclusiveEnd" Type="bool"/>
   </Node>
   <Node Name="BoundLiteralExpression" Base="BoundExpression">
     <Field Name="constantValue" Type="ConstantValue" PropertyOverrides="true"/>
@@ -318,15 +341,21 @@
     <Field Name="isCWString" Type="bool"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
-  <Node Name="BoundMethodGroup" Base="BoundExpression">
+  <AbstractNode Name="BoundMethodOrPropertyGroup" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
+    <Field Name="receiver" Type="BoundExpression?"/>
+    <Field Name="resultKind" PropertyOverrides="true" Type="LookupResultKind"/>
+  </AbstractNode>
+  <Node Name="BoundMethodGroup" Base="BoundMethodOrPropertyGroup">
     <Field Name="name" Type="string"/>
     <Field Name="methods" Type="ImmutableArray&lt;MethodSymbol&gt;"/>
     <Field Name="templateArguments" Type="ImmutableArray&lt;TypeOrConstant&gt;"/>
     <Field Name="lookupSymbol" Type="Symbol?"/>
     <Field Name="lookupError" Type="BelteDiagnostic?"/>
     <Field Name="flags" Type="BoundMethodGroupFlags?"/>
-    <Field Name="receiver" Type="BoundExpression?"/>
-    <Field Name="resultKind" Type="LookupResultKind" PropertyOverrides="true"/>
+  </Node>
+  <Node Name="BoundPropertyGroup" Base="BoundMethodOrPropertyGroup">
+    <Field Name="properties" Type="ImmutableArray&lt;PropertySymbol&gt;"/>
   </Node>
   <Node Name="BoundNullAssertOperator" Base="BoundExpression">
     <Field Name="operand" Type="BoundExpression"/>
@@ -445,6 +474,32 @@
     <Field Name="resultKind" Type="LookupResultKind" PropertyOverrides="true"/>
     <Field Name="originalUserDefinedOperators" Type="ImmutableArray&lt;MethodSymbol&gt;" Null="allow"/>
   </Node>
+  <Node Name="BoundOrReturnExpression" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+    <Field Name="expression" Type="BoundExpression"/>
+    <Field Name="identicalMatch" Type="bool"/>
+  </Node>
+  <Node Name="BoundOrThrowExpression" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+    <Field Name="expression" Type="BoundExpression"/>
+    <Field Name="conversion" Type="BoundCastExpression?"/>
+    <Field Name="conversionPlaceholder" Type="BoundValuePlaceholder?"/>
+  </Node>
+  <Node Name="BoundOrBreakExpression" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+    <Field Name="expression" Type="BoundExpression"/>
+    <Field Name="label" Type="SynthesizedLabelSymbol"/>
+  </Node>
+  <Node Name="BoundOrContinueExpression" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+    <Field Name="expression" Type="BoundExpression"/>
+    <Field Name="label" Type="SynthesizedLabelSymbol"/>
+  </Node>
+  <Node Name="BoundOrValueExpression" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol" Override="true" Null="disallow"/>
+    <Field Name="expression" Type="BoundExpression"/>
+    <Field Name="value" Type="BoundExpression"/>
+  </Node>
   <!-- Statements -->
   <Node Name="BoundErrorStatement" Base="BoundStatement">
     <Field Name="childBoundNodes" Type="ImmutableArray&lt;BoundNode&gt;"/>
@@ -488,14 +543,18 @@
     <Field Name="innerLocals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
     <Field Name="condition" Type="BoundExpression?"/>
     <Field Name="step" Type="BoundStatement?"/>
+    <Field Name="unroll" Type="bool"/>
     <Field Name="body" Type="BoundStatement"/>
   </Node>
   <Node Name="BoundForEachStatement" Base="BoundLoopStatement">
+    <Field Name="enumeratorInfo" Type="ForEachEnumeratorInfo?"/>
+    <Field Name="forEachLoopKind" Type="ForEachLoopKind"/>
     <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
     <Field Name="expression" Type="BoundExpression"/>
     <Field Name="innerLocals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
     <Field Name="valueLocal" Type="DataContainerSymbol"/>
     <Field Name="indexLocal" Type="DataContainerSymbol?"/>
+    <Field Name="unroll" Type="bool"/>
     <Field Name="body" Type="BoundStatement"/>
   </Node>
   <Node Name="BoundNullBindingStatement" Base="BoundStatement">

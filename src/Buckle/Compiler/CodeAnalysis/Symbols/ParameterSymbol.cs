@@ -6,6 +6,8 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// Represents a parameter of a method.
 /// </summary>
 internal abstract class ParameterSymbol : Symbol, IParameterSymbol {
+    internal const string ValueParameterName = "value";
+
     internal ParameterSymbol() { }
 
     public override SymbolKind kind => SymbolKind.Parameter;

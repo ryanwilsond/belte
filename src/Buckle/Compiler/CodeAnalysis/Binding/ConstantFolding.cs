@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Runtime.CompilerServices;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
@@ -62,8 +63,18 @@ internal static class ConstantFolding {
             }
         }
 
-        if (ConstantValue.IsNull(left) || ConstantValue.IsNull(right))
-            return new ConstantValue(null, type.specialType);
+        var isEquality = opKind is BinaryOperatorKind.Equal or BinaryOperatorKind.NotEqual;
+
+        if (isEquality) {
+            if (ConstantValue.IsNull(left) && ConstantValue.IsNull(right))
+                return new ConstantValue(opKind == BinaryOperatorKind.Equal, SpecialType.Bool);
+
+            if ((ConstantValue.IsNull(left) || ConstantValue.IsNull(right)) && left is not null && right is not null)
+                return new ConstantValue(opKind != BinaryOperatorKind.Equal, SpecialType.Bool);
+        } else {
+            if (ConstantValue.IsNull(left) || ConstantValue.IsNull(right))
+                return new ConstantValue(null, type.specialType);
+        }
 
         if (left is null || right is null)
             return null;
@@ -82,11 +93,16 @@ internal static class ConstantFolding {
         var specialType = type.StrippedType().specialType;
         var normalizedType = CodeGenerator.NormalizeNumericType(specialType);
 
-        if (opKind is BinaryOperatorKind.Equal)
-            return new ConstantValue(Equals(leftValue, rightValue), SpecialType.Bool);
+        if (isEquality) {
+            if (opKind == BinaryOperatorKind.Equal) {
+                return new ConstantValue(Equals(leftValue, rightValue), SpecialType.Bool);
+            } else {
+                Debug.Assert(opKind == BinaryOperatorKind.NotEqual);
+                return new ConstantValue(!Equals(leftValue, rightValue), SpecialType.Bool);
+            }
 
-        if (opKind is BinaryOperatorKind.NotEqual)
-            return new ConstantValue(!Equals(leftValue, rightValue), SpecialType.Bool);
+            throw ExceptionUtilities.Unreachable();
+        }
 
         if (!LiteralUtilities.TryCast(leftValue, leftType, type, errorLocation, diagnostics, out leftValue) ||
             !LiteralUtilities.TryCast(rightValue, rightType, type, errorLocation, diagnostics, out rightValue)) {

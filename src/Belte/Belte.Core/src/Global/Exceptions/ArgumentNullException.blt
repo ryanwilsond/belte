@@ -1,0 +1,4 @@
+
+public sealed class ArgumentNullException extends System.Exception {
+    public constructor() : base("Value cannot be null.") { }
+}

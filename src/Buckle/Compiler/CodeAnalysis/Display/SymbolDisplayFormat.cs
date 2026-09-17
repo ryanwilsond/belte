@@ -7,7 +7,7 @@ public sealed class SymbolDisplayFormat {
         templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
         memberOptions: SymbolDisplayMemberOptions.IncludeParameters | SymbolDisplayMemberOptions.IncludeContainingType,
         parameterOptions: SymbolDisplayParameterOptions.IncludeModifiers | SymbolDisplayParameterOptions.IncludeType,
-        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.SimplifyNullable | SymbolDisplayMiscellaneousOptions.ExpandTemplateParameter
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.SimplifyNullable | SymbolDisplayMiscellaneousOptions.ExpandTemplateParameter | SymbolDisplayMiscellaneousOptions.SimplifyTuple
     );
 
     public static readonly SymbolDisplayFormat ErrorMessageExtendedFormat = new SymbolDisplayFormat(
@@ -15,12 +15,12 @@ public sealed class SymbolDisplayFormat {
         templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
         memberOptions: SymbolDisplayMemberOptions.IncludeParameters | SymbolDisplayMemberOptions.IncludeContainingType,
         parameterOptions: SymbolDisplayParameterOptions.IncludeModifiers | SymbolDisplayParameterOptions.IncludeType | SymbolDisplayParameterOptions.IncludeName,
-        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.SimplifyNullable | SymbolDisplayMiscellaneousOptions.ExpandTemplateParameter
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.SimplifyNullable | SymbolDisplayMiscellaneousOptions.ExpandTemplateParameter | SymbolDisplayMiscellaneousOptions.SimplifyTuple
     );
 
     public static readonly SymbolDisplayFormat ObjectCreationFormat = new SymbolDisplayFormat(
         qualificationStyle: SymbolDisplayQualificationStyle.IncludeContainingTypes,
-        templateOptions: SymbolDisplayTemplateOptions.Everything,
+        templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
         memberOptions: SymbolDisplayMemberOptions.None,
         parameterOptions: SymbolDisplayParameterOptions.Everything,
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.None
@@ -28,15 +28,15 @@ public sealed class SymbolDisplayFormat {
 
     public static readonly SymbolDisplayFormat BoundDisplayFormat = new SymbolDisplayFormat(
         qualificationStyle: SymbolDisplayQualificationStyle.IncludeContainingTypes,
-        templateOptions: SymbolDisplayTemplateOptions.Everything,
+        templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters | SymbolDisplayTemplateOptions.IncludeTemplateConstraints,
         memberOptions: SymbolDisplayMemberOptions.Everything,
         parameterOptions: SymbolDisplayParameterOptions.Everything,
-        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.None
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.IncludePropertyBody
     );
 
     public static readonly SymbolDisplayFormat CompactBoundDisplayFormat = new SymbolDisplayFormat(
         qualificationStyle: SymbolDisplayQualificationStyle.IncludeContainingTypes,
-        templateOptions: SymbolDisplayTemplateOptions.Everything,
+        templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
         memberOptions: SymbolDisplayMemberOptions.Everything & ~SymbolDisplayMemberOptions.IncludeContainingType,
         parameterOptions: SymbolDisplayParameterOptions.Everything,
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.None
@@ -47,7 +47,7 @@ public sealed class SymbolDisplayFormat {
         templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
         memberOptions: SymbolDisplayMemberOptions.IncludeContainingType,
         parameterOptions: SymbolDisplayParameterOptions.IncludeModifiers | SymbolDisplayParameterOptions.IncludeType,
-        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.ExpandTemplateParameter
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.ExpandTemplateParameter | SymbolDisplayMiscellaneousOptions.SimplifyTuple
     );
 
     public static readonly SymbolDisplayFormat NamespaceQualifiedNameFormat = new SymbolDisplayFormat(
@@ -55,7 +55,7 @@ public sealed class SymbolDisplayFormat {
         templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
         memberOptions: SymbolDisplayMemberOptions.IncludeContainingType,
         parameterOptions: SymbolDisplayParameterOptions.IncludeModifiers | SymbolDisplayParameterOptions.IncludeType,
-        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.ExpandTemplateParameter
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.ExpandTemplateParameter | SymbolDisplayMiscellaneousOptions.SimplifyTuple
     );
 
     public static readonly SymbolDisplayFormat NetNamespaceQualifiedNameFormat = new SymbolDisplayFormat(
@@ -96,7 +96,7 @@ public sealed class SymbolDisplayFormat {
 
     public static readonly SymbolDisplayFormat DebuggerDisplay = new SymbolDisplayFormat(
         qualificationStyle: SymbolDisplayQualificationStyle.None,
-        templateOptions: SymbolDisplayTemplateOptions.Everything,
+        templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
         memberOptions: SymbolDisplayMemberOptions.IncludeParameters,
         parameterOptions: SymbolDisplayParameterOptions.Everything,
         miscellaneousOptions:
@@ -142,6 +142,16 @@ public sealed class SymbolDisplayFormat {
             qualificationStyle,
             templateOptions,
             options,
+            parameterOptions,
+            miscellaneousOptions
+        );
+    }
+
+    internal SymbolDisplayFormat WithOptions(SymbolDisplayTemplateOptions options) {
+        return new SymbolDisplayFormat(
+            qualificationStyle,
+            options,
+            memberOptions,
             parameterOptions,
             miscellaneousOptions
         );

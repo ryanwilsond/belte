@@ -30,6 +30,14 @@ internal static class TypeSymbolExtensions {
         return type?.originalDefinition.specialType == SpecialType.Nullable;
     }
 
+    internal static bool IsInterfaceType(this TypeSymbol type) {
+        return type.kind == SymbolKind.NamedType && ((NamedTypeSymbol)type).isInterface;
+    }
+
+    internal static bool ContainsTupleNames(this TypeSymbol type) {
+        return type.VisitType((TypeSymbol t, object _1, bool _2) => !t.tupleElementNames.IsDefault, null) is not null;
+    }
+
     internal static bool IsFileScoped(this TypeSymbol type) {
         if (type is SourceMemberContainerTypeSymbol source && source.isFileScoped)
             return true;
@@ -106,14 +114,22 @@ internal static class TypeSymbolExtensions {
             type = arrayType.elementType;
         }
 
+        if (type.IsEnumType()) {
+            if (kind == TypedConstantKind.Error)
+                kind = TypedConstantKind.Enum;
+
+            type = type.GetEnumUnderlyingType();
+        }
+
         var typedConstantKind = TypedConstant.GetTypedConstantKind(type, compilation);
 
         switch (typedConstantKind) {
             case TypedConstantKind.Array:
+            case TypedConstantKind.Enum:
             case TypedConstantKind.Error:
                 return TypedConstantKind.Error;
             default:
-                if (kind == TypedConstantKind.Array)
+                if (kind is TypedConstantKind.Array or TypedConstantKind.Enum)
                     return kind;
 
                 return typedConstantKind;

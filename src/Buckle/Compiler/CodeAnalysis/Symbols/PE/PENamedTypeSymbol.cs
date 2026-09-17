@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Metadata;
@@ -15,8 +16,8 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
-    private static readonly Dictionary<ReadOnlyMemory<char>, ImmutableArray<PENamedTypeSymbol>> EmptyNestedTypes =
-        new Dictionary<ReadOnlyMemory<char>, ImmutableArray<PENamedTypeSymbol>>(EmptyReadOnlyMemoryOfCharComparer.Instance);
+    private static readonly Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> EmptyNestedTypes =
+        new Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>>(EmptyReadOnlyMemoryOfCharComparer.Instance);
 
     private static readonly UncommonProperties NoUncommonProperties = new UncommonProperties();
 
@@ -24,11 +25,12 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
     private readonly TypeDefinitionHandle _handle;
     private readonly string _name;
     private readonly TypeAttributes _flags;
+    private readonly SpecialType _corTypeId;
 
     private ICollection<string> _lazyMemberNames;
     private ImmutableArray<Symbol> _lazyMembersInDeclarationOrder;
     private Dictionary<string, ImmutableArray<Symbol>> _lazyMembersByName;
-    private Dictionary<ReadOnlyMemory<char>, ImmutableArray<PENamedTypeSymbol>> _lazyNestedTypes;
+    private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> _lazyNestedTypes;
     private TypeKind _lazyKind;
 
     private NullableContextKind _lazyNullableContextValue;
@@ -36,6 +38,8 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
     private NamedTypeSymbol _lazyBaseType = ErrorTypeSymbol.UnknownResultType;
     private NamedTypeSymbol _lazyDeclaredBaseType = ErrorTypeSymbol.UnknownResultType;
     private UncommonProperties _lazyUncommonProperties;
+    private ImmutableArray<NamedTypeSymbol> _lazyDeclaredInterfaces = default;
+    private ImmutableArray<NamedTypeSymbol> _lazyInterfaces = default;
 
     private PENamedTypeSymbol(
         PEModuleSymbol moduleSymbol,
@@ -74,7 +78,34 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
             out var originalTypeName)) {
             _name = originalTypeName;
         }
+
+        // TODO This should use the assembly instead of the singleton eventually
+        // TODO We still define Object natively so this cannot use CorLibrary.StillLookingForSpecialTypes()
+        // Instead we see if its in a cor-library-looking assembly
+        if (emittedNamespaceName is not null &&
+            AssemblyIsCorLibraryCandidate(moduleSymbol.containingAssembly) &&
+            declaredAccessibility == Accessibility.Public) {
+            _corTypeId = SpecialTypes.GetTypeFromMetadataName(
+                MetadataHelpers.BuildQualifiedName(emittedNamespaceName, metadataName)
+            );
+        } else {
+            _corTypeId = SpecialType.None;
+        }
+
+        static bool AssemblyIsCorLibraryCandidate(AssemblySymbol assemblySymbol) {
+            var assembly = ((PEAssemblySymbol)assemblySymbol).assembly;
+
+            if (assembly.assemblyReferences.Length == 0 &&
+                !assembly.ContainsNoPiaLocalTypes()) {
+                if (assembly.declaresTheObjectClass)
+                    return true;
+            }
+
+            return false;
+        }
     }
+
+    public override SpecialType specialType => _corTypeId;
 
     internal static PENamedTypeSymbol Create(
         PEModuleSymbol moduleSymbol,
@@ -140,29 +171,33 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
             var result = _lazyKind;
 
             if (result == TypeKind.Unknown) {
-                TypeSymbol @base = GetDeclaredBaseType(skipTransformsIfNecessary: true);
-                result = TypeKind.Class;
+                if ((_flags & TypeAttributes.Interface) != 0) {
+                    result = TypeKind.Interface;
+                } else {
+                    TypeSymbol @base = GetDeclaredBaseType(skipTransformsIfNecessary: true);
+                    result = TypeKind.Class;
 
-                if (@base is not null) {
-                    var baseCorTypeId = @base.specialType;
+                    if (@base is not null) {
+                        var baseCorTypeId = @base.specialType;
 
-                    switch (baseCorTypeId) {
-                        case SpecialType.Enum:
-                            result = TypeKind.Enum;
-                            break;
-                        case SpecialType.ValueType:
-                            if (specialType != SpecialType.Enum)
-                                result = TypeKind.Struct;
+                        switch (baseCorTypeId) {
+                            case SpecialType.Enum:
+                                result = TypeKind.Enum;
+                                break;
+                            case SpecialType.ValueType:
+                                if (specialType != SpecialType.Enum)
+                                    result = TypeKind.Struct;
 
-                            break;
+                                break;
+                        }
                     }
+
+                    if (@base?.ToDisplayString(SymbolDisplayFormat.NamespaceQualifiedNameFormat) == "System.Enum")
+                        result = TypeKind.Enum;
+
+                    if (@base?.ToDisplayString(SymbolDisplayFormat.NamespaceQualifiedNameFormat) == "System.ValueType")
+                        result = TypeKind.Struct;
                 }
-
-                if (@base?.ToDisplayString(SymbolDisplayFormat.NamespaceQualifiedNameFormat) == "System.Enum")
-                    result = TypeKind.Enum;
-
-                if (@base?.ToDisplayString(SymbolDisplayFormat.NamespaceQualifiedNameFormat) == "System.ValueType")
-                    result = TypeKind.Struct;
 
                 _lazyKind = result;
             }
@@ -250,18 +285,20 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
         }
     }
 
+    internal sealed override bool isInterface => (_flags & TypeAttributes.Interface) != 0;
+
     internal override Accessibility declaredAccessibility {
         get {
-            var access = Accessibility.Private;
+            Accessibility access;
 
             access = (_flags & TypeAttributes.VisibilityMask) switch {
-                TypeAttributes.NestedAssembly => Accessibility.Public,// access = Accessibility.Internal;
-                TypeAttributes.NestedFamORAssem => Accessibility.Public,// access = Accessibility.ProtectedOrInternal;
-                TypeAttributes.NestedFamANDAssem => Accessibility.Public,// access = Accessibility.ProtectedAndInternal;
+                TypeAttributes.NestedAssembly => Accessibility.Internal,
+                TypeAttributes.NestedFamORAssem => Accessibility.InternalOrProtected,
+                TypeAttributes.NestedFamANDAssem => Accessibility.InternalAndProtected,
                 TypeAttributes.NestedPrivate => Accessibility.Private,
                 TypeAttributes.Public or TypeAttributes.NestedPublic => Accessibility.Public,
                 TypeAttributes.NestedFamily => Accessibility.Protected,
-                TypeAttributes.NotPublic => Accessibility.Public,// access = Accessibility.Internal;
+                TypeAttributes.NotPublic => Accessibility.Internal,
                 _ => throw ExceptionUtilities.UnexpectedValue(_flags & TypeAttributes.VisibilityMask),
             };
 
@@ -299,9 +336,41 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
         }
     }
 
+    internal override ImmutableArray<NamedTypeSymbol> Interfaces(ConsList<TypeSymbol> basesBeingResolved = null) {
+        if (_lazyInterfaces.IsDefault) {
+            ImmutableInterlocked.InterlockedCompareExchange(
+                ref _lazyInterfaces,
+                MakeAcyclicInterfaces(),
+                default
+            );
+        }
+
+        return _lazyInterfaces;
+    }
+
     internal override ImmutableArray<AttributeData> GetAttributes() {
         // TODO
         return [];
+    }
+
+
+    internal override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        var uncommon = GetUncommonProperties();
+
+        if (uncommon == NoUncommonProperties)
+            return [];
+
+        if (uncommon.lazyConditionalAttributeSymbols.IsDefault) {
+            var conditionalSymbols = containingPEModule.module.GetConditionalAttributeValues(_handle);
+            Debug.Assert(!conditionalSymbols.IsDefault);
+            ImmutableInterlocked.InterlockedCompareExchange(
+                ref uncommon.lazyConditionalAttributeSymbols,
+                conditionalSymbols,
+                default
+            );
+        }
+
+        return uncommon.lazyConditionalAttributeSymbols;
     }
 
     private void EnsureEnumUnderlyingTypeIsLoaded(UncommonProperties uncommon) {
@@ -345,6 +414,60 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
             }
 
             Interlocked.CompareExchange(ref uncommon.lazyEnumUnderlyingType, underlyingType, null);
+        }
+    }
+
+    internal override ImmutableArray<NamedTypeSymbol> GetDeclaredInterfaces(ConsList<TypeSymbol> basesBeingResolved) {
+        if (_lazyDeclaredInterfaces.IsDefault) {
+            ImmutableInterlocked.InterlockedCompareExchange(
+                ref _lazyDeclaredInterfaces,
+                MakeDeclaredInterfaces(),
+                default
+            );
+        }
+
+        return _lazyDeclaredInterfaces;
+    }
+
+    private ImmutableArray<NamedTypeSymbol> MakeDeclaredInterfaces() {
+        try {
+            var moduleSymbol = containingPEModule;
+            var interfaceImpls = moduleSymbol.module.GetInterfaceImplementationsOrThrow(_handle);
+
+            if (interfaceImpls.Count > 0) {
+                var symbols = ArrayBuilder<NamedTypeSymbol>.GetInstance(interfaceImpls.Count);
+                var tokenDecoder = new MetadataDecoder(moduleSymbol, this);
+
+                foreach (var interfaceImpl in interfaceImpls) {
+                    var interfaceHandle = moduleSymbol.module.metadataReader
+                        .GetInterfaceImplementation(interfaceImpl).Interface;
+                    var typeSymbol = tokenDecoder.GetTypeOfToken(interfaceHandle);
+
+                    typeSymbol = TupleTypeDecoder.DecodeTupleTypesIfApplicable(typeSymbol, interfaceImpl, moduleSymbol);
+                    typeSymbol = NullableTypeDecoder.TransformType(
+                        new TypeWithAnnotations(typeSymbol),
+                        interfaceImpl,
+                        moduleSymbol,
+                        accessSymbol: this,
+                        nullableContext: this
+                    ).type;
+
+                    var namedTypeSymbol = typeSymbol as NamedTypeSymbol ?? new UnsupportedMetadataTypeSymbol();
+
+                    if (namedTypeSymbol.isReferenceType) {
+                        namedTypeSymbol = namedTypeSymbol.StrippedType() as NamedTypeSymbol
+                            ?? new UnsupportedMetadataTypeSymbol();
+                    }
+
+                    symbols.Add(namedTypeSymbol);
+                }
+
+                return symbols.ToImmutableAndFree();
+            }
+
+            return [];
+        } catch (BadImageFormatException mrEx) {
+            return [new UnsupportedMetadataTypeSymbol(mrEx)];
         }
     }
 
@@ -421,7 +544,7 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
 
     private void EnsureNestedTypesAreLoaded() {
         if (_lazyNestedTypes is null) {
-            var types = ArrayBuilder<PENamedTypeSymbol>.GetInstance();
+            var types = ArrayBuilder<NamedTypeSymbol>.GetInstance();
             types.AddRange(CreateNestedTypes());
             var typesDict = GroupByName(types);
 
@@ -468,6 +591,16 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
         return declaredBase;
     }
 
+    private ImmutableArray<NamedTypeSymbol> MakeAcyclicInterfaces() {
+        var declaredInterfaces = GetDeclaredInterfaces(null);
+
+        if (!isInterface)
+            return declaredInterfaces;
+
+        return declaredInterfaces
+            .SelectAsArray(t => BaseTypeAnalysis.TypeDependsOn(t, this) ? CyclicInheritanceError(t) : t);
+    }
+
     private static void GetGenericInfo(
         PEModuleSymbol moduleSymbol,
         TypeDefinitionHandle handle,
@@ -487,6 +620,10 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
 
     internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {
         return GetDeclaredBaseType(skipTransformsIfNecessary: false);
+    }
+
+    internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
+        return SpecializedCollections.EmptyEnumerable<(MethodSymbol Body, MethodSymbol Implemented)>();
     }
 
     internal override byte? GetNullableContextValue() {
@@ -514,10 +651,10 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
                     return baseType;
 
                 // TODO Would we ever want to make the type nullable in the base list?
-                // var moduleSymbol = containingPEModule;
+                var moduleSymbol = containingPEModule;
                 // TypeSymbol decodedType = DynamicTypeDecoder.TransformType(baseType, 0, _handle, moduleSymbol);
                 // decodedType = NativeIntegerTypeDecoder.TransformType(decodedType, _handle, moduleSymbol, this);
-                // decodedType = TupleTypeDecoder.DecodeTupleTypesIfApplicable(decodedType, _handle, moduleSymbol);
+                var decodedType = TupleTypeDecoder.DecodeTupleTypesIfApplicable(baseType, _handle, moduleSymbol);
 
                 // baseType = (NamedTypeSymbol)NullableTypeDecoder.TransformType(
                 //     // new TypeWithAnnotations(decodedType),
@@ -527,6 +664,7 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
                 //     accessSymbol: this,
                 //     nullableContext: this
                 // ).type;
+                baseType = (NamedTypeSymbol)decodedType;
             }
 
             Interlocked.CompareExchange(ref _lazyDeclaredBaseType, baseType, ErrorTypeSymbol.UnknownResultType);
@@ -536,14 +674,16 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
     }
 
     private NamedTypeSymbol MakeDeclaredBaseType() {
-        try {
-            var moduleSymbol = containingPEModule;
-            var token = moduleSymbol.module.GetBaseTypeOfTypeOrThrow(_handle);
+        if (!_flags.IsInterface()) {
+            try {
+                var moduleSymbol = containingPEModule;
+                var token = moduleSymbol.module.GetBaseTypeOfTypeOrThrow(_handle);
 
-            if (!token.IsNil)
-                return (NamedTypeSymbol)new MetadataDecoder(moduleSymbol, this).GetTypeOfToken(token);
-        } catch (BadImageFormatException mrEx) {
-            return new UnsupportedMetadataTypeSymbol(mrEx);
+                if (!token.IsNil)
+                    return (NamedTypeSymbol)new MetadataDecoder(moduleSymbol, this).GetTypeOfToken(token);
+            } catch (BadImageFormatException mrEx) {
+                return new UnsupportedMetadataTypeSymbol(mrEx);
+            }
         }
 
         return null;
@@ -593,19 +733,20 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
                 var methodHandleToSymbol = CreateMethods(nonFieldMembers);
 
                 if (typeKind == TypeKind.Struct) {
-                    // var haveParameterlessConstructor = false;
+                    var haveParameterlessConstructor = false;
 
                     foreach (var method in nonFieldMembers.Cast<MethodSymbol>()) {
                         if (method.IsParameterlessConstructor()) {
-                            // haveParameterlessConstructor = true;
+                            haveParameterlessConstructor = true;
                             break;
                         }
                     }
 
-                    // TODO This is suspect
-                    // if (!haveParameterlessConstructor)
-                    //     nonFieldMembers.Insert(0, new SynthesizedInstanceConstructorSymbol(this));
+                    if (!containingAssembly.isBelteAssembly && !haveParameterlessConstructor)
+                        nonFieldMembers.Insert(0, new SynthesizedInstanceConstructorSymbol(this));
                 }
+
+                CreateProperties(methodHandleToSymbol, nonFieldMembers);
 
                 foreach (var field in fieldMembers)
                     members.Add(field);
@@ -671,15 +812,15 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
         return symbols.ToDictionary(s => s.name, StringOrdinalComparer.Instance);
     }
 
-    private static Dictionary<ReadOnlyMemory<char>, ImmutableArray<PENamedTypeSymbol>> GroupByName(
-        ArrayBuilder<PENamedTypeSymbol> symbols) {
+    private static Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> GroupByName(
+        ArrayBuilder<NamedTypeSymbol> symbols) {
         if (symbols.Count == 0)
             return EmptyNestedTypes;
 
         return symbols.ToDictionary(s => s.name.AsMemory(), ReadOnlyMemoryOfCharComparer.Instance);
     }
 
-    private IEnumerable<PENamedTypeSymbol> CreateNestedTypes() {
+    private IEnumerable<NamedTypeSymbol> CreateNestedTypes() {
         var moduleSymbol = containingPEModule;
         var module = moduleSymbol.module;
 
@@ -757,6 +898,38 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
         return privateFieldNameToSymbols;
     }
 
+    private void CreateProperties(Dictionary<MethodDefinitionHandle, PEMethodSymbol> methodHandleToSymbol, ArrayBuilder<Symbol> members) {
+        var moduleSymbol = containingPEModule;
+        var module = moduleSymbol.module;
+
+        try {
+            foreach (var propertyDef in module.GetPropertiesOfTypeOrThrow(_handle)) {
+                try {
+                    var methods = module.GetPropertyMethodsOrThrow(propertyDef);
+
+                    var getMethod = GetAccessorMethod(module, methodHandleToSymbol, _handle, methods.Getter);
+                    var setMethod = GetAccessorMethod(module, methodHandleToSymbol, _handle, methods.Setter);
+
+                    if (getMethod is not null || setMethod is not null)
+                        members.Add(PEPropertySymbol.Create(moduleSymbol, this, propertyDef, getMethod, setMethod));
+                } catch (BadImageFormatException) { }
+            }
+        } catch (BadImageFormatException) { }
+    }
+
+    private PEMethodSymbol GetAccessorMethod(
+        PEModule module,
+        Dictionary<MethodDefinitionHandle, PEMethodSymbol> methodHandleToSymbol,
+        TypeDefinitionHandle typeDef,
+        MethodDefinitionHandle methodDef) {
+        if (methodDef.IsNil)
+            return null;
+
+        var found = methodHandleToSymbol.TryGetValue(methodDef, out var method);
+        Debug.Assert(found || !module.ShouldImportMethod(typeDef, methodDef, containingPEModule.importOptions));
+        return method;
+    }
+
     private PooledDictionary<MethodDefinitionHandle, PEMethodSymbol> CreateMethods(ArrayBuilder<Symbol> members) {
         var moduleSymbol = containingPEModule;
         var module = moduleSymbol.module;
@@ -817,5 +990,28 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
             2 or 3 or 4 or 5 or 6 => [.. names],
             _ => SpecializedCollections.ReadOnlySet(names),
         };
+    }
+
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers() {
+        return GetMembersUnordered();
+    }
+
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers(string name) {
+        return GetMembers(name);
+    }
+
+    internal override AttributeUsageInfo GetAttributeUsageInfo() {
+        var uncommon = GetUncommonProperties();
+
+        if (uncommon == NoUncommonProperties)
+            return baseType is not null ? baseType.GetAttributeUsageInfo() : AttributeUsageInfo.Default;
+
+        // TODO Attributes
+        return AttributeUsageInfo.Default;
+        // if (uncommon.lazyAttributeUsageInfo.IsNull) {
+        //     uncommon.lazyAttributeUsageInfo = this.DecodeAttributeUsageInfo();
+        // }
+
+        // return uncommon.lazyAttributeUsageInfo;
     }
 }

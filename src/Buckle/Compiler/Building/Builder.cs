@@ -3,15 +3,40 @@ using Diagnostics;
 
 namespace Buckle.Building;
 
+/// <summary>
+/// Builds information used to create a compilation.
+/// </summary>
 public sealed class Builder {
     private readonly DiagnosticOptions _globalDiagnosticOptions;
     private readonly DiagnosticOptions _currentDiagnosticOptions;
     private DiagnosticFlagMode _diagnosticFlagMode;
 
+    /// <summary>
+    /// Build mode of the compilation (default <see cref="BuildMode.Execute" />)
+    /// </summary>
     public BuildMode buildMode;
+
+    /// <summary>
+    /// Output kind of the compilation (default <see cref="OutputKind.ConsoleApplication" />)
+    /// </summary>
     public OutputKind outputKind;
+
+    /// <summary>
+    /// If to produce debug symbols and not perform certain optimizations (default false)
+    /// </summary>
     public bool debugBuild;
+
+    /// <summary>
+    /// If to reference core Belte libraries (default true)
+    /// Should only be false if building the Belte core library itself
+    /// </summary>
     public bool includeStdLib;
+
+    /// <summary>
+    /// If to exclude emitting template metadata when building a DLL.
+    /// If not building a DLL this does nothing.
+    /// </summary>
+    public bool excludeTemplateMetadata;
 
     public Builder() {
         buildMode = BuildMode.Execute;
@@ -23,6 +48,7 @@ public sealed class Builder {
         maxCores = 0;
         debugBuild = false;
         includeStdLib = true;
+        excludeTemplateMetadata = false;
         _diagnosticFlagMode = DiagnosticFlagMode.Global;
         _globalDiagnosticOptions = new();
         _currentDiagnosticOptions = new();
@@ -46,6 +72,8 @@ public sealed class Builder {
 
     public string entryName { get; private set; }
 
+    public string assemblyName { get; private set; }
+
     public DiagnosticOptions diagnosticOptions => _globalDiagnosticOptions;
 
     public void AddInput(string path) {
@@ -64,6 +92,10 @@ public sealed class Builder {
 
     public void IncludeNETSDK() {
         l = 2;
+    }
+
+    public void ExplicitAssemblyName(string assemblyName) {
+        this.assemblyName = assemblyName;
     }
 
     public void SetOutput(string path) {

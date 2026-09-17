@@ -320,9 +320,9 @@ internal sealed partial class OverloadResolution {
         if (easyOut == BinaryOperatorKind.Error)
             return;
 
-        var signature = OperatorFacts.GetSignature(easyOut);
-        var leftConversion = Conversions.FastClassifyConversion(leftType, signature.leftType);
-        var rightConversion = Conversions.FastClassifyConversion(rightType, signature.rightType);
+        var signature = compilation.builtInOperators.GetSignature(easyOut);
+        var leftConversion = ConversionsBase.FastClassifyConversion(leftType, signature.leftType);
+        var rightConversion = ConversionsBase.FastClassifyConversion(rightType, signature.rightType);
 
         result.results.Add(BinaryOperatorAnalysisResult.Applicable(signature, leftConversion, rightConversion));
     }

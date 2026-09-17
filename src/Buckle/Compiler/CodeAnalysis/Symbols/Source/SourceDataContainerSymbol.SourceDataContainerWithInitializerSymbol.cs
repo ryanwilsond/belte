@@ -10,7 +10,7 @@ internal partial class SourceDataContainerSymbol {
         private readonly EqualsValueClauseSyntax _initializer;
         private readonly Binder _initializerBinder;
 
-        private ConstantValue _lazyConstantValue;
+        private ConstantValue _lazyConstantValue = ConstantValue.Unset;
 
         internal SourceDataContainerWithInitializerSymbol(
             Symbol containingSymbol,
@@ -63,7 +63,7 @@ internal partial class SourceDataContainerSymbol {
         }
 
         private void MakeConstantValue(DataContainerSymbol inProgress, BoundExpression boundInitValue) {
-            if (isConstExpr && _lazyConstantValue is null) {
+            if (isConstExpr && _lazyConstantValue == ConstantValue.Unset) {
                 var diagnostics = BelteDiagnosticQueue.GetInstance();
                 var type = this.type;
 
@@ -87,8 +87,14 @@ internal partial class SourceDataContainerSymbol {
 
                 Interlocked.CompareExchange(
                     ref _lazyConstantValue,
-                    new ConstantValue(value?.value, type.StrippedType().specialType, diagnostics.ToArrayAndFree()),
-                    null
+                    (value is null && !diagnostics.Any())
+                        ? null
+                        : new ConstantValue(
+                            value?.value,
+                            type.StrippedType().specialType,
+                            diagnostics.ToArrayAndFree()
+                        ),
+                    ConstantValue.Unset
                 );
             }
         }

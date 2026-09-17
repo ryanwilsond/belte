@@ -374,6 +374,7 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
 
         var result = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
             modifiers,
+            false,
             DeclarationModifiers.None,
             allowedModifiers,
             location,
