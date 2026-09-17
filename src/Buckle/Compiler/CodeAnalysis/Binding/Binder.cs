@@ -7801,7 +7801,7 @@ symIsHidden:;
         BoundUnconvertedInitializerList node,
         TypeSymbol targetType,
         BelteDiagnosticQueue diagnostics) {
-        var listTypeKind = Conversions.GetListExpressionTypeKind(
+        var listTypeKind = ConversionsBase.GetListExpressionTypeKind(
             compilation,
             targetType,
             out var elementTypeWithAnnotations
@@ -8545,6 +8545,13 @@ symIsHidden:;
         if (conversion.isNullable) {
             targetType = targetType.GetNullableUnderlyingType();
             conversion = conversion.underlyingConversions[0];
+        }
+
+        if (conversion.isUserDefined) {
+            // TODO This is unideal. ConvertListExpression shouldn't need to deal with this
+            targetType = conversion.method.parameters[0].type;
+            conversion = conversions.ClassifyImplicitConversionFromExpression(node, targetType);
+            Debug.Assert(conversion.isImplicit);
         }
 
         var listTypeKind = conversion.GetListExpressionTypeKind(out var elementType);

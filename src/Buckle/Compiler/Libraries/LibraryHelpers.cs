@@ -69,9 +69,10 @@ public static class LibraryHelpers {
             syntaxTrees.ToArray()
         );
 
-        var belteNamespace = CreateBelteNamespace(corLibraryCompilation, noStdLib);
+        var belteNamespace = CreateBelteNamespace(noStdLib);
         var updatedCorLibraryCompilation = corLibraryCompilation.AddNamespace(belteNamespace);
         updatedCorLibraryCompilation.corLibrary.SetBelteNamespace(belteNamespace);
+        belteNamespace.SetCompilation(updatedCorLibraryCompilation);
 
         updatedCorLibraryCompilation.GetDiagnostics();
 
@@ -140,8 +141,8 @@ public static class LibraryHelpers {
         }
     }
 
-    private static SynthesizedBelteNamespaceSymbol CreateBelteNamespace(Compilation compilation, bool noStdLib) {
-        return new SynthesizedBelteNamespaceSymbol(compilation, "Belte", noStdLib);
+    private static SynthesizedBelteNamespaceSymbol CreateBelteNamespace(bool noStdLib) {
+        return new SynthesizedBelteNamespaceSymbol("Belte", noStdLib);
     }
 
     internal static SynthesizedFieldSymbol ConstExprField(string name, SpecialOrKnownType type, object constantValue) {

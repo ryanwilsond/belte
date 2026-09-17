@@ -236,7 +236,7 @@ Automatically includes certain library references. Each level includes all of th
 | `l1` | `Diagnostics.dll`, `Compiler.dll`, `Shared.dll`, `System.Collections.dll`, `System.Collections.Immutable.dll` |
 | `lall` | All .NET SDK libraries |
 
-### *--notemplatemetadata*
+### *--skiptm*
 
 Specify to skip emitting template metadata when building a DLL.
 
@@ -247,6 +247,10 @@ Note that apart from instantiation ability, template metadata also includes Belt
 by .NET. This includes [template parameter default values](Current/ClassesAndObjects.md#45-templates),
 [expression constraints](Current/ClassesAndObjects.md#4511-expression-constraints), etc. This means that if a library
 does not include template metadata, those features will not be available to referencing assemblies.
+
+### *--notm*
+
+Specify to not read template metadata from referenced DLLs. See [*--skiptm*](#--skiptm) for more information.
 
 ### *--time*
 

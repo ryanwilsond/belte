@@ -128,6 +128,8 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
 
     internal bool isUserDefined => kind.IsUserDefinedConversion();
 
+    internal bool isConditionalExpression => kind == ConversionKind.ConditionalExpression;
+
     internal MethodSymbol method {
         get {
             switch (_uncommonData) {

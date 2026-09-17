@@ -143,7 +143,7 @@ void Build(Builder builder) {
 ```
 
 If building to a DLL, the `excludeTemplateMetadata` flag can be set to skip emitting template metadata. This does the
-same thing as the [*--notemplatemetadata* CLI option](Buckle.md#--notemplatemetadata).
+same thing as the [*--skiptm*](Buckle.md#--skiptm) and [*--notm*](Buckle.md#--notm) options combined.
 
 For example:
 

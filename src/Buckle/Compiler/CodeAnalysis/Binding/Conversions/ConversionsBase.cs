@@ -788,6 +788,9 @@ internal abstract partial class ConversionsBase {
         BoundExpression sourceExpression,
         TypeSymbol source,
         TypeSymbol target) {
+        if (sourceExpression is null)
+            return Conversion.None;
+
         switch (sourceExpression) {
             case BoundUnconvertedInitializerList list:
                 var listExpressionConversion = GetImplicitListExpressionConversion(list, target);
@@ -925,11 +928,19 @@ internal abstract partial class ConversionsBase {
         BoundExpression expression,
         TypeSymbol source,
         TypeSymbol target) {
-        // TODO Do we need to use expression here
-        var conversion = Conversion.Classify(source, target);
+        // TODO Conversion.Classify should be phased out
 
-        if (conversion.isImplicit)
+        var conversion = ClassifyImplicitBuiltInConversionFromExpression(expression, source, target);
+
+        if (conversion.exists)
             return conversion;
+
+        if (source is not null) {
+            var fastConversion = Conversion.Classify(source, target);
+
+            if (fastConversion.isImplicit)
+                return fastConversion;
+        }
 
         return Conversion.None;
     }
@@ -1506,6 +1517,9 @@ internal abstract partial class ConversionsBase {
                 return true;
             // TODO Should remove Implicit as a conversion kind because its vague
             case ConversionKind.Implicit:
+                return true;
+            // TODO This should be false but then our list conversions fail
+            case ConversionKind.ListExpression:
                 return true;
             default:
                 throw ExceptionUtilities.UnexpectedValue(kind);

@@ -446,10 +446,10 @@ public sealed class EvaluatorTests {
     [InlineData("class A { public static int[]? a = new int[10]; static constructor() { a![0] = 10; } } return A.a![0];", 10)]
     [InlineData("class A { public static Buffer<int>? a = new int[10]; static constructor() { a![0] = 10; } } return A.a![1];", 0)]
     [InlineData("class A { public static int? a = 3; } A.a = 20; return A.a;", 20)]
-    [InlineData("struct A { public int a; } var a = new A(); return a.a;", 0)]
-    [InlineData("struct A { public int? a; } var a = new A(); return a.a;", null)]
-    [InlineData("struct A { public int a; } A? a; a = new A(); return a!.a;", 0)]
-    [InlineData("struct A { public int a; } A? a; return a?.a;", null)]
+    [InlineData("struct A1 { public int a; } var a = new A1(); return a.a;", 0)]
+    [InlineData("struct A2 { public int? a; } var a = new A2(); return a.a;", null)]
+    [InlineData("struct A3 { public int a; } A3? a; a = new A3(); return a!.a;", 0)]
+    [InlineData("struct A4 { public int a; } A4? a; return a?.a;", null)]
     [InlineData("class A { public int a = default; } A? a; return a?.a;", null)]
     [InlineData("class A { public int a = 0; public int b = 3; public int c = 0; } A a = new(); return a.b;", 3)]
     // This expression
@@ -462,66 +462,66 @@ public sealed class EvaluatorTests {
     [InlineData("class A { public constexpr int? a; } return A.a;", null)]
     [InlineData("class A { public static int? B() { return 0; } } return A.B();", 0)]
     [InlineData("class A { public static int? B(int a) { return a + 3; } } return A.B(4);", 7)]
-    [InlineData("struct A { public static A a = default; int f; } return A.a.f;", 0)]
+    [InlineData("struct A5 { public static A5 a = default; int f; } return A5.a.f;", 0)]
     // Structs
-    [InlineData("struct A { } var a = new A(); return a is Object;", true)]
-    [InlineData("struct A { public int! a; } var a = new A(); a.a = 4; var b = a; b.a = 10; return a.a;", 4)]
+    [InlineData("struct A6 { } var a = new A6(); return a is Object;", true)]
+    [InlineData("struct A7 { public int! a; } var a = new A7(); a.a = 4; var b = a; b.a = 10; return a.a;", 4)]
     [InlineData("union A { int32 a; int16 b; } var a = new A(); a.a = 5; return a.b;", 5)]
     [InlineData("union A { int32 a; int16 b; } var a = new A(); a.b = 5; return a.a;", 5)]
-    [InlineData("struct A { int8 a; union { int8 b; int8 c; } } var a = new A(); a.b = 5; return a.a;", 0)]
-    [InlineData("struct A { int8 a; union { int8 b; int8 c; } } var a = new A(); a.b = 5; return a.c;", 5)]
-    [InlineData("struct A { int8 a; union { int8 b; int8 c; } } var a = new A(); a.a = 5; return a.a;", 5)]
-    [InlineData("struct A { int8 a; union { int8 b; int8 c; } } var a = new A(); a.a = 5; return a.b;", 0)]
-    [InlineData("struct A { int a; constructor() { a = 3; } } var a = new A(); return a.a;", 3)]
-    [InlineData("struct A { int a; void SetA(int a) { this.a = a; } } var a = new A(); a.SetA(10); return a.a;", 10)]
-    [InlineData("struct A { static int x = 3; } return A.x;", 3)]
-    [InlineData("struct A { constexpr int x = 3; } return A.x;", 3)]
+    [InlineData("struct A8 { int8 a; union { int8 b; int8 c; } } var a = new A8(); a.b = 5; return a.a;", 0)]
+    [InlineData("struct A9 { int8 a; union { int8 b; int8 c; } } var a = new A9(); a.b = 5; return a.c;", 5)]
+    [InlineData("struct A10 { int8 a; union { int8 b; int8 c; } } var a = new A10(); a.a = 5; return a.a;", 5)]
+    [InlineData("struct A11 { int8 a; union { int8 b; int8 c; } } var a = new A11(); a.a = 5; return a.b;", 0)]
+    [InlineData("struct A12 { int a; constructor() { a = 3; } } var a = new A12(); return a.a;", 3)]
+    [InlineData("struct A13 { int a; void SetA(int a) { this.a = a; } } var a = new A13(); a.SetA(10); return a.a;", 10)]
+    [InlineData("struct A14 { static int x = 3; } return A14.x;", 3)]
+    [InlineData("struct A15 { constexpr int x = 3; } return A15.x;", 3)]
     [InlineData(@"
-        struct A {
+        struct A16 {
             int a;
             int Mut() {
                 a++;
                 return a;
             }
         }
-        A GetA() {
-            return new A();
+        A16 GetA() {
+            return new A16();
         }
         var a = GetA().Mut();
         return a;", 1)]
     [InlineData(@"
-        struct A { public int x; }
-        var a = new A();
+        struct A17 { public int x; }
+        var a = new A17();
         a.x = 3;
         var b = a;
         b.x = 10;
         return b.x;", 10)]
     [InlineData(@"
-        struct A { public int x; }
-        class B { public A a = default; }
+        struct A18 { public int x; }
+        class B { public A18 a = default; }
         var b = new B();
         b.a.x = 4;
         return b.a.x;", 4)]
     [InlineData(@"
-        struct A {
+        struct A19 {
             public int x;
             public constructor() {}
             public constructor(int x) {
-                this = new A()..x=x;
+                this = new A19()..x=x;
             }
         }
-        var a = new A(10);
+        var a = new A19(10);
         return a.x;", 10)]
     [InlineData(@"
-        struct A {
+        struct A20 {
             public int x;
             public constructor() { }
             public constructor(int a) {
-                this = new A();
+                this = new A20();
                 x++;
             }
         }
-        var a = new A(10);
+        var a = new A20(10);
         return a.x;", 1)]
     // Enums
     [InlineData("enum A { q, w, e, r, t } return A.t;", 4)]
@@ -839,9 +839,9 @@ public sealed class EvaluatorTests {
     [InlineData("var? cond = true; int? res = 3; while (true) { if (cond) break; else continue; res = 4; } return res;", 3)]
     // Libraries
     [InlineData("class A { } var a = new A(); return a.ToString();", "A")]
-    [InlineData("struct A { } var a = new A(); return a.ToString();", "A")]
+    [InlineData("struct A21 { } var a = new A21(); return a.ToString();", "A21")]
     [InlineData("class A { public override string? ToString() { return \"a\"; } } var a = new A(); return a.ToString();", "a")]
-    [InlineData("struct A { public override string? ToString() { return \"a\"; } } var a = new A(); return a.ToString();", "a")]
+    [InlineData("struct A22 { public override string? ToString() { return \"a\"; } } var a = new A22(); return a.ToString();", "a")]
     [InlineData("any[]? a = {1, 2, 3}; return a!.Length();", 3)]
     [InlineData("lowlevel { Buffer<any>? a = {1, 2, 3}; return LowLevel.Length<any>(a!); }", 3)]
     // TypeOf expressions
@@ -926,52 +926,52 @@ public sealed class EvaluatorTests {
         var b = new A(2);
         return (a + b).x;", 3)]
     [InlineData(@"
-        struct A {
+        struct A23 {
             int x;
             constructor(int x) { this.x = x; }
-            static A operator+(A a, A b) {
+            static A23 operator+(A23 a, A23 b) {
                 a.x += b.x;
                 return a;
             }
         }
-        var a = new A(1);
-        var b = new A(2);
+        var a = new A23(1);
+        var b = new A23(2);
         return (a + b).x;", 3)]
     [InlineData(@"
-        struct A {
+        struct A24 {
             int x;
             constructor(int x) { this.x = x; }
-            static A operator+(A a, A b) {
+            static A24 operator+(A24 a, A24 b) {
                 a.x += b.x;
                 return a;
             }
         }
-        var a = new A(1);
-        var b = new A(2);
+        var a = new A24(1);
+        var b = new A24(2);
         var c = a + b;
         return c.x;", 3)]
     [InlineData(@"
-        struct A {
+        struct A25 {
             int x;
             constructor(int x) { this.x = x; }
-            static A operator+(A a, A b) {
+            static A25 operator+(A25 a, A25 b) {
                 a.x += b.x;
                 return a;
             }
         }
-        var a = new A(1);
-        var b = new A(2);
+        var a = new A25(1);
+        var b = new A25(2);
         var c = a + b;
         return a.x;", 1)]
     [InlineData(@"
-        struct A {
+        struct A26 {
             int x;
             constructor(int x) { this.x = x; }
-            static A literal s(int num) {
-                return new A(num * 10);
+            static A26 literal s(int num) {
+                return new A26(num * 10);
             }
         }
-        A a = 10s;
+        A26 a = 10s;
         return a.x;", 100)]
     [InlineData(@"
         class A {
@@ -1145,7 +1145,7 @@ public sealed class EvaluatorTests {
     [InlineData("return f\"a is {null}\";", "a is ")]
     [InlineData("List<int>? a = null; return f\"a is {a}\";", "a is ")]
     [InlineData("class A { public override string? ToString() { return \"text\"; } } A a = new A(); return f\"a is {a}\";", "a is text")]
-    [InlineData("struct A { public override string? ToString() { return \"text\"; } } A a = new A(); return f\"a is {a}\";", "a is text")]
+    [InlineData("struct A27 { public override string? ToString() { return \"text\"; } } A27 a = new A27(); return f\"a is {a}\";", "a is text")]
     [InlineData("return f\"{1}{2}{3}\";", "123")]
     [InlineData("return f\"{true} {false}\";", "True False")]
     // Templates
@@ -1203,10 +1203,10 @@ public sealed class EvaluatorTests {
         return temp0;
     ", false)]
     [InlineData(@"
-        struct A { B b; }
+        struct A28 { B b; }
         struct B { int a; }
 
-        var c = new A();
+        var c = new A28();
         c.b.a = 4;
         return c.b.a;
         ", 4)]

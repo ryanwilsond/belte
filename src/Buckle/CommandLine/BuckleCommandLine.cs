@@ -608,7 +608,10 @@ public class {name} {{
 
         pendingDependencyCopies = (depsSource.ToArray(), depsDest.ToArray());
 
-        references.AddRange(Compiler.ResolveLibraryLevel(builder.l, noStdLib: !builder.includeStdLib));
+        references.AddRange(Compiler.ResolveLibraryLevel(
+            builder.l,
+            noStdLib: !builder.includeStdLib || builder.buildMode == BuildMode.Evaluate
+        ));
 
         var outputFilename = builder.output ?? "a.exe";
         var moduleName = builder.assemblyName ?? Path.GetFileNameWithoutExtension(outputFilename);
@@ -661,7 +664,8 @@ public class {name} {{
             noStdLib = !builder.includeStdLib,
             taskDiagnosticOptions = taskDiagnosticOptions,
             noBootStrap = false,
-            noTemplateMetadata = builder.excludeTemplateMetadata
+            skipTemplateMetadata = builder.excludeTemplateMetadata,
+            noTemplateMetadata = builder.excludeTemplateMetadata,
         };
     }
 
@@ -1347,6 +1351,7 @@ public class {name} {{
         state.concurrentBuild = true;
         state.maxCores = Environment.ProcessorCount - 2;
         state.noBootStrap = false;
+        state.skipTemplateMetadata = false;
         state.noTemplateMetadata = false;
 
         void DecodeSimpleOption(string arg) {
@@ -1451,7 +1456,10 @@ public class {name} {{
                 case "--nobootstrap":
                     state.noBootStrap = true;
                     break;
-                case "--notemplatemetadata":
+                case "--skiptm":
+                    state.skipTemplateMetadata = true;
+                    break;
+                case "--notm":
                     state.noTemplateMetadata = true;
                     break;
                 default:
@@ -1689,7 +1697,11 @@ public class {name} {{
         if (state.maxCores == 1)
             state.concurrentBuild = false;
 
-        references.AddRange(Compiler.ResolveLibraryLevel(l, state.noStdLib || state.noBootStrap));
+        references.AddRange(Compiler.ResolveLibraryLevel(
+            l,
+            state.noStdLib || state.noBootStrap || state.buildMode == BuildMode.Evaluate
+        ));
+
         pendingReferenceCopies = copies.ToArray();
 
         dialogs = tempDialogs;
@@ -1762,8 +1774,8 @@ public class {name} {{
                 state.outputFilename = state.moduleName + ".dll";
             else if (!specifyModule)
                 state.moduleName = Path.GetFileNameWithoutExtension(state.outputFilename);
-        } else if (state.noTemplateMetadata) {
-            diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyNoTemplateMetadataWithoutDll());
+        } else if (state.skipTemplateMetadata) {
+            diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifySkipTemplateMetadataWithoutDll());
         }
 
         state.outputFilename = state.outputFilename.Trim();

@@ -115,5 +115,10 @@ public class CompilerState {
     /// <summary>
     /// If to exclude template metadata when building a DLL
     /// </summary>
+    public bool skipTemplateMetadata;
+
+    /// <summary>
+    /// If to skip reading template metadata
+    /// </summary>
     public bool noTemplateMetadata;
 }

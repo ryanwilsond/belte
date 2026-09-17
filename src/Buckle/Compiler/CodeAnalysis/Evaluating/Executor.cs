@@ -1100,6 +1100,9 @@ internal sealed partial class Executor : ModuleBuilder {
         if (_types.ContainsKey(type.originalDefinition))
             return;
 
+        if (type is PENamedTypeSymbol)
+            return;
+
         TypeBuilder typeBuilder;
 
         if (type.isInterface) {

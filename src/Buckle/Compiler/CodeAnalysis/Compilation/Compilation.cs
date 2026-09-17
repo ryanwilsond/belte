@@ -520,8 +520,8 @@ public sealed partial class Compilation {
             _referenceManager,
             reuseReferenceManager: true,
             namespaceSymbol,
-            standardLibraryOpt: standardLibrary,
-            graphicsLibraryOpt: graphicsLibrary
+            standardLibraryOpt: null,
+            graphicsLibraryOpt: null
         );
     }
 
@@ -1122,7 +1122,10 @@ public sealed partial class Compilation {
         }
 
         // TODO Is this how we want to handle chained submissions?
-        if (options.isScript) {
+        // TODO Further, this duplicates references when they are shared
+        // This doesn't seem to cause problems yet because scripts/evaluations don't ever use PE symbols anyway
+        // but this still seems like we should be avoiding it
+        if (options.isScript || (options.buildMode.Evaluating() && previous is not null)) {
             assemblies.Add(previous.assembly);
             previous.GetUnaliasedReferencedAssemblies(assemblies);
         }

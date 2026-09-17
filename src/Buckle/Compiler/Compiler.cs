@@ -43,7 +43,7 @@ public sealed class Compiler {
         state.noStdLib,
         state.diagnosticOptions,
         state.taskDiagnosticOptions,
-        state.noTemplateMetadata,
+        state.skipTemplateMetadata,
         state.noTemplateMetadata
     );
 

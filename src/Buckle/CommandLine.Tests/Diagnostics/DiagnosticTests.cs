@@ -520,11 +520,11 @@ public sealed class DiagnosticTests {
     // ? Requires creating build script
 
     [Fact]
-    public void Reports_Fatal_CL0049_CannotSpecifyNoTemplateMetadataWithoutDll() {
-        var args = new string[] { "--notemplatemetadata" };
+    public void Reports_Fatal_CL0049_CannotSpecifySkipTemplateMetadataWithoutDll() {
+        var args = new string[] { "--skiptm" };
 
         var diagnostics = @"
-            cannot specify '--notemplatemetadata' when not building a dynamically linked library
+            cannot specify '--skiptm' when not building a dynamically linked library
         ";
 
         AssertDiagnostics(args, diagnostics, _writer);

@@ -2171,7 +2171,7 @@ internal sealed partial class OverloadResolution {
         out bool okToDowngradeToNeither) {
         okToDowngradeToNeither = false;
 
-        if (Conversions.HasIdentityConversion(t1, t2))
+        if (ConversionsBase.HasIdentityConversion(t1, t2))
             return BetterResult.Neither;
 
         var nodeKind = node.kind;
@@ -2205,19 +2205,97 @@ internal sealed partial class OverloadResolution {
             return BetterResult.Right;
         }
 
-        // TODO Conditional conversions
-        // if (!conv1.IsConditionalExpression && conv2.IsConditionalExpression)
-        //     return BetterResult.Left;
-        // if (!conv2.IsConditionalExpression && conv1.IsConditionalExpression)
-        //     return BetterResult.Right;
+        if (!conv1.isConditionalExpression && conv2.isConditionalExpression)
+            return BetterResult.Left;
+        if (!conv2.isConditionalExpression && conv1.isConditionalExpression)
+            return BetterResult.Right;
 
-        // TODO Collection conversions
-        // if (conv1.kind == ConversionKind.CollectionExpression &&
-        //     conv2.kind == ConversionKind.CollectionExpression) {
-        //     return BetterCollectionExpressionConversion((BoundUnconvertedCollectionExpression)node, t1, conv1, t2, conv2, ref useSiteInfo);
-        // }
+        if (conv1.kind == ConversionKind.ListExpression &&
+            conv2.kind == ConversionKind.ListExpression) {
+            return BetterListExpressionConversion((BoundUnconvertedInitializerList)node, t1, conv1, t2, conv2);
+        }
 
         return BetterConversionTarget(node, t1, conv1, t2, conv2, out okToDowngradeToNeither);
+    }
+
+
+    private BetterResult BetterListExpressionConversion(
+        BoundUnconvertedInitializerList listExpression,
+        TypeSymbol t1,
+        Conversion conv1,
+        TypeSymbol t2,
+        Conversion conv2) {
+        var kind1 = conv1.GetListExpressionTypeKind(out var elementType1);
+        var kind2 = conv2.GetListExpressionTypeKind(out var elementType2);
+
+        return BetterListExpressionConversion(
+            listExpression.items,
+            t1,
+            kind1,
+            elementType1,
+            conv1.underlyingConversions,
+            t2,
+            kind2,
+            elementType2,
+            conv2.underlyingConversions
+        );
+    }
+
+    private BetterResult BetterListExpressionConversion(
+        ImmutableArray<BoundExpression> listExpressionItems,
+        TypeSymbol t1,
+        ListExpressionTypeKind kind1,
+        TypeSymbol itemType1,
+        ImmutableArray<Conversion> underlyingItemConversions1,
+        TypeSymbol t2,
+        ListExpressionTypeKind kind2,
+        TypeSymbol itemType2,
+        ImmutableArray<Conversion> underlyingItemConversions2) {
+        var t1IsConvertibleToT2 = conversions.ClassifyImplicitConversionFromType(t1, t2).isImplicit;
+        var t2IsConvertibleToT1 = conversions.ClassifyImplicitConversionFromType(t2, t1).isImplicit;
+
+        switch (t1IsConvertibleToT2, t2IsConvertibleToT1) {
+            case (true, false):
+                return BetterResult.Left;
+            case (false, true):
+                return BetterResult.Right;
+        }
+
+        if (!ConversionsBase.HasIdentityConversion(itemType1, itemType2)) {
+            var betterResult = BetterResult.Neither;
+            Debug.Assert(underlyingItemConversions1.Length == underlyingItemConversions2.Length &&
+                underlyingItemConversions1.Length == listExpressionItems.Length);
+
+            for (var i = 0; i < underlyingItemConversions1.Length; i++) {
+                var element = listExpressionItems[i];
+                var conversionToE1 = underlyingItemConversions1[i];
+                var conversionToE2 = underlyingItemConversions2[i];
+
+                BetterResult elementBetterResult;
+                elementBetterResult = BetterConversionFromExpression(
+                    element,
+                    itemType1,
+                    conversionToE1,
+                    itemType2,
+                    conversionToE2,
+                    okToDowngradeToNeither: out _
+                );
+
+                if (elementBetterResult == BetterResult.Neither)
+                    continue;
+
+                if (betterResult != BetterResult.Neither) {
+                    if (betterResult != elementBetterResult)
+                        return BetterResult.Neither;
+                } else {
+                    betterResult = elementBetterResult;
+                }
+            }
+
+            return betterResult;
+        }
+
+        return BetterResult.Neither;
     }
 
     private BetterResult BetterConversionTarget(

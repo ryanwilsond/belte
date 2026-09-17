@@ -3129,4 +3129,44 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void InitializerList_InfersTypeToApplyUserConversion() {
+        var text = @"
+            int XorList(const List<int> arr) {
+                var result = 0;
+
+                for (item in arr)
+                    result ^= item;
+
+                return result;
+            }
+
+            List<int> PartitionList(const List<int> list, int lsb) {
+                final result = new List<int>();
+
+                for (item in list) {
+                    if ((item & lsb) == 0)
+                        result.Append(item);
+                }
+
+                return result;
+            }
+
+            List<int> FindDoubleMissing(const List<int> given, const List<int> total) {
+                const uv = XorList(given) ^ XorList(total);
+                const lsb = uv & ~(uv - 1);
+                const par0 = PartitionList(given, lsb);
+                const par1 = PartitionList(total, lsb);
+                const u = XorList(par0) ^ XorList(par1);
+                const v = uv ^ u;
+                return { u, v };
+            }
+
+            final result = FindDoubleMissing({ 1, 2, 3, 4, 5, 6 }, { 1, 3, 4, 6 });
+            return result[0] + result[1];
+        ";
+
+        AssertValue(text, 7);
+    }
 }

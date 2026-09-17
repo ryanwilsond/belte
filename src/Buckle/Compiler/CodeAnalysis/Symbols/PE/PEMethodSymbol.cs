@@ -697,6 +697,10 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
     }
 
     private MethodKind ComputeMethodKind() {
+        if (_name == WellKnownMemberNames.ImplicitConversionName) {
+            _ = 3;
+        }
+
         if (hasSpecialName) {
             if (_name.StartsWith(".", StringComparison.Ordinal)) {
                 if ((flags & (MethodAttributes.RTSpecialName | MethodAttributes.Virtual)) == MethodAttributes.RTSpecialName &&

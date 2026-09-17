@@ -248,7 +248,7 @@ public struct Int<int Min = Int64.MinValue, int Max = Int64.MaxValue>
     }
 }
 
-public sealed class ValueOutOfRangeException extends Exception {
+public sealed class ValueOutOfRangeException extends System.Exception {
     public constructor()
         : base("Value was out of the range of valid values.") { }
 

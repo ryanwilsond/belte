@@ -2030,6 +2030,10 @@ internal partial class ILEmitter : ModuleBuilder {
             case MethodKind.StaticConstructor:
                 attributes |= MethodAttributes.SpecialName | MethodAttributes.RTSpecialName;
                 break;
+            case MethodKind.Conversion:
+            case MethodKind.Operator:
+                attributes |= MethodAttributes.SpecialName;
+                break;
         }
 
         return attributes;

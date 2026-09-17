@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Threading;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Symbols;
@@ -13,13 +14,13 @@ namespace Buckle.Libraries;
 
 internal sealed class SynthesizedBelteNamespaceSymbol : NamespaceSymbol {
     private readonly bool _noStdLib;
-    private readonly Compilation _compilation;
+
+    private Compilation _compilation;
 
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> _nameToMembersMap;
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> _nameToTypeMembersMap;
 
-    internal SynthesizedBelteNamespaceSymbol(Compilation compilation, string name, bool noStdLib) {
-        _compilation = compilation;
+    internal SynthesizedBelteNamespaceSymbol(string name, bool noStdLib) {
         _noStdLib = noStdLib;
         this.name = name;
     }
@@ -37,6 +38,12 @@ internal sealed class SynthesizedBelteNamespaceSymbol : NamespaceSymbol {
     internal override ImmutableArray<TextLocation> locations => [];
 
     internal override ImmutableArray<SyntaxReference> declaringSyntaxReferences => [];
+
+    internal void SetCompilation(Compilation compilation) {
+        Debug.Assert(_compilation is null);
+        Debug.Assert(compilation is not null);
+        _compilation = compilation;
+    }
 
     internal override ImmutableArray<Symbol> GetMembers() {
         return GetNameToMembersMap().Flatten(LexicalOrderSymbolComparer.Instance);

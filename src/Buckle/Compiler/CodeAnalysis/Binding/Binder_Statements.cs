@@ -329,10 +329,12 @@ internal partial class Binder {
         var iterOps = type.GetMembers(WellKnownMemberNames.IterOperatorName);
         var lengthOps = type.GetMembers(WellKnownMemberNames.LengthOperatorName);
         var bestIndexOp = type.GetMembers(WellKnownMemberNames.IndexOperatorName)
-            .WhereAsArray(m => m is MethodSymbol e && e.GetParameterType(1).specialType == SpecialType.Int)
+            .WhereAsArray(m => m is MethodSymbol e &&
+                CodeGenerator.NormalizeNumericType(e.GetParameterType(1).specialType) == SpecialType.Int64)
             .SingleOrDefault() as MethodSymbol;
         var worseIndexOp = type.GetMembers(WellKnownMemberNames.IndexOperatorName)
-            .WhereAsArray(m => m is MethodSymbol e && e.GetParameterType(1).StrippedType().specialType == SpecialType.Int)
+            .WhereAsArray(m => m is MethodSymbol e &&
+                CodeGenerator.NormalizeNumericType(e.GetParameterType(1).StrippedType().specialType) == SpecialType.Int64)
             .SingleOrDefault() as MethodSymbol;
 
         // Prefer native options, then fallback to System.Collections.Generic.IEnumerable<T>
