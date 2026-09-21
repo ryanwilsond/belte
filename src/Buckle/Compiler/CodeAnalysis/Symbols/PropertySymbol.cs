@@ -1,6 +1,7 @@
 using System.Collections.Immutable;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.Diagnostics;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -25,6 +26,8 @@ internal abstract class PropertySymbol : Symbol, IPropertySymbol {
     internal abstract ImmutableArray<ParameterSymbol> parameters { get; }
 
     internal int parameterCount => parameters.Length;
+
+    internal virtual BelteDiagnostic definiteAssignmentError => null;
 
     internal ImmutableArray<TypeWithAnnotations> parameterTypesWithAnnotations {
         get {

@@ -890,6 +890,7 @@
     </Field>
     <Field Name="accessorList" Type="AccessorListSyntax" Optional="true"/>
     <Field Name="expressionBody" Type="ArrowExpressionClauseSyntax" Optional="true"/>
+    <Field Name="initializer" Type="EqualsValueClauseSyntax" Optional="true"/>
     <Field Name="semicolonToken" Type="SyntaxToken" Optional="true">
       <Kind Name="SemicolonToken" />
     </Field>

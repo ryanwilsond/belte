@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -9,6 +10,8 @@ using Buckle.Utilities;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class SourcePropertySymbol : SourcePropertySymbolBase {
+    private BelteDiagnostic _lazyDefiniteAssignmentError;
+
     private SourcePropertySymbol(
         SourceMemberContainerTypeSymbol containingType,
         PropertyDeclarationSyntax syntax,
@@ -37,7 +40,7 @@ internal sealed class SourcePropertySymbol : SourcePropertySymbolBase {
             explicitInterfaceType,
             aliasQualifier,
             modifiers,
-            hasInitializer: false,
+            hasInitializer: HasInitializer(syntax),
             hasExplicitAccessMod: hasExplicitAccessMod,
             hasAutoPropertyGet: hasAutoPropertyGet,
             hasAutoPropertySet: hasAutoPropertySet,
@@ -68,6 +71,8 @@ internal sealed class SourcePropertySymbol : SourcePropertySymbolBase {
             return default;
         }
     }
+
+    internal override BelteDiagnostic definiteAssignmentError => _lazyDefiniteAssignmentError;
 
     private protected override SourcePropertySymbolBase _boundAttributesSource => null;
 
@@ -156,6 +161,10 @@ internal sealed class SourcePropertySymbol : SourcePropertySymbolBase {
             location,
             diagnostics
         );
+    }
+
+    private static bool HasInitializer(SyntaxNode syntax) {
+        return syntax is PropertyDeclarationSyntax { initializer: { } };
     }
 
     private TypeSyntax GetTypeSyntax(SyntaxNode syntax) {
@@ -452,6 +461,18 @@ internal sealed class SourcePropertySymbol : SourcePropertySymbolBase {
 
         typeSyntax = typeSyntax.SkipRef(out _);
         var type = binder.BindType(typeSyntax, diagnostics);
+
+        if (!hasLowLevelModifier && isAutoPropertyOrUsesFieldKeyword) {
+            // TODO There is something to be said about treating structs like classes here in contrast to fields
+            // Not sure
+            if (containingType.IsStructType()) {
+                var error = Error.PropertyNoDefiniteAssignmentStruct(location, type.type);
+                Interlocked.CompareExchange(ref _lazyDefiniteAssignmentError, error, null);
+            } else if (containingType.IsClassType() && !type.type.IsNullableType()) {
+                var error = Error.PropertyNoDefiniteAssignment(location, type.type);
+                Interlocked.CompareExchange(ref _lazyDefiniteAssignmentError, error, null);
+            }
+        }
 
         if (GetExplicitInterfaceSpecifier() is null && !IsNoMoreVisibleThan(type.type)) {
             // TODO

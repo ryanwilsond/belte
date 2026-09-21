@@ -16,6 +16,7 @@
     - [4.2.3.2](#4232-casts) Casts
     - [4.2.3.3](#4233-user-defined-literals) User-Defined Literals
   - [4.2.4](#424-properties) Properties
+    - [4.2.4.1](#4241-definite-assignment) Definite Assignment
 - [4.3](#43-modifiers) Modifiers
   - [4.3.1](#431-accessibility-modifiers) Accessibility Modifiers
   - [4.3.2](#432-overriding-modifiers) Overriding Modifiers
@@ -818,6 +819,35 @@ class A {
 
   private int GetSomeData() {
     return _backingField++;
+  }
+}
+```
+
+#### 4.2.4.1 Definite Assignment
+
+Non-nullable properties that use an implicit backing field without an initializer require definite constructor
+assignment:
+
+```belte
+class MyClass {
+  property int myProperty { get => field; }
+
+  public constructor(int p) {
+    myProperty = p;
+  }
+}
+```
+
+Property definite assignment analysis uses the same rules as [field definite assignment](#4211-definite-assignment).
+
+Properties can instead have an initializer:
+
+```belte
+class MyClass {
+  property int myProperty { get => field; } = 0;
+
+  public constructor() {
+    // No constructor assignment necessary
   }
 }
 ```

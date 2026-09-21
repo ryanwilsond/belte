@@ -655,6 +655,8 @@ public enum DiagnosticCode : ushort {
     ERR_UnrollRequiresCompileTimeRange = 644,
     ERR_RangeCannotUseIndexLocal = 645,
     ERR_UseOfUnassignedOutParameter = 646,
+    ERR_PropertyNoDefiniteAssignment = 647,
+    ERR_PropertyNoDefiniteAssignmentStruct = 648,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

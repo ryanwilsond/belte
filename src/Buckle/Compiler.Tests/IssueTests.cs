@@ -3003,7 +3003,7 @@ public sealed class IssueTests {
     public void Property_ValueIsDefined() {
         var text = @"
             class A {
-                property int a { set => field = value; }
+                property int a { set => field = value; } = 0;
             }
             ;
         ";
@@ -3017,7 +3017,7 @@ public sealed class IssueTests {
     public void Property_CanAssign() {
         var text = @"
             class A {
-                public property int a { get => field; set => field = value; }
+                public property int a { get => field; set => field = value; } = 0;
             }
             var a = new A();
             a.a = 3;
@@ -3168,5 +3168,19 @@ public sealed class IssueTests {
         ";
 
         AssertValue(text, 7);
+    }
+
+    [Fact]
+    public void DefiniteAssignment_SeesPropertyInitializer() {
+        var text = @"
+            class A {
+                property int a { get => field; } = 3;
+            }
+            ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 }

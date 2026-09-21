@@ -14,6 +14,7 @@ internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
     private readonly MultiDictionary<Symbol, Symbol> _closureCaptures;
     private readonly MethodSymbol _method;
     private readonly ArrayBuilder<FieldSymbol> _fieldsRequiringAssignment;
+    private readonly ArrayBuilder<PropertySymbol> _propertiesRequiringAssignment;
 
     private BelteDiagnosticQueue _diagnostics;
     private BitVector _assignments;
@@ -22,11 +23,13 @@ internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
         Dictionary<Symbol, int> slotMap,
         MethodSymbol containingMethod,
         MultiDictionary<Symbol, Symbol> closureCaptures,
-        ArrayBuilder<FieldSymbol> fieldsRequiringAssignment) {
+        ArrayBuilder<FieldSymbol> fieldsRequiringAssignment,
+        ArrayBuilder<PropertySymbol> propertiesRequiringAssignment) {
         _slotMap = slotMap;
         _method = containingMethod;
         _closureCaptures = closureCaptures;
         _fieldsRequiringAssignment = fieldsRequiringAssignment;
+        _propertiesRequiringAssignment = propertiesRequiringAssignment;
     }
 
     internal static HashSet<Symbol> CheckDefiniteAssignment(
@@ -36,10 +39,17 @@ internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
         MethodSymbol method,
         MultiDictionary<Symbol, Symbol> closureCaptures,
         ArrayBuilder<FieldSymbol> fieldsRequiringAssignment,
+        ArrayBuilder<PropertySymbol> propertiesRequiringAssignment,
         BelteDiagnosticQueue diagnostics) {
         bool changed;
         BelteDiagnosticQueue currentDiagnostics = null;
-        var walker = new DefiniteAssignment(slotMap, method, closureCaptures, fieldsRequiringAssignment);
+        var walker = new DefiniteAssignment(
+            slotMap,
+            method,
+            closureCaptures,
+            fieldsRequiringAssignment,
+            propertiesRequiringAssignment
+        );
 
         var blocks = graph.blocks;
         var end = graph.end;
@@ -72,7 +82,7 @@ internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
             if (definiteAssignmentFields[i]) {
                 var symbol = symbolsBySlot[i];
 
-                if (symbol is FieldSymbol)
+                if (symbol is FieldSymbol or PropertySymbol)
                     set.Add(symbolsBySlot[i]);
             }
         }
@@ -230,13 +240,22 @@ internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
 
         // TODO Also warn on static constructors?
         if (_method.methodKind == MethodKind.Constructor && Binder.IsThisInstanceAccess(node.receiver)) {
-            Debug.Assert(_fieldsRequiringAssignment is not null);
+            Debug.Assert(_fieldsRequiringAssignment is not null && _propertiesRequiringAssignment is not null);
 
             // Technically a method with init fields could leak stuff
             if (!node.method.IsConstructor() && node.method.initFields.IsDefaultOrEmpty) {
                 foreach (var field in _fieldsRequiringAssignment) {
                     if (!field.isStatic) {
                         if (!_assignments[_slotMap[field]]) {
+                            _diagnostics.Push(Warning.PotentialUninitializedObjectLeak(node.syntax.location));
+                            break;
+                        }
+                    }
+                }
+
+                foreach (var property in _propertiesRequiringAssignment) {
+                    if (!property.isSealed) {
+                        if (!_assignments[_slotMap[property]]) {
                             _diagnostics.Push(Warning.PotentialUninitializedObjectLeak(node.syntax.location));
                             break;
                         }
@@ -276,6 +295,12 @@ internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
                     Visit(fieldAccess.receiver);
                     var symbol = fieldAccess.field;
                     _assignments[_slotMap[symbol]] = true;
+
+                    if (symbol is SynthesizedBackingFieldSymbol) {
+                        Debug.Assert(symbol.associatedSymbol is PropertySymbol);
+                        _assignments[_slotMap[symbol.associatedSymbol]] = true;
+                    }
+
                     break;
                 }
             case BoundKind.ArrayAccessExpression:

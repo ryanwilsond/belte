@@ -131,6 +131,7 @@
       - [4.1.3](Current/ClassesAndObjects.md#413-base-access) Base Access
     - [4.2](Current/ClassesAndObjects.md#42-members) Members
       - [4.2.1](Current/ClassesAndObjects.md#421-fields) Fields
+        - [4.2.1.1](Current/ClassesAndObjects.md#4211-definite-assignment) Definite Assignment
       - [4.2.2](Current/ClassesAndObjects.md#422-methods) Methods
         - [4.2.2.1](Current/ClassesAndObjects.md#4221-overloading) Overloading
         - [4.2.2.2](Current/ClassesAndObjects.md#4222-state-and-reverse-clauses) State and Reverse Clauses
@@ -140,6 +141,7 @@
         - [4.2.3.2](Current/ClassesAndObjects.md#4232-casts) Casts
         - [4.2.3.3](Current/ClassesAndObjects.md#4233-user-defined-literals) User-Defined Literals
       - [4.2.4](Current/ClassesAndObjects.md#424-properties) Properties
+        - [4.2.4.1](Current/ClassesAndObjects.md#4241-definite-assignment) Definite Assignment
     - [4.3](Current/ClassesAndObjects.md#43-modifiers) Modifiers
       - [4.3.1](Current/ClassesAndObjects.md#431-accessibility-modifiers) Accessibility Modifiers
       - [4.3.2](Current/ClassesAndObjects.md#432-overriding-modifiers) Overriding Modifiers

@@ -1731,11 +1731,15 @@ public sealed class EvaluatorTests {
         return A.a;
     ", 3)]
     [InlineData(@"
-        class A { public static property int a { get => field; } }
+        class A { public static property int a { get => field; } = 0; }
         return A.a;
     ", 0)]
     [InlineData(@"
-        class A { public static property int a { get => field; set => field = value; } }
+        class A { public static property int a { get => field; } = 5; }
+        return A.a;
+    ", 5)]
+    [InlineData(@"
+        class A { public static property int a { get => field; set => field = value; } = 0; }
         A.a = 10;
         return A.a;
     ", 10)]

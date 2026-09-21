@@ -2340,8 +2340,18 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
                         var backingField = property.declaredBackingField;
 
-                        if (backingField is not null)
+                        if (backingField is not null) {
                             builder.nonTypeMembers.Add(backingField);
+
+                            var initializer = propertySyntax.initializer;
+
+                            if (initializer is not null) {
+                                if (property.isStatic)
+                                    AddInitializer(ref staticInitializers, backingField, initializer);
+                                else
+                                    AddInitializer(ref instanceInitializers, backingField, initializer);
+                            }
+                        }
                     }
 
                     break;

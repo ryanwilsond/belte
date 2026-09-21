@@ -588,6 +588,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             _types.Add(symbol);
 
         var fieldsRequiringAssignment = ArrayBuilder<FieldSymbol>.GetInstance();
+        var propertiesRequiringAssignment = ArrayBuilder<PropertySymbol>.GetInstance();
         var members = symbol.GetMembers();
 
         for (var ordinal = 0; ordinal < members.Length; ordinal++) {
@@ -596,10 +597,20 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             if (member is FieldSymbol f) {
                 if (f.definiteAssignmentError is not null && !(symbol.IsStructType() && f.type.HasDefaultValue()))
                     fieldsRequiringAssignment.Add(f);
+            } else if (member is PropertySymbol p) {
+                if (p.definiteAssignmentError is not null && !(symbol.IsStructType() && p.type.HasDefaultValue()))
+                    propertiesRequiringAssignment.Add(p);
             }
         }
 
-        var state = new TypeCompilationState(symbol, _compilation, _typeLayouts, fieldsRequiringAssignment);
+        var state = new TypeCompilationState(
+            symbol,
+            _compilation,
+            _typeLayouts,
+            fieldsRequiringAssignment,
+            propertiesRequiringAssignment
+        );
+
         var processedInstanceInitializers = new Binder.ProcessedFieldInitializers();
         var processedStaticInitializers = new Binder.ProcessedFieldInitializers();
 
@@ -689,10 +700,16 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                 _methodLayouts.Add(methodLayout.Item1, methodLayout.Item2);
         }
 
-        if (fieldsRequiringAssignment.Count > 0 && !_hasDeclarationErrors)
-            state.ReportFieldsRequiringAssignment(fieldsRequiringAssignment, _diagnostics);
+        if ((fieldsRequiringAssignment.Count > 0 || propertiesRequiringAssignment.Count > 0) && !_hasDeclarationErrors) {
+            state.ReportSymbolsRequiringAssignment(
+                fieldsRequiringAssignment,
+                propertiesRequiringAssignment,
+                _diagnostics
+            );
+        }
 
         fieldsRequiringAssignment.Free();
+        propertiesRequiringAssignment.Free();
         state.Free();
     }
 
@@ -845,7 +862,11 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         _sawNonTypeTemplate |= sawNonTypeTemplate;
 
         var controlFlowGraph = ControlFlowGraph.Create(_compilation, method, loweredBody);
-        var assignments = controlFlowGraph.CheckDefiniteAssignment(currentDiagnostics, state.fieldsRequiringAssignment);
+        var assignments = controlFlowGraph.CheckDefiniteAssignment(
+            currentDiagnostics,
+            state.fieldsRequiringAssignment,
+            state.propertiesRequiringAssignment
+        );
 
         foreach (var field in method.initFields) {
             if (!assignments.Contains(field))

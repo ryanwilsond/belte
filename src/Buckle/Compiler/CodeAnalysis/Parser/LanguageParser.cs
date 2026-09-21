@@ -1593,6 +1593,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
         AccessorListSyntax accessorList;
         ArrowExpressionClauseSyntax arrowExpressionClause;
+        EqualsValueClauseSyntax initializer;
         SyntaxToken semicolon;
 
         var saved = _context;
@@ -1601,11 +1602,19 @@ internal sealed partial class LanguageParser : SyntaxParser {
         if (currentToken.kind == SyntaxKind.EqualsGreaterThanToken) {
             arrowExpressionClause = ParseArrowExpressionClause();
             semicolon = EatToken(SyntaxKind.SemicolonToken);
+            initializer = null;
             accessorList = null;
         } else {
             accessorList = ParseAccessorList();
             arrowExpressionClause = null;
-            semicolon = null;
+
+            if (currentToken.kind == SyntaxKind.EqualsToken) {
+                initializer = ParseEqualsValueClause();
+                semicolon = EatToken(SyntaxKind.SemicolonToken);
+            } else {
+                initializer = null;
+                semicolon = null;
+            }
         }
 
         _context = saved;
@@ -1619,6 +1628,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             identifier,
             accessorList,
             arrowExpressionClause,
+            initializer,
             semicolon
         );
     }

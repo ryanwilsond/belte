@@ -3170,6 +3170,16 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_UseOfUnassignedOutParameter, location, message);
     }
 
+    internal static BelteDiagnostic PropertyNoDefiniteAssignment(TextLocation location, TypeSymbol type) {
+        var message = $"cannot declare a class property without an initializer or definite constructor assignment with type '{type}' because it is non-nullable";
+        return CreateError(DiagnosticCode.ERR_PropertyNoDefiniteAssignment, location, message);
+    }
+
+    internal static BelteDiagnostic PropertyNoDefiniteAssignmentStruct(TextLocation location, TypeSymbol type) {
+        var message = $"cannot declare a struct property without definite constructor assignment with type '{type}' because it has no default value";
+        return CreateError(DiagnosticCode.ERR_PropertyNoDefiniteAssignmentStruct, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

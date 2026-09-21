@@ -9387,7 +9387,7 @@ var text = """"""
     public void Reports_Error_BU0639_PropertyLacksGet() {
         var text = @"
             class A {
-                public property int a { set => field = value; }
+                public property int a { set => field = value; } = 0;
             }
             var a = new A();
             var b = [a.a];
@@ -9503,6 +9503,39 @@ var text = """"""
 
         var diagnostics = @"
             use of unassigned out parameter 'a'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0647_PropertyNoDefiniteAssignment() {
+        var text = @"
+            class A {
+                property int [a] { get => field; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot declare a class property without an initializer or definite constructor assignment with type 'int!' because it is non-nullable
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0648_PropertyNoDefiniteAssignmentStruct() {
+        var text = @"
+            class C { }
+            struct A {
+                property C! [a] { get => field; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot declare a struct property without definite constructor assignment with type 'C!' because it has no default value
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
