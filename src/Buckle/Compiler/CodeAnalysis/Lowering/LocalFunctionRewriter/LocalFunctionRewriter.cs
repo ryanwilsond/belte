@@ -244,7 +244,6 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
                 topLevelMethodOrdinal,
                 originalMethod,
                 nestedFunction.blockSyntax,
-                _topLevelMethod.location,
                 methodOrdinal,
                 _compilationState
             );
@@ -889,7 +888,12 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
             body = Optimizer.RemoveDeadCode(_compilationState.compilation, synthesizedMethod, body, _diagnostics);
 
             var controlFlowGraph = ControlFlowGraph.Create(_compilationState.compilation, synthesizedMethod, body);
-            controlFlowGraph.CheckDefiniteAssignment(_diagnostics);
+            var assignments = controlFlowGraph.CheckDefiniteAssignment(_diagnostics);
+
+            foreach (var parameter in synthesizedMethod.parameters) {
+                if (parameter.refKind == RefKind.Out && !assignments.Contains(parameter))
+                    _diagnostics.Push(Error.OutUnassigned(synthesizedMethod.location, parameter.name));
+            }
 
             if (!controlFlowGraph.AllPathsReturn())
                 _diagnostics.Push(Error.NotAllPathsReturn(node.symbol.location));

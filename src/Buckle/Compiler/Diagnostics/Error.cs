@@ -2122,9 +2122,9 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_TypeWithNoDefault, location, message);
     }
 
-    internal static BelteDiagnostic OutNoDefaultValue(TextLocation location, TypeSymbol type) {
-        var message = $"cannot use the out modifier for type '{type}' because it has no default value";
-        return CreateError(DiagnosticCode.ERR_OutNoDefaultValue, location, message);
+    internal static BelteDiagnostic OutUnassigned(TextLocation location, string name) {
+        var message = $"not all code paths assign out parameter '{name}'";
+        return CreateError(DiagnosticCode.ERR_OutUnassigned, location, message);
     }
 
     internal static BelteDiagnostic StructWithNoDefault(TextLocation location, TypeSymbol type) {
@@ -3163,6 +3163,11 @@ internal static class Error {
     internal static BelteDiagnostic RangeCannotUseIndexLocal(TextLocation location) {
         var message = $"range for loops cannot use an index local";
         return CreateError(DiagnosticCode.ERR_RangeCannotUseIndexLocal, location, message);
+    }
+
+    internal static BelteDiagnostic UseOfUnassignedOutParameter(TextLocation location, string name) {
+        var message = $"use of unassigned out parameter '{name}'";
+        return CreateError(DiagnosticCode.ERR_UseOfUnassignedOutParameter, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

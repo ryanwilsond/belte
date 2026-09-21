@@ -852,6 +852,12 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                 currentDiagnostics.Push(Error.MissingFieldInit(method.location, field));
         }
 
+        // TODO Should this also go within the block that the AllPathsReturn check is in?
+        foreach (var parameter in method.parameters) {
+            if (parameter.refKind == RefKind.Out && !assignments.Contains(parameter))
+                currentDiagnostics.Push(Error.OutUnassigned(method.location, parameter.name));
+        }
+
         if ((object)state.type == _entryPoint?.containingType) {
             if (method == _entryPoint)
                 state.AddConstructorDefiniteAssignments(method.isStatic, assignments);

@@ -83,7 +83,7 @@ internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
             if (definiteAssignmentLocals[i]) {
                 var symbol = symbolsBySlot[i];
 
-                if (symbol is DataContainerSymbol)
+                if (symbol.kind is SymbolKind.Local or SymbolKind.Parameter)
                     set.Add(symbolsBySlot[i]);
             }
         }
@@ -154,6 +154,17 @@ internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
 
         if (shouldReport && !_assignments[_slotMap[symbol]])
             _diagnostics.Push(Error.UseOfUnassignedLocal(node.syntax.location, symbol));
+
+        return node;
+    }
+
+    internal override BoundNode VisitParameterExpression(BoundParameterExpression node) {
+        var symbol = node.parameter;
+
+        var shouldReport = symbol.refKind == RefKind.Out && _method.originalDefinition.Equals(symbol.containingSymbol);
+
+        if (shouldReport && !_assignments[_slotMap[symbol]])
+            _diagnostics.Push(Error.UseOfUnassignedOutParameter(node.syntax.location, symbol.name));
 
         return node;
     }

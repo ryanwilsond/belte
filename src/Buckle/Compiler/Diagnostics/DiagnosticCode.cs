@@ -427,7 +427,7 @@ public enum DiagnosticCode : ushort {
     WRN_UnusedUsingDirective = 416,
     ERR_TypeInferenceFailedForOut = 417,
     ERR_OutVarAnnotated = 418,
-    ERR_OutNoDefaultValue = 419,
+    ERR_OutUnassigned = 419,
     ERR_BadPatternExpression = 420,
     ERR_CannotAnnotateTypePattern = 421,
     ERR_PatternCannotHandleTypes = 422,
@@ -654,6 +654,7 @@ public enum DiagnosticCode : ushort {
     ERR_CannotUnrollNonRange = 643,
     ERR_UnrollRequiresCompileTimeRange = 644,
     ERR_RangeCannotUseIndexLocal = 645,
+    ERR_UseOfUnassignedOutParameter = 646,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

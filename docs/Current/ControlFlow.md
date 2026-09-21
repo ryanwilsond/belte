@@ -211,12 +211,7 @@ int Func(out int a) {
 }
 ```
 
-Out parameters do not require assignment and will assign a default value in cases where they aren't assigned to within
-the scope of the function. Because of this, types without a default value (non-nullable classes and arrays) cannot be
-used as the type for an out parameter.
-
-> Note that out parameters being assigned a default value will likely be removed,
-> instead requiring definite assignment to all out parameters
+Out parameters require definite assignment within their method.
 
 Out parameters can be given a default value. The following are equivalent:
 

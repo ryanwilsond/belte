@@ -5563,20 +5563,18 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // !
-    // TODO See TODO in CorLibrary ctor
-    // [Fact]
-    // public void Reports_Error_BU0419_OutNoDefaultValue() {
-    //     var text = @"
-    //         void F(out [int\[\]!] a) { }
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0419_OutUnassigned() {
+        var text = @"
+            void [F](out int a) { }
+        ";
 
-    //     var diagnostics = @"
-    //         cannot use the out modifier for type 'int![]!' because it has no default value
-    //     ";
+        var diagnostics = @"
+            not all code paths assign out parameter 'a'
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0420_BadPatternExpression() {
@@ -9489,6 +9487,22 @@ var text = """"""
 
         var diagnostics = @"
             range for loops cannot use an index local
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0646_UseOfUnassignedOutParameter() {
+        var text = @"
+            void M(out int a) {
+                int b = [a];
+                a = 10;
+            }
+        ";
+
+        var diagnostics = @"
+            use of unassigned out parameter 'a'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

@@ -1091,8 +1091,9 @@ public sealed partial class Compilation {
 
             if (result is null) {
                 var emittedName = MetadataTypeName.FromFullName(mdName, useCLSCompliantNameArityEncoding: true);
-                // TODO Err?
+                // TODO err?
                 result = new MissingMetadataTypeSymbol.TopLevel(assembly.modules[0], ref emittedName, type, null);
+                throw ExceptionUtilities.Unreachable();
             }
 
             if (Interlocked.CompareExchange(ref _lazyWellKnownTypes[index], result, null) is not null) {

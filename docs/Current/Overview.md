@@ -594,7 +594,6 @@ To summarize the main differences:
 - [File-scoped classes](ClassesAndObjects.md#411-declaring-and-using-classes)
 - [`unreachable` statements](ControlFlow.md#210-unreachable-statements)
 - [First-class `flags` enums](ClassesAndObjects.md#461-flags)
-- [`out` parameters don't require assignment](ControlFlow.md#216-ref-arguments)
 - [`out` parameters can have a default value](ControlFlow.md#2161-out-arguments)
 - [More operators (`x!`, `x!!`, `x?`, `x /\ y`, `x \/ y`, `x..y`, etc.)](Data.md#324-uncommon-operators)
 - Numeric literals automatically shrink/expand to fit the context (i.e. `f` suffix for float literals is unnecessary)

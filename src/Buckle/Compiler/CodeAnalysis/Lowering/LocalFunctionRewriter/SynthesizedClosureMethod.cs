@@ -3,7 +3,6 @@ using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -22,14 +21,13 @@ internal sealed class SynthesizedClosureMethod : SynthesizedMethodSymbolBase {
         int topLevelMethodOrdinal,
         MethodSymbol originalMethod,
         SyntaxReference blockSyntax,
-        TextLocation location,
         int methodOrdinal,
         TypeCompilationState compilationState)
             : base(
                 containingType,
                 originalMethod,
                 blockSyntax,
-                location,
+                originalMethod.location,
                 GeneratedNames.MakeClosureName(
                     topLevelMethod.name,
                     originalMethod.name,

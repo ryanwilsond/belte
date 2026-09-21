@@ -18,6 +18,11 @@ internal sealed class SlotCounter : BoundTreeWalker {
                 slotCounter.GetOrAddSlot(f);
         }
 
+        foreach (var parameter in method.parameters) {
+            if (parameter.refKind == RefKind.Out)
+                slotCounter.GetOrAddSlot(parameter);
+        }
+
         slotCounter.Visit(node);
         return (slotCounter._slotMap, slotCounter._symbolsBySlot);
     }
