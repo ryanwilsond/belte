@@ -454,7 +454,7 @@ public static class SymbolDisplay {
         if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeModifiers) != 0)
             DisplayConstExprRef(text, false, false, false, property.refKind);
 
-        if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.IncludeKeywords) != 0) {
+        if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.IncludePropertyKeyword) != 0) {
             text.Write(CreateKeyword(SyntaxKind.PropertyKeyword));
             text.Write(CreateSpace());
         }

@@ -997,14 +997,13 @@ public sealed partial class BelteRepl : Repl {
             } else {
                 symbols = (signature == name
                     ? allSymbols.Where(s => s.name == parts[^1])
-                    : allSymbols.Where(s => s is IMethodSymbol i &&
-                        i.ToString() == (parts[^1] + string.Join('(', signature.Split('(')[1..]))))
-                    .ToArray();
+                    : allSymbols.Where(s => s.name == parts[^1] && s.ToString().Replace(" ", "") == signature))
+                        .ToArray();
             }
         } else {
             symbols = (signature == name
                 ? allSymbols.Where(s => s.name == name)
-                : allSymbols.Where(s => s.name == name).Where(f => f.ToString() == signature))
+                : allSymbols.Where(s => s.name == name && s.ToString().Replace(" ", "") == signature))
                     .ToArray();
         }
 

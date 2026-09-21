@@ -9,7 +9,7 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal static class ParameterHelpers {
+internal static partial class ParameterHelpers {
 
     internal static ImmutableArray<SourceParameterSymbol> MakeParameters(
         Binder withTemplateParametersBinder,
@@ -135,8 +135,10 @@ internal static class ParameterHelpers {
         SourceParameterSymbol parameter,
         BoundExpression defaultExpression,
         BoundExpression convertedExpression,
-        BelteDiagnosticQueue diagnostics) {
+        BelteDiagnosticQueue diagnostics,
+        out bool isExpressionDefaultValue) {
         var hasErrors = false;
+        isExpressionDefaultValue = false;
 
         var parameterType = parameter.type;
         var conversion = binder.conversions.ClassifyImplicitConversionFromExpression(defaultExpression, parameterType);
@@ -145,13 +147,19 @@ internal static class ParameterHelpers {
         if (refKind is not RefKind.None and not RefKind.Out) {
             diagnostics.Push(Error.RefDefaultValue(refnessKeyword.location));
             hasErrors = true;
-        } else if (!defaultExpression.hasAnyErrors && !IsValidDefaultValue(defaultExpression)) {
-            diagnostics.Push(Error.DefaultMustBeConstant(
-                parameterSyntax.defaultValue.value.location,
-                parameterSyntax.identifier.valueText
-            ));
+        } else if (!IsValidDefaultValue(defaultExpression)) {
+            if (refKind == RefKind.Out) {
+                if (!defaultExpression.hasAnyErrors) {
+                    diagnostics.Push(Error.DefaultMustBeConstant(
+                        parameterSyntax.defaultValue.value.location,
+                        parameterSyntax.identifier.valueText
+                    ));
+                }
 
-            hasErrors = true;
+                hasErrors = true;
+            } else {
+                isExpressionDefaultValue = true;
+            }
         } else if (!conversion.exists) {
             diagnostics.Push(Error.NoCastForDefaultParameter(
                 parameterSyntax.identifier.location,

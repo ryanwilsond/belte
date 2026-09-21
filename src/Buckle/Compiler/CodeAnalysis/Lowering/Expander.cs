@@ -454,13 +454,32 @@ internal sealed class Expander : SharedExpander {
     }
 
     private protected override List<BoundStatement> ExpandArgumentList(
+        ImmutableArray<ParameterSymbol> parameters,
         ImmutableArray<BoundExpression> arguments,
         out ImmutableArray<BoundExpression> replacement) {
         var statements = new List<BoundStatement>();
         var replacementExpressions = ArrayBuilder<BoundExpression>.GetInstance();
 
-        foreach (var expression in arguments) {
-            if (expression is BoundDataContainerExpression d && d.syntax.kind == SyntaxKind.DeclarationExpression) {
+        Debug.Assert(parameters.Length == arguments.Length);
+
+        var needsStableValueMap = new bool[parameters.Length];
+
+        foreach (var parameter in parameters) {
+            if (parameter.hasExpressionDefaultValue) {
+                ParameterHelpers.ExpressionDefaultValueVisitor.FindDependencies(
+                    parameter,
+                    parameter.expressionDefaultValue,
+                    needsStableValueMap
+                );
+            }
+        }
+
+        for (var i = 0; i < arguments.Length; i++) {
+            var argument = arguments[i];
+            var parameter = parameters[i];
+            var needsStableValue = needsStableValueMap[i];
+
+            if (argument is BoundDataContainerExpression d && d.syntax.kind == SyntaxKind.DeclarationExpression) {
                 statements.Add(LocalDeclaration(
                     d.syntax,
                     d.dataContainer,
@@ -472,10 +491,10 @@ internal sealed class Expander : SharedExpander {
                     )
                 ));
 
-                replacementExpressions.Add(expression);
-            } else if (expression.kind == BoundKind.DiscardExpression) {
-                var syntax = expression.syntax;
-                var type = expression.type;
+                replacementExpressions.Add(argument);
+            } else if (argument.kind == BoundKind.DiscardExpression) {
+                var syntax = argument.syntax;
+                var type = argument.type;
                 var temp = GenerateTempLocal(type);
 
                 statements.Add(LocalDeclaration(syntax,
@@ -489,9 +508,28 @@ internal sealed class Expander : SharedExpander {
                 ));
 
                 replacementExpressions.Add(Local(syntax, temp));
+            } else if (argument.kind == BoundKind.DefaultExpression && parameter.hasExpressionDefaultValue) {
+                var newArgument = ParameterHelpers.ExpressionDefaultValueVisitor.ReplaceArguments(
+                    parameter,
+                    parameter.expressionDefaultValue,
+                    replacementExpressions
+                );
+
+                statements.AddRange(ExpandExpression(
+                    newArgument,
+                    out newArgument,
+                    needsStableValue ? UseKind.StableValue : UseKind.Value
+                ));
+
+                replacementExpressions.Add(newArgument);
             } else {
-                statements.AddRange(ExpandExpression(expression, out var newExpression));
-                replacementExpressions.Add(newExpression);
+                statements.AddRange(ExpandExpression(
+                    argument,
+                    out var newArgument,
+                    needsStableValue ? UseKind.StableValue : UseKind.Value
+                ));
+
+                replacementExpressions.Add(newArgument);
             }
         }
 
@@ -2302,7 +2340,11 @@ internal sealed class Expander : SharedExpander {
                     }
                 case BoundKind.CallExpression: {
                         var call = (BoundCallExpression)access;
-                        var statements = ExpandArgumentList(call.arguments, out var newArguments);
+                        var statements = ExpandArgumentList(
+                            call.method.parameters,
+                            call.arguments,
+                            out var newArguments
+                        );
 
                         newReceiver = new BoundCallExpression(
                             access.syntax,
@@ -2445,7 +2487,12 @@ internal sealed class Expander : SharedExpander {
             statements.AddRange(ExpandExpression(a.index, out var indexReplacement));
             trueExpression = new BoundArrayAccessExpression(syntax, newReceiver, indexReplacement, null, a.Type());
         } else if (access is BoundCallExpression c) {
-            statements.AddRange(ExpandArgumentList(c.arguments, out var replacementArguments));
+            statements.AddRange(ExpandArgumentList(
+                c.method.parameters,
+                c.arguments,
+                out var replacementArguments
+            ));
+
             trueExpression = new BoundCallExpression(
                 syntax,
                 newReceiver,

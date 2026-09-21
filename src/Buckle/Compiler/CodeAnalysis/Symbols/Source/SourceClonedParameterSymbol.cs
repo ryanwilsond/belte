@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Diagnostics;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 
@@ -38,6 +39,8 @@ internal abstract class SourceClonedParameterSymbol : SourceParameterSymbolBase 
     internal override bool hasUnscopedRefAttribute => _originalParam.hasUnscopedRefAttribute;
 
     internal override ConstantValue outDefaultValue => _originalParam.outDefaultValue;
+
+    internal override BoundExpression expressionDefaultValue => _originalParam.expressionDefaultValue;
 
     internal override bool isConst => _originalParam.isConst;
 

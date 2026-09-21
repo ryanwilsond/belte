@@ -1,4 +1,5 @@
 using System;
+using Buckle.CodeAnalysis.Binding;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -62,6 +63,10 @@ internal abstract class ParameterSymbol : Symbol, IParameterSymbol {
     internal bool hasOutDefaultValue => outDefaultValue is not null;
 
     internal abstract ConstantValue outDefaultValue { get; }
+
+    internal bool hasExpressionDefaultValue => expressionDefaultValue is not null;
+
+    internal abstract BoundExpression expressionDefaultValue { get; }
 
     internal bool isOptional => refKind == RefKind.None && isMetadataOptional;
 

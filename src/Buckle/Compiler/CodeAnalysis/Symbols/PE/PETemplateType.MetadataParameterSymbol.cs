@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Reflection;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using TemplateMethodDecoder = Buckle.CodeAnalysis.TemplateMetadataReader.TemplateMetadata.TemplateMethodDecoder;
@@ -80,6 +81,9 @@ internal sealed partial class PETemplateType {
             => (_additionalFlags & TemplateMetadataWriter.ParameterFlags.HasOutDefaultValue) != 0
                 ? _defaultValue
                 : null;
+
+        // TODO
+        internal override BoundExpression expressionDefaultValue => null;
 
         internal override TypeWithAnnotations typeWithAnnotations => _typeWithAnnotations;
 

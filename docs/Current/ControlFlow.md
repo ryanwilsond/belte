@@ -118,7 +118,7 @@ void F(const List<int> list) {
 
 ### 2.1.3 Default Arguments
 
-Parameters can be given constant default values making them optional.
+Parameters can be given default values making them optional.
 
 ```belte
 void MyFunction(int param = 3) { }
@@ -133,6 +133,14 @@ void MyFunction(int param1, bool param2, string param3 = "Default") { }
 ```
 
 If there are multiple optional parameters, named arguments can be used to skip over specific ones.
+
+Parameter default values can either be constants like the examples above, or reference prior parameters:
+
+```belte
+void MyFunction(int param1, int param2 = param1 + 1) { }
+
+MyFunction(3); // param2 = 4
+```
 
 ### 2.1.4 Named Arguments
 

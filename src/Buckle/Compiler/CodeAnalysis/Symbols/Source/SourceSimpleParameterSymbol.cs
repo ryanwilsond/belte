@@ -1,3 +1,4 @@
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 
@@ -22,6 +23,8 @@ internal sealed class SourceSimpleParameterSymbol : SourceParameterSymbol {
     internal override ConstantValue explicitDefaultConstantValue => null;
 
     internal override ConstantValue outDefaultValue => null;
+
+    internal override BoundExpression expressionDefaultValue => null;
 
     internal override bool isMetadataOptional => false;
 

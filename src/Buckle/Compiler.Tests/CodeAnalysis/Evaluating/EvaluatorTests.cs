@@ -1723,25 +1723,25 @@ public sealed class EvaluatorTests {
     ", 10)]
     // Properties
     [InlineData(@"
-        class A { public static property int a => 3; }
-        return A.a;
+        class A1 { public static property int a => 3; }
+        return A1.a;
     ", 3)]
     [InlineData(@"
-        class A { public static property int a { get => 3; } }
-        return A.a;
+        class A2 { public static property int a { get => 3; } }
+        return A2.a;
     ", 3)]
     [InlineData(@"
-        class A { public static property int a { get => field; } = 0; }
-        return A.a;
+        class A3 { public static property int a { get => field; } = 0; }
+        return A3.a;
     ", 0)]
     [InlineData(@"
-        class A { public static property int a { get => field; } = 5; }
-        return A.a;
+        class A4 { public static property int a { get => field; } = 5; }
+        return A4.a;
     ", 5)]
     [InlineData(@"
-        class A { public static property int a { get => field; set => field = value; } = 0; }
-        A.a = 10;
-        return A.a;
+        class A5 { public static property int a { get => field; set => field = value; } = 0; }
+        A5.a = 10;
+        return A5.a;
     ", 10)]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue, evaluator: true, executor: true);

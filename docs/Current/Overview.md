@@ -595,6 +595,7 @@ To summarize the main differences:
 - [`unreachable` statements](ControlFlow.md#210-unreachable-statements)
 - [First-class `flags` enums](ClassesAndObjects.md#461-flags)
 - [`out` parameters can have a default value](ControlFlow.md#2161-out-arguments)
+- [parameter default values can reference prior parameters](ControlFlow.md#213-default-arguments)
 - [More operators (`x!`, `x!!`, `x?`, `x /\ y`, `x \/ y`, `x..y`, etc.)](Data.md#324-uncommon-operators)
 - Numeric literals automatically shrink/expand to fit the context (i.e. `f` suffix for float literals is unnecessary)
 

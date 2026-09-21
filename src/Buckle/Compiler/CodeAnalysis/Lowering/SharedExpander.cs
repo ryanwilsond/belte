@@ -565,7 +565,11 @@ internal class SharedExpander : BoundTreeExpander {
                 case BoundKind.CallExpression: {
                         var call = (BoundCallExpression)cascade;
                         var replacementReceiver = Local(syntax, tempLocal);
-                        statements.AddRange(ExpandArgumentList(call.arguments, out var arguments));
+                        statements.AddRange(ExpandArgumentList(
+                            call.method.parameters,
+                            call.arguments,
+                            out var arguments
+                        ));
 
                         statements.Add(
                             Statement(syntax,

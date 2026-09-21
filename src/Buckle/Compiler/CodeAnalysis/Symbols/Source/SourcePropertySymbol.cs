@@ -481,9 +481,8 @@ internal sealed class SourcePropertySymbol : SourcePropertySymbolBase {
         }
 
         if (type.IsVoidType()) {
-            // TODO
-            throw ExceptionUtilities.Unreachable();
-            // diagnostics.Add(ErrorCode.ERR_PropertyCantHaveVoidType, Location, this);
+            diagnostics.Push(Error.PropertyCantHaveVoidType(location, this));
+            type = new TypeWithAnnotations(binder.CreateErrorType("void"));
         }
 
         return type;

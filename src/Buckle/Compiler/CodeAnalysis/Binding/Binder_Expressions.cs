@@ -297,7 +297,25 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics,
         out BoundExpression valueBeforeConversion) {
         var defaultValueBinder = GetBinder(defaultValueSyntax);
-        valueBeforeConversion = defaultValueBinder.BindValue(
+
+        return BindParameterDefaultValue(
+            defaultValueSyntax,
+            parameter,
+            defaultValueBinder,
+            defaultValueBinder,
+            diagnostics,
+            out valueBeforeConversion
+        );
+    }
+
+    internal BoundEqualsValue BindParameterDefaultValue(
+        EqualsValueClauseSyntax defaultValueSyntax,
+        Symbol parameter,
+        Binder binder,
+        Binder localsBinder,
+        BelteDiagnosticQueue diagnostics,
+        out BoundExpression valueBeforeConversion) {
+        valueBeforeConversion = binder.BindValue(
             defaultValueSyntax.value,
             diagnostics,
             BindValueKind.RValue
@@ -311,8 +329,8 @@ internal partial class Binder {
 
         valueBeforeConversion = ReduceNumericIfApplicable(parameterType, valueBeforeConversion);
 
-        var locals = defaultValueBinder.GetDeclaredLocalsForScope(defaultValueSyntax);
-        var value = defaultValueBinder.GenerateConversionForAssignment(
+        var locals = localsBinder.GetDeclaredLocalsForScope(defaultValueSyntax);
+        var value = binder.GenerateConversionForAssignment(
             parameterType,
             valueBeforeConversion,
             diagnostics,

@@ -3183,4 +3183,56 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void DefaultValue_SeesExpressionDefaultValue() {
+        var text = @"
+            int M(int a, int b = a + 1) {
+                return b;
+            }
+
+            return M(3);
+        ";
+
+        AssertValue(text, 4);
+    }
+
+    [Fact]
+    public void Type_DisallowsVoidArray() {
+        var text = @"
+            [void]\[\]? a;
+        ";
+
+        var diagnostics = @"
+            cannot use void as a type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Type_DisallowsNullableVoid() {
+        var text = @"
+            [void]? a;
+        ";
+
+        var diagnostics = @"
+            cannot use void as a type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Type_DisallowsNullableVoid2() {
+        var text = @"
+            [void]! a = null;
+        ";
+
+        var diagnostics = @"
+            cannot use void as a type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Metadata;
 using System.Threading;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
@@ -198,6 +199,8 @@ internal partial class PEParameterSymbol : ParameterSymbol {
     }
 
     internal override ConstantValue outDefaultValue => null;
+
+    internal override BoundExpression expressionDefaultValue => null;
 
     internal override TypeWithAnnotations typeWithAnnotations {
         get {

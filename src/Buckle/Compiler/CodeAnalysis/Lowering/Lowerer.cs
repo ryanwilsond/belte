@@ -1296,6 +1296,15 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         */
         var method = expression.method;
 
+        if (!_sawCompileTimeExpression) {
+            foreach (var parameter in method.parameters) {
+                if (parameter.hasExpressionDefaultValue) {
+                    _sawCompileTimeExpression = true;
+                    break;
+                }
+            }
+        }
+
         if (method.containingType?.IsEnumType() == true) {
             var newArguments = ArrayBuilder<BoundExpression>.GetInstance();
             var newArgumentRefKinds = ArrayBuilder<RefKind>.GetInstance();

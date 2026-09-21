@@ -722,6 +722,12 @@ internal partial class Binder {
                 return nullableType.SetIsAnnotated();
             }
 
+            if (nullableType.specialType == SpecialType.Void) {
+                diagnostics.Push(Error.VoidUsedAsType(nonNullableSyntax.type.location));
+                // This is to avoid multiple void errors
+                return new TypeWithAnnotations(CreateErrorType("void"));
+            }
+
             return new TypeWithAnnotations(nullableType.type.StrippedType(), false);
         }
 
@@ -736,6 +742,9 @@ internal partial class Binder {
                 diagnostics.Push(Error.CannotAnnotatePointer(syntax.location));
                 return underlyingType;
             }
+
+            if (underlyingType.specialType == SpecialType.Void)
+                diagnostics.Push(Error.VoidUsedAsType(nullableSyntax.type.location));
 
             return underlyingType.SetIsAnnotated();
         }
@@ -1076,6 +1085,10 @@ internal partial class Binder {
         ConsList<TypeSymbol> basesBeingResolved,
         bool useFatArray = true) {
         var type = BindType(node.elementType, diagnostics, basesBeingResolved);
+
+        if (type.specialType == SpecialType.Void)
+            diagnostics.Push(Error.VoidUsedAsType(node.elementType.location));
+
         var jaggedRank = node.rankSpecifiers.Count;
 
         if (type.nullableUnderlyingTypeOrSelf.isStatic)

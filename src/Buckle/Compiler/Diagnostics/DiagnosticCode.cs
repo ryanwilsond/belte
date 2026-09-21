@@ -657,6 +657,10 @@ public enum DiagnosticCode : ushort {
     ERR_UseOfUnassignedOutParameter = 646,
     ERR_PropertyNoDefiniteAssignment = 647,
     ERR_PropertyNoDefiniteAssignmentStruct = 648,
+    ERR_DefaultValueCannotReferenceLaterParameter = 649,
+    ERR_DefaultValueCannotReferenceParameter = 650,
+    ERR_DefaultValueMustReferenceParameter = 651,
+    ERR_PropertyCantHaveVoidType = 652,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

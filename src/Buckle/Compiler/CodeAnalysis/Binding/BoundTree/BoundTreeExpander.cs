@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Utilities;
@@ -821,7 +822,11 @@ internal abstract partial class BoundTreeExpander {
         else
             statements = [];
 
-        statements.AddRange(ExpandArgumentList(expression.arguments, out var newArguments));
+        statements.AddRange(ExpandArgumentList(
+            expression.functionPointer.signature.parameters,
+            expression.arguments,
+            out var newArguments
+        ));
 
         replacement = expression.Update(
             newInvokedExpression,
@@ -1313,7 +1318,11 @@ internal abstract partial class BoundTreeExpander {
         else
             statements = [];
 
-        statements.AddRange(ExpandArgumentList(expression.arguments, out var newArguments));
+        statements.AddRange(ExpandArgumentList(
+            expression.method.parameters,
+            expression.arguments,
+            out var newArguments
+        ));
 
         replacement = expression.Update(
             newReceiver,
@@ -1329,8 +1338,10 @@ internal abstract partial class BoundTreeExpander {
     }
 
     private protected virtual List<BoundStatement> ExpandArgumentList(
+        ImmutableArray<ParameterSymbol> parameters,
         ImmutableArray<BoundExpression> arguments,
         out ImmutableArray<BoundExpression> replacement) {
+        Debug.Assert(parameters.Length == arguments.Length);
         return ExpandExpressionList(arguments, out replacement);
     }
 
@@ -1561,7 +1572,11 @@ internal abstract partial class BoundTreeExpander {
         BoundObjectCreationExpression expression,
         out BoundExpression replacement,
         UseKind useKind) {
-        var statements = ExpandArgumentList(expression.arguments, out var newArguments);
+        var statements = ExpandArgumentList(
+            expression.constructor.parameters,
+            expression.arguments,
+            out var newArguments
+        );
 
         replacement = expression.Update(
             expression.constructor,

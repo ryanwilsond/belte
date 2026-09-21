@@ -3180,6 +3180,26 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_PropertyNoDefiniteAssignmentStruct, location, message);
     }
 
+    internal static BelteDiagnostic DefaultValueCannotReferenceLaterParameter(TextLocation location, string name1, string name2) {
+        var message = $"default parameter value for '{name1}' cannot reference later parameter '{name2}'";
+        return CreateError(DiagnosticCode.ERR_DefaultValueCannotReferenceLaterParameter, location, message);
+    }
+
+    internal static BelteDiagnostic DefaultValueCannotReferenceParameter(TextLocation location, string name) {
+        var message = $"default parameter value for '{name}' cannot reference itself";
+        return CreateError(DiagnosticCode.ERR_DefaultValueCannotReferenceParameter, location, message);
+    }
+
+    internal static BelteDiagnostic DefaultValueMustReferenceParameter(TextLocation location, string name) {
+        var message = $"default parameter value for '{name}' must be a compile-time constant or reference a prior parameter";
+        return CreateError(DiagnosticCode.ERR_DefaultValueMustReferenceParameter, location, message);
+    }
+
+    internal static BelteDiagnostic PropertyCantHaveVoidType(TextLocation location, PropertySymbol property) {
+        var message = $"'{property}': property cannot have void type";
+        return CreateError(DiagnosticCode.ERR_PropertyCantHaveVoidType, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

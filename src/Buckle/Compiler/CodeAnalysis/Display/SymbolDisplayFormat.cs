@@ -31,7 +31,9 @@ public sealed class SymbolDisplayFormat {
         templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters | SymbolDisplayTemplateOptions.IncludeTemplateConstraints,
         memberOptions: SymbolDisplayMemberOptions.Everything,
         parameterOptions: SymbolDisplayParameterOptions.Everything,
-        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.IncludePropertyBody
+        miscellaneousOptions:
+            SymbolDisplayMiscellaneousOptions.IncludePropertyBody |
+            SymbolDisplayMiscellaneousOptions.IncludePropertyKeyword
     );
 
     public static readonly SymbolDisplayFormat CompactBoundDisplayFormat = new SymbolDisplayFormat(
@@ -39,7 +41,7 @@ public sealed class SymbolDisplayFormat {
         templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
         memberOptions: SymbolDisplayMemberOptions.Everything & ~SymbolDisplayMemberOptions.IncludeContainingType,
         parameterOptions: SymbolDisplayParameterOptions.Everything,
-        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.None
+        miscellaneousOptions: SymbolDisplayMiscellaneousOptions.IncludePropertyKeyword
     );
 
     public static readonly SymbolDisplayFormat QualifiedNameFormat = new SymbolDisplayFormat(
@@ -91,7 +93,8 @@ public sealed class SymbolDisplayFormat {
         parameterOptions: SymbolDisplayParameterOptions.Everything,
         miscellaneousOptions:
             SymbolDisplayMiscellaneousOptions.IncludeKeywords |
-            SymbolDisplayMiscellaneousOptions.IncludeBaseList
+            SymbolDisplayMiscellaneousOptions.IncludeBaseList |
+            SymbolDisplayMiscellaneousOptions.IncludePropertyKeyword
     );
 
     public static readonly SymbolDisplayFormat DebuggerDisplay = new SymbolDisplayFormat(
@@ -101,7 +104,8 @@ public sealed class SymbolDisplayFormat {
         parameterOptions: SymbolDisplayParameterOptions.Everything,
         miscellaneousOptions:
             SymbolDisplayMiscellaneousOptions.IncludeKeywords |
-            SymbolDisplayMiscellaneousOptions.IncludeBaseList
+            SymbolDisplayMiscellaneousOptions.IncludeBaseList |
+            SymbolDisplayMiscellaneousOptions.IncludePropertyKeyword
     );
 
     private SymbolDisplayFormat(

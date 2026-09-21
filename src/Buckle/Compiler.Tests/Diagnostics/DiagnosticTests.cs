@@ -1003,7 +1003,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0068_DefaultMustBeConstant() {
         var text = @"
-            void MyFunc(int? a = [Console.Input()]) { }
+            void MyFunc(out int? a = [Console.Input()]) { }
         ";
 
         var diagnostics = @"
@@ -9536,6 +9536,64 @@ var text = """"""
 
         var diagnostics = @"
             cannot declare a struct property without definite constructor assignment with type 'C!' because it has no default value
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0649_DefaultValueCannotReferenceLaterParameter() {
+        var text = @"
+            void M(int a = [b] + 1, int b = 0) { }
+            ;
+        ";
+
+        var diagnostics = @"
+            default parameter value for 'a' cannot reference later parameter 'b'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0650_DefaultValueCannotReferenceParameter() {
+        var text = @"
+            void M(int a = [a]) { }
+            ;
+        ";
+
+        var diagnostics = @"
+            default parameter value for 'a' cannot reference itself
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0651_DefaultValueMustReferenceParameter() {
+        var text = @"
+            void M(int a = [Console.Input()]) { }
+            ;
+        ";
+
+        var diagnostics = @"
+            default parameter value for 'a' must be a compile-time constant or reference a prior parameter
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0652_PropertyCantHaveVoidType() {
+        var text = @"
+            class A {
+                property void [a] => null;
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'A.a': property cannot have void type
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

@@ -12,4 +12,5 @@ internal enum SymbolDisplayMiscellaneousOptions : byte {
     NetFormat = 1 << 4,
     SimplifyTuple = 1 << 5,
     IncludePropertyBody = 1 << 6,
+    IncludePropertyKeyword = 1 << 7,
 }
