@@ -1,6 +1,7 @@
 using System;
 using System.Text.RegularExpressions;
 using Buckle.CodeAnalysis.Text;
+using Buckle.Utilities;
 using Diagnostics;
 
 namespace Buckle.Diagnostics;
@@ -12,6 +13,21 @@ public static partial class DiagnosticFormatter {
 
     public static void PrettyPrint(BelteDiagnostic diagnostic, ConsoleColor? foregroundColor = null) {
         ToDisplayParts(diagnostic, diagnostic.location, foregroundColor).Write();
+
+        if (diagnostic.inner is { } inner) {
+            Console.Write("  ");
+
+            switch (inner) {
+                case Diagnostic innerDiagnostic:
+                    PrettyPrint(innerDiagnostic, foregroundColor);
+                    break;
+                case Exception exception:
+                    PrettyPrintException(exception, foregroundColor);
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(inner);
+            }
+        }
     }
 
     public static void PrettyPrint(Diagnostic diagnostic, ConsoleColor? foregroundColor = null) {

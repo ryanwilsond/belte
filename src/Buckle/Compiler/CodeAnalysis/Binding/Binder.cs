@@ -3510,7 +3510,7 @@ internal partial class Binder {
         var conditional = node.operatorToken.kind == SyntaxKind.DollarQuestionToken;
         var nodeType = operand.StrippedType();
 
-        if (!nodeType.IsPrimitiveType() && !nodeType.IsStructType() && !nodeType.IsArray())
+        if (nodeType is not null && !CompileTimeLowerer.IsValidCompileTimeExpressionType(nodeType))
             diagnostics.Push(Error.InvalidCompileTimeType(node.location));
         else if (EnsureExpressionIsCompileTime(operand, []))
             diagnostics.Push(Warning.UnnecessaryCompileTimeExpression(node.location, node.operand));

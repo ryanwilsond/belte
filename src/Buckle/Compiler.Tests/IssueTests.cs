@@ -1,4 +1,5 @@
 using Buckle.Diagnostics;
+using Diagnostics;
 using Xunit;
 using Xunit.Abstractions;
 using static Buckle.Tests.Assertions;
@@ -1019,7 +1020,7 @@ public sealed class IssueTests {
             unreachable code
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -1036,7 +1037,7 @@ public sealed class IssueTests {
             unreachable code
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -1056,7 +1057,7 @@ public sealed class IssueTests {
             unreachable code
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]

@@ -70,6 +70,9 @@ internal sealed class HandleManager {
     private Handle CreateHandle(HandleDirectiveTriviaSyntax syntax, out int priority) {
         priority = 0;
 
+        if (syntax.identifier.isFabricated)
+            return null;
+
         if (syntax.priority is not null) {
             var priorityValue = syntax.priority.value;
             var priorityType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(priorityValue);

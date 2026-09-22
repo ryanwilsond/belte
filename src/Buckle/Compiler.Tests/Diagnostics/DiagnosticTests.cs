@@ -1,4 +1,5 @@
 using System.Text;
+using Diagnostics;
 using Xunit;
 using Xunit.Abstractions;
 using static Buckle.Tests.Assertions;
@@ -25,7 +26,7 @@ public sealed class DiagnosticTests {
             expression will always result to 'null'
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -393,7 +394,7 @@ public sealed class DiagnosticTests {
             unreachable code
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -1054,7 +1055,7 @@ public sealed class DiagnosticTests {
             local 'A' shares a name with a type in this namespace
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -1632,9 +1633,6 @@ public sealed class DiagnosticTests {
 
     // ! Error_BU0113_RefReturnOnlyParameter
     // Unreachable currently
-
-    // ! Error_BU0114_ArrayOutsideOfLowLevelContext
-    // Lowlevel restrictions not enforced currently
 
     [Fact]
     public void Reports_Error_BU0115_EmptyCharacterLiteral() {
@@ -2610,7 +2608,7 @@ public sealed class DiagnosticTests {
             the given expression is never of the provided type ('A')
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -2871,7 +2869,7 @@ public sealed class DiagnosticTests {
             possible mistaken empty statement
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -3220,7 +3218,7 @@ public sealed class DiagnosticTests {
             assignment in conditional expression is always constant; did you mean to use '==' instead of '=' ?
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -3321,7 +3319,7 @@ public sealed class DiagnosticTests {
             the default value specified for parameter 'b' will have no effect because it applies to a member that is used in contexts that do not allow optional arguments
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -3454,7 +3452,7 @@ public sealed class DiagnosticTests {
             'A' overrides 'Object.Equals(Object)' but does not override 'Object.GetHashCode()'
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -3471,7 +3469,7 @@ public sealed class DiagnosticTests {
             'A' defines operator == or operator != but does not override 'Object.GetHashCode()'
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -3488,7 +3486,7 @@ public sealed class DiagnosticTests {
             'A' defines operator == or operator != but does not override 'Object.GetHashCode()'
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -3596,7 +3594,7 @@ public sealed class DiagnosticTests {
             'A.F': new protected member declared in sealed type; no different than private
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -3614,7 +3612,7 @@ public sealed class DiagnosticTests {
             'B.F()' hides inherited member 'A.F()'; use the new keyword if hiding was intended
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -3629,7 +3627,7 @@ public sealed class DiagnosticTests {
             the member 'A.F()' does not hide an accessible member; the new keyword is not required
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     // ! Error_BU0275_HidingAbstractMember
@@ -3649,7 +3647,7 @@ public sealed class DiagnosticTests {
             'B.F()' hides inherited member 'A.F()'; to make the current member override that implementation, add the override keyword; otherwise add the new keyword
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     // ! Warning_BU0277_HidingDifferentRefness
@@ -4200,7 +4198,7 @@ public sealed class DiagnosticTests {
             namespace 'Belte' potentially shadows parts of the Standard Library
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -4690,23 +4688,20 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0357_InvalidCompileTimeExpression() {
-        var text = @"
-            class A {
-                public int Method() { return 3; }
-            }
+    // ? Ideally not reachable, but not for sure
+    // [Fact]
+    // public void Reports_Error_BU0357_InvalidCompileTimeExpression() {
+    //     var text = @"
+    //         static int M() { return 0; }
+    //         var a = [$(&M)()];
+    //     ";
 
-            var a = new A();
-            var b = [$a.Method()];
-        ";
+    //     var diagnostics = @"
+    //         expression is not computable at compile time
+    //     ";
 
-        var diagnostics = @"
-            expression is not computable at compile time
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
 
     // ! Error_BU0358_FixedNeedsLValue
     // ? Unsure how to trigger this
@@ -5373,11 +5368,43 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0404_NoHandleTarget
-    // Requires preprocessor statements (`#handle`)
+    [Fact]
+    public void Reports_Error_BU0404_NoHandleTarget() {
+        var text = @"
+            #handle [A]
+            class A { }
+            ;
+        ";
 
-    // ! Error_BU0405_AmbiguousHandleTarget
-    // Requires preprocessor statements (`#handle`)
+        var diagnostics = @"
+            type 'A' contains no valid handle method
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // !
+    // ? Tests don't reference Compiler.dll so Buckle.CodeAnalysis doesn't exist
+    // [Fact]
+    // public void Reports_Error_BU0405_AmbiguousHandleTarget() {
+    //     var text = @"
+    //         #handle [A]
+
+    //         using Buckle.CodeAnalysis;
+
+    //         class A {
+    //             private static void Handler(Message msg, CompilerContext context) { }
+    //             private static void Handler2(Message msg, CompilerContext context) { }
+    //         }
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         type 'A' contains more than one valid handle method
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
 
     [Fact]
     public void Reports_Error_BU0406_FunctionCannotContainPointer() {
@@ -5529,7 +5556,7 @@ public sealed class DiagnosticTests {
             using directive is unnecessary
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     // ! Currently unreachable?
@@ -5545,7 +5572,7 @@ public sealed class DiagnosticTests {
     //         cannot infer the type of implicitly-typed out data container 'a'
     //     ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer, true);
+    //     AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     // }
 
     [Fact]
@@ -5675,7 +5702,7 @@ public sealed class DiagnosticTests {
             exiting the with body early will result in the reversals not taking place; consider using a 'with (...) try'
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -6001,7 +6028,7 @@ public sealed class DiagnosticTests {
            ignoring return value of method 'F()'; consider using a discard assignment if this is intended
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -6251,7 +6278,7 @@ public sealed class DiagnosticTests {
             assignment to a for-each iterator local does not modify the element in the source collection
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -6299,7 +6326,7 @@ public sealed class DiagnosticTests {
             'A': struct crosses an unnecessary cache line; struct layout could be reduced from 104 bytes to 56 bytes by reordering fields
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -6316,7 +6343,7 @@ public sealed class DiagnosticTests {
             'A': struct layout could be reduced from 24 bytes to 16 bytes by reordering fields
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -6335,7 +6362,7 @@ public sealed class DiagnosticTests {
             'A': struct layout could be reduced from 28 bytes to 20 bytes by reordering fields
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -6354,11 +6381,27 @@ public sealed class DiagnosticTests {
             'A': struct layout could be reduced from 40 bytes to 24 bytes by reordering fields
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
-    // ! Info_BU0470_StructInefficiency
-    // ? We don't have a way to test info severity diagnostics yet
+    [Fact]
+    public void Reports_Info_BU0468_StructInefficiency() {
+        var text = @"
+            struct packed(8) [A] {
+                int8 a;
+                int64 b;
+                int8 c;
+                int64 d;
+                int64 e;
+            }
+        ";
+
+        var diagnostics = @"
+            'A': struct layout could be reduced from 40 bytes to 32 bytes by reordering fields
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Info);
+    }
 
     [Fact]
     public void Reports_Error_BU0469_InvalidPackedAlignment() {
@@ -6370,7 +6413,7 @@ public sealed class DiagnosticTests {
             struct pack alignment must be 1, 2, 4, 8, 16, 32, 64, or 128
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -6411,7 +6454,7 @@ public sealed class DiagnosticTests {
             long tuple (10 elements); consider using a named struct
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     // ! Error_BU0472_PredefinedTypeNotFound
@@ -6891,7 +6934,7 @@ public sealed class DiagnosticTests {
             lowlevel default literal is unnecessary because the type 'int!' has a default value; consider using a regular default literal
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -6906,7 +6949,7 @@ public sealed class DiagnosticTests {
             lowlevel default expression is unnecessary because the type 'int!' has a default value; consider using a regular default expression
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -6976,7 +7019,7 @@ public sealed class DiagnosticTests {
             local function uses the entry point name but is not treated as the entry point because it does not have the correct signature
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -7038,7 +7081,7 @@ public sealed class DiagnosticTests {
             'B.M()': member is marked 'const' but overridden member 'A.M()' is not
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -7080,7 +7123,7 @@ public sealed class DiagnosticTests {
             'B.M(const int!)': parameter 'a' is marked 'const' but the corresponding parameter on overridden member 'A.M(int!)' is not
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -7245,7 +7288,7 @@ public sealed class DiagnosticTests {
             'B.M': sealed member declared in sealed type; no different than non-sealed override
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -7259,7 +7302,7 @@ public sealed class DiagnosticTests {
             null checks should use the 'is' or 'isnt' operator
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -8032,7 +8075,7 @@ var text = """"""
             assignment made to same variable; did you mean to assign something else?
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -8254,7 +8297,7 @@ var text = """"""
             compile-time expression is unnecessary as the target expression is already a compile-time constant
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -8804,7 +8847,7 @@ var text = """"""
             'B.M()': member is marked 'pure' but overridden member 'A.M()' is not
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -8891,7 +8934,7 @@ var text = """"""
             call potentially leaks uninitialized object state
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -8996,7 +9039,7 @@ var text = """"""
             try statement is unnecessary as no statements within it can throw
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     // ! Reports_Warning_BU0612_FailedToEmitMetadataAttribute
@@ -9031,7 +9074,7 @@ var text = """"""
             template specialization is unnecessary because the target is marked as compile-time only
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     // ! Reports_Error_BU0616_CannotTemplateSpecializeType
@@ -9570,14 +9613,15 @@ var text = """"""
     }
 
     [Fact]
-    public void Reports_Error_BU0651_DefaultValueMustReferenceParameter() {
+    public void Reports_Error_BU0651_DefaultValueCannotReferenceLocals() {
         var text = @"
-            void M(int a = [Console.Input()]) { }
+            void M(int a = [G()]) { }
+            int G() { return 1; }
             ;
         ";
 
         var diagnostics = @"
-            default parameter value for 'a' must be a compile-time constant or reference a prior parameter
+            default parameter value for 'a' cannot reference local function 'G()'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -9597,5 +9641,97 @@ var text = """"""
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0653_InvalidCompileTimeExpressionState() {
+        var text = @"
+            int a = 3;
+            int b = [$a];
+        ";
+
+        var diagnostics = @"
+            'a': cannot reference runtime state in a compile-time expression
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0654_CompileTimeExpressionThrew() {
+        var text = @"
+            void M() {
+                throw new System.Exception();
+            }
+            [$M()];
+        ";
+
+        var diagnostics = @"
+            expression threw an uncaught exception when evaluating at compile time
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Info_BU0655_CompileTimeExpressionThrew() {
+        var text = @"
+            void M() {
+                throw new System.Exception();
+            }
+            [$?M()];
+        ";
+
+        var diagnostics = @"
+            expression threw an uncaught exception when evaluating at compile time; code will be executed at runtime
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Info);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0656_InvalidCompileTimeExpressionWithReason() {
+        var text = @"
+            static int M() { return 0; }
+            var a = [$(&M)()];
+        ";
+
+        var diagnostics = @"
+            expression is not computable at compile time; reason:
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0657_InvalidCompileTimeExpressionStack() {
+        var text = @"
+            void M() {
+                M();
+            }
+            [$M()];
+        ";
+
+        var diagnostics = @"
+            evaluation of compile-time expression caused stack overflow
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Info_BU0658_InvalidCompileTimeExpressionStack() {
+        var text = @"
+            void M() {
+                M();
+            }
+            [$?M()];
+        ";
+
+        var diagnostics = @"
+            evaluation of compile-time expression caused stack overflow; code will be executed at runtime
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Info);
     }
 }

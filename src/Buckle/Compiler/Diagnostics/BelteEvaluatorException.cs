@@ -1,4 +1,3 @@
-using System;
 using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.Diagnostics;
@@ -7,17 +6,13 @@ namespace Buckle.Diagnostics;
 /// Belte exception thrown when an evaluation cannot be performed, even if it is error-free.
 /// </summary>
 internal class BelteEvaluatorException : BelteException {
-    public BelteEvaluatorException(TextLocation location) {
+    internal BelteEvaluatorException(string message, TextLocation location, bool failCompileTimeExpressions = true)
+        : base(message) {
         this.location = location;
+        this.failCompileTimeExpressions = failCompileTimeExpressions;
     }
 
-    public BelteEvaluatorException(string message, TextLocation location) : base(message) {
-        this.location = location;
-    }
+    internal TextLocation location { get; }
 
-    public BelteEvaluatorException(string message, Exception inner, TextLocation location) : base(message, inner) {
-        this.location = location;
-    }
-
-    public TextLocation location { get; }
+    internal bool failCompileTimeExpressions { get; }
 }

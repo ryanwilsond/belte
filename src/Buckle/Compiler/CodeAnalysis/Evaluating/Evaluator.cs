@@ -46,6 +46,7 @@ internal sealed partial class Evaluator {
     private bool _insideTry;
     private bool _insideUpdate;
     private bool _insideExpressionEvaluation;
+    private int _recursionDepth;
 
     // These are used if layouts need to be computed while evaluating if the precomputed layout maps are incomplete
     // This should only happen when reusing the same cor compilation for multiple programs because normally each program
@@ -176,37 +177,55 @@ internal sealed partial class Evaluator {
                 result = InvokeMethod(entryPoint, _programObject, arguments, abort);
         }
 
-        if (entryPoint.isStatic)
-            result = InvokeMethod(entryPoint, EvaluatorValue.None, arguments, abort);
+        try {
+            if (entryPoint.isStatic)
+                result = InvokeMethod(entryPoint, EvaluatorValue.None, arguments, abort);
 
-        // Wait until Main finishes before the first call of Update
-        if (_context.maintainThread) {
-            while (_context.graphicsHandler is null)
-                ;
+            // Wait until Main finishes before the first call of Update
+            if (_context.maintainThread) {
+                while (_context.graphicsHandler is null)
+                    ;
+            }
+
+            if (_program.updatePoint is not null)
+                _context.graphicsHandler?.SetUpdateHandler(UpdateCaller);
+        } catch (BoundTreeVisitor.CancelledByStackGuardException e) {
+            exceptions.Add(e);
         }
-
-        if (_program.updatePoint is not null)
-            _context.graphicsHandler?.SetUpdateHandler(UpdateCaller);
 
         hasValue = _hasValue;
         resultType = GetResultType(result);
         return hasValue ? EvaluatorValue.Format(result, _context) : null;
     }
 
-    internal EvaluatorValue EvaluateExpression(
-        BoundExpression expression,
-        EvaluatorSlotManager layout,
-        out bool hasValue) {
+    internal EvaluationResult EvaluateExpression(BoundExpression expression, EvaluatorSlotManager layout) {
         _insideExpressionEvaluation = true;
         _hasValue = true;
         _stack.Push(new StackFrame(layout));
 
-        var result = EvaluateExpression(expression, true, false);
+        var result = EvaluatorValue.None;
+
+        try {
+            result = EvaluateExpression(expression, true, false);
+        } catch (Exception e) {
+            exceptions.Add(e);
+            lastOutputWasPrint = false;
+            _hasValue = false;
+        }
 
         _stack.Pop();
-        hasValue = _hasValue;
         _insideExpressionEvaluation = false;
-        return result;
+
+        return new EvaluationResult(
+            result,
+            GetResultType(result),
+            _hasValue,
+            diagnostics: null,
+            exceptions,
+            lastOutputWasPrint,
+            containsIO,
+            _context.heap
+        );
     }
 
     private TypeSymbol GetResultType(EvaluatorValue result) {
@@ -589,7 +608,8 @@ internal sealed partial class Evaluator {
             }
 
             return _lastValue;
-        } catch (Exception e) {
+        } catch (Exception e)
+            when (e is not InsufficientExecutionStackException and not BoundTreeVisitor.CancelledByStackGuardException) {
             if (abort)
                 return EvaluatorValue.None;
 
@@ -623,7 +643,46 @@ internal sealed partial class Evaluator {
         if (node.constantValue is not null)
             return EvaluatorValue.Literal(node.constantValue.value, node.constantValue.specialType);
 
-        var result = node.kind switch {
+        _recursionDepth++;
+
+        EvaluatorValue result;
+
+        try {
+            if (_recursionDepth > 1) {
+                StackGuard.EnsureSufficientExecutionStack(_recursionDepth);
+                result = EvaluateExpressionCore(node, used, abort);
+            } else {
+                result = EvaluateExpressionWithStackGuard(node, used, abort);
+            }
+        } finally {
+            _recursionDepth--;
+        }
+
+        if (_insideExpressionEvaluation) {
+            CheckResultIsCoherent(node, used, result);
+        } else {
+#if DEBUG
+            CheckResultIsCoherent(node, used, result);
+#endif
+        }
+
+        return result;
+    }
+
+    private EvaluatorValue EvaluateExpressionWithStackGuard(BoundExpression node, bool used, ValueWrapper<bool> abort) {
+        Debug.Assert(_recursionDepth == 1);
+
+        try {
+            var result = EvaluateExpressionCore(node, used, abort);
+            Debug.Assert(_recursionDepth == 1);
+            return result;
+        } catch (InsufficientExecutionStackException ex) {
+            throw new BoundTreeVisitor.CancelledByStackGuardException(ex, node);
+        }
+    }
+
+    private EvaluatorValue EvaluateExpressionCore(BoundExpression node, bool used, ValueWrapper<bool> abort) {
+        return node.kind switch {
             BoundKind.DefaultExpression => EvaluateDefaultExpression((BoundDefaultExpression)node, used, abort),
             BoundKind.ThisExpression => EvaluateThisExpression((BoundThisExpression)node),
             BoundKind.BaseExpression => EvaluateBaseExpression((BoundBaseExpression)node),
@@ -653,14 +712,12 @@ internal sealed partial class Evaluator {
             BoundKind.UnconvertedNullptrExpression => EvaluatorValue.Null,
             BoundKind.ConvertedStackAllocExpression => throw new BelteEvaluatorException("Stackalloc is not supported in the Evaluator.", node.syntax.location),
             BoundKind.FunctionPointerLoad => throw new BelteEvaluatorException("Function pointers are not supported in the Evaluator.", node.syntax.location),
+            BoundKind.FunctionPointerCallExpression => throw new BelteEvaluatorException("Function pointers are not supported in the Evaluator.", node.syntax.location),
             BoundKind.FunctionLoad => EvaluateFunctionLoad((BoundFunctionLoad)node, used),
             BoundKind.SizeOfOperator => EvaluateSizeOfOperator((BoundSizeOfOperator)node, used),
             BoundKind.ArrayLength => EvaluateArrayLength((BoundArrayLength)node, used, abort),
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
-
-        CheckResultIsCoherent(node, used, result);
-        return result;
     }
 
     private EvaluatorValue EvaluateFunctionLoad(BoundFunctionLoad node, bool used) {
@@ -846,7 +903,7 @@ internal sealed partial class Evaluator {
         // The message will always be the first field as base type Object has no fields
         var message = exception.fields[0].@string;
 
-        throw new BelteEvaluatorException(message, location);
+        throw new BelteEvaluatorException(message, location, failCompileTimeExpressions: false);
     }
 
     private EvaluatorValue EvaluateTypeExpression(BoundTypeExpression node) {
@@ -2964,7 +3021,13 @@ internal sealed partial class Evaluator {
             frame.values[slot] = arguments[i];
         }
 
-        CheckArgumentsAreCoherent(method, arguments);
+        if (_insideExpressionEvaluation) {
+            CheckArgumentsAreCoherent(method, arguments);
+        } else {
+#if DEBUG
+            CheckArgumentsAreCoherent(method, arguments);
+#endif
+        }
 
         _stack.Push(frame);
 

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Evaluating;
@@ -10,7 +11,7 @@ using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
-internal sealed class CompileTimeLowerer : BoundTreeExpander {
+internal sealed partial class CompileTimeLowerer : BoundTreeExpander {
     private readonly BelteDiagnosticQueue _diagnostics;
     private readonly Evaluator _evaluator;
     private readonly EvaluatorContext _context;
@@ -49,68 +50,123 @@ internal sealed class CompileTimeLowerer : BoundTreeExpander {
         return lowerer.Expand(statement);
     }
 
+    internal static bool IsValidCompileTimeExpressionType(TypeSymbol type) {
+        return type.IsPrimitiveType() || type.IsStructType() || type.IsArray() || type.IsVoidType();
+    }
+
     private BoundBlockStatement Expand(BoundBlockStatement statement) {
         return (BoundBlockStatement)Simplify(statement.syntax, ExpandStatement(statement));
+    }
+
+    private static bool IsValidCompileTimeExpression(BoundExpression expression, out Symbol state) {
+        var walker = new CompileTimeExpressionWalker();
+        walker.Visit(expression);
+        state = walker.firstInvalidSymbol;
+        return !walker.invalidNode;
     }
 
     private protected override List<BoundStatement> ExpandCompileTimeExpression(
         BoundCompileTimeExpression node,
         out BoundExpression replacement,
-        UseKind _) {
+        UseKind useKind) {
         // Avoid evaluator if possible. This also gives better diagnostics by letting ConstantFoldingPass handle it
         if (!node.conditional && Binder.EnsureExpressionIsCompileTime(node.expression, []))
             return ExpandExpression(node.expression, out replacement);
 
         var statements = ExpandExpression(node.expression, out var newExpression);
 
-        try {
-            var methodLayout = _program.methodLayouts[_container.originalDefinition];
-            var result = _evaluator.EvaluateExpression(newExpression, methodLayout, out var hasValue);
+        if (!IsValidCompileTimeExpression(newExpression, out var symbol)) {
+            _diagnostics.Push(Error.InvalidCompileTimeExpressionState(node.syntax.location, symbol));
+            replacement = newExpression;
+            return [];
+        }
 
-            if (node.type.IsVoidType()) {
-                replacement = node;
-                return statements.Count == 0 ? [BoundFactory.Nop()] : statements;
+        var methodLayout = _program.methodLayouts[_container.originalDefinition];
+        var result = _evaluator.EvaluateExpression(newExpression, methodLayout);
+
+        if (result.exceptions.Count > 0) {
+            Debug.Assert(result.exceptions.Count == 1);
+            var exception = result.exceptions[0];
+
+            switch (exception) {
+                case BelteInternalException:
+                    // TODO Eventually we want the Evaluator to not just fail on us
+                    // This is hard because to do that we would need full pointer support, so...
+                    _diagnostics.Push(Error.InvalidCompileTimeExpression(node.syntax.location));
+                    break;
+                case BelteEvaluatorException evaluatorException:
+                    if (evaluatorException.failCompileTimeExpressions) {
+                        _diagnostics.Push(Error.InvalidCompileTimeExpressionWithReason(
+                            node.syntax.location,
+                            evaluatorException
+                        ));
+                    } else {
+                        if (node.conditional) {
+                            _diagnostics.Push(Info.CompileTimeExpressionThrew(node.syntax.location));
+                        } else {
+                            _diagnostics.Push(Error.CompileTimeExpressionThrew(
+                                node.syntax.location,
+                                evaluatorException
+                            ));
+                        }
+                    }
+
+                    break;
+                case BoundTreeVisitor.CancelledByStackGuardException:
+                    if (node.conditional)
+                        _diagnostics.Push(Info.InvalidCompileTimeExpressionStack(node.syntax.location));
+                    else
+                        _diagnostics.Push(Error.InvalidCompileTimeExpressionStack(node.syntax.location));
+
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(exception);
             }
-
-            var nodeType = node.StrippedType();
-
-            if (!nodeType.IsPrimitiveType() && !nodeType.IsStructType() && !nodeType.IsArray()) {
-                _diagnostics.Push(Error.InvalidCompileTimeType(node.syntax.location));
-                replacement = node;
-                return statements.Count == 0 ? [BoundFactory.Nop()] : statements;
-            }
-
-            if (nodeType.IsArray()) {
-                var isEvaluating = _compilation.options.buildMode.Evaluating();
-                var syntax = node.syntax;
-                statements.AddRange(BuildArray(isEvaluating, syntax, _context.heap[result.ptr], out replacement));
-                return statements;
-            }
-
-            if (nodeType.IsPrimitiveType()) {
-                replacement = Lowerer.VisitConstant(
-                    _compilation,
-                    BoundFactory.Literal(_compilation, node.syntax, EvaluatorValue.Format(result, _context), node.type)
-                );
-
-                return statements.Count == 0 ? [BoundFactory.Nop()] : statements;
-            }
-
-            if (nodeType.IsStructType()) {
-                var isEvaluating = _compilation.options.buildMode.Evaluating();
-                var syntax = node.syntax;
-                statements.AddRange(BuildStruct(isEvaluating, syntax, result.@struct, out replacement));
-                return statements;
-            }
-
-            throw ExceptionUtilities.UnexpectedValue(result.kind);
-        } catch {
-            if (!node.conditional)
-                _diagnostics.Push(Error.InvalidCompileTimeExpression(node.syntax.location));
 
             replacement = newExpression;
             return [];
         }
+
+        var value = (EvaluatorValue)result.value;
+
+        if (node.type.IsVoidType()) {
+            Debug.Assert(useKind == UseKind.None);
+            replacement = null;
+            return statements.Count == 0 ? [BoundFactory.Nop()] : statements;
+        }
+
+        var nodeType = node.StrippedType();
+
+        if (!IsValidCompileTimeExpressionType(nodeType)) {
+            _diagnostics.Push(Error.InvalidCompileTimeType(node.syntax.location));
+            replacement = node;
+            return statements.Count == 0 ? [BoundFactory.Nop()] : statements;
+        }
+
+        if (nodeType.IsArray()) {
+            var isEvaluating = _compilation.options.buildMode.Evaluating();
+            var syntax = node.syntax;
+            statements.AddRange(BuildArray(isEvaluating, syntax, _context.heap[value.ptr], out replacement));
+            return statements;
+        }
+
+        if (nodeType.IsPrimitiveType()) {
+            replacement = Lowerer.VisitConstant(
+                _compilation,
+                BoundFactory.Literal(_compilation, node.syntax, EvaluatorValue.Format(value, _context), node.type)
+            );
+
+            return statements.Count == 0 ? [BoundFactory.Nop()] : statements;
+        }
+
+        if (nodeType.IsStructType()) {
+            var isEvaluating = _compilation.options.buildMode.Evaluating();
+            var syntax = node.syntax;
+            statements.AddRange(BuildStruct(isEvaluating, syntax, value.@struct, out replacement));
+            return statements;
+        }
+
+        throw ExceptionUtilities.UnexpectedValue(value.kind);
     }
 
     private List<BoundStatement> BuildArray(

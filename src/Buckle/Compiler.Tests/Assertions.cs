@@ -5,6 +5,7 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
+using Diagnostics;
 using Shared.Tests;
 using Xunit;
 using Xunit.Abstractions;
@@ -158,7 +159,7 @@ internal static class Assertions {
         string text,
         string diagnosticText,
         ITestOutputHelper writer,
-        bool assertWarnings = false,
+        DiagnosticSeverity minimumSeverity = DiagnosticSeverity.Error,
         bool script = true,
         bool checkLocations = true) {
         var annotatedText = AnnotatedText.Parse(text);
@@ -188,9 +189,7 @@ internal static class Assertions {
         if (checkLocations && annotatedText.spans.Length != expectedDiagnostics.Length)
             throw new Exception("must mark as many spans as there are diagnostics");
 
-        var diagnostics = assertWarnings
-            ? tempDiagnostics
-            : tempDiagnostics.Errors();
+        var diagnostics = tempDiagnostics.FilterAbove(minimumSeverity);
 
         if (expectedDiagnostics.Length != diagnostics.Count) {
             writer.WriteLine($"Input: {annotatedText.text}");

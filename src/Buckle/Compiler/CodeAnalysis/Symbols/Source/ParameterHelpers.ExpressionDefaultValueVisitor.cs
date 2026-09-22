@@ -13,9 +13,6 @@ internal static partial class ParameterHelpers {
             var walker = new DiagnosticsWalker(parameter, diagnostics);
             walker.Visit(expression);
 
-            if (!walker.reportedError && !walker.referencesPriorParameter)
-                diagnostics.Push(Error.DefaultValueMustReferenceParameter(expression.syntax.location, parameter.name));
-
             return walker.reportedError;
         }
 

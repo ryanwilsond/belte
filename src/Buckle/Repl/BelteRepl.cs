@@ -51,6 +51,7 @@ public sealed partial class BelteRepl : Repl {
     /// <param name="errorHandle">Callback to handle Diagnostics.</param>
     public BelteRepl(Compiler handle, DiagnosticHandle errorHandle) : base(handle) {
         handle.state.diagnosticOptions.warningLevel = 2;
+        handle.state.diagnosticOptions.severity = DiagnosticSeverity.All;
 
         state = new BelteReplState();
         _diagnosticHandle = errorHandle;

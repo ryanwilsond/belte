@@ -234,7 +234,7 @@ Automatically includes certain library references. Each level includes all of th
 | - | - |
 | `l0` | `System.Runtime.dll`, `System.IO.dll`, `System.Console.dll`, `System.Runtime.InteropServices.dll` |
 | `l1` | `Diagnostics.dll`, `Compiler.dll`, `Shared.dll`, `System.Collections.dll`, `System.Collections.Immutable.dll` |
-| `lall` | All .NET SDK libraries |
+| `lall` (default) | All .NET SDK libraries |
 
 ### *--skiptm*
 

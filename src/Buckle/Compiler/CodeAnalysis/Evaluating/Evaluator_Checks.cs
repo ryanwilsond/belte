@@ -3,6 +3,7 @@ using System.Diagnostics;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Diagnostics;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 using static Buckle.CodeAnalysis.Binding.Binder;
@@ -10,7 +11,15 @@ using static Buckle.CodeAnalysis.Binding.Binder;
 namespace Buckle.CodeAnalysis.Evaluating;
 
 internal sealed partial class Evaluator {
-    [Conditional("DEBUG")]
+    private void Assert(bool condition) {
+        if (_insideExpressionEvaluation) {
+            if (!condition)
+                throw new BelteInternalException("Failed assertion.");
+        } else {
+            Debug.Assert(condition);
+        }
+    }
+
     private void CheckResultIsCoherent(BoundExpression node, bool used, EvaluatorValue value) {
         if (!used)
             // We allow the Evaluator to produce garbage results here for performance
@@ -24,7 +33,7 @@ internal sealed partial class Evaluator {
 
         if (node.kind == BoundKind.ThisExpression) {
             if (node.type.StrippedType().IsStructType()) {
-                Debug.Assert(value.kind == ValueKind.Ref);
+                Assert(value.kind == ValueKind.Ref);
                 isRef = true;
             } else if (value.kind == ValueKind.Ref) {
                 var refValue = value.loc[value.ptr];
@@ -70,14 +79,13 @@ internal sealed partial class Evaluator {
         return false;
     }
 
-    [Conditional("DEBUG")]
     private void CheckTypeIsCoherent(TypeSymbol type, bool isRef, EvaluatorValue value) {
         if (type.IsNullableType() && value.kind == ValueKind.Null)
             return;
 
         if (type.IsVoidType()) {
             // Script mode propagates values from void method calls
-            Debug.Assert(value.kind == ValueKind.Null || _isScript);
+            Assert(value.kind == ValueKind.Null || _isScript);
             return;
         }
 
@@ -95,7 +103,7 @@ internal sealed partial class Evaluator {
                     RelationalOperatorType(t.underlyingType.type)
                 );
 
-                Debug.Assert(comparison.kind == ValueKind.Bool && comparison.@bool);
+                Assert(comparison.kind == ValueKind.Bool && comparison.@bool);
                 return;
             } else {
                 strippedType = SubstituteTemplateParameterType(t);
@@ -119,80 +127,80 @@ internal sealed partial class Evaluator {
 
         if (strippedType.IsPointerOrFunctionPointer() ||
             strippedType.specialType is SpecialType.IntPtr or SpecialType.UIntPtr) {
-            Debug.Assert(value.kind == ValueKind.Ref);
+            Assert(value.kind == ValueKind.Ref);
             return;
         }
 
-        Debug.Assert(value.kind == ValueKind.Ref == isRef);
+        Assert(value.kind == ValueKind.Ref == isRef);
 
         if (value.kind == ValueKind.Ref)
             value = value.loc[value.ptr];
 
-        Debug.Assert(value.kind != ValueKind.Ref);
+        Assert(value.kind != ValueKind.Ref);
 
         if (strippedType.specialType is SpecialType.Any or SpecialType.Object) {
-            Debug.Assert(value.kind is not ValueKind.Null);
+            Assert(value.kind is not ValueKind.Null);
             return;
         }
 
         switch (value.kind) {
             case ValueKind.Null:
                 // Possible with a lowlevel default
-                Debug.Assert(strippedType.isReferenceType);
+                Assert(strippedType.isReferenceType);
                 break;
             case ValueKind.Int8:
-                Debug.Assert(strippedType.specialType == SpecialType.Int8);
+                Assert(strippedType.specialType == SpecialType.Int8);
                 break;
             case ValueKind.Int16:
-                Debug.Assert(strippedType.specialType == SpecialType.Int16);
+                Assert(strippedType.specialType == SpecialType.Int16);
                 break;
             case ValueKind.Int32:
-                Debug.Assert(strippedType.specialType is SpecialType.Int32 or SpecialType.WinBool);
+                Assert(strippedType.specialType is SpecialType.Int32 or SpecialType.WinBool);
                 break;
             case ValueKind.Int64:
-                Debug.Assert(strippedType.specialType is SpecialType.Int64 or SpecialType.Int);
+                Assert(strippedType.specialType is SpecialType.Int64 or SpecialType.Int);
                 break;
             case ValueKind.UInt8:
-                Debug.Assert(strippedType.specialType == SpecialType.UInt8);
+                Assert(strippedType.specialType == SpecialType.UInt8);
                 break;
             case ValueKind.UInt16:
-                Debug.Assert(strippedType.specialType == SpecialType.UInt16);
+                Assert(strippedType.specialType == SpecialType.UInt16);
                 break;
             case ValueKind.UInt32:
-                Debug.Assert(strippedType.specialType == SpecialType.UInt32);
+                Assert(strippedType.specialType == SpecialType.UInt32);
                 break;
             case ValueKind.UInt64:
-                Debug.Assert(strippedType.specialType == SpecialType.UInt64);
+                Assert(strippedType.specialType == SpecialType.UInt64);
                 break;
             case ValueKind.Float32:
-                Debug.Assert(strippedType.specialType == SpecialType.Float32);
+                Assert(strippedType.specialType == SpecialType.Float32);
                 break;
             case ValueKind.Float64:
-                Debug.Assert(strippedType.specialType is SpecialType.Float64 or SpecialType.Decimal);
+                Assert(strippedType.specialType is SpecialType.Float64 or SpecialType.Decimal);
                 break;
             case ValueKind.Bool:
-                Debug.Assert(strippedType.specialType == SpecialType.Bool);
+                Assert(strippedType.specialType == SpecialType.Bool);
                 break;
             case ValueKind.Char:
-                Debug.Assert(strippedType.specialType == SpecialType.Char);
+                Assert(strippedType.specialType == SpecialType.Char);
                 break;
             case ValueKind.String:
-                Debug.Assert(strippedType.specialType == SpecialType.String);
+                Assert(strippedType.specialType == SpecialType.String);
                 break;
             case ValueKind.Type:
-                Debug.Assert(strippedType.specialType == SpecialType.Type);
+                Assert(strippedType.specialType == SpecialType.Type);
                 break;
             case ValueKind.Struct:
-                Debug.Assert(strippedType.IsStructType());
+                Assert(strippedType.IsStructType());
                 break;
             case ValueKind.HeapPtr:
-                Debug.Assert(strippedType.isReferenceType);
+                Assert(strippedType.isReferenceType);
                 var heapObject = _context.heap[value.ptr];
 
                 if (strippedType.IsInterfaceType())
-                    Debug.Assert(heapObject.type.ImplementsInterface(strippedType));
+                    Assert(heapObject.type.ImplementsInterface(strippedType));
                 else
-                    Debug.Assert(heapObject.type.IsEqualToOrDerivedFrom(strippedType, TypeCompareKind.AllIgnoreOptions));
+                    Assert(heapObject.type.IsEqualToOrDerivedFrom(strippedType, TypeCompareKind.AllIgnoreOptions));
 
                 break;
             case ValueKind.MethodGroup:
@@ -203,9 +211,8 @@ internal sealed partial class Evaluator {
         }
     }
 
-    [Conditional("DEBUG")]
     private void CheckArgumentsAreCoherent(MethodSymbol method, EvaluatorValue[] arguments) {
-        Debug.Assert(method.parameterCount == arguments.Length);
+        Assert(method.parameterCount == arguments.Length);
 
         var parameters = method.parameters;
 
@@ -218,7 +225,7 @@ internal sealed partial class Evaluator {
 
     private TypeSymbol SubstituteAsType(TypeSymbol type) {
         var value = SubstituteType(type);
-        Debug.Assert(value.kind == ValueKind.Type);
+        Assert(value.kind == ValueKind.Type);
         return (TypeSymbol)value.type;
     }
 
@@ -329,7 +336,7 @@ internal sealed partial class Evaluator {
 
     private TypeWithAnnotations SubstituteTypeWithAnnotationsAsType(TypeWithAnnotations typeWithAnnotations) {
         var value = SubstituteTypeWithAnnotations(typeWithAnnotations);
-        Debug.Assert(value.kind == ValueKind.Type);
+        Assert(value.kind == ValueKind.Type);
         return new TypeWithAnnotations((TypeSymbol)value.type);
     }
 

@@ -1316,7 +1316,7 @@ public class {name} {{
         var wErrorLevel = 2;
 
         var anyExplicitReferences = false;
-        var l = 0;
+        var l = 2;
         var sae = false;
 
         string currentFileAssociation = null;

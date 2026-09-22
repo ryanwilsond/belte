@@ -97,6 +97,10 @@ public partial class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
         return AnyAbove(DiagnosticSeverity.Error);
     }
 
+    internal new BelteDiagnosticQueue FilterAbove(DiagnosticSeverity severity) {
+        return new BelteDiagnosticQueue(base.FilterAbove(severity).ToArray());
+    }
+
     public virtual DiagnosticInfo Push<T>(T diagnostic) where T : Diagnostic {
 #if DEBUG
         AssertNotFreed();
@@ -133,7 +137,7 @@ public partial class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
     public virtual void Move(BelteDiagnosticQueue diagnostics) {
 #if DEBUG
         AssertNotFreed();
-        diagnostics.AssertNotFreed();
+        diagnostics?.AssertNotFreed();
 #endif
 
         base.Move(diagnostics);

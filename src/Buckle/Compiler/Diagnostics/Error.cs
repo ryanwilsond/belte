@@ -505,13 +505,6 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_OperatorInStaticClass, location, message);
     }
 
-    // TODO implement error
-    internal static BelteDiagnostic ArrayOutsideOfLowLevelContext(TextLocation location) {
-        throw ExceptionUtilities.Unreachable();
-        // var message = $"cannot use arrays outside of low-level contexts";
-        // return CreateError(DiagnosticCode.ERR_ArrayOutsideOfLowLevelContext, location, message);
-    }
-
     internal static Diagnostic EmptyCharacterLiteral() {
         var message = $"character literal cannot be empty";
         return CreateError(DiagnosticCode.ERR_EmptyCharacterLiteral, message);
@@ -3190,14 +3183,34 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_DefaultValueCannotReferenceParameter, location, message);
     }
 
-    internal static BelteDiagnostic DefaultValueMustReferenceParameter(TextLocation location, string name) {
-        var message = $"default parameter value for '{name}' must be a compile-time constant or reference a prior parameter";
-        return CreateError(DiagnosticCode.ERR_DefaultValueMustReferenceParameter, location, message);
-    }
-
     internal static BelteDiagnostic PropertyCantHaveVoidType(TextLocation location, PropertySymbol property) {
         var message = $"'{property}': property cannot have void type";
         return CreateError(DiagnosticCode.ERR_PropertyCantHaveVoidType, location, message);
+    }
+
+    internal static BelteDiagnostic DefaultValueCannotReferenceLocals(TextLocation location, string name, Symbol symbol) {
+        var message = $"default parameter value for '{name}' cannot reference local function '{symbol}'";
+        return CreateError(DiagnosticCode.ERR_DefaultValueCannotReferenceLocals, location, message);
+    }
+
+    internal static BelteDiagnostic CompileTimeExpressionThrew(TextLocation location, object inner) {
+        var message = $"expression threw an uncaught exception when evaluating at compile time";
+        return CreateErrorWithInner(DiagnosticCode.ERR_CompileTimeExpressionThrew, location, message, inner);
+    }
+
+    internal static BelteDiagnostic InvalidCompileTimeExpressionState(TextLocation location, Symbol symbol) {
+        var message = $"'{symbol}': cannot reference runtime state in a compile-time expression";
+        return CreateError(DiagnosticCode.ERR_InvalidCompileTimeExpressionState, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidCompileTimeExpressionWithReason(TextLocation location, object inner) {
+        var message = $"expression is not computable at compile time; reason:";
+        return CreateErrorWithInner(DiagnosticCode.ERR_InvalidCompileTimeExpressionWithReason, location, message, inner);
+    }
+
+    internal static BelteDiagnostic InvalidCompileTimeExpressionStack(TextLocation location) {
+        var message = $"evaluation of compile-time expression caused stack overflow";
+        return CreateError(DiagnosticCode.ERR_InvalidCompileTimeExpressionStack, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
@@ -3218,6 +3231,14 @@ internal static class Error {
         string message,
         params string[] suggestions) {
         return new BelteDiagnostic(ErrorInfo(code), location, message, suggestions);
+    }
+
+    private static BelteDiagnostic CreateErrorWithInner(
+        DiagnosticCode code,
+        TextLocation location,
+        string message,
+        object inner) {
+        return new BelteDiagnostic(ErrorInfo(code), location, message, [], inner);
     }
 
     private static string DiagnosticText(SyntaxKind type, bool sayToken = true) {

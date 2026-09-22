@@ -44,7 +44,7 @@ public sealed class Builder {
         inputs = [];
         refs = [];
         deps = [];
-        l = 0;
+        l = 2;
         maxCores = 0;
         debugBuild = false;
         includeStdLib = true;
@@ -90,8 +90,8 @@ public sealed class Builder {
             inputs.Add((path, options, _currentDiagnosticOptions.Copy()));
     }
 
-    public void IncludeNETSDK() {
-        l = 2;
+    public void SetLibraryLevel(int level) {
+        l = level;
     }
 
     public void ExplicitAssemblyName(string assemblyName) {

@@ -175,7 +175,8 @@ void Build(Builder builder) {
 }
 ```
 
-`Builder.IncludeNETSDK()` can be used to reference all installed core .NET SDK libraries automatically.
+`Builder.SetLibraryLevel(level)` can be used to explicitly not reference installed core .NET SDK libraries. The default
+level is 2/all and matches the [CLI `-l*` options](Buckle.md#-l0--l1--lall)
 
 For example:
 
@@ -183,7 +184,7 @@ For example:
 using Buckle.Building;
 
 void Build(Builder builder) {
-  builder.IncludeNETSDK();
+  builder.SetLibraryLevel(0);
 }
 ```
 

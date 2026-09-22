@@ -10,7 +10,6 @@ internal static partial class ParameterHelpers {
             private readonly BelteDiagnosticQueue _diagnostics;
 
             internal bool reportedError;
-            internal bool referencesPriorParameter;
 
             internal DiagnosticsWalker(ParameterSymbol parameter, BelteDiagnosticQueue diagnostics) {
                 _parameter = parameter;
@@ -38,8 +37,42 @@ internal static partial class ParameterHelpers {
                     }
 
                     reportedError = true;
-                } else {
-                    referencesPriorParameter = true;
+                }
+
+                return null;
+            }
+
+            internal override BoundNode VisitCallExpression(BoundCallExpression node) {
+                if (node.method.methodKind == MethodKind.LocalFunction) {
+                    _diagnostics.Push(Error.DefaultValueCannotReferenceLocals(
+                        node.syntax.location,
+                        _parameter.name,
+                        node.method
+                    ));
+                }
+
+                return null;
+            }
+
+            internal override BoundNode VisitFunctionPointerLoad(BoundFunctionPointerLoad node) {
+                if (node.targetMethod.methodKind == MethodKind.LocalFunction) {
+                    _diagnostics.Push(Error.DefaultValueCannotReferenceLocals(
+                        node.syntax.location,
+                        _parameter.name,
+                        node.targetMethod
+                    ));
+                }
+
+                return null;
+            }
+
+            internal override BoundNode VisitFunctionLoad(BoundFunctionLoad node) {
+                if (node.targetMethod.methodKind == MethodKind.LocalFunction) {
+                    _diagnostics.Push(Error.DefaultValueCannotReferenceLocals(
+                        node.syntax.location,
+                        _parameter.name,
+                        node.targetMethod
+                    ));
                 }
 
                 return null;

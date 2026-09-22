@@ -1383,8 +1383,8 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
     private static BoundBlockStatement FlattenBlock(MethodSymbol method, BoundBlockStatement block, bool needsReturn) {
         var syntax = block.syntax;
         var statementsBuilder = ArrayBuilder<BoundStatement>.GetInstance();
-        var localsBuilder = ArrayBuilder<DataContainerSymbol>.GetInstance();
-        var functionsBuilder = ArrayBuilder<LocalFunctionSymbol>.GetInstance();
+        var localsBuilder = new HashSet<DataContainerSymbol>();
+        var functionsBuilder = new HashSet<LocalFunctionSymbol>();
 
         var stack = new Stack<BoundStatement>();
         stack.Push(block);
@@ -1393,8 +1393,8 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
             var current = stack.Pop();
 
             if (current is BoundBlockStatement blockStatement) {
-                localsBuilder.AddRange(blockStatement.locals);
-                functionsBuilder.AddRange(blockStatement.localFunctions);
+                localsBuilder.AddAll(blockStatement.locals);
+                functionsBuilder.AddAll(blockStatement.localFunctions);
 
                 foreach (var s in blockStatement.statements.Reverse())
                     stack.Push(s);
@@ -1420,8 +1420,8 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         return new BoundBlockStatement(
             syntax,
             statementsBuilder.ToImmutableAndFree(),
-            localsBuilder.ToImmutableAndFree(),
-            functionsBuilder.ToImmutableAndFree()
+            localsBuilder.ToImmutableArray(),
+            functionsBuilder.ToImmutableArray()
         );
     }
 

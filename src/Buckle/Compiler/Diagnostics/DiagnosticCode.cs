@@ -122,7 +122,7 @@ public enum DiagnosticCode : ushort {
     ERR_RefReturnParameter2 = 111,
     ERR_RefReturnScopedParameter = 112,
     ERR_RefReturnOnlyParameter = 113,
-    ERR_ArrayOutsideOfLowLevelContext = 114,
+    // ! Unused slot 114
     ERR_EmptyCharacterLiteral = 115,
     ERR_CharacterLiteralTooLong = 116,
     ERR_UseOfUnassignedLocal = 117,
@@ -659,8 +659,14 @@ public enum DiagnosticCode : ushort {
     ERR_PropertyNoDefiniteAssignmentStruct = 648,
     ERR_DefaultValueCannotReferenceLaterParameter = 649,
     ERR_DefaultValueCannotReferenceParameter = 650,
-    ERR_DefaultValueMustReferenceParameter = 651,
+    ERR_DefaultValueCannotReferenceLocals = 651,
     ERR_PropertyCantHaveVoidType = 652,
+    ERR_InvalidCompileTimeExpressionState = 653,
+    ERR_CompileTimeExpressionThrew = 654,
+    INF_CompileTimeExpressionThrew = 655,
+    ERR_InvalidCompileTimeExpressionWithReason = 656,
+    ERR_InvalidCompileTimeExpressionStack = 657,
+    INF_InvalidCompileTimeExpressionStack = 658,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,
