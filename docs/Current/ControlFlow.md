@@ -70,6 +70,7 @@ With [aggressive compiler warnings enabled](../Buckle.md#--warnlevelwarning-leve
 if a function return value is ignored such as in the following:
 
 ```belte
+// Compiler warns that the return value of 'MyFunction' was ignored
 MyFunction();
 
 int MyFunction() {
@@ -80,10 +81,35 @@ int MyFunction() {
 In this case, a discard assignment can be used to show that ignoring the return value was intentional:
 
 ```belte
+// No warning
 _ = MyFunction();
 
 int MyFunction() {
   return 3;
+}
+```
+
+Similarly, if aggressive compiler warnings are enabled, the compiler will warn if a function has unused parameters:
+
+```belte
+// Compiler warns that 'a' is unused
+void MyFunction(int a) { }
+```
+
+A parameter name starting with an underscore, similar to a discard, will suppress this warning:
+
+```belte
+// No warnings
+void MyFunction(int _, bool _2) { }
+```
+
+Alternatively, you can "use" the parameter by assigning it to a discard:
+
+```belte
+// No warnings
+void MyFunction(int a, bool b) {
+  _ = a;
+  _ = b;
 }
 ```
 

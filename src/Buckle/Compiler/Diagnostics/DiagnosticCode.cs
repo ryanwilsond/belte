@@ -668,6 +668,7 @@ public enum DiagnosticCode : ushort {
     ERR_InvalidCompileTimeExpressionStack = 657,
     INF_InvalidCompileTimeExpressionStack = 658,
     ERR_InvalidEntryTypeAttribute = 659,
+    WRN_UnusedParameter = 660,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

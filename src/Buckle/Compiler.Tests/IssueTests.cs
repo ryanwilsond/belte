@@ -3396,4 +3396,28 @@ public sealed class IssueTests {
 
         AssertValue(text, 3);
     }
+
+    [Fact]
+    public void UnusedParameter_HonorsDiscardConvention() {
+        var text = @"
+            void M(int _) { }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void UnusedParameter_HonorsDiscardAssignment() {
+        var text = @"
+            void M(int a) {
+                _ = a;
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
 }

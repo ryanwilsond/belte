@@ -1,3 +1,5 @@
+using System.Collections.Generic;
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Diagnostics;
@@ -6,25 +8,53 @@ namespace Buckle.CodeAnalysis.Lowering;
 
 // TODO Many more warnings we could check for here
 internal sealed class DiagnosticPass : BoundTreeWalkerWithStackGuard {
+    private readonly MethodSymbol _method;
     private readonly BelteDiagnosticQueue _diagnostics;
     private readonly NamedTypeSymbol _entryType;
+    private readonly bool[] _usedParameters;
+    private readonly Dictionary<LocalFunctionSymbol, bool[]> _localUsedParameters;
 
     private bool _seenPossibleThrowingNode;
 
-    private DiagnosticPass(BelteDiagnosticQueue diagnostics, NamedTypeSymbol entryType) {
+    private DiagnosticPass(MethodSymbol method, BelteDiagnosticQueue diagnostics, NamedTypeSymbol entryType) {
+        _method = method;
         _diagnostics = diagnostics;
         _entryType = entryType;
+        _usedParameters = new bool[_method.parameterCount];
+        _localUsedParameters = [];
     }
 
     internal static void ReportDiagnostics(
         BoundNode node,
+        MethodSymbol method,
         BelteDiagnosticQueue diagnostics,
         NamedTypeSymbol entryType) {
         try {
-            var diagnosticPass = new DiagnosticPass(diagnostics, entryType);
+            var diagnosticPass = new DiagnosticPass(method, diagnostics, entryType);
             diagnosticPass.Visit(node);
+
+            ReportUnusedParameters(method, diagnosticPass._usedParameters, diagnostics);
+
+            foreach (var pair in diagnosticPass._localUsedParameters)
+                ReportUnusedParameters(pair.Key, pair.Value, diagnostics);
         } catch (CancelledByStackGuardException ex) {
             ex.AddAnError(diagnostics);
+        }
+    }
+
+    private static void ReportUnusedParameters(
+        MethodSymbol method,
+        bool[] usedParameters,
+        BelteDiagnosticQueue diagnostics) {
+        for (var i = 0; i < method.parameterCount; i++) {
+            if (!usedParameters[i]) {
+                var parameter = method.parameters[i];
+                var name = parameter.name;
+
+                // Just a convention, no further semantic meaning
+                if (!name.StartsWith('_'))
+                    diagnostics.Push(Warning.UnusedParameter(parameter.location, method, name));
+            }
         }
     }
 
@@ -114,6 +144,26 @@ internal sealed class DiagnosticPass : BoundTreeWalkerWithStackGuard {
             default:
                 return false;
         }
+    }
+
+    internal override BoundNode VisitLocalFunctionStatement(BoundLocalFunctionStatement node) {
+        _localUsedParameters.Add(node.symbol, new bool[node.symbol.parameterCount]);
+        return base.VisitLocalFunctionStatement(node);
+    }
+
+    internal override BoundNode VisitParameterExpression(BoundParameterExpression node) {
+        if (node.parameter.containingSymbol.Equals(_method)) {
+            Debug.Assert(node.parameter.ordinal < _usedParameters.Length);
+            _usedParameters[node.parameter.ordinal] = true;
+        } else if (node.parameter.containingSymbol is LocalFunctionSymbol localFunctionSymbol) {
+            _localUsedParameters[localFunctionSymbol][node.parameter.ordinal] = true;
+        } else {
+            Debug.Assert(node.parameter.containingSymbol is MethodSymbol);
+            Debug.Assert(_method is SourceReverseMethodSymbol or SourceStateMethodSymbol);
+            // TODO Reverse/state clauses don't contribute to target method parameter usage, but maybe they should?
+        }
+
+        return base.VisitParameterExpression(node);
     }
 
     #region NoThrow Checking

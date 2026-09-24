@@ -289,6 +289,11 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_UnnecessaryTemplateSpecialization, location, message);
     }
 
+    internal static BelteDiagnostic UnusedParameter(TextLocation location, MethodSymbol method, string name) {
+        var message = $"'{method}': unused parameter '{name}'";
+        return CreateWarning(DiagnosticCode.WRN_UnusedParameter, location, message);
+    }
+
     private static BelteDiagnostic CreateWarning(DiagnosticCode code, TextLocation location, string message) {
         return CreateWarning(code, location, message, []);
     }

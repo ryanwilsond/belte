@@ -3324,12 +3324,12 @@ public sealed class DiagnosticTests {
     public void Reports_Warning_BU0252_DefaultValueNoEffect() {
         var text = @"
             class A {
-                public static A operator+(A a, int? [b] = 3) { return a; }
+                public static A operator+(A a, int? [_b] = 3) { return a; }
             }
         ";
 
         var diagnostics = @"
-            the default value specified for parameter 'b' will have no effect because it applies to a member that is used in contexts that do not allow optional arguments
+            the default value specified for parameter '_b' will have no effect because it applies to a member that is used in contexts that do not allow optional arguments
         ";
 
         AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
@@ -3457,7 +3457,7 @@ public sealed class DiagnosticTests {
     public void Reports_Warning_BU0263_EqualsWithoutGetHashCode() {
         var text = @"
             class [A] {
-                public override bool! Equals(Object? o) { return true; }
+                public override bool! Equals(Object? _o) { return true; }
             }
         ";
 
@@ -3472,8 +3472,8 @@ public sealed class DiagnosticTests {
     public void Reports_Warning_BU0264_EqualityOpWithoutEquals() {
         var text = @"
             class [[A]] {
-                public static bool? operator==(A a, A b) { return true; }
-                public static bool? operator!=(A a, A b) { return false; }
+                public static bool? operator==(A _a, A _b) { return true; }
+                public static bool? operator!=(A _a, A _b) { return false; }
             }
         ";
 
@@ -3489,8 +3489,8 @@ public sealed class DiagnosticTests {
     public void Reports_Warning_BU0265_EqualityOpWithoutGetHashCode() {
         var text = @"
             class [[A]] {
-                public static bool? operator==(A a, A b) { return true; }
-                public static bool? operator!=(A a, A b) { return false; }
+                public static bool? operator==(A _a, A _b) { return true; }
+                public static bool? operator!=(A _a, A _b) { return false; }
             }
         ";
 
@@ -7023,7 +7023,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Warning_BU0509_LocalFunctionUsingEntryPointName() {
         var text = @"
-            void [Main](int args) {
+            void [Main](int _args) {
 
             }
         ";
@@ -7122,18 +7122,18 @@ public sealed class DiagnosticTests {
     public void Reports_Warning_BU0514_DifferentConstOnOverrideParameter() {
         var text = @"
             class A {
-                public virtual void M(int a) { }
+                public virtual void M(int _a) { }
             }
 
             class B extends A {
-                public override void M(const int [a]) { }
+                public override void M(const int [_a]) { }
             }
 
             ;
         ";
 
         var diagnostics = @"
-            'B.M(const int!)': parameter 'a' is marked 'const' but the corresponding parameter on overridden member 'A.M(int!)' is not
+            'B.M(const int!)': parameter '_a' is marked 'const' but the corresponding parameter on overridden member 'A.M(int!)' is not
         ";
 
         AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
@@ -9761,5 +9761,34 @@ var text = """"""
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0660_UnusedParameter() {
+        var text = @"
+            void M(int [a]) { }
+        ";
+
+        var diagnostics = @"
+            'M(int!)': unused parameter 'a'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0660_UnusedParameter2() {
+        var text = @"
+            class A {
+                void M(int [a]) { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'A.M(int!)': unused parameter 'a'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 }
