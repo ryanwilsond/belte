@@ -1045,7 +1045,8 @@ public sealed class DiagnosticTests {
         var text = @"
             class A {
                 public void M() {
-                    int [A] = 3;
+                    const int [A] = 3;
+                    int [b] = A;
                 }
             }
             ;
@@ -1053,6 +1054,7 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             local 'A' shares a name with a type in this namespace
+            local 'b' is unused
         ";
 
         AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
@@ -9787,6 +9789,133 @@ var text = """"""
 
         var diagnostics = @"
             'A.M(int!)': unused parameter 'a'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0661_UnnecessaryParameterDiscard() {
+        var text = @"
+            void M(int a) {
+                [_ = a];
+                int [b] = a;
+            }
+        ";
+
+        var diagnostics = @"
+            unnecessary parameter discard as parameter 'a' is used elsewhere
+            local 'b' is unused
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0661_UnnecessaryParameterDiscard2() {
+        var text = @"
+            class A {
+                void M(int a) {
+                    [_ = a];
+                    int [b] = a;
+                }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            unnecessary parameter discard as parameter 'a' is used elsewhere
+            local 'b' is unused
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0662_UnusedLocal() {
+        var text = @"
+            void M() {
+                int [a] = 3;
+            }
+        ";
+
+        var diagnostics = @"
+            local 'a' is unused
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0663_LocalCouldBeConst() {
+        var text = @"
+            void M(int p) {
+                int [a] = 3 * p;
+                int [b] = a;
+            }
+        ";
+
+        var diagnostics = @"
+            local 'a' could be marked 'const'
+            local 'b' is unused
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0663_LocalCouldBeConst2() {
+        var text = @"
+            class A {
+                public int field = 0;
+            }
+
+            void M() {
+                var [a] = new A();
+                const [b] = a.field;
+            }
+        ";
+
+        var diagnostics = @"
+            local 'a' could be marked 'const'
+            local 'b' is unused
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0664_LocalCouldBeFinal() {
+        var text = @"
+            class A {
+                public int field = 0;
+            }
+
+            void M() {
+                var [a] = new A();
+                a.field++;
+            }
+        ";
+
+        var diagnostics = @"
+            local 'a' could be marked 'final'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0665_LocalCouldBeConstExpr() {
+        var text = @"
+            void M() {
+                int [a] = 3;
+                int [b] = a;
+            }
+        ";
+
+        var diagnostics = @"
+            local 'a' could be marked 'constexpr'
+            local 'b' is unused
         ";
 
         AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);

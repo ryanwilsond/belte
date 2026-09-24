@@ -294,6 +294,31 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_UnusedParameter, location, message);
     }
 
+    internal static BelteDiagnostic UnnecessaryParameterDiscard(TextLocation location, string name) {
+        var message = $"unnecessary parameter discard as parameter '{name}' is used elsewhere";
+        return CreateWarning(DiagnosticCode.WRN_UnnecessaryParameterDiscard, location, message);
+    }
+
+    internal static BelteDiagnostic UnusedLocal(TextLocation location, string name) {
+        var message = $"local '{name}' is unused";
+        return CreateWarning(DiagnosticCode.WRN_UnusedLocal, location, message);
+    }
+
+    internal static BelteDiagnostic LocalCouldBeConst(TextLocation location, string name) {
+        var message = $"local '{name}' could be marked 'const'";
+        return CreateWarning(DiagnosticCode.WRN_LocalCouldBeConst, location, message);
+    }
+
+    internal static BelteDiagnostic LocalCouldBeFinal(TextLocation location, string name) {
+        var message = $"local '{name}' could be marked 'final'";
+        return CreateWarning(DiagnosticCode.WRN_LocalCouldBeFinal, location, message);
+    }
+
+    internal static BelteDiagnostic LocalCouldBeConstExpr(TextLocation location, string name) {
+        var message = $"local '{name}' could be marked 'constexpr'";
+        return CreateWarning(DiagnosticCode.WRN_LocalCouldBeFinal, location, message);
+    }
+
     private static BelteDiagnostic CreateWarning(DiagnosticCode code, TextLocation location, string message) {
         return CreateWarning(code, location, message, []);
     }
