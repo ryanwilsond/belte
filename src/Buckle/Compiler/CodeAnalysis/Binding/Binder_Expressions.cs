@@ -519,7 +519,12 @@ internal partial class Binder {
         } else {
             // TODO Would be nice if lists could accept empty/non-inferred array initializers
             // diagnostics.Push(Error.ArrayInitToNonArrayType(node.location));
-            result = BindUnexpectedArrayInitializer((InitializerListExpressionSyntax)node, diagnostics, true);
+            // result = BindUnexpectedArrayInitializer(
+            //     (InitializerListExpressionSyntax)node,
+            //     diagnostics,
+            //     inferType: false
+            // );
+            result = BindInitializerListExpression((InitializerListExpressionSyntax)node, diagnostics);
         }
 
         return CheckValue(result, valueKind, diagnostics);
@@ -837,6 +842,7 @@ internal partial class Binder {
             //     break;
 
             case BoundKind.UnconvertedInitializerList:
+            case BoundKind.UnconvertedArrayLength:
                 if (kind == BindValueKind.RValue)
                     return expression;
 
@@ -3248,7 +3254,6 @@ internal partial class Binder {
                 out var implicitIndexerAccess)) {
                 indexerAccessExpression = implicitIndexerAccess;
             } else {
-                var allMembers = expression.Type().GetMembers();
                 indexerAccessExpression = ErrorIndexerExpression(
                     node,
                     expression,

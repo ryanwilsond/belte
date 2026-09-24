@@ -697,10 +697,6 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
     }
 
     private MethodKind ComputeMethodKind() {
-        if (_name == WellKnownMemberNames.ImplicitConversionName) {
-            _ = 3;
-        }
-
         if (hasSpecialName) {
             if (_name.StartsWith(".", StringComparison.Ordinal)) {
                 if ((flags & (MethodAttributes.RTSpecialName | MethodAttributes.Virtual)) == MethodAttributes.RTSpecialName &&
@@ -749,6 +745,11 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
                         case WellKnownMemberNames.ImplicitConversionName:
                         case WellKnownMemberNames.ExplicitConversionName:
                             return IsValidUserDefinedOperatorSignature(1) ? MethodKind.Conversion : MethodKind.Ordinary;
+                        case WellKnownMemberNames.IndexOperatorName:
+                            return IsValidUserDefinedOperatorSignature(2) ? MethodKind.Operator : MethodKind.Ordinary;
+                        case WellKnownMemberNames.LengthOperatorName:
+                        case WellKnownMemberNames.IterOperatorName:
+                            return IsValidUserDefinedOperatorSignature(1) ? MethodKind.Operator : MethodKind.Ordinary;
                     }
                 } else {
                     switch (_name) {
@@ -771,17 +772,6 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
                 }
 
                 return MethodKind.Ordinary;
-            }
-        } else {
-            // Non CLR special names
-            if (declaredAccessibility == Accessibility.Public && isStatic) {
-                switch (_name) {
-                    case WellKnownMemberNames.IndexOperatorName:
-                        return IsValidUserDefinedOperatorSignature(2) ? MethodKind.Operator : MethodKind.Ordinary;
-                    case WellKnownMemberNames.LengthOperatorName:
-                    case WellKnownMemberNames.IterOperatorName:
-                        return IsValidUserDefinedOperatorSignature(1) ? MethodKind.Operator : MethodKind.Ordinary;
-                }
             }
         }
 

@@ -134,4 +134,5 @@ internal partial struct AttributeDescription {
     internal static readonly AttributeDescription ConstMethodAttribute = new AttributeDescription("Belte", "ConstMethodAttribute", Signatures_HasThis_Void_Only);
     internal static readonly AttributeDescription ConstParamAttribute = new AttributeDescription("Belte", "ConstParamAttribute", Signatures_HasThis_Void_Only);
     internal static readonly AttributeDescription ConditionalAttribute = new AttributeDescription("System.Diagnostics", "ConditionalAttribute", Signatures_HasThis_Void_String_Only);
+    internal static readonly AttributeDescription EntryTypeAttribute = new AttributeDescription("Belte", "EntryTypeAttribute", Signatures_HasThis_Void_Only);
 }

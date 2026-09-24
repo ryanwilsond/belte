@@ -120,6 +120,10 @@ internal sealed class SynthesizedSimpleNamedTypeSymbol : NamedTypeSymbol {
         return AttributeUsageInfo.Null;
     }
 
+    internal override bool HasEntryTypeAttribute() {
+        return false;
+    }
+
     private protected override NamedTypeSymbol WithTupleDataCore(TupleExtraData newData) {
         throw ExceptionUtilities.Unreachable();
     }

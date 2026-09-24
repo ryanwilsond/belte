@@ -222,8 +222,12 @@ internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
         Visit(node.receiver);
         VisitList(node.arguments);
 
-        foreach (var field in node.method.initFields)
-            _assignments[_slotMap[field]] = true;
+        foreach (var field in node.method.initFields) {
+            if (_method.containingType.originalDefinition.Equals(node.method.containingType.originalDefinition))
+                _assignments[_slotMap[field]] = true;
+            else if (_slotMap.TryGetValue(field, out var slot))
+                _assignments[slot] = true;
+        }
 
         var expressionSymbol = node.receiver?.expressionSymbol;
 

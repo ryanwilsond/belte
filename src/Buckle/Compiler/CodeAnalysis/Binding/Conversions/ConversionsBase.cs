@@ -3,6 +3,7 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -149,11 +150,49 @@ internal abstract partial class ConversionsBase {
             case TypeKind.TemplateParameter:
                 return HasImplicitReferenceTemplateParameterConversion((TemplateParameterSymbol)source, destination);
             case TypeKind.Array:
-                // TODO Again, we probably don't want covariance
-                // return HasImplicitConversionFromArray(source, destination);
-                return false;
+                return HasImplicitConversionFromArray(source, destination);
         }
 
+        return false;
+    }
+
+
+    private bool HasImplicitConversionFromArray(TypeSymbol source, TypeSymbol destination) {
+        if (source is not ArrayTypeSymbol s)
+            return false;
+
+        if (destination.GetSpecialTypeSafe() == SpecialType.Array)
+            return true;
+
+        if (IsBaseInterface(destination, CorLibrary.Instance.GetSpecialType(SpecialType.Array)))
+            return true;
+
+        if (HasArrayConversionToInterface(s, destination))
+            return true;
+
+        return false;
+    }
+
+    internal bool IsBaseInterface(TypeSymbol baseType, TypeSymbol derivedType) {
+        Debug.Assert(baseType is not null);
+        Debug.Assert(derivedType is not null);
+
+        if (!baseType.IsInterfaceType())
+            return false;
+
+        if (derivedType is not NamedTypeSymbol d)
+            return false;
+
+        foreach (var iface in d.allInterfaces) {
+            if (HasIdentityConversionInternal(iface, baseType))
+                return true;
+        }
+
+        return false;
+    }
+
+    private bool HasArrayConversionToInterface(ArrayTypeSymbol source, TypeSymbol destination) {
+        // TODO
         return false;
     }
 
@@ -736,13 +775,68 @@ internal abstract partial class ConversionsBase {
             return true;
         }
 
-        // TODO
-        // if (HasExplicitArrayConversion(source, destination)) {
-        //     return true;
-        // }
+        if (HasExplicitArrayConversion(source, destination))
+            return true;
 
         if (HasExplicitReferenceTemplateParameterConversion(source, destination))
             return true;
+
+        return false;
+    }
+
+    private bool HasExplicitArrayConversion(TypeSymbol source, TypeSymbol destination) {
+        Debug.Assert(source is not null);
+        Debug.Assert(destination is not null);
+
+        var sourceArray = source as ArrayTypeSymbol;
+        var destinationArray = destination as ArrayTypeSymbol;
+
+        if (sourceArray is not null && destinationArray is not null) {
+            return sourceArray.HasSameShapeAs(destinationArray) &&
+                HasExplicitReferenceConversion(sourceArray.elementType, destinationArray.elementType);
+        }
+
+        if (destinationArray is not null) {
+            if (source.specialType == SpecialType.Array)
+                return true;
+
+            foreach (var iface in CorLibrary.Instance.GetSpecialType(SpecialType.Any).allInterfaces) {
+                if (HasIdentityConversionInternal(iface, source))
+                    return true;
+            }
+        }
+
+        // TODO
+        // if (sourceArray is not null && sourceArray.isSZArray && destination.IsPossibleArrayGenericInterface()) {
+        //     if (HasExplicitReferenceConversion(sourceArray.ElementType, ((NamedTypeSymbol)destination).TypeArgumentWithDefinitionUseSiteDiagnostics(0, ref useSiteInfo).Type, ref useSiteInfo)) {
+        //         return true;
+        //     }
+        // }
+
+        // if (destinationArray is not null && destinationArray.isSZArray) {
+        //     var specialDefinition = ((TypeSymbol)source.OriginalDefinition).SpecialType;
+
+        //     if (specialDefinition == SpecialType.System_Collections_Generic_IList_T ||
+        //         specialDefinition == SpecialType.System_Collections_Generic_ICollection_T ||
+        //         specialDefinition == SpecialType.System_Collections_Generic_IEnumerable_T ||
+        //         specialDefinition == SpecialType.System_Collections_Generic_IReadOnlyList_T ||
+        //         specialDefinition == SpecialType.System_Collections_Generic_IReadOnlyCollection_T) {
+        //         var sourceElement = ((NamedTypeSymbol)source).TypeArgumentWithDefinitionUseSiteDiagnostics(0, ref useSiteInfo).Type;
+        //         var destinationElement = destinationArray.ElementType;
+
+        //         if (HasIdentityConversionInternal(sourceElement, destinationElement)) {
+        //             return true;
+        //         }
+
+        //         if (HasImplicitReferenceConversion(sourceElement, destinationElement, ref useSiteInfo)) {
+        //             return true;
+        //         }
+
+        //         if (HasExplicitReferenceConversion(sourceElement, destinationElement, ref useSiteInfo)) {
+        //             return true;
+        //         }
+        //     }
+        // }
 
         return false;
     }

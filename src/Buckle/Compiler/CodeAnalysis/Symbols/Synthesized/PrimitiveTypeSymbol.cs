@@ -147,6 +147,10 @@ internal sealed class PrimitiveTypeSymbol : NamedTypeSymbol {
         return AttributeUsageInfo.Null;
     }
 
+    internal override bool HasEntryTypeAttribute() {
+        return false;
+    }
+
     private ImmutableArray<TemplateParameterSymbol> ConstructTemplateParameters() {
         if (arity == 0)
             return [];

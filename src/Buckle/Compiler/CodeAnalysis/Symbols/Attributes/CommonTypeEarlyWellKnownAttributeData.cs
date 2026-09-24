@@ -1,11 +1,12 @@
 using System.Collections.Immutable;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class CommonTypeEarlyWellKnownAttributeData : EarlyWellKnownAttributeData {
     private AttributeUsageInfo _attributeUsageInfo = AttributeUsageInfo.Null;
 
-    public AttributeUsageInfo attributeUsageInfo {
+    internal AttributeUsageInfo attributeUsageInfo {
         get {
             return _attributeUsageInfo;
         }
@@ -23,6 +24,21 @@ internal abstract class CommonTypeEarlyWellKnownAttributeData : EarlyWellKnownAt
     }
 
     internal ImmutableArray<string> conditionalSymbols => _lazyConditionalSymbols;
+
+    #endregion
+
+    #region EntryTypeAttribute
+
+    private ThreeState _hasEntryTypeAttribute = ThreeState.Unknown;
+
+    internal ThreeState hasEntryTypeAttribute {
+        get {
+            return _hasEntryTypeAttribute;
+        }
+        set {
+            _hasEntryTypeAttribute = value;
+        }
+    }
 
     #endregion
 }

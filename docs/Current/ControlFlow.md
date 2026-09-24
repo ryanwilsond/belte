@@ -13,6 +13,7 @@
   - [2.2.1](#221-main) Main
   - [2.2.2](#222-program-and-update) Program And Update
   - [2.2.3](#223-disambiguating-entry-points) Disambiguating Entry Points
+    - [2.2.3.1](#2231-entrytype-attribute) `EntryType` Attribute
 - [2.3](#23-conditionals) Conditionals
   - [2.3.1](#231-null-conditions) Null Conditions
   - [2.3.2](#232-null-binding-contracts) Null-Binding Contracts
@@ -353,6 +354,81 @@ search for the entry point in.
 The name passed can be just a type name, or a namespace qualified name. The passed name does not support nesting and
 instead treats everything to the left of the last period as the namespace name. For example `--entry=A.B.C` would look
 for the entry point within a type named `C` inside of a namespace named `A.B`.
+
+#### 2.2.3.1 `EntryType` Attribute
+
+For some programs, you may want to have multiple valid entry points that can be chosen using the *--entry* argument.
+Note that for the case of [field definite assignment](ClassesAndObjects.md#4211-definite-assignment), the entry point
+is treated like a constructor.
+
+For example:
+
+```belte
+class Program {
+  int a;
+
+  void Main() {
+    a = 0;
+  }
+}
+```
+
+Normally this program would be invalid because field `a` does not have definite constructor assignment. But if
+`Program.Main` is the entry point, then it contributes to definite assignment and the program is valid.
+
+Because of this, using the *--entry* argument can break the program as the other entry
+types no longer treat their Main like a constructor.
+
+For example:
+
+```belte
+class P1 {
+  int a;
+
+  void Main() {
+    a = 0;
+  }
+}
+
+class P2 {
+  int a;
+
+  void Main() {
+    a = 1;
+  }
+}
+```
+
+With no *--entry* argument, this program is invalid because the entry point is ambiguous. If the entry point is
+clarified with *--entry=P1*, then `P2` is invalid because `P2.Main` is not treated like an entry point and therefore it
+does not contribute to definite constructor assignment.
+
+For these cases, the `Belte.EntryTypeAttribute` can be used. It tells the compiler to treat any methods within that
+type with an entry point signature like a constructor for field definite assignment.
+
+For example:
+
+```belte
+[Belte.EntryPoint]
+class P1 {
+  int a;
+
+  void Main() {
+    a = 0;
+  }
+}
+
+[Belte.EntryPoint]
+class P2 {
+  int a;
+
+  void Main() {
+    a = 1;
+  }
+}
+```
+
+Now with either *--entry=P1* or *--entry=P2*, the program will be valid.
 
 ## 2.3 Conditionals
 

@@ -504,7 +504,7 @@ internal sealed partial class OverloadResolution {
         if (leftType is not null)
             GetPointerArithmeticOperators(kind, leftType, results);
 
-        if (rightType is not null && (leftType is null || !Conversions.HasIdentityConversion(rightType, leftType)))
+        if (rightType is not null && (leftType is null || !ConversionsBase.HasIdentityConversion(rightType, leftType)))
             GetPointerArithmeticOperators(kind, rightType, results);
 
         if (leftType is not null || rightType is not null ||
@@ -2126,6 +2126,14 @@ internal sealed partial class OverloadResolution {
     }
 
     private BetterResult BetterConversionFromExpression(BoundExpression node, TypeSymbol t1, TypeSymbol t2) {
+        if (node.kind == BoundKind.UnconvertedArrayLength) {
+            // Special case. Implicitly converts to int32 and int64, but we prefer int64 if all else is equal.
+            if (t1.specialType is SpecialType.Int or SpecialType.Int64 && t2.specialType is SpecialType.Int32)
+                return BetterResult.Left;
+            else if (t2.specialType is SpecialType.Int or SpecialType.Int64 && t1.specialType is SpecialType.Int32)
+                return BetterResult.Right;
+        }
+
         return BetterConversionFromExpression(
             node,
             t1,
@@ -2326,7 +2334,7 @@ internal sealed partial class OverloadResolution {
         int betterConversionTargetRecursionLimit) {
         okToDowngradeToNeither = false;
 
-        if (Conversions.HasIdentityConversion(type1, type2))
+        if (ConversionsBase.HasIdentityConversion(type1, type2))
             return BetterResult.Neither;
 
         var type1ToType2 = Conversion.CollapseConversion(
@@ -2399,7 +2407,7 @@ internal sealed partial class OverloadResolution {
     }
 
     private bool ExpressionMatchExactly(BoundExpression node, TypeSymbol t) {
-        if (node.Type() is not null && Conversions.HasIdentityConversion(node.Type(), t))
+        if (node.Type() is not null && ConversionsBase.HasIdentityConversion(node.Type(), t))
             return true;
 
         return false;
@@ -2920,7 +2928,7 @@ internal sealed partial class OverloadResolution {
             return conversion;
         }
 
-        if (argType is not null && Conversions.HasIdentityConversion(argType, parameterType))
+        if (argType is not null && ConversionsBase.HasIdentityConversion(argType, parameterType))
             return Conversion.Identity;
         else
             return Conversion.None;

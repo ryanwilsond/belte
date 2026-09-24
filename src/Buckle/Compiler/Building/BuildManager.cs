@@ -37,7 +37,7 @@ public sealed class BuildManager {
         var compilerState = new CompilerState() {
             buildMode = BuildMode.Dotnet,
             moduleName = "build",
-            references = Compiler.ResolveLibraryLevel(1, noStdLib: _state.noStdLib),
+            references = Compiler.ResolveLibraryLevel(2, noStdLib: _state.noStdLib),
             debugMode = false,
             diagnosticOptions = new TaskDiagnosticOptions() {
                 severity = DiagnosticSeverity.Error,
@@ -75,7 +75,11 @@ public sealed class BuildManager {
             return;
         }
 
-        var sizeInBytes = new FileInfo(_state.dllPath).Length;
+        var copiedCorePath = Path.Join(cacheDirectoryToCreate, "Belte.Core.dll");
+
+        File.Copy(Path.Join(AppContext.BaseDirectory, "Belte.Core.dll"), copiedCorePath);
+
+        var sizeInBytes = new FileInfo(outputFilename).Length + new FileInfo(copiedCorePath).Length;
 
         var meta = new CacheMetadata {
             lastAccess = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
@@ -90,7 +94,7 @@ public sealed class BuildManager {
 
         File.WriteAllText(_state.metaPath, json);
 
-        AddCacheEntry(_state.buildDirectory, index, _state.dllPath, meta);
+        AddCacheEntry(_state.buildDirectory, index, outputFilename, meta);
     }
 
     private static void AddCacheEntry(
@@ -137,8 +141,8 @@ public sealed class BuildManager {
             var parameterType = buildMethod.GetParameters()[1].ParameterType;
 
             if (!typeof(string[]).IsAssignableFrom(parameterType)) {
-                var arrayType = assembly.GetTypes()
-                    .FirstOrDefault(t => t.Name == "Array" && t.Namespace == "Belte" && t.IsGenericType);
+                var coreAssembly = Assembly.LoadFrom(Path.Join(AppContext.BaseDirectory, "Belte.Core.dll"));
+                var arrayType = coreAssembly.GetTypes().FirstOrDefault(t => t.FullName == "Array`1");
 
                 if (arrayType is null) {
                     buildMethod = null;
@@ -155,8 +159,8 @@ public sealed class BuildManager {
             diagnostics.Push(Error.NoBuildMethod());
             // TODO We could hook into the compilation of the script to check for the correct symbols instead of doing this post-hoc
             // But this approach has the benefit of not having to touch the main compiler APIs
-            File.Delete(_state.dllPath);
-            File.Delete(_state.metaPath);
+            // File.Delete(_state.dllPath);
+            // File.Delete(_state.metaPath);
         } else {
             if (buildMethod.GetParameters().Length == 1)
                 buildMethod.Invoke(null, [builder]);

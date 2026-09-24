@@ -52,6 +52,7 @@ public sealed class Builder {
         _diagnosticFlagMode = DiagnosticFlagMode.Global;
         _globalDiagnosticOptions = new();
         _currentDiagnosticOptions = new();
+        buildDiagnostics = new DiagnosticQueue<Diagnostic>();
     }
 
     public List<(string, InputOptions, DiagnosticOptions)> inputs { get; }
@@ -73,6 +74,8 @@ public sealed class Builder {
     public string entryName { get; private set; }
 
     public string assemblyName { get; private set; }
+
+    public DiagnosticQueue<Diagnostic> buildDiagnostics { get; private set; }
 
     public DiagnosticOptions diagnosticOptions => _globalDiagnosticOptions;
 
@@ -184,5 +187,9 @@ public sealed class Builder {
 
     public void SetDiagnosticFlagMode(DiagnosticFlagMode mode) {
         _diagnosticFlagMode = mode;
+    }
+
+    public void AddDiagnostic(DiagnosticSeverity severity, string message) {
+        buildDiagnostics.Push(new Diagnostic(severity, message));
     }
 }

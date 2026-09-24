@@ -90,6 +90,9 @@ public abstract partial class Repl : IDisposable {
                 break;
 
             if (_evaluate) {
+                _abortEvaluation = false;
+                broke = false;
+
                 if (!text.Contains(Environment.NewLine) && text.StartsWith('#')) {
                     EvaluateMetaCommand(text);
                 } else {
@@ -98,8 +101,6 @@ public abstract partial class Repl : IDisposable {
                         Name = "Repl.Run.EvaluateSubmissionWrapper"
                     };
 
-                    _abortEvaluation = false;
-                    broke = false;
                     var startTime = DateTime.Now;
                     evaluateSubmissionThread.Start();
                     evaluateSubmissionThread.Join();

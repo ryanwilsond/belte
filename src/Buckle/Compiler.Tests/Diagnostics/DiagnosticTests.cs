@@ -1635,6 +1635,19 @@ public sealed class DiagnosticTests {
     // Unreachable currently
 
     [Fact]
+    public void Reports_Error_BU0114_InitializerListTargetTypeNotConstructible() {
+        var text = @"
+            int a = [{ 1, 2, 3 }];
+        ";
+
+        var diagnostics = @"
+            cannot initialize type 'int!' with an initializer list because the type does not define a conversion from 'T[]' or 'Buffer<T>'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
     public void Reports_Error_BU0115_EmptyCharacterLiteral() {
         var text = @"
             char a = [''];
@@ -9733,5 +9746,20 @@ var text = """"""
         ";
 
         AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Info);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0659_InvalidEntryTypeAttribute() {
+        var text = @"
+            \[Belte.EntryType\]
+            class [A] { }
+            ;
+        ";
+
+        var diagnostics = @"
+            'A' cannot use the 'EntryType' attribute because it contains no methods with an entry point signature
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 }

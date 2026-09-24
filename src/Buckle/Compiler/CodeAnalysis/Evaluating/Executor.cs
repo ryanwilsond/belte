@@ -62,6 +62,7 @@ internal sealed partial class Executor : ModuleBuilder {
         { SpecialType.Void, typeof(void) },
         { SpecialType.Type, typeof(Type) },
         { SpecialType.String, typeof(string) },
+        { SpecialType.Array, typeof(Array) },
     };
 
     private readonly Dictionary<TypeSymbol, TypeBuilder> _types = [];
@@ -2062,7 +2063,7 @@ internal sealed partial class Executor : ModuleBuilder {
             { "Graphics_DrawSprite_SV", typeof(Executor).GetMethod("DrawSprite", Flags, [typeof(BSprite), typeof(BVec2)]) },
             { "Graphics_LoadTexture_S", typeof(Executor).GetMethod("LoadTexture", Flags, [typeof(string)]) },
             { "Graphics_LoadTexture_SIII", typeof(Executor).GetMethod("LoadTexture", Flags, [typeof(string), typeof(long), typeof(long), typeof(long)]) },
-            { "Graphics_Draw_TRRI?B?D?", typeof(Executor).GetMethod("Draw", Flags, [typeof(BTexture), typeof(BRect), typeof(BRect), typeof(long?), typeof(bool?), typeof(double?)]) },
+            { "Graphics_Draw_TR?RI?B?D?", typeof(Executor).GetMethod("Draw", Flags, [typeof(BTexture), typeof(BRect), typeof(BRect), typeof(long?), typeof(bool?), typeof(double?)]) },
             { "Graphics_DrawRect_RIIII", typeof(Executor).GetMethod("DrawRect", Flags, [typeof(BRect), typeof(long), typeof(long), typeof(long), typeof(long)]) },
             { "Graphics_GetMouseButton_S", typeof(Executor).GetMethod("GetMouseButton", Flags, [typeof(string)]) },
             { "Graphics_GetMousePosition", typeof(Executor).GetMethod("GetMousePosition", Flags, Type.EmptyTypes) },

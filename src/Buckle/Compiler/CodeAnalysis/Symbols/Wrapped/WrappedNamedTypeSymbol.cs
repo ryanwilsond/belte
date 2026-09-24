@@ -45,6 +45,10 @@ internal abstract class WrappedNamedTypeSymbol : NamedTypeSymbol {
         return underlyingNamedType.GetAttributeUsageInfo();
     }
 
+    internal override bool HasEntryTypeAttribute() {
+        return underlyingNamedType.HasEntryTypeAttribute();
+    }
+
     internal override ImmutableArray<string> GetAppliedConditionalSymbols() {
         return underlyingNamedType.GetAppliedConditionalSymbols();
     }

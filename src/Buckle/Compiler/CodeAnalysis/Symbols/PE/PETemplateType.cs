@@ -629,6 +629,11 @@ internal sealed partial class PETemplateType : NamedTypeSymbol {
         return AttributeUsageInfo.Default;
     }
 
+    internal override bool HasEntryTypeAttribute() {
+        // Entry point types cannot be templates
+        return false;
+    }
+
     internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
         return SpecializedCollections.EmptyEnumerable<(MethodSymbol Body, MethodSymbol Implemented)>();
     }

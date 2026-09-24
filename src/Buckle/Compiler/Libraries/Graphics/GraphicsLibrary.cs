@@ -51,7 +51,7 @@ internal class GraphicsLibrary {
             StaticMethod("LoadTexture", Texture, [("path", String)]),
             StaticMethod("LoadTexture", Texture, [("path", String), ("r", Int), ("g", Int), ("b", Int)]),
             StaticMethod("LoadSprite", Sprite, [("path", String, false), ("position", Vec2, false), ("scale", Vec2, true), ("rotation", Int, true)]),
-            StaticMethod("Draw", Int, true, [("texture", Texture, false), ("srcRect", Rect, false), ("dstRect", Rect, false), ("rotation", Int, true), ("flip", Bool, true), ("alpha", Decimal, true)]),
+            StaticMethod("Draw", Int, true, [("texture", Texture, false), ("srcRect", Rect, true), ("dstRect", Rect, false), ("rotation", Int, true), ("flip", Bool, true), ("alpha", Decimal, true)]),
             StaticMethod("DrawSprite", Int, true, [("sprite", Sprite)]),
             StaticMethod("DrawSprite", Int, true, [("sprite", Sprite), ("offset", Vec2)]),
             StaticMethod("LoadText", Text, [("text", String, false), ("fontPath", String, false), ("position", Vec2, false), ("fontSize", Decimal, false), ("angle", Decimal, true), ("r", Int, true), ("g", Int, true), ("b", Int, true)]),

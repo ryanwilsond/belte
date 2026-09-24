@@ -1,7 +1,7 @@
 
 public lowlevel sealed class Array<type T> {
-    private Buffer<T> _array;
-    private BitArray _bitArray;
+    private final Buffer<T> _array;
+    private final BitArray _bitArray;
 
     public constructor(int length) {
         _array = new Buffer<T>((int32)length);
@@ -26,11 +26,27 @@ public lowlevel sealed class Array<type T> {
         return value;
     }
 
+    public void Remove(int index) {
+        _array[(int32)index] = lowlevel default;
+        _bitArray.Set((int32)index, false);
+    }
+
+    public const bool Exists(int index) {
+        return _bitArray.Get((int32)index);
+    }
+
+    public Enumerator<T> Existing() {
+        return new ExistingEnumerator(this);
+    }
+
     public const int Length() {
         return _array.Length;
     }
 
     public static ref T operator[](Array<T> array, int index) {
+        if (!array.Exists(index))
+            throw new InvalidOperationException();
+
         return ref array._array[index];
     }
 
@@ -49,5 +65,39 @@ public lowlevel sealed class Array<type T> {
     public static void Copy(Buffer<T> to, Buffer<T> from, int start, int length) {
         for (int i = 0; i < length; i++)
             to[i + start] = from[i];
+    }
+
+    private sealed class ExistingEnumerator extends Enumerator<T> {
+        private const Array<T> _array;
+        private int _index = 0;
+        private T _current = lowlevel default;
+
+        public constructor(Array<T> array) {
+            _array = array;
+        }
+
+        public override T Current() {
+            return _current;
+        }
+
+        public override void Reset() {
+            _index = 0;
+        }
+
+        public override bool MoveNext() {
+            while ((uint32)_index < _array.Length()) {
+                if (!_array.Exists(_index)) {
+                    _index++;
+                    continue;
+                }
+
+                _current = _array._array[_index++];
+                return true;
+            }
+
+            _index = _array.Length() + 1;
+            _current = lowlevel default;
+            return false;
+        }
     }
 }

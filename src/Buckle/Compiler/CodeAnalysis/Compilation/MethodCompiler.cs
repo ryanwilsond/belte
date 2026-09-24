@@ -884,6 +884,11 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                 state.AddConstructorDefiniteAssignments(method.isStatic, assignments);
             else if (method.IsConstructor() && !method.HasThisConstructorInitializer())
                 state.OrConstructorDefiniteAssignments(method.methodKind == MethodKind.StaticConstructor, assignments);
+        } else if (state.type.HasEntryTypeAttribute()) {
+            if (_compilation.HasEntryPointSignature(method))
+                state.AddConstructorDefiniteAssignments(method.isStatic, assignments);
+            else if (method.IsConstructor() && !method.HasThisConstructorInitializer())
+                state.OrConstructorDefiniteAssignments(method.methodKind == MethodKind.StaticConstructor, assignments);
         } else if (method.IsConstructor() && !method.HasThisConstructorInitializer()) {
             state.AddConstructorDefiniteAssignments(method.methodKind == MethodKind.StaticConstructor, assignments);
         }

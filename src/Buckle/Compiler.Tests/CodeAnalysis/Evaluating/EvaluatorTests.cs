@@ -264,7 +264,8 @@ public sealed class EvaluatorTests {
     [InlineData("var a = default(intptr); return 0;", 0)]
     [InlineData("var a = default(int*); return 0;", 0)]
     [InlineData("var a = default(void(int)*); return 0;", 0)]
-    [InlineData("int[][]? a; a = new int[][] { { 1 } }; return a![0]![0];", 1)]
+    [InlineData("int[][]? a; a = new int[][] { { 1 } }; return a![0][0];", 1)]
+    [InlineData("int[]?[]? a; a = new int[]?[] { { 1 } }; return a![0]![0];", 1)]
     [InlineData("uint64 a = 3; var b = 1 + a; return LowLevel.GetType(b) == typeof(uint64);", true)]
     [InlineData("uint64 a = 3; var b = 1 + a; return LowLevel.GetType(a) == LowLevel.GetType(b);", true)]
     [InlineData("int? a = 3; var b = a is int t; return b;", true)]
@@ -390,7 +391,7 @@ public sealed class EvaluatorTests {
     [InlineData("lowlevel { bool?[]? a = null; return a?[3]; }", null)]
     [InlineData("lowlevel { int?[]? a = {1, 2, null}; return a![0]; }", 1)]
     [InlineData("lowlevel { int?[]? a = {1, 2, null}; return a![2]; }", null)]
-    [InlineData("lowlevel { int?[][]? a = { new int?[] { 1 } }; return a![0]![0]; }", 1)]
+    [InlineData("lowlevel { int?[]?[]? a = { new int?[] { 1 } }; return a![0]![0]; }", 1)]
     [InlineData("lowlevel { var a = new int?[] { 1, 2, 3 }; a = { 4, 5, 6 }; return a[0]; }", 4)]
     [InlineData("Buffer<int> a = { 1, 2, 3 }; return a.Length;", 3)]
     [InlineData("Buffer<int> a = new Buffer<int>(10); return a.Length;", 10)]
@@ -414,7 +415,7 @@ public sealed class EvaluatorTests {
         }", 10)]
     [InlineData(@"
         lowlevel {
-            int[][]? a = { { 1 }, { 2 } };
+            int[]?[]? a = { { 1 }, { 2 } };
             int[]? b = a![0];
             b![0] = 9;
             return a![0]![0];

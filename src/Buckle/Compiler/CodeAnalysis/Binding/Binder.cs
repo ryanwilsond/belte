@@ -1103,9 +1103,6 @@ internal partial class Binder {
 
             var array = CreateArrayOrFatArray(type, 1, diagnostics, useFatArray);
             type = new TypeWithAnnotations(array);
-
-            if (i + 1 < jaggedRank)
-                type = type.SetIsAnnotated();
         }
 
         return type;
@@ -7834,7 +7831,7 @@ symIsHidden:;
                         diagnostics,
                         item.syntax,
                         elementConversion,
-                        (BoundExpression)item,
+                        item,
                         elementType
                     );
 
@@ -7843,11 +7840,8 @@ symIsHidden:;
             }
         }
 
-        if (!reportedErrors) {
-            // TODO What is this error
-            throw ExceptionUtilities.Unreachable();
-            // Error(diagnostics, ErrorCode.ERR_CollectionExpressionTargetTypeNotConstructible, node.Syntax, targetType);
-        }
+        if (!reportedErrors)
+            diagnostics.Push(Error.InitializerListTargetTypeNotConstructible(node.syntax.location, targetType));
 
         return;
     }

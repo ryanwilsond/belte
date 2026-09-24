@@ -1404,8 +1404,8 @@ public sealed partial class Compilation {
             syntax,
             _referenceManager,
             reuseReferenceManager: true,
-            standardLibraryOpt: standardLibrary,
-            graphicsLibraryOpt: graphicsLibrary
+            standardLibraryOpt: _lazyStandardLibrary,
+            graphicsLibraryOpt: _lazyGraphicsLibrary
         );
 
         if (_lazyDeclarationDiagnostics is not null)

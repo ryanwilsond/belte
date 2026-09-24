@@ -55,6 +55,7 @@
     <Content Remove="../../Belte/Belte.Core/src/Belte/Graphics/FRect.blt" />
     <Content Remove="../../Belte/Belte.Core/src/Belte/Graphics/Vec4.blt" />
     <Content Remove="../../Belte/Belte.Core/src/Belte/Graphics/Sound.blt" />
+    <Content Remove="../../Belte/Belte.Core/src/Belte/EntryTypeAttribute.blt" />
 
 
     <Content Remove="../../../docs/images/BelteCapital.png" />
@@ -98,6 +99,7 @@
     <EmbeddedResource Include="../../Belte/Belte.Core/src/Belte/Graphics/FRect.blt" />
     <EmbeddedResource Include="../../Belte/Belte.Core/src/Belte/Graphics/Vec4.blt" />
     <EmbeddedResource Include="../../Belte/Belte.Core/src/Belte/Graphics/Sound.blt" />
+    <EmbeddedResource Include="../../Belte/Belte.Core/src/Belte/EntryTypeAttribute.blt" />
 
 
     <EmbeddedResource Include="../../../docs/images/BelteCapital.png" />

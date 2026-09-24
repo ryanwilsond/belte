@@ -3,8 +3,8 @@ public lowlevel sealed class BitArray {
     private constexpr int32 BitsPerInt32 = 32;
     private constexpr int32 BitsPerByte = 8;
 
-    private Buffer<uint8> _array;
-    private int32 _bitLength;
+    private final Buffer<uint8> _array;
+    private final int32 _bitLength;
 
     public constructor(int32 length) : this(length, false) { }
 

@@ -3213,6 +3213,16 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_InvalidCompileTimeExpressionStack, location, message);
     }
 
+    internal static BelteDiagnostic InitializerListTargetTypeNotConstructible(TextLocation location, TypeSymbol type) {
+        var message = $"cannot initialize type '{type}' with an initializer list because the type does not define a conversion from 'T[]' or 'Buffer<T>'";
+        return CreateError(DiagnosticCode.ERR_InitializerListTargetTypeNotConstructible, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidEntryTypeAttribute(TextLocation location, TypeSymbol type) {
+        var message = $"'{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' cannot use the 'EntryType' attribute because it contains no methods with an entry point signature";
+        return CreateError(DiagnosticCode.ERR_InvalidEntryTypeAttribute, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

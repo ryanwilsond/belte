@@ -121,4 +121,9 @@ public class CompilerState {
     /// If to skip reading template metadata
     /// </summary>
     public bool noTemplateMetadata;
+
+    /// <summary>
+    /// Library level
+    /// </summary>
+    public int l;
 }

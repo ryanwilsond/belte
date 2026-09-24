@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Metadata;
@@ -1527,5 +1528,71 @@ internal sealed partial class PEModule : IDisposable {
 
     internal int GetParameterSequenceNumberOrThrow(ParameterHandle param) {
         return metadataReader.GetParameter(param).SequenceNumber;
+    }
+
+    internal bool HasAttributeUsageAttribute(
+        EntityHandle token,
+        MetadataDecoder attributeNamedArgumentDecoder,
+        out AttributeUsageInfo usageInfo) {
+        var info = FindTargetAttribute(token, AttributeDescription.AttributeUsageAttribute);
+
+        if (info.hasValue) {
+            Debug.Assert(info.signatureIndex == 0);
+
+            if (TryGetAttributeReader(info.handle, out var sigReader) &&
+                CrackIntInAttributeValue(out var validOn, ref sigReader)) {
+                var allowMultiple = false;
+                var inherited = true;
+
+                if (sigReader.RemainingBytes >= 2) {
+                    try {
+                        var numNamedArgs = sigReader.ReadUInt16();
+
+                        for (uint i = 0; i < numNamedArgs; i++) {
+                            var namedArgValues = attributeNamedArgumentDecoder.DecodeCustomAttributeNamedArgumentOrThrow(
+                                ref sigReader
+                            );
+
+                            if (namedArgValues is (_, isProperty: true, typeCode: SerializationTypeCode.Boolean, _)) {
+                                switch (namedArgValues.nameValuePair.Key) {
+                                    case "AllowMultiple":
+                                        allowMultiple = (bool)namedArgValues.nameValuePair.Value.valueInternal;
+                                        break;
+                                    case "Inherited":
+                                        inherited = (bool)namedArgValues.nameValuePair.Value.valueInternal;
+                                        break;
+                                }
+                            }
+                        }
+                    } catch (Exception e) when (e is UnsupportedSignatureContent or BadImageFormatException) { }
+                }
+
+                usageInfo = new AttributeUsageInfo((AttributeTargets)validOn, allowMultiple, inherited);
+                return true;
+            }
+        }
+
+        usageInfo = default;
+        return false;
+    }
+
+    private bool TryGetAttributeReader(CustomAttributeHandle handle, out BlobReader blobReader) {
+        Debug.Assert(!handle.IsNil);
+
+        try {
+            var valueBlob = GetCustomAttributeValueOrThrow(handle);
+
+            if (!valueBlob.IsNil) {
+                blobReader = metadataReader.GetBlobReader(valueBlob);
+
+                if (blobReader.Length >= 4) {
+                    if (blobReader.ReadInt16() == 1)
+                        return true;
+                }
+            }
+        } catch (BadImageFormatException) { }
+
+        blobReader = default;
+        return false;
     }
 }

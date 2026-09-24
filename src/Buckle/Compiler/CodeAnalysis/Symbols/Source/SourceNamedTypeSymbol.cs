@@ -901,6 +901,15 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
         return baseType is not null ? baseType.GetAttributeUsageInfo() : AttributeUsageInfo.Default;
     }
 
+    internal override bool HasEntryTypeAttribute() {
+        var data = GetEarlyDecodedWellKnownAttributeData();
+
+        if (data is not null && data.hasEntryTypeAttribute.HasValue())
+            return data.hasEntryTypeAttribute == ThreeState.True;
+
+        return false;
+    }
+
     internal TypeEarlyWellKnownAttributeData GetEarlyDecodedWellKnownAttributeData() {
         var attributesBag = _lazyAttributesBag;
 
@@ -966,6 +975,28 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
                     if (!hasAnyDiagnostics)
                         return (attributeData, boundAttribute);
                 }
+            }
+
+            return (null, null);
+        }
+
+        if (AttributeData.IsTargetEarlyAttribute(
+                arguments.attributeType,
+                arguments.attributeSyntax,
+                AttributeDescription.EntryTypeAttribute)) {
+            (attributeData, boundAttribute) = arguments.binder.GetAttribute(
+                arguments.attributeSyntax,
+                arguments.attributeType,
+                beforeAttributePartBound: null,
+                afterAttributePartBound: null,
+                out var hasAnyDiagnostics
+            );
+
+            if (!attributeData.hasErrors) {
+                arguments.GetOrCreateData<TypeEarlyWellKnownAttributeData>().hasEntryTypeAttribute = ThreeState.True;
+
+                if (!hasAnyDiagnostics)
+                    return (attributeData, boundAttribute);
             }
 
             return (null, null);

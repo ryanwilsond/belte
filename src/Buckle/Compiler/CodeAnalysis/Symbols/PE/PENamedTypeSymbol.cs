@@ -349,8 +349,53 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
     }
 
     internal override ImmutableArray<AttributeData> GetAttributes() {
-        // TODO
-        return [];
+        var uncommon = GetUncommonProperties();
+
+        if (uncommon == NoUncommonProperties)
+            return [];
+
+        // TODO Volatile read?
+        if (uncommon.lazyCustomAttributes.IsDefault) {
+            var loadedCustomAttributes = LoadAndFilterAttributes(
+                out var hasRequiredMembers,
+                out var hasEntryTypeAttribute
+            );
+
+            if (!uncommon.lazyHasRequiredMembers.HasValue())
+                uncommon.lazyHasRequiredMembers = hasRequiredMembers.ToThreeState();
+
+            if (!uncommon.lazyHasEntryTypeAttribute.HasValue())
+                uncommon.lazyHasEntryTypeAttribute = hasEntryTypeAttribute.ToThreeState();
+
+            Debug.Assert(uncommon.lazyHasRequiredMembers.Value() == hasRequiredMembers);
+
+            ImmutableInterlocked.InterlockedInitialize(ref uncommon.lazyCustomAttributes, loadedCustomAttributes);
+        }
+
+        return uncommon.lazyCustomAttributes;
+
+        ImmutableArray<AttributeData> LoadAndFilterAttributes(
+            out bool hasRequiredMembers,
+            out bool hasEntryTypeAttribute) {
+            hasRequiredMembers = false;
+            hasEntryTypeAttribute = false;
+
+            var containingModule = containingPEModule;
+
+            if (!containingModule.TryGetNonEmptyCustomAttributes(_handle, out var customAttributeHandles))
+                return [];
+
+            using var builder = TemporaryArray<AttributeData>.Empty;
+
+            foreach (var handle in customAttributeHandles) {
+                if (containingModule.AttributeMatchesFilter(handle, AttributeDescription.EntryTypeAttribute))
+                    hasEntryTypeAttribute = true;
+
+                builder.Add(new PEAttributeData(containingModule, handle));
+            }
+
+            return builder.ToImmutableAndClear();
+        }
     }
 
 
@@ -1006,12 +1051,29 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
         if (uncommon == NoUncommonProperties)
             return baseType is not null ? baseType.GetAttributeUsageInfo() : AttributeUsageInfo.Default;
 
-        // TODO Attributes
-        return AttributeUsageInfo.Default;
-        // if (uncommon.lazyAttributeUsageInfo.IsNull) {
-        //     uncommon.lazyAttributeUsageInfo = this.DecodeAttributeUsageInfo();
-        // }
+        if (uncommon.lazyAttributeUsageInfo.isNull)
+            uncommon.lazyAttributeUsageInfo = DecodeAttributeUsageInfo();
 
-        // return uncommon.lazyAttributeUsageInfo;
+        return uncommon.lazyAttributeUsageInfo;
+    }
+
+    private AttributeUsageInfo DecodeAttributeUsageInfo() {
+        if (containingPEModule.module.HasAttributeUsageAttribute(
+                _handle,
+                new MetadataDecoder(containingPEModule),
+                out var info)) {
+            return info.hasValidAttributeTargets ? info : AttributeUsageInfo.Default;
+        }
+
+        return baseType is not null ? baseType.GetAttributeUsageInfo() : AttributeUsageInfo.Default;
+    }
+
+    internal override bool HasEntryTypeAttribute() {
+        var uncommon = GetUncommonProperties();
+
+        if (uncommon == NoUncommonProperties)
+            return false;
+
+        return uncommon.lazyHasEntryTypeAttribute == ThreeState.True;
     }
 }

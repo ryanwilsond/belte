@@ -799,6 +799,25 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
         _ = CalculateInterfacesToEmit();
 
         CheckStructLayoutEfficiency(diagnostics);
+
+        CheckEntryTypeAttribute(diagnostics);
+    }
+
+    private void CheckEntryTypeAttribute(BelteDiagnosticQueue diagnostics) {
+        if (!HasEntryTypeAttribute())
+            return;
+
+        var hasPotentialEntryPoint = false;
+
+        foreach (var member in GetMembers()) {
+            if (member is MethodSymbol method && declaringCompilation.HasEntryPointSignature(method)) {
+                hasPotentialEntryPoint = true;
+                break;
+            }
+        }
+
+        if (!hasPotentialEntryPoint)
+            diagnostics.Push(Error.InvalidEntryTypeAttribute(location, this));
     }
 
     private void CheckInterfaceUnification(BelteDiagnosticQueue diagnostics) {

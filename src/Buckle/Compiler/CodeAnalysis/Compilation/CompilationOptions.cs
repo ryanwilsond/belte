@@ -20,7 +20,8 @@ public struct CompilationOptions {
         TaskDiagnosticOptions globalDiagnosticOptions = null,
         Dictionary<string, TaskDiagnosticOptions> localDiagnosticOptions = null,
         bool excludeWritingTemplateMetadata = false,
-        bool excludeReadingTemplateMetadata = false) {
+        bool excludeReadingTemplateMetadata = false,
+        bool evaluatorStrictExceptionMode = true) {
         topLevelBinderFlags = BinderFlags.None;
         this.buildMode = buildMode;
         this.outputKind = outputKind;
@@ -38,6 +39,7 @@ public struct CompilationOptions {
         this.localDiagnosticOptions = localDiagnosticOptions;
         this.excludeWritingTemplateMetadata = excludeWritingTemplateMetadata;
         this.excludeReadingTemplateMetadata = excludeReadingTemplateMetadata;
+        this.evaluatorStrictExceptionMode = evaluatorStrictExceptionMode;
     }
 
     /// <summary>
@@ -102,4 +104,10 @@ public struct CompilationOptions {
     internal bool excludeWritingTemplateMetadata { get; }
 
     internal bool excludeReadingTemplateMetadata { get; }
+
+    /// <summary>
+    /// True if to have the Evaluator exit on any exception.
+    /// False if to have the Evaluator try to unwind on an exception and potentially throw multiple times.
+    /// </summary>
+    internal bool evaluatorStrictExceptionMode { get; }
 }

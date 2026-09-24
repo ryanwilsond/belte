@@ -642,6 +642,8 @@ public class {name} {{
         var maxCores = builder.maxCores > 0 ? builder.maxCores : Environment.ProcessorCount - 2;
         var concurrentBuild = maxCores > 1;
 
+        diagnostics.PushRange(builder.buildDiagnostics);
+
         return new CompilerState() {
             buildMode = builder.buildMode,
             moduleName = moduleName,
@@ -666,6 +668,7 @@ public class {name} {{
             noBootStrap = false,
             skipTemplateMetadata = builder.excludeTemplateMetadata,
             noTemplateMetadata = builder.excludeTemplateMetadata,
+            l = builder.l,
         };
     }
 
@@ -988,11 +991,11 @@ public class {name} {{
         ignoreDiagnostic |= WarningExcluded(info, diagnosticOptions.excludeWarnings);
 
         if (!ignoreDiagnostic) {
-            if (info.module != "BU") {
+            if (info.module != "BU" || diagnostic is not BelteDiagnostic belteDiagnostic) {
                 Console.Write($"{me}: ");
                 DiagnosticFormatter.PrettyPrint(diagnostic, textColor);
             } else {
-                DiagnosticFormatter.PrettyPrint(diagnostic as BelteDiagnostic, textColor);
+                DiagnosticFormatter.PrettyPrint(belteDiagnostic, textColor);
             }
         }
 
@@ -1316,7 +1319,6 @@ public class {name} {{
         var wErrorLevel = 2;
 
         var anyExplicitReferences = false;
-        var l = 2;
         var sae = false;
 
         string currentFileAssociation = null;
@@ -1353,6 +1355,7 @@ public class {name} {{
         state.noBootStrap = false;
         state.skipTemplateMetadata = false;
         state.noTemplateMetadata = false;
+        state.l = 2;
 
         void DecodeSimpleOption(string arg) {
             switch (arg) {
@@ -1439,13 +1442,13 @@ public class {name} {{
                     state.time = true;
                     break;
                 case "-l0":
-                    l = 0;
+                    state.l = 0;
                     break;
                 case "-l1":
-                    l = 1;
+                    state.l = 1;
                     break;
                 case "-lall":
-                    l = 2;
+                    state.l = 2;
                     break;
                 case "--sae":
                     sae = true;
@@ -1698,7 +1701,7 @@ public class {name} {{
             state.concurrentBuild = false;
 
         references.AddRange(Compiler.ResolveLibraryLevel(
-            l,
+            state.l,
             state.noStdLib || state.noBootStrap || state.buildMode == BuildMode.Evaluate
         ));
 

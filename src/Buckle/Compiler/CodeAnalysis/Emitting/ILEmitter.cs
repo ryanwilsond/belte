@@ -2452,6 +2452,7 @@ internal partial class ILEmitter : ModuleBuilder {
             (SpecialType.Float64, "System.Double"),
             (SpecialType.IntPtr, "System.IntPtr"),
             (SpecialType.UIntPtr, "System.UIntPtr"),
+            (SpecialType.Array, "System.Array"),
         };
 
         foreach (var (type, metadataName) in builtInTypes) {

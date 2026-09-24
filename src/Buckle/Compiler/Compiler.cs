@@ -44,7 +44,8 @@ public sealed class Compiler {
         state.diagnosticOptions,
         state.taskDiagnosticOptions,
         state.skipTemplateMetadata,
-        state.noTemplateMetadata
+        state.noTemplateMetadata,
+        evaluatorStrictExceptionMode: true
     );
 
     /// <summary>
@@ -167,6 +168,7 @@ public sealed class Compiler {
                 _options.buildMode,
                 _options.concurrentBuild,
                 _options.maxCoreCount,
+                explicitLibraryLevel: state.l,
                 noStdLib: state.noStdLib || state.noBootStrap,
                 includeAllNativeFiles: state.noBootStrap
             );
@@ -217,7 +219,8 @@ public sealed class Compiler {
             _options.globalDiagnosticOptions,
             _options.localDiagnosticOptions,
             _options.excludeWritingTemplateMetadata,
-            _options.excludeReadingTemplateMetadata
+            _options.excludeReadingTemplateMetadata,
+            _options.evaluatorStrictExceptionMode
         );
 
         if (buildMode is BuildMode.Evaluate or BuildMode.Execute or BuildMode.Emulate) {

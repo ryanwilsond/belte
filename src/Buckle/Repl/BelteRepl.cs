@@ -25,8 +25,14 @@ namespace Repl;
 /// Uses framework from <see cref="Repl" /> and adds syntax highlighting and evaluation.
 /// </summary>
 public sealed partial class BelteRepl : Repl {
-    private static readonly CompilationOptions DefaultOptions =
-        new CompilationOptions(BuildMode.Repl, OutputKind.GraphicsApplication, [], true);
+    private static readonly CompilationOptions DefaultOptions = new CompilationOptions(
+        BuildMode.Repl,
+        OutputKind.GraphicsApplication,
+        arguments: [],
+        isScript: true,
+        evaluatorStrictExceptionMode: false
+    );
+
     // TODO Any benefit to generating numbered assembly names so they are unique?
     private static readonly Compilation EmptyCompilation = Compilation.CreateScript("ReplSubmission", DefaultOptions);
     private static readonly ImmutableArray<(string name, string contributor, ColorTheme theme)> InUse =

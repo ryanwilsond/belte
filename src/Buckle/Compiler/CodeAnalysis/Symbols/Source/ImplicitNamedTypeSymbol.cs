@@ -40,6 +40,10 @@ internal sealed class ImplicitNamedTypeSymbol : SourceMemberContainerTypeSymbol 
         return AttributeUsageInfo.Null;
     }
 
+    internal override bool HasEntryTypeAttribute() {
+        return false;
+    }
+
     private protected override void CheckInterfaces(BelteDiagnosticQueue diagnostics) { }
 
     public override ImmutableArray<TemplateParameterSymbol> templateParameters => [];

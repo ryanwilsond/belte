@@ -158,6 +158,8 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
 
     internal abstract ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers();
 
+    internal abstract bool HasEntryTypeAttribute();
+
     internal virtual NamedTypeSymbol AsMember(NamedTypeSymbol newOwner) {
         return newOwner.isDefinition
             ? this

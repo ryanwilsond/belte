@@ -191,6 +191,12 @@ internal sealed partial class Evaluator {
                 _context.graphicsHandler?.SetUpdateHandler(UpdateCaller);
         } catch (BoundTreeVisitor.CancelledByStackGuardException e) {
             exceptions.Add(e);
+            lastOutputWasPrint = false;
+            _hasValue = false;
+        } catch (Exception e) when (_compilation.options.evaluatorStrictExceptionMode) {
+            exceptions.Add(e);
+            lastOutputWasPrint = false;
+            _hasValue = false;
         }
 
         hasValue = _hasValue;
@@ -613,7 +619,7 @@ internal sealed partial class Evaluator {
             if (abort)
                 return EvaluatorValue.None;
 
-            if (_insideTry || _insideExpressionEvaluation)
+            if (_insideTry || _insideExpressionEvaluation || _compilation.options.evaluatorStrictExceptionMode)
                 throw;
 
             exceptions.Add(e);
@@ -658,12 +664,15 @@ internal sealed partial class Evaluator {
             _recursionDepth--;
         }
 
-        if (_insideExpressionEvaluation) {
-            CheckResultIsCoherent(node, used, result);
-        } else {
+        // Exception unwinding can create weird states
+        if (exceptions.Count == 0) {
+            if (_insideExpressionEvaluation) {
+                CheckResultIsCoherent(node, used, result);
+            } else {
 #if DEBUG
-            CheckResultIsCoherent(node, used, result);
+                CheckResultIsCoherent(node, used, result);
 #endif
+            }
         }
 
         return result;
@@ -879,13 +888,31 @@ internal sealed partial class Evaluator {
         var thisParameter = _stack.Peek().values[0];
         var heapObject = GetHeapObjectFromPointer(thisParameter);
 
-        Debug.Assert(heapObject.type.originalDefinition.Equals(templateParameter.containingType.originalDefinition));
+        if (heapObject.type.originalDefinition.Equals(templateParameter.containingType.originalDefinition)) {
+            if (!_program.TryGetTypeLayoutIncludingParents((NamedTypeSymbol)heapObject.type, out var layout))
+                throw new BelteInternalException($"Failed to get type layout ({heapObject.type}).");
 
-        if (!_program.TryGetTypeLayoutIncludingParents((NamedTypeSymbol)heapObject.type, out var layout))
-            throw new BelteInternalException($"Failed to get type layout ({heapObject.type}).");
+            var field = layout.GetLocal(templateParameter);
+            return heapObject.fields[field.slot];
+        } else {
+            // This happens when we have nested classes so the template parameter is owned by a base type
+            // In this case, fallback to using the symbol tree for the values
+            // TODO This raises the question, why are we not just using the symbol tree always?
+            // TODO Could be because we only rigorously substitute behind #if DEBUG guards
+            // This means we either need:
+            //  1) To always substitute (small performance hit)
+            //  2) Find a way to retrieve the base type HeapObject to get the template arguments
+            //      This could potentially be done by peaking up the _stack until we find a matching heap pointer
+            var typeOrConstant = ((NamedTypeSymbol)heapObject.type).templateSubstitution
+                .SubstituteTemplateParameter(templateParameter);
 
-        var field = layout.GetLocal(templateParameter);
-        return heapObject.fields[field.slot];
+            Debug.Assert(typeOrConstant.isConstant || !typeOrConstant.type.type.IsTemplateParameter());
+
+            if (typeOrConstant.isType)
+                return EvaluatorValue.Type(typeOrConstant.type.type);
+            else
+                return EvaluatorValue.Literal(typeOrConstant.constant.value, typeOrConstant.constant.specialType);
+        }
     }
 
     private EvaluatorValue EvaluateMethodGroup(BoundMethodGroup node) {
@@ -2862,11 +2889,6 @@ internal sealed partial class Evaluator {
 
         var thisParameter = EvaluateThisParameter(receiver, abort);
 
-        if (thisParameter.kind == ValueKind.Int64) {
-            Debug.Assert(false);
-            thisParameter = EvaluateExpression(receiver, true, abort);
-        }
-
         if (thisParameter.kind == ValueKind.Null)
             throw new BelteNullReferenceException(receiver.syntax.location);
 
@@ -2901,9 +2923,12 @@ internal sealed partial class Evaluator {
                 var temp = thisParameter.loc[thisParameter.ptr];
                 Debug.Assert(temp.kind == ValueKind.Struct);
                 typeToLookup = temp.@struct.type.StrippedType();
-            } else {
-                Debug.Assert(thisParameter.kind == ValueKind.HeapPtr);
+            } else if (thisParameter.kind == ValueKind.HeapPtr) {
                 typeToLookup = _context.heap[thisParameter.ptr].type.StrippedType();
+            } else {
+                // Primitives
+                Debug.Assert(method.containingType.specialType == SpecialType.Object);
+                return method;
             }
 
             // TODO Use GetLeastOverriddenMember instead
@@ -2996,6 +3021,12 @@ internal sealed partial class Evaluator {
                     frame.values[0] = thisParameter;
                     break;
                 default:
+                    // GetHashCode, etc.
+                    if (method.containingType.specialType == SpecialType.Object) {
+                        frame.values[0] = thisParameter;
+                        break;
+                    }
+
                     throw ExceptionUtilities.UnexpectedValue(thisParameter.kind);
             }
         }
@@ -3021,12 +3052,14 @@ internal sealed partial class Evaluator {
             frame.values[slot] = arguments[i];
         }
 
-        if (_insideExpressionEvaluation) {
-            CheckArgumentsAreCoherent(method, arguments);
-        } else {
+        if (exceptions.Count == 0) {
+            if (_insideExpressionEvaluation) {
+                CheckArgumentsAreCoherent(method, arguments);
+            } else {
 #if DEBUG
-            CheckArgumentsAreCoherent(method, arguments);
+                CheckArgumentsAreCoherent(method, arguments);
 #endif
+            }
         }
 
         _stack.Push(frame);
@@ -3804,7 +3837,7 @@ internal sealed partial class Evaluator {
                 }
 
                 break;
-            case "Graphics_Draw_TRRI?B?D?": {
+            case "Graphics_Draw_TR?RI?B?D?": {
                     var evaluatedArguments = arguments.Select(a => EvaluateExpression(a, true, abort)).ToArray();
                     var texturePtr = evaluatedArguments[0];
 

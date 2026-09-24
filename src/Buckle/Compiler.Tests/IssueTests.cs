@@ -3236,4 +3236,164 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Buffer_TargetTypesToUserDefinedConversion() {
+        var text = @"
+            List<decimal> a = { 1, 2, 3 };
+            return a[0];
+        ";
+
+        AssertValue(text, 1);
+    }
+
+    [Fact]
+    public void List_CanBeIndexed() {
+        var text = @"
+            List<decimal> a = { 1, 2, 3 };
+            int idx = 0;
+            decimal o = 0;
+            bool b = o > a[idx];
+            return b;
+        ";
+
+        AssertValue(text, false);
+    }
+
+    [Fact]
+    public void BufferLength_TargetTypesInBinary() {
+        var text = @"
+            Buffer<int> a = { 1, 2, 3 };
+            var b = a.Length - 1;
+            return b;
+        ";
+
+        AssertValue(text, 2);
+    }
+
+    [Fact]
+    public void BufferLength_TargetTypesInBinary2() {
+        var text = @"
+            Buffer<int> a = { 1, 2, 3 };
+            if (a.Length < 1) ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void NestedArray_IsNonNullable() {
+        var text = @"
+            int\[\]\[\] a = new int\[\]\[\] { };
+            int b = a\[0\]\[0\];
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Array_CanRemoveElement() {
+        var text = @"
+            int[] a = new int[] { 1, 2, 3 };
+            a.Remove(0);
+            return a[0];
+        ";
+
+        var exceptions = @"
+            Operation is not valid due to the current state of the object.
+        ";
+
+        AssertExceptions(text, _writer, exceptions);
+    }
+
+    [Fact]
+    public void DefiniteAssignment_IgnoresInaccessibleInitializesFields() {
+        var text = @"
+            class A {
+                private int a;
+
+                public constructor() {
+                    Init();
+                }
+
+                protected void Init() initializes(a) {
+                    a = 0;
+                }
+            }
+
+            class B extends A {
+                public constructor() {
+                    Init();
+                }
+            }
+
+            ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Array_CanIterateExisting() {
+        var text = @"
+            var a = new int[3];
+            a[1] = 5;
+            a[2] = 2;
+            var sum = 0;
+
+            for (item in a.Existing()) sum += item;
+
+            return sum;
+        ";
+
+        AssertValue(text, 7);
+    }
+
+    [Fact]
+    public void Array_ThrowsWhenIteratingNonExisting() {
+        var text = @"
+            var a = new int[3];
+            for (item in a) ;
+        ";
+
+        var exceptions = @"
+            Operation is not valid due to the current state of the object.
+        ";
+
+        AssertExceptions(text, _writer, exceptions);
+    }
+
+    [Fact]
+    public void Dictionary_CanIterate() {
+        var text = @"
+            var a = {0: 5, 1: 6, 2: 7};
+            var keySum = 0;
+            var valueSum = 0;
+
+            for (pair in a) {
+                keySum += pair.key;
+                valueSum += pair.value;
+            }
+
+            return keySum + valueSum;
+        ";
+
+        AssertValue(text, 21);
+    }
+
+    [Fact]
+    public void ValueType_CanCallGetHashCode() {
+        var text = @"
+            Object a = 3;
+            return a.GetHashCode();
+        ";
+
+        AssertValue(text, 3);
+    }
 }

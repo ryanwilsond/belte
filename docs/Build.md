@@ -371,6 +371,20 @@ void Build(Builder builder) {
 }
 ```
 
+### Build Diagnostics
+
+To add diagnostics to the build itself that will be displayed, `Builder.AddDiagnostic(severity, message)` can be used:
+
+```belte
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.AddDiagnostic(.Error, "Build failed");
+}
+```
+
+If any errors are added to the build's diagnostics, it will fail and will not attempt to compile the project.
+
 ## Logging
 
 To enable verbose logging, `Builder.SetVerboseMode(mode)` can be used.

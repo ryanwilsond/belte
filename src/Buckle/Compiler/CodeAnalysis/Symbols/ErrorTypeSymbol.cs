@@ -108,6 +108,10 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
         return AttributeUsageInfo.Null;
     }
 
+    internal override bool HasEntryTypeAttribute() {
+        return false;
+    }
+
     internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
         return SpecializedCollections.EmptyEnumerable<(MethodSymbol Body, MethodSymbol Implemented)>();
     }

@@ -31,6 +31,7 @@ internal static class SpecialTypes {
 
         // Also accept direct external definitions
         { "System.Object", SpecialType.Object },
+        { "System.Array", SpecialType.Array },
     };
 
     internal static SpecialType GetTypeFromMetadataName(string metadataName) {
