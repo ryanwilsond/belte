@@ -29,7 +29,9 @@ internal sealed class ForEachLoopBinder : LoopBinder {
             this,
             null,
             _syntax.valueIdentifier,
-            DataContainerDeclarationKind.ForEachLocal,
+            _syntax.modifier?.kind == SyntaxKind.ConstKeyword
+                ? DataContainerDeclarationKind.ConstantForEachLocal
+                : DataContainerDeclarationKind.ForEachLocal,
             _syntax
         );
 
@@ -71,8 +73,11 @@ internal sealed class ForEachLoopBinder : LoopBinder {
             out _
         );
 
-        _valueSymbol.SetTypeWithAnnotations(inferredType);
-        _indexSymbol?.SetTypeWithAnnotations(new TypeWithAnnotations(compilation.GetSpecialType(SpecialType.Int)));
+        _valueSymbol.SetTypeWithAnnotations(inferredType, diagnostics);
+        _indexSymbol?.SetTypeWithAnnotations(
+            new TypeWithAnnotations(compilation.GetSpecialType(SpecialType.Int)),
+            diagnostics
+        );
 
         return new BoundExpressionStatement(_syntax, BoundFactory.Local(_syntax, _valueSymbol));
     }
@@ -110,8 +115,11 @@ internal sealed class ForEachLoopBinder : LoopBinder {
         if (forEachKind == ForEachLoopKind.IEnumerable && enumeratorInfo is not null)
             ReportDiagnosticsIfUnmanagedCallersOnly(diagnostics, enumeratorInfo.getEnumeratorMethod, _syntax.keyword);
 
-        _valueSymbol.SetTypeWithAnnotations(inferredType);
-        _indexSymbol?.SetTypeWithAnnotations(new TypeWithAnnotations(compilation.GetSpecialType(SpecialType.Int)));
+        _valueSymbol.SetTypeWithAnnotations(inferredType, diagnostics);
+        _indexSymbol?.SetTypeWithAnnotations(
+            new TypeWithAnnotations(compilation.GetSpecialType(SpecialType.Int)),
+            diagnostics
+        );
 
         var body = originalBinder.BindPossibleEmbeddedStatement(node.body, diagnostics);
 

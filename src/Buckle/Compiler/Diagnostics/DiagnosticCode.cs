@@ -674,6 +674,10 @@ public enum DiagnosticCode : ushort {
     WRN_LocalCouldBeConst = 663,
     WRN_LocalCouldBeFinal = 664,
     WRN_LocalCouldBeConstExpr = 665,
+    ERR_NullBindingOnConstant = 666,
+    ERR_FinalAndVariable = 667,
+    ERR_ConstExprAndVariable = 668,
+    ERR_PointerCannotBeConst = 669,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

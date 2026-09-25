@@ -547,6 +547,18 @@ if (a -> x!) {
 }
 ```
 
+By default, the source expression of a null-binding contract must be non-constant. The null-binding local is treated
+as though it is marked [`final`](Data.md#331-modifiers). Optionally, the null-binding local can be marked `const` which
+allows constant source expressions:
+
+```belte
+const MyClass? a = new MyClass();
+
+if (a -> const x!) {
+  // ...
+}
+```
+
 ## 2.4 Loops
 
 ### 2.4.1 While Loops
@@ -590,12 +602,19 @@ for (int i = 0; i < 10; i++) {
 
 ### 2.4.4 For Each Loops
 
-For loops can be used to iterate over a collection type. The collection expression must be an array, string, or be a
-class type with special defined operators.
+For loops can be used to iterate over a collection type. The collection expression must be an array, string, Enumerator,
+or be a class type with special defined operators.
 
 The for loop starts by naming a local to store the collection items, and an optional name for a local to keep track of
 the current index. The index local is always of type `int!`, and the value local is inferred from the collection
 expression.
+
+The general form is `for (item in collection) ;` or `for (item, index in collection) ;` (`item` and `index` can be named
+anything).
+
+Within the body of the for loop, locals `item` and `index` (if it is defined) are treated as though they are marked
+[`final`](Data.md#331-modifiers). Optionally, the `item` local can be marked `const`:
+`for (const item in collection) ;`.
 
 #### 2.4.4.1 String Collections
 
@@ -1201,6 +1220,9 @@ try {
   a?.Dispose();
 }
 ```
+
+Scoped locals are treated as though they are marked [`final`](Data.md#331-modifiers) and cannot be explicitly marked
+`const`, `final`, or `constexpr`.
 
 ### 2.9.1 Destructors
 

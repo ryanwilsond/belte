@@ -36,26 +36,26 @@ void Main() {
             int cI = 1024;
 
             for (int k = 0; k < 324; k++) {
-                int R1 = 1;
-                int R2 = 2048;
-                int K2 = 5120 * 1024;
+                constexpr int R1 = 1;
+                constexpr int R2 = 2048;
+                constexpr int K2 = 5120 * 1024;
 
-                int x0 = R1 * cJ + R2;
-                int x1 = (cI * x0) >> 10;
-                int x2 = (cA * sJ) >> 10;
-                int x3 = (sI * x0) >> 10;
-                int x4 = R1 * x2 - ((sA * x3) >> 10);
-                int x5 = (sA * sJ) >> 10;
-                int x6 = K2 + R1 * 1024 * x5 + cA * x3;
-                int x7 = (cJ * sI) >> 10;
+                const int x0 = R1 * cJ + R2;
+                const int x1 = (cI * x0) >> 10;
+                const int x2 = (cA * sJ) >> 10;
+                const int x3 = (sI * x0) >> 10;
+                const int x4 = R1 * x2 - ((sA * x3) >> 10);
+                const int x5 = (sA * sJ) >> 10;
+                const int x6 = K2 + R1 * 1024 * x5 + cA * x3;
+                const int x7 = (cJ * sI) >> 10;
 
-                int x = 40 + 30 * (cB * x1 - sB * x4) / x6;
-                int y = 12 + 15 * (cB * x4 + sB * x1) / x6;
+                const int x = 40 + 30 * (cB * x1 - sB * x4) / x6;
+                const int y = 12 + 15 * (cB * x4 + sB * x1) / x6;
 
-                int N = ((-cA * x7 - cB * (((-sA * x7) >> 10) + x2) - cI * ((cJ * sB) >> 10)) >> 10) - x5 >> 7;
+                const int N = ((-cA * x7 - cB * (((-sA * x7) >> 10) + x2) - cI * ((cJ * sB) >> 10)) >> 10) - x5 >> 7;
 
-                int o = x + 80 * y;
-                int zz = (x6 - K2) >> 15;
+                const int o = x + 80 * y;
+                const int zz = (x6 - K2) >> 15;
 
                 if (22 > y && y > 0 && x > 0 && 80 > x && zz < z[o]) {
                     z[o] = zz;

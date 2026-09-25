@@ -38,7 +38,7 @@ public static class Program {
             return;
         }
 
-        int32 server = socket(AF_INET, SOCK_STREAM, 0);
+        const int32 server = socket(AF_INET, SOCK_STREAM, 0);
 
         if (server < 0) {
             Console.PrintLine("socket failed");
@@ -75,19 +75,19 @@ public static class Program {
 
         constexpr int32 length = $(int32)String.Length(response);
 
-        uint8* msg = LowLevel.CreateLPCSTR(response);
+        final uint8* msg = LowLevel.CreateLPCSTR(response);
         defer LowLevel.FreeLPCSTR(msg);
 
         // Can loop this block to continually send message on refresh
         {
-            int32 client = accept(server, null, null);
+            const int32 client = accept(server, null, null);
 
             if (client < 0) {
                 Console.PrintLine("accept failed");
                 return;
             }
 
-            uint8 buffer[1024];
+            final uint8 buffer[1024];
 
             if (recv(client, buffer, 1024, 0) <= 0) {
                 _ = closesocket(client);

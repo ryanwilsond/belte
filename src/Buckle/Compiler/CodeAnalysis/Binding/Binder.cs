@@ -1921,7 +1921,7 @@ internal partial class Binder {
             hasErrors |= ReportThisDownCastInConstructor(node, expression, patternType, diagnostics);
 
         var localSymbol = LookupLocal(pattern.identifier) ?? throw ExceptionUtilities.Unreachable();
-        localSymbol.SetTypeWithAnnotations(patternTypeWithAnnotations);
+        localSymbol.SetTypeWithAnnotations(patternTypeWithAnnotations, diagnostics);
 
         var boolType = compilation.GetSpecialType(SpecialType.Bool);
 

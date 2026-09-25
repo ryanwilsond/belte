@@ -3420,4 +3420,72 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
+
+    [Fact]
+    public void LocalUsage_SeesArrayModification() {
+        var text = @"
+            void M() {
+                final Buffer<int> a = new Buffer<int>(10);
+                a\[0\] = 4;
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void ScopedStatement_DoesntAllowNonVar() {
+        var text = @"
+            class A { destructor() {} }
+
+            scoped const A [a] = new A();
+        ";
+
+        var diagnostics = @"
+            modifier 'const' is not valid for this item
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Local_DisallowsFinalAndConst() {
+        var text = @"
+            final const [a] = 3;
+        ";
+
+        var diagnostics = @"
+            cannot mark symbol as both final and const
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Local_DisallowsFinalAndConstExpr() {
+        var text = @"
+            final constexpr [a] = 3;
+        ";
+
+        var diagnostics = @"
+            cannot mark symbol as both final and constexpr
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void LocalUsage_IgnoresDeconstructionLocals() {
+        var text = @"
+            void M() {
+                (int a, int b) = (3, 3);
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
 }

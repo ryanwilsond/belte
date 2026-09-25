@@ -13,8 +13,8 @@ public class Sprite {
         this.rotation = rotation ?? 0;
         this.texture = texture;
 
-        var width = scale?.x;
-        var height = scale?.y;
+        const width = scale?.x;
+        const height = scale?.y;
 
         src = new Rect(0, 0, texture.width, texture.height);
 

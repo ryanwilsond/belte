@@ -2666,6 +2666,9 @@ internal sealed partial class LanguageParser : SyntaxParser {
         if (Peek(offset).kind == SyntaxKind.OpenParenToken)
             offset++;
 
+        if (Peek(offset).kind == SyntaxKind.ConstKeyword)
+            offset++;
+
         if (Peek(offset++).kind != SyntaxKind.IdentifierToken)
             return false;
 
@@ -2684,6 +2687,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
     private StatementSyntax ParseForEachStatement() {
         var keyword = EatToken();
         var openParenthesis = MatchOpenParen();
+        var modifier = EatIfMatch(SyntaxKind.ConstKeyword);
         var valueIdentifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.InKeyword, SyntaxKind.CommaToken);
 
         SyntaxToken comma = null;
@@ -2710,6 +2714,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return SyntaxFactory.ForEachStatement(
             keyword,
             openParenthesis,
+            modifier,
             valueIdentifier,
             comma,
             indexIdentifier,
@@ -2733,11 +2738,13 @@ internal sealed partial class LanguageParser : SyntaxParser {
         _context = saved;
 
         SyntaxToken minusGreaterThan = null;
+        SyntaxToken modifier = null;
         SyntaxToken target = null;
         SyntaxToken exclamation = null;
 
         if (currentToken.kind == SyntaxKind.MinusGreaterThanToken) {
             minusGreaterThan = EatToken();
+            modifier = EatIfMatch(SyntaxKind.ConstKeyword);
             target = Match(SyntaxKind.IdentifierToken, SyntaxKind.ExclamationToken);
             exclamation = Match(SyntaxKind.ExclamationToken, SyntaxKind.CloseParenToken);
         }
@@ -2792,6 +2799,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             openParenthesis,
             condition,
             minusGreaterThan,
+            modifier,
             target,
             exclamation,
             closeParenthesis,
@@ -3687,9 +3695,14 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
         bool IsNullBindingContractTarget() {
             if ((_context & ParserContext.InIfCondition) != 0) {
-                if (Peek(1).kind == SyntaxKind.IdentifierToken &&
-                    Peek(2).kind == SyntaxKind.ExclamationToken &&
-                    Peek(3).kind == SyntaxKind.CloseParenToken) {
+                var offset = 1;
+
+                if (Peek(offset).kind == SyntaxKind.ConstKeyword)
+                    offset++;
+
+                if (Peek(offset).kind == SyntaxKind.IdentifierToken &&
+                    Peek(offset + 1).kind == SyntaxKind.ExclamationToken &&
+                    Peek(offset + 2).kind == SyntaxKind.CloseParenToken) {
                     return true;
                 }
             }

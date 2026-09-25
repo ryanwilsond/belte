@@ -9920,4 +9920,71 @@ var text = """"""
 
         AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
+
+    [Fact]
+    public void Reports_Error_BU0666_NullBindingOnConstant() {
+        var text = @"
+            const int? a = 3;
+
+            if (a -> [x]!) ;
+        ";
+
+        var diagnostics = @"
+            null-binding target must be marked as constant if the source expression is constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0667_FinalAndVariable() {
+        var text = @"
+            final var [a] = 3;
+        ";
+
+        var diagnostics = @"
+            cannot mark a data container as both final and variable
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0668_ConstExprAndVariable() {
+        var text = @"
+            constexpr var [a] = 3;
+        ";
+
+        var diagnostics = @"
+            cannot mark a data container as both constant expression and variable
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0669_PointerCannotBeConst() {
+        var text = @"
+            const int* [p] = nullptr;
+        ";
+
+        var diagnostics = @"
+            data container 'p' cannot be marked as constant because it is a pointer
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0669_PointerCannotBeConst2() {
+        var text = @"
+            const [p] = (int*)0;
+        ";
+
+        var diagnostics = @"
+            data container 'p' cannot be marked as constant because it is a pointer
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

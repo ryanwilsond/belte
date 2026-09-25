@@ -36,7 +36,7 @@ public lowlevel sealed class BitArray {
         (uint32 byteIndex, uint32 bitOffset) = DivRem((uint32)index, BitsPerByte);
 
         ref uint8 segment = ref _array[byteIndex];
-        uint8 bitMask = (uint8)(1 << (int32)bitOffset);
+        const uint8 bitMask = (uint8)(1 << (int32)bitOffset);
 
         if (value)
             segment |= bitMask;
@@ -48,7 +48,7 @@ public lowlevel sealed class BitArray {
         (uint32 index, uint32 extraBits) = DivRem((uint32)_bitLength, BitsPerInt32);
 
         if (extraBits != 0) {
-            var ptr = (Buffer<int32>*)&_array;
+            final Buffer<int32>* ptr = (Buffer<int32>*)&_array;
             (*ptr)[(int32)index] &= ReverseIfBE((1 << (int32)extraBits) - 1);
         }
     }
@@ -58,7 +58,7 @@ public lowlevel sealed class BitArray {
     }
 
     private static Buffer<uint8> AllocateByteArray(int32 bitLength) {
-        int32 byteLength = GetAlignedByteArrayLength(bitLength);
+        const int32 byteLength = GetAlignedByteArrayLength(bitLength);
         return bitLength != 0 ? new Buffer<uint8>(byteLength) : new Buffer<uint8>(0);
     }
 
@@ -79,7 +79,7 @@ public lowlevel sealed class BitArray {
     }
 
     private static (uint32 quotient, uint32 remainder) DivRem(uint32 left, uint32 right) {
-        uint32 quotient = left / right;
+        const uint32 quotient = left / right;
         return (quotient, left - (quotient * right));
     }
 }

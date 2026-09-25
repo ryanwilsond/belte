@@ -12,6 +12,7 @@ internal sealed partial class DiagnosticPass {
         PassedByRefConst = 1 << 3,
         Reassigned = 1 << 4,
         Mutated = 1 << 5,
+
         HasConstExprInitializer = 1 << 6,
 
         UsagePertaining = HasConstExprInitializer - 1,

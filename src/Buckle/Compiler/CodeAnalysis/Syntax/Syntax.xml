@@ -1292,6 +1292,7 @@
     <Field Name="openParenthesis" Type="SyntaxToken">
       <Kind Name="OpenParenToken"/>
     </Field>
+    <Field Name="modifier" Type="SyntaxToken" Optional="true"/>
     <Field Name="valueIdentifier" Type="SyntaxToken">
       <Kind Name="IdentifierToken"/>
     </Field>
@@ -1354,6 +1355,7 @@
     <Field Name="op" Type="SyntaxToken">
       <Kind Name="MinusGreaterThanToken"/>
     </Field>
+    <Field Name="modifier" Type="SyntaxToken" Optional="true"/>
     <Field Name="target" Type="SyntaxToken">
       <Kind Name="IdentifierToken"/>
     </Field>

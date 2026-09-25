@@ -478,10 +478,11 @@ internal partial class Binder {
     }
 
     private protected bool BindNullBindingSource(
-        SyntaxNode syntax,
+        NullBindingStatementSyntax syntax,
         SyntaxNode sourceSyntax,
         ref BoundExpression sourceExpr,
         BelteDiagnosticQueue diagnostics,
+        bool isConstNullBinding,
         out TypeWithAnnotations inferredType) {
         if (sourceExpr.IsLiteralNull() || sourceExpr.kind == BoundKind.UnconvertedNullptrExpression) {
             diagnostics.Push(Error.NullBindingOnNull(sourceSyntax.location));
@@ -494,6 +495,9 @@ internal partial class Binder {
             inferredType = new TypeWithAnnotations(sourceExpr.Type());
             return true;
         }
+
+        if (!isConstNullBinding && sourceExpr.IsConst())
+            diagnostics.Push(Error.NullBindingOnConstant(syntax.target.location));
 
         inferredType = new TypeWithAnnotations(sourceExpr.StrippedType());
         return false;
@@ -1448,7 +1452,12 @@ internal partial class Binder {
 
             if (localSymbol.declarationKind != DataContainerDeclarationKind.Variable &&
                 typeSyntax.kind != SyntaxKind.EmptyName) {
-                diagnostics.Push(Error.ConstantAndVariable(localSymbol.location));
+                if (localSymbol.declarationKind == DataContainerDeclarationKind.Constant)
+                    diagnostics.Push(Error.ConstantAndVariable(localSymbol.location));
+                else if (localSymbol.declarationKind == DataContainerDeclarationKind.Final)
+                    diagnostics.Push(Error.FinalAndVariable(localSymbol.location));
+                else if (localSymbol.declarationKind == DataContainerDeclarationKind.ConstantExpression)
+                    diagnostics.Push(Error.ConstExprAndVariable(localSymbol.location));
             }
 
             // TODO Should we ever lift the elements?
@@ -1631,7 +1640,7 @@ internal partial class Binder {
             }
         }
 
-        localSymbol.SetTypeWithAnnotations(declarationType);
+        localSymbol.SetTypeWithAnnotations(declarationType, diagnostics);
 
         if (kind == DataContainerDeclarationKind.ConstantExpression && initializer is not null) {
             var constantValueDiagnostics = localSymbol.GetConstantValueDiagnostics(initializer);

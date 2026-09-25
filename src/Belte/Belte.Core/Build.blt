@@ -8,7 +8,8 @@ void Build(Builder builder) {
         ..buildMode = .Dotnet
         ..outputKind = .DynamicallyLinkedLibrary
 
-        ..ExcludeWarnings({ "BU0321" })
+        ..SetWarningLevel(2)
+        ..ExcludeWarnings({ "BU0321", "BU0609" })
 
         ..SetLibraryLevel(0)
         ..includeStdLib = false

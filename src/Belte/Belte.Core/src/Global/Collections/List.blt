@@ -46,7 +46,7 @@ public lowlevel sealed class List<type T> {
         if (end <= start)
             return new List<T>();
 
-        List<T> subset = new List<T>(end - start);
+        final List<T> subset = new List<T>(end - start);
 
         for (int i = start; i < end; i++)
             subset.Append(_array[i]);
@@ -55,7 +55,7 @@ public lowlevel sealed class List<type T> {
     }
 
     public const Array<T> ToArray() {
-        Buffer<T> copy = new Buffer<T>(_length);
+        final Buffer<T> copy = new Buffer<T>(_length);
         Array<T>.Copy(copy, _array, 0, _length);
         return new Array<T>((int32)_length, copy);
     }
@@ -67,8 +67,8 @@ public lowlevel sealed class List<type T> {
             return;
         }
 
-        int newCapacity = _length * 2;
-        Buffer<T> newArray = new Buffer<T>(newCapacity);
+        const int newCapacity = _length * 2;
+        final Buffer<T> newArray = new Buffer<T>(newCapacity);
         Array<T>.Copy(newArray, _array, 0, _length);
         _array = newArray;
         _array[_length] = value;
@@ -88,8 +88,8 @@ public lowlevel sealed class List<type T> {
             return;
         }
 
-        int newCapacity = _length + list._length * 2;
-        Buffer<T> newArray = new Buffer<T>(newCapacity);
+        const int newCapacity = _length + list._length * 2;
+        final Buffer<T> newArray = new Buffer<T>(newCapacity);
         Array<T>.Copy(newArray, _array, 0, _length);
         Array<T>.Copy(newArray, list._array, _length, list._length);
         _array = newArray;
@@ -180,7 +180,7 @@ public lowlevel sealed class List<type T> {
             return;
         }
 
-        int newCapacity = length + 10;
+        const int newCapacity = length + 10;
         _array = new Buffer<T>(newCapacity);
         Array<T>.Copy(_array, array, 0, length);
 

@@ -14,7 +14,7 @@ public abstract class Enumerator<type T> {
 
     public List<T> ToList() {
         Reset();
-        var builder = new List<T>();
+        final builder = new List<T>();
 
         while (MoveNext())
             builder.Append(Current());

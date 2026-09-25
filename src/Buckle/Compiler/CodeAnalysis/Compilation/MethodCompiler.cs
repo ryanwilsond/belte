@@ -837,8 +837,15 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         importChain ??= processedInitializers.firstImportChain;
         state.currentImportChain = importChain;
 
-        if (body is not null)
-            DiagnosticPass.ReportDiagnostics(body, method, currentDiagnostics, _entryPoint?.containingType);
+        if (body is not null) {
+            DiagnosticPass.ReportDiagnostics(
+                _compilation,
+                body,
+                method,
+                currentDiagnostics,
+                _entryPoint?.containingType
+            );
+        }
 
         if (currentDiagnostics.AnyErrors() || _hasDeclarationErrors || processedInitializers.hasErrors)
             return currentDiagnostics;

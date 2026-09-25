@@ -41,7 +41,7 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
 
         scope = refKind == RefKind.None ? ScopedKind.Value : ScopedKind.Ref;
 
-        declarationKind = MakeModifiers(modifiers, _declarationDiagnostics, out var isPinned);
+        declarationKind = MakeModifiers(modifiers, kind, _declarationDiagnostics, out var isPinned);
 
         if (kind is not null)
             declarationKind = kind.Value;
@@ -118,6 +118,7 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
         SyntaxToken identifierToken,
         EqualsValueClauseSyntax initializer,
         SyntaxTokenList modifiers,
+        DataContainerDeclarationKind? kind = null,
         Binder initializerBinder = null,
         Binder nodeBinder = null,
         SyntaxNode nodeToBind = null) {
@@ -129,7 +130,8 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
                 typeSyntax,
                 identifierToken,
                 modifiers,
-                nodeToBind
+                nodeToBind,
+                kind
             );
         }
 
@@ -141,6 +143,7 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
             identifierToken,
             initializer,
             modifiers,
+            kind,
             initializerBinder ?? scopeBinder
         );
     }
@@ -244,7 +247,7 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
                 TypeWithAnnotations inferredType;
 
                 try {
-                    inferredType = InferTypeOfImplicit();
+                    inferredType = InferTypeOfImplicit(diagnostics);
                 } finally {
                     localTypeInferenceInProgress.Remove(key);
 
@@ -274,7 +277,8 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
                 }
             }
 
-            SetTypeWithAnnotations(declarationType);
+            SetTypeWithAnnotations(declarationType, diagnostics);
+
             return _type ?? declarationType;
         }
 
@@ -322,15 +326,18 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
         addTo.PushRange(_declarationDiagnostics);
     }
 
-    internal void SetTypeWithAnnotations(TypeWithAnnotations newType) {
+    internal void SetTypeWithAnnotations(TypeWithAnnotations newType, BelteDiagnosticQueue diagnostics) {
         if (_type is null &&
             (newType.type != (object)declaringCompilation.implicitlyTypedVariableInferenceFailedType ||
                  (LocalTypeInferenceInProgress?.Any(static (key, @this) => key.local == (object)@this, this) != true))) {
-            Interlocked.CompareExchange(ref _type, newType, null);
+            if (Interlocked.CompareExchange(ref _type, newType, null) is null) {
+                if (isConst && newType.type.IsPointerOrFunctionPointer())
+                    diagnostics.Push(Error.PointerCannotBeConst(location, name));
+            }
         }
     }
 
-    private protected virtual TypeWithAnnotations InferTypeOfImplicit() {
+    private protected virtual TypeWithAnnotations InferTypeOfImplicit(BelteDiagnosticQueue diagnostics) {
         return _type;
     }
 
@@ -342,6 +349,7 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
         SyntaxToken identifierToken,
         EqualsValueClauseSyntax initializer,
         SyntaxTokenList modifiers,
+        DataContainerDeclarationKind? kind,
         Binder initializerBinder) {
         return initializer is null
             ? new SourceDataContainerSymbol(
@@ -350,7 +358,8 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
                 allowRefKind,
                 typeSyntax,
                 identifierToken,
-                modifiers
+                modifiers,
+                kind
               )
             : new SourceDataContainerWithInitializerSymbol(
                 containingSymbol,
@@ -359,18 +368,23 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
                 identifierToken,
                 initializer,
                 initializerBinder,
-                modifiers
+                modifiers,
+                kind
               );
     }
 
     private DataContainerDeclarationKind MakeModifiers(
         SyntaxTokenList modifiers,
+        DataContainerDeclarationKind? kind,
         BelteDiagnosticQueue diagnostics,
         out bool isPinned) {
-        var allowedModifiers = DeclarationModifiers.Const |
-                               DeclarationModifiers.ConstExpr |
-                               DeclarationModifiers.Final |
-                               DeclarationModifiers.Pinned;
+        var allowedModifiers = DeclarationModifiers.Pinned;
+
+        if (kind != DataContainerDeclarationKind.ScopedLocal) {
+            allowedModifiers |= DeclarationModifiers.Const |
+                                DeclarationModifiers.ConstExpr |
+                                DeclarationModifiers.Final;
+        }
 
         var result = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
             modifiers,
@@ -401,6 +415,10 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
             diagnostics.Push(Error.CannotBeRefAndConstexpr(location));
         else if (isConst && isConstExpr)
             diagnostics.Push(Error.ConflictingModifiers(location, "const", "constexpr"));
+        else if (isFinal && isConst)
+            diagnostics.Push(Error.ConflictingModifiers(location, "final", "const"));
+        else if (isFinal && isConstExpr)
+            diagnostics.Push(Error.ConflictingModifiers(location, "final", "constexpr"));
 
         return declarationKind;
     }

@@ -1588,6 +1588,8 @@ internal partial class Binder {
         return true;
 
         void ReportTransientForEachAssignment(DataContainerSymbol symbol) {
+            Debug.Assert(symbol.declarationKind != DataContainerDeclarationKind.ConstantForEachLocal);
+
             if (symbol.type.IsStructType() && symbol.declarationKind == DataContainerDeclarationKind.ForEachLocal)
                 diagnostics.Push(Warning.TransientForEachAssignment(node.location));
         }

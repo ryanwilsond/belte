@@ -474,7 +474,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
         if (!AssemblyCache.TryGetValue(metadata.location, out var assembly)) {
             try {
-                assembly = Assembly.LoadFrom(metadata.location);
+                assembly = GetOrLoadAssembly(metadata.location);
             } catch (FileLoadException) {
                 Console.WriteLine(metadata.location);
                 throw;
@@ -508,6 +508,17 @@ internal sealed partial class Executor : ModuleBuilder {
         }
 
         return currentFoundType;
+
+        static Assembly GetOrLoadAssembly(string path) {
+            var assemblyName = Path.GetFileNameWithoutExtension(path);
+            var candidates = AppDomain.CurrentDomain.GetAssemblies()
+                .Where(a => a.GetName().Name.Equals(assemblyName, StringComparison.OrdinalIgnoreCase));
+
+            if (candidates.Count() == 1)
+                return candidates.Single();
+
+            return Assembly.LoadFrom(path);
+        }
     }
 
     internal FieldInfo GetField(FieldSymbol field) {

@@ -1,6 +1,5 @@
 using System.Collections.Generic;
 using System.Diagnostics;
-using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Text;
@@ -29,6 +28,7 @@ internal sealed partial class DiagnosticPass : BoundTreeWalkerWithStackGuard {
     }
 
     internal static void ReportDiagnostics(
+        Compilation compilation,
         BoundNode node,
         MethodSymbol method,
         BelteDiagnosticQueue diagnostics,
@@ -37,10 +37,10 @@ internal sealed partial class DiagnosticPass : BoundTreeWalkerWithStackGuard {
             var diagnosticPass = new DiagnosticPass(method, diagnostics, entryType);
             diagnosticPass.Visit(node);
 
-            ReportUnusedParameters(method, diagnosticPass._usedParameters, diagnostics);
+            ReportUnusedParameters(compilation, method, diagnosticPass._usedParameters, diagnostics);
 
             foreach (var pair in diagnosticPass._localUsedParameters)
-                ReportUnusedParameters(pair.Key, pair.Value, diagnostics);
+                ReportUnusedParameters(compilation, pair.Key, pair.Value, diagnostics);
 
             AnalyzeLocalUsage(method.declaringCompilation, diagnosticPass._localUsage, diagnostics);
         } catch (CancelledByStackGuardException ex) {
@@ -87,6 +87,9 @@ internal sealed partial class DiagnosticPass : BoundTreeWalkerWithStackGuard {
 
         if (node.left is BoundDataContainerExpression dataContainerExpression)
             UpdateLocalUsage(dataContainerExpression.dataContainer, LocalUsageInfo.Reassigned);
+
+        if (node.isRef)
+            NoteUsedAsRef(node.right, node.left.GetRefKind());
 
         return base.VisitAssignmentOperator(node);
     }
@@ -152,21 +155,38 @@ internal sealed partial class DiagnosticPass : BoundTreeWalkerWithStackGuard {
 
 
     private static void ReportUnusedParameters(
+        Compilation compilation,
         MethodSymbol method,
         ParameterUsageInfo usedParameters,
         BelteDiagnosticQueue diagnostics) {
         for (var i = 0; i < method.parameterCount; i++) {
+            var parameter = method.parameters[i];
+
+            if (!parameter.containingSymbol.Equals(method))
+                // This happens with state and reverse clauses
+                // We don't want to report parameters as unused if they are owned by the target method
+                continue;
+
             if (!usedParameters.used[i]) {
-                var parameter = method.parameters[i];
                 var name = parameter.name;
 
                 // Just a convention, no further semantic meaning
-                if (!name.StartsWith('_'))
+                if (!name.StartsWith('_') &&
+                    // Attribute constructors have special rules
+                    !IsAttributeConstructor(parameter) &&
+                    // Virtual method may be exposing a parameter solely for overriders' use
+                    !method.isVirtual) {
                     diagnostics.Push(Warning.UnusedParameter(parameter.location, method, name));
+                }
             } else if (usedParameters.usedIgnoringDiscard[i]) {
                 foreach (var location in usedParameters.discardLocations)
                     diagnostics.Push(Warning.UnnecessaryParameterDiscard(location, method.parameters[i].name));
             }
+        }
+
+        bool IsAttributeConstructor(ParameterSymbol parameter) {
+            return parameter.containingSymbol is MethodSymbol { methodKind: MethodKind.Constructor } ctor &&
+                compilation.IsAttributeType(ctor.containingType);
         }
     }
 
@@ -216,19 +236,27 @@ internal sealed partial class DiagnosticPass : BoundTreeWalkerWithStackGuard {
         Compilation compilation,
         Dictionary<DataContainerSymbol, LocalUsageInfo> localUsage,
         BelteDiagnosticQueue diagnostics) {
-        var mergedUsage = MergeLocalUsage(localUsage);
-
-        foreach (var (local, state) in mergedUsage) {
-            if (!local.IsFromCompilation(compilation) || local.isCompilerGenerated || local.isGlobal)
+        foreach (var (local, state) in localUsage) {
+            if (!local.IsFromCompilation(compilation) ||
+                local.isCompilerGenerated ||
+                local.isGlobal ||
+                local.declarationKind == DataContainerDeclarationKind.ScopedLocal) {
                 continue;
+            }
 
             var usage = state & LocalUsageInfo.UsagePertaining;
 
             if (usage == LocalUsageInfo.NotUsed) {
-                // Implicit used when Destroy is called
-                if (local.declarationKind is not DataContainerDeclarationKind.ScopedLocal)
-                    diagnostics.Push(Warning.UnusedLocal(local.location, local.name));
+                diagnostics.Push(Warning.UnusedLocal(local.location, local.name));
+                continue;
+            }
 
+            if (local.declarationKind is DataContainerDeclarationKind.ForEachLocal
+                                      or DataContainerDeclarationKind.ConstantForEachLocal
+                                      or DataContainerDeclarationKind.NullBindingLocal
+                                      or DataContainerDeclarationKind.ConstantNullBindingLocal
+                                      or DataContainerDeclarationKind.PatternLocal
+                                      or DataContainerDeclarationKind.DeclarationExpressionVariable) {
                 continue;
             }
 
@@ -238,7 +266,8 @@ internal sealed partial class DiagnosticPass : BoundTreeWalkerWithStackGuard {
             if (local.isConst || local.isConstExpr)
                 continue;
 
-            if ((usage & (LocalUsageInfo.Mutated | LocalUsageInfo.PassedByRefFinal | LocalUsageInfo.Reassigned)) == 0) {
+            if ((usage & (LocalUsageInfo.Mutated | LocalUsageInfo.PassedByRefFinal | LocalUsageInfo.Reassigned)) == 0 &&
+                !local.type.IsPointerOrFunctionPointer()) {
                 if ((state & LocalUsageInfo.HasConstExprInitializer) != 0)
                     diagnostics.Push(Warning.LocalCouldBeConstExpr(local.location, local.name));
                 else
@@ -253,22 +282,6 @@ internal sealed partial class DiagnosticPass : BoundTreeWalkerWithStackGuard {
             if ((usage & (LocalUsageInfo.Reassigned | LocalUsageInfo.PassedByRefConst)) == 0)
                 diagnostics.Push(Warning.LocalCouldBeFinal(local.location, local.name));
         }
-    }
-
-    private static Dictionary<DataContainerSymbol, LocalUsageInfo> MergeLocalUsage(
-        Dictionary<DataContainerSymbol, LocalUsageInfo> localUsage) {
-        // Chained submissions might have multiple symbols that refer to the same local
-        // In these cases we merge each individual usage's LocalUsageInfo into a consolidated one
-        Dictionary<string, (DataContainerSymbol, LocalUsageInfo)> mergedInfo = [];
-
-        foreach (var (local, usage) in localUsage) {
-            if (!mergedInfo.TryAdd(local.name, (local, usage))) {
-                var existing = mergedInfo[local.name];
-                mergedInfo[local.name] = (existing.Item1, existing.Item2 | usage);
-            }
-        }
-
-        return mergedInfo.ToDictionary(dict => dict.Value.Item1, dict => dict.Value.Item2);
     }
 
     internal override BoundNode VisitBlockStatement(BoundBlockStatement node) {
@@ -324,14 +337,56 @@ internal sealed partial class DiagnosticPass : BoundTreeWalkerWithStackGuard {
     private void NoteUsedAsVar(BoundExpression node) {
         switch (node) {
             case BoundDataContainerExpression dataContainerExpression:
-                UpdateLocalUsage(dataContainerExpression.dataContainer, LocalUsageInfo.Mutated);
+                var local = dataContainerExpression.dataContainer;
+
+                if (TypeCanBeMutated(local.type))
+                    UpdateLocalUsage(local, LocalUsageInfo.Mutated);
+
                 break;
             case BoundFieldAccessExpression fieldAccessExpression:
                 NoteUsedAsVar(fieldAccessExpression.receiver);
                 break;
+            case BoundArrayAccessExpression arrayAccessExpression:
+                NoteUsedAsVar(arrayAccessExpression.receiver);
+                break;
+            case BoundPropertyAccessExpression propertyAccessExpression:
+                NoteUsedAsVar(propertyAccessExpression.receiver);
+                break;
             default:
                 break;
         }
+    }
+
+    private static bool TypeCanBeMutated(TypeSymbol type) {
+        type = type.StrippedType();
+
+        switch (type.specialType) {
+            case SpecialType.Enum:
+            case SpecialType.String:
+            case SpecialType.Bool:
+            case SpecialType.WinBool:
+            case SpecialType.Char:
+            case SpecialType.Int:
+            case SpecialType.Decimal:
+            case SpecialType.Int8:
+            case SpecialType.UInt8:
+            case SpecialType.Int16:
+            case SpecialType.UInt16:
+            case SpecialType.Int32:
+            case SpecialType.UInt32:
+            case SpecialType.Int64:
+            case SpecialType.UInt64:
+            case SpecialType.Float32:
+            case SpecialType.Float64:
+            case SpecialType.IntPtr:
+            case SpecialType.UIntPtr:
+                return false;
+        }
+
+        if (type.IsKnownToBeImmutable())
+            return false;
+
+        return true;
     }
 
     private void NoteUsedAsRef(BoundExpression node, RefKind refKind) {
@@ -372,8 +427,19 @@ internal sealed partial class DiagnosticPass : BoundTreeWalkerWithStackGuard {
 
         if (node.left is BoundDataContainerExpression dataContainerExpression)
             UpdateLocalUsage(dataContainerExpression.dataContainer, LocalUsageInfo.Reassigned);
+        else
+            NoteUsedAsVar(node.left);
 
         return base.VisitCompoundAssignmentOperator(node);
+    }
+
+    internal override BoundNode VisitClampOperator(BoundClampOperator node) {
+        if (node.isAssignment && node.left is BoundDataContainerExpression dataContainerExpression)
+            UpdateLocalUsage(dataContainerExpression.dataContainer, LocalUsageInfo.Reassigned);
+        else
+            NoteUsedAsVar(node.left);
+
+        return base.VisitClampOperator(node);
     }
 
     internal override BoundNode VisitNullCoalescingAssignmentOperator(BoundNullCoalescingAssignmentOperator node) {
@@ -381,6 +447,8 @@ internal sealed partial class DiagnosticPass : BoundTreeWalkerWithStackGuard {
 
         if (node.left is BoundDataContainerExpression dataContainerExpression)
             UpdateLocalUsage(dataContainerExpression.dataContainer, LocalUsageInfo.Reassigned);
+        else
+            NoteUsedAsVar(node.left);
 
         return base.VisitNullCoalescingAssignmentOperator(node);
     }
@@ -392,6 +460,8 @@ internal sealed partial class DiagnosticPass : BoundTreeWalkerWithStackGuard {
 
         if (node.operand is BoundDataContainerExpression dataContainerExpression)
             UpdateLocalUsage(dataContainerExpression.dataContainer, LocalUsageInfo.Reassigned);
+        else
+            NoteUsedAsVar(node.operand);
 
         return base.VisitIncrementOperator(node);
     }
@@ -442,6 +512,11 @@ internal sealed partial class DiagnosticPass : BoundTreeWalkerWithStackGuard {
             _localUsage.TryAdd(local, LocalUsageInfo.NotUsed);
 
         return base.VisitSwitchSection(node);
+    }
+
+    internal override BoundNode VisitAddressOfOperator(BoundAddressOfOperator node) {
+        NoteUsedAsRef(node.operand, RefKind.Ref);
+        return base.VisitAddressOfOperator(node);
     }
 
     #endregion

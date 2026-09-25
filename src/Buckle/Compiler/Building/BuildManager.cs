@@ -141,7 +141,7 @@ public sealed class BuildManager {
             var parameterType = buildMethod.GetParameters()[1].ParameterType;
 
             if (!typeof(string[]).IsAssignableFrom(parameterType)) {
-                var coreAssembly = Assembly.LoadFrom(Path.Join(AppContext.BaseDirectory, "Belte.Core.dll"));
+                var coreAssembly = GetOrLoadCoreAssembly();
                 var arrayType = coreAssembly.GetTypes().FirstOrDefault(t => t.FullName == "Array`1");
 
                 if (arrayType is null) {
@@ -169,6 +169,17 @@ public sealed class BuildManager {
         }
 
         return builder;
+    }
+
+    private static Assembly GetOrLoadCoreAssembly() {
+        var loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies();
+        var candidates = loadedAssemblies
+            .Where(a => a.GetName().Name.Equals("Belte.Core", StringComparison.OrdinalIgnoreCase));
+
+        if (candidates.Count() == 1)
+            return candidates.Single();
+
+        return Assembly.LoadFrom(Path.Join(AppContext.BaseDirectory, "Belte.Core.dll"));
     }
 
     private object FormatArguments(MethodInfo buildMethod) {

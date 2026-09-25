@@ -3223,6 +3223,27 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_InvalidEntryTypeAttribute, location, message);
     }
 
+    internal static BelteDiagnostic NullBindingOnConstant(TextLocation location) {
+        var message = $"null-binding target must be marked as constant if the source expression is constant";
+        var suggestion = "const %";
+        return CreateError(DiagnosticCode.ERR_NullBindingOnConstant, location, message, suggestion);
+    }
+
+    internal static BelteDiagnostic FinalAndVariable(TextLocation location) {
+        var message = "cannot mark a data container as both final and variable";
+        return CreateError(DiagnosticCode.ERR_FinalAndVariable, location, message);
+    }
+
+    internal static BelteDiagnostic ConstExprAndVariable(TextLocation location) {
+        var message = "cannot mark a data container as both constant expression and variable";
+        return CreateError(DiagnosticCode.ERR_ConstExprAndVariable, location, message);
+    }
+
+    internal static BelteDiagnostic PointerCannotBeConst(TextLocation location, string name) {
+        var message = $"data container '{name}' cannot be marked as constant because it is a pointer";
+        return CreateError(DiagnosticCode.ERR_PointerCannotBeConst, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }
