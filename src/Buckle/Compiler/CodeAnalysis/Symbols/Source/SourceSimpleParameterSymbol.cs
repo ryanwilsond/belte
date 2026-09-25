@@ -16,6 +16,7 @@ internal sealed class SourceSimpleParameterSymbol : SourceParameterSymbol {
         TextLocation location)
         : base(owner, ordinal, refKind, isConst, ScopedKind.None, name, syntaxReference, location) {
         typeWithAnnotations = type;
+        AfterTypeChecks();
     }
 
     internal override TypeWithAnnotations typeWithAnnotations { get; }

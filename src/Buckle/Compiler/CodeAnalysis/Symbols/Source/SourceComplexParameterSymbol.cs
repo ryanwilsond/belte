@@ -14,6 +14,7 @@ internal sealed class SourceComplexParameterSymbol : SourceComplexParameterSymbo
         ScopedKind scope)
         : base(owner, ordinal, refKind, isConst, name, syntax, syntax.identifier.location, scope) {
         typeWithAnnotations = type;
+        AfterTypeChecks();
     }
 
     internal override TypeWithAnnotations typeWithAnnotations { get; }

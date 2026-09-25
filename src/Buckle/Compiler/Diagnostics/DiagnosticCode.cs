@@ -678,6 +678,7 @@ public enum DiagnosticCode : ushort {
     ERR_FinalAndVariable = 667,
     ERR_ConstExprAndVariable = 668,
     ERR_PointerCannotBeConst = 669,
+    ERR_PointerCannotBeConstParameter = 670,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

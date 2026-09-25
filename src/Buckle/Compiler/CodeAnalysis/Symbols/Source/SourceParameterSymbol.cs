@@ -134,4 +134,13 @@ internal abstract class SourceParameterSymbol : SourceParameterSymbolBase {
         // return declaredScope;
         return ScopedKind.None;
     }
+
+    private protected void AfterTypeChecks() {
+        if (isConst && type.IsPointerOrFunctionPointer()) {
+            var diagnostics = BelteDiagnosticQueue.GetInstance();
+            diagnostics.Push(Error.PointerCannotBeConstParameter(location, name));
+            AddDeclarationDiagnostics(diagnostics);
+            diagnostics.Free();
+        }
+    }
 }

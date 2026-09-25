@@ -483,6 +483,8 @@ internal sealed class SourcePropertySymbol : SourcePropertySymbolBase {
         if (type.IsVoidType()) {
             diagnostics.Push(Error.PropertyCantHaveVoidType(location, this));
             type = new TypeWithAnnotations(binder.CreateErrorType("void"));
+        } else if (type.type.IsPointerOrFunctionPointer() && hasConstModifier) {
+            diagnostics.Push(Error.PointerCannotBeConst(location, this));
         }
 
         return type;

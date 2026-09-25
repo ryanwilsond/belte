@@ -108,6 +108,8 @@ internal abstract class SourceMemberFieldSymbol : SourceFieldSymbolWithSyntaxRef
             diagnostics.Push(Error.StaticDataContainer(errorLocation));
         else if (type.IsVoidType())
             diagnostics.Push(Error.VoidUsedAsType(errorLocation));
+        else if (type.IsPointerOrFunctionPointer() && isConst)
+            diagnostics.Push(Error.PointerCannotBeConst(location, this));
 
         if (!IsNoMoreVisibleThan(type))
             diagnostics.Push(Error.InconsistentAccessibilityField(errorLocation, type.StrippedType(), this));

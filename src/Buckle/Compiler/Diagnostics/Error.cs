@@ -3239,9 +3239,14 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_ConstExprAndVariable, location, message);
     }
 
-    internal static BelteDiagnostic PointerCannotBeConst(TextLocation location, string name) {
-        var message = $"data container '{name}' cannot be marked as constant because it is a pointer";
+    internal static BelteDiagnostic PointerCannotBeConst(TextLocation location, Symbol symbol) {
+        var message = $"symbol '{symbol}' cannot be marked as constant because it has a pointer type";
         return CreateError(DiagnosticCode.ERR_PointerCannotBeConst, location, message);
+    }
+
+    internal static BelteDiagnostic PointerCannotBeConstParameter(TextLocation location, string name) {
+        var message = $"parameter '{name}' cannot be marked as constant because it has a pointer type";
+        return CreateError(DiagnosticCode.ERR_PointerCannotBeConstParameter, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

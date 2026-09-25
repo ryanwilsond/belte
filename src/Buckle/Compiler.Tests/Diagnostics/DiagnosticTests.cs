@@ -9969,7 +9969,7 @@ var text = """"""
         ";
 
         var diagnostics = @"
-            data container 'p' cannot be marked as constant because it is a pointer
+            symbol 'p' cannot be marked as constant because it has a pointer type
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -9982,7 +9982,65 @@ var text = """"""
         ";
 
         var diagnostics = @"
-            data container 'p' cannot be marked as constant because it is a pointer
+            symbol 'p' cannot be marked as constant because it has a pointer type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0669_PointerCannotBeConst3() {
+        var text = @"
+            class A {
+                const int* [p] = nullptr;
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            symbol 'A.p' cannot be marked as constant because it has a pointer type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0669_PointerCannotBeConst4() {
+        var text = @"
+            class A {
+                const property int* [p] => nullptr;
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            symbol 'A.p' cannot be marked as constant because it has a pointer type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0670_PointerCannotBeConstParameter() {
+        var text = @"
+            void M(const int* [p]) { }
+        ";
+
+        var diagnostics = @"
+            parameter 'p' cannot be marked as constant because it has a pointer type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0670_PointerCannotBeConstParameter2() {
+        var text = @"
+            void M(const int* [p] = nullptr) { }
+        ";
+
+        var diagnostics = @"
+            parameter 'p' cannot be marked as constant because it has a pointer type
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

@@ -332,7 +332,7 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
                  (LocalTypeInferenceInProgress?.Any(static (key, @this) => key.local == (object)@this, this) != true))) {
             if (Interlocked.CompareExchange(ref _type, newType, null) is null) {
                 if (isConst && newType.type.IsPointerOrFunctionPointer())
-                    diagnostics.Push(Error.PointerCannotBeConst(location, name));
+                    diagnostics.Push(Error.PointerCannotBeConst(location, this));
             }
         }
     }
