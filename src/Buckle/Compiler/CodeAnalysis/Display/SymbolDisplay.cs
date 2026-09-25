@@ -756,7 +756,7 @@ public static class SymbolDisplay {
     }
 
     private static void DisplayAttributes(DisplayText text, ImmutableArray<AttributeData> attributes) {
-        foreach (SourceAttributeData attribute in attributes) {
+        foreach (var attribute in attributes) {
             text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
             text.Write(CreateIdentifier(attribute.attributeClass.name));
             text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));

@@ -3488,4 +3488,45 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
+
+    [Fact]
+    public void ArrayGet_UsesRef() {
+        var text = @"
+            struct A {
+                public int x;
+                public constructor(int x) { this.x = x; }
+            }
+
+            var arr = new A[1];
+            arr[0] = new (1);
+            arr[0].x *= 5;
+            return arr[0].x;
+        ";
+
+        AssertValue(text, 5);
+    }
+
+    [Fact]
+    public void RefReturn_UsesRef() {
+        var text = @"
+            struct A {
+                public int x;
+                public constructor(int x) { this.x = x; }
+            }
+
+            int M() {
+                var a = new A(5);
+                GetA(ref a).x *= 10;
+                return a.x;
+            }
+
+            ref A GetA(ref A a) {
+                return ref a;
+            }
+
+            return M();
+        ";
+
+        AssertValue(text, 50);
+    }
 }
