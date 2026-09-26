@@ -8,6 +8,7 @@ internal static class WellKnownMemberExtensions {
         "get_Value",
         "get_HasValue",
         "GetValueOrDefault",
+        "GetValueOrDefault",
 
         "Item1",
 
@@ -66,11 +67,23 @@ internal static class WellKnownMemberExtensions {
         WellKnownMemberNames.InstanceConstructorName,
         "Get",
         "Set",
+
+        "Failure",
+        "get_isSuccess",
+        "get_error",
+        "get_value",
+
+        WellKnownMemberNames.InstanceConstructorName,
     ];
 
     internal static bool IsTupleMember(this WellKnownMember wellKnownMember) {
         return wellKnownMember >= WellKnownMember.ValueTuple_T1_Item1 &&
                wellKnownMember <= WellKnownMember.ValueTuple_TRest_ctor;
+    }
+
+    internal static bool IsArrayMember(this WellKnownMember wellKnownMember) {
+        return wellKnownMember >= WellKnownMember.Array_ctor_1 &&
+               wellKnownMember <= WellKnownMember.Array_Set;
     }
 
     internal static string GetMetadataName(this WellKnownMember wellKnownMember) {

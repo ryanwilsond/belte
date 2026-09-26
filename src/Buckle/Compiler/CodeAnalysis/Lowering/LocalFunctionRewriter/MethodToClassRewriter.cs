@@ -96,6 +96,7 @@ internal abstract partial class MethodToClassRewriter : BoundTreeRewriterWithSta
             newInnerLocals,
             condition,
             increment,
+            node.unroll,
             body,
             node.breakLabel,
             node.continueLabel
@@ -142,7 +143,6 @@ internal abstract partial class MethodToClassRewriter : BoundTreeRewriterWithSta
     internal sealed override TypeSymbol VisitType(TypeSymbol type) {
         return _templateMap.SubstituteType(type)?.type?.type;
     }
-
 
     internal override BoundNode VisitCallExpression(BoundCallExpression node) {
         var rewrittenMethodSymbol = VisitMethodSymbol(node.method);

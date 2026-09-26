@@ -109,7 +109,8 @@ public static class Classifier {
                                SyntaxKind.CharacterLiteralToken or
                                SyntaxKind.InterpolatedStringLiteralToken or
                                SyntaxKind.InterpolatedStringStartToken or
-                               SyntaxKind.InterpolatedStringEndToken;
+                               SyntaxKind.InterpolatedStringEndToken or
+                               SyntaxKind.MultilineStringLiteralToken;
         var isComment = kind.IsComment();
 
         if (isTypeName)

@@ -2,8 +2,10 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Threading;
+using System.Threading.Tasks;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.FlowAnalysis;
@@ -18,7 +20,6 @@ namespace Buckle.CodeAnalysis;
 
 internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationState, object> {
     private readonly Compilation _compilation;
-    private readonly bool _emitting;
     private readonly BelteDiagnosticQueue _diagnostics;
     private readonly ConcurrentDictionary<MethodSymbol, BoundBlockStatement> _methodBodies;
     private readonly ConcurrentDictionary<MethodSymbol, EvaluatorSlotManager> _methodLayouts;
@@ -28,6 +29,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
     private readonly Dictionary<NamedTypeSymbol, SynthesizedEnumMethodContainer> _enumMethodContainerTypes;
     private readonly Predicate<Symbol> _filter;
     private readonly bool _collectSymbols;
+    private readonly bool _hasDeclarationErrors;
 
     private ConcurrentQueue<Action> _workQueue;
     private ManualResetEventSlim _signal;
@@ -37,10 +39,13 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
     private ManualResetEventSlim _done;
 
     private ImmutableDictionary<FieldSymbol, NamedTypeSymbol>.Builder _lazyFixedImplementationTypes;
+    private ImmutableDictionary<MethodSymbol, BoundBlockStatement>.Builder _lazyExpandedTemplateMethods;
+    private ArrayBuilder<SynthesizedTemplateType> _lazyExpandedTemplateTypes;
     private MethodSymbol _entryPoint;
     private MethodSymbol _updatePoint;
 
-    private bool _sawCompileTimeExpression;
+    private volatile bool _sawCompileTimeExpression;
+    private volatile bool _sawNonTypeTemplate;
 
     private MethodCompiler(
         Compilation compilation,
@@ -50,14 +55,13 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder typeLayouts,
         Dictionary<NamedTypeSymbol, SynthesizedEnumMethodContainer> enumMethodContainerTypes,
         Predicate<Symbol> filter,
-        bool emitting,
-        bool collectSymbols) {
+        bool collectSymbols,
+        bool hasDeclarationErrors) {
         _compilation = compilation;
         _diagnostics = diagnostics;
         _entryPoint = entryPoint;
         _updatePoint = updatePoint;
         _filter = filter;
-        _emitting = emitting;
         _types = ArrayBuilder<NamedTypeSymbol>.GetInstance();
         _methodBodies = [];
         _methodLayouts = [];
@@ -65,17 +69,23 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         _synthesizedNestedTypes = [];
         _collectSymbols = collectSymbols;
         _enumMethodContainerTypes = enumMethodContainerTypes;
+        _hasDeclarationErrors = hasDeclarationErrors;
     }
+
+    internal bool transpiling => _compilation.options.buildMode == BuildMode.CSharpTranspile;
+
+    internal bool evaluating => _compilation.options.buildMode.Evaluating();
+
+    internal bool allowNonTypeTemplates => _compilation.options.buildMode.SupportsNonTypeTemplates();
 
     internal static BoundProgram CompileMethodBodies(
         Compilation compilation,
         BelteDiagnosticQueue diagnostics,
         Predicate<Symbol> filter,
+        bool hasDeclarationErrors,
         bool skipEntryPoint = false,
         bool collectSymbols = false) {
         var emittingToDll = compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
-        var transpiling = compilation.options.buildMode == BuildMode.CSharpTranspile;
-
         var globalNamespace = compilation.globalNamespaceInternal;
 
         var typeLayouts = ImmutableDictionary.CreateBuilder<NamedTypeSymbol, EvaluatorSlotManager>();
@@ -124,8 +134,8 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             typeLayouts,
             enumMethodContainerTypes,
             filter,
-            !transpiling,
-            collectSymbols
+            collectSymbols,
+            hasDeclarationErrors
         );
 
         if (compilation.options.concurrentBuild) {
@@ -144,14 +154,30 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             methodCompiler.CompileNamespace(globalNamespace);
         }
 
-        if (!diagnostics.AnyErrors() && methodCompiler._sawCompileTimeExpression)
-            methodCompiler.ComputeCompileTimeExpressions();
+        if (!hasDeclarationErrors && !diagnostics.AnyErrors()) {
+            if (methodCompiler._sawCompileTimeExpression)
+                methodCompiler.ComputeCompileTimeExpressions();
+
+            // TODO Evaluator supports non-type templates natively but we still to do this for diagnostic collection
+            // Is there a way to get around doing this?
+            if (methodCompiler._sawNonTypeTemplate/* && !allowNonTypeTemplates*/)
+                methodCompiler.ExpandTemplates();
+
+            methodCompiler.PerformEntireProgramOptimizationPass(shouldInline: false);
+        }
 
         if (compilation.options.isScript && methodCompiler._updatePoint is null)
             methodCompiler._updatePoint = compilation.GetLateScriptUpdatePoint(methodCompiler._methodBodies);
 
         if (compilation.options.optimizationLevel == OptimizationLevel.Debug)
             methodCompiler.InjectSequencePoints();
+
+        if (((SourceModuleSymbol)compilation.sourceModule).hasBadAttributes &&
+            !hasDeclarationErrors && !diagnostics.AnyErrors()) {
+            diagnostics.Push(Error.ModuleEmitFailure(compilation.sourceModule.name));
+        }
+
+        compilation.templateMetadataReader.ForceComplete();
 
         return methodCompiler.CreateBoundProgram();
     }
@@ -207,11 +233,28 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
     }
 
     private BoundProgram CreateBoundProgram() {
+        ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies;
+        ImmutableArray<NamedTypeSymbol> types;
+
+        if (!allowNonTypeTemplates && _lazyExpandedTemplateTypes is not null && _lazyExpandedTemplateTypes.Any()) {
+            _types.AddRange(_lazyExpandedTemplateTypes.Cast<NamedTypeSymbol>());
+            types = _types.ToImmutableAndFree();
+        } else {
+            types = _types.ToImmutableAndFree();
+        }
+
+        if (!allowNonTypeTemplates && _lazyExpandedTemplateMethods is not null && _lazyExpandedTemplateMethods.Any()) {
+            _lazyExpandedTemplateMethods.AddRange(_methodBodies);
+            methodBodies = _lazyExpandedTemplateMethods.ToImmutableDictionary();
+        } else {
+            methodBodies = _methodBodies.ToImmutableDictionary();
+        }
+
         return new BoundProgram(
             _compilation,
-            _methodBodies.ToImmutableDictionary(),
+            methodBodies,
             _methodLayouts.ToImmutableDictionary(),
-            _types.ToImmutableAndFree(),
+            types,
             _typeLayouts.ToImmutable(),
             _synthesizedNestedTypes,
             _lazyFixedImplementationTypes is null ? [] : _lazyFixedImplementationTypes.ToImmutable(),
@@ -219,6 +262,66 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             _updatePoint,
             _compilation.previous?.boundProgram
         );
+    }
+
+    private void PerformEntireProgramOptimizationPass(bool shouldInline) {
+        if (_compilation.options.optimizationLevel != OptimizationLevel.Release || !shouldInline)
+            return;
+
+        // TODO Many optimizations could happen here
+
+        var inlineableMethods = new ConcurrentDictionary<MethodSymbol, CanInlineVisitor.InlineInformation>();
+
+        foreach (var (method, body) in _methodBodies) {
+            if (!MethodIsInlineable(method)) {
+                inlineableMethods[method] = default;
+                continue;
+            }
+
+            if (!CanInlineVisitor.MethodBodyIsInlineable(method, body, out var inlineInformation)) {
+                inlineableMethods[method] = default;
+                continue;
+            }
+
+            inlineableMethods[method] = inlineInformation;
+        }
+
+        Parallel.ForEach(_methodBodies, OptimizeBody);
+
+        static bool MethodIsInlineable(MethodSymbol method) {
+            switch (method.methodKind) {
+                case MethodKind.Destructor:
+                case MethodKind.Ordinary:
+                case MethodKind.LocalFunction:
+                case MethodKind.Operator:
+                case MethodKind.Conversion:
+                case MethodKind.AnonymousFunction:
+                case MethodKind.Lambda:
+                case MethodKind.Literal:
+                case MethodKind.PropertyGet:
+                case MethodKind.PropertySet:
+                    break;
+                case MethodKind.Constructor:
+                case MethodKind.StaticConstructor:
+                case MethodKind.Finalizer:
+                case MethodKind.FunctionPointerSignature:
+                case MethodKind.FunctionSignature:
+                case MethodKind.ExplicitInterfaceImplementation:
+                    return false;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(method.methodKind);
+            }
+
+            // TODO Could potentially do some devirtualization
+            if (method.isOverride && !method.isSealed)
+                return false;
+
+            return true;
+        }
+
+        void OptimizeBody(KeyValuePair<MethodSymbol, BoundBlockStatement> pair) {
+            MethodInliner.Visit(pair.Key, pair.Value, inlineableMethods, _methodBodies);
+        }
     }
 
     private void ComputeCompileTimeExpressions() {
@@ -233,19 +336,28 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             var currentCompilation = _compilation;
 
             while (currentCompilation is not null) {
-                foreach (var (key, value) in current) {
-                    methodBodiesBuilder.Add(key, EvaluatorSlotRewriter.Rewrite(
-                        key,
-                        value,
-                        _typeLayouts,
-                        _compilation.previous?.boundProgram,
-                        out var manager
-                    ));
+                // Previous compilation may have been built with Evaluator layouts already
+                // But the current one definitely hasn't
+                if (currentCompilation != _compilation && currentCompilation.boundProgram.methodLayouts.Count > 0) {
+                    Debug.Assert(currentCompilation.boundProgram.methodLayouts.Count == currentCompilation.boundProgram.methodBodies.Count);
+                    methodBodiesBuilder.AddRange(currentCompilation.boundProgram.methodBodies);
+                    methodLayoutsBuilder.AddRange(currentCompilation.boundProgram.methodLayouts);
+                } else {
+                    foreach (var (key, value) in current) {
+                        methodBodiesBuilder.Add(key, EvaluatorSlotRewriter.Rewrite(
+                            _compilation,
+                            key,
+                            value,
+                            _typeLayouts,
+                            _compilation.previous?.boundProgram,
+                            out var manager
+                        ));
 
-                    methodLayoutsBuilder.Add(key, manager);
+                        methodLayoutsBuilder.Add(key, manager);
+                    }
                 }
 
-                // We have to recompute libraries because they aren't build with evaluator slots in mind
+                // We have to recompute libraries because they aren't always built with evaluator slots in mind
                 currentCompilation = currentCompilation.previous;
                 current = currentCompilation?.boundProgram?.methodBodies?.ToDictionary();
             }
@@ -271,21 +383,168 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         );
 
         var evaluatorContext = new EvaluatorContext(_compilation.options);
+        var constantMap = new Dictionary<Symbol, ConstantValue>();
+
+        var staticConstructors = ArrayBuilder<MethodSymbol>.GetInstance();
 
         foreach (var (method, body) in _methodBodies) {
             if (body is not null) {
+                if (method.methodKind == MethodKind.StaticConstructor)
+                    staticConstructors.Add(method);
+
                 var loweredBody = CompileTimeLowerer.Lower(
                     method,
                     body,
                     _diagnostics,
                     boundProgram,
                     evaluatorContext,
-                    _compilation
+                    _compilation,
+                    constantMap
                 );
 
-                _methodBodies[method] = (BoundBlockStatement)loweredBody;
+                _methodBodies[method] = loweredBody;
             }
         }
+
+        if (constantMap.Count != 0) {
+            // First iterate static constructor initializers until all fields are resolved
+            // Then do a final pass on all methods to resolve locals which may have field dependencies
+            bool progress;
+
+            do {
+                progress = false;
+
+                for (var i = staticConstructors.Count - 1; i >= 0; i--) {
+                    var cctor = staticConstructors[i];
+
+                    var foldedBody = ConstantFoldingPass.Fold(
+                        cctor,
+                        _methodBodies[cctor],
+                        constantMap,
+                        out var madeProgress,
+                        _diagnostics
+                    );
+
+                    progress |= madeProgress;
+
+                    // This happens because we use the static constructor as a placeholder location for constexpr
+                    // initializers that need to be constant folded late
+                    // This doesn't prevent the symbol from having a static constructor, but it does prevent emitting
+                    if (cctor is SynthesizedStaticConstructor && BodyIsEmpty(foldedBody)) {
+                        _methodBodies.Remove(cctor, out _);
+                        staticConstructors.RemoveAt(i);
+                    } else {
+                        _methodBodies[cctor] = foldedBody;
+                    }
+                }
+            } while (progress);
+        }
+
+        // Primarily for field dependencies resolved by constructors, but this might also catch some folding of
+        // operations involving compile-time sub-expressions
+        foreach (var (method, body) in _methodBodies) {
+            if (body is not null) {
+                var foldedBody = ConstantFoldingPass.Fold(
+                    method,
+                    body,
+                    constantMap,
+                    out _,
+                    _diagnostics
+                );
+
+                _methodBodies[method] = foldedBody;
+            }
+        }
+
+        staticConstructors.Free();
+
+        static bool BodyIsEmpty(BoundBlockStatement body) {
+            foreach (var statement in body.statements) {
+                switch (statement.kind) {
+                    case BoundKind.NopStatement:
+                        break;
+                    case BoundKind.ReturnStatement:
+                        if (((BoundReturnStatement)statement).expression is not null)
+                            return false;
+
+                        break;
+                    default:
+                        return false;
+                }
+            }
+
+            return true;
+        }
+    }
+
+    private void ExpandTemplates() {
+        // Expand each non-type template instantiation into a new type
+        // Expanded template types don't need evaluator slot layouts because the evaluator supports non-type templates
+
+        Debug.Assert(_lazyExpandedTemplateTypes is null);
+        Debug.Assert(_lazyExpandedTemplateMethods is null);
+        _lazyExpandedTemplateTypes = ArrayBuilder<SynthesizedTemplateType>.GetInstance();
+        _lazyExpandedTemplateMethods = ImmutableDictionary.CreateBuilder<MethodSymbol, BoundBlockStatement>();
+
+        var templateExpander = new TemplateExpander(
+            _compilation,
+            _lazyExpandedTemplateTypes,
+            _lazyExpandedTemplateMethods,
+            _diagnostics
+        );
+
+        Debug.Assert(!_diagnostics.AnyErrors());
+
+        // InitialMethodSymbolRewrite and TryInitialMethodBodyRewrite handle expanding instantiated non-type templates
+        // seen in non-template code
+
+        var initialMethodRewriteMapBuilder = ImmutableDictionary.CreateBuilder<MethodSymbol, MethodSymbol>();
+
+        foreach (var (method, _) in _methodBodies) {
+            if (templateExpander.InitialMethodSymbolRewrite(method, out var newMethod)) {
+                Debug.Assert(newMethod is not null && method != newMethod);
+
+                if (_diagnostics.AnyErrors())
+                    return;
+
+                initialMethodRewriteMapBuilder.Add(method, newMethod);
+            }
+        }
+
+        templateExpander.SetInitialMethodRewriteMap(initialMethodRewriteMapBuilder.ToImmutable());
+
+        foreach (var (method, body) in _methodBodies) {
+            if (body is not null &&
+                templateExpander.TryInitialMethodBodyRewrite(method, body, out var newMethod, out var newBody)) {
+                if (_diagnostics.AnyErrors())
+                    return;
+
+                if (newMethod is null) {
+                    // Evaluator only wants to collect diagnostics
+                    if (allowNonTypeTemplates)
+                        continue;
+
+                    if (!_methodBodies.TryUpdate(method, newBody, body))
+                        throw ExceptionUtilities.Unreachable();
+                } else {
+                    _lazyExpandedTemplateMethods.Add(newMethod, newBody);
+                }
+            }
+        }
+
+        // This second pass handles resolving the found templates in the above pass recursively
+        // We need the method bodies from previous compilations in the case that we are
+        // instantiating a new template of a previous type
+
+        var builder = ImmutableDictionary.CreateBuilder<MethodSymbol, BoundBlockStatement>();
+        builder.AddRange(_methodBodies);
+
+        for (var current = _compilation.previous; current is not null; current = current.previous) {
+            if (current.boundProgram?.methodBodies is not null)
+                builder.AddRange(current.boundProgram.methodBodies);
+        }
+
+        templateExpander.ResolveTemplates(builder.ToImmutable());
     }
 
     private void InjectSequencePoints() {
@@ -328,8 +587,30 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         lock (_types)
             _types.Add(symbol);
 
-        var state = new TypeCompilationState(symbol, _compilation, _typeLayouts);
+        var fieldsRequiringAssignment = ArrayBuilder<FieldSymbol>.GetInstance();
+        var propertiesRequiringAssignment = ArrayBuilder<PropertySymbol>.GetInstance();
         var members = symbol.GetMembers();
+
+        for (var ordinal = 0; ordinal < members.Length; ordinal++) {
+            var member = members[ordinal];
+
+            if (member is FieldSymbol f) {
+                if (f.definiteAssignmentError is not null && !(symbol.IsStructType() && f.type.HasDefaultValue()))
+                    fieldsRequiringAssignment.Add(f);
+            } else if (member is PropertySymbol p) {
+                if (p.definiteAssignmentError is not null && !(symbol.IsStructType() && p.type.HasDefaultValue()))
+                    propertiesRequiringAssignment.Add(p);
+            }
+        }
+
+        var state = new TypeCompilationState(
+            symbol,
+            _compilation,
+            _typeLayouts,
+            fieldsRequiringAssignment,
+            propertiesRequiringAssignment
+        );
+
         var processedInstanceInitializers = new Binder.ProcessedFieldInitializers();
         var processedStaticInitializers = new Binder.ProcessedFieldInitializers();
 
@@ -359,8 +640,6 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                 }
             }
         }
-
-        var fieldsRequiringAssignment = ArrayBuilder<FieldSymbol>.GetInstance();
 
         for (var ordinal = 0; ordinal < members.Length; ordinal++) {
             var member = members[ordinal];
@@ -392,8 +671,10 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                         );
                     }
 
-                    if (f.definiteAssignmentError is not null && !(symbol.IsStructType() && f.type.HasDefaultValue()))
-                        fieldsRequiringAssignment.Add(f);
+                    break;
+                case PropertySymbol p:
+                    if (member is SourcePropertySymbolBase sourceProperty && sourceProperty.isSealed)
+                        CompileSynthesizedSealedAccessors(sourceProperty, state);
 
                     break;
             }
@@ -419,10 +700,16 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                 _methodLayouts.Add(methodLayout.Item1, methodLayout.Item2);
         }
 
-        if (fieldsRequiringAssignment.Count > 0)
-            state.ReportFieldsRequiringAssignment(fieldsRequiringAssignment, _diagnostics);
+        if ((fieldsRequiringAssignment.Count > 0 || propertiesRequiringAssignment.Count > 0) && !_hasDeclarationErrors) {
+            state.ReportSymbolsRequiringAssignment(
+                fieldsRequiringAssignment,
+                propertiesRequiringAssignment,
+                _diagnostics
+            );
+        }
 
         fieldsRequiringAssignment.Free();
+        propertiesRequiringAssignment.Free();
         state.Free();
     }
 
@@ -448,7 +735,11 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         if (_enumMethodContainerTypes.TryGetValue(enumType, out var container))
             return container.methodMap[originalMethod];
 
-        var synthesizedContainer = new SynthesizedEnumMethodContainer(enumType, enumType.containingNamespace);
+        var synthesizedContainer = new SynthesizedEnumMethodContainer(
+            _compilation,
+            enumType,
+            enumType.containingNamespace
+        );
 
         lock (_enumMethodContainerTypes)
             _enumMethodContainerTypes.TryAdd(enumType, synthesizedContainer);
@@ -459,6 +750,18 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         return synthesizedContainer.methodMap[originalMethod];
     }
 
+    private void CompileSynthesizedSealedAccessors(
+        SourcePropertySymbolBase sourceProperty,
+        TypeCompilationState compilationState) {
+        var synthesizedAccessor = sourceProperty.synthesizedSealedAccessor;
+
+        if (synthesizedAccessor is not null) {
+            Debug.Assert(synthesizedAccessor.synthesizesLoweredBoundBody);
+            var discardedDiagnostics = BelteDiagnosticQueue.Discarded;
+            synthesizedAccessor.GenerateMethodBody(compilationState, discardedDiagnostics);
+        }
+    }
+
     private void CompileMethod(
         MethodSymbol method,
         int methodOrdinal,
@@ -466,6 +769,11 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         TypeCompilationState state) {
         if (method.isAbstract || method.originalDefinition is PEMethodSymbol or SourceStateMethodSymbol)
             return;
+
+        if (method.containingType.originalDefinition is PENamedTypeSymbol &&
+            method is SynthesizedInstanceConstructorSymbol) {
+            return;
+        }
 
         var methodDiagnostics = CompileMethodCore(method, methodOrdinal, ref processedInitializers, state);
 
@@ -501,6 +809,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             processedInitializers.hasErrors = processedInitializers.hasErrors || analyzedInitializers.hasAnyErrors;
 
             RefSafetyAnalysis.Analyze(
+                _compilation,
                 method,
                 new BoundBlockStatement(analyzedInitializers.syntax, analyzedInitializers.statements, [], []),
                 currentDiagnostics
@@ -528,6 +837,19 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         importChain ??= processedInitializers.firstImportChain;
         state.currentImportChain = importChain;
 
+        if (body is not null) {
+            DiagnosticPass.ReportDiagnostics(
+                _compilation,
+                body,
+                method,
+                currentDiagnostics,
+                _entryPoint?.containingType
+            );
+        }
+
+        if (currentDiagnostics.AnyErrors() || _hasDeclarationErrors || processedInitializers.hasErrors)
+            return currentDiagnostics;
+
         var loweredBody = LowerBody(
             method,
             methodOrdinal,
@@ -535,22 +857,33 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             state,
             _compilation.previousAnalyses,
             currentDiagnostics,
-            !_emitting,
             ref _entryPoint,
-            out var sawCompileTimeExpression
+            sawCompileTimeExpression: out var sawCompileTimeExpression,
+            sawNonTypeTemplate: out var sawNonTypeTemplate
         );
 
         if (method.methodKind == MethodKind.Ordinary && method.containingType.IsEnumType())
             method = GetEnumMethod(method.containingType, method);
 
         _sawCompileTimeExpression |= sawCompileTimeExpression;
+        _sawNonTypeTemplate |= sawNonTypeTemplate;
 
-        var controlFlowGraph = ControlFlowGraph.Create(method, loweredBody);
-        var assignments = controlFlowGraph.CheckDefiniteAssignment(currentDiagnostics);
+        var controlFlowGraph = ControlFlowGraph.Create(_compilation, method, loweredBody);
+        var assignments = controlFlowGraph.CheckDefiniteAssignment(
+            currentDiagnostics,
+            state.fieldsRequiringAssignment,
+            state.propertiesRequiringAssignment
+        );
 
         foreach (var field in method.initFields) {
             if (!assignments.Contains(field))
                 currentDiagnostics.Push(Error.MissingFieldInit(method.location, field));
+        }
+
+        // TODO Should this also go within the block that the AllPathsReturn check is in?
+        foreach (var parameter in method.parameters) {
+            if (parameter.refKind == RefKind.Out && !assignments.Contains(parameter))
+                currentDiagnostics.Push(Error.OutUnassigned(method.location, parameter.name));
         }
 
         if ((object)state.type == _entryPoint?.containingType) {
@@ -558,30 +891,38 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                 state.AddConstructorDefiniteAssignments(method.isStatic, assignments);
             else if (method.IsConstructor() && !method.HasThisConstructorInitializer())
                 state.OrConstructorDefiniteAssignments(method.methodKind == MethodKind.StaticConstructor, assignments);
+        } else if (state.type.HasEntryTypeAttribute()) {
+            if (_compilation.HasEntryPointSignature(method))
+                state.AddConstructorDefiniteAssignments(method.isStatic, assignments);
+            else if (method.IsConstructor() && !method.HasThisConstructorInitializer())
+                state.OrConstructorDefiniteAssignments(method.methodKind == MethodKind.StaticConstructor, assignments);
         } else if (method.IsConstructor() && !method.HasThisConstructorInitializer()) {
             state.AddConstructorDefiniteAssignments(method.methodKind == MethodKind.StaticConstructor, assignments);
         }
 
+        loweredBody = PostLoweringOptimization(method, loweredBody);
+
         if (isStateMethod)
-            loweredBody = StateMethodRewriter.Merge(method, partialTargetBody, loweredBody);
+            loweredBody = StateMethodRewriter.Merge(_compilation, method, partialTargetBody, loweredBody);
 
         if (method.hasReversalState) {
-            CompileMethodCore(
+            currentDiagnostics.PushRangeAndFree(CompileMethodCore(
                 method.stateMethod,
                 methodOrdinal + 1,
                 ref processedInitializers,
                 state,
                 true,
                 loweredBody
-            );
+            ));
         }
 
-        if (_emitting) {
+        if (!transpiling) {
             if (!controlFlowGraph.AllPathsReturn())
                 currentDiagnostics.Push(Error.NotAllPathsReturn(method.location));
 
             if (_compilation.options.buildMode.Evaluating()) {
                 loweredBody = EvaluatorSlotRewriter.Rewrite(
+                    _compilation,
                     method,
                     loweredBody,
                     _typeLayouts,
@@ -609,37 +950,60 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         TypeCompilationState state,
         List<LocalFunctionRewriter.Analysis> previousAnalyses,
         BelteDiagnosticQueue currentDiagnostics,
-        bool transpiling,
         ref MethodSymbol entryPoint,
-        out bool sawCompileTimeExpression) {
-        var loweredBody = Lowerer.Lower(
-            this,
-            state.compilation.options.optimizationLevel,
-            method,
-            body,
-            currentDiagnostics,
-            transpiling,
-            out sawCompileTimeExpression
-        );
-
-        if (!transpiling) {
-            loweredBody = LocalFunctionRewriter.Rewrite(
-                loweredBody,
-                state.type,
+        out bool sawCompileTimeExpression,
+        out bool sawNonTypeTemplate) {
+        try {
+            var loweredBody = Lowerer.Lower(
+                _compilation,
+                this,
+                state.compilation.options.optimizationLevel,
                 method,
-                methodOrdinal,
-                null,
-                state,
-                previousAnalyses,
-                currentDiagnostics,
-                null, // TODO When do we want to use this?
-                ref entryPoint
+                body,
+                sawCompileTimeExpression: out sawCompileTimeExpression,
+                sawNonTypeTemplate: out sawNonTypeTemplate,
+                sawLambda: out var sawLambda,
+                sawLocalFunction: out var sawLocalFunction
             );
 
-            loweredBody = Optimizer.RemoveDeadCode(method, loweredBody, currentDiagnostics);
-        }
+            if (!transpiling) {
+                if (sawLambda || sawLocalFunction) {
+                    loweredBody = LocalFunctionRewriter.Rewrite(
+                        loweredBody,
+                        state.type,
+                        method.thisParameter,
+                        method,
+                        methodOrdinal,
+                        substitutedSourceMethod: null,
+                        state,
+                        previousAnalyses,
+                        currentDiagnostics,
+                        assignLocals: null,
+                        ref entryPoint
+                    );
+                }
 
-        return loweredBody;
+                loweredBody = Optimizer.RemoveDeadCode(_compilation, method, loweredBody, currentDiagnostics);
+            }
+
+            return loweredBody;
+        } catch (BoundTreeVisitor.CancelledByStackGuardException ex) {
+            ex.AddAnError(currentDiagnostics);
+            sawCompileTimeExpression = false;
+            sawNonTypeTemplate = false;
+
+            return new BoundBlockStatement(
+                body.syntax,
+                [new BoundErrorStatement(body.syntax, [body], hasErrors: true)],
+                [],
+                [],
+                hasErrors: true
+            );
+        }
+    }
+
+    private BoundBlockStatement PostLoweringOptimization(MethodSymbol method, BoundBlockStatement loweredBody) {
+        return PostLoweringOptimizationPass.Optimize(method, loweredBody);
     }
 
     internal static BoundBlockStatement BindSynthesizedMethodBody(
@@ -692,57 +1056,64 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
 
             var bodyBinder = sourceMethod.TryGetBodyBinder(null, state.compilation.options.isScript);
 
-            if (bodyBinder is null)
+            if (bodyBinder is not null) {
+                importChain = bodyBinder.importChain;
+
+                var methodBody = bodyBinder.BindMethodBody(syntaxNode, diagnostics);
+
+                RefSafetyAnalysis.Analyze(state.compilation, method, methodBody, diagnostics);
+
+                switch (methodBody) {
+                    case BoundConstructorMethodBody constructor:
+                        body = constructor.body;
+
+                        if (constructor.initializer is BoundExpressionStatement expressionStatement) {
+                            ReportConstructorInitializerCycles(
+                                method,
+                                expressionStatement.expression,
+                                state,
+                                syntaxNode,
+                                diagnostics
+                            );
+
+                            if (includeInitializers)
+                                builder.Add(initializersBody);
+
+                            builder.Add(constructor.initializer);
+
+                            if (outInitializersBody is not null)
+                                builder.Add(outInitializersBody);
+
+                            if (body is not null)
+                                builder.Add(body);
+
+                            body = new BoundBlockStatement(syntax, builder.ToImmutableAndFree(), constructor.locals, []);
+                            return body;
+                        }
+
+                        // TODO Roslyn returns here even in the static constructor case
+                        // But for the life of me I can't figure out where the static initializers are added so i'm just
+                        // going to break here instead
+                        // return body;
+                        break;
+                    case BoundNonConstructorMethodBody nonConstructor:
+                        body = nonConstructor.body ?? nonConstructor.expressionBody;
+                        Debug.Assert(body is not null);
+                        break;
+                    case BoundBlockStatement block:
+                        body = block;
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(methodBody.kind);
+                }
+            } else {
+                if (sourceMethod is SourcePropertyAccessorSymbol { isAutoPropertyAccessor: true })
+                    return MethodBodySynthesizer.ConstructAutoPropertyAccessorBody(sourceMethod);
+
                 return null;
-
-            importChain = bodyBinder.importChain;
-
-            var methodBody = bodyBinder.BindMethodBody(syntaxNode, diagnostics);
-
-            RefSafetyAnalysis.Analyze(method, methodBody, diagnostics);
-
-            switch (methodBody) {
-                case BoundConstructorMethodBody constructor:
-                    body = constructor.body;
-
-                    if (constructor.initializer is BoundExpressionStatement expressionStatement) {
-                        ReportConstructorInitializerCycles(
-                            method,
-                            expressionStatement.expression,
-                            state,
-                            syntaxNode,
-                            diagnostics
-                        );
-
-                        if (includeInitializers)
-                            builder.Add(initializersBody);
-
-                        builder.Add(constructor.initializer);
-
-                        if (outInitializersBody is not null)
-                            builder.Add(outInitializersBody);
-
-                        if (body is not null)
-                            builder.Add(body);
-
-                        body = new BoundBlockStatement(syntax, builder.ToImmutableAndFree(), constructor.locals, []);
-                        return body;
-                    }
-
-                    // TODO Roslyn returns here even in the static constructor case
-                    // But for the life of me I can't figure out where the static initializers are added so i'm just
-                    // going to break here instead
-                    // return body;
-                    break;
-                case BoundNonConstructorMethodBody nonConstructor:
-                    body = nonConstructor.body;
-                    break;
-                case BoundBlockStatement block:
-                    body = block;
-                    break;
-                default:
-                    throw ExceptionUtilities.UnexpectedValue(methodBody.kind);
             }
+        } else if (method is PETemplateType.MetadataMethodSymbol metadataMethod) {
+            body = metadataMethod.TryDecodeMethodBody();
         }
 
         if (method.methodKind == MethodKind.Finalizer && body is not null) {
@@ -769,7 +1140,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             var potentiallyMistakenLocals = ArrayBuilder<MethodSymbol>.GetInstance();
 
             foreach (var local in body.localFunctions) {
-                if (Compilation.HasEntryPointSignature(local))
+                if (state.compilation.HasEntryPointSignature(local))
                     candidateLocals.Add(local);
                 else if (local.name == WellKnownMemberNames.EntryPointMethodName)
                     potentiallyMistakenLocals.Add(local);

@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -10,5 +11,10 @@ internal abstract partial class ArrayTypeSymbol {
         internal sealed override int rank { get; }
 
         internal sealed override bool isSZArray => false;
+
+        internal sealed override ImmutableArray<NamedTypeSymbol> Interfaces(
+            ConsList<TypeSymbol> basesBeingResolved = null) {
+            return [];
+        }
     }
 }

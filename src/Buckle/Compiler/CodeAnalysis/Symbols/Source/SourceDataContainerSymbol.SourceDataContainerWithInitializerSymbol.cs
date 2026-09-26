@@ -10,7 +10,7 @@ internal partial class SourceDataContainerSymbol {
         private readonly EqualsValueClauseSyntax _initializer;
         private readonly Binder _initializerBinder;
 
-        private ConstantValue _lazyConstantValue;
+        private ConstantValue _lazyConstantValue = ConstantValue.Unset;
 
         internal SourceDataContainerWithInitializerSymbol(
             Symbol containingSymbol,
@@ -19,14 +19,16 @@ internal partial class SourceDataContainerSymbol {
             SyntaxToken identifierToken,
             EqualsValueClauseSyntax initializer,
             Binder initializerBinder,
-            SyntaxTokenList modifiers)
+            SyntaxTokenList modifiers,
+            DataContainerDeclarationKind? kind = null)
             : base(
                 containingSymbol,
                 scopeBinder,
                 true,
                 typeSyntax,
                 identifierToken,
-                modifiers) {
+                modifiers,
+                kind) {
             _initializer = initializer;
             _initializerBinder = initializerBinder;
         }
@@ -51,7 +53,7 @@ internal partial class SourceDataContainerSymbol {
                 : new BelteDiagnosticQueue(_lazyConstantValue.diagnostics);
         }
 
-        private protected override TypeWithAnnotations InferTypeOfImplicit() {
+        private protected override TypeWithAnnotations InferTypeOfImplicit(BelteDiagnosticQueue _) {
             var initializer = _initializerBinder.BindInferredDataContainerInitializer(
                 BelteDiagnosticQueue.Discarded,
                 refKind,
@@ -63,7 +65,7 @@ internal partial class SourceDataContainerSymbol {
         }
 
         private void MakeConstantValue(DataContainerSymbol inProgress, BoundExpression boundInitValue) {
-            if (isConstExpr && _lazyConstantValue is null) {
+            if (isConstExpr && _lazyConstantValue == ConstantValue.Unset) {
                 var diagnostics = BelteDiagnosticQueue.GetInstance();
                 var type = this.type;
 
@@ -87,8 +89,14 @@ internal partial class SourceDataContainerSymbol {
 
                 Interlocked.CompareExchange(
                     ref _lazyConstantValue,
-                    new ConstantValue(value?.value, type.StrippedType().specialType, diagnostics.ToArrayAndFree()),
-                    null
+                    (value is null && !diagnostics.Any())
+                        ? null
+                        : new ConstantValue(
+                            value?.value,
+                            type.StrippedType().specialType,
+                            diagnostics.ToArrayAndFree()
+                        ),
+                    ConstantValue.Unset
                 );
             }
         }

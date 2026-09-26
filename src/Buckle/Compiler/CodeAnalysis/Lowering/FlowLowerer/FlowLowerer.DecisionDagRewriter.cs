@@ -20,8 +20,9 @@ internal sealed partial class FlowLowerer {
         private protected DecisionDagRewriter(
             SyntaxNode node,
             FlowLowerer flowLowerer,
+            Compilation compilation,
             bool generateInstrumentation)
-            : base(node, flowLowerer, generateInstrumentation) { }
+            : base(node, flowLowerer, compilation, generateInstrumentation) { }
 
         private void ComputeLabelSet(BoundDecisionDag decisionDag) {
             var hasPredecessor = PooledHashSet<BoundDecisionDagNode>.GetInstance();

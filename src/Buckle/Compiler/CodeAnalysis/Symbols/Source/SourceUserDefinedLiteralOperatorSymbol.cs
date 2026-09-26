@@ -15,19 +15,17 @@ internal sealed class SourceUserDefinedLiteralOperatorSymbol : SourceUserDefined
         BelteDiagnosticQueue diagnostics)
         : base(
             methodKind,
+            explicitInterfaceType: null,
             name,
+            isCompoundAssignmentOrIncrementAssignment: false,
             containingType,
             syntax.literalKeyword.location,
             syntax,
             syntax.returnType.GetRefKind(),
-            MakeDeclarationModifiers(containingType, syntax, syntax.literalKeyword.location, diagnostics),
+            MakeDeclarationModifiers(containingType, methodKind, syntax, syntax.literalKeyword.location, diagnostics),
             syntax.body is not null,
             diagnostics
-        ) {
-        location = syntax.literalKeyword.location;
-    }
-
-    internal override TextLocation location { get; }
+        ) { }
 
     private protected override TextLocation _returnTypeLocation => GetSyntax().returnType.location;
 

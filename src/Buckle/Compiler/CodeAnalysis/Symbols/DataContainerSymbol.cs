@@ -8,7 +8,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
     public sealed override SymbolKind kind => SymbolKind.Local;
 
-    public bool isConst => declarationKind == DataContainerDeclarationKind.Constant;
+    public bool isConst => declarationKind.IsConstant();
 
     public bool isFinal => declarationKind.IsFinal();
 
@@ -76,11 +76,12 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
                 case DataContainerDeclarationKind.Constant:
                 case DataContainerDeclarationKind.Final:
                 case DataContainerDeclarationKind.ConstantExpression:
+                case DataContainerDeclarationKind.ConstantForEachLocal:
                 case DataContainerDeclarationKind.ForEachLocal:
+                case DataContainerDeclarationKind.ConstantNullBindingLocal:
+                case DataContainerDeclarationKind.NullBindingLocal:
                 case DataContainerDeclarationKind.ScopedLocal:
                     return false;
-                // TODO Should we allow assignment to null binding locals?
-                case DataContainerDeclarationKind.NullBindingLocal:
                 case DataContainerDeclarationKind.Variable:
                 case DataContainerDeclarationKind.PatternLocal:
                 case DataContainerDeclarationKind.OutVariable:

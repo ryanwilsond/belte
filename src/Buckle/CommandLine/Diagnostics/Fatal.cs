@@ -65,6 +65,11 @@ internal static class Fatal {
         return new Diagnostic(FatalInfo(DiagnosticCode.FTL_OutputIsDirectory), message);
     }
 
+    internal static Diagnostic CannotSpecifySkipTemplateMetadataWithoutDll() {
+        var message = $"cannot specify '--skiptm' when not building a dynamically linked library";
+        return new Diagnostic(FatalInfo(DiagnosticCode.FTL_CannotSpecifySkipTemplateMetadataWithoutDll), message);
+    }
+
     private static DiagnosticInfo FatalInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "CL", DiagnosticSeverity.Fatal);
     }

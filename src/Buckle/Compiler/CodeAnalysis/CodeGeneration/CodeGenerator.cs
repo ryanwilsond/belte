@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Buckle.CodeAnalysis.Binding;
@@ -8,7 +9,7 @@ using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
-using Buckle.Libraries;
+using Buckle.Diagnostics;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 using static Buckle.CodeAnalysis.Binding.Binder;
@@ -35,6 +36,7 @@ internal sealed partial class CodeGenerator {
         OpCode.Bge_Un, OpCode.Bgt_Un, OpCode.Ble_Un, OpCode.Blt_Un,  // Float Invert
     ];
 
+    private readonly Compilation _compilation;
     private readonly ModuleBuilder _module;
     private readonly MethodSymbol _method;
     private readonly BoundBlockStatement _body;
@@ -45,21 +47,39 @@ internal sealed partial class CodeGenerator {
     private readonly SyntaxNode _methodBodySyntax;
     private readonly ILEmitStyle _ilEmitStyle;
     private readonly bool _emitPdbSequencePoints;
+    private readonly BelteDiagnosticQueue _diagnostics;
+
+    private int _recursionDepth;
 
     private ArrayBuilder<VariableDefinition> _expressionTemps;
 
     internal CodeGenerator(
+        Compilation compilation,
         ModuleBuilder module,
         MethodSymbol method,
         BoundBlockStatement methodBody,
         ILBuilder iLBuilder,
-        bool debugMode) {
+        bool debugMode,
+        BelteDiagnosticQueue diagnostics) {
+        _compilation = compilation;
         _module = module;
         _method = method;
         _body = methodBody;
         _builder = iLBuilder;
         _ilEmitStyle = debugMode ? ILEmitStyle.Debug : ILEmitStyle.Release;
         _emitPdbSequencePoints = debugMode;
+        _diagnostics = diagnostics;
+
+        try {
+            _body = ILOptimizer.Optimize(
+                methodBody,
+                debugFriendly: _ilEmitStyle != ILEmitStyle.Release,
+                stackLocals: out _stackLocals
+            );
+        } catch (BoundTreeVisitor.CancelledByStackGuardException ex) {
+            ex.AddAnError(diagnostics);
+            _body = methodBody;
+        }
 
         var sourceMethod = method as SourceMemberMethodSymbol;
         _methodBodySyntax = sourceMethod?.body ?? sourceMethod?.syntaxNode;
@@ -555,7 +575,7 @@ internal sealed partial class CodeGenerator {
                     // TODO Ensure constantValue is never lying to us
                     var inferredType = constant.specialType == SpecialType.None
                         ? InferType(value)
-                        : CorLibrary.GetSpecialType(constant.specialType);
+                        : _compilation.GetSpecialType(constant.specialType);
 
                     EmitConstantValue(constant, inferredType);
                     EmitBox(inferredType);
@@ -568,7 +588,7 @@ internal sealed partial class CodeGenerator {
     }
 
     private TypeSymbol InferType(object value) {
-        return CorLibrary.GetSpecialType(SpecialTypeExtensions.SpecialTypeFromLiteralValue(value));
+        return _compilation.GetSpecialType(SpecialTypeExtensions.SpecialTypeFromLiteralValue(value));
     }
 
     private void EmitDoubleConstant(double value) {
@@ -756,7 +776,125 @@ internal sealed partial class CodeGenerator {
         LocalOrParameter key,
         SyntaxNode syntaxNode,
         TypeSymbol keyType) {
-        // TODO
+        LocalOrParameter? keyHash = null;
+
+        if (SwitchStringJumpTableEmitter.ShouldGenerateHashTableSwitch(switchCaseLabels.Length)) {
+            // TODO Runtime hash method
+            // MethodSymbol stringHashMethod = null;
+
+            // if (stringHashMethod is not null) {
+            // static uint ComputeStringHash(string s)
+            // pop 1 (s)
+            // push 1 (uint return value)
+            // stackAdjustment = (pushCount - popCount) = 0
+
+            // _builder.EmitLoad(key);
+            // _builder.EmitOpCode(ILOpCode.Call, stackAdjustment: 0);
+            // _builder.EmitToken(stringHashMethodRef, syntaxNode);
+
+            // var UInt32Type = Binder.GetSpecialType(_module.Compilation, SpecialType.System_UInt32, syntaxNode, _diagnostics);
+            // keyHash = AllocateTemp(UInt32Type, syntaxNode);
+
+            // _builder.EmitLocalStore(keyHash);
+            // }
+        }
+
+        var systemStringType = _compilation.GetWellKnownType(WellKnownType.System_String);
+        var stringEqualityMethod = systemStringType.GetOperators(WellKnownMemberNames.EqualityOperatorName)
+            .FirstOrDefault();
+        var lengthMethod = systemStringType.GetMembers("get_Length").FirstOrDefault() as MethodSymbol;
+
+        Debug.Assert(stringEqualityMethod is not null);
+
+        SwitchStringJumpTableEmitter.EmitStringCompareAndBranch emitStringCondBranchDelegate =
+            (keyArg, stringConstant, targetLabel) => {
+                if (stringConstant == ConstantValue.Null) {
+                    EmitLoad(keyArg);
+                    _builder.EmitBranch(OpCode.Brfalse, targetLabel, OpCode.Brtrue);
+                } else if (((string)stringConstant.value).Length == 0 && lengthMethod is not null) {
+                    var skipToNext = new object();
+
+                    EmitLoad(keyArg);
+                    _builder.EmitBranch(OpCode.Brfalse, skipToNext, OpCode.Brtrue);
+
+                    EmitLoad(keyArg);
+
+                    _builder.EmitWithSymbolToken(OpCode.Call, lengthMethod);
+
+                    _builder.EmitBranch(OpCode.Brfalse, targetLabel, OpCode.Brtrue);
+                    _builder.MarkLabel(skipToNext);
+                } else {
+                    EmitStringCompareAndBranch(key, syntaxNode, stringConstant, targetLabel, stringEqualityMethod);
+                }
+            };
+
+        EmitStringSwitchJumpTable(
+            caseLabels: switchCaseLabels,
+            fallThroughLabel: fallThroughLabel,
+            key: key,
+            keyHash: keyHash,
+            emitStringCondBranchDelegate: emitStringCondBranchDelegate,
+            computeStringHashcodeDelegate: ComputeStringHash
+        );
+
+        if (keyHash is not null) {
+            // FreeTemp(keyHash);
+        }
+    }
+
+    private void EmitStringCompareAndBranch(
+        LocalOrParameter key,
+        SyntaxNode syntaxNode,
+        ConstantValue stringConstant,
+        object targetLabel,
+        MethodSymbol stringEqualityMethod) {
+        EmitLoad(key);
+        EmitConstantValue(stringConstant, _compilation.GetSpecialType(SpecialType.String));
+        _builder.EmitWithSymbolToken(OpCode.Call, stringEqualityMethod);
+        _builder.EmitBranch(OpCode.Brtrue, targetLabel, OpCode.Brfalse);
+    }
+
+    private static uint ComputeStringHash(string text) {
+        uint hashCode = 0;
+
+        if (text is not null) {
+            hashCode = unchecked((uint)2166136261);
+
+            int i = 0;
+            goto start;
+
+again:
+            hashCode = unchecked((text[i] ^ hashCode) * 16777619);
+            i = i + 1;
+
+start:
+            if (i < text.Length)
+                goto again;
+        }
+
+        return hashCode;
+    }
+
+    private void EmitStringSwitchJumpTable(
+        KeyValuePair<ConstantValue, object>[] caseLabels,
+        object fallThroughLabel,
+        LocalOrParameter key,
+        LocalOrParameter? keyHash,
+        SwitchStringJumpTableEmitter.EmitStringCompareAndBranch emitStringCondBranchDelegate,
+        SwitchStringJumpTableEmitter.GetStringHashCode computeStringHashcodeDelegate) {
+        var emitter = new SwitchStringJumpTableEmitter(
+            _compilation,
+            this,
+            _builder,
+            key,
+            caseLabels,
+            fallThroughLabel,
+            keyHash,
+            emitStringCondBranchDelegate,
+            computeStringHashcodeDelegate
+        );
+
+        emitter.EmitJumpTable();
     }
 
     private void EmitIntegerSwitchJumpTable(
@@ -764,7 +902,16 @@ internal sealed partial class CodeGenerator {
         object fallThroughLabel,
         LocalOrParameter key,
         SpecialType keyTypeCode) {
-        var emitter = new SwitchIntegralJumpTableEmitter(this, _builder, caseLabels, fallThroughLabel, keyTypeCode, key);
+        var emitter = new SwitchIntegralJumpTableEmitter(
+            _compilation,
+            this,
+            _builder,
+            caseLabels,
+            fallThroughLabel,
+            keyTypeCode,
+            key
+        );
+
         emitter.EmitJumpTable();
     }
 
@@ -787,6 +934,35 @@ internal sealed partial class CodeGenerator {
     }
 
     private void EmitConditionalBranch(BoundExpression condition, ref object dest, bool sense) {
+        _recursionDepth++;
+
+        if (_recursionDepth > 1) {
+            StackGuard.EnsureSufficientExecutionStack(_recursionDepth);
+
+            EmitConditionalBranchCore(condition, ref dest, sense);
+        } else {
+            EmitConditionalBranchCoreWithStackGuard(condition, ref dest, sense);
+        }
+
+        _recursionDepth--;
+    }
+
+    private void EmitConditionalBranchCoreWithStackGuard(BoundExpression condition, ref object dest, bool sense) {
+        Debug.Assert(_recursionDepth == 1);
+
+        try {
+            EmitConditionalBranchCore(condition, ref dest, sense);
+            Debug.Assert(_recursionDepth == 1);
+        } catch (InsufficientExecutionStackException) {
+            _diagnostics.Push(Error.InsufficientStack(
+                BoundTreeVisitor.CancelledByStackGuardException.GetTooLongOrComplexExpressionErrorLocation(condition)
+            ));
+
+            throw new EmitCancelledException();
+        }
+    }
+
+    private void EmitConditionalBranchCore(BoundExpression condition, ref object dest, bool sense) {
 oneMoreTime:
 
         OpCode iLCode;
@@ -1046,12 +1222,14 @@ oneMoreTime:
         var hasCatch = statement.catchBody is not null;
         var hasFinally = statement.finallyBody is not null;
 
-        _builder.BeginTry();
+        _builder.BeginTry(statement);
 
         EmitBlock(statement.body);
 
         if (hasCatch) {
             _builder.BeginCatch();
+            // TODO Currently accessing the exception is not possible, so we pop it always
+            _builder.Emit(OpCode.Pop);
             EmitBlock(statement.catchBody);
         }
 
@@ -1142,12 +1320,36 @@ oneMoreTime:
                 }
             }
 
-            _builder.Emit(opCode);
-
             if (constant is not null) {
-                var type = CorLibrary.GetSpecialType(constant.specialType);
-                EmitConstantValue(constant, type);
+                if (opCode.RequiresValue()) {
+                    switch (constant.specialType) {
+                        case SpecialType.Int:
+                        case SpecialType.Int64:
+                            _builder.Emit(opCode, (long)constant.value);
+                            break;
+                        case SpecialType.Int32:
+                            _builder.Emit(opCode, (int)constant.value);
+                            break;
+                        case SpecialType.Float32:
+                            _builder.Emit(opCode, (float)constant.value);
+                            break;
+                        case SpecialType.Decimal:
+                        case SpecialType.Float64:
+                            _builder.Emit(opCode, (double)constant.value);
+                            break;
+                        default:
+                            throw ExceptionUtilities.UnexpectedValue(constant.specialType);
+                    }
+                } else {
+                    _builder.Emit(opCode);
+                    var type = _compilation.GetSpecialType(constant.specialType);
+                    EmitConstantValue(constant, type);
+                }
+
+                continue;
             }
+
+            _builder.Emit(opCode);
         }
     }
 
@@ -1202,6 +1404,34 @@ oneMoreTime:
             return;
         }
 
+        _recursionDepth++;
+
+        if (_recursionDepth > 1) {
+            StackGuard.EnsureSufficientExecutionStack(_recursionDepth);
+            EmitExpressionCore(expression, used);
+        } else {
+            EmitExpressionCoreWithStackGuard(expression, used);
+        }
+
+        _recursionDepth--;
+    }
+
+    private void EmitExpressionCoreWithStackGuard(BoundExpression expression, bool used) {
+        Debug.Assert(_recursionDepth == 1);
+
+        try {
+            EmitExpressionCore(expression, used);
+            Debug.Assert(_recursionDepth == 1);
+        } catch (InsufficientExecutionStackException) {
+            _diagnostics.Push(Error.InsufficientStack(
+                BoundTreeVisitor.CancelledByStackGuardException.GetTooLongOrComplexExpressionErrorLocation(expression)
+            ));
+
+            throw new EmitCancelledException();
+        }
+    }
+
+    private void EmitExpressionCore(BoundExpression expression, bool used) {
         switch (expression.kind) {
             case BoundKind.ThisExpression:
                 if (used)
@@ -1309,6 +1539,9 @@ oneMoreTime:
             case BoundKind.FieldSlotExpression:
                 EmitFieldSlotExpression((BoundFieldSlotExpression)expression, used);
                 break;
+            case BoundKind.ArrayLength:
+                EmitArrayLength((BoundArrayLength)expression, used);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(expression.kind);
         }
@@ -1333,6 +1566,19 @@ oneMoreTime:
             else
                 EmitConstantValue(constant, type);
         }
+    }
+
+    private void EmitArrayLength(BoundArrayLength expression, bool used) {
+        // ldlen will null-check the expression so it must be "used"
+        EmitExpression(expression.receiver, used: true);
+        _builder.Emit(OpCode.Ldlen);
+
+        var typeTo = expression.type.specialType;
+        var typeFrom = typeTo.IsUnsigned() ? SpecialType.UIntPtr : SpecialType.IntPtr;
+
+        EmitNumericConversion(typeFrom, typeTo);
+
+        EmitPopIfUnused(used);
     }
 
     private void EmitMethodGroup(BoundMethodGroup _) {
@@ -1618,14 +1864,14 @@ oneMoreTime:
             return true;
 
         if (originalDef.containingType.name == NamedTypeSymbol.ValueTupleTypeName &&
-           (originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T1_ctor) ||
-            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_ctor) ||
-            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T3_ctor) ||
-            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_ctor) ||
-            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_ctor) ||
-            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_ctor) ||
-            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_ctor) ||
-            originalDef == CorLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_ctor))) {
+           (originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T1_ctor) ||
+            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_ctor) ||
+            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T3_ctor) ||
+            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_ctor) ||
+            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_ctor) ||
+            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_ctor) ||
+            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_ctor) ||
+            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_ctor))) {
             return true;
         }
 
@@ -1644,13 +1890,13 @@ oneMoreTime:
         var receiver = expression.receiver;
         var arguments = expression.arguments;
 
-        if (method.containingType.Equals(StandardLibrary.LowLevel.underlyingNamedType)) {
+        if (method.containingType.Equals(_compilation.standardLibrary.LowLevel.underlyingNamedType)) {
             switch (method.name) {
                 case "ThrowNullConditionException": {
                         _builder.EmitThrowNullCondition();
                         // This is to balance the stack
                         EmitDefaultValue(
-                            CorLibrary.GetWellKnownType(WellKnownType.Exception),
+                            _method.declaringCompilation.GetWellKnownType(WellKnownType.System_Exception),
                             useKind != UseKind.Unused,
                             expression.syntax
                         );
@@ -1696,7 +1942,7 @@ oneMoreTime:
             }
         }
 
-        if (method.containingType.Equals(StandardLibrary.Random.underlyingNamedType)) {
+        if (method.containingType.Equals(_compilation.standardLibrary.Random.underlyingNamedType)) {
             EmitRandomCall(method, arguments, expression.argumentRefKinds, useKind);
             return;
         }
@@ -1727,6 +1973,7 @@ oneMoreTime:
                     _builder.EmitLdsfldRandom();
 
                     var argument = Lowerer.CreateNullableGetValueCall(
+                        _compilation,
                         null,
                         arguments[0],
                         arguments[0].StrippedType()
@@ -2044,7 +2291,7 @@ oneMoreTime:
                 var constantValue = LiteralUtilities.TryGetDefaultValue(type);
 
                 if (constantValue is not null) {
-                    EmitConstantValue(new ConstantValue(constantValue, type.specialType), type);
+                    EmitConstantValue(constantValue, type);
                     return;
                 }
             }
@@ -2091,9 +2338,10 @@ oneMoreTime:
         if (methodContainingType.IsNullableType()) {
             var originalMethod = method.originalDefinition;
 
-            if ((object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_getValue) ||
-                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_getHasValue) ||
-                (object)originalMethod == CorLibrary.GetWellKnownMember(WellKnownMember.Nullable_GetValueOrDefault)) {
+            if ((object)originalMethod == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.Nullable_getValue) ||
+                (object)originalMethod == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.Nullable_getHasValue) ||
+                (object)originalMethod == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.Nullable_GetValueOrDefault) ||
+                (object)originalMethod == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.Nullable_GetValueOrDefault_T)) {
                 return true;
             }
         }
@@ -2290,6 +2538,9 @@ oneMoreTime:
             if (IsVarianceCast(expression.type, mergeTypeOfAlternative)) {
                 EmitStaticCast(expression.type);
                 mergeTypeOfAlternative = expression.type;
+            } else if (expression.type.IsInterfaceType() &&
+                !TypeSymbol.Equals(expression.type, mergeTypeOfAlternative, TypeCompareKind.ConsiderEverything)) {
+                EmitStaticCast(expression.type);
             }
         }
 
@@ -2304,6 +2555,9 @@ oneMoreTime:
             if (IsVarianceCast(expression.type, mergeTypeOfConsequence)) {
                 EmitStaticCast(expression.type);
                 mergeTypeOfConsequence = expression.type;
+            } else if (expression.type.IsInterfaceType() &&
+                !TypeSymbol.Equals(expression.type, mergeTypeOfConsequence, TypeCompareKind.ConsiderEverything)) {
+                EmitStaticCast(expression.type);
             }
         }
 
@@ -2311,8 +2565,42 @@ oneMoreTime:
     }
 
     private TypeSymbol StackMergeType(BoundExpression expr) {
+        if (!expr.type.IsInterfaceType())
+            return expr.type;
+
+        switch (expr.kind) {
+            case BoundKind.CastExpression:
+                var conversion = (BoundCastExpression)expr;
+                var conversionKind = conversion.conversion.kind;
+
+                if (conversionKind.IsImplicitCast() &&
+                    conversionKind != ConversionKind.MethodGroup &&
+                    conversionKind != ConversionKind.NullLiteral &&
+                    conversionKind != ConversionKind.DefaultLiteral) {
+                    return StackMergeType(conversion.operand);
+                }
+
+                break;
+            case BoundKind.AssignmentOperator:
+                var assignment = (BoundAssignmentOperator)expr;
+                return StackMergeType(assignment.right);
+            case BoundKind.DataContainerExpression:
+                var local = (BoundDataContainerExpression)expr;
+
+                if (IsStackLocal(local.dataContainer))
+                    return null;
+
+                break;
+            case BoundKind.StackSlotExpression:
+                var slot = (BoundStackSlotExpression)expr;
+
+                if (slot.symbol is DataContainerSymbol dataContainer && IsStackLocal(dataContainer))
+                    return null;
+
+                break;
+        }
+
         return expr.type;
-        // TODO Need to do some extra work with interface or delegate types
     }
 
     private static bool IsVarianceCast(TypeSymbol to, TypeSymbol from) {
@@ -2322,12 +2610,12 @@ oneMoreTime:
         if (from is null)
             return true;
 
-        if (to.IsArray()) {
+        if (to.IsArray())
             return IsVarianceCast(((ArrayTypeSymbol)to).elementType, ((ArrayTypeSymbol)from).elementType);
-        }
 
-        // TODO This becomes more interesting with delegate or interface types:
-        return false;
+        return to.IsInterfaceType() &&
+            from.IsInterfaceType() &&
+            !from.interfacesAndTheirBaseInterfaces.ContainsKey((NamedTypeSymbol)to);
     }
 
     private void EmitIsOperator(BoundIsOperator expression, bool used, bool omitBooleanConversion) {
@@ -3534,8 +3822,12 @@ oneMoreTime:
     }
 
     private void EmitParameterLoad(ParameterSymbol parameter) {
-        var slot = ParameterSlot(parameter);
-        _builder.EmitLoadArgument(slot);
+        if (parameter.isThis) {
+            _builder.EmitLoadArgument0();
+        } else {
+            var slot = ParameterSlot(parameter);
+            _builder.EmitLoadArgument(slot);
+        }
 
         if (parameter.refKind != RefKind.None) {
             var parameterType = parameter.type;
@@ -3640,6 +3932,7 @@ oneMoreTime:
 
         switch (cast.conversion.kind) {
             case ConversionKind.MethodGroup:
+            case ConversionKind.ImplicitThrow:
                 throw ExceptionUtilities.UnexpectedValue(cast.conversion.kind);
             case ConversionKind.Identity:
                 break;

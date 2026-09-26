@@ -16,6 +16,13 @@ internal sealed class SlotCounter : BoundTreeWalker {
         foreach (var member in method.containingType.GetMembers()) {
             if (member is FieldSymbol f && f.isStatic == method.isStatic)
                 slotCounter.GetOrAddSlot(f);
+            else if (member is PropertySymbol p && p.isStatic == method.isStatic)
+                slotCounter.GetOrAddSlot(p);
+        }
+
+        foreach (var parameter in method.parameters) {
+            if (parameter.refKind == RefKind.Out)
+                slotCounter.GetOrAddSlot(parameter);
         }
 
         slotCounter.Visit(node);

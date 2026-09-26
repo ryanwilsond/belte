@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Threading;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Symbols;
@@ -12,13 +13,15 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.Libraries;
 
 internal sealed class SynthesizedBelteNamespaceSymbol : NamespaceSymbol {
-    private readonly bool _reduced;
+    private readonly bool _noStdLib;
+
+    private Compilation _compilation;
 
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> _nameToMembersMap;
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> _nameToTypeMembersMap;
 
-    internal SynthesizedBelteNamespaceSymbol(string name, bool reduced) {
-        _reduced = reduced;
+    internal SynthesizedBelteNamespaceSymbol(string name, bool noStdLib) {
+        _noStdLib = noStdLib;
         this.name = name;
     }
 
@@ -35,6 +38,12 @@ internal sealed class SynthesizedBelteNamespaceSymbol : NamespaceSymbol {
     internal override ImmutableArray<TextLocation> locations => [];
 
     internal override ImmutableArray<SyntaxReference> declaringSyntaxReferences => [];
+
+    internal void SetCompilation(Compilation compilation) {
+        Debug.Assert(_compilation is null);
+        Debug.Assert(compilation is not null);
+        _compilation = compilation;
+    }
 
     internal override ImmutableArray<Symbol> GetMembers() {
         return GetNameToMembersMap().Flatten(LexicalOrderSymbolComparer.Instance);
@@ -77,10 +86,12 @@ internal sealed class SynthesizedBelteNamespaceSymbol : NamespaceSymbol {
 
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> MakeNameToMembersMap() {
         var allMembers = ArrayBuilder<Symbol>.GetInstance();
-        allMembers.AddRange(StandardLibrary.GetTypes(_reduced));
 
-        if (!_reduced)
-            allMembers.AddRange(GraphicsLibrary.GetTypes());
+        // TODO Reduced is not the same as noStdLib, we currently never build in a reduced state
+        allMembers.AddRange(_compilation.standardLibrary.GetTypes(reduced: false));
+
+        if (!_noStdLib)
+            allMembers.AddRange(_compilation.graphicsLibrary.GetTypes());
 
         var builder = NameToObjectPool.Allocate();
 

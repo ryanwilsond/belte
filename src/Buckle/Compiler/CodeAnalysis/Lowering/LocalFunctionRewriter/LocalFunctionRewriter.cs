@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.FlowAnalysis;
@@ -80,6 +81,7 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
     internal static BoundBlockStatement Rewrite(
         BoundBlockStatement loweredBody,
         NamedTypeSymbol thisType,
+        ParameterSymbol thisParameter,
         MethodSymbol method,
         int methodOrdinal,
         MethodSymbol substitutedSourceMethod,
@@ -88,11 +90,14 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
         BelteDiagnosticQueue diagnostics,
         HashSet<DataContainerSymbol> assignLocals,
         ref MethodSymbol entryPoint) {
+        Debug.Assert(thisParameter is null ||
+            TypeSymbol.Equals(thisParameter.type, thisType, TypeCompareKind.ConsiderEverything));
+
         var analysis = Analysis.Analyze(loweredBody, method, methodOrdinal, state);
         var rewriter = new LocalFunctionRewriter(
             analysis,
             thisType,
-            null, // TODO Check if we can actually synthesize this
+            thisParameter,
             method,
             substitutedSourceMethod,
             state,
@@ -104,7 +109,7 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
         rewriter.SynthesizeClosureEnvironments();
         rewriter.SynthesizeClosureMethods();
 
-        if (entryPoint is LocalFunctionSymbol) {
+        if (entryPoint is LocalFunctionSymbol && entryPoint.containingSymbol == method) {
             ImmutableArray<BoundExpression> _1 = [];
             ImmutableArray<RefKind> _2 = [];
 
@@ -239,7 +244,6 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
                 topLevelMethodOrdinal,
                 originalMethod,
                 nestedFunction.blockSyntax,
-                _topLevelMethod.location,
                 methodOrdinal,
                 _compilationState
             );
@@ -449,9 +453,8 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
             totalTemplateArgumentCount - originalMethod.arity
         );
 
-        if (!templateArguments.IsDefault) {
+        if (!templateArguments.IsDefault)
             realTemplateArguments = realTemplateArguments.Concat(templateArguments);
-        }
 
         if (containerAsFrame is not null && containerAsFrame.arity != 0) {
             var containerTemplateArguments = ImmutableArray.Create(realTemplateArguments, 0, containerAsFrame.arity);
@@ -882,16 +885,22 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
 
             // The main lowering passes happen while the local function body is still present in the enclosing method
             body = Lowerer.Flatten(synthesizedMethod, body);
-            body = Optimizer.RemoveDeadCode(synthesizedMethod, body, _diagnostics);
+            body = Optimizer.RemoveDeadCode(_compilationState.compilation, synthesizedMethod, body, _diagnostics);
 
-            var controlFlowGraph = ControlFlowGraph.Create(synthesizedMethod, body);
-            controlFlowGraph.CheckDefiniteAssignment(_diagnostics);
+            var controlFlowGraph = ControlFlowGraph.Create(_compilationState.compilation, synthesizedMethod, body);
+            var assignments = controlFlowGraph.CheckDefiniteAssignment(_diagnostics);
+
+            foreach (var parameter in synthesizedMethod.parameters) {
+                if (parameter.refKind == RefKind.Out && !assignments.Contains(parameter))
+                    _diagnostics.Push(Error.OutUnassigned(synthesizedMethod.location, parameter.name));
+            }
 
             if (!controlFlowGraph.AllPathsReturn())
                 _diagnostics.Push(Error.NotAllPathsReturn(node.symbol.location));
 
             if (_compilationState.compilation.options.buildMode.Evaluating()) {
                 body = EvaluatorSlotRewriter.Rewrite(
+                    _compilationState.compilation,
                     synthesizedMethod,
                     body,
                     _compilationState.typeLayouts,

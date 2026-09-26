@@ -28,6 +28,10 @@ internal static class SpecialTypes {
         { "global::type", SpecialType.Type },
         { "global::any", SpecialType.Any },
         { "global::Buffer`1", SpecialType.Buffer },
+
+        // Also accept direct external definitions
+        { "System.Object", SpecialType.Object },
+        { "System.Array", SpecialType.Array },
     };
 
     internal static SpecialType GetTypeFromMetadataName(string metadataName) {

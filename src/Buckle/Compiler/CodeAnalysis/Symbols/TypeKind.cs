@@ -16,4 +16,5 @@ public enum TypeKind : byte {
     Pointer,
     FunctionPointer,
     Function,
+    Interface,
 }

@@ -48,6 +48,8 @@ internal sealed class LambdaSymbol : SourceMethodSymbol {
 
     public override MethodKind methodKind => MethodKind.AnonymousFunction;
 
+    public override Symbol associatedSymbol => null;
+
     internal override bool isExtern => false;
 
     internal override bool isSealed => false;
@@ -122,6 +124,10 @@ internal sealed class LambdaSymbol : SourceMethodSymbol {
 
     internal override bool isDeclaredConst => false;
 
+    internal override bool isExplicitInterfaceImplementation => false;
+
+    internal override ImmutableArray<MethodSymbol> explicitInterfaceImplementations => [];
+
     internal override OneOrMany<SyntaxList<AttributeListSyntax>> GetAttributeDeclarations() {
         return _syntax is LambdaExpressionSyntax lambdaSyntax
             ? OneOrMany.Create(lambdaSyntax.attributeLists)
@@ -140,6 +146,10 @@ internal sealed class LambdaSymbol : SourceMethodSymbol {
 
     internal override void AddDeclarationDiagnostics(BelteDiagnosticQueue diagnostics) {
         // _declarationDiagnostics.PushRange(diagnostics);
+    }
+
+    private protected override BehaviorSpecifierInfo MakeSpecifierInfo(BelteDiagnosticQueue diagnostics) {
+        return BehaviorSpecifierInfo.Default;
     }
 
     private ImmutableArray<ParameterSymbol> MakeParameters(
@@ -229,6 +239,10 @@ internal sealed class LambdaSymbol : SourceMethodSymbol {
     }
 
     internal override ImmutableArray<TypeParameterConstraintKinds> GetTypeParameterConstraintKinds() {
+        return [];
+    }
+
+    internal override ImmutableArray<BoundExpression> GetTemplateConstraints() {
         return [];
     }
 

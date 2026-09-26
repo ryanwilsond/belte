@@ -18,4 +18,8 @@ internal static class MethodSymbolExtensions {
                 return false;
         }
     }
+
+    internal static bool IsImplementable(this MethodSymbol methodOpt) {
+        return methodOpt is not null && !methodOpt.isSealed && (methodOpt.isAbstract || methodOpt.isVirtual);
+    }
 }

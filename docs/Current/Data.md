@@ -1,28 +1,32 @@
 # 3 Data
 
 - [3.1](#31-data-types) Data Types
-  - [3.1.1](#311-casts) Casts
-  - [3.1.2](#312-string-interpolation) String Interpolation
-  - [3.1.3](#313-function-type) Function Type
-  - [3.1.4](#314-default-literal) Default Literal
-  - [3.1.5](#315-tuples) Tuples
-    - [3.1.5.1](#3151-user-defined-deconstruction) User-Defined Deconstruction
+  - [3.1.1](#311-numerics) Numerics
+  - [3.1.2](#312-strings) Strings
+    - [3.1.2.1](#3121-multiline-strings) Multiline Strings
+    - [3.1.2.2](#3122-string-interpolation) String Interpolation
+  - [3.1.3](#313-casts) Casts
+  - [3.1.4](#314-function-type) Function Type
+  - [3.1.5](#315-default-literal) Default Literal
+  - [3.1.6](#316-tuples) Tuples
+    - [3.1.6.1](#3161-user-defined-deconstruction) User-Defined Deconstruction
 - [3.2](#32-operators) Operators
   - [3.2.1](#321-operator-precedence) Operator Precedence
-  - [3.2.2](#322-uncommon-operators) Uncommon Operators
+  - [3.2.2](#322-nullability-operators) Nullability Operators
     - [3.2.2.1](#3221-x) `x!`
     - [3.2.2.2](#3222-x) `x?`
     - [3.2.2.3](#3223-ai) `a?[i]`
     - [3.2.2.4](#3224-xy) `x?.y`
     - [3.2.2.5](#3225-x--y) `x ?? y`
     - [3.2.2.6](#3226-x--y) `x ?! y`
-    - [3.2.2.7](#3227-xy) `x..y`
-    - [3.2.2.8](#3228-xy) `x?..y`
-    - [3.2.2.9](#3229-x) `x!!`
-    - [3.2.2.10](#32210-x--y) `x /\ y`
-    - [3.2.2.11](#32211-x--y) `x \/ y`
-    - [3.2.2.12](#32212-x--y-z) `x >< [y, z]`
+    - [3.2.2.7](#3227-x) `x!!`
   - [3.2.3](#323-isisntas-operators) Is/Isnt/As Operators
+  - [3.2.4](#324-uncommon-operators) Uncommon Operators
+    - [3.2.4.1](#3241-xy) `x..y`
+    - [3.2.4.2](#3242-xy) `x?..y`
+    - [3.2.4.3](#3243-x--y) `x /\ y`
+    - [3.2.4.4](#3244-x--y) `x \/ y`
+    - [3.2.4.5](#3245-x--y-z) `x >< [y, z]`
 - [3.3](#33-data-containers) Data Containers
   - [3.3.1](#331-modifiers) Modifiers
   - [3.3.2](#332-implicit-typing) Implicit Typing
@@ -31,7 +35,7 @@
 - [3.6](#36-arrays) Arrays
 - [3.7](#37-compile-time-expressions) Compile-Time Expressions
   - [3.7.1](#371-examples) Examples
-  - [3.7.2](#372-side-effects) Side Effects
+  - [3.7.2](#372-conditional-compile-time-expressions) Conditional Compile-Time Expressions
 
 ## 3.1 Data Types
 
@@ -39,14 +43,14 @@ The following is a list of built-in types with links to further information:
 
 | Name | Example | Value | More Info |
 | - | - | - | - |
-| Integer | `int` | Whole number | |
-| Decimal | `decimal` | Number with a decimal point | |
+| Integer | `int` | Whole number | [Section 3.1.1](#311-numerics) |
+| Decimal | `decimal` | Number with a decimal point | [Section 3.1.1](#311-numerics) |
 | Boolean | `bool` | `true` or `false` | |
-| String | `string` | Span of characters | |
-| Character | `char` | Single unicode character | |
+| String | `string` | Span of characters | [Section 3.1.2](#312-strings) |
+| Character | `char` | Single unicode character | [Section 3.1.2](#312-strings) |
 | Type | `type` | Represents another type (e.g. `typeof(int)`) | |
 | Any | `any` | Anything | |
-| Function | `void()` | Managed function | [Section 3.1.3](#313-function-type) |
+| Function | `void()` | Managed function | [Section 3.1.4](#314-function-type) |
 | Object | `Object` | Anything, class base type | [Section 4.1](ClassesAndObjects.md#41-classes) |
 | Array | `int[]` | Collection of items | [Section 3.6](#36-arrays) |
 | Buffer | `Buffer<int>` | Collection of items | [Section 6.3](LowLevelFeatures.md#63-arrays-and-buffers) |
@@ -85,7 +89,116 @@ Additional information:
 - See also [sized numeric types](LowLevelFeatures.md#64-numerics).
 - See also [pointer and function pointer types](LowLevelFeatures.md#65-pointers).
 
-### 3.1.1 Casts
+### 3.1.1 Numerics
+
+Integer types support binary and hexadecimal representations and underscores. The following are all equivalent:
+
+```belte
+123456
+123_456
+0x1E240
+0X1_E240
+0b00011110001001000000
+0B0001_1110_0010_0100_0000
+```
+
+Decimal types support scientific notation. The following are all equivalent:
+
+```belte
+45600000000
+4.56e+10
+4.56E10
+```
+
+All numeric literals will shrink/expand to fit the context if applicable. For example, a floating-point literal will
+default to the `decimal` type, but will shrink to `float32` if possible:
+
+```belte
+float32 a = 3.4;
+```
+
+For integer literals, they default to `int` but can shrink:
+
+```belte
+uint8 a = 45;
+```
+
+### 3.1.2 Strings
+
+Strings are, by default, single line. String literals are surrounded by single quotations:
+
+```belte
+"some text"
+```
+
+Strings support escape sequences. Two consecutive quotations inside of a string literal are treated as an escape of the
+quotation. The following are equivalent:
+
+```belte
+" \" "
+" "" "
+```
+
+Character literals use single-quotes and contain exactly one character:
+
+```belte
+'c'
+```
+
+- See also [C strings](LowLevelFeatures.md#614-c-strings).
+
+### 3.1.2.1 Multiline Strings
+
+Multiline strings use three consecutive double quotes to start and end the string. The start and end lines are ignored
+if they are otherwise empty. The following are equivalent:
+
+```belte
+"""
+some
+text
+""";
+```
+
+```belte
+"some\r\ntext"
+```
+
+If the ending delimiter is on its own line, its leading whitespace is stripped from all lines in the string. The
+following are equivalent:
+
+```belte
+"""
+    some
+      text
+    """
+```
+
+```belte
+"some\r\n  text"
+```
+
+Multiline strings can be [interpolated](#3122-string-interpolation).
+
+### 3.1.2.2 String Interpolation
+
+Prefixing a string literal with `f` allows expressions to be embedded into the string, denoted by enclosing brace pairs.
+
+The expressions within a string will automatically be casted to a string if they are a primitive. Otherwise
+`Object.ToString()` is called on the expression.
+
+For example:
+
+```belte
+var a = 3;
+var b = f"A equals {a}"; // b = "A equals 3"
+```
+
+```belte
+var a = new List<int>({ 1, 2, 3 });
+var b = f"A equals {a}"; // b = "A equals { 1, 2, 3 }"
+```
+
+### 3.1.3 Casts
 
 To convert from one data type to another, a cast can be used. If a cast is implicit, it can happen automatically. If a
 cast is explicit, it requires a cast expression (e.g. `(int)"123"`).
@@ -160,26 +273,7 @@ Additional information:
 - See also [user-defined casts](ClassesAndObjects.md#4232-casts).
 - See also [bit casts](LowLevelFeatures.md#641-bit-casts)
 
-### 3.1.2 String Interpolation
-
-Prefixing a string literal with `f` allows expressions to be embedded into the string, denoted by enclosing brace pairs.
-
-The expressions within a string will automatically be casted to a string if they are a primitive. Otherwise
-`Object.ToString()` is called on the expression.
-
-For example:
-
-```belte
-var a = 3;
-var b = f"A equals {a}"; // b = "A equals 3"
-```
-
-```belte
-var a = new List<int>({ 1, 2, 3 });
-var b = f"A equals {a}"; // b = "A equals { 1, 2, 3 }"
-```
-
-### 3.1.3 Function Type
+### 3.1.4 Function Type
 
 Similar to [function pointers](LowLevelFeatures.md#66-function-pointers), a data container can have a function type and
 then be assigned with unambiguous method groups.
@@ -206,7 +300,7 @@ This is to allow [named arguments](ControlFlow.md#214-named-arguments) when call
 Function types cannot include pointer types in the return value or parameter list. For cases where you need this
 functionality, use function pointers instead.
 
-### 3.1.4 Default Literal
+### 3.1.5 Default Literal
 
 The `default` literal can be used to indicate `null` for nullable types or the default value for others.
 
@@ -225,7 +319,7 @@ var a = default(int);
 
 Types with no default value (non-nullable class types) cannot use the `default` literal.
 
-### 3.1.5 Tuples
+### 3.1.6 Tuples
 
 Tuples are value types (structs) that contain fields are varying types. They act as small containers.
 
@@ -267,7 +361,7 @@ var t = (3, true); var a = t.Item1; var b = t.Item2;
 (var a, var b) = (3, true);
 ```
 
-#### 3.1.5.1 User-Defined Deconstruction
+#### 3.1.6.1 User-Defined Deconstruction
 
 User-defined deconstruction can be done by [defining an implicit cast](ClassesAndObjects.md#4232-casts) to a tuple type:
 
@@ -324,12 +418,12 @@ strict order of precedence:
 | x && y | Conditional AND |
 | x \|\| y | Conditional OR |
 | x ?? y, x ?! y | Null-Coalescing |
-| c ? t : f, x >< \[y, z] | Tertiary Conditional and Clamp |
+| c ? t : f, x >< \[y, z\] | Tertiary Conditional and Clamp |
 
 Note that all binary operators are left-associative except for the power operator. For example `2 + 3 + 4` will parse as
 `(2 + 3) + 4` while `2 ** 3 ** 4` will parse as `2 ** (3 ** 4)`.
 
-### 3.2.2 Uncommon Operators
+### 3.2.2 Nullability Operators
 
 #### 3.2.2.1 `x!`
 
@@ -358,7 +452,7 @@ This operator is syntax sugar for `x is null ? null : x!.y`.
 `x ?? y` is a null coalescing expression. If `x` is null, `y` is the result. Otherwise `x` is the result. `y` will not
 execute if `x` is not null.
 
-This operator is syntax sugar for `x is null ? y : null`.
+This operator is syntax sugar for `x is null ? y : x`.
 
 #### 3.2.2.6 `x ?! y`
 
@@ -367,57 +461,19 @@ execute if `x` is null.
 
 This operator is syntax sugar for `x is null ? null : y`.
 
-#### 3.2.2.7 `x..y`
+#### 3.2.2.7 `x!!`
 
-`x..y` is a cascade expression. Each cascade performs a field assignment or call on the receiver `x` but the result is
-discarded.
-
-For example:
-
-```belte
-var a = new Obj()..M()..f=3;
-```
-
-The above example is equivalent to:
-
-```belte
-var temp = new Obj();
-temp.M();
-temp.f = 3;
-var a = temp;
-```
-
-Notice that even if `Obj.M()` returns a value, it is ignored.
-
-#### 3.2.2.8 `x?..y`
-
-`x?..y` is a conditional cascade expression. The field assignment or call expression `y` is only performed if `x` is not
-null.
-
-#### 3.2.2.9 `x!!`
-
-`x!!` is a silent null assertion. It converts a nullable `x` into a non-nullable one. `x` must be nullable. The
-operator's result is non-nullable. If `x` is null, a runtime null reference exception is thrown if building in
-debug mode. If in release mode, no runtime check is performed at the assertion site explicitly, meaning exceptions will
-raise elsewhere if the value is null.
+`x!!` is a silent null assertion. This operator is meant for advanced use. It converts a nullable `x` into a
+non-nullable one. `x` must be nullable. The operator's result is non-nullable. If `x` is null, a runtime null reference
+exception is thrown if building in debug mode. If in release mode, no runtime check is performed at the assertion site
+explicitly, meaning exceptions will raise elsewhere if the value is null. This makes it semantically different than
+[`x!`](#3221-x) beyond performance.
 
 In the case that the operand has a class type, using this operator when the operand is null risks polluting a
 non-nullable context with null.
 
 This operator is intended to be used when certain the operand is not null and thus the overhead of checking again is
 unnecessary.
-
-#### 3.2.2.10 `x /\ y`
-
-`x /\ y` is equivalent to `Math.Min(x, y)`.
-
-#### 3.2.2.11 `x \/ y`
-
-`x \/ y` is equivalent to `Math.Max(x, y)`.
-
-#### 3.2.2.12 `x >< [y, z]`
-
-`x >< [y, z]` is equivalent to `Math.Clamp(x, y, z)`.
 
 ### 3.2.3 Is/Isnt/As Operators
 
@@ -466,6 +522,53 @@ if (a is int t) {
   int b = t + 3;
 }
 ```
+
+### 3.2.4 Uncommon Operators
+
+#### 3.2.4.1 `x..y`
+
+`x..y` is a cascade expression. Each cascade performs a field assignment or call on the receiver `x` but the result is
+discarded.
+
+For example:
+
+```belte
+var a = new Obj()..M()..f=3;
+```
+
+The above example is equivalent to:
+
+```belte
+var temp = new Obj();
+temp.M();
+temp.f = 3;
+var a = temp;
+```
+
+Notice that even if `Obj.M()` returns a value, it is ignored.
+
+#### 3.2.4.2 `x?..y`
+
+`x?..y` is a conditional cascade expression. The field assignment or call expression `y` is only performed if `x` is not
+null.
+
+#### 3.2.4.3 `x /\ y`
+
+`x /\ y` is equivalent to `Math.Min(x, y)`.
+
+The min operator has the same precedence as the relational operators (e.g. `x < y`).
+
+#### 3.2.4.4 `x \/ y`
+
+`x \/ y` is equivalent to `Math.Max(x, y)`.
+
+The min operator has the same precedence as the relational operators (e.g. `x < y`).
+
+#### 3.2.4.5 `x >< [y, z]`
+
+`x >< [y, z]` is equivalent to `Math.Clamp(x, y, z)`.
+
+The clamp operator has the same operator precedence as the ternary conditional operator.
 
 ## 3.3 Data Containers
 
@@ -549,6 +652,18 @@ a.f = 4; // Invalid, cannot modify data
 class A {
   int f;
 }
+```
+
+Critically: "const-ness" is only enforced through the particular receiver. In other words, it is "shallow". This means
+that if multiple locals point to the same object in memory, a variable one can mutate it causing changes in constant
+locals.
+
+```belte
+var a = new List<int>();
+const b = a;
+
+a.Add(10);
+// b is changed even though it is marked `const`
 ```
 
 Constants cannot be passed as arguments to [parameters not marked `const`](ControlFlow.md#212-const-parameters) unless
@@ -816,17 +931,11 @@ In certain contexts, a [`Buffer<T>` may be preferable](LowLevelFeatures.md#63-ar
 
 ## 3.7 Compile-Time Expressions
 
-To evaluate an expression at compile-time, you can precede it with `$` or `$?`. The `$` operator tells the compiler to
-evaluate the expression at compile time. The `$?` operator tells the compiler to try and evaluate the expression at
-compile time, and if it cannot be evaluated ignore the failure and compile the expression as normal.
+To evaluate an expression at compile-time, you can precede it with `$`. The `$` operator tells the compiler to
+evaluate the expression at compile time.
 
 Not all expressions are able to be evaluated at compile time. If the type of the expression is an object, pointer, or
 function pointer, the compiler does not attempt to evaluate the expression.
-
-If the expression has a valid result type, the compiler does attempt to evaluate it, but still may not be able to do so.
-If the result of the expression contains an object, pointer, or function pointer (such as a struct field), the
-expression fails to fully evaluate. If the expression throws an uncaught exception, the expression fails to fully
-evaluate. In both of these cases, consider potential [side effects](#372-side-effects).
 
 For more complex compile-time execution/meta-programming consider using
 [compiler handles](LowLevelFeatures.md#613-compiler-handle).
@@ -873,7 +982,15 @@ class MyClass {
 In the above example, the expression cannot be computed at compile-time because it references local `myClass` which is
 defined outside of the scope of the compile-time expression.
 
-If you want to ignore any compile-time evaluation errors and continue you can use `$?`:
+### 3.7.2 Conditional Compile-Time Expressions
+
+The `$?` operator tells the compiler to try and evaluate the expression at compile time, and if it cannot be evaluated
+ignore the failure and compile the expression as normal.
+
+If the expression has a valid result type, the compiler does attempt to evaluate it, but still may not be able to do so.
+If the result of the expression contains an object, pointer, or function pointer (such as a struct field), the
+expression fails to fully evaluate. If the expression throws an uncaught exception, the expression fails to fully
+evaluate. In both of these cases, consider potential side effects
 
 ```belte
 var myClass = new MyClass();
@@ -890,8 +1007,6 @@ class MyClass {
 
 The above example will not replace the `myInt` declaration with anything and will retain its original initializer of
 `myClass.GetF()` because the compile-time evaluation failed.
-
-### 3.7.2 Side Effects
 
 Because whether or not an expression is evaluatable at compile time cannot always be predetermined, it is important to
 note that there may be side effects to expressions marked to evaluate even if the expression fails, such as file IO.

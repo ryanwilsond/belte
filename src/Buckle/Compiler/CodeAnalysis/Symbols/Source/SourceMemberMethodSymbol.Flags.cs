@@ -81,5 +81,10 @@ internal abstract partial class SourceMemberMethodSymbol {
         internal void SetReturnsVoid(bool value) {
             ThreadSafeFlagOperations.Set(ref _flags, ReturnsVoidIsSetBit | (value ? ReturnsVoidBit : 0));
         }
+
+        internal void EnsureMetadataVirtual() {
+            if ((_flags & IsMetadataVirtualBit) == 0)
+                ThreadSafeFlagOperations.Set(ref _flags, IsMetadataVirtualBit);
+        }
     }
 }

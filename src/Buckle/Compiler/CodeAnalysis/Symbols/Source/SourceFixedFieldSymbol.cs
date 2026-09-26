@@ -2,7 +2,6 @@ using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -38,7 +37,7 @@ internal class SourceFixedFieldSymbol : SourceMemberFieldSymbolFromDeclarator {
                 var binder = binderFactory.GetBinder(sizeExpression);
                 binder = new ExecutableCodeBinder(sizeExpression, binder.containingMember, binder).GetBinder(sizeExpression);
 
-                var intType = CorLibrary.GetSpecialType(SpecialType.Int32);
+                var intType = binder.compilation.GetSpecialType(SpecialType.Int32);
                 var boundSize = binder.BindValue(sizeExpression, diagnostics, Binder.BindValueKind.RValue);
                 boundSize = Binder.ReduceNumericIfApplicable(intType, boundSize);
 

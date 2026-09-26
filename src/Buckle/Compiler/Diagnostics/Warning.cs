@@ -1,5 +1,8 @@
+using Buckle.CodeAnalysis;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Diagnostics;
 
@@ -149,6 +152,11 @@ internal static class Warning {
         return CreateWarning(DiagnosticCode.WRN_ProtectedInSealed, location, message);
     }
 
+    internal static BelteDiagnostic SealedInSealed(TextLocation location, Symbol symbol) {
+        var message = $"'{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}': sealed member declared in sealed type; no different than non-sealed override";
+        return CreateWarning(DiagnosticCode.WRN_SealedInSealed, location, message);
+    }
+
     // TODO Implement this warning
     internal static BelteDiagnostic ImpliedReference(TextLocation location) {
         throw Utilities.ExceptionUtilities.Unreachable();
@@ -222,6 +230,93 @@ internal static class Warning {
     internal static BelteDiagnostic DifferentConstOnOverrideParameter(TextLocation location, Symbol symbol, Symbol hiddenMember, string name) {
         var message = $"'{symbol}': parameter '{name}' is marked 'const' but the corresponding parameter on overridden member '{hiddenMember}' is not";
         return CreateWarning(DiagnosticCode.WRN_DifferentConstOnOverrideParameter, location, message);
+    }
+
+    internal static BelteDiagnostic DuplicateReference(string reference) {
+        var message = $"\"{reference}\": reference has already been added to the compilation";
+        return CreateWarning(DiagnosticCode.WRN_DuplicateReference, null, message);
+    }
+
+    internal static BelteDiagnostic DuplicateAssembly(AssemblyIdentity assembly) {
+        var message = $"\"{assembly.GetDisplayName()}\": assembly has already been added to the compilation";
+        return CreateWarning(DiagnosticCode.WRN_DuplicateAssembly, null, message);
+    }
+
+    internal static BelteDiagnostic NullBinaryEquality(TextLocation location, bool isNot, BoundExpression left) {
+        var message = $"null checks should use the 'is' or 'isnt' operator";
+        var suggestion = $"{left} {(isNot ? "isnt" : "is")} null";
+        return CreateWarning(DiagnosticCode.WRN_NullBinaryEquality, location, message, suggestion);
+    }
+
+    internal static BelteDiagnostic AssignmentToSelf(TextLocation location) {
+        var message = $"assignment made to same variable; did you mean to assign something else?";
+        return CreateWarning(DiagnosticCode.WRN_AssignmentToSelf, location, message);
+    }
+
+    internal static BelteDiagnostic UnnecessaryCompileTimeExpression(TextLocation location, SyntaxNode operand) {
+        var message = $"compile-time expression is unnecessary as the target expression is already a compile-time constant";
+        var suggestion = $"{operand}";
+        return CreateWarning(DiagnosticCode.WRN_UnnecessaryCompileTimeExpression, location, message, suggestion);
+    }
+
+    internal static BelteDiagnostic DifferentSpecifierOnOverride(TextLocation location, Symbol symbol, Symbol hiddenMember, string specifier) {
+        var message = $"'{symbol}': member is marked '{specifier}' but overridden member '{hiddenMember}' is not";
+        return CreateWarning(DiagnosticCode.WRN_DifferentSpecifierOnOverride, location, message);
+    }
+
+    internal static BelteDiagnostic PotentialUninitializedObjectLeak(TextLocation location) {
+        var message = $"call potentially leaks uninitialized object state";
+        return CreateWarning(DiagnosticCode.WRN_PotentialUninitializedObjectLeak, location, message);
+    }
+
+    internal static BelteDiagnostic UnnecessaryTryStatement(TextLocation location) {
+        var message = $"try statement is unnecessary as no statements within it can throw";
+        return CreateWarning(DiagnosticCode.WRN_UnnecessaryTryStatement, location, message);
+    }
+
+    internal static BelteDiagnostic FailedToEmitMetadataAttribute() {
+        var message = $"failed to emit assembly attribute 'BelteMetadataAttribute' (are you using '--nostdlib'?)";
+        return CreateWarning(DiagnosticCode.WRN_FailedToEmitMetadataAttribute, null, message);
+    }
+
+    internal static BelteDiagnostic FailedToEmitAttribute(TextLocation location, TypeSymbol type) {
+        var message = $"failed to emit attribute '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' (are you using '--nostdlib'?)";
+        return CreateWarning(DiagnosticCode.WRN_FailedToEmitAttribute, location, message);
+    }
+
+    internal static BelteDiagnostic UnnecessaryTemplateSpecialization(TextLocation location) {
+        var message = $"template specialization is unnecessary because the target is marked as compile-time only";
+        return CreateWarning(DiagnosticCode.WRN_UnnecessaryTemplateSpecialization, location, message);
+    }
+
+    internal static BelteDiagnostic UnusedParameter(TextLocation location, MethodSymbol method, string name) {
+        var message = $"'{method}': unused parameter '{name}'";
+        return CreateWarning(DiagnosticCode.WRN_UnusedParameter, location, message);
+    }
+
+    internal static BelteDiagnostic UnnecessaryParameterDiscard(TextLocation location, string name) {
+        var message = $"unnecessary parameter discard as parameter '{name}' is used elsewhere";
+        return CreateWarning(DiagnosticCode.WRN_UnnecessaryParameterDiscard, location, message);
+    }
+
+    internal static BelteDiagnostic UnusedLocal(TextLocation location, string name) {
+        var message = $"local '{name}' is unused";
+        return CreateWarning(DiagnosticCode.WRN_UnusedLocal, location, message);
+    }
+
+    internal static BelteDiagnostic LocalCouldBeConst(TextLocation location, string name) {
+        var message = $"local '{name}' could be marked 'const'";
+        return CreateWarning(DiagnosticCode.WRN_LocalCouldBeConst, location, message);
+    }
+
+    internal static BelteDiagnostic LocalCouldBeFinal(TextLocation location, string name) {
+        var message = $"local '{name}' could be marked 'final'";
+        return CreateWarning(DiagnosticCode.WRN_LocalCouldBeFinal, location, message);
+    }
+
+    internal static BelteDiagnostic LocalCouldBeConstExpr(TextLocation location, string name) {
+        var message = $"local '{name}' could be marked 'constexpr'";
+        return CreateWarning(DiagnosticCode.WRN_LocalCouldBeFinal, location, message);
     }
 
     private static BelteDiagnostic CreateWarning(DiagnosticCode code, TextLocation location, string message) {

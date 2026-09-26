@@ -1,3 +1,5 @@
+using System.Text;
+using Diagnostics;
 using Xunit;
 using Xunit.Abstractions;
 using static Buckle.Tests.Assertions;
@@ -5,7 +7,7 @@ using static Buckle.Tests.Assertions;
 namespace Buckle.Tests.Diagnostics;
 
 /// <summary>
-/// At least one test per diagnostic (any severity) if testable. If not testable, an explanation as to why is given.
+/// At least one test per diagnostic (any severity) if testable. If not (easily) testable, an explanation as to why is given.
 /// </summary>
 public sealed class DiagnosticTests {
     private readonly ITestOutputHelper _writer;
@@ -24,7 +26,7 @@ public sealed class DiagnosticTests {
             expression will always result to 'null'
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -281,6 +283,22 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
+    public void Reports_Error_BU0019_NotAllPathsReturn2() {
+        var text = @"
+            class A {
+                public void M() { } [state](int) { } reverse(int p) { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            not all code paths return a value
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
     public void Reports_Error_BU0020_CannotConvert() {
         var text = @"
             class A {
@@ -376,7 +394,7 @@ public sealed class DiagnosticTests {
             unreachable code
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -430,7 +448,7 @@ public sealed class DiagnosticTests {
         var text = @"
             class A {
                 public static implicit operator int?(A a) { return 1; }
-                public static implicit [operator] int?(A a) { return 1; }
+                public static implicit operator [int?](A a) { return 1; }
             }
         ";
 
@@ -986,7 +1004,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0068_DefaultMustBeConstant() {
         var text = @"
-            void MyFunc(int? a = [Console.Input()]) { }
+            void MyFunc(out int? a = [Console.Input()]) { }
         ";
 
         var diagnostics = @"
@@ -1027,7 +1045,8 @@ public sealed class DiagnosticTests {
         var text = @"
             class A {
                 public void M() {
-                    int [A] = 3;
+                    const int [A] = 3;
+                    int [b] = A;
                 }
             }
             ;
@@ -1035,9 +1054,10 @@ public sealed class DiagnosticTests {
 
         var diagnostics = @"
             local 'A' shares a name with a type in this namespace
+            local 'b' is unused
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -1193,7 +1213,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0083_OperatorRefParameter() {
         var text = @"
             class A {
-                public static A [operator]+(ref A a, A b) { return a; }
+                public static A operator[+](ref A a, A b) { return a; }
             }
         ";
 
@@ -1347,7 +1367,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0094_OperatorRefReturn() {
         var text = @"
             class A {
-                public static ref A? [operator]+(A a, A b) { return null; }
+                public static ref A? operator[+](A a, A b) { return null; }
             }
         ";
 
@@ -1573,7 +1593,7 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            overloaded operators must be marked as public and static
+            user-defined operator 'A.op_Addition(A!, A!)' must be declared public and static
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -1616,8 +1636,18 @@ public sealed class DiagnosticTests {
     // ! Error_BU0113_RefReturnOnlyParameter
     // Unreachable currently
 
-    // ! Error_BU0114_ArrayOutsideOfLowLevelContext
-    // Lowlevel restrictions not enforced currently
+    [Fact]
+    public void Reports_Error_BU0114_InitializerListTargetTypeNotConstructible() {
+        var text = @"
+            int a = [{ 1, 2, 3 }];
+        ";
+
+        var diagnostics = @"
+            cannot initialize type 'int!' with an initializer list because the type does not define a conversion from 'T[]' or 'Buffer<T>'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0115_EmptyCharacterLiteral() {
@@ -1754,7 +1784,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0124_ConstraintIsNotConstant() {
         var text = @"
-            class A<string? a> where { [a == Console.Input()]; } { }
+            class A<string a> where { [a == Console.Input()]; } { }
         ";
 
         var diagnostics = @"
@@ -1798,29 +1828,30 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0127_ConstraintWasNull() {
-        var text = @"
-            class A<int? a> where { a == 3; } { }
-            var a = new [A<null>]();
-        ";
+    // ! Hopefully unreachable
+    // [Fact]
+    // public void Reports_Error_BU0127_ConstraintWasNull() {
+    //     var text = @"
+    //         class A<int? a> where { (a is null ? null : a == 3); } { }
+    //         var a = new [A<null>]();
+    //     ";
 
-        var diagnostics = @"
-            template constraint fails: constraint results in null (a == 3)
-        ";
+    //     var diagnostics = @"
+    //         template constraint fails: constraint results in null ('a is null ? null : a == 3')
+    //     ";
 
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
 
     [Fact]
     public void Reports_Error_BU0128_ConstraintFailed() {
         var text = @"
-            class A<int? a> where { a == 3; } { }
+            class A<int a> where { a == 3; } { }
             var a = new [A<4>]();
         ";
 
         var diagnostics = @"
-            template constraint fails (a == 3)
+            template constraint on 'A<int! a>' fails ('a == 3')
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -2011,7 +2042,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0143_OperatorNeedsMatch() {
         var text = @"
             class A {
-                public static bool? [operator]==(A x, A y) {
+                public static bool? operator[==](A x, A y) {
                     return true;
                 }
             }
@@ -2067,9 +2098,9 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0148_TemplateObjectBaseWithPrimitiveBase() {
+    public void Reports_Error_BU0148_TemplateObjectBaseWithValueTypeBase() {
         var text = @"
-            class A<[type T], type T2> where { T2 is primitive; T extends T2; } { }
+            class A<[type T], type T2> where { T2 is struct; T extends T2; } { }
         ";
 
         var diagnostics = @"
@@ -2080,7 +2111,7 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0149_TemplateObjectBaseWithPrimitiveBase() {
+    public void Reports_Error_BU0149_TemplateBaseConstraintConflict() {
         var text = @"
             class B { }
             class C { }
@@ -2095,13 +2126,13 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0150_TemplateBaseBothObjectAndPrimitive() {
+    public void Reports_Error_BU0150_TemplateBaseBothReferenceAndValueType() {
         var text = @"
-            class A<[type T]> where { T is primitive; T extends Object; } { }
+            class A<[type T]> where { T is struct; T is class; } { }
         ";
 
         var diagnostics = @"
-            template parameter 'T' cannot be constrained as both an object type and a primitive type
+            template parameter 'T' cannot be constrained as both a reference type and a value type
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -2212,7 +2243,7 @@ public sealed class DiagnosticTests {
         var text = @"
             class A {
                 private class B { }
-                public static B? [operator]+(A a, A b) { return null; }
+                public static B? operator[+](A a, A b) { return null; }
             }
         ";
 
@@ -2244,7 +2275,7 @@ public sealed class DiagnosticTests {
         var text = @"
             class A {
                 private class B { }
-                public static A? [operator]+(B b, A a) { return null; }
+                public static A? operator[+](B b, A a) { return null; }
             }
         ";
 
@@ -2593,7 +2624,7 @@ public sealed class DiagnosticTests {
             the given expression is never of the provided type ('A')
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -2854,7 +2885,7 @@ public sealed class DiagnosticTests {
             possible mistaken empty statement
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -3118,7 +3149,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0233_RefReturnMustHaveIdentityConversion() {
         var text = @"
             class A {
-                public static ref A [operator]+(A a, A b) { return [null]; }
+                public static ref A operator[+](A a, A b) { return [null]; }
             }
         ";
 
@@ -3203,7 +3234,7 @@ public sealed class DiagnosticTests {
             assignment in conditional expression is always constant; did you mean to use '==' instead of '=' ?
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -3296,15 +3327,15 @@ public sealed class DiagnosticTests {
     public void Reports_Warning_BU0252_DefaultValueNoEffect() {
         var text = @"
             class A {
-                public static A operator+(A a, int? [b] = 3) { return a; }
+                public static A operator+(A a, int? [_b] = 3) { return a; }
             }
         ";
 
         var diagnostics = @"
-            the default value specified for parameter 'b' will have no effect because it applies to a member that is used in contexts that do not allow optional arguments
+            the default value specified for parameter '_b' will have no effect because it applies to a member that is used in contexts that do not allow optional arguments
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -3320,7 +3351,18 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0254_InvalidRefParameter
+    [Fact]
+    public void Reports_Error_BU0254_InvalidRefParameter() {
+        var text = @"
+            void F([ref] int a) pure { }
+        ";
+
+        var diagnostics = @"
+            'ref' and 'out' are not valid in this context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     // ? Currently not enforced
     // [Fact]
@@ -3339,12 +3381,11 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0257_CircularConstantValue() {
         var text = @"
-            constexpr int? a = [[a]];
+            constexpr int? a = [a];
         ";
 
         var diagnostics = @"
             the evaluation of the constant value for 'a' involves a circular definition
-            expected a compile-time constant value
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -3419,7 +3460,7 @@ public sealed class DiagnosticTests {
     public void Reports_Warning_BU0263_EqualsWithoutGetHashCode() {
         var text = @"
             class [A] {
-                public override bool! Equals(Object o) { return true; }
+                public override bool! Equals(Object? _o) { return true; }
             }
         ";
 
@@ -3427,15 +3468,15 @@ public sealed class DiagnosticTests {
             'A' overrides 'Object.Equals(Object)' but does not override 'Object.GetHashCode()'
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
     public void Reports_Warning_BU0264_EqualityOpWithoutEquals() {
         var text = @"
             class [[A]] {
-                public static bool? operator==(A a, A b) { return true; }
-                public static bool? operator!=(A a, A b) { return false; }
+                public static bool? operator==(A _a, A _b) { return true; }
+                public static bool? operator!=(A _a, A _b) { return false; }
             }
         ";
 
@@ -3444,15 +3485,15 @@ public sealed class DiagnosticTests {
             'A' defines operator == or operator != but does not override 'Object.GetHashCode()'
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
     public void Reports_Warning_BU0265_EqualityOpWithoutGetHashCode() {
         var text = @"
             class [[A]] {
-                public static bool? operator==(A a, A b) { return true; }
-                public static bool? operator!=(A a, A b) { return false; }
+                public static bool? operator==(A _a, A _b) { return true; }
+                public static bool? operator!=(A _a, A _b) { return false; }
             }
         ";
 
@@ -3461,7 +3502,7 @@ public sealed class DiagnosticTests {
             'A' defines operator == or operator != but does not override 'Object.GetHashCode()'
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -3482,8 +3523,11 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0267_AbstractAndSealed() {
         var text = @"
-            class A {
-                public sealed abstract void [F]();
+            class B {
+                public virtual void F() { }
+            }
+            class A extends B {
+                public sealed abstract override void [F]();
             }
         ";
 
@@ -3566,7 +3610,7 @@ public sealed class DiagnosticTests {
             'A.F': new protected member declared in sealed type; no different than private
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -3584,7 +3628,7 @@ public sealed class DiagnosticTests {
             'B.F()' hides inherited member 'A.F()'; use the new keyword if hiding was intended
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -3599,7 +3643,7 @@ public sealed class DiagnosticTests {
             the member 'A.F()' does not hide an accessible member; the new keyword is not required
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     // ! Error_BU0275_HidingAbstractMember
@@ -3619,7 +3663,7 @@ public sealed class DiagnosticTests {
             'B.F()' hides inherited member 'A.F()'; to make the current member override that implementation, add the override keyword; otherwise add the new keyword
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     // ! Warning_BU0277_HidingDifferentRefness
@@ -3751,7 +3795,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0292_OperatorCantReturnVoid() {
         var text = @"
             class A {
-                public static void [operator]+(A a, A b) { }
+                public static void operator[+](A a, A b) { }
             }
         ";
 
@@ -3766,7 +3810,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0293_BadUnaryOperatorSignature() {
         var text = @"
             class A {
-                public static A? [operator]+(int a) { return null; }
+                public static A? operator[+](int a) { return null; }
             }
         ";
 
@@ -3777,14 +3821,27 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0294_BadAbstractUnaryOperatorSignature
-    // Abstract operators not implements yet
+    [Fact]
+    public void Reports_Error_BU0294_BadAbstractUnaryOperatorSignature() {
+        var text = @"
+            interface A {
+                static abstract A operator[+](int a);
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            the parameter of a unary operator must be the containing type, or its type template parameter constrained to it
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0295_BadShiftOperatorSignature() {
         var text = @"
             class A {
-                public static A? [operator]<<(int? a, int? b) { return null; }
+                public static A? operator[<<](int? a, int? b) { return null; }
             }
         ";
 
@@ -3795,14 +3852,27 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0296_BadAbstractShiftOperatorSignature
-    // Abstract operators not implements yet
+    [Fact]
+    public void Reports_Error_BU0296_BadAbstractShiftOperatorSignature() {
+        var text = @"
+            interface A {
+                static abstract A operator[<<](int? a, int? b);
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            the first operand of an overloaded shift operator must have the same type as the containing type or its type template parameter constrained to it
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0297_BadBinaryOperatorSignature() {
         var text = @"
             class A {
-                public static A? [operator]+(int? a, int? b) { return null; }
+                public static A? operator[+](int? a, int? b) { return null; }
             }
         ";
 
@@ -3813,17 +3883,45 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0298_BadAbstractBinaryOperatorSignature
-    // Abstract operators not implements yet
+    [Fact]
+    public void Reports_Error_BU0298_BadAbstractBinaryOperatorSignature() {
+        var text = @"
+            interface A {
+                static abstract A operator[+](int? a, int? b);
+            }
+            ;
+        ";
 
-    // ! Error_BU0299_BadAbstractEqualityOperatorSignature
-    // Abstract operators not implements yet
+        var diagnostics = @"
+            one of the parameters of a binary operator must be the containing type, or its type template parameter constrained to it
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0299_BadAbstractEqualityOperatorSignature() {
+        var text = @"
+            interface A {
+                static abstract bool operator[==](A left, A right);
+                static abstract bool operator[!=](A left, A right);
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            one of the parameters of an equality, or inequality operator declared in interface 'A' must be a type template parameter on 'A' constrained to 'A'
+            one of the parameters of an equality, or inequality operator declared in interface 'A' must be a type template parameter on 'A' constrained to 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0300_BadIncrementOperatorSignature() {
         var text = @"
             class A {
-                public static A? [operator]++(int? a) { return null; }
+                public static A? operator[++](int? a) { return null; }
             }
         ";
 
@@ -3834,14 +3932,27 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0301_BadAbstractIncrementOperatorSignature
-    // Abstract operators not implements yet
+    [Fact]
+    public void Reports_Error_BU0301_BadAbstractIncrementOperatorSignature() {
+        var text = @"
+            interface A {
+                static abstract A? operator[++](int? a);
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            the parameter type for ++ or -- operator must be the containing type, or its type template parameter constrained to it
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0302_BadIncrementReturnType() {
         var text = @"
             class A {
-                public static int? [operator]++(A a) { return null; }
+                public static int? operator[++](A a) { return null; }
             }
         ";
 
@@ -3852,8 +3963,21 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0303_BadAbstractIncrementReturnType
-    // Abstract operators not implements yet
+    [Fact]
+    public void Reports_Error_BU0303_BadAbstractIncrementReturnType() {
+        var text = @"
+            interface A {
+                static abstract int? operator[++](A a);
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            the return type for ++ or -- operator must either match the parameter type, or be derived from the parameter type, or be the containing type's type template parameter constrained to it unless the parameter type is a different type template parameter
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0304_BadIndexCount() {
@@ -4090,7 +4214,7 @@ public sealed class DiagnosticTests {
             namespace 'Belte' potentially shadows parts of the Standard Library
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -4185,35 +4309,46 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0330_ObjectConstraintFailed() {
+    public void Reports_Error_BU0330_ReferenceTypeConstraintFailed() {
         var text = @"
-            class A<type T> where { T extends Object; } {}
-            var a = new [A<int?>]();
+            class A<type T> where { T is class; } {}
+            var a = new [A<int>]();
         ";
 
         var diagnostics = @"
-            the type 'int?' must be an object type in order to use it as parameter 'T' in the template type or method 'A<type! T>'
+            the type 'int!' must be a reference type in order to use it as parameter 'T' in the template type or method 'A<type! T>'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
     [Fact]
-    public void Reports_Error_BU0331_PrimitiveConstraintFailed() {
+    public void Reports_Error_BU0331_ValueTypeConstraintFailed() {
         var text = @"
-            class A<type T> where { T is primitive; } {}
+            class A<type T> where { T is struct; } {}
             var a = new [A<Object>]();
         ";
 
         var diagnostics = @"
-            the type 'Object!' must be a primitive type in order to use it as parameter 'T' in the template type or method 'A<type! T>'
+            the type 'Object!' must be a value type in order to use it as parameter 'T' in the template type or method 'A<type! T>'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0332_NotNullableConstraintFailed
-    // Not implemented currently
+    [Fact]
+    public void Reports_Error_BU0332_NotNullableConstraintFailed() {
+        var text = @"
+            class A<type T> where { T is notnull; } {}
+            var a = new [A<int?>]();
+        ";
+
+        var diagnostics = @"
+            the type 'int?' must be a non-nullable type in order to use it as parameter 'T' in the template type or method 'A<type! T>'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0333_DuplicateConstraint() {
@@ -4231,11 +4366,11 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0334_CannotIsCheckNonType() {
         var text = @"
-            class A<int? [T]> where { T is primitive; } { }
+            class A<int? [T]> where { T is struct; } { }
         ";
 
         var diagnostics = @"
-            template 'T' is not a type; cannot is check a non-type
+            template 'T' is not a type; cannot use 'is' constraints a non-type template parameter
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -4259,7 +4394,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0336_ThrowMisplaced() {
         var text = @"
-            3 + [throw] new Exception();
+            3 + [throw] new System.Exception();
         ";
 
         var diagnostics = @"
@@ -4414,42 +4549,56 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // !
-    // Unreachable currently, attributes not implemented yet
-    // [Fact]
-    // public void Reports_Error_BU0347_DllImportOnInvalidMethod() {
-    //     var text = @"
-    //         class A {
-    //             \[[DllImport](""d3d12.dll"")\]
-    //             public static void M() { }
-    //         }
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0347_DllImportOnInvalidMethod() {
+        var text = @"
+            class A {
+                \[[DllImport](""d3d12.dll"")\]
+                public static void M() { }
+            }
+            ;
+        ";
 
-    //     var diagnostics = @"
-    //         the DllImport attribute must be specified on a method marked 'static' and 'extern'
-    //     ";
+        var diagnostics = @"
+            the 'DllImport' attribute must be specified on a method marked 'static' and 'extern'
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
-    // [Fact]
-    // public void Reports_Error_BU0348_DllImportOnTemplateMethod() {
-    //     var text = @"
-    //         class A {
-    //             \[[DllImport](""d3d12.dll"")\]
-    //             public static void M<type T>() { }
-    //         }
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0348_DllImportOnTemplateMethod() {
+        var text = @"
+            class A {
+                \[[DllImport](""d3d12.dll"")\]
+                public static extern void M<type T>();
+            }
+            ;
+        ";
 
-    //     var diagnostics = @"
-    //         the DllImport attribute cannot be applied to a method that is template or contained in a template method or type
-    //     ";
+        var diagnostics = @"
+            the 'DllImport' attribute cannot be applied to a method that is template or contained in a template method or type
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
-    // ! Error_BU0349_InvalidAttributeArgument
-    // Unreachable currently, attributes not implemented yet
+    [Fact]
+    public void Reports_Error_BU0349_InvalidAttributeArgument() {
+        var text = @"
+            class A {
+                \[DllImport([""""])\]
+                public static extern void M();
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            invalid value for argument to 'DllImport' attribute
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0350_FixedBufferTooManyDimensions() {
@@ -4555,23 +4704,20 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0357_InvalidCompileTimeExpression() {
-        var text = @"
-            class A {
-                public int Method() { return 3; }
-            }
+    // ? Ideally not reachable, but not for sure
+    // [Fact]
+    // public void Reports_Error_BU0357_InvalidCompileTimeExpression() {
+    //     var text = @"
+    //         static int M() { return 0; }
+    //         var a = [$(&M)()];
+    //     ";
 
-            var a = new A();
-            var b = [$a.Method()];
-        ";
+    //     var diagnostics = @"
+    //         expression is not computable at compile time
+    //     ";
 
-        var diagnostics = @"
-            expression is not computable at compile time
-        ";
-
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
 
     // ! Error_BU0358_FixedNeedsLValue
     // ? Unsure how to trigger this
@@ -5068,7 +5214,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0394_LengthMustReturnInt() {
         var text = @"
             public class A {
-                public static bool? [operator] length(A a) { return true; }
+                public static bool? operator [length](A a) { return true; }
             }
         ";
 
@@ -5083,7 +5229,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0395_IterMustReturnEnumerator() {
         var text = @"
             public class A {
-                public static bool? [operator] iter(A a) { return true; }
+                public static bool? operator [iter](A a) { return true; }
             }
         ";
 
@@ -5238,11 +5384,43 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0404_NoHandleTarget
-    // Requires preprocessor statements (`#handle`)
+    [Fact]
+    public void Reports_Error_BU0404_NoHandleTarget() {
+        var text = @"
+            #handle [A]
+            class A { }
+            ;
+        ";
 
-    // ! Error_BU0405_AmbiguousHandleTarget
-    // Requires preprocessor statements (`#handle`)
+        var diagnostics = @"
+            type 'A' contains no valid handle method
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // !
+    // ? Tests don't reference Compiler.dll so Buckle.CodeAnalysis doesn't exist
+    // [Fact]
+    // public void Reports_Error_BU0405_AmbiguousHandleTarget() {
+    //     var text = @"
+    //         #handle [A]
+
+    //         using Buckle.CodeAnalysis;
+
+    //         class A {
+    //             private static void Handler(Message msg, CompilerContext context) { }
+    //             private static void Handler2(Message msg, CompilerContext context) { }
+    //         }
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         type 'A' contains more than one valid handle method
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
 
     [Fact]
     public void Reports_Error_BU0406_FunctionCannotContainPointer() {
@@ -5394,7 +5572,7 @@ public sealed class DiagnosticTests {
             using directive is unnecessary
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     // ! Currently unreachable?
@@ -5410,7 +5588,7 @@ public sealed class DiagnosticTests {
     //         cannot infer the type of implicitly-typed out data container 'a'
     //     ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer, true);
+    //     AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     // }
 
     [Fact]
@@ -5429,13 +5607,13 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
-    public void Reports_Error_BU0419_OutNoDefaultValue() {
+    public void Reports_Error_BU0419_OutUnassigned() {
         var text = @"
-            void F(out [int\[\]!] a) { }
+            void [F](out int a) { }
         ";
 
         var diagnostics = @"
-            cannot use the out modifier for type 'int![]!' because it has no default value
+            not all code paths assign out parameter 'a'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -5540,41 +5718,40 @@ public sealed class DiagnosticTests {
             exiting the with body early will result in the reversals not taking place; consider using a 'with (...) try'
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
-    // ! We don't error check attributes right now
-    // [Fact]
-    // public void Reports_Error_BU0426_UnmanagedRequiresStatic() {
-    //     var text = @"
-    //         public class A {
-    //             \[Unmanaged\]
-    //             public void M() { }
-    //         }
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0426_UnmanagedRequiresStatic() {
+        var text = @"
+            public class A {
+                \[[Unmanaged]\]
+                public void M() { }
+            }
+        ";
 
-    //     var diagnostics = @"
-    //         'Unmanaged' can only be applied to ordinary static non-abstract, non-virtual methods or static local functions
-    //     ";
+        var diagnostics = @"
+            'Unmanaged' can only be applied to ordinary static non-abstract, non-virtual methods or static local functions
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
-    // [Fact]
-    // public void Reports_Error_BU0427_UnmanagedCannotBeTemplate() {
-    //     var text = @"
-    //         public class A<type T> {
-    //             \[Unmanaged\]
-    //             public void M() { }
-    //         }
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0427_UnmanagedCannotBeTemplate() {
+        var text = @"
+            public class A<type T> {
+                \[[Unmanaged]\]
+                public static void M() { }
+            }
+        ";
 
-    //     var diagnostics = @"
-    //         methods attributed with 'Unmanaged' cannot have template parameters and cannot be declared in a template type
-    //     ";
+        var diagnostics = @"
+            methods attributed with 'Unmanaged' cannot have template parameters and cannot be declared in a template type
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0428_DestructorInStaticClass() {
@@ -5867,7 +6044,7 @@ public sealed class DiagnosticTests {
            ignoring return value of method 'F()'; consider using a discard assignment if this is intended
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -6073,7 +6250,7 @@ public sealed class DiagnosticTests {
     public void Reports_Error_BU0462_LiteralOperatorMustHaveSingleParameter() {
         var text = @"
             class A {
-                public static A? [literal] s() { return null; }
+                public static A [literal] s() { return new(); }
             }
         ";
 
@@ -6117,7 +6294,7 @@ public sealed class DiagnosticTests {
             assignment to a for-each iterator local does not modify the element in the source collection
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -6165,7 +6342,7 @@ public sealed class DiagnosticTests {
             'A': struct crosses an unnecessary cache line; struct layout could be reduced from 104 bytes to 56 bytes by reordering fields
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -6182,7 +6359,7 @@ public sealed class DiagnosticTests {
             'A': struct layout could be reduced from 24 bytes to 16 bytes by reordering fields
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -6201,7 +6378,7 @@ public sealed class DiagnosticTests {
             'A': struct layout could be reduced from 28 bytes to 20 bytes by reordering fields
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -6220,11 +6397,27 @@ public sealed class DiagnosticTests {
             'A': struct layout could be reduced from 40 bytes to 24 bytes by reordering fields
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
-    // ! Info_BU0470_StructInefficiency
-    // ? We don't have a way to test info severity diagnostics yet
+    [Fact]
+    public void Reports_Info_BU0468_StructInefficiency() {
+        var text = @"
+            struct packed(8) [A] {
+                int8 a;
+                int64 b;
+                int8 c;
+                int64 d;
+                int64 e;
+            }
+        ";
+
+        var diagnostics = @"
+            'A': struct layout could be reduced from 40 bytes to 32 bytes by reordering fields
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Info);
+    }
 
     [Fact]
     public void Reports_Error_BU0469_InvalidPackedAlignment() {
@@ -6236,7 +6429,7 @@ public sealed class DiagnosticTests {
             struct pack alignment must be 1, 2, 4, 8, 16, 32, 64, or 128
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -6277,7 +6470,7 @@ public sealed class DiagnosticTests {
             long tuple (10 elements); consider using a named struct
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     // ! Error_BU0472_PredefinedTypeNotFound
@@ -6757,7 +6950,7 @@ public sealed class DiagnosticTests {
             lowlevel default literal is unnecessary because the type 'int!' has a default value; consider using a regular default literal
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -6772,7 +6965,7 @@ public sealed class DiagnosticTests {
             lowlevel default expression is unnecessary because the type 'int!' has a default value; consider using a regular default expression
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -6833,7 +7026,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Warning_BU0509_LocalFunctionUsingEntryPointName() {
         var text = @"
-            void [Main](int args) {
+            void [Main](int _args) {
 
             }
         ";
@@ -6842,7 +7035,7 @@ public sealed class DiagnosticTests {
             local function uses the entry point name but is not treated as the entry point because it does not have the correct signature
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -6904,7 +7097,7 @@ public sealed class DiagnosticTests {
             'B.M()': member is marked 'const' but overridden member 'A.M()' is not
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
     [Fact]
@@ -6932,20 +7125,2956 @@ public sealed class DiagnosticTests {
     public void Reports_Warning_BU0514_DifferentConstOnOverrideParameter() {
         var text = @"
             class A {
-                public virtual void M(int a) { }
+                public virtual void M(int _a) { }
             }
 
             class B extends A {
-                public override void M(const int [a]) { }
+                public override void M(const int [_a]) { }
             }
 
             ;
         ";
 
         var diagnostics = @"
-            'B.M(const int!)': parameter 'a' is marked 'const' but the corresponding parameter on overridden member 'A.M(int!)' is not
+            'B.M(const int!)': parameter '_a' is marked 'const' but the corresponding parameter on overridden member 'A.M(int!)' is not
         ";
 
-        AssertDiagnostics(text, diagnostics, _writer, true);
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0515_CannotCreateEntryType() {
+        var text = @"
+            class Program;
+
+            void Main() {
+                var p = [new Program()];
+            }
+        ";
+
+        var diagnostics = @"
+            invalid object creation; cannot construct the type containing the entry point
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0516_NonNullableReceiver() {
+        var text = @"
+            class A {
+                public int a = 0;
+            }
+
+            var a = new A();
+            [a?.a] = 10;
+        ";
+
+        var diagnostics = @"
+            cannot use a conditional field access because the receiver is not nullable; consider using a regular field access
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0517_NonNullableReceiverArray() {
+        var text = @"
+            var a = new int\[10\];
+            [a?\[0\]] = 10;
+        ";
+
+        var diagnostics = @"
+            cannot use a conditional array access because the receiver is not nullable; consider using a regular array access
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0518_NonNullableReceiverCall() {
+        var text = @"
+            class A {
+                public void M() { }
+            }
+
+            var a = new A();
+            [a?.M]();
+        ";
+
+        var diagnostics = @"
+            cannot use a conditional call because the receiver is not nullable; consider using a regular call
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0519_NonNullableReceiverIndex() {
+        var text = @"
+            var a = ""test"";
+            var b = [a?\[0\]];
+        ";
+
+        var diagnostics = @"
+            cannot use a conditional indexer because the receiver is not nullable; consider using a regular indexer
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0520_CannotNullCheckNonNull() {
+        var text = @"
+            int a = 3;
+            bool b = [a is null];
+        ";
+
+        var diagnostics = @"
+            cannot perform an 'is null' check on an operand of type 'int!' because it is a non-nullable type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0521_NullableReceiverProperty() {
+        var text = @"
+            Buffer<int>? a = {1, 2, 3};
+            var b = [a.Length];
+        ";
+
+        var diagnostics = @"
+            cannot access properties through a nullable receiver; consider using a null assert or conditional access
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0522_NonNullableReceiverProperty() {
+        var text = @"
+            Buffer<int> a = {1, 2, 3};
+            var b = [a?.Length];
+        ";
+
+        var diagnostics = @"
+            cannot use a conditional property access because the receiver is not nullable; consider using a regular property access
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Reports_Error_BU0523_SameFullNameAggAgg
+    // ? Requires references (i.e. command-line args)
+
+    // ! Reports_Warning_BU0524_DuplicateReference
+    // ? Requires references (i.e. command-line args)
+
+    // ! Reports_Warning_BU0525_DuplicateAssembly
+    // ? Requires references (i.e. command-line args)
+
+    [Fact]
+    public void Reports_Error_BU0526_CannotCreateInterface() {
+        var text = @"
+            interface A { }
+            var a = [new A()];
+        ";
+
+        var diagnostics = @"
+            cannot create an instance of the interface 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0527_SealedInSealed() {
+        var text = @"
+            class A {
+                public virtual void M() { }
+            }
+            sealed class B extends A {
+                public sealed override void [M]() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'B.M': sealed member declared in sealed type; no different than non-sealed override
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0528_NullBinaryEquality() {
+        var text = @"
+            int? a = 3;
+            bool b = [a == null];
+        ";
+
+        var diagnostics = @"
+            null checks should use the 'is' or 'isnt' operator
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0529_CycleInInterfaceInheritance() {
+        var text = @"
+            interface [A] implements B { }
+            interface [B] implements A { }
+            ;
+        ";
+
+        var diagnostics = @"
+            inherited interface 'B' causes a cycle in the interface hierarchy of 'A'
+            inherited interface 'A' causes a cycle in the interface hierarchy of 'B'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0530_InconsistentAccessibilityInterface() {
+        var text = @"
+            class Outer {
+                private interface A { }
+                public interface [B] implements A { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            inconsistent accessibility: interface 'B' is less accessible than interface 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0531_DuplicateInterfaceInInterfaceList() {
+        var text = @"
+            interface A { }
+            class B implements A, [A] { }
+            ;
+        ";
+
+        var diagnostics = @"
+            'A' is already listed in the interface list
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0532_StaticClassInterfaceImpl() {
+        var text = @"
+            interface A { }
+            static class B implements [A] { }
+            ;
+        ";
+
+        var diagnostics = @"
+            'B': static classes cannot implement interfaces
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0533_NonInterfaceInInterfaceList() {
+        var text = @"
+            class B implements [int] { }
+            ;
+        ";
+
+        var diagnostics = @"
+            type 'int' in interface list is not an interface
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0534_ConversionWithInterface() {
+        var text = @"
+            interface A { }
+            class B {
+                public static implicit operator [B?](A a) { return null; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'B.op_Implicit(A!)': user-defined conversions to or from an interface are not allowed
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0535_AbstractConversionNotInvolvingContainedType() {
+        var text = @"
+            interface A<type T> {
+                static abstract implicit operator [T](int a);
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            user-defined conversion in an interface must convert to or from a type template parameter on the enclosing type constrained to the enclosing type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0536_ConversionNotInvolvingContainedType() {
+        var text = @"
+            class A {
+                public static implicit operator [int](int a) { return a; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            user-defined conversion must convert to or from the enclosing type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0537_IdentityConversion() {
+        var text = @"
+            class A {
+                public static implicit operator [A](A a) { return a; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            user-defined conversion cannot convert a type to itself
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0538_ConversionWithBase() {
+        var text = @"
+            class A {
+                public static implicit operator [Object](A a) { return a; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'A.op_Implicit(A!)': user-defined conversions to or from a base type are not allowed
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0539_ConversionWithDerived() {
+        var text = @"
+            class B extends A { }
+            class A {
+                public static implicit operator [B](A a) { return (B)a; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0540_DuplicateInterfaceWithTupleNamesInBaseList() {
+        var text = @"
+            interface A<type T> { }
+            class [B] implements A<(int a, int b)>, A<(int c, int d)> { }
+            ;
+        ";
+
+        var diagnostics = @"
+            'A<(int c, int d)>' is already listed in the interface list on type 'B' with different tuple element names, as 'A<(int a, int b)>'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // !
+    // ? Not sure how to trigger this
+    // [Fact]
+    // public void Reports_Error_BU0541_DuplicateInterfaceWithDifferencesInBaseList() {
+    //     var text = @"
+
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    [Fact]
+    public void Reports_Error_BU0542_DefaultInterfaceImplementation() {
+        var text = @"
+            interface A {
+                void [M]() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            interface members cannot define an implementation
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0543_InterfacesCantContainConstructors() {
+        var text = @"
+            interface A {
+                [constructor]() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            interfaces cannot contain constructors
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0544_OnlyClassesCanContainFinalizers() {
+        var text = @"
+            interface A {
+                [finalizer]() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            only class types can contain finalizers
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0544_OnlyClassesCanContainFinalizers2() {
+        var text = @"
+            struct A {
+                [finalizer]() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            only class types can contain finalizers
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0545_InterfacesCantContainFields() {
+        var text = @"
+            interface A {
+                [int a];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            interfaces cannot contain fields
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0546_InterfacesCantContainConversionOrEqualityOperators() {
+        var text = @"
+            interface A {
+                static bool operator [==](A left, A right);
+                static bool operator [!=](A left, A right);
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            conversion, equality, or inequality operators declared in interfaces must be abstract
+            conversion, equality, or inequality operators declared in interfaces must be abstract
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0547_ExplicitImplementationOfOperatorsMustBeStatic() {
+        var text = @"
+            interface A<type T> where { T implements A<T>; } {
+                static abstract bool operator ==(T left, T right);
+                static abstract bool operator !=(T left, T right);
+            }
+
+            class B implements [A<B>] {
+                bool A<B>.operator [[==]] (B left, B right) { return false; }
+                static bool A<B>.operator != (B left, B right) { return false; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'B' does not implement interface member 'A.op_Equality(B!, B!)'
+            'B.A<B>.op_Equality(B!, B!)' in explicit interface declaration is not found among members of the interface that can be implemented
+            explicit implementation of a user-defined operator 'B.A<B>.op_Equality(B!, B!)' must be declared static
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // !
+    // ? Not sure this is reachable right now
+    // ? On second look, I believe this is only reachable in discriminated unions which we don't have an equivalent for
+    // [Fact]
+    // public void Reports_Error_BU0548_ExplicitInterfaceImplementationInNonClassOrStruct() {
+    //     var text = @"
+
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    [Fact]
+    public void Reports_Error_BU0549_ExplicitInterfaceImplementationNotInterface() {
+        var text = @"
+            class A {
+                void [int].B() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'int' in explicit interface declaration is not an interface
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0550_ClassDoesntImplementInterface() {
+        var text = @"
+            interface A {
+                void B();
+            }
+            class C {
+                void [A].B() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'C.A.B': containing type does not implement interface 'A'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0551_ExplicitInterfaceMemberReturnTypeMismatch() {
+        var text = @"
+            interface A {
+                void B();
+            }
+            class B implements [A] {
+                int A.[B]() { return 1; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'B' does not implement interface member 'A.B()'
+            'B.A.B()': return type must be 'void' to match implemented member 'A.B()'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // !
+    // ? We don't have non-method interface members
+    // [Fact]
+    // public void Reports_Error_BU0552_ExplicitInterfaceMemberTypeMismatch() {
+    //     var text = @"
+
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    [Fact]
+    public void Reports_Error_BU0553_InterfaceMemberNotFound() {
+        var text = @"
+            interface A { }
+            class C implements A {
+                void A.[B]() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'C.A.B()' in explicit interface declaration is not found among members of the interface that can be implemented
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0554_ImplBadTupleNames() {
+        var text = @"
+            interface A {
+                (int a, int b) B();
+            }
+            class B implements A {
+                (int c, int d) A.[B]() { return (1, 2); }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            the tuple element names in the signature of method 'B.A.B()' must match the tuple element names of interface method 'A.B()' (including on the return type)
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // !
+    // ? Unsure how to trigger this
+    // [Fact]
+    // public void Reports_Error_BU0555_ExplicitImplCollisionOnRefOut() {
+    //     var text = @"
+
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         'A.op_Implicit(A!)': user-defined conversions to or from a derived type are not allowed
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    [Fact]
+    public void Reports_Error_BU0556_DuplicateExplicitImpl() {
+        var text = @"
+            interface A {
+                void B();
+            }
+            class [C] implements A {
+                void A.B() { }
+                void A.[B]() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'A.B()' is explicitly implemented more than once
+            type 'C' already defines a member called 'A.B' with the same parameter types
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0557_UnimplementedInterfaceMember() {
+        var text = @"
+            interface A {
+                void B();
+            }
+            class B implements [A] { }
+            ;
+        ";
+
+        var diagnostics = @"
+            'B' does not implement interface member 'A.B()'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0558_UnifyingInterfaceInstantiations() {
+        var text = @"
+            interface A<type T> { }
+            class [C]<type T1, type T2> implements A<T1>, A<T2> { }
+            ;
+        ";
+
+        var diagnostics = @"
+            'C<type! T1, type! T2>' cannot implement both 'A<type T1>' and 'A<type T2>' because they may unify for some type template parameter substitutions
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // !
+    // ? Unsure how to trigger this
+    // [Fact]
+    // public void Reports_Error_BU0559_MostSpecificImplementationIsNotFound() {
+    //     var text = @"
+
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // !
+    // ? Unsure how to trigger this (might require another accessibility like internal)
+    // [Fact]
+    // public void Reports_Error_BU0560_ImplicitImplementationOfInaccessibleInterfaceMember() {
+    //     var text = @"
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         ;
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    [Fact]
+    public void Reports_Error_BU0561_InterfaceImplementedByUnmanagedCallersOnlyMethod() {
+        var text = @"
+            interface A {
+                abstract static void B();
+            }
+            class C implements A {
+                \[Unmanaged\]
+                public static void [B]() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'Unmanaged' method 'C.B()' cannot implement interface member 'A.B()' in type 'C'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0562_ImplBadConstraints() {
+        var text = @"
+            interface A {
+                void B<type T>() where { T has default; };
+            }
+            class C implements A {
+                public void [B]<type T>() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            the constraints for type template parameter 'T' of method 'C.B<type! T>()' must match the constraints for type template parameter 'T' of interface method 'A.B<type! T>()'; consider using an explicit interface implementation instead
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0563_CloseUnimplementedInterfaceMemberStatic() {
+        var text = @"
+            interface A {
+                void B();
+            }
+            class C implements [A] {
+                public static void B() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'C' does not implement instance interface member 'A.B()'; 'C.B()' cannot implement the interface member because it is static
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0564_CloseUnimplementedInterfaceMemberNotStatic() {
+        var text = @"
+            interface A {
+                static abstract void B();
+            }
+            class C implements [A] {
+                public void B() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'C' does not implement static interface member 'A.B()'; 'C.B()' cannot implement the interface member because it is not static
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0565_CloseUnimplementedInterfaceMemberNotPublic() {
+        var text = @"
+            interface A {
+                void B();
+            }
+            class C implements [A] {
+                void B() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'C' does not implement interface member 'A.B()'; 'C.B()' cannot implement the interface member because it is not public
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0566_CloseUnimplementedInterfaceMemberWrongRefReturn() {
+        var text = @"
+            interface A {
+                ref int B();
+            }
+            class C implements [A] {
+                public int B() { return 3; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'C' does not implement interface member 'A.B()'; 'C.B()' cannot implement 'A.B()' because it does not have matching return by reference
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // !
+    // ? Not sure how to trigger this
+    // [Fact]
+    // public void Reports_Error_BU0567_CloseUnimplementedInterfaceMemberOperatorMismatch() {
+    //     var text = @"
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         ;
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    [Fact]
+    public void Reports_Error_BU0568_CloseUnimplementedInterfaceMemberWrongReturnType() {
+        var text = @"
+            interface A {
+                int B();
+            }
+            class C implements [A] {
+                public void B() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'C' does not implement interface member 'A.B()'; 'C.B()' cannot implement 'A.B()' because it does not have the matching return type of 'int!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0569_AbstractAttributeClass() {
+        var text = @"
+            \[System.[Attribute]\]
+            class A { }
+            ;
+        ";
+
+        var diagnostics = @"
+             cannot apply attribute class 'Attribute' because it is abstract
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0570_NotAnAttributeClass() {
+        var text = @"
+            \[[A]\]
+            class A { }
+            ;
+        ";
+
+        var diagnostics = @"
+            'A' is not an attribute class
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0571_InvalidMultilineString() {
+        var text = @"
+var text = """"""
+[asdf]
+    """""";
+        ";
+
+        var diagnostics = @"
+            all lines must start with the same whitespace as the closing line of the multiline string; place the closing quotations on a non-isolated line if this is intentional
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0572_DefaultConstraintFailed() {
+        var text = @"
+            class A<type T> where { T has default; } { }
+            var a = new [A<string>]();
+        ";
+
+        var diagnostics = @"
+            the type 'string!' must have a default value in order to use it as parameter 'T' in the template type or method 'A<type! T>'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0573_AssignmentToSelf() {
+        var text = @"
+            int a = 3;
+            [a = a];
+        ";
+
+        var diagnostics = @"
+            assignment made to same variable; did you mean to assign something else?
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0574_InsufficientStack() {
+        const int N = 10000;
+
+        var sb = new StringBuilder();
+        for (var i = 0; i < N; i++)
+            sb.Append("class A{\n");
+
+        for (var i = 0; i < N; i++)
+            sb.Append("}\n");
+
+        var diagnostics = @"
+            expression is too long or complex to compile
+        ";
+
+        AssertDiagnostics(sb.ToString(), diagnostics, _writer, checkLocations: false);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0574_InsufficientStack2() {
+        const int N = 10000;
+
+        var sb = new StringBuilder();
+        for (var i = 0; i < N; i++)
+            sb.Append("namespace ns {\n");
+
+        for (var i = 0; i < N; i++)
+            sb.Append("}\n");
+
+        var diagnostics = @"
+            expression is too long or complex to compile
+        ";
+
+        AssertDiagnostics(sb.ToString(), diagnostics, _writer, checkLocations: false);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0574_InsufficientStack3() {
+        const int N = 10000;
+
+        var sb = new StringBuilder();
+        int i;
+
+        for (i = 0; i < N; i++) {
+            sb.Append("(a + ");
+            sb.Append(i.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            sb.Append(')');
+            sb.Append(" * ");
+            sb.Append("(a -");
+            sb.Append(i.ToString(System.Globalization.CultureInfo.InvariantCulture));
+            sb.Append(") * ");
+        }
+
+        sb.Append("(a + ");
+        sb.Append(i.ToString(System.Globalization.CultureInfo.InvariantCulture));
+        sb.Append(')');
+
+        var text = $@"
+            int a = 1;
+            return {sb};
+        ";
+
+        var diagnostics = @"
+            expression is too long or complex to compile
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, checkLocations: false);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0575_NonPrimitiveTemplate() {
+        var text = @"
+            class A<[T T]> { }
+            ;
+        ";
+
+        var diagnostics = @"
+            template parameter underlying type must be 'type' or a primitive
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0575_NonPrimitiveTemplate2() {
+        var text = @"
+            class A<[Object T]> { }
+            ;
+        ";
+
+        var diagnostics = @"
+            template parameter underlying type must be 'type' or a primitive
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0576_ConstraintFailedToEvaluate() {
+        var text = @"
+            class A<int? a> where { a! == 3; } { }
+            var a = new [A<null>]();
+        ";
+
+        var diagnostics = @"
+            template constraint on 'A<int? a>' fails to evaluate ('a! == 3')
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // !
+    // ? We don't support static implemented interface members yet
+    // [Fact]
+    // public void Reports_Error_BU0577_BadAbstractStaticMemberAccess() {
+    //     var text = @"
+    //         class A<int? a> where { a! == 3; } { }
+    //         var a = new [A<null>]();
+    //     ";
+
+    //     var diagnostics = @"
+    //         template constraint fails to evaluate ('a! == 3')
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    [Fact]
+    public void Reports_Error_BU0578_IgnoringRequiredReturnValue() {
+        var text = @"
+            class A {
+                \[MustUseReturnValue\]
+                public static bool M() { return false; }
+            }
+            [A.M()];
+        ";
+
+        var diagnostics = @"
+            ignoring return value of method 'A.M()' with 'MustUseReturnValue' attribute
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0579_MustUseReturnValueAttributeOnVoid() {
+        var text = @"
+            class A {
+                \[[MustUseReturnValue]\]
+                public static void M() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'MustUseReturnValue' can only be applied to methods returning a value
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // TODO Broken location
+    // [Fact]
+    // public void Reports_Error_BU0580_GetOrSetExpected() {
+    //     var text = @"
+    //         class A {
+    //             property int a { [if] }
+    //         }
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         a get or set accessor expected
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // ? Parser doesn't allow pointer types in this position currently
+    // [Fact]
+    // public void Reports_Error_BU0581_PointerTypeInPatternMatch() {
+    //     var text = @"
+    //         int a = 3;
+    //         bool b = a is [int*] p;
+    //     ";
+
+    //     var diagnostics = @"
+    //         patterns are not permitted for pointer types
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    [Fact]
+    public void Reports_Error_BU0582_TemplateRecursionWithCause() {
+        var text = @"
+            public sealed class A<int M> {
+                A<M + 1>? [a] = null;
+            }
+            var a = new A<10>();
+        ";
+
+        var diagnostics = @"
+            'A<int! M>' -> 'A<522>': template instantiation depth exceeds maximum; recurse caused by field 'A.a'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0583_UnnecessaryCompileTimeExpression() {
+        var text = @"
+            constexpr int local = [$10];
+        ";
+
+        var diagnostics = @"
+            compile-time expression is unnecessary as the target expression is already a compile-time constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0584_IncorrectCompoundOperatorArgs() {
+        var text = @"
+            class A {
+                public void operator [+=]() { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            overloaded compound assignment operator '+=' takes 1 parameter
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0585_OperatorMustReturnVoid() {
+        var text = @"
+            class A {
+                public int operator [+=](A a) { return 0; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            the return type for assignment operators must be void
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0586_OperatorMustBePublic() {
+        var text = @"
+            class A {
+                void operator [+=](A a) { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            user-defined operator 'A.op_AdditionAssignment(A!)' must be declared public
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0587_OperatorCantHaveTemplates() {
+        var text = @"
+            class A {
+                public void operator<type T> [+=](A a) { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            user-defined operator 'A.op_AdditionAssignment<type! T>(A!)' cannot have template parameters
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0588_InvalidTypeOf() {
+        var text = @"
+            class A { }
+            return [typeof(A?)];
+        ";
+
+        var diagnostics = @"
+            the typeof operator cannot be used on a nullable reference type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0588_InvalidTypeOf2() {
+        var text = @"
+            using H = A;
+            class A { }
+            return [typeof(H?)];
+        ";
+
+        var diagnostics = @"
+            the typeof operator cannot be used on a nullable reference type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0588_InvalidTypeOf3() {
+        var text = @"
+            using H = A?;
+            class A { }
+            return [typeof(H)];
+        ";
+
+        var diagnostics = @"
+            the typeof operator cannot be used on a nullable reference type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0589_ReverseMethodInEnum() {
+        var text = @"
+            enum A {
+                public void M() { } state(int) { return 0; } [reverse](int p) { }
+            }
+        ";
+
+        var diagnostics = @"
+            enum methods cannot have a reverse clause
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0590_AttributeUsageOnNonAttributeClass() {
+        var text = @"
+            using System;
+
+            \[[AttributeUsage](AttributeTargets.All)\]
+            class A { }
+        ";
+
+        var diagnostics = @"
+            attribute 'AttributeUsage' is only valid on classes derived from Attribute
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0591_DuplicateAttribute() {
+        var text = @"
+            using System;
+
+            \[AttributeUsage(AttributeTargets.All, AllowMultiple: false)\]
+            class A extends Attribute { }
+
+            \[A\]
+            \[[A]\]
+            class B { }
+        ";
+
+        var diagnostics = @"
+            duplicate 'A' attribute
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0592_AttributeOnBadSymbolType() {
+        var text = @"
+            using System;
+
+            \[AttributeUsage(AttributeTargets.Method)\]
+            class A extends Attribute { }
+
+            \[[A]\]
+            class B { }
+        ";
+
+        var diagnostics = @"
+            attribute 'A' is not valid on this declaration type; it is only valid on 'method' declarations
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Reports_Error_BU0593_ModuleEmitFailure
+    // ? Only reported is exceedingly rare cases where depending on another module that has bad types
+
+    [Fact]
+    public void Reports_Error_BU0594_InvalidAttributeParamType() {
+        var text = @"
+            using System;
+
+            class A extends Attribute {
+                public constructor(A a) { }
+                public constructor() { }
+            }
+            \[[A](new A())\]
+            class B { }
+            ;
+        ";
+
+        var diagnostics = @"
+            attribute constructor parameter 'a' has type 'A!', which is not a valid attribute parameter type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0595_BadAttributeArgument() {
+        var text = @"
+            class A extends System.Attribute {
+                public constructor(int a) { }
+            }
+            \[A([B.M()])\]
+            class B {
+                public static int M() { return 0; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            an attribute argument must be a constant expression, typeof expression, or array creation expression of an attribute parameter type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0596_UnmanagedCannotBeCalledDirectly() {
+        var text = @"
+            class A {
+                \[Unmanaged\]
+                public static void M() { }
+
+                public static void M2() {
+                    [M()];
+                }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'A.M()' is attributed with 'Unmanaged' and cannot be called directly; obtain an unmanaged function pointer to this method
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0597_DuplicateBehaviorSpecifier() {
+        var text = @"
+            void MyFunc() pure [pure] { }
+            ;
+        ";
+
+        var diagnostics = @"
+            behavior specifier 'pure' has already been applied to this item
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0598_MemoizeRequiresPureSpecifier() {
+        var text = @"
+            static void MyFunc() [memoize] { }
+            ;
+        ";
+
+        var diagnostics = @"
+            behavior specifier 'memoize' can only be used with the behavior specifier 'pure'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0599_InvalidBehaviorSpecifier() {
+        var text = @"
+            class A {
+                constructor() [pure] { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            behavior specifier 'pure' is not valid for this item
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0600_CannotAllocateInNoAllocContext() {
+        var text = @"
+            class A { }
+
+            void F() noalloc {
+                var a = [new A()];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot allocate a new object in a 'noalloc' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0600_CannotAllocateInNoAllocContext2() {
+        var text = @"
+            void F() noalloc {
+                var a = [new int\[10\]];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot allocate a new object in a 'noalloc' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0600_CannotAllocateInNoAllocContext3() {
+        var text = @"
+            void F() noalloc {
+                var a = [""test""];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot allocate a new object in a 'noalloc' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0600_CannotAllocateInNoAllocContext4() {
+        var text = @"
+            void F() noalloc {
+                var a = [{ 1, 2, 3 }];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot allocate a new object in a 'noalloc' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0600_CannotAllocateInNoAllocContext5() {
+        var text = @"
+            void F() noalloc {
+                var a = [{ 1: 1, 2: 2, 3: 3 }];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot allocate a new object in a 'noalloc' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0600_CannotAllocateInNoAllocContext6() {
+        var text = @"
+            void F() noalloc {
+                var a = [new int\[1\] { 1 }];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot allocate a new object in a 'noalloc' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0601_InvalidCallInSpecifierContext() {
+        var text = @"
+            void F() noalloc {
+                [G]();
+            }
+            void G() { }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot call method 'G()' in the current context because it is not marked 'noalloc'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0601_InvalidCallInSpecifierContext2() {
+        var text = @"
+            void F() pure {
+                [G]();
+            }
+            void G() { }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot call method 'G()' in the current context because it is not marked 'pure'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0601_InvalidCallInSpecifierContext3() {
+        var text = @"
+            void F() nothrow {
+                [G]();
+            }
+            void G() { }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot call method 'G()' in the current context because it is not marked 'nothrow'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0602_ImpureWriteInPureContext() {
+        var text = @"
+            class A {
+                static string a = ""test"";
+                void M() pure {
+                    [a] = ""test"";
+                }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot write to a member of a reference type in a method marked as 'pure'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0603_ImpureReadInPureContext() {
+        var text = @"
+            class A {
+                int a = 0;
+                int M() pure {
+                    return [a];
+                }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot read from a mutable member of a reference type in a method marked as 'pure'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0604_ThrowInNoThrowContext() {
+        var text = @"
+            void F() nothrow {
+                [throw] new System.Exception();
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot throw an uncaught exception in a 'nothrow' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0605_PureMethodCannotHaveReverse() {
+        var text = @"
+            class A {
+                void [M]() pure {
+                } reverse {
+                }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            method marked as 'pure' cannot have a reverse clause
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0606_CantChangeSpecifierOnOverride() {
+        var text = @"
+            class A {
+                public virtual void M() pure { }
+            }
+
+            class B extends A {
+                public override void [M]() { }
+            }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            'B.M()': member must be marked 'pure' when overriding inherited member 'A.M()' because it is marked 'pure'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0607_DifferentSpecifierOnOverride() {
+        var text = @"
+            class A {
+                public virtual void M() { }
+            }
+
+            class B extends A {
+                public override void [M]() pure { }
+            }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            'B.M()': member is marked 'pure' but overridden member 'A.M()' is not
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0608_ThisDownCastInConstructor() {
+        var text = @"
+            class A {
+                public constructor() {
+                    var v = [(B)this];
+                }
+            }
+
+            class B extends A { }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot downcast 'this' to derived type 'B!' in a constructor
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0608_ThisDownCastInConstructor2() {
+        var text = @"
+            class A {
+                public constructor() {
+                    var v = [this is B b];
+                }
+            }
+
+            class B extends A { }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot downcast 'this' to derived type 'B!' in a constructor
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0608_ThisDownCastInConstructor3() {
+        var text = @"
+            class A {
+                public constructor() {
+                    var v = [this as B];
+                }
+            }
+
+            class B extends A { }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot downcast 'this' to derived type 'B!' in a constructor
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0609_PotentialUninitializedObjectLeak() {
+        var text = @"
+            class A {
+                int a;
+
+                public constructor() {
+                    [Call()];
+                    a = 0;
+                }
+
+                public void Call() { }
+            }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            call potentially leaks uninitialized object state
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0610_PotentialThrowInNoThrowContext() {
+        var text = @"
+            void F() nothrow {
+                var a = new int\[10\];
+                var b = [a\[0\]];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            expression potentially throws; cannot throw an uncaught exception in a 'nothrow' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0610_PotentialThrowInNoThrowContext2() {
+        var text = @"
+            void F() nothrow {
+                var a = new Buffer<int>(10);
+                var b = [a\[0\]];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            expression potentially throws; cannot throw an uncaught exception in a 'nothrow' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0610_PotentialThrowInNoThrowContext3() {
+        var text = @"
+            void F() nothrow {
+                var a = ""test"";
+                var b = [a\[0\]];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            expression potentially throws; cannot throw an uncaught exception in a 'nothrow' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0610_PotentialThrowInNoThrowContext4() {
+        var text = @"
+            class A {
+                public int a = 0;
+            }
+
+            void F() nothrow {
+                var? a = new A();
+                var b = [a!].a;
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            expression potentially throws; cannot throw an uncaught exception in a 'nothrow' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0610_PotentialThrowInNoThrowContext5() {
+        var text = @"
+            void F() nothrow {
+                int32 a = 0;
+                uint8 b = [(uint8)a];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            expression potentially throws; cannot throw an uncaught exception in a 'nothrow' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0611_UnnecessaryTryStatement() {
+        var text = @"
+            [try {
+                int a = 0;
+            } catch { }]
+            ;
+        ";
+
+        var diagnostics = @"
+            try statement is unnecessary as no statements within it can throw
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    // ! Reports_Warning_BU0612_FailedToEmitMetadataAttribute
+    // ? Requires command-line arguments (--nostdlib)
+
+    // ! Reports_Warning_BU0613_FailedToEmitAttribute
+    // ? Requires command-line arguments (--nostdlib)
+
+    [Fact]
+    public void Reports_Error_BU0614_CompileTimeTemplateMustBeType() {
+        var text = @"
+            class A<[int $B]> { }
+            ;
+        ";
+
+        var diagnostics = @"
+            compile-time template parameter must have an underlying type of 'type!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0615_UnnecessaryTemplateSpecialization() {
+        var text = @"
+            class A<type $B> { }
+
+            A<[template int]> a = new();
+        ";
+
+        var diagnostics = @"
+            template specialization is unnecessary because the target is marked as compile-time only
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    // ! Reports_Error_BU0616_CannotTemplateSpecializeType
+    // ? Requires referencing a dummy DLL without template metadata
+
+    [Fact]
+    public void Reports_Error_BU0617_BufferNoDefaultValue() {
+        var text = @"
+            class A { }
+            [Buffer<A!>]? a;
+        ";
+
+        var diagnostics = @"
+            cannot use a Buffer with element type 'A!' outside of a lowlevel context because it has no default value
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0618_ConstructorConstraintFailed() {
+        var text = @"
+            class A<type T> where { T has constructor; } { }
+
+            class B {
+                private constructor(int a) { }
+            }
+
+            var a = new [A<B>]();
+        ";
+
+        var diagnostics = @"
+            the type 'B!' must have a public parameterless constructor in order to use it as parameter 'T' in the template type or method 'A<type! T>'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // !
+    // ? The following require references as we don't expose a source definition for Conditional attribute
+    // [Fact]
+    // public void Reports_Error_BU0619_ConditionalOnInterfaceMethod() {
+    //     var text = @"
+    //         interface A {
+    //             \[[System.Diagnostics.Conditional(""DEBUG"")]\]
+    //             void M();
+    //         }
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         the 'Conditional' attribute is not valid on interface members
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0620_ConditionalOnOverride() {
+    //     var text = @"
+    //         class A {
+    //             public virtual void M() { }
+    //         }
+
+    //         class B extends A {
+    //             \[[System.Diagnostics.Conditional(""DEBUG"")]\]
+    //             public override void M() { }
+    //         }
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         the 'Conditional' attribute is not valid on 'B.M()' because it is an override method
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0621_ConditionalOnSpecialMethod() {
+    //     var text = @"
+    //         class B {
+    //             \[[System.Diagnostics.Conditional(""DEBUG"")]\]
+    //             finalizer() { }
+    //         }
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         the 'Conditional' attribute is not valid on 'B.Finalize()' because it is an override method
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0622_ConditionalMustReturnVoid() {
+    //     var text = @"
+    //         class B {
+    //             \[[System.Diagnostics.Conditional(""DEBUG"")]\]
+    //             int M() { return 0; }
+    //         }
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         the 'Conditional' attribute is not valid on 'B.M()' because its return type is not void
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0623_ConditionalWithOutParam() {
+    //     var text = @"
+    //         class B {
+    //             \[[System.Diagnostics.Conditional(""DEBUG"")]\]
+    //             void M(out int a = 0) { }
+    //         }
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         the 'Conditional' attribute is not valid on 'B.M(out int!)' because it has an out parameter
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0624_ConditionalOnLocalFunction() {
+    //     var text = @"
+    //         void M() {
+    //             \[[System.Diagnostics.Conditional(""DEBUG"")]\]
+    //             void l() { }
+    //         }
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         local function 'l()' must be 'static' in order to use the 'Conditional' attribute
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    // [Fact]
+    // public void Reports_Error_BU0625_ConditionalOnNonAttributeClass() {
+    //     var text = @"
+    //         \[[System.Diagnostics.Conditional(""DEBUG"")]\]
+    //         class A { }
+    //         ;
+    //     ";
+
+    //     var diagnostics = @"
+    //         attribute 'System.Diagnostics.Conditional' is only valid on methods or attribute classes
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    [Fact]
+    public void Reports_Error_BU0626_MemoizeRequiresStatic() {
+        var text = @"
+            class A {
+                void M() pure [memoize] { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            methods marked with 'memoize' must be static
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0627_MemoizeDisallowsPointers() {
+        var text = @"
+            class A {
+                static void [M](int* ptr) pure memoize { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            methods marked with 'memoize' cannot have pointer types in their signature
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0628_MemoizeDisallowsRef() {
+        var text = @"
+            class A {
+                static ref int [M]() pure memoize { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            methods marked with 'memoize' cannot have ref parameters or return by-reference
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0629_InlineILInPureContext() {
+        var text = @"
+            void M() pure {
+                [il] {
+                }
+            }
+        ";
+
+        var diagnostics = @"
+            cannot use inline IL inside of a 'pure' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // ! Reports_Error_BU0630_NoTypeDef
+    // ? Requires references
+
+    // ! Reports_Error_BU0631_NoTypeDefFromModule
+    // ? Requires references
+
+    [Fact]
+    public void Reports_Error_BU0632_PropertyWithNoAccessor() {
+        var text = @"
+            class A {
+                property int [a] { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'A.a': property must have at least one accessor
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0633_AutoPropertyCannotBeRefReturning() {
+        var text = @"
+            class A {
+                property ref int [a] { get => ref field; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            auto-implemented properties cannot return by reference
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0634_RefPropertyMustHaveGetAccessor() {
+        var text = @"
+            class A {
+                property ref int [[a]] { set => [field = value]; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            auto-implemented properties cannot return by reference
+            properties which return by reference must have a get accessor
+            must return by-reference in a method with a reference return type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0635_RefPropertyCannotHaveSetAccessor() {
+        var text = @"
+            class A {
+                property ref int [a] { get => ref field; [set] => [field = value]; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            auto-implemented properties cannot return by reference
+            properties which return by reference cannot have set accessors
+            must return by-reference in a method with a reference return type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0636_RefProperty() {
+        var text = @"
+            class A {
+                public property int a => 3;
+            }
+            var a = new A();
+            ref int b = ref [a.a];
+        ";
+
+        var diagnostics = @"
+            a non ref-returning property may not be used as an out or ref value
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0637_AssignmentConstProperty() {
+        var text = @"
+            class A {
+                public property int a => 3;
+            }
+            var a = new A();
+            [a.a] = 4;
+        ";
+
+        var diagnostics = @"
+            property 'A.a' cannot be assigned to
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // TODO Accessor modifiers
+    // [Fact]
+    // public void Reports_Error_BU0638_InaccessibleSetter() {
+    //     var text = @"
+    //         class A {
+    //             public property int a { get => field; private set => field = value; }
+    //         }
+    //         var a = new A();
+    //         [a.a] = 4;
+    //     ";
+
+    //     var diagnostics = @"
+    //         the property 'A.a' cannot be used in this context because the set accessor is inaccessible
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    [Fact]
+    public void Reports_Error_BU0639_PropertyLacksGet() {
+        var text = @"
+            class A {
+                public property int a { set => field = value; } = 0;
+            }
+            var a = new A();
+            var b = [a.a];
+        ";
+
+        var diagnostics = @"
+            the property 'A.a' cannot be used in this context because it lacks the get accessor
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    // TODO Accessor modifiers
+    // [Fact]
+    // public void Reports_Error_BU0640_InaccessibleGetter() {
+    //     var text = @"
+    //         class A {
+    //             public property int a { get => field; private set => field = value; }
+    //         }
+    //         var a = new A();
+    //         [a.a] = 4;
+    //     ";
+
+    //     var diagnostics = @"
+    //         the
+    //     ";
+
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
+
+    [Fact]
+    public void Reports_Error_BU0641_OrRequiresResultType() {
+        var text = @"
+            int M() { return 0; }
+
+            [M() or return];
+        ";
+
+        var diagnostics = @"
+            'or' expressions require an operand of type 'Result<type! T, type! E>!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0642_OrRequiresResultTypeInContainingMember() {
+        var text = @"
+            void M() {
+                [E() or return];
+            }
+
+            Result<int, int> E() { return Result<int, int>.Success(40); }
+
+            ;
+        ";
+
+        var diagnostics = @"
+            'or return' expression requires the containing member to have a return type of 'Result<int, int>!' or a Result type with the same second template argument 'int!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0643_CannotUnrollNonRange() {
+        var text = @"
+            for (c in ""str"") [unroll] ;
+        ";
+
+        var diagnostics = @"
+            only range for loops can use the 'unroll' specifier
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0644_UnrollRequiresCompileTimeRange() {
+        var text = @"
+            var end = 10;
+            for (c in [0..<end]) unroll ;
+        ";
+
+        var diagnostics = @"
+            range must be compile-time to use the 'unroll' specifier
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0645_RangeCannotUseIndexLocal() {
+        var text = @"
+            for (i, [idx] in 0..<10) ;
+        ";
+
+        var diagnostics = @"
+            range for loops cannot use an index local
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0646_UseOfUnassignedOutParameter() {
+        var text = @"
+            void M(out int a) {
+                int b = [a];
+                a = 10;
+            }
+        ";
+
+        var diagnostics = @"
+            use of unassigned out parameter 'a'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0647_PropertyNoDefiniteAssignment() {
+        var text = @"
+            class A {
+                property int [a] { get => field; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot declare a class property without an initializer or definite constructor assignment with type 'int!' because it is non-nullable
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0648_PropertyNoDefiniteAssignmentStruct() {
+        var text = @"
+            class C { }
+            struct A {
+                property C! [a] { get => field; }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot declare a struct property without definite constructor assignment with type 'C!' because it has no default value
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0649_DefaultValueCannotReferenceLaterParameter() {
+        var text = @"
+            void M(int a = [b] + 1, int b = 0) { }
+            ;
+        ";
+
+        var diagnostics = @"
+            default parameter value for 'a' cannot reference later parameter 'b'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0650_DefaultValueCannotReferenceParameter() {
+        var text = @"
+            void M(int a = [a]) { }
+            ;
+        ";
+
+        var diagnostics = @"
+            default parameter value for 'a' cannot reference itself
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0651_DefaultValueCannotReferenceLocals() {
+        var text = @"
+            void M(int a = [G()]) { }
+            int G() { return 1; }
+            ;
+        ";
+
+        var diagnostics = @"
+            default parameter value for 'a' cannot reference local function 'G()'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0652_PropertyCantHaveVoidType() {
+        var text = @"
+            class A {
+                property void [a] => null;
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'A.a': property cannot have void type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0653_InvalidCompileTimeExpressionState() {
+        var text = @"
+            int a = 3;
+            int b = [$a];
+        ";
+
+        var diagnostics = @"
+            'a': cannot reference runtime state in a compile-time expression
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0654_CompileTimeExpressionThrew() {
+        var text = @"
+            void M() {
+                throw new System.Exception();
+            }
+            [$M()];
+        ";
+
+        var diagnostics = @"
+            expression threw an uncaught exception when evaluating at compile time
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Info_BU0655_CompileTimeExpressionThrew() {
+        var text = @"
+            void M() {
+                throw new System.Exception();
+            }
+            [$?M()];
+        ";
+
+        var diagnostics = @"
+            expression threw an uncaught exception when evaluating at compile time; code will be executed at runtime
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Info);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0656_InvalidCompileTimeExpressionWithReason() {
+        var text = @"
+            static int M() { return 0; }
+            var a = [$(&M)()];
+        ";
+
+        var diagnostics = @"
+            expression is not computable at compile time; reason:
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0657_InvalidCompileTimeExpressionStack() {
+        var text = @"
+            void M() {
+                M();
+            }
+            [$M()];
+        ";
+
+        var diagnostics = @"
+            evaluation of compile-time expression caused stack overflow
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Info_BU0658_InvalidCompileTimeExpressionStack() {
+        var text = @"
+            void M() {
+                M();
+            }
+            [$?M()];
+        ";
+
+        var diagnostics = @"
+            evaluation of compile-time expression caused stack overflow; code will be executed at runtime
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Info);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0659_InvalidEntryTypeAttribute() {
+        var text = @"
+            \[Belte.EntryType\]
+            class [A] { }
+            ;
+        ";
+
+        var diagnostics = @"
+            'A' cannot use the 'EntryType' attribute because it contains no methods with an entry point signature
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0660_UnusedParameter() {
+        var text = @"
+            void M(int [a]) { }
+        ";
+
+        var diagnostics = @"
+            'M(int!)': unused parameter 'a'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0660_UnusedParameter2() {
+        var text = @"
+            class A {
+                void M(int [a]) { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            'A.M(int!)': unused parameter 'a'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0661_UnnecessaryParameterDiscard() {
+        var text = @"
+            void M(int a) {
+                [_ = a];
+                int [b] = a;
+            }
+        ";
+
+        var diagnostics = @"
+            unnecessary parameter discard as parameter 'a' is used elsewhere
+            local 'b' is unused
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0661_UnnecessaryParameterDiscard2() {
+        var text = @"
+            class A {
+                void M(int a) {
+                    [_ = a];
+                    int [b] = a;
+                }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            unnecessary parameter discard as parameter 'a' is used elsewhere
+            local 'b' is unused
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0662_UnusedLocal() {
+        var text = @"
+            void M() {
+                int [a] = 3;
+            }
+        ";
+
+        var diagnostics = @"
+            local 'a' is unused
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0663_LocalCouldBeConst() {
+        var text = @"
+            void M(int p) {
+                int [a] = 3 * p;
+                int [b] = a;
+            }
+        ";
+
+        var diagnostics = @"
+            local 'a' could be marked 'const'
+            local 'b' is unused
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0663_LocalCouldBeConst2() {
+        var text = @"
+            class A {
+                public int field = 0;
+            }
+
+            void M() {
+                var [a] = new A();
+                const [b] = a.field;
+            }
+        ";
+
+        var diagnostics = @"
+            local 'a' could be marked 'const'
+            local 'b' is unused
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0664_LocalCouldBeFinal() {
+        var text = @"
+            class A {
+                public int field = 0;
+            }
+
+            void M() {
+                var [a] = new A();
+                a.field++;
+            }
+        ";
+
+        var diagnostics = @"
+            local 'a' could be marked 'final'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void Reports_Warning_BU0665_LocalCouldBeConstExpr() {
+        var text = @"
+            void M() {
+                int [a] = 3;
+                int [b] = a;
+            }
+        ";
+
+        var diagnostics = @"
+            local 'a' could be marked 'constexpr'
+            local 'b' is unused
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0666_NullBindingOnConstant() {
+        var text = @"
+            const int? a = 3;
+
+            if (a -> [x]!) ;
+        ";
+
+        var diagnostics = @"
+            null-binding target must be marked as constant if the source expression is constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0667_FinalAndVariable() {
+        var text = @"
+            final var [a] = 3;
+        ";
+
+        var diagnostics = @"
+            cannot mark a data container as both final and variable
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0668_ConstExprAndVariable() {
+        var text = @"
+            constexpr var [a] = 3;
+        ";
+
+        var diagnostics = @"
+            cannot mark a data container as both constant expression and variable
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0669_PointerCannotBeConst() {
+        var text = @"
+            const int* [p] = nullptr;
+        ";
+
+        var diagnostics = @"
+            symbol 'p' cannot be marked as constant because it has a pointer type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0669_PointerCannotBeConst2() {
+        var text = @"
+            const [p] = (int*)0;
+        ";
+
+        var diagnostics = @"
+            symbol 'p' cannot be marked as constant because it has a pointer type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0669_PointerCannotBeConst3() {
+        var text = @"
+            class A {
+                const int* [p] = nullptr;
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            symbol 'A.p' cannot be marked as constant because it has a pointer type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0669_PointerCannotBeConst4() {
+        var text = @"
+            class A {
+                const property int* [p] => nullptr;
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            symbol 'A.p' cannot be marked as constant because it has a pointer type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0670_PointerCannotBeConstParameter() {
+        var text = @"
+            void M(const int* [p]) { }
+        ";
+
+        var diagnostics = @"
+            parameter 'p' cannot be marked as constant because it has a pointer type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0670_PointerCannotBeConstParameter2() {
+        var text = @"
+            void M(const int* [p] = nullptr) { }
+        ";
+
+        var diagnostics = @"
+            parameter 'p' cannot be marked as constant because it has a pointer type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0671_ArgumentWrongConstExpr() {
+        var text = @"
+            void M(constexpr int a) { }
+            int a = 3;
+            M([a]);
+        ";
+
+        var diagnostics = @"
+            argument 1: parameter requires a compile-time constant argument
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0672_ConstraintFailedToEvaluateWithSuggestion() {
+        var text = @"
+            class A<int T> where { T != 0; } {
+                public static void M<int T2>([A<T2> a]) { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            template constraint on 'A<int! T>' fails to evaluate ('T != 0') and could not be proven by the substituted constraints
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
     }
 }

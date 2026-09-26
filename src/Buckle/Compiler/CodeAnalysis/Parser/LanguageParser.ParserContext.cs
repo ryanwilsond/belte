@@ -4,7 +4,7 @@ namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
 internal sealed partial class LanguageParser {
     [Flags]
-    private enum ParserContext : byte {
+    private enum ParserContext : ushort {
         None = 0,
         InExpression = 1 << 0,
         InTemplateArgumentList = 1 << 1,
@@ -13,5 +13,8 @@ internal sealed partial class LanguageParser {
         InStructDefinition = 1 << 4,
         InIfCondition = 1 << 5,
         InPattern = 1 << 6,
+        InInterfaceDefinition = 1 << 7,
+        InPropertyAccessor = 1 << 8,
+        InForEach = 1 << 9,
     }
 }

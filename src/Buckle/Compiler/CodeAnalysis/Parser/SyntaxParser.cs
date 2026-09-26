@@ -97,6 +97,10 @@ internal abstract partial class SyntaxParser : IDisposable {
         }
     }
 
+    private protected void ForceEndOfFile() {
+        _currentToken = SyntaxFactory.Token(SyntaxKind.EndOfFileToken);
+    }
+
     private protected static bool NoTriviaBetween(SyntaxToken token1, SyntaxToken token2) {
         return token1.GetTrailingTriviaWidth() == 0 && token2.GetLeadingTriviaWidth() == 0;
     }
@@ -356,6 +360,12 @@ internal abstract partial class SyntaxParser : IDisposable {
             return Match(kind);
 
         return Match(kind, saved.kind);
+    }
+
+    private protected SyntaxToken EatTokenWithPrejudice(Diagnostic error) {
+        var token = EatToken();
+        token = WithAdditionalDiagnostics(token, error);
+        return token;
     }
 
     private protected void ReadCurrentNode() {

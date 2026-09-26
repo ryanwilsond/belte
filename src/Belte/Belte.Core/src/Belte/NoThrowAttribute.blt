@@ -1,0 +1,8 @@
+using System;
+
+namespace Belte;
+
+[AttributeUsage(AttributeTargets.Method)]
+public sealed class NoThrowAttribute extends Attribute {
+    public constructor() { }
+}

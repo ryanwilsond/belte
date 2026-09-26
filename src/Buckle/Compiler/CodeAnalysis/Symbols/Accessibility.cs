@@ -11,4 +11,7 @@ internal enum Accessibility : byte {
     Private,
     Public,
     Protected,
+    Internal,
+    InternalAndProtected,
+    InternalOrProtected,
 }

@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -8,8 +9,9 @@ internal abstract class SourceOrdinaryMethodSymbolBase : SourceOrdinaryMethodOrU
         NamedTypeSymbol containingType,
         string name,
         BelteSyntaxNode syntax,
+        TextLocation location,
         (DeclarationModifiers modifiers, Flags flags) modifiersAndFlags)
-        : base(containingType, new SyntaxReference(syntax), modifiersAndFlags) {
+        : base(containingType, new SyntaxReference(syntax), location, modifiersAndFlags) {
         this.name = name;
     }
 

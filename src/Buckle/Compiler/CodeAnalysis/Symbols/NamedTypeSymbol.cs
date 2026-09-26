@@ -1,10 +1,12 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Runtime.CompilerServices;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -125,6 +127,18 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
 
     internal virtual bool isKnownToBeImmutable => false;
 
+    internal abstract bool isInterface { get; }
+
+    internal bool isConditional {
+        get {
+            if (GetAppliedConditionalSymbols().Any())
+                return true;
+
+            var baseType = this.baseType;
+            return baseType is not null && baseType.isConditional;
+        }
+    }
+
     internal override void Accept(SymbolVisitor visitor) {
         visitor.VisitNamedType(this);
     }
@@ -134,6 +148,18 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
         TArgument argument) {
         return visitor.VisitNamedType(this, argument);
     }
+
+    internal abstract ImmutableArray<string> GetAppliedConditionalSymbols();
+
+    internal abstract ImmutableArray<NamedTypeSymbol> GetDeclaredInterfaces(ConsList<TypeSymbol> basesBeingResolved);
+
+    internal abstract AttributeUsageInfo GetAttributeUsageInfo();
+
+    internal abstract ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers(string name);
+
+    internal abstract ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers();
+
+    internal abstract bool HasEntryTypeAttribute();
 
     internal virtual NamedTypeSymbol AsMember(NamedTypeSymbol newOwner) {
         return newOwner.isDefinition
@@ -189,7 +215,7 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
 
     internal new TemplateParameterSymbol FindEnclosingTemplateParameter(string name) {
         var allTemplateParameters = ArrayBuilder<TemplateParameterSymbol>.GetInstance();
-        GetAllTypeParameters(allTemplateParameters);
+        GetAllTemplateParameters(allTemplateParameters);
 
         TemplateParameterSymbol result = null;
 
@@ -206,6 +232,27 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
 
     internal virtual ImmutableArray<Symbol> GetSimpleNonTypeMembers(string name) {
         return GetMembers(name);
+    }
+
+    private protected ImmutableArray<NamedTypeSymbol> CalculateInterfacesToEmit() {
+        var builder = ArrayBuilder<NamedTypeSymbol>.GetInstance();
+        HashSet<NamedTypeSymbol> seen = null;
+        InterfacesVisit(this, builder, ref seen);
+        return builder.ToImmutableAndFree();
+    }
+
+    private static void InterfacesVisit(
+        NamedTypeSymbol namedType,
+        ArrayBuilder<NamedTypeSymbol> builder,
+        ref HashSet<NamedTypeSymbol> seen) {
+        foreach (var @interface in namedType.Interfaces()) {
+            seen ??= new HashSet<NamedTypeSymbol>(SymbolEqualityComparer.CLRSignature);
+
+            if (seen.Add(@interface)) {
+                builder.Add(@interface);
+                InterfacesVisit(@interface, builder, ref seen);
+            }
+        }
     }
 
     internal ImmutableArray<MethodSymbol> GetOperators(string name) {
@@ -228,21 +275,28 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
         var outer = containingType;
         outer?.GetAllTypeArguments(ref builder);
 
-        foreach (var argument in templateArguments)
+        foreach (var argument in templateArguments) {
+            Debug.Assert(argument.isType);
             builder.Add(argument.type.type);
+        }
     }
 
-    internal void GetAllTypeParameters(ArrayBuilder<TemplateParameterSymbol> result) {
-        containingType?.GetAllTypeParameters(result);
+    internal void GetAllTemplateArguments(ArrayBuilder<TypeOrConstant> builder) {
+        containingType?.GetAllTemplateArguments(builder);
+        builder.AddRange(templateArguments);
+    }
+
+    internal void GetAllTemplateParameters(ArrayBuilder<TemplateParameterSymbol> result) {
+        containingType?.GetAllTemplateParameters(result);
         result.AddRange(templateParameters);
     }
 
-    internal ImmutableArray<TemplateParameterSymbol> GetAllTypeParameters() {
+    internal ImmutableArray<TemplateParameterSymbol> GetAllTemplateParameters() {
         if (containingType is null)
             return templateParameters;
 
         var builder = ArrayBuilder<TemplateParameterSymbol>.GetInstance();
-        GetAllTypeParameters(builder);
+        GetAllTemplateParameters(builder);
         return builder.ToImmutableAndFree();
     }
 
@@ -282,7 +336,7 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
             return true;
 
         foreach (var member in GetMembers()) {
-            if (member is FieldSymbol f && !f.isStatic) {
+            if (member is FieldSymbol f && !f.isStatic && f.originalDefinition is not PEFieldSymbol) {
                 if (!f.type.hasDefault)
                     return false;
             }
@@ -309,26 +363,38 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
         byte defaultTransformFlag,
         ImmutableArray<byte> transforms,
         ref int position,
-        out TypeSymbol result) {
+        out TypeSymbol result,
+        bool isBelteMode) {
         if (!isTemplateType) {
             result = this;
             return true;
         }
 
         var allTypeArguments = ArrayBuilder<TypeOrConstant>.GetInstance();
-        GetAllTypeArguments(allTypeArguments);
+        GetAllTemplateArguments(allTypeArguments);
 
         var haveChanges = false;
 
         for (var i = 0; i < allTypeArguments.Count; i++) {
             var oldTypeArgument = allTypeArguments[i].type;
 
-            if (!oldTypeArgument.ApplyNullableTransforms(defaultTransformFlag, transforms, ref position, out var newTypeArgument)) {
+            if (!oldTypeArgument.ApplyNullableTransforms(
+                    defaultTransformFlag,
+                    transforms,
+                    ref position,
+                    out var newTypeArgument,
+                    isBelteMode)) {
                 allTypeArguments.Free();
                 result = this;
                 return false;
             } else if (!oldTypeArgument.IsSameAs(newTypeArgument)) {
-                allTypeArguments[i] = new TypeOrConstant(newTypeArgument);
+                // in `class A<type T>`, `type` is non-nullable even though its a reference type
+                allTypeArguments[i] = new TypeOrConstant(
+                    oldTypeArgument.type.IsTemplateParameter()
+                        ? new TypeWithAnnotations(newTypeArgument.nullableUnderlyingTypeOrSelf)
+                        : newTypeArgument
+                );
+
                 haveChanges = true;
             }
         }
@@ -380,13 +446,8 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
 
     internal NamedTypeSymbol WithTypeArguments(ImmutableArray<TypeOrConstant> allTypeArguments) {
         var definition = originalDefinition;
-        var substitution = new TemplateMap(definition.GetAllTypeParameters(), allTypeArguments);
+        var substitution = new TemplateMap(definition.GetAllTemplateParameters(), allTypeArguments);
         return substitution.SubstituteNamedType(definition);
-    }
-
-    internal void GetAllTypeArguments(ArrayBuilder<TypeOrConstant> builder) {
-        containingType?.GetAllTypeArguments(builder);
-        builder.AddRange(templateArguments);
     }
 
     internal NamedTypeSymbol AsUnboundTemplateType() {
@@ -417,6 +478,24 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
         return constructedFrom.Construct(templateArguments, true);
     }
 
+    internal bool IsAccessibleViaInheritance(NamedTypeSymbol subType) {
+        var originalSuperType = originalDefinition;
+
+        for (var current = subType; current is not null; current = current.baseType) {
+            if (ReferenceEquals(current.originalDefinition, originalSuperType))
+                return true;
+        }
+
+        if (originalSuperType.isInterface) {
+            foreach (var current in subType.allInterfaces) {
+                if (ReferenceEquals(current.originalDefinition, originalSuperType))
+                    return true;
+            }
+        }
+
+        return false;
+    }
+
     internal int ComputeHashCode() {
         if (WasConstructedForAnnotations(this))
             return originalDefinition.GetHashCode();
@@ -444,8 +523,8 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
                         return false;
 
                     if (!typeParameters[i].Equals(
-                             typeArguments[i].type.type.originalDefinition,
-                             TypeCompareKind.ConsiderEverything)) {
+                            typeArguments[i].type.type.originalDefinition,
+                            TypeCompareKind.ConsiderEverything)) {
                         return false;
                     }
                 }
@@ -458,9 +537,6 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
     }
 
     internal override bool Equals(TypeSymbol other, TypeCompareKind compareKind) {
-        if ((compareKind & TypeCompareKind.IgnoreNullability) != 0 && !this.IsNullableType())
-            other = other.StrippedType();
-
         if ((object)other == this)
             return true;
 
@@ -487,12 +563,10 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
         }
 
         if ((thisIsOriginalDefinition || otherIsOriginalDefinition) &&
-            (compareKind & (TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreNullability)) == 0) {
+            (compareKind & (TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreTupleNames)) == 0 &&
+            this is not PETemplateType && other is not PETemplateType) {
             return false;
         }
-
-        if ((compareKind & TypeCompareKind.IgnoreNullability) != 0 && this.IsNullableType())
-            return Equals(StrippedType(), other, compareKind);
 
         if (!Equals(thisOriginalDefinition, otherOriginalDefinition, compareKind))
             return false;
@@ -545,7 +619,7 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
             return false;
 
         if ((thisIsNotConstructed || otherIsNotConstructed) &&
-            (compareKind & (TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreNullability)) == 0) {
+            (compareKind & (TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreTupleNames)) == 0) {
             return false;
         }
 
@@ -561,9 +635,35 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
                 return false;
         }
 
+        if (isTupleType && !TupleNamesEquals(other, compareKind))
+            return false;
+
         return true;
+
+        bool TupleNamesEquals(NamedTypeSymbol other, TypeCompareKind comparison) {
+            if ((comparison & TypeCompareKind.IgnoreTupleNames) == 0) {
+                var elementNames = tupleElementNames;
+                var otherElementNames = other.tupleElementNames;
+
+                return elementNames.IsDefault
+                    ? otherElementNames.IsDefault
+                    : !otherElementNames.IsDefault && elementNames.SequenceEqual(otherElementNames);
+            }
+
+            return true;
+        }
     }
 
     ImmutableArray<IMethodSymbol> INamedTypeSymbol.constructors
         => GetConstructors(true, true).Cast<MethodSymbol, IMethodSymbol>();
+
+    bool ISymbolWithTemplates.TryGetConstraintsSyntax(out TemplateConstraintClauseListSyntax syntax) {
+        if (syntaxReference?.node is TypeDeclarationSyntax t) {
+            syntax = t.constraintClauseList;
+            return syntax is not null;
+        }
+
+        syntax = null;
+        return false;
+    }
 }

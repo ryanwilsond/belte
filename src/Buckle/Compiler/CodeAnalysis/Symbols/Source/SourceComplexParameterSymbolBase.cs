@@ -1,8 +1,10 @@
+using System.Diagnostics;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -10,6 +12,8 @@ internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol
     private readonly bool _hasDefaultValue;
     private CustomAttributesBag<AttributeData> _lazyAttributesBag;
     private ConstantValue _lazyOutDefaultValue;
+    private BoundExpression _lazyExpressionDefaultValue;
+    private ThreeState _lazyIsExpressionDefaultValue;
 
     private protected ConstantValue _lazyDefaultSyntaxValue;
 
@@ -18,10 +22,12 @@ internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol
         int ordinal,
         RefKind refKind,
         bool isConst,
+        bool isConstExpr,
         string name,
         ParameterSyntax syntax,
+        TextLocation location,
         ScopedKind scope)
-        : base(owner, ordinal, refKind, isConst, scope, name, new SyntaxReference(syntax), syntax.identifier.location) {
+        : base(owner, ordinal, refKind, isConst, isConstExpr, scope, name, new SyntaxReference(syntax), location) {
         _hasDefaultValue = syntax is not null && syntax.defaultValue is not null;
     }
 
@@ -59,6 +65,33 @@ internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol
                 _ = explicitDefaultConstantValue;
 
             return _lazyOutDefaultValue;
+        }
+    }
+
+    internal override BoundExpression expressionDefaultValue {
+        get {
+            if (_lazyExpressionDefaultValue is null) {
+                if (_lazyIsExpressionDefaultValue == ThreeState.Unknown)
+                    _ = explicitDefaultConstantValue;
+
+                Debug.Assert(_lazyIsExpressionDefaultValue != ThreeState.Unknown);
+
+                if (_lazyIsExpressionDefaultValue == ThreeState.True) {
+                    var diagnostics = BelteDiagnosticQueue.GetInstance();
+
+                    if (Interlocked.CompareExchange(
+                            ref _lazyExpressionDefaultValue,
+                            MakeExpressionDefaultValue(diagnostics),
+                            null)
+                        == null) {
+                        AddDeclarationDiagnostics(diagnostics);
+                    }
+
+                    diagnostics.Free();
+                }
+            }
+
+            return _lazyExpressionDefaultValue;
         }
     }
 
@@ -101,7 +134,69 @@ internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol
     internal override void ForceComplete(TextLocation locationOpt) {
         GetAttributes();
         _ = explicitDefaultConstantValue;
+        _ = expressionDefaultValue;
         _state.SpinWaitComplete(CompletionParts.ComplexParameterSymbolAll);
+    }
+
+    private BoundExpression MakeExpressionDefaultValue(BelteDiagnosticQueue diagnostics) {
+        var syntax = (ParameterSyntax)syntaxReference.node;
+        Debug.Assert(syntax is not null);
+        var defaultSyntax = syntax.defaultValue;
+        Debug.Assert(defaultSyntax is not null);
+
+        var binder = GetContainingBinder(containingSymbol);
+
+        var localsBinder = GetDefaultParameterValueBinder(defaultSyntax);
+        localsBinder = localsBinder.CreateBinderForParameterDefaultValue(this, defaultSyntax);
+        localsBinder = localsBinder.GetBinder(defaultSyntax);
+
+        Debug.Assert(binder is not null);
+        var parameterEqualsValue = (BoundParameterEqualsValue)binder.BindParameterDefaultValue(
+            defaultSyntax,
+            this,
+            binder,
+            localsBinder,
+            diagnostics,
+            out var valueBeforeConversion
+        );
+
+        Debug.Assert(parameterEqualsValue is not null);
+
+        var tempDiagnostics = BelteDiagnosticQueue.GetInstance();
+
+        var convertedExpression = parameterEqualsValue.value;
+        var hasErrors = ParameterHelpers.ReportDefaultParameterErrors(
+            binder,
+            containingSymbol,
+            syntax,
+            this,
+            valueBeforeConversion,
+            convertedExpression,
+            tempDiagnostics,
+            out var isExpressionDefaultValue
+        );
+
+        if (!isExpressionDefaultValue || hasErrors) {
+            diagnostics.PushRangeAndFree(tempDiagnostics);
+            return convertedExpression;
+        }
+
+        Debug.Assert(!tempDiagnostics.AnyErrors());
+        tempDiagnostics.Free();
+
+        ParameterHelpers.ExpressionDefaultValueVisitor.ReportDiagnostics(this, convertedExpression, diagnostics);
+        return convertedExpression;
+
+        Binder GetContainingBinder(Symbol containingSymbol) {
+            switch (containingSymbol) {
+                case SourceMemberMethodSymbol memberMethod:
+                    return memberMethod.TryGetBodyBinder();
+                case LocalFunctionSymbol localFunction:
+                    return GetContainingBinder(localFunction.containingSymbol).GetBinder(localFunction.syntax.body);
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(containingSymbol);
+            }
+        }
     }
 
     private ConstantValue MakeDefaultValue(
@@ -113,26 +208,34 @@ internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol
 
         var syntax = (ParameterSyntax)syntaxReference.node;
 
-        if (syntax is null)
+        if (syntax is null) {
+            Interlocked.CompareExchange(ref _lazyIsExpressionDefaultValue, ThreeState.False, ThreeState.Unknown);
             return null;
+        }
 
         var defaultSyntax = syntax.defaultValue;
 
-        if (defaultSyntax is null)
+        if (defaultSyntax is null) {
+            Interlocked.CompareExchange(ref _lazyIsExpressionDefaultValue, ThreeState.False, ThreeState.Unknown);
             return null;
+        }
 
         binder = GetDefaultParameterValueBinder(defaultSyntax);
         binder = binder.CreateBinderForParameterDefaultValue(this, defaultSyntax);
 
+        var tempDiagnostics = BelteDiagnosticQueue.GetInstance();
+
         parameterEqualsValue = (BoundParameterEqualsValue)binder.BindParameterDefaultValue(
             defaultSyntax,
             this,
-            diagnostics,
+            tempDiagnostics,
             out var valueBeforeConversion
         );
 
-        if (parameterEqualsValue is null || valueBeforeConversion is null)
+        if (parameterEqualsValue is null || valueBeforeConversion is null) {
+            Interlocked.CompareExchange(ref _lazyIsExpressionDefaultValue, ThreeState.False, ThreeState.Unknown);
             return null;
+        }
 
         var convertedExpression = parameterEqualsValue.value;
         var hasErrors = ParameterHelpers.ReportDefaultParameterErrors(
@@ -142,8 +245,22 @@ internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol
             this,
             valueBeforeConversion,
             convertedExpression,
-            diagnostics
+            diagnostics,
+            out var isExpressionDefaultValue
         );
+
+        if (isExpressionDefaultValue) {
+            Interlocked.CompareExchange(ref _lazyIsExpressionDefaultValue, ThreeState.True, ThreeState.Unknown);
+            tempDiagnostics.Free();
+            return null;
+        } else {
+            if (Interlocked.CompareExchange(ref _lazyIsExpressionDefaultValue, ThreeState.False, ThreeState.Unknown)
+                == ThreeState.Unknown) {
+                diagnostics.PushRange(tempDiagnostics);
+            }
+        }
+
+        tempDiagnostics.Free();
 
         if (hasErrors)
             return null;

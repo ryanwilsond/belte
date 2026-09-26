@@ -1,10 +1,14 @@
 using System;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Reflection;
 using System.Reflection.Metadata;
 using System.Threading;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
+using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -18,8 +22,11 @@ internal partial class PEParameterSymbol : ParameterSymbol {
     private readonly ParameterAttributes _flags;
     private readonly PEModuleSymbol _moduleSymbol;
 
+    private TypeWithAnnotations _lazyActualTypeWithAnnotations;
     private ImmutableArray<AttributeData> _lazyCustomAttributes;
     private ConstantValue? _lazyDefaultValue = ConstantValue.Unset;
+    private int _lazyIsConst;
+    private int _lazyIsConstExpr;
 
     // private ImmutableArray<int> _lazyInterpolatedStringHandlerAttributeIndexes = DefaultStringHandlerAttributeIndexes;
 
@@ -56,13 +63,15 @@ internal partial class PEParameterSymbol : ParameterSymbol {
             refKind = isByRef ? RefKind.Ref : RefKind.None;
             var value = nullableContext.GetNullableContextValue();
 
-            if (value.HasValue) {
-                typeWithAnnotations = NullableTypeDecoder.TransformType(
-                    typeWithAnnotations,
-                    value.GetValueOrDefault(),
-                    default
-                );
-            }
+            // Always transform?
+            // if (value.HasValue) {
+            typeWithAnnotations = NullableTypeDecoder.TransformType(
+                typeWithAnnotations,
+                value.GetValueOrDefault(),
+                default,
+                false
+            );
+            // }
 
             _lazyCustomAttributes = [];
             _lazyHiddenAttributes = [];
@@ -91,7 +100,10 @@ internal partial class PEParameterSymbol : ParameterSymbol {
             // var typeSymbol = DynamicTypeDecoder.TransformType(typeWithAnnotations.Type, countOfCustomModifiers, handle, moduleSymbol, refKind);
             // typeSymbol = NativeIntegerTypeDecoder.TransformType(typeSymbol, handle, moduleSymbol, containingSymbol.ContainingType);
             // typeWithAnnotations = typeWithAnnotations.WithTypeAndModifiers(typeSymbol, typeWithAnnotations.CustomModifiers);
-            var accessSymbol = containingSymbol;
+
+            var accessSymbol = containingSymbol.kind == SymbolKind.Property
+                ? containingSymbol.containingSymbol
+                : containingSymbol;
 
             typeWithAnnotations = NullableTypeDecoder.TransformType(
                 typeWithAnnotations,
@@ -100,7 +112,12 @@ internal partial class PEParameterSymbol : ParameterSymbol {
                 accessSymbol: accessSymbol,
                 nullableContext: nullableContext
             );
-            // typeWithAnnotations = TupleTypeDecoder.DecodeTupleTypesIfApplicable(typeWithAnnotations, handle, moduleSymbol);
+
+            typeWithAnnotations = TupleTypeDecoder.DecodeTupleTypesIfApplicable(
+                typeWithAnnotations,
+                handle,
+                moduleSymbol
+            );
 
             hasUnscopedRefAttribute = _moduleSymbol.module.HasUnscopedRefAttribute(_handle);
 
@@ -174,11 +191,76 @@ internal partial class PEParameterSymbol : ParameterSymbol {
 
     internal override bool isMetadataOut => (_flags & ParameterAttributes.Out) != 0;
 
-    internal override bool isConst => false;
+    internal override bool isConst {
+        get {
+            _ = GetAttributes();
+            Debug.Assert(_lazyIsConst != (int)ThreeState.Unknown);
+            return _lazyIsConst == (int)ThreeState.True;
+        }
+    }
+
+    internal override bool isConstExpr {
+        get {
+            _ = GetAttributes();
+            Debug.Assert(_lazyIsConstExpr != (int)ThreeState.Unknown);
+            return _lazyIsConstExpr == (int)ThreeState.True;
+        }
+    }
+
 
     internal override ConstantValue outDefaultValue => null;
 
-    internal override TypeWithAnnotations typeWithAnnotations => _typeWithAnnotations;
+    internal override BoundExpression expressionDefaultValue => null;
+
+    internal override TypeWithAnnotations typeWithAnnotations {
+        get {
+            if (_lazyActualTypeWithAnnotations is null) {
+                var tentativeType = _typeWithAnnotations;
+
+                // Special case where attribute constructor parameters are treated as non-nullable because it's separately
+                // verified that this is the case
+                // TODO The _hasNameInMetadata check ensures this isn't the return parameter (is this the best way to tell?)
+                if (_hasNameInMetadata &&
+                    tentativeType.isNullable &&
+                    tentativeType.type.isReferenceType &&
+                    ContainingMethodIsConstructor()) {
+                    var attributeType = containingAssembly.GetTypeByMetadataName(
+                        WellKnownType.System_Attribute.GetMetadataName(),
+                        includeReferences: false,
+                        useCLSCompliantNameArityEncoding: true,
+                        isWellKnownType: true,
+                        conflicts: out _
+                    );
+
+                    if (attributeType is not null &&
+                        containingType.IsDerivedFrom(attributeType, TypeCompareKind.ConsiderEverything)) {
+                        tentativeType = new TypeWithAnnotations(tentativeType.nullableUnderlyingTypeOrSelf);
+                    }
+                }
+
+                Interlocked.CompareExchange(ref _lazyActualTypeWithAnnotations, tentativeType, null);
+            }
+
+            return _lazyActualTypeWithAnnotations;
+
+            bool ContainingMethodIsConstructor() {
+                var containingMethod = containingSymbol as MethodSymbol;
+
+                if (containingMethod.hasSpecialName &&
+                    containingMethod.name.StartsWith(".", StringComparison.Ordinal)) {
+                    if (containingMethod.hasRuntimeSpecialName &&
+                        !containingMethod.IsMetadataVirtual() &&
+                        containingMethod.name.Equals(WellKnownMemberNames.InstanceConstructorName) &&
+                        containingMethod.returnsVoid &&
+                        containingMethod.arity == 0) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+        }
+    }
 
     internal override ConstantValue? explicitDefaultConstantValue {
         get {
@@ -212,6 +294,31 @@ internal partial class PEParameterSymbol : ParameterSymbol {
             nullableContext,
             parameterInfo.customModifiers,
             isReturn,
+            out isBad
+        );
+    }
+
+    internal static PEParameterSymbol Create(
+        PEModuleSymbol moduleSymbol,
+        PEPropertySymbol containingSymbol,
+        bool isContainingSymbolVirtual,
+        int ordinal,
+        ParameterHandle handle,
+        ParamInfo<TypeSymbol> parameterInfo,
+        Symbol nullableContext,
+        out bool isBad) {
+        return Create(
+            moduleSymbol,
+            containingSymbol,
+            isContainingSymbolVirtual,
+            ordinal,
+            parameterInfo.isByRef,
+            parameterInfo.refCustomModifiers,
+            parameterInfo.type,
+            handle,
+            nullableContext,
+            parameterInfo.customModifiers,
+            isReturn: false,
             out isBad
         );
     }
@@ -272,7 +379,156 @@ internal partial class PEParameterSymbol : ParameterSymbol {
     }
 
     internal override ImmutableArray<AttributeData> GetAttributes() {
-        return [];
+        // TODO Volatile read
+        if (_lazyCustomAttributes.IsDefault) {
+            var attributes = LoadAndFilterAttributes(
+                out var hiddenAttributes,
+                out var isParamArray,
+                out var isParamCollection,
+                out var isConst,
+                out var isConstExpr
+            );
+
+            ImmutableInterlocked.InterlockedInitialize(ref _lazyHiddenAttributes, hiddenAttributes);
+
+            // if ((_lazyIsParams & IsParamsValues.Initialized) == 0) {
+            //     IsParamsValues result = IsParamsValues.Initialized;
+
+            //     if (isParamArray) {
+            //         result |= IsParamsValues.Array;
+            //     }
+
+            //     if (isParamCollection) {
+            //         result |= IsParamsValues.Collection;
+            //     }
+
+            //     Debug.Assert(_lazyIsParams == 0 || _lazyIsParams == result);
+            //     _lazyIsParams = result;
+            // }
+
+            if (_lazyIsConst == (int)ThreeState.Unknown) {
+                var val = isConst ? (int)ThreeState.True : (int)ThreeState.False;
+                Interlocked.CompareExchange(ref _lazyIsConst, val, (int)ThreeState.Unknown);
+            }
+
+            if (_lazyIsConstExpr == (int)ThreeState.Unknown) {
+                var val = isConstExpr ? (int)ThreeState.True : (int)ThreeState.False;
+                Interlocked.CompareExchange(ref _lazyIsConstExpr, val, (int)ThreeState.Unknown);
+            }
+
+            ImmutableInterlocked.InterlockedInitialize(
+                ref _lazyCustomAttributes,
+                attributes
+            );
+        }
+
+        Debug.Assert(!_lazyHiddenAttributes.IsDefault);
+        return _lazyCustomAttributes;
+
+        ImmutableArray<AttributeData> LoadAndFilterAttributes(
+            out ImmutableArray<AttributeData> hiddenAttributes,
+            out bool isParamArray,
+            out bool isParamCollection,
+            out bool isConst,
+            out bool isConstExpr) {
+            hiddenAttributes = [];
+            isParamArray = false;
+            isParamCollection = false;
+            isConst = false;
+            isConstExpr = false;
+
+            Debug.Assert(!_handle.IsNil);
+            var containingModule = (PEModuleSymbol)this.containingModule;
+
+            if (!containingModule.TryGetNonEmptyCustomAttributes(_handle, out var customAttributeHandles))
+                return [];
+
+            // var filterOutParamArrayAttribute = (_lazyIsParams & (IsParamsValues.Initialized | IsParamsValues.Array)) is 0 or (IsParamsValues.Initialized | IsParamsValues.Array);
+            // var filterOutParamCollectionAttribute = (_lazyIsParams & (IsParamsValues.Initialized | IsParamsValues.Collection)) is 0 or (IsParamsValues.Initialized | IsParamsValues.Collection);
+
+            var defaultValue = explicitDefaultConstantValue;
+            var filterOutConstantAttributeDescription = default(AttributeDescription);
+
+            // if (defaultValue is not null) {
+            //     if (defaultValue.Discriminator == ConstantValueTypeDiscriminator.DateTime) {
+            //         filterOutConstantAttributeDescription = AttributeDescription.DateTimeConstantAttribute;
+            //     } else if (defaultValue.Discriminator == ConstantValueTypeDiscriminator.Decimal) {
+            //         filterOutConstantAttributeDescription = AttributeDescription.DecimalConstantAttribute;
+            //     }
+            // }
+
+            // var filterIsReadOnlyAttribute = this.refKind == RefKind.In;
+            // bool filterRequiresLocationAttribute = this.RefKind == RefKind.RefReadOnlyParameter;
+
+            using var builder = TemporaryArray<AttributeData>.Empty;
+            CustomAttributeHandle paramArrayAttribute = default;
+            CustomAttributeHandle paramCollectionAttribute = default;
+            CustomAttributeHandle constantAttribute = default;
+
+            foreach (var handle in customAttributeHandles) {
+                // if (filterOutParamArrayAttribute && containingModule.AttributeMatchesFilter(handle, AttributeDescription.ParamArrayAttribute)) {
+                //     paramArrayAttribute = handle;
+                //     continue;
+                // }
+
+                // if (filterOutParamCollectionAttribute && containingModule.AttributeMatchesFilter(handle, AttributeDescription.ParamCollectionAttribute)) {
+                //     paramCollectionAttribute = handle;
+                //     continue;
+                // }
+
+                if (containingModule.AttributeMatchesFilter(handle, filterOutConstantAttributeDescription)) {
+                    constantAttribute = handle;
+                    continue;
+                }
+
+                // if (filterIsReadOnlyAttribute && containingModule.AttributeMatchesFilter(handle, AttributeDescription.IsReadOnlyAttribute))
+                //     continue;
+
+                // if (filterRequiresLocationAttribute && containingModule.AttributeMatchesFilter(handle, AttributeDescription.RequiresLocationAttribute))
+                //     continue;
+
+                if (containingModule.AttributeMatchesFilter(handle, AttributeDescription.ScopedRefAttribute))
+                    continue;
+
+                if (containingModule.AttributeMatchesFilter(handle, AttributeDescription.NullabilityAttribute))
+                    continue;
+
+                if (containingModule.AttributeMatchesFilter(handle, AttributeDescription.ConstParamAttribute)) {
+                    isConst = true;
+                    continue;
+                }
+
+                if (containingModule.AttributeMatchesFilter(handle, AttributeDescription.ConstExprParamAttribute)) {
+                    isConstExpr = true;
+                    continue;
+                }
+
+                builder.Add(new PEAttributeData(containingModule, handle));
+            }
+
+            isParamArray = !paramArrayAttribute.IsNil;
+            isParamCollection = !paramCollectionAttribute.IsNil;
+            var hiddenCount = (isParamArray ? 1 : 0)
+                + (!constantAttribute.IsNil ? 1 : 0)
+                + (isParamCollection ? 1 : 0);
+
+            if (hiddenCount != 0) {
+                var hiddenBuilder = ArrayBuilder<AttributeData>.GetInstance(hiddenCount);
+
+                if (isParamArray)
+                    hiddenBuilder.Add(new PEAttributeData(containingModule, paramArrayAttribute));
+
+                if (isParamCollection)
+                    hiddenBuilder.Add(new PEAttributeData(containingModule, paramCollectionAttribute));
+
+                if (!constantAttribute.IsNil)
+                    hiddenBuilder.Add(new PEAttributeData(containingModule, constantAttribute));
+
+                hiddenAttributes = hiddenBuilder.ToImmutableAndFree();
+            }
+
+            return builder.ToImmutableAndClear();
+        }
     }
 
     internal ConstantValue? ImportConstantValue(bool ignoreAttributes = false) {

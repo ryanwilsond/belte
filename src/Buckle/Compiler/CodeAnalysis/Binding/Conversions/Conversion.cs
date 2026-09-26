@@ -1,7 +1,7 @@
 using System;
 using System.Collections.Immutable;
-using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -17,6 +17,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
     internal static Conversion ImplicitNullable => new Conversion(ConversionKind.ImplicitNullable);
     internal static Conversion ImplicitReference => new Conversion(ConversionKind.ImplicitReference);
     internal static Conversion ImplicitNumeric => new Conversion(ConversionKind.ImplicitNumeric);
+    internal static Conversion ImplicitThrow => new Conversion(ConversionKind.ImplicitThrow);
     internal static Conversion NullLiteral => new Conversion(ConversionKind.NullLiteral);
     internal static Conversion AnyBoxing => new Conversion(ConversionKind.AnyBoxing);
     internal static Conversion Explicit => new Conversion(ConversionKind.Explicit);
@@ -125,6 +126,10 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
 
     internal bool isUnboxing => kind.IsUnboxingCast();
 
+    internal bool isUserDefined => kind.IsUserDefinedConversion();
+
+    internal bool isConditionalExpression => kind == ConversionKind.ConditionalExpression;
+
     internal MethodSymbol method {
         get {
             switch (_uncommonData) {
@@ -164,11 +169,11 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
     }
 
     public bool Equals(Conversion other) {
-        return kind == other.kind /*&& this.method == other.method*/;
+        return kind == other.kind && Equals(_uncommonData, other._uncommonData);
     }
+
     public override int GetHashCode() {
-        // return Hash.Combine(this.method, (int)this.Kind);
-        return (int)kind;
+        return Hash.Combine(_uncommonData, (int)kind);
     }
 
     public static bool operator ==(Conversion left, Conversion right) {
@@ -177,6 +182,51 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
 
     public static bool operator !=(Conversion left, Conversion right) {
         return !(left == right);
+    }
+
+    internal bool CouldThrow() {
+        // TODO This needs to be double checked for accuracy
+        if (method is not null)
+            return !method.isNoThrow;
+
+        switch (kind) {
+            case ConversionKind.None:
+            case ConversionKind.Identity:
+            case ConversionKind.NullLiteral:
+            case ConversionKind.DefaultLiteral:
+            case ConversionKind.Implicit:
+            case ConversionKind.ImplicitNullable:
+            case ConversionKind.ImplicitReference:
+            case ConversionKind.ImplicitConstant:
+            case ConversionKind.ImplicitUserDefined:
+            case ConversionKind.ImplicitPointerToVoid:
+            case ConversionKind.ImplicitNullToPointer:
+            case ConversionKind.ImplicitEnum:
+            case ConversionKind.ImplicitNumeric:
+            case ConversionKind.ImplicitTupleLiteral:
+            case ConversionKind.AnyBoxing:
+                return false;
+            case ConversionKind.Explicit:
+            case ConversionKind.ExplicitNullable:
+            case ConversionKind.ExplicitReference:
+            case ConversionKind.ExplicitUserDefined:
+            case ConversionKind.ExplicitEnum:
+            case ConversionKind.ExplicitNumeric:
+            case ConversionKind.AnyUnboxing:
+            case ConversionKind.ListExpression:
+            case ConversionKind.MethodGroup:
+            case ConversionKind.ObjectCreation:
+            case ConversionKind.ConditionalExpression:
+            case ConversionKind.Deconstruction:
+            case ConversionKind.ImplicitThrow:
+                return true;
+            case ConversionKind.ExplicitPointerToPointer:
+            case ConversionKind.ExplicitIntegerToPointer:
+            case ConversionKind.ExplicitPointerToInteger:
+                return false;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(kind);
+        }
     }
 
     internal static Conversion CollapseConversion(Conversion conversion) {
@@ -323,14 +373,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
         if (target.isStatic)
             return None;
 
-        if (source.kind is SymbolKind.NamedType or SymbolKind.TemplateParameter &&
-            target.kind is SymbolKind.NamedType or SymbolKind.TemplateParameter) {
-            if (IsBaseClass(source, target))
-                return Implicit;
-
-            if (IsBaseClass(target, source))
-                return Explicit;
-        }
+        // Reference conversions are handled by Conversions
 
         return None;
     }
@@ -466,7 +509,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
             return false;
 
         if (source.isNullable != destination.isNullable &&
-            HasIdentityConversionInternal(source.type, destination.type, includeNullability: true)) {
+            HasIdentityConversionInternal(source.type, destination.type)) {
             return true;
         }
 
@@ -512,14 +555,6 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
     }
 
     private static bool HasIdentityConversionInternal(TypeSymbol type1, TypeSymbol type2) {
-        return HasIdentityConversionInternal(type1, type2, includeNullability: false);
-    }
-
-    private static bool HasIdentityConversionInternal(TypeSymbol type1, TypeSymbol type2, bool includeNullability) {
-        var compareKind = includeNullability
-            ? TypeCompareKind.AllIgnoreOptions & ~TypeCompareKind.IgnoreNullability
-            : TypeCompareKind.AllIgnoreOptions;
-
-        return type1.Equals(type2, compareKind);
+        return type1.Equals(type2, TypeCompareKind.AllIgnoreOptions);
     }
 }

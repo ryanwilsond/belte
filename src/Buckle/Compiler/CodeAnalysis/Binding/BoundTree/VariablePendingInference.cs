@@ -31,7 +31,7 @@ internal partial class VariablePendingInference {
                         ReportInferenceFailure(diagnostics);
                 }
 
-                localSymbol.SetTypeWithAnnotations(type);
+                localSymbol.SetTypeWithAnnotations(type, diagnostics);
 
                 return new BoundDataContainerExpression(
                     syntax,

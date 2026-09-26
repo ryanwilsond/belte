@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis.Binding;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -27,6 +28,8 @@ internal sealed class SynthesizedComplexParameterSymbol : SynthesizedParameterSy
         => _baseParameter?.explicitDefaultConstantValue ?? _defaultValue;
 
     internal override ConstantValue outDefaultValue => _baseParameter?.outDefaultValue;
+
+    internal override BoundExpression expressionDefaultValue => _baseParameter?.expressionDefaultValue;
 
     internal override ImmutableArray<AttributeData> GetAttributes() {
         return _baseParameter?.GetAttributes() ?? [];

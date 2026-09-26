@@ -19,7 +19,7 @@
 
   - [0](Future.md) Future Features Overview
 
-- #### Belte Language Docs in Its Current State
+- #### Belte Language Docs
 
   - [1](Current/Overview.md) Overview
     - [1.1](Current/Overview.md#11-conventions) Conventions
@@ -34,7 +34,13 @@
       - [1.4.4](Current/Overview.md#144-fields) Fields
       - [1.4.5](Current/Overview.md#145-implicit-typing) Implicit Typing
       - [1.4.6](Current/Overview.md#146-null-flow-analysis) Null-Flow Analysis
+      - [1.4.8](Current/Overview.md#148-nullability-in-depth) Nullability In-Depth
+      - [1.4.9](Current/Overview.md#149-object-and-valuetype) Object and ValueType
     - [1.5](Current/Overview.md#15-differences-from-c) **Differences from C#**
+      - [1.5.1](Current/Overview.md#151-type-system) Type System
+      - [1.5.2](Current/Overview.md#152-language-features) Language Features
+      - [1.5.3](Current/Overview.md#153-metaprogramming) Metaprogramming
+      - [1.5.4](Current/Overview.md#154-low-level-programming--interop) Low-Level Programming & Interop
     - [1.6](Current/Overview.md#16-identifiers) Identifiers
   - [2](Current/ControlFlow.md) Control Flow
     - [2.1](Current/ControlFlow.md#21-functions) Functions
@@ -50,6 +56,7 @@
       - [2.2.1](Current/ControlFlow.md#221-main) Main
       - [2.2.2](Current/ControlFlow.md#222-program-and-update) Program And Update
       - [2.2.3](Current/ControlFlow.md#223-disambiguating-entry-points) Disambiguating Entry Points
+        - [2.2.3.1](Current/ControlFlow.md#2231-entrytype-attribute) `EntryType` Attribute
     - [2.3](Current/ControlFlow.md#23-conditionals) Conditionals
       - [2.3.1](Current/ControlFlow.md#231-null-conditions) Null Conditions
       - [2.3.2](Current/ControlFlow.md#232-null-binding-contracts) Null-Binding Contracts
@@ -62,6 +69,7 @@
         - [2.4.4.2](Current/ControlFlow.md#2442-array-collections) Array Collections
         - [2.4.4.3](Current/ControlFlow.md#2443-indexed-collections) Indexed Collections
         - [2.4.4.4](Current/ControlFlow.md#2444-enumerated-collections) Enumerated Collections
+        - [2.4.4.5](Current/ControlFlow.md#2445-ranges) Ranges
       - [2.4.5](Current/ControlFlow.md#245-break) Break
       - [2.4.6](Current/ControlFlow.md#246-continue) Continue
     - [2.5](Current/ControlFlow.md#25-switch) Switch
@@ -73,30 +81,41 @@
     - [2.9](Current/ControlFlow.md#29-scoped-statements) Scoped Statements
     - [2.10](Current/ControlFlow.md#210-unreachable-statements) Unreachable Statements
     - [2.11](Current/ControlFlow.md#211-reverse-statements) Reverse Statements
+    - [2.12](Current/ControlFlow.md#212-order-of-multiple-implicit-frames-defer-scoped-etc) Order of Multiple Implicit Frames (Defer, Scoped, etc.)
+    - [2.13](Current/ControlFlow.md#213-errors-as-values) Errors as Values
+      - [2.13.1](Current/ControlFlow.md#2131-or-return) `or return`
+      - [2.13.2](Current/ControlFlow.md#2132-or-throw) `or throw`
+      - [2.13.3](Current/ControlFlow.md#2133-or-break) `or break`
+      - [2.13.4](Current/ControlFlow.md#2134-or-continue) `or continue`
+      - [2.13.5](Current/ControlFlow.md#2135-or-value) `or value`
   - [3](Current/Data.md) Data
     - [3.1](Current/Data.md#31-data-types) Data Types
-      - [3.1.1](Current/Data.md#311-casts) Casts
-      - [3.1.2](Current/Data.md#312-string-interpolation) String Interpolation
-      - [3.1.3](Current/Data.md#313-function-type) Function Type
-      - [3.1.4](Current/Data.md#314-default-literal) Default Literal
-      - [3.1.5](Current/Data.md#315-tuples) Tuples
-        - [3.1.5.1](Current/Data.md#3151-user-defined-deconstruction) User-Defined Deconstruction
+      - [3.1.1](Current/Data.md#311-numerics) Numerics
+      - [3.1.2](Current/Data.md#312-strings) Strings
+        - [3.1.2.1](Current/Data.md#3121-multiline-strings) Multiline Strings
+        - [3.1.2.2](Current/Data.md#3122-string-interpolation) String Interpolation
+      - [3.1.3](Current/Data.md#313-casts) Casts
+      - [3.1.4](Current/Data.md#314-function-type) Function Type
+      - [3.1.5](Current/Data.md#315-default-literal) Default Literal
+      - [3.1.6](Current/Data.md#316-tuples) Tuples
+        - [3.1.6.1](Current/Data.md#3161-user-defined-deconstruction) User-Defined Deconstruction
     - [3.2](Current/Data.md#32-operators) Operators
       - [3.2.1](Current/Data.md#321-operator-precedence) Operator Precedence
-      - [3.2.2](Current/Data.md#322-uncommon-operators) Uncommon Operators
+      - [3.2.2](Current/Data.md#322-nullability-operators) Nullability Operators
         - [3.2.2.1](Current/Data.md#3221-x) `x!`
         - [3.2.2.2](Current/Data.md#3222-x) `x?`
         - [3.2.2.3](Current/Data.md#3223-ai) `a?[i]`
         - [3.2.2.4](Current/Data.md#3224-xy) `x?.y`
         - [3.2.2.5](Current/Data.md#3225-x--y) `x ?? y`
         - [3.2.2.6](Current/Data.md#3226-x--y) `x ?! y`
-        - [3.2.2.7](Current/Data.md#3227-xy) `x..y`
-        - [3.2.2.8](Current/Data.md#3228-xy) `x?..y`
-        - [3.2.2.9](Current/Data.md#3229-x) `x!!`
-        - [3.2.2.10](Current/Data.md#32210-x--y) `x /\ y`
-        - [3.2.2.11](Current/Data.md#32211-x--y) `x \/ y`
-        - [3.2.2.12](Current/Data.md#32212-x--y-z) `x >< [y, z]`
+        - [3.2.2.7](Current/Data.md#3227-x) `x!!`
       - [3.2.3](Current/Data.md#323-isisntas-operators) Is/Isnt/As Operators
+      - [3.2.4](Current/Data.md#324-uncommon-operators) Uncommon Operators
+        - [3.2.4.1](Current/Data.md#3241-xy) `x..y`
+        - [3.2.4.2](Current/Data.md#3242-xy) `x?..y`
+        - [3.2.4.3](Current/Data.md#3243-x--y) `x /\ y`
+        - [3.2.4.4](Current/Data.md#3244-x--y) `x \/ y`
+        - [3.2.4.5](Current/Data.md#3245-x--y-z) `x >< [y, z]`
     - [3.3](Current/Data.md#33-data-containers) Data Containers
       - [3.3.1](Current/Data.md#331-modifiers) Modifiers
       - [3.3.1](Current/Data.md#332-implicit-typing) Implicit Typing
@@ -105,7 +124,7 @@
     - [3.6](Current/Data.md#36-arrays) Arrays
     - [3.7](Current/Data.md#37-compile-time-expressions) Compile-Time Expressions
       - [3.7.1](Current/Data.md#371-examples) Examples
-      - [3.7.2](Current/Data.md#372-side-effects) Side Effects
+      - [3.7.2](Current/Data.md#372-conditional-compile-time-expressions) Conditional Compile-Time Expressions
   - [4](Current/ClassesAndObjects.md) Namespaces, Classes, and Objects
     - [4.1](Current/ClassesAndObjects.md#41-classes) Classes
       - [4.1.1](Current/ClassesAndObjects.md#411-declaring-and-using-classes) Declaring And Using Classes
@@ -113,13 +132,17 @@
       - [4.1.3](Current/ClassesAndObjects.md#413-base-access) Base Access
     - [4.2](Current/ClassesAndObjects.md#42-members) Members
       - [4.2.1](Current/ClassesAndObjects.md#421-fields) Fields
+        - [4.2.1.1](Current/ClassesAndObjects.md#4211-definite-assignment) Definite Assignment
       - [4.2.2](Current/ClassesAndObjects.md#422-methods) Methods
         - [4.2.2.1](Current/ClassesAndObjects.md#4221-overloading) Overloading
         - [4.2.2.2](Current/ClassesAndObjects.md#4222-state-and-reverse-clauses) State and Reverse Clauses
+        - [4.2.2.3](Current/ClassesAndObjects.md#4223-behavior-specifiers) Behavior Specifiers
       - [4.2.3](Current/ClassesAndObjects.md#423-operators) Operators
         - [4.2.3.1](Current/ClassesAndObjects.md#4231-operator-overloading) Operator Overloading
         - [4.2.3.2](Current/ClassesAndObjects.md#4232-casts) Casts
         - [4.2.3.3](Current/ClassesAndObjects.md#4233-user-defined-literals) User-Defined Literals
+      - [4.2.4](Current/ClassesAndObjects.md#424-properties) Properties
+        - [4.2.4.1](Current/ClassesAndObjects.md#4241-definite-assignment) Definite Assignment
     - [4.3](Current/ClassesAndObjects.md#43-modifiers) Modifiers
       - [4.3.1](Current/ClassesAndObjects.md#431-accessibility-modifiers) Accessibility Modifiers
       - [4.3.2](Current/ClassesAndObjects.md#432-overriding-modifiers) Overriding Modifiers
@@ -131,12 +154,13 @@
       - [4.5.1](Current/ClassesAndObjects.md#451-constraint-clauses) Constraint Clauses
         - [4.5.1.1](Current/ClassesAndObjects.md#4511-expression-constraints) Expression Constraints
         - [4.5.1.2](Current/ClassesAndObjects.md#4512-special-constraints) Special Constraints
+      - [4.5.2](Current/ClassesAndObjects.md#452-compile-time-type-template-parameters) Compile-Time Type Template Parameters
+      - [4.5.3](Current/ClassesAndObjects.md#453-reified-generics-versus-compile-time-templates) Reified Generics versus Compile-Time Templates
     - [4.6](Current/ClassesAndObjects.md#46-enums) Enums
       - [4.6.1](Current/ClassesAndObjects.md#461-flags) Flags
       - [4.6.2](Current/ClassesAndObjects.md#462-implicit-enum-fields) Implicit Enum Fields
-      - [4.6.3](Current/ClassesAndObjects.md#463-experimental-underlying-types) Experimental Underlying Types
-      - [4.6.4](Current/ClassesAndObjects.md#464-bit-testing) Bit Testing
-      - [4.6.5](Current/ClassesAndObjects.md#465-methods) Methods
+      - [4.6.3](Current/ClassesAndObjects.md#463-bit-testing) Bit Testing
+      - [4.6.4](Current/ClassesAndObjects.md#464-methods) Methods
     - [4.7](Current/ClassesAndObjects.md#47-namespaces) Namespaces
     - [4.8](Current/ClassesAndObjects.md#48-using-directives) Using Directives
       - [4.8.1](Current/ClassesAndObjects.md#481-aliasing) Aliasing
@@ -144,24 +168,12 @@
       - [4.8.3](Current/ClassesAndObjects.md#483-global-using-directive) Global Using Directive
     - [4.9](Current/ClassesAndObjects.md#49-structs) Structs
       - [4.9.1](Current/ClassesAndObjects.md#491-unions) Unions
+    - [4.10](Current/ClassesAndObjects.md#410-interfaces) Interfaces
+    - [4.11](Current/ClassesAndObjects.md#411-attributes) Attributes
   - [5](Current/StandardLibrary.md) The Standard Library
-    - [5.1](Current/StandardLibrary/Console.md) Console
-    - [5.2](Current/StandardLibrary/Math.md) Math
-    - [5.3](Current/StandardLibrary/Random.md) Random
-    - [5.4](Current/StandardLibrary/String.md) String
-    - [5.5](Current/StandardLibrary/Time.md) Time
-    - [5.6](Current/StandardLibrary/IO.md) IO
-      - [5.6.1](Current/StandardLibrary/IO.md#561-file-methods) File
-      - [5.6.2](Current/StandardLibrary/IO.md#562-directory-methods) Directory
-    - [5.7](Current/StandardLibrary/Collections.md) Collections
-      - [5.7.1](Current/StandardLibrary/List.md) List
-      - [5.7.2](Current/StandardLibrary/Dictionary.md) Dictionary
-    - [5.8](Current/StandardLibrary/LowLevel.md) LowLevel
-    - [5.9](Current/StandardLibrary/Int.md) Int and Other Numerics
-    - [5.10](Current/StandardLibrary/Decimal.md) Decimal, Float64, and Float32
   - [6](Current/LowLevelFeatures.md) Low-Level Features
     - [6.1](Current/LowLevelFeatures.md#61-low-level-contexts) Low-Level Contexts
-    - [6.2](Current/LowLevelFeatures.md#62-structs) Structs
+    - [6.2](Current/LowLevelFeatures.md#62-struct-layout) Struct Layout
       - [6.2.1](Current/LowLevelFeatures.md#621-packing) Packing
     - [6.3](Current/LowLevelFeatures.md#63-arrays-and-buffers) Arrays and Buffers
       - [6.3.1](Current/LowLevelFeatures.md#631-alternate-entry-point-signature) Alternate Entry Point Signature
@@ -174,6 +186,8 @@
       - [6.6.1](Current/LowLevelFeatures.md#661-calling-conventions) Calling Conventions
     - [6.7](Current/LowLevelFeatures.md#67-extern-methods) Extern Methods
       - [6.7.1](Current/LowLevelFeatures.md#671-winbool) WinBool
+      - [6.7.2](Current/LowLevelFeatures.md#672-unmanaged-methods) Unmanaged Methods
+      - [6.7.3](Current/LowLevelFeatures.md#673-extern-blocks) Extern Blocks
     - [6.8](Current/LowLevelFeatures.md#68-fixed-size-buffers) Fixed Size Buffers
     - [6.9](Current/LowLevelFeatures.md#69-sizeof-operator) Sizeof Operator
     - [6.10](Current/LowLevelFeatures.md#610-stackalloc-operator) Stackalloc Operator
@@ -187,8 +201,8 @@
       - [6.13.2](Current/LowLevelFeatures.md#6132-ordering) Ordering
     - [6.14](Current/LowLevelFeatures.md#614-c-strings) C-Strings
     - [6.15](Current/LowLevelFeatures.md#615-lowlevel-fields) LowLevel Fields
-    - [6.16](Current/LowLevelFeatures.md#616-lowlevel-default-literal) LowLeve Default Literal
-    - [6.17](Current/LowLevelFeatures.md#617-double-verbatim-identifiers) Double Verbatim Identifiers
+    - [6.16](Current/LowLevelFeatures.md#616-lowlevel-default-literal) LowLevel Default Literal
+    - [6.17](Current/LowLevelFeatures.md#617-loop-unrolling) Loop Unrolling
   - [7](Current/Preprocessor.md) Preprocessor Directives
     - [7.1](Current/Preprocessor.md#71-defineundef) Define/Undef
     - [7.2](Current/Preprocessor.md#72-control) Control
@@ -198,7 +212,11 @@
       - [8.2.1](Current/Interop.md#821-properties) Properties
       - [8.2.2](Current/Interop.md#822-arrays) Arrays
       - [8.2.3](Current/Interop.md#823-nullability) Nullability
+    - [8.3](Current/Interop.md#83-language-feature-compatibility) Language Feature Compatibility
+      - [8.3.1](Current/Interop.md#831-exceptions) Exceptions
+      - [8.3.2](Current/Interop.md#832-for-each-loops) For Each Loops
   - [9](Current/GraphicsLibrary.md) Graphics Library
+  - [10](Current/UndocumentedFeatures.md) "Undocumented" Features
 
 ___
 

@@ -1,4 +1,6 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
+using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -10,11 +12,39 @@ internal static class OverriddenOrHiddenMembersHelpers {
         return MakeOverriddenOrHiddenMembersWorker(member);
     }
 
+    internal static OverriddenOrHiddenMembersResult MakeOverriddenOrHiddenMembers(this PropertySymbol member) {
+        return MakeOverriddenOrHiddenMembersWorker(member);
+    }
+
     private static OverriddenOrHiddenMembersResult MakeOverriddenOrHiddenMembersWorker(Symbol member) {
+        Debug.Assert(member.kind is SymbolKind.Method or SymbolKind.Property);
+
         if (!CanOverrideOrHide(member))
             return OverriddenOrHiddenMembersResult.Empty;
 
+        if (member.IsAccessor()) {
+            var accessor = member as MethodSymbol;
+            var associatedPropertyOrEvent = accessor.associatedSymbol;
+
+            if (associatedPropertyOrEvent is not null) {
+                if (associatedPropertyOrEvent.kind == SymbolKind.Property) {
+                    return MakePropertyAccessorOverriddenOrHiddenMembers(
+                        accessor,
+                        (PropertySymbol)associatedPropertyOrEvent
+                    );
+                } else {
+                    throw ExceptionUtilities.Unreachable();
+                }
+            }
+        }
+
+        Debug.Assert(!member.IsAccessor());
+
         var containingType = member.containingType;
+        var memberIsFromSomeCompilation = member.declaringCompilation is not null;
+
+        if (containingType.isInterface)
+            return MakeInterfaceOverriddenOrHiddenMembers(member, memberIsFromSomeCompilation);
 
         FindOverriddenOrHiddenMembers(
             member,
@@ -23,6 +53,152 @@ internal static class OverriddenOrHiddenMembersHelpers {
             out var hiddenBuilder,
             out var overriddenMembers
         );
+
+        var hiddenMembers = hiddenBuilder is null ? [] : hiddenBuilder.ToImmutableAndFree();
+        return OverriddenOrHiddenMembersResult.Create(overriddenMembers, hiddenMembers);
+    }
+
+    private static OverriddenOrHiddenMembersResult MakePropertyAccessorOverriddenOrHiddenMembers(
+        MethodSymbol accessor,
+        PropertySymbol associatedProperty) {
+        Debug.Assert(accessor.IsAccessor());
+        Debug.Assert(associatedProperty is not null);
+
+        var accessorIsGetter = accessor.methodKind == MethodKind.PropertyGet;
+
+        MethodSymbol overriddenAccessor = null;
+        ArrayBuilder<Symbol> hiddenBuilder = null;
+
+        var hiddenOrOverriddenByProperty = associatedProperty.overriddenOrHiddenMembers;
+
+        foreach (var hiddenByProperty in hiddenOrOverriddenByProperty.hiddenMembers) {
+            if (hiddenByProperty.kind == SymbolKind.Property) {
+                var propertyHiddenByProperty = (PropertySymbol)hiddenByProperty;
+
+                var correspondingAccessor = accessorIsGetter
+                    ? propertyHiddenByProperty.getMethod
+                    : propertyHiddenByProperty.setMethod;
+
+                if (correspondingAccessor is not null)
+                    AccessOrGetInstance(ref hiddenBuilder).Add(correspondingAccessor);
+            }
+        }
+
+        if (hiddenOrOverriddenByProperty.overriddenMembers.Any()) {
+            var propertyOverriddenByProperty = (PropertySymbol)hiddenOrOverriddenByProperty.overriddenMembers[0];
+            var correspondingAccessor = accessorIsGetter
+                ? propertyOverriddenByProperty.GetOwnOrInheritedGetMethod()
+                : propertyOverriddenByProperty.GetOwnOrInheritedSetMethod();
+
+            if (correspondingAccessor is not null)
+                overriddenAccessor = correspondingAccessor;
+        }
+
+        var accessorIsFromSomeCompilation = accessor.declaringCompilation is not null;
+        var overriddenAccessors = ImmutableArray<Symbol>.Empty;
+
+        if (overriddenAccessor is not null &&
+            IsOverriddenSymbolAccessible(overriddenAccessor, accessor.containingType) &&
+            IsAccessorOverride(accessor, overriddenAccessor)) {
+            FindRelatedMembers(
+                accessor.isOverride,
+                accessorIsFromSomeCompilation,
+                accessor.kind,
+                overriddenAccessor,
+                out overriddenAccessors,
+                ref hiddenBuilder
+            );
+        }
+
+        var hiddenMembers = hiddenBuilder is null ? [] : hiddenBuilder.ToImmutableAndFree();
+        return OverriddenOrHiddenMembersResult.Create(overriddenAccessors, hiddenMembers);
+
+        bool IsAccessorOverride(MethodSymbol accessor, MethodSymbol overriddenAccessor) {
+            if (accessorIsFromSomeCompilation)
+                return MemberSignatureComparer.AccessorOverrideComparer.Equals(accessor, overriddenAccessor);
+
+            // TODO What is this for
+            // if (overriddenAccessor.Equals(KnownOverriddenClassMethod(accessor), TypeCompareKind.AllIgnoreOptions))
+            //     return true;
+
+            return MemberSignatureComparer.RuntimeIgnoreRefComparer.Equals(accessor, overriddenAccessor);
+        }
+    }
+
+    internal static OverriddenOrHiddenMembersResult MakeInterfaceOverriddenOrHiddenMembers(
+        Symbol member,
+        bool memberIsFromSomeCompilation) {
+        var containingType = member.containingType;
+
+        var membersOfOtherKindsHidden = PooledHashSet<NamedTypeSymbol>.GetInstance();
+        var allMembersHidden = PooledHashSet<NamedTypeSymbol>.GetInstance();
+
+        ArrayBuilder<Symbol> hiddenBuilder = null;
+
+        foreach (var currType in containingType.allInterfaces) {
+            if (allMembersHidden.Contains(currType))
+                continue;
+
+
+            FindOverriddenOrHiddenMembersInType(
+                member,
+                memberIsFromSomeCompilation,
+                containingType,
+                currType,
+                out var currTypeBestMatch,
+                out var currTypeHasSameKindNonMatch,
+                out var currTypeHiddenBuilder
+            );
+
+            var haveBestMatch = currTypeBestMatch is not null;
+
+            if (haveBestMatch) {
+                foreach (var hidden in currType.allInterfaces)
+                    allMembersHidden.Add(hidden);
+
+                AccessOrGetInstance(ref hiddenBuilder).Add(currTypeBestMatch);
+            }
+
+            if (currTypeHiddenBuilder is not null) {
+                if (!membersOfOtherKindsHidden.Contains(currType)) {
+                    if (!haveBestMatch) {
+                        foreach (var hidden in currType.allInterfaces)
+                            allMembersHidden.Add(hidden);
+                    }
+
+                    AccessOrGetInstance(ref hiddenBuilder).AddRange(currTypeHiddenBuilder);
+                }
+
+                currTypeHiddenBuilder.Free();
+            } else if (currTypeHasSameKindNonMatch && !haveBestMatch) {
+                foreach (var hidden in currType.allInterfaces)
+                    membersOfOtherKindsHidden.Add(hidden);
+            }
+        }
+
+        membersOfOtherKindsHidden.Free();
+        allMembersHidden.Free();
+
+        ImmutableArray<Symbol> overriddenMembers = [];
+
+        if (hiddenBuilder is not null) {
+            ArrayBuilder<Symbol> hiddenAndRelatedBuilder = null;
+
+            foreach (var hidden in hiddenBuilder) {
+                FindRelatedMembers(
+                    member.isOverride,
+                    memberIsFromSomeCompilation,
+                    // TODO Pass entire member instead of only kind instead?
+                    member.kind,
+                    hidden,
+                    out overriddenMembers,
+                    ref hiddenAndRelatedBuilder
+                );
+            }
+
+            hiddenBuilder.Free();
+            hiddenBuilder = hiddenAndRelatedBuilder;
+        }
 
         var hiddenMembers = hiddenBuilder is null ? [] : hiddenBuilder.ToImmutableAndFree();
         return OverriddenOrHiddenMembersResult.Create(overriddenMembers, hiddenMembers);
@@ -47,7 +223,8 @@ internal static class OverriddenOrHiddenMembersHelpers {
                 currentType,
                 out bestMatch,
                 out _,
-                out hiddenBuilder);
+                out hiddenBuilder
+            );
         }
 
         FindRelatedMembers(
@@ -73,10 +250,12 @@ internal static class OverriddenOrHiddenMembersHelpers {
         hiddenBuilder = null;
 
         var currentTypeHasExactMatch = false;
-        var exactMatchComparer = MemberSignatureComparer.OverrideComparerWithReturn;
+        var exactMatchComparer = memberIsFromSomeCompilation
+            ? MemberSignatureComparer.OverrideComparerWithReturn
+            : MemberSignatureComparer.RuntimeOverrideComparerWithReturn;
         var fallbackComparer = memberIsFromSomeCompilation
             ? MemberSignatureComparer.OverrideComparer
-            : MemberSignatureComparer.IgnoreRefComparer;
+            : MemberSignatureComparer.RuntimeIgnoreRefComparer;
 
         var memberKind = member.kind;
         var memberArity = member.GetMemberArity();
@@ -124,7 +303,7 @@ internal static class OverriddenOrHiddenMembersHelpers {
         Symbol representativeMember,
         out ImmutableArray<Symbol> overriddenMembers,
         ref ArrayBuilder<Symbol> hiddenBuilder) {
-        overriddenMembers = ImmutableArray<Symbol>.Empty;
+        overriddenMembers = [];
 
         if (representativeMember is not null) {
             var needToSearchForRelated = representativeMember.kind != SymbolKind.Field &&
@@ -210,6 +389,8 @@ internal static class OverriddenOrHiddenMembersHelpers {
 
     private static bool CanOverrideOrHide(Symbol member) {
         switch (member.kind) {
+            case SymbolKind.Property:
+                return !member.IsExplicitInterfaceImplementation();
             case SymbolKind.Method:
                 var methodSymbol = (MethodSymbol)member;
                 return MethodSymbol.CanOverrideOrHide(methodSymbol.methodKind) &&

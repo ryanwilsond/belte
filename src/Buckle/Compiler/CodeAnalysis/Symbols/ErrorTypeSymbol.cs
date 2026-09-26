@@ -77,6 +77,8 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
 
     internal sealed override bool isRefLikeType => false;
 
+    internal override bool isInterface => false;
+
     internal override ImmutableArray<Symbol> GetMembers() {
         if (isTupleType) {
             var result = MakeSynthesizedTupleMembers([]);
@@ -98,6 +100,39 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
         return [];
     }
 
+    internal override ImmutableArray<NamedTypeSymbol> GetDeclaredInterfaces(ConsList<TypeSymbol> basesBeingResolved) {
+        return [];
+    }
+
+    internal override AttributeUsageInfo GetAttributeUsageInfo() {
+        return AttributeUsageInfo.Null;
+    }
+
+    internal override bool HasEntryTypeAttribute() {
+        return false;
+    }
+
+    internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
+        return SpecializedCollections.EmptyEnumerable<(MethodSymbol Body, MethodSymbol Implemented)>();
+    }
+
+    internal sealed override ImmutableArray<NamedTypeSymbol> Interfaces(
+        ConsList<TypeSymbol> basesBeingResolved = null) {
+        return [];
+    }
+
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers() {
+        return GetMembersUnordered();
+    }
+
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers(string name) {
+        return GetMembers(name);
+    }
+
+    internal TypeOrConstant Substitute(TemplateMap templateMap) {
+        return new TypeOrConstant(templateMap.SubstituteNamedType(this));
+    }
+
     internal override TResult Accept<TArgument, TResult>(
         SymbolVisitor<TArgument, TResult> visitor,
         TArgument argument) {
@@ -106,6 +141,12 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
 
     internal override NamedTypeSymbol AsMember(NamedTypeSymbol newOwner) {
         return newOwner.isDefinition ? this : new SubstitutedNestedErrorTypeSymbol(newOwner, this);
+    }
+
+    private protected override NamedTypeSymbol ConstructCore(
+        ImmutableArray<TypeOrConstant> typeArguments,
+        bool unbound) {
+        return new ConstructedErrorTypeSymbol(this, typeArguments);
     }
 
     internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {
@@ -125,11 +166,15 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
                     this,
                     "",
                     i,
-                    new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Type))
+                    new TypeWithAnnotations(CorLibrary.Instance.GetSpecialType(SpecialType.Type))
                 );
             }
 
             return templateParameters.AsImmutableOrNull();
         }
+    }
+
+    internal sealed override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        return [];
     }
 }

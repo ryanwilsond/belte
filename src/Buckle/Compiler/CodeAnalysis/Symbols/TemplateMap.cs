@@ -1,20 +1,25 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Runtime.InteropServices;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal sealed class TemplateMap {
+internal class TemplateMap {
     private static readonly TemplateMap _empty = new TemplateMap();
     private static Dictionary<TemplateParameterSymbol, TypeOrConstant> _emptyDictionary
         => new Dictionary<TemplateParameterSymbol, TypeOrConstant>(ReferenceEqualityComparer.Instance);
 
     internal static TemplateMap Empty => _empty;
 
-    private readonly Dictionary<TemplateParameterSymbol, TypeOrConstant> _mapping;
+    private protected readonly Dictionary<TemplateParameterSymbol, TypeOrConstant> _mapping;
 
     private TemplateMap() {
         _mapping = _emptyDictionary;
+    }
+
+    private protected TemplateMap(Dictionary<TemplateParameterSymbol, TypeOrConstant> mapping) {
+        _mapping = new Dictionary<TemplateParameterSymbol, TypeOrConstant>(mapping, ReferenceEqualityComparer.Instance);
     }
 
     internal TemplateMap(ImmutableArray<TemplateParameterSymbol> from, ImmutableArray<TypeOrConstant> to) {
@@ -37,7 +42,7 @@ internal sealed class TemplateMap {
             var templateParameter = from[i];
             var templateArgument = to[i];
 
-            if (!templateArgument.Equals(templateParameter))
+            if (templateArgument.type?.type?.Equals(templateParameter) != true)
                 _mapping.Add(templateParameter, templateArgument);
         }
     }
@@ -45,15 +50,13 @@ internal sealed class TemplateMap {
     internal TemplateMap(ImmutableArray<TemplateParameterSymbol> from, ImmutableArray<TemplateParameterSymbol> to)
         : this(from, TemplateParametersAsTypeOrConstants(to)) { }
 
+    internal Dictionary<TemplateParameterSymbol, TypeOrConstant> mapping => _mapping;
+
     private static Dictionary<TemplateParameterSymbol, TypeOrConstant> ForType(NamedTypeSymbol containingType) {
         return containingType is SubstitutedNamedTypeSymbol substituted
             ? new Dictionary<TemplateParameterSymbol, TypeOrConstant>(
                 substituted.templateSubstitution._mapping, ReferenceEqualityComparer.Instance)
             : new Dictionary<TemplateParameterSymbol, TypeOrConstant>(ReferenceEqualityComparer.Instance);
-    }
-
-    private TemplateMap(Dictionary<TemplateParameterSymbol, TypeOrConstant> mapping) {
-        _mapping = mapping;
     }
 
     internal ImmutableArray<TemplateParameterSymbol> SubstituteTemplateParameters(
@@ -85,6 +88,17 @@ internal sealed class TemplateMap {
             case SymbolKind.ArrayType:
                 result = SubstituteArrayType((ArrayTypeSymbol)previous);
                 break;
+            case SymbolKind.PointerType:
+                result = SubstitutePointerType((PointerTypeSymbol)previous);
+                break;
+            case SymbolKind.FunctionPointerType:
+                result = SubstituteFunctionPointerType((FunctionPointerTypeSymbol)previous);
+                break;
+            case SymbolKind.FunctionType:
+                result = SubstituteFunctionType((FunctionTypeSymbol)previous);
+                break;
+            case SymbolKind.ErrorType:
+                return ((ErrorTypeSymbol)previous).Substitute(this);
             default:
                 result = previous;
                 break;
@@ -109,6 +123,28 @@ internal sealed class TemplateMap {
         return previous.SubstituteType(this);
     }
 
+    internal ImmutableArray<NamedTypeSymbol> SubstituteNamedTypes(ImmutableArray<NamedTypeSymbol> original) {
+        NamedTypeSymbol[] result = null;
+
+        for (var i = 0; i < original.Length; i++) {
+            var t = original[i];
+            var substituted = SubstituteNamedType(t);
+
+            if (!ReferenceEquals(substituted, t)) {
+                if (result is null) {
+                    result = new NamedTypeSymbol[original.Length];
+
+                    for (var j = 0; j < i; j++)
+                        result[j] = original[j];
+                }
+            }
+
+            result?[i] = substituted;
+        }
+
+        return result is not null ? ImmutableCollectionsMarshal.AsImmutableArray(result) : original;
+    }
+
     internal ArrayTypeSymbol SubstituteArrayType(ArrayTypeSymbol previous) {
         var oldElement = previous.elementTypeWithAnnotations;
         var element = oldElement.SubstituteType(this).type;
@@ -124,7 +160,8 @@ internal sealed class TemplateMap {
             previous.rank,
             previous.sizes,
             previous.lowerBounds,
-            previous.baseType);
+            previous.baseType
+        );
     }
 
     internal NamedTypeSymbol SubstituteNamedType(NamedTypeSymbol previous) {
@@ -140,24 +177,28 @@ internal sealed class TemplateMap {
 
         for (var i = 0; i < oldTemplateArguments.Length; i++) {
             var oldArgument = oldTemplateArguments[i];
+            var newArgument = oldArgument.Substitute(this);
 
-            if (oldArgument.isConstant) {
-                newTypeArguments.Add(oldArgument);
-                continue;
-            }
-
-            var newArgument = oldArgument.type.SubstituteType(this).type;
-
-            if (!changed && !oldArgument.type.IsSameAs(newArgument))
+            if (!changed && !oldArgument.IsSameAs(newArgument))
                 changed = true;
 
-            newTypeArguments.Add(new TypeOrConstant(newArgument));
+            newTypeArguments.Add(newArgument);
         }
 
         if (!changed)
             return previous;
 
         return newConstructedFrom.ConstructIfGeneric(newTypeArguments.ToImmutableAndFree()).WithTupleDataFrom(previous);
+    }
+
+    private PointerTypeSymbol SubstitutePointerType(PointerTypeSymbol t) {
+        var oldPointedAtType = t.pointedAtTypeWithAnnotations;
+        var pointedAtType = oldPointedAtType.SubstituteType(this).type;
+
+        if (pointedAtType.IsSameAs(oldPointedAtType))
+            return t;
+
+        return new PointerTypeSymbol(pointedAtType);
     }
 
     internal void SubstituteConstraintTypesDistinctWithoutModifiers(
@@ -242,6 +283,25 @@ internal sealed class TemplateMap {
         return result;
     }
 
+    internal static ImmutableArray<TemplateParameterSymbol> ConcatMethodTemplateParameters(
+        MethodSymbol oldOwner,
+        MethodSymbol stopAt) {
+        var parameters = ArrayBuilder<TemplateParameterSymbol>.GetInstance();
+
+        while (oldOwner is not null && oldOwner != stopAt) {
+            var currentParameters = oldOwner.originalDefinition.templateParameters;
+
+            for (var i = currentParameters.Length - 1; i >= 0; i--)
+                parameters.Add(currentParameters[i]);
+
+            oldOwner = oldOwner.containingSymbol.originalDefinition as MethodSymbol;
+        }
+
+        parameters.ReverseContents();
+
+        return parameters.ToImmutableAndFree();
+    }
+
     internal TemplateMap WithConcatAlphaRename(
         MethodSymbol oldOwner,
         Symbol newOwner,
@@ -268,5 +328,53 @@ internal sealed class TemplateMap {
     internal static ImmutableArray<TypeOrConstant> TemplateParametersAsTypeOrConstants(
         ImmutableArray<TemplateParameterSymbol> templateParameters) {
         return templateParameters.SelectAsArray(static (tp) => new TypeOrConstant(tp));
+    }
+
+    private FunctionPointerTypeSymbol SubstituteFunctionPointerType(FunctionPointerTypeSymbol f) {
+        var substitutedReturnType = f.signature.returnTypeWithAnnotations.SubstituteType(this).type;
+
+        var parameterTypesWithAnnotations = f.signature.parameterTypesWithAnnotations;
+        var substitutedParamTypes = SubstituteTypes(parameterTypesWithAnnotations);
+
+        if (!CollectionsEqual(substitutedParamTypes, parameterTypesWithAnnotations) ||
+            !f.signature.returnTypeWithAnnotations.IsSameAs(substitutedReturnType)) {
+            f = f.SubstituteTypeSymbol(substitutedReturnType, substitutedParamTypes);
+        }
+
+        return f;
+    }
+
+    private FunctionTypeSymbol SubstituteFunctionType(FunctionTypeSymbol f) {
+        var substitutedReturnType = f.signature.returnTypeWithAnnotations.SubstituteType(this).type;
+
+        var parameterTypesWithAnnotations = f.signature.parameterTypesWithAnnotations;
+        var substitutedParamTypes = SubstituteTypes(parameterTypesWithAnnotations);
+
+        if (!CollectionsEqual(substitutedParamTypes, parameterTypesWithAnnotations) ||
+            !f.signature.returnTypeWithAnnotations.IsSameAs(substitutedReturnType)) {
+            f = f.SubstituteTypeSymbol(substitutedReturnType, substitutedParamTypes);
+        }
+
+        return f;
+    }
+
+    private static bool CollectionsEqual(
+        ImmutableArray<TypeOrConstant> collection1,
+        ImmutableArray<TypeWithAnnotations> collection2) {
+        if (collection1.Length != collection2.Length)
+            return false;
+
+        for (var i = 0; i < collection1.Length; i++) {
+            var typeOrConstant = collection1[i];
+            var typeWithAnnotations = collection2[i];
+
+            if (!typeOrConstant.isType)
+                return false;
+
+            if (!typeOrConstant.type.Equals(typeWithAnnotations))
+                return false;
+        }
+
+        return true;
     }
 }

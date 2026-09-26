@@ -19,9 +19,11 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol, I
     private protected SourceMemberMethodSymbol(
         NamedTypeSymbol containingType,
         SyntaxReference syntaxReference,
+        TextLocation location,
         (DeclarationModifiers modifiers, Flags flags) modifiersAndFlags)
         : base(syntaxReference) {
         this.containingType = containingType;
+        this.location = location;
         _modifiers = modifiersAndFlags.modifiers;
         _flags = modifiersAndFlags.flags;
     }
@@ -36,6 +38,10 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol, I
     public sealed override MethodKind methodKind => _flags.methodKind;
 
     public sealed override RefKind refKind => _flags.refKind;
+
+    public override Symbol associatedSymbol => null;
+
+    internal sealed override TextLocation location { get; }
 
     internal sealed override OverriddenOrHiddenMembersResult overriddenOrHiddenMembers {
         get {
@@ -92,14 +98,20 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol, I
 
     internal override bool isDeclaredConst => (_modifiers & DeclarationModifiers.Const) != 0;
 
-    internal bool isLowLevel => (_modifiers & DeclarationModifiers.LowLevel) != 0;
+    internal virtual bool isLowLevel => (_modifiers & DeclarationModifiers.LowLevel) != 0;
 
     internal bool isNew => (_modifiers & DeclarationModifiers.New) != 0;
+
+    internal override ImmutableArray<MethodSymbol> explicitInterfaceImplementations => [];
 
     internal BlockStatementSyntax body => syntaxNode switch {
         BaseMethodDeclarationSyntax method => method.body,
         _ => null,
     };
+
+    internal void EnsureMetadataVirtual() {
+        _flags.EnsureMetadataVirtual();
+    }
 
     // This allows synthesized methods to also perform method checks without having a conflicting lock
     // TODO This could probably be removed because there are no synthesized event methods or anything similar
@@ -152,6 +164,39 @@ internal abstract partial class SourceMemberMethodSymbol : SourceMethodSymbol, I
 
 done:
         _state.SpinWaitComplete(CompletionParts.MethodSymbolAll);
+    }
+
+    private protected override BehaviorSpecifierInfo MakeSpecifierInfo(BelteDiagnosticQueue diagnostics) {
+        var specifiers = MakeBehaviorSpecifiers(diagnostics, methodKind);
+
+        if (specifiers == BehaviorSpecifiers.None)
+            return BehaviorSpecifierInfo.Default;
+
+        return new BehaviorSpecifierInfo(specifiers);
+    }
+
+    private protected void ReportDefaultInterfaceImplementation(
+        TextLocation location,
+        bool hasBody,
+        BelteDiagnosticQueue diagnostics) {
+        // TODO Eventually we will support all of these
+        if (containingType.isInterface) {
+            if ((!isStatic || methodKind is MethodKind.StaticConstructor) &&
+                (hasBody || isExplicitInterfaceImplementation)) {
+                diagnostics.Push(Error.DefaultInterfaceImplementation(location));
+                return;
+            }
+
+            if (((hasBody || isExtern) && !(isStatic && isVirtual)) || isExplicitInterfaceImplementation) {
+                diagnostics.Push(Error.DefaultInterfaceImplementation(location));
+                return;
+            }
+
+            if (((!hasBody && isAbstract) || isVirtual) && !isExplicitInterfaceImplementation && isStatic) {
+                // TODO Do we support static abstract interface members?
+                // diagnostics.Add(ErrorCode.ERR_RuntimeDoesNotSupportStaticAbstractMembersInInterfaces, location);
+            }
+        }
     }
 
     private protected sealed override void NoteAttributesComplete(bool forReturnType) {

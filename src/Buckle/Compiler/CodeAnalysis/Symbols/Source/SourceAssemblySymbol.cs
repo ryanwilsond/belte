@@ -36,13 +36,17 @@ internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol, IAt
 
     private SymbolCompletionState _state;
 
-    internal SourceAssemblySymbol(Compilation compilation, string assemblySimpleName) {
+    internal SourceAssemblySymbol(
+        Compilation compilation,
+        string assemblySimpleName,
+        string moduleName,
+        ImmutableArray<PEModule> netModules) {
         declaringCompilation = compilation;
         _assemblySimpleName = assemblySimpleName;
 
         // TODO Expand this to include imported modules
         var modules = new ArrayBuilder<ModuleSymbol>(1) {
-            new SourceModuleSymbol(this, compilation.declarationTable, assemblySimpleName)
+            new SourceModuleSymbol(this, compilation.declarationTable, moduleName)
         };
 
         _modules = modules.ToImmutableAndFree();
@@ -143,6 +147,10 @@ internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol, IAt
     internal string signatureKey
         => GetWellKnownAttributeDataStringField(data => data.assemblySignatureKeyAttributeSetting,
             missingValue: null, QuickAttributes.AssemblySignatureKey);
+
+    internal override bool isBelteAssembly => true;
+
+    internal override int belteMetadataVersion => Compiler.BelteMetadataVersion;
 
     private string _assemblyCultureAttributeSetting
         => GetWellKnownAttributeDataStringField(data => data.assemblyCultureAttributeSetting);

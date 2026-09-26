@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
@@ -51,6 +52,7 @@ internal sealed class ForLoopBinder : LoopBinder {
         }
 
         var body = originalBinder.BindPossibleEmbeddedStatement(node.body, diagnostics);
+        Debug.Assert(node.unrollKeyword is null);
 
         return new BoundForStatement(
             node,
@@ -59,6 +61,7 @@ internal sealed class ForLoopBinder : LoopBinder {
             innerLocals,
             condition,
             increment,
+            unroll: false,
             body,
             breakLabel,
             continueLabel

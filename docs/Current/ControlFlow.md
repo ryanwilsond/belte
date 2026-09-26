@@ -9,10 +9,12 @@
   - [2.1.6](#216-ref-arguments) Ref Arguments
     - [2.1.6.1](#2161-out-arguments) Out Arguments
   - [2.1.7](#217-argument-coercion) Argument Coercion
+  - [2.1.8]() Constant Expression Parameters
 - [2.2](#22-entry-point) Entry Point
   - [2.2.1](#221-main) Main
   - [2.2.2](#222-program-and-update) Program And Update
   - [2.2.3](#223-disambiguating-entry-points) Disambiguating Entry Points
+    - [2.2.3.1](#2231-entrytype-attribute) `EntryType` Attribute
 - [2.3](#23-conditionals) Conditionals
   - [2.3.1](#231-null-conditions) Null Conditions
   - [2.3.2](#232-null-binding-contracts) Null-Binding Contracts
@@ -25,6 +27,7 @@
     - [2.4.4.2](#2442-array-collections) Array Collections
     - [2.4.4.3](#2443-indexed-collections) Indexed Collections
     - [2.4.4.4](#2444-enumerated-collections) Enumerated Collections
+    - [2.4.4.5](#2445-ranges) Ranges
   - [2.4.5](#245-break) Break
   - [2.4.6](#246-continue) Continue
 - [2.5](#25-switch) Switch
@@ -36,6 +39,13 @@
 - [2.9](#29-scoped-statements) Scoped Statements
 - [2.10](#210-unreachable-statements) Unreachable Statements
 - [2.11](#211-reverse-statements) Reverse Statements
+- [2.12](#212-order-of-multiple-implicit-frames-defer-scoped-etc) Order of Multiple Implicit Frames (Defer, Scoped, etc.)
+- [2.13](#213-errors-as-values) Errors as Values
+  - [2.13.1](#2131-or-return) `or return`
+  - [2.13.2](#2132-or-throw) `or throw`
+  - [2.13.3](#2133-or-break) `or break`
+  - [2.13.4](#2134-or-continue) `or continue`
+  - [2.13.5](#2135-or-value) `or value`
 
 ## 2.1 Functions
 
@@ -61,6 +71,7 @@ With [aggressive compiler warnings enabled](../Buckle.md#--warnlevelwarning-leve
 if a function return value is ignored such as in the following:
 
 ```belte
+// Compiler warns that the return value of 'MyFunction' was ignored
 MyFunction();
 
 int MyFunction() {
@@ -71,10 +82,35 @@ int MyFunction() {
 In this case, a discard assignment can be used to show that ignoring the return value was intentional:
 
 ```belte
+// No warning
 _ = MyFunction();
 
 int MyFunction() {
   return 3;
+}
+```
+
+Similarly, if aggressive compiler warnings are enabled, the compiler will warn if a function has unused parameters:
+
+```belte
+// Compiler warns that 'a' is unused
+void MyFunction(int a) { }
+```
+
+A parameter name starting with an underscore, similar to a discard, will suppress this warning:
+
+```belte
+// No warnings
+void MyFunction(int _, bool _2) { }
+```
+
+Alternatively, you can "use" the parameter by assigning it to a discard:
+
+```belte
+// No warnings
+void MyFunction(int a, bool b) {
+  _ = a;
+  _ = b;
 }
 ```
 
@@ -110,7 +146,7 @@ void F(const List<int> list) {
 
 ### 2.1.3 Default Arguments
 
-Parameters can be given constant default values making them optional.
+Parameters can be given default values making them optional.
 
 ```belte
 void MyFunction(int param = 3) { }
@@ -125,6 +161,14 @@ void MyFunction(int param1, bool param2, string param3 = "Default") { }
 ```
 
 If there are multiple optional parameters, named arguments can be used to skip over specific ones.
+
+Parameter default values can either be constants like the examples above, or reference prior parameters:
+
+```belte
+void MyFunction(int param1, int param2 = param1 + 1) { }
+
+MyFunction(3); // param2 = 4
+```
 
 ### 2.1.4 Named Arguments
 
@@ -203,9 +247,7 @@ int Func(out int a) {
 }
 ```
 
-Out parameters do not require assignment and will assign a default value in cases where they aren't assigned to within
-the scope of the function. Because of this, types without a default value (non-nullable classes and arrays) cannot be
-used as the type for an out parameter.
+Out parameters require definite assignment within their method.
 
 Out parameters can be given a default value. The following are equivalent:
 
@@ -234,6 +276,9 @@ void Func(out int a) {
 
 ### 2.1.7 Argument Coercion
 
+Argument coercion is not meant for ordinary use, but because it can potentially affect overload resolution, it is
+important to understand how it works.
+
 Normally, passing arguments uses normal casting rules. By using the `implicit` keyword between the parameter list and
 body, explicit casts from arguments to parameters will be treated as though they were implicit:
 
@@ -249,6 +294,31 @@ Without the `implicit` keyword, the call in the above example would have to be w
 F((int)3.3);
 
 void F(int a) { }
+```
+
+The `implicit` keyword must be placed before any [behavior specifiers](ClassesAndObjects.md#4223-behavior-specifiers).
+
+### 2.1.8 Constant Expression Parameters
+
+Parameters can be marked `constexpr` which requires arguments for that parameter to be compile-time constants.
+
+For example:
+
+```belte
+int a = 0;
+
+M(3); // Okay
+M(a); // Invalid, `a` is not a compile-time constant
+
+void M(constexpr int a) { }
+```
+
+[Template constraints](ClassesAndObjects.md#451-constraint-clauses) can reference constant expression parameters:
+
+```belte
+class A {
+  void M<type T>(constexpr int p) where { p != 0; } { }
+}
 ```
 
 ## 2.2 Entry Point
@@ -334,6 +404,81 @@ search for the entry point in.
 The name passed can be just a type name, or a namespace qualified name. The passed name does not support nesting and
 instead treats everything to the left of the last period as the namespace name. For example `--entry=A.B.C` would look
 for the entry point within a type named `C` inside of a namespace named `A.B`.
+
+#### 2.2.3.1 `EntryType` Attribute
+
+For some programs, you may want to have multiple valid entry points that can be chosen using the *--entry* argument.
+Note that for the case of [field definite assignment](ClassesAndObjects.md#4211-definite-assignment), the entry point
+is treated like a constructor.
+
+For example:
+
+```belte
+class Program {
+  int a;
+
+  void Main() {
+    a = 0;
+  }
+}
+```
+
+Normally this program would be invalid because field `a` does not have definite constructor assignment. But if
+`Program.Main` is the entry point, then it contributes to definite assignment and the program is valid.
+
+Because of this, using the *--entry* argument can break the program as the other entry
+types no longer treat their Main like a constructor.
+
+For example:
+
+```belte
+class P1 {
+  int a;
+
+  void Main() {
+    a = 0;
+  }
+}
+
+class P2 {
+  int a;
+
+  void Main() {
+    a = 1;
+  }
+}
+```
+
+With no *--entry* argument, this program is invalid because the entry point is ambiguous. If the entry point is
+clarified with *--entry=P1*, then `P2` is invalid because `P2.Main` is not treated like an entry point and therefore it
+does not contribute to definite constructor assignment.
+
+For these cases, the `Belte.EntryTypeAttribute` can be used. It tells the compiler to treat any methods within that
+type with an entry point signature like a constructor for field definite assignment.
+
+For example:
+
+```belte
+[Belte.EntryPoint]
+class P1 {
+  int a;
+
+  void Main() {
+    a = 0;
+  }
+}
+
+[Belte.EntryPoint]
+class P2 {
+  int a;
+
+  void Main() {
+    a = 1;
+  }
+}
+```
+
+Now with either *--entry=P1* or *--entry=P2*, the program will be valid.
 
 ## 2.3 Conditionals
 
@@ -426,6 +571,18 @@ if (a -> x!) {
 }
 ```
 
+By default, the source expression of a null-binding contract must be non-constant. The null-binding local is treated
+as though it is marked [`final`](Data.md#331-modifiers). Optionally, the null-binding local can be marked `const` which
+allows constant source expressions:
+
+```belte
+const MyClass? a = new MyClass();
+
+if (a -> const x!) {
+  // ...
+}
+```
+
 ## 2.4 Loops
 
 ### 2.4.1 While Loops
@@ -469,12 +626,19 @@ for (int i = 0; i < 10; i++) {
 
 ### 2.4.4 For Each Loops
 
-For loops can be used to iterate over a collection type. The collection expression must be an array, string, or be a
-class type with special defined operators.
+For loops can be used to iterate over a collection type. The collection expression must be an array, string, Enumerator,
+or be a class type with special defined operators.
 
 The for loop starts by naming a local to store the collection items, and an optional name for a local to keep track of
 the current index. The index local is always of type `int!`, and the value local is inferred from the collection
 expression.
+
+The general form is `for (item in collection) ;` or `for (item, index in collection) ;` (`item` and `index` can be named
+anything).
+
+Within the body of the for loop, locals `item` and `index` (if it is defined) are treated as though they are marked
+[`final`](Data.md#331-modifiers). Optionally, the `item` local can be marked `const`:
+`for (const item in collection) ;`.
 
 #### 2.4.4.1 String Collections
 
@@ -547,8 +711,8 @@ class MyClass {
     return inst.arr[index];
   }
 
-  public static int! operator length(MyClass inst) {
-    return LowLevel.Length<int[]>(inst.arr);
+  public static int operator length(MyClass inst) {
+    return inst.arr.Length();
   }
 }
 ```
@@ -600,16 +764,16 @@ public class A {
 
   private class AEnumerator extends Enumerator<int> {
     private A a;
-    private int! count = -1;
+    private int count = -1;
 
     public constructor(A a) {
       this.a = a;
     }
 
-    public override bool! MoveNext() {
+    public override bool MoveNext() {
       count++;
 
-      if (count < LowLevel.Length<int[]>(a.arr))
+      if (count < a.arr.Length())
         return true;
 
       return false;
@@ -620,6 +784,42 @@ public class A {
     }
   }
 }
+```
+
+#### 2.4.4.5 Ranges
+
+A range can be used to iterate over a sequence of numbers:
+
+```belte
+for (i in 0..<10)
+  Console.PrintLine(i);
+```
+
+`start..<end` counts from `start` inclusive to `end` exclusive, and `start..=end` counts from `start` inclusive to
+`end` inclusive.
+
+The following are equivalent:
+
+```belte
+for (i in 0..<10)
+  Console.PrintLine(i);
+```
+
+```belte
+for (int i = 0; i < 10; i++)
+  Console.PrintLine(i);
+```
+
+Likewise, the following are equivalent:
+
+```belte
+for (i in 0..=10)
+  Console.PrintLine(i);
+```
+
+```belte
+for (int i = 0; i <= 10; i++)
+  Console.PrintLine(i);
 ```
 
 ### 2.4.5 Break
@@ -785,6 +985,8 @@ try {
 A try block must contain one catch body, one finally body, or both.
 
 ## 2.7 With Expressions and Statements
+
+> Note: `with` is experimental
 
 The `with` expression or statement can be used to wrap code inside of an assignment that is reversed when done.
 
@@ -1043,6 +1245,9 @@ try {
 }
 ```
 
+Scoped locals are treated as though they are marked [`final`](Data.md#331-modifiers) and cannot be explicitly marked
+`const`, `final`, or `constexpr`.
+
 ### 2.9.1 Destructors
 
 The `destructor` keyword is used to create a destructor called by scoped statements:
@@ -1080,6 +1285,8 @@ Note that because this turns into a [`throw`](#261-trycatchfinally), it will be 
 
 ## 2.11 Reverse Statements
 
+> Note: `reverse` and `reversible` are experimental
+
 A `reversible` expression creates a token that can be referenced later with a `reverse` statement.
 
 ```belte
@@ -1116,4 +1323,289 @@ defer reverse T;
 
 ```belte
 reverse defer Method();
+```
+
+## 2.12 Order of Multiple Implicit Frames (Defer, Scoped, etc.)
+
+In the case multiple implicit frames, the order of execution is clearly defined. Try/finally blocks are added in reverse
+order of these constructs placement within a block. For example:
+
+```belte
+int a = 3;
+defer Call1();
+a = 10;
+defer Call2();
+a = 20;
+```
+
+Turns into:
+
+```belte
+int a = 3;
+
+try {
+  a = 10;
+
+  try {
+    a = 20;
+  } finally {
+    Call2();
+  }
+} finally {
+  Call1();
+}
+```
+
+This means an exception thrown in the inner-most block will first call `Call2`, then `Call1`.
+
+This same reverse-ordering applies to `scoped` statements as well. Consider:
+
+```belte
+scoped A a = new A();
+
+defer Call1();
+a.field = 10;
+defer Call2();
+a.field = 20;
+```
+
+This becomes:
+
+```belte
+A a = new A();
+
+try {
+  try {
+    a.field = 10;
+
+    try {
+      a.field = 20;
+    } finally {
+      Call2();
+    }
+  } finally {
+    Call1();
+  }
+} finally {
+  a.Dispose();
+}
+```
+
+Because the try blocks are ordered this way, `defer` and `scoped` statements will "unwind" up in the block.
+
+Explicit try and with blocks interact as expected:
+
+```belte
+int a = 10;
+
+try {
+  with (a = 4) try {
+    Call1();
+  }
+} finally {
+  Call2();
+}
+```
+
+This becomes:
+
+```belte
+int a = 10;
+
+try {
+  int temp = a;
+  a = 4;
+
+  try {
+    Call1();
+  } finally {
+    a = temp;
+  }
+} finally {
+  Call2();
+}
+```
+
+## 2.13 Errors as Values
+
+Instead of using exceptions, the built-in `Result<type T, type E>` type can be used to treat errors as values.
+
+For example:
+
+```belte
+var result = TrySomeOperation();
+
+if (result.isSuccess) {
+  UseResult(result.value);
+} else {
+  HandleError(result.error);
+}
+
+Result<int, string> TrySomeOperation() { /* ... */ }
+```
+
+Types `T` and `E` can be any type.
+
+A Result can be constructed uses the two helpers `Result.Success` and `Result.Failure`:
+
+```belte
+var errorResult = Result<int, string>.Failure("Some error");
+var successResult = Result<int, string>.Success(50);
+```
+
+Accessing the `value` property will throw if the result is not a value. Likewise, accessing the `error` property will
+throw if the result is not an error.
+
+For example:
+
+```belte
+var errorResult = Result<int, string>.Failure("Some error");
+var value = errorResult.value; // Throws
+```
+
+### 2.13.1 `or return`
+
+To extract a successful result or return from the enclosing method, an `or return` expression can be used:
+
+```belte
+Result<int, string> M() {
+  int value = TrySomeOperation() or return;
+  // ...
+  return Result<int, string>.Success(value);
+}
+
+Result<int, string> TrySomeOperation() { /* ... */ }
+```
+
+The above is equivalent to:
+
+```belte
+Result<int, string> M() {
+  var result = TrySomeOperation();
+
+  if (!result.isSuccess)
+    return result;
+
+  int value = result.value;
+
+  // ...
+  return Result<int, string>.Success(value);
+}
+
+Result<int, string> TrySomeOperation() { /* ... */ }
+```
+
+The operand of the `or return` expression must have a `Result<type T, type E>` type where the error type template
+argument matches the return type of the enclosing method. For example, in this example the value type of the Result is
+different but `or return` can still be used:
+
+```belte
+Result<bool, string> M() {
+  int value = TrySomeOperator() or return;
+  // ...
+  return Result<bool, string>.Success(true);
+}
+
+Result<int, string> TrySomeOperation() { /* ... */ }
+```
+
+The above is equivalent to:
+
+```belte
+Result<bool, string> M() {
+  var result = TrySomeOperation();
+
+  if (!result.isSuccess)
+    return Result<bool, string>.Failure(result.error);
+
+  int value = result.value;
+
+  // ...
+  return Result<bool, string>.Success(true);
+}
+
+Result<int, string> TrySomeOperation() { /* ... */ }
+```
+
+### 2.13.2 `or throw`
+
+To treat a Result as always successful, an `or throw` expression can be used. If the Result is an error, it is wrapped
+and thrown as an exception.
+
+For example:
+
+```belte
+void M() {
+  int value = TrySomeOperation() or throw;
+}
+
+Result<int, string> TrySomeOperation() { /* ... */ }
+```
+
+The above is equivalent to:
+
+```belte
+void M() {
+  var result = TrySomeOperation();
+
+  if (!result.isSuccess)
+    throw new WrappedErrorException(result.error);
+
+  int value = result.value;
+}
+
+Result<int, string> TrySomeOperation() { /* ... */ }
+```
+
+Because the error is thrown and not returned, the enclosing method does not have to have a `Result<type T, type E>`
+return type.
+
+### 2.13.3 `or break`
+
+An `or break` expression can be used to unwrap the value of a successful result or break from the enclosing loop:
+
+```belte
+int[] array = /* ... */;
+
+for (item in array) {
+  int value = TryProcess(item) or break;
+}
+
+Result<int, string> TryProcess(int item) { /* ... */ }
+```
+
+### 2.13.4 `or continue`
+
+An `or continue` expression can be used to unwrap the value of a successful result or continue the enclosing loop:
+
+```belte
+int[] array = /* ... */;
+
+for (item in array) {
+  int value = TryProcess(item) or continue;
+}
+
+Result<int, string> TryProcess(int item) { /* ... */ }
+```
+
+### 2.13.5 `or value`
+
+To supply an alternative value when a Result is not successful, a `or value` expression can be used where the `value`
+type matches the Result value type.
+
+For example:
+
+```belte
+int value = TryProcess(10) or 0;
+
+Result<int, string> TryProcess(int item) { /* ... */ }
+```
+
+The above is equivalent to:
+
+```belte
+var result = TryProcess(10);
+int value = result.isSuccess ? result.value : 0;
+
+Result<int, string> TryProcess(int item) { /* ... */ }
 ```
