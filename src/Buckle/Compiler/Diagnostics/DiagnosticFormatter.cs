@@ -18,6 +18,9 @@ public static partial class DiagnosticFormatter {
             Console.Write("  ");
 
             switch (inner) {
+                case BelteDiagnostic innerDiagnostic:
+                    PrettyPrint(innerDiagnostic, foregroundColor);
+                    break;
                 case Diagnostic innerDiagnostic:
                     PrettyPrint(innerDiagnostic, foregroundColor);
                     break;
@@ -112,6 +115,9 @@ public static partial class DiagnosticFormatter {
                 highlightColor = ConsoleColor.Red;
                 displayParts.Add("fatal", highlightColor);
                 break;
+            case DiagnosticSeverity.All:
+                // Treated as no severity
+                goto skipColon;
         }
 
         if (diagnostic.info.code is not null && diagnostic.info.code > 0)
@@ -119,6 +125,7 @@ public static partial class DiagnosticFormatter {
         else
             displayParts.Add(": ", highlightColor);
 
+skipColon:
         displayParts.Add($"{diagnostic.message}\n", initialColor);
 
         if (location?.span is not null)

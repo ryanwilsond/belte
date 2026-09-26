@@ -53,6 +53,7 @@ internal enum WellKnownType : byte {
     Belte_NullabilityAttribute,
     Belte_ConstMethodAttribute,
     Belte_ConstParamAttribute,
+    Belte_ConstExprParamAttribute,
 
     Belte_Result,
     Belte_WrappedErrorException,

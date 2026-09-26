@@ -70,7 +70,7 @@ internal sealed partial class CompileTimeLowerer : BoundTreeExpander {
         out BoundExpression replacement,
         UseKind useKind) {
         // Avoid evaluator if possible. This also gives better diagnostics by letting ConstantFoldingPass handle it
-        if (!node.conditional && Binder.EnsureExpressionIsCompileTime(node.expression, []))
+        if (!node.conditional && Binder.EnsureExpressionIsCompileTime(node.expression))
             return ExpandExpression(node.expression, out replacement);
 
         var statements = ExpandExpression(node.expression, out var newExpression);

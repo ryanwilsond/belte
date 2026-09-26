@@ -1102,6 +1102,9 @@ internal partial class ILEmitter : ModuleBuilder {
             if (parameter.isConst)
                 AddWellKnownAttribute(parameterDefinition.CustomAttributes, WellKnownType.Belte_ConstParamAttribute);
 
+            if (parameter.isConstExpr)
+                AddWellKnownAttribute(parameterDefinition.CustomAttributes, WellKnownType.Belte_ConstExprParamAttribute);
+
             if (TypeNeedsNullabilityAttribute(parameter.type, parameter.location))
                 parameterDefinition.CustomAttributes.Add(CreateNullabilityAttribute(parameter.type));
         }

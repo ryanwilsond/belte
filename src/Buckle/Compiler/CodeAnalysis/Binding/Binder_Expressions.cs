@@ -7089,7 +7089,7 @@ internal partial class Binder {
             diagnostics
         );
 
-        var gotError = MemberGroupFinalValidation(receiver, method, expression, diagnostics);
+        var gotError = MemberGroupFinalValidation(receiver, method, expression, analyzedArguments, diagnostics);
 
         // TODO what is this error
         // CheckImplicitThisCopyInReadOnlyMember(receiver, method, diagnostics);
@@ -7166,6 +7166,7 @@ internal partial class Binder {
         BoundExpression receiver,
         MethodSymbol methodSymbol,
         SyntaxNode node,
+        AnalyzedArguments arguments,
         BelteDiagnosticQueue diagnostics) {
         IsBadBaseAccess(node, receiver, methodSymbol, diagnostics);
 
@@ -7195,6 +7196,7 @@ internal partial class Binder {
             conversions,
             node.location,
             GetEnclosingTemplateConstraints(),
+            arguments.arguments.ToImmutable(),
             diagnostics
         );
     }

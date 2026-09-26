@@ -1214,7 +1214,7 @@ public sealed class DisplayText {
     private static void DisplayArrayCreationExpression(DisplayText text, BoundArrayCreationExpression node) {
         text.Write(CreateKeyword(SyntaxKind.NewKeyword));
         text.Write(CreateSpace());
-        SymbolDisplay.DisplayType(text, node.Type(), SymbolDisplayFormat.BoundDisplayFormat);
+        SymbolDisplay.DisplayType(text, node.type, SymbolDisplayFormat.BoundDisplayFormat);
 
         if (node.initializer is not null) {
             text.Write(CreateSpace());
@@ -1352,7 +1352,7 @@ public sealed class DisplayText {
     private static void DisplayTypeOfExpression(DisplayText text, BoundTypeOfExpression node) {
         text.Write(CreateKeyword(SyntaxKind.TypeOfKeyword));
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
-        SymbolDisplay.DisplayType(text, node.Type());
+        SymbolDisplay.DisplayType(text, node.sourceType.type, SymbolDisplayFormat.BoundDisplayFormat);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
 
@@ -1365,7 +1365,7 @@ public sealed class DisplayText {
     private static void DisplayCastExpression(DisplayText text, BoundCastExpression node) {
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
-        SymbolDisplay.DisplayType(text, node.Type(), SymbolDisplayFormat.ObjectCreationFormat);
+        SymbolDisplay.DisplayType(text, node.type, SymbolDisplayFormat.ObjectCreationFormat);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
         DisplayNode(text, node.operand);
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
@@ -1373,7 +1373,7 @@ public sealed class DisplayText {
 
     private static void DisplayBitCastExpression(DisplayText text, BoundBitCastExpression node) {
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
-        SymbolDisplay.DisplayType(text, node.Type(), SymbolDisplayFormat.ObjectCreationFormat);
+        SymbolDisplay.DisplayType(text, node.type, SymbolDisplayFormat.ObjectCreationFormat);
         text.Write(CreatePunctuation(SyntaxKind.AmpersandToken));
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
         DisplayNode(text, node.operand);
@@ -1476,7 +1476,7 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
         text.Write(CreateKeyword(SyntaxKind.QuestionToken));
         text.Write(CreateSpace());
-        SymbolDisplay.DisplayType(text, node.Type(), SymbolDisplayFormat.Everything);
+        SymbolDisplay.DisplayType(text, node.type, SymbolDisplayFormat.Everything);
         text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
     }
 

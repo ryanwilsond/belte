@@ -11,10 +11,11 @@ internal sealed class SourceSimpleParameterSymbol : SourceParameterSymbol {
         int ordinal,
         RefKind refKind,
         bool isConst,
+        bool isConstExpr,
         string name,
         SyntaxReference syntaxReference,
         TextLocation location)
-        : base(owner, ordinal, refKind, isConst, ScopedKind.None, name, syntaxReference, location) {
+        : base(owner, ordinal, refKind, isConst, isConstExpr, ScopedKind.None, name, syntaxReference, location) {
         typeWithAnnotations = type;
         AfterTypeChecks();
     }

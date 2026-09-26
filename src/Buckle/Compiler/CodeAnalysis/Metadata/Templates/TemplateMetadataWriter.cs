@@ -603,6 +603,9 @@ Bound Table
         if (parameter.isConst)
             flags |= (byte)ParameterFlags.IsConst;
 
+        if (parameter.isConstExpr)
+            flags |= (byte)ParameterFlags.IsConstExpr;
+
         return flags;
     }
 

@@ -197,9 +197,11 @@ internal sealed class Conversions : ConversionsBase {
 
             var impliedConstraints = binder.GetEnclosingTemplateConstraints();
 
-            for (var i = 0; i < parameterTypes.Length; i++) {
+            Debug.Assert(result.parameterCount == parameterTypes.Length);
+
+            for (var i = 0; i < result.parameterCount; i++) {
                 var _ = BelteDiagnosticQueue.GetInstance();
-                parameterTypes[i].type.CheckAllConstraints(
+                result.parameters[i].type.CheckAllConstraints(
                     conversions,
                     result.parameters[i].location,
                     impliedConstraints,
@@ -216,12 +218,28 @@ internal sealed class Conversions : ConversionsBase {
             }
 
             var _1 = BelteDiagnosticQueue.GetInstance();
+            // TODO Do we need to check the return type? (OverloadResolution doesn't)
+            // Probably not because it should be checked by the method itself
+
+            // result.returnType.CheckAllConstraints(
+            //     conversions,
+            //     arguments[0].syntax?.location,
+            //     impliedConstraints,
+            //     _1
+            // );
+
+            // if (_1.Any()) {
+            //     _1.Free();
+            //     result = null;
+            //     return false;
+            // }
 
             var constraintsSatisfied = ConstraintsHelpers.CheckMethodConstraints(
                 result,
                 conversions,
                 arguments[0].syntax?.location,
                 impliedConstraints,
+                arguments,
                 _1
             );
 

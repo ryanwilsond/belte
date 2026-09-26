@@ -161,11 +161,12 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
     }
 
     private protected override void MethodChecks(BelteDiagnosticQueue diagnostics) {
-        _ = GetTemplateConstraints();
         _ = isPure;
 
         var (returnType, parameters, declaredConstraints) = MakeParametersAndBindReturnType(diagnostics);
         var overriddenMethod = MethodChecks(returnType, parameters, diagnostics);
+
+        _ = GetTemplateConstraints();
 
         if (!declaredConstraints.IsDefault && overriddenMethod is not null) {
             // TODO constraints

@@ -1882,7 +1882,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
             if (modifier is not DeclarationModifiers.Ref and not
                                 DeclarationModifiers.Const and not
                                 DeclarationModifiers.Final and not
-                                DeclarationModifiers.Out) {
+                                DeclarationModifiers.Out and not
+                                DeclarationModifiers.ConstExpr) {
                 break;
             }
 

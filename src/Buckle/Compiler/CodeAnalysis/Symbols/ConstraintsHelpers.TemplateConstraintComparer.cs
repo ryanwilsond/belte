@@ -20,8 +20,12 @@ internal static partial class ConstraintsHelpers {
         }
 
         private bool CompareExpression(BoundExpression given, BoundExpression implied) {
-            if (given.kind != implied.kind)
+            if (given.kind != implied.kind) {
+                if (given is BoundTypeExpression t && TrySubstituteWithExpression(t, out var newGiven))
+                    return CompareExpression(newGiven, implied);
+
                 return false;
+            }
 
             if (given.constantValue is not null && implied.constantValue is not null)
                 return given.constantValue.Equals(implied.constantValue);
@@ -90,14 +94,45 @@ internal static partial class ConstraintsHelpers {
                     var templateImplied = (TemplateParameterSymbol)implied.type;
 
                     if (_templateMap is not null) {
-                        return _templateMap.SubstituteTemplateParameter(templateGiven)
-                            .IsSameAs(new TypeOrConstant(templateImplied));
+                        var substituted = _templateMap.SubstituteTemplateParameter(templateGiven);
+
+                        // We substitute earlier to expand the template constant so we want to compare given directly
+                        if (substituted.isConstant && substituted.constant is TemplateConstantValue)
+                            return templateGiven.Equals(templateImplied);
+                        else
+                            return substituted.IsSameAs(new TypeOrConstant(templateImplied));
                     } else {
                         return templateGiven.Equals(templateImplied);
                     }
+                case BoundKind.TypeOfExpression:
+                    var sourceGiven = ((BoundTypeOfExpression)given).sourceType.type;
+                    var sourceImplied = ((BoundTypeOfExpression)implied).sourceType.type;
+
+                    if (_templateMap is not null)
+                        return _templateMap.SubstituteType(sourceGiven).IsSameAs(new TypeOrConstant(sourceImplied));
+                    else
+                        return sourceGiven.Equals(sourceImplied);
                 default:
                     return false;
             }
+        }
+
+        private bool TrySubstituteWithExpression(BoundTypeExpression node, out BoundExpression newNode) {
+            if (_templateMap is null) {
+                newNode = null;
+                return false;
+            }
+
+            var templateParameter = (TemplateParameterSymbol)node.type;
+            var substituted = _templateMap.SubstituteTemplateParameter(templateParameter);
+
+            if (substituted.isConstant && substituted.constant is TemplateConstantValue t) {
+                newNode = t.expression;
+                return true;
+            }
+
+            newNode = null;
+            return false;
         }
     }
 }

@@ -44,6 +44,8 @@ internal abstract class SourceClonedParameterSymbol : SourceParameterSymbolBase 
 
     internal override bool isConst => _originalParam.isConst;
 
+    internal override bool isConstExpr => _originalParam.isConstExpr;
+
     internal override ConstantValue explicitDefaultConstantValue
         // => _suppressOptional
         //     ? _originalParam.defaultValueFromAttributes

@@ -55,7 +55,8 @@ internal sealed class SourceStateMethodSymbol : SourceMemberMethodSymbol {
                 conversions,
                 parameter.syntaxReference.location,
                 impliedConstraints,
-                diagnostics
+                diagnostics,
+                this
             );
         }
     }

@@ -319,6 +319,7 @@ internal abstract class Symbol : ISymbol {
         return kind switch {
             SymbolKind.Field => ((FieldSymbol)this).isConstExpr,
             SymbolKind.Local => ((DataContainerSymbol)this).isConstExpr,
+            SymbolKind.Parameter => ((ParameterSymbol)this).isConstExpr,
             _ => throw ExceptionUtilities.UnexpectedValue(kind)
         };
     }
@@ -353,6 +354,13 @@ internal abstract class Symbol : ISymbol {
     internal ImmutableArray<bool> GetParameterConstnesses() {
         return kind switch {
             SymbolKind.Method => ((MethodSymbol)this).parameterConstnesses,
+            _ => throw ExceptionUtilities.UnexpectedValue(kind),
+        };
+    }
+
+    internal ImmutableArray<bool> GetParameterConstExprnesses() {
+        return kind switch {
+            SymbolKind.Method => ((MethodSymbol)this).parameterConstExprnesses,
             _ => throw ExceptionUtilities.UnexpectedValue(kind),
         };
     }
@@ -1118,12 +1126,9 @@ internal abstract class Symbol : ISymbol {
     internal ImmutableArray<BoundExpression> GetEnclosingTemplateConstraints() {
         var builder = ArrayBuilder<BoundExpression>.GetInstance();
 
-        // Don't include this symbols constraints
-        for (var current = containingSymbol; current is not null; current = current.containingSymbol) {
-            if (current is ISymbolWithTemplates tm) {
-                Debug.Assert(!tm.templateConstraints.IsDefault);
+        for (var current = this; current is not null; current = current.containingSymbol) {
+            if (current is ISymbolWithTemplates tm && !tm.templateConstraints.IsDefaultOrEmpty)
                 builder.AddRange(tm.templateConstraints);
-            }
         }
 
         return builder.ToImmutableAndFree();

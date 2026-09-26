@@ -1,5 +1,7 @@
-using System.Collections.Generic;
+using System;
 using System.Collections.Immutable;
+using System.Diagnostics;
+using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -16,7 +18,9 @@ internal static partial class ConstraintsHelpers {
         ConversionsBase conversions,
         TextLocation location,
         ImmutableArray<BoundExpression> impliedConstraints,
-        BelteDiagnosticQueue diagnostics) {
+        ImmutableArray<BoundExpressionOrTypeOrConstant> arguments,
+        BelteDiagnosticQueue diagnostics,
+        Symbol requester = null) {
         if (!RequiresChecking(method))
             return true;
 
@@ -25,7 +29,31 @@ internal static partial class ConstraintsHelpers {
             conversions,
             location,
             impliedConstraints,
-            diagnostics
+            arguments,
+            diagnostics,
+            requester
+        );
+
+        return result;
+    }
+
+    internal static bool CheckConstraints(
+        this NamedTypeSymbol namedType,
+        ConversionsBase conversions,
+        TextLocation location,
+        ImmutableArray<BoundExpression> impliedConstraints,
+        BelteDiagnosticQueue diagnostics,
+        Symbol requester) {
+        if (!RequiresChecking(namedType))
+            return true;
+
+        var result = CheckTypeConstraints(
+            namedType,
+            conversions,
+            location,
+            impliedConstraints,
+            diagnostics,
+            requester
         );
 
         return result;
@@ -350,155 +378,37 @@ internal static partial class ConstraintsHelpers {
         return constraintClauses;
     }
 
+    private static readonly Func<TypeSymbol, (ConversionsBase, TextLocation, ImmutableArray<BoundExpression>, BelteDiagnosticQueue, Symbol), bool, bool> CheckConstraintsSingleTypeFunc =
+        (type, arg, unused) => CheckConstraintsSingleType(type, arg.Item1, arg.Item2, arg.Item3, arg.Item4, arg.Item5);
+
     internal static void CheckAllConstraints(
         this TypeSymbol type,
         ConversionsBase conversions,
         TextLocation location,
         ImmutableArray<BoundExpression> impliedConstraints,
-        BelteDiagnosticQueue diagnostics) {
-        // TODO This is probably wrong, I don't think this is exhaustive of all types
-        while (true) {
-            var current = type;
-
-            switch (type.typeKind) {
-                case TypeKind.Class:
-                case TypeKind.Struct:
-                case TypeKind.Interface:
-                    var containingType = current.containingType;
-
-                    if (containingType is not null) {
-                        CheckConstraintsSingleType(
-                            containingType,
-                            conversions,
-                            location,
-                            impliedConstraints,
-                            diagnostics
-                        );
-                    }
-
-                    break;
-            }
-
-            TypeWithAnnotations next;
-
-            switch (type.typeKind) {
-                case TypeKind.TemplateParameter:
-                case TypeKind.Primitive:
-                    return;
-                case TypeKind.Error:
-                case TypeKind.Class:
-                case TypeKind.Interface:
-                case TypeKind.Enum:
-                case TypeKind.Struct:
-                    var templateArguments = ((NamedTypeSymbol)current).templateArguments;
-
-                    if (templateArguments.IsEmpty)
-                        return;
-
-                    foreach (var templateArgument in templateArguments) {
-                        if (templateArgument.isType) {
-                            var nextType = templateArguments[0].type.nullableUnderlyingTypeOrSelf;
-
-                            if (nextType is NamedTypeSymbol namedNext) {
-                                CheckConstraintsSingleType(
-                                    namedNext,
-                                    conversions,
-                                    location,
-                                    impliedConstraints,
-                                    diagnostics
-                                );
-                            }
-
-                            return;
-                        }
-                    }
-
-                    return;
-                case TypeKind.Array:
-                    next = ((ArrayTypeSymbol)current).elementTypeWithAnnotations;
-                    break;
-                case TypeKind.Pointer:
-                    next = ((PointerTypeSymbol)current).pointedAtTypeWithAnnotations;
-                    break;
-                case TypeKind.FunctionPointer:
-                    VisitFunctionPointerType((FunctionPointerTypeSymbol)current, out next);
-                    break;
-                case TypeKind.Function:
-                    VisitFunctionType((FunctionTypeSymbol)current, out next);
-                    break;
-                default:
-                    throw ExceptionUtilities.UnexpectedValue(current.typeKind);
-            }
-
-            type = next.nullableUnderlyingTypeOrSelf;
-        }
-
-        void VisitFunctionPointerType(FunctionPointerTypeSymbol type, out TypeWithAnnotations next) {
-            MethodSymbol currentPointer = type.signature;
-
-            if (currentPointer.parameterCount == 0) {
-                next = currentPointer.returnTypeWithAnnotations;
-                return;
-            }
-
-            CheckAllConstraints(currentPointer.returnType, conversions, location, impliedConstraints, diagnostics);
-
-            int i;
-            for (i = 0; i < currentPointer.parameterCount - 1; i++) {
-                CheckAllConstraints(
-                    currentPointer.parameters[i].type,
-                    conversions,
-                    location,
-                    impliedConstraints,
-                    diagnostics
-                );
-            }
-
-            next = currentPointer.parameters[i].typeWithAnnotations;
-            return;
-        }
-
-        void VisitFunctionType(FunctionTypeSymbol type, out TypeWithAnnotations next) {
-            MethodSymbol current = type.signature;
-
-            if (current.parameterCount == 0) {
-                next = current.returnTypeWithAnnotations;
-                return;
-            }
-
-            CheckAllConstraints(current.returnType, conversions, location, impliedConstraints, diagnostics);
-
-            int i;
-            for (i = 0; i < current.parameterCount - 1; i++) {
-                CheckAllConstraints(
-                    current.parameters[i].type,
-                    conversions,
-                    location,
-                    impliedConstraints,
-                    diagnostics
-                );
-            }
-
-            next = current.parameters[i].typeWithAnnotations;
-            return;
-        }
+        BelteDiagnosticQueue diagnostics,
+        Symbol requester = null) {
+        type.VisitType(CheckConstraintsSingleTypeFunc, (conversions, location, impliedConstraints, diagnostics, requester));
     }
 
-    private static void CheckConstraintsSingleType(
-        NamedTypeSymbol type,
+    private static bool CheckConstraintsSingleType(
+        TypeSymbol type,
         ConversionsBase conversions,
         TextLocation location,
         ImmutableArray<BoundExpression> impliedConstraints,
-        BelteDiagnosticQueue diagnostics) {
-        type.CheckConstraints(
-            conversions,
-            location,
-            diagnostics,
-            type.templateSubstitution,
-            type.templateParameters,
-            type.templateArguments,
-            impliedConstraints
-        );
+        BelteDiagnosticQueue diagnostics,
+        Symbol requester) {
+        if (type is NamedTypeSymbol namedType) {
+            namedType.CheckConstraints(
+                conversions,
+                location,
+                impliedConstraints,
+                diagnostics,
+                requester
+            );
+        }
+
+        return false;
     }
 
     internal static bool CheckConstraintsForNamedType(
@@ -513,7 +423,7 @@ internal static partial class ConstraintsHelpers {
             return true;
 
         var result = !typeSyntax.containsDiagnostics &&
-            CheckTypeConstraints(type, conversions, location, impliedConstraints, diagnostics);
+            CheckTypeConstraints(type, conversions, location, impliedConstraints, diagnostics, null);
 
         if (HasDuplicateInterfaces(type, basesBeingResolved))
             result = false;
@@ -559,7 +469,8 @@ hasRelatedInterfaces:
         ConversionsBase conversions,
         TextLocation location,
         ImmutableArray<BoundExpression> impliedConstraints,
-        BelteDiagnosticQueue diagnostics) {
+        BelteDiagnosticQueue diagnostics,
+        Symbol requester) {
         return CheckConstraints(
             type,
             conversions,
@@ -568,7 +479,8 @@ hasRelatedInterfaces:
             type.templateSubstitution,
             type.originalDefinition.templateParameters,
             type.templateArguments,
-            impliedConstraints
+            impliedConstraints,
+            requester: requester
         );
     }
 
@@ -577,7 +489,9 @@ hasRelatedInterfaces:
         ConversionsBase conversions,
         TextLocation location,
         ImmutableArray<BoundExpression> impliedConstraints,
-        BelteDiagnosticQueue diagnostics) {
+        ImmutableArray<BoundExpressionOrTypeOrConstant> arguments,
+        BelteDiagnosticQueue diagnostics,
+        Symbol requester = null) {
         return CheckConstraints(
             method,
             conversions,
@@ -586,7 +500,9 @@ hasRelatedInterfaces:
             method.templateSubstitution,
             method.originalDefinition.templateParameters,
             method.templateArguments,
-            impliedConstraints
+            impliedConstraints,
+            arguments,
+            requester
         );
     }
 
@@ -598,7 +514,9 @@ hasRelatedInterfaces:
         TemplateMap substitution,
         ImmutableArray<TemplateParameterSymbol> templateParameters,
         ImmutableArray<TypeOrConstant> templateArguments,
-        ImmutableArray<BoundExpression> impliedConstraints) {
+        ImmutableArray<BoundExpression> impliedConstraints,
+        ImmutableArray<BoundExpressionOrTypeOrConstant> arguments = default,
+        Symbol requester = null) {
         var n = templateParameters.Length;
         var succeeded = true;
 
@@ -620,12 +538,15 @@ hasRelatedInterfaces:
         if (containingSymbol is ISymbolWithTemplates) {
             foreach (var constraint in ((ISymbolWithTemplates)containingSymbol.originalDefinition).templateConstraints) {
                 if (!EvaluateConstraint(
+                    containingSymbol,
+                    requester,
                     constraint,
                     location,
                     substitution,
                     templateParameters,
                     templateArguments,
                     impliedConstraints,
+                    arguments,
                     diagnostics)) {
                     succeeded = false;
                 }
@@ -636,24 +557,18 @@ hasRelatedInterfaces:
     }
 
     private static bool EvaluateConstraint(
+        Symbol owner,
+        Symbol requester,
         BoundExpression constraint,
         TextLocation location,
         TemplateMap substitution,
         ImmutableArray<TemplateParameterSymbol> templateParameters,
         ImmutableArray<TypeOrConstant> templateArguments,
         ImmutableArray<BoundExpression> impliedConstraints,
+        ImmutableArray<BoundExpressionOrTypeOrConstant> arguments,
         BelteDiagnosticQueue diagnostics) {
-        var n = templateParameters.Length;
-        var names = new Dictionary<string, int>(n, StringOrdinalComparer.Instance);
-
-        foreach (var templateParameter in templateParameters) {
-            var name = templateParameter.name;
-
-            if (!names.ContainsKey(name))
-                names.Add(name, names.Count);
-        }
-
-        var result = EvaluateConstraintCore(constraint, substitution, names, templateArguments, diagnostics);
+        var args = new EvaluationArgs(substitution, arguments, diagnostics);
+        var result = EvaluateConstraintCore(constraint, args, ConsList<TemplateParameterSymbol>.Empty);
 
         if (result is null) {
             if (!ConstraintIsProvenByImpliedConstraints(
@@ -665,16 +580,31 @@ hasRelatedInterfaces:
                 // Prefer showing the user exactly what they typed, but in the case of metadata constraints
                 // there is no syntax to refer to
                 var display = constraint.syntax?.ToString() ?? constraint.ToString();
-                diagnostics.Push(Error.ConstraintFailedToEvaluate(location, display));
+
+                if (!args.failedToSubstituteTemplateParameter || requester is null) {
+                    diagnostics.Push(Error.ConstraintFailedToEvaluate(location, owner.originalDefinition, display));
+                } else {
+                    // Very unconventional diagnostic creation approach, but it is worth it
+                    // because constraints can be confusing and knowing that the fix can be as simple as adding a constraint is very useful
+                    var inner = CreateConstraintInnerSuggestion(requester, constraint, substitution);
+
+                    diagnostics.Push(Error.ConstraintFailedToEvaluateWithInner(
+                        location,
+                        owner.originalDefinition,
+                        display,
+                        inner
+                    ));
+                }
+
                 return false;
             }
         } else if (result.value is null) {
             var display = constraint.syntax?.ToString() ?? constraint.ToString();
-            diagnostics.Push(Error.ConstraintWasNull(location, display));
+            diagnostics.Push(Error.ConstraintWasNull(location, owner.originalDefinition, display));
             return false;
         } else if (!(bool)result.value) {
             var display = constraint.syntax?.ToString() ?? constraint.ToString();
-            diagnostics.Push(Error.ConstraintFailed(location, display));
+            diagnostics.Push(Error.ConstraintFailed(location, owner.originalDefinition, display));
             return false;
         }
 
@@ -682,10 +612,8 @@ hasRelatedInterfaces:
 
         static ConstantValue EvaluateConstraintCore(
             BoundExpression expression,
-            TemplateMap substitution,
-            Dictionary<string, int> names,
-            ImmutableArray<TypeOrConstant> templateArguments,
-            BelteDiagnosticQueue diagnostics) {
+            EvaluationArgs args,
+            ConsList<TemplateParameterSymbol> templateConstantsInProgress) {
             if (expression.constantValue is not null)
                 return expression.constantValue;
 
@@ -693,65 +621,150 @@ hasRelatedInterfaces:
                 case BoundKind.UnaryOperator:
                     var unary = (BoundUnaryOperator)expression;
                     return ConstantFolding.FoldUnary(
-                        EvaluateConstraintCore(unary.operand, substitution, names, templateArguments, diagnostics),
+                        EvaluateConstraintCore(unary.operand, args, templateConstantsInProgress),
                         unary.operatorKind, unary.Type());
                 case BoundKind.BinaryOperator:
                     var binary = (BoundBinaryOperator)expression;
                     return ConstantFolding.FoldBinary(
-                        EvaluateConstraintCore(binary.left, substitution, names, templateArguments, diagnostics),
+                        EvaluateConstraintCore(binary.left, args, templateConstantsInProgress),
                         binary.left.type,
-                        EvaluateConstraintCore(binary.right, substitution, names, templateArguments, diagnostics),
+                        EvaluateConstraintCore(binary.right, args, templateConstantsInProgress),
                         binary.right.type,
                         binary.operatorKind,
                         binary.left.Type(),
                         binary.syntax?.location,
-                        diagnostics);
+                        args.diagnostics);
                 case BoundKind.IsOperator:
                     var isOperator = (BoundIsOperator)expression;
                     return ConstantFolding.FoldIs(
-                        EvaluateConstraintCore(isOperator.left, substitution, names, templateArguments, diagnostics),
-                        EvaluateConstraintCore(isOperator.right, substitution, names, templateArguments, diagnostics),
+                        EvaluateConstraintCore(isOperator.left, args, templateConstantsInProgress),
+                        EvaluateConstraintCore(isOperator.right, args, templateConstantsInProgress),
                         isOperator.isNot);
                 case BoundKind.NullCoalescingOperator:
                     var nullCoalescing = (BoundNullCoalescingOperator)expression;
                     return ConstantFolding.FoldNullCoalescing(
-                        EvaluateConstraintCore(nullCoalescing.left, substitution, names, templateArguments, diagnostics),
-                        EvaluateConstraintCore(nullCoalescing.right, substitution, names, templateArguments, diagnostics),
+                        EvaluateConstraintCore(nullCoalescing.left, args, templateConstantsInProgress),
+                        EvaluateConstraintCore(nullCoalescing.right, args, templateConstantsInProgress),
                         nullCoalescing.isPropagation,
                         nullCoalescing.Type());
                 case BoundKind.NullAssertOperator:
                     var nullAssert = (BoundNullAssertOperator)expression;
                     return ConstantFolding.FoldNullAssert(
-                        EvaluateConstraintCore(nullAssert.operand, substitution, names, templateArguments, diagnostics));
+                        EvaluateConstraintCore(nullAssert.operand, args, templateConstantsInProgress));
                 case BoundKind.CastExpression:
                     var cast = (BoundCastExpression)expression;
                     return ConstantFolding.FoldCast(
-                        EvaluateConstraintCore(cast.operand, substitution, names, templateArguments, diagnostics),
+                        EvaluateConstraintCore(cast.operand, args, templateConstantsInProgress),
                         expression.syntax?.location,
                         cast.operand.type,
                         new TypeWithAnnotations(cast.type),
-                        diagnostics);
+                        args.diagnostics);
                 case BoundKind.ConditionalOperator:
                     var conditional = (BoundConditionalOperator)expression;
                     return ConstantFolding.FoldConditional(
-                        EvaluateConstraintCore(conditional.condition, substitution, names, templateArguments, diagnostics),
-                        EvaluateConstraintCore(conditional.trueExpression, substitution, names, templateArguments, diagnostics),
-                        EvaluateConstraintCore(conditional.falseExpression, substitution, names, templateArguments, diagnostics),
+                        EvaluateConstraintCore(conditional.condition, args, templateConstantsInProgress),
+                        EvaluateConstraintCore(conditional.trueExpression, args, templateConstantsInProgress),
+                        EvaluateConstraintCore(conditional.falseExpression, args, templateConstantsInProgress),
                         conditional.Type());
+                case BoundKind.TypeOfExpression:
+                    var target = ((BoundTypeOfExpression)expression).sourceType.type;
+
+                    if (target.StrippedType() is TemplateParameterSymbol t &&
+                        t.underlyingType.specialType != SpecialType.Type) {
+                        var isNullable = target.IsNullableType();
+
+                        return new ConstantValue(
+                            isNullable
+                                ? t.underlyingType.SetIsAnnotated()
+                                : t.underlyingType,
+                            SpecialType.Type
+                        );
+                    }
+
+                    var substitutedTarget = args.substitution.SubstituteType(target);
+                    Debug.Assert(substitutedTarget.isType);
+
+                    // Didn't fully substitute: abort
+                    if (substitutedTarget.type.type.ContainsTemplateParameter()) {
+                        args.failedToSubstituteTemplateParameter = true;
+                        return null;
+                    }
+
+                    return new ConstantValue(substitutedTarget.type.type, SpecialType.Type);
                 case BoundKind.TypeExpression:
                     var templateParameter = (TemplateParameterSymbol)expression.type;
-                    var substituted = substitution.SubstituteTemplateParameter(templateParameter);
+                    var substituted = args.substitution.SubstituteTemplateParameter(templateParameter);
 
-                    if (substituted.isConstant)
+                    if (substituted.isConstant) {
+                        if (substituted.constant is TemplateConstantValue templateConstantValue) {
+                            if (templateConstantsInProgress.Contains(templateParameter)) {
+                                args.failedToSubstituteTemplateParameter = true;
+                                return null;
+                            }
+
+                            templateConstantsInProgress = templateConstantsInProgress.Prepend(templateParameter);
+                            return EvaluateConstraintCore(templateConstantValue.expression, args, templateConstantsInProgress);
+                        }
+
                         return substituted.constant;
+                    }
 
-                    // TODO Do we need this? This seems like a holdover from a long time ago before TemplateMaps
-                    // return templateArguments[names[templateParameter.name]].constant;
+                    args.failedToSubstituteTemplateParameter = true;
                     return null;
+                case BoundKind.ParameterExpression:
+                    var parameter = ((BoundParameterExpression)expression).parameter;
+                    Debug.Assert(parameter.isConstExpr && !args.arguments.IsDefaultOrEmpty);
+                    var argument = args.arguments[parameter.ordinal];
+                    Debug.Assert(argument.isExpression && argument.expression.constantValue is not null);
+                    return argument.expression.constantValue;
                 default:
                     return new ConstantValue(false, SpecialType.Bool);
             }
         }
+    }
+
+    private static BelteDiagnostic CreateConstraintInnerSuggestion(
+        Symbol symbol,
+        BoundExpression constraint,
+        TemplateMap substitution) {
+        var visitor = new ConstraintDisplayVisitor(substitution);
+        var rewritten = visitor.Visit(constraint);
+        var display = rewritten.ToString();
+        TextLocation location;
+
+        if ((symbol as ISymbolWithTemplates).TryGetConstraintsSyntax(out var constraintsSyntax)) {
+            if (constraintsSyntax.constraintClauses.Count == 0) {
+                location = constraintsSyntax.closeBrace.location;
+                display = $"{display}; %";
+            } else {
+                location = constraintsSyntax.constraintClauses[^1].GetLastToken().location;
+                display = $"% {display};";
+            }
+        } else {
+            switch (symbol) {
+                case NamedTypeSymbol:
+                    location = ((TypeDeclarationSyntax)((NamedTypeSymbol)symbol).GetNonNullSyntaxNode())
+                        .openBrace.location;
+                    display = $"where {{ {display}; }} %";
+                    break;
+                case MethodSymbol:
+                    var syntax = (BaseMethodDeclarationSyntax)((MethodSymbol)symbol).GetNonNullSyntaxNode();
+
+                    if (syntax.body is not null) {
+                        location = syntax.body.GetFirstToken().location;
+                        display = $"where {{ {display}; }} %";
+                    } else {
+                        location = syntax.semicolon.location;
+                        display = $"where {{ {display}; }} %";
+                    }
+
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(symbol.kind);
+            }
+        }
+
+        return Error.ConstraintFailedToEvaluateWithInner_Inner(location, symbol.originalDefinition, display);
     }
 
     private static bool ConstraintIsProvenByImpliedConstraints(

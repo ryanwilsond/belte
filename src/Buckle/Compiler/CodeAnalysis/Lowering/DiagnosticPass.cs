@@ -295,7 +295,7 @@ internal sealed partial class DiagnosticPass : BoundTreeWalkerWithStackGuard {
         _localUsage.TryAdd(node.declaration.dataContainer, LocalUsageInfo.NotUsed);
 
         if (node.declaration.initializer is { } initializer) {
-            if (initializer.constantValue is not null || Binder.EnsureExpressionIsCompileTime(initializer, []))
+            if (initializer.constantValue is not null || Binder.EnsureExpressionIsCompileTime(initializer))
                 UpdateLocalUsage(node.declaration.dataContainer, LocalUsageInfo.HasConstExprInitializer);
         }
 

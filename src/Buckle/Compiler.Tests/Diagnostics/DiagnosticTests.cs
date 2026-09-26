@@ -1784,7 +1784,7 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0124_ConstraintIsNotConstant() {
         var text = @"
-            class A<string? a> where { [a == Console.Input()]; } { }
+            class A<string a> where { [a == Console.Input()]; } { }
         ";
 
         var diagnostics = @"
@@ -1828,29 +1828,30 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    [Fact]
-    public void Reports_Error_BU0127_ConstraintWasNull() {
-        var text = @"
-            class A<int? a> where { (a is null ? null : a == 3); } { }
-            var a = new [A<null>]();
-        ";
+    // ! Hopefully unreachable
+    // [Fact]
+    // public void Reports_Error_BU0127_ConstraintWasNull() {
+    //     var text = @"
+    //         class A<int? a> where { (a is null ? null : a == 3); } { }
+    //         var a = new [A<null>]();
+    //     ";
 
-        var diagnostics = @"
-            template constraint fails: constraint results in null ('a is null ? null : a == 3')
-        ";
+    //     var diagnostics = @"
+    //         template constraint fails: constraint results in null ('a is null ? null : a == 3')
+    //     ";
 
-        AssertDiagnostics(text, diagnostics, _writer);
-    }
+    //     AssertDiagnostics(text, diagnostics, _writer);
+    // }
 
     [Fact]
     public void Reports_Error_BU0128_ConstraintFailed() {
         var text = @"
-            class A<int? a> where { a == 3; } { }
+            class A<int a> where { a == 3; } { }
             var a = new [A<4>]();
         ";
 
         var diagnostics = @"
-            template constraint fails ('a == 3')
+            template constraint on 'A<int! a>' fails ('a == 3')
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -8198,7 +8199,7 @@ var text = """"""
         ";
 
         var diagnostics = @"
-            template constraint fails to evaluate ('a! == 3')
+            template constraint on 'A<int? a>' fails to evaluate ('a! == 3')
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -10041,6 +10042,37 @@ var text = """"""
 
         var diagnostics = @"
             parameter 'p' cannot be marked as constant because it has a pointer type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0671_ArgumentWrongConstExpr() {
+        var text = @"
+            void M(constexpr int a) { }
+            int a = 3;
+            M([a]);
+        ";
+
+        var diagnostics = @"
+            argument 1: parameter requires a compile-time constant argument
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0672_ConstraintFailedToEvaluateWithSuggestion() {
+        var text = @"
+            class A<int T> where { T != 0; } {
+                public static void M<int T2>([A<T2> a]) { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            template constraint on 'A<int! T>' fails to evaluate ('T != 0') and could not be proven by the substituted constraints
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

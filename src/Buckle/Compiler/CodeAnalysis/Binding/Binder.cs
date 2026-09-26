@@ -356,7 +356,7 @@ internal partial class Binder {
         ImmutableArray<TemplateParameterSymbol> templateParameters,
         BelteDiagnosticQueue diagnostics) {
         var builder = ArrayBuilder<BoundExpression>.GetInstance();
-        var targetType = compilation.corLibrary.GetNullableType(SpecialType.Bool);
+        var targetType = compilation.corLibrary.GetSpecialType(SpecialType.Bool);
 
         foreach (var constraint in constraints) {
             var expression = BindExpression(constraint, diagnostics);
@@ -366,8 +366,12 @@ internal partial class Binder {
 
             // TODO Do we actually need to pass templateParameters to this method if we are just using GetEnclosingTemplateParameters() ?
 
-            if (!EnsureExpressionIsCompileTime(expression, GetEnclosingTemplateParameters()))
+            if (!EnsureExpressionIsCompileTime(
+                    expression,
+                    GetEnclosingTemplateParameters(),
+                    allowConstExprParameters: true)) {
                 diagnostics.Push(Error.ConstraintIsNotConstant(constraint.location));
+            }
 
             var conversion = conversions.ClassifyImplicitConversionFromExpression(expression, targetType);
 
@@ -383,34 +387,43 @@ internal partial class Binder {
 
     internal static bool EnsureExpressionIsCompileTime(
         BoundExpression expression,
-        ImmutableArray<TemplateParameterSymbol> templateParameters) {
+        ImmutableArray<TemplateParameterSymbol> templateParameters = default,
+        bool allowConstExprParameters = false) {
         if (expression.constantValue is not null)
             return true;
 
         switch (expression.kind) {
             case BoundKind.UnaryOperator:
-                return EnsureExpressionIsCompileTime(((BoundUnaryOperator)expression).operand, templateParameters);
+                return EnsureExpressionIsCompileTime(((BoundUnaryOperator)expression).operand, templateParameters, allowConstExprParameters);
             case BoundKind.BinaryOperator:
                 var binary = (BoundBinaryOperator)expression;
-                return EnsureExpressionIsCompileTime(binary.left, templateParameters) &&
-                       EnsureExpressionIsCompileTime(binary.right, templateParameters);
+                return EnsureExpressionIsCompileTime(binary.left, templateParameters, allowConstExprParameters) &&
+                       EnsureExpressionIsCompileTime(binary.right, templateParameters, allowConstExprParameters);
             case BoundKind.IsOperator:
-                return EnsureExpressionIsCompileTime(((BoundIsOperator)expression).left, templateParameters);
+                return EnsureExpressionIsCompileTime(((BoundIsOperator)expression).left, templateParameters, allowConstExprParameters);
             case BoundKind.NullCoalescingOperator:
                 var nullCoalescing = (BoundNullCoalescingOperator)expression;
-                return EnsureExpressionIsCompileTime(nullCoalescing.left, templateParameters) &&
-                       EnsureExpressionIsCompileTime(nullCoalescing.right, templateParameters);
+                return EnsureExpressionIsCompileTime(nullCoalescing.left, templateParameters, allowConstExprParameters) &&
+                       EnsureExpressionIsCompileTime(nullCoalescing.right, templateParameters, allowConstExprParameters);
             case BoundKind.NullAssertOperator:
-                return EnsureExpressionIsCompileTime(((BoundNullAssertOperator)expression).operand, templateParameters);
+                return EnsureExpressionIsCompileTime(((BoundNullAssertOperator)expression).operand, templateParameters, allowConstExprParameters);
             case BoundKind.CastExpression:
-                return EnsureExpressionIsCompileTime(((BoundCastExpression)expression).operand, templateParameters);
+                return EnsureExpressionIsCompileTime(((BoundCastExpression)expression).operand, templateParameters, allowConstExprParameters);
             case BoundKind.ConditionalOperator:
                 var conditional = (BoundConditionalOperator)expression;
-                return EnsureExpressionIsCompileTime(conditional.condition, templateParameters) &&
-                       EnsureExpressionIsCompileTime(conditional.trueExpression, templateParameters) &&
-                       EnsureExpressionIsCompileTime(conditional.falseExpression, templateParameters);
+                return EnsureExpressionIsCompileTime(conditional.condition, templateParameters, allowConstExprParameters) &&
+                       EnsureExpressionIsCompileTime(conditional.trueExpression, templateParameters, allowConstExprParameters) &&
+                       EnsureExpressionIsCompileTime(conditional.falseExpression, templateParameters, allowConstExprParameters);
+            case BoundKind.TypeOfExpression:
+                var typeOfExpression = (BoundTypeOfExpression)expression;
+                var target = typeOfExpression.sourceType.StrippedType();
+                return !target.IsTemplateParameter() ||
+                    (!templateParameters.IsDefault && templateParameters.Contains(target));
             case BoundKind.TypeExpression:
-                return templateParameters.Contains(expression.type);
+                if (!templateParameters.IsDefault)
+                    return templateParameters.Contains(expression.type);
+
+                goto default;
             default:
                 return false;
 
@@ -419,10 +432,14 @@ internal partial class Binder {
                 var cte = (BoundCompileTimeExpression)expression;
                 return !cte.conditional;
             case BoundKind.DataContainerExpression:
+            case BoundKind.ParameterExpression:
             case BoundKind.FieldAccessExpression:
             case BoundKind.FieldSlotExpression:
             case BoundKind.StackSlotExpression:
-                return expression.expressionSymbol.IsConstExpr();
+                return expression.expressionSymbol.IsConstExpr() &&
+                    // Parameter being constexpr means it receives a constexpr value, not that it itself is constexpr
+                    // I.e. it is constexpr at the call site, not within the body
+                    (allowConstExprParameters || expression.expressionSymbol.kind != SymbolKind.Parameter);
         }
     }
 
@@ -1717,8 +1734,9 @@ internal partial class Binder {
             current = current.next;
 
         for (; current is not null; current = current.next) {
-            if (current.containingMember is ISymbolWithTemplates tm && visited.Add(tm)) {
-                Debug.Assert(!tm.templateConstraints.IsDefault);
+            if (current.containingMember is ISymbolWithTemplates tm &&
+                visited.Add(tm) &&
+                !tm.templateConstraints.IsDefaultOrEmpty) {
                 builder.AddRange(tm.templateConstraints);
             }
         }
@@ -3509,7 +3527,7 @@ internal partial class Binder {
 
         if (nodeType is not null && !CompileTimeLowerer.IsValidCompileTimeExpressionType(nodeType))
             diagnostics.Push(Error.InvalidCompileTimeType(node.location));
-        else if (EnsureExpressionIsCompileTime(operand, []))
+        else if (EnsureExpressionIsCompileTime(operand))
             diagnostics.Push(Warning.UnnecessaryCompileTimeExpression(node.location, node.operand));
 
         return new BoundCompileTimeExpression(node, operand, conditional, operand.constantValue, operand.type);

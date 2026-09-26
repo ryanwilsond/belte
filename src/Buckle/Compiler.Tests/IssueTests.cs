@@ -2036,7 +2036,7 @@ public sealed class IssueTests {
         ";
 
         var diagnostics = @"
-            template constraint fails ('T != 0')
+            template constraint on 'A.M<int! T>' fails ('T != 0')
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -2753,6 +2753,8 @@ public sealed class IssueTests {
                     where {
                         Min + TMin >= Int64.MinValue;
                         Max + TMax <= Int64.MaxValue;
+                        Min + TMin <= Max + TMax;
+                        TMin <= TMax;
                     } {
                     return new(left._value + right._value);
                 }
@@ -3528,5 +3530,102 @@ public sealed class IssueTests {
         ";
 
         AssertValue(text, 50);
+    }
+
+    [Fact]
+    public void ConstraintsCheck_ChecksImmediateType() {
+        var text = @"
+            class A<type T> where { typeof(T) != typeof(int); } {
+
+            }
+            class B {
+                public static void M<type T>([A<T> a]) { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            template constraint on 'A<type! T>' fails to evaluate ('typeof(T) != typeof(int)') and could not be proven by the substituted constraints
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void ConstraintsCheck_CanImplyConstraintWithTypeOfInside() {
+        var text = @"
+            class A<type T> where { typeof(T) != typeof(int); } {
+
+            }
+            class B {
+                public static void M<type T>(A<T> a) where { typeof(T) != typeof(int); } { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void ConstraintsCheck_EvaluatesConstExprParameter() {
+        var text = @"
+            class _None {
+                private constructor() { }
+            }
+
+            class A {
+                public static int SafeDiv<type _ = typeof(_None)>(int left, constexpr int right) where { right != 0; } {
+                    return left / right;
+                }
+            }
+
+            return [A.SafeDiv](10, 0);
+        ";
+
+        var diagnostics = @"
+            template constraint on 'A.SafeDiv<type! _>' fails ('right != 0')
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void ConstraintsCheck_EvaluatesConstExprParameter2() {
+        var text = @"
+            class _None {
+                private constructor() { }
+            }
+
+            class A {
+                public static int SafeDiv<type _ = typeof(_None)>(int left, constexpr int right) where { right != 0; } {
+                    return left / right;
+                }
+            }
+
+            return A.SafeDiv(10, 2);
+        ";
+
+        AssertValue(text, 5);
+    }
+
+    [Fact]
+    public void ConstraintsCheck_EvaluatesConstExprParameter3() {
+        var text = @"
+            class _None {
+                private constructor() { }
+            }
+
+            class A {
+                public static int SafeDiv<type $_ = typeof(_None)>(int left, constexpr int right) where { right != 0; } {
+                    return left / right;
+                }
+            }
+
+            return A.SafeDiv(10, 2);
+        ";
+
+        AssertValue(text, 5);
     }
 }

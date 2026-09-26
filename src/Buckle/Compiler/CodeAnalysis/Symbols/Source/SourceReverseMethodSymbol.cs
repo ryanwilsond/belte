@@ -71,7 +71,8 @@ internal sealed class SourceReverseMethodSymbol : SourceMemberMethodSymbol {
                 conversions,
                 parameter.syntaxReference.location,
                 impliedConstraints,
-                diagnostics
+                diagnostics,
+                this
             );
         }
     }

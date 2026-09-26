@@ -129,6 +129,12 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
         }
     }
 
+    internal ImmutableArray<bool> parameterConstExprnesses {
+        get {
+            ParameterSignature.PopulateParameterSignature(parameters, ref _lazyParameterSignature);
+            return _lazyParameterSignature.parameterConstExprnesses;
+        }
+    }
 
     internal MethodSymbol overriddenMethod {
         get {
@@ -397,4 +403,26 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
     ITypeSymbol IMethodSymbol.receiverType => receiverType;
 
     IMethodSymbol IMethodSymbol.overriddenMethod => overriddenMethod;
+
+    bool ISymbolWithTemplates.TryGetConstraintsSyntax(out TemplateConstraintClauseListSyntax syntax) {
+        if (syntaxReference?.node is null) {
+            syntax = null;
+            return false;
+        }
+
+        switch (syntaxReference.node) {
+            case MethodDeclarationSyntax m:
+                syntax = m.constraintClauseList;
+                return syntax is not null;
+            case ConversionDeclarationSyntax c:
+                syntax = c.constraintClauseList;
+                return syntax is not null;
+            case OperatorDeclarationSyntax o:
+                syntax = o.constraintClauseList;
+                return syntax is not null;
+        }
+
+        syntax = null;
+        return false;
+    }
 }

@@ -114,6 +114,7 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
         if (HadConstructedParameterFailedConstraintCheck(
             binder.conversions,
             binder.compilation,
+            arguments,
             diagnostics,
             location)) {
             return;
@@ -233,6 +234,7 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
     private bool HadConstructedParameterFailedConstraintCheck(
         ConversionsBase conversions,
         Compilation compilation,
+        AnalyzedArguments arguments,
         BelteDiagnosticQueue diagnostics,
         TextLocation location) {
         var result = GetFirstMemberKind(MemberResolutionKind.ConstructedParameterFailedConstraintCheck);
@@ -242,8 +244,14 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
 
         var method = (MethodSymbol)(Symbol)result.member;
 
-        if (!method.CheckConstraints(conversions, location, method.GetEnclosingTemplateConstraints(), diagnostics))
+        if (!method.CheckConstraints(
+                conversions,
+                location,
+                method.GetEnclosingTemplateConstraints(),
+                arguments.arguments.ToImmutable(),
+                diagnostics)) {
             return true;
+        }
 
         var formalParameterType = method.GetParameterType(result.result.badParameter);
 
@@ -444,6 +452,9 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
                     argument.isExpression &&
                     argument.expression.IsEffectivelyConst()) {
                     diagnostics.Push(Error.ArgumentWrongConst(sourceLocation, arg + 1));
+                } else if (parameter.isConstExpr && argument.isExpression &&
+                    !Binder.EnsureExpressionIsCompileTime(argument.expression)) {
+                    diagnostics.Push(Error.ArgumentWrongConstExpr(sourceLocation, arg + 1));
                 } else {
                     diagnostics.Push(Error.CannotConvertArgument(sourceLocation, argType, parameter.type, arg + 1));
                 }

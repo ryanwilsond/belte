@@ -10,6 +10,7 @@ internal abstract class SynthesizedAccessorValueParameterSymbol : SourceComplexP
             ordinal,
             RefKind.None,
             isConst: false,
+            isConstExpr: false,
             ValueParameterName,
             syntax: null,
             location: accessor.location,

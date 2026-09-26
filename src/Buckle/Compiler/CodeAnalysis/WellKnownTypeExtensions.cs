@@ -35,6 +35,7 @@ internal static class WellKnownTypeExtensions {
         "Belte.NullabilityAttribute",
         "Belte.ConstMethodAttribute",
         "Belte.ConstParamAttribute",
+        "Belte.ConstExprParamAttribute",
         "Result`2",
         "WrappedErrorException",
         "Belte.Graphics.Vec2",

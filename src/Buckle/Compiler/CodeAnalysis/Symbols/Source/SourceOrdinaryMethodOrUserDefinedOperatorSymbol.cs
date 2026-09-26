@@ -73,14 +73,15 @@ internal abstract class SourceOrdinaryMethodOrUserDefinedOperatorSymbol : Source
 
         var impliedConstraints = GetEnclosingTemplateConstraints();
 
-        returnType.CheckAllConstraints(conversions, syntaxReference.location, impliedConstraints, diagnostics);
+        returnType.CheckAllConstraints(conversions, _returnTypeLocation, impliedConstraints, diagnostics, this);
 
         foreach (var parameter in parameters) {
             parameter.type.CheckAllConstraints(
                 conversions,
                 parameter.syntaxReference.location,
                 impliedConstraints,
-                diagnostics
+                diagnostics,
+                this
             );
         }
     }
@@ -345,15 +346,17 @@ internal abstract class SourceOrdinaryMethodOrUserDefinedOperatorSymbol : Source
                     []
                 );
             } else {
-                var returnTypeSyntax = syntax is MethodDeclarationSyntax m
-                    ? m.returnType
-                    : syntax is ConversionDeclarationSyntax c
-                        ? c.type
-                        : ((OperatorDeclarationSyntax)syntax).returnType;
+                // var returnTypeSyntax = syntax is MethodDeclarationSyntax m
+                //     ? m.returnType
+                //     : syntax is ConversionDeclarationSyntax c
+                //         ? c.type
+                //         : ((OperatorDeclarationSyntax)syntax).returnType;
 
-                var withTemplateParametersBinder = declaringCompilation
-                    .GetBinderFactory(syntax.syntaxTree)
-                    .GetBinder(returnTypeSyntax, syntax, this);
+                // var withTemplateParametersBinder = declaringCompilation
+                //     .GetBinderFactory(syntax.syntaxTree)
+                //     .GetBinder(returnTypeSyntax, syntax, this);
+
+                var withTemplateParametersBinder = TryGetBodyBinder();
 
                 var signatureFlags = BinderFlags.TemplateConstraintsClause | BinderFlags.SuppressConstraintChecks;
 

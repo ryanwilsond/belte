@@ -507,7 +507,7 @@ public static class SymbolDisplay {
             DisplayAttributes(text, parameter.GetAttributes());
 
         if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeModifiers) != 0)
-            DisplayConstExprRef(text, parameter.isConst, false, false, parameter.refKind);
+            DisplayConstExprRef(text, parameter.isConst, false, parameter.isConstExpr, parameter.refKind);
 
         if ((format.parameterOptions & SymbolDisplayParameterOptions.IncludeType) != 0) {
             DisplayType(text, parameter.type, ToMemberTypeFormat(format));

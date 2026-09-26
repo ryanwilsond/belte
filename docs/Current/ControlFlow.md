@@ -9,6 +9,7 @@
   - [2.1.6](#216-ref-arguments) Ref Arguments
     - [2.1.6.1](#2161-out-arguments) Out Arguments
   - [2.1.7](#217-argument-coercion) Argument Coercion
+  - [2.1.8]() Constant Expression Parameters
 - [2.2](#22-entry-point) Entry Point
   - [2.2.1](#221-main) Main
   - [2.2.2](#222-program-and-update) Program And Update
@@ -296,6 +297,29 @@ void F(int a) { }
 ```
 
 The `implicit` keyword must be placed before any [behavior specifiers](ClassesAndObjects.md#4223-behavior-specifiers).
+
+### 2.1.8 Constant Expression Parameters
+
+Parameters can be marked `constexpr` which requires arguments for that parameter to be compile-time constants.
+
+For example:
+
+```belte
+int a = 0;
+
+M(3); // Okay
+M(a); // Invalid, `a` is not a compile-time constant
+
+void M(constexpr int a) { }
+```
+
+[Template constraints](ClassesAndObjects.md#451-constraint-clauses) can reference constant expression parameters:
+
+```belte
+class A {
+  void M<type T>(constexpr int p) where { p != 0; } { }
+}
+```
 
 ## 2.2 Entry Point
 

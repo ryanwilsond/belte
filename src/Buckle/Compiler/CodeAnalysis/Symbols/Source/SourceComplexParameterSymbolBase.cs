@@ -22,11 +22,12 @@ internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol
         int ordinal,
         RefKind refKind,
         bool isConst,
+        bool isConstExpr,
         string name,
         ParameterSyntax syntax,
         TextLocation location,
         ScopedKind scope)
-        : base(owner, ordinal, refKind, isConst, scope, name, new SyntaxReference(syntax), location) {
+        : base(owner, ordinal, refKind, isConst, isConstExpr, scope, name, new SyntaxReference(syntax), location) {
         _hasDefaultValue = syntax is not null && syntax.defaultValue is not null;
     }
 

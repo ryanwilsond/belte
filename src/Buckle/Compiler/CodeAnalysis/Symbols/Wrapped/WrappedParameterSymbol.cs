@@ -41,6 +41,8 @@ internal abstract class WrappedParameterSymbol : ParameterSymbol {
 
     internal override bool isConst => underlyingParameter.isConst;
 
+    internal override bool isConstExpr => underlyingParameter.isConstExpr;
+
     internal sealed override bool hasUnscopedRefAttribute => underlyingParameter.hasUnscopedRefAttribute;
 
     internal sealed override bool isMetadataOut => underlyingParameter.isMetadataOut;

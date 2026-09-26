@@ -6,6 +6,7 @@ using System.Linq;
 using System.Runtime.CompilerServices;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
+using Buckle.CodeAnalysis.Syntax;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -655,4 +656,14 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
 
     ImmutableArray<IMethodSymbol> INamedTypeSymbol.constructors
         => GetConstructors(true, true).Cast<MethodSymbol, IMethodSymbol>();
+
+    bool ISymbolWithTemplates.TryGetConstraintsSyntax(out TemplateConstraintClauseListSyntax syntax) {
+        if (syntaxReference?.node is TypeDeclarationSyntax t) {
+            syntax = t.constraintClauseList;
+            return syntax is not null;
+        }
+
+        syntax = null;
+        return false;
+    }
 }

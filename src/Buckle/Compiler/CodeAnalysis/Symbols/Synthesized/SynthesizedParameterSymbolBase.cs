@@ -52,6 +52,8 @@ internal abstract class SynthesizedParameterSymbolBase : ParameterSymbol {
 
     internal override bool isConst { get; }
 
+    internal override bool isConstExpr => false;
+
     // TODO Once actually added, complex/simple implement this separately
     internal override bool hasUnscopedRefAttribute => false;
 }

@@ -77,6 +77,8 @@ internal sealed partial class PETemplateType {
 
         internal override bool isConst => (_additionalFlags & TemplateMetadataWriter.ParameterFlags.IsConst) != 0;
 
+        internal override bool isConstExpr => (_additionalFlags & TemplateMetadataWriter.ParameterFlags.IsConstExpr) != 0;
+
         internal override ConstantValue outDefaultValue
             => (_additionalFlags & TemplateMetadataWriter.ParameterFlags.HasOutDefaultValue) != 0
                 ? _defaultValue

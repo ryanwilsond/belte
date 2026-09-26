@@ -26,6 +26,7 @@ internal partial class PEParameterSymbol : ParameterSymbol {
     private ImmutableArray<AttributeData> _lazyCustomAttributes;
     private ConstantValue? _lazyDefaultValue = ConstantValue.Unset;
     private int _lazyIsConst;
+    private int _lazyIsConstExpr;
 
     // private ImmutableArray<int> _lazyInterpolatedStringHandlerAttributeIndexes = DefaultStringHandlerAttributeIndexes;
 
@@ -197,6 +198,15 @@ internal partial class PEParameterSymbol : ParameterSymbol {
             return _lazyIsConst == (int)ThreeState.True;
         }
     }
+
+    internal override bool isConstExpr {
+        get {
+            _ = GetAttributes();
+            Debug.Assert(_lazyIsConstExpr != (int)ThreeState.Unknown);
+            return _lazyIsConstExpr == (int)ThreeState.True;
+        }
+    }
+
 
     internal override ConstantValue outDefaultValue => null;
 
@@ -375,7 +385,8 @@ internal partial class PEParameterSymbol : ParameterSymbol {
                 out var hiddenAttributes,
                 out var isParamArray,
                 out var isParamCollection,
-                out var isConst
+                out var isConst,
+                out var isConstExpr
             );
 
             ImmutableInterlocked.InterlockedInitialize(ref _lazyHiddenAttributes, hiddenAttributes);
@@ -400,6 +411,11 @@ internal partial class PEParameterSymbol : ParameterSymbol {
                 Interlocked.CompareExchange(ref _lazyIsConst, val, (int)ThreeState.Unknown);
             }
 
+            if (_lazyIsConstExpr == (int)ThreeState.Unknown) {
+                var val = isConstExpr ? (int)ThreeState.True : (int)ThreeState.False;
+                Interlocked.CompareExchange(ref _lazyIsConstExpr, val, (int)ThreeState.Unknown);
+            }
+
             ImmutableInterlocked.InterlockedInitialize(
                 ref _lazyCustomAttributes,
                 attributes
@@ -413,11 +429,13 @@ internal partial class PEParameterSymbol : ParameterSymbol {
             out ImmutableArray<AttributeData> hiddenAttributes,
             out bool isParamArray,
             out bool isParamCollection,
-            out bool isConst) {
+            out bool isConst,
+            out bool isConstExpr) {
             hiddenAttributes = [];
             isParamArray = false;
             isParamCollection = false;
             isConst = false;
+            isConstExpr = false;
 
             Debug.Assert(!_handle.IsNil);
             var containingModule = (PEModuleSymbol)this.containingModule;
@@ -477,6 +495,11 @@ internal partial class PEParameterSymbol : ParameterSymbol {
 
                 if (containingModule.AttributeMatchesFilter(handle, AttributeDescription.ConstParamAttribute)) {
                     isConst = true;
+                    continue;
+                }
+
+                if (containingModule.AttributeMatchesFilter(handle, AttributeDescription.ConstExprParamAttribute)) {
+                    isConstExpr = true;
                     continue;
                 }
 

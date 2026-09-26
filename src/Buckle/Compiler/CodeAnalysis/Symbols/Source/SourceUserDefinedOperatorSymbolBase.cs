@@ -103,12 +103,12 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
     }
 
     private protected override void MethodChecks(BelteDiagnosticQueue diagnostics) {
-        _ = GetTemplateConstraints();
         _ = isPure;
 
         var (returnType, parameters) = MakeParametersAndBindReturnType(diagnostics);
-
         MethodChecks(returnType, parameters, diagnostics);
+
+        _ = GetTemplateConstraints();
 
         if (containingType.isStatic)
             return;

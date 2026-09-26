@@ -1392,7 +1392,7 @@ internal sealed partial class OverloadResolution {
             RemoveLessDerivedMembers(results);
 
         RemoveStaticInstanceMismatches(results, arguments, receiver);
-        RemoveConstraintViolations(results, callErrorLocation);
+        RemoveConstraintViolations(results, arguments, callErrorLocation);
 
         if (isMethodGroupConversion)
             RemoveFunctionConversionsWithWrongReturnType(results, returnRefKind, returnType);
@@ -1433,6 +1433,7 @@ internal sealed partial class OverloadResolution {
 
     private void RemoveConstraintViolations<TMember>(
         ArrayBuilder<MemberResolutionResult<TMember>> results,
+        AnalyzedArguments arguments,
         TextLocation location)
         where TMember : Symbol {
         if (typeof(TMember) != typeof(MethodSymbol))
@@ -1443,7 +1444,7 @@ internal sealed partial class OverloadResolution {
             var member = (MethodSymbol)(Symbol)result.member;
 
             if ((result.result.isValid || result.result.kind == MemberResolutionKind.ConstructedParameterFailedConstraintCheck) &&
-                FailsConstraintChecks(member, location, out var constraintFailureDiagnosticsOpt)) {
+                FailsConstraintChecks(member, arguments, location, out var constraintFailureDiagnosticsOpt)) {
                 results[f] = result.WithResult(
                     MemberAnalysisResult.ConstraintFailure(constraintFailureDiagnosticsOpt)
                 );
@@ -1453,6 +1454,7 @@ internal sealed partial class OverloadResolution {
 
     private bool FailsConstraintChecks<TMember>(
         TMember member,
+        AnalyzedArguments arguments,
         TextLocation location,
         out BelteDiagnosticQueue diagnostics)
         where TMember : Symbol {
@@ -1473,6 +1475,7 @@ internal sealed partial class OverloadResolution {
                 conversions,
                 location,
                 GetEnclosingTemplateConstraints(),
+                arguments.arguments.ToImmutable(),
                 diagnostics
             );
         }
@@ -2612,6 +2615,7 @@ internal sealed partial class OverloadResolution {
                     member.GetParameterTypes(),
                     parameterRefKinds,
                     member.GetParameterConstnesses(),
+                    member.GetParameterConstExprnesses(),
                     firstParamsElementIndex: -1
                 );
             }
@@ -2620,6 +2624,7 @@ internal sealed partial class OverloadResolution {
         var types = ArrayBuilder<TypeWithAnnotations>.GetInstance();
         ArrayBuilder<RefKind> refs = null;
         ArrayBuilder<bool> consts = null;
+        ArrayBuilder<bool> constexprs = null;
         var hasAnyRefArg = argumentRefKinds.Any();
 
         for (var arg = 0; arg < argumentCount; ++arg) {
@@ -2653,11 +2658,30 @@ internal sealed partial class OverloadResolution {
             } else {
                 consts.Add(paramConstness);
             }
+
+            var paramConstExprness = parameter.isConstExpr;
+
+            if (constexprs is null) {
+                if (paramConstExprness) {
+                    constexprs = ArrayBuilder<bool>.GetInstance(arg, false);
+                    constexprs.Add(paramConstExprness);
+                }
+            } else {
+                constexprs.Add(paramConstExprness);
+            }
         }
 
         var refKinds = refs is not null ? refs.ToImmutableAndFree() : default;
         var constnesses = consts is not null ? consts.ToImmutableAndFree() : default;
-        return new EffectiveParameters(types.ToImmutableAndFree(), refKinds, constnesses, firstParamsElementIndex: -1);
+        var constexprnesses = constexprs is not null ? constexprs.ToImmutableAndFree() : default;
+
+        return new EffectiveParameters(
+            types.ToImmutableAndFree(),
+            refKinds,
+            constnesses,
+            constexprnesses,
+            firstParamsElementIndex: -1
+        );
     }
 
     private MemberResolutionResult<TMember> IsApplicable<TMember>(
@@ -2731,6 +2755,7 @@ internal sealed partial class OverloadResolution {
                     .Select(t => t.type).ToImmutableArray(),
                 constructedFromEffectiveParameters.parameterRefKinds,
                 constructedFromEffectiveParameters.parameterConstness,
+                constructedFromEffectiveParameters.parameterConstExprness,
                 constructedFromEffectiveParameters.firstParamsElementIndex
             );
         } else {
@@ -2854,14 +2879,23 @@ internal sealed partial class OverloadResolution {
                 ? false
                 : parameters.parameterConstness[argumentPosition];
 
+            var argumentIsConstExpr = argument.isExpression
+                ? Binder.EnsureExpressionIsCompileTime(argument.expression)
+                : false;
+            var parameterIsConstExpr = parameters.parameterConstExprness.IsDefault
+                ? false
+                : parameters.parameterConstExprness[argumentPosition];
+
             conversion = CheckArgumentForApplicability(
                 candidate,
                 argument.expression,
                 argumentRefKind,
                 argumentConstness,
+                argumentIsConstExpr,
                 parameters.parameterTypes[argumentPosition].type,
                 parameterRefKind,
-                parameterConstness
+                parameterConstness,
+                parameterIsConstExpr
             );
 
             if (!conversion.exists) {
@@ -2904,13 +2938,18 @@ internal sealed partial class OverloadResolution {
         BoundExpression argument,
         RefKind argRefKind,
         bool argConstness,
+        bool argConstExpr,
         TypeSymbol parameterType,
         RefKind parRefKind,
-        bool parConstness) {
+        bool parConstness,
+        bool parConstExpr) {
         if (argRefKind != parRefKind)
             return Conversion.None;
 
         if (argConstness && !parConstness)
+            return Conversion.None;
+
+        if (parConstExpr && !argConstExpr)
             return Conversion.None;
 
         var argType = argument.Type();

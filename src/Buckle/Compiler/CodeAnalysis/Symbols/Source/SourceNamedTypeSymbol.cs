@@ -226,7 +226,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
         if (singleDeclaration is not null) {
             var location = singleDeclaration.nameLocation;
             var conversions = TypeConversions.GetInstance();
-            localBase.CheckAllConstraints(conversions, location, GetEnclosingTemplateConstraints(), diagnostics);
+            localBase.CheckAllConstraints(conversions, location, GetEnclosingTemplateConstraints(), diagnostics, this);
         }
     }
 
@@ -247,7 +247,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
                 var set = pair.Value;
 
                 foreach (var @interface in set)
-                    @interface.CheckAllConstraints(conversions, location, impliedConstraints, diagnostics);
+                    @interface.CheckAllConstraints(conversions, location, impliedConstraints, diagnostics, this);
 
                 if (set.Count > 1) {
                     var other = pair.Key;

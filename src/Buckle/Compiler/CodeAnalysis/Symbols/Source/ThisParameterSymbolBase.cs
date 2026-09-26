@@ -27,4 +27,6 @@ internal abstract class ThisParameterSymbolBase : ParameterSymbol {
     internal sealed override bool isMetadataOut => false;
 
     internal sealed override bool isConst => false;
+
+    internal sealed override bool isConstExpr => false;
 }

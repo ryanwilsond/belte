@@ -183,9 +183,12 @@ internal sealed class SynthesizedTemplateMethod : WrappedMethodSymbol, ISynthesi
         var baseHashCode = base.GetHashCode();
         var newHashCode = baseHashCode;
 
-        foreach (var templateArgument in _originalMethod.templateArguments) {
-            if (templateArgument.isConstant)
-                newHashCode = Hash.Combine(templateArgument.constant, newHashCode);
+        for (var i = 0; i < _originalMethod.templateArguments.Length; i++) {
+            var argument = _originalMethod.templateArguments[i];
+            var parameter = _originalMethod.templateParameters[i];
+
+            if (argument.isConstant || argument.isTemplateSpecializedType || parameter.isCompileTimeType)
+                newHashCode = Hash.Combine(argument, newHashCode);
         }
 
         Debug.Assert(baseHashCode != newHashCode);

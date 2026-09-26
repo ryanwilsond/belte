@@ -545,18 +545,18 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_ExtendConstraintFailed, location, message);
     }
 
-    internal static BelteDiagnostic ConstraintWasNull(TextLocation location, string constraint) {
-        var message = $"template constraint fails: constraint results in null ('{constraint}')";
+    internal static BelteDiagnostic ConstraintWasNull(TextLocation location, Symbol owner, string constraint) {
+        var message = $"template constraint on '{owner.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' fails: constraint results in null ('{constraint}')";
         return CreateError(DiagnosticCode.ERR_ConstraintWasNull, location, message);
     }
 
-    internal static BelteDiagnostic ConstraintFailed(TextLocation location, string constraint) {
-        var message = $"template constraint fails ('{constraint}')";
+    internal static BelteDiagnostic ConstraintFailed(TextLocation location, Symbol owner, string constraint) {
+        var message = $"template constraint on '{owner.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' fails ('{constraint}')";
         return CreateError(DiagnosticCode.ERR_ConstraintFailed, location, message);
     }
 
-    internal static BelteDiagnostic ConstraintFailedToEvaluate(TextLocation location, string constraint) {
-        var message = $"template constraint fails to evaluate ('{constraint}')";
+    internal static BelteDiagnostic ConstraintFailedToEvaluate(TextLocation location, Symbol owner, string constraint) {
+        var message = $"template constraint on '{owner.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' fails to evaluate ('{constraint}')";
         return CreateError(DiagnosticCode.ERR_ConstraintFailedToEvaluate, location, message);
     }
 
@@ -3247,6 +3247,25 @@ internal static class Error {
     internal static BelteDiagnostic PointerCannotBeConstParameter(TextLocation location, string name) {
         var message = $"parameter '{name}' cannot be marked as constant because it has a pointer type";
         return CreateError(DiagnosticCode.ERR_PointerCannotBeConstParameter, location, message);
+    }
+
+    internal static BelteDiagnostic ArgumentWrongConstExpr(TextLocation location, int arg) {
+        var message = $"argument {arg}: parameter requires a compile-time constant argument";
+        return CreateError(DiagnosticCode.ERR_ArgumentWrongConstExpr, location, message);
+    }
+
+    internal static BelteDiagnostic ConstraintFailedToEvaluateWithInner(TextLocation location, Symbol owner, string constraint, object inner) {
+        var message = $"template constraint on '{owner.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' fails to evaluate ('{constraint}') and could not be proven by the substituted constraints";
+        return CreateErrorWithInner(DiagnosticCode.ERR_ConstraintFailedToEvaluateWithSuggestion, location, message, inner);
+    }
+
+    internal static BelteDiagnostic ConstraintFailedToEvaluateWithInner_Inner(TextLocation location, Symbol owner, string constraint) {
+        return new BelteDiagnostic(
+            new DiagnosticInfo(DiagnosticSeverity.All),
+            location,
+            $"consider adding the following constraint to '{owner.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}':",
+            [constraint]
+        );
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

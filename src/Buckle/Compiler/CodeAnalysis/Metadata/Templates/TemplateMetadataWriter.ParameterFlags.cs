@@ -9,5 +9,6 @@ internal sealed partial class TemplateMetadataWriter {
         ByRef = 1 << 0,
         HasOutDefaultValue = 1 << 1,
         IsConst = 1 << 2,
+        IsConstExpr = 1 << 3,
     }
 }

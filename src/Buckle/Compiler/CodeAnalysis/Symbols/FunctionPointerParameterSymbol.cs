@@ -34,6 +34,8 @@ internal sealed class FunctionPointerParameterSymbol : ParameterSymbol {
 
     internal override bool isConst { get; }
 
+    internal override bool isConstExpr => false;
+
     internal override Symbol containingSymbol => _containingSymbol;
 
     internal override ScopedKind effectiveScope => ScopedKind.None;
