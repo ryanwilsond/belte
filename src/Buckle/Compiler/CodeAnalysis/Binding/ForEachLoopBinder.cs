@@ -112,8 +112,7 @@ internal sealed class ForEachLoopBinder : LoopBinder {
             enumeratorInfo = potentialEnumeratorInfo;
         }
 
-        if (forEachKind == ForEachLoopKind.IEnumerable && enumeratorInfo is not null)
-            ReportDiagnosticsIfUnmanagedCallersOnly(diagnostics, enumeratorInfo.getEnumeratorMethod, _syntax.keyword);
+        ReportEnumeratorMethodDiagnostics(enumeratorInfo, diagnostics, _syntax.keyword);
 
         _valueSymbol.SetTypeWithAnnotations(inferredType, diagnostics);
         _indexSymbol?.SetTypeWithAnnotations(
@@ -155,6 +154,31 @@ internal sealed class ForEachLoopBinder : LoopBinder {
             breakLabel,
             continueLabel
         );
+    }
+
+    private void ReportEnumeratorMethodDiagnostics(
+        ForEachEnumeratorInfo info,
+        BelteDiagnosticQueue diagnostics,
+        SyntaxNodeOrToken syntax) {
+        if (info is null)
+            return;
+
+        foreach (var method in new MethodSymbol[] {
+            info.getEnumeratorMethod,
+            info.moveNextMethod,
+            info.getCurrentMethod,
+            info.disposeMethod,
+            info.lengthOp,
+            info.indexOp,
+            info.iterOp
+        }) {
+            if (method is not null) {
+                ReportDiagnosticsIfUnmanagedCallersOnly(diagnostics, method, syntax);
+                ReportDiagnosticsIfPureContext(diagnostics, method, syntax);
+                ReportDiagnosticsIfNoThrowContextMethod(diagnostics, method, syntax);
+                ReportDiagnosticsIfNoAllocContextMethod(diagnostics, method, syntax);
+            }
+        }
     }
 
     private ForEachEnumeratorInfo BindIEnumerableInfo(

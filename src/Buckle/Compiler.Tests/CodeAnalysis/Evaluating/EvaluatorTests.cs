@@ -1744,6 +1744,9 @@ public sealed class EvaluatorTests {
         A5.a = 10;
         return A5.a;
     ", 10)]
+    // Binds Expressions
+    [InlineData("return binds(3 + 3);", true)]
+    [InlineData("return binds(3 + false);", false)]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue, evaluator: true, executor: true);
     }

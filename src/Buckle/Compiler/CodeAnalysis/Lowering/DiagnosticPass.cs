@@ -543,7 +543,13 @@ internal sealed partial class DiagnosticPass : BoundTreeWalkerWithStackGuard {
     }
 
     internal override BoundNode VisitBinaryOperator(BoundBinaryOperator node) {
-        _seenPossibleThrowingNode |= node.method is not null && !node.method.isNoThrow;
+        if (node.method is not null) {
+            _seenPossibleThrowingNode |= !node.method.isNoThrow;
+        } else {
+            _seenPossibleThrowingNode |= node.operatorKind.Operator() is
+                BinaryOperatorKind.Division or BinaryOperatorKind.Modulo;
+        }
+
         return base.VisitBinaryOperator(node);
     }
 

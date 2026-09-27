@@ -353,6 +353,9 @@ internal static class ConstantFolding {
                     _ => throw ExceptionUtilities.UnexpectedValue(specialType),
                 };
             case BinaryOperatorKind.Modulo:
+                if (Convert.ToByte(rightValue) == 0)
+                    return null;
+
                 return normalizedType switch {
                     SpecialType.Int8 => new ConstantValue((sbyte)leftValue % (sbyte)rightValue, specialType),
                     SpecialType.Int16 => new ConstantValue((short)leftValue % (short)rightValue, specialType),

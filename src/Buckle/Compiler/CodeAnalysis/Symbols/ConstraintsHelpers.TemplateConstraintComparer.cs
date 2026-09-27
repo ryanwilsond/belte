@@ -20,15 +20,15 @@ internal static partial class ConstraintsHelpers {
         }
 
         private bool CompareExpression(BoundExpression given, BoundExpression implied) {
+            if (given.constantValue is not null && implied.constantValue is not null)
+                return given.constantValue.Equals(implied.constantValue);
+
             if (given.kind != implied.kind) {
                 if (given is BoundTypeExpression t && TrySubstituteWithExpression(t, out var newGiven))
                     return CompareExpression(newGiven, implied);
 
                 return false;
             }
-
-            if (given.constantValue is not null && implied.constantValue is not null)
-                return given.constantValue.Equals(implied.constantValue);
 
             switch (given.kind) {
                 case BoundKind.UnaryOperator:
@@ -117,6 +117,10 @@ internal static partial class ConstraintsHelpers {
                 //     var bindsGiven = (BoundBindsExpression)given;
                 //     var bindsImplied = (BoundBindsExpression)implied;
                 //     return bindsGiven.tentativeResult == bindsImplied.tentativeResult;
+                case BoundKind.ParameterExpression:
+                    var paramGiven = ((BoundParameterExpression)given).parameter;
+                    var paramImplied = ((BoundParameterExpression)implied).parameter;
+                    return paramGiven.Equals(paramImplied);
                 default:
                     return false;
             }

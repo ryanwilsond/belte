@@ -1078,4 +1078,30 @@ hasRelatedInterfaces:
         return templateParameter.hasReferenceTypeConstraint ||
             TemplateParameterSymbol.CalculateIsReferenceTypeFromConstraintTypes(constraintTypes);
     }
+
+    internal static bool ConstraintsProhibitDivideByZero(BoundExpression right) {
+        // TODO This is pretty hard coded, could be made more general
+
+        if (right is BoundParameterExpression p && p.parameter.isConstExpr) {
+            var constraints = p.parameter.GetEnclosingTemplateConstraints();
+            Debug.Assert(right.type.specialType.IsIntegral());
+
+            var target = new BoundBinaryOperator(
+                null,
+                right,
+                BoundFactory.GetFixLiteral0(null, null, right.type),
+                BinaryOperatorKind.NotEqual | Binder.RelationalOperatorType(right.type),
+                null,
+                null,
+                null
+            );
+
+            foreach (var constraint in constraints) {
+                if (TemplateConstraintComparer.ExpressionsEqual(constraint, target))
+                    return true;
+            }
+        }
+
+        return false;
+    }
 }

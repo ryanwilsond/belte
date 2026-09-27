@@ -4176,14 +4176,51 @@ internal partial class Binder {
         }
     }
 
-    private void ReportDiagnosticsIfNoAllocContext(SyntaxNode syntax, BelteDiagnosticQueue diagnostics) {
+    internal void ReportDiagnosticsIfNoAllocContext(SyntaxNode syntax, BelteDiagnosticQueue diagnostics) {
         if (flags.Includes(BinderFlags.NoAllocContext))
             diagnostics.Push(Error.CannotAllocateInNoAllocContext(syntax.location));
     }
 
-    private void ReportDiagnosticsIfNoThrowContext(SyntaxNode syntax, BelteDiagnosticQueue diagnostics) {
+    internal void ReportDiagnosticsIfNoThrowContext(SyntaxNode syntax, BelteDiagnosticQueue diagnostics) {
         if (flags.Includes(BinderFlags.NoThrowContext) && !flags.Includes(BinderFlags.InTryBlockOfTryCatch))
             diagnostics.Push(Error.PotentialThrowInNoThrowContext(syntax.location));
+    }
+
+    internal bool ReportDiagnosticsIfPureContext(
+        BelteDiagnosticQueue diagnostics,
+        MethodSymbol method,
+        SyntaxNodeOrToken syntax) {
+        if (flags.Includes(BinderFlags.PureContext) && !method.isPure) {
+            diagnostics.Push(Error.InvalidCallInSpecifierContext(syntax.location, method, "pure"));
+            return true;
+        }
+
+        return false;
+    }
+
+    internal bool ReportDiagnosticsIfNoAllocContextMethod(
+        BelteDiagnosticQueue diagnostics,
+        MethodSymbol method,
+        SyntaxNodeOrToken syntax) {
+        if (flags.Includes(BinderFlags.NoAllocContext) && !method.isNoAlloc) {
+            diagnostics.Push(Error.InvalidCallInSpecifierContext(syntax.location, method, "noalloc"));
+            return true;
+        }
+
+        return false;
+    }
+
+    internal bool ReportDiagnosticsIfNoThrowContextMethod(
+        BelteDiagnosticQueue diagnostics,
+        MethodSymbol method,
+        SyntaxNodeOrToken syntax) {
+        if (flags.Includes(BinderFlags.NoThrowContext) && !method.isNoThrow &&
+            !flags.Includes(BinderFlags.InTryBlockOfTryCatch)) {
+            diagnostics.Push(Error.InvalidCallInSpecifierContext(syntax.location, method, "nothrow"));
+            return true;
+        }
+
+        return false;
     }
 
     private BoundExpression BindInterfaceCreationExpression(
@@ -7345,21 +7382,14 @@ internal partial class Binder {
         MethodSymbol methodSymbol,
         SyntaxNode node,
         BelteDiagnosticQueue diagnostics) {
-        if (flags.Includes(BinderFlags.PureContext) && !methodSymbol.isPure) {
-            diagnostics.Push(Error.InvalidCallInSpecifierContext(node.location, methodSymbol, "pure"));
+        if (ReportDiagnosticsIfPureContext(diagnostics, methodSymbol, node))
             return true;
-        }
 
-        if (flags.Includes(BinderFlags.NoAllocContext) && !methodSymbol.isNoAlloc) {
-            diagnostics.Push(Error.InvalidCallInSpecifierContext(node.location, methodSymbol, "noalloc"));
+        if (ReportDiagnosticsIfNoAllocContextMethod(diagnostics, methodSymbol, node))
             return true;
-        }
 
-        if (flags.Includes(BinderFlags.NoThrowContext) && !methodSymbol.isNoThrow &&
-            !flags.Includes(BinderFlags.InTryBlockOfTryCatch)) {
-            diagnostics.Push(Error.InvalidCallInSpecifierContext(node.location, methodSymbol, "nothrow"));
+        if (ReportDiagnosticsIfNoThrowContextMethod(diagnostics, methodSymbol, node))
             return true;
-        }
 
         return false;
     }

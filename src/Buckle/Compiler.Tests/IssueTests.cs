@@ -3760,4 +3760,17 @@ public sealed class IssueTests {
 
         AssertValue(text, true);
     }
+
+    [Fact]
+    public void ConstraintsCheck_SeesNonZeroConstraintForNoThrowChecking() {
+        var text = @"
+            void M(constexpr int p) nothrow where { p != 0; } {
+                var a = 3 / p;
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

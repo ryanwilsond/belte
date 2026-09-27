@@ -193,7 +193,38 @@ internal static class BoundFactory {
         return new BoundAssignmentOperator(syntax, left, right, isRef, type);
     }
 
-    private static BoundLiteralExpression GetFixLiteral1(Compilation compilation, SyntaxNode syntax, TypeSymbol type) {
+    internal static BoundLiteralExpression GetFixLiteral0(Compilation compilation, SyntaxNode syntax, TypeSymbol type) {
+        var specialType = type.StrippedType().specialType;
+
+        switch (specialType) {
+            case SpecialType.Int8:
+                return Literal(compilation, syntax, (sbyte)0, type);
+            case SpecialType.Int16:
+                return Literal(compilation, syntax, (short)0, type);
+            case SpecialType.Int32:
+                return Literal(compilation, syntax, 0, type);
+            case SpecialType.UInt8:
+                return Literal(compilation, syntax, (byte)0, type);
+            case SpecialType.UInt16:
+                return Literal(compilation, syntax, (ushort)0, type);
+            case SpecialType.UInt32:
+                return Literal(compilation, syntax, 0U, type);
+            case SpecialType.UInt64:
+                return Literal(compilation, syntax, 0UL, type);
+            case SpecialType.Int64:
+            case SpecialType.Int:
+                return Literal(compilation, syntax, 0L, type);
+            case SpecialType.Float32:
+                return Literal(compilation, syntax, 0F, type);
+            case SpecialType.Float64:
+            case SpecialType.Decimal:
+                return Literal(compilation, syntax, 0D, type);
+            default:
+                throw ExceptionUtilities.UnexpectedValue(specialType);
+        }
+    }
+
+    internal static BoundLiteralExpression GetFixLiteral1(Compilation compilation, SyntaxNode syntax, TypeSymbol type) {
         var specialType = type.StrippedType().specialType;
 
         switch (specialType) {

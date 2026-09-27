@@ -1130,6 +1130,19 @@ public sealed class DiagnosticTests {
     }
 
     [Fact]
+    public void Reports_Error_BU0076_DivideByZero2() {
+        var text = @"
+            int? myInt = [5 % 0];
+        ";
+
+        var diagnostics = @"
+            cannot divide by zero
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
     public void Reports_Error_BU0077_ExpectedOverloadableBinaryOperator() {
         var text = @"
             class A {
@@ -8767,6 +8780,89 @@ var text = """"""
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
+
+    [Fact]
+    public void Reports_Error_BU0601_InvalidCallInSpecifierContext4() {
+        var text = @"
+            class A {
+                public static A operator +(A left, A right) {
+                    return left;
+                }
+            }
+
+            void M() nothrow {
+                var a = [new A() + new A()];
+            }
+        ";
+
+        var diagnostics = @"
+            cannot call method 'A.op_Addition(A!, A!)' in the current context because it is not marked 'nothrow'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0601_InvalidCallInSpecifierContext5() {
+        var text = @"
+            class A {
+                public static A operator +(A left) {
+                    return left;
+                }
+            }
+
+            void M() nothrow {
+                var a = [+new A()];
+            }
+        ";
+
+        var diagnostics = @"
+            cannot call method 'A.op_UnaryPlus(A!)' in the current context because it is not marked 'nothrow'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0601_InvalidCallInSpecifierContext6() {
+        var text = @"
+            class A {
+                public void operator +=(int o) { }
+            }
+
+            void M() nothrow {
+                var a = new A();
+                [a += 0];
+            }
+        ";
+
+        var diagnostics = @"
+            cannot call method 'A.op_AdditionAssignment(int!)' in the current context because it is not marked 'nothrow'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0601_InvalidCallInSpecifierContext7() {
+        var text = @"
+            class A {
+                public void operator ++() { }
+            }
+
+            void M() nothrow {
+                var a = new A();
+                [a ++];
+            }
+        ";
+
+        var diagnostics = @"
+            cannot call method 'A.op_IncrementAssignment()' in the current context because it is not marked 'nothrow'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
     [Fact]
     public void Reports_Error_BU0602_ImpureWriteInPureContext() {
         var text = @"
@@ -9046,6 +9142,23 @@ var text = """"""
             void F() nothrow {
                 int32 a = 0;
                 uint8 b = [(uint8)a];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            expression potentially throws; cannot throw an uncaught exception in a 'nothrow' context
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0610_PotentialThrowInNoThrowContext6() {
+        var text = @"
+            void F() nothrow {
+                var a = 3;
+                var b = [3 / a];
             }
             ;
         ";

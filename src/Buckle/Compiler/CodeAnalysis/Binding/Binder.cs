@@ -3042,15 +3042,8 @@ internal partial class Binder {
         BoundExpression resultRight,
         TextLocation location,
         BelteDiagnosticQueue diagnostics) {
-        if (resultRight.constantValue is not null &&
-            resultRight.constantValue.specialType.IsNumeric() &&
-            !resultRight.constantValue.specialType.IsFloatingPoint() &&
-            resultRight.constantValue.specialType != SpecialType.Char &&
-            Convert.ToDouble(resultRight.constantValue.value) == 0 &&
-            resultOperatorKind.Operator() == BinaryOperatorKind.Division) {
-            diagnostics.Push(Error.DivideByZero(location));
+        if (CheckDivideByZero(location, resultRight, resultOperatorKind, diagnostics))
             return null;
-        }
 
         return ConstantFolding.FoldBinary(
             resultLeft,
@@ -3060,6 +3053,24 @@ internal partial class Binder {
             location,
             diagnostics
         );
+    }
+
+    private static bool CheckDivideByZero(
+        TextLocation location,
+        BoundExpression right,
+        BinaryOperatorKind operatorKind,
+        BelteDiagnosticQueue diagnostics) {
+        if (right.constantValue is not null &&
+            right.constantValue.specialType.IsNumeric() &&
+            !right.constantValue.specialType.IsFloatingPoint() &&
+            right.constantValue.specialType != SpecialType.Char &&
+            Convert.ToDouble(right.constantValue.value) == 0 &&
+            operatorKind.Operator() is BinaryOperatorKind.Division or BinaryOperatorKind.Modulo) {
+            diagnostics.Push(Error.DivideByZero(location));
+            return true;
+        }
+
+        return false;
     }
 
     private bool BindSimpleBinaryOperatorParts(
@@ -3160,6 +3171,20 @@ internal partial class Binder {
 
         result.Free();
 
+        if (possiblyBest.isValid) {
+            if (possiblyBest.signature.method is { } method) {
+                ReportDiagnosticsIfPureContext(diagnostics, method, node);
+                ReportDiagnosticsIfNoThrowContextMethod(diagnostics, method, node);
+                ReportDiagnosticsIfNoAllocContextMethod(diagnostics, method, node);
+            } else if (possiblyBest.signature.kind.Operator() is
+                BinaryOperatorKind.Division or BinaryOperatorKind.Modulo) {
+                if (flags.Includes(BinderFlags.NoThrowContext) && !flags.Includes(BinderFlags.InTryBlockOfTryCatch)) {
+                    if (!ConstraintsHelpers.ConstraintsProhibitDivideByZero(right))
+                        diagnostics.Push(Error.PotentialThrowInNoThrowContext(node.location));
+                }
+            }
+        }
+
         return possiblyBest;
     }
 
@@ -3198,6 +3223,15 @@ internal partial class Binder {
         }
 
         result.Free();
+
+        if (possiblyBest.isValid) {
+            if (possiblyBest.signature.method is { } method) {
+                ReportDiagnosticsIfPureContext(diagnostics, method, node);
+                ReportDiagnosticsIfNoThrowContextMethod(diagnostics, method, node);
+                ReportDiagnosticsIfNoAllocContextMethod(diagnostics, method, node);
+            }
+        }
+
         return possiblyBest;
     }
 
@@ -3950,6 +3984,9 @@ internal partial class Binder {
                 var method = overloadResolutionResult.bestResult.member;
 
                 ReportDiagnosticsIfUnmanagedCallersOnly(diagnostics, method, node);
+                ReportDiagnosticsIfPureContext(diagnostics, method, node);
+                ReportDiagnosticsIfNoThrowContextMethod(diagnostics, method, node);
+                ReportDiagnosticsIfNoAllocContextMethod(diagnostics, method, node);
 
                 BoundValuePlaceholder operandPlaceholder = null;
                 BoundExpression operandConversion = null;
@@ -5126,6 +5163,9 @@ internal partial class Binder {
                 );
 
                 ReportDiagnosticsIfUnmanagedCallersOnly(diagnostics, method, node);
+                ReportDiagnosticsIfPureContext(diagnostics, method, node);
+                ReportDiagnosticsIfNoThrowContextMethod(diagnostics, method, node);
+                ReportDiagnosticsIfNoAllocContextMethod(diagnostics, method, node);
 
                 BoundValuePlaceholder leftPlaceholder = null;
                 BoundExpression leftConversion = null;

@@ -393,4 +393,16 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
             }
         }
     }
+
+    public override int GetHashCode() {
+        return syntax.GetHashCode();
+    }
+
+    internal sealed override bool Equals(Symbol symbol, TypeCompareKind compareKind) {
+        if ((object)this == symbol)
+            return true;
+
+        var localFunction = symbol as LocalFunctionSymbol;
+        return localFunction?.syntax == syntax;
+    }
 }
