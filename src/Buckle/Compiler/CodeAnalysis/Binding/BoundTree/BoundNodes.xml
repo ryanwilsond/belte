@@ -9,6 +9,8 @@
   <ValueType Name="ForEachLoopKind"/>
   <ValueType Name="AccessorKind"/>
   <ValueType Name="RefKind"/>
+  <ValueType Name="ExpressionSyntax"/>
+  <ValueType Name="Binder"/>
   <!-- Abstract Types -->
   <AbstractNode Name="BoundInitializer" Base="BoundNode"/>
   <AbstractNode Name="BoundEqualsValue" Base="BoundInitializer">
@@ -147,6 +149,11 @@
   <Node Name="BoundThisExpression" Base="BoundExpression"/>
   <Node Name="BoundTypeOfExpression" Base="BoundExpression">
     <Field Name="sourceType" Type="BoundTypeExpression"/>
+  </Node>
+  <Node Name="BoundBindsExpression" Base="BoundExpression">
+    <Field Name="node" Type="ExpressionSyntax"/>
+    <Field Name="binder" Type="Binder"/>
+    <Field Name="tentativeResult" Type="bool"/>
   </Node>
   <Node Name="BoundBinaryOperator" Base="BoundExpression">
     <Field Name="left" Type="BoundExpression"/>

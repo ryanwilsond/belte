@@ -3066,6 +3066,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.NullKeyword:
             case SyntaxKind.NullptrKeyword:
             case SyntaxKind.TypeOfKeyword:
+            case SyntaxKind.BindsKeyword:
             case SyntaxKind.NameOfKeyword:
             case SyntaxKind.SizeOfKeyword:
             case SyntaxKind.StackAllocKeyword:
@@ -3563,6 +3564,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseTypeOfExpression();
             case SyntaxKind.NameOfKeyword:
                 return ParseNameOfExpression();
+            case SyntaxKind.BindsKeyword:
+                return ParseBindsExpression();
             case SyntaxKind.SizeOfKeyword:
                 return ParseSizeOfExpression();
             case SyntaxKind.StackAllocKeyword:
@@ -4314,6 +4317,15 @@ done:
         var closeParenthesis = Match(SyntaxKind.CloseParenToken);
 
         return SyntaxFactory.NameOfExpression(keyword, openParenthesis, name, closeParenthesis);
+    }
+
+    private ExpressionSyntax ParseBindsExpression() {
+        var keyword = Match(SyntaxKind.BindsKeyword, SyntaxKind.OpenParenToken);
+        var openParenthesis = MatchOpenParen();
+        var expression = ParseExpression();
+        var closeParenthesis = MatchCloseParen();
+
+        return SyntaxFactory.BindsExpression(keyword, openParenthesis, expression, closeParenthesis);
     }
 
     private ExpressionSyntax ParseSizeOfExpression() {

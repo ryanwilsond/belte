@@ -1458,12 +1458,13 @@ internal sealed partial class OverloadResolution {
         TextLocation location,
         out BelteDiagnosticQueue diagnostics)
         where TMember : Symbol {
-        var arity = member.GetMemberArity();
+        // TODO Method may have constraint clauses
+        // var arity = member.GetMemberArity();
 
-        if (arity == 0 || member.originalDefinition == (object)member) {
-            diagnostics = null;
-            return false;
-        }
+        // if (arity == 0 || member.originalDefinition == (object)member) {
+        //     diagnostics = null;
+        //     return false;
+        // }
 
         diagnostics = BelteDiagnosticQueue.GetInstance();
 

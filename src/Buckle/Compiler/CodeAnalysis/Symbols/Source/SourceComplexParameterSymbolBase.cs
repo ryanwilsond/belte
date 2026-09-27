@@ -144,7 +144,7 @@ internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol
         var defaultSyntax = syntax.defaultValue;
         Debug.Assert(defaultSyntax is not null);
 
-        var binder = GetContainingBinder(containingSymbol);
+        var binder = MethodSymbol.GetBodyBinder(containingSymbol);
 
         var localsBinder = GetDefaultParameterValueBinder(defaultSyntax);
         localsBinder = localsBinder.CreateBinderForParameterDefaultValue(this, defaultSyntax);
@@ -186,17 +186,6 @@ internal abstract class SourceComplexParameterSymbolBase : SourceParameterSymbol
 
         ParameterHelpers.ExpressionDefaultValueVisitor.ReportDiagnostics(this, convertedExpression, diagnostics);
         return convertedExpression;
-
-        Binder GetContainingBinder(Symbol containingSymbol) {
-            switch (containingSymbol) {
-                case SourceMemberMethodSymbol memberMethod:
-                    return memberMethod.TryGetBodyBinder();
-                case LocalFunctionSymbol localFunction:
-                    return GetContainingBinder(localFunction.containingSymbol).GetBinder(localFunction.syntax.body);
-                default:
-                    throw ExceptionUtilities.UnexpectedValue(containingSymbol);
-            }
-        }
     }
 
     private ConstantValue MakeDefaultValue(

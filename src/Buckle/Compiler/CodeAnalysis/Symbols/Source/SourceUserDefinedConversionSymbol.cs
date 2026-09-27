@@ -32,7 +32,7 @@ internal sealed class SourceUserDefinedConversionSymbol : SourceUserDefinedOpera
             ReportDefaultInterfaceImplementation(location, syntax.body is not null, diagnostics);
 
         var templateParameters = MakeTemplateParameters(syntax, diagnostics);
-        _templateParameterInfo = templateParameters.IsEmpty
+        _templateParameterInfo = templateParameters.IsEmpty && syntax.constraintClauseList is null
             ? TemplateParameterInfo.Empty
             : new TemplateParameterInfo { lazyTemplateParameters = templateParameters };
     }

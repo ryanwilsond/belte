@@ -383,6 +383,17 @@ internal abstract class MethodSymbol : Symbol, IMethodSymbol, ISymbolWithTemplat
         }
     }
 
+    internal static Binder GetBodyBinder(Symbol symbol) {
+        switch (symbol) {
+            case SourceMemberMethodSymbol memberMethod:
+                return memberMethod.TryGetBodyBinder();
+            case LocalFunctionSymbol localFunction:
+                return GetBodyBinder(localFunction.containingSymbol).GetBinder(localFunction.syntax.body);
+            default:
+                throw ExceptionUtilities.UnexpectedValue(symbol);
+        }
+    }
+
     internal override bool IsAccessor() {
         return associatedSymbol is not null;
     }

@@ -125,6 +125,7 @@
     - [3.7](Current/Data.md#37-compile-time-expressions) Compile-Time Expressions
       - [3.7.1](Current/Data.md#371-examples) Examples
       - [3.7.2](Current/Data.md#372-conditional-compile-time-expressions) Conditional Compile-Time Expressions
+    - [3.8](Current/Data.md#38-binds-expressions) Binds Expressions
   - [4](Current/ClassesAndObjects.md) Namespaces, Classes, and Objects
     - [4.1](Current/ClassesAndObjects.md#41-classes) Classes
       - [4.1.1](Current/ClassesAndObjects.md#411-declaring-and-using-classes) Declaring And Using Classes
@@ -170,6 +171,7 @@
       - [4.9.1](Current/ClassesAndObjects.md#491-unions) Unions
     - [4.10](Current/ClassesAndObjects.md#410-interfaces) Interfaces
     - [4.11](Current/ClassesAndObjects.md#411-attributes) Attributes
+    - [4.12](Current/ClassesAndObjects.md#412-non-template-constraints) Non-Template Constraints
   - [5](Current/StandardLibrary.md) The Standard Library
   - [6](Current/LowLevelFeatures.md) Low-Level Features
     - [6.1](Current/LowLevelFeatures.md#61-low-level-contexts) Low-Level Contexts

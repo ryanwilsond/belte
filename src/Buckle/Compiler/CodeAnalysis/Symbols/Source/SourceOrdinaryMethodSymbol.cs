@@ -42,8 +42,8 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
 
         ModifierHelpers.CheckAccessibility(_modifiers, diagnostics, location);
 
-        if (syntax.templateParameterList is null)
-            ReportErrorIfHasConstraints(syntax.constraintClauseList, diagnostics);
+        // if (syntax.templateParameterList is null)
+        //     ReportErrorIfHasConstraints(syntax.constraintClauseList, diagnostics);
     }
 
     internal bool hasExplicitAccessModifier { get; }
@@ -123,7 +123,9 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
             ? MethodKind.Ordinary
             : MethodKind.ExplicitInterfaceImplementation;
 
-        return syntax.templateParameterList is null && explicitInterfaceType is null
+        return syntax.templateParameterList is null &&
+               explicitInterfaceType is null &&
+               syntax.constraintClauseList is null
             ? new SourceSimpleOrdinaryMethodSymbol(containingType, name, syntax, methodKind, diagnostics)
             : new SourceComplexOrdinaryMethodSymbol(
                 containingType,

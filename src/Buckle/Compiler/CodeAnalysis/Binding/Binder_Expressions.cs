@@ -2103,6 +2103,8 @@ internal partial class Binder {
                     return BindIndexExpression((IndexExpressionSyntax)node, diagnostics);
                 case SyntaxKind.TypeOfExpression:
                     return BindTypeOfExpression((TypeOfExpressionSyntax)node, diagnostics);
+                case SyntaxKind.BindsExpression:
+                    return BindBindsExpression((BindsExpressionSyntax)node, diagnostics);
                 case SyntaxKind.ThrowExpression:
                     return BindThrowExpression((ThrowExpressionSyntax)node, diagnostics);
                 case SyntaxKind.CascadeListExpression:
@@ -2974,6 +2976,23 @@ internal partial class Binder {
 
         var boundType = new BoundTypeExpression(typeSyntax, typeWithAnnotations, null, type, type.IsErrorType());
         return new BoundTypeOfExpression(node, boundType, compilation.GetSpecialType(SpecialType.Type), hasError);
+    }
+
+    private BoundExpression BindBindsExpression(BindsExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var tempDiagnostics = BelteDiagnosticQueue.GetInstance();
+
+        _ = BindExpression(node.expression, tempDiagnostics);
+        var anyErrors = tempDiagnostics.AnyErrors();
+
+        tempDiagnostics.Free();
+
+        return new BoundBindsExpression(
+            node,
+            node.expression,
+            this,
+            !anyErrors,
+            compilation.GetSpecialType(SpecialType.Bool)
+        );
     }
 
     private BoundExpression BindSizeOfExpression(SizeOfExpressionSyntax node, BelteDiagnosticQueue diagnostics) {

@@ -680,7 +680,9 @@ public enum DiagnosticCode : ushort {
     ERR_PointerCannotBeConst = 669,
     ERR_PointerCannotBeConstParameter = 670,
     ERR_ArgumentWrongConstExpr = 671,
-    ERR_ConstraintFailedToEvaluateWithSuggestion = 672,
+    ERR_ConstraintFailedToEvaluateWithInner = 672,
+    ERR_NonTemplateTypeCannotHaveConstraints = 673,
+    ERR_CompileTimeExpressionInConstraint = 674,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

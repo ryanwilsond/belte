@@ -73,7 +73,13 @@ internal abstract class SourceOrdinaryMethodOrUserDefinedOperatorSymbol : Source
 
         var impliedConstraints = GetEnclosingTemplateConstraints();
 
-        returnType.CheckAllConstraints(conversions, _returnTypeLocation, impliedConstraints, diagnostics, this);
+        returnType.CheckAllConstraints(
+            conversions,
+            _returnTypeLocation,
+            impliedConstraints,
+            diagnostics,
+            this
+        );
 
         foreach (var parameter in parameters) {
             parameter.type.CheckAllConstraints(

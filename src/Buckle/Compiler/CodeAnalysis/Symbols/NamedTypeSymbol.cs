@@ -161,6 +161,10 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
 
     internal abstract bool HasEntryTypeAttribute();
 
+    internal virtual ImmutableArray<BoundExpression> GetTemplateConstraintsNoComplete() {
+        return templateConstraints;
+    }
+
     internal virtual NamedTypeSymbol AsMember(NamedTypeSymbol newOwner) {
         return newOwner.isDefinition
             ? this

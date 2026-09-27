@@ -37,7 +37,7 @@ internal sealed class SourceUserDefinedOperatorSymbol : SourceUserDefinedOperato
         }
 
         var templateParameters = MakeTemplateParameters(syntax, diagnostics);
-        _templateParameterInfo = templateParameters.IsEmpty
+        _templateParameterInfo = templateParameters.IsEmpty && syntax.constraintClauseList is null
             ? TemplateParameterInfo.Empty
             : new TemplateParameterInfo { lazyTemplateParameters = templateParameters };
     }

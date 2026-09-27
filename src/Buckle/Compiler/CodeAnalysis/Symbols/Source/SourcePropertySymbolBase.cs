@@ -576,7 +576,6 @@ internal abstract partial class SourcePropertySymbolBase : PropertySymbol, IAttr
         }
 
         var typeLocation = _typeLocation;
-        var compilation = declaringCompilation;
 
         Debug.Assert(typeLocation is not null);
 
@@ -586,7 +585,6 @@ internal abstract partial class SourcePropertySymbolBase : PropertySymbol, IAttr
             Debug.Assert(explicitInterfaceSpecifier is not null);
 
             _explicitInterfaceType.CheckAllConstraints(
-                // compilation,
                 conversions,
                 explicitInterfaceSpecifier.name.location,
                 impliedConstraints,
@@ -888,7 +886,13 @@ internal abstract partial class SourcePropertySymbolBase : PropertySymbol, IAttr
                             var diagnostics = BelteDiagnosticQueue.GetInstance();
                             var conversions = TypeConversions.GetInstance();
                             var impliedConstraints = GetEnclosingTemplateConstraints();
-                            type.CheckAllConstraints(conversions, location, impliedConstraints, diagnostics);
+
+                            type.CheckAllConstraints(
+                                conversions,
+                                location,
+                                impliedConstraints,
+                                diagnostics
+                            );
 
                             ValidatePropertyType(diagnostics);
 

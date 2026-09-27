@@ -194,6 +194,7 @@ public enum SyntaxKind : ushort {
     InternalKeyword,
     OrKeyword,
     UnrollKeyword,
+    BindsKeyword,
 
     // Trivia
     EndOfLineTrivia,
@@ -243,6 +244,7 @@ public enum SyntaxKind : ushort {
     ExtendedLiteralExpression,
     TypeOfExpression,
     NameOfExpression,
+    BindsExpression,
     SizeOfExpression,
     CallExpression,
     ReversibleExpression,

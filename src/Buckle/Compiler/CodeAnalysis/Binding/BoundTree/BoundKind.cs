@@ -141,4 +141,5 @@ internal enum BoundKind : byte {
     LocalFunctionStatement                      = 0x87,
     SequencePoint                               = 0x88,
     SequencePointWithLocation                   = 0x89,
+    BindsExpression                             = 0x8A,
 }

@@ -319,7 +319,7 @@ internal partial class Binder {
 
                 syntaxNodes[ordinal].Add(clause);
             } else {
-                diagnostics.Push(Error.UnknownTemplate(name.location, containingSymbol.name, name.valueText));
+                diagnostics.Push(Error.UnknownTemplate(name.location, containingSymbol, name.valueText));
             }
         }
 
@@ -424,6 +424,8 @@ internal partial class Binder {
                     return templateParameters.Contains(expression.type);
 
                 goto default;
+            case BoundKind.BindsExpression:
+                return true;
             default:
                 return false;
 
@@ -606,7 +608,7 @@ internal partial class Binder {
         );
     }
 
-    internal NamespaceOrTypeOrAliasSymbolWithAnnotations BindNamespaceOrTypeOrAliasSymbol(
+    internal virtual NamespaceOrTypeOrAliasSymbolWithAnnotations BindNamespaceOrTypeOrAliasSymbol(
         ExpressionSyntax syntax,
         BelteDiagnosticQueue diagnostics,
         ConsList<TypeSymbol> basesBeingResolved = null,
@@ -3527,6 +3529,8 @@ internal partial class Binder {
 
         if (nodeType is not null && !CompileTimeLowerer.IsValidCompileTimeExpressionType(nodeType))
             diagnostics.Push(Error.InvalidCompileTimeType(node.location));
+        else if (operand.kind != BoundKind.BindsExpression && flags.Includes(BinderFlags.TemplateConstraintsClause))
+            diagnostics.Push(Error.CompileTimeExpressionInConstraint(node.location));
         else if (EnsureExpressionIsCompileTime(operand))
             diagnostics.Push(Warning.UnnecessaryCompileTimeExpression(node.location, node.operand));
 
@@ -4464,7 +4468,15 @@ internal partial class Binder {
         bool TryToConstruct(MethodSymbol candidate, BoundExpression argument, out MethodSymbol result) {
             if (candidate.arity == 0) {
                 result = candidate;
-                return true;
+
+                return ConstraintsHelpers.CheckMethodConstraints(
+                    candidate,
+                    conversions,
+                    rightSyntax.location,
+                    GetEnclosingTemplateConstraints(),
+                    [new BoundExpressionOrTypeOrConstant(argument)],
+                    diagnostics
+                );
             }
 
             if (Conversions.TryToConstructUserDefinedOperator(

@@ -1721,6 +1721,19 @@
       <Kind Name="CloseParenToken"/>
     </Field>
   </Node>
+  <Node Name="BindsExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="BindsExpression"/>
+    <Field Name="bindsKeyword" Type="SyntaxToken">
+      <Kind Name="BindsKeyword"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="expression" Type="ExpressionSyntax"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+  </Node>
   <Node Name="ExtendedLiteralExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="ExtendedLiteralExpression"/>
     <Field Name="token" Type="SyntaxToken" Optional="true"/>

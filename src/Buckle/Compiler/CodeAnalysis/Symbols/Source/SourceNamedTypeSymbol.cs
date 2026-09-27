@@ -33,7 +33,10 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
     private TemplateParameterInfo _templateParameterInfo {
         get {
             if (_lazyTemplateParameterInfo is null) {
-                var templateParameterInfo = (arity == 0) ? TemplateParameterInfo.Empty : new TemplateParameterInfo();
+                var templateParameterInfo = (arity == 0 && !SkipPartialDeclarationsWithoutConstraintClauses())
+                    ? TemplateParameterInfo.Empty
+                    : new TemplateParameterInfo();
+
                 Interlocked.CompareExchange(ref _lazyTemplateParameterInfo, templateParameterInfo, null);
             }
 
@@ -175,6 +178,10 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
         return _lazyDeclaredBases;
     }
 
+    internal override ImmutableArray<BoundExpression> GetTemplateConstraintsNoComplete() {
+        return _templateParameterInfo.lazyTemplateConstraints;
+    }
+
     internal override NamedTypeSymbol GetDeclaredBaseType(ConsList<TypeSymbol> basesBeingResolved) {
         return GetDeclaredBases(basesBeingResolved).Item1;
     }
@@ -226,7 +233,14 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
         if (singleDeclaration is not null) {
             var location = singleDeclaration.nameLocation;
             var conversions = TypeConversions.GetInstance();
-            localBase.CheckAllConstraints(conversions, location, GetEnclosingTemplateConstraints(), diagnostics, this);
+
+            localBase.CheckAllConstraints(
+                conversions,
+                location,
+                GetEnclosingTemplateConstraints(),
+                diagnostics,
+                this
+            );
         }
     }
 
@@ -246,8 +260,15 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
             foreach (var pair in interfaces) {
                 var set = pair.Value;
 
-                foreach (var @interface in set)
-                    @interface.CheckAllConstraints(conversions, location, impliedConstraints, diagnostics, this);
+                foreach (var @interface in set) {
+                    @interface.CheckAllConstraints(
+                        conversions,
+                        location,
+                        impliedConstraints,
+                        diagnostics,
+                        this
+                    );
+                }
 
                 if (set.Count > 1) {
                     var other = pair.Key;
@@ -839,6 +860,10 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
                 var typeDeclaration = (TypeDeclarationSyntax)node;
                 templateParameterList = typeDeclaration.templateParameterList;
                 return typeDeclaration.constraintClauseList?.constraintClauses;
+            case SyntaxKind.EnumDeclaration:
+            case SyntaxKind.CompilationUnit:
+                templateParameterList = null;
+                return null;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }

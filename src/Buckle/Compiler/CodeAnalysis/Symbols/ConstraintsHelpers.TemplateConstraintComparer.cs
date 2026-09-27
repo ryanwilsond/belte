@@ -112,6 +112,11 @@ internal static partial class ConstraintsHelpers {
                         return _templateMap.SubstituteType(sourceGiven).IsSameAs(new TypeOrConstant(sourceImplied));
                     else
                         return sourceGiven.Equals(sourceImplied);
+                // TODO Do we want to cover Binds expressions?
+                // case BoundKind.BindsExpression:
+                //     var bindsGiven = (BoundBindsExpression)given;
+                //     var bindsImplied = (BoundBindsExpression)implied;
+                //     return bindsGiven.tentativeResult == bindsImplied.tentativeResult;
                 default:
                     return false;
             }

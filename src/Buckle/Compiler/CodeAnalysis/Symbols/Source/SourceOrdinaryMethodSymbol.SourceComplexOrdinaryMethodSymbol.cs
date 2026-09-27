@@ -22,7 +22,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol {
             var templateParameters = MakeTemplateParameters(syntax, diagnostics);
             _fieldExplicitInterfaceType = explicitInterfaceType;
             Debug.Assert(_templateParameterInfo is null);
-            _templateParameterInfo = templateParameters.IsEmpty
+            _templateParameterInfo = templateParameters.IsEmpty && syntax.constraintClauseList is null
                 ? TemplateParameterInfo.Empty
                 : new TemplateParameterInfo { lazyTemplateParameters = templateParameters };
         }

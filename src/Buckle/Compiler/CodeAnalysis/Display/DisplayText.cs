@@ -427,6 +427,9 @@ public sealed class DisplayText {
             case BoundKind.OrValueExpression:
                 DisplayOrValueExpression(text, (BoundOrValueExpression)node);
                 break;
+            case BoundKind.BindsExpression:
+                DisplayBindsExpression(text, (BoundBindsExpression)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -616,6 +619,13 @@ public sealed class DisplayText {
         text.Write(CreateKeyword(SyntaxKind.OrKeyword));
         text.Write(CreateSpace());
         DisplayNode(text, node.value);
+    }
+
+    private static void DisplayBindsExpression(DisplayText text, BoundBindsExpression node) {
+        text.Write(CreateKeyword(SyntaxKind.BindsKeyword));
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        text.Write(CreateString(node.node.ToString()));
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
 
     private static void DisplayReverseStatement(DisplayText text, BoundReverseStatement node) {

@@ -265,6 +265,7 @@ public static class SyntaxFacts {
             "internal" => SyntaxKind.InternalKeyword,
             "or" => SyntaxKind.OrKeyword,
             "unroll" => SyntaxKind.UnrollKeyword,
+            "binds" => SyntaxKind.BindsKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -478,6 +479,7 @@ public static class SyntaxFacts {
             SyntaxKind.InternalKeyword => "internal",
             SyntaxKind.OrKeyword => "or",
             SyntaxKind.UnrollKeyword => "unroll",
+            SyntaxKind.BindsKeyword => "binds",
             _ => null,
         };
     }
@@ -883,7 +885,7 @@ public static class SyntaxFacts {
     }
 
     private const int FirstKeyword = (int)SyntaxKind.TypeOfKeyword;
-    private const int LastKeyword = (int)SyntaxKind.UnrollKeyword;
+    private const int LastKeyword = (int)SyntaxKind.BindsKeyword;
 
     /// <summary>
     /// Checks if a <see cref="SyntaxKind" /> is a keyword.

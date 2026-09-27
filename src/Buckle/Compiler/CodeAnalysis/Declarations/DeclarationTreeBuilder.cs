@@ -420,10 +420,8 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
 
         var diagnostics = BelteDiagnosticQueue.GetInstance();
 
-        if (node.arity == 0) {
-            // TODO error
-            // Symbol.ReportErrorIfHasConstraints(node.ConstraintClauses, diagnostics);
-        }
+        if (node.arity == 0)
+            Symbol.ReportErrorIfHasConstraints(node.constraintClauseList, diagnostics);
 
         if (node is FileScopedClassDeclarationSyntax) {
             // TODO Do we want to disallow direct nested file-scoped classes?

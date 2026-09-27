@@ -525,8 +525,8 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_CannotDerivePrimitive, location, message);
     }
 
-    internal static BelteDiagnostic UnknownTemplate(TextLocation location, string typeName, string templateName) {
-        var message = $"type '{typeName}' has no such template parameter '{templateName}'";
+    internal static BelteDiagnostic UnknownTemplate(TextLocation location, Symbol symbol, string templateName) {
+        var message = $"symbol '{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' has no such template parameter '{templateName}'";
         return CreateError(DiagnosticCode.ERR_UnknownTemplate, location, message);
     }
 
@@ -3256,7 +3256,7 @@ internal static class Error {
 
     internal static BelteDiagnostic ConstraintFailedToEvaluateWithInner(TextLocation location, Symbol owner, string constraint, object inner) {
         var message = $"template constraint on '{owner.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' fails to evaluate ('{constraint}') and could not be proven by the substituted constraints";
-        return CreateErrorWithInner(DiagnosticCode.ERR_ConstraintFailedToEvaluateWithSuggestion, location, message, inner);
+        return CreateErrorWithInner(DiagnosticCode.ERR_ConstraintFailedToEvaluateWithInner, location, message, inner);
     }
 
     internal static BelteDiagnostic ConstraintFailedToEvaluateWithInner_Inner(TextLocation location, Symbol owner, string constraint) {
@@ -3266,6 +3266,16 @@ internal static class Error {
             $"consider adding the following constraint to '{owner.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}':",
             [constraint]
         );
+    }
+
+    internal static BelteDiagnostic NonTemplateTypeCannotHaveConstraints(TextLocation location) {
+        var message = $"non-template types cannot have constraints";
+        return CreateError(DiagnosticCode.ERR_NonTemplateTypeCannotHaveConstraints, location, message);
+    }
+
+    internal static BelteDiagnostic CompileTimeExpressionInConstraint(TextLocation location) {
+        var message = $"cannot use a compile time expression in a constraint clause";
+        return CreateError(DiagnosticCode.ERR_CompileTimeExpressionInConstraint, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

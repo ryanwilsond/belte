@@ -113,7 +113,7 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
 
         if (HadConstructedParameterFailedConstraintCheck(
             binder.conversions,
-            binder.compilation,
+            binder,
             arguments,
             diagnostics,
             location)) {
@@ -233,7 +233,7 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
 
     private bool HadConstructedParameterFailedConstraintCheck(
         ConversionsBase conversions,
-        Compilation compilation,
+        Binder binder,
         AnalyzedArguments arguments,
         BelteDiagnosticQueue diagnostics,
         TextLocation location) {

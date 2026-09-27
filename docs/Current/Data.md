@@ -36,6 +36,7 @@
 - [3.7](#37-compile-time-expressions) Compile-Time Expressions
   - [3.7.1](#371-examples) Examples
   - [3.7.2](#372-conditional-compile-time-expressions) Conditional Compile-Time Expressions
+- [3.8](#38-binds-expressions) Binds Expressions
 
 ## 3.1 Data Types
 
@@ -1044,3 +1045,79 @@ The result is that if you compile and then run this program, the file write will
 
 The compiler cannot verify whether or not an expression has side effects, so the usage of the compile-time expression
 operator is not restricted to prevent them from happening.
+
+## 3.8 Binds Expressions
+
+A `binds(<expression>)` can be used to check if an expression binds without error. Binding includes type checking,
+overload resolution, and other semantic checking. Notably, binding does not include parsing, so malformed expressions
+are not allowed within the binds expression.
+
+Normally, a binds expression returns `true` or `false` as a compile-time constant. If within an
+[expression constraint](ClassesAndObjects.md#4511-expression-constraints), it will attempt to substitute any template
+parameter symbol types within the expression. To avoid this, a compile time expression can be used:
+`$binds(<expression>)` (note that all other forms of compile time expressions are invalid within constraint clauses).
+
+This allows code that wishes to check if a behavior is available purely observationally.
+
+For example:
+
+```belte
+class A<type T> {
+  public static T M() where { binds(default(T)); } {
+    lowlevel {
+      return lowlevel default;
+    }
+  }
+}
+```
+
+The class `A` allows any type for `T`, but the method `M` can only be called if that `T` happens to have a valid
+default. Because the method `M` does not own the template parameter `T`, it cannot enforce a
+[`T has default;` constraint](ClassesAndObjects.md#4512-special-constraints), but the `binds(default(T))` expression
+allows the method to know that it will only be called if `T` has a valid default value.
+
+Consider this example:
+
+```belte
+public struct Result<type T, type E> {
+  private final T _value;
+  private final E _error;
+  private final bool _isSuccess;
+
+  private constructor(T value, E error, bool isSuccess) {
+    _value = value;
+    _error = error;
+    _isSuccess = isSuccess;
+  }
+
+  public const property bool isSuccess => _isSuccess;
+
+  public const property bool isError => !_isSuccess;
+
+  public property T value => _isSuccess ? _value : throw new InvalidResultException();
+
+  public property E error => !_isSuccess ? _error : throw new InvalidResultException();
+
+  public static Result<T, E> Success(T value) {
+    lowlevel {
+      return new (value, lowlevel default, isSuccess: true);
+    }
+  }
+
+  public static Result<T, E> Failure(E error) {
+    lowlevel {
+      return new (lowlevel default, error, isSuccess: false);
+    }
+  }
+
+  // ...
+
+  public static implicit operator (T, E)(Result<T, E> result) where { binds(default(T)); binds(default(E)); } {
+    return (result._value, result._error);
+  }
+}
+```
+
+This implementation of a error union type defines a tuple deconstruction operator, but only allows calling it if both
+types `T` and `E` have default values. This avoids leaking invalid states to the caller if either the value or error
+type don't have a valid default value.

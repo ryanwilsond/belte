@@ -213,18 +213,6 @@ internal abstract partial class SourceMethodSymbol : MethodSymbol, IAttributeTar
         }
     }
 
-    internal static void ReportErrorIfHasConstraints(
-        TemplateConstraintClauseListSyntax syntax,
-        BelteDiagnosticQueue diagnostics) {
-        if (syntax is not null && syntax.constraintClauses.Count > 0) {
-            // TODO Do we even want an error here?
-            // I can't imagine a situation where you could add an error-free constraint clause without having templates
-            // However this would speed up compilation slightly as you wouldn't need to actually bind the constraints
-            // Just push this error instead
-            // EDIT: It *would* be legal to do something like `where { 3 == 3; }` and that would require no templates
-        }
-    }
-
     private CustomAttributesBag<AttributeData> GetAttributesBag() {
         var bag = _lazyAttributesBag;
 

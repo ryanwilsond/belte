@@ -44,6 +44,7 @@
   - [4.9.1](#491-unions) Unions
 - [4.10](#410-interfaces) Interfaces
 - [4.11](#411-attributes) Attributes
+- [4.12](#412-non-template-constraints) Non-Template Constraints
 
 ## 4.1 Classes
 
@@ -1750,3 +1751,16 @@ Methods returning void cannot use the `MustUseReturnValue` attribute.
 
 - See also [`DllImport` attribute](LowLevelFeatures.md#67-extern-methods).
 - See also [`Unmanaged` attribute](LowLevelFeatures.md#672-unmanaged-methods).
+
+## 4.12 Non-Template Constraints
+
+Non-template methods can have [expression constraint clauses](#4511-expression-constraints):
+
+```belte
+void SafeDiv(int left, constexpr int right) where { right != 0; } {
+  return left / right;
+}
+
+SafeDiv(10, 5); // Okay
+SafeDiv(10, 0); // Compile-time error
+```

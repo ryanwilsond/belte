@@ -3628,4 +3628,124 @@ public sealed class IssueTests {
 
         AssertValue(text, 5);
     }
+
+    [Fact]
+    public void ConstraintsCheck_ChecksConstraintsOnNonTemplateMethod() {
+        var text = @"
+            class A {
+                public static int SafeDiv(int left, constexpr int right) where { right != 0; } {
+                    return left / right;
+                }
+            }
+
+            return [A.SafeDiv](10, 0);
+        ";
+
+        var diagnostics = @"
+            template constraint on 'A.SafeDiv' fails ('right != 0')
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void ConstraintsCheck_ChecksConstraintsOnLocalFunction() {
+        var text = @"
+            int SafeDiv(int left, constexpr int right) where { right != 0; } {
+                return left / right;
+            }
+
+            return [SafeDiv](10, 0);
+        ";
+
+        var diagnostics = @"
+            template constraint on 'SafeDiv' fails ('right != 0')
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void BindsExpression_SubstitutesInConstraint() {
+        var text = @"
+            class A<type T> {
+                public static T M() where { binds(default(T)); } {
+                    lowlevel {
+                        return lowlevel default;
+                    }
+                }
+            }
+
+            A<int>.M();
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void BindsExpression_SubstitutesInConstraint2() {
+        var text = @"
+            class A<type T> {
+                public static T M() where { binds(default(T)); } {
+                    lowlevel {
+                        return lowlevel default;
+                    }
+                }
+            }
+
+            class B { }
+
+            [A<B!>.M]();
+        ";
+
+        var diagnostics = @"
+            template constraint on 'A.M' fails ('binds(default(T))')
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void BindsExpression_SkipsSubstitutionIfCompileTime() {
+        var text = @"
+            class A<type T> {
+                public static T M() where { $binds(default(T)); } {
+                    lowlevel {
+                        return lowlevel default;
+                    }
+                }
+            }
+
+            [A<int>.M]();
+        ";
+
+        var diagnostics = @"
+            template constraint on 'A.M' fails ('$binds(default(T))')
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void DeconstructionAssignment_ChecksConstraintsOnNonTemplate() {
+        var text = @"
+            class A<type T> {
+                public static implicit operator (int, int)(A<T> a) where { binds(default(T)); } {
+                    return (0, 0);
+                }
+            }
+
+            class B { }
+
+            (var a, var b) = [new A<B!>()];
+        ";
+
+        var diagnostics = @"
+            template constraint on 'A.op_Implicit' fails ('binds(default(T))')
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

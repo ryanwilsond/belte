@@ -278,7 +278,7 @@ internal static partial class ConstraintsHelpers {
         TemplateParameterListSyntax templateParameterList,
         SyntaxList<TemplateConstraintClauseSyntax> constraintClauses,
         BelteDiagnosticQueue diagnostics) {
-        if (templateParameters.Length == 0 || constraintClauses is null || constraintClauses.Count == 0)
+        if (constraintClauses is null || constraintClauses.Count == 0)
             return [];
 
         withTemplateParametersBinder = withTemplateParametersBinder
@@ -717,8 +717,34 @@ hasRelatedInterfaces:
                     var argument = args.arguments[parameter.ordinal];
                     Debug.Assert(argument.isExpression && argument.expression.constantValue is not null);
                     return argument.expression.constantValue;
-                default:
+                case BoundKind.BindsExpression:
+                    var bindsExpression = (BoundBindsExpression)expression;
+
+                    if (bindsExpression.tentativeResult)
+                        return new ConstantValue(bindsExpression.tentativeResult, SpecialType.Bool);
+
+                    var tempDiagnostics = BelteDiagnosticQueue.GetInstance();
+
+                    var binder = new ConstraintSubstituteTemplateBinder(args.substitution, bindsExpression.binder);
+                    _ = binder.BindExpression(bindsExpression.node, tempDiagnostics);
+                    var anyErrors = tempDiagnostics.AnyErrors();
+
+                    tempDiagnostics.Free();
+
+                    return new ConstantValue(!anyErrors, SpecialType.Bool);
+                case BoundKind.CompileTimeExpression:
+                    // TODO Unfortunately we can't resolve this because we need the result now and can't run the Evaluator
+                    // Any compromise?
+
+                    var compileTimeExpression = (BoundCompileTimeExpression)expression;
+
+                    if (compileTimeExpression.expression is BoundBindsExpression be)
+                        // Skip substitution
+                        return new ConstantValue(be.tentativeResult, SpecialType.Bool);
+
                     return new ConstantValue(false, SpecialType.Bool);
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(expression.kind);
             }
         }
     }

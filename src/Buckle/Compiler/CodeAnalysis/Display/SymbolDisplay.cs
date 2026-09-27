@@ -340,7 +340,7 @@ public static class SymbolDisplay {
             }
         }
 
-        DisplayTemplateConstraints(text, namedType.templateConstraints, format);
+        DisplayTemplateConstraints(text, namedType.GetTemplateConstraintsNoComplete(), format);
     }
 
     internal static void DisplayTypeWithAnnotations(
@@ -682,7 +682,7 @@ public static class SymbolDisplay {
         ImmutableArray<BoundExpression> templateConstraints,
         SymbolDisplayFormat format) {
         if ((format.templateOptions & SymbolDisplayTemplateOptions.IncludeTemplateConstraints) != 0 &&
-            templateConstraints.Length > 0) {
+            !templateConstraints.IsDefaultOrEmpty) {
             text.Write(CreateSpace());
             text.Write(CreateKeyword(SyntaxKind.WhereKeyword));
             text.Write(CreateSpace());

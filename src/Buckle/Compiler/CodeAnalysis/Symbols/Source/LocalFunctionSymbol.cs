@@ -35,7 +35,7 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
             _templateParameters = MakeTemplateParameters(_declarationDiagnostics);
         } else {
             _templateParameters = [];
-            ReportErrorIfHasConstraints(syntax.constraintClauseList, _declarationDiagnostics);
+            // ReportErrorIfHasConstraints(syntax.constraintClauseList, _declarationDiagnostics);
         }
 
         syntax.returnType.SkipRef(out _refKind);
@@ -58,8 +58,7 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
 
     public override Symbol associatedSymbol => null;
 
-    // TODO this should be something
-    public override ImmutableArray<BoundExpression> templateConstraints => [];
+    public override ImmutableArray<BoundExpression> templateConstraints => GetTemplateConstraints();
 
     internal override ImmutableArray<ParameterSymbol> parameters {
         get {
@@ -181,14 +180,19 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
             if (_unboundConstraints.IsDefault || _unboundConstraints.Length == 0) {
                 ImmutableInterlocked.InterlockedInitialize(ref _lazyTemplateConstraints, []);
             } else {
-                var binderFactory = declaringCompilation.GetBinderFactory(syntaxReference.syntaxTree);
-                var binder = binderFactory.GetBinder(_unboundConstraints[0]);
+                // var binderFactory = declaringCompilation.GetBinderFactory(syntaxReference.syntaxTree);
+                // var binder = binderFactory.GetBinder(_unboundConstraints[0]);
+                var binder = GetBodyBinder(this);
                 binder = binder.WithAdditionalFlags(
                     BinderFlags.TemplateConstraintsClause | BinderFlags.SuppressConstraintChecks
                 );
 
                 var diagnostics = BelteDiagnosticQueue.GetInstance();
-                var constraints = binder.BindExpressionConstraints(_unboundConstraints, templateParameters, diagnostics);
+                var constraints = binder.BindExpressionConstraints(
+                    _unboundConstraints,
+                    templateParameters,
+                    diagnostics
+                );
 
                 if (ImmutableInterlocked.InterlockedInitialize(
                     ref _lazyTemplateConstraints,
@@ -235,6 +239,7 @@ internal sealed class LocalFunctionSymbol : SourceMethodSymbol {
         GetReturnTypeAttributes();
 
         _ = isPure;
+        _ = templateConstraints;
 
         addTo.PushRange(_declarationDiagnostics);
 

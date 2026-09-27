@@ -1762,7 +1762,22 @@ public sealed class DiagnosticTests {
         ";
 
         var diagnostics = @"
-            type 'A' has no such template parameter 'T2'
+            symbol 'A<type! T>' has no such template parameter 'T2'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0122_UnknownTemplate2() {
+        var text = @"
+            class A {
+                public static void M() where { [T] has default; } { }
+            }
+        ";
+
+        var diagnostics = @"
+            symbol 'A.M' has no such template parameter 'T'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -10073,6 +10088,34 @@ var text = """"""
 
         var diagnostics = @"
             template constraint on 'A<int! T>' fails to evaluate ('T != 0') and could not be proven by the substituted constraints
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0673_NonTemplateTypeCannotHaveConstraints() {
+        var text = @"
+            class A [where] { } { }
+            ;
+        ";
+
+        var diagnostics = @"
+            non-template types cannot have constraints
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0674_CompileTimeExpressionInConstraint() {
+        var text = @"
+            class A<type T> where { [$true]; } { }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot use a compile time expression in a constraint clause
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

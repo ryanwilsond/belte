@@ -1123,6 +1123,13 @@ internal abstract class Symbol : ISymbol {
         return compilation == declaringCompilation;
     }
 
+    internal static void ReportErrorIfHasConstraints(
+        TemplateConstraintClauseListSyntax syntax,
+        BelteDiagnosticQueue diagnostics) {
+        if (syntax is not null)
+            diagnostics.Push(Error.NonTemplateTypeCannotHaveConstraints(syntax.whereKeyword.location));
+    }
+
     internal ImmutableArray<BoundExpression> GetEnclosingTemplateConstraints() {
         var builder = ArrayBuilder<BoundExpression>.GetInstance();
 
