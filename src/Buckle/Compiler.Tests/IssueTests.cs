@@ -3748,4 +3748,16 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Range_AllowsSmallerInt() {
+        var text = @"
+            for (i in (uint16)0..<10)
+                return LowLevel.GetType(i) == typeof(uint16);
+
+            return false;
+        ";
+
+        AssertValue(text, true);
+    }
 }

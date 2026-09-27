@@ -1313,6 +1313,9 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
             }
         }
 
+        if (method.methodKind == MethodKind.LocalFunction)
+            _sawLocalFunction = true;
+
         if (method.containingType?.IsEnumType() == true) {
             var newArguments = ArrayBuilder<BoundExpression>.GetInstance();
             var newArgumentRefKinds = ArrayBuilder<RefKind>.GetInstance();

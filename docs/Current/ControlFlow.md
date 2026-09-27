@@ -9,7 +9,7 @@
   - [2.1.6](#216-ref-arguments) Ref Arguments
     - [2.1.6.1](#2161-out-arguments) Out Arguments
   - [2.1.7](#217-argument-coercion) Argument Coercion
-  - [2.1.8]() Constant Expression Parameters
+  - [2.1.8](#218-constant-expression-parameters) Constant Expression Parameters
 - [2.2](#22-entry-point) Entry Point
   - [2.2.1](#221-main) Main
   - [2.2.2](#222-program-and-update) Program And Update
@@ -821,6 +821,22 @@ for (i in 0..=10)
 for (int i = 0; i <= 10; i++)
   Console.PrintLine(i);
 ```
+
+The type of the range is the larger numeric between start and end:
+
+```belte
+// 'i' has type 'uint64'
+for (i in (uint16)0..<(uint64)10) ;
+```
+
+Literals will conform if the start or end is explicitly typed:
+
+```belte
+// 'i' has type 'uint16'
+for (i in (uint16)0..<10) ;
+```
+
+When the type cannot be determined by the start and end expressions, `int` is used.
 
 ### 2.4.5 Break
 

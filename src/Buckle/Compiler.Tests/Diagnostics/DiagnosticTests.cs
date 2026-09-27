@@ -5888,11 +5888,11 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0437_AmbiguousTernary() {
         var text = @"
-            var a = [true ? (int32)1 : (uint32)1];
+            var a = [true ? (any)1 : (Object)1];
         ";
 
         var diagnostics = @"
-            the type of conditional expression cannot be determined because 'int32!' and 'uint32!' implicitly convert to one another
+            the type of conditional expression cannot be determined because 'any!' and 'Object!' implicitly convert to one another
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

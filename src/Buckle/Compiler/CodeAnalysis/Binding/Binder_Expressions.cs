@@ -5144,28 +5144,87 @@ internal partial class Binder {
     }
 
     private BoundExpression BindValidRangeExpression(RangeExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
-        var int64 = compilation.GetSpecialType(SpecialType.Int);
         var left = BindValue(node.left, diagnostics, BindValueKind.RValue);
-
-        var leftConversion = conversions.ClassifyImplicitConversionFromExpression(left, int64);
-
-        if (!leftConversion.exists)
-            GenerateImplicitConversionError(diagnostics, node.left, leftConversion, left, int64);
-        else
-            left = CreateConversion(left, leftConversion, int64, diagnostics);
-
         var right = BindValue(node.right, diagnostics, BindValueKind.RValue);
 
-        var rightConversion = conversions.ClassifyImplicitConversionFromExpression(right, int64);
+        var stepType = GetStepType(left, right);
+
+        var leftConversion = conversions.ClassifyImplicitConversionFromExpression(left, stepType);
+
+        if (!leftConversion.exists)
+            GenerateImplicitConversionError(diagnostics, node.left, leftConversion, left, stepType);
+        else
+            left = CreateConversion(left, leftConversion, stepType, diagnostics);
+
+        var rightConversion = conversions.ClassifyImplicitConversionFromExpression(right, stepType);
 
         if (!rightConversion.exists)
-            GenerateImplicitConversionError(diagnostics, node.right, rightConversion, right, int64);
+            GenerateImplicitConversionError(diagnostics, node.right, rightConversion, right, stepType);
         else
-            right = CreateConversion(right, rightConversion, int64, diagnostics);
+            right = CreateConversion(right, rightConversion, stepType, diagnostics);
 
         var includeEnd = node.operatorToken.kind == SyntaxKind.PeriodPeriodEqualsToken;
 
-        return new BoundRangeExpression(node, left, right, includeEnd);
+        return new BoundRangeExpression(node, left, right, includeEnd, stepType);
+
+        TypeSymbol GetStepType(BoundExpression left, BoundExpression right) {
+            var leftType = left.type;
+            var rightType = right.type;
+            var leftIsIntegral = left is not null && leftType.specialType.IsIntegral();
+            var rightIsIntegral = right is not null && rightType.specialType.IsIntegral();
+
+            if (leftIsIntegral && rightIsIntegral) {
+                var reducedLeft = ReduceNumericIfApplicable(rightType, left);
+
+                if ((object)reducedLeft != left)
+                    return rightType;
+
+                var reducedRight = ReduceNumericIfApplicable(leftType, right);
+
+                if ((object)reducedRight != right)
+                    return leftType;
+
+                var leftPriority = GetPriority(leftType.specialType);
+                var rightPriority = GetPriority(leftType.specialType);
+
+                if (leftPriority >= rightPriority)
+                    return leftType;
+                else
+                    return rightType;
+            } else if (leftIsIntegral) {
+                return leftType;
+            } else if (rightIsIntegral) {
+                return rightType;
+            } else {
+                return compilation.GetSpecialType(SpecialType.Int64);
+            }
+        }
+
+        int GetPriority(SpecialType specialType) {
+            switch (specialType) {
+                case SpecialType.Int8:
+                    return 0;
+                case SpecialType.UInt8:
+                    return 1;
+                case SpecialType.Char:
+                case SpecialType.Int16:
+                    return 2;
+                case SpecialType.UInt16:
+                    return 3;
+                case SpecialType.WinBool:
+                case SpecialType.Int32:
+                    return 4;
+                case SpecialType.UInt32:
+                    return 5;
+                case SpecialType.Int:
+                case SpecialType.Int64:
+                    return 6;
+                case SpecialType.UInt64:
+                    return 7;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(specialType);
+            }
+        }
     }
 
     private BoundExpression BindRangeExpression(RangeExpressionSyntax node, BelteDiagnosticQueue diagnostics) {

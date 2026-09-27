@@ -319,7 +319,7 @@ internal partial class Binder {
         out ForEachEnumeratorInfo enumeratorInfo) {
         if (collectionExpr.kind == BoundKind.RangeExpression) {
             var range = (BoundRangeExpression)collectionExpr;
-            inferredType = new TypeWithAnnotations(range.left.type);
+            inferredType = new TypeWithAnnotations(range.stepType);
             enumeratorInfo = ForEachEnumeratorInfo.CreateRangeInfo(range.left, range.right, range.inclusiveEnd);
             return ForEachLoopKind.Range;
         }
@@ -1747,6 +1747,9 @@ internal partial class Binder {
 
     private static bool ShouldTryToReduce(BoundExpression expression, SpecialType declarationSpecialType) {
         return (expression.kind == BoundKind.LiteralExpression || expression.constantValue is not null) &&
+            // User is explicitly saying treat it as something
+            // TODO However, perhaps we should still reduce if it enables something to bind?
+            (expression.kind != BoundKind.CastExpression) &&
             !(expression.constantValue?.diagnostics?.Length == 0) &&
             expression.type is not null &&
             expression.type.specialType.IsNumeric() &&

@@ -466,12 +466,13 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
         Debug.Assert(node.enumeratorInfo.start is not null);
         Debug.Assert(node.enumeratorInfo.end is not null);
 
-        var shouldUnroll = node.unroll &&
-            (long)node.enumeratorInfo.end.constantValue.value -
-            (long)node.enumeratorInfo.start.constantValue.value <= MaxUnroll;
+        var stepType = node.valueLocal.type.specialType;
+        var isUnsigned = stepType.IsUnsigned();
+
+        var shouldUnroll = node.unroll && IsInUnrollRange(node.enumeratorInfo, stepType, isUnsigned);
 
         if (shouldUnroll)
-            return UnrollForEach(node);
+            return UnrollForEach(node, stepType, isUnsigned);
 
         var syntax = node.syntax;
 
@@ -480,9 +481,7 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
         var condition = Binary(
             syntax,
             Local(syntax, i),
-            node.enumeratorInfo.inclusiveEnd
-                ? BinaryOperatorKind.Int64LessThanOrEqual
-                : BinaryOperatorKind.Int64LessThan,
+            GetOperatorKind(node.enumeratorInfo.inclusiveEnd, stepType),
             node.enumeratorInfo.end,
             _compilation.GetSpecialType(SpecialType.Bool)
         );
@@ -506,9 +505,40 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
                 node.continueLabel
             )
         ]));
+
+        static bool IsInUnrollRange(ForEachEnumeratorInfo info, SpecialType stepType, bool isUnsigned) {
+            var startValue = info.start.constantValue.value;
+            var endValue = info.end.constantValue.value;
+
+            if (isUnsigned) {
+                var _ = LiteralUtilities.TrySpecialCastCore(startValue, stepType, SpecialType.UInt64, out var startULong);
+                Debug.Assert(_);
+                _ = LiteralUtilities.TrySpecialCastCore(endValue, stepType, SpecialType.UInt64, out var endULong);
+
+                return (ulong)endULong - (ulong)startULong <= MaxUnroll;
+            } else {
+                var _ = LiteralUtilities.TrySpecialCastCore(startValue, stepType, SpecialType.Int64, out var startLong);
+                Debug.Assert(_);
+                _ = LiteralUtilities.TrySpecialCastCore(endValue, stepType, SpecialType.Int64, out var endLong);
+
+                return (long)endLong - (long)startLong <= MaxUnroll;
+            }
+        }
+
+        static BinaryOperatorKind GetOperatorKind(bool inclusiveEnd, SpecialType stepType) {
+            var opKind = inclusiveEnd ? BinaryOperatorKind.LessThanOrEqual : BinaryOperatorKind.LessThan;
+            var opType = stepType switch {
+                SpecialType.Int or SpecialType.Int64 => BinaryOperatorKind.Int64,
+                SpecialType.UInt64 => BinaryOperatorKind.UInt64,
+                SpecialType.UInt32 => BinaryOperatorKind.UInt32,
+                _ => BinaryOperatorKind.Int32
+            };
+
+            return opKind | opType;
+        }
     }
 
-    private BoundNode UnrollForEach(BoundForEachStatement node) {
+    private BoundNode UnrollForEach(BoundForEachStatement node, SpecialType stepType, bool unsigned) {
         /*
 
         {
@@ -530,25 +560,91 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
         var syntax = node.syntax;
         var info = node.enumeratorInfo;
 
-        var start = (long)info.start.constantValue.value;
-        var end = (long)info.end.constantValue.value;
+        ArrayBuilder<BoundStatement> statements;
 
-        if (info.inclusiveEnd)
-            end++;
+        // TODO Is there a way to consolidate these instead of copy pasting?
+        if (unsigned) {
+            var _ = LiteralUtilities.TrySpecialCastCore(
+                info.start.constantValue.value,
+                stepType,
+                SpecialType.UInt64,
+                out var startO
+            );
 
-        var statements = ArrayBuilder<BoundStatement>.GetInstance((int)(start - end));
-        var valueType = node.valueLocal.type;
+            Debug.Assert(_);
+            var startULong = (ulong)startO;
 
-        for (var ind = start; ind < end; ind++) {
-            statements.Add(Block(syntax, node.innerLocals, [
-                Statement(syntax, Assignment(syntax,
-                    Local(syntax, node.valueLocal),
-                    Literal(_compilation, syntax, ind, valueType),
-                    false,
-                    valueType
-                )),
-                node.body
-            ]));
+            _ = LiteralUtilities.TrySpecialCastCore(
+                info.end.constantValue.value,
+                stepType,
+                SpecialType.UInt64,
+                out var endO
+            );
+
+            Debug.Assert(_);
+            var endULong = (ulong)endO;
+
+            if (info.inclusiveEnd)
+                endULong++;
+
+            statements = ArrayBuilder<BoundStatement>.GetInstance((int)(startULong - endULong));
+            var valueType = node.valueLocal.type;
+
+            for (var ind = startULong; ind < endULong; ind++) {
+                _ = LiteralUtilities.TrySpecialCastCore(ind, SpecialType.UInt64, stepType, out var castedInd);
+                Debug.Assert(_);
+
+                statements.Add(Block(syntax, node.innerLocals, [
+                    Statement(syntax, Assignment(syntax,
+                        Local(syntax, node.valueLocal),
+                        Literal(_compilation, syntax, castedInd, valueType),
+                        false,
+                        valueType
+                    )),
+                    node.body
+                ]));
+            }
+        } else {
+            var _ = LiteralUtilities.TrySpecialCastCore(
+                info.start.constantValue.value,
+                stepType,
+                SpecialType.Int64,
+                out var startO
+            );
+
+            Debug.Assert(_);
+            var startLong = (long)startO;
+
+            _ = LiteralUtilities.TrySpecialCastCore(
+                info.end.constantValue.value,
+                stepType,
+                SpecialType.Int64,
+                out var endO
+            );
+
+            Debug.Assert(_);
+            var endLong = (long)endO;
+
+            if (info.inclusiveEnd)
+                endLong++;
+
+            statements = ArrayBuilder<BoundStatement>.GetInstance((int)(startLong - endLong));
+            var valueType = node.valueLocal.type;
+
+            for (var ind = startLong; ind < endLong; ind++) {
+                _ = LiteralUtilities.TrySpecialCastCore(ind, SpecialType.Int64, stepType, out var castedInd);
+                Debug.Assert(_);
+
+                statements.Add(Block(syntax, node.innerLocals, [
+                    Statement(syntax, Assignment(syntax,
+                        Local(syntax, node.valueLocal),
+                        Literal(_compilation, syntax, castedInd, valueType),
+                        false,
+                        valueType
+                    )),
+                    node.body
+                ]));
+            }
         }
 
         return Visit(Block(syntax, node.locals, statements.ToArrayAndFree()));

@@ -293,6 +293,7 @@
     <Field Name="left" Type="BoundExpression"/>
     <Field Name="right" Type="BoundExpression"/>
     <Field Name="inclusiveEnd" Type="bool"/>
+    <Field Name="stepType" Type="TypeSymbol"/>
   </Node>
   <Node Name="BoundLiteralExpression" Base="BoundExpression">
     <Field Name="constantValue" Type="ConstantValue" PropertyOverrides="true"/>
