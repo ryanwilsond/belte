@@ -536,19 +536,24 @@ hasRelatedInterfaces:
         }
 
         if (containingSymbol is ISymbolWithTemplates) {
-            foreach (var constraint in ((ISymbolWithTemplates)containingSymbol.originalDefinition).templateConstraints) {
-                if (!EvaluateConstraint(
-                    containingSymbol,
-                    requester,
-                    constraint,
-                    location,
-                    substitution,
-                    templateParameters,
-                    templateArguments,
-                    impliedConstraints,
-                    arguments,
-                    diagnostics)) {
-                    succeeded = false;
+            var constraints = ((ISymbolWithTemplates)containingSymbol.originalDefinition).templateConstraints;
+
+            if (!constraints.IsDefaultOrEmpty) {
+                var constraintFacts = CreateConstraintFacts(constraints);
+
+                foreach (var constraint in constraints) {
+                    if (!EvaluateConstraint(
+                        containingSymbol,
+                        requester,
+                        constraint,
+                        constraintFacts,
+                        location,
+                        substitution,
+                        impliedConstraints,
+                        arguments,
+                        diagnostics)) {
+                        succeeded = false;
+                    }
                 }
             }
         }
@@ -556,14 +561,106 @@ hasRelatedInterfaces:
         return succeeded;
     }
 
+    private static ImmutableArray<ConstraintFact> CreateConstraintFacts(ImmutableArray<BoundExpression> constraints) {
+        var builder = ArrayBuilder<ConstraintFact>.GetInstance();
+
+        foreach (var constraint in constraints) {
+            if (constraint is not BoundBinaryOperator binOp)
+                continue;
+
+            var kind = binOp.operatorKind;
+
+            if (!kind.IsComparison())
+                continue;
+
+            Visit(binOp.left, out var leftP, out var leftC);
+            Visit(binOp.right, out var rightP, out var rightC);
+
+            if ((leftP is null) == (rightP is null))
+                continue;
+
+            var p = leftP ?? rightP;
+            var c = leftC ?? rightC;
+
+            if (c is null)
+                continue;
+
+            if (rightP is not null)
+                kind = FlipOpKind(kind);
+
+            var range = new ConstraintRange(kind, (IComparable)c.value);
+            var found = false;
+
+            foreach (var existing in builder) {
+                if (existing.pertaining.Equals(p)) {
+                    existing.ranges.Add(range);
+                    existing.coveredConstraints.Add(constraint);
+                    found = true;
+                }
+            }
+
+            if (!found)
+                builder.Add(new ConstraintFact(p, [range], [constraint]));
+        }
+
+        return builder.ToImmutableAndFree();
+
+        static BinaryOperatorKind FlipOpKind(BinaryOperatorKind kind) {
+            var type = kind.OperandTypes();
+            var op = kind.Operator();
+
+            switch (op) {
+                case BinaryOperatorKind.Equal:
+                case BinaryOperatorKind.NotEqual:
+                    return kind;
+                case BinaryOperatorKind.GreaterThan:
+                    return BinaryOperatorKind.LessThan | type;
+                case BinaryOperatorKind.LessThan:
+                    return BinaryOperatorKind.GreaterThan | type;
+                case BinaryOperatorKind.GreaterThanOrEqual:
+                    return BinaryOperatorKind.LessThanOrEqual | type;
+                case BinaryOperatorKind.LessThanOrEqual:
+                    return BinaryOperatorKind.GreaterThanOrEqual | type;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(op);
+            }
+        }
+
+        static void Visit(
+            BoundExpression expression,
+            out Symbol pertaining,
+            out ConstantValue constant) {
+            if (expression.constantValue is not null) {
+                pertaining = null;
+                constant = expression.constantValue;
+                return;
+            }
+
+            constant = null;
+            pertaining = null;
+
+            switch (expression) {
+                case BoundTypeExpression te:
+                    pertaining = te.type as TemplateParameterSymbol;
+                    break;
+                case BoundParameterExpression pe:
+                    if (pe.parameter.isConstExpr)
+                        pertaining = pe.parameter;
+
+                    break;
+            }
+
+            return;
+        }
+    }
+
     private static bool EvaluateConstraint(
         Symbol owner,
         Symbol requester,
         BoundExpression constraint,
+        ImmutableArray<ConstraintFact> constraintFacts,
         TextLocation location,
         TemplateMap substitution,
-        ImmutableArray<TemplateParameterSymbol> templateParameters,
-        ImmutableArray<TypeOrConstant> templateArguments,
         ImmutableArray<BoundExpression> impliedConstraints,
         ImmutableArray<BoundExpressionOrTypeOrConstant> arguments,
         BelteDiagnosticQueue diagnostics) {
@@ -573,9 +670,8 @@ hasRelatedInterfaces:
         if (result is null) {
             if (!ConstraintIsProvenByImpliedConstraints(
                     constraint,
+                    constraintFacts,
                     substitution,
-                    templateParameters,
-                    templateArguments,
                     impliedConstraints)) {
                 // Prefer showing the user exactly what they typed, but in the case of metadata constraints
                 // there is no syntax to refer to
@@ -795,19 +891,24 @@ hasRelatedInterfaces:
 
     private static bool ConstraintIsProvenByImpliedConstraints(
         BoundExpression constraint,
+        ImmutableArray<ConstraintFact> constraintFacts,
         TemplateMap templateMap,
-        ImmutableArray<TemplateParameterSymbol> templateParameters,
-        ImmutableArray<TypeOrConstant> templateArguments,
         ImmutableArray<BoundExpression> impliedConstraints) {
-        // TODO SMT solver goes here...
-        // For now we just check if implied constraints take the same shape as the requested constraint
+        // TODO This could always be improved
 
         var constraintComparer = new TemplateConstraintComparer(templateMap);
 
+        // Check for identical constraints
         foreach (var impliedConstraint in impliedConstraints) {
             if (constraintComparer.Equals(constraint, impliedConstraint))
                 return true;
         }
+
+        // Binary proving
+        var impliedFacts = CreateConstraintFacts(impliedConstraints);
+
+        if (constraintFacts.Any(f => f.coveredConstraints.Contains(constraint)))
+            return constraintComparer.IsProvenByFacts(constraintFacts, impliedFacts);
 
         return false;
     }
@@ -1080,26 +1181,28 @@ hasRelatedInterfaces:
     }
 
     internal static bool ConstraintsProhibitDivideByZero(BoundExpression right) {
-        // TODO This is pretty hard coded, could be made more general
-
         if (right is BoundParameterExpression p && p.parameter.isConstExpr) {
             var constraints = p.parameter.GetEnclosingTemplateConstraints();
             Debug.Assert(right.type.specialType.IsIntegral());
 
-            var target = new BoundBinaryOperator(
-                null,
-                right,
-                BoundFactory.GetFixLiteral0(null, null, right.type),
-                BinaryOperatorKind.NotEqual | Binder.RelationalOperatorType(right.type),
-                null,
-                null,
+            var facts = CreateConstraintFacts(constraints).Where(f => f.pertaining.Equals(p.parameter));
+
+            if (!facts.Any())
+                return false;
+
+            var fact = facts.Single();
+
+            var targetFact = new ConstraintFact(
+                p.parameter,
+                [new ConstraintRange(
+                    BinaryOperatorKind.NotEqual,
+                    (IComparable)BoundFactory.GetFixLiteral0(null, null, p.type).constantValue.value
+                )],
                 null
             );
 
-            foreach (var constraint in constraints) {
-                if (TemplateConstraintComparer.ExpressionsEqual(constraint, target))
-                    return true;
-            }
+            if (TemplateConstraintComparer.FactIsProven(targetFact, fact))
+                return true;
         }
 
         return false;

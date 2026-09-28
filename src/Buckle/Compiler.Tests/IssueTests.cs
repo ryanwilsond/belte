@@ -3773,4 +3773,30 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Division_NoThrowIgnoresConstantNonZeroRHS() {
+        var text = @"
+            void M() nothrow {
+                var a = 3 / 3;
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void ConstraintsCheck_SeesGreaterConstraintForNoThrowChecking() {
+        var text = @"
+            void M(constexpr int p) nothrow where { p > 5; } {
+                var a = 3 / p;
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

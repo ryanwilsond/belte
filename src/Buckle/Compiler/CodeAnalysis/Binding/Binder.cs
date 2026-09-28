@@ -3178,9 +3178,11 @@ internal partial class Binder {
                 ReportDiagnosticsIfNoAllocContextMethod(diagnostics, method, node);
             } else if (possiblyBest.signature.kind.Operator() is
                 BinaryOperatorKind.Division or BinaryOperatorKind.Modulo) {
-                if (flags.Includes(BinderFlags.NoThrowContext) && !flags.Includes(BinderFlags.InTryBlockOfTryCatch)) {
-                    if (!ConstraintsHelpers.ConstraintsProhibitDivideByZero(right))
-                        diagnostics.Push(Error.PotentialThrowInNoThrowContext(node.location));
+                if (right.constantValue is null) {
+                    if (flags.Includes(BinderFlags.NoThrowContext) && !flags.Includes(BinderFlags.InTryBlockOfTryCatch)) {
+                        if (!ConstraintsHelpers.ConstraintsProhibitDivideByZero(right))
+                            diagnostics.Push(Error.PotentialThrowInNoThrowContext(node.location));
+                    }
                 }
             }
         }

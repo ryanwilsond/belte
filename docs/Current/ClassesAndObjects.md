@@ -1517,6 +1517,23 @@ namespace A {
 var a = new D();
 ```
 
+Aliases can contain [nullability annotations](Data.md#34-annotations):
+
+```belte
+using Num = int?;
+```
+
+When using the alias, additional annotations can be used:
+
+```belte
+using Num = int?;
+
+// type is 'int?'
+Num num1 = 0;
+// type is 'int!'
+Num! num2 = 0;
+```
+
 ### 4.8.3 Global Using Directive
 
 A `global using` directive can be used to apply a using directive to an entire project instead of only in the source

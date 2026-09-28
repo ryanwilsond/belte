@@ -78,21 +78,21 @@ public static class Program {
     static extern void PostQuitMessage(int32 nExitCode);
 
     public static void Main() {
-        const hInstance = GetModuleHandle(null);
+        final hInstance = GetModuleHandle(null);
         var wc = new WNDCLASSEX();
         wc.cbSize = (uint32)sizeof(WNDCLASSEX);
         wc.lpfnWndProc = &WndProcImpl;
         wc.hInstance = hInstance;
         wc.hbrBackground = (int64*)3;
         wc.lpszClassName = LowLevel.CreateLPCSTR("ExampleWindowClass");
-        const uint8* windowName = LowLevel.CreateLPCSTR("Example Window");
+        final uint8* windowName = LowLevel.CreateLPCSTR("Example Window");
 
         if (RegisterClassEx(&wc) == 0) {
             Console.PrintLine("RegisterClassEx failed");
             return;
         }
 
-        const hWnd = CreateWindowEx(
+        final hWnd = CreateWindowEx(
             0,
             wc.lpszClassName,
             windowName,

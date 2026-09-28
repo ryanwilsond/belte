@@ -742,6 +742,15 @@ An exclamation mark annotation can also be used to signify non-nullability for c
 int! a = 0;
 ```
 
+Exclamation marks can remove nullability from types that are nullable by default. This can happen when using
+[aliases](ClassesAndObjects.md#481-aliasing):
+
+```belte
+using Num = int?;
+
+Num! a = 0;
+```
+
 The [null-assert (`!`) operator](#3221-x) can be used to pass nullable data into a non-nullable context:
 
 ```belte

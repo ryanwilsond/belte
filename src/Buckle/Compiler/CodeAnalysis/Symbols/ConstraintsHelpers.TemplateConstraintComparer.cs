@@ -1,9 +1,13 @@
+using System;
+using System.Collections.Immutable;
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal static partial class ConstraintsHelpers {
-    internal sealed class TemplateConstraintComparer {
+    internal sealed partial class TemplateConstraintComparer {
         private readonly TemplateMap _templateMap;
 
         internal TemplateConstraintComparer(TemplateMap templateMap) {
@@ -17,6 +21,178 @@ internal static partial class ConstraintsHelpers {
 
         internal bool Equals(BoundExpression constraint, BoundExpression impliedConstraint) {
             return CompareExpression(constraint, impliedConstraint);
+        }
+
+        internal bool IsProvenByFacts(
+            ImmutableArray<ConstraintFact> facts,
+            ImmutableArray<ConstraintFact> impliedFacts) {
+            Debug.Assert(facts.Length > 0);
+
+            foreach (var fact in facts) {
+                var proven = false;
+
+                var pertaining = (TemplateParameterSymbol)fact.pertaining;
+
+                foreach (var impliedFact in impliedFacts) {
+                    if (impliedFact.pertaining is not TemplateParameterSymbol impliedTemplateParameter)
+                        continue;
+
+                    bool matchesTemplateParameter;
+
+                    if (_templateMap is not null) {
+                        var substituted = _templateMap.SubstituteTemplateParameter(pertaining);
+                        matchesTemplateParameter = substituted.IsSameAs(new TypeOrConstant(impliedTemplateParameter));
+                    } else {
+                        matchesTemplateParameter = pertaining.Equals(impliedTemplateParameter);
+                    }
+
+                    if (!matchesTemplateParameter)
+                        continue;
+
+                    Debug.Assert(!proven);
+
+                    if (FactIsProven(fact, impliedFact))
+                        proven = true;
+                }
+
+                if (!proven)
+                    return false;
+            }
+
+            return true;
+        }
+
+        internal static bool FactIsProven(ConstraintFact given, ConstraintFact implied) {
+            var givenRange = GetRange(given);
+            var impliedRange = GetRange(implied);
+
+            if (givenRange.lower.Item1 is not null) {
+                if (impliedRange.lower.Item1 is null)
+                    return false;
+
+                switch (givenRange.lower.Item1.CompareTo(impliedRange.lower.Item1)) {
+                    case 0:
+                        if (!givenRange.lower.Item2)
+                            return !impliedRange.lower.Item2;
+
+                        break;
+                    case > 0:
+                        return false;
+                }
+            }
+
+            if (givenRange.upper.Item1 is not null) {
+                if (impliedRange.upper.Item1 is null)
+                    return false;
+
+                switch (givenRange.upper.Item1.CompareTo(impliedRange.upper.Item1)) {
+                    case < 0:
+                        return false;
+                    case 0:
+                        if (!givenRange.upper.Item2)
+                            return !impliedRange.upper.Item2;
+
+                        break;
+                }
+            }
+
+            if (givenRange.exclusions is not null) {
+                foreach (var exclusion in givenRange.exclusions) {
+                    if (impliedRange.exclusions?.Contains(exclusion) == true)
+                        continue;
+
+                    if (impliedRange.lower.Item1 is not null) {
+                        switch (exclusion.CompareTo(impliedRange.lower.Item1)) {
+                            case < 0:
+                                continue;
+                            case 0:
+                                if (!impliedRange.lower.Item2)
+                                    continue;
+
+                                break;
+                        }
+                    }
+
+                    if (impliedRange.upper.Item1 is not null) {
+                        switch (exclusion.CompareTo(impliedRange.upper.Item1)) {
+                            case 0:
+                                if (!impliedRange.upper.Item2)
+                                    continue;
+
+                                break;
+                            case > 0:
+                                continue;
+                        }
+                    }
+
+                    return false;
+                }
+            }
+
+            return true;
+        }
+
+        private static Range GetRange(ConstraintFact fact) {
+            var result = new Range();
+
+            foreach (var range in fact.ranges) {
+                var op = range.kind.Operator();
+
+                switch (op) {
+                    case BinaryOperatorKind.GreaterThan:
+                        result.lower = MaxLower(result.lower, range.right, false);
+                        break;
+                    case BinaryOperatorKind.GreaterThanOrEqual:
+                        result.lower = MaxLower(result.lower, range.right, true);
+                        break;
+                    case BinaryOperatorKind.LessThan:
+                        result.upper = MinUpper(result.upper, range.right, false);
+                        break;
+                    case BinaryOperatorKind.LessThanOrEqual:
+                        result.upper = MinUpper(result.upper, range.right, true);
+                        break;
+                    case BinaryOperatorKind.Equal:
+                        result.lower = MaxLower(result.lower, range.right, true);
+                        result.upper = MinUpper(result.upper, range.right, true);
+                        break;
+                    case BinaryOperatorKind.NotEqual:
+                        result.exclusions ??= [];
+                        result.exclusions.Add(range.right);
+                        break;
+                    default:
+                        throw ExceptionUtilities.UnexpectedValue(op);
+                }
+            }
+
+            return result;
+
+            static (IComparable, bool) MaxLower((IComparable, bool) a, IComparable b, bool inclusive) {
+                if (a.Item1 is null)
+                    return (b, inclusive);
+
+                switch (a.Item1.CompareTo(b)) {
+                    case < 0:
+                        return a;
+                    case 0:
+                        return a.Item2 ? a : (b, inclusive);
+                    case > 0:
+                        return (b, inclusive);
+                }
+            }
+
+            static (IComparable, bool) MinUpper((IComparable, bool) a, IComparable b, bool inclusive) {
+                if (a.Item1 is null)
+                    return (b, inclusive);
+
+                switch (a.Item1.CompareTo(b)) {
+                    case < 0:
+                        return (b, inclusive);
+                    case 0:
+                        return a.Item2 ? (b, inclusive) : a;
+                    case > 0:
+                        return a;
+                }
+            }
         }
 
         private bool CompareExpression(BoundExpression given, BoundExpression implied) {
