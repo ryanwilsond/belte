@@ -198,6 +198,7 @@
   <Node Name="BoundCastExpression" Base="BoundExpression">
     <Field Name="operand" Type="BoundExpression"/>
     <Field Name="conversion" Type="Conversion"/>
+    <Field Name="isChecked" Type="bool"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
   <Node Name="BoundBitCastExpression" Base="BoundExpression">

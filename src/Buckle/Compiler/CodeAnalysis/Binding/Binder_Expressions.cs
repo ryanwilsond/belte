@@ -2055,7 +2055,7 @@ internal partial class Binder {
                 case SyntaxKind.ReferenceType:
                     return BindReferenceType((ReferenceTypeSyntax)node, diagnostics);
                 case SyntaxKind.ParenthesizedExpression:
-                    return BindParenthesisExpression((ParenthesisExpressionSyntax)node, diagnostics);
+                    return BindParenthesizedExpression(((ParenthesisExpressionSyntax)node).expression, diagnostics);
                 case SyntaxKind.MemberAccessExpression:
                     return BindMemberAccess((MemberAccessExpressionSyntax)node, called, indexed, diagnostics);
                 case SyntaxKind.IdentifierName:
@@ -2130,6 +2130,8 @@ internal partial class Binder {
                     return BindOrJumpExpression((OrJumpExpressionSyntax)node, diagnostics);
                 case SyntaxKind.OrValueExpression:
                     return BindOrValueExpression((OrValueExpressionSyntax)node, diagnostics);
+                case SyntaxKind.CheckedExpression:
+                    return BindCheckedExpression((CheckedExpressionSyntax)node, diagnostics);
                 case SyntaxKind.NonNullableType:
                     Debug.Assert(false);
                     return ErrorExpression(node);
@@ -3646,7 +3648,8 @@ internal partial class Binder {
 
         var underlyingConversion = conversions.ClassifyBuiltInConversion(
             operand.Type(),
-            underlyingTargetTypeWithAnnotations.type
+            underlyingTargetTypeWithAnnotations.type,
+            checkOverflow
         );
 
         if (!underlyingConversion.exists)
@@ -3683,7 +3686,7 @@ internal partial class Binder {
         TypeWithAnnotations targetTypeWithAnnotations,
         BelteDiagnosticQueue diagnostics) {
         var targetType = targetTypeWithAnnotations.type;
-        var conversion = conversions.ClassifyConversionFromExpression(operand, targetType);
+        var conversion = conversions.ClassifyConversionFromExpression(operand, targetType, checkOverflow);
         var suppressErrors = operand.hasAnyErrors || targetType.IsErrorType();
         var hasErrors = !conversion.exists || targetType.isStatic;
 
@@ -4634,13 +4637,14 @@ internal partial class Binder {
                 node,
                 BindToTypeForErrorRecovery(expression),
                 Conversion.None,
+                checkOverflow,
                 null,
                 boolean,
                 true
             );
         }
 
-        var conversion = conversions.ClassifyConversionFromExpression(expression, boolean);
+        var conversion = conversions.ClassifyConversionFromExpression(expression, boolean, checkOverflow);
 
         if (conversion.isImplicit) {
             var collapsed = Conversion.CollapseConversion(conversion);
@@ -4676,7 +4680,7 @@ internal partial class Binder {
 
         if (!best.hasValue) {
             GenerateImplicitConversionError(diagnostics, node, conversion, expression, boolean);
-            return new BoundCastExpression(node, expression, Conversion.None, null, boolean, true);
+            return new BoundCastExpression(node, expression, Conversion.None, checkOverflow, null, boolean, true);
         }
 
         var signature = best.signature;
@@ -5171,6 +5175,11 @@ internal partial class Binder {
         );
     }
 
+    private BoundExpression BindCheckedExpression(CheckedExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var binder = GetBinder(node);
+        return binder.BindParenthesizedExpression(node.expression, diagnostics);
+    }
+
     internal BoundExpression BindRangeOrRValue(
         ExpressionSyntax expression,
         BelteDiagnosticQueue diagnostics) {
@@ -5369,7 +5378,7 @@ internal partial class Binder {
             );
 
             var destination = compilation.GetSpecialType(SpecialType.Any);
-            var conversion = conversions.ClassifyConversionFromExpression(placeholder, destination);
+            var conversion = conversions.ClassifyConversionFromExpression(placeholder, destination, checkOverflow);
 
             Debug.Assert(conversion.exists);
 
@@ -6575,6 +6584,7 @@ internal partial class Binder {
                     node,
                     expr,
                     Conversion.ImplicitNumeric,
+                    checkOverflow,
                     constantValue: expr.constantValue,
                     type: underlyingType
                 );
@@ -7666,7 +7676,7 @@ internal partial class Binder {
                 }
             }
 
-            var conversion = conversions.ClassifyConversionFromExpression(defaultValue, parameterType);
+            var conversion = conversions.ClassifyConversionFromExpression(defaultValue, parameterType, checkOverflow);
 
             if (!conversion.exists)
                 GenerateImplicitConversionError(diagnostics, syntax, conversion, defaultValue, parameterType);
@@ -8225,11 +8235,11 @@ internal partial class Binder {
         return nameString;
     }
 
-    private BoundExpression BindParenthesisExpression(
-        ParenthesisExpressionSyntax node,
+    private BoundExpression BindParenthesizedExpression(
+        ExpressionSyntax innerExpression,
         BelteDiagnosticQueue diagnostics) {
-        var value = BindExpression(node.expression, diagnostics);
-        CheckNotNamespaceOrType(value, node.expression.location, diagnostics);
+        var value = BindExpression(innerExpression, diagnostics);
+        CheckNotNamespaceOrType(value, innerExpression.location, diagnostics);
         return value;
     }
 

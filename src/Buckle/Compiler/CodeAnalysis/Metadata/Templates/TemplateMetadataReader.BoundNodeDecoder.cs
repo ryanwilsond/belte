@@ -530,8 +530,9 @@ internal sealed partial class TemplateMetadataReader {
         private BoundCastExpression ReadCastExpression() {
             var type = ReadType();
             var conversionKind = (ConversionKind)_reader.ReadByte();
+            var isChecked = _reader.ReadBoolean();
             var operand = ReadExpression();
-            return new BoundCastExpression(null, operand, new Conversion(conversionKind), null, type);
+            return new BoundCastExpression(null, operand, new Conversion(conversionKind), isChecked, null, type);
         }
 
         private BoundDataContainerExpression ReadDataContainerExpression() {

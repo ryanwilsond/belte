@@ -195,6 +195,7 @@ internal abstract partial class MethodToClassRewriter : BoundTreeRewriterWithSta
         return node.Update(
             (BoundExpression)Visit(node.operand),
             conversion,
+            node.isChecked,
             node.constantValue,
             VisitType(node.Type())
         );

@@ -156,7 +156,11 @@ internal sealed class SourceReverseMethodSymbol : SourceMemberMethodSymbol {
                     if (targetRefKind != refKind)
                         diagnostics.Push(Error.ReverseRefMismatch(location, targetMethod, parameter));
 
-                    var conversion = signatureBinder.conversions.ClassifyConversionFromType(returnType, type);
+                    var conversion = signatureBinder.conversions.ClassifyConversionFromType(
+                        returnType,
+                        type,
+                        signatureBinder.checkOverflow
+                    );
 
                     if (refKind != RefKind.None && !conversion.isIdentity) {
                         diagnostics.Push(Error.RefReverseMustHaveIdentityConversion(_syntax.type.location, returnType));

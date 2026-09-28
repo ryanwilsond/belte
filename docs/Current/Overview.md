@@ -104,6 +104,7 @@ These keywords are reserved names and cannot be used as identifiers.
 - [break](ControlFlow.md#245-break)
 - [case](ControlFlow.md#25-switch)
 - [catch](ControlFlow.md#261-trycatchfinally)
+- [checked](Data.md#325-checked-regions)
 - [class](ClassesAndObjects.md#41-classes) (type declaration)
 - [class](ClassesAndObjects.md#4512-special-constraints) (template constraint)
 - [commit](ControlFlow.md#271-commit-statements)

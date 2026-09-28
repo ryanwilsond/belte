@@ -263,7 +263,7 @@ internal partial struct SwitchIntegralJumpTableEmitter {
         }
 
         EmitRangeCheckIfNeeded(startConstant, endConstant, bucketFallThroughLabel);
-        _generator.EmitNumericConversion(_keyTypeCode, SpecialType.UInt32);
+        _generator.EmitNumericConversion(_keyTypeCode, SpecialType.UInt32, isChecked: false);
     }
 
     private void EmitRangeCheckIfNeeded(ConstantValue startConstant, ConstantValue endConstant, object bucketFallThroughLabel) {

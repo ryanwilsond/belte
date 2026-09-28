@@ -3799,4 +3799,62 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Block_ErrorChecksModifiers() {
+        var text = @"
+            lowlevel [lowlevel] { }
+        ";
+
+        var diagnostics = @"
+            modifier 'lowlevel' has already been applied to this item
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Block_ErrorChecksModifiers2() {
+        var text = @"
+            const lowlevel [{] }
+        ";
+
+        var diagnostics = @"
+            modifier 'const' is not valid for this item
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Checked_ChecksCast() {
+        var text = @"
+            checked {
+                int a = 0xFFFF;
+                uint8 b = (uint8)a;
+            }
+        ";
+
+        var exceptions = @"
+            Arithmetic operation resulted in an overflow.
+        ";
+
+        AssertExceptions(text, _writer, exceptions);
+    }
+
+    [Fact]
+    public void Checked_ChecksBinaryOperator() {
+        var text = @"
+            checked {
+                int a = Int64.MaxValue;
+                int b = a + 1;
+            }
+        ";
+
+        var exceptions = @"
+            Arithmetic operation resulted in an overflow.
+        ";
+
+        AssertExceptions(text, _writer, exceptions);
+    }
 }

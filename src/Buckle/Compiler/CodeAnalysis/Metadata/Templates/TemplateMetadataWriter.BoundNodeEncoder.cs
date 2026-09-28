@@ -124,6 +124,7 @@ internal sealed partial class TemplateMetadataWriter {
             _writer.Write((byte)BoundKind.CastExpression);
             _writer.Write(_metadataWriter.CreateTypeKindAndInfo(node.type));
             _writer.Write((byte)node.conversion.kind);
+            _writer.Write(node.isChecked);
             return base.VisitCastExpression(node);
         }
 

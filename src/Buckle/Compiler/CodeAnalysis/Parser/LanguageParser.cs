@@ -2200,6 +2200,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
                     return ParseReverseOrReverseDeferStatement();
                 case SyntaxKind.CommitKeyword:
                     return ParseCommitStatement();
+                case SyntaxKind.CheckedKeyword:
+                    if (Peek(1).kind == SyntaxKind.OpenParenToken)
+                        return ParseExpressionStatement();
+
+                    return ParseCheckedStatement();
             }
 
             var resetPoint = GetResetPoint();
@@ -2388,7 +2393,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
     private StatementSyntax ParseTryStatement() {
         var keyword = EatToken();
-        var body = (BlockStatementSyntax)ParseBlockStatement();
+        var body = ParseBlockStatement();
         var catchClause = ParseCatchClause();
         var finallyClause = ParseFinallyClause();
 
@@ -2556,6 +2561,12 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var keyword = EatToken();
         var semicolon = EatToken(SyntaxKind.SemicolonToken);
         return SyntaxFactory.CommitStatement(keyword, semicolon);
+    }
+
+    private StatementSyntax ParseCheckedStatement() {
+        var keyword = EatToken();
+        var body = ParseBlockStatement();
+        return SyntaxFactory.CheckedStatement(keyword, body);
     }
 
     private StatementSyntax ParseBreakStatement() {
@@ -3032,6 +3043,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.ScopedKeyword:
             case SyntaxKind.ReverseKeyword:
             case SyntaxKind.CommitKeyword:
+            case SyntaxKind.CheckedKeyword:
                 return true;
             // Attribute/Modifier starts for local declarations/functions
             case SyntaxKind.StaticKeyword:
@@ -3081,6 +3093,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.PeriodToken:
             case SyntaxKind.IdentifierToken:
             case SyntaxKind.GlobalKeyword:
+            case SyntaxKind.CheckedKeyword:
                 return true;
             default:
                 return SyntaxFacts.GetUnaryPrecedence(kind) != 0 ||
@@ -3303,6 +3316,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.WhileKeyword:
             case SyntaxKind.ReverseKeyword:
             case SyntaxKind.CommitKeyword:
+            case SyntaxKind.OrKeyword:
                 return true;
             default:
                 return false;
@@ -3590,6 +3604,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 return ParseWithExpression();
             case SyntaxKind.ReversibleKeyword:
                 return ParseReversibleExpression();
+            case SyntaxKind.CheckedKeyword:
+                return ParseCheckedExpression();
             case SyntaxKind.IdentifierToken:
                 return ParseFieldExpressionOrLastCaseName();
             case SyntaxKind.GlobalKeyword:
@@ -3626,6 +3642,14 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var colon = Match(SyntaxKind.ColonToken);
         var expression = ParseExpression();
         return SyntaxFactory.ReversibleExpression(keyword, identifier, colon, expression);
+    }
+
+    private CheckedExpressionSyntax ParseCheckedExpression() {
+        var keyword = EatToken();
+        var openParen = MatchOpenParen();
+        var expression = ParseExpression();
+        var closeParen = MatchCloseParen();
+        return SyntaxFactory.CheckedExpression(keyword, openParen, expression, closeParen);
     }
 
     private ExpressionSyntax ParsePrimaryExpression(int parentPrecedence = 0, ExpressionSyntax left = null) {

@@ -289,7 +289,11 @@ internal sealed class Conversions : ConversionsBase {
         if (destination.specialType is SpecialType.Int32 or SpecialType.Int64 or SpecialType.Int)
             return Conversion.Identity;
 
-        var conversion = ClassifyConversionFromType(_binder.compilation.GetSpecialType(SpecialType.Int), destination);
+        var conversion = ClassifyConversionFromType(
+            _binder.compilation.GetSpecialType(SpecialType.Int),
+            destination,
+            isChecked: false
+        );
 
         if (conversion.isImplicit)
             return conversion;

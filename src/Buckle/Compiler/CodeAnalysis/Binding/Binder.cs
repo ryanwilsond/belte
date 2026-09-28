@@ -136,6 +136,8 @@ internal partial class Binder {
 
     internal bool inParameterDefaultValue => flags.Includes(BinderFlags.ParameterDefaultValue);
 
+    internal bool checkOverflow => flags.Includes(BinderFlags.CheckedRegion);
+
     internal virtual Binder GetBinder(SyntaxNode node) {
         return next.GetBinder(node);
     }
@@ -256,6 +258,12 @@ internal partial class Binder {
             return statement;
 
         return new BoundBlockStatement(statement.syntax, [statement], locals, localFunctions);
+    }
+
+    internal Binder WithCheckedRegion() {
+        return flags.Includes(BinderFlags.CheckedRegion)
+            ? this
+            : new Binder(this, flags | BinderFlags.CheckedRegion);
     }
 
     #endregion
@@ -1810,7 +1818,7 @@ internal partial class Binder {
             return true;
         }
 
-        conversion = conversions.ClassifyBuiltInConversion(expressionType, patternType);
+        conversion = conversions.ClassifyBuiltInConversion(expressionType, patternType, isChecked: false);
         return GetIsOperatorConstantResult(expressionType, patternType, conversion.kind, operandConstantValue, operandCouldBeNull);
     }
 
@@ -2096,7 +2104,7 @@ internal partial class Binder {
         }
 
         var operandType = operand.Type();
-        var conversion = conversions.ClassifyBuiltInConversion(operandType, targetType);
+        var conversion = conversions.ClassifyBuiltInConversion(operandType, targetType, checkOverflow);
 
         var hasErrors = ReportAsOperatorConversionDiagnostics(
             node,
@@ -2716,7 +2724,7 @@ internal partial class Binder {
             node,
             resultLeft,
             resultRight,
-            resultOperatorKind,
+            resultOperatorKind.WithOverflowChecksIfApplicable(checkOverflow),
             signature.method,
             resultConstant,
             resultType,
@@ -3143,7 +3151,7 @@ internal partial class Binder {
         out ImmutableArray<MethodSymbol> originalUserDefinedOperators) {
         var result = BinaryOperatorOverloadResolutionResult.GetInstance();
 
-        overloadResolution.BinaryOperatorOverloadResolution(kind, left, right, result);
+        overloadResolution.BinaryOperatorOverloadResolution(kind, checkOverflow, left, right, result);
         var possiblyBest = result.best;
 
         if (result.results.Any()) {
@@ -3198,7 +3206,7 @@ internal partial class Binder {
         out LookupResultKind resultKind,
         out ImmutableArray<MethodSymbol> originalUserDefinedOperators) {
         var result = UnaryOperatorOverloadResolutionResult.GetInstance();
-        overloadResolution.UnaryOperatorOverloadResolution(kind, operand, result);
+        overloadResolution.UnaryOperatorOverloadResolution(kind, checkOverflow, operand, result);
         var possiblyBest = result.best;
 
         if (result.results.Any()) {
@@ -3669,7 +3677,7 @@ internal partial class Binder {
         return new BoundUnaryOperator(
             node,
             resultOperand,
-            resultOperatorKind,
+            resultOperatorKind.WithOverflowChecksIfApplicable(checkOverflow),
             signature.method,
             resultConstant,
             // signature.ConstrainedToTypeOpt,
@@ -3855,7 +3863,7 @@ internal partial class Binder {
 
         return new BoundIncrementOperator(
             node,
-            signature.kind,
+            signature.kind.WithOverflowChecksIfApplicable(checkOverflow),
             operand,
             signature.method,
             // signature.ConstrainedToTypeOpt,
@@ -3995,7 +4003,7 @@ internal partial class Binder {
 
                 inPlaceResult = new BoundIncrementOperator(
                     node,
-                    kind | UnaryOperatorKind.UserDefined,
+                    (kind | UnaryOperatorKind.UserDefined).WithOverflowChecksIfApplicable(checkOverflow),
                     operand,
                     method: method,
                     // constrainedToTypeOpt: null,
@@ -4027,7 +4035,7 @@ internal partial class Binder {
 
                 inPlaceResult = new BoundIncrementOperator(
                     node,
-                    kind | UnaryOperatorKind.UserDefined,
+                    (kind | UnaryOperatorKind.UserDefined).WithOverflowChecksIfApplicable(checkOverflow),
                     operand,
                     method: null,
                     // constrainedToTypeOpt: null,
@@ -4172,6 +4180,7 @@ internal partial class Binder {
                     boundRight.syntax,
                     boundRight,
                     Conversion.Deconstruction,
+                    checkOverflow,
                     constantValue: null,
                     type: type,
                     hasErrors: true
@@ -4210,6 +4219,7 @@ internal partial class Binder {
             boundRight.syntax,
             boundRight,
             conversion,
+            checkOverflow,
             constantValue: null,
             type: returnType,
             hasErrors: hasErrors
@@ -4357,6 +4367,7 @@ internal partial class Binder {
                         syntax,
                         operandPlaceholder,
                         nestedConversion,
+                        checkOverflow,
                         constantValue: null,
                         type: ErrorTypeSymbol.UnknownResultType
                     )
@@ -4366,7 +4377,8 @@ internal partial class Binder {
 
                 nestedConversion = conversions.ClassifyConversionFromType(
                     tupleOrDeconstructedTypes[i],
-                    single.type
+                    single.type,
+                    checkOverflow
                 );
 
                 if (!nestedConversion.isImplicit) {
@@ -4988,6 +5000,18 @@ internal partial class Binder {
 
         var hasErrors = false;
         var bestSignature = best.signature;
+
+        if (checkOverflow) {
+            bestSignature = new BinaryOperatorSignature(
+                bestSignature.kind.WithOverflowChecksIfApplicable(checkOverflow),
+                bestSignature.leftType,
+                bestSignature.rightType,
+                bestSignature.returnType,
+                bestSignature.method,
+                bestSignature.constrainedToTypeOpt
+            );
+        }
+
         var rightConverted = CreateConversion(
             node.right,
             right,
@@ -5020,7 +5044,7 @@ internal partial class Binder {
                 finalConversion = null;
             }
         } else if (final.conversion.isExplicit && isPredefinedOperator && !kind.IsShift()) {
-            var rightToLeftConversion = conversions.ClassifyConversionFromExpression(right, leftType);
+            var rightToLeftConversion = conversions.ClassifyConversionFromExpression(right, leftType, checkOverflow);
 
             if (!rightToLeftConversion.isImplicit || !rightToLeftConversion.exists) {
                 hasErrors = true;
@@ -5177,7 +5201,7 @@ internal partial class Binder {
                     left: left,
                     right: rightConverted,
                     new BinaryOperatorSignature(
-                        kind,
+                        kind.WithOverflowChecksIfApplicable(checkOverflow),
                         leftType: leftType,
                         rightType: method.parameters[0].type,
                         returnType: leftType,
@@ -7664,7 +7688,7 @@ symIsHidden:;
         BoundExpression argument,
         RefKind returnRefKind,
         TypeSymbol returnType) {
-        var conversion = conversions.ClassifyConversionFromExpression(argument, returnType);
+        var conversion = conversions.ClassifyConversionFromExpression(argument, returnType, checkOverflow);
 
         if (!argument.hasAnyErrors) {
             if (returnRefKind != RefKind.None) {
@@ -7700,8 +7724,8 @@ symIsHidden:;
             diagnostics = BelteDiagnosticQueue.Discarded;
 
         conversion = (flags & ConversionForAssignmentFlags.IncrementAssignment) == 0
-            ? conversions.ClassifyConversionFromExpression(expression, targetType)
-            : conversions.ClassifyConversionFromType(expression.Type(), targetType);
+            ? conversions.ClassifyConversionFromExpression(expression, targetType, checkOverflow)
+            : conversions.ClassifyConversionFromType(expression.Type(), targetType, checkOverflow);
 
         if ((flags & ConversionForAssignmentFlags.RefAssignment) != 0) {
             if (conversion.kind != ConversionKind.Identity)
@@ -7942,7 +7966,7 @@ symIsHidden:;
         BoundExpression source,
         TypeSymbol destination,
         BelteDiagnosticQueue diagnostics) {
-        var conversion = conversions.ClassifyConversionFromExpression(source, destination);
+        var conversion = conversions.ClassifyConversionFromExpression(source, destination, checkOverflow);
 
         return CreateConversion(
             source.syntax,
@@ -7975,6 +7999,7 @@ symIsHidden:;
                     node,
                     listExpression,
                     conversion,
+                    checkOverflow,
                     null,
                     destination,
                     hasErrors
@@ -7991,6 +8016,7 @@ symIsHidden:;
                     node,
                     ptrExpression,
                     conversion,
+                    checkOverflow,
                     null,
                     destination,
                     hasErrors
@@ -8007,6 +8033,7 @@ symIsHidden:;
                     node,
                     fieldExpression,
                     conversion,
+                    checkOverflow,
                     fieldExpression.constantValue,
                     destination,
                     hasErrors
@@ -8023,6 +8050,7 @@ symIsHidden:;
                     node,
                     literalCreation,
                     conversion,
+                    checkOverflow,
                     null,
                     destination,
                     hasErrors
@@ -8056,6 +8084,7 @@ symIsHidden:;
                 node,
                 objectCreation,
                 conversion,
+                checkOverflow,
                 null,
                 destination,
                 hasErrors
@@ -8074,6 +8103,7 @@ symIsHidden:;
                 node,
                 convertedConditional,
                 conversion,
+                checkOverflow,
                 convertedConditional.constantValue,
                 destination,
                 hasErrors
@@ -8126,7 +8156,7 @@ symIsHidden:;
 
         if (conversion.method is not null && conversion.kind != ConversionKind.MethodGroup) {
             var targetType = conversion.method.GetParameterTypes()[0].type;
-            var argumentConversion = conversions.ClassifyConversionFromExpression(source, targetType);
+            var argumentConversion = conversions.ClassifyConversionFromExpression(source, targetType, checkOverflow);
             source = CreateConversion(source, argumentConversion, targetType, diagnostics);
         }
 
@@ -8134,6 +8164,7 @@ symIsHidden:;
             node,
             BindToNaturalType(source, diagnostics),
             conversion,
+            checkOverflow,
             constantValue,
             destination,
             hasErrors
@@ -8176,6 +8207,7 @@ symIsHidden:;
             syntax,
             BindToNaturalType(arrayLength, diagnostics),
             conversion,
+            isChecked: false,
             null,
             destination
         );
@@ -8209,6 +8241,7 @@ symIsHidden:;
                 compilation.corLibrary.GetOrCreateNullableType(naturalLength.type)
             ),
             conversion,
+            isChecked: false,
             null,
             destination
         );
@@ -8279,6 +8312,7 @@ symIsHidden:;
                 sourceTuple.syntax,
                 result,
                 conversion,
+                checkOverflow,
                 constantValue: null,
                 type: destination
             );
@@ -8289,6 +8323,7 @@ symIsHidden:;
                 syntax,
                 result,
                 Conversion.Identity,
+                checkOverflow,
                 constantValue: null,
                 type: destination
             );
@@ -8570,7 +8605,8 @@ symIsHidden:;
             foreach (var op in operators) {
                 var conversion = conversions.ClassifyConversionFromExpression(
                     expression,
-                    op.parameterTypesWithAnnotations[0].type
+                    op.parameterTypesWithAnnotations[0].type,
+                    checkOverflow
                 );
 
                 if (conversion.isImplicit) {

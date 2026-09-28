@@ -41,8 +41,13 @@ internal partial class Binder {
             SyntaxKind.UnreachableStatement => BindUnreachableStatement((UnreachableStatementSyntax)node),
             SyntaxKind.ReverseStatement => BindReverseStatement((ReverseStatementSyntax)node, diagnostics),
             SyntaxKind.ReverseDeferStatement => BindReverseDeferStatement((ReverseDeferStatementSyntax)node, diagnostics),
+            SyntaxKind.CheckedStatement => BindCheckedStatement((CheckedStatementSyntax)node, diagnostics),
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
+    }
+
+    private BoundStatement BindCheckedStatement(CheckedStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        return BindBlockStatement(node.body, diagnostics);
     }
 
     private BoundStatement BindReverseStatement(ReverseStatementSyntax node, BelteDiagnosticQueue diagnostics) {
@@ -1561,6 +1566,7 @@ internal partial class Binder {
                             declaration,
                             initializer,
                             Conversion.ImplicitNullToPointer,
+                            checkOverflow,
                             null,
                             declarationType.type
                         );
@@ -1924,6 +1930,20 @@ internal partial class Binder {
     }
 
     private BoundBlockStatement BindBlockStatement(BlockStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        const DeclarationModifiers AllowedModifiers = DeclarationModifiers.LowLevel;
+
+        var modifiers = ModifierHelpers.CreateModifiers(node.modifiers, diagnostics, out _);
+
+        ModifierHelpers.CheckModifiers(
+            isForTypeDeclaration: false,
+            isForInterfaceMember: false,
+            modifiers,
+            AllowedModifiers,
+            node.openBrace.location,
+            diagnostics,
+            out _
+        );
+
         var binder = GetBinder(node);
         return binder.BindBlockParts(node, diagnostics);
     }

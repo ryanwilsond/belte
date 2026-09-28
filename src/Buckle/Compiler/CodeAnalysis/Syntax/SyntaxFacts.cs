@@ -266,6 +266,7 @@ public static class SyntaxFacts {
             "or" => SyntaxKind.OrKeyword,
             "unroll" => SyntaxKind.UnrollKeyword,
             "binds" => SyntaxKind.BindsKeyword,
+            "checked" => SyntaxKind.CheckedKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -480,6 +481,7 @@ public static class SyntaxFacts {
             SyntaxKind.OrKeyword => "or",
             SyntaxKind.UnrollKeyword => "unroll",
             SyntaxKind.BindsKeyword => "binds",
+            SyntaxKind.CheckedKeyword => "checked",
             _ => null,
         };
     }
@@ -885,7 +887,7 @@ public static class SyntaxFacts {
     }
 
     private const int FirstKeyword = (int)SyntaxKind.TypeOfKeyword;
-    private const int LastKeyword = (int)SyntaxKind.BindsKeyword;
+    private const int LastKeyword = (int)SyntaxKind.CheckedKeyword;
 
     /// <summary>
     /// Checks if a <see cref="SyntaxKind" /> is a keyword.
@@ -897,7 +899,7 @@ public static class SyntaxFacts {
     }
 
     private const int FirstExpression = (int)SyntaxKind.ParenthesizedExpression;
-    private const int LastExpression = (int)SyntaxKind.FieldExpression;
+    private const int LastExpression = (int)SyntaxKind.OrValueExpression;
 
     public static bool IsExpression(this SyntaxKind kind) {
         if ((int)kind >= FirstExpression && (int)kind <= LastExpression)

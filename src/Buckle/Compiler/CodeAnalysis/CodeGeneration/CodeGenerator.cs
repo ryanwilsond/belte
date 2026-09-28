@@ -1576,7 +1576,7 @@ oneMoreTime:
         var typeTo = expression.type.specialType;
         var typeFrom = typeTo.IsUnsigned() ? SpecialType.UIntPtr : SpecialType.IntPtr;
 
-        EmitNumericConversion(typeFrom, typeTo);
+        EmitNumericConversion(typeFrom, typeTo, isChecked: false);
 
         EmitPopIfUnused(used);
     }
@@ -2521,7 +2521,7 @@ oneMoreTime:
             var toType = expression.type.specialType;
 
             if (toType != SpecialType.Bool)
-                EmitNumericConversion(SpecialType.Int, toType);
+                EmitNumericConversion(SpecialType.Int, toType, isChecked: false);
 
             return;
         }
@@ -2678,16 +2678,20 @@ oneMoreTime:
     private void EmitBinaryOperatorExpression(BoundBinaryOperator expression, bool used) {
         var operatorKind = expression.operatorKind;
 
-        if (!used && !operatorKind.IsConditional() && !OperatorHasSideEffects(operatorKind)) {
-            EmitExpression(expression.left, false);
-            EmitExpression(expression.right, false);
-            return;
-        }
-
-        if (IsConditional(operatorKind)) {
-            EmitBinaryCondOperator(expression, true);
-        } else {
+        if (operatorKind.EmitsAsCheckedInstruction()) {
             EmitBinaryOperator(expression);
+        } else {
+            if (!used && !operatorKind.IsConditional() && !OperatorHasSideEffects(operatorKind)) {
+                EmitExpression(expression.left, false);
+                EmitExpression(expression.right, false);
+                return;
+            }
+
+            if (IsConditional(operatorKind)) {
+                EmitBinaryCondOperator(expression, true);
+            } else {
+                EmitBinaryOperator(expression);
+            }
         }
 
         EmitPopIfUnused(used);
@@ -2704,7 +2708,7 @@ oneMoreTime:
         var binary = (BoundBinaryOperator)child;
         var operatorKind = binary.operatorKind;
 
-        if (IsConditional(operatorKind)) {
+        if (!operatorKind.EmitsAsCheckedInstruction() && IsConditional(operatorKind)) {
             EmitBinaryOperatorSimple(expression);
             return;
         }
@@ -2722,7 +2726,7 @@ oneMoreTime:
             binary = (BoundBinaryOperator)child;
             operatorKind = binary.operatorKind;
 
-            if (IsConditional(operatorKind))
+            if (!operatorKind.EmitsAsCheckedInstruction() && IsConditional(operatorKind))
                 break;
         }
 
@@ -2732,8 +2736,14 @@ oneMoreTime:
             binary = stack.Pop();
 
             EmitExpression(binary.right, true);
-            EmitBinaryOperatorInstruction(binary);
-            EmitConversionToEnumUnderlyingType(binary);
+            var isChecked = binary.operatorKind.EmitsAsCheckedInstruction();
+
+            if (isChecked)
+                EmitBinaryCheckedOperatorInstruction(binary);
+            else
+                EmitBinaryOperatorInstruction(binary);
+
+            EmitConversionToEnumUnderlyingType(binary, isChecked);
         } while (stack.Count > 0);
 
         stack.Free();
@@ -2742,11 +2752,18 @@ oneMoreTime:
     private void EmitBinaryOperatorSimple(BoundBinaryOperator expression) {
         EmitExpression(expression.left, true);
         EmitExpression(expression.right, true);
-        EmitBinaryOperatorInstruction(expression);
-        EmitConversionToEnumUnderlyingType(expression);
+
+        var isChecked = expression.operatorKind.EmitsAsCheckedInstruction();
+
+        if (isChecked)
+            EmitBinaryCheckedOperatorInstruction(expression);
+        else
+            EmitBinaryOperatorInstruction(expression);
+
+        EmitConversionToEnumUnderlyingType(expression, isChecked);
     }
 
-    private void EmitConversionToEnumUnderlyingType(BoundBinaryOperator expression) {
+    private void EmitConversionToEnumUnderlyingType(BoundBinaryOperator expression, bool isChecked) {
         TypeSymbol enumType;
 
         switch (expression.operatorKind.Operator() | expression.operatorKind.OperandTypes()) {
@@ -2776,16 +2793,16 @@ oneMoreTime:
 
         switch (type) {
             case SpecialType.UInt8:
-                EmitNumericConversion(SpecialType.Int32, SpecialType.UInt8);
+                EmitNumericConversion(SpecialType.Int32, SpecialType.UInt8, isChecked);
                 break;
             case SpecialType.Int8:
-                EmitNumericConversion(SpecialType.Int32, SpecialType.Int8);
+                EmitNumericConversion(SpecialType.Int32, SpecialType.Int8, isChecked);
                 break;
             case SpecialType.Int16:
-                EmitNumericConversion(SpecialType.Int32, SpecialType.Int16);
+                EmitNumericConversion(SpecialType.Int32, SpecialType.Int16, isChecked);
                 break;
             case SpecialType.UInt16:
-                EmitNumericConversion(SpecialType.Int32, SpecialType.UInt16);
+                EmitNumericConversion(SpecialType.Int32, SpecialType.UInt16, isChecked);
                 break;
         }
     }
@@ -2846,6 +2863,37 @@ oneMoreTime:
         }
     }
 
+    private void EmitBinaryCheckedOperatorInstruction(BoundBinaryOperator expression) {
+        var unsigned = IsUnsignedBinaryOperator(expression);
+
+        switch (expression.operatorKind.Operator()) {
+            case BinaryOperatorKind.Multiplication:
+                if (unsigned)
+                    _builder.Emit(OpCode.Mul_Ovf_Un);
+                else
+                    _builder.Emit(OpCode.Mul_Ovf);
+
+                break;
+            case BinaryOperatorKind.Addition:
+                if (unsigned) {
+                    _builder.Emit(OpCode.Add_Ovf_Un);
+                } else {
+                    _builder.Emit(OpCode.Add_Ovf);
+                }
+                break;
+
+            case BinaryOperatorKind.Subtraction:
+                if (unsigned)
+                    _builder.Emit(OpCode.Sub_Ovf_Un);
+                else
+                    _builder.Emit(OpCode.Sub_Ovf);
+
+                break;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(expression.operatorKind.Operator());
+        }
+    }
+
     private static bool IsUnsigned(SpecialType type) {
         switch (type) {
             case SpecialType.UInt8:
@@ -2878,6 +2926,11 @@ oneMoreTime:
     private void EmitUnaryOperatorExpression(BoundUnaryOperator expression, bool used) {
         var operatorKind = expression.operatorKind;
 
+        if (operatorKind.IsChecked()) {
+            EmitUnaryCheckedOperatorExpression(expression, used);
+            return;
+        }
+
         if (!used) {
             EmitExpression(expression.operand, used: false);
             return;
@@ -2903,6 +2956,21 @@ oneMoreTime:
             default:
                 throw ExceptionUtilities.UnexpectedValue(operatorKind.Operator());
         }
+    }
+
+    private void EmitUnaryCheckedOperatorExpression(BoundUnaryOperator expression, bool used) {
+        Debug.Assert(expression.operatorKind.Operator() == UnaryOperatorKind.UnaryMinus);
+        var type = expression.operatorKind.OperandTypes();
+
+        _builder.Emit(OpCode.Ldc_I4_0);
+
+        if (type == UnaryOperatorKind.Int64)
+            _builder.Emit(OpCode.Conv_I8);
+
+        EmitExpression(expression.operand, used: true);
+        _builder.Emit(OpCode.Sub_Ovf);
+
+        EmitPopIfUnused(used);
     }
 
     private void EmitCondExpr(BoundExpression condition, bool sense) {
@@ -3106,7 +3174,7 @@ oneMoreTime:
             case BinaryOperatorKind.Modulo:
                 return true;
             default:
-                return false;
+                return kind.IsChecked();
         }
     }
 
@@ -3414,7 +3482,7 @@ oneMoreTime:
 
         var toPredefTypeKind = toType.specialType;
 
-        EmitNumericConversion(fromPredefTypeKind, toPredefTypeKind);
+        EmitNumericConversion(fromPredefTypeKind, toPredefTypeKind, conversion.isChecked);
     }
 
     private VariableDefinition EmitAssignmentDuplication(
@@ -3967,7 +4035,7 @@ oneMoreTime:
                 var toType = cast.type;
                 var toPredefTypeKind = toType.specialType;
 
-                EmitNumericConversion(fromPredefTypeKind, toPredefTypeKind);
+                EmitNumericConversion(fromPredefTypeKind, toPredefTypeKind, cast.isChecked);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(cast.conversion.kind);
@@ -3982,7 +4050,7 @@ oneMoreTime:
         var toPredefTypeKind = toType.specialType;
 
         if (fromPredefTypeKind.IsNumeric() && toPredefTypeKind.IsNumeric())
-            EmitNumericConversion(fromPredefTypeKind, toPredefTypeKind);
+            EmitNumericConversion(fromPredefTypeKind, toPredefTypeKind, cast.isChecked);
         else
             _builder.EmitConvertCall(fromPredefTypeKind, toPredefTypeKind);
     }
@@ -3994,10 +4062,11 @@ oneMoreTime:
             _builder.EmitLoadArgument(localOrParameter.parameterIndex);
     }
 
-    internal void EmitNumericConversion(SpecialType from, SpecialType to) {
-        // TODO Handle as if checked?
+    internal void EmitNumericConversion(SpecialType from, SpecialType to, bool isChecked) {
         from = NormalizeNumericType(from);
         to = NormalizeNumericType(to);
+
+        var fromUnsigned = from.IsUnsigned();
 
         switch (to) {
             case SpecialType.Int8:
@@ -4005,7 +4074,11 @@ oneMoreTime:
                     case SpecialType.Int8:
                         break;
                     default:
-                        _builder.Emit(OpCode.Conv_I1);
+                        if (isChecked)
+                            _builder.Emit(fromUnsigned ? OpCode.Conv_Ovf_I1_Un : OpCode.Conv_Ovf_I1);
+                        else
+                            _builder.Emit(OpCode.Conv_I1);
+
                         break;
                 }
 
@@ -4015,7 +4088,11 @@ oneMoreTime:
                     case SpecialType.UInt8:
                         break;
                     default:
-                        _builder.Emit(OpCode.Conv_U1);
+                        if (isChecked)
+                            _builder.Emit(fromUnsigned ? OpCode.Conv_Ovf_U1_Un : OpCode.Conv_Ovf_U1);
+                        else
+                            _builder.Emit(OpCode.Conv_U1);
+
                         break;
                 }
 
@@ -4027,7 +4104,11 @@ oneMoreTime:
                     case SpecialType.Int16:
                         break;
                     default:
-                        _builder.Emit(OpCode.Conv_I2);
+                        if (isChecked)
+                            _builder.Emit(fromUnsigned ? OpCode.Conv_Ovf_I2_Un : OpCode.Conv_Ovf_I2);
+                        else
+                            _builder.Emit(OpCode.Conv_I2);
+
                         break;
                 }
 
@@ -4040,7 +4121,11 @@ oneMoreTime:
                     case SpecialType.Char:
                         break;
                     default:
-                        _builder.Emit(OpCode.Conv_U2);
+                        if (isChecked)
+                            _builder.Emit(fromUnsigned ? OpCode.Conv_Ovf_U2_Un : OpCode.Conv_Ovf_U2);
+                        else
+                            _builder.Emit(OpCode.Conv_U2);
+
                         break;
                 }
 
@@ -4054,9 +4139,16 @@ oneMoreTime:
                     case SpecialType.Int32:
                     case SpecialType.Char:
                     case SpecialType.UInt32:
+                        if (isChecked)
+                            _builder.Emit(OpCode.Conv_Ovf_I4_Un);
+
                         break;
                     default:
-                        _builder.Emit(OpCode.Conv_I4);
+                        if (isChecked)
+                            _builder.Emit(fromUnsigned ? OpCode.Conv_Ovf_I4_Un : OpCode.Conv_Ovf_I4);
+                        else
+                            _builder.Emit(OpCode.Conv_I4);
+
                         break;
                 }
 
@@ -4067,12 +4159,20 @@ oneMoreTime:
                     case SpecialType.UInt16:
                     case SpecialType.UInt32:
                     case SpecialType.Char:
+                        break;
                     case SpecialType.Int8:
                     case SpecialType.Int16:
                     case SpecialType.Int32:
+                        if (isChecked)
+                            _builder.Emit(OpCode.Conv_Ovf_U4);
+
                         break;
                     default:
-                        _builder.Emit(OpCode.Conv_U4);
+                        if (isChecked)
+                            _builder.Emit(fromUnsigned ? OpCode.Conv_Ovf_U4_Un : OpCode.Conv_Ovf_U4);
+                        else
+                            _builder.Emit(OpCode.Conv_U4);
+
                         break;
                 }
 
@@ -4080,9 +4180,13 @@ oneMoreTime:
             case SpecialType.IntPtr:
                 switch (from) {
                     case SpecialType.IntPtr:
-                    case SpecialType.UIntPtr:
+                    case SpecialType.UIntPtr when !isChecked:
+                        break;
                     case SpecialType.Pointer:
                     case SpecialType.FunctionPointer:
+                        if (isChecked)
+                            goto default;
+
                         break;
                     case SpecialType.Int8:
                     case SpecialType.Int16:
@@ -4095,10 +4199,18 @@ oneMoreTime:
                         _builder.Emit(OpCode.Conv_U);
                         break;
                     case SpecialType.UInt32:
-                        _builder.Emit(OpCode.Conv_U);
+                        if (isChecked)
+                            _builder.Emit(OpCode.Conv_Ovf_I_Un);
+                        else
+                            _builder.Emit(OpCode.Conv_U);
+
                         break;
                     default:
-                        _builder.Emit(OpCode.Conv_I);
+                        if (isChecked)
+                            _builder.Emit(fromUnsigned ? OpCode.Conv_Ovf_I_Un : OpCode.Conv_Ovf_I);
+                        else
+                            _builder.Emit(OpCode.Conv_I);
+
                         break;
                 }
 
@@ -4106,7 +4218,7 @@ oneMoreTime:
             case SpecialType.UIntPtr:
                 switch (from) {
                     case SpecialType.UIntPtr:
-                    case SpecialType.IntPtr:
+                    case SpecialType.IntPtr when !isChecked:
                     case SpecialType.Pointer:
                     case SpecialType.FunctionPointer:
                         break;
@@ -4119,10 +4231,18 @@ oneMoreTime:
                     case SpecialType.Int8:
                     case SpecialType.Int16:
                     case SpecialType.Int32:
-                        _builder.Emit(OpCode.Conv_I);
+                        if (isChecked)
+                            _builder.Emit(OpCode.Conv_Ovf_U);
+                        else
+                            _builder.Emit(OpCode.Conv_I);
+
                         break;
                     default:
-                        _builder.Emit(OpCode.Conv_U);
+                        if (isChecked)
+                            _builder.Emit(fromUnsigned ? OpCode.Conv_Ovf_U_Un : OpCode.Conv_Ovf_U);
+                        else
+                            _builder.Emit(OpCode.Conv_U);
+
                         break;
                 }
 
@@ -4130,7 +4250,6 @@ oneMoreTime:
             case SpecialType.Int64:
                 switch (from) {
                     case SpecialType.Int64:
-                    case SpecialType.UInt64:
                         break;
                     case SpecialType.Int8:
                     case SpecialType.Int16:
@@ -4147,10 +4266,23 @@ oneMoreTime:
                     case SpecialType.Pointer:
                     case SpecialType.FunctionPointer:
                     case SpecialType.UIntPtr:
-                        _builder.Emit(OpCode.Conv_U8);
+                        if (isChecked)
+                            _builder.Emit(OpCode.Conv_Ovf_I8_Un);
+                        else
+                            _builder.Emit(OpCode.Conv_U8);
+
+                        break;
+                    case SpecialType.UInt64:
+                        if (isChecked)
+                            _builder.Emit(OpCode.Conv_Ovf_I8_Un);
+
                         break;
                     default:
-                        _builder.Emit(OpCode.Conv_I8);
+                        if (isChecked)
+                            _builder.Emit(OpCode.Conv_Ovf_I8);
+                        else
+                            _builder.Emit(OpCode.Conv_I8);
+
                         break;
                 }
 
@@ -4158,7 +4290,6 @@ oneMoreTime:
             case SpecialType.UInt64:
                 switch (from) {
                     case SpecialType.UInt64:
-                    case SpecialType.Int64:
                         break;
                     case SpecialType.UInt8:
                     case SpecialType.UInt16:
@@ -4173,10 +4304,23 @@ oneMoreTime:
                     case SpecialType.Int16:
                     case SpecialType.Int32:
                     case SpecialType.IntPtr:
-                        _builder.Emit(OpCode.Conv_I8);
+                        if (isChecked)
+                            _builder.Emit(OpCode.Conv_Ovf_U8);
+                        else
+                            _builder.Emit(OpCode.Conv_I8);
+
+                        break;
+                    case SpecialType.Int64:
+                        if (isChecked)
+                            _builder.Emit(OpCode.Conv_Ovf_U8);
+
                         break;
                     default:
-                        _builder.Emit(OpCode.Conv_U8);
+                        if (isChecked)
+                            _builder.Emit(OpCode.Conv_Ovf_U8);
+                        else
+                            _builder.Emit(OpCode.Conv_U8);
+
                         break;
                 }
 
@@ -4205,24 +4349,50 @@ oneMoreTime:
                 break;
             case SpecialType.Pointer:
             case SpecialType.FunctionPointer:
-                switch (from) {
-                    case SpecialType.UInt8:
-                    case SpecialType.UInt16:
-                    case SpecialType.UInt32:
-                    case SpecialType.UInt64:
-                    case SpecialType.Int64:
-                        _builder.Emit(OpCode.Conv_U);
-                        break;
-                    case SpecialType.Int8:
-                    case SpecialType.Int16:
-                    case SpecialType.Int32:
-                        _builder.Emit(OpCode.Conv_I);
-                        break;
-                    case SpecialType.IntPtr:
-                    case SpecialType.UIntPtr:
-                        break;
-                    default:
-                        throw ExceptionUtilities.UnexpectedValue(from);
+                if (isChecked) {
+                    switch (from) {
+                        case SpecialType.UInt8:
+                        case SpecialType.UInt16:
+                        case SpecialType.UInt32:
+                            _builder.Emit(OpCode.Conv_U);
+                            break;
+                        case SpecialType.UInt64:
+                            _builder.Emit(OpCode.Conv_Ovf_U_Un);
+                            break;
+                        case SpecialType.Int8:
+                        case SpecialType.Int16:
+                        case SpecialType.Int32:
+                        case SpecialType.Int64:
+                            _builder.Emit(OpCode.Conv_Ovf_U);
+                            break;
+                        case SpecialType.IntPtr:
+                            _builder.Emit(OpCode.Conv_Ovf_U);
+                            break;
+                        case SpecialType.UIntPtr:
+                            break;
+                        default:
+                            throw ExceptionUtilities.UnexpectedValue(from);
+                    }
+                } else {
+                    switch (from) {
+                        case SpecialType.UInt8:
+                        case SpecialType.UInt16:
+                        case SpecialType.UInt32:
+                        case SpecialType.UInt64:
+                        case SpecialType.Int64:
+                            _builder.Emit(OpCode.Conv_U);
+                            break;
+                        case SpecialType.Int8:
+                        case SpecialType.Int16:
+                        case SpecialType.Int32:
+                            _builder.Emit(OpCode.Conv_I);
+                            break;
+                        case SpecialType.IntPtr:
+                        case SpecialType.UIntPtr:
+                            break;
+                        default:
+                            throw ExceptionUtilities.UnexpectedValue(from);
+                    }
                 }
 
                 break;

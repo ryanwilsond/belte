@@ -44,6 +44,7 @@ internal sealed class EarlyWellKnownAttributeBinder : Binder {
             case SyntaxKind.MemberAccessExpression:
             case SyntaxKind.ParenthesizedExpression:
             case SyntaxKind.CastExpression:
+            case SyntaxKind.CheckedExpression:
             case SyntaxKind.DefaultExpression:
             case SyntaxKind.UnaryExpression:
             case SyntaxKind.BinaryExpression:

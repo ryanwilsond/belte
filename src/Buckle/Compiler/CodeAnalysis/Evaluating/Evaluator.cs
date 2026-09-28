@@ -1204,6 +1204,26 @@ internal sealed partial class Evaluator {
         var fromType = NormalizeNumericType(fromTypeSymbol.specialType);
         var toType = NormalizeNumericType(toTypeSymbol.specialType);
 
+        var isChecked = node.isChecked;
+
+        if (isChecked) {
+            try {
+                value = EvaluateNumericConversion(value, fromType, toType, true);
+            } catch (OverflowException) {
+                throw new BelteOverflowException(node.syntax.location);
+            }
+        } else {
+            value = EvaluateNumericConversion(value, fromType, toType, false);
+        }
+
+        return value;
+    }
+
+    private EvaluatorValue EvaluateNumericConversion(
+        EvaluatorValue value,
+        SpecialType fromType,
+        SpecialType toType,
+        bool isChecked) {
         switch (toType) {
             case SpecialType.Bool:
                 value.kind = ValueKind.Bool;
@@ -1241,21 +1261,21 @@ internal sealed partial class Evaluator {
             case SpecialType.Char:
                 value.kind = ValueKind.Char;
                 value.@char = fromType switch {
-                    SpecialType.Int8 => unchecked((char)value.int8),
-                    SpecialType.Int16 => unchecked((char)value.int16),
-                    SpecialType.Int32 => unchecked((char)value.int32),
+                    SpecialType.Int8 => isChecked ? checked((char)value.int8) : unchecked((char)value.int8),
+                    SpecialType.Int16 => isChecked ? checked((char)value.int16) : unchecked((char)value.int16),
+                    SpecialType.Int32 => isChecked ? checked((char)value.int32) : unchecked((char)value.int32),
                     SpecialType.IntPtr or
-                    SpecialType.Int64 => unchecked((char)value.int64),
+                    SpecialType.Int64 => isChecked ? checked((char)value.int64) : unchecked((char)value.int64),
                     SpecialType.UInt8 => (char)value.uint8,
                     SpecialType.UInt16 => (char)value.uint16,
                     SpecialType.Char => value.@char,
-                    SpecialType.UInt32 => unchecked((char)value.uint32),
+                    SpecialType.UInt32 => isChecked ? checked((char)value.uint32) : unchecked((char)value.uint32),
                     SpecialType.UIntPtr or
-                    SpecialType.UInt64 => unchecked((char)value.uint64),
-                    SpecialType.Float32 => unchecked((char)value.single),
-                    SpecialType.Float64 => unchecked((char)value.@double),
-                    SpecialType.Pointer => unchecked((char)value.ptr),
-                    SpecialType.FunctionPointer => unchecked((char)value.ptr),
+                    SpecialType.UInt64 => isChecked ? checked((char)value.uint64) : unchecked((char)value.uint64),
+                    SpecialType.Float32 => isChecked ? checked((char)value.single) : unchecked((char)value.single),
+                    SpecialType.Float64 => isChecked ? checked((char)value.@double) : unchecked((char)value.@double),
+                    SpecialType.Pointer => isChecked ? checked((char)value.ptr) : unchecked((char)value.ptr),
+                    SpecialType.FunctionPointer => isChecked ? checked((char)value.ptr) : unchecked((char)value.ptr),
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
                 };
 
@@ -1264,21 +1284,21 @@ internal sealed partial class Evaluator {
                 value.kind = ValueKind.Int8;
                 value.int8 = fromType switch {
                     SpecialType.String => Convert.ToSByte(value.@string),
-                    SpecialType.Char => unchecked((sbyte)value.@char),
+                    SpecialType.Char => isChecked ? checked((sbyte)value.@char) : unchecked((sbyte)value.@char),
                     SpecialType.Int8 => value.int8,
-                    SpecialType.Int16 => unchecked((sbyte)value.int16),
-                    SpecialType.Int32 => unchecked((sbyte)value.int32),
+                    SpecialType.Int16 => isChecked ? checked((sbyte)value.int16) : unchecked((sbyte)value.int16),
+                    SpecialType.Int32 => isChecked ? checked((sbyte)value.int32) : unchecked((sbyte)value.int32),
                     SpecialType.IntPtr or
-                    SpecialType.Int64 => unchecked((sbyte)value.int64),
-                    SpecialType.UInt8 => unchecked((sbyte)value.uint8),
-                    SpecialType.UInt16 => unchecked((sbyte)value.uint16),
-                    SpecialType.UInt32 => unchecked((sbyte)value.uint32),
+                    SpecialType.Int64 => isChecked ? checked((sbyte)value.int64) : unchecked((sbyte)value.int64),
+                    SpecialType.UInt8 => isChecked ? checked((sbyte)value.uint8) : unchecked((sbyte)value.uint8),
+                    SpecialType.UInt16 => isChecked ? checked((sbyte)value.uint16) : unchecked((sbyte)value.uint16),
+                    SpecialType.UInt32 => isChecked ? checked((sbyte)value.uint32) : unchecked((sbyte)value.uint32),
                     SpecialType.UIntPtr or
-                    SpecialType.UInt64 => unchecked((sbyte)value.uint64),
-                    SpecialType.Float32 => unchecked((sbyte)value.@single),
-                    SpecialType.Float64 => unchecked((sbyte)value.@double),
-                    SpecialType.Pointer => unchecked((sbyte)value.ptr),
-                    SpecialType.FunctionPointer => unchecked((sbyte)value.ptr),
+                    SpecialType.UInt64 => isChecked ? checked((sbyte)value.uint64) : unchecked((sbyte)value.uint64),
+                    SpecialType.Float32 => isChecked ? checked((sbyte)value.@single) : unchecked((sbyte)value.@single),
+                    SpecialType.Float64 => isChecked ? checked((sbyte)value.@double) : unchecked((sbyte)value.@double),
+                    SpecialType.Pointer => isChecked ? checked((sbyte)value.ptr) : unchecked((sbyte)value.ptr),
+                    SpecialType.FunctionPointer => isChecked ? checked((sbyte)value.ptr) : unchecked((sbyte)value.ptr),
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
                 };
 
@@ -1287,21 +1307,21 @@ internal sealed partial class Evaluator {
                 value.kind = ValueKind.Int16;
                 value.int16 = fromType switch {
                     SpecialType.String => Convert.ToInt16(value.@string),
-                    SpecialType.Char => unchecked((short)value.@char),
-                    SpecialType.Int8 => unchecked((short)value.int8),
+                    SpecialType.Char => isChecked ? checked((short)value.@char) : unchecked((short)value.@char),
+                    SpecialType.Int8 => isChecked ? checked((short)value.int8) : unchecked((short)value.int8),
                     SpecialType.Int16 => value.int16,
-                    SpecialType.Int32 => unchecked((short)value.int32),
+                    SpecialType.Int32 => isChecked ? checked((short)value.int32) : unchecked((short)value.int32),
                     SpecialType.IntPtr or
-                    SpecialType.Int64 => unchecked((short)value.int64),
+                    SpecialType.Int64 => isChecked ? checked((short)value.int64) : unchecked((short)value.int64),
                     SpecialType.UInt8 => (short)value.uint8,
-                    SpecialType.UInt16 => unchecked((short)value.uint16),
-                    SpecialType.UInt32 => unchecked((short)value.uint32),
+                    SpecialType.UInt16 => isChecked ? checked((short)value.uint16) : unchecked((short)value.uint16),
+                    SpecialType.UInt32 => isChecked ? checked((short)value.uint32) : unchecked((short)value.uint32),
                     SpecialType.UIntPtr or
-                    SpecialType.UInt64 => unchecked((short)value.uint64),
-                    SpecialType.Float32 => unchecked((short)value.single),
-                    SpecialType.Float64 => unchecked((short)value.@double),
-                    SpecialType.Pointer => unchecked((short)value.ptr),
-                    SpecialType.FunctionPointer => unchecked((short)value.ptr),
+                    SpecialType.UInt64 => isChecked ? checked((short)value.uint64) : unchecked((short)value.uint64),
+                    SpecialType.Float32 => isChecked ? checked((short)value.single) : unchecked((short)value.single),
+                    SpecialType.Float64 => isChecked ? checked((short)value.@double) : unchecked((short)value.@double),
+                    SpecialType.Pointer => isChecked ? checked((short)value.ptr) : unchecked((short)value.ptr),
+                    SpecialType.FunctionPointer => isChecked ? checked((short)value.ptr) : unchecked((short)value.ptr),
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
                 };
 
@@ -1311,19 +1331,19 @@ internal sealed partial class Evaluator {
                 value.kind = ValueKind.Int32;
                 value.int32 = fromType switch {
                     SpecialType.String => Convert.ToInt32(value.@string),
-                    SpecialType.Char => unchecked((int)value.@char),
+                    SpecialType.Char => isChecked ? checked((int)value.@char) : unchecked((int)value.@char),
                     SpecialType.Int8 => (int)value.int8,
                     SpecialType.Int16 => (int)value.int16,
                     SpecialType.Int32 => value.int32,
                     SpecialType.IntPtr or
-                    SpecialType.Int64 => unchecked((int)value.int32),
+                    SpecialType.Int64 => isChecked ? checked((int)value.int32) : unchecked((int)value.int32),
                     SpecialType.UInt8 => (int)value.uint8,
                     SpecialType.UInt16 => (int)value.uint16,
-                    SpecialType.UInt32 => unchecked((int)value.uint32),
+                    SpecialType.UInt32 => isChecked ? checked((int)value.uint32) : unchecked((int)value.uint32),
                     SpecialType.UIntPtr or
-                    SpecialType.UInt64 => unchecked((int)value.uint64),
-                    SpecialType.Float32 => unchecked((int)value.@single),
-                    SpecialType.Float64 => unchecked((int)value.@double),
+                    SpecialType.UInt64 => isChecked ? checked((int)value.uint64) : unchecked((int)value.uint64),
+                    SpecialType.Float32 => isChecked ? checked((int)value.@single) : unchecked((int)value.@single),
+                    SpecialType.Float64 => isChecked ? checked((int)value.@double) : unchecked((int)value.@double),
                     SpecialType.Pointer => value.ptr,
                     SpecialType.FunctionPointer => value.ptr,
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
@@ -1344,9 +1364,9 @@ internal sealed partial class Evaluator {
                     SpecialType.UInt32 => (long)value.uint32,
                     SpecialType.Int64 => value.int64,
                     SpecialType.UIntPtr or
-                    SpecialType.UInt64 => unchecked((long)value.uint64),
-                    SpecialType.Float32 => unchecked((long)value.@single),
-                    SpecialType.Float64 => unchecked((long)value.@double),
+                    SpecialType.UInt64 => isChecked ? checked((long)value.uint64) : unchecked((long)value.uint64),
+                    SpecialType.Float32 => isChecked ? checked((long)value.@single) : unchecked((long)value.@single),
+                    SpecialType.Float64 => isChecked ? checked((long)value.@double) : unchecked((long)value.@double),
                     SpecialType.Pointer => (long)value.ptr,
                     SpecialType.FunctionPointer => (long)value.ptr,
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
@@ -1357,21 +1377,21 @@ internal sealed partial class Evaluator {
                 value.kind = ValueKind.UInt8;
                 value.uint8 = fromType switch {
                     SpecialType.String => Convert.ToByte(value.@string),
-                    SpecialType.Char => unchecked((byte)value.@char),
-                    SpecialType.Int8 => unchecked((byte)value.int8),
+                    SpecialType.Char => isChecked ? checked((byte)value.@char) : unchecked((byte)value.@char),
+                    SpecialType.Int8 => isChecked ? checked((byte)value.int8) : unchecked((byte)value.int8),
                     SpecialType.UInt8 => value.uint8,
-                    SpecialType.Int16 => unchecked((byte)value.int16),
-                    SpecialType.Int32 => unchecked((byte)value.int32),
+                    SpecialType.Int16 => isChecked ? checked((byte)value.int16) : unchecked((byte)value.int16),
+                    SpecialType.Int32 => isChecked ? checked((byte)value.int32) : unchecked((byte)value.int32),
                     SpecialType.IntPtr or
-                    SpecialType.Int64 => unchecked((byte)value.int64),
-                    SpecialType.UInt16 => unchecked((byte)value.uint16),
-                    SpecialType.UInt32 => unchecked((byte)value.uint32),
+                    SpecialType.Int64 => isChecked ? checked((byte)value.int64) : unchecked((byte)value.int64),
+                    SpecialType.UInt16 => isChecked ? checked((byte)value.uint16) : unchecked((byte)value.uint16),
+                    SpecialType.UInt32 => isChecked ? checked((byte)value.uint32) : unchecked((byte)value.uint32),
                     SpecialType.UIntPtr or
-                    SpecialType.UInt64 => unchecked((byte)value.uint64),
-                    SpecialType.Float32 => unchecked((byte)value.@single),
-                    SpecialType.Float64 => unchecked((byte)value.@double),
-                    SpecialType.Pointer => unchecked((byte)value.ptr),
-                    SpecialType.FunctionPointer => unchecked((byte)value.ptr),
+                    SpecialType.UInt64 => isChecked ? checked((byte)value.uint64) : unchecked((byte)value.uint64),
+                    SpecialType.Float32 => isChecked ? checked((byte)value.@single) : unchecked((byte)value.@single),
+                    SpecialType.Float64 => isChecked ? checked((byte)value.@double) : unchecked((byte)value.@double),
+                    SpecialType.Pointer => isChecked ? checked((byte)value.ptr) : unchecked((byte)value.ptr),
+                    SpecialType.FunctionPointer => isChecked ? checked((byte)value.ptr) : unchecked((byte)value.ptr),
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
                 };
 
@@ -1381,20 +1401,20 @@ internal sealed partial class Evaluator {
                 value.uint16 = fromType switch {
                     SpecialType.String => Convert.ToUInt16(value.@string),
                     SpecialType.Char => (ushort)value.@char,
-                    SpecialType.Int8 => unchecked((ushort)value.int8),
-                    SpecialType.Int16 => unchecked((ushort)value.int16),
+                    SpecialType.Int8 => isChecked ? checked((ushort)value.int8) : unchecked((ushort)value.int8),
+                    SpecialType.Int16 => isChecked ? checked((ushort)value.int16) : unchecked((ushort)value.int16),
                     SpecialType.UInt16 => value.uint16,
-                    SpecialType.Int32 => unchecked((ushort)value.int32),
+                    SpecialType.Int32 => isChecked ? checked((ushort)value.int32) : unchecked((ushort)value.int32),
                     SpecialType.IntPtr or
-                    SpecialType.Int64 => unchecked((ushort)value.int64),
+                    SpecialType.Int64 => isChecked ? checked((ushort)value.int64) : unchecked((ushort)value.int64),
                     SpecialType.UInt8 => (ushort)value.uint8,
-                    SpecialType.UInt32 => unchecked((ushort)value.uint32),
+                    SpecialType.UInt32 => isChecked ? checked((ushort)value.uint32) : unchecked((ushort)value.uint32),
                     SpecialType.UIntPtr or
-                    SpecialType.UInt64 => unchecked((ushort)value.uint64),
-                    SpecialType.Float32 => unchecked((ushort)value.single),
-                    SpecialType.Float64 => unchecked((ushort)value.@double),
-                    SpecialType.Pointer => unchecked((ushort)value.ptr),
-                    SpecialType.FunctionPointer => unchecked((ushort)value.ptr),
+                    SpecialType.UInt64 => isChecked ? checked((ushort)value.uint64) : unchecked((ushort)value.uint64),
+                    SpecialType.Float32 => isChecked ? checked((ushort)value.single) : unchecked((ushort)value.single),
+                    SpecialType.Float64 => isChecked ? checked((ushort)value.@double) : unchecked((ushort)value.@double),
+                    SpecialType.Pointer => isChecked ? checked((ushort)value.ptr) : unchecked((ushort)value.ptr),
+                    SpecialType.FunctionPointer => isChecked ? checked((ushort)value.ptr) : unchecked((ushort)value.ptr),
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
                 };
 
@@ -1404,19 +1424,19 @@ internal sealed partial class Evaluator {
                 value.uint32 = fromType switch {
                     SpecialType.String => Convert.ToUInt32(value.@string),
                     SpecialType.Char => (uint)value.@char,
-                    SpecialType.Int8 => unchecked((uint)value.int8),
-                    SpecialType.Int16 => unchecked((uint)value.int16),
-                    SpecialType.Int32 => unchecked((uint)value.int32),
+                    SpecialType.Int8 => isChecked ? checked((uint)value.int8) : unchecked((uint)value.int8),
+                    SpecialType.Int16 => isChecked ? checked((uint)value.int16) : unchecked((uint)value.int16),
+                    SpecialType.Int32 => isChecked ? checked((uint)value.int32) : unchecked((uint)value.int32),
                     SpecialType.UInt32 => value.uint32,
-                    SpecialType.Int64 => unchecked((uint)value.int64),
+                    SpecialType.Int64 => isChecked ? checked((uint)value.int64) : unchecked((uint)value.int64),
                     SpecialType.UInt8 => (uint)value.uint8,
                     SpecialType.UInt16 => (uint)value.uint16,
                     SpecialType.UIntPtr or
-                    SpecialType.UInt64 => unchecked((uint)value.uint64),
-                    SpecialType.Float32 => unchecked((uint)value.@single),
-                    SpecialType.Float64 => unchecked((uint)value.@double),
-                    SpecialType.Pointer => unchecked((uint)value.ptr),
-                    SpecialType.FunctionPointer => unchecked((uint)value.ptr),
+                    SpecialType.UInt64 => isChecked ? checked((uint)value.uint64) : unchecked((uint)value.uint64),
+                    SpecialType.Float32 => isChecked ? checked((uint)value.@single) : unchecked((uint)value.@single),
+                    SpecialType.Float64 => isChecked ? checked((uint)value.@double) : unchecked((uint)value.@double),
+                    SpecialType.Pointer => isChecked ? checked((uint)value.ptr) : unchecked((uint)value.ptr),
+                    SpecialType.FunctionPointer => isChecked ? checked((uint)value.ptr) : unchecked((uint)value.ptr),
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
                 };
 
@@ -1427,19 +1447,19 @@ internal sealed partial class Evaluator {
                 value.uint64 = fromType switch {
                     SpecialType.String => Convert.ToUInt64(value.@string),
                     SpecialType.Char => (ulong)value.@char,
-                    SpecialType.Int8 => unchecked((ulong)value.int8),
-                    SpecialType.Int16 => unchecked((ulong)value.int16),
-                    SpecialType.Int32 => unchecked((ulong)value.int32),
+                    SpecialType.Int8 => isChecked ? checked((ulong)value.int8) : unchecked((ulong)value.int8),
+                    SpecialType.Int16 => isChecked ? checked((ulong)value.int16) : unchecked((ulong)value.int16),
+                    SpecialType.Int32 => isChecked ? checked((ulong)value.int32) : unchecked((ulong)value.int32),
                     SpecialType.IntPtr or
-                    SpecialType.Int64 => unchecked((ulong)value.int64),
+                    SpecialType.Int64 => isChecked ? checked((ulong)value.int64) : unchecked((ulong)value.int64),
                     SpecialType.UInt64 => value.uint64,
                     SpecialType.UInt8 => (ulong)value.uint8,
                     SpecialType.UInt16 => (ulong)value.uint16,
                     SpecialType.UInt32 => (ulong)value.uint32,
-                    SpecialType.Float32 => unchecked((ulong)value.@single),
-                    SpecialType.Float64 => unchecked((ulong)value.@double),
-                    SpecialType.Pointer => unchecked((ulong)value.ptr),
-                    SpecialType.FunctionPointer => unchecked((ulong)value.ptr),
+                    SpecialType.Float32 => isChecked ? checked((ulong)value.@single) : unchecked((ulong)value.@single),
+                    SpecialType.Float64 => isChecked ? checked((ulong)value.@double) : unchecked((ulong)value.@double),
+                    SpecialType.Pointer => isChecked ? checked((ulong)value.ptr) : unchecked((ulong)value.ptr),
+                    SpecialType.FunctionPointer => isChecked ? checked((ulong)value.ptr) : unchecked((ulong)value.ptr),
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
                 };
 
@@ -1451,18 +1471,18 @@ internal sealed partial class Evaluator {
                     SpecialType.Char => (float)value.@char,
                     SpecialType.Int8 => (float)value.int8,
                     SpecialType.Int16 => (float)value.int16,
-                    SpecialType.Int32 => unchecked((float)value.int32),
+                    SpecialType.Int32 => isChecked ? checked((float)value.int32) : unchecked((float)value.int32),
                     SpecialType.IntPtr or
-                    SpecialType.Int64 => unchecked((float)value.int64),
+                    SpecialType.Int64 => isChecked ? checked((float)value.int64) : unchecked((float)value.int64),
                     SpecialType.UInt8 => (float)value.uint8,
                     SpecialType.UInt16 => (float)value.uint16,
-                    SpecialType.UInt32 => unchecked((float)value.uint32),
+                    SpecialType.UInt32 => isChecked ? checked((float)value.uint32) : unchecked((float)value.uint32),
                     SpecialType.UIntPtr or
-                    SpecialType.UInt64 => unchecked((float)value.uint64),
+                    SpecialType.UInt64 => isChecked ? checked((float)value.uint64) : unchecked((float)value.uint64),
                     SpecialType.Float32 => value.single,
-                    SpecialType.Float64 => unchecked((float)value.@double),
-                    SpecialType.Pointer => unchecked((float)value.ptr),
-                    SpecialType.FunctionPointer => unchecked((float)value.ptr),
+                    SpecialType.Float64 => isChecked ? checked((float)value.@double) : unchecked((float)value.@double),
+                    SpecialType.Pointer => isChecked ? checked((float)value.ptr) : unchecked((float)value.ptr),
+                    SpecialType.FunctionPointer => isChecked ? checked((float)value.ptr) : unchecked((float)value.ptr),
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
                 };
 
@@ -1476,12 +1496,12 @@ internal sealed partial class Evaluator {
                     SpecialType.Int16 => (double)value.int16,
                     SpecialType.Int32 => (double)value.int32,
                     SpecialType.IntPtr or
-                    SpecialType.Int64 => unchecked((double)value.int64),
+                    SpecialType.Int64 => isChecked ? checked((double)value.int64) : unchecked((double)value.int64),
                     SpecialType.UInt8 => (double)value.uint8,
                     SpecialType.UInt16 => (double)value.uint16,
                     SpecialType.UInt32 => (double)value.uint32,
                     SpecialType.UIntPtr or
-                    SpecialType.UInt64 => unchecked((double)value.uint64),
+                    SpecialType.UInt64 => isChecked ? checked((double)value.uint64) : unchecked((double)value.uint64),
                     SpecialType.Float32 => (double)value.single,
                     SpecialType.Float64 => value.@double,
                     SpecialType.Pointer => (double)value.ptr,
@@ -1500,13 +1520,13 @@ internal sealed partial class Evaluator {
                     SpecialType.Int16 => (int)value.int16,
                     SpecialType.Int32 => value.int32,
                     SpecialType.IntPtr or
-                    SpecialType.Int64 => unchecked((int)value.int64),
+                    SpecialType.Int64 => isChecked ? checked((int)value.int64) : unchecked((int)value.int64),
                     SpecialType.UInt8 => (int)value.uint8,
                     SpecialType.UInt16 => (int)value.uint16,
-                    SpecialType.UInt32 => unchecked((int)value.uint32),
+                    SpecialType.UInt32 => isChecked ? checked((int)value.uint32) : unchecked((int)value.uint32),
                     SpecialType.UIntPtr or
-                    SpecialType.UInt64 => unchecked((int)value.uint64),
-                    SpecialType.Float32 => unchecked((int)value.single),
+                    SpecialType.UInt64 => isChecked ? checked((int)value.uint64) : unchecked((int)value.uint64),
+                    SpecialType.Float32 => isChecked ? checked((int)value.single) : unchecked((int)value.single),
                     SpecialType.Pointer => value.ptr,
                     SpecialType.FunctionPointer => value.ptr,
                     _ => throw ExceptionUtilities.UnexpectedValue(fromType),
@@ -2173,16 +2193,36 @@ internal sealed partial class Evaluator {
             );
         }
 
+        var isChecked = operatorKind.IsChecked();
+
         switch (op) {
             case BinaryOperatorKind.Addition:
                 switch (operandType) {
                     case BinaryOperatorKind.Int32:
                     case BinaryOperatorKind.Int64:
-                        left.int64 += right.int64;
+                        if (isChecked) {
+                            try {
+                                checked { left.int64 += right.int64; }
+                            } catch (OverflowException) {
+                                throw new BelteOverflowException(node.syntax.location);
+                            }
+                        } else {
+                            left.int64 += right.int64;
+                        }
+
                         break;
                     case BinaryOperatorKind.UInt32:
                     case BinaryOperatorKind.UInt64:
-                        left.uint64 += right.uint64;
+                        if (isChecked) {
+                            try {
+                                checked { left.uint64 += right.uint64; }
+                            } catch (OverflowException) {
+                                throw new BelteOverflowException(node.syntax.location);
+                            }
+                        } else {
+                            left.uint64 += right.uint64;
+                        }
+
                         break;
                     case BinaryOperatorKind.String:
                         left.@string += right.@string;
@@ -2202,11 +2242,29 @@ internal sealed partial class Evaluator {
                 switch (operandType) {
                     case BinaryOperatorKind.Int32:
                     case BinaryOperatorKind.Int64:
-                        left.int64 -= right.int64;
+                        if (isChecked) {
+                            try {
+                                checked { left.int64 -= right.int64; }
+                            } catch (OverflowException) {
+                                throw new BelteOverflowException(node.syntax.location);
+                            }
+                        } else {
+                            left.int64 -= right.int64;
+                        }
+
                         break;
                     case BinaryOperatorKind.UInt32:
                     case BinaryOperatorKind.UInt64:
-                        left.uint64 -= right.uint64;
+                        if (isChecked) {
+                            try {
+                                checked { left.uint64 -= right.uint64; }
+                            } catch (OverflowException) {
+                                throw new BelteOverflowException(node.syntax.location);
+                            }
+                        } else {
+                            left.uint64 -= right.uint64;
+                        }
+
                         break;
                     case BinaryOperatorKind.Float32:
                         left.single -= right.single;
@@ -2223,11 +2281,29 @@ internal sealed partial class Evaluator {
                 switch (operandType) {
                     case BinaryOperatorKind.Int32:
                     case BinaryOperatorKind.Int64:
-                        left.int64 *= right.int64;
+                        if (isChecked) {
+                            try {
+                                checked { left.int64 *= right.int64; }
+                            } catch (OverflowException) {
+                                throw new BelteOverflowException(node.syntax.location);
+                            }
+                        } else {
+                            left.int64 *= right.int64;
+                        }
+
                         break;
                     case BinaryOperatorKind.UInt32:
                     case BinaryOperatorKind.UInt64:
-                        left.uint64 *= right.uint64;
+                        if (isChecked) {
+                            try {
+                                checked { left.uint64 *= right.uint64; }
+                            } catch (OverflowException) {
+                                throw new BelteOverflowException(node.syntax.location);
+                            }
+                        } else {
+                            left.uint64 *= right.uint64;
+                        }
+
                         break;
                     case BinaryOperatorKind.Float32:
                         left.single *= right.single;

@@ -1314,6 +1314,13 @@
     </Field>
     <Field Name="body" Type="StatementSyntax"/>
   </Node>
+  <Node Name="CheckedStatementSyntax" Base="StatementSyntax">
+    <Kind Name="CheckedStatement"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="CheckedKeyword"/>
+    </Field>
+    <Field Name="body" Type="BlockStatementSyntax"/>
+  </Node>
   <AbstractNode Name="BaseIfStatementSyntax" Base="StatementSyntax">
     <Field Name="keyword" Type="SyntaxToken">
       <Kind Name="IfKeyword"/>
@@ -1868,6 +1875,19 @@
       <Kind Name="OpenParenToken"/>
     </Field>
     <Field Name="type" Type="TypeSyntax"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+  </Node>
+  <Node Name="CheckedExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="CheckedExpression"/>
+    <Field Name="keyword" Type="SyntaxToken">
+      <Kind Name="CheckedKeyword"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="expression" Type="ExpressionSyntax"/>
     <Field Name="closeParenthesis" Type="SyntaxToken">
       <Kind Name="CloseParenToken"/>
     </Field>

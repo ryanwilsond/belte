@@ -153,7 +153,7 @@ internal static class BoundFactory {
         BoundExpression expression,
         Conversion conversion,
         ConstantValue constant) {
-        return new BoundCastExpression(syntax, expression, conversion, constant, type);
+        return new BoundCastExpression(syntax, expression, conversion, isChecked: false, constant, type);
     }
 
     internal static BoundDataContainerExpression Local(SyntaxNode syntax, DataContainerSymbol symbol) {
@@ -168,7 +168,9 @@ internal static class BoundFactory {
         SyntaxNode syntax,
         TypeSymbol type,
         BoundExpression expression) {
-        var conversion = TypeConversions.GetInstance().ClassifyConversionFromExpression(expression, type);
+        var conversion = TypeConversions.GetInstance()
+            .ClassifyConversionFromExpression(expression, type, isChecked: false);
+
         Debug.Assert(conversion.exists);
         return Cast(syntax, type, expression, conversion, null);
     }

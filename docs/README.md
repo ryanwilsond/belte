@@ -116,6 +116,7 @@
         - [3.2.4.3](Current/Data.md#3243-x--y) `x /\ y`
         - [3.2.4.4](Current/Data.md#3244-x--y) `x \/ y`
         - [3.2.4.5](Current/Data.md#3245-x--y-z) `x >< [y, z]`
+      - [3.2.5](Current/Data.md#325-checked-regions) Checked Regions
     - [3.3](Current/Data.md#33-data-containers) Data Containers
       - [3.3.1](Current/Data.md#331-modifiers) Modifiers
       - [3.3.1](Current/Data.md#332-implicit-typing) Implicit Typing

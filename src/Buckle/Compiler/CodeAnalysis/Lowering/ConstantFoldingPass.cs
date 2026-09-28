@@ -182,7 +182,7 @@ internal sealed class ConstantFoldingPass : BoundTreeRewriterWithStackGuard {
             }
         }
 
-        return node.Update(operand, node.conversion, node.constantValue, node.type);
+        return node.Update(operand, node.conversion, node.isChecked, node.constantValue, node.type);
     }
 
     internal override BoundNode VisitArrayAccessExpression(BoundArrayAccessExpression node) {

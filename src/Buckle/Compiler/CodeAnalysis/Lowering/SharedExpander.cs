@@ -723,12 +723,22 @@ internal class SharedExpander : BoundTreeExpander {
                     // TODO This error checking should be moved to the Binder or DiagnosticPass otherwise
 
                     if (!replacementContent.Type().IsNullableType()) {
-                        var conversion = conversions.ClassifyConversionFromExpression(replacementContent, stringType);
+                        var conversion = conversions.ClassifyConversionFromExpression(
+                            replacementContent,
+                            stringType,
+                            isChecked: false
+                        );
+
                         Debug.Assert(conversion.exists);
 
                         right = Cast(syntax, stringType, replacementContent, conversion, null);
                     } else {
-                        var conversion = conversions.ClassifyConversionFromExpression(replacementContent, stringType);
+                        var conversion = conversions.ClassifyConversionFromExpression(
+                            replacementContent,
+                            stringType,
+                            isChecked: false
+                        );
+
                         Debug.Assert(conversion.exists);
 
                         right = new BoundConditionalOperator(syntax,
@@ -1071,6 +1081,7 @@ internal class SharedExpander : BoundTreeExpander {
                 var initializer = cast.Update(
                     new BoundFieldAccessExpression(syntax, newCall, tupleField, null, tupleField.type),
                     cast.conversion,
+                    cast.isChecked,
                     cast.constantValue,
                     cast.type
                 );

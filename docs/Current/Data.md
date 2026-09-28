@@ -27,6 +27,7 @@
     - [3.2.4.3](#3243-x--y) `x /\ y`
     - [3.2.4.4](#3244-x--y) `x \/ y`
     - [3.2.4.5](#3245-x--y-z) `x >< [y, z]`
+  - [3.2.5](#325-checked-regions) Checked Regions
 - [3.3](#33-data-containers) Data Containers
   - [3.3.1](#331-modifiers) Modifiers
   - [3.3.2](#332-implicit-typing) Implicit Typing
@@ -220,7 +221,8 @@ int64 a = 10;
 int32 b = (int32)a;
 ```
 
-**Numeric explicit casts do not throw if the value is out of range and instead slice.**
+**Numeric explicit casts do not throw if the value is out of range and instead slice** unless inside of a
+[checked region](#325-checked-regions).
 
 Nullability also affects casting in the same way. Casting from a non-nullable value to a nullable one is implicit, while
 the reverse is explicit. For example converting from `int32!` to `int32?`:
@@ -570,6 +572,23 @@ The min operator has the same precedence as the relational operators (e.g. `x < 
 `x >< [y, z]` is equivalent to `Math.Clamp(x, y, z)`.
 
 The clamp operator has the same operator precedence as the ternary conditional operator.
+
+### 3.2.5 Checked Regions
+
+Inside of a checked region, integral addition, subtraction, and multiplication will be overflow checked. Checked regions
+can take the form of a statement or expression.
+
+```belte
+checked {
+  int a = Int64.MaxValue;
+  int b = a + 1; // OverflowException
+}
+```
+
+```belte
+int a = Int64.MaxValue;
+int b = checked(a + 1); // OverflowException
+```
 
 ## 3.3 Data Containers
 

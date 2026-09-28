@@ -586,6 +586,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
                     return new BoundCastExpression(syntax,
                         Literal(_compilation, syntax, (uint)folded, uint32),
                         Conversion.ExplicitIntegerToPointer,
+                        isChecked: false,
                         null,
                         uintptr
                     );
@@ -596,6 +597,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         var convertedCount = new BoundCastExpression(syntax,
             countExpression,
             Conversion.ExplicitNumeric,
+            isChecked: false,
             null,
             uint32
         );
@@ -603,6 +605,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         convertedCount = new BoundCastExpression(syntax,
             convertedCount,
             Conversion.ExplicitIntegerToPointer,
+            isChecked: false,
             null,
             uintptr
         );

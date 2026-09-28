@@ -1380,6 +1380,7 @@ internal abstract partial class BoundTreeExpander {
             replacement = expression.Update(
                 newOperand,
                 expression.conversion,
+                expression.isChecked,
                 expression.constantValue,
                 expression.type
             );

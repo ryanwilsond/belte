@@ -195,6 +195,7 @@ public enum SyntaxKind : ushort {
     OrKeyword,
     UnrollKeyword,
     BindsKeyword,
+    CheckedKeyword, // SyntaxFacts.LastKeyword
 
     // Trivia
     EndOfLineTrivia,
@@ -246,6 +247,7 @@ public enum SyntaxKind : ushort {
     NameOfExpression,
     BindsExpression,
     SizeOfExpression,
+    CheckedExpression,
     CallExpression,
     ReversibleExpression,
     ReferenceExpression,
@@ -262,7 +264,7 @@ public enum SyntaxKind : ushort {
     TupleExpression,
     FieldExpression,
     OrJumpExpression,
-    OrValueExpression,
+    OrValueExpression, // SyntaxFacts.LastExpression
     InterpolatedStringText,
     Interpolation,
     InterpolatedStringStartToken,
@@ -274,6 +276,7 @@ public enum SyntaxKind : ushort {
     InlineILStatement,
     ExpressionStatement,
     ScopedStatement,
+    CheckedStatement,
     WithStatement,
     CommitStatement,
     ReverseStatement,
@@ -295,7 +298,7 @@ public enum SyntaxKind : ushort {
     GotoStatement,
     DeferStatement,
     UnreachableStatement,
-    NullBindingStatement,
+    NullBindingStatement, // SyntaxFacts.LastStatement
 
     // Statement Parts
     ILInstruction,

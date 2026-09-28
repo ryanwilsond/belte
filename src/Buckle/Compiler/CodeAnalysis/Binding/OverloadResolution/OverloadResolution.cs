@@ -51,6 +51,7 @@ internal sealed partial class OverloadResolution {
 
     internal void BinaryOperatorOverloadResolution(
         BinaryOperatorKind kind,
+        bool isChecked,
         BoundExpression left,
         BoundExpression right,
         BinaryOperatorOverloadResolutionResult result) {
@@ -85,6 +86,7 @@ internal sealed partial class OverloadResolution {
             if (leftOperatorSource is not null && !leftSourceIsInterface) {
                 hadApplicableCandidates = GetUserDefinedOperators(
                     kind,
+                    isChecked,
                     leftOperatorSource,
                     left,
                     right,
@@ -103,7 +105,7 @@ internal sealed partial class OverloadResolution {
                 !rightOperatorSource.Equals(leftOperatorSource)) {
                 var rightOperators = ArrayBuilder<BinaryOperatorAnalysisResult>.GetInstance();
 
-                if (GetUserDefinedOperators(kind, rightOperatorSource, left, right, rightOperators)) {
+                if (GetUserDefinedOperators(kind, isChecked, rightOperatorSource, left, right, rightOperators)) {
                     hadApplicableCandidates = true;
                     AddDistinctOperators(result.results, rightOperators);
                 }
@@ -136,6 +138,7 @@ internal sealed partial class OverloadResolution {
 
                 hadApplicableCandidates = GetUserDefinedBinaryOperatorsFromInterfaces(
                     kind,
+                    isChecked,
                     firstOperatorSourceOpt,
                     firstSourceIsInterface,
                     left,
@@ -150,8 +153,10 @@ internal sealed partial class OverloadResolution {
                 if (!isShift && secondOperatorSourceOpt is not null &&
                     !secondOperatorSourceOpt.Equals(firstOperatorSourceOpt)) {
                     var rightOperators = ArrayBuilder<BinaryOperatorAnalysisResult>.GetInstance();
+
                     if (GetUserDefinedBinaryOperatorsFromInterfaces(
                             kind,
+                            isChecked,
                             secondOperatorSourceOpt,
                             secondSourceIsInterface,
                             left,
@@ -175,7 +180,7 @@ internal sealed partial class OverloadResolution {
                 compilation.builtInOperators.GetAllBuiltInBinaryOperators(kind, operators);
                 GetEnumOperations(kind, left, right, operators);
                 GetPointerOperations(kind, left, right, operators);
-                CandidateOperators(operators, left, right, result.results);
+                CandidateOperators(isChecked, operators, left, right, result.results);
                 operators.Free();
             }
 
@@ -185,6 +190,7 @@ internal sealed partial class OverloadResolution {
 
     private bool GetUserDefinedBinaryOperatorsFromInterfaces(
         BinaryOperatorKind kind,
+        bool isChecked,
         TypeSymbol operatorSourceOpt,
         bool sourceIsInterface,
         BoundExpression left,
@@ -201,8 +207,15 @@ internal sealed partial class OverloadResolution {
         if (sourceIsInterface) {
             if (!lookedInInterfaces.TryGetValue(operatorSourceOpt, out _)) {
                 var operators = ArrayBuilder<BinaryOperatorSignature>.GetInstance();
-                GetUserDefinedBinaryOperatorsFromType(constrainedToTypeOpt, (NamedTypeSymbol)operatorSourceOpt, kind, operators);
-                hadUserDefinedCandidateFromInterfaces = CandidateOperators(operators, left, right, candidates);
+
+                GetUserDefinedBinaryOperatorsFromType(
+                    constrainedToTypeOpt,
+                    (NamedTypeSymbol)operatorSourceOpt,
+                    kind,
+                    operators
+                );
+
+                hadUserDefinedCandidateFromInterfaces = CandidateOperators(isChecked, operators, left, right, candidates);
                 operators.Free();
                 Debug.Assert(hadUserDefinedCandidateFromInterfaces == candidates.Any(r => r.isValid));
 
@@ -240,7 +253,7 @@ internal sealed partial class OverloadResolution {
                 operators.Clear();
                 results.Clear();
                 GetUserDefinedBinaryOperatorsFromType(constrainedToTypeOpt, @interface, kind, operators);
-                hadUserDefinedCandidate = CandidateOperators(operators, left, right, results);
+                hadUserDefinedCandidate = CandidateOperators(isChecked, operators, left, right, results);
                 Debug.Assert(hadUserDefinedCandidate == results.Any(r => r.isValid));
                 lookedInInterfaces.Add(@interface, hadUserDefinedCandidate);
 
@@ -261,6 +274,7 @@ internal sealed partial class OverloadResolution {
 
     internal void UnaryOperatorOverloadResolution(
         UnaryOperatorKind kind,
+        bool isChecked,
         BoundExpression operand,
         UnaryOperatorOverloadResolutionResult result) {
         UnaryOperatorEasyOut(kind, operand, result);
@@ -277,6 +291,7 @@ internal sealed partial class OverloadResolution {
             var hadApplicableCandidates = GetUserDefinedOperators(
                 operand.type.StrippedType(),
                 kind,
+                isChecked,
                 operand,
                 result.results
             );
@@ -286,7 +301,7 @@ internal sealed partial class OverloadResolution {
                 var operators = ArrayBuilder<UnaryOperatorSignature>.GetInstance();
                 compilation.builtInOperators.GetAllBuiltInUnaryOperators(kind, operators);
                 GetEnumOperations(kind, operand, operators);
-                CandidateOperators(operators, operand, result.results);
+                CandidateOperators(isChecked, operators, operand, result.results);
                 operators.Free();
             }
 
@@ -708,6 +723,7 @@ internal sealed partial class OverloadResolution {
     private bool GetUserDefinedOperators(
         TypeSymbol declaringTypeOrTemplateParameter,
         UnaryOperatorKind kind,
+        bool isChecked,
         BoundExpression operand,
         ArrayBuilder<UnaryOperatorAnalysisResult> results) {
         if (operand.Type() is null)
@@ -735,7 +751,7 @@ internal sealed partial class OverloadResolution {
 
             results.Clear();
 
-            if (CandidateOperators(operators, operand, results)) {
+            if (CandidateOperators(isChecked, operators, operand, results)) {
                 hadApplicableCandidates = true;
                 break;
             }
@@ -765,7 +781,7 @@ internal sealed partial class OverloadResolution {
                     resultsFromInterface.Clear();
                     GetUserDefinedUnaryOperatorsFromType(constrainedToTypeOpt, @interface, kind, operators);
 
-                    if (CandidateOperators(operators, operand, resultsFromInterface)) {
+                    if (CandidateOperators(isChecked, operators, operand, resultsFromInterface)) {
                         hadApplicableCandidates = true;
                         results.AddRange(resultsFromInterface);
                         shadowedInterfaces.AddAll(@interface.allInterfaces);
@@ -979,6 +995,7 @@ internal sealed partial class OverloadResolution {
 
     private bool GetUserDefinedOperators(
         BinaryOperatorKind kind,
+        bool isChecked,
         TypeSymbol type0,
         BoundExpression left,
         BoundExpression right,
@@ -1000,7 +1017,7 @@ internal sealed partial class OverloadResolution {
             GetUserDefinedBinaryOperatorsFromType(null, current, kind, operators);
             results.Clear();
 
-            if (CandidateOperators(operators, left, right, results)) {
+            if (CandidateOperators(isChecked, operators, left, right, results)) {
                 hadApplicableCandidates = true;
                 break;
             }
@@ -1206,6 +1223,7 @@ internal sealed partial class OverloadResolution {
     }
 
     private bool CandidateOperators(
+        bool isChecked,
         ArrayBuilder<BinaryOperatorSignature> operators,
         BoundExpression left,
         BoundExpression right,
@@ -1228,8 +1246,8 @@ internal sealed partial class OverloadResolution {
                 }
             }
 
-            var convLeft = conversions.ClassifyConversionFromExpression(left, opSig.leftType);
-            var convRight = conversions.ClassifyConversionFromExpression(right, opSig.rightType);
+            var convLeft = conversions.ClassifyConversionFromExpression(left, opSig.leftType, isChecked);
+            var convRight = conversions.ClassifyConversionFromExpression(right, opSig.rightType, isChecked);
 
             if (IsImplicitConversion(convLeft) && IsImplicitConversion(convRight)) {
                 results.Add(BinaryOperatorAnalysisResult.Applicable(opSig, convLeft, convRight));
@@ -1266,6 +1284,7 @@ internal sealed partial class OverloadResolution {
     }
 
     private bool CandidateOperators(
+        bool isChecked,
         ArrayBuilder<UnaryOperatorSignature> operators,
         BoundExpression operand,
         ArrayBuilder<UnaryOperatorAnalysisResult> results) {
@@ -1283,7 +1302,7 @@ internal sealed partial class OverloadResolution {
                     continue;
             }
 
-            var conversion = conversions.ClassifyConversionFromExpression(operand, opSig.operandType);
+            var conversion = conversions.ClassifyConversionFromExpression(operand, opSig.operandType, isChecked);
 
             if (conversion.isImplicit) {
                 results.Add(UnaryOperatorAnalysisResult.Applicable(opSig, conversion));
@@ -2963,7 +2982,7 @@ internal sealed partial class OverloadResolution {
         if (argRefKind == RefKind.None) {
             argument = Binder.ReduceNumericIfApplicable(parameterType, argument);
             var conversion = (candidate is MethodSymbol m && m.coerceArguments)
-                ? conversions.ClassifyConversionFromExpression(argument, parameterType)
+                ? conversions.ClassifyConversionFromExpression(argument, parameterType, isChecked: false)
                 : conversions.ClassifyImplicitConversionFromExpression(argument, parameterType);
             return conversion;
         }

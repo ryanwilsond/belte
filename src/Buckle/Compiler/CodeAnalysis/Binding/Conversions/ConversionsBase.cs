@@ -453,7 +453,10 @@ internal abstract partial class ConversionsBase {
         return source.Equals(target, TypeCompareKind.AllIgnoreOptions);
     }
 
-    internal Conversion ClassifyConversionFromExpression(BoundExpression sourceExpression, TypeSymbol target) {
+    internal Conversion ClassifyConversionFromExpression(
+        BoundExpression sourceExpression,
+        TypeSymbol target,
+        bool isChecked) {
         var result = ClassifyImplicitConversionFromExpression(sourceExpression, target);
 
         if (result.exists || sourceExpression.IsLiteralNull() ||
@@ -468,12 +471,13 @@ internal abstract partial class ConversionsBase {
             return result;
         }
 
-        return ClassifyExplicitOnlyConversionFromExpression(sourceExpression, target);
+        return ClassifyExplicitOnlyConversionFromExpression(sourceExpression, target, isChecked);
     }
 
     private Conversion ClassifyExplicitOnlyConversionFromExpression(
         BoundExpression sourceExpression,
-        TypeSymbol target) {
+        TypeSymbol target,
+        bool isChecked) {
         // TODO explicit tuple literal conversion
         // if (sourceExpression.kind == BoundKind.TupleLiteral) {
         //     Conversion tupleConversion = ClassifyExplicitTupleLiteralConversion(
@@ -494,14 +498,14 @@ internal abstract partial class ConversionsBase {
             if (fastConversion.exists) {
                 return fastConversion;
             } else {
-                var conversion = ClassifyExplicitBuiltInConversion(sourceType, target);
+                var conversion = ClassifyExplicitBuiltInConversion(sourceType, target, isChecked);
 
                 if (conversion.exists)
                     return conversion;
             }
         }
 
-        return GetExplicitUserDefinedConversion(sourceExpression, sourceType, target);
+        return GetExplicitUserDefinedConversion(sourceExpression, sourceType, target, isChecked);
     }
 
     private Conversion GetImplicitUserDefinedConversion(
@@ -524,16 +528,17 @@ internal abstract partial class ConversionsBase {
     private Conversion GetExplicitUserDefinedConversion(
         BoundExpression sourceExpression,
         TypeSymbol source,
-        TypeSymbol destination) {
-        var conversionResult = AnalyzeExplicitUserDefinedConversions(sourceExpression, source, destination);
+        TypeSymbol destination,
+        bool isChecked) {
+        var conversionResult = AnalyzeExplicitUserDefinedConversions(sourceExpression, source, destination, isChecked);
         return new Conversion(conversionResult, isImplicit: false);
     }
 
-    private Conversion GetExplicitUserDefinedConversion(TypeSymbol source, TypeSymbol destination) {
-        return GetExplicitUserDefinedConversion(sourceExpression: null, source, destination);
+    private Conversion GetExplicitUserDefinedConversion(TypeSymbol source, TypeSymbol destination, bool isChecked) {
+        return GetExplicitUserDefinedConversion(sourceExpression: null, source, destination, isChecked);
     }
 
-    internal Conversion ClassifyBuiltInConversion(TypeSymbol source, TypeSymbol target) {
+    internal Conversion ClassifyBuiltInConversion(TypeSymbol source, TypeSymbol target, bool isChecked) {
         var conversion = FastClassifyConversion(source, target);
 
         if (conversion.exists) {
@@ -545,10 +550,10 @@ internal abstract partial class ConversionsBase {
                 return conversion;
         }
 
-        return ClassifyExplicitBuiltInConversion(source, target);
+        return ClassifyExplicitBuiltInConversion(source, target, isChecked);
     }
 
-    internal Conversion ClassifyConversionFromType(TypeSymbol source, TypeSymbol target) {
+    internal Conversion ClassifyConversionFromType(TypeSymbol source, TypeSymbol target, bool isChecked) {
         var conversion = FastClassifyConversion(source, target);
 
         if (conversion.exists) {
@@ -565,12 +570,12 @@ internal abstract partial class ConversionsBase {
         if (conversion.exists)
             return conversion;
 
-        conversion = ClassifyExplicitBuiltInConversion(source, target);
+        conversion = ClassifyExplicitBuiltInConversion(source, target, isChecked);
 
         if (conversion.exists)
             return conversion;
 
-        return GetExplicitUserDefinedConversion(source, target);
+        return GetExplicitUserDefinedConversion(source, target, isChecked);
     }
 
     private Conversion ClassifyImplicitBuiltInConversionSlow(TypeSymbol source, TypeSymbol target) {
@@ -610,7 +615,7 @@ internal abstract partial class ConversionsBase {
         return Conversion.None;
     }
 
-    private Conversion ClassifyExplicitNullableConversion(TypeSymbol source, TypeSymbol target) {
+    private Conversion ClassifyExplicitNullableConversion(TypeSymbol source, TypeSymbol target, bool isChecked) {
         if (!source.IsNullableType() && !target.IsNullableType())
             return Conversion.None;
 
@@ -622,7 +627,7 @@ internal abstract partial class ConversionsBase {
 
         // TODO Some value type conversions here
 
-        var underlyingConversion = ClassifyConversionFromType(unwrappedSource, unwrappedDestination);
+        var underlyingConversion = ClassifyConversionFromType(unwrappedSource, unwrappedDestination, isChecked);
 
         if (underlyingConversion.exists)
             return new Conversion(ConversionKind.ExplicitNullable, [underlyingConversion]);
@@ -670,13 +675,13 @@ internal abstract partial class ConversionsBase {
         return false;
     }
 
-    private Conversion ClassifyExplicitBuiltInConversion(TypeSymbol source, TypeSymbol target) {
+    private Conversion ClassifyExplicitBuiltInConversion(TypeSymbol source, TypeSymbol target, bool isChecked) {
         var conversion = Conversion.Classify(source, target);
 
         if (conversion.exists)
             return conversion;
 
-        var nullableConversion = ClassifyExplicitNullableConversion(source, target);
+        var nullableConversion = ClassifyExplicitNullableConversion(source, target, isChecked);
 
         if (nullableConversion.exists)
             return nullableConversion;
@@ -870,12 +875,21 @@ internal abstract partial class ConversionsBase {
     }
 
     internal Conversion ClassifyImplicitConversionFromType(TypeSymbol source, TypeSymbol target) {
-        var conversion = ClassifyConversionFromType(source, target);
+        if (HasIdentityConversionInternal(source, target))
+            return Conversion.Identity;
 
-        if (conversion.isImplicit)
-            return conversion;
+        var fastConversion = FastClassifyConversion(source, target);
 
-        return Conversion.None;
+        if (fastConversion.exists) {
+            return fastConversion.isImplicit ? fastConversion : Conversion.None;
+        } else {
+            var conversion = ClassifyImplicitBuiltInConversionSlow(source, target);
+
+            if (conversion.exists)
+                return conversion;
+        }
+
+        return GetImplicitUserDefinedConversion(source, target);
     }
 
     private Conversion ClassifyImplicitBuiltInConversionFromExpression(
@@ -1050,14 +1064,15 @@ internal abstract partial class ConversionsBase {
     private UserDefinedConversionResult AnalyzeExplicitUserDefinedConversions(
         BoundExpression sourceExpression,
         TypeSymbol source,
-        TypeSymbol target) {
+        TypeSymbol target,
+        bool isChecked) {
         var d = ArrayBuilder<(NamedTypeSymbol participatingType, TemplateParameterSymbol constrainedToType)>
             .GetInstance();
 
         ComputeUserDefinedExplicitConversionTypeSet(source, target, d);
 
         var ubuild = ArrayBuilder<UserDefinedConversionAnalysis>.GetInstance();
-        ComputeApplicableUserDefinedExplicitConversionSet(sourceExpression, source, target, d, ubuild);
+        ComputeApplicableUserDefinedExplicitConversionSet(sourceExpression, source, target, isChecked, d, ubuild);
         d.Free();
         var u = ubuild.ToImmutableAndFree();
 
@@ -1094,6 +1109,7 @@ internal abstract partial class ConversionsBase {
         BoundExpression sourceExpression,
         TypeSymbol source,
         TypeSymbol target,
+        bool isChecked,
         ArrayBuilder<(NamedTypeSymbol participatingType, TemplateParameterSymbol constrainedToType)> d,
         ArrayBuilder<UserDefinedConversionAnalysis> u) {
         var haveInterfaces = false;
@@ -1102,7 +1118,7 @@ internal abstract partial class ConversionsBase {
             if (declaringType.isInterface) {
                 haveInterfaces = true;
             } else {
-                AddCandidatesFromType(null, declaringType, sourceExpression, source, target, u);
+                AddCandidatesFromType(null, declaringType, sourceExpression, source, target, isChecked, u);
             }
         }
 
@@ -1115,6 +1131,7 @@ internal abstract partial class ConversionsBase {
                         sourceExpression,
                         source,
                         target,
+                        isChecked,
                         u
                     );
                 }
@@ -1127,6 +1144,7 @@ internal abstract partial class ConversionsBase {
             BoundExpression sourceExpression,
             TypeSymbol source,
             TypeSymbol target,
+            bool isChecked,
             ArrayBuilder<UserDefinedConversionAnalysis> u) {
             AddUserDefinedConversionsToExplicitCandidateSet(
                 sourceExpression,
@@ -1135,7 +1153,8 @@ internal abstract partial class ConversionsBase {
                 u,
                 constrainedToTypeOpt,
                 declaringType,
-                isExplicit: true
+                isExplicit: true,
+                isChecked
             );
 
             AddUserDefinedConversionsToExplicitCandidateSet(
@@ -1145,7 +1164,8 @@ internal abstract partial class ConversionsBase {
                 u,
                 constrainedToTypeOpt,
                 declaringType,
-                isExplicit: false
+                isExplicit: false,
+                isChecked
             );
         }
     }
@@ -1157,7 +1177,8 @@ internal abstract partial class ConversionsBase {
         ArrayBuilder<UserDefinedConversionAnalysis> u,
         TemplateParameterSymbol constrainedToTypeOpt,
         NamedTypeSymbol declaringType,
-        bool isExplicit) {
+        bool isExplicit,
+        bool isChecked) {
         if (source is not null && source.IsInterfaceType() || target.IsInterfaceType())
             return;
 
@@ -1197,14 +1218,14 @@ internal abstract partial class ConversionsBase {
                 source is not null &&
                 source.IsNullableType() &&
                 EncompassingExplicitConversion(source.GetNullableUnderlyingType(), convertsFrom).exists) {
-                fromConversion = ClassifyBuiltInConversion(source, convertsFrom);
+                fromConversion = ClassifyBuiltInConversion(source, convertsFrom, isChecked);
             }
 
             if (!toConversion.exists &&
                 target is not null &&
                 target.IsNullableType() &&
                 EncompassingExplicitConversion(convertsTo, target.GetNullableUnderlyingType()).exists) {
-                toConversion = ClassifyBuiltInConversion(convertsTo, target);
+                toConversion = ClassifyBuiltInConversion(convertsTo, target, isChecked);
             }
 
             if (fromConversion.exists && toConversion.exists) {

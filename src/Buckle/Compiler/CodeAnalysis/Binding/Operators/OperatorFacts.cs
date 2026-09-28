@@ -51,12 +51,12 @@ internal static class OperatorFacts {
         if (leftIsNull || rightIsNull)
             return true;
 
-        var leftConversion = conversions.ClassifyConversionFromType(leftType, rightType);
+        var leftConversion = conversions.ClassifyConversionFromType(leftType, rightType, isChecked: false);
 
         if (leftConversion.isIdentity || leftConversion.isReference)
             return true;
 
-        var rightConversion = conversions.ClassifyConversionFromType(rightType, leftType);
+        var rightConversion = conversions.ClassifyConversionFromType(rightType, leftType, isChecked: false);
 
         if (rightConversion.isIdentity || rightConversion.isReference)
             return true;

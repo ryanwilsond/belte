@@ -42,7 +42,11 @@ internal sealed partial class FlowLowerer {
 
                         var outputTemp = new BoundDagTemp(t.syntax, type, t, 0);
                         var output = _tempAllocator.GetTemp(outputTemp);
-                        var conversion = new Conversions(null).ClassifyBuiltInConversion(inputType, output.type);
+                        var conversion = new Conversions(null).ClassifyBuiltInConversion(
+                            inputType,
+                            output.type,
+                            isChecked: false
+                        );
 
                         BoundExpression evaluated;
 
@@ -225,7 +229,8 @@ internal sealed partial class FlowLowerer {
 
             if (test is BoundDagNonNullTest nonNullTest &&
                 evaluation is BoundDagTypeEvaluation typeEvaluation2 &&
-                new Conversions(null).ClassifyBuiltInConversion(test.input.type, typeEvaluation2.type) is Conversion conv &&
+                new Conversions(null).ClassifyBuiltInConversion(test.input.type, typeEvaluation2.type, isChecked: false)
+                    is Conversion conv &&
                 (conv.isIdentity || conv.kind == ConversionKind.ImplicitReference || conv.isBoxing) &&
                 typeEvaluation2.input == nonNullTest.input) {
                 var input = _tempAllocator.GetTemp(test.input);
