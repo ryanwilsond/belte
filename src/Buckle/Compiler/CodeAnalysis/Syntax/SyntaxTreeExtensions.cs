@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Syntax.InternalSyntax;
 using Buckle.CodeAnalysis.Text;
 
@@ -45,5 +46,11 @@ public static class SyntaxTreeExtensions {
         }
 
         return tokens.ToList();
+    }
+
+    internal static bool IsAnyPreprocessorSymbolDefined(
+        this SyntaxTree tree,
+        ImmutableArray<string> conditionalSymbols) {
+        return tree is not null && tree.IsAnyPreprocessorSymbolDefined(conditionalSymbols);
     }
 }

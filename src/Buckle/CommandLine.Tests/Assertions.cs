@@ -35,6 +35,8 @@ internal static class Assertions {
 
         argsList = argsList.Prepend("--noout");
         argsList = argsList.Prepend("--severity=all");
+        argsList = argsList.Prepend("--nostdlib");
+        argsList = argsList.Prepend("--nobootstrap");
 
         foreach (var file in filesToCreate.ToList().Append(firstArgFilename)) {
             var fileStream = File.Create(Path.Combine(executingPath, file));
@@ -46,7 +48,7 @@ internal static class Assertions {
         BuckleCommandLine.ProcessArgs(argsList.ToArray());
 
         var expectedDiagnostics = AnnotatedText.UnindentLines(diagnosticText);
-        var diagnostics = stringWriter.ToString().Split(Environment.NewLine).ToList();
+        var diagnostics = stringWriter.ToString().Split("\n").Where(d => d.Contains(':')).ToList();
 
         diagnostics = diagnostics
             .Where(t => !string.IsNullOrEmpty(t))
@@ -64,12 +66,14 @@ internal static class Assertions {
         Assert.Equal(expectedDiagnostics.Length, diagnostics.Count);
 
         for (var i = 0; i < expectedDiagnostics.Length; i++) {
-            var diagnosticParts = diagnostics[i].Split(": ").Skip(2);
-            var diagnostic = (!diagnosticParts.Any()
-                ? diagnostics[i]
-                : diagnosticParts.Count() == 1
-                    ? diagnosticParts.Single()
-                    : string.Join(": ", diagnosticParts)).Trim();
+            var diagnosticParts = diagnostics[i].Split(": ");
+
+            string diagnostic;
+
+            if (diagnosticParts.Length < 4)
+                diagnostic = diagnosticParts.Last();
+            else
+                diagnostic = string.Join(": ", diagnosticParts.Skip(2));
 
             var expectedMessage = expectedDiagnostics[i];
             Assert.Equal(expectedMessage, diagnostic);

@@ -12,8 +12,11 @@ internal sealed partial class FlowLowerer {
         private readonly Dictionary<SyntaxNode, LabelSymbol> _sectionLabels
             = PooledDictionary<SyntaxNode, LabelSymbol>.GetInstance();
 
-        public static BoundStatement Rewrite(FlowLowerer flowLowerer, BoundSwitchStatement node) {
-            var rewriter = new SwitchStatementLocalRewriter(node, flowLowerer);
+        internal static BoundStatement Rewrite(
+            FlowLowerer flowLowerer,
+            BoundSwitchStatement node,
+            Compilation compilation) {
+            var rewriter = new SwitchStatementLocalRewriter(node, flowLowerer, compilation);
             var result = rewriter.LowerSwitchStatement(node);
             rewriter.Free();
             return result;
@@ -36,9 +39,16 @@ internal sealed partial class FlowLowerer {
             return result;
         }
 
-        private SwitchStatementLocalRewriter(BoundSwitchStatement node, FlowLowerer flowLowerer)
-            : base(node.syntax, flowLowerer, node.switchSections.SelectAsArray(section => section.syntax),
-                  generateInstrumentation: true) {
+        private SwitchStatementLocalRewriter(
+            BoundSwitchStatement node,
+            FlowLowerer flowLowerer,
+            Compilation compilation)
+            : base(
+                node.syntax,
+                flowLowerer,
+                compilation,
+                node.switchSections.SelectAsArray(section => section.syntax),
+                generateInstrumentation: true) {
         }
 
         private BoundStatement LowerSwitchStatement(BoundSwitchStatement node) {
@@ -81,9 +91,12 @@ internal sealed partial class FlowLowerer {
                 result.Insert(0, new BoundLocalDeclarationStatement(node.syntax,
                     new BoundDataContainerDeclaration(node.syntax,
                         temp,
-                        BoundFactory.Literal(node.syntax,
-                            temp.type.IsNullableType() ? null : LiteralUtilities.GetDefaultValue(temp.type.EnumUnderlyingTypeOrSelf().specialType),
-                            temp.type
+                        BoundFactory.Literal(
+                            _compilation,
+                            node.syntax,
+                            // TODO Because this is temporary it doesn't really matter we use CLR nullability rules instead of Belte nullability rules
+                            (temp.type.IsNullableType() || temp.type.isReferenceType) ? null : LiteralUtilities.GetDefaultValue(temp.type.EnumUnderlyingTypeOrSelf().specialType),
+                            temp.type.EnumUnderlyingTypeOrSelf()
                         )
                     ))
                 );

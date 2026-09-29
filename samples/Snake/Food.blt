@@ -1,3 +1,4 @@
+using Belte.Graphics;
 
 class Food {
     public Sprite sprite;

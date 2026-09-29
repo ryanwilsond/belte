@@ -162,6 +162,8 @@ internal readonly partial struct Blender {
                 case SyntaxKind.AsteriskAsteriskToken:
                 case SyntaxKind.GreaterThanLessThanToken:
                 case SyntaxKind.GreaterThanLessThanEqualsToken:
+                case SyntaxKind.PeriodPeriodLessThanToken:
+                case SyntaxKind.PeriodPeriodEqualsToken:
                     return true;
                 default:
                     return SyntaxFacts.IsContextualKeyword(kind);

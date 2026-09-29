@@ -32,7 +32,7 @@ internal partial class SourceDataContainerSymbol {
 
         internal override DataContainerDeclarationKind declarationKind { get; }
 
-        private protected override TypeWithAnnotations InferTypeOfImplicit() {
+        private protected override TypeWithAnnotations InferTypeOfImplicit(BelteDiagnosticQueue _) {
             switch (_deconstruction.kind) {
                 case SyntaxKind.AssignmentExpression:
                     throw ExceptionUtilities.Unreachable();

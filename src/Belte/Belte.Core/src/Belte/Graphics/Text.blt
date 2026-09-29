@@ -1,0 +1,14 @@
+
+namespace Belte.Graphics;
+
+public class Text {
+    private intptr ptr = nullptr;
+    public string text = "";
+    public string fontPath = "";
+    public Vec2 position = new (0, 0);
+    public decimal fontSize = 0;
+    public decimal angle = 0;
+    public int r = 0;
+    public int g = 0;
+    public int b = 0;
+}

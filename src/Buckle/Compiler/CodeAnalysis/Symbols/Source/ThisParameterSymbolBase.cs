@@ -1,3 +1,4 @@
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -15,6 +16,8 @@ internal abstract class ThisParameterSymbolBase : ParameterSymbol {
 
     internal override ConstantValue outDefaultValue => null;
 
+    internal override BoundExpression expressionDefaultValue => null;
+
     internal sealed override bool isMetadataOptional => false;
 
     internal sealed override bool isThis => true;
@@ -24,4 +27,6 @@ internal abstract class ThisParameterSymbolBase : ParameterSymbol {
     internal sealed override bool isMetadataOut => false;
 
     internal sealed override bool isConst => false;
+
+    internal sealed override bool isConstExpr => false;
 }

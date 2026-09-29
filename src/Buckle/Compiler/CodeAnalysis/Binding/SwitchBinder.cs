@@ -226,7 +226,11 @@ internal class SwitchBinder : LocalScopeBinder {
         var hasErrors = false;
 
         if (isGotoCaseExpr) {
-            var conversion = conversions.ClassifyConversionFromExpression(caseExpression, switchGoverningType);
+            var conversion = conversions.ClassifyConversionFromExpression(
+                caseExpression,
+                switchGoverningType,
+                checkOverflow
+            );
 
             if (!conversion.isImplicit) {
                 GenerateImplicitConversionError(diagnostics, node, conversion, caseExpression, switchGoverningType);

@@ -5,6 +5,10 @@ namespace Buckle.Diagnostics;
 
 public partial class BelteDiagnosticQueue {
     private sealed class DiscardedDiagnosticQueue : BelteDiagnosticQueue {
+#if DEBUG
+        private protected override bool _isDiscarded => true;
+#endif
+
         internal DiscardedDiagnosticQueue() : base([]) { }
 
         public override DiagnosticInfo Push<T>(T diagnostic) {

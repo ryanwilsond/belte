@@ -22,6 +22,8 @@ internal sealed class SynthesizedFinishedMethodSymbol : WrappedMethodSymbol {
 
     public override ImmutableArray<TypeOrConstant> templateArguments => underlyingMethod.templateArguments;
 
+    public override Symbol associatedSymbol => null;
+
     internal override TypeWithAnnotations returnTypeWithAnnotations => underlyingMethod.returnTypeWithAnnotations;
 
     internal override ImmutableArray<ParameterSymbol> parameters { get; }
@@ -29,6 +31,10 @@ internal sealed class SynthesizedFinishedMethodSymbol : WrappedMethodSymbol {
     internal override int parameterCount => parameters.Length;
 
     internal override Symbol containingSymbol { get; }
+
+    internal override bool isExplicitInterfaceImplementation => false;
+
+    internal override ImmutableArray<MethodSymbol> explicitInterfaceImplementations => [];
 
     internal override int CalculateLocalSyntaxOffset(int localPosition, SyntaxTree localTree) {
         throw ExceptionUtilities.Unreachable();

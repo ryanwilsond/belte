@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Reflection;
@@ -36,7 +37,7 @@ public sealed class BuildManager {
         var compilerState = new CompilerState() {
             buildMode = BuildMode.Dotnet,
             moduleName = "build",
-            references = Compiler.ResolveLibraryLevel(1),
+            references = Compiler.ResolveLibraryLevel(2, noStdLib: _state.noStdLib),
             debugMode = false,
             diagnosticOptions = new TaskDiagnosticOptions() {
                 severity = DiagnosticSeverity.Error,
@@ -59,7 +60,10 @@ public sealed class BuildManager {
             concurrentBuild = false,
             maxCores = 1,
             entryName = null,
-            noStdLib = false
+            noStdLib = _state.noStdLib,
+            noBootStrap = false,
+            skipTemplateMetadata = true,
+            noTemplateMetadata = false,
         };
 
         compiler.state = compilerState;
@@ -71,7 +75,11 @@ public sealed class BuildManager {
             return;
         }
 
-        var sizeInBytes = new FileInfo(_state.dllPath).Length;
+        var copiedCorePath = Path.Join(cacheDirectoryToCreate, "Belte.Core.dll");
+
+        File.Copy(Path.Join(AppContext.BaseDirectory, "Belte.Core.dll"), copiedCorePath);
+
+        var sizeInBytes = new FileInfo(outputFilename).Length + new FileInfo(copiedCorePath).Length;
 
         var meta = new CacheMetadata {
             lastAccess = DateTimeOffset.UtcNow.ToUnixTimeSeconds(),
@@ -86,7 +94,7 @@ public sealed class BuildManager {
 
         File.WriteAllText(_state.metaPath, json);
 
-        AddCacheEntry(_state.buildDirectory, index, _state.dllPath, meta);
+        AddCacheEntry(_state.buildDirectory, index, outputFilename, meta);
     }
 
     private static void AddCacheEntry(
@@ -123,22 +131,64 @@ public sealed class BuildManager {
         var buildMethod = assembly.GetTypes()
             .SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static))
             .FirstOrDefault(m => (m.Name == "Build" || m.Name.StartsWith("<Main>ss__Build")) &&
-                m.GetParameters().Length == 1 &&
+                (m.GetParameters().Length == 1 || m.GetParameters().Length == 2) &&
                 typeof(Builder).IsAssignableFrom(m.GetParameters()[0].ParameterType));
 
         if (buildMethod is not null && (buildMethod.IsGenericMethod || buildMethod.ReturnType != typeof(void)))
             buildMethod = null;
 
+        if (buildMethod is not null && buildMethod.GetParameters().Length == 2) {
+            var parameterType = buildMethod.GetParameters()[1].ParameterType;
+
+            if (!typeof(string[]).IsAssignableFrom(parameterType)) {
+                var coreAssembly = GetOrLoadCoreAssembly();
+                var arrayType = coreAssembly.GetTypes().FirstOrDefault(t => t.FullName == "Array`1");
+
+                if (arrayType is null) {
+                    buildMethod = null;
+                } else {
+                    arrayType = arrayType.MakeGenericType(typeof(string));
+
+                    if (!arrayType.IsAssignableFrom(parameterType))
+                        buildMethod = null;
+                }
+            }
+        }
+
         if (buildMethod is null) {
             diagnostics.Push(Error.NoBuildMethod());
             // TODO We could hook into the compilation of the script to check for the correct symbols instead of doing this post-hoc
             // But this approach has the benefit of not having to touch the main compiler APIs
-            File.Delete(_state.dllPath);
-            File.Delete(_state.metaPath);
+            // File.Delete(_state.dllPath);
+            // File.Delete(_state.metaPath);
         } else {
-            buildMethod.Invoke(null, [builder]);
+            if (buildMethod.GetParameters().Length == 1)
+                buildMethod.Invoke(null, [builder]);
+            else
+                buildMethod.Invoke(null, [builder, FormatArguments(buildMethod)]);
         }
 
         return builder;
+    }
+
+    private static Assembly GetOrLoadCoreAssembly() {
+        var loadedAssemblies = AppDomain.CurrentDomain.GetAssemblies();
+        var candidates = loadedAssemblies
+            .Where(a => a.GetName().Name.Equals("Belte.Core", StringComparison.OrdinalIgnoreCase));
+
+        if (candidates.Count() == 1)
+            return candidates.Single();
+
+        return Assembly.LoadFrom(Path.Join(AppContext.BaseDirectory, "Belte.Core.dll"));
+    }
+
+    private object FormatArguments(MethodInfo buildMethod) {
+        Debug.Assert(buildMethod.GetParameters().Length == 2);
+        var parameterType = buildMethod.GetParameters()[1].ParameterType;
+
+        if (typeof(string[]).IsAssignableFrom(parameterType))
+            return _state.arguments;
+
+        return Activator.CreateInstance(parameterType, _state.arguments.Length, _state.arguments);
     }
 }

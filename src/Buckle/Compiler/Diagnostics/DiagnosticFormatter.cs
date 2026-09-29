@@ -1,6 +1,7 @@
 using System;
 using System.Text.RegularExpressions;
 using Buckle.CodeAnalysis.Text;
+using Buckle.Utilities;
 using Diagnostics;
 
 namespace Buckle.Diagnostics;
@@ -12,6 +13,24 @@ public static partial class DiagnosticFormatter {
 
     public static void PrettyPrint(BelteDiagnostic diagnostic, ConsoleColor? foregroundColor = null) {
         ToDisplayParts(diagnostic, diagnostic.location, foregroundColor).Write();
+
+        if (diagnostic.inner is { } inner) {
+            Console.Write("  ");
+
+            switch (inner) {
+                case BelteDiagnostic innerDiagnostic:
+                    PrettyPrint(innerDiagnostic, foregroundColor);
+                    break;
+                case Diagnostic innerDiagnostic:
+                    PrettyPrint(innerDiagnostic, foregroundColor);
+                    break;
+                case Exception exception:
+                    PrettyPrintException(exception, foregroundColor);
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(inner);
+            }
+        }
     }
 
     public static void PrettyPrint(Diagnostic diagnostic, ConsoleColor? foregroundColor = null) {
@@ -96,6 +115,9 @@ public static partial class DiagnosticFormatter {
                 highlightColor = ConsoleColor.Red;
                 displayParts.Add("fatal", highlightColor);
                 break;
+            case DiagnosticSeverity.All:
+                // Treated as no severity
+                goto skipColon;
         }
 
         if (diagnostic.info.code is not null && diagnostic.info.code > 0)
@@ -103,6 +125,7 @@ public static partial class DiagnosticFormatter {
         else
             displayParts.Add(": ", highlightColor);
 
+skipColon:
         displayParts.Add($"{diagnostic.message}\n", initialColor);
 
         if (location?.span is not null)

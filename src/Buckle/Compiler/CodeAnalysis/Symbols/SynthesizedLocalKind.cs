@@ -6,4 +6,5 @@ internal enum SynthesizedLocalKind : byte {
     UserDefined,
     ExpanderTemp,
     EmitterTemp,
+    OptimizerTemp,
 }

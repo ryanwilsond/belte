@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -39,12 +40,16 @@ internal static class SyntaxNodeExtensions {
                     stack.Push(arrayTypeSyntax.elementType);
                     break;
                 case SyntaxKind.NonNullableType:
-                    var nullableTypeSyntax = (NonNullableTypeSyntax)type;
-                    stack.Push(nullableTypeSyntax.type);
+                    var nonNullableTypeSyntax = (NonNullableTypeSyntax)type;
+                    stack.Push(nonNullableTypeSyntax.type);
                     break;
                 case SyntaxKind.NullableType:
-                    var underlyingTypeSyntax = (NullableTypeSyntax)type;
-                    stack.Push(underlyingTypeSyntax.type);
+                    var nullableTypeSyntax = (NullableTypeSyntax)type;
+                    stack.Push(nullableTypeSyntax.type);
+                    break;
+                case SyntaxKind.TemplateSpecializedType:
+                    var templateTypeSyntax = (TemplateSpecializedTypeSyntax)type;
+                    stack.Push(templateTypeSyntax.type);
                     break;
                 case SyntaxKind.PointerType:
                     var pointerTypeSyntax = (PointerTypeSyntax)type;
@@ -148,6 +153,26 @@ internal static class SyntaxNodeExtensions {
         return syntax;
     }
 
+    internal static TypeSyntax SkipNullable(this TypeSyntax syntax) {
+        switch (syntax) {
+            case NullableTypeSyntax n:
+                Debug.Assert(n.type.kind is not SyntaxKind.NullableType and not SyntaxKind.NonNullableType);
+                return n.type;
+            case NonNullableTypeSyntax nn:
+                Debug.Assert(nn.type.kind is not SyntaxKind.NullableType and not SyntaxKind.NonNullableType);
+                return nn.type;
+            default:
+                return syntax;
+        }
+    }
+
+    internal static SyntaxNode SkipExtern(this SyntaxNode node) {
+        if (node.kind == SyntaxKind.ExternBlockDeclaration)
+            return SkipExtern(node.parent);
+
+        return node;
+    }
+
     internal static RefKind GetRefKind(this TypeSyntax syntax) {
         syntax.SkipRef(out var refKind);
         return refKind;
@@ -170,6 +195,10 @@ internal static class SyntaxNodeExtensions {
             syntax = refType;
 
         return syntax;
+    }
+
+    internal static bool IsVerbatimIdentifier(this SyntaxToken token) {
+        return token.kind == SyntaxKind.IdentifierToken && token.text.Length > 0 && token.text[0] == '@';
     }
 
     internal static bool IsOutVarDeclaration(this DeclarationExpressionSyntax p) {

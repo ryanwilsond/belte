@@ -1,9 +1,7 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -17,11 +15,12 @@ internal sealed class SourceFinalizerSymbol : SourceMemberMethodSymbol {
         : base(
             containingType,
             new SyntaxReference(syntax),
-            MakeModifiersAndFlags(syntax, diagnostics, out _)) {
-        location = syntax.finalizerKeyword.location;
-
+            syntax.finalizerKeyword.location,
+            MakeModifiersAndFlags(containingType, syntax, diagnostics, out _)) {
         if (containingType.isStatic)
             diagnostics.Push(Error.FinalizerInStaticClass(location));
+        else if (!containingType.isReferenceType)
+            diagnostics.Push(Error.OnlyClassesCanContainFinalizers(location));
     }
 
     public override string name => WellKnownMemberNames.FinalizerName;
@@ -43,8 +42,6 @@ internal sealed class SourceFinalizerSymbol : SourceMemberMethodSymbol {
         }
     }
 
-    internal override TextLocation location { get; }
-
     internal override ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes() {
         return [];
     }
@@ -53,15 +50,32 @@ internal sealed class SourceFinalizerSymbol : SourceMemberMethodSymbol {
         return [];
     }
 
+    internal sealed override ImmutableArray<BoundExpression> GetTemplateConstraints() {
+        return [];
+    }
+
     private protected override void MethodChecks(BelteDiagnosticQueue diagnostics) {
-        _lazyReturnType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void));
+        var syntax = GetSyntax();
+        var bodyBinder = declaringCompilation.GetBinderFactory(syntaxReference.syntaxTree)
+            .GetBinder(syntax, syntax, this);
+
+        _lazyReturnType = new TypeWithAnnotations(bodyBinder.compilation.GetSpecialType(SpecialType.Void));
+        _ = isPure;
     }
 
     private static (DeclarationModifiers, Flags) MakeModifiersAndFlags(
+        NamedTypeSymbol containingType,
         FinalizerDeclarationSyntax syntax,
         BelteDiagnosticQueue diagnostics,
         out bool modifierErrors) {
-        var declarationModifiers = MakeModifiers(syntax, syntax.modifiers, diagnostics, out modifierErrors);
+        var declarationModifiers = MakeModifiers(
+            containingType,
+            syntax,
+            syntax.modifiers,
+            diagnostics,
+            out modifierErrors
+        );
+
         var flags = MakeFlags(
             MethodKind.Finalizer,
             RefKind.None,
@@ -98,12 +112,14 @@ internal sealed class SourceFinalizerSymbol : SourceMemberMethodSymbol {
     }
 
     private static DeclarationModifiers MakeModifiers(
+        NamedTypeSymbol containingType,
         FinalizerDeclarationSyntax syntax,
         SyntaxTokenList modifiers,
         BelteDiagnosticQueue diagnostics,
         out bool modifierErrors) {
         var mods = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
             modifiers,
+            containingType.isInterface,
             DeclarationModifiers.None,
             0,
             syntax.finalizerKeyword.location,

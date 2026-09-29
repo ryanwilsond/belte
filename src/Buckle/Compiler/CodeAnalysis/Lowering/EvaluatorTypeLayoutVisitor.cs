@@ -33,6 +33,9 @@ internal sealed class EvaluatorTypeLayoutVisitor : SymbolVisitor {
     }
 
     internal override void VisitNamedType(NamedTypeSymbol symbol) {
+        if (symbol is PENamedTypeSymbol)
+            return;
+
         if (!_visited.Add(symbol))
             return;
 

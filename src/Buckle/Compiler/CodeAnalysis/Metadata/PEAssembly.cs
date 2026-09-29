@@ -10,19 +10,14 @@ namespace Buckle.CodeAnalysis;
 
 internal sealed class PEAssembly {
     internal readonly ImmutableArray<AssemblyIdentity> assemblyReferences;
-
     internal readonly ImmutableArray<int> moduleReferenceCounts;
 
     private readonly ImmutableArray<PEModule> _modules;
-
     private readonly AssemblyIdentity _identity;
-
-    private ThreeState _lazyContainsNoPiaLocalTypes;
-
-    private ThreeState _lazyDeclaresTheObjectClass;
-
     private readonly AssemblyMetadata _owner;
 
+    private ThreeState _lazyContainsNoPiaLocalTypes;
+    private ThreeState _lazyDeclaresTheObjectClass;
     private Dictionary<string, List<ImmutableArray<byte>>> _lazyInternalsVisibleToMap;
 
     internal PEAssembly(AssemblyMetadata owner, ImmutableArray<PEModule> modules) {

@@ -1,0 +1,12 @@
+using System;
+
+namespace Belte;
+
+[AttributeUsage(AttributeTargets.Field | AttributeTargets.ReturnValue | AttributeTargets.Parameter)]
+public sealed class NullabilityAttribute extends Attribute {
+    public Buffer<uint8> encoding;
+
+    public constructor(Buffer<uint8> encoding) {
+        this.encoding = encoding;
+    }
+}

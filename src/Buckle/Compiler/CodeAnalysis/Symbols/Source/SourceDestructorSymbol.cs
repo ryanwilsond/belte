@@ -1,9 +1,7 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -17,9 +15,8 @@ internal sealed class SourceDestructorSymbol : SourceMemberMethodSymbol {
         : base(
             containingType,
             new SyntaxReference(syntax),
-            MakeModifiersAndFlags(syntax, diagnostics, out _)) {
-        location = syntax.destructorKeyword.location;
-
+            syntax.destructorKeyword.location,
+            MakeModifiersAndFlags(containingType, syntax, diagnostics, out _)) {
         if (containingType.isStatic)
             diagnostics.Push(Error.DestructorInStaticClass(location));
     }
@@ -43,8 +40,6 @@ internal sealed class SourceDestructorSymbol : SourceMemberMethodSymbol {
         }
     }
 
-    internal override TextLocation location { get; }
-
     internal override ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes() {
         return [];
     }
@@ -53,15 +48,32 @@ internal sealed class SourceDestructorSymbol : SourceMemberMethodSymbol {
         return [];
     }
 
+    internal sealed override ImmutableArray<BoundExpression> GetTemplateConstraints() {
+        return [];
+    }
+
     private protected override void MethodChecks(BelteDiagnosticQueue diagnostics) {
-        _lazyReturnType = new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Void));
+        var syntax = GetSyntax();
+        var bodyBinder = declaringCompilation.GetBinderFactory(syntaxReference.syntaxTree)
+            .GetBinder(syntax, syntax, this);
+
+        _lazyReturnType = new TypeWithAnnotations(bodyBinder.compilation.GetSpecialType(SpecialType.Void));
+        _ = isPure;
     }
 
     private static (DeclarationModifiers, Flags) MakeModifiersAndFlags(
+        NamedTypeSymbol containingType,
         DestructorDeclarationSyntax syntax,
         BelteDiagnosticQueue diagnostics,
         out bool modifierErrors) {
-        var declarationModifiers = MakeModifiers(syntax, syntax.modifiers, diagnostics, out modifierErrors);
+        var declarationModifiers = MakeModifiers(
+            containingType,
+            syntax,
+            syntax.modifiers,
+            diagnostics,
+            out modifierErrors
+        );
+
         var flags = MakeFlags(
             MethodKind.Destructor,
             RefKind.None,
@@ -98,12 +110,14 @@ internal sealed class SourceDestructorSymbol : SourceMemberMethodSymbol {
     }
 
     private static DeclarationModifiers MakeModifiers(
+        NamedTypeSymbol containingType,
         DestructorDeclarationSyntax syntax,
         SyntaxTokenList modifiers,
         BelteDiagnosticQueue diagnostics,
         out bool modifierErrors) {
         var mods = ModifierHelpers.CreateAndCheckNonTypeMemberModifiers(
             modifiers,
+            containingType.isInterface,
             DeclarationModifiers.None,
             0,
             syntax.destructorKeyword.location,

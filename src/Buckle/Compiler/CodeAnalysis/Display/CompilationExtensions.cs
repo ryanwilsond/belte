@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using System.Linq;
-using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Utilities;
@@ -107,6 +106,18 @@ public static class CompilationExtensions {
                     var field = (FieldSymbol)symbol;
                     SymbolDisplay.AppendToDisplayText(text, field, SymbolDisplayFormat.BoundDisplayFormat);
                     var type = field.type.StrippedType();
+
+                    if (type is NamedTypeSymbol s && s is not PrimitiveTypeSymbol)
+                        WriteMembers(s, compact);
+                    else
+                        text.WriteLine();
+                }
+
+                break;
+            case SymbolKind.Property: {
+                    var property = (PropertySymbol)symbol;
+                    SymbolDisplay.AppendToDisplayText(text, property, SymbolDisplayFormat.BoundDisplayFormat);
+                    var type = property.type.StrippedType();
 
                     if (type is NamedTypeSymbol s && s is not PrimitiveTypeSymbol)
                         WriteMembers(s, compact);
