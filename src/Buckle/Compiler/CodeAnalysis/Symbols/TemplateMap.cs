@@ -35,8 +35,9 @@ internal class TemplateMap {
     internal TemplateMap(
         NamedTypeSymbol containingType,
         ImmutableArray<TemplateParameterSymbol> from,
-        ImmutableArray<TypeOrConstant> to) {
-        _mapping = ForType(containingType);
+        ImmutableArray<TypeOrConstant> to,
+        IEqualityComparer<TemplateParameterSymbol> equalityComparer = null) {
+        _mapping = ForType(containingType, equalityComparer);
 
         for (var i = 0; i < from.Length; i++) {
             var templateParameter = from[i];
@@ -52,11 +53,13 @@ internal class TemplateMap {
 
     internal Dictionary<TemplateParameterSymbol, TypeOrConstant> mapping => _mapping;
 
-    private static Dictionary<TemplateParameterSymbol, TypeOrConstant> ForType(NamedTypeSymbol containingType) {
+    private static Dictionary<TemplateParameterSymbol, TypeOrConstant> ForType(
+        NamedTypeSymbol containingType,
+        IEqualityComparer<TemplateParameterSymbol> equalityComparer) {
         return containingType is SubstitutedNamedTypeSymbol substituted
             ? new Dictionary<TemplateParameterSymbol, TypeOrConstant>(
-                substituted.templateSubstitution._mapping, ReferenceEqualityComparer.Instance)
-            : new Dictionary<TemplateParameterSymbol, TypeOrConstant>(ReferenceEqualityComparer.Instance);
+                substituted.templateSubstitution._mapping, equalityComparer ?? ReferenceEqualityComparer.Instance)
+            : new Dictionary<TemplateParameterSymbol, TypeOrConstant>(equalityComparer ?? ReferenceEqualityComparer.Instance);
     }
 
     internal ImmutableArray<TemplateParameterSymbol> SubstituteTemplateParameters(

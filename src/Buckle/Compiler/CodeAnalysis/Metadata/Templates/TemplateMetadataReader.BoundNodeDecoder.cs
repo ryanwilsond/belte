@@ -177,7 +177,7 @@ internal sealed partial class TemplateMetadataReader {
 
         private ConstantValue ReadConstantValue() {
             var specialType = (SpecialType)_reader.ReadByte();
-            var isNull = _reader.ReadBoolean();
+            var isNull = _reader.ReadBooleanSafe();
 
             if (isNull)
                 return new ConstantValue(null, specialType);
@@ -189,7 +189,7 @@ internal sealed partial class TemplateMetadataReader {
                         return new ConstantValue(value, SpecialType.String);
                     }
                 case SpecialType.Bool: {
-                        var value = _reader.ReadBoolean();
+                        var value = _reader.ReadBooleanSafe();
                         return new ConstantValue(value, SpecialType.Bool);
                     }
                 case SpecialType.WinBool: {
@@ -317,13 +317,6 @@ internal sealed partial class TemplateMetadataReader {
 
             Debug.Assert(false);
             return null;
-        }
-
-        private MethodSymbol GetMethod(uint methodIndex) {
-            var startPosition = _reader.BaseStream.Position;
-            var result = _metadata.ResolveMethod(methodIndex);
-            _reader.BaseStream.Seek(startPosition, SeekOrigin.Begin);
-            return result;
         }
 
         private BoundGotoStatement ReadGotoStatement() {
@@ -509,7 +502,14 @@ internal sealed partial class TemplateMetadataReader {
 
         private TypeSymbol ReadType() {
             var typeKind = _reader.ReadByte();
+            Debug.Assert(typeKind >= 1 && typeKind <= 8);
             return _templateDecoder.ReadTypeSymbol(typeKind, _reader);
+        }
+
+        private MethodSymbol ReadMethod() {
+            var methodKind = _reader.ReadByte();
+            Debug.Assert(methodKind >= 1 && methodKind <= 4);
+            return _templateDecoder.ReadMethodSymbol(methodKind, _reader);
         }
 
         private BoundThisExpression ReadThisExpression() {
@@ -530,7 +530,7 @@ internal sealed partial class TemplateMetadataReader {
         private BoundCastExpression ReadCastExpression() {
             var type = ReadType();
             var conversionKind = (ConversionKind)_reader.ReadByte();
-            var isChecked = _reader.ReadBoolean();
+            var isChecked = _reader.ReadBooleanSafe();
             var operand = ReadExpression();
             return new BoundCastExpression(null, operand, new Conversion(conversionKind), isChecked, null, type);
         }
@@ -551,7 +551,7 @@ internal sealed partial class TemplateMetadataReader {
         private BoundFieldAccessExpression ReadFieldAccessExpression() {
             var nameSize = _reader.ReadUInt32();
             var name = Encoding.UTF8.GetString(_reader.ReadBytes((int)nameSize));
-            var hasReceiver = _reader.ReadBoolean();
+            var hasReceiver = _reader.ReadBooleanSafe();
 
             if (hasReceiver) {
                 var receiver = ReadExpression();
@@ -647,15 +647,13 @@ internal sealed partial class TemplateMetadataReader {
         private BoundFunctionPointerLoad ReadFunctionPointerLoad() {
             var type = ReadType();
             var constrainedToType = ReadType();
-            var methodIndex = _reader.ReadUInt32();
-            var method = GetMethod(methodIndex);
+            var method = ReadMethod();
             return new BoundFunctionPointerLoad(null, method, constrainedToType, type);
         }
 
         private BoundFunctionLoad ReadFunctionLoad() {
             var type = ReadType();
-            var methodIndex = _reader.ReadUInt32();
-            var method = GetMethod(methodIndex);
+            var method = ReadMethod();
             var receiver = ReadExpression();
             return new BoundFunctionLoad(null, receiver, method, type);
         }
@@ -677,9 +675,8 @@ internal sealed partial class TemplateMetadataReader {
 
         private BoundCallExpression ReadCallExpression() {
             var type = ReadType();
-            var methodIndex = _reader.ReadUInt32();
-            var method = GetMethod(methodIndex);
-            var hasReceiver = _reader.ReadBoolean();
+            var method = ReadMethod();
+            var hasReceiver = _reader.ReadBooleanSafe();
             var receiver = hasReceiver ? ReadExpression() : null;
             var argumentCount = _reader.ReadUInt16();
             var argumentsBuilder = ArrayBuilder<BoundExpression>.GetInstance(argumentCount);
@@ -707,8 +704,7 @@ internal sealed partial class TemplateMetadataReader {
 
         private BoundObjectCreationExpression ReadObjectCreationExpression() {
             var type = ReadType();
-            var methodIndex = _reader.ReadUInt32();
-            var method = GetMethod(methodIndex);
+            var method = ReadMethod();
             var argumentCount = _reader.ReadUInt16();
             var argumentsBuilder = ArrayBuilder<BoundExpression>.GetInstance(argumentCount);
 
@@ -741,7 +737,7 @@ internal sealed partial class TemplateMetadataReader {
             for (var i = 0; i < sizeCount; i++)
                 sizesBuilder.Add(ReadExpression());
 
-            var hasInitializer = _reader.ReadBoolean();
+            var hasInitializer = _reader.ReadBooleanSafe();
             var initializer = hasInitializer ? (BoundInitializerList)ReadExpression() : null;
 
             return new BoundArrayCreationExpression(null, sizesBuilder.ToImmutableAndFree(), initializer, type);

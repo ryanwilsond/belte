@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
@@ -51,6 +52,7 @@ internal sealed class SynthesizedTemplateTypeMethod : WrappedMethodSymbol {
 
     public override ImmutableArray<TypeOrConstant> templateArguments => underlyingMethod.templateArguments;
 
+    [DebuggerBrowsable(DebuggerBrowsableState.Never)]
     public sealed override Symbol associatedSymbol {
         get {
             var underlying = originalDefinition.associatedSymbol;

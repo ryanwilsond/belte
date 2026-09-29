@@ -757,6 +757,46 @@ Bound Table
         return stream.ToArray();
     }
 
+    private byte[] CreateMethodKindAndInfo(MethodSymbol method) {
+        var stream = new MemoryStream();
+        using var writer = new BinaryWriter(stream, Encoding.UTF8);
+
+        var containingArity = method.containingType.GetAllTemplateParameters().Length;
+
+        if (method.arity == 0 && containingArity == 0) {
+            writer.Write((byte)1);
+            writer.Write(CreateMethodIndex(method));
+        } else if (containingArity == 0) {
+            writer.Write((byte)2);
+            writer.Write(CreateMethodIndex(method));
+
+            foreach (var templateArgument in method.templateArguments) {
+                if (templateArgument.isType)
+                    writer.Write(CreateTypeKindAndInfo(templateArgument.type.type));
+                else
+                    WriteConstantValueValue(writer, templateArgument.constant);
+            }
+        } else if (method.arity == 0) {
+            writer.Write((byte)3);
+            writer.Write(CreateTypeKindAndInfo(method.containingType));
+            writer.Write(CreateMethodIndex(method));
+        } else {
+            Debug.Assert(method.arity > 0 && containingArity > 0);
+            writer.Write((byte)4);
+            writer.Write(CreateTypeKindAndInfo(method.containingType));
+            writer.Write(CreateMethodIndex(method));
+
+            foreach (var templateArgument in method.templateArguments) {
+                if (templateArgument.isType)
+                    writer.Write(CreateTypeKindAndInfo(templateArgument.type.type));
+                else
+                    WriteConstantValueValue(writer, templateArgument.constant);
+            }
+        }
+
+        return stream.ToArray();
+    }
+
     private uint CreateMethodIndex(MethodSymbol method) {
         method = method.originalDefinition;
         LogMethodEntryForMethod(method);

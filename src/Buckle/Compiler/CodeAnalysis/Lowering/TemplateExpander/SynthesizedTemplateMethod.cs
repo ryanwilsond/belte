@@ -1,3 +1,4 @@
+using System.Collections;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -60,7 +61,8 @@ internal sealed class SynthesizedTemplateMethod : WrappedMethodSymbol, ISynthesi
                         return typeOrConstant;
                     }
                 }
-            )
+            ),
+            EqualityComparer<TemplateParameterSymbol>.Default
         );
 
         _replacementTemplateParameters = [];

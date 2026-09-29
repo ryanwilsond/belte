@@ -225,14 +225,14 @@ internal sealed partial class TemplateMetadataWriter {
             _writer.Write((byte)BoundKind.FunctionPointerLoad);
             _writer.Write(_metadataWriter.CreateTypeKindAndInfo(node.type));
             _writer.Write(_metadataWriter.CreateTypeKindAndInfo(node.constrainedToType));
-            _writer.Write(_metadataWriter.CreateMethodIndex(node.targetMethod));
+            _writer.Write(_metadataWriter.CreateMethodKindAndInfo(node.targetMethod));
             return base.VisitFunctionPointerLoad(node);
         }
 
         internal override BoundNode VisitFunctionLoad(BoundFunctionLoad node) {
             _writer.Write((byte)BoundKind.FunctionLoad);
             _writer.Write(_metadataWriter.CreateTypeKindAndInfo(node.type));
-            _writer.Write(_metadataWriter.CreateMethodIndex(node.targetMethod));
+            _writer.Write(_metadataWriter.CreateMethodKindAndInfo(node.targetMethod));
             return base.VisitFunctionLoad(node);
         }
 
@@ -252,7 +252,7 @@ internal sealed partial class TemplateMetadataWriter {
         internal override BoundNode VisitCallExpression(BoundCallExpression node) {
             _writer.Write((byte)BoundKind.CallExpression);
             _writer.Write(_metadataWriter.CreateTypeKindAndInfo(node.type));
-            _writer.Write(_metadataWriter.CreateMethodIndex(node.method));
+            _writer.Write(_metadataWriter.CreateMethodKindAndInfo(node.method));
 
             _writer.Write(node.receiver is not null);
             Visit(node.receiver);
@@ -275,7 +275,7 @@ internal sealed partial class TemplateMetadataWriter {
         internal override BoundNode VisitObjectCreationExpression(BoundObjectCreationExpression node) {
             _writer.Write((byte)BoundKind.ObjectCreationExpression);
             _writer.Write(_metadataWriter.CreateTypeKindAndInfo(node.type));
-            _writer.Write(_metadataWriter.CreateMethodIndex(node.constructor));
+            _writer.Write(_metadataWriter.CreateMethodKindAndInfo(node.constructor));
 
             _writer.Write((ushort)node.arguments.Length);
             VisitList(node.arguments);

@@ -161,6 +161,68 @@ internal sealed partial class TemplateMetadataReader {
                 }
             }
 
+            internal MethodSymbol ReadMethodSymbol(byte kind, BinaryReader reader) {
+                switch (kind) {
+                    case 1: {
+                            var methodIndex = reader.ReadUInt32();
+                            var method = _metadata.ResolveMethod(methodIndex);
+                            return method;
+                        }
+                    case 2: {
+                            var methodIndex = reader.ReadUInt32();
+                            var method = _metadata.ResolveMethod(methodIndex);
+
+                            var arity = method.arity;
+                            var builder = ArrayBuilder<TypeOrConstant>.GetInstance(arity);
+
+                            for (var i = 0; i < arity; i++) {
+                                var expectedType = method.templateParameters[i].underlyingType;
+                                var typeOrConstant = ReadTypeOrConstant(expectedType.type, reader);
+
+                                if (typeOrConstant is null)
+                                    return null;
+
+                                builder.Add(typeOrConstant);
+                            }
+
+                            return method.Construct(builder.ToImmutableAndFree());
+                        }
+                    case 3: {
+                            var containingTypeKind = reader.ReadByte();
+                            var containingType = ReadTypeSymbol(containingTypeKind, reader) as NamedTypeSymbol;
+                            Debug.Assert(containingType is not null);
+                            var methodIndex = reader.ReadUInt32();
+                            var method = _metadata.ResolveMethod(methodIndex);
+                            return method.AsMember(containingType);
+                        }
+                    case 4: {
+                            var containingTypeKind = reader.ReadByte();
+                            var containingType = ReadTypeSymbol(containingTypeKind, reader) as NamedTypeSymbol;
+                            Debug.Assert(containingType is not null);
+                            var methodIndex = reader.ReadUInt32();
+                            var method = _metadata.ResolveMethod(methodIndex);
+
+                            var arity = method.arity;
+                            var builder = ArrayBuilder<TypeOrConstant>.GetInstance(arity);
+
+                            for (var i = 0; i < arity; i++) {
+                                var expectedType = method.templateParameters[i].underlyingType;
+                                var typeOrConstant = ReadTypeOrConstant(expectedType.type, reader);
+
+                                if (typeOrConstant is null)
+                                    return null;
+
+                                builder.Add(typeOrConstant);
+                            }
+
+                            return method.AsMember(containingType).Construct(builder.ToImmutableAndFree());
+                        }
+                    default:
+                        Debug.Assert(false);
+                        return null;
+                }
+            }
+
             internal TypeOrConstant ReadTypeOrConstant(TypeSymbol underlyingType, BinaryReader reader) {
                 switch (underlyingType.specialType) {
                     case SpecialType.Type:

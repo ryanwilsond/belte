@@ -67,7 +67,8 @@ internal sealed class SynthesizedTemplateType : WrappedNamedTypeSymbol, ISynthes
                         return typeOrConstant;
                     }
                 }
-            )
+            ),
+            EqualityComparer<TemplateParameterSymbol>.Default
         );
 
         _replacementTemplateParameters = [];
