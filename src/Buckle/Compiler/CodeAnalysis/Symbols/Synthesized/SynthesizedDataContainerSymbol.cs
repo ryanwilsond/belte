@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -94,5 +95,19 @@ internal sealed class SynthesizedDataContainerSymbol : DataContainerSymbol {
 
     internal override BelteDiagnosticQueue GetConstantValueDiagnostics(BoundExpression boundInitValue) {
         return BelteDiagnosticQueue.Discarded;
+    }
+
+    private DataContainerSymbol _guarded;
+
+    internal DataContainerSymbol guardedPatternLocal {
+        get {
+            return _guarded;
+        }
+    }
+
+    internal void SetGuardedLocal(DataContainerSymbol patternLocal) {
+        Debug.Assert(patternLocal.declarationKind == DataContainerDeclarationKind.PatternLocal);
+        Debug.Assert(_guarded is null);
+        _guarded = patternLocal;
     }
 }

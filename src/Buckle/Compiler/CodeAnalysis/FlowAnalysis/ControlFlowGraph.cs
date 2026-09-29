@@ -99,11 +99,13 @@ internal sealed class ControlFlowGraph {
     }
 
     internal HashSet<Symbol> CheckDefiniteAssignment(
+        Compilation compilation,
         BelteDiagnosticQueue diagnostics,
         ArrayBuilder<FieldSymbol> fieldsRequiringAssignment = null,
         ArrayBuilder<PropertySymbol> propertiesRequiringAssignment = null) {
         try {
             var result = DefiniteAssignment.CheckDefiniteAssignment(
+                compilation,
                 this,
                 _symbolsBySlot,
                 _slotMap,

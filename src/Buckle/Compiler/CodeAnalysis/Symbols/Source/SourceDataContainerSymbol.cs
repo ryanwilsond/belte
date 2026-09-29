@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
@@ -434,5 +435,22 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
 
     public sealed override int GetHashCode() {
         return Hash.Combine(identifierToken.GetHashCode(), containingSymbol.GetHashCode());
+    }
+
+    // TODO These pertain to DefiniteAssignment analysis, still unsure how to handle this best so likely will change
+
+    private DataContainerSymbol _patternGuard;
+
+    internal DataContainerSymbol patternGuard {
+        get {
+            Debug.Assert(declarationKind == DataContainerDeclarationKind.PatternLocal);
+            return _patternGuard;
+        }
+    }
+
+    internal void SetPatternGuard(DataContainerSymbol guard) {
+        Debug.Assert(declarationKind == DataContainerDeclarationKind.PatternLocal);
+        Debug.Assert(_patternGuard is null);
+        _patternGuard = guard;
     }
 }

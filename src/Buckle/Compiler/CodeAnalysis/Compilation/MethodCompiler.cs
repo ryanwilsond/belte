@@ -870,6 +870,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
 
         var controlFlowGraph = ControlFlowGraph.Create(_compilation, method, loweredBody);
         var assignments = controlFlowGraph.CheckDefiniteAssignment(
+            _compilation,
             currentDiagnostics,
             state.fieldsRequiringAssignment,
             state.propertiesRequiringAssignment

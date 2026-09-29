@@ -1986,6 +1986,8 @@ internal partial class Binder {
         } else if (patternType.isStatic) {
             diagnostics.Push(Error.StaticDataContainer(typeSyntax.location));
             return true;
+        } else if (inputType.Equals(patternType)) {
+            diagnostics.Push(Error.IdentityPattern(typeSyntax.location));
         } else {
             // TODO This could be more exhaustive with reference types
 

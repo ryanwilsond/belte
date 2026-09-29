@@ -688,9 +688,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
                     syntax,
                     statement.label,
                     RewriteNull(_compilation, syntax, condition),
-                    statement.jumpIfTrue,
-                    statement.assignedOnJump,
-                    statement.assignedOnFallthrough
+                    statement.jumpIfTrue
                 )
             );
         }

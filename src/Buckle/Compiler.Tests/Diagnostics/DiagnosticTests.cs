@@ -10233,4 +10233,19 @@ var text = """"""
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0675_IdentityPattern() {
+        var text = @"
+            class A { }
+            A a = new A();
+            bool b = a is [A] c;
+        ";
+
+        var diagnostics = @"
+            pattern type is identical to the expression type; pattern always succeeds
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

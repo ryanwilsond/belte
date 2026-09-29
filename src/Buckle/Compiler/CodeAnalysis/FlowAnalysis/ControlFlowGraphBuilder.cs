@@ -91,16 +91,16 @@ internal sealed partial class ControlFlowGraphBuilder {
                                 current,
                                 thenBlock,
                                 thenCondition,
-                                // negated ? cgs.assignedOnFallthrough :
-                                cgs.assignedOnJump
+                                // cgs.assignedOnJump
+                                default
                             );
 
                             Connect(
                                 current,
                                 elseBlock,
                                 elseCondition,
-                                // negated ? cgs.assignedOnJump :
-                                cgs.assignedOnFallthrough
+                                // cgs.assignedOnFallthrough
+                                default
                             );
                         }
 
@@ -316,6 +316,6 @@ again:
                 bitVector[_slotMap[local]] = true;
         }
 
-        return new FlowState() { assigned = bitVector };
+        return new FlowState() { assigned = bitVector, cleared = BitVector.Create(_symbolsBySlot.Count) };
     }
 }

@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
@@ -10,6 +11,7 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.FlowAnalysis;
 
 internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
+    private readonly Compilation _compilation;
     private readonly Dictionary<Symbol, int> _slotMap;
     private readonly MultiDictionary<Symbol, Symbol> _closureCaptures;
     private readonly MethodSymbol _method;
@@ -18,13 +20,16 @@ internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
 
     private BelteDiagnosticQueue _diagnostics;
     private BitVector _assignments;
+    private BasicBlock _currentBlock;
 
     private DefiniteAssignment(
+        Compilation compilation,
         Dictionary<Symbol, int> slotMap,
         MethodSymbol containingMethod,
         MultiDictionary<Symbol, Symbol> closureCaptures,
         ArrayBuilder<FieldSymbol> fieldsRequiringAssignment,
         ArrayBuilder<PropertySymbol> propertiesRequiringAssignment) {
+        _compilation = compilation;
         _slotMap = slotMap;
         _method = containingMethod;
         _closureCaptures = closureCaptures;
@@ -33,6 +38,7 @@ internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
     }
 
     internal static HashSet<Symbol> CheckDefiniteAssignment(
+        Compilation compilation,
         ControlFlowGraph graph,
         ArrayBuilder<Symbol> symbolsBySlot,
         Dictionary<Symbol, int> slotMap,
@@ -44,6 +50,7 @@ internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
         bool changed;
         BelteDiagnosticQueue currentDiagnostics = null;
         var walker = new DefiniteAssignment(
+            compilation,
             slotMap,
             method,
             closureCaptures,
@@ -112,6 +119,10 @@ internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
             var incoming = branch.from.outgoingAssignment.Clone();
             incoming.UnionWith(branch.flowState.assigned);
 
+            var clearedClone = branch.flowState.cleared.Clone();
+            clearedClone.Invert();
+            incoming.IntersectWith(clearedClone);
+
             if (first) {
                 result = incoming;
                 first = false;
@@ -132,6 +143,7 @@ internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
 
         walker._diagnostics = diagnostics;
         walker._assignments = result;
+        walker._currentBlock = block;
 
         foreach (var statement in block.statements)
             walker.Visit(statement);
@@ -152,18 +164,104 @@ internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
         return base.VisitLocalDeclarationStatement(node);
     }
 
+    internal override BoundNode VisitConditionalGotoStatement(BoundConditionalGotoStatement node) {
+        // Pattern local existence checking
+        var guardSlot = 0;
+        var isPatternGuardCheck = false;
+        var comparison = false;
+
+        if (node.condition is BoundBinaryOperator binaryOperator &&
+            binaryOperator.operatorKind == BinaryOperatorKind.BoolEqual &&
+            binaryOperator.right.constantValue is not null &&
+            binaryOperator.left.kind is BoundKind.IsOperator or BoundKind.DataContainerExpression &&
+            binaryOperator.left.syntax.kind == Syntax.SyntaxKind.IsPatternExpression) {
+            comparison = (bool)binaryOperator.right.constantValue.value;
+
+            // Reference types
+            if (binaryOperator.left is BoundIsOperator isOperator &&
+                isOperator.isNot &&
+                isOperator.left is BoundDataContainerExpression dce1 &&
+                dce1.dataContainer is SourceDataContainerSymbol {
+                    declarationKind: DataContainerDeclarationKind.PatternLocal
+                }) {
+                guardSlot = _slotMap[dce1.dataContainer] + 1;
+                isPatternGuardCheck = true;
+            }
+            // Value types
+            else if (binaryOperator.left is BoundDataContainerExpression dce2 &&
+                dce2.dataContainer is SynthesizedDataContainerSymbol temp &&
+                temp.guardedPatternLocal is not null) {
+                guardSlot = _slotMap[temp.guardedPatternLocal] + 1;
+                isPatternGuardCheck = true;
+            }
+        }
+        // Reference types
+        else if (node.condition is BoundIsOperator isOperator1 &&
+            node.condition.syntax.kind == Syntax.SyntaxKind.IsPatternExpression &&
+            isOperator1.isNot &&
+            isOperator1.left is BoundDataContainerExpression dce3 &&
+            dce3.dataContainer is SourceDataContainerSymbol {
+                declarationKind: DataContainerDeclarationKind.PatternLocal
+            }) {
+            guardSlot = _slotMap[dce3.dataContainer] + 1;
+            isPatternGuardCheck = true;
+            comparison = false;
+        }
+        // Null stripping
+        else if (node.condition is BoundDataContainerExpression dce4 &&
+            node.condition.syntax.kind == Syntax.SyntaxKind.IsPatternExpression &&
+            dce4.dataContainer is SynthesizedDataContainerSymbol temp &&
+            temp.guardedPatternLocal is not null) {
+            guardSlot = _slotMap[temp.guardedPatternLocal] + 1;
+            isPatternGuardCheck = true;
+            comparison = false;
+        }
+
+        if (isPatternGuardCheck) {
+            var gotoBranch = _currentBlock.outgoing.Single(b => (object)b.condition == node.condition);
+            var fallthroughBranch = _currentBlock.outgoing.Single(b => (object)b.condition != node.condition);
+
+            if (comparison == node.jumpIfTrue) {
+                gotoBranch.flowState.assigned[guardSlot] = true;
+                fallthroughBranch.flowState.cleared[guardSlot] = true;
+            } else {
+                gotoBranch.flowState.cleared[guardSlot] = true;
+                fallthroughBranch.flowState.assigned[guardSlot] = true;
+            }
+        }
+
+        return base.VisitConditionalGotoStatement(node);
+    }
+
+    internal override BoundNode VisitIsOperator(BoundIsOperator node) {
+        if (node.isNot && node.right.IsLiteralNull() && !node.left.type.IsNullableType()) {
+            // If a non user defined local or inside of a pattern test, ignore definite assignment
+            if (node.left is BoundDataContainerExpression dataContainerExpression &&
+                (dataContainerExpression.dataContainer is SynthesizedDataContainerSymbol ||
+                 dataContainerExpression.dataContainer.declarationKind == DataContainerDeclarationKind.PatternLocal)) {
+                return null;
+            }
+        }
+
+        return base.VisitIsOperator(node);
+    }
+
     internal override BoundNode VisitDataContainerExpression(BoundDataContainerExpression node) {
         var symbol = node.dataContainer;
 
-        var shouldReport = !symbol.isGlobal &&
+        var shouldReport = symbol.IsFromCompilation(_compilation) &&
             (_method is SynthesizedMethodSymbolBase m ? m.baseMethod : _method.originalDefinition)
-                .Equals(symbol.containingSymbol)
-                    // TODO This is a hack to avoid reporting for pattern locals which aren't analyzed correctly
-                    && symbol.declarationKind == DataContainerDeclarationKind.Variable
-            ;
+                .Equals(symbol.containingSymbol);
 
-        if (shouldReport && !_assignments[_slotMap[symbol]])
-            _diagnostics.Push(Error.UseOfUnassignedLocal(node.syntax.location, symbol));
+        if (shouldReport) {
+            if (symbol.declarationKind == DataContainerDeclarationKind.PatternLocal) {
+                if (!_assignments[_slotMap[symbol] + 1])
+                    _diagnostics.Push(Error.UseOfUnassignedLocal(node.syntax.location, symbol));
+            } else {
+                if (!_assignments[_slotMap[symbol]])
+                    _diagnostics.Push(Error.UseOfUnassignedLocal(node.syntax.location, symbol));
+            }
+        }
 
         return node;
     }

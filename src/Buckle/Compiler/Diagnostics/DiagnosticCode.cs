@@ -683,6 +683,7 @@ public enum DiagnosticCode : ushort {
     ERR_ConstraintFailedToEvaluateWithInner = 672,
     ERR_NonTemplateTypeCannotHaveConstraints = 673,
     ERR_CompileTimeExpressionInConstraint = 674,
+    ERR_IdentityPattern = 675,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

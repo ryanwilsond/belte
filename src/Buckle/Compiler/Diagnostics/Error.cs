@@ -3278,6 +3278,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_CompileTimeExpressionInConstraint, location, message);
     }
 
+    internal static BelteDiagnostic IdentityPattern(TextLocation location) {
+        var message = $"pattern type is identical to the expression type; pattern always succeeds";
+        return CreateError(DiagnosticCode.ERR_IdentityPattern, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

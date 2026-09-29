@@ -1157,7 +1157,7 @@ internal sealed class Expander : SharedExpander {
 
         <expression> is <local>
 
-        ----> <local.type> is primitive
+        ----> <local.type> is value type
 
         result = false
         goto break unless <expression> is <local.type>
@@ -1166,20 +1166,10 @@ internal sealed class Expander : SharedExpander {
         break:
         result
 
-        ----> <local.type> is class
+        ----> <local.type> is reference type
 
         <local> = <expression> as <local.type>
         result = <local> isnt null
-
-        ----> <local.type> equals <expression.type>
-
-        <local> = <expression>
-        result = <local> isnt null
-
-        ----> <local.type> equals <expression.type> and not nullable
-
-        <local> = <expression>
-        true
 
         ----> <local.type> equals <expression.type>!
 
@@ -1200,17 +1190,16 @@ internal sealed class Expander : SharedExpander {
 
         Debug.Assert(expression.type.specialType == SpecialType.Bool);
 
-        if (operand.type.Equals(type, TypeCompareKind.ConsiderEverything)) {
-            var statements = ExpandExpression(operand, out var newOperand);
-            statements.Add(LocalDeclaration(syntax, local, newOperand));
-            replacement = type.IsNullableType()
-                ? HasValue(_compilation, syntax, Local(syntax, local))
-                : Literal(_compilation, syntax, true, expression.type);
-            return statements;
-        } else if (operand.type.StrippedType().Equals(type, TypeCompareKind.ConsiderEverything)) {
+        Debug.Assert(!operand.type.Equals(type, TypeCompareKind.ConsiderEverything));
+
+        if (operand.type.StrippedType().Equals(type, TypeCompareKind.ConsiderEverything)) {
             var breakLabel = GenerateLabel();
             var statements = ExpandExpression(operand, out var newOperand, UseKind.StableValue);
+
             var temp = GenerateTempLocal(expression.type);
+            ((SourceDataContainerSymbol)local).SetPatternGuard(temp);
+            temp.SetGuardedLocal(local);
+
             statements.Add(LocalDeclaration(syntax, temp, Literal(_compilation, syntax, false, expression.type)));
             statements.Add(GotoIf(syntax, breakLabel, IsNull(_compilation, syntax, newOperand)));
             statements.Add(
@@ -1230,7 +1219,7 @@ internal sealed class Expander : SharedExpander {
             statements.Add(Label(syntax, breakLabel));
             replacement = Local(syntax, temp);
             return statements;
-        } else if (type.StrippedType().typeKind == TypeKind.Class) {
+        } else if (type.isReferenceType) {
             var statements = ExpandExpression(operand, out var newOperand);
             statements.Add(LocalDeclaration(syntax,
                 local,
@@ -1245,9 +1234,15 @@ internal sealed class Expander : SharedExpander {
             replacement = HasValue(_compilation, syntax, Local(syntax, local));
             return statements;
         } else {
+            Debug.Assert(type.isValueType);
+
             var breakLabel = GenerateLabel();
             var statements = ExpandExpression(operand, out var newOperand, UseKind.StableValue);
+
             var temp = GenerateTempLocal(expression.type);
+            ((SourceDataContainerSymbol)local).SetPatternGuard(temp);
+            temp.SetGuardedLocal(local);
+
             statements.Add(LocalDeclaration(syntax, temp, Literal(_compilation, syntax, false, expression.type)));
             statements.Add(GotoIfNot(syntax,
                 breakLabel,
@@ -1257,8 +1252,7 @@ internal sealed class Expander : SharedExpander {
                     false,
                     null,
                     expression.type
-                ),
-                assignedOnFallthrough: [local]
+                )
             ));
             statements.AddRange(ExpandExpression(CreateCast(syntax, local.type, newOperand), out var cast));
             statements.Add(LocalDeclaration(syntax, local, cast));

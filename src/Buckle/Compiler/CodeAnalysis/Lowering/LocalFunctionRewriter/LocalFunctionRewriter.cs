@@ -888,7 +888,7 @@ internal sealed partial class LocalFunctionRewriter : MethodToClassRewriter {
             body = Optimizer.RemoveDeadCode(_compilationState.compilation, synthesizedMethod, body, _diagnostics);
 
             var controlFlowGraph = ControlFlowGraph.Create(_compilationState.compilation, synthesizedMethod, body);
-            var assignments = controlFlowGraph.CheckDefiniteAssignment(_diagnostics);
+            var assignments = controlFlowGraph.CheckDefiniteAssignment(_compilationState.compilation, _diagnostics);
 
             foreach (var parameter in synthesizedMethod.parameters) {
                 if (parameter.refKind == RefKind.Out && !assignments.Contains(parameter))

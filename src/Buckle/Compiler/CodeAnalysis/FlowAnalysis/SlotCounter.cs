@@ -36,6 +36,10 @@ internal sealed class SlotCounter : BoundTreeWalker {
         var slot = _symbolsBySlot.Count;
         _symbolsBySlot.Add(symbol);
         _slotMap.Add(symbol, slot);
+
+        // Empty slot reserved for pattern local guard assignment checking
+        if (symbol is SourceDataContainerSymbol { declarationKind: DataContainerDeclarationKind.PatternLocal })
+            _symbolsBySlot.Add(null);
     }
 
     internal override BoundNode VisitDataContainerDeclaration(BoundDataContainerDeclaration node) {

@@ -308,9 +308,7 @@ internal abstract partial class BoundTreeExpander {
             statements.Add(statement.Update(
                 statement.label,
                 conditionReplacement,
-                statement.jumpIfTrue,
-                statement.assignedOnJump,
-                statement.assignedOnFallthrough
+                statement.jumpIfTrue
             ));
 
             return statements;

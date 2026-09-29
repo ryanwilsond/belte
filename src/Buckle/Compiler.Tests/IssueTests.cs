@@ -3857,4 +3857,188 @@ public sealed class IssueTests {
 
         AssertExceptions(text, _writer, exceptions);
     }
+
+    [Fact]
+    public void IsPattern_DefiniteAssignmentSeesGuard() {
+        var text = @"
+            any a = 3;
+            bool b = a is int c && c == 3;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void IsPattern_DefiniteAssignmentSeesGuard2() {
+        var text = @"
+            any a = 3;
+            bool b = a is int c && c == 3;
+            int d = [c];
+        ";
+
+        var diagnostics = @"
+            use of unassigned local 'c'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void IsPattern_DefiniteAssignment() {
+        var text = @"
+            int a = 3;
+            bool b = a is any c && c == c;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void IsPattern_DefiniteAssignment2() {
+        var text = @"
+            int a = 3;
+            bool b = a is any c && c == c;
+            any d = [c];
+        ";
+
+        var diagnostics = @"
+            use of unassigned local 'c'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void IsPattern_DefiniteAssignment3() {
+        var text = @"
+            int? a = 3;
+            bool b = a is int c && c == 3;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void IsPattern_DefiniteAssignment4() {
+        var text = @"
+            int? a = 3;
+            bool b = a is int c && c == 3;
+            int? d = [c];
+        ";
+
+        var diagnostics = @"
+            use of unassigned local 'c'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void IsPattern_DefiniteAssignment5() {
+        var text = @"
+            class A { }
+            any a = new A();
+            bool b = a is A c && c == c;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void IsPattern_DefiniteAssignment6() {
+        var text = @"
+            class A { }
+            any a = new A();
+            bool b = a is A c && c == c;
+            A d = [c];
+        ";
+
+        var diagnostics = @"
+            use of unassigned local 'c'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void IsPattern_DefiniteAssignment7() {
+        var text = @"
+            class A { }
+            A? a = new A();
+            bool b = a is A c && c == c;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void IsPattern_DefiniteAssignment8() {
+        var text = @"
+            class A { }
+            A? a = new A();
+            bool b = a is A c && c == c;
+            A d = [c];
+        ";
+
+        var diagnostics = @"
+            use of unassigned local 'c'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void IsPattern_DefiniteAssignment9() {
+        var text = @"
+            any a = 3;
+
+            if (a is int c) {
+                int d = c;
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void IsPattern_DefiniteAssignment10() {
+        var text = @"
+            int a = 3;
+
+            if (a is any c) {
+                any d = c;
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void IsPattern_DefiniteAssignment11() {
+        var text = @"
+            int? a = 3;
+
+            if (a is int c) {
+                int d = c;
+            }
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

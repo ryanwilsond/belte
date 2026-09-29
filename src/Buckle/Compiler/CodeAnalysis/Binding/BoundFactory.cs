@@ -87,22 +87,12 @@ internal static class BoundFactory {
         return new BoundGotoStatement(syntax, label, null);
     }
 
-    internal static BoundConditionalGotoStatement GotoIf(
-        SyntaxNode syntax,
-        LabelSymbol @goto,
-        BoundExpression @if,
-        ImmutableArray<DataContainerSymbol> assignedOnJump = default,
-        ImmutableArray<DataContainerSymbol> assignedOnFallthrough = default) {
-        return new BoundConditionalGotoStatement(syntax, @goto, @if, true, assignedOnJump, assignedOnFallthrough);
+    internal static BoundConditionalGotoStatement GotoIf(SyntaxNode syntax, LabelSymbol @goto, BoundExpression @if) {
+        return new BoundConditionalGotoStatement(syntax, @goto, @if, true);
     }
 
-    internal static BoundConditionalGotoStatement GotoIfNot(
-        SyntaxNode syntax,
-        LabelSymbol @goto,
-        BoundExpression @ifNot,
-        ImmutableArray<DataContainerSymbol> assignedOnJump = default,
-        ImmutableArray<DataContainerSymbol> assignedOnFallthrough = default) {
-        return new BoundConditionalGotoStatement(syntax, @goto, @ifNot, false, assignedOnJump, assignedOnFallthrough);
+    internal static BoundConditionalGotoStatement GotoIfNot(SyntaxNode syntax, LabelSymbol @goto, BoundExpression @ifNot) {
+        return new BoundConditionalGotoStatement(syntax, @goto, @ifNot, false);
     }
 
     internal static BoundExpressionStatement Statement(SyntaxNode syntax, BoundExpression expression) {
