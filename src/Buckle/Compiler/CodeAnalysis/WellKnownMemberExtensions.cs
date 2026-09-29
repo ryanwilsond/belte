@@ -74,6 +74,8 @@ internal static class WellKnownMemberExtensions {
         "get_value",
 
         WellKnownMemberNames.InstanceConstructorName,
+
+        "CreateInstance"
     ];
 
     internal static bool IsTupleMember(this WellKnownMember wellKnownMember) {

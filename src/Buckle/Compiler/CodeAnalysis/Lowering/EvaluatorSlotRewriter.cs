@@ -148,6 +148,11 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriterWithStackGuard {
         return base.VisitObjectCreationExpression(node);
     }
 
+    internal override BoundNode VisitNewT(BoundNewT node) {
+        _lateTempCount++;
+        return base.VisitNewT(node);
+    }
+
     internal override BoundNode VisitArrayCreationExpression(BoundArrayCreationExpression node) {
         _lateTempCount++;
         return base.VisitArrayCreationExpression(node);

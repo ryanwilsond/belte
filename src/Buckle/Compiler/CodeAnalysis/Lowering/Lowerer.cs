@@ -7,6 +7,7 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -21,6 +22,7 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// Nodes may be visited multiple times.
 /// </summary>
 internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
+    private readonly BelteDiagnosticQueue _diagnostics;
     private readonly SharedExpander _expander;
     private readonly bool _transpiling;
     private readonly MethodCompiler _methodCompiler;
@@ -34,9 +36,11 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
 
     private Lowerer(
         Compilation compilation,
+        BelteDiagnosticQueue diagnostics,
         MethodCompiler methodCompiler,
         MethodSymbol container) {
         _compilation = compilation;
+        _diagnostics = diagnostics;
         _methodCompiler = methodCompiler;
         _expander = methodCompiler.transpiling
             ? new SharedExpander(_compilation, container)
@@ -47,6 +51,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
 
     internal static BoundBlockStatement Lower(
         Compilation compilation,
+        BelteDiagnosticQueue diagnostics,
         MethodCompiler methodCompiler,
         OptimizationLevel optimizationLevel,
         MethodSymbol method,
@@ -55,7 +60,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         out bool sawNonTypeTemplate,
         out bool sawLambda,
         out bool sawLocalFunction) {
-        var lowerer = new Lowerer(compilation, methodCompiler, method);
+        var lowerer = new Lowerer(compilation, diagnostics, methodCompiler, method);
         var optimize = optimizationLevel == OptimizationLevel.Release && !methodCompiler.transpiling;
 
         var rewrittenStatement = statement;
@@ -1291,6 +1296,36 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
             return new BoundDefaultExpression(node.syntax, false, null, null, type);
 
         return base.VisitObjectCreationExpression(node);
+    }
+
+    internal override BoundNode VisitNewT(BoundNewT node) {
+        /*
+
+        new T()
+
+        ---->
+
+        Activator.CreateInstance<T>()
+
+        */
+        // TODO Could alternatively add a LowLevel builtin, not sure what approach to prefer
+        if (!_methodCompiler.evaluating) {
+            var activatorType = _compilation.GetWellKnownType(WellKnownType.System_Activator);
+
+            var createInstanceMethod = (MethodSymbol)Compilation.GetRuntimeMember(
+                activatorType.GetMembers(),
+                WellKnownMembers.GetDescriptor(WellKnownMember.System_Activator_CreateInstance),
+                _compilation.wellKnownMemberSignatureComparer,
+                accessWithinOpt: null
+            );
+
+            var method = createInstanceMethod.Construct([new TypeOrConstant(node.type)]);
+            method.CheckConstraints(TypeConversions.GetInstance(), node.syntax.location, [], default, _diagnostics);
+
+            return Call(node.syntax, method);
+        }
+
+        return base.VisitNewT(node);
     }
 
     internal override BoundNode VisitCallExpression(BoundCallExpression expression) {

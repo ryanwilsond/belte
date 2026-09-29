@@ -725,6 +725,7 @@ internal sealed partial class Evaluator {
             BoundKind.FunctionLoad => EvaluateFunctionLoad((BoundFunctionLoad)node, used),
             BoundKind.SizeOfOperator => EvaluateSizeOfOperator((BoundSizeOfOperator)node, used),
             BoundKind.ArrayLength => EvaluateArrayLength((BoundArrayLength)node, used, abort),
+            BoundKind.NewT => EvaluateNewT((BoundNewT)node, used, abort),
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
     }
@@ -751,6 +752,18 @@ internal sealed partial class Evaluator {
             return EvaluatorValue.None;
 
         return GetDefaultValue(node.type, null, abort);
+    }
+
+    private EvaluatorValue EvaluateNewT(BoundNewT node, bool used, ValueWrapper<bool> abort) {
+        var type = SubstituteAsType(node.type);
+
+        if (type.StrippedType().IsPrimitiveType())
+            return GetDefaultValue(node.type, null, abort);
+
+        var namedType = (NamedTypeSymbol)type.StrippedType();
+        var constructor = namedType.instanceConstructors.Single(c => c.parameterCount == 0);
+
+        return CreateInstance(namedType, constructor, [], [], used, abort);
     }
 
     private EvaluatorValue EvaluateArrayLength(BoundArrayLength node, bool used, ValueWrapper<bool> abort) {
@@ -1551,7 +1564,17 @@ internal sealed partial class Evaluator {
 
         var type = (NamedTypeSymbol)node.StrippedType();
 
-        if (node.type.IsStructType()) {
+        return CreateInstance(type, node.constructor, node.arguments, node.argumentRefKinds, used, abort);
+    }
+
+    private EvaluatorValue CreateInstance(
+        NamedTypeSymbol type,
+        MethodSymbol constructor,
+        ImmutableArray<BoundExpression> arguments,
+        ImmutableArray<RefKind> argumentRefKinds,
+        bool used,
+        ValueWrapper<bool> abort) {
+        if (type.IsStructType()) {
             var value = CreateStruct(type, abort);
 
             var temp = AllocateTemp(type);
@@ -1559,8 +1582,8 @@ internal sealed partial class Evaluator {
 
             var ptr = EvaluatorValue.Ref(_stack.Peek().values, temp.slot);
 
-            var method = node.constructor;
-            var evaluatedArguments = EvaluateArguments(node.arguments, method.parameters, node.argumentRefKinds, abort);
+            var method = constructor;
+            var evaluatedArguments = EvaluateArguments(arguments, method.parameters, argumentRefKinds, abort);
             InvokeMethod(method, ptr, evaluatedArguments, abort);
 
             if (used)
@@ -1573,8 +1596,8 @@ internal sealed partial class Evaluator {
             var temp = AllocateTemp(type);
             _stack.Peek().values[temp.slot] = ptr;
 
-            var method = node.constructor;
-            var evaluatedArguments = EvaluateArguments(node.arguments, method.parameters, node.argumentRefKinds, abort);
+            var method = constructor;
+            var evaluatedArguments = EvaluateArguments(arguments, method.parameters, argumentRefKinds, abort);
             InvokeMethod(method, ptr, evaluatedArguments, abort);
 
             _stack.Peek().layout.FreeSlot(temp);

@@ -430,6 +430,9 @@ public sealed class DisplayText {
             case BoundKind.BindsExpression:
                 DisplayBindsExpression(text, (BoundBindsExpression)node);
                 break;
+            case BoundKind.NewT:
+                DisplayNewT(text, (BoundNewT)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -619,6 +622,14 @@ public sealed class DisplayText {
         text.Write(CreateKeyword(SyntaxKind.OrKeyword));
         text.Write(CreateSpace());
         DisplayNode(text, node.value);
+    }
+
+    private static void DisplayNewT(DisplayText text, BoundNewT node) {
+        text.Write(CreateKeyword(SyntaxKind.NewKeyword));
+        text.Write(CreateSpace());
+        SymbolDisplay.AppendToDisplayText(text, node.type, SymbolDisplayFormat.ObjectCreationFormat);
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
 
     private static void DisplayBindsExpression(DisplayText text, BoundBindsExpression node) {

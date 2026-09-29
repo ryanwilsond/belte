@@ -957,6 +957,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         try {
             var loweredBody = Lowerer.Lower(
                 _compilation,
+                currentDiagnostics,
                 this,
                 state.compilation.options.optimizationLevel,
                 method,

@@ -475,6 +475,7 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.OrContinueExpression => ExpandOrContinueExpression((BoundOrContinueExpression)expression, out replacement, useKind),
             BoundKind.OrValueExpression => ExpandOrValueExpression((BoundOrValueExpression)expression, out replacement, useKind),
             BoundKind.BindsExpression => ExpandBindsExpression((BoundBindsExpression)expression, out replacement, useKind),
+            BoundKind.NewT => ExpandNewT((BoundNewT)expression, out replacement, useKind),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
     }
@@ -1572,6 +1573,14 @@ internal abstract partial class BoundTreeExpander {
             return statements;
         }
 
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandNewT(
+        BoundNewT expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
         replacement = expression;
         return [];
     }

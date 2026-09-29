@@ -28,6 +28,7 @@ internal static class WellKnownTypeExtensions {
         "System.Attribute",
         "System.AttributeUsageAttribute",
         "System.String",
+        "System.Activator",
         "Belte.NoAllocAttribute",
         "Belte.NoThrowAttribute",
         "Belte.PureAttribute",

@@ -1042,6 +1042,9 @@ hasRelatedInterfaces:
 
                     goto case TypeKind.Struct;
                 case TypeKind.Struct:
+                    if (type.specialType == SpecialType.Nullable)
+                        return true;
+
                     var namedType = (NamedTypeSymbol)type;
 
                     foreach (var constructor in namedType.instanceConstructors) {

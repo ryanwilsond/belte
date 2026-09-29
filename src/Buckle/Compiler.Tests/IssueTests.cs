@@ -4041,4 +4041,82 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void NewT_Evaluates() {
+        var text = @"
+            class A<type T> where { T has constructor; } {
+                public static T Create() {
+                    return new();
+                }
+            }
+
+            return A<int>.Create();
+        ";
+
+        AssertValue(text, 0);
+    }
+
+    [Fact]
+    public void NewT_Evaluates2() {
+        var text = @"
+            class A<type T> where { T has constructor; } {
+                public static T Create() {
+                    return new();
+                }
+            }
+
+            return A<int?>.Create();
+        ";
+
+        AssertValue(text, null);
+    }
+
+    [Fact]
+    public void NewT_Evaluates3() {
+        var text = @"
+            class B {
+                public int field;
+
+                public constructor() {
+                    field = 5;
+                }
+            }
+
+            class A<type T> where { T has constructor; } {
+                public static T Create() {
+                    return new();
+                }
+            }
+
+            var b = A<B>.Create();
+            return b.field;
+        ";
+
+        AssertValue(text, 5);
+    }
+
+    [Fact]
+    public void NewT_Evaluates4() {
+        var text = @"
+            class B {
+                public int field;
+
+                public constructor() {
+                    field = 5;
+                }
+            }
+
+            class A<type T> where { T has constructor; } {
+                public static T Create() {
+                    return new();
+                }
+            }
+
+            var b = A<B?>.Create();
+            return b?.field;
+        ";
+
+        AssertValue(text, 5);
+    }
 }
