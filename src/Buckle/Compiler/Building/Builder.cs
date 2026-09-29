@@ -38,6 +38,11 @@ public sealed class Builder {
     /// </summary>
     public bool excludeTemplateMetadata;
 
+    /// <summary>
+    /// If to invoke Crossgen2 after building.
+    /// </summary>
+    public bool publishR2R;
+
     public Builder() {
         buildMode = BuildMode.Execute;
         outputKind = OutputKind.ConsoleApplication;
@@ -49,6 +54,7 @@ public sealed class Builder {
         debugBuild = false;
         includeStdLib = true;
         excludeTemplateMetadata = false;
+        publishR2R = false;
         _diagnosticFlagMode = DiagnosticFlagMode.Global;
         _globalDiagnosticOptions = new();
         _currentDiagnosticOptions = new();

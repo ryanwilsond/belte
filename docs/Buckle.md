@@ -252,6 +252,10 @@ does not include template metadata, those features will not be available to refe
 
 Specify to not read template metadata from referenced DLLs. See [*--skiptm*](#--skiptm) for more information.
 
+### *--r2r*
+
+Specify to try to invoke Crossgen2 on the outputted assemblies.
+
 ### *--time*
 
 Displays how much time each stage of compilation took.

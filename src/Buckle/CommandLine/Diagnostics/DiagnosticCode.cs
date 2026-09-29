@@ -58,4 +58,6 @@ public enum DiagnosticCode : ushort {
     ERR_MissingWarningLevelAfterWError = 47,
     ERR_MissingFilenameF = 48,
     FTL_CannotSpecifySkipTemplateMetadataWithoutDll = 49,
+    FTL_CannotSpecifyR2RWithoutDotnet = 50,
+    WRN_R2RFailed = 51,
 }

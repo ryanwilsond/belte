@@ -529,4 +529,18 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(args, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Fatal_CL0050_CannotSpecifyR2RWithoutDotnet() {
+        var args = new string[] { "--r2r" };
+
+        var diagnostics = @"
+            cannot specify '--r2r' without .NET integration
+        ";
+
+        AssertDiagnostics(args, diagnostics, _writer);
+    }
+
+    // ! Warning_CL0051_R2RFailed
+    // ? Hopefully doesn't happen
 }

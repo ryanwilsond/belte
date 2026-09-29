@@ -30,6 +30,7 @@ public static partial class BuckleCommandLine {
     private const long MaxBuildCacheSize = 3 * 1_000_000_000L;
 
     private static readonly DiagnosticInfo[] WarningLevel1 = [
+        new DiagnosticInfo(0051, "CL"),
         new DiagnosticInfo(0001, "BU"),
         new DiagnosticInfo(0026, "BU"),
         new DiagnosticInfo(0133, "BU"),
@@ -121,7 +122,8 @@ public static partial class BuckleCommandLine {
             out var dialogs,
             out var multipleExplains,
             out var sae,
-            out var pendingReferenceCopies
+            out var pendingReferenceCopies,
+            out var r2r
         );
 
         var compiler = new Compiler(state) {
@@ -190,7 +192,7 @@ public static partial class BuckleCommandLine {
         }
 
         if (state.verboseMode && !state.noOut)
-            LogCompilerState(state, pendingReferenceCopies);
+            LogCompilerState(state, pendingReferenceCopies, r2r);
 
         if (dialogs.startStop)
             ShowStartDialog(usingBuildScript: false);
@@ -213,6 +215,9 @@ public static partial class BuckleCommandLine {
         }
 
         ResolveReferenceCopies(state.outputFilename, pendingReferenceCopies, processName, state);
+
+        if (r2r)
+            InvokeCrossgen2(processName, state);
 
         if (dialogs.startStop)
             ShowStopDialog();
@@ -387,7 +392,8 @@ public class {name} {{
             diagnostics,
             builder,
             out var pendingReferenceCopies,
-            out var pendingDependencyCopies
+            out var pendingDependencyCopies,
+            out var r2r
         );
 
         state = compiler.state;
@@ -415,7 +421,7 @@ public class {name} {{
             return err;
 
         if (state.verboseMode && !state.noOut)
-            LogCompilerState(state, pendingReferenceCopies);
+            LogCompilerState(state, pendingReferenceCopies, r2r);
 
         if (startStopDialog)
             ShowStartDialog(usingBuildScript: true);
@@ -444,6 +450,9 @@ public class {name} {{
                 pendingDependencyCopies.Item2
             );
         }
+
+        if (r2r)
+            InvokeCrossgen2(processName, state);
 
         if (startStopDialog)
             ShowStopDialog();
@@ -551,7 +560,8 @@ public class {name} {{
         DiagnosticQueue<Diagnostic> diagnostics,
         Builder builder,
         out string[] pendingReferenceCopies,
-        out (string[], string[]) pendingDependencyCopies) {
+        out (string[], string[]) pendingDependencyCopies,
+        out bool r2r) {
         var references = new List<string>();
         var copies = new List<string>();
 
@@ -647,6 +657,8 @@ public class {name} {{
 
         var maxCores = builder.maxCores > 0 ? builder.maxCores : Environment.ProcessorCount - 2;
         var concurrentBuild = maxCores > 1;
+
+        r2r = builder.publishR2R;
 
         diagnostics.PushRange(builder.buildDiagnostics);
 
@@ -1143,7 +1155,7 @@ public class {name} {{
         Console.WriteLine();
     }
 
-    private static void LogCompilerState(CompilerState state, string[] pendingReferenceCopies) {
+    private static void LogCompilerState(CompilerState state, string[] pendingReferenceCopies, bool r2r) {
         Console.WriteLine();
         Console.WriteLine($"Diagnostic reporting level: {Enum.GetName(state.diagnosticOptions.severity)}");
         Console.WriteLine($"Warning reporting level: {state.diagnosticOptions.warningLevel}");
@@ -1156,6 +1168,7 @@ public class {name} {{
         Console.WriteLine($"Project type: {Enum.GetName(state.projectType)}");
         Console.WriteLine($"Build mode: {Enum.GetName(state.buildMode)}");
         Console.WriteLine($"Debug mode: {state.debugMode}");
+        Console.WriteLine($"R2R: {r2r}");
         Console.WriteLine();
         Console.WriteLine($"Concurrent build: {state.concurrentBuild}");
         Console.WriteLine($"Max parallelism: {state.maxCores}");
@@ -1304,7 +1317,8 @@ public class {name} {{
         out ShowDialogs dialogs,
         out bool multipleExplains,
         out bool saExit,
-        out string[] pendingReferenceCopies) {
+        out string[] pendingReferenceCopies,
+        out bool r2r) {
         var state = new CompilerState();
         var tasks = new List<FileState>();
         var references = new List<string>();
@@ -1362,6 +1376,8 @@ public class {name} {{
         state.skipTemplateMetadata = false;
         state.noTemplateMetadata = false;
         state.l = 2;
+
+        var r2rl = false;
 
         void DecodeSimpleOption(string arg) {
             switch (arg) {
@@ -1470,6 +1486,9 @@ public class {name} {{
                     break;
                 case "--notm":
                     state.noTemplateMetadata = true;
+                    break;
+                case "--r2r":
+                    r2rl = true;
                     break;
                 default:
                     diagnosticsCL.Push(Belte.Diagnostics.Error.UnrecognizedOption(arg));
@@ -1696,6 +1715,7 @@ public class {name} {{
             }
         }
 
+        r2r = r2rl;
         saExit = sae;
 
         if (sae) {
@@ -1770,6 +1790,9 @@ public class {name} {{
 
         if (anyExplicitReferences && !state.buildMode.SupportsDotnetReferences())
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyReferencesWithoutDotnet());
+
+        if (r2r && state.buildMode != BuildMode.Dotnet)
+            diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyR2RWithoutDotnet());
 
         foreach (var reference in references) {
             if (!File.Exists(reference))
@@ -2098,5 +2121,119 @@ public class {name} {{
 
         diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(path));
         return null;
+    }
+
+    private static void InvokeCrossgen2(string processName, CompilerState state) {
+        if (!TryInvokeCrossgen2(processName, state))
+            ResolveDiagnostic(Belte.Diagnostics.Warning.R2RFailed(), processName, state);
+    }
+
+    private static bool TryInvokeCrossgen2(string processName, CompilerState state) {
+        var nugetRoot = Environment.GetEnvironmentVariable("NUGET_PACKAGES");
+
+        if (string.IsNullOrEmpty(nugetRoot)) {
+            var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            nugetRoot = Path.Combine(userProfile, ".nuget", "packages");
+        }
+
+        if (!Directory.Exists(nugetRoot))
+            return false;
+
+        var tfm = Buckle.CodeAnalysis.Emitting.DotnetReferenceResolver.GetTFM();
+        _ = Buckle.CodeAnalysis.Emitting.DotnetReferenceResolver.ResolveNetCoreAppRefPath(tfm, out var version);
+
+        var crossgen2Path = Path.Combine(
+            nugetRoot,
+            "microsoft.netcore.app.crossgen2.win-x64",
+            version,
+            "tools",
+            "crossgen2.exe"
+        );
+
+        if (!File.Exists(crossgen2Path))
+            return false;
+
+        var compiledDllPath = Path.GetFullPath(Path.ChangeExtension(state.outputFilename, "dll"));
+
+        if (!File.Exists(compiledDllPath))
+            return false;
+
+        var outputDirectory = Path.Combine(Path.GetDirectoryName(state.outputFilename), "R2R");
+
+        if (!Directory.Exists(outputDirectory))
+            Directory.CreateDirectory(outputDirectory);
+
+        var outputPath = Path.GetFullPath(Path.Combine(outputDirectory, Path.GetFileName(compiledDllPath)));
+
+        var runtimePackRoot = Path.Combine(
+            nugetRoot,
+            "microsoft.netcore.app.runtime.win-x64",
+            version,
+            "runtimes",
+            "win-x64",
+            "lib",
+            $"net{tfm}"
+        );
+
+        var startInfo = new ProcessStartInfo() {
+            CreateNoWindow = false,
+            UseShellExecute = false,
+            FileName = crossgen2Path,
+            WindowStyle = ProcessWindowStyle.Hidden
+        };
+
+        startInfo.ArgumentList.Add("--targetos:windows");
+        startInfo.ArgumentList.Add("--targetarch:x64");
+        startInfo.ArgumentList.Add("-O");
+        startInfo.ArgumentList.Add($"-r:{compiledDllPath}");
+
+        foreach (var file in Directory.GetFiles(runtimePackRoot, "*.dll"))
+            startInfo.ArgumentList.Add($"-r:{file}");
+
+        foreach (var reference in state.references) {
+            if (!ReferenceAlreadyAdded(reference, runtimePackRoot))
+                startInfo.ArgumentList.Add($"-r:{reference}");
+        }
+
+        startInfo.ArgumentList.Add($"--out:{outputPath}");
+        startInfo.ArgumentList.Add(compiledDllPath);
+
+        if (state.verboseMode && !state.noOut) {
+            Console.WriteLine();
+            Console.WriteLine("Invoking Crossgen2 with the following arguments:");
+            Console.WriteLine($"    {crossgen2Path}");
+
+            foreach (var argument in startInfo.ArgumentList)
+                Console.WriteLine($"    {argument}");
+
+            Console.WriteLine();
+        }
+
+        try {
+            var process = Process.Start(startInfo);
+            process.WaitForExit();
+
+            if (process.ExitCode != 0)
+                return false;
+        } catch (Win32Exception e) {
+            ResolveDiagnostic(Belte.Diagnostics.Error.UnableToRun(e.Message), processName, state);
+            return false;
+        }
+
+        if (!File.Exists(outputPath))
+            return false;
+
+        var backupName = Path.ChangeExtension(compiledDllPath, "non-r2r.dll");
+        File.Replace(outputPath, compiledDllPath, backupName);
+        return true;
+    }
+
+    private static bool ReferenceAlreadyAdded(string reference, string root) {
+        var newReference = Path.Combine(root, Path.GetFileName(reference));
+
+        if (File.Exists(newReference))
+            return true;
+
+        return false;
     }
 }

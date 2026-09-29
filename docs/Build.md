@@ -158,6 +158,21 @@ void Build(Builder builder) {
 }
 ```
 
+To publish ReadyToRun using Crossgen2, the `publishR2R` flag can be set.
+
+For example:
+
+```belte
+using Buckle;
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.outputKind = .Console;
+  builder.buildMode = .Dotnet;
+  builder.publishR2R = true;
+}
+```
+
 ## References
 
 DLL references can be added with `Builder.AddRef(path, options)`. By default, directories search for `*.dll` files
