@@ -251,8 +251,7 @@ internal static class SpecialTypeExtensions {
             case SpecialType.UInt64:
             case SpecialType.IntPtr:
             case SpecialType.UIntPtr:
-            // TODO
-            // case SpecialType.TypedReference:
+            case SpecialType.TypedReference:
             case SpecialType.Float32:
             case SpecialType.Float64:
                 return true;

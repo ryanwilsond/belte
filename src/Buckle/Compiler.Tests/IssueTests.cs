@@ -4119,4 +4119,51 @@ public sealed class IssueTests {
 
         AssertValue(text, 5);
     }
+
+    [Fact]
+    public void ConstructorConstraint_DisallowsNullable() {
+        var text = @"
+            class A {
+                public constructor(int _) { }
+            }
+            class B<type T> where { T has constructor; } {
+                public static T M() {
+                    return new T();
+                }
+            }
+            [B<A?>].M();
+        ";
+
+        var diagnostics = @"
+            the type 'A?' must have a public parameterless constructor in order to use it as parameter 'T' in the template type or method 'B<type! T>'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Unreachable_CorrectMessage() {
+        var text = @"
+            unreachable;
+        ";
+
+        var exceptions = @"
+            This program location is thought to be unreachable.
+        ";
+
+        AssertExceptions(text, _writer, exceptions);
+    }
+
+    [Fact]
+    public void Unreachable_CorrectMessage2() {
+        var text = @"
+            unreachable(3);
+        ";
+
+        var exceptions = @"
+            Unexpected value '3'.
+        ";
+
+        AssertExceptions(text, _writer, exceptions);
+    }
 }

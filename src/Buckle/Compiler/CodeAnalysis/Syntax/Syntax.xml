@@ -1199,6 +1199,13 @@
     <Field Name="keyword" Type="SyntaxToken">
       <Kind Name="UnreachableKeyword"/>
     </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken" Optional="true">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="value" Type="ExpressionSyntax" Optional="true"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken" Optional="true">
+      <Kind Name="CloseParenToken"/>
+    </Field>
     <Field Name="semicolon" Type="SyntaxToken">
       <Kind Name="SemicolonToken"/>
     </Field>

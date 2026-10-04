@@ -517,13 +517,6 @@ internal partial class Binder {
                 []
             );
         } else {
-            // TODO Would be nice if lists could accept empty/non-inferred array initializers
-            // diagnostics.Push(Error.ArrayInitToNonArrayType(node.location));
-            // result = BindUnexpectedArrayInitializer(
-            //     (InitializerListExpressionSyntax)node,
-            //     diagnostics,
-            //     inferType: false
-            // );
             result = BindInitializerListExpression((InitializerListExpressionSyntax)node, diagnostics);
         }
 
@@ -786,10 +779,8 @@ internal partial class Binder {
         if (addressKind == AddressKind.ReadOnlyStrict)
             return true;
 
-        // TODO Equiv?
-        // if (fieldAccess.IsByValue) {
-        //     return false;
-        // }
+        if (NeedsByValueFieldAccess(fieldAccess.receiver, fieldAccess.field))
+            return false;
 
         if (field.refKind is RefKind.RefConst or RefKind.RefFinal)
             return false;
@@ -812,6 +803,26 @@ internal partial class Binder {
             return (containingSymbol is MethodSymbol { methodKind: MethodKind.Constructor }
                 or FieldSymbol { isStatic: false }) &&
                 fieldAccess.receiver.kind == BoundKind.ThisExpression;
+        }
+    }
+
+    private static bool NeedsByValueFieldAccess(BoundExpression receiver, FieldSymbol fieldSymbol) {
+        if (fieldSymbol.isStatic ||
+            !fieldSymbol.containingType.isValueType ||
+            fieldSymbol.refKind != RefKind.None ||
+            receiver is null) {
+            return false;
+        }
+
+        switch (receiver.kind) {
+            case BoundKind.FieldAccessExpression:
+                var fieldAccess = (BoundFieldAccessExpression)receiver;
+                return NeedsByValueFieldAccess(fieldAccess.receiver, fieldAccess.field);
+            case BoundKind.DataContainerExpression:
+                var localSymbol = ((BoundDataContainerExpression)receiver).dataContainer;
+                return !(localSymbol.isWritableVariable || localSymbol.isRef);
+            default:
+                return false;
         }
     }
 
@@ -1692,6 +1703,7 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics) {
         var fieldSymbol = fieldAccess.field;
 
+        // TODO CanModifyReadonlyField implies 'final', but this is under a 'const' check?
         if (fieldSymbol.isConst) {
             if ((fieldSymbol.refKind == RefKind.None
                 ? RequiresAssignableVariable(valueKind)

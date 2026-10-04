@@ -236,7 +236,7 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
             if (current.isExplicit)
                 break;
 
-            if (current.underlyingConversions != default)
+            if (current.isNullable && current.underlyingConversions != default)
                 current = current.underlyingConversions[0];
             else
                 break;

@@ -154,6 +154,14 @@
                     "match": "\\b((?<=enum\\s+(?:flags\\s+)?)|(?<=extends\\s*))(?!flags\\b)([a-zA-Z_]\\w*)\\b"
                 },
                 {
+                    "name": "entity.name.union.belte",
+                    "match": "\\b((?<=union\\s+)|(?<=extends\\s*))([a-zA-Z_]+\\w*)\\b"
+                },
+                {
+                    "name": "entity.name.interface.belte",
+                    "match": "\\b((?<=interface\\s+)|(?<=extends\\s*))([a-zA-Z_]+\\w*)\\b"
+                },
+                {
                     "name": "entity.name.namespace.belte",
                     "match": "(?<=\\bnamespace\\b[\\s\\S]*?)\\b((?<=namespace\\s+)|(?<=\\.\\s*))([a-zA-Z_]\\w*)\\b"
                 },

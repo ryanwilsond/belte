@@ -686,7 +686,7 @@ internal sealed partial class CodeGenerator {
                 EmitReturnStatement((BoundReturnStatement)statement);
                 break;
             case BoundKind.UnreachableStatement:
-                EmitUnreachableStatement();
+                EmitUnreachableStatement((BoundUnreachableStatement)statement);
                 break;
             case BoundKind.TryStatement:
                 EmitTryStatement((BoundTryStatement)statement);
@@ -1213,8 +1213,14 @@ oneMoreTime:
         _builder.EmitReturn();
     }
 
-    private void EmitUnreachableStatement() {
-        _builder.EmitUnreachableException();
+    private void EmitUnreachableStatement(BoundUnreachableStatement statement) {
+        if (statement.value is null) {
+            _builder.EmitUnreachableException();
+        } else {
+            EmitExpression(statement.value, true);
+            _builder.EmitUnexpectedValueException();
+        }
+
         _builder.Emit(OpCode.Throw);
     }
 

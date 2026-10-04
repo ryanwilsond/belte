@@ -208,7 +208,7 @@ internal partial class ILEmitter : ModuleBuilder {
         var emitter = new ILEmitter(program, assemblyName, assemblyVersion, debugMode, noStdLib, diagnostics);
 
         if (SupportedProjectType(program, diagnostics))
-            emitter.EmitToFile(outputPath, debugMode);
+            emitter.EmitToFile(outputPath, debugMode, diagnostics);
     }
 
     internal static string EmitToString(
@@ -236,7 +236,7 @@ internal partial class ILEmitter : ModuleBuilder {
         return true;
     }
 
-    private void EmitToFile(string outputPath, bool debugMode) {
+    private void EmitToFile(string outputPath, bool debugMode, BelteDiagnosticQueue diagnostics) {
         EmitInternal();
         // This has to be done after main emit phase in case the attribute definition is in this assembly
         EmitMetadataAttribute();
@@ -262,9 +262,15 @@ internal partial class ILEmitter : ModuleBuilder {
                 SymbolWriterProvider = new PortablePdbWriterProvider()
             };
 
-            _assemblyDefinition.Write(dllPath, writerParameters);
+            var wrote = IOUtilities.TryIOOperation(() => _assemblyDefinition.Write(dllPath, writerParameters));
+
+            if (!wrote)
+                diagnostics.Push(Error.UnableToOpenFile(dllPath));
         } else {
-            _assemblyDefinition.Write(dllPath);
+            var wrote = IOUtilities.TryIOOperation(() => _assemblyDefinition.Write(dllPath));
+
+            if (!wrote)
+                diagnostics.Push(Error.UnableToOpenFile(dllPath));
         }
 
         if (!isDll)
@@ -2546,7 +2552,8 @@ internal partial class ILEmitter : ModuleBuilder {
         NetMethodReference.Type_GetTypeFromHandle = ResolveMethod("System.Type", "GetTypeFromHandle", ["System.RuntimeTypeHandle"]);
         NetMethodReference.NullReferenceException_ctor = ResolveMethod("System.NullReferenceException", ".ctor", []);
         NetMethodReference.NullConditionException_ctor = ResolveMethod("Belte.Runtime.NullConditionException", ".ctor", []);
-        NetMethodReference.UnreachableException_ctor = ResolveMethod("System.Diagnostics.UnreachableException", ".ctor", []);
+        NetMethodReference.ThrowUnreachableException = ResolveMethod("Belte.Runtime.ThrowHelper", "ThrowUnreachableException", []);
+        NetMethodReference.ThrowUnexpectedValueException = ResolveMethod("Belte.Runtime.ThrowHelper", "ThrowUnexpectedValueException", ["System.Object"]);
         NetMethodReference.LowLevel_Sort = ResolveMethod("Belte.Runtime.Utilities", "Sort", ["T[]"]);
         NetMethodReference.LowLevel_Length = ResolveMethod("Belte.Runtime.Utilities", "Length", ["T[]"]);
         NetMethodReference.AssertNull = ResolveMethod("Belte.Runtime.Utilities", "AssertNull", ["T"]);

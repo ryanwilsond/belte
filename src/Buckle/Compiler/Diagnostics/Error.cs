@@ -1612,12 +1612,6 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_BadUsingStaticType, location, message);
     }
 
-    internal static BelteDiagnostic ArrayInitToNonArrayType(TextLocation location) {
-        throw ExceptionUtilities.Unreachable();
-        // var message = $"can only use array initializer expressions to assign to array types; try using a new expression instead";
-        // return CreateError(DiagnosticCode.ERR_ArrayInitToNonArrayType, location, message);
-    }
-
     internal static BelteDiagnostic ArrayInitExpected(TextLocation location) {
         throw ExceptionUtilities.Unreachable();
         // var message = $"a nested initializer list is expected";
@@ -3281,6 +3275,11 @@ internal static class Error {
     internal static BelteDiagnostic IdentityPattern(TextLocation location) {
         var message = $"pattern type is identical to the expression type; pattern always succeeds";
         return CreateError(DiagnosticCode.ERR_IdentityPattern, location, message);
+    }
+
+    internal static Diagnostic UnableToOpenFile(string fileName) {
+        var message = $"failed to open file '{fileName}'; most likely due to the file being used by another process";
+        return CreateError(DiagnosticCode.ERR_UnableToOpenFile, null, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

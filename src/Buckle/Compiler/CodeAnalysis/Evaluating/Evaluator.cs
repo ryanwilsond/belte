@@ -607,7 +607,22 @@ internal sealed partial class Evaluator {
 
                         break;
                     case BoundKind.UnreachableStatement:
-                        throw new BelteEvaluatorException("The program executed an instruction that was thought to be unreachable.", s.syntax.location);
+                        var unreachableStatement = (BoundUnreachableStatement)s;
+
+                        if (unreachableStatement.value is null) {
+                            throw new BelteEvaluatorException("This program location is thought to be unreachable.", s.syntax.location);
+                        } else {
+                            var value = EvaluateExpression(unreachableStatement.value, true, abort);
+
+                            if (value.kind is ValueKind.HeapPtr or ValueKind.Struct) {
+                                var toStringMethod = ResolveVirtualMethod(_toStringMethod, null, value);
+                                value = InvokeMethod(toStringMethod, value, [], abort);
+                            }
+
+                            var formattedValue = EvaluatorValue.Format(value, _context);
+
+                            throw new BelteEvaluatorException($"Unexpected value '{formattedValue}'.", s.syntax.location);
+                        }
                     default:
                         throw ExceptionUtilities.UnexpectedValue(s.kind);
                 }

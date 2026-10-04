@@ -1,7 +1,9 @@
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -72,6 +74,8 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
 
     internal virtual bool isWritableVariable {
         get {
+            bool isWritable;
+
             switch (declarationKind) {
                 case DataContainerDeclarationKind.Constant:
                 case DataContainerDeclarationKind.Final:
@@ -81,14 +85,24 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
                 case DataContainerDeclarationKind.ConstantNullBindingLocal:
                 case DataContainerDeclarationKind.NullBindingLocal:
                 case DataContainerDeclarationKind.ScopedLocal:
-                    return false;
+                    isWritable = false;
+                    break;
                 case DataContainerDeclarationKind.Variable:
                 case DataContainerDeclarationKind.PatternLocal:
                 case DataContainerDeclarationKind.OutVariable:
                 case DataContainerDeclarationKind.DeclarationExpressionVariable:
+                    isWritable = true;
+                    break;
+                case DataContainerDeclarationKind.None:
+                    Debug.Assert(this is SynthesizedDataContainerSymbol);
+                    isWritable = true;
+                    break;
                 default:
-                    return true;
+                    throw ExceptionUtilities.UnexpectedValue(declarationKind);
             }
+
+            Debug.Assert(isWritable == (!isFinal && !isConst && !isConstExpr));
+            return isWritable;
         }
     }
 

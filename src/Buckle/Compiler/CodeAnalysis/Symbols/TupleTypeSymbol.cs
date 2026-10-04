@@ -452,6 +452,7 @@ internal partial class NamedTypeSymbol {
                         break;
                     case SymbolKind.NamedType:
                     case SymbolKind.Method:
+                    case SymbolKind.Property:
                         break;
                     default:
                         if (currentNestingLevel == 0)

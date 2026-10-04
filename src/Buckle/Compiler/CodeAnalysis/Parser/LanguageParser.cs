@@ -2577,8 +2577,19 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
     private StatementSyntax ParseUnreachableStatement() {
         var keyword = EatToken();
+        SyntaxToken openParen = null;
+        ExpressionSyntax value = null;
+        SyntaxToken closeParen = null;
+
+        if (currentToken.kind == SyntaxKind.OpenParenToken) {
+            openParen = EatToken();
+            value = ParseExpression();
+            closeParen = Match(SyntaxKind.CloseParenToken);
+        }
+
         var semicolon = EatToken(SyntaxKind.SemicolonToken);
-        return SyntaxFactory.UnreachableStatement(keyword, semicolon);
+
+        return SyntaxFactory.UnreachableStatement(keyword, openParen, value, closeParen, semicolon);
     }
 
     private StatementSyntax ParseDoWhileStatement() {

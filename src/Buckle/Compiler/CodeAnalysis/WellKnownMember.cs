@@ -76,7 +76,8 @@ internal enum WellKnownMember : byte {
     WrappedErrorException_ctor,
 
     System_Activator_CreateInstance,
+    System_InvalidOperationException_ctor,
 
     LastCorMember = Array_Set,
-    Count = System_Activator_CreateInstance,
+    Count = System_InvalidOperationException_ctor,
 }

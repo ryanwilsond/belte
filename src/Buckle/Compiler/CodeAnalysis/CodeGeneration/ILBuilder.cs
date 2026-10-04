@@ -49,6 +49,8 @@ internal abstract class ILBuilder {
 
     internal abstract void EmitUnreachableException();
 
+    internal abstract void EmitUnexpectedValueException();
+
     internal abstract void BeginTry(BoundTryStatement tryStatement);
 
     internal abstract void BeginCatch();

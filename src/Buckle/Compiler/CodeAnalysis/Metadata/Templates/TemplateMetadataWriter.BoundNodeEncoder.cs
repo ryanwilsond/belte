@@ -422,7 +422,7 @@ internal sealed partial class TemplateMetadataWriter {
 
         internal override BoundNode VisitUnreachableStatement(BoundUnreachableStatement node) {
             _writer.Write((byte)BoundKind.UnreachableStatement);
-            return null;
+            return base.VisitUnreachableStatement(node);
         }
 
         internal override BoundNode VisitExpressionStatement(BoundExpressionStatement node) {

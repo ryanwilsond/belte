@@ -3,7 +3,6 @@ using System.Collections.Generic;
 namespace Buckle.CodeAnalysis;
 
 internal static class SpecialTypes {
-    // TODO Eventually these will be inside a namespace
     private static readonly Dictionary<string, SpecialType> NameToTypeMap = new Dictionary<string, SpecialType>() {
         { "global::Object", SpecialType.Object },
         { "global::void", SpecialType.Void },

@@ -360,7 +360,8 @@ internal sealed partial class TemplateMetadataReader {
         }
 
         private BoundUnreachableStatement ReadUnreachableStatement() {
-            return new BoundUnreachableStatement(null);
+            var expression = ReadExpression(backtrackIfNotExpression: true);
+            return new BoundUnreachableStatement(null, expression);
         }
 
         private BoundTryStatement ReadTryStatement() {

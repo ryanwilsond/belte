@@ -4,6 +4,7 @@ using System.IO;
 using System.Linq;
 using System.Reflection;
 using System.Text.Json;
+using Buckle.CodeAnalysis;
 using Buckle.Diagnostics;
 using Diagnostics;
 
@@ -95,6 +96,9 @@ public sealed class BuildManager {
         File.WriteAllText(_state.metaPath, json);
 
         AddCacheEntry(_state.buildDirectory, index, outputFilename, meta);
+
+        // TODO Reusing data causes bugs, but if we can get it working it would be more performant
+        compiler.InvalidateCorLibraryCache();
     }
 
     private static void AddCacheEntry(

@@ -38,7 +38,7 @@ internal partial class Binder {
             SyntaxKind.GotoStatement => BindGotoStatement((GotoStatementSyntax)node, diagnostics),
             SyntaxKind.InlineILStatement => BindInlineILStatement((InlineILStatementSyntax)node, diagnostics),
             SyntaxKind.WithStatement => BindWithStatement((WithStatementSyntax)node, diagnostics),
-            SyntaxKind.UnreachableStatement => BindUnreachableStatement((UnreachableStatementSyntax)node),
+            SyntaxKind.UnreachableStatement => BindUnreachableStatement((UnreachableStatementSyntax)node, diagnostics),
             SyntaxKind.ReverseStatement => BindReverseStatement((ReverseStatementSyntax)node, diagnostics),
             SyntaxKind.ReverseDeferStatement => BindReverseDeferStatement((ReverseDeferStatementSyntax)node, diagnostics),
             SyntaxKind.CheckedStatement => BindCheckedStatement((CheckedStatementSyntax)node, diagnostics),
@@ -519,8 +519,17 @@ internal partial class Binder {
         return new BoundBreakStatement(node, target);
     }
 
-    private BoundStatement BindUnreachableStatement(UnreachableStatementSyntax node) {
-        return new BoundUnreachableStatement(node);
+    private BoundStatement BindUnreachableStatement(UnreachableStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        if (node.value is null)
+            return new BoundUnreachableStatement(node, null);
+
+        var value = BindValue(node.value, diagnostics, BindValueKind.RValue);
+        var objectType = compilation.GetSpecialType(SpecialType.Object);
+        var conversion = conversions.ClassifyConversionFromExpression(value, objectType, false);
+        Debug.Assert(conversion.exists);
+        value = CreateConversion(value, conversion, objectType, diagnostics);
+
+        return new BoundUnreachableStatement(node, value);
     }
 
     private BoundStatement BindContinueStatement(ContinueStatementSyntax node, BelteDiagnosticQueue diagnostics) {

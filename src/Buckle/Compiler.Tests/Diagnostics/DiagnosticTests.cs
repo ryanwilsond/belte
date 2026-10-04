@@ -577,21 +577,8 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // !
-    // Unreachable currently
-
-    // [Fact]
-    // public void Reports_Error_BU0039_ArrayInitToNonArrayType() {
-    //     var text = @"
-    //         int a = [{ 1, 2, 3 }];
-    //     ";
-
-    //     var diagnostics = @"
-    //         can only use array initializer expressions to assign to array types; try using a new expression instead
-    //     ";
-
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+    // ! Reports_Error_BU0039_UnableToOpenFile
+    // ? Hard to test
 
     [Fact]
     public void Reports_Error_BU0040_NoInitOnImplicit() {

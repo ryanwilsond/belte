@@ -130,8 +130,13 @@ internal sealed class RefILBuilder : ILBuilder {
     }
 
     internal override void EmitUnreachableException() {
-        if (_logger is not null) Log(OpCodes.Newobj, Executor.MethodInfoCache.UnreachableException_ctor);
-        _iLGenerator.Emit(OpCodes.Newobj, Executor.MethodInfoCache.UnreachableException_ctor);
+        if (_logger is not null) Log(OpCodes.Call, Executor.MethodInfoCache.ThrowUnreachableException);
+        _iLGenerator.Emit(OpCodes.Call, Executor.MethodInfoCache.ThrowUnreachableException);
+    }
+
+    internal override void EmitUnexpectedValueException() {
+        if (_logger is not null) Log(OpCodes.Call, Executor.MethodInfoCache.ThrowUnexpectedValueException);
+        _iLGenerator.Emit(OpCodes.Call, Executor.MethodInfoCache.ThrowUnexpectedValueException);
     }
 
     internal override void FreeTemp(VariableDefinition temp) {

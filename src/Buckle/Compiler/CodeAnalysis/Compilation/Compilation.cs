@@ -554,10 +554,8 @@ public sealed partial class Compilation {
 
         handleManager.SendBeforeEmitMessage();
 
-        if (verbose && options.enableOutput && !noArtifacts) {
-            EmitCFG(verbosePath);
-            EmitBoundProgram(verbosePath);
-        }
+        if (verbose && options.enableOutput && !noArtifacts)
+            EmitArtifacts(verbosePath);
 
         object evalResult;
 
@@ -627,10 +625,8 @@ public sealed partial class Compilation {
 
         handleManager.SendBeforeEmitMessage();
 
-        if (verbose && options.enableOutput && !noArtifacts) {
-            EmitCFG(verbosePath);
-            EmitBoundProgram(verbosePath);
-        }
+        if (verbose && options.enableOutput && !noArtifacts)
+            EmitArtifacts(verbosePath);
 
         if (options.buildMode == BuildMode.Dotnet)
             ILEmitter.Emit(program, assemblyName, assembly.identity.version, outputPath, diagnostics);
@@ -675,10 +671,8 @@ public sealed partial class Compilation {
 
         handleManager.SendBeforeEmitMessage();
 
-        if (verbose && options.enableOutput && !noArtifacts) {
-            EmitCFG(verbosePath);
-            EmitBoundProgram(verbosePath);
-        }
+        if (verbose && options.enableOutput && !noArtifacts)
+            EmitArtifacts(verbosePath);
 
         var executor = new Executor(program, options.arguments, diagnostics);
         result = executor.Execute(verbose, logTime, verbosePath, noArtifacts);
@@ -745,10 +739,8 @@ public sealed partial class Compilation {
 
         handleManager.SendBeforeEmitMessage();
 
-        if (verbose && options.enableOutput && !noArtifacts) {
-            EmitCFG(verbosePath);
-            EmitBoundProgram(verbosePath);
-        }
+        if (verbose && options.enableOutput && !noArtifacts)
+            EmitArtifacts(verbosePath);
 
         var emulator = new Emulator(program, options.arguments, diagnostics);
         result = emulator.Emulate(verbose, logTime, verbosePath, noArtifacts);
@@ -1673,6 +1665,12 @@ public sealed partial class Compilation {
         handleManager.SendBoundMessage();
     }
 
+    private void EmitArtifacts(string verbosePath) {
+        EmitCFG(verbosePath);
+        EmitBoundProgram(verbosePath);
+        EmitTypeInfo(verbosePath);
+    }
+
     [Conditional("DEBUG")]
     private void EmitCFG(string path) {
         const string CFGName = "cfg.dot";
@@ -1723,6 +1721,62 @@ public sealed partial class Compilation {
         streamWriter.Close();
     }
 
+    private void EmitTypeInfo(string path) {
+        const string TypeInfoName = "TypeInfo.txt";
+        var typeInfoPath = path is null ? TypeInfoName : Path.Combine(path, TypeInfoName);
+
+        var program = boundProgram;
+
+        using var streamWriter = new StreamWriter(typeInfoPath);
+        var typeSizes = new List<(int, string)>();
+        var allTypeSizes = new List<(int, string)>();
+
+        streamWriter.WriteLine("---- Source ----");
+        streamWriter.WriteLine();
+
+        foreach (var type in program.types) {
+            if (type is not NamedTypeSymbol n || n.typeKind != TypeKind.Struct)
+                continue;
+
+            var typeSize = SourceMemberContainerTypeSymbol.GetStructSize(type);
+            var display = $"{type.ToDisplayString(SymbolDisplayFormat.FullyQualifiedNameFormat)}  ({typeSize} bytes)";
+
+            if (type.IsFromCompilation(this)) {
+                typeSizes.Add((typeSize, display));
+                streamWriter.WriteLine(display);
+            } else {
+                allTypeSizes.Add((typeSize, display));
+            }
+        }
+
+        streamWriter.WriteLine();
+        streamWriter.WriteLine("-- By Size --");
+        streamWriter.WriteLine();
+
+        typeSizes.Sort((x, y) => x.Item1.CompareTo(y.Item1));
+
+        foreach (var (_, display) in typeSizes)
+            streamWriter.WriteLine(display);
+
+        streamWriter.WriteLine();
+        streamWriter.WriteLine("---- PE ----");
+        streamWriter.WriteLine();
+
+        foreach (var (_, display) in allTypeSizes)
+            streamWriter.WriteLine(display);
+
+        streamWriter.WriteLine();
+        streamWriter.WriteLine("-- By Size --");
+        streamWriter.WriteLine();
+
+        allTypeSizes.Sort((x, y) => x.Item1.CompareTo(y.Item1));
+
+        foreach (var (_, display) in allTypeSizes)
+            streamWriter.WriteLine(display);
+
+        streamWriter.Close();
+    }
+
     private static string GetProjectPath(string fileName) {
         var appPath = Environment.GetCommandLineArgs()[0];
         var appDirectory = Path.GetDirectoryName(appPath);
@@ -1744,16 +1798,25 @@ public sealed partial class Compilation {
         var lineCount = 0;
         var filteredLineCount = 0;
 
+        // TODO Not the greatest performance wise with the pseudo-comment finding algorithm
+        // But doesn't really matter here
         foreach (var tree in _syntax.syntaxTrees) {
             var text = tree.text;
             var textLineCount = text.lineCount;
 
             lineCount += textLineCount;
 
+            var inBlockComment = false;
+
             for (var i = 0; i < textLineCount; i++) {
                 var line = text.GetLine(i).ToString().Trim();
 
-                if (!string.IsNullOrEmpty(line) && !line.StartsWith("//"))
+                if (string.IsNullOrEmpty(line))
+                    continue;
+
+                AdjustBlockCommentState(ref inBlockComment, line);
+
+                if (!inBlockComment && !line.StartsWith("//"))
                     filteredLineCount++;
             }
         }
@@ -1770,10 +1833,26 @@ public sealed partial class Compilation {
         }
 
         Console.WriteLine("Program Statistics:");
-        Console.WriteLine($"    {fileCount} file{(fileCount == 1 ? "" : "s")}, {lineCount} line{(lineCount == 1 ? "" : "s")} of code ({filteredLineCount} excluding blank/comments)");
+        Console.WriteLine($"    {fileCount} file{(fileCount == 1 ? "" : "s")}, {lineCount} line{(lineCount == 1 ? "" : "s")} ({filteredLineCount} excluding blank/comments)");
         Console.WriteLine($"    {typeCount} type{(typeCount == 1 ? "" : "s")}, {methodCount} method{(methodCount == 1 ? "" : "s")}");
-        Console.WriteLine($"    {templateInstantiations} non-type template instantiation{(templateInstantiations == 1 ? "" : "s")}");
+        Console.WriteLine($"    {templateInstantiations} template instantiation{(templateInstantiations == 1 ? "" : "s")}");
         Console.WriteLine();
+
+        static void AdjustBlockCommentState(ref bool inBlockComment, string line) {
+            var previous = '\0';
+
+            foreach (var character in line) {
+                if (inBlockComment) {
+                    if (character == '/' && previous == '*')
+                        inBlockComment = false;
+                } else {
+                    if (character == '*' && previous == '/')
+                        inBlockComment = true;
+                }
+
+                previous = character;
+            }
+        }
     }
 
     private string GetDebuggerDisplay() {

@@ -1043,7 +1043,7 @@ hasRelatedInterfaces:
                     goto case TypeKind.Struct;
                 case TypeKind.Struct:
                     if (type.specialType == SpecialType.Nullable)
-                        return true;
+                        return SatisfiesConstructorConstraint(type.StrippedType());
 
                     var namedType = (NamedTypeSymbol)type;
 

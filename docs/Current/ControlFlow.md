@@ -1299,6 +1299,18 @@ This can be used when the compiler cannot prove a method always returns and errs
 
 Note that because this turns into a [`throw`](#261-trycatchfinally), it will be caught by enclosing catch blocks.
 
+Optionally, the `unreachable` statement can accept an argument which makes it act as an "unexpected value" exception:
+
+```belte
+switch (value) {
+  //...
+  default:
+    unreachable(value);
+}
+```
+
+Both forms throw a .NET `System.InvalidOperationException`.
+
 ## 2.11 Reverse Statements
 
 > Note: `reverse` and `reversible` are experimental

@@ -47,7 +47,7 @@ public enum DiagnosticCode : ushort {
     ERR_BadUsingStaticType = 36,
     ERR_UnexpectedReturnValue = 37,
     ERR_MissingReturnValue = 38,
-    ERR_ArrayInitToNonArrayType = 39,
+    ERR_UnableToOpenFile = 39,
     ERR_NoInitOnImplicit = 40,
     ERR_UnterminatedComment = 41,
     ERR_NullAssignOnImplicit = 42,
