@@ -138,7 +138,10 @@ public sealed partial class Compilation {
         }
 
         private protected override bool MatchTypeToTypeId(TypeSymbol type, int typeId) {
-            if ((int)type.originalDefinition.specialType == typeId) {
+            var normType = (int)CodeGeneration.CodeGenerator.NormalizeNumericType(type.originalDefinition.specialType);
+            var normTypeId = (int)CodeGeneration.CodeGenerator.NormalizeNumericType((SpecialType)typeId);
+
+            if (normType == normTypeId) {
                 if (type.isDefinition)
                     return true;
 

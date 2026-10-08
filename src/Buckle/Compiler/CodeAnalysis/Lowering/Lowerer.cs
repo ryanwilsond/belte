@@ -130,7 +130,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
     }
 
     internal override TypeSymbol VisitType(TypeSymbol type) {
-        if (type is not null && TemplateExpander.IsNonTypeTemplateType(type))
+        if (type is not null && TemplateExpander.ContainsTemplateTypeNeedingExpansion(type))
             _sawNonTypeTemplate = true;
 
         return base.VisitType(type);
@@ -316,6 +316,9 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         var declaration = statement.declaration;
         var initializer = declaration.initializer;
 
+        // To find templates
+        VisitType(declaration.dataContainer.type);
+
         // We also rewrite on the case of constant values because them being in constructor form is beneficial for code gen
         // because it can see the constructor and try and do it in place
 
@@ -420,8 +423,8 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
             var indexer = (BoundIndexerAccessExpression)expression.left;
             var namedType = (NamedTypeSymbol)indexer.receiver.StrippedType();
 
-            if (_compilation.corLibrary.GetWellKnownType(WellKnownType.Array).Equals(namedType.originalDefinition)) {
-                var method = _compilation.corLibrary.GetWellKnownMethod(WellKnownMember.Array_Set).AsMember(namedType);
+            if (namedType.originalDefinition.specialType == SpecialType.ArrayT) {
+                var method = _compilation.GetWellKnownMethod(WellKnownMember.Array_Set).AsMember(namedType);
 
                 return Visit(InstanceCall(expression.syntax,
                     indexer.receiver,
@@ -942,7 +945,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         var arrayType = (NamedTypeSymbol)expression.type.StrippedType();
 
         if (expression.initializer is null) {
-            var ctor = _compilation.corLibrary.GetWellKnownMethod(WellKnownMember.Array_ctor_1).AsMember(arrayType);
+            var ctor = _compilation.GetWellKnownMethod(WellKnownMember.Array_ctor_1).AsMember(arrayType);
             Debug.Assert(expression.sizes.Length == 1);
 
             return Visit(new BoundObjectCreationExpression(
@@ -956,7 +959,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
                 arrayType
             ));
         } else {
-            var ctor = _compilation.corLibrary.GetWellKnownMethod(WellKnownMember.Array_ctor_2).AsMember(arrayType);
+            var ctor = _compilation.GetWellKnownMethod(WellKnownMember.Array_ctor_2).AsMember(arrayType);
             var rawType = ArrayTypeSymbol.FromFatArray(_compilation.assembly, arrayType);
 
             return Visit(new BoundObjectCreationExpression(
@@ -1310,17 +1313,9 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         */
         // TODO Could alternatively add a LowLevel builtin, not sure what approach to prefer
         if (!_methodCompiler.evaluating) {
-            var activatorType = _compilation.GetWellKnownType(WellKnownType.System_Activator);
-
-            var createInstanceMethod = (MethodSymbol)Compilation.GetRuntimeMember(
-                activatorType.GetMembers(),
-                WellKnownMembers.GetDescriptor(WellKnownMember.System_Activator_CreateInstance),
-                _compilation.wellKnownMemberSignatureComparer,
-                accessWithinOpt: null
-            );
-
+            var createInstanceMethod = _compilation.GetWellKnownMethod(WellKnownMember.System_Activator_CreateInstance);
             var method = createInstanceMethod.Construct([new TypeOrConstant(node.type)]);
-            method.CheckConstraints(TypeConversions.GetInstance(), node.syntax.location, [], default, _diagnostics);
+            method.CheckConstraints(_compilation.conversions, node.syntax.location, [], default, _diagnostics);
 
             return Call(node.syntax, method);
         }

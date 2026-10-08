@@ -6,7 +6,6 @@ using System.Linq;
 using System.Text;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 using TemplateMethodDecoder = Buckle.CodeAnalysis.TemplateMetadataReader.TemplateMetadata.TemplateMethodDecoder;
@@ -495,7 +494,7 @@ internal sealed partial class TemplateMetadataReader {
         private BoundLiteralExpression ReadLiteralExpression() {
             var value = ReadConstantValue();
             var type = value.specialType != SpecialType.None
-                ? CorLibrary.Instance.GetSpecialType(value.specialType)
+                ? _metadata.corLibrary.GetSpecialType(value.specialType)
                 : null;
 
             return new BoundLiteralExpression(null, value, type);
@@ -616,7 +615,7 @@ internal sealed partial class TemplateMetadataReader {
                     new BoundLiteralExpression(null, ConstantValue.Null, null),
                     isNot,
                     null,
-                    CorLibrary.Instance.GetSpecialType(SpecialType.Bool)
+                    _metadata.corLibrary.GetSpecialType(SpecialType.Bool)
                 );
             } else {
                 var type = ReadType();
@@ -628,7 +627,7 @@ internal sealed partial class TemplateMetadataReader {
                     new BoundTypeExpression(null, null, null, type),
                     isNot,
                     null,
-                    CorLibrary.Instance.GetSpecialType(SpecialType.Bool)
+                    _metadata.corLibrary.GetSpecialType(SpecialType.Bool)
                 );
             }
         }
@@ -775,7 +774,7 @@ internal sealed partial class TemplateMetadataReader {
             return new BoundTypeOfExpression(
                 null,
                 new BoundTypeExpression(null, null, null, type),
-                CorLibrary.Instance.GetSpecialType(SpecialType.Type)
+                _metadata.corLibrary.GetSpecialType(SpecialType.Type)
             );
         }
 
@@ -791,7 +790,7 @@ internal sealed partial class TemplateMetadataReader {
                 null,
                 new BoundTypeExpression(null, null, null, type),
                 null,
-                CorLibrary.Instance.GetSpecialType(SpecialType.Int32)
+                _metadata.corLibrary.GetSpecialType(SpecialType.Int32)
             );
         }
 

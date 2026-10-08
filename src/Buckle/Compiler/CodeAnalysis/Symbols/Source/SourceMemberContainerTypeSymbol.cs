@@ -1736,8 +1736,10 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     }
 
     private void CheckSpecialMemberErrors(BelteDiagnosticQueue diagnostics) {
+        var conversions = containingAssembly.corAssembly.typeConversions;
+
         foreach (var member in GetMembersUnordered())
-            member.AfterAddingTypeMembersChecks(TypeConversions.GetInstance(), diagnostics);
+            member.AfterAddingTypeMembersChecks(conversions, diagnostics);
     }
 
     private void CheckMemberNameConflicts(BelteDiagnosticQueue diagnostics) {
@@ -2770,18 +2772,14 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     }
 
     private SpecialType MakeSpecialType() {
-        if (declaringCompilation.keepLookingForCorTypes) {
-            string emittedName = null;
-
-            if (containingSymbol is not null)
-                emittedName = containingSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedNameFormat);
-
+        if (containingSymbol.kind == SymbolKind.Namespace &&
+            containingSymbol.containingAssembly.keepLookingForDeclaredSpecialTypes) {
+            var emittedName = containingSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedNameFormat);
             emittedName = MetadataHelpers.BuildQualifiedName(emittedName, metadataName);
-
             return SpecialTypes.GetTypeFromMetadataName(emittedName);
+        } else {
+            return SpecialType.None;
         }
-
-        return SpecialType.None;
     }
 
     internal static Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> ToNameKeyedDictionary(

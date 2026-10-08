@@ -1,5 +1,3 @@
-using System;
-using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.IO;
@@ -14,11 +12,6 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.Libraries;
 
 public static class LibraryHelpers {
-    private static readonly string[] NativeSources = [
-        "Compiler.Object.blt",
-        "Compiler.Buffer.blt"
-    ];
-
     /// <summary>
     /// Creates a compilation containing all of the built-in libraries.
     /// </summary>
@@ -29,17 +22,17 @@ public static class LibraryHelpers {
         bool noStdLib = false,
         int explicitLibraryLevel = 0,
         bool includeAllNativeFiles = false) {
+        if (!buildMode.Evaluating() && !includeAllNativeFiles)
+            return null;
+
         var assembly = Assembly.GetExecutingAssembly();
-        var syntaxTrees = new List<SyntaxTree>();
+        var syntaxTrees = ArrayBuilder<SyntaxTree>.GetInstance();
 
         foreach (var libraryName in assembly.GetManifestResourceNames()) {
             if (libraryName.StartsWith("Compiler.Resources"))
                 continue;
 
             if (!libraryName.EndsWith(".blt"))
-                continue;
-
-            if (!buildMode.Evaluating() && !NativeSources.Contains(libraryName) && !includeAllNativeFiles)
                 continue;
 
             using var stream = assembly.GetManifestResourceStream(libraryName);
@@ -63,20 +56,10 @@ public static class LibraryHelpers {
             excludeReadingTemplateMetadata: true
         );
 
-        var corLibraryCompilation = Compilation.Create(
-            "CorLibrary",
-            options,
-            syntaxTrees.ToArray()
-        );
+        var corLibraryCompilation = Compilation.Create("CorLibrary", options, syntaxTrees.ToArrayAndFree());
+        corLibraryCompilation.GetDiagnostics();
 
-        var belteNamespace = CreateBelteNamespace(noStdLib);
-        var updatedCorLibraryCompilation = corLibraryCompilation.AddNamespace(belteNamespace);
-        updatedCorLibraryCompilation.corLibrary.SetBelteNamespace(belteNamespace);
-        belteNamespace.SetCompilation(updatedCorLibraryCompilation);
-
-        updatedCorLibraryCompilation.GetDiagnostics();
-
-        return updatedCorLibraryCompilation;
+        return corLibraryCompilation;
     }
 
     internal static SpecialOrKnownType GetCharBuffer(Compilation compilation) {
@@ -141,10 +124,6 @@ public static class LibraryHelpers {
         }
     }
 
-    private static SynthesizedBelteNamespaceSymbol CreateBelteNamespace(bool noStdLib) {
-        return new SynthesizedBelteNamespaceSymbol("Belte", noStdLib);
-    }
-
     internal static SynthesizedFieldSymbol ConstExprField(string name, SpecialOrKnownType type, object constantValue) {
         return new SynthesizedFieldSymbol(
             null,
@@ -188,14 +167,12 @@ public static class LibraryHelpers {
         ImmutableArray<Symbol> members,
         DeclarationModifiers modifiers,
         NamedTypeSymbol baseType = null) {
-        Debug.Assert(compilation.corLibrary.belteNamespace is not null);
-
         var namedType = new SynthesizedSimpleNamedTypeSymbol(
             name,
             TypeKind.Class,
             baseType ?? compilation.GetSpecialType(SpecialType.Object),
             DeclarationModifiers.Public | modifiers,
-            compilation.corLibrary.belteNamespace,
+            compilation.belteNamespace,
             []
         );
 
@@ -230,7 +207,7 @@ public static class LibraryHelpers {
 
         return new SynthesizedFinishedNamedTypeSymbol(
             namedType,
-            compilation.corLibrary.belteNamespace,
+            compilation.belteNamespace,
             builder.ToImmutableAndFree()
         );
     }

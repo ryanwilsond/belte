@@ -48,25 +48,19 @@ public sealed partial class Compilation {
         private ImmutableArray<ImmutableArray<string>> _lazyAliasesOfReferencedAssemblies;
         private ImmutableDictionary<MetadataReference, ImmutableArray<MetadataReference>> _lazyMergedAssemblyReferencesMap;
         private AssemblySymbol _lazyCorAssemblyOpt;
+        private CorLibrary _lazyCorLibraryOpt;
+        private TemplateMetadataReader _lazyTemplateMetadataReaderOpt;
 
         internal ReferenceManager(
-            CorLibrary corLibrary,
-            TemplateMetadataReader templateMetadataReader,
             string simpleAssemblyName,
             AssemblyIdentityComparer identityComparer,
             Dictionary<MetadataReference, object> observedMetadata) {
             this.simpleAssemblyName = simpleAssemblyName;
             this.identityComparer = identityComparer;
             this.observedMetadata = observedMetadata ?? [];
-            this.corLibrary = corLibrary;
-            this.templateMetadataReader = templateMetadataReader;
         }
 
         internal string simpleAssemblyName { get; }
-
-        internal CorLibrary corLibrary { get; }
-
-        internal TemplateMetadataReader templateMetadataReader { get; }
 
         internal AssemblyIdentityComparer identityComparer { get; }
 
@@ -142,6 +136,20 @@ public sealed partial class Compilation {
             }
         }
 
+        internal CorLibrary corLibraryOpt {
+            get {
+                AssertBound();
+                return _lazyCorLibraryOpt;
+            }
+        }
+
+        internal TemplateMetadataReader templateMetadataReaderOpt {
+            get {
+                AssertBound();
+                return _lazyTemplateMetadataReaderOpt;
+            }
+        }
+
         [Conditional("DEBUG")]
         internal void AssertBound() {
             Debug.Assert(_isBound != 0);
@@ -196,8 +204,6 @@ public sealed partial class Compilation {
                 CreateAndSetSourceAssemblyReuseData(compilation);
             } else {
                 var newManager = new ReferenceManager(
-                    corLibrary,
-                    compilation.templateMetadataReader,
                     simpleAssemblyName,
                     identityComparer,
                     observedMetadata
@@ -246,9 +252,9 @@ public sealed partial class Compilation {
             AssertBound();
 
             if (corAssemblyOpt is not null)
-                assemblySymbol.SetCorLibrary(corAssemblyOpt, templateMetadataReader);
+                assemblySymbol.SetCorLibrary(corAssemblyOpt);
             else
-                assemblySymbol.SetCorLibraryInternal(corLibrary, templateMetadataReader);
+                assemblySymbol.SetCorLibraryInternal(corLibraryOpt, templateMetadataReaderOpt);
 
             var sourceModuleReferences = new ModuleReferences<AssemblySymbol>(
                 referencedAssemblies.SelectAsArray(a => a.identity),
@@ -351,24 +357,37 @@ public sealed partial class Compilation {
                     netModules: modules
                 );
 
-                AssemblySymbol corLibrary;
+                AssemblySymbol corAssembly;
 
-                if (corLibraryIndex == 0)
-                    corLibrary = assemblySymbol;
-                else if (corLibraryIndex > 0)
-                    corLibrary = bindingResult[corLibraryIndex].assemblySymbol;
-                else
-                    corLibrary = null;
-
-                if (corLibrary is not null) {
-                    // In a reuse scenario this could already be set
-                    if (corLibrary.corLibrary is null)
-                        corLibrary.SetCorLibraryInternal(this.corLibrary, templateMetadataReader);
-
-                    if ((object)corLibrary != assemblySymbol)
-                        assemblySymbol.SetCorLibrary(corLibrary, templateMetadataReader);
+                if (compilation.previous is not null) {
+                    corAssembly = compilation.previous.assembly.corAssembly;
                 } else {
-                    assemblySymbol.SetCorLibraryInternal(this.corLibrary, templateMetadataReader);
+                    if (corLibraryIndex == 0)
+                        corAssembly = assemblySymbol;
+                    else if (corLibraryIndex > 0)
+                        corAssembly = bindingResult[corLibraryIndex].assemblySymbol;
+                    else
+                        corAssembly = null;
+                }
+
+                if (corAssembly is not null) {
+                    // In a reuse scenario this could already be set
+                    if (corAssembly.corLibrary is null) {
+                        Debug.Assert(corAssembly.templateMetadataReader is null);
+                        var corLibrary = new CorLibrary(compilation);
+                        var templateMetadataReader = new TemplateMetadataReader(compilation);
+                        corAssembly.SetCorLibraryInternal(corLibrary, templateMetadataReader);
+                    }
+
+                    Debug.Assert(corAssembly.corLibrary is not null);
+                    Debug.Assert(corAssembly.templateMetadataReader is not null);
+
+                    if ((object)corAssembly != assemblySymbol)
+                        assemblySymbol.SetCorLibrary(corAssembly);
+                } else {
+                    var corLibrary = new CorLibrary(compilation);
+                    var templateMetadataReader = new TemplateMetadataReader(compilation);
+                    assemblySymbol.SetCorLibraryInternal(corLibrary, templateMetadataReader);
                 }
 
                 Dictionary<AssemblyIdentity, MissingAssemblySymbol> missingAssemblies = null;
@@ -407,7 +426,9 @@ public sealed partial class Compilation {
                                 // implicitReferenceResolutions,
                                 hasCircularReference,
                                 resolutionDiagnostics,
-                                ReferenceEquals(corLibrary, assemblySymbol) ? null : corLibrary,
+                                ReferenceEquals(corAssembly, assemblySymbol) ? null : corAssembly,
+                                corAssembly?.corLibrary,
+                                corAssembly?.templateMetadataReader,
                                 modules,
                                 moduleReferences,
                                 assemblySymbol.sourceModule.referencedAssemblySymbols,
@@ -419,7 +440,8 @@ public sealed partial class Compilation {
                             Debug.Assert(ReferenceEquals(compilation._referenceManager, this) || hasCircularReference);
                             compilation._referenceManager = this;
                             compilation._lazyAssembly = assemblySymbol;
-                            compilation._templateMetadataReader = templateMetadataReader;
+                            compilation._lazyTemplateMetadataReader = assemblySymbol.templateMetadataReader;
+                            compilation._lazyCorLibrary = assemblySymbol.corLibrary;
                         }
                     }
                 }
@@ -441,6 +463,8 @@ public sealed partial class Compilation {
             bool containsCircularReferences,
             BelteDiagnosticQueue diagnostics,
             AssemblySymbol corAssemblyOpt,
+            CorLibrary corLibraryOpt,
+            TemplateMetadataReader templateMetadataReaderOpt,
             ImmutableArray<PEModule> referencedModules,
             ImmutableArray<ModuleReferences<AssemblySymbol>> referencedModulesReferences,
             ImmutableArray<AssemblySymbol> referencedAssemblies,
@@ -465,6 +489,8 @@ public sealed partial class Compilation {
             // _lazyImplicitReferenceResolutions = implicitReferenceResolutions;
 
             _lazyCorAssemblyOpt = corAssemblyOpt;
+            _lazyCorLibraryOpt = corLibraryOpt;
+            _lazyTemplateMetadataReaderOpt = templateMetadataReaderOpt;
             _lazyReferencedModules = referencedModules;
             _lazyReferencedModulesReferences = referencedModulesReferences;
             _lazyReferencedAssemblies = referencedAssemblies;
@@ -502,7 +528,7 @@ public sealed partial class Compilation {
             Dictionary<AssemblyIdentity, MissingAssemblySymbol>? missingAssemblies) {
             Debug.Assert(newSymbols.Count > 0);
 
-            var corLibrary = sourceAssembly.corAssembly;
+            var corAssembly = sourceAssembly.corAssembly;
 
             foreach (var i in newSymbols) {
                 // var compilationData = assemblies[i] as AssemblyDataForCompilation;
@@ -555,14 +581,14 @@ public sealed partial class Compilation {
 
                 // TODO It should always be null, but for some reason isn't
                 if (currentBindingResult.assemblySymbol.corAssembly is null)
-                    currentBindingResult.assemblySymbol.SetCorLibrary(corLibrary, sourceAssembly.templateMetadataReader);
+                    currentBindingResult.assemblySymbol.SetCorLibrary(corAssembly);
             }
 
             linkedReferencedAssembliesBuilder.Free();
 
             if (missingAssemblies is not null) {
                 foreach (var missingAssembly in missingAssemblies.Values)
-                    missingAssembly.SetCorLibrary(corLibrary, sourceAssembly.templateMetadataReader);
+                    missingAssembly.SetCorLibrary(corAssembly);
             }
         }
 
@@ -873,7 +899,12 @@ public sealed partial class Compilation {
                 Debug.Assert(referenceBindings.Count == allAssemblies.Length);
 
                 hasCircularReference = CheckCircularReference(referenceBindings);
-                corLibraryIndex = IndexOfCorLibrary(explicitAssemblies, assemblyReferencesBySimpleName, supersedeLowerVersions);
+
+                corLibraryIndex = IndexOfCorLibrary(
+                    explicitAssemblies,
+                    assemblyReferencesBySimpleName,
+                    supersedeLowerVersions
+                );
 
                 var boundInputs = new BoundInputAssembly[referenceBindings.Count];
 

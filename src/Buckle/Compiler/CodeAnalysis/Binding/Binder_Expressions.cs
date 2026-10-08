@@ -327,7 +327,7 @@ internal partial class Binder {
             ? p.type
             : (parameter as TemplateParameterSymbol).underlyingType.type;
 
-        valueBeforeConversion = ReduceNumericIfApplicable(parameterType, valueBeforeConversion);
+        valueBeforeConversion = ReduceNumericIfApplicable(parameterType, valueBeforeConversion, compilation.corLibrary);
 
         var locals = localsBinder.GetDeclaredLocalsForScope(defaultValueSyntax);
         var value = binder.GenerateConversionForAssignment(
@@ -383,7 +383,13 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics) {
         var initializerBinder = GetBinder(equalsValueSyntax);
         var initializer = initializerBinder.BindValue(equalsValueSyntax.value, diagnostics, BindValueKind.RValue);
-        initializer = ReduceNumericIfApplicable(symbol.containingType.enumUnderlyingType, initializer);
+
+        initializer = ReduceNumericIfApplicable(
+            symbol.containingType.enumUnderlyingType,
+            initializer,
+            compilation.corLibrary
+        );
+
         initializer = initializerBinder.GenerateConversionForAssignment(
             symbol.containingType.enumUnderlyingType,
             initializer,
@@ -416,7 +422,7 @@ internal partial class Binder {
         );
 
         var initializer = BindPossibleArrayInitializer(value, varType, valueKind, diagnostics);
-        initializer = ReduceNumericIfApplicable(varType, initializer);
+        initializer = ReduceNumericIfApplicable(varType, initializer, compilation.corLibrary);
         initializer = GenerateConversionForAssignment(varType, initializer, diagnostics);
         return initializer;
     }
@@ -506,9 +512,9 @@ internal partial class Binder {
         BoundExpression result;
 
         var strippedType = destinationType.StrippedType();
-        var fatArray = compilation.corLibrary.GetWellKnownType(WellKnownType.Array);
 
-        if (strippedType.kind == SymbolKind.ArrayType || strippedType.originalDefinition.Equals(fatArray)) {
+        if (strippedType.kind == SymbolKind.ArrayType ||
+            strippedType.originalDefinition.specialType == SpecialType.ArrayT) {
             result = BindArrayCreationWithInitializer(
                 diagnostics,
                 null,
@@ -564,7 +570,7 @@ internal partial class Binder {
             }
         }
 
-        var dictType = compilation.corLibrary.GetWellKnownType(WellKnownType.Dictionary)
+        var dictType = compilation.GetWellKnownType(WellKnownType.Belte_Dictionary)
             .Construct([new TypeOrConstant(foundKeyType), new TypeOrConstant(foundValueType)]);
 
         if (failed) {
@@ -1177,10 +1183,8 @@ internal partial class Binder {
             case BoundKind.IndexerAccessExpression:
                 var index = (BoundIndexerAccessExpression)expression;
 
-                if (compilation.corLibrary.TryGetWellKnownType(WellKnownType.Array, compilation)
-                    .Equals(index.receiver.StrippedType().originalDefinition)) {
+                if (index.receiver.StrippedType().originalDefinition.specialType == SpecialType.ArrayT)
                     return true;
-                }
 
                 if (index.method is not null) {
                     return CheckMethodReturnValueKind(
@@ -2760,7 +2764,7 @@ internal partial class Binder {
 
         var int32 = compilation.GetSpecialType(SpecialType.Int32);
         var count = BindValue(countSyntax, diagnostics, BindValueKind.RValue);
-        count = ReduceNumericIfApplicable(int32, count);
+        count = ReduceNumericIfApplicable(int32, count, compilation.corLibrary);
         count = GenerateConversionForAssignment(int32, count, diagnostics);
 
         if ((int)count.constantValue.value < 0) {
@@ -3227,9 +3231,7 @@ internal partial class Binder {
             return ErrorIndexerExpression(node, expression, analyzedArguments, null, diagnostics);
         }
 
-        var fatArray = compilation.corLibrary.TryGetWellKnownType(WellKnownType.Array, compilation);
-
-        if (expression.StrippedType().originalDefinition.Equals(fatArray)) {
+        if (expression.StrippedType().originalDefinition.specialType == SpecialType.ArrayT) {
             ReportDiagnosticsIfNoThrowContext(node, diagnostics);
 
             var intType = compilation.GetSpecialType(SpecialType.Int);
@@ -3243,7 +3245,7 @@ internal partial class Binder {
 
             var boundConversion = CreateConversion(argument, conversion, intType, diagnostics);
 
-            var method = compilation.corLibrary.GetWellKnownMethod(WellKnownMember.Array_Get).AsMember(namedType);
+            var method = compilation.GetWellKnownMethod(WellKnownMember.Array_Get).AsMember(namedType);
 
             return new BoundIndexerAccessExpression(
                 node,
@@ -5232,12 +5234,12 @@ internal partial class Binder {
             var rightIsIntegral = right is not null && rightType.specialType.IsIntegral();
 
             if (leftIsIntegral && rightIsIntegral) {
-                var reducedLeft = ReduceNumericIfApplicable(rightType, left);
+                var reducedLeft = ReduceNumericIfApplicable(rightType, left, compilation.corLibrary);
 
                 if ((object)reducedLeft != left)
                     return rightType;
 
-                var reducedRight = ReduceNumericIfApplicable(leftType, right);
+                var reducedRight = ReduceNumericIfApplicable(leftType, right, compilation.corLibrary);
 
                 if ((object)reducedRight != right)
                     return leftType;
@@ -6057,12 +6059,10 @@ internal partial class Binder {
             case BoundKind.IndexerAccessExpression: {
                     var index = ((BoundIndexerAccessExpression)access).index;
 
-                    if (compilation.corLibrary.GetWellKnownType(WellKnownType.Array)
-                        .Equals(receiver.type.StrippedType().originalDefinition)) {
+                    if (receiver.type.StrippedType().originalDefinition.specialType == SpecialType.ArrayT)
                         diagnostics.Push(Error.NullableReceiverArray(syntax.location, receiver, index));
-                    } else {
+                    else
                         diagnostics.Push(Error.NullableReceiverIndex(syntax.location, receiver, index));
-                    }
 
                     break;
                 }
@@ -6107,12 +6107,10 @@ internal partial class Binder {
             case BoundKind.IndexerAccessExpression: {
                     var index = ((BoundIndexerAccessExpression)access).index;
 
-                    if (compilation.corLibrary.GetWellKnownType(WellKnownType.Array)
-                        .Equals(receiver.type.StrippedType().originalDefinition)) {
+                    if (receiver.type.StrippedType().originalDefinition.specialType == SpecialType.ArrayT)
                         diagnostics.Push(Error.NonNullableReceiverArray(syntax.location, receiver, index));
-                    } else {
+                    else
                         diagnostics.Push(Error.NonNullableReceiverIndex(syntax.location, receiver, index));
-                    }
 
                     break;
                 }
@@ -7501,7 +7499,7 @@ internal partial class Binder {
             BelteDiagnosticQueue diagnostics) {
             var result = methodResult.result;
             var kind = result.ConversionForArg(arg);
-            argument = ReduceNumericIfApplicable(parameterTypeWithAnnotations.type, argument);
+            argument = ReduceNumericIfApplicable(parameterTypeWithAnnotations.type, argument, compilation.corLibrary);
             var coercedArgument = argument;
 
             if (!kind.isIdentity || argument.kind == BoundKind.UnconvertedImplicitEnumFieldExpression) {

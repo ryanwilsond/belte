@@ -4,6 +4,7 @@ namespace Buckle.CodeAnalysis;
 
 internal static class SpecialTypes {
     private static readonly Dictionary<string, SpecialType> NameToTypeMap = new Dictionary<string, SpecialType>() {
+        // Names as they would appear in source
         { "global::Object", SpecialType.Object },
         { "global::void", SpecialType.Void },
         { "global::int", SpecialType.Int },
@@ -27,10 +28,16 @@ internal static class SpecialTypes {
         { "global::type", SpecialType.Type },
         { "global::any", SpecialType.Any },
         { "global::Buffer`1", SpecialType.Buffer },
+        { "global::Array`1", SpecialType.ArrayT },
 
-        // Also accept direct external definitions
+        // Names as they would appear in .NET libraries
         { "System.Object", SpecialType.Object },
         { "System.Array", SpecialType.Array },
+
+        // Names as they would appear in Belte.Core
+        { "Object", SpecialType.Object },
+        { "Array`1", SpecialType.ArrayT },
+        { "Buffer`1", SpecialType.Buffer },
     };
 
     internal static SpecialType GetTypeFromMetadataName(string metadataName) {

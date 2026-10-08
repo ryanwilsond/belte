@@ -54,8 +54,8 @@ internal partial class ILEmitter {
         internal static MethodReference Type_GetTypeFromHandle;
         internal static MethodReference NullReferenceException_ctor;
         internal static MethodReference NullConditionException_ctor;
-        internal static MethodReference ThrowUnreachableException;
-        internal static MethodReference ThrowUnexpectedValueException;
+        internal static MethodReference GetUnreachableException;
+        internal static MethodReference GetUnexpectedValueException;
         internal static MethodReference Math_Pow_Nullable;
         internal static MethodReference Math_Pow;
         internal static MethodReference LowLevel_Sort;

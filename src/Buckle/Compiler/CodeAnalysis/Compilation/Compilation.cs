@@ -40,11 +40,12 @@ public sealed partial class Compilation {
 
     private static MetadataReferenceResolver GlobalReferenceResolver;
 
-    private readonly NamespaceSymbol _specialNamespace;
+    private NamespaceSymbol _specialNamespace;
+
     // This is not readonly because its possible in a concurrent setup one manager beats the others in creating shared
     // assembly data, in which it will retroactively apply itself to compilations
     private ReferenceManager _referenceManager;
-    private TemplateMetadataReader _templateMetadataReader;
+    private TemplateMetadataReader _lazyTemplateMetadataReader;
     private SyntaxAndDeclarationManager _syntax;
     private WeakReference<BinderFactory>[] _binderFactories;
     private WeakReference<BinderFactory>[] _ignoreAccessibilityBinderFactories;
@@ -64,9 +65,11 @@ public sealed partial class Compilation {
     private ConcurrentSet<AssemblySymbol> _lazyUsedAssemblyReferences;
     private ConcurrentDictionary<ImportInfo, ImmutableArray<AssemblySymbol>> _lazyImportInfos;
     private NamedTypeSymbol[] _lazyWellKnownTypes;
-    // TODO Perf: use SmallDictionary
-    private Dictionary<int, bool> _lazyMakeWellKnownTypeMissingMap;
+    private Symbol[] _lazyWellKnownTypeMembers;
+    private Dictionary<int, bool> _lazyMakeWellKnownTypeMissingMap; // TODO Perf: use SmallDictionary
+    private Dictionary<int, bool> _lazyMakeMemberMissingMap; // TODO Perf: use SmallDictionary
     private BuiltInOperators _lazyBuiltInOperators;
+    private Conversions _conversions;
 
     // TODO These will be obsoleted soon, just in a transition period where they are instance instead of static
     private CorLibrary _lazyCorLibrary;
@@ -82,7 +85,7 @@ public sealed partial class Compilation {
         SyntaxAndDeclarationManager syntax,
         ReferenceManager referenceManager,
         bool reuseReferenceManager,
-        NamespaceSymbol namespaceOpt = null,
+        NamespaceSymbol specialNamespaceOpt = null,
         bool forwardDiagnostics = false,
         StandardLibrary standardLibraryOpt = null,
         GraphicsLibrary graphicsLibraryOpt = null) {
@@ -90,7 +93,7 @@ public sealed partial class Compilation {
         this.options = options;
         this.previous = previous;
         _syntax = syntax;
-        _specialNamespace = namespaceOpt;
+        _specialNamespace = specialNamespaceOpt;
 
         // TODO When do we want to forward diagnostics? (Something to do with handles?)
         if (forwardDiagnostics && previous?.declarationDiagnostics is not null)
@@ -98,21 +101,15 @@ public sealed partial class Compilation {
 
         externalReferences = MakeExternalReferences(options.references, declarationDiagnostics);
 
-        _templateMetadataReader = new TemplateMetadataReader(this);
-
         _lazyStandardLibrary = standardLibraryOpt;
         _lazyGraphicsLibrary = graphicsLibraryOpt;
 
         if (reuseReferenceManager) {
             Debug.Assert(referenceManager is not null);
-
-            _lazyCorLibrary = referenceManager.corLibrary;
             referenceManager.AssertCanReuseForCompilation(this);
             _referenceManager = referenceManager;
         } else {
             _referenceManager = new ReferenceManager(
-                corLibrary,
-                _templateMetadataReader,
                 assemblyName,
                 AssemblyIdentityComparer.Default,
                 observedMetadata: referenceManager?.observedMetadata
@@ -159,8 +156,6 @@ public sealed partial class Compilation {
 
     internal ImmutableArray<SyntaxTree> syntaxTrees => _syntax.state.syntaxTrees;
 
-    internal bool keepLookingForCorTypes => corLibrary.StillLookingForSpecialTypes();
-
     internal bool keepLookingForWellKnownTypes => corLibrary.StillLookingForWellKnownTypes();
 
     internal MergedNamespaceDeclaration mergedRootDeclaration => _syntax.state.declarationTable.GetMergedRoot(this);
@@ -170,47 +165,28 @@ public sealed partial class Compilation {
     internal CorLibrary corLibrary {
         get {
             if (_lazyCorLibrary is null) {
-                if (previous is not null) {
-                    Interlocked.CompareExchange(ref _lazyCorLibrary, previous.corLibrary, null);
-                } else {
-                    var corLibrary = new CorLibrary(this);
-                    Interlocked.CompareExchange(ref _lazyCorLibrary, corLibrary, null);
-                }
+                _ = GetBoundReferenceManager();
+                Debug.Assert(_lazyCorLibrary is not null);
             }
 
-            Debug.Assert(_lazyCorLibrary is not null);
             return _lazyCorLibrary;
         }
     }
 
     internal StandardLibrary standardLibrary {
         get {
-            if (_lazyStandardLibrary is null) {
-                if (previous is not null) {
-                    Interlocked.CompareExchange(ref _lazyStandardLibrary, previous.standardLibrary, null);
-                } else {
-                    var standard = new StandardLibrary(this);
-                    Interlocked.CompareExchange(ref _lazyStandardLibrary, standard, null);
-                }
-            }
+            if (_lazyStandardLibrary is null)
+                Interlocked.CompareExchange(ref _lazyStandardLibrary, new StandardLibrary(this), null);
 
-            Debug.Assert(_lazyStandardLibrary is not null);
             return _lazyStandardLibrary;
         }
     }
 
     internal GraphicsLibrary graphicsLibrary {
         get {
-            if (_lazyGraphicsLibrary is null) {
-                if (previous is not null) {
-                    Interlocked.CompareExchange(ref _lazyGraphicsLibrary, previous.graphicsLibrary, null);
-                } else {
-                    var graphics = new GraphicsLibrary(this);
-                    Interlocked.CompareExchange(ref _lazyGraphicsLibrary, graphics, null);
-                }
-            }
+            if (_lazyGraphicsLibrary is null)
+                Interlocked.CompareExchange(ref _lazyGraphicsLibrary, new GraphicsLibrary(this), null);
 
-            Debug.Assert(_lazyGraphicsLibrary is not null);
             return _lazyGraphicsLibrary;
         }
     }
@@ -242,6 +218,20 @@ public sealed partial class Compilation {
 
     internal ModuleSymbol sourceModule => assembly.modules[0];
 
+    internal NamespaceSymbol belteNamespace {
+        get {
+            if (_specialNamespace is null) {
+                Interlocked.CompareExchange(
+                    ref _specialNamespace,
+                    new SynthesizedBelteNamespaceSymbol(this, "Belte", options.noStdLib),
+                    null
+                );
+            }
+
+            return _specialNamespace;
+        }
+    }
+
     internal NamespaceSymbol globalNamespaceInternal {
         get {
             if (_lazyGlobalNamespace is null) {
@@ -249,9 +239,7 @@ public sealed partial class Compilation {
                 var modules = ArrayBuilder<ModuleSymbol>.GetInstance();
                 GetAllUnaliasedModules(modules);
                 builder.AddRange(modules.SelectDistinct(m => m.globalNamespace));
-
-                if (_specialNamespace is not null)
-                    builder.Add(_specialNamespace);
+                builder.Add(belteNamespace);
 
                 var result = MergedNamespaceSymbol.Create(
                     new NamespaceExtent(this),
@@ -318,7 +306,16 @@ public sealed partial class Compilation {
         }
     }
 
-    internal TemplateMetadataReader templateMetadataReader => _templateMetadataReader;
+    internal TemplateMetadataReader templateMetadataReader {
+        get {
+            if (_lazyTemplateMetadataReader is null) {
+                _ = GetBoundReferenceManager();
+                Debug.Assert(_lazyTemplateMetadataReader is not null);
+            }
+
+            return _lazyTemplateMetadataReader;
+        }
+    }
 
     internal WellKnownMembersSignatureComparer wellKnownMemberSignatureComparer
         => InterlockedOperations.Initialize(
@@ -327,17 +324,31 @@ public sealed partial class Compilation {
             this
         );
 
+    internal Conversions conversions {
+        get {
+            if (_conversions is null) {
+                Interlocked.CompareExchange(
+                    ref _conversions,
+                    new EndBinder(this, associatedText: null).conversions,
+                    null
+                );
+            }
+
+            return _conversions;
+        }
+    }
+
     internal ReferenceManager GetBoundReferenceManager() {
         if (_lazyAssembly is null) {
             _referenceManager.CreateSourceAssemblyForCompilation(this);
             Debug.Assert(_lazyAssembly is not null);
+            Debug.Assert(_lazyTemplateMetadataReader is not null);
+            Debug.Assert(_lazyCorLibrary is not null);
 
             if (_referenceManager.corAssemblyOpt is not null) {
                 // This PE assembly contains WellKnownType definitions that we need
                 var assembly = _referenceManager.corAssemblyOpt;
                 var members = assembly.globalNamespace.GetTypeMembers();
-
-                NamespaceSymbol.RegisterDeclaredCorTypes(this, members);
                 NamespaceSymbol.RegisterDeclaredWellKnownTypes(this, members);
             }
         }
@@ -509,20 +520,6 @@ public sealed partial class Compilation {
         }
 
         return result;
-    }
-
-    internal Compilation AddNamespace(NamespaceSymbol namespaceSymbol) {
-        return new Compilation(
-            assemblyName,
-            options,
-            previous,
-            _syntax,
-            _referenceManager,
-            reuseReferenceManager: true,
-            namespaceSymbol,
-            standardLibraryOpt: null,
-            graphicsLibraryOpt: null
-        );
     }
 
     public bool ContainsSyntaxTree(SyntaxTree syntaxTree) {
@@ -825,10 +822,6 @@ public sealed partial class Compilation {
         return GetSyntaxTreeOrdinal(tree1) - GetSyntaxTreeOrdinal(tree2);
     }
 
-    internal void RegisterDeclaredSpecialType(NamedTypeSymbol type) {
-        corLibrary.RegisterDeclaredSpecialType(type);
-    }
-
     internal void RegisterDeclaredWellKnownType(WellKnownType wellKnownType, NamedTypeSymbol type) {
         corLibrary.RegisterDeclaredWellKnownType(wellKnownType, type);
     }
@@ -844,12 +837,12 @@ public sealed partial class Compilation {
         if (options.excludeReadingTemplateMetadata)
             return false;
 
-        return _templateMetadataReader.HasMetadataForType(type);
+        return _lazyTemplateMetadataReader.HasMetadataForType(type);
     }
 
     internal ImmutableDictionary<MethodSymbol, BoundBlockStatement> GetTemplateMethodMetadataForType(TypeSymbol type) {
         Debug.Assert(HasTemplateMetadataForType(type));
-        return _templateMetadataReader.GetMethodMetadataForType(type);
+        return _lazyTemplateMetadataReader.GetMethodMetadataForType(type);
     }
 
     internal Binder GetBinder(BelteSyntaxNode syntax) {
@@ -1030,6 +1023,10 @@ public sealed partial class Compilation {
         _lazyMakeWellKnownTypeMissingMap[type] = true;
     }
 
+    internal bool IsTypeMissing(SpecialType type) {
+        return IsTypeMissing((int)type);
+    }
+
     internal bool IsTypeMissing(WellKnownType type) {
         return IsTypeMissing((int)type);
     }
@@ -1039,7 +1036,112 @@ public sealed partial class Compilation {
     }
 
     internal NamedTypeSymbol GetSpecialType(SpecialType specialType) {
-        return corLibrary.GetSpecialType(specialType);
+        if ((int)specialType <= (int)SpecialType.None || (int)specialType >= (int)SpecialType.NextAvailable)
+            throw new ArgumentOutOfRangeException(nameof(specialType), $"Unexpected SpecialType: '{(int)specialType}'.");
+
+        NamedTypeSymbol result;
+        if (IsTypeMissing(specialType)) {
+            var emittedName = MetadataTypeName.FromFullName(
+                specialType.GetMetadataName(),
+                useCLSCompliantNameArityEncoding: true
+            );
+
+            result = new MissingMetadataTypeSymbol.TopLevel(
+                assembly.corAssembly.modules[0],
+                ref emittedName,
+                specialType
+            );
+        } else {
+            if (specialType.LivesInCorLibrary()) {
+                result = corLibrary.GetSpecialType(specialType);
+            } else {
+                result = assembly.GetSpecialType(specialType);
+
+                // Evaluate build modes and scripts store the cor library on a previous submission
+                if (previous is not null || options.isScript) {
+                    if (result.IsErrorType())
+                        result = assembly.GetDeclaredSpecialType(specialType);
+
+                    if (result.IsErrorType() && previous is not null)
+                        result = previous.GetSpecialType(specialType);
+                }
+            }
+        }
+
+        Debug.Assert(!result.IsErrorType());
+        Debug.Assert(result.specialType == specialType);
+        return result;
+    }
+
+    internal void MakeMemberMissing(WellKnownMember member) {
+        MakeMemberMissing((int)member);
+    }
+
+    private void MakeMemberMissing(int member) {
+        _lazyMakeMemberMissingMap ??= new Dictionary<int, bool>();
+        _lazyMakeMemberMissingMap[member] = true;
+    }
+
+    private bool IsMemberMissing(WellKnownMember member) {
+        return IsMemberMissing((int)member);
+    }
+
+    private bool IsMemberMissing(int member) {
+        return _lazyMakeMemberMissingMap is not null && _lazyMakeMemberMissingMap.ContainsKey(member);
+    }
+
+    internal MethodSymbol GetAnyWellKnownMethod(WellKnownMember member) {
+        if (member.LivesInCorLibrary())
+            return corLibrary.GetWellKnownMethod(member);
+        else
+            return GetWellKnownMethod(member);
+    }
+
+    internal MethodSymbol GetWellKnownMethod(WellKnownMember member) {
+        return GetWellKnownTypeMember(member) as MethodSymbol;
+    }
+
+    internal Symbol GetWellKnownTypeMember(WellKnownMember member) {
+        Debug.Assert(member >= 0 && member < WellKnownMember.Count);
+
+        if (IsMemberMissing(member))
+            return null;
+
+        if (_lazyWellKnownTypeMembers is null ||
+            ReferenceEquals(_lazyWellKnownTypeMembers[(int)member], ErrorTypeSymbol.UnknownResultType)) {
+            if (_lazyWellKnownTypeMembers is null) {
+                var wellKnownTypeMembers = new Symbol[(int)WellKnownMember.Count];
+
+                for (var i = 0; i < wellKnownTypeMembers.Length; i++)
+                    wellKnownTypeMembers[i] = ErrorTypeSymbol.UnknownResultType;
+
+                Interlocked.CompareExchange(ref _lazyWellKnownTypeMembers, wellKnownTypeMembers, null);
+            }
+
+            var descriptor = WellKnownMembers.GetDescriptor(member);
+            var type = descriptor.isSpecialTypeMember
+                ? GetSpecialType(descriptor.declaringSpecialType)
+                : GetWellKnownType(descriptor.declaringWellKnownType);
+
+            Symbol result = null;
+
+            if (!type.IsErrorType()) {
+                result = GetRuntimeMember(
+                    type,
+                    descriptor,
+                    wellKnownMemberSignatureComparer,
+                    accessWithinOpt: assembly
+                );
+            }
+
+            Interlocked.CompareExchange(
+                ref _lazyWellKnownTypeMembers[(int)member],
+                result,
+                ErrorTypeSymbol.UnknownResultType
+            );
+        }
+
+        return _lazyWellKnownTypeMembers[(int)member];
     }
 
     internal NamedTypeSymbol GetAnyWellKnownType(WellKnownType type) {
@@ -1124,7 +1226,15 @@ public sealed partial class Compilation {
     }
 
     internal bool IsAttributeType(TypeSymbol type) {
-        return IsEqualOrDerivedFromWellKnownClass(type, WellKnownType.System_Attribute);
+        if (IsEqualOrDerivedFromWellKnownClass(type, WellKnownType.System_Attribute))
+            return true;
+
+        if ((options.isScript || options.buildMode.Evaluating()) && previous is not null) {
+            var sourceAttributeType = previous.GetWellKnownType(WellKnownType.System_Attribute);
+            return type.IsEqualToOrDerivedFrom(sourceAttributeType, TypeCompareKind.ConsiderEverything);
+        }
+
+        return false;
     }
 
     internal bool IsEqualOrDerivedFromWellKnownClass(TypeSymbol type, WellKnownType wellKnownType) {
@@ -1326,7 +1436,7 @@ public sealed partial class Compilation {
         var firstType = method.parameters[0].type;
 
         if (firstType.specialType != SpecialType.Array) {
-            if (!firstType.originalDefinition.Equals(corLibrary.GetWellKnownType(WellKnownType.Array)))
+            if (firstType.originalDefinition.specialType != SpecialType.ArrayT)
                 return false;
 
             if (((NamedTypeSymbol)firstType).templateArguments[0].type.type.specialType != SpecialType.String)
@@ -1395,6 +1505,7 @@ public sealed partial class Compilation {
             previous,
             syntax,
             _referenceManager,
+            specialNamespaceOpt: _specialNamespace,
             reuseReferenceManager: true,
             standardLibraryOpt: _lazyStandardLibrary,
             graphicsLibraryOpt: _lazyGraphicsLibrary
@@ -1435,6 +1546,15 @@ public sealed partial class Compilation {
             var set = treeToUsedImportDirectivesMap.GetOrAdd(syntaxTree, CreateSetCallback);
             set.Add(position);
         }
+    }
+
+    internal static Symbol GetRuntimeMember(
+        NamedTypeSymbol declaringType,
+        in MemberDescriptor descriptor,
+        SignatureComparer<MethodSymbol, FieldSymbol, PropertySymbol, TypeSymbol, ParameterSymbol> comparer,
+        AssemblySymbol accessWithinOpt) {
+        var members = declaringType.GetMembers(descriptor.name);
+        return GetRuntimeMember(members, descriptor, comparer, accessWithinOpt);
     }
 
     internal static Symbol GetRuntimeMember(
@@ -1544,7 +1664,10 @@ public sealed partial class Compilation {
             previous,
             new SyntaxAndDeclarationManager([], null),
             previous?._referenceManager,
-            reuseReferenceManager: false
+            specialNamespaceOpt: previous?._specialNamespace,
+            reuseReferenceManager: false,
+            standardLibraryOpt: previous?._lazyStandardLibrary,
+            graphicsLibraryOpt: previous?._lazyGraphicsLibrary
         );
 
         if (syntaxTrees is not null)
@@ -1853,6 +1976,11 @@ public sealed partial class Compilation {
                 previous = character;
             }
         }
+    }
+
+    public override string ToString() {
+        // This is only here for Repl reflection #state display
+        return GetDebuggerDisplay();
     }
 
     private string GetDebuggerDisplay() {

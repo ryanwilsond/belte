@@ -90,6 +90,8 @@ internal abstract partial class MissingMetadataTypeSymbol {
 
         internal string namespaceName => _namespaceName;
 
+        internal override ModuleSymbol containingModule => _containingModule;
+
         internal override AssemblySymbol containingAssembly => _containingModule.containingAssembly;
 
         internal override Symbol containingSymbol {
@@ -165,6 +167,13 @@ internal abstract partial class MissingMetadataTypeSymbol {
                 }
 
                 return _lazyErrorInfo;
+            }
+        }
+
+        public override SpecialType specialType {
+            get {
+                var typeId = _typeId;
+                return (typeId >= (int)WellKnownType.First) ? SpecialType.None : (SpecialType)typeId;
             }
         }
 

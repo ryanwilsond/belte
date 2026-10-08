@@ -10,6 +10,12 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Binding;
 
 internal abstract partial class ConversionsBase {
+    private protected readonly CorLibrary _corLibrary;
+
+    private protected ConversionsBase(CorLibrary corLibrary) {
+        _corLibrary = corLibrary;
+    }
+
     internal abstract Conversion GetMethodGroupConversion(BoundMethodGroup source, TypeSymbol destination);
 
     internal abstract Conversion GetImplicitExtendedLiteralExpressionConversion(
@@ -164,7 +170,7 @@ internal abstract partial class ConversionsBase {
         if (destination.GetSpecialTypeSafe() == SpecialType.Array)
             return true;
 
-        if (IsBaseInterface(destination, CorLibrary.Instance.GetSpecialType(SpecialType.Array)))
+        if (IsBaseInterface(destination, _corLibrary.GetSpecialType(SpecialType.Array)))
             return true;
 
         if (HasArrayConversionToInterface(s, destination))
@@ -489,7 +495,7 @@ internal abstract partial class ConversionsBase {
         //         return tupleConversion;
         // }
 
-        sourceExpression = Binder.ReduceNumericIfApplicable(target, sourceExpression);
+        sourceExpression = Binder.ReduceNumericIfApplicable(target, sourceExpression, _corLibrary);
         var sourceType = sourceExpression.Type();
 
         if (sourceType is not null) {
@@ -805,7 +811,7 @@ internal abstract partial class ConversionsBase {
             if (source.specialType == SpecialType.Array)
                 return true;
 
-            foreach (var iface in CorLibrary.Instance.GetSpecialType(SpecialType.Any).allInterfaces) {
+            foreach (var iface in _corLibrary.GetSpecialType(SpecialType.Any).allInterfaces) {
                 if (HasIdentityConversionInternal(iface, source))
                     return true;
             }
@@ -947,7 +953,7 @@ internal abstract partial class ConversionsBase {
     }
 
     internal Conversion ClassifyImplicitConversionFromExpression(BoundExpression sourceExpression, TypeSymbol target) {
-        sourceExpression = Binder.ReduceNumericIfApplicable(target, sourceExpression);
+        sourceExpression = Binder.ReduceNumericIfApplicable(target, sourceExpression, _corLibrary);
         var sourceType = sourceExpression.Type();
 
         if (sourceType is not null && HasIdentityConversionInternal(sourceType, target))
@@ -1207,7 +1213,7 @@ internal abstract partial class ConversionsBase {
             var convertsTo = opMethod.returnType;
 
             if (sourceExpression is not null) {
-                sourceExpression = Binder.ReduceNumericIfApplicable(convertsFrom, sourceExpression);
+                sourceExpression = Binder.ReduceNumericIfApplicable(convertsFrom, sourceExpression, _corLibrary);
                 source = sourceExpression.type;
             }
 
@@ -1430,7 +1436,7 @@ internal abstract partial class ConversionsBase {
                 var convertsTo = opMethod.returnType;
 
                 if (sourceExpression is not null) {
-                    sourceExpression = Binder.ReduceNumericIfApplicable(convertsFrom, sourceExpression);
+                    sourceExpression = Binder.ReduceNumericIfApplicable(convertsFrom, sourceExpression, _corLibrary);
                     source = sourceExpression.type;
                 }
 

@@ -135,7 +135,7 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
     }
 
     internal string GetMethodName(MethodSymbol method) {
-        if ((object)method.containingNamespace == _compilation.corLibrary.belteNamespace.originalDefinition)
+        if ((object)method.containingNamespace == _compilation.belteNamespace.originalDefinition)
             return CheckStandardMap(method);
 
         string name;

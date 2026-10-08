@@ -17,9 +17,6 @@ internal enum WellKnownType : byte {
 
     // Non-required
 
-    List,
-    Dictionary,
-
     ValueTuple_T1,
     ValueTuple_T2,
     ValueTuple_T3,
@@ -28,12 +25,6 @@ internal enum WellKnownType : byte {
     ValueTuple_T6,
     ValueTuple_T7,
     ValueTuple_TRest,
-
-    Array,
-
-    DllImportAttribute,
-    UnmanagedAttribute,
-    MustUseReturnValueAttribute,
 
     // PE
 
@@ -57,6 +48,8 @@ internal enum WellKnownType : byte {
     Belte_ConstParamAttribute,
     Belte_ConstExprParamAttribute,
 
+    Belte_List,
+    Belte_Dictionary,
     Belte_Result,
     Belte_WrappedErrorException,
 
@@ -68,7 +61,9 @@ internal enum WellKnownType : byte {
     Belte_Graphics_Sound,
 
 
-    LastNativeType = MustUseReturnValueAttribute,
+    NextAvailable,
+
+    LastNativeType = ValueTuple_TRest,
     LastNativeRequiredType = Enumerator,
     FirstPEType = System_Exception,
     LastPEType = Belte_Graphics_Sound,

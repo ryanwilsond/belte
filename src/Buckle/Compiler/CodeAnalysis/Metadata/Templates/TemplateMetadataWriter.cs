@@ -629,7 +629,7 @@ Bound Table
             return (byte)TypeFlags.IsNullable;
 
         if (type.containingAssembly is null &&
-            (object)type.containingNamespace == _compilation.corLibrary.belteNamespace.originalDefinition) {
+            (object)type.containingNamespace == _compilation.belteNamespace.originalDefinition) {
             return (byte)TypeFlags.IsInMemoryLibraryType;
         }
 

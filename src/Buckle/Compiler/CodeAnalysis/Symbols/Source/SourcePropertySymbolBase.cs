@@ -852,7 +852,7 @@ internal abstract partial class SourcePropertySymbolBase : PropertySymbol, IAttr
 
                             if (parameters.Length > 0) {
                                 var diagnostics = BelteDiagnosticQueue.GetInstance();
-                                var conversions = TypeConversions.GetInstance();
+                                var conversions = containingAssembly.corAssembly.typeConversions;
                                 var impliedConstraints = GetEnclosingTemplateConstraints();
 
                                 foreach (var parameter in this.parameters) {
@@ -884,7 +884,7 @@ internal abstract partial class SourcePropertySymbolBase : PropertySymbol, IAttr
                 case CompletionParts.FinishPropertyType: {
                         if (_state.NotePartComplete(CompletionParts.StartPropertyType)) {
                             var diagnostics = BelteDiagnosticQueue.GetInstance();
-                            var conversions = TypeConversions.GetInstance();
+                            var conversions = containingAssembly.corAssembly.typeConversions;
                             var impliedConstraints = GetEnclosingTemplateConstraints();
 
                             type.CheckAllConstraints(

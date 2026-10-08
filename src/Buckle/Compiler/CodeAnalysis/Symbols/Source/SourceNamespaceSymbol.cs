@@ -241,6 +241,7 @@ done:
 
             if (Interlocked.CompareExchange(ref _nameToMembersMap, MakeNameToMembersMap(diagnostics), null) is null) {
                 AddDeclarationDiagnostics(diagnostics);
+                RegisterDeclaredCorTypes();
                 _state.NotePartComplete(CompletionParts.NameToMembersMap);
             }
 
@@ -275,7 +276,6 @@ done:
             ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(builder, symbol.name.AsMemory(), symbol);
         }
 
-        RegisterDeclaredCorTypes(declaringCompilation, builder.Values);
         RegisterDeclaredWellKnownTypes(declaringCompilation, builder.Values);
 
         var result = new Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>>(
@@ -346,7 +346,7 @@ done:
                 }
 
                 if (symbol is SourceNamespaceSymbol ns && !reportedShadows && @namespace.isGlobalNamespace) {
-                    if (ns.name == ns.declaringCompilation.corLibrary.belteNamespace.name) {
+                    if (ns.name == ns.declaringCompilation.belteNamespace.name) {
                         diagnostics.Push(Warning.NamespaceNameShadowsBelte(ns.location, ns));
                         reportedShadows = true;
                     }
@@ -407,6 +407,23 @@ done:
         }
 
         return false;
+    }
+
+    private void RegisterDeclaredCorTypes() {
+        var containingAssembly = this.containingAssembly;
+
+        if (containingAssembly.keepLookingForDeclaredSpecialTypes) {
+            foreach (var array in _nameToMembersMap.Values) {
+                foreach (var member in array) {
+                    if (member is NamedTypeSymbol type && type.specialType != SpecialType.None) {
+                        containingAssembly.RegisterDeclaredSpecialType(type);
+
+                        if (!containingAssembly.keepLookingForDeclaredSpecialTypes)
+                            return;
+                    }
+                }
+            }
+        }
     }
 
     #region Imports

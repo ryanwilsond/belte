@@ -80,8 +80,10 @@ internal abstract class AliasSymbol : Symbol, IAliasSymbol {
         var target = this.target as TypeSymbol;
         var impliedConstraints = GetEnclosingTemplateConstraints();
 
-        if (target is not null && _locations.Length > 0)
-            target.CheckAllConstraints(TypeConversions.GetInstance(), location, impliedConstraints, diagnostics);
+        if (target is not null && _locations.Length > 0) {
+            var conversions = containingAssembly.corAssembly.typeConversions;
+            target.CheckAllConstraints(conversions, location, impliedConstraints, diagnostics);
+        }
     }
 
     internal override bool Equals(Symbol obj, TypeCompareKind compareKind) {

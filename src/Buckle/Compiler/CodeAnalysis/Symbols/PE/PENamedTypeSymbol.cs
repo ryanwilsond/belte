@@ -79,9 +79,6 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
             _name = originalTypeName;
         }
 
-        // TODO This should use the assembly instead of the singleton eventually
-        // TODO We still define Object natively so this cannot use CorLibrary.StillLookingForSpecialTypes()
-        // Instead we see if its in a cor-library-looking assembly
         if (emittedNamespaceName is not null &&
             AssemblyIsCorLibraryCandidate(moduleSymbol.containingAssembly) &&
             declaredAccessibility == Accessibility.Public) {
@@ -93,11 +90,20 @@ internal abstract partial class PENamedTypeSymbol : NamedTypeSymbol {
         }
 
         static bool AssemblyIsCorLibraryCandidate(AssemblySymbol assemblySymbol) {
+            // TODO Eventually we probably want something like a collection of cor assemblies which includes
+            // System.Private.Corelib and Belte.Core instead of having Belte.Core define Object, Tuples, etc.
             var assembly = ((PEAssemblySymbol)assemblySymbol).assembly;
 
             if (assembly.assemblyReferences.Length == 0 &&
                 !assembly.ContainsNoPiaLocalTypes()) {
                 if (assembly.declaresTheObjectClass)
+                    // "Proper" cor library candidate that we will use in the future if using System.Private.Corelib
+                    return true;
+            }
+
+            if (!assembly.ContainsNoPiaLocalTypes()) {
+                if (MetadataHelpers.IsCorLibraryName(assemblySymbol.name))
+                    // "Improper" temporary cor library candidate using Belte.Core as an indirect
                     return true;
             }
 

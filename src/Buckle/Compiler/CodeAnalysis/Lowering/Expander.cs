@@ -1254,7 +1254,7 @@ internal sealed class Expander : SharedExpander {
                     expression.type
                 )
             ));
-            statements.AddRange(ExpandExpression(CreateCast(syntax, local.type, newOperand), out var cast));
+            statements.AddRange(ExpandExpression(CreateCast(syntax, _compilation, local.type, newOperand), out var cast));
             statements.Add(LocalDeclaration(syntax, local, cast));
             statements.Add(Statement(syntax,
                 Assignment(syntax,

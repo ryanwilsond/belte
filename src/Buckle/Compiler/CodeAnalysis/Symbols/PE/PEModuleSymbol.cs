@@ -310,20 +310,22 @@ internal sealed partial class PEModuleSymbol : NonMissingModuleSymbol {
 
     internal void OnNewTypeDeclarationsLoaded(
         Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> typesDict) {
-        // TODO CorLib interop
-        // bool keepLookingForDeclaredCorTypes = _ordinal == 0 && _assemblySymbol.KeepLookingForDeclaredSpecialTypes;
+        var keepLookingForDeclaredCorTypes = _ordinal == 0 && _assemblySymbol.keepLookingForDeclaredSpecialTypes;
 
-        // foreach (var types in typesDict.Values) {
-        //     foreach (var type in types) {
-        //         bool added;
-        //         added = typeHandleToTypeMap.TryAdd(type.handle, type);
+        foreach (var types in typesDict.Values) {
+            foreach (var type in types) {
+                if (type is not PENamedTypeSymbol peType)
+                    continue;
 
-        //         if (keepLookingForDeclaredCorTypes && type.specialType != SpecialType.None) {
-        //             _assemblySymbol.RegisterDeclaredSpecialType(type);
-        //             keepLookingForDeclaredCorTypes = _assemblySymbol.KeepLookingForDeclaredSpecialTypes;
-        //         }
-        //     }
-        // }
+                bool added;
+                added = typeHandleToTypeMap.TryAdd(peType.handle, peType);
+
+                if (keepLookingForDeclaredCorTypes && peType.specialType != SpecialType.None) {
+                    _assemblySymbol.RegisterDeclaredSpecialType(peType);
+                    keepLookingForDeclaredCorTypes = _assemblySymbol.keepLookingForDeclaredSpecialTypes;
+                }
+            }
+        }
     }
 
     internal override ICollection<string> typeNames {

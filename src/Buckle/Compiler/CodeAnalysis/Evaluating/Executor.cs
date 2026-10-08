@@ -268,8 +268,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
         var arrayTypeSymbol = (NamedTypeSymbol)_entryPoint.GetParameterType(0);
 
-        var ctorSymbol = _compilation.corLibrary.GetWellKnownMethod(WellKnownMember.Array_ctor_2)
-            .AsMember(arrayTypeSymbol);
+        var ctorSymbol = _compilation.GetWellKnownMethod(WellKnownMember.Array_ctor_2).AsMember(arrayTypeSymbol);
 
         var ctor = GetConstructor(ctorSymbol);
 

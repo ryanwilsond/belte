@@ -167,7 +167,9 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
         BelteDiagnosticQueue diagnostics);
 
     private NamedTypeSymbol GetDefaultBaseType() {
-        return containingAssembly.corLibrary.GetSpecialType(SpecialType.Object);
+        var type = containingAssembly.GetSpecialType(SpecialType.Object);
+        Debug.Assert(type?.IsErrorType() == false);
+        return type;
     }
 
     internal override ImmutableArray<NamedTypeSymbol> GetInterfaces(ConsList<TemplateParameterSymbol> inProgress) {

@@ -67,7 +67,7 @@ internal sealed partial class FlowLowerer {
             outerVariables.AddRange(node.innerLocals);
 
             var decisionDag = ShareTempsIfPossibleAndEvaluateInput(
-                node.GetDecisionDagForLowering(),
+                node.GetDecisionDagForLowering(_compilation),
                 loweredSwitchGoverningExpression,
                 result,
                 out _

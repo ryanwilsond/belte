@@ -4,7 +4,6 @@ using System.Diagnostics;
 using System.Text;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -1158,25 +1157,15 @@ internal sealed partial class Lexer : IDisposable {
                 value = longValue;
             }
 
-            if (failed) {
-                AddDiagnostic(
-                    Error.InvalidType(numericText, CorLibrary.Instance.GetSpecialType(SpecialType.Int)),
-                    _start,
-                    length
-                );
-            } else {
+            if (failed)
+                AddDiagnostic(Error.IntegralOverflow(numericText), _start, length);
+            else
                 _value = value;
-            }
         } else {
-            if (!double.TryParse(parsedText, out var value)) {
-                AddDiagnostic(
-                    Error.InvalidType(numericText, CorLibrary.Instance.GetSpecialType(SpecialType.Decimal)),
-                    _start,
-                    length
-                );
-            } else {
+            if (!double.TryParse(parsedText, out var value) || double.IsInfinity(value))
+                AddDiagnostic(Error.FloatOverflow(numericText), _start, length);
+            else
                 _value = value;
-            }
         }
 
         _kind = SyntaxKind.NumericLiteralToken;

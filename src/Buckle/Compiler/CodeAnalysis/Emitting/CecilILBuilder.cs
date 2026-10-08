@@ -243,11 +243,11 @@ internal sealed partial class CecilILBuilder : ILBuilder {
     }
 
     internal override void EmitUnreachableException() {
-        iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.ThrowUnreachableException);
+        iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.GetUnreachableException);
     }
 
     internal override void EmitUnexpectedValueException() {
-        iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.ThrowUnexpectedValueException);
+        iLProcessor.Emit(OpCodes.Call, ILEmitter.NetMethodReference.GetUnexpectedValueException);
     }
 
     internal override void EmitLoadArgumentAddr(int slot) {

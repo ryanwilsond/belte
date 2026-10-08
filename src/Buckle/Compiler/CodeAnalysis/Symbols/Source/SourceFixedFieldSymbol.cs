@@ -39,7 +39,7 @@ internal class SourceFixedFieldSymbol : SourceMemberFieldSymbolFromDeclarator {
 
                 var intType = binder.compilation.GetSpecialType(SpecialType.Int32);
                 var boundSize = binder.BindValue(sizeExpression, diagnostics, Binder.BindValueKind.RValue);
-                boundSize = Binder.ReduceNumericIfApplicable(intType, boundSize);
+                boundSize = Binder.ReduceNumericIfApplicable(intType, boundSize, declaringCompilation.corLibrary);
 
                 var boundSizeExpression = binder.GenerateConversionForAssignment(
                     intType,

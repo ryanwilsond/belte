@@ -271,7 +271,7 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
             Local(syntax, temp),
             !node.enumeratorInfo.indexOpNeedsCast
                 ? Local(syntax, index)
-                : CreateCast(syntax,
+                : CreateCast(syntax, _compilation,
                     _compilation.corLibrary.GetNullableType(SpecialType.Int),
                     Local(syntax, index)));
 

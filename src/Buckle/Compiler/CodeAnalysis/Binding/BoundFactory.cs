@@ -156,11 +156,10 @@ internal static class BoundFactory {
 
     internal static BoundExpression CreateCast(
         SyntaxNode syntax,
+        Compilation compilation,
         TypeSymbol type,
         BoundExpression expression) {
-        var conversion = TypeConversions.GetInstance()
-            .ClassifyConversionFromExpression(expression, type, isChecked: false);
-
+        var conversion = compilation.conversions.ClassifyConversionFromExpression(expression, type, isChecked: false);
         Debug.Assert(conversion.exists);
         return Cast(syntax, type, expression, conversion, null);
     }

@@ -525,10 +525,8 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
             case BoundKind.IndexerAccessExpression: {
                     var indexerAccess = (BoundIndexerAccessExpression)expression;
 
-                    if (_compilation.corLibrary.GetWellKnownType(WellKnownType.Array)
-                        .Equals(indexerAccess.receiver.StrippedType().originalDefinition)) {
+                    if (indexerAccess.receiver.StrippedType().originalDefinition.specialType == SpecialType.ArrayT)
                         return true;
-                    }
 
                     var method = indexerAccess.method;
 

@@ -9,11 +9,11 @@ public static class ThrowHelper {
         throw new NullConditionException();
     }
 
-    public static void ThrowUnreachableException() {
-        throw new InvalidOperationException("This program location is thought to be unreachable.");
+    public static InvalidOperationException GetUnreachableException() {
+        return new InvalidOperationException("This program location is thought to be unreachable.");
     }
 
-    public static void ThrowUnexpectedValueException(object value) {
-        throw new InvalidOperationException($"Unexpected value '{value}'.");
+    public static InvalidOperationException GetUnexpectedValueException(object value) {
+        return new InvalidOperationException($"Unexpected value '{value}'.");
     }
 }

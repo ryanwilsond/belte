@@ -169,7 +169,7 @@ internal sealed partial class BoundProgram {
             if (t.containingSymbol.kind != SymbolKind.Namespace)
                 continue;
 
-            if (t.specialType != SpecialType.None)
+            if (t.specialType.ShouldSkipEmit(noStdLib))
                 continue;
 
             if (t.originalDefinition is PENamedTypeSymbol)

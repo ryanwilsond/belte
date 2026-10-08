@@ -34,7 +34,7 @@ public sealed partial class BelteRepl : Repl {
     );
 
     // TODO Any benefit to generating numbered assembly names so they are unique?
-    private static readonly Compilation EmptyCompilation = Compilation.CreateScript("ReplSubmission", DefaultOptions);
+    private static readonly Compilation EmptyCompilation = Compilation.CreateScript("EmptyReplSubmission", DefaultOptions);
     private static readonly ImmutableArray<(string name, string contributor, ColorTheme theme)> InUse =
         [
             ("Dark", "", new DarkTheme()),
@@ -45,7 +45,7 @@ public sealed partial class BelteRepl : Repl {
         ];
 
     private List<TextChange> _changes = new List<TextChange>();
-
+    private int _submissionCounter;
     private DiagnosticHandle _diagnosticHandle;
 
     /// <summary>
@@ -323,7 +323,13 @@ public sealed partial class BelteRepl : Repl {
     }
 
     private void EvaluateSubmissionInternal(SyntaxTree syntaxTree) {
-        var compilation = Compilation.CreateScript("ReplSubmission", DefaultOptions, syntaxTree, state.previous);
+        var compilation = Compilation.CreateScript(
+            $"ReplSubmission{_submissionCounter++}",
+            DefaultOptions,
+            syntaxTree,
+            state.previous
+        );
+
         var displayText = new DisplayText();
 
         if (state.showTokens) {

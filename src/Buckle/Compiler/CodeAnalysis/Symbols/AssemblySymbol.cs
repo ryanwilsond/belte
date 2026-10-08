@@ -1,10 +1,12 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
+using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -73,20 +75,39 @@ internal abstract class AssemblySymbol : Symbol {
 
     internal abstract int belteMetadataVersion { get; }
 
-    internal void SetCorLibrary(AssemblySymbol corAssembly, TemplateMetadataReader templateMetadataReader) {
+    internal abstract TypeConversions typeConversions { get; }
+
+    internal virtual bool keepLookingForDeclaredSpecialTypes => throw ExceptionUtilities.Unreachable();
+
+    internal NamedTypeSymbol GetSpecialType(SpecialType type) {
+        Debug.Assert(!type.LivesInCorLibrary());
+        return corAssembly.GetDeclaredSpecialType(type);
+    }
+
+    internal virtual void RegisterDeclaredSpecialType(NamedTypeSymbol corType) {
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    internal abstract NamedTypeSymbol GetDeclaredSpecialType(SpecialType type);
+
+    internal void SetCorLibrary(AssemblySymbol corAssembly) {
         Debug.Assert(_corAssembly is null);
         Debug.Assert(_corLibrary is null);
+        Debug.Assert(_templateMetadataReader is null);
         Debug.Assert(corAssembly.corLibrary is not null);
-        Debug.Assert(corAssembly.corAssembly == corAssembly);
+        Debug.Assert(corAssembly.templateMetadataReader is not null);
+        Debug.Assert((object)corAssembly.corAssembly == corAssembly);
+
         _corAssembly = corAssembly;
         _corLibrary = corAssembly.corLibrary;
-        _templateMetadataReader = templateMetadataReader;
+        _templateMetadataReader = corAssembly.templateMetadataReader;
     }
 
     internal void SetCorLibraryInternal(CorLibrary corLibrary, TemplateMetadataReader templateMetadataReader) {
         Debug.Assert(_corAssembly is null);
         Debug.Assert(_corLibrary is null);
         Debug.Assert(_templateMetadataReader is null);
+
         _corAssembly = this;
         _corLibrary = corLibrary;
         _templateMetadataReader = templateMetadataReader;

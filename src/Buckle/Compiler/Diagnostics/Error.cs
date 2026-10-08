@@ -57,11 +57,6 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_InvalidReference, null, message);
     }
 
-    internal static Diagnostic InvalidType(string text, TypeSymbol type) {
-        var message = $"'{text}' is not a valid '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'";
-        return CreateError(DiagnosticCode.ERR_InvalidType, message);
-    }
-
     internal static Diagnostic BadCharacter(char input) {
         var message = $"unexpected character '{input}'";
         return CreateError(DiagnosticCode.ERR_BadCharacter, message);
@@ -3279,7 +3274,17 @@ internal static class Error {
 
     internal static Diagnostic UnableToOpenFile(string fileName) {
         var message = $"failed to open file '{fileName}'; most likely due to the file being used by another process";
-        return CreateError(DiagnosticCode.ERR_UnableToOpenFile, null, message);
+        return CreateError(DiagnosticCode.ERR_UnableToOpenFile, message);
+    }
+
+    internal static Diagnostic IntegralOverflow(string text) {
+        var message = $"integral constant '{text}' is too large";
+        return CreateError(DiagnosticCode.ERR_IntegralOverflow, message);
+    }
+
+    internal static Diagnostic FloatOverflow(string text) {
+        var message = $"floating-point constant '{text}' is too large";
+        return CreateError(DiagnosticCode.ERR_FloatOverflow, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

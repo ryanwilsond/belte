@@ -137,17 +137,4 @@ internal abstract class NamespaceSymbol : NamespaceOrTypeSymbol, INamespaceSymbo
             return false;
         }
     }
-
-    internal static void RegisterDeclaredCorTypes<T>(Compilation compilation, IEnumerable<T> members) {
-        if (compilation.keepLookingForCorTypes) {
-            foreach (var member in members) {
-                if (member is NamedTypeSymbol type && type.specialType != SpecialType.None) {
-                    compilation.RegisterDeclaredSpecialType(type);
-
-                    if (!compilation.keepLookingForCorTypes)
-                        return;
-                }
-            }
-        }
-    }
 }

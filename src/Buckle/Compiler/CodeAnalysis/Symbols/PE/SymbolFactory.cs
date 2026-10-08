@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -27,7 +28,12 @@ internal sealed class SymbolFactory : SymbolFactory<PEModuleSymbol, TypeSymbol> 
     }
 
     internal override TypeSymbol GetSpecialType(PEModuleSymbol moduleSymbol, SpecialType specialType) {
-        return moduleSymbol.containingAssembly.corLibrary.GetSpecialType(specialType);
+        if (specialType.LivesInCorLibrary())
+            return moduleSymbol.containingAssembly.corLibrary.GetSpecialType(specialType);
+
+        var type = moduleSymbol.containingAssembly.GetSpecialType(specialType);
+        Debug.Assert(type?.IsErrorType() == false);
+        return type;
     }
 
     internal override TypeSymbol GetSZArrayTypeSymbol(

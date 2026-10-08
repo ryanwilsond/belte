@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.Libraries;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis;
@@ -74,6 +75,8 @@ internal sealed partial class TemplateMetadataReader {
             _stream = new MemoryStream(_bytes);
             _reader = new BinaryReader(_stream);
         }
+
+        internal CorLibrary corLibrary => _compilation.corLibrary;
 
         internal void CreateTemplateTypes(ArrayBuilder<NamedTypeSymbol> builder, PENamespaceSymbol ns) {
             if (!_headerAndTableSizesIsRead)
@@ -638,7 +641,7 @@ internal sealed partial class TemplateMetadataReader {
                 }
 
                 if ((entry.flags & TemplateMetadataWriter.TypeFlags.IsInMemoryLibraryType) != 0) {
-                    var symbol = _compilation.corLibrary.belteNamespace.GetTypeMembers(entry.name).Single();
+                    var symbol = _compilation.belteNamespace.GetTypeMembers(entry.name).Single();
                     _resolvedTypeTable[index] = symbol;
                     return symbol;
                 }
@@ -709,7 +712,7 @@ internal sealed partial class TemplateMetadataReader {
 
             if ((flags & TemplateMetadataWriter.MethodFlags.IsWellKnownMember) != 0) {
                 var wellKnownMember = (WellKnownMember)((ushort)flags & 0xFF);
-                var member = _compilation.corLibrary.GetWellKnownMethod(wellKnownMember)
+                var member = _compilation.GetAnyWellKnownMethod(wellKnownMember)
                     .AsMember((NamedTypeSymbol)typeSymbol);
 
                 _resolvedMethodTable[index] = member;

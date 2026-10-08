@@ -7,8 +7,6 @@ internal static class WellKnownTypes {
     internal const int PECount = (int)WellKnownType.LastPEType - (int)WellKnownType.FirstPEType + 1;
 
     private static readonly Dictionary<string, WellKnownType> NameToTypeMap = new Dictionary<string, WellKnownType>() {
-        { "global::List`1", WellKnownType.List },
-        { "global::Dictionary`2", WellKnownType.Dictionary },
         { "global::Enumerator`1", WellKnownType.Enumerator },
         { "global::ValueTuple`1", WellKnownType.ValueTuple_T1 },
         { "global::ValueTuple`2", WellKnownType.ValueTuple_T2 },
@@ -18,10 +16,6 @@ internal static class WellKnownTypes {
         { "global::ValueTuple`6", WellKnownType.ValueTuple_T6 },
         { "global::ValueTuple`7", WellKnownType.ValueTuple_T7 },
         { "global::ValueTuple`8", WellKnownType.ValueTuple_TRest },
-        { "global::Array`1", WellKnownType.Array },
-        { "global::DllImportAttribute", WellKnownType.DllImportAttribute },
-        { "global::UnmanagedAttribute", WellKnownType.UnmanagedAttribute },
-        { "global::MustUseReturnValueAttribute", WellKnownType.MustUseReturnValueAttribute },
     };
 
     internal static WellKnownType GetTypeFromMetadataName(string metadataName) {

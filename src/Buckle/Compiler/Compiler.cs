@@ -28,6 +28,7 @@ public sealed class Compiler {
 
     private Compilation _lazyCorLibrary;
     private BelteDiagnosticQueue _lazyCorLibraryDiagnostics;
+    private bool _lazyCorLibraryIsSet;
 
     private CompilationOptions _options => new CompilationOptions(
         state.buildMode,
@@ -147,6 +148,7 @@ public sealed class Compiler {
     /// Removes the cached cor library so it is rebuilt on the next compilation.
     /// </summary>
     public void InvalidateCorLibraryCache() {
+        _lazyCorLibraryIsSet = false;
         _lazyCorLibrary = null;
         _lazyCorLibraryDiagnostics = null;
     }
@@ -163,7 +165,7 @@ public sealed class Compiler {
     }
 
     private BelteDiagnosticQueue GetCorLibrary(out Compilation compilation) {
-        if (_lazyCorLibrary is null || _lazyCorLibraryDiagnostics is null) {
+        if (!_lazyCorLibraryIsSet) {
             var corLibrary = LibraryHelpers.LoadLibraries(
                 _options.buildMode,
                 _options.concurrentBuild,
@@ -173,9 +175,16 @@ public sealed class Compiler {
                 includeAllNativeFiles: state.noBootStrap
             );
 
-            var corLibraryDiagnostics = corLibrary.GetDiagnostics();
-            Interlocked.CompareExchange(ref _lazyCorLibrary, corLibrary, null);
-            Interlocked.CompareExchange(ref _lazyCorLibraryDiagnostics, corLibraryDiagnostics, null);
+            if (corLibrary is null) {
+                Interlocked.Exchange(ref _lazyCorLibraryIsSet, true);
+            } else {
+                var corLibraryDiagnostics = corLibrary.GetDiagnostics();
+
+                if (Interlocked.CompareExchange(ref _lazyCorLibraryIsSet, true, false) == false) {
+                    Interlocked.Exchange(ref _lazyCorLibrary, corLibrary);
+                    Interlocked.Exchange(ref _lazyCorLibraryDiagnostics, corLibraryDiagnostics);
+                }
+            }
         }
 
         compilation = _lazyCorLibrary;
@@ -183,6 +192,7 @@ public sealed class Compiler {
     }
 
     private void ReportAndReturnLibraryErrors() {
+        Debug.Assert(_lazyCorLibrary is not null);
         diagnostics.PushRange(_lazyCorLibraryDiagnostics);
         diagnostics.Push(Fatal.LibraryError());
     }
@@ -224,7 +234,7 @@ public sealed class Compiler {
         );
 
         if (buildMode is BuildMode.Evaluate or BuildMode.Execute or BuildMode.Emulate) {
-            if (GetCorLibrary(out var corLibrary).AnyErrors()) {
+            if (GetCorLibrary(out var corLibrary)?.AnyErrors() == true) {
                 ReportAndReturnLibraryErrors();
                 return;
             }
@@ -282,7 +292,7 @@ public sealed class Compiler {
             Debug.Assert(buildMode == BuildMode.Interpret);
             Debug.Assert(state.tasks.Length == 1, "multiple tasks while in script mode");
 
-            if (GetCorLibrary(out var corLibrary).AnyErrors()) {
+            if (GetCorLibrary(out var corLibrary)?.AnyErrors() == true) {
                 ReportAndReturnLibraryErrors();
                 return;
             }
@@ -320,7 +330,7 @@ public sealed class Compiler {
     private void InternalCompiler() {
         var timer = state.time ? Stopwatch.StartNew() : null;
 
-        if (GetCorLibrary(out var corLibrary).AnyErrors()) {
+        if (GetCorLibrary(out var corLibrary)?.AnyErrors() == true) {
             ReportAndReturnLibraryErrors();
             return;
         }

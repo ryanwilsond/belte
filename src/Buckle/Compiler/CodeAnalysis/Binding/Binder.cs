@@ -33,19 +33,22 @@ internal partial class Binder {
     internal Binder(Compilation compilation) {
         flags = compilation.options.topLevelBinderFlags;
         this.compilation = compilation;
+        Debug.Assert(this.compilation is not null);
     }
 
     internal Binder(Binder next) {
         this.next = next;
         flags = next.flags;
-        _lazyConversions = conversions;
         compilation = next.compilation;
+        Debug.Assert(compilation is not null);
+        _lazyConversions = conversions;
     }
 
     private protected Binder(Binder next, BinderFlags flags) {
         this.next = next;
         this.flags = flags;
         compilation = next.compilation;
+        Debug.Assert(compilation is not null);
     }
 
     internal virtual SyntaxNode scopeDesignator => null;
@@ -1148,7 +1151,7 @@ internal partial class Binder {
         if (!useFatArray || rank != 1)
             return ArrayTypeSymbol.CreateArray(compilation.assembly, elementType, 1);
 
-        var fatArray = compilation.corLibrary.TryGetWellKnownType(WellKnownType.Array, compilation);
+        var fatArray = compilation.GetSpecialType(SpecialType.ArrayT);
 
         if (fatArray is ErrorTypeSymbol)
             diagnostics.Push(Error.PredefinedTypeNotFound(fatArray.name));
@@ -1441,7 +1444,8 @@ internal partial class Binder {
             argumentAnalysis.argsToParams
         );
 
-        var reportedTemplateSpecializationError = false;
+        // If the type is an error type skip this error
+        var reportedTemplateSpecializationError = type.IsErrorType();
 
         for (var i = 0; i < type.templateParameters.Length; i++) {
             var parameter = type.templateParameters[i];
@@ -4785,7 +4789,7 @@ internal partial class Binder {
             op2 = BindToNaturalType(op2, diagnostics);
             op1 = InferTypeForDiscardAssignment((BoundDiscardExpression)op1, op2, diagnostics);
         } else {
-            op2 = ReduceNumericIfApplicable(op1.Type(), op2);
+            op2 = ReduceNumericIfApplicable(op1.Type(), op2, compilation.corLibrary);
         }
 
         return BindAssignment(node, op1, op2, isRef, diagnostics);
@@ -5419,11 +5423,6 @@ internal partial class Binder {
         wasError = false;
 
         if (result.isMultiViable) {
-            if (symbols.Count > 1)
-                // TODO Eventually a full overload resolution system would be preferable, but this will help out in the short term
-                // When we update this we need to pass in template arguments
-                FilterOutWorseArityOptions(symbols, arity);
-
             if (symbols.Count > 1) {
                 symbols.Sort(ConsistentSymbolOrder.Instance);
                 var originalSymbols = symbols.ToImmutable();
@@ -5484,6 +5483,15 @@ internal partial class Binder {
 
                 if (best.isFromSourceModule && !secondBest.isFromSourceModule)
                     return first;
+
+                // TODO Prioritize source symbols over PE even if we have to use more default arguments
+                // Otherwise we get here because its ambiguous, so NOW we filter out bad arity options to try and get a single symbol
+                // TODO Eventually a full overload resolution system would be preferable, but this will help out in the short term
+                // When we update this we need to pass in template arguments
+                FilterOutWorseArityOptions(symbols, arity);
+
+                if (symbols.Count <= 1)
+                    return GetResultSingleSymbol(diagnostics, symbols);
 
                 BelteDiagnostic error = null;
                 bool reportError;
@@ -5600,30 +5608,7 @@ internal partial class Binder {
                     error,
                     arity);
             } else {
-                var singleResult = symbols[0];
-
-                // TODO check if void can appear hear, would need error
-                if (singleResult is TypeSymbol t && t.IsVoidType())
-                    throw ExceptionUtilities.Unreachable();
-
-                if (singleResult.kind == SymbolKind.ErrorType) {
-                    var errorType = (ErrorTypeSymbol)singleResult;
-
-                    if (errorType.unreported) {
-                        var error = errorType.error;
-                        diagnostics.Push(error);
-
-                        singleResult = new ExtendedErrorTypeSymbol(
-                            GetContainingNamespaceOrType(errorType),
-                            errorType.name,
-                            errorType.arity,
-                            error,
-                            false
-                        );
-                    }
-                }
-
-                return singleResult;
+                return GetResultSingleSymbol(diagnostics, symbols);
             }
         }
 
@@ -5676,6 +5661,33 @@ internal partial class Binder {
         }
 
         return symbols[0];
+    }
+
+    private Symbol GetResultSingleSymbol(BelteDiagnosticQueue diagnostics, ArrayBuilder<Symbol> symbols) {
+        var singleResult = symbols[0];
+
+        // TODO check if void can appear hear, would need error
+        if (singleResult is TypeSymbol t && t.IsVoidType())
+            throw ExceptionUtilities.Unreachable();
+
+        if (singleResult.kind == SymbolKind.ErrorType) {
+            var errorType = (ErrorTypeSymbol)singleResult;
+
+            if (errorType.unreported) {
+                var error = errorType.error;
+                diagnostics.Push(error);
+
+                singleResult = new ExtendedErrorTypeSymbol(
+                    GetContainingNamespaceOrType(errorType),
+                    errorType.name,
+                    errorType.arity,
+                    error,
+                    false
+                );
+            }
+        }
+
+        return singleResult;
     }
 
     private static void FilterOutWorseArityOptions(ArrayBuilder<Symbol> symbols, int specifiedArity) {

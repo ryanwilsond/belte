@@ -8,6 +8,7 @@ using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
+using Shared;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
@@ -221,8 +222,22 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
         }
     }
 
-    internal static bool IsNonTypeTemplateType(TypeSymbol type) {
-        return type is NamedTypeSymbol named && !IsGenericOnly(named);
+    internal static bool ContainsTemplateTypeNeedingExpansion(TypeSymbol type) {
+        var argument = new ValueWrapper<bool>(false);
+        type.VisitType(VisitTypePredicate, argument, canDigThroughNullable: true);
+        return argument;
+
+        static bool VisitTypePredicate(
+            TypeSymbol type,
+            ValueWrapper<bool> argument,
+            bool canDigThroughNullable = true) {
+            if (type is NamedTypeSymbol named && !IsGenericOnly(named)) {
+                argument.Value = true;
+                return true;
+            }
+
+            return false;
+        }
     }
 
     internal static bool IsNonTypeTemplateMethod(MethodSymbol method) {

@@ -718,7 +718,7 @@ internal class SharedExpander : BoundTreeExpander {
                 if (replacementContent.StrippedType().specialType == SpecialType.String) {
                     right = replacementContent;
                 } else if (replacementContent.Type().isValueType && !replacementContent.Type().IsStructType()) {
-                    var conversions = TypeConversions.GetInstance();
+                    var conversions = _compilation.conversions;
 
                     // TODO This error checking should be moved to the Binder or DiagnosticPass otherwise
 
@@ -1248,21 +1248,9 @@ internal class SharedExpander : BoundTreeExpander {
         var statements = ExpandExpression(expression.expression, out var newExpression, UseKind.StableValue);
 
         var expressionType = (NamedTypeSymbol)expression.expression.type;
-        var resultMembers = expressionType.originalDefinition.GetMembers();
 
-        var isSuccessMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
-            resultMembers,
-            WellKnownMembers.GetDescriptor(WellKnownMember.Result_getIsSuccess),
-            _compilation.wellKnownMemberSignatureComparer,
-            accessWithinOpt: null
-        )).AsMember(expressionType);
-
-        var valueMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
-            resultMembers,
-            WellKnownMembers.GetDescriptor(WellKnownMember.Result_getValue),
-            _compilation.wellKnownMemberSignatureComparer,
-            accessWithinOpt: null
-        )).AsMember(expressionType);
+        var isSuccessMethod = _compilation.GetWellKnownMethod(WellKnownMember.Result_getIsSuccess).AsMember(expressionType);
+        var valueMethod = _compilation.GetWellKnownMethod(WellKnownMember.Result_getValue).AsMember(expressionType);
 
         statements.Add(GotoIf(syntax,
             success,
@@ -1276,19 +1264,8 @@ internal class SharedExpander : BoundTreeExpander {
         } else {
             var returnType = (NamedTypeSymbol)_container.returnType;
 
-            var errorMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
-                resultMembers,
-                WellKnownMembers.GetDescriptor(WellKnownMember.Result_getError),
-                _compilation.wellKnownMemberSignatureComparer,
-                accessWithinOpt: null
-            )).AsMember(expressionType);
-
-            var failureMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
-                resultMembers,
-                WellKnownMembers.GetDescriptor(WellKnownMember.Result_Failure),
-                _compilation.wellKnownMemberSignatureComparer,
-                accessWithinOpt: null
-            )).AsMember(returnType);
+            var errorMethod = _compilation.GetWellKnownMethod(WellKnownMember.Result_getError).AsMember(expressionType);
+            var failureMethod = _compilation.GetWellKnownMethod(WellKnownMember.Result_Failure).AsMember(returnType);
 
             statements.Add(new BoundReturnStatement(syntax, RefKind.None,
                 Call(syntax, failureMethod, [
@@ -1326,21 +1303,9 @@ internal class SharedExpander : BoundTreeExpander {
         var statements = ExpandExpression(expression.expression, out var newExpression, UseKind.StableValue);
 
         var expressionType = (NamedTypeSymbol)expression.expression.type;
-        var resultMembers = expressionType.originalDefinition.GetMembers();
 
-        var isSuccessMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
-            resultMembers,
-            WellKnownMembers.GetDescriptor(WellKnownMember.Result_getIsSuccess),
-            _compilation.wellKnownMemberSignatureComparer,
-            accessWithinOpt: null
-        )).AsMember(expressionType);
-
-        var valueMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
-            resultMembers,
-            WellKnownMembers.GetDescriptor(WellKnownMember.Result_getValue),
-            _compilation.wellKnownMemberSignatureComparer,
-            accessWithinOpt: null
-        )).AsMember(expressionType);
+        var isSuccessMethod = _compilation.GetWellKnownMethod(WellKnownMember.Result_getIsSuccess).AsMember(expressionType);
+        var valueMethod = _compilation.GetWellKnownMethod(WellKnownMember.Result_getValue).AsMember(expressionType);
 
         statements.Add(GotoIf(syntax,
             success,
@@ -1349,12 +1314,7 @@ internal class SharedExpander : BoundTreeExpander {
 
         Debug.Assert(_container.refKind == RefKind.None);
 
-        var errorMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
-            resultMembers,
-            WellKnownMembers.GetDescriptor(WellKnownMember.Result_getError),
-            _compilation.wellKnownMemberSignatureComparer,
-            accessWithinOpt: null
-        )).AsMember(expressionType);
+        var errorMethod = _compilation.GetWellKnownMethod(WellKnownMember.Result_getError).AsMember(expressionType);
 
         var exceptionType = _compilation.GetWellKnownType(WellKnownType.System_Exception);
         var wrappedExceptionType = _compilation.GetWellKnownType(WellKnownType.Belte_WrappedErrorException);
@@ -1491,21 +1451,9 @@ internal class SharedExpander : BoundTreeExpander {
         var statements = ExpandExpression(expression.expression, out var newExpression, UseKind.StableValue);
 
         var expressionType = (NamedTypeSymbol)expression.expression.type;
-        var resultMembers = expressionType.originalDefinition.GetMembers();
 
-        var isSuccessMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
-            resultMembers,
-            WellKnownMembers.GetDescriptor(WellKnownMember.Result_getIsSuccess),
-            _compilation.wellKnownMemberSignatureComparer,
-            accessWithinOpt: null
-        )).AsMember(expressionType);
-
-        var valueMethod = ((MethodSymbol)Compilation.GetRuntimeMember(
-            resultMembers,
-            WellKnownMembers.GetDescriptor(WellKnownMember.Result_getValue),
-            _compilation.wellKnownMemberSignatureComparer,
-            accessWithinOpt: null
-        )).AsMember(expressionType);
+        var isSuccessMethod = _compilation.GetWellKnownMethod(WellKnownMember.Result_getIsSuccess).AsMember(expressionType);
+        var valueMethod = _compilation.GetWellKnownMethod(WellKnownMember.Result_getValue).AsMember(expressionType);
 
         statements.AddRange(ExpandExpression(expression.value, out var newValue));
 

@@ -10,7 +10,7 @@ namespace Buckle.CodeAnalysis.Binding;
 internal sealed class Conversions : ConversionsBase {
     private readonly Binder _binder;
 
-    internal Conversions(Binder binder) {
+    internal Conversions(Binder binder) : base(binder.compilation.corLibrary) {
         _binder = binder;
     }
 

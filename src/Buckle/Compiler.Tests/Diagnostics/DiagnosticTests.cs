@@ -52,13 +52,13 @@ public sealed class DiagnosticTests {
     // Requires command-line arguments
 
     [Fact]
-    public void Reports_Error_BU0004_InvalidType() {
+    public void Reports_Error_BU0004_IntegralOverflow() {
         var text = @"
-            int? x = [99999999999999999999];
+            var x = [99999999999999999999];
         ";
 
         var diagnostics = @"
-            '99999999999999999999' is not a valid 'int'
+            integral constant '99999999999999999999' is too large
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -10231,6 +10231,19 @@ var text = """"""
 
         var diagnostics = @"
             pattern type is identical to the expression type; pattern always succeeds
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0676_FloatOverflow() {
+        var text = @"
+            var x = [1.7976931348623157E+309];
+        ";
+
+        var diagnostics = @"
+            floating-point constant '1.7976931348623157E+309' is too large
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

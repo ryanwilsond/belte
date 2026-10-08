@@ -1974,7 +1974,7 @@ public sealed class IssueTests {
                     : base(f""Value '{value}' was out of the range of valid values [{min}..{max}]."") { }
             }
 
-            public struct Int<int Min = Int64.MinValue, int Max = Int64.MaxValue>
+            public struct TInt<int Min = Int64.MinValue, int Max = Int64.MaxValue>
                 where { Min <= Max; Min >= Int64.MinValue; Max <= Int64.MaxValue; } {
                 private int64 _value;
 
@@ -1985,32 +1985,32 @@ public sealed class IssueTests {
                     _value = value;
                 }
 
-                public static Int<Min, Max> operator +(Int<Min, Max> left, Int<Min, Max> right) {
+                public static TInt<Min, Max> operator +(TInt<Min, Max> left, TInt<Min, Max> right) {
                     return new(left._value + right._value);
                 }
 
-                public static implicit operator Int<Min, Max>(int64 value) {
+                public static implicit operator TInt<Min, Max>(int64 value) {
                     return new(value);
                 }
 
-                public static implicit operator int64(Int<Min, Max> value) {
+                public static implicit operator int64(TInt<Min, Max> value) {
                     return value._value;
                 }
 
-                public static explicit operator<int TMin, int TMax> Int<TMin, TMax>(Int<Min, Max> bigger)
+                public static explicit operator<int TMin, int TMax> TInt<TMin, TMax>(TInt<Min, Max> bigger)
                     where {
                         TMin <= TMax; TMin > Min || TMax < Max;
                         TMin >= Int64.MinValue; TMax <= Int64.MaxValue;
                     } {
-                    return new Int<TMin, TMax>(bigger._value);
+                    return new TInt<TMin, TMax>(bigger._value);
                 }
 
-                public static implicit operator<int TMin, int TMax> Int<TMin, TMax>(Int<Min, Max> smaller)
+                public static implicit operator<int TMin, int TMax> TInt<TMin, TMax>(TInt<Min, Max> smaller)
                     where {
                         TMin <= TMax; TMin <= Min; TMax >= Max;
                         TMin >= Int64.MinValue; TMax <= Int64.MaxValue;
                     } {
-                    return new Int<TMin, TMax>(smaller._value);
+                    return new TInt<TMin, TMax>(smaller._value);
                 }
 
                 public override string? ToString() {
@@ -2018,8 +2018,8 @@ public sealed class IssueTests {
                 }
             }
 
-            Int<0, 5> a = 5;
-            Int b = a;
+            TInt<0, 5> a = 5;
+            TInt b = a;
             return (int)b;
         ";
 
@@ -4165,5 +4165,45 @@ public sealed class IssueTests {
         ";
 
         AssertExceptions(text, _writer, exceptions);
+    }
+
+    [Fact]
+    public void TemplateExpander_SeesTemplateNestedInNullable() {
+        var text = @"
+            public struct Int<int Min = Int64.MinValue> { }
+            Int? b;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Unreachable_EmitsProperly() {
+        var text = @"
+            int M() {
+                return 0;
+                unreachable;
+            }
+
+            return M();
+        ";
+
+        AssertValue(text, 0);
+    }
+
+    [Fact]
+    public void Unreachable_EmitsProperly2() {
+        var text = @"
+            int M() {
+                return 0;
+                unreachable(0);
+            }
+
+            return M();
+        ";
+
+        AssertValue(text, 0);
     }
 }

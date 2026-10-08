@@ -82,7 +82,7 @@ internal abstract class SynthesizedContainer : NamedTypeSymbol {
 
     // internal sealed override bool isConstant => false;
 
-    internal override NamedTypeSymbol baseType => containingAssembly.corLibrary.GetSpecialType(SpecialType.Object);
+    internal override NamedTypeSymbol baseType => containingAssembly.GetSpecialType(SpecialType.Object);
 
     public override int arity => templateParameters.Length;
 

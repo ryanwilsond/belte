@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -9,6 +10,7 @@ namespace Buckle.CodeAnalysis.Binding;
 
 internal sealed class EndBinder : Binder {
     internal EndBinder(Compilation compilation, SourceText associatedText) : base(compilation) {
+        Debug.Assert(compilation is not null);
         this.associatedText = associatedText;
     }
 

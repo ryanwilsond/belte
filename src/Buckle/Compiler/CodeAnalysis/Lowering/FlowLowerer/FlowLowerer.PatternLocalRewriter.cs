@@ -42,7 +42,7 @@ internal sealed partial class FlowLowerer {
 
                         var outputTemp = new BoundDagTemp(t.syntax, type, t, 0);
                         var output = _tempAllocator.GetTemp(outputTemp);
-                        var conversion = new Conversions(null).ClassifyBuiltInConversion(
+                        var conversion = _compilation.conversions.ClassifyBuiltInConversion(
                             inputType,
                             output.type,
                             isChecked: false
@@ -124,7 +124,7 @@ internal sealed partial class FlowLowerer {
                 );
 
                 return new BoundIsOperator(syntax,
-                    CreateCast(syntax,
+                    CreateCast(syntax, _compilation,
                         operandType,
                         rewrittenExpr
                     ),
@@ -176,8 +176,8 @@ internal sealed partial class FlowLowerer {
             if (operatorKind.OperandTypes() == BinaryOperatorKind.Int64 &&
                 comparisonType.specialType != SpecialType.Int32) {
                 comparisonType = _compilation.GetSpecialType(SpecialType.Int32);
-                input = CreateCast(syntax, comparisonType, input);
-                literal = CreateCast(syntax, comparisonType, literal);
+                input = CreateCast(syntax, _compilation, comparisonType, input);
+                literal = CreateCast(syntax, _compilation, comparisonType, literal);
             }
 
             return (BoundExpression)_flowLowerer.Visit(Binary(syntax,
@@ -229,8 +229,11 @@ internal sealed partial class FlowLowerer {
 
             if (test is BoundDagNonNullTest nonNullTest &&
                 evaluation is BoundDagTypeEvaluation typeEvaluation2 &&
-                new Conversions(null).ClassifyBuiltInConversion(test.input.type, typeEvaluation2.type, isChecked: false)
-                    is Conversion conv &&
+                _compilation.conversions.ClassifyBuiltInConversion(
+                    test.input.type,
+                    typeEvaluation2.type,
+                    isChecked: false
+                ) is Conversion conv &&
                 (conv.isIdentity || conv.kind == ConversionKind.ImplicitReference || conv.isBoxing) &&
                 typeEvaluation2.input == nonNullTest.input) {
                 var input = _tempAllocator.GetTemp(test.input);
@@ -240,7 +243,7 @@ internal sealed partial class FlowLowerer {
                 sideEffect = Assignment(
                     _node,
                     output,
-                    CreateCast(_node, baseType, input),
+                    CreateCast(_node, _compilation, baseType, input),
                     false,
                     output.type
                 );

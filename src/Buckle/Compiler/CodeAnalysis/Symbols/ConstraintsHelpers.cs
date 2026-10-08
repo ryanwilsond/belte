@@ -103,7 +103,7 @@ internal static partial class ConstraintsHelpers {
         Compilation currentCompilation,
         BelteDiagnosticQueue diagnostics,
         TextLocation errorLocation) {
-        var effectiveBaseClass = corLibrary.GetSpecialType(
+        var effectiveBaseClass = corLibrary.GetAnySpecialType(
             templateParameter.hasValueTypeConstraint ? SpecialType.ValueType : SpecialType.Object
         );
 

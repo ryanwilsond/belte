@@ -5,7 +5,6 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -166,7 +165,8 @@ internal abstract partial class ErrorTypeSymbol : NamedTypeSymbol {
                     this,
                     "",
                     i,
-                    new TypeWithAnnotations(CorLibrary.Instance.GetSpecialType(SpecialType.Type))
+                    // TODO Could be more accurate and create a UnboundParameterErrorTypeSymbol if it ever becomes relevant
+                    underlyingType: new TypeWithAnnotations(UnboundArgumentErrorTypeSymbol.Instance)
                 );
             }
 

@@ -1088,7 +1088,7 @@ internal partial class Binder {
             var constantValue = new ConstantValue(value, specialType);
             var type = compilation.GetSpecialType(specialType);
             BoundExpression boundOperand = new BoundLiteralExpression(node, constantValue, type);
-            boundOperand = ReduceNumericIfApplicable(targetType, boundOperand);
+            boundOperand = ReduceNumericIfApplicable(targetType, boundOperand, compilation.corLibrary);
             boundOperand = GenerateConversionForAssignment(targetType, boundOperand, diagnostics);
             hasErrors |= boundOperand.hasAnyErrors;
 
@@ -1592,7 +1592,7 @@ internal partial class Binder {
                 }
             } else {
                 initializer = BindPossibleArrayInitializer(value, declarationType.type, valueKind, diagnostics);
-                initializer = ReduceNumericIfApplicable(declarationType.type, initializer);
+                initializer = ReduceNumericIfApplicable(declarationType.type, initializer, compilation.corLibrary);
                 initializer = GenerateConversionForAssignment(
                     declarationType.type,
                     initializer,
@@ -1635,7 +1635,7 @@ internal partial class Binder {
                 var sizeExpression = ((ArgumentSyntax)arguments[0]).expression;
 
                 var boundSize = BindValue(sizeExpression, diagnostics, BindValueKind.RValue);
-                boundSize = ReduceNumericIfApplicable(intType, boundSize);
+                boundSize = ReduceNumericIfApplicable(intType, boundSize, compilation.corLibrary);
                 boundSize = GenerateConversionForAssignment(intType, boundSize, diagnostics);
 
                 if (boundSize.constantValue is not null && (int)boundSize.constantValue.value < 0) {
@@ -1741,7 +1741,10 @@ internal partial class Binder {
         );
     }
 
-    internal static BoundExpression ReduceNumericIfApplicable(TypeSymbol declarationType, BoundExpression expression) {
+    internal static BoundExpression ReduceNumericIfApplicable(
+        TypeSymbol declarationType,
+        BoundExpression expression,
+        CorLibrary corLibrary) {
         var declarationSpecialType = declarationType.StrippedType().specialType;
         var shouldTryToReduce = ShouldTryToReduce(expression, declarationSpecialType);
 
@@ -1753,7 +1756,7 @@ internal partial class Binder {
 
             var specialType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(literalValue);
             var constantValue = new ConstantValue(literalValue, specialType);
-            var type = CorLibrary.Instance.GetSpecialType(specialType);
+            var type = corLibrary.GetSpecialType(specialType);
             expression = new BoundLiteralExpression(expression.syntax, constantValue, type);
         }
 

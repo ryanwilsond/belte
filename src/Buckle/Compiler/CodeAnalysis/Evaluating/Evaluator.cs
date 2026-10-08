@@ -133,8 +133,7 @@ internal sealed partial class Evaluator {
                 var index = _context.heap.Allocate(args, _stack, _context);
                 argsPtr = EvaluatorValue.HeapPtr(index);
             } else {
-                Debug.Assert(_compilation.corLibrary.GetWellKnownType(WellKnownType.Array)
-                    .Equals(entryPoint.GetParameterType(0).originalDefinition));
+                Debug.Assert(entryPoint.GetParameterType(0).originalDefinition.specialType == SpecialType.ArrayT);
 
                 argsType = entryPoint.GetParameterType(0);
 
@@ -3227,7 +3226,7 @@ internal sealed partial class Evaluator {
         io = false;
         result = null;
 
-        if ((object)method.containingNamespace != _compilation.corLibrary.belteNamespace.originalDefinition) {
+        if ((object)method.containingNamespace != _compilation.belteNamespace.originalDefinition) {
             if (method.containingType?.specialType != SpecialType.Nullable &&
                 method.containingType?.specialType != SpecialType.Object) {
                 return false;
@@ -3242,7 +3241,7 @@ internal sealed partial class Evaluator {
         // TODO If we deem these string checks too slow, we could probably compute unique Int64 mapKeys instead
         var mapKey = LibraryHelpers.BuildMapKey(method);
 
-        if ((object)method.containingNamespace == _compilation.corLibrary.belteNamespace.originalDefinition) {
+        if ((object)method.containingNamespace == _compilation.belteNamespace.originalDefinition) {
             switch (mapKey) {
                 case "LowLevel_GetHashCode_O": {
                         var argument = EvaluateExpression(arguments[0], true, abort);

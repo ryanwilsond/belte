@@ -178,7 +178,7 @@ public sealed class DisplayText {
                 DisplayContinueStatement(text);
                 break;
             case BoundKind.UnreachableStatement:
-                DisplayUnreachableStatement(text);
+                DisplayUnreachableStatement(text, (BoundUnreachableStatement)node);
                 break;
             case BoundKind.WithStatement:
                 DisplayWithStatement(text, (BoundWithStatement)node);
@@ -789,8 +789,15 @@ public sealed class DisplayText {
         text.WriteLine();
     }
 
-    private static void DisplayUnreachableStatement(DisplayText text) {
+    private static void DisplayUnreachableStatement(DisplayText text, BoundUnreachableStatement node) {
         text.Write(CreateKeyword(SyntaxKind.UnreachableKeyword));
+
+        if (node.value is not null) {
+            text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+            DisplayNode(text, node.value);
+            text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+        }
+
         text.WriteLine();
     }
 

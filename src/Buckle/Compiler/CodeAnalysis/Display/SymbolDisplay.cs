@@ -3,7 +3,6 @@ using System.Diagnostics;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Display.DisplayTextSegment;
 
@@ -163,8 +162,7 @@ public static class SymbolDisplay {
 
                 text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
             } else if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.NetFormat) == 0 &&
-                CorLibrary.Instance.HasWellKnownType(WellKnownType.Array) &&
-                CorLibrary.Instance.GetWellKnownType(WellKnownType.Array).Equals(namedType.originalDefinition)) {
+                    namedType.originalDefinition.specialType == SpecialType.ArrayT) {
                 DisplayType(text, namedType.templateArguments[0].type.type, format);
                 text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
                 text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));

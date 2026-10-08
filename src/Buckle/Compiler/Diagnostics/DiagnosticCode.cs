@@ -12,7 +12,7 @@ public enum DiagnosticCode : ushort {
     WRN_AlwaysValue = 1,
     ERR_NullableReceiver = 2,
     ERR_InvalidReference = 3,
-    ERR_InvalidType = 4,
+    ERR_IntegralOverflow = 4,
     ERR_BadCharacter = 5,
     ERR_UnexpectedToken = 6,
     ERR_CannotConvertImplicitly = 7,
@@ -684,6 +684,7 @@ public enum DiagnosticCode : ushort {
     ERR_NonTemplateTypeCannotHaveConstraints = 673,
     ERR_CompileTimeExpressionInConstraint = 674,
     ERR_IdentityPattern = 675,
+    ERR_FloatOverflow = 676,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

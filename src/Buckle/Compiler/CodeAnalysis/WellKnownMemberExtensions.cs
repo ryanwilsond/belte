@@ -93,4 +93,8 @@ internal static class WellKnownMemberExtensions {
     internal static string GetMetadataName(this WellKnownMember wellKnownMember) {
         return MetadataNames[(int)wellKnownMember - 1];
     }
+
+    internal static bool LivesInCorLibrary(this WellKnownMember wellKnownMember) {
+        return wellKnownMember <= WellKnownMember.LastCorMember;
+    }
 }

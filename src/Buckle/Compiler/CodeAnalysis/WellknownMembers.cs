@@ -358,7 +358,7 @@ internal static class WellKnownMembers {
 
                 // Array_ctor_1
                 (byte)MemberFlags.Constructor,                                                                              // Flags
-                (byte)WellKnownType.Array,                                                                                  // DeclaringTypeId
+                (byte)SpecialType.ArrayT,                                                                                   // DeclaringTypeId
                 0,                                                                                                          // Arity
                     1,                                                                                                      // Method Signature
                     (byte)SignatureTypeCode.TypeHandle, (byte)SpecialType.Void, // Return Type
@@ -366,7 +366,7 @@ internal static class WellKnownMembers {
 
                 // Array_ctor_2
                 (byte)MemberFlags.Constructor,                                                                              // Flags
-                (byte)WellKnownType.Array,                                                                                  // DeclaringTypeId
+                (byte)SpecialType.ArrayT,                                                                                   // DeclaringTypeId
                 0,                                                                                                          // Arity
                     2,                                                                                                      // Method Signature
                     (byte)SignatureTypeCode.TypeHandle, (byte)SpecialType.Void, // Return Type
@@ -375,14 +375,15 @@ internal static class WellKnownMembers {
 
                 // Array_Get
                 (byte)MemberFlags.Method,                                                                                   // Flags
-                (byte)WellKnownType.Array,                                                                                    // DeclaringTypeId
+                (byte)SpecialType.ArrayT,                                                                                   // DeclaringTypeId
                 0,                                                                                                          // Arity
-                    0,                                                                                                      // Method Signature
+                    1,                                                                                                      // Method Signature
                     (byte)SignatureTypeCode.ByReference, (byte)SignatureTypeCode.GenericTypeParameter, 0, // Return Type
+                    (byte)SignatureTypeCode.TypeHandle, (byte)SpecialType.Int,
 
                 // Array_Set
                 (byte)MemberFlags.Method,                                                                                   // Flags
-                (byte)WellKnownType.Array,                                                                                    // DeclaringTypeId
+                (byte)SpecialType.ArrayT,                                                                                   // DeclaringTypeId
                 0,                                                                                                          // Arity
                     2,                                                                                                      // Method Signature
                     (byte)SignatureTypeCode.GenericTypeParameter, 0,            // Return Type
@@ -434,10 +435,10 @@ internal static class WellKnownMembers {
                     (byte)SignatureTypeCode.GenericMethodParameter, 0,          // Return Type
 
                 // System_InvalidOperationException_ctor
-                (byte)MemberFlags.Constructor,                                                                          // Flags
-                (byte)WellKnownType.System_InvalidOperationException,                                                   // DeclaringTypeId
-                0,                                                                                                      // Arity
-                    0,                                                                                                  // Method Signature
+                (byte)MemberFlags.Constructor,                                                                              // Flags
+                (byte)WellKnownType.System_InvalidOperationException,                                                       // DeclaringTypeId
+                0,                                                                                                          // Arity
+                    0,                                                                                                      // Method Signature
                     (byte)SignatureTypeCode.TypeHandle, (byte)SpecialType.Void, // Return Type
 
         };
@@ -512,7 +513,8 @@ internal static class WellKnownMembers {
 
 #if DEBUG
         foreach (var descriptor in Descriptors) {
-            Debug.Assert(!descriptor.isSpecialTypeMember || descriptor.declaringSpecialType == SpecialType.Nullable);
+            Debug.Assert(!descriptor.isSpecialTypeMember ||
+                descriptor.declaringSpecialType is SpecialType.Nullable or SpecialType.ArrayT);
         }
 #endif
     }

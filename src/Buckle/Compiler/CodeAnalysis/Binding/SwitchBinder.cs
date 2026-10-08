@@ -407,6 +407,7 @@ internal class SwitchBinder : LocalScopeBinder {
         var functions = GetDeclaredLocalFunctionsForScope(node);
 
         var decisionDag = DecisionDagBuilder.CreateDecisionDagForSwitchStatement(
+            compilation,
             syntax: node,
             switchGoverningExpression: boundSwitchGoverningExpression,
             switchSections: switchSections,

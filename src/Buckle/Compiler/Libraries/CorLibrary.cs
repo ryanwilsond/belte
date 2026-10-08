@@ -1,7 +1,6 @@
 using System;
 using System.Collections.Concurrent;
 using System.Diagnostics;
-using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Symbols;
@@ -35,8 +34,6 @@ internal sealed class CorLibrary {
 
     private readonly Compilation _compilation;
 
-    private SynthesizedBelteNamespaceSymbol _belteNamespace;
-
     internal CorLibrary(Compilation compilation) {
         _compilation = compilation;
 
@@ -49,13 +46,6 @@ internal sealed class CorLibrary {
         if (Instance is null)
             Interlocked.Exchange(ref Instance, this);
     }
-
-    internal void SetBelteNamespace(SynthesizedBelteNamespaceSymbol belteNamespace) {
-        Debug.Assert(_belteNamespace is null);
-        _belteNamespace = belteNamespace;
-    }
-
-    internal NamespaceSymbol belteNamespace => _belteNamespace;
 
     internal void SetReducedState() {
         Debug.Assert(false);
@@ -92,6 +82,13 @@ internal sealed class CorLibrary {
         Debug.Assert(wellKnownType <= WellKnownType.LastNativeType, "PE well known types should be accessed through a Compilation");
         EnsureCorLibraryIsComplete();
         return TryGetWellKnownTypeCore(wellKnownType, compilation.assembly);
+    }
+
+    internal NamedTypeSymbol GetAnySpecialType(SpecialType specialType) {
+        if (specialType.LivesInCorLibrary())
+            return GetSpecialTypeCore(specialType);
+
+        return _compilation.GetSpecialType(specialType);
     }
 
     internal NamedTypeSymbol GetSpecialType(SpecialType specialType) {
@@ -335,18 +332,6 @@ internal sealed class CorLibrary {
                 LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T6));
                 LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_T7));
                 LazyWellKnownTupleMembers(GetWellKnownType(WellKnownType.ValueTuple_TRest));
-#if DEBUG
-                completedAnything = true;
-#endif
-            }
-
-            if (_wellKnownTypes.ContainsKey(WellKnownType.Array)) {
-                var type = GetWellKnownType(WellKnownType.Array);
-                Debug.Assert(type.instanceConstructors.Length == 2);
-                RegisterWellKnownMember(WellKnownMember.Array_ctor_1, type.instanceConstructors.Single(c => c.parameterCount == 1));
-                RegisterWellKnownMember(WellKnownMember.Array_ctor_2, type.instanceConstructors.Single(c => c.parameterCount == 2));
-                RegisterWellKnownMember(WellKnownMember.Array_Get, type.GetMembers("Get")[0]);
-                RegisterWellKnownMember(WellKnownMember.Array_Set, type.GetMembers("Set")[0]);
 #if DEBUG
                 completedAnything = true;
 #endif

@@ -274,7 +274,7 @@ internal partial class ILEmitter : ModuleBuilder {
         }
 
         if (!isDll)
-            EmitAppHost(Path.ChangeExtension(outputPath, ".exe"), dllPath);
+            EmitAppHost(Path.ChangeExtension(outputPath, ".exe"), dllPath, diagnostics);
     }
 
     private void EmitMetadataAttribute() {
@@ -314,10 +314,14 @@ internal partial class ILEmitter : ModuleBuilder {
         File.WriteAllText(runtimeConfigPath, content);
     }
 
-    private void EmitAppHost(string outputPath, string dllPath) {
+    private void EmitAppHost(string outputPath, string dllPath, BelteDiagnosticQueue diagnostics) {
         var dllName = Path.GetFileName(dllPath);
         var appHostPath = DotnetReferenceResolver.ResolveAppHostPath(_version);
-        Microsoft.NET.HostModel.AppHost.HostWriter.CreateAppHost(appHostPath, outputPath, dllName);
+
+        var wrote = IOUtilities.TryIOOperation(() => Microsoft.NET.HostModel.AppHost.HostWriter.CreateAppHost(appHostPath, outputPath, dllName));
+
+        if (!wrote)
+            diagnostics.Push(Error.UnableToOpenFile(outputPath));
     }
 
     private string EmitToString(bool programOnly) {
@@ -948,7 +952,8 @@ internal partial class ILEmitter : ModuleBuilder {
         var current = type;
 
         while (current is not null) {
-            if (current.specialType is SpecialType.Object or SpecialType.Enum or SpecialType.ValueType)
+            // We never emit Enum or ValueType, but might emit Object if building Belte.Core
+            if (current.specialType is SpecialType.Enum or SpecialType.ValueType)
                 break;
 
             baseStack.Push(current);
@@ -1315,8 +1320,7 @@ internal partial class ILEmitter : ModuleBuilder {
 
         var arrayTypeSymbol = (NamedTypeSymbol)entrySymbol.GetParameterType(0);
 
-        var ctorSymbol = _compilation.corLibrary.GetWellKnownMethod(WellKnownMember.Array_ctor_2)
-            .AsMember(arrayTypeSymbol);
+        var ctorSymbol = _compilation.GetWellKnownMethod(WellKnownMember.Array_ctor_2).AsMember(arrayTypeSymbol);
 
         var ctor = GetMethod(ctorSymbol);
 
@@ -1443,6 +1447,10 @@ internal partial class ILEmitter : ModuleBuilder {
 
         if (type.IsEnumType())
             return NetTypeReference.Enum;
+
+        // Special case, we emit a dummy Object type that is only used by the compiler
+        if (type.specialType == SpecialType.Object)
+            return GetType(type);
 
         Debug.Assert(type.baseType is not null);
         return GetType(type.baseType);
@@ -1715,7 +1723,7 @@ internal partial class ILEmitter : ModuleBuilder {
 
         containingType.Methods.Add(methodDefinition);
 
-        if (method.methodKind == MethodKind.Finalizer) {
+        if (method.methodKind == MethodKind.Finalizer && method.containingType.specialType != SpecialType.Object) {
             var baseFinalize = GetMethod(MethodCompiler.GetBaseTypeFinalizeMethod(method));
             methodDefinition.Overrides.Add(baseFinalize);
         }
@@ -2552,8 +2560,8 @@ internal partial class ILEmitter : ModuleBuilder {
         NetMethodReference.Type_GetTypeFromHandle = ResolveMethod("System.Type", "GetTypeFromHandle", ["System.RuntimeTypeHandle"]);
         NetMethodReference.NullReferenceException_ctor = ResolveMethod("System.NullReferenceException", ".ctor", []);
         NetMethodReference.NullConditionException_ctor = ResolveMethod("Belte.Runtime.NullConditionException", ".ctor", []);
-        NetMethodReference.ThrowUnreachableException = ResolveMethod("Belte.Runtime.ThrowHelper", "ThrowUnreachableException", []);
-        NetMethodReference.ThrowUnexpectedValueException = ResolveMethod("Belte.Runtime.ThrowHelper", "ThrowUnexpectedValueException", ["System.Object"]);
+        NetMethodReference.GetUnreachableException = ResolveMethod("Belte.Runtime.ThrowHelper", "GetUnreachableException", []);
+        NetMethodReference.GetUnexpectedValueException = ResolveMethod("Belte.Runtime.ThrowHelper", "GetUnexpectedValueException", ["System.Object"]);
         NetMethodReference.LowLevel_Sort = ResolveMethod("Belte.Runtime.Utilities", "Sort", ["T[]"]);
         NetMethodReference.LowLevel_Length = ResolveMethod("Belte.Runtime.Utilities", "Length", ["T[]"]);
         NetMethodReference.AssertNull = ResolveMethod("Belte.Runtime.Utilities", "AssertNull", ["T"]);

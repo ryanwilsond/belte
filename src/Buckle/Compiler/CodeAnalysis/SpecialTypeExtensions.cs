@@ -1,8 +1,50 @@
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis;
 
 internal static class SpecialTypeExtensions {
+    private static readonly string[] EmittedNames = [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "Object",
+        "Buffer`1",
+        "Array`1",
+        null,
+        null,
+    ];
+
+#if DEBUG
+    static SpecialTypeExtensions() {
+        Debug.Assert(EmittedNames.Length == (int)SpecialType.NextAvailable);
+    }
+#endif
+
     internal static bool IsKnownToBeImmutable(this SpecialType specialType) {
         // This is only caring about reference types
         switch (specialType) {
@@ -362,6 +404,28 @@ internal static class SpecialTypeExtensions {
             case SpecialType.Buffer:
             default:
                 return false;
+        }
+    }
+
+    internal static bool LivesInCorLibrary(this SpecialType type) {
+        return type <= SpecialType.LastCorType;
+    }
+
+    internal static string GetMetadataName(this SpecialType type) {
+        var metadataName = EmittedNames[(int)type];
+        Debug.Assert(metadataName is not null);
+        return metadataName;
+    }
+
+    internal static bool ShouldSkipEmit(this SpecialType type, bool noStdLib) {
+        switch (type) {
+            case SpecialType.None:
+            case SpecialType.ArrayT:
+            case SpecialType.Buffer when noStdLib:
+            case SpecialType.Object when noStdLib:
+                return false;
+            default:
+                return true;
         }
     }
 }
