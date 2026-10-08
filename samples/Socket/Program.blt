@@ -64,7 +64,7 @@ public static class Program {
 
         Console.PrintLine("Listening on 127.0.0.1:" + ((string)PORT) + "...");
 
-        constexpr string! response = """
+        constexpr string response = """
             HTTP/1.1 200 OK
             Content-Type: text/plain; charset=utf-8
             Content-Length: 13

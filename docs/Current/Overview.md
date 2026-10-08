@@ -78,12 +78,12 @@ implemented.
 - Executor: the endpoint for emitting to an in-memory delegate to execute immediately. This is the default endpoint and is used for `--execute` builds and [compile-time handles](LowLevelFeatures.md#613-compiler-handle).
 - IL Emitter: the endpoint for emitting to an executable which relies on .NET. Used for `--dotnet` builds and [build scripts](../Build.md).
 
-| Feature | Evaluator | Executor | IL Emitter | Explanation |
+| Feature | Evaluator | Executor | IL Emitter | Notes |
 | - | - | - | - | - |
-| `--type=graphics` projects | ✓ | ✓ | ✕ | Standalone graphics DLL under development |
-| Pointers | ✕ | ✓ | ✓ | Partially supported the Evaluator but not stable due to internal memory structure |
+| `--type=graphics` projects | ✓ | ✓ | ✕ | IL Emitter support TBD |
+| Pointers | — | ✓ | ✓ | Partially supported the Evaluator but not stable due to internal memory structure |
 | Function pointers | ✕ | ✓ | ✓ | Disallowed in the Evaluator due to internal memory structure |
-| Externs/DllImport | ✕ | ✓ | ✓ | Incompatible with the Evaluator |
+| Externs/DllImport | — | ✓ | ✓ | Evaluator supports calling DllImport methods with non-pointer, primitive signatures |
 | Inline IL | ✕ | ✓ | ✓ | Incompatible with the Evaluator |
 | .NET DLL references | ✕ | ✓ | ✓ | Incompatible with the Evaluator |
 

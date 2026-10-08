@@ -47,6 +47,8 @@ internal sealed partial class Evaluator {
     private bool _insideUpdate;
     private bool _insideExpressionEvaluation;
     private int _recursionDepth;
+    private System.Reflection.Emit.ModuleBuilder _lazyPInvokeModule;
+    private Dictionary<DllImportData, System.Reflection.MethodInfo> _lazyPInvokeMethodInfo;
 
     // These are used if layouts need to be computed while evaluating if the precomputed layout maps are incomplete
     // This should only happen when reusing the same cor compilation for multiple programs because normally each program
@@ -2923,15 +2925,83 @@ internal sealed partial class Evaluator {
 
         var evaluatedArguments = EvaluateArguments(arguments, method.parameters, node.argumentRefKinds, abort);
 
-        if (method.isExtern)
-            throw new BelteEvaluatorException("Extern method calls are not supported in the Evaluator.", node.syntax.location);
+        EvaluatorValue value;
 
-        var value = InvokeMethod(method, SynthesizeCallObject(method.containingType, abort), evaluatedArguments, abort);
+        if (method.GetDllImportData() is { } dllImportData)
+            value = InvokePInvokeMethod(node.syntax, method, dllImportData, evaluatedArguments);
+        else if (method.isExtern)
+            throw new BelteEvaluatorException("Extern method calls are not supported in the Evaluator.", node.syntax.location);
+        else
+            value = InvokeMethod(method, SynthesizeCallObject(method.containingType, abort), evaluatedArguments, abort);
 
         if (exceptions.Count == 0 && useKind == UseKind.UsedAsValue && method.refKind != RefKind.None)
             return value.loc[value.ptr];
         else
             return value;
+    }
+
+    private EvaluatorValue InvokePInvokeMethod(
+        SyntaxNode node,
+        MethodSymbol method,
+        DllImportData dllImportData,
+        EvaluatorValue[] arguments) {
+        if (_lazyPInvokeModule is null) {
+            var assembly = System.Reflection.Emit.AssemblyBuilder.DefineDynamicAssembly(
+                new("Buckle.Evaluator.PInvoke"),
+                System.Reflection.Emit.AssemblyBuilderAccess.Run
+            );
+
+            _lazyPInvokeModule = assembly.DefineDynamicModule("PInvoke");
+        }
+
+        _lazyPInvokeMethodInfo ??= [];
+
+        if (!_lazyPInvokeMethodInfo.TryGetValue(dllImportData, out var value)) {
+            var builder = _lazyPInvokeModule.DefinePInvokeMethod(
+                name: method.name,
+                dllName: dllImportData.moduleName,
+                entryName: dllImportData.entryPointName,
+                attributes: System.Reflection.MethodAttributes.Public |
+                            System.Reflection.MethodAttributes.Static |
+                            System.Reflection.MethodAttributes.PinvokeImpl,
+                callingConvention: System.Reflection.CallingConventions.Standard,
+                returnType: Executor.GetSimpleType(method.returnType),
+                parameterTypes: method.GetParameterTypes().Select(t => Executor.GetSimpleType(t.type)).ToArray(),
+                nativeCallConv: Executor.GetCallingConvention(dllImportData.callingConvention),
+                nativeCharSet: dllImportData.characterSet
+            );
+
+            builder.SetImplementationFlags(
+                builder.GetMethodImplementationFlags() | System.Reflection.MethodImplAttributes.PreserveSig
+            );
+
+            _lazyPInvokeMethodInfo.Add(dllImportData, builder);
+            value = builder;
+        }
+
+        _lazyPInvokeModule.CreateGlobalFunctions();
+        var info = _lazyPInvokeModule.GetMethod(method.name);
+
+        var nativeArguments = arguments.Select(a => TransformToNative(a)).ToArray();
+
+        if (method.returnsVoid) {
+            info.Invoke(null, nativeArguments);
+            return EvaluatorValue.None;
+        } else {
+            var result = info.Invoke(null, nativeArguments);
+            return TransformFromNative(result);
+        }
+
+        object TransformToNative(EvaluatorValue value) {
+            return EvaluatorValue.Format(value, _context);
+        }
+
+        EvaluatorValue TransformFromNative(object value) {
+            if (value is System.Reflection.Pointer)
+                throw new BelteEvaluatorException("Unsupported DllImport return value (Pointer).", node.location);
+
+            return EvaluatorValue.Literal(value, SpecialTypeExtensions.SpecialTypeFromLiteralValue(value));
+        }
     }
 
     private EvaluatorValue SynthesizeCallObject(NamedTypeSymbol type, ValueWrapper<bool> abort) {

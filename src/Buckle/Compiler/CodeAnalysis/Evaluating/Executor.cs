@@ -305,6 +305,65 @@ internal sealed partial class Executor : ModuleBuilder {
         return methodInv.Invoke(null, arguments);
     }
 
+    internal static Type GetSimpleType(TypeSymbol type) {
+        // TODO A lot of copy paste from other parts of the Executor
+        if (type.typeKind == TypeKind.FunctionPointer)
+            return typeof(IntPtr);
+
+        if (type.specialType == SpecialType.Nullable) {
+            var underlyingType = type.GetNullableUnderlyingType();
+            var genericArgumentType = GetSimpleType(underlyingType);
+
+            if (!underlyingType.isValueType)
+                return genericArgumentType;
+
+            return typeof(Nullable<>).MakeGenericType(genericArgumentType);
+        }
+
+        if (type is ArrayTypeSymbol array) {
+            var elementType = GetSimpleType(array.elementType);
+
+            if (array.rank == 1)
+                return elementType.MakeArrayType();
+            else
+                return elementType.MakeArrayType(array.rank);
+        }
+
+        if (type is PointerTypeSymbol pointer) {
+            var elementType = GetSimpleType(pointer.pointedAtType);
+            return elementType.MakePointerType();
+        }
+
+        switch (type.specialType) {
+            case SpecialType.Object: return typeof(object);
+            case SpecialType.Any: return typeof(object);
+            case SpecialType.Bool: return typeof(bool);
+            case SpecialType.WinBool: return typeof(int);
+            case SpecialType.Int: return typeof(long);
+            case SpecialType.Int8: return typeof(sbyte);
+            case SpecialType.Int16: return typeof(short);
+            case SpecialType.Int32: return typeof(int);
+            case SpecialType.Int64: return typeof(long);
+            case SpecialType.UInt8: return typeof(byte);
+            case SpecialType.UInt16: return typeof(ushort);
+            case SpecialType.UInt32: return typeof(uint);
+            case SpecialType.UInt64: return typeof(ulong);
+            case SpecialType.Decimal: return typeof(double);
+            case SpecialType.Float32: return typeof(float);
+            case SpecialType.Float64: return typeof(double);
+            case SpecialType.IntPtr: return typeof(IntPtr);
+            case SpecialType.UIntPtr: return typeof(UIntPtr);
+            case SpecialType.Nullable: return typeof(Nullable<>);
+            case SpecialType.Char: return typeof(char);
+            case SpecialType.Void: return typeof(void);
+            case SpecialType.Type: return typeof(Type);
+            case SpecialType.String: return typeof(string);
+            case SpecialType.Array: return typeof(Array);
+        }
+
+        throw ExceptionUtilities.UnexpectedValue(type);
+    }
+
     internal Type GetType(TypeSymbol type, bool byRef = false) {
         var typeRef = GetTypeCore(type);
 
@@ -1488,12 +1547,14 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private void CreateMethodDefinition(MethodSymbol method, BoundBlockStatement body, TypeBuilder typeBuilder) {
-        if (method.methodKind is MethodKind.Constructor or MethodKind.StaticConstructor)
+        if (method.methodKind is MethodKind.Constructor or MethodKind.StaticConstructor) {
             CreateConstructorDefinition(method, body, typeBuilder);
-        else if (method.isExtern)
-            CreatePInvokeMethodDefinition(method, typeBuilder);
-        else
-            CreateNormalMethodDefinition(method, body, typeBuilder);
+        } else if (method.GetDllImportData() is { } dllImportData) {
+            Debug.Assert(method.isExtern);
+            CreatePInvokeMethodDefinition(method, typeBuilder, dllImportData);
+        } else {
+            CreateNormalMethodDefinition(method, typeBuilder);
+        }
     }
 
     private void CreateConstructorDefinition(MethodSymbol method, BoundBlockStatement body, TypeBuilder typeBuilder) {
@@ -1508,8 +1569,10 @@ internal sealed partial class Executor : ModuleBuilder {
         _constructorBodies.Add(constructorBuilder, (method, body));
     }
 
-    private void CreatePInvokeMethodDefinition(MethodSymbol method, TypeBuilder typeBuilder) {
-        var dllImportData = method.GetDllImportData();
+    private void CreatePInvokeMethodDefinition(
+        MethodSymbol method,
+        TypeBuilder typeBuilder,
+        DllImportData dllImportData) {
         var methodBuilder = typeBuilder.DefinePInvokeMethod(
             method.name,
             dllImportData.moduleName,
@@ -1560,7 +1623,8 @@ internal sealed partial class Executor : ModuleBuilder {
         return _lazyBoolMarshalAttribute;
     }
 
-    private System.Runtime.InteropServices.CallingConvention GetCallingConvention(CallingConvention callingConvention) {
+    internal static System.Runtime.InteropServices.CallingConvention GetCallingConvention(
+        CallingConvention callingConvention) {
         return callingConvention switch {
             CallingConvention.Winapi => System.Runtime.InteropServices.CallingConvention.Winapi,
             CallingConvention.FastCall => System.Runtime.InteropServices.CallingConvention.FastCall,
@@ -1571,7 +1635,7 @@ internal sealed partial class Executor : ModuleBuilder {
         };
     }
 
-    private void CreateNormalMethodDefinition(MethodSymbol method, BoundBlockStatement body, TypeBuilder typeBuilder) {
+    private void CreateNormalMethodDefinition(MethodSymbol method, TypeBuilder typeBuilder) {
         var methodBuilder = typeBuilder.DefineMethod(
             method.name,
             GetMethodAttributes(method)

@@ -999,7 +999,7 @@ internal partial class ILEmitter : ModuleBuilder {
                 () => Parallel.ForEach(_properties, CreatePropertyMetadata)
             );
 
-            Parallel.ForEach(_methods, parallelOptions, method => EmitMethod(method.Value));
+            Parallel.ForEach(_methods, parallelOptions, method => EmitMethod(method.Key, method.Value));
         } else {
             foreach (var type in _topLevelTypes) {
                 if (!programOnly || type.IsFromCompilation(_compilation))
@@ -1030,7 +1030,7 @@ internal partial class ILEmitter : ModuleBuilder {
 
             foreach (var method in _methods) {
                 if (!programOnly || method.Key.IsFromCompilation(_compilation))
-                    EmitMethod(method.Value);
+                    EmitMethod(method.Key, method.Value);
             }
         }
 
@@ -1673,10 +1673,12 @@ internal partial class ILEmitter : ModuleBuilder {
         MethodSymbol method,
         BoundBlockStatement body,
         TypeDefinition containingType) {
-        if (method.isExtern)
-            return CreatePInvokeMethodDefinition(method, containingType);
-        else
+        if (method.GetDllImportData() is { } dllImportData) {
+            Debug.Assert(method.isExtern);
+            return CreatePInvokeMethodDefinition(method, containingType, dllImportData);
+        } else {
             return CreateNormalMethodDefinition(method, body, containingType);
+        }
     }
 
     private MethodDefinition CreateNormalMethodDefinition(
@@ -1901,8 +1903,10 @@ internal partial class ILEmitter : ModuleBuilder {
         return GetType(type, byRef);
     }
 
-    private MethodDefinition CreatePInvokeMethodDefinition(MethodSymbol method, TypeDefinition containingType) {
-        var dllImportData = method.GetDllImportData();
+    private MethodDefinition CreatePInvokeMethodDefinition(
+        MethodSymbol method,
+        TypeDefinition containingType,
+        DllImportData dllImportData) {
         var returnType = GetTypeOrIntPtr(method.returnType, method.returnsByRef);
         var methodDefinition = new MethodDefinition(
             method.name,
@@ -2056,11 +2060,18 @@ internal partial class ILEmitter : ModuleBuilder {
         return attributes;
     }
 
-    private void EmitMethod(MethodDefinition methodDefinition) {
-        if (methodDefinition.IsAbstract || (methodDefinition.Attributes & MethodAttributes.PInvokeImpl) != 0)
+    private void EmitMethod(MethodSymbol method, MethodDefinition methodDefinition) {
+        if (methodDefinition.IsAbstract ||
+            (methodDefinition.Attributes & MethodAttributes.PInvokeImpl) != 0 ||
+            method.isExtern) {
             return;
+        }
 
-        var (method, body) = _methodBodyMap[methodDefinition];
+        Debug.Assert(!method.isAbstract);
+        Debug.Assert(method.GetDllImportData() is null);
+
+        var (_1, body) = _methodBodyMap[methodDefinition];
+        Debug.Assert((object)_1 == method);
         var ilBuilder = new CecilILBuilder(_compilation, method, this, methodDefinition);
         var codeGen = new CodeGenerator(_compilation, this, method, body, ilBuilder, _debugMode, _diagnostics);
 

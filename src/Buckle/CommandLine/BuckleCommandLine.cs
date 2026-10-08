@@ -2176,7 +2176,7 @@ public class {name} {{
         );
 
         var startInfo = new ProcessStartInfo() {
-            CreateNoWindow = false,
+            CreateNoWindow = !state.verboseMode,
             UseShellExecute = false,
             FileName = crossgen2Path,
             WindowStyle = ProcessWindowStyle.Hidden
@@ -2208,6 +2208,9 @@ public class {name} {{
 
             Console.WriteLine();
         }
+
+        if (state.noOut)
+            return true;
 
         try {
             var process = Process.Start(startInfo);
