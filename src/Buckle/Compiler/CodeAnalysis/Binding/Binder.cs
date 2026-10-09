@@ -1697,9 +1697,11 @@ internal partial class Binder {
             analyzedArguments.types.Add(type);
             analyzedArguments.hasErrors.Add(type.ContainsErrorType());
 
-            var typeOrConst = argument.expression.kind == SyntaxKind.TemplateSpecializedType
-                ? TypeOrConstant.CreateTemplateSpecialized(type)
-                : new TypeOrConstant(type);
+            var typeOrConst = new TypeOrConstant(
+                type,
+                type.IsNullableType(),
+                isTemplateSpecializedType: argument.expression.kind == SyntaxKind.TemplateSpecializedType
+            );
 
             analyzedArguments.arguments.Add(new BoundExpressionOrTypeOrConstant(compilation, argument, typeOrConst));
             diagnostics.PushRangeAndFree(typeDiagnostics);

@@ -59,6 +59,7 @@ public sealed class Builder {
         _globalDiagnosticOptions = new();
         _currentDiagnosticOptions = new();
         buildDiagnostics = new DiagnosticQueue<Diagnostic>();
+        preprocessorSymbols = [];
     }
 
     public List<(string, InputOptions, DiagnosticOptions)> inputs { get; }
@@ -84,6 +85,8 @@ public sealed class Builder {
     public DiagnosticQueue<Diagnostic> buildDiagnostics { get; private set; }
 
     public DiagnosticOptions diagnosticOptions => _globalDiagnosticOptions;
+
+    public List<string> preprocessorSymbols { get; }
 
     public void AddInput(string path) {
         if (_diagnosticFlagMode == DiagnosticFlagMode.Global)
@@ -197,5 +200,9 @@ public sealed class Builder {
 
     public void AddDiagnostic(DiagnosticSeverity severity, string message) {
         buildDiagnostics.Push(new Diagnostic(severity, message));
+    }
+
+    public void DefinePreprocessorSymbols(string[] symbols) {
+        preprocessorSymbols.AddRange(symbols);
     }
 }

@@ -27,6 +27,8 @@ Options:
 
   -m:<count>                  Specify the maximum number of CPU cores to use.
 
+  -p:<name>                   Define a preprocessor symbol.
+
   -d|--dotnet                 Compile with .NET integration (cannot stop at assembly or linking).
   --modulename=<name>         Specify the module name (used with .NET integration only).
   --ref|--reference[,flat,copy]=<path>    Specify a reference (used with .NET integration only).

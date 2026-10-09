@@ -308,7 +308,7 @@ internal sealed class DirectiveParser : SyntaxParser {
 
                 break;
             case SyntaxKind.UnaryExpression:
-                if (((UnaryExpressionSyntax)expr).operand.kind == SyntaxKind.ExclamationToken)
+                if (((UnaryExpressionSyntax)expr).operatorToken.kind == SyntaxKind.ExclamationToken)
                     return !EvaluateBool(((UnaryExpressionSyntax)expr).operand);
 
                 break;

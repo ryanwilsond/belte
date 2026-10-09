@@ -22,6 +22,14 @@ void Main() {
     Console.SetCursorVisibility(false);
     Console.SetCursorPosition(0, 0);
 
+#if !EVALUATING
+    System.Console.add_CancelKeyPress(new System.ConsoleCancelEventHandler(null, (intptr)(&OnCancelHandler)));
+
+    static void OnCancelHandler(Object sender, System.ConsoleCancelEventArgs args) {
+        Console.SetCursorVisibility(true);
+    }
+#endif
+
     while (true) {
         for (int i = 0; i < 1760; i++) {
             b[i] = 32;

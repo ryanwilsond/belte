@@ -60,4 +60,5 @@ public enum DiagnosticCode : ushort {
     FTL_CannotSpecifySkipTemplateMetadataWithoutDll = 49,
     FTL_CannotSpecifyR2RWithoutDotnet = 50,
     WRN_R2RFailed = 51,
+    ERR_MissingPreprocessorSymbol = 52,
 }

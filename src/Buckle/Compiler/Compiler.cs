@@ -10,6 +10,7 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
+using Buckle.Utilities;
 using Diagnostics;
 using Shared;
 
@@ -243,7 +244,7 @@ public sealed class Compiler {
 
             var libTime = LogLibraryLoadTime(timer);
 
-            var syntaxTrees = CreateSyntaxTrees(CompilerStage.Finished);
+            var syntaxTrees = CreateSyntaxTrees(CompilerStage.Finished, buildMode);
             var compilation = Compilation.Create(state.moduleName, options, corLibrary, syntaxTrees);
 
             var parseDiagnostics = compilation.GetParseDiagnostics()
@@ -303,7 +304,7 @@ public sealed class Compiler {
 
             ref var task = ref state.tasks[0];
             var sourceText = new StringText(task.inputFileName, SourceText.DefaultEncoding, task.fileContent.text);
-            var syntaxTree = new SyntaxTree(sourceText, SourceCodeKind.Regular, CreateParseOptions());
+            var syntaxTree = new SyntaxTree(sourceText, SourceCodeKind.Regular, CreateParseOptions(options.buildMode));
             task.stage = CompilerStage.Finished;
 
             var compilation = Compilation.CreateScript(state.moduleName, options, syntaxTree, corLibrary);
@@ -339,7 +340,7 @@ public sealed class Compiler {
 
         var libTime = LogLibraryLoadTime(timer);
 
-        var syntaxTrees = CreateSyntaxTrees(CompilerStage.Compiled);
+        var syntaxTrees = CreateSyntaxTrees(CompilerStage.Compiled, state.buildMode);
         var compilation = Compilation.Create(state.moduleName, _options, corLibrary, syntaxTrees);
 
         var parseDiagnostics = compilation.GetParseDiagnostics()
@@ -363,12 +364,12 @@ public sealed class Compiler {
         LogCompilationTime(timer);
     }
 
-    private SyntaxTree[] CreateSyntaxTrees(CompilerStage stageToSet) {
+    private SyntaxTree[] CreateSyntaxTrees(CompilerStage stageToSet, BuildMode buildMode) {
         var tasks = state.tasks;
         var length = tasks.Length;
         var builder = new SyntaxTree[length];
 
-        var parseOptions = CreateParseOptions();
+        var parseOptions = CreateParseOptions(buildMode);
 
         if (state.concurrentBuild) {
             Parallel.For(0, length, new ParallelOptions { MaxDegreeOfParallelism = state.maxCores }, i => {
@@ -453,10 +454,21 @@ public sealed class Compiler {
         wrapperThread.Join();
     }
 
-    private ParseOptions CreateParseOptions() {
+    private ParseOptions CreateParseOptions(BuildMode buildMode) {
+        var buildModeSymbol = buildMode switch {
+            BuildMode.Evaluate or BuildMode.Repl => "EVALUATING",
+            BuildMode.Execute => "EXECUTING",
+            BuildMode.CSharpTranspile => "TRANSPILING",
+            BuildMode.Dotnet => "EMITTING",
+            BuildMode.Interpret => "INTERPRETING",
+            BuildMode.Independent => "INDEPENDENT",
+            BuildMode.Emulate => "EMULATING",
+            _ or BuildMode.AutoRun => throw ExceptionUtilities.UnexpectedValue(buildMode)
+        };
+
         if (state.debugMode)
-            return new ParseOptions(["DEBUG"]);
+            return new ParseOptions(["DEBUG", buildModeSymbol, .. state.preprocessorSymbols]);
         else
-            return new ParseOptions(["RELEASE"]);
+            return new ParseOptions(["RELEASE", buildModeSymbol, .. state.preprocessorSymbols]);
     }
 }

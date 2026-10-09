@@ -128,4 +128,6 @@ public class CompilerState {
     /// Library level
     /// </summary>
     public int l;
+
+    public string[] preprocessorSymbols;
 }

@@ -66,6 +66,7 @@ public sealed class BuildManager {
             skipTemplateMetadata = true,
             noTemplateMetadata = false,
             noNtvLib = _state.noNtvLib,
+            preprocessorSymbols = _state.preprocessorSymbols,
         };
 
         compiler.state = compilerState;

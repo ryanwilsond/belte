@@ -543,4 +543,15 @@ public sealed class DiagnosticTests {
 
     // ! Warning_CL0051_R2RFailed
     // ? Hopefully doesn't happen
+
+    [Fact]
+    public void Reports_Error_CL0052_MissingPreprocessorSymbol() {
+        var args = new string[] { "-p" };
+
+        var diagnostics = @"
+            missing preprocessor symbol after '-p'
+        ";
+
+        AssertDiagnostics(args, diagnostics, _writer);
+    }
 }

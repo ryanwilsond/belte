@@ -176,6 +176,11 @@ internal static class Error {
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingFilenameF), message);
     }
 
+    internal static Diagnostic MissingPreprocessorSymbol(string arg) {
+        var message = $"missing preprocessor symbol after '{arg}'";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingPreprocessorSymbol), message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "CL", DiagnosticSeverity.Error);
     }

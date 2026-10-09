@@ -83,6 +83,16 @@ void Build(Builder builder) {
 
 Refer to the [*--entry* CLI option](Buckle.md#--entryname) for more information.
 
+Preprocessor symbols can be defined with `Builder.DefinePreprocessorSymbols(symbols)`:
+
+```belte
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.DefinePreprocessorSymbols({ "SYMBOL1", "SYMBOL2" });
+}
+```
+
 ## Build Mode & Output Kind
 
 The field `Builder.buildMode` can be assigned to to specify a build mode.

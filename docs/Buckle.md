@@ -30,8 +30,9 @@ at `src/Program.blt`. Both locations must be unoccupied.
 
 Instead of using normal options, a build script can be used to drive the compilation. The build script is found
 automatically by searching the working directory for a file named `Build.blt`. When using this option, only
-[*--time*](#--time), [*--info*](#--info), [*--infoscript*](#--infoscript), and [*--debug*](#--debug) options can be
-specified in addition. All other arguments must be defined in the build script itself.
+[*--time*](#--time), [*--info*](#--info), [*--infoscript*](#--infoscript), [*--debug*](#--debug), and
+[*--p:\<name>*](#-pname) options can be specified in addition. All other arguments must be defined in the build script
+itself.
 
 Optionally, the build script path can be specified manually by passing it's path after a `-f` or `--file` argument.
 
@@ -133,6 +134,10 @@ All arguments after *--* will be passed to the program if evaluating or executin
 
 Specifies the maximum number of CPU cores to use. Without this option the compilation will be concurrent and use
 most cores if possible. Specifying a count of 1 will disable concurrent building.
+
+### *-p:\<name>*
+
+Defines a preprocessor symbol.
 
 ### *--severity=\<severity>* (Default *warning*)
 

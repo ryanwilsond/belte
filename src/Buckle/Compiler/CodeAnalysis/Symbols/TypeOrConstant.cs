@@ -5,28 +5,26 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// Template argument value.
 /// </summary>
 internal sealed partial class TypeOrConstant {
-    private bool _isTemplateSpecializedType;
-
     internal TypeOrConstant(ConstantValue constant) {
         this.constant = constant;
         type = null;
         isConstant = true;
     }
 
-    internal TypeOrConstant(TypeWithAnnotations type) {
+    internal TypeOrConstant(TypeWithAnnotations type) : this(type, isTemplateSpecializedType: false) { }
+
+    internal TypeOrConstant(TypeWithAnnotations type, bool isTemplateSpecializedType) {
         constant = null;
         isConstant = false;
         this.type = type;
+        this.isTemplateSpecializedType = isTemplateSpecializedType;
     }
 
     internal TypeOrConstant(TypeSymbol type, bool? isNullable = null)
         : this(isNullable is null ? new TypeWithAnnotations(type) : new TypeWithAnnotations(type, isNullable.Value)) { }
 
-    internal static TypeOrConstant CreateTemplateSpecialized(TypeSymbol type) {
-        return new TypeOrConstant(type) {
-            _isTemplateSpecializedType = true
-        };
-    }
+    internal TypeOrConstant(TypeSymbol type, bool isNullable, bool isTemplateSpecializedType)
+        : this(new TypeWithAnnotations(type, isNullable), isTemplateSpecializedType) { }
 
     internal bool isConstant { get; }
 
@@ -36,7 +34,7 @@ internal sealed partial class TypeOrConstant {
 
     internal TypeWithAnnotations type { get; }
 
-    internal bool isTemplateSpecializedType => _isTemplateSpecializedType;
+    internal bool isTemplateSpecializedType { get; }
 
     internal bool IsSameAs(TypeOrConstant other) {
         if (isConstant != other.isConstant)

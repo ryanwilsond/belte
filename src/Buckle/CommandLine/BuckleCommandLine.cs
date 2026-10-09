@@ -1259,6 +1259,7 @@ public class {name} {{
         debugMode = false;
         startStopDialog = false;
 
+        List<string> preprocessorSymbolsBuilder = null;
         List<string> buildArgumentsBuilder = null;
 
         for (var i = 1; i < args.Length; i++) {
@@ -1269,6 +1270,17 @@ public class {name} {{
                     arguments = args[(i + 1)..];
 
                 break;
+            }
+
+            if (arg.StartsWith("-p")) {
+                if (arg == "-p" || arg == "-p:" || !arg.StartsWith("-p:")) {
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingPreprocessorSymbol(arg));
+                    continue;
+                }
+
+                var symbolString = arg.Substring(3);
+                preprocessorSymbolsBuilder ??= [];
+                preprocessorSymbolsBuilder.Add(symbolString);
             }
 
             switch (arg) {
@@ -1311,6 +1323,9 @@ public class {name} {{
         }
 
         state.arguments = buildArgumentsBuilder is null ? Array.Empty<string>() : buildArgumentsBuilder.ToArray();
+        state.preprocessorSymbols = preprocessorSymbolsBuilder is null
+            ? Array.Empty<string>()
+            : preprocessorSymbolsBuilder.ToArray();
 
         return state;
     }
@@ -1330,6 +1345,7 @@ public class {name} {{
         var diagnosticsCL = new DiagnosticQueue<Diagnostic>();
         diagnostics = new DiagnosticQueue<Diagnostic>();
         var arguments = Array.Empty<string>();
+        var preprocessorSymbols = new List<string>();
         var includeWarnings = new List<DiagnosticInfo>();
         var excludeWarnings = new List<DiagnosticInfo>();
         var includeWarningsAsErrors = new List<DiagnosticInfo>();
@@ -1712,6 +1728,14 @@ public class {name} {{
                     ResolveInputFileOrDir(args[++i], tasks, currentFileAssociation, diagnostics, false);
                 else
                     diagnostics.Push(Belte.Diagnostics.Error.MissingPathFlat());
+            } else if (arg.StartsWith("-p")) {
+                if (arg == "-p" || arg == "-p:" || !arg.StartsWith("-p:")) {
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingPreprocessorSymbol(arg));
+                    continue;
+                }
+
+                var symbolString = arg.Substring(3);
+                preprocessorSymbols.Add(symbolString);
             } else if (arg == "--") {
                 if (args.Length > i + 1)
                     arguments = args[(i + 1)..];
@@ -1751,6 +1775,7 @@ public class {name} {{
         state.arguments = arguments;
         state.diagnosticOptions.includeWarnings = includeWarnings.ToArray();
         state.diagnosticOptions.excludeWarnings = excludeWarnings.ToArray();
+        state.preprocessorSymbols = preprocessorSymbols.ToArray();
 
         if (state.diagnosticOptions.warningsAsErrors)
             AddDefaultExcludeWarningsAsErrors(excludeWarningsAsErrors, wErrorLevel);

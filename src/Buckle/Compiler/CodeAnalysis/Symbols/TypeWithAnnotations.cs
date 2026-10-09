@@ -73,19 +73,27 @@ internal sealed partial class TypeWithAnnotations {
 
         if (!typeSymbol.IsTemplateParameter()) {
             if (typeSymbol.Equals(newType.type, TypeCompareKind.ConsiderEverything))
-                return new TypeOrConstant(this);
+                return new TypeOrConstant(this, newTypeOrConstant.isTemplateSpecializedType);
             else if (typeSymbol.IsNullableType() && isNullable)
-                return new TypeOrConstant(newType);
+                return new TypeOrConstant(newType, newTypeOrConstant.isTemplateSpecializedType);
 
-            return new TypeOrConstant(newType.type, isNullable);
+            return new TypeOrConstant(
+                newType.type,
+                isNullable,
+                newTypeOrConstant.isTemplateSpecializedType
+            );
         }
 
         if ((object)newType == (TemplateParameterSymbol)typeSymbol)
-            return new TypeOrConstant(this);
+            return new TypeOrConstant(this, newTypeOrConstant.isTemplateSpecializedType);
         else if ((object)this == (TemplateParameterSymbol)typeSymbol)
-            return new TypeOrConstant(newType);
+            return new TypeOrConstant(newType, newTypeOrConstant.isTemplateSpecializedType);
 
-        return new TypeOrConstant(newType.type, isNullable || newType.isNullable);
+        return new TypeOrConstant(
+            newType.type,
+            isNullable || newType.isNullable,
+            newTypeOrConstant.isTemplateSpecializedType
+        );
     }
 
     internal bool ApplyNullableTransforms(

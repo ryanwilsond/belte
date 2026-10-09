@@ -23,4 +23,6 @@ public struct BuildState {
     public bool noStdLib;
 
     public bool noNtvLib;
+
+    public string[] preprocessorSymbols;
 }
