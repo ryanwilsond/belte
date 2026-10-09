@@ -21,7 +21,8 @@ public struct CompilationOptions {
         Dictionary<string, TaskDiagnosticOptions> localDiagnosticOptions = null,
         bool excludeWritingTemplateMetadata = false,
         bool excludeReadingTemplateMetadata = false,
-        bool evaluatorStrictExceptionMode = true) {
+        bool evaluatorStrictExceptionMode = true,
+        bool noNtvLib = false) {
         topLevelBinderFlags = BinderFlags.None;
         this.buildMode = buildMode;
         this.outputKind = outputKind;
@@ -40,6 +41,7 @@ public struct CompilationOptions {
         this.excludeWritingTemplateMetadata = excludeWritingTemplateMetadata;
         this.excludeReadingTemplateMetadata = excludeReadingTemplateMetadata;
         this.evaluatorStrictExceptionMode = evaluatorStrictExceptionMode;
+        this.noNtvLib = noNtvLib;
     }
 
     /// <summary>
@@ -96,6 +98,8 @@ public struct CompilationOptions {
     internal string entryName { get; }
 
     internal bool noStdLib { get; }
+
+    internal bool noNtvLib { get; }
 
     internal TaskDiagnosticOptions globalDiagnosticOptions { get; }
 

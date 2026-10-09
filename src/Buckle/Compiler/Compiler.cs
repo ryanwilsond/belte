@@ -46,7 +46,8 @@ public sealed class Compiler {
         state.taskDiagnosticOptions,
         state.skipTemplateMetadata,
         state.noTemplateMetadata,
-        evaluatorStrictExceptionMode: true
+        evaluatorStrictExceptionMode: true,
+        state.noNtvLib
     );
 
     /// <summary>
@@ -230,7 +231,8 @@ public sealed class Compiler {
             _options.localDiagnosticOptions,
             _options.excludeWritingTemplateMetadata,
             _options.excludeReadingTemplateMetadata,
-            _options.evaluatorStrictExceptionMode
+            _options.evaluatorStrictExceptionMode,
+            _options.noNtvLib
         );
 
         if (buildMode is BuildMode.Evaluate or BuildMode.Execute or BuildMode.Emulate) {

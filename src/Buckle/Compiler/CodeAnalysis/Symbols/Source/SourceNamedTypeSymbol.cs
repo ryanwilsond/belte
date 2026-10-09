@@ -232,7 +232,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
         if (singleDeclaration is not null) {
             var location = singleDeclaration.nameLocation;
-            var conversions = containingAssembly.corAssembly.typeConversions;
+            var conversions = containingAssembly.corAssemblies[0].typeConversions;
 
             localBase.CheckAllConstraints(
                 conversions,
@@ -255,7 +255,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
         if (singleDeclaration is not null) {
             var location = singleDeclaration.nameLocation;
-            var conversions = containingAssembly.corAssembly.typeConversions;
+            var conversions = containingAssembly.corAssemblies[0].typeConversions;
 
             foreach (var pair in interfaces) {
                 var set = pair.Value;

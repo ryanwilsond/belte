@@ -102,6 +102,8 @@ public class CompilerState {
     /// </summary>
     public bool noStdLib;
 
+    public bool noNtvLib;
+
     /// <summary>
     /// If the Standard Library should be re-compiled from source
     /// </summary>

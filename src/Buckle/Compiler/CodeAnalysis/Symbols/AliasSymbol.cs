@@ -81,7 +81,7 @@ internal abstract class AliasSymbol : Symbol, IAliasSymbol {
         var impliedConstraints = GetEnclosingTemplateConstraints();
 
         if (target is not null && _locations.Length > 0) {
-            var conversions = containingAssembly.corAssembly.typeConversions;
+            var conversions = containingAssembly.corAssemblies[0].typeConversions;
             target.CheckAllConstraints(conversions, location, impliedConstraints, diagnostics);
         }
     }

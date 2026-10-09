@@ -27,7 +27,7 @@ internal class MissingAssemblySymbol : AssemblySymbol {
 
     internal override int belteMetadataVersion => throw ExceptionUtilities.Unreachable();
 
-    internal override TypeConversions typeConversions => corAssembly.typeConversions;
+    internal override TypeConversions typeConversions => corAssemblies[0].typeConversions;
 
     public override int GetHashCode() {
         return identity.GetHashCode();
@@ -61,7 +61,7 @@ internal class MissingAssemblySymbol : AssemblySymbol {
 
     internal override ICollection<string> namespaceNames => SpecializedCollections.EmptyCollection<string>();
 
-    internal override NamedTypeSymbol GetDeclaredSpecialType(SpecialType type) {
+    internal override NamedTypeSymbol GetDeclaredSpecialType(SpecialType type, bool netMode) {
         throw ExceptionUtilities.Unreachable();
     }
 

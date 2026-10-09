@@ -65,6 +65,7 @@ public sealed class BuildManager {
             noBootStrap = false,
             skipTemplateMetadata = true,
             noTemplateMetadata = false,
+            noNtvLib = _state.noNtvLib,
         };
 
         compiler.state = compilerState;

@@ -40,8 +40,8 @@ internal abstract class MetadataOrSourceAssemblySymbol : NonMissingAssemblySymbo
 
     internal sealed override TypeConversions typeConversions {
         get {
-            if (this != corAssembly)
-                return corAssembly.typeConversions;
+            if (this != corAssemblies[0])
+                return corAssemblies[0].typeConversions;
 
             if (_lazyTypeConversions is null)
                 Interlocked.CompareExchange(ref _lazyTypeConversions, new TypeConversions(corLibrary), null);
@@ -66,17 +66,17 @@ internal abstract class MetadataOrSourceAssemblySymbol : NonMissingAssemblySymbo
 
     internal override bool keepLookingForDeclaredSpecialTypes {
         get {
-            if (ReferenceEquals(corAssembly, this))
+            if (ReferenceEquals(corAssemblies[0], this))
                 return _cachedSpecialTypes < (int)SpecialType.NextAvailable - 1;
             else
                 return true;
         }
     }
 
-    internal sealed override NamedTypeSymbol GetDeclaredSpecialType(SpecialType type) {
+    internal sealed override NamedTypeSymbol GetDeclaredSpecialType(SpecialType type, bool netMode) {
         if (_lazySpecialTypes is null || _lazySpecialTypes[(int)type] is null) {
             var emittedName = MetadataTypeName.FromFullName(
-                type.GetMetadataName(),
+                type.GetMetadataName(netMode),
                 useCLSCompliantNameArityEncoding: true
             );
 

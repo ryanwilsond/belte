@@ -481,7 +481,7 @@ internal partial class SourceNamespaceSymbol {
                 }
             }
 
-            var conversions = compilation.assembly.corAssembly.typeConversions;
+            var conversions = compilation.assembly.corAssemblies[0].typeConversions;
 
             foreach (var @using in usingsAndDiagnostics.usingNamespacesOrTypes) {
                 if (@using.usingDirectiveReference.syntaxTree != declarationSyntax.syntaxTree)

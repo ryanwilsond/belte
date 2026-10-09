@@ -21,8 +21,7 @@ internal sealed partial class TemplateMetadataReader {
         private readonly TemplateDecoder _templateDecoder;
         private readonly TemplateMetadata _metadata;
         private readonly Symbol _containingSymbol;
-        private readonly Dictionary<string, LabelSymbol> _labels = [];
-        private readonly Stack<ImmutableArray<DataContainerSymbol>> _enclosingBlocks = [];
+        private readonly Stack<(ImmutableArray<DataContainerSymbol>, ImmutableArray<LabelSymbol>)> _enclosingBlocks = [];
 
         private BoundNodeDecoder(
             Symbol containingSymbol,
@@ -118,10 +117,12 @@ internal sealed partial class TemplateMetadataReader {
 
         private BoundBlockStatement ReadBlockStatement() {
             var localCount = _reader.ReadUInt16();
+            var labelCount = _reader.ReadUInt16();
+
             var locals = ArrayBuilder<DataContainerSymbol>.GetInstance(localCount);
 
             for (var i = 0; i < localCount; i++) {
-                var id = _reader.ReadUInt32();
+                var id = _reader.ReadUInt16();
                 var typeKind = _reader.ReadByte();
                 var type = _templateDecoder.ReadTypeSymbol(typeKind, _reader);
                 var flags = (TemplateMetadataWriter.LocalFlags)_reader.ReadByte();
@@ -137,11 +138,20 @@ internal sealed partial class TemplateMetadataReader {
 
             var immutableLocals = locals.ToImmutableAndFree();
 
+            var labels = ArrayBuilder<LabelSymbol>.GetInstance(labelCount);
+
+            for (var i = 0; i < labelCount; i++) {
+                var id = _reader.ReadUInt16();
+                labels.Add(new SynthesizedLabelSymbol($"label{id}"));
+            }
+
+            var immutableLabels = labels.ToImmutableAndFree();
+
 #if DEBUG
             var startSize = _enclosingBlocks.Count;
 #endif
 
-            _enclosingBlocks.Push(immutableLocals);
+            _enclosingBlocks.Push((immutableLocals, immutableLabels));
 
             var statementCount = _reader.ReadUInt16();
             var statements = ArrayBuilder<BoundStatement>.GetInstance(statementCount);
@@ -298,20 +308,20 @@ internal sealed partial class TemplateMetadataReader {
             }
         }
 
-        private LabelSymbol GetLabel(string name) {
-            if (_labels.TryGetValue(name, out var found))
-                return found;
+        private LabelSymbol GetLabel(ushort id) {
+            foreach (var frame in _enclosingBlocks) {
+                if (frame.Item2.Any(t => t.name == $"label{id}"))
+                    return frame.Item2.First(t => t.name == $"label{id}");
+            }
 
-            var newLabel = new SynthesizedLabelSymbol(name);
-            _labels.Add(name, newLabel);
-
-            return newLabel;
+            Debug.Assert(false);
+            return null;
         }
 
-        private DataContainerSymbol GetLocal(uint id) {
+        private DataContainerSymbol GetLocal(ushort id) {
             foreach (var frame in _enclosingBlocks) {
-                if (frame.Any(t => t.name == $"local{id}"))
-                    return frame.First(t => t.name == $"local{id}");
+                if (frame.Item1.Any(t => t.name == $"local{id}"))
+                    return frame.Item1.First(t => t.name == $"local{id}");
             }
 
             Debug.Assert(false);
@@ -319,30 +329,27 @@ internal sealed partial class TemplateMetadataReader {
         }
 
         private BoundGotoStatement ReadGotoStatement() {
-            var nameSize = _reader.ReadUInt32();
-            var name = Encoding.UTF8.GetString(_reader.ReadBytes((int)nameSize));
-            var label = GetLabel(name);
+            var id = _reader.ReadUInt16();
+            var label = GetLabel(id);
             return new BoundGotoStatement(null, label, null);
         }
 
         private BoundLabelStatement ReadLabelStatement() {
-            var nameSize = _reader.ReadUInt32();
-            var name = Encoding.UTF8.GetString(_reader.ReadBytes((int)nameSize));
-            var label = GetLabel(name);
+            var id = _reader.ReadUInt16();
+            var label = GetLabel(id);
             return new BoundLabelStatement(null, label);
         }
 
         private BoundConditionalGotoStatement ReadConditionalGotoStatement() {
-            var nameSize = _reader.ReadUInt32();
-            var name = Encoding.UTF8.GetString(_reader.ReadBytes((int)nameSize));
-            var label = GetLabel(name);
+            var id = _reader.ReadUInt16();
+            var label = GetLabel(id);
             var jumpIfTrue = _reader.ReadByte();
             var condition = ReadExpression();
             return new BoundConditionalGotoStatement(null, label, condition, jumpIfTrue == 1);
         }
 
         private BoundLocalDeclarationStatement ReadLocalDeclarationStatement() {
-            var id = _reader.ReadUInt32();
+            var id = _reader.ReadUInt16();
             var local = GetLocal(id);
             var initializer = ReadExpression(backtrackIfNotExpression: true);
 
@@ -383,17 +390,15 @@ internal sealed partial class TemplateMetadataReader {
 
         private BoundSwitchDispatch ReadSwitchDispatch() {
             var expression = ReadExpression();
-            var nameSize = _reader.ReadUInt32();
-            var name = Encoding.UTF8.GetString(_reader.ReadBytes((int)nameSize));
-            var defaultLabel = GetLabel(name);
+            var id = _reader.ReadUInt16();
+            var defaultLabel = GetLabel(id);
             var caseCount = _reader.ReadUInt16();
             var cases = ArrayBuilder<(ConstantValue, LabelSymbol)>.GetInstance(caseCount);
 
             for (var i = 0; i < caseCount; i++) {
                 var constantValue = ReadConstantValue();
-                var labelNameSize = _reader.ReadUInt32();
-                var labelName = Encoding.UTF8.GetString(_reader.ReadBytes((int)labelNameSize));
-                var label = GetLabel(labelName);
+                var labelId = _reader.ReadUInt16();
+                var label = GetLabel(labelId);
                 cases.Add((constantValue, label));
             }
 
@@ -492,11 +497,8 @@ internal sealed partial class TemplateMetadataReader {
         }
 
         private BoundLiteralExpression ReadLiteralExpression() {
+            var type = ReadType();
             var value = ReadConstantValue();
-            var type = value.specialType != SpecialType.None
-                ? _metadata.corLibrary.GetSpecialType(value.specialType)
-                : null;
-
             return new BoundLiteralExpression(null, value, type);
         }
 
@@ -536,7 +538,7 @@ internal sealed partial class TemplateMetadataReader {
         }
 
         private BoundDataContainerExpression ReadDataContainerExpression() {
-            var id = _reader.ReadUInt32();
+            var id = _reader.ReadUInt16();
             var local = GetLocal(id);
             return new BoundDataContainerExpression(null, local, null, local.type);
         }

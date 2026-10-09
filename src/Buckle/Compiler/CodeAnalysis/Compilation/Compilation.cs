@@ -223,7 +223,7 @@ public sealed partial class Compilation {
             if (_specialNamespace is null) {
                 Interlocked.CompareExchange(
                     ref _specialNamespace,
-                    new SynthesizedBelteNamespaceSymbol(this, "Belte", options.noStdLib),
+                    new SynthesizedBelteNamespaceSymbol(this, "Belte", options.noStdLib, options.noNtvLib),
                     null
                 );
             }
@@ -345,9 +345,8 @@ public sealed partial class Compilation {
             Debug.Assert(_lazyTemplateMetadataReader is not null);
             Debug.Assert(_lazyCorLibrary is not null);
 
-            if (_referenceManager.corAssemblyOpt is not null) {
+            if (_referenceManager.belteCoreAssemblyOpt is { } assembly) {
                 // This PE assembly contains WellKnownType definitions that we need
-                var assembly = _referenceManager.corAssemblyOpt;
                 var members = assembly.globalNamespace.GetTypeMembers();
                 NamespaceSymbol.RegisterDeclaredWellKnownTypes(this, members);
             }
@@ -1042,12 +1041,12 @@ public sealed partial class Compilation {
         NamedTypeSymbol result;
         if (IsTypeMissing(specialType)) {
             var emittedName = MetadataTypeName.FromFullName(
-                specialType.GetMetadataName(),
+                specialType.GetMetadataName(netMode: false),
                 useCLSCompliantNameArityEncoding: true
             );
 
             result = new MissingMetadataTypeSymbol.TopLevel(
-                assembly.corAssembly.modules[0],
+                assembly.corAssemblies[0].modules[0],
                 ref emittedName,
                 specialType
             );

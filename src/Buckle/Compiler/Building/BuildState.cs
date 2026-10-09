@@ -21,4 +21,6 @@ public struct BuildState {
     public string[] arguments;
 
     public bool noStdLib;
+
+    public bool noNtvLib;
 }

@@ -12,9 +12,11 @@ internal sealed partial class TemplateMetadataWriter {
     private sealed class BoundNodeEncoder : BoundTreeWalkerWithStackGuard {
         private readonly BinaryWriter _writer;
         private readonly TemplateMetadataWriter _metadataWriter;
-        private readonly Dictionary<string, uint> _seenLocals = [];
+        private readonly Dictionary<DataContainerSymbol, ushort> _seenLocals = [];
+        private readonly Dictionary<LabelSymbol, ushort> _seenLabels = [];
 
-        private uint _localCount = 0;
+        private ushort _localCount = 0;
+        private ushort _labelCount = 0;
 
         private BoundNodeEncoder(BinaryWriter writer, TemplateMetadataWriter metadataWriter) {
             _writer = writer;
@@ -33,18 +35,31 @@ internal sealed partial class TemplateMetadataWriter {
             _writer.Write((byte)BoundKind.BlockStatement);
             var countPosition = _writer.BaseStream.Position;
             _writer.Write((ushort)0);
+            _writer.Write((ushort)0);
 
             ushort localCount = 0;
 
             foreach (var local in node.locals) {
-                if (WriteLocal(local))
-                    localCount++;
+                var _ = WriteLocal(local);
+                localCount++;
+                Debug.Assert(_);
+            }
+
+            ushort labelCount = 0;
+
+            foreach (var statement in node.statements) {
+                if (statement is BoundLabelStatement labelStatement) {
+                    var _ = WriteLabel(labelStatement.label);
+                    labelCount++;
+                    Debug.Assert(_);
+                }
             }
 
             var endPosition = _writer.BaseStream.Position;
 
             _writer.Seek((int)countPosition, SeekOrigin.Begin);
             _writer.Write(localCount);
+            _writer.Write(labelCount);
 
             _writer.Seek((int)endPosition, SeekOrigin.Begin);
 
@@ -58,14 +73,13 @@ internal sealed partial class TemplateMetadataWriter {
 
     Size
 
-    4       ID
+    2       ID
     1       Type Kind
     ...     Type Info
     1       Flags (Ref Kind, IsPinned)
 
             */
-            // TODO This shouldn't ever be happening but blocks contain duplicate locals sometimes
-            if (_seenLocals.ContainsKey(local.metadataName))
+            if (_seenLocals.ContainsKey(local))
                 return false;
 
             var id = _localCount++;
@@ -74,8 +88,27 @@ internal sealed partial class TemplateMetadataWriter {
             _writer.Write(_metadataWriter.CreateTypeKindAndInfo(local.type));
             _writer.Write(CreateLocalFlags(local));
 
-            _seenLocals.Add(local.metadataName, id);
+            _seenLocals.Add(local, id);
 
+            return true;
+        }
+
+        private bool WriteLabel(LabelSymbol label) {
+            /*
+
+    Size
+
+    2       ID
+
+            */
+            if (_seenLabels.ContainsKey(label))
+                return false;
+
+            var id = _labelCount++;
+
+            _writer.Write(id);
+
+            _seenLabels.Add(label, id);
             return true;
         }
 
@@ -93,6 +126,7 @@ internal sealed partial class TemplateMetadataWriter {
 
         internal override BoundNode VisitLiteralExpression(BoundLiteralExpression node) {
             _writer.Write((byte)BoundKind.LiteralExpression);
+            _writer.Write(_metadataWriter.CreateTypeKindAndInfo(node.type));
             _writer.Write((byte)node.constantValue.specialType);
             _writer.Write(node.constantValue.value is null);
 
@@ -130,7 +164,7 @@ internal sealed partial class TemplateMetadataWriter {
 
         internal override BoundNode VisitDataContainerExpression(BoundDataContainerExpression node) {
             _writer.Write((byte)BoundKind.DataContainerExpression);
-            var id = _seenLocals[node.dataContainer.metadataName];
+            var id = _seenLocals[node.dataContainer];
             _writer.Write(id);
             return base.VisitDataContainerExpression(node);
         }
@@ -382,33 +416,29 @@ internal sealed partial class TemplateMetadataWriter {
 
         internal override BoundNode VisitGotoStatement(BoundGotoStatement node) {
             _writer.Write((byte)BoundKind.GotoStatement);
-            // TODO Should probably use ID's instead of names
-            Debug.Assert((uint)node.label.metadataName.Length == Encoding.UTF8.GetBytes(node.label.metadataName).Length);
-            _writer.Write((uint)node.label.metadataName.Length);
-            _writer.Write(Encoding.UTF8.GetBytes(node.label.metadataName));
+            var id = _seenLabels[node.label];
+            _writer.Write(id);
             return null;
         }
 
         internal override BoundNode VisitLabelStatement(BoundLabelStatement node) {
             _writer.Write((byte)BoundKind.LabelStatement);
-            Debug.Assert((uint)node.label.metadataName.Length == Encoding.UTF8.GetBytes(node.label.metadataName).Length);
-            _writer.Write((uint)node.label.metadataName.Length);
-            _writer.Write(Encoding.UTF8.GetBytes(node.label.metadataName));
+            var id = _seenLabels[node.label];
+            _writer.Write(id);
             return null;
         }
 
         internal override BoundNode VisitConditionalGotoStatement(BoundConditionalGotoStatement node) {
             _writer.Write((byte)BoundKind.ConditionalGotoStatement);
-            Debug.Assert((uint)node.label.metadataName.Length == Encoding.UTF8.GetBytes(node.label.metadataName).Length);
-            _writer.Write((uint)node.label.metadataName.Length);
-            _writer.Write(Encoding.UTF8.GetBytes(node.label.metadataName));
+            var id = _seenLabels[node.label];
+            _writer.Write(id);
             _writer.Write(node.jumpIfTrue ? (byte)1 : (byte)0);
             return base.VisitConditionalGotoStatement(node);
         }
 
         internal override BoundNode VisitLocalDeclarationStatement(BoundLocalDeclarationStatement node) {
             _writer.Write((byte)BoundKind.LocalDeclarationStatement);
-            var id = _seenLocals[node.declaration.dataContainer.metadataName];
+            var id = _seenLocals[node.declaration.dataContainer];
             _writer.Write(id);
             Visit(node.declaration.initializer);
             return null;
@@ -482,9 +512,8 @@ internal sealed partial class TemplateMetadataWriter {
         internal override BoundNode VisitSwitchDispatch(BoundSwitchDispatch node) {
             _writer.Write((byte)BoundKind.SwitchDispatch);
             Visit(node.expression);
-            Debug.Assert((uint)node.defaultLabel.metadataName.Length == Encoding.UTF8.GetBytes(node.defaultLabel.metadataName).Length);
-            _writer.Write((uint)node.defaultLabel.metadataName.Length);
-            _writer.Write(Encoding.UTF8.GetBytes(node.defaultLabel.metadataName));
+            var id = _seenLabels[node.defaultLabel];
+            _writer.Write(id);
 
             _writer.Write((ushort)node.cases.Length);
 
@@ -495,9 +524,8 @@ internal sealed partial class TemplateMetadataWriter {
                 if (value.value is not null)
                     WriteConstantValueValue(_writer, value);
 
-                Debug.Assert((uint)label.metadataName.Length == Encoding.UTF8.GetBytes(label.metadataName).Length);
-                _writer.Write((uint)label.metadataName.Length);
-                _writer.Write(Encoding.UTF8.GetBytes(label.metadataName));
+                var labelId = _seenLabels[label];
+                _writer.Write(labelId);
             }
 
             return null;

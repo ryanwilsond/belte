@@ -9,6 +9,7 @@ circumstances. This document exists for completeness sake.
   - [10.1.3](#1013--s--c-and--n) `-s`, `-c`, and `-n`
   - [10.1.4](#1014---script) `--script`
   - [10.1.5](#1015---emulate) `--emulate`
+  - [10.1.6](#1016---nontvlib) `--nontvlib`
 - [10.2](#102-evaluator-only-string-enums) Evaluator-Only String Enums
 - [10.3](#103-double-verbatim-identifiers) Double Verbatim Identifiers
 
@@ -39,6 +40,10 @@ the Interpreter but it is not stable.
 
 This flag uses the Emulator backend which compiles the program into .NET CIL and interprets that. Using this flag will
 invoke the Emulator but it is not stable.
+
+### 10.1.6 `--nontvlib`
+
+This flag prevents the compiler from defining some small low level wrapper types.
 
 ## 10.2 Evaluator-Only String Enums
 

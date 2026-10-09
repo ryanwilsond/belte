@@ -39,6 +39,41 @@ internal static class SpecialTypeExtensions {
         null,
     ];
 
+    private static readonly string[] NetEmittedNames = [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "System.Object",
+        null,
+        null,
+        null,
+        null,
+    ];
+
 #if DEBUG
     static SpecialTypeExtensions() {
         Debug.Assert(EmittedNames.Length == (int)SpecialType.NextAvailable);
@@ -411,10 +446,16 @@ internal static class SpecialTypeExtensions {
         return type <= SpecialType.LastCorType;
     }
 
-    internal static string GetMetadataName(this SpecialType type) {
-        var metadataName = EmittedNames[(int)type];
-        Debug.Assert(metadataName is not null);
-        return metadataName;
+    internal static string GetMetadataName(this SpecialType type, bool netMode) {
+        if (netMode) {
+            var metadataName = NetEmittedNames[(int)type];
+            Debug.Assert(metadataName is not null);
+            return metadataName;
+        } else {
+            var metadataName = EmittedNames[(int)type];
+            Debug.Assert(metadataName is not null);
+            return metadataName;
+        }
     }
 
     internal static bool ShouldSkipEmit(this SpecialType type, bool noStdLib) {

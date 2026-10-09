@@ -15,7 +15,7 @@ internal abstract class AssemblySymbol : Symbol {
     private static readonly ObjectPool<ArrayBuilder<AssemblySymbol>> SymbolPool
         = new ObjectPool<ArrayBuilder<AssemblySymbol>>(() => []);
 
-    private AssemblySymbol _corAssembly;
+    private ImmutableArray<AssemblySymbol> _corAssemblies;
     private CorLibrary _corLibrary;
     private TemplateMetadataReader _templateMetadataReader;
 
@@ -31,7 +31,7 @@ internal abstract class AssemblySymbol : Symbol {
 
     internal sealed override AssemblySymbol containingAssembly => null;
 
-    internal AssemblySymbol corAssembly => _corAssembly;
+    internal ImmutableArray<AssemblySymbol> corAssemblies => _corAssemblies;
 
     internal CorLibrary corLibrary => _corLibrary;
 
@@ -81,34 +81,50 @@ internal abstract class AssemblySymbol : Symbol {
 
     internal NamedTypeSymbol GetSpecialType(SpecialType type) {
         Debug.Assert(!type.LivesInCorLibrary());
-        return corAssembly.GetDeclaredSpecialType(type);
+
+        var candidate = corAssemblies[0].GetDeclaredSpecialType(type, netMode: false);
+
+        if (!candidate.IsErrorType())
+            return candidate;
+
+        var secondCandidate = corAssemblies[1].GetDeclaredSpecialType(type, netMode: true);
+
+        if (!secondCandidate.IsErrorType())
+            return secondCandidate;
+
+        return candidate;
     }
 
     internal virtual void RegisterDeclaredSpecialType(NamedTypeSymbol corType) {
         throw ExceptionUtilities.Unreachable();
     }
 
-    internal abstract NamedTypeSymbol GetDeclaredSpecialType(SpecialType type);
+    internal abstract NamedTypeSymbol GetDeclaredSpecialType(SpecialType type, bool netMode = false);
 
-    internal void SetCorLibrary(AssemblySymbol corAssembly) {
-        Debug.Assert(_corAssembly is null);
+    internal void SetCorAssemblies(ImmutableArray<AssemblySymbol> corAssemblies) {
+        Debug.Assert(corAssemblies.Length == 2);
+        Debug.Assert(_corAssemblies.IsDefault);
         Debug.Assert(_corLibrary is null);
         Debug.Assert(_templateMetadataReader is null);
-        Debug.Assert(corAssembly.corLibrary is not null);
-        Debug.Assert(corAssembly.templateMetadataReader is not null);
-        Debug.Assert((object)corAssembly.corAssembly == corAssembly);
+        Debug.Assert(corAssemblies[0].corLibrary is not null);
+        Debug.Assert(corAssemblies[0].templateMetadataReader is not null);
+        Debug.Assert((object)corAssemblies[0].corAssemblies[0] == corAssemblies[0]);
 
-        _corAssembly = corAssembly;
-        _corLibrary = corAssembly.corLibrary;
-        _templateMetadataReader = corAssembly.templateMetadataReader;
+        _corAssemblies = corAssemblies;
+        _corLibrary = corAssemblies[0].corLibrary;
+        _templateMetadataReader = corAssemblies[0].templateMetadataReader;
     }
 
-    internal void SetCorLibraryInternal(CorLibrary corLibrary, TemplateMetadataReader templateMetadataReader) {
-        Debug.Assert(_corAssembly is null);
+    internal void SetCorLibraryInternal(
+        CorLibrary corLibrary,
+        TemplateMetadataReader templateMetadataReader,
+        ImmutableArray<AssemblySymbol> corAssemblies) {
+        Debug.Assert(corAssemblies.Length == 2);
+        Debug.Assert(_corAssemblies.IsDefault);
         Debug.Assert(_corLibrary is null);
         Debug.Assert(_templateMetadataReader is null);
 
-        _corAssembly = this;
+        _corAssemblies = corAssemblies;
         _corLibrary = corLibrary;
         _templateMetadataReader = templateMetadataReader;
     }

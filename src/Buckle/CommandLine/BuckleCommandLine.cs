@@ -1250,7 +1250,8 @@ public class {name} {{
             showTime = false,
             showInfo = false,
             buildScript = "Build.blt",
-            noStdLib = false
+            noStdLib = false,
+            noNtvLib = false,
         };
 
         diagnostics = new DiagnosticQueue<Diagnostic>();
@@ -1285,6 +1286,9 @@ public class {name} {{
                     break;
                 case "--nostdlib":
                     state.noStdLib = true;
+                    break;
+                case "--nontvlib":
+                    state.noNtvLib = true;
                     break;
                 case "-f":
                 case "--file":
@@ -1477,6 +1481,9 @@ public class {name} {{
                     break;
                 case "--nostdlib":
                     state.noStdLib = true;
+                    break;
+                case "--nontvlib":
+                    state.noNtvLib = true;
                     break;
                 case "--nobootstrap":
                     state.noBootStrap = true;

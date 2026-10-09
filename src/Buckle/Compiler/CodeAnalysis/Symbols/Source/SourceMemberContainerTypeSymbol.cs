@@ -1736,7 +1736,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
     }
 
     private void CheckSpecialMemberErrors(BelteDiagnosticQueue diagnostics) {
-        var conversions = containingAssembly.corAssembly.typeConversions;
+        var conversions = containingAssembly.corAssemblies[0].typeConversions;
 
         foreach (var member in GetMembersUnordered())
             member.AfterAddingTypeMembersChecks(conversions, diagnostics);

@@ -542,7 +542,7 @@ internal sealed partial class TemplateMetadataReader {
 
                     if (symbol is null) {
                         if (MetadataHelpers.IsCorLibraryName(identityDisplay.Split(',')[0])) {
-                            symbol = _compilation.assembly.corAssembly;
+                            symbol = _compilation.assembly.corAssemblies[0];
                         } else {
                             _isMalformed = true;
                             continue;

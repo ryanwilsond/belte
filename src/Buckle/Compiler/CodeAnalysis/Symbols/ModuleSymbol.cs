@@ -58,7 +58,7 @@ internal abstract class ModuleSymbol : Symbol {
 
         var assembly = containingAssembly;
 
-        if ((object)assembly != assembly.corAssembly)
+        if ((object)assembly != assembly.corAssemblies[0])
             throw new ArgumentOutOfRangeException(nameof(referencedAssemblyIndex));
 
         return null;

@@ -345,7 +345,22 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
         }
         // This is for when rewriting a method call not on a template type that contains template types (via return or param types)
         else {
-            Debug.Assert(newOwner is ConstructedNamedTypeSymbol);
+#if DEBUG
+            var current = newOwner;
+            var foundConstructed = false;
+
+            while (current is not null) {
+                if (current is ConstructedNamedTypeSymbol) {
+                    foundConstructed = true;
+                    break;
+                }
+
+                current = current.containingType;
+            }
+
+            Debug.Assert(foundConstructed);
+#endif
+
             return method.originalDefinition.AsMember(newOwner);
         }
 
@@ -370,7 +385,22 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
             // The map should be fully populated when the template type is noted
             throw ExceptionUtilities.Unreachable();
         } else {
-            Debug.Assert(newOwner is ConstructedNamedTypeSymbol);
+#if DEBUG
+            var current = newOwner;
+            var foundConstructed = false;
+
+            while (current is not null) {
+                if (current is ConstructedNamedTypeSymbol) {
+                    foundConstructed = true;
+                    break;
+                }
+
+                current = current.containingType;
+            }
+
+            Debug.Assert(foundConstructed);
+#endif
+
             return field.originalDefinition.AsMember(newOwner);
         }
 
