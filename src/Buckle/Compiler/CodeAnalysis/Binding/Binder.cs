@@ -714,7 +714,7 @@ internal partial class Binder {
                     )
                 );
             case SyntaxKind.FunctionType:
-                namespaceOrNonNullableType = new TypeWithAnnotations(
+                return new TypeWithAnnotations(
                     FunctionTypeSymbol.CreateFromSource(
                         (FunctionTypeSyntax)syntax,
                         this,
@@ -722,11 +722,18 @@ internal partial class Binder {
                         basesBeingResolved
                     )
                 );
-
-                break;
             case SyntaxKind.TemplateSpecializedType:
                 var templateTypeSyntax = (TemplateSpecializedTypeSyntax)syntax;
                 return BindType(templateTypeSyntax.type, diagnostics, basesBeingResolved);
+            case SyntaxKind.AnonymousEnumType:
+                return new TypeWithAnnotations(
+                    new AnonymousEnumType(
+                        containingMember.containingNamespace,
+                        (AnonymousEnumTypeSyntax)syntax,
+                        this,
+                        diagnostics
+                    )
+                );
             default:
                 return new TypeWithAnnotations(CreateErrorType());
         }

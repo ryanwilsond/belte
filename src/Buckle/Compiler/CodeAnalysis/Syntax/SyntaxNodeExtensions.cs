@@ -66,6 +66,13 @@ internal static class SyntaxNodeExtensions {
                         stack.Push(tupleTypeSyntax.elements[i].type);
 
                     break;
+                case SyntaxKind.AnonymousEnumType:
+                    var enumTypeSyntax = (AnonymousEnumTypeSyntax)type;
+
+                    if (enumTypeSyntax.baseType is { } baseType)
+                        stack.Push(baseType);
+
+                    break;
                 case SyntaxKind.FunctionPointerType:
                     var functionPointerTypeSyntax = (FunctionPointerSyntax)type;
 

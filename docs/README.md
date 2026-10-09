@@ -163,6 +163,7 @@
       - [4.6.2](Current/ClassesAndObjects.md#462-implicit-enum-fields) Implicit Enum Fields
       - [4.6.3](Current/ClassesAndObjects.md#463-bit-testing) Bit Testing
       - [4.6.4](Current/ClassesAndObjects.md#464-methods) Methods
+      - [4.6.5](Current/ClassesAndObjects.md#465-anonymous-enums) Anonymous Enums
     - [4.7](Current/ClassesAndObjects.md#47-namespaces) Namespaces
     - [4.8](Current/ClassesAndObjects.md#48-using-directives) Using Directives
       - [4.8.1](Current/ClassesAndObjects.md#481-aliasing) Aliasing

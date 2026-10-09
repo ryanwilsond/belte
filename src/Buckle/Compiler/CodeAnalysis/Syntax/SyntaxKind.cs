@@ -364,6 +364,7 @@ public enum SyntaxKind : ushort {
     ReferenceType,
     TupleType,
     TupleElement,
+    AnonymousEnumType,
     BaseType,
     InterfaceList,
     NameEquals,

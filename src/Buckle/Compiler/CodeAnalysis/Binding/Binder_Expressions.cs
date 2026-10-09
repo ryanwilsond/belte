@@ -5076,7 +5076,7 @@ internal partial class Binder {
                 BelteDiagnostic diagnosticInfoOpt = null;
 
                 if (inFieldInitializer) {
-                    diagnostics.Push(Error.CannotUseThis(node.location));
+                    diagnostics.Push(Error.FieldInitRefNonStatic(node.location, member));
                 } else if (_inConstructorInitializer || inAttributeArgument) {
                     diagnostics.Push(Error.InstanceRequired(node.location, member));
                 } else {
@@ -7316,9 +7316,7 @@ internal partial class Binder {
 
             var receiverSymbol = receiver?.expressionSymbol;
 
-            if ((receiverSymbol is DataContainerSymbol local && (local.isConst || local.isConstExpr)) ||
-                (receiverSymbol is FieldSymbol field && (field.isConst || field.isConstExpr)) ||
-                (receiverSymbol is ParameterSymbol parameter && parameter.isConst)) {
+            if (receiverSymbol.IsConstOrConstExprResult()) {
                 diagnostics.Push(Error.NonConstantCallOnConstant(node.location, methodSymbol));
                 return true;
             }

@@ -2146,7 +2146,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
         foreach (var member in syntax.members) {
             if (member is not EnumMemberDeclarationSyntax enumMember)
-                break;
+                continue;
 
             SourceEnumConstantSymbol symbol;
             var valueOpt = enumMember.equalsValue;

@@ -538,6 +538,9 @@ public sealed class EvaluatorTests {
         enum flags A { q, w, e, r }
         A a = A.q | A.e;
         return a.q && a.e && !a.w;", true)]
+    [InlineData("enum flags A { q, w, e, r, t } return (A.t | A.r).ToString();", "r, t")]
+    [InlineData("enum flags A { q, w, e, r, t } return (A.t).ToString();", "t")]
+    [InlineData("enum flags A { q, w, e, r, t } return (A.t | A.q | A.r).ToString();", "q, r, t")]
     // If statements
     [InlineData("int? a = 0; if (a == 0) { a = 10; } return a;", 10)]
     [InlineData("int? a = 0; if (a == 4) { a = 10; } return a;", 0)]
@@ -1745,6 +1748,10 @@ public sealed class EvaluatorTests {
     // Binds Expressions
     [InlineData("return binds(3 + 3);", true)]
     [InlineData("return binds(3 + false);", false)]
+    // Anonymous Enums
+    [InlineData("enum { A, B, C } a = .B; return (int)a;", 1)]
+    [InlineData("enum { A, B, C } a = .B; return a.ToString();", "B")]
+    [InlineData("return ((enum { A })0).ToString();", "A")]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue, evaluator: true, executor: true);
     }

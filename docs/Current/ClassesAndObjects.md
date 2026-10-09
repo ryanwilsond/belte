@@ -35,6 +35,7 @@
   - [4.6.2](#462-implicit-enum-fields) Implicit Enum Fields
   - [4.6.3](#463-bit-testing) Bit Testing
   - [4.6.4](#464-methods) Methods
+  - [4.6.5](#465-anonymous-enums) Anonymous Enums
 - [4.7](#47-namespaces) Namespaces
 - [4.8](#48-using-directives) Using Directives
   - [4.8.1](#481-aliasing) Aliasing
@@ -1433,6 +1434,31 @@ enum E {
 
   public static void M3() { }
 }
+```
+
+### 4.6.5 Anonymous Enums
+
+Anonymous enums can be defined in any type location. Fields of anonymous enums must be referenced through
+[implicit enum field expressions](#462-implicit-enum-fields).
+
+```belte
+enum { A, B, C } local = .A;
+```
+
+```belte
+var local = (enum { A, B, C })0;
+```
+
+```belte
+class A {
+  enum { A, B, C } field = default;
+}
+```
+
+Anonymous enums cannot contain methods. Anonymous enums can be marked as `flags` and can specify an underlying type:
+
+```belte
+enum flags extends uint16 { A, B, C } local = .A;
 ```
 
 ## 4.7 Namespaces

@@ -150,11 +150,11 @@ public static class CompilationExtensions {
             text.Write(CreateSpace());
             text.indent++;
 
-            if (typeOrNamespace is SourceNamedTypeSymbol n && n.typeKind == TypeKind.Enum) {
+            if (typeOrNamespace is NamedTypeSymbol n && n.typeKind == TypeKind.Enum) {
                 text.WriteLine();
                 SymbolDisplay.AppendToDisplayText(
                     text,
-                    n.enumValueField,
+                    n is SourceNamedTypeSymbol s ? s.enumValueField : ((AnonymousEnumType)n).enumValueField,
                     SymbolDisplayFormat.CompactBoundDisplayFormat
                 );
 

@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Lowering;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -41,6 +42,13 @@ internal static class GeneratedNames {
 
     internal static string MakeAnonymousUnionFieldName(string typeName) {
         return "<" + typeName + ">u__AnonymousUnion";
+    }
+
+    // TODO Is there a better way to name anonymous enums?
+    private static int GlobalAnonymousEnumID = 0;
+
+    internal static string MakeAnonymousEnumName(string parentName) {
+        return "<>" + parentName + "__Enum_" + Interlocked.Increment(ref GlobalAnonymousEnumID);
     }
 
     internal static string MakeFixedFieldImplementationName(string fieldName) {

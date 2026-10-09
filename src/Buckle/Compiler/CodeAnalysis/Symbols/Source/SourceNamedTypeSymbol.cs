@@ -670,26 +670,32 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
         var (baseSyntax, interfacesSyntax) = GetBaseListOpt(decl);
         Debug.Assert(interfacesSyntax is null);
 
-        if (baseSyntax is not null) {
-            var typeSyntax = baseSyntax.type;
-
-            var baseBinder = compilation.GetBinder(baseSyntax);
-            var type = baseBinder.BindType(typeSyntax, diagnostics).type.StrippedType();
-
-            if (!type.specialType.IsValidEnumUnderlyingType()) {
-                diagnostics.Push(Error.InvalidEnumType(typeSyntax.location));
-                type = compilation.GetSpecialType(SpecialType.Int);
-            }
-
-            if (type.specialType is SpecialType.Char or SpecialType.String &&
-                !declaringCompilation.options.buildMode.SupportsNonIntegralEnums()) {
-                diagnostics.Push(Error.Unsupported.NonIntegralEnum(typeSyntax.location));
-            }
-
-            return (NamedTypeSymbol)type;
-        }
+        if (baseSyntax is not null)
+            return BindAndVerifyEnumUnderlyingType(compilation, baseSyntax, diagnostics);
 
         return compilation.GetSpecialType(SpecialType.Int);
+    }
+
+    internal static NamedTypeSymbol BindAndVerifyEnumUnderlyingType(
+        Compilation compilation,
+        BaseTypeSyntax baseSyntax,
+        BelteDiagnosticQueue diagnostics) {
+        var typeSyntax = baseSyntax.type;
+
+        var baseBinder = compilation.GetBinder(baseSyntax);
+        var type = baseBinder.BindType(typeSyntax, diagnostics).type.StrippedType();
+
+        if (!type.specialType.IsValidEnumUnderlyingType()) {
+            diagnostics.Push(Error.InvalidEnumType(typeSyntax.location));
+            type = compilation.GetSpecialType(SpecialType.Int);
+        }
+
+        if (type.specialType is SpecialType.Char or SpecialType.String &&
+            !compilation.options.buildMode.SupportsNonIntegralEnums()) {
+            diagnostics.Push(Error.Unsupported.NonIntegralEnum(typeSyntax.location));
+        }
+
+        return (NamedTypeSymbol)type;
     }
 
     private ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes(

@@ -10248,4 +10248,21 @@ var text = """"""
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0677_FieldInitRefNonStatic() {
+        var text = @"
+            class A {
+                int a = 0;
+                int b = [a];
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            a field initializer cannot reference non-static member 'A.a'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

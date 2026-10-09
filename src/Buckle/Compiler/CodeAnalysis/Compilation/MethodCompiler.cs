@@ -663,12 +663,23 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                     if (f.isFixedSizeBuffer)
                         SetFixedImplementationType(f as SourceMemberFieldSymbol);
 
-                    if (_collectSymbols) {
-                        f.type.VisitType(
-                            SymbolCollector.VisitTypePredicate,
-                            new SymbolCollectorArgument() { compiler = this, visited = [] },
-                            true
-                        );
+                    var visited = new HashSet<NamedTypeSymbol>();
+
+                    f.type.VisitType(
+                        _collectSymbols
+                            ? SymbolCollector.VisitTypePredicateCollectAndEnqueue
+                            : SymbolCollector.VisitTypePredicateJustCollect,
+                        new SymbolCollectorArgument() { compiler = this, visited = visited },
+                        true
+                    );
+
+                    foreach (var type in visited) {
+                        if (type is AnonymousEnumType) {
+                            lock (_types) {
+                                if (!_types.Contains(type))
+                                    _types.Add(type);
+                            }
+                        }
                     }
 
                     break;
@@ -935,8 +946,22 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             }
         }
 
-        if (_collectSymbols)
-            SymbolCollector.Collect(this, loweredBody);
+        var visited = SymbolCollector.Collect(
+            this,
+            loweredBody,
+            _collectSymbols
+                ? SymbolCollector.VisitTypePredicateCollectAndEnqueue
+                : SymbolCollector.VisitTypePredicateJustCollect
+        );
+
+        foreach (var type in visited) {
+            if (type is AnonymousEnumType) {
+                lock (_types) {
+                    if (!_types.Contains(type))
+                        _types.Add(type);
+                }
+            }
+        }
 
         state.currentImportChain = oldImportChain;
         _methodBodies.TryAdd(method, loweredBody);

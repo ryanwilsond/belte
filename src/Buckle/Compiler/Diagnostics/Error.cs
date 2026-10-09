@@ -3287,6 +3287,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_FloatOverflow, message);
     }
 
+    internal static BelteDiagnostic FieldInitRefNonStatic(TextLocation location, Symbol symbol) {
+        var message = $"a field initializer cannot reference non-static member '{symbol}'";
+        return CreateError(DiagnosticCode.ERR_FieldInitRefNonStatic, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

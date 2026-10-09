@@ -1502,7 +1502,9 @@ internal partial class ILEmitter : ModuleBuilder {
     private void CreateEnumMemberDefinitions(NamedTypeSymbol type, TypeDefinition typeDefinition) {
         var underlyingType = type.GetEnumUnderlyingType().StrippedType();
         var underlyingTypeRef = GetType(underlyingType);
-        var underlyingField = (type as SourceNamedTypeSymbol).enumValueField;
+        var underlyingField = type is SourceNamedTypeSymbol n
+            ? n.enumValueField
+            : ((AnonymousEnumType)type).enumValueField;
 
         var underlyingFieldDef = new FieldDefinition(
             underlyingField.name,

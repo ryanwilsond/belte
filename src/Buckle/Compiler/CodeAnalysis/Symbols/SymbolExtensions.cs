@@ -131,4 +131,26 @@ internal static class SymbolExtensions {
 
         throw ExceptionUtilities.UnexpectedValue(member);
     }
+
+    internal static bool IsConstOrConstExprResult(this Symbol symbol) {
+        if (symbol is null)
+            return false;
+
+        switch (symbol) {
+            case DataContainerSymbol local:
+                return local.isConst || local.isConstExpr || local.refKind == RefKind.RefConst;
+            case FieldSymbol field:
+                return (field.isConst || field.isConstExpr || field.refKind == RefKind.RefConst) &&
+                    !field.containingType.IsEnumType();
+            case ParameterSymbol parameter:
+                return parameter.isConst || parameter.isConstExpr || parameter.refKind == RefKind.RefConst;
+            case PropertySymbol property:
+                return property.getMethod.isEffectivelyConst || property.getMethod.returnsByRefConst;
+            case MethodSymbol method:
+                // TODO Eventually we might want a way for methods to return a constant
+                return method.returnsByRefConst;
+            default:
+                throw ExceptionUtilities.UnexpectedValue(symbol.kind);
+        }
+    }
 }

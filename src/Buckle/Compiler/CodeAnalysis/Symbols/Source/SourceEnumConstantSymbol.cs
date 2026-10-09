@@ -7,14 +7,14 @@ namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract partial class SourceEnumConstantSymbol : SourceFieldSymbolWithSyntaxReference {
     public static SourceEnumConstantSymbol CreateExplicitValuedConstant(
-        SourceMemberContainerTypeSymbol containingEnum,
+        NamedTypeSymbol containingEnum,
         EnumMemberDeclarationSyntax syntax,
         BelteDiagnosticQueue diagnostics) {
         return new ExplicitValuedEnumConstantSymbol(containingEnum, syntax, diagnostics);
     }
 
     public static SourceEnumConstantSymbol CreateImplicitValuedConstant(
-        SourceMemberContainerTypeSymbol containingEnum,
+        NamedTypeSymbol containingEnum,
         EnumMemberDeclarationSyntax syntax,
         SourceEnumConstantSymbol otherConstant,
         int otherConstantOffset,
@@ -34,8 +34,8 @@ internal abstract partial class SourceEnumConstantSymbol : SourceFieldSymbolWith
         }
     }
 
-    protected SourceEnumConstantSymbol(
-        SourceMemberContainerTypeSymbol containingEnum,
+    private protected SourceEnumConstantSymbol(
+        NamedTypeSymbol containingEnum,
         EnumMemberDeclarationSyntax syntax,
         BelteDiagnosticQueue diagnostics)
         : base(containingEnum, syntax.identifier.valueText, new SyntaxReference(syntax)) { }

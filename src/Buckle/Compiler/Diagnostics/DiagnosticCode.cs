@@ -685,6 +685,7 @@ public enum DiagnosticCode : ushort {
     ERR_CompileTimeExpressionInConstraint = 674,
     ERR_IdentityPattern = 675,
     ERR_FloatOverflow = 676,
+    ERR_FieldInitRefNonStatic = 677,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

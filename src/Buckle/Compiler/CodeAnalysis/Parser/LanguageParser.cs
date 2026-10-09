@@ -467,7 +467,15 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.InterfaceKeyword:
                 return ParseInterfaceDeclaration(attributeLists, modifiers);
             case SyntaxKind.EnumKeyword:
-                return ParseEnumDeclaration(attributeLists, modifiers);
+                var offset = 1;
+
+                if (Peek(1).contextualKind == SyntaxKind.FlagsKeyword)
+                    offset++;
+
+                if (Peek(offset).kind == SyntaxKind.IdentifierToken)
+                    return ParseEnumDeclaration(attributeLists, modifiers);
+
+                break;
             case SyntaxKind.UnionKeyword:
                 return ParseUnionDeclaration(attributeLists, modifiers);
         }
@@ -772,13 +780,13 @@ internal sealed partial class LanguageParser : SyntaxParser {
         );
     }
 
-    private SyntaxList<MemberDeclarationSyntax> ParseEnumMembers() {
+    private SyntaxList<MemberDeclarationSyntax> ParseEnumMembers(bool allowMethods = true) {
         var members = _pool.Allocate<MemberDeclarationSyntax>();
         var lastTokenPosition = -1;
 
         while (currentToken.kind is not SyntaxKind.CloseBraceToken and not SyntaxKind.EndOfFileToken &&
             IsMakingProgress(ref lastTokenPosition)) {
-            var member = ParseEnumMember(out var definitivelyLastMember);
+            var member = ParseEnumMember(allowMethods, out var definitivelyLastMember);
             members.Add(member);
 
             if (definitivelyLastMember)
@@ -788,7 +796,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         return _pool.ToListAndFree(members);
     }
 
-    private MemberDeclarationSyntax ParseEnumMember(out bool definitivelyLastMember) {
+    private MemberDeclarationSyntax ParseEnumMember(bool allowMethods, out bool definitivelyLastMember) {
         definitivelyLastMember = false;
 
         if (_isIncrementalAndFactoryContextMatches &&
@@ -799,15 +807,17 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var attributeLists = ParseAttributeLists();
         var modifiers = ParseModifiers();
 
-        var resetPoint = GetResetPoint();
-        var returnType = ParseType();
+        if (allowMethods) {
+            var resetPoint = GetResetPoint();
+            var returnType = ParseType();
 
-        if (returnType.kind != SyntaxKind.EmptyName && !returnType.containsDiagnostics) {
-            if (PeekIsPostReturnFunction())
-                return ParseMethodDeclaration(attributeLists, modifiers, returnType);
+            if (returnType.kind != SyntaxKind.EmptyName && !returnType.containsDiagnostics) {
+                if (PeekIsPostReturnFunction())
+                    return ParseMethodDeclaration(attributeLists, modifiers, returnType);
+            }
+
+            Reset(resetPoint);
         }
-
-        Reset(resetPoint);
 
         var identifier = Match(SyntaxKind.IdentifierToken, SyntaxKind.EqualsToken, SyntaxKind.CommaToken);
         var equalsValue = currentToken.kind == SyntaxKind.EqualsToken ? ParseEqualsValueClause() : null;
@@ -3768,7 +3778,37 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 EatToken();
         }
 
-        if (currentToken.kind is SyntaxKind.IdentifierToken or SyntaxKind.ColonColonToken) {
+        if (currentToken.kind == SyntaxKind.EnumKeyword) {
+            EatToken();
+
+            if (currentToken.contextualKind == SyntaxKind.FlagsKeyword)
+                EatToken();
+
+            if (currentToken.kind == SyntaxKind.ExtendsKeyword) {
+                result = ScanType(mode, out lastTokenOfType);
+
+                if (result == ScanTypeFlags.NotType)
+                    return ScanTypeFlags.NotType;
+            }
+
+            if (currentToken.kind != SyntaxKind.OpenBraceToken) {
+                lastTokenOfType = null;
+                return ScanTypeFlags.NotType;
+            }
+
+            EatToken();
+            // TODO Potentially expensive, but if we got this far it's probably a type
+            // If we don't care about lastTokenOfType, we can just return MustBeType here instead of parsing further
+            _ = ParseEnumMembers();
+
+            if (currentToken.kind != SyntaxKind.CloseBraceToken) {
+                lastTokenOfType = null;
+                return ScanTypeFlags.NotType;
+            }
+
+            lastTokenOfType = EatToken();
+            result = ScanTypeFlags.AnonymousEnumType;
+        } else if (currentToken.kind is SyntaxKind.IdentifierToken or SyntaxKind.ColonColonToken) {
             bool isAlias;
 
             if (currentToken.kind is SyntaxKind.ColonColonToken) {
@@ -4078,6 +4118,7 @@ done:
             case ScanTypeFlags.NullableType:
             case ScanTypeFlags.MustBeType:
             case ScanTypeFlags.AliasQualifiedName:
+            case ScanTypeFlags.AnonymousEnumType:
                 return true;
             case ScanTypeFlags.TemplateTypeOrMethod:
             case ScanTypeFlags.TupleType:
@@ -5191,6 +5232,20 @@ done:
         return ParseTypeCore(allowArraySize, allowNoFollowUp, allowFunctionType, allowPointerTypes);
     }
 
+    private AnonymousEnumTypeSyntax ParseAnonymousEnumType() {
+        var keyword = EatToken();
+        var flagsKeyword = currentToken.contextualKind == SyntaxKind.FlagsKeyword ? ConvertToKeyword(EatToken()) : null;
+        var baseType = currentToken.kind == SyntaxKind.ExtendsKeyword
+            ? ParseBaseType()
+            : null;
+
+        var openBrace = MatchOpenBrace();
+        var members = ParseEnumMembers(allowMethods: false);
+        var closeBrace = MatchCloseBrace();
+
+        return SyntaxFactory.AnonymousEnumType(keyword, flagsKeyword, baseType, openBrace, members, closeBrace);
+    }
+
     private TypeSyntax ParseTypeCore(
         bool allowArraySize,
         bool allowNoFollowUp,
@@ -5334,6 +5389,9 @@ done:
 
         if (currentToken.kind == SyntaxKind.OpenParenToken)
             return ParseTupleType();
+
+        if (currentToken.kind == SyntaxKind.EnumKeyword)
+            return ParseAnonymousEnumType();
 
         return AddDiagnostic(
             WithFutureDiagnostics(CreateMissingIdentifierName()),

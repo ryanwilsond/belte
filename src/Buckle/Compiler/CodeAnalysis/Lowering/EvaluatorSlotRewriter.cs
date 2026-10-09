@@ -197,9 +197,9 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriterWithStackGuard {
             }
         }
 
-        if (node.receiver is not null && node.receiver.type.StrippedType().IsStructType())
+        if (node.receiver is not null && node.receiver.type.isValueType)
             _lateTempCount++;
-        else if (node.method.returnType.StrippedType().IsStructType())
+        else if (node.method.returnType.isValueType)
             _lateTempCount++;
 
         return base.VisitCallExpression(node);

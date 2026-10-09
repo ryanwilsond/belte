@@ -2843,12 +2843,17 @@ internal sealed partial class Evaluator {
     }
 
     private EvaluatorValue EvaluateAddressOfTempClone(BoundExpression node, ValueWrapper<bool> abort) {
-        // Should only be reachable with uninitialized ref locals and structs
+        // Should only be reachable with uninitialized ref locals, structs, and enums
 #if DEBUG
         if (!node.IsLiteralNull()) {
             if (node is BoundCallExpression c) {
-                if (c.receiver.type.StrippedType().IsStructType()) {
-                } else if (c.method.returnType.StrippedType().IsStructType()) {
+                if (c.receiver.type.isValueType) {
+                } else if (c.method.returnType.isValueType) {
+                } else {
+                    Debug.Assert(false);
+                }
+            } else if (node is BoundLiteralExpression l) {
+                if (l.type.isValueType) {
                 } else {
                     Debug.Assert(false);
                 }
@@ -3701,10 +3706,76 @@ internal sealed partial class Evaluator {
                     if (thisParameter.kind == ValueKind.Null)
                         throw new BelteNullReferenceException(receiver.syntax.location);
 
-                    result = thisParameter.kind == ValueKind.HeapPtr ||
-                        (thisParameter.kind == ValueKind.Ref && thisParameter.loc[thisParameter.ptr].kind == ValueKind.Struct)
-                        ? InvokeMethod(ResolveVirtualMethod(method, receiver, thisParameter), thisParameter, [], abort)
-                        : EvaluatorValue.Format(thisParameter, _context);
+                    if (thisParameter.kind == ValueKind.HeapPtr ||
+                        (thisParameter.kind == ValueKind.Ref && thisParameter.loc[thisParameter.ptr].kind == ValueKind.Struct)) {
+                        result = InvokeMethod(
+                            ResolveVirtualMethod(method, receiver, thisParameter),
+                            thisParameter,
+                            [],
+                            abort
+                        );
+                    } else if (receiver.StrippedType().IsEnumType()) {
+                        Debug.Assert(thisParameter.kind == ValueKind.Ref);
+                        var evaluatorValue = thisParameter.loc[thisParameter.ptr];
+                        var enumType = (NamedTypeSymbol)receiver.StrippedType();
+                        var underlyingType = enumType.enumUnderlyingType;
+
+                        if (underlyingType.specialType is SpecialType.Char or SpecialType.String) {
+                            Debug.Assert(!enumType.enumFlagsAttribute);
+                            var operandType = RelationalOperatorType(underlyingType);
+
+                            foreach (var member in enumType.GetMembers()) {
+                                if (member is SourceEnumConstantSymbol enumConstant) {
+                                    var constant = enumConstant.GetConstantValue(ConstantFieldsInProgress.Empty);
+
+                                    if (EvaluateEqualityOperator(
+                                        rightIsLiteralNull: false,
+                                        isEqual: true,
+                                        evaluatorValue,
+                                        EvaluatorValue.Literal(constant.value, constant.specialType),
+                                        operandType).@bool) {
+                                        result = enumConstant.name;
+                                        return true;
+                                    }
+                                }
+                            }
+                        } else {
+                            StringBuilder builder = null;
+
+                            foreach (var member in enumType.GetMembers()) {
+                                if (member is SourceEnumConstantSymbol enumConstant) {
+                                    var _ = LiteralUtilities.TrySpecialCastCore(
+                                        enumConstant.constantValue,
+                                        underlyingType.specialType,
+                                        SpecialType.UInt64,
+                                        out var constant
+                                    );
+
+                                    Debug.Assert(_);
+                                    var uLong = (ulong)constant;
+
+                                    if (evaluatorValue.uint64 == uLong) {
+                                        result = enumConstant.name;
+                                        return true;
+                                    } else if (enumType.enumFlagsAttribute && (evaluatorValue.uint64 & uLong) != 0) {
+                                        if (builder is null)
+                                            builder = new StringBuilder(enumConstant.name);
+                                        else
+                                            builder.Append($", {enumConstant.name}");
+                                    }
+                                }
+                            }
+
+                            if (builder is not null) {
+                                result = builder.ToString();
+                                return true;
+                            }
+                        }
+
+                        result = EvaluatorValue.Format(evaluatorValue, _context);
+                    } else {
+                        result = EvaluatorValue.Format(thisParameter, _context);
+                    }
 
                     return true;
                 default:

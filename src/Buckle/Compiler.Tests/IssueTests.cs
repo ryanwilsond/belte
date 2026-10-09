@@ -4206,4 +4206,90 @@ public sealed class IssueTests {
 
         AssertValue(text, 0);
     }
+
+    [Fact]
+    public void Enum_DoesntSkipFieldsAfterMethod() {
+        var text = @"
+            enum A {
+                B,
+                C,
+                void M() {}
+                D,
+            }
+
+            var a = A.D;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Property_ChecksConstantCall() {
+        var text = @"
+            class A { int a = 0; }
+
+            class B {
+                const property A a { get => field; } = new();
+            }
+
+            var b = new B();
+            _ = [b.a.ToString]();
+        ";
+
+        var diagnostics = @"
+            cannot call non-constant method 'Object.ToString()' on constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void ConstantCheck_ChecksRefConst() {
+        var text = @"
+            class A { int a = 0; }
+
+            class B {
+                const A _c = new();
+                ref const A c;
+
+                public constructor() {
+                    c = ref _c;
+                }
+            }
+
+            var b = new B();
+            _ = [b.c.ToString]();
+        ";
+
+        var diagnostics = @"
+            cannot call non-constant method 'Object.ToString()' on constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void ConstantCheck_ChecksMethods() {
+        var text = @"
+            class A { int a = 0; }
+
+            class B {
+                static A c = new();
+
+                public static ref const A M() {
+                    return ref c;
+                }
+            }
+
+            _ = [B.M().ToString]();
+        ";
+
+        var diagnostics = @"
+            cannot call non-constant method 'Object.ToString()' on constant
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }
