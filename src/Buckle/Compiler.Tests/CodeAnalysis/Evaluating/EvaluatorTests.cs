@@ -1752,6 +1752,8 @@ public sealed class EvaluatorTests {
     [InlineData("enum { A, B, C } a = .B; return (int)a;", 1)]
     [InlineData("enum { A, B, C } a = .B; return a.ToString();", "B")]
     [InlineData("return ((enum { A })0).ToString();", "A")]
+    [InlineData("enum flags { A, B } a = .A | .B; return (int)a;", 3)]
+    [InlineData("enum flags { A, B, C } a = .A | .B | .C; return (int)a;", 7)]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue, evaluator: true, executor: true);
     }

@@ -1358,6 +1358,30 @@ Func(.Field1);
 void Func(MyEnum param) { /* ... */ }
 ```
 
+Binary operators also support one or both operands being an implicit enum field. If one side is an implicit enum field,
+it is target typed to the type of the other operand. If both operands are implicit enum fields, they are both target
+typed to the result of the entire expression:
+
+```belte
+enum flags MyEnum {
+  A,
+  B,
+  C
+}
+
+// type of '.A' is inferred from right operand 'MyEnum.B'
+var local1 = .A | MyEnum.B;
+
+// type of '.A' and '.B' are both inferred from the left side of the assignment 'local2'
+MyEnum local2 = .A | .B;
+```
+
+Nested binary operators are also supported:
+
+```belte
+MyEnum myLocal = .A | .B | .C;
+```
+
 ### 4.6.3 Bit Testing
 
 The traditional way to test for the presence of a enum field is to use a bit test:
@@ -1458,7 +1482,7 @@ class A {
 Anonymous enums cannot contain methods. Anonymous enums can be marked as `flags` and can specify an underlying type:
 
 ```belte
-enum flags extends uint16 { A, B, C } local = .A;
+enum flags extends uint16 { A, B, C } local = .A | .B;
 ```
 
 ## 4.7 Namespaces

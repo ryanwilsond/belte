@@ -89,6 +89,19 @@ internal partial class Binder {
 
                 result = ErrorExpression(expression.syntax, expression);
                 break;
+            case BoundUnconvertedBinaryOperator binary:
+                if (reportNoTargetType && !expression.hasAnyErrors) {
+                    Debug.Assert(binary.left.kind == BoundKind.UnconvertedImplicitEnumFieldExpression ||
+                                 binary.right.kind == BoundKind.UnconvertedImplicitEnumFieldExpression);
+                    if (binary.left.kind == BoundKind.UnconvertedImplicitEnumFieldExpression)
+                        diagnostics.Push(Error.EnumFieldNoTargetType(binary.left.syntax.location));
+
+                    if (binary.right.kind == BoundKind.UnconvertedImplicitEnumFieldExpression)
+                        diagnostics.Push(Error.EnumFieldNoTargetType(binary.right.syntax.location));
+                }
+
+                result = ErrorExpression(expression.syntax, expression);
+                break;
             case BoundDefaultLiteral literal:
                 if (reportNoTargetType)
                     diagnostics.Push(Error.DefaultLiteralNoTargetType(literal.syntax.location));
@@ -7500,7 +7513,8 @@ internal partial class Binder {
             argument = ReduceNumericIfApplicable(parameterTypeWithAnnotations.type, argument, compilation.corLibrary);
             var coercedArgument = argument;
 
-            if (!kind.isIdentity || argument.kind == BoundKind.UnconvertedImplicitEnumFieldExpression) {
+            if (!kind.isIdentity || argument.kind is BoundKind.UnconvertedImplicitEnumFieldExpression or
+                                                     BoundKind.UnconvertedBinaryOperator) {
                 coercedArgument = CreateConversion(
                     argument.syntax,
                     argument,

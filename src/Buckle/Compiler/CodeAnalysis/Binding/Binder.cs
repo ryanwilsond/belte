@@ -1633,8 +1633,11 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics) {
         var valueOrType = BindExpressionInternal(node, diagnostics: diagnostics, called: false, indexed: false);
 
-        if (valueOrType.kind is BoundKind.TypeExpression or BoundKind.UnconvertedImplicitEnumFieldExpression)
+        if (valueOrType.kind is BoundKind.TypeExpression or
+                                BoundKind.UnconvertedImplicitEnumFieldExpression or
+                                BoundKind.UnconvertedBinaryOperator) {
             return valueOrType;
+        }
 
         return CheckValue(valueOrType, BindValueKind.RValue, diagnostics);
     }
@@ -2564,7 +2567,7 @@ internal partial class Binder {
             var bindValueKind = GetBinaryAssignmentKind(syntaxNode.operatorToken.kind);
             var left = CheckValue(result, bindValueKind, diagnostics);
             var right = BindValue(syntaxNode.right, diagnostics, BindValueKind.RValue);
-            var boundOp = BindSimpleBinaryOperator(syntaxNode, diagnostics, left, right);
+            var boundOp = BindSimpleBinaryOperatorContinued(syntaxNode, diagnostics, left, right);
             result = boundOp;
         }
 
@@ -2616,7 +2619,7 @@ internal partial class Binder {
         }
     }
 
-    private BoundExpression BindSimpleBinaryOperator(
+    private BoundExpression BindSimpleBinaryOperatorContinued(
         BinaryExpressionSyntax node,
         BelteDiagnosticQueue diagnostics,
         BoundExpression left,
@@ -2672,6 +2675,24 @@ internal partial class Binder {
         if (IsTupleBinaryOperation(left, right) && isEquality)
             return BindTupleBinaryOperator(node, kind, left, right, diagnostics);
 
+        // TODO This could potentially be expanded to other target type requiring nodes, but this is the most obvious use case
+        // For example, could use this path for binaries involving UnconvertedArrayLength instead of falling back to Int64 in overload resolution
+        if (left.kind is BoundKind.UnconvertedImplicitEnumFieldExpression or
+                         BoundKind.UnconvertedBinaryOperator &&
+           right.kind is BoundKind.UnconvertedImplicitEnumFieldExpression or
+                         BoundKind.UnconvertedBinaryOperator) {
+            return new BoundUnconvertedBinaryOperator(node, left, right, kind);
+        }
+
+        return BindSimpleBinaryOperatorContinuedContinued(node, diagnostics, left, right, kind);
+    }
+
+    private BoundExpression BindSimpleBinaryOperatorContinuedContinued(
+        BinaryExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics,
+        BoundExpression left,
+        BoundExpression right,
+        BinaryOperatorKind kind) {
         var foundOperator = BindSimpleBinaryOperatorParts(
             node,
             diagnostics,
@@ -2883,7 +2904,7 @@ internal partial class Binder {
         if (IsTupleBinaryOperation(left, right))
             return BindTupleBinaryOperatorNestedInfo(node, kind, left, right, diagnostics);
 
-        var comparison = BindSimpleBinaryOperator(node, diagnostics, left, right);
+        var comparison = BindSimpleBinaryOperatorContinued(node, diagnostics, left, right);
 
         switch (comparison) {
             case BoundLiteralExpression _:
@@ -7772,8 +7793,10 @@ symIsHidden:;
                     }
 
                     // Implicit enum field errors are handled separately
-                    if (expression.kind != BoundKind.UnconvertedImplicitEnumFieldExpression)
+                    if (expression.kind is not BoundKind.UnconvertedImplicitEnumFieldExpression and not
+                                               BoundKind.UnconvertedBinaryOperator) {
                         diagnostics = BelteDiagnosticQueue.Discarded;
+                    }
                 }
             }
         }
@@ -8056,6 +8079,24 @@ symIsHidden:;
                     conversion,
                     checkOverflow,
                     fieldExpression.constantValue,
+                    destination,
+                    hasErrors
+                );
+            case BoundKind.UnconvertedBinaryOperator:
+                var binary = ConvertBinaryOperator(
+                    (BinaryExpressionSyntax)node,
+                    (BoundUnconvertedBinaryOperator)source,
+                    conversion,
+                    destination,
+                    diagnostics
+                );
+
+                return new BoundCastExpression(
+                    node,
+                    binary,
+                    conversion,
+                    checkOverflow,
+                    binary.constantValue,
                     destination,
                     hasErrors
                 );
@@ -8663,6 +8704,26 @@ symIsHidden:;
         } else {
             throw ExceptionUtilities.Unreachable();
         }
+    }
+
+    private BoundExpression ConvertBinaryOperator(
+        BinaryExpressionSyntax node,
+        BoundUnconvertedBinaryOperator binary,
+        Conversion conversion,
+        TypeSymbol destination,
+        BelteDiagnosticQueue diagnostics) {
+        Debug.Assert(binary.left.kind == BoundKind.UnconvertedImplicitEnumFieldExpression ||
+                     binary.right.kind == BoundKind.UnconvertedImplicitEnumFieldExpression);
+
+        var left = binary.left is BoundUnconvertedImplicitEnumFieldExpression uLeft
+            ? ConvertImplicitEnumFieldExpression(uLeft, destination, conversion, diagnostics)
+            : binary.left;
+
+        var right = binary.right is BoundUnconvertedImplicitEnumFieldExpression uRight
+            ? ConvertImplicitEnumFieldExpression(uRight, destination, conversion, diagnostics)
+            : binary.right;
+
+        return BindSimpleBinaryOperatorContinuedContinued(node, diagnostics, left, right, binary.operatorKind);
     }
 
     private BoundExpression ConvertNullptrExpression(

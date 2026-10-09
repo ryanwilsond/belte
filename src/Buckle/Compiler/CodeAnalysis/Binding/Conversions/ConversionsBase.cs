@@ -377,6 +377,15 @@ internal abstract partial class ConversionsBase {
         return Conversion.None;
     }
 
+    private Conversion GetBinaryOperatorConversion(BoundUnconvertedBinaryOperator binary, TypeSymbol destination) {
+        var binaryConversion = GetBinaryConversion(binary, destination);
+
+        if (binaryConversion.exists)
+            return binaryConversion;
+
+        return Conversion.None;
+    }
+
     private Conversion GetImplicitListExpressionConversion(
         BoundUnconvertedInitializerList listExpression,
         TypeSymbol destination) {
@@ -404,6 +413,21 @@ internal abstract partial class ConversionsBase {
 
     internal Conversion GetEnumFieldExpressionConversion(
         BoundUnconvertedImplicitEnumFieldExpression node,
+        TypeSymbol targetType) {
+        if (targetType.StrippedType().IsEnumType()) {
+            var conversion = Conversion.Identity;
+
+            if (targetType.IsNullableType())
+                conversion = new Conversion(ConversionKind.ImplicitNullable, [conversion]);
+
+            return conversion;
+        }
+
+        return Conversion.None;
+    }
+
+    internal Conversion GetBinaryConversion(
+        BoundUnconvertedBinaryOperator node,
         TypeSymbol targetType) {
         if (targetType.StrippedType().IsEnumType()) {
             var conversion = Conversion.Identity;
@@ -472,7 +496,8 @@ internal abstract partial class ConversionsBase {
                                 BoundUnconvertedExtendedLiteralExpression or
                                 BoundUnconvertedConditionalOperator or
                                 BoundUnconvertedArrayLength or
-                                BoundMethodGroup) {
+                                BoundMethodGroup or
+                                BoundUnconvertedBinaryOperator) {
             // We tried our best. No further built-in conversions for these cases.
             return result;
         }
@@ -919,6 +944,8 @@ internal abstract partial class ConversionsBase {
                 return GetImplicitNullptrExpressionConversion(nullptr, target);
             case BoundUnconvertedImplicitEnumFieldExpression fieldAccess:
                 return GetImplicitEnumFieldExpressionConversion(fieldAccess, target);
+            case BoundUnconvertedBinaryOperator binary:
+                return GetBinaryOperatorConversion(binary, target);
             case BoundMethodGroup methodGroup:
                 return GetMethodGroupConversion(methodGroup, target);
             case BoundDefaultLiteral:

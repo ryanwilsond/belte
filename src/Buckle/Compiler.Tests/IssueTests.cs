@@ -4292,4 +4292,18 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void BinaryOnImplicitFields_BetterDiagnostic() {
+        var text = @"
+            var l = [.A] | [.B];
+        ";
+
+        var diagnostics = @"
+            there is no target type for the implicit enum field
+            there is no target type for the implicit enum field
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

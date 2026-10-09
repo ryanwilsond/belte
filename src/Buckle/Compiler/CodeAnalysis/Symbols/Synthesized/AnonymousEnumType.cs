@@ -39,6 +39,7 @@ internal sealed class AnonymousEnumType : SynthesizedContainer {
         }
 
         enumValueField = new SynthesizedEnumValueFieldSymbol(this);
+        enumFlagsAttribute = syntax.flagsKeyword is not null;
 
         var builder = ArrayBuilder<Symbol>.GetInstance(syntax.members.Count + 1);
         SourceEnumConstantSymbol otherSymbol = null;
@@ -91,6 +92,8 @@ internal sealed class AnonymousEnumType : SynthesizedContainer {
     internal override NamedTypeSymbol enumUnderlyingType { get; }
 
     internal FieldSymbol enumValueField { get; }
+
+    internal override bool enumFlagsAttribute { get; }
 
     internal override ImmutableArray<Symbol> GetMembers() {
         return _members;

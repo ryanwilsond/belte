@@ -88,6 +88,7 @@ internal abstract partial class BoundExpression : BoundNode {
             case BoundKind.UnconvertedExtendedLiteralExpression:
             case BoundKind.UnconvertedArrayLength:
             case BoundKind.ConditionalAccessExpression:
+            case BoundKind.UnconvertedBinaryOperator:
                 return true;
             default:
                 return false;

@@ -355,6 +355,9 @@ public sealed class DisplayText {
             case BoundKind.UnconvertedImplicitEnumFieldExpression:
                 DisplayUnconvertedImplicitEnumFieldExpression(text, (BoundUnconvertedImplicitEnumFieldExpression)node);
                 break;
+            case BoundKind.UnconvertedBinaryOperator:
+                DisplayUnconvertedBinaryOperator(text, (BoundUnconvertedBinaryOperator)node);
+                break;
             case BoundKind.SwitchDispatch:
                 DisplaySwitchDispatch(text, (BoundSwitchDispatch)node);
                 break;
@@ -1340,6 +1343,16 @@ public sealed class DisplayText {
         BoundUnconvertedImplicitEnumFieldExpression node) {
         text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
         text.Write(CreateIdentifier(node.name));
+    }
+
+    private static void DisplayUnconvertedBinaryOperator(
+        DisplayText text,
+        BoundUnconvertedBinaryOperator node) {
+        var opKind = node.operatorKind == BinaryOperatorKind.Error
+            ? SyntaxKind.QuestionToken
+            : node.operatorKind.ToSyntaxKind();
+
+        DisplayBinaryAdjacentExpression(text, node.left, node.right, opKind, isKeywordOp: false);
     }
 
     private static void DisplayStackAllocExpression(DisplayText text, BoundStackAllocExpressionBase node) {
