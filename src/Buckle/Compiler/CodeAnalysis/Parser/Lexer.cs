@@ -403,6 +403,9 @@ internal sealed partial class Lexer : IDisposable {
             case '9':
                 ReadNumericLiteral();
                 break;
+            case '_':
+                ReadIdentifierOrKeyword();
+                break;
             default:
                 if (char.IsLetter(_current)) {
                     ReadIdentifierOrKeyword();
@@ -1380,6 +1383,17 @@ internal sealed partial class Lexer : IDisposable {
         bool endIsActive,
         bool afterFirstToken,
         ref SyntaxListBuilder triviaList) {
+        if (char.IsWhiteSpace(_current)) {
+            _start = _position;
+            ReadWhitespace();
+
+            var length = _position - _start;
+            Debug.Assert(length > 0);
+            var triviaText = text.ToString(new TextSpan(_start, length));
+            var trivia = SyntaxFactory.Trivia(_kind, triviaText, GetDiagnostics(0));
+            AddTrivia(trivia, ref triviaList);
+        }
+
         var directive = ParseDirective(isActive, endIsActive, afterFirstToken);
 
         AddTrivia(directive, ref triviaList);

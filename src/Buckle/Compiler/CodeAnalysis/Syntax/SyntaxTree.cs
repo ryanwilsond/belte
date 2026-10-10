@@ -137,7 +137,8 @@ public partial class SyntaxTree {
         ParseOptions options,
         SourceCodeKind kind = SourceCodeKind.Regular) {
         options ??= ParseOptions.Default;
-        var lexer = new Lexer(text, options, kind == SourceCodeKind.Regular);
+        // TODO Do we want to always allow preprocessor directives?
+        var lexer = new Lexer(text, options, /*kind == SourceCodeKind.Regular*/ true);
         var parser = new LanguageParser(lexer);
         var compilationUnit = (CompilationUnitSyntax)parser.ParseCompilationUnit().CreateRed();
         var parsedTree = new ParsedSyntaxTree(text, compilationUnit, true, kind, options, parser.directives);
@@ -241,7 +242,8 @@ public partial class SyntaxTree {
             oldTree = null;
         }
 
-        var lexer = new Lexer(newText, options, kind == SourceCodeKind.Regular);
+        // TODO Do we want to always allow preprocessor directives?
+        var lexer = new Lexer(newText, options, /*kind == SourceCodeKind.Regular*/ true);
         var parser = new LanguageParser(lexer, oldTree?.GetRoot(), workingChanges);
 
         var compilationUnit = (CompilationUnitSyntax)parser.ParseCompilationUnit().CreateRed();

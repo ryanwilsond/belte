@@ -4324,4 +4324,19 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void IfDirective_SeesEndif() {
+        var text = @"
+            #if !EVALUATING
+                int a = 3;
+            #else
+                int a = 10;
+            #endif
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

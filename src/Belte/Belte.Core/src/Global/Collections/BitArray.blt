@@ -48,8 +48,25 @@ public lowlevel sealed class BitArray {
         (uint32 index, uint32 extraBits) = DivRem((uint32)_bitLength, BitsPerInt32);
 
         if (extraBits != 0) {
-            final Buffer<int32>* ptr = (Buffer<int32>*)&_array;
-            (*ptr)[(int32)index] &= ReverseIfBE((1 << (int32)extraBits) - 1);
+            #if !EVALUATING
+                final Buffer<int32>* ptr = (Buffer<int32>*)&_array;
+                (*ptr)[(int32)index] &= ReverseIfBE((1 << (int32)extraBits) - 1);
+            #else
+                final int32 offset = (int32)index * 4;
+                final int32 value =
+                    (int32)_array[offset] |
+                    ((int32)_array[offset + 1] << 8) |
+                    ((int32)_array[offset + 2] << 16) |
+                    ((int32)_array[offset + 3] << 24);
+
+                final int32 mask = ReverseIfBE((1 << (int32)extraBits) - 1);
+                final int32 result = value & mask;
+
+                _array[offset] = (uint8)result;
+                _array[offset + 1] = (uint8)(result >> 8);
+                _array[offset + 2] = (uint8)(result >> 16);
+                _array[offset + 3] = (uint8)(result >> 24);
+            #endif
         }
     }
 

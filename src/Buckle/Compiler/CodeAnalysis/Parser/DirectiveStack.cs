@@ -49,33 +49,87 @@ internal sealed class DirectiveStack {
     }
 
     internal DirectiveStack Add(Directive directive) {
-        return new DirectiveStack(new ConsList<Directive>(directive, _directives ?? ConsList<Directive>.Empty));
+        switch (directive.kind) {
+            case SyntaxKind.EndIfDirectiveTrivia:
+                var prevIf = GetPreviousIf(_directives);
+
+                if (prevIf is null || !prevIf.Any())
+                    goto default;
+
+                return new DirectiveStack(CompleteIf(_directives, out _));
+            default:
+                return new DirectiveStack(new ConsList<Directive>(directive, _directives ?? ConsList<Directive>.Empty));
+        }
     }
 
     internal bool HasUnfinishedIf() {
         var prev = GetPreviousIfElifElseOrRegion(_directives);
-        return prev != null && prev.Any();
+        return prev is not null && prev.Any();
     }
 
     internal bool HasPreviousIfOrElif() {
         var prev = GetPreviousIfElifElseOrRegion(_directives);
+
         return prev is not null && prev.Any() &&
             (prev.head.kind is SyntaxKind.IfDirectiveTrivia or SyntaxKind.ElifDirectiveTrivia);
     }
 
     internal bool PreviousBranchTaken() {
         for (var current = _directives; current is not null && current.Any(); current = current.tail) {
-            if (current.head.branchTaken) {
+            if (current.head.branchTaken)
                 return true;
-            } else if (current.head.kind == SyntaxKind.IfDirectiveTrivia) {
+            else if (current.head.kind == SyntaxKind.IfDirectiveTrivia)
                 return false;
-            }
         }
 
         return false;
     }
 
-    private static ConsList<Directive>? GetPreviousIfElifElseOrRegion(ConsList<Directive> directives) {
+
+    private static ConsList<Directive> CompleteIf(ConsList<Directive> stack, out bool include) {
+        if (!stack.Any()) {
+            include = true;
+            return stack;
+        }
+
+        if (stack.head.kind == SyntaxKind.IfDirectiveTrivia) {
+            include = stack.head.branchTaken;
+            return stack.tail;
+        }
+
+        var newStack = CompleteIf(stack.tail, out include);
+
+        switch (stack.head.kind) {
+            case SyntaxKind.ElifDirectiveTrivia:
+            case SyntaxKind.ElseDirectiveTrivia:
+                include = stack.head.branchTaken;
+                break;
+            default:
+                if (include)
+                    newStack = new ConsList<Directive>(stack.head, newStack);
+
+                break;
+        }
+
+        return newStack;
+    }
+
+    private static ConsList<Directive> GetPreviousIf(ConsList<Directive> directives) {
+        var current = directives;
+
+        while (current is not null && current.Any()) {
+            switch (current.head.kind) {
+                case SyntaxKind.IfDirectiveTrivia:
+                    return current;
+            }
+
+            current = current.tail;
+        }
+
+        return current;
+    }
+
+    private static ConsList<Directive> GetPreviousIfElifElseOrRegion(ConsList<Directive> directives) {
         var current = directives;
 
         while (current is not null && current.Any()) {
