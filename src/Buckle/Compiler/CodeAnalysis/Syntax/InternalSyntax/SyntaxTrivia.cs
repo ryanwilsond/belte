@@ -24,8 +24,9 @@ internal sealed class SyntaxTrivia : BelteSyntaxNode {
     internal SyntaxTrivia(SyntaxKind kind, string text, Diagnostic[] diagnostics)
         : base(kind, text.Length, diagnostics) {
         this.text = text;
+        Debug.Assert(kind != SyntaxKind.SkippedTokensTrivia);
 
-        if (kind == SyntaxKind.SkippedTokensTrivia)
+        if (kind == SyntaxKind.PreprocessingMessageTrivia)
             _flags |= NodeFlags.ContainsSkippedText;
     }
 

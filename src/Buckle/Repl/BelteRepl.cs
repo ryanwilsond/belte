@@ -33,7 +33,6 @@ public sealed partial class BelteRepl : Repl {
         evaluatorStrictExceptionMode: false
     );
 
-    // TODO Any benefit to generating numbered assembly names so they are unique?
     private static readonly Compilation EmptyCompilation = Compilation.CreateScript("EmptyReplSubmission", DefaultOptions);
     private static readonly ImmutableArray<(string name, string contributor, ColorTheme theme)> InUse =
         [

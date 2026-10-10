@@ -22,6 +22,11 @@ public partial class SyntaxTree {
 
         internal override SyntaxToken endOfFile { get; }
 
-        private protected override int _length => _root?.fullSpan?.length ?? base._length;
+        private protected override int _length {
+            get {
+                // Root length not matching text length means tokens were either skipped or present in the tree multiple times
+                return _root?.fullSpan?.length ?? base._length;
+            }
+        }
     }
 }

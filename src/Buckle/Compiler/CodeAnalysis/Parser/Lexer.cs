@@ -72,6 +72,12 @@ internal sealed partial class Lexer : IDisposable {
         _cache.Free();
     }
 
+    internal SyntaxToken LexNext(ref LexerMode mode) {
+        var result = LexNext(mode);
+        mode = _mode;
+        return result;
+    }
+
     /// <summary>
     /// Lexes the next un-lexed text to create a single <see cref="SyntaxToken" />.
     /// </summary>
@@ -122,8 +128,9 @@ internal sealed partial class Lexer : IDisposable {
     /// <summary>
     /// Moves where the lexer is reading from.
     /// </summary>
-    internal void Move(int position) {
+    internal void Reset(int position, DirectiveStack directives) {
         _position = position;
+        _directives = directives;
     }
 
     private static int GetFullWidth(SyntaxListBuilder builder) {
@@ -1257,13 +1264,6 @@ internal sealed partial class Lexer : IDisposable {
         _kind = SyntaxKind.EndOfLineTrivia;
     }
 
-    private void ReadDirective(bool afterFirstToken, ref SyntaxListBuilder triviaList) {
-        var directive = ReadSingleDirective(true, true, afterFirstToken, ref triviaList);
-
-        if (directive is BranchingDirectiveTriviaSyntax branching && !branching.branchTaken)
-            ReadExcludedDirectivesAndTrivia(true, ref triviaList);
-    }
-
     private void ReadDirectiveAndExcludedTrivia(
         bool isFollowingToken,
         ref SyntaxListBuilder triviaList) {
@@ -1294,6 +1294,7 @@ internal sealed partial class Lexer : IDisposable {
     }
 
     private BelteSyntaxNode ReadDisabledText(out bool followedByDirective) {
+        var start = _position;
         var lastLineStart = _position;
         var lines = 0;
         var allWhitespace = true;
@@ -1315,8 +1316,8 @@ internal sealed partial class Lexer : IDisposable {
                     if (lastLineStart < _position && !allWhitespace)
                         goto default;
 
-                    var delta = _position - lastLineStart;
                     _position = lastLineStart;
+                    var delta = _position - start;
                     return delta > 0 ? SyntaxFactory.DisabledText(sb.ToString()) : null;
                 case '\r':
                 case '\n':

@@ -397,9 +397,9 @@ internal abstract partial class SyntaxParser : IDisposable {
 
     private protected void ReadCurrentNode() {
         if (_tokenOffset == 0)
-            _currentNode = _firstBlender.ReadNode();
+            _currentNode = _firstBlender.ReadNode(_mode);
         else
-            _currentNode = _blendedTokens[_tokenOffset - 1].blender.ReadNode();
+            _currentNode = _blendedTokens[_tokenOffset - 1].blender.ReadNode(_mode);
     }
 
     private protected SyntaxToken FetchCurrentToken() {
@@ -443,12 +443,12 @@ internal abstract partial class SyntaxParser : IDisposable {
     private protected void AddNewToken() {
         if (_blendedTokens is not null) {
             if (_tokenCount > 0) {
-                AddToken(_blendedTokens[_tokenCount - 1].blender.ReadToken());
+                AddToken(_blendedTokens[_tokenCount - 1].blender.ReadToken(_mode));
             } else {
                 if (_currentNode.token is not null)
                     AddToken(_currentNode);
                 else
-                    AddToken(_firstBlender.ReadToken());
+                    AddToken(_firstBlender.ReadToken(_mode));
             }
         } else {
             AddLexedToken(_lexer.LexNext(_mode));

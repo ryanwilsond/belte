@@ -383,6 +383,10 @@ public abstract partial class SyntaxNode {
         return result;
     }
 
+    internal InternalSyntax.DirectiveStack ApplyDirectives(InternalSyntax.DirectiveStack stack) {
+        return ((InternalSyntax.BelteSyntaxNode)green).ApplyDirectives(stack);
+    }
+
     internal TNode FirstAncestorOrSelf<TNode>(Func<TNode, bool> predicate = null, bool ascendOutOfTrivia = true)
         where TNode : SyntaxNode {
         for (var node = this; node is not null; node = GetParent(node, ascendOutOfTrivia)) {

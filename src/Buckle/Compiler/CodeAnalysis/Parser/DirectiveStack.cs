@@ -3,7 +3,7 @@ using System.Threading;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
-internal sealed class DirectiveStack {
+internal readonly struct DirectiveStack {
     internal static readonly DirectiveStack Empty = new DirectiveStack(ConsList<Directive>.Empty);
 
     private readonly ConsList<Directive> _directives;
@@ -16,6 +16,41 @@ internal sealed class DirectiveStack {
 
     internal static void InterlockedInitialize(ref DirectiveStack location, DirectiveStack value) {
         Interlocked.CompareExchange(ref Unsafe.AsRef(in location._directives), value._directives, null);
+    }
+
+    internal bool IncrementallyEquivalent(DirectiveStack other) {
+        var mine = SkipInsignificantDirectives(_directives);
+        var theirs = SkipInsignificantDirectives(other._directives);
+        var mineHasAny = mine is not null && mine.Any();
+        var theirsHasAny = theirs is not null && theirs.Any();
+
+        while (mineHasAny && theirsHasAny) {
+            if (!mine.head.IncrementallyEquivalent(theirs.head))
+                return false;
+
+            mine = SkipInsignificantDirectives(mine.tail);
+            theirs = SkipInsignificantDirectives(theirs.tail);
+            mineHasAny = mine is not null && mine.Any();
+            theirsHasAny = theirs is not null && theirs.Any();
+        }
+
+        return mineHasAny == theirsHasAny;
+    }
+
+    private static ConsList<Directive> SkipInsignificantDirectives(ConsList<Directive> directives) {
+        for (; directives is not null && directives.Any(); directives = directives.tail) {
+            switch (directives.head.kind) {
+                case SyntaxKind.IfDirectiveTrivia:
+                case SyntaxKind.ElifDirectiveTrivia:
+                case SyntaxKind.ElseDirectiveTrivia:
+                case SyntaxKind.EndIfDirectiveTrivia:
+                case SyntaxKind.DefineDirectiveTrivia:
+                case SyntaxKind.UndefDirectiveTrivia:
+                    return directives;
+            }
+        }
+
+        return directives;
     }
 
     internal DefineState IsDefined(string id) {
