@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
@@ -21,6 +22,12 @@ internal class MissingAssemblySymbol : AssemblySymbol {
     internal override ImmutableArray<byte> publicKey => identity.publicKey;
 
     internal override ImmutableArray<ModuleSymbol> modules { get; }
+
+    internal override bool isBelteAssembly => false;
+
+    internal override int belteMetadataVersion => throw ExceptionUtilities.Unreachable();
+
+    internal override TypeConversions typeConversions => corAssemblies[0].typeConversions;
 
     public override int GetHashCode() {
         return identity.GetHashCode();
@@ -53,6 +60,10 @@ internal class MissingAssemblySymbol : AssemblySymbol {
     internal override ICollection<string> typeNames => SpecializedCollections.EmptyCollection<string>();
 
     internal override ICollection<string> namespaceNames => SpecializedCollections.EmptyCollection<string>();
+
+    internal override NamedTypeSymbol GetDeclaredSpecialType(SpecialType type, bool netMode) {
+        throw ExceptionUtilities.Unreachable();
+    }
 
     internal override NamedTypeSymbol LookupDeclaredOrForwardedTopLevelMetadataType(
         ref MetadataTypeName emittedName,

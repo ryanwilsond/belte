@@ -7,6 +7,7 @@ whether or not a program was compiled in debug mode.
 
 - [7.1](#71-defineundef) Define/Undef
 - [7.2](#72-control) Control
+- [7.3](#73-predefined-constants) Predefined Constants
 
 Information on `#handle` is [documented elsewhere](LowLevelFeatures.md#613-compiler-handle).
 
@@ -51,3 +52,14 @@ Console.PrintLine("SOME_CONSTANT is not defined");
 ```
 
 In this example, only the first print call is compiled.
+
+## 7.3 Predefined Constants
+
+| Symbol | Condition |
+| - | - |
+| `RELEASE` | Building in release mode |
+| `DEBUG` | Building in debug mode |
+| `EMITTING` | Using .NET endpoint |
+| `EXECUTING` | Using Executor endpoint |
+| `EVALUATING` | Using Evaluator endpoint |
+| `TRANSPILING` | Using C# Transpiler endpoint |

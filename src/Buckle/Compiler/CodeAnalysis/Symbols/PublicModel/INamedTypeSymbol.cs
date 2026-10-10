@@ -2,7 +2,7 @@ using System.Collections.Immutable;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-public interface INamedTypeSymbol : ITypeSymbol {
+public interface INamedTypeSymbol : ITypeSymbol, INamespaceOrTypeSymbol {
     int arity { get; }
 
     bool isTemplateType { get; }

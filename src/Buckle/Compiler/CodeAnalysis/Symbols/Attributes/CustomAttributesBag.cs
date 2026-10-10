@@ -13,7 +13,7 @@ internal sealed partial class CustomAttributesBag<T> where T : AttributeData {
 
     private ImmutableArray<T> _customAttributes;
     private WellKnownAttributeData _decodedWellKnownAttributeData;
-    // private EarlyWellKnownAttributeData _earlyDecodedWellKnownAttributeData;
+    private EarlyWellKnownAttributeData _earlyDecodedWellKnownAttributeData;
     private int _state;
 
     private CustomAttributesBag(CustomAttributeBagCompletionPart part, ImmutableArray<T> customAttributes) {
@@ -36,31 +36,22 @@ internal sealed partial class CustomAttributesBag<T> where T : AttributeData {
             return
                 isSealed &&
                 _customAttributes.IsEmpty &&
-                _decodedWellKnownAttributeData == null
-                // && _earlyDecodedWellKnownAttributeData == null
-                ;
+                _decodedWellKnownAttributeData is null &&
+                _earlyDecodedWellKnownAttributeData is null;
         }
     }
 
-    // internal bool SetEarlyDecodedWellKnownAttributeData(EarlyWellKnownAttributeData data) {
-    //     WellKnownAttributeData.Seal(data);
-    //     // Early decode must complete before full decode
-    //     Debug.Assert(!IsPartComplete(CustomAttributeBagCompletionPart.DecodedWellKnownAttributeData) || IsPartComplete(CustomAttributeBagCompletionPart.EarlyDecodedWellKnownAttributeData));
-    //     var setOnOurThread = Interlocked.CompareExchange(ref _earlyDecodedWellKnownAttributeData, data, null) == null;
-    //     NotePartComplete(CustomAttributeBagCompletionPart.EarlyDecodedWellKnownAttributeData);
-    //     return setOnOurThread;
-    // }
+    internal bool SetEarlyDecodedWellKnownAttributeData(EarlyWellKnownAttributeData data) {
+        var setOnOurThread = Interlocked.CompareExchange(ref _earlyDecodedWellKnownAttributeData, data, null) is null;
+        NotePartComplete(CustomAttributeBagCompletionPart.EarlyDecodedWellKnownAttributeData);
+        return setOnOurThread;
+    }
 
     internal ImmutableArray<T> attributes => _customAttributes;
 
     internal WellKnownAttributeData decodedWellKnownAttributeData => _decodedWellKnownAttributeData;
 
-    // internal EarlyWellKnownAttributeData EarlyDecodedWellKnownAttributeData {
-    //     get {
-    //         Debug.Assert(IsPartComplete(CustomAttributeBagCompletionPart.EarlyDecodedWellKnownAttributeData));
-    //         return _earlyDecodedWellKnownAttributeData;
-    //     }
-    // }
+    internal EarlyWellKnownAttributeData earlyDecodedWellKnownAttributeData => _earlyDecodedWellKnownAttributeData;
 
     private CustomAttributeBagCompletionPart state {
         get {

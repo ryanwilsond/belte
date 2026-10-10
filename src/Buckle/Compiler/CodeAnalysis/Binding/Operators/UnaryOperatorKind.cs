@@ -46,6 +46,7 @@ internal enum UnaryOperatorKind : int {
 
     _Conditional = 0x00010000,
     Lifted = 0x00020000,
+    Checked = 0x00040000,
 
     Int8PostfixIncrement = Int8 | PostfixIncrement,
     Int16PostfixIncrement = Int16 | PostfixIncrement,

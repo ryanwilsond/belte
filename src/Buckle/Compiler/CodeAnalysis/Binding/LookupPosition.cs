@@ -7,9 +7,29 @@ internal static class LookupPosition {
         var body = node.body;
 
         if (body is null)
-            return IsBeforeToken(position, node, ((MethodDeclarationSyntax)node).semicolon);
+            return IsBeforeToken(position, node, node.semicolon);
 
         return IsBeforeToken(position, node, node.body.closeBrace);
+    }
+
+    internal static bool IsInMethodDeclaration(int position, AccessorDeclarationSyntax accessorDecl) {
+        var body = accessorDecl.body;
+        var lastToken = body is null ? accessorDecl.semicolonToken : body.closeBrace;
+        return IsBeforeToken(position, accessorDecl, lastToken);
+    }
+
+    internal static bool IsInAttributeSpecification(
+        int position,
+        SyntaxList<AttributeListSyntax> attributesSyntaxList) {
+        var count = attributesSyntaxList.Count;
+
+        if (count == 0)
+            return false;
+
+        var startToken = attributesSyntaxList[0].openBracket;
+        var endToken = attributesSyntaxList[count - 1].closeBracket;
+
+        return IsBetweenTokens(position, startToken, endToken);
     }
 
     private static bool IsBeforeToken(int position, BelteSyntaxNode node, SyntaxToken firstExcluded) {
@@ -24,18 +44,92 @@ internal static class LookupPosition {
         return IsInBlock(position, method.body);
     }
 
+    internal static bool IsInBody(int position, PropertyDeclarationSyntax property) {
+        return IsInBody(position, block: null, property.expressionBody, property.semicolonToken);
+    }
+
+    internal static bool IsInBody(int position, AccessorDeclarationSyntax method) {
+        return IsInBody(position, method.body, method.expressionBody, method.semicolonToken);
+    }
+
+    private static bool IsInBody(
+        int position,
+        BlockStatementSyntax block,
+        ArrowExpressionClauseSyntax expr,
+        SyntaxToken semi) {
+        return IsInExpressionBody(position, expr, semi) || IsInBlock(position, block);
+    }
+
+    internal static bool IsInExpressionBody(
+        int position,
+        ArrowExpressionClauseSyntax expressionBody,
+        SyntaxToken semicolonToken) {
+        return expressionBody is not null && IsBeforeToken(position, expressionBody, semicolonToken);
+    }
+
     internal static bool IsInBlock(int position, BlockStatementSyntax block) {
         return block is not null && IsBeforeToken(position, block, block.closeBrace);
     }
 
-    internal static bool IsInMethodTemplateParameterScope(int position, MethodDeclarationSyntax node) {
+    internal static bool IsInMethodTemplateParameterScope(int position, BaseMethodDeclarationSyntax node) {
+        if (node.kind == SyntaxKind.MethodDeclaration)
+            return IsInMethodTemplateParameterScope(position, (MethodDeclarationSyntax)node);
+        else if (node.kind == SyntaxKind.ConversionDeclaration)
+            return IsInMethodTemplateParameterScope(position, (ConversionDeclarationSyntax)node);
+        else if (node.kind == SyntaxKind.OperatorDeclaration)
+            return IsInMethodTemplateParameterScope(position, (OperatorDeclarationSyntax)node);
+
+        return false;
+    }
+
+    private static bool IsInMethodTemplateParameterScope(int position, MethodDeclarationSyntax node) {
         if (node.templateParameterList is null)
             return false;
 
         if (node.returnType.fullSpan.Contains(position))
             return true;
 
-        var firstNameToken = node.identifier;
+        var explicitInterfaceSpecifier = node.explicitInterfaceSpecifier;
+        var firstNameToken = explicitInterfaceSpecifier is null
+            ? node.identifier
+            : explicitInterfaceSpecifier.GetFirstToken();
+
+        var firstPostNameToken = node.templateParameterList.openAngleBracket;
+
+        return !IsBetweenTokens(position, firstNameToken, firstPostNameToken);
+    }
+
+    private static bool IsInMethodTemplateParameterScope(int position, ConversionDeclarationSyntax node) {
+        if (node.templateParameterList is null)
+            return false;
+
+        if (node.type.fullSpan.Contains(position))
+            return true;
+
+        var explicitInterfaceSpecifier = node.explicitInterfaceSpecifier;
+        var firstNameToken = explicitInterfaceSpecifier is null
+            ? node.operatorKeyword
+            : explicitInterfaceSpecifier.GetFirstToken();
+
+        var firstPostNameToken = node.templateParameterList.openAngleBracket;
+
+        return !IsBetweenTokens(position, firstNameToken, firstPostNameToken);
+    }
+
+    private static bool IsInMethodTemplateParameterScope(int position, OperatorDeclarationSyntax node) {
+        if (node.templateParameterList is null)
+            return false;
+
+        if (node.operatorToken.fullSpan.Contains(position) ||
+            (node.rightOperatorToken is not null && node.rightOperatorToken.fullSpan.Contains(position))) {
+            return true;
+        }
+
+        var explicitInterfaceSpecifier = node.explicitInterfaceSpecifier;
+        var firstNameToken = explicitInterfaceSpecifier is null
+            ? node.operatorKeyword
+            : explicitInterfaceSpecifier.GetFirstToken();
+
         var firstPostNameToken = node.templateParameterList.openAngleBracket;
 
         return !IsBetweenTokens(position, firstNameToken, firstPostNameToken);

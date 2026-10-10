@@ -19,23 +19,25 @@ internal sealed partial class DecisionDagBuilder {
     private readonly bool _forLowering;
 
     private DecisionDagBuilder(
+        Compilation compilation,
         LabelSymbol defaultLabel,
         bool forLowering,
         BelteDiagnosticQueue diagnostics) {
-        _conversions = new Conversions(null);
+        _conversions = compilation.conversions;
         _diagnostics = diagnostics;
         _defaultLabel = defaultLabel;
         _forLowering = forLowering;
     }
 
     internal static BoundDecisionDag CreateDecisionDagForSwitchStatement(
+        Compilation compilation,
         SyntaxNode syntax,
         BoundExpression switchGoverningExpression,
         ImmutableArray<BoundSwitchSection> switchSections,
         LabelSymbol defaultLabel,
         BelteDiagnosticQueue diagnostics,
         bool forLowering = false) {
-        var builder = new DecisionDagBuilder(defaultLabel, forLowering, diagnostics);
+        var builder = new DecisionDagBuilder(compilation, defaultLabel, forLowering, diagnostics);
         return builder.CreateDecisionDagForSwitchStatement(syntax, switchGoverningExpression, switchSections);
     }
 
@@ -555,9 +557,9 @@ internal sealed partial class DecisionDagBuilder {
         ArrayBuilder<Tests> tests) {
         MakeCheckNotNull(input, syntax, isExplicitTest, tests);
 
-        if (!input.type.Equals(type, TypeCompareKind.IgnoreArraySizesAndLowerBounds)) {
+        if (!input.type.Equals(type, TypeCompareKind.AllIgnoreOptions)) {
             var inputType = input.type.StrippedType();
-            var conversion = _conversions.ClassifyBuiltInConversion(inputType, type);
+            var conversion = _conversions.ClassifyBuiltInConversion(inputType, type, isChecked: false);
 
             if (conversion.isImplicit) {
             } else {

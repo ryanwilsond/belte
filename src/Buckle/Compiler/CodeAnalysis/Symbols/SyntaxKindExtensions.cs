@@ -11,6 +11,7 @@ internal static class SyntaxKindExtensions {
             SyntaxKind.EnumDeclaration => TypeKind.Enum,
             SyntaxKind.StructDeclaration => TypeKind.Struct,
             SyntaxKind.UnionDeclaration => TypeKind.Struct,
+            SyntaxKind.InterfaceDeclaration => TypeKind.Interface,
             _ => throw ExceptionUtilities.UnexpectedValue(kind),
         };
     }

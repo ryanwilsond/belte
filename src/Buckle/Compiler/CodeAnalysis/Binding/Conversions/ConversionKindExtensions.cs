@@ -18,12 +18,14 @@ internal static class ConversionKindExtensions {
             case ConversionKind.ImplicitNullToPointer:
             case ConversionKind.ImplicitNumeric:
             case ConversionKind.ImplicitEnum:
+            case ConversionKind.ImplicitThrow:
             case ConversionKind.MethodGroup:
             case ConversionKind.AnyBoxing:
             case ConversionKind.ObjectCreation:
             case ConversionKind.ConditionalExpression:
             case ConversionKind.ImplicitTupleLiteral:
             case ConversionKind.Deconstruction:
+            case ConversionKind.ListExpression:
                 return true;
             default:
                 return false;

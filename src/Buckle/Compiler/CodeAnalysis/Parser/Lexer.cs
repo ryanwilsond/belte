@@ -1,9 +1,9 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Text;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -42,6 +42,7 @@ internal sealed partial class Lexer : IDisposable {
     internal Lexer(SourceText text, ParseOptions parseOptions, bool allowPreprocessorDirectives) {
         this.text = text;
         options = parseOptions;
+        Debug.Assert(options is not null);
         _allowPreprocessorDirectives = allowPreprocessorDirectives;
         _diagnostics = [];
         _directives = DirectiveStack.Empty;
@@ -93,14 +94,20 @@ internal sealed partial class Lexer : IDisposable {
             }
 
             if (_badTokensCache.Count > 0) {
-                var leadingTrivia = new SyntaxListBuilder(token.leadingTrivia.Count + 10);
+                var leadingTrivia = new SyntaxListBuilder(_badTokensCache.Count + token.leadingTrivia.Count);
 
-                foreach (var badToken in _badTokensCache) {
-                    leadingTrivia.AddRange(badToken.leadingTrivia);
-                    var trivia = SyntaxFactory.SkippedTokensTrivia(badToken);
-                    leadingTrivia.Add(trivia);
-                    leadingTrivia.AddRange(badToken.trailingTrivia);
-                }
+                foreach (var badToken in _badTokensCache)
+                    leadingTrivia.Add(SyntaxFactory.SkippedTokensTrivia(badToken));
+
+                // TODO Here is the original code here:
+                /* foreach (var badToken in _badTokensCache) {
+                       leadingTrivia.AddRange(badToken.leadingTrivia);
+                       var trivia = SyntaxFactory.SkippedTokensTrivia(badToken);
+                       leadingTrivia.Add(trivia);
+                       leadingTrivia.AddRange(badToken.trailingTrivia);
+                   } */
+                // Perhaps we should bundle the bad tokens into a single skipped tokens trivia?
+                // Or perhaps this LexNext-being-a-loop approach is flawed
 
                 leadingTrivia.AddRange(token.leadingTrivia);
                 token = token.TokenWithLeadingTrivia(leadingTrivia.ToListNode());
@@ -243,6 +250,7 @@ internal sealed partial class Lexer : IDisposable {
     private void ReadTrivia(bool afterFirstToken, bool isTrailing) {
         var triviaList = isTrailing ? ref _trailingTriviaCache : ref _leadingTriviaCache;
         var done = false;
+        var onlyWhitespaceOnLine = !isTrailing;
 
         while (!done) {
             _start = _position;
@@ -254,12 +262,15 @@ internal sealed partial class Lexer : IDisposable {
                     done = true;
                     break;
                 case '/':
-                    if (_lookahead == '/')
+                    if (_lookahead == '/') {
                         ReadSingeLineComment();
-                    else if (_lookahead == '*')
+                        onlyWhitespaceOnLine = false;
+                    } else if (_lookahead == '*') {
                         ReadMultiLineComment();
-                    else
+                        onlyWhitespaceOnLine = false;
+                    } else {
                         done = true;
+                    }
 
                     break;
                 case '\r':
@@ -271,8 +282,23 @@ internal sealed partial class Lexer : IDisposable {
                     break;
                 case '#':
                     if (_allowPreprocessorDirectives) {
-                        ReadDirective(afterFirstToken, isTrailing, ref triviaList);
-                        _start = _position;
+                        if (isTrailing || !onlyWhitespaceOnLine) {
+                            var savedPosition = _position;
+
+                            var _ = ParseDirective(isActive: false, endIsActive: false, afterFirstToken: false);
+                            Debug.Assert(_start == _position);
+                            var text = this.text.ToString(new TextSpan(savedPosition, _position - savedPosition));
+
+                            var error = new SyntaxDiagnostic(Error.InvalidDirectivePlacement(), 0, 1);
+                            var token = new SyntaxToken(SyntaxKind.BadToken, text.ToString(), null)
+                                .WithDiagnosticsGreen([error]);
+
+                            AddTrivia(SyntaxFactory.SkippedTokensTrivia(token), ref triviaList);
+                        } else {
+                            ReadDirectiveAndExcludedTrivia(afterFirstToken, ref triviaList);
+                        }
+
+                        onlyWhitespaceOnLine = true;
                     } else {
                         done = true;
                     }
@@ -377,6 +403,9 @@ internal sealed partial class Lexer : IDisposable {
             case '9':
                 ReadNumericLiteral();
                 break;
+            case '_':
+                ReadIdentifierOrKeyword();
+                break;
             default:
                 if (char.IsLetter(_current)) {
                     ReadIdentifierOrKeyword();
@@ -396,6 +425,9 @@ internal sealed partial class Lexer : IDisposable {
 
         switch (_current) {
             case '\0':
+                if (_directives.HasUnfinishedIf())
+                    AddDiagnostic(Error.EndifDirectiveExpected(), _position, 1);
+
                 _kind = SyntaxKind.EndOfFileToken;
                 break;
             case ',':
@@ -589,10 +621,10 @@ internal sealed partial class Lexer : IDisposable {
 
                 break;
             case '"':
-                ReadStringLiteral(false);
+                ReadStringLiteral(StringReadOptions.Normal);
                 break;
             case '\'':
-                ReadStringLiteral(true);
+                ReadStringLiteral(StringReadOptions.Character);
                 break;
             case 'f':
                 if (TryReadInterpolatedString())
@@ -696,15 +728,26 @@ internal sealed partial class Lexer : IDisposable {
         _kind = SyntaxKind.MultiLineCommentTrivia;
     }
 
+    private StringReadOptions ScanMultilineStringStart(int offset = 0) {
+        return ScanIsMultilineStringDelimiter(offset) ? StringReadOptions.Multiline : StringReadOptions.Normal;
+    }
+
+    private bool ScanIsMultilineStringDelimiter(int offset = 0) {
+        if (Peek(0 + offset) == '"' && Peek(1 + offset) == '"' && Peek(2 + offset) == '"')
+            return true;
+
+        return false;
+    }
+
     private bool TryReadCString() {
         if (Peek(1) == '"') {
-            ReadCOrCWString(isWide: false);
+            ReadCOrCWString(ScanMultilineStringStart(offset: 1), isWide: false);
             return true;
         }
 
         if (Peek(1) == 'f' && Peek(2) == '"') {
             _position++;
-            ReadInterpolatedString();
+            ReadInterpolatedString(ScanMultilineStringStart(offset: 1));
             return true;
         }
 
@@ -713,32 +756,45 @@ internal sealed partial class Lexer : IDisposable {
 
     private bool TryReadCWString() {
         if (Peek(1) == '"') {
-            ReadCOrCWString(isWide: true);
+            ReadCOrCWString(ScanMultilineStringStart(offset: 1), isWide: true);
             return true;
         }
 
         if (Peek(1) == 'f' && Peek(2) == '"') {
             _position++;
-            ReadInterpolatedString();
+            ReadInterpolatedString(ScanMultilineStringStart(offset: 1));
             return true;
         }
 
         return false;
     }
 
-    private void ReadCOrCWString(bool isWide) {
+    private void ReadCOrCWString(StringReadOptions options, bool isWide) {
         _position++;
-        ReadStringLiteral(false);
+        ReadStringLiteral(options);
         _kind = isWide ? SyntaxKind.CWStringLiteralToken : SyntaxKind.CStringLiteralToken;
     }
 
-    private void ReadStringLiteral(bool isCharacter) {
+    private void ReadStringLiteral(StringReadOptions options) {
         var saved = _position;
-        _position++;
 
-        var sb = ReadStringContent(isCharacter, false, true, out _);
+        // TODO If in a directive we should not read multiline strings
+        if (((options |= ScanMultilineStringStart()) & StringReadOptions.Multiline) != 0) {
+            Debug.Assert((options & StringReadOptions.Character) == 0);
+            _position += 3;
+        } else {
+            _position++;
+        }
 
-        _kind = isCharacter ? SyntaxKind.CharacterLiteralToken : SyntaxKind.StringLiteralToken;
+        var sb = ReadStringContent(options | StringReadOptions.ConsumeEndQuote, out _);
+        var isCharacter = (options & StringReadOptions.Character) != 0;
+        var isMultiline = (options & StringReadOptions.Multiline) != 0;
+
+        _kind = isCharacter
+            ? SyntaxKind.CharacterLiteralToken
+            : isMultiline
+                ? SyntaxKind.MultilineStringLiteralToken
+                : SyntaxKind.StringLiteralToken;
 
         if (isCharacter) {
             if (isCharacter && sb.Length == 0) {
@@ -758,23 +814,42 @@ internal sealed partial class Lexer : IDisposable {
     }
 
     private StringBuilder ReadStringContent(
-        bool isCharacter,
-        bool isInterpolation,
-        bool consumeEndQuote,
+        StringReadOptions options,
         out bool normalEnd) {
         var sb = new StringBuilder();
         var done = false;
         normalEnd = false;
+
+        var isCharacter = (options & StringReadOptions.Character) != 0;
+        var isInterpolation = (options & StringReadOptions.Interpolation) != 0;
+        var consumeEndQuote = (options & StringReadOptions.ConsumeEndQuote) != 0;
+        var isMultiline = (options & StringReadOptions.Multiline) != 0;
 
         while (!done) {
             switch (_current) {
                 case '\0':
                 case '\r':
                 case '\n':
+                    if (isMultiline && _current != '\0')
+                        goto default;
+
                     AddDiagnostic(Error.UnterminatedString(), _start, 1);
                     done = true;
                     break;
                 case '"' when !isCharacter:
+                    if (isMultiline) {
+                        if (ScanIsMultilineStringDelimiter()) {
+                            if (consumeEndQuote)
+                                _position += 3;
+
+                            done = true;
+                            normalEnd = true;
+                            break;
+                        } else {
+                            goto default;
+                        }
+                    }
+
                     if (_lookahead == '"') {
                         sb.Append(_current);
                         _position += 2;
@@ -873,20 +948,23 @@ internal sealed partial class Lexer : IDisposable {
 
     private bool TryReadInterpolatedString() {
         if (Peek(1) == '"') {
-            ReadInterpolatedString();
+            ReadInterpolatedString(ScanMultilineStringStart(offset: 1));
             return true;
         }
 
         return false;
     }
 
-    private void ReadInterpolatedString() {
-        _position += 2;
+    private void ReadInterpolatedString(StringReadOptions options) {
+        options |= StringReadOptions.Interpolation | StringReadOptions.ConsumeEndQuote;
+        _position++; // f prefix
+        _position += (options & StringReadOptions.Multiline) != 0 ? 3 : 1; // quotes
 
         var sb = new StringBuilder();
 
         while (true) {
-            var inner = ReadStringContent(false, true, true, out var normalEnd);
+            var inner = ReadStringContent(options, out var normalEnd);
+
             sb.Append(inner);
 
             if (normalEnd || _current != '{')
@@ -929,9 +1007,13 @@ internal sealed partial class Lexer : IDisposable {
         );
     }
 
-    internal SyntaxToken[][] RereadInterpolatedString(out bool hasCloseQuote, out bool isCString) {
+    internal SyntaxToken[][] RereadInterpolatedString(
+        out bool hasCloseQuote,
+        out bool isCString,
+        out bool isMultiline) {
         hasCloseQuote = false;
         var groups = ArrayBuilder<SyntaxToken[]>.GetInstance();
+        var readOptions = StringReadOptions.Interpolation;
 
         if (_current == 'c' || _current == 'w') {
             _position++;
@@ -940,12 +1022,23 @@ internal sealed partial class Lexer : IDisposable {
             isCString = false;
         }
 
-        _position += 2;
+        _position++; // f prefix
+
+        // quotes
+        if (ScanIsMultilineStringDelimiter()) {
+            _position += 3;
+            isMultiline = true;
+            readOptions |= StringReadOptions.Multiline;
+        } else {
+            _position++;
+            isMultiline = false;
+        }
+
         var startPosition = _position;
 
         while (_current != '\0') {
             _start = _position;
-            var inner = ReadStringContent(false, true, false, out var normalEnd);
+            var inner = ReadStringContent(readOptions, out var normalEnd);
             hasCloseQuote = normalEnd;
             var tokenWidth = _position - _start;
 
@@ -1044,7 +1137,7 @@ internal sealed partial class Lexer : IDisposable {
         }
 
         while (true) {
-            if (_current == '.' && !isBinary && !isHexadecimal && !hasDecimal && !hasExponent) {
+            if (_current == '.' && !isBinary && !isHexadecimal && !hasDecimal && !hasExponent && Peek(1) != '.') {
                 hasDecimal = true;
                 _position++;
             } else if (char.ToLower(_current) == 'e' && !isBinary && !isHexadecimal && !hasExponent &&
@@ -1090,25 +1183,15 @@ internal sealed partial class Lexer : IDisposable {
                 value = longValue;
             }
 
-            if (failed) {
-                AddDiagnostic(
-                    Error.InvalidType(numericText, CorLibrary.GetSpecialType(SpecialType.Int)),
-                    _start,
-                    length
-                );
-            } else {
+            if (failed)
+                AddDiagnostic(Error.IntegralOverflow(numericText), _start, length);
+            else
                 _value = value;
-            }
         } else {
-            if (!double.TryParse(parsedText, out var value)) {
-                AddDiagnostic(
-                    Error.InvalidType(numericText, CorLibrary.GetSpecialType(SpecialType.Decimal)),
-                    _start,
-                    length
-                );
-            } else {
+            if (!double.TryParse(parsedText, out var value) || double.IsInfinity(value))
+                AddDiagnostic(Error.FloatOverflow(numericText), _start, length);
+            else
                 _value = value;
-            }
         }
 
         _kind = SyntaxKind.NumericLiteralToken;
@@ -1174,8 +1257,17 @@ internal sealed partial class Lexer : IDisposable {
         _kind = SyntaxKind.EndOfLineTrivia;
     }
 
-    private void ReadDirective(bool afterFirstToken, bool afterNonWhitespaceOnLine, ref SyntaxListBuilder triviaList) {
-        var directive = ReadDirective(true, true, afterFirstToken, afterNonWhitespaceOnLine, ref triviaList);
+    private void ReadDirective(bool afterFirstToken, ref SyntaxListBuilder triviaList) {
+        var directive = ReadSingleDirective(true, true, afterFirstToken, ref triviaList);
+
+        if (directive is BranchingDirectiveTriviaSyntax branching && !branching.branchTaken)
+            ReadExcludedDirectivesAndTrivia(true, ref triviaList);
+    }
+
+    private void ReadDirectiveAndExcludedTrivia(
+        bool isFollowingToken,
+        ref SyntaxListBuilder triviaList) {
+        var directive = ReadSingleDirective(true, true, isFollowingToken, ref triviaList);
 
         if (directive is BranchingDirectiveTriviaSyntax branching && !branching.branchTaken)
             ReadExcludedDirectivesAndTrivia(true, ref triviaList);
@@ -1191,7 +1283,7 @@ internal sealed partial class Lexer : IDisposable {
             if (!hasFollowingDirective)
                 break;
 
-            var directive = ReadDirective(false, endIsActive, false, false, ref triviaList);
+            var directive = ReadSingleDirective(false, endIsActive, false, ref triviaList);
             var branching = directive as BranchingDirectiveTriviaSyntax;
 
             if (directive.kind == SyntaxKind.EndIfDirectiveTrivia || (branching is not null && branching.branchTaken))
@@ -1286,26 +1378,37 @@ internal sealed partial class Lexer : IDisposable {
         return builder?.ToStringAndFree();
     }
 
-    private BelteSyntaxNode ReadDirective(
+    private BelteSyntaxNode ReadSingleDirective(
         bool isActive,
         bool endIsActive,
         bool afterFirstToken,
-        bool afterNonWhitespaceOnLine,
         ref SyntaxListBuilder triviaList) {
-        var saveMode = _mode;
-        var directiveParser = new DirectiveParser(this, _directives);
-        var directive = directiveParser.ParseDirective(
-            isActive,
-            endIsActive,
-            afterFirstToken,
-            afterNonWhitespaceOnLine
-        );
+        if (char.IsWhiteSpace(_current)) {
+            _start = _position;
+            ReadWhitespace();
+
+            var length = _position - _start;
+            Debug.Assert(length > 0);
+            var triviaText = text.ToString(new TextSpan(_start, length));
+            var trivia = SyntaxFactory.Trivia(_kind, triviaText, GetDiagnostics(0));
+            AddTrivia(trivia, ref triviaList);
+        }
+
+        var directive = ParseDirective(isActive, endIsActive, afterFirstToken);
 
         AddTrivia(directive, ref triviaList);
-
         _directives = directive.ApplyDirectives(_directives);
-        _mode = saveMode;
+        return directive;
+    }
 
+    private BelteSyntaxNode ParseDirective(bool isActive, bool endIsActive, bool afterFirstToken) {
+        var saveMode = _mode;
+
+        // TODO Reusing the directive parser instead of recreating could be good, but directives are rare anyway...
+        var directiveParser = new DirectiveParser(this, _directives);
+        var directive = directiveParser.ParseDirective(isActive, endIsActive, afterFirstToken);
+
+        _mode = saveMode;
         return directive;
     }
 
@@ -1345,7 +1448,7 @@ internal sealed partial class Lexer : IDisposable {
         var identifierOrKeywordText = text.ToString(new TextSpan(_start, length));
         _kind = SyntaxFacts.GetKeywordType(identifierOrKeywordText);
 
-        if (_kind == SyntaxKind.IdentifierToken)
+        if (_kind == SyntaxKind.IdentifierToken || SyntaxFacts.IsContextualKeyword(_kind))
             _value = identifierOrKeywordText;
     }
 

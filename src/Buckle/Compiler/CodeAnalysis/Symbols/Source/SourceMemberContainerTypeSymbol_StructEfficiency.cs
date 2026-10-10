@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -187,6 +188,11 @@ internal partial class SourceMemberContainerTypeSymbol {
         }
 
         return GetStructSize((NamedTypeSymbol)type, out _, out alignment);
+    }
+
+    internal static int GetStructSize(NamedTypeSymbol type) {
+        Debug.Assert(type.typeKind == TypeKind.Struct);
+        return GetStructSize(type, out _, out _);
     }
 
     private static int GetStructSize(NamedTypeSymbol type, out int sizeWithoutPadding, out int alignment) {

@@ -16,7 +16,7 @@ internal sealed class SourceOverridingMethodTemplateParameterSymbol : SourceTemp
         _map = map;
     }
 
-    internal SourceOrdinaryMethodSymbol owner => _map.overridingMethod;
+    internal SourceOrdinaryMethodOrUserDefinedOperatorSymbol owner => _map.overridingMethod;
 
     internal override TemplateParameterKind templateParameterKind => TemplateParameterKind.Method;
 
@@ -31,10 +31,11 @@ internal sealed class SourceOverridingMethodTemplateParameterSymbol : SourceTemp
 
     internal override bool hasNotNullConstraint => _overriddenTemplateParameter?.hasNotNullConstraint == true;
 
-    internal override bool hasPrimitiveTypeConstraint
-        => _overriddenTemplateParameter?.hasPrimitiveTypeConstraint == true;
+    internal override bool hasValueTypeConstraint
+        => _overriddenTemplateParameter?.hasValueTypeConstraint == true;
 
-    internal override bool hasObjectTypeConstraint => _overriddenTemplateParameter?.hasObjectTypeConstraint == true;
+    internal override bool hasReferenceTypeConstraint
+        => _overriddenTemplateParameter?.hasReferenceTypeConstraint == true;
 
     internal override bool hasDefaultConstraint => _overriddenTemplateParameter?.hasDefaultConstraint == true;
 
@@ -69,6 +70,7 @@ internal sealed class SourceOverridingMethodTemplateParameterSymbol : SourceTemp
         var constraintTypes = map.SubstituteTypes(templateParameter.constraintTypes).SelectAsArray(t => t.type);
 
         return this.ResolveBounds(
+            containingAssembly.corLibrary,
             inProgress.Prepend(this),
             constraintTypes,
             true,

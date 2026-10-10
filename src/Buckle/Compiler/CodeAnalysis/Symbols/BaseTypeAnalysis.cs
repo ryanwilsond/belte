@@ -24,7 +24,12 @@ internal static class BaseTypeAnalysis {
         type = type.originalDefinition;
 
         if (partialClosure.Add(type)) {
-            TypeDependsClosure(type.GetDeclaredBaseType(null), currentCompilation, partialClosure);
+            if (type.isInterface) {
+                foreach (var bt in type.GetDeclaredInterfaces(null))
+                    TypeDependsClosure(bt, currentCompilation, partialClosure);
+            } else {
+                TypeDependsClosure(type.GetDeclaredBaseType(null), currentCompilation, partialClosure);
+            }
 
             if (currentCompilation is not null && type.IsFromCompilation(currentCompilation))
                 TypeDependsClosure(type.containingType, currentCompilation, partialClosure);

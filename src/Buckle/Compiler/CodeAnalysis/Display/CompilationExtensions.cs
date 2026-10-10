@@ -1,6 +1,5 @@
 using System.Collections.Immutable;
 using System.Linq;
-using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Utilities;
@@ -115,6 +114,18 @@ public static class CompilationExtensions {
                 }
 
                 break;
+            case SymbolKind.Property: {
+                    var property = (PropertySymbol)symbol;
+                    SymbolDisplay.AppendToDisplayText(text, property, SymbolDisplayFormat.BoundDisplayFormat);
+                    var type = property.type.StrippedType();
+
+                    if (type is NamedTypeSymbol s && s is not PrimitiveTypeSymbol)
+                        WriteMembers(s, compact);
+                    else
+                        text.WriteLine();
+                }
+
+                break;
             case SymbolKind.Local: {
                     var local = (DataContainerSymbol)symbol;
                     SymbolDisplay.AppendToDisplayText(text, local, SymbolDisplayFormat.BoundDisplayFormat);
@@ -139,11 +150,11 @@ public static class CompilationExtensions {
             text.Write(CreateSpace());
             text.indent++;
 
-            if (typeOrNamespace is SourceNamedTypeSymbol n && n.typeKind == TypeKind.Enum) {
+            if (typeOrNamespace is NamedTypeSymbol n && n.typeKind == TypeKind.Enum) {
                 text.WriteLine();
                 SymbolDisplay.AppendToDisplayText(
                     text,
-                    n.enumValueField,
+                    n is SourceNamedTypeSymbol s ? s.enumValueField : ((AnonymousEnumType)n).enumValueField,
                     SymbolDisplayFormat.CompactBoundDisplayFormat
                 );
 

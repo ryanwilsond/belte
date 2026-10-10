@@ -27,7 +27,9 @@ internal sealed class NullBindingBinder : LocalScopeBinder {
             this,
             null,
             _syntax.target,
-            DataContainerDeclarationKind.NullBindingLocal,
+            _syntax.modifier?.kind == SyntaxKind.ConstKeyword
+                ? DataContainerDeclarationKind.ConstantNullBindingLocal
+                : DataContainerDeclarationKind.NullBindingLocal,
             _syntax
         );
 
@@ -53,10 +55,11 @@ internal sealed class NullBindingBinder : LocalScopeBinder {
             _syntax.expression,
             ref sourceExpr,
             diagnostics,
+            _valueSymbol.isConst,
             out var inferredType
         );
 
-        _valueSymbol.SetTypeWithAnnotations(inferredType);
+        _valueSymbol.SetTypeWithAnnotations(inferredType, diagnostics);
 
         return new BoundExpressionStatement(_syntax, BoundFactory.Local(_syntax, _valueSymbol));
     }
@@ -75,10 +78,11 @@ internal sealed class NullBindingBinder : LocalScopeBinder {
             _syntax.expression,
             ref sourceExpr,
             diagnostics,
+            _valueSymbol.isConst,
             out var inferredType
         );
 
-        _valueSymbol.SetTypeWithAnnotations(inferredType);
+        _valueSymbol.SetTypeWithAnnotations(inferredType, diagnostics);
 
         var then = originalBinder.BindPossibleEmbeddedStatement(node.then, diagnostics);
         var alternative = (node.elseClause is null)

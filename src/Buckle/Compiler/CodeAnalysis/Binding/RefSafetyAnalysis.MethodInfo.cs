@@ -24,6 +24,14 @@ internal sealed partial class RefSafetyAnalysis {
             return new MethodInfo(method, method, null);
         }
 
+        internal static MethodInfo Create(PropertySymbol property) {
+            return new MethodInfo(
+                property,
+                property.GetOwnOrInheritedGetMethod() ?? property.GetOwnOrInheritedSetMethod(),
+                null
+            );
+        }
+
         public override string? ToString() => method?.ToString();
     }
 }

@@ -11,8 +11,9 @@ public partial class SyntaxTree {
             BelteSyntaxNode root,
             bool cloneRoot,
             SourceCodeKind kind,
-            ParseOptions options)
-            : base(text, kind, options) {
+            ParseOptions options,
+            InternalSyntax.DirectiveStack directives)
+            : base(text, kind, options, directives) {
             _root = cloneRoot ? CloneNodeAsRoot(root) : root;
             endOfFile = _root.GetLastToken(true);
         }

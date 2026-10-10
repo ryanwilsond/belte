@@ -9,7 +9,7 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
-internal static class ParameterHelpers {
+internal static partial class ParameterHelpers {
 
     internal static ImmutableArray<SourceParameterSymbol> MakeParameters(
         Binder withTemplateParametersBinder,
@@ -29,7 +29,7 @@ internal static class ParameterHelpers {
             allowConst,
             lastIndex: parameterList.Count - 1,
             parameterCreationFunc: (Symbol owner, TypeWithAnnotations parameterType,
-                                    ParameterSyntax syntax, RefKind refKind, bool isConst,
+                                    ParameterSyntax syntax, RefKind refKind, bool isConst, bool isConstExpr,
                                     int ordinal, bool addRefConstModifier, ScopedKind scope) => {
                                         if (parameterType.IsVoidType())
                                             diagnostics.Push(Error.VoidUsedAsType(syntax.type.location));
@@ -40,6 +40,7 @@ internal static class ParameterHelpers {
                                                 syntax,
                                                 refKind,
                                                 isConst,
+                                                isConstExpr,
                                                 syntax.identifier.valueText,
                                                 ordinal,
                                                 scope
@@ -64,7 +65,7 @@ internal static class ParameterHelpers {
             allowConst: true,
             parametersList.Count - 1,
             parameterCreationFunc: (FunctionPointerMethodSymbol owner, TypeWithAnnotations parameterType,
-                                    FunctionPointerParameterSyntax syntax, RefKind refKind, bool isConst,
+                                    FunctionPointerParameterSyntax syntax, RefKind refKind, bool isConst, bool _,
                                     int ordinal, bool addRefReadOnlyModifier, ScopedKind scope) => {
                                         if (parameterType.IsVoidType())
                                             diagnostics.Push(Error.VoidUsedAsType(syntax.type.location));
@@ -110,7 +111,7 @@ internal static class ParameterHelpers {
             allowConst: true,
             parametersList.Count - 1,
             parameterCreationFunc: (FunctionMethodSymbol owner, TypeWithAnnotations parameterType,
-                                    FunctionPointerParameterSyntax syntax, RefKind refKind, bool isConst,
+                                    FunctionPointerParameterSyntax syntax, RefKind refKind, bool isConst, bool _,
                                     int ordinal, bool addRefReadOnlyModifier, ScopedKind scope) => {
                                         if (parameterType.IsVoidType())
                                             diagnostics.Push(Error.VoidUsedAsType(syntax.type.location));
@@ -135,23 +136,31 @@ internal static class ParameterHelpers {
         SourceParameterSymbol parameter,
         BoundExpression defaultExpression,
         BoundExpression convertedExpression,
-        BelteDiagnosticQueue diagnostics) {
+        BelteDiagnosticQueue diagnostics,
+        out bool isExpressionDefaultValue) {
         var hasErrors = false;
+        isExpressionDefaultValue = false;
 
         var parameterType = parameter.type;
         var conversion = binder.conversions.ClassifyImplicitConversionFromExpression(defaultExpression, parameterType);
-        var refKind = GetModifiers(parameterSyntax.modifiers, out var refnessKeyword, out var isConst);
+        var refKind = GetModifiers(parameterSyntax.modifiers, out var refnessKeyword, out _, out _);
 
         if (refKind is not RefKind.None and not RefKind.Out) {
             diagnostics.Push(Error.RefDefaultValue(refnessKeyword.location));
             hasErrors = true;
-        } else if (!defaultExpression.hasAnyErrors && !IsValidDefaultValue(defaultExpression)) {
-            diagnostics.Push(Error.DefaultMustBeConstant(
-                parameterSyntax.defaultValue.value.location,
-                parameterSyntax.identifier.valueText
-            ));
+        } else if (!IsValidDefaultValue(defaultExpression)) {
+            if (refKind == RefKind.Out || parameter.isConstExpr) {
+                if (!defaultExpression.hasAnyErrors) {
+                    diagnostics.Push(Error.DefaultMustBeConstant(
+                        parameterSyntax.defaultValue.value.location,
+                        parameterSyntax.identifier.valueText
+                    ));
+                }
 
-            hasErrors = true;
+                hasErrors = true;
+            } else {
+                isExpressionDefaultValue = true;
+            }
         } else if (!conversion.exists) {
             diagnostics.Push(Error.NoCastForDefaultParameter(
                 parameterSyntax.identifier.location,
@@ -212,9 +221,14 @@ internal static class ParameterHelpers {
         }
     }
 
-    internal static RefKind GetModifiers(SyntaxTokenList modifiers, out SyntaxToken refnessKeyword, out bool isConst) {
+    internal static RefKind GetModifiers(
+        SyntaxTokenList modifiers,
+        out SyntaxToken refnessKeyword,
+        out bool isConst,
+        out bool isConstExpr) {
         refnessKeyword = null;
         isConst = false;
+        isConstExpr = false;
 
         if (modifiers is null)
             return RefKind.None;
@@ -236,6 +250,9 @@ internal static class ParameterHelpers {
                         refKind = RefKind.Out;
                     }
 
+                    break;
+                case SyntaxKind.ConstexprKeyword:
+                    isConstExpr = true;
                     break;
                 case SyntaxKind.ConstKeyword:
                     if (refKind == RefKind.Ref && refnessKeyword.GetNextToken() == modifier)
@@ -264,6 +281,8 @@ internal static class ParameterHelpers {
         RefKind refKind,
         Symbol containingSymbol,
         int firstDefault,
+        bool isConst,
+        bool isConstExpr,
         BelteDiagnosticQueue diagnostics) {
         var parameterIndex = ordinal;
         var isDefault = syntax is ParameterSyntax { defaultValue: { } };
@@ -273,6 +292,14 @@ internal static class ParameterHelpers {
         } else if (firstDefault != -1 && parameterIndex > firstDefault && !isDefault) {
             var location = ((ParameterSyntax)syntax).identifier.GetNextToken(includeZeroWidth: true).location;
             diagnostics.Push(Error.DefaultBeforeNoDefault(location));
+        } else if (isConst && isConstExpr) {
+            diagnostics.Push(Error.ConflictingModifiers(
+                ((ParameterSyntax)syntax).identifier.location,
+                "const",
+                "constexpr"
+            ));
+        } else if (refKind != RefKind.None && isConstExpr) {
+            diagnostics.Push(Error.CannotBeRefAndConstexpr(((ParameterSyntax)syntax).identifier.location));
         }
     }
 
@@ -285,7 +312,7 @@ internal static class ParameterHelpers {
         bool addRefConstModifier,
         bool allowConst,
         int lastIndex,
-        Func<TOwningSymbol, TypeWithAnnotations, TParameterSyntax, RefKind, bool, int, bool, ScopedKind, TParameterSymbol> parameterCreationFunc,
+        Func<TOwningSymbol, TypeWithAnnotations, TParameterSyntax, RefKind, bool, bool, int, bool, ScopedKind, TParameterSymbol> parameterCreationFunc,
         bool parsingFunctionPointer = false)
         where TParameterSyntax : BaseParameterSyntax
         where TParameterSymbol : ParameterSymbol
@@ -301,7 +328,12 @@ internal static class ParameterHelpers {
 
             CheckParameterModifiers(parameterSyntax, allowConst, diagnostics);
 
-            var refKind = GetModifiers(parameterSyntax.modifiers, out var refnessKeyword, out var isConst);
+            var refKind = GetModifiers(
+                parameterSyntax.modifiers,
+                out var refnessKeyword,
+                out var isConst,
+                out var isConstExpr
+            );
 
             if (parameterSyntax is ParameterSyntax concreteParam) {
                 if (concreteParam.defaultValue is not null && firstDefault == -1)
@@ -313,17 +345,13 @@ internal static class ParameterHelpers {
             if (!allowRef && refKind is RefKind.Ref or RefKind.Out)
                 diagnostics.Push(Error.InvalidRefParameter(refnessKeyword.location));
 
-            // TODO This is what we do instead of definite assignment analysis (this is easier)
-            // TODO BUT this does restrict functionality so we want to change this eventually
-            if (refKind is RefKind.Out && !parameterType.type.HasDefaultValue())
-                diagnostics.Push(Error.OutNoDefaultValue(parameterSyntax.type.location, parameterType.type));
-
             var parameter = parameterCreationFunc(
                 owner,
                 parameterType,
                 parameterSyntax,
                 refKind,
                 isConst,
+                isConstExpr,
                 parameterIndex,
                 addRefConstModifier,
                 ScopedKind.None
@@ -338,6 +366,8 @@ internal static class ParameterHelpers {
                 parameter.refKind,
                 parameter.containingSymbol,
                 firstDefault,
+                parameter.isConst,
+                parameter.isConstExpr,
                 diagnostics
             );
 
@@ -366,6 +396,7 @@ internal static class ParameterHelpers {
         var seenRef = false;
         var seenOut = false;
         var seenConst = false;
+        var seenConstExpr = false;
 
         SyntaxToken previousModifier = null;
 
@@ -393,7 +424,7 @@ internal static class ParameterHelpers {
 
                     break;
                 case SyntaxKind.ConstKeyword:
-                    if (seenConst)
+                    if (seenConst && previousModifier?.kind != SyntaxKind.RefKeyword)
                         AddDupParamMod(diagnostics, modifier);
                     else if (!allowConst && previousModifier?.kind != SyntaxKind.RefKeyword)
                         // TODO Add this check to template parameters
@@ -405,6 +436,13 @@ internal static class ParameterHelpers {
                 case SyntaxKind.FinalKeyword:
                     if (previousModifier?.kind != SyntaxKind.RefKeyword)
                         diagnostics.Push(Error.RefFinalWrongOrder(modifier.location));
+
+                    break;
+                case SyntaxKind.ConstexprKeyword:
+                    if (seenConstExpr)
+                        AddDupParamMod(diagnostics, modifier);
+                    else
+                        seenConstExpr = true;
 
                     break;
                 default:

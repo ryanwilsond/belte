@@ -13,4 +13,15 @@ internal static class DataContainerDeclarationKindExtensions {
                 return false;
         }
     }
+
+    internal static bool IsConstant(this DataContainerDeclarationKind kind) {
+        switch (kind) {
+            case DataContainerDeclarationKind.Constant:
+            case DataContainerDeclarationKind.ConstantForEachLocal:
+            case DataContainerDeclarationKind.ConstantNullBindingLocal:
+                return true;
+            default:
+                return false;
+        }
+    }
 }

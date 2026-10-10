@@ -19,6 +19,8 @@ internal abstract class FieldSymbol : Symbol, IFieldSymbol {
 
     public abstract RefKind refKind { get; }
 
+    public abstract Symbol associatedSymbol { get; }
+
     public bool isNullable => typeWithAnnotations.isNullable;
 
     public virtual bool hasConstantValue {

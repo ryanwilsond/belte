@@ -1,14 +1,16 @@
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
     public sealed override SymbolKind kind => SymbolKind.Local;
 
-    public bool isConst => declarationKind == DataContainerDeclarationKind.Constant;
+    public bool isConst => declarationKind.IsConstant();
 
     public bool isFinal => declarationKind.IsFinal();
 
@@ -72,22 +74,35 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
 
     internal virtual bool isWritableVariable {
         get {
+            bool isWritable;
+
             switch (declarationKind) {
                 case DataContainerDeclarationKind.Constant:
                 case DataContainerDeclarationKind.Final:
                 case DataContainerDeclarationKind.ConstantExpression:
+                case DataContainerDeclarationKind.ConstantForEachLocal:
                 case DataContainerDeclarationKind.ForEachLocal:
-                case DataContainerDeclarationKind.ScopedLocal:
-                    return false;
-                // TODO Should we allow assignment to null binding locals?
+                case DataContainerDeclarationKind.ConstantNullBindingLocal:
                 case DataContainerDeclarationKind.NullBindingLocal:
+                case DataContainerDeclarationKind.ScopedLocal:
+                    isWritable = false;
+                    break;
                 case DataContainerDeclarationKind.Variable:
                 case DataContainerDeclarationKind.PatternLocal:
                 case DataContainerDeclarationKind.OutVariable:
                 case DataContainerDeclarationKind.DeclarationExpressionVariable:
+                    isWritable = true;
+                    break;
+                case DataContainerDeclarationKind.None:
+                    Debug.Assert(this is SynthesizedDataContainerSymbol);
+                    isWritable = true;
+                    break;
                 default:
-                    return true;
+                    throw ExceptionUtilities.UnexpectedValue(declarationKind);
             }
+
+            Debug.Assert(isWritable == (!isFinal && !isConst && !isConstExpr));
+            return isWritable;
         }
     }
 

@@ -41,4 +41,8 @@ internal abstract class SymbolFactory<ModuleSymbol, TypeSymbol> where TypeSymbol
         ImmutableArray<ParamInfo<TypeSymbol>> returnAndParamTypes);
 
     internal abstract TypeSymbol GetSpecialType(ModuleSymbol moduleSymbol, SpecialType specialType);
+
+    internal abstract TypeSymbol GetSystemTypeSymbol(ModuleSymbol moduleSymbol);
+
+    internal abstract TypeSymbol GetEnumUnderlyingType(ModuleSymbol moduleSymbol, TypeSymbol type);
 }

@@ -72,7 +72,12 @@ public static class Classifier {
     }
 
     private static void ClassifyTrivia(SyntaxTrivia trivia, TextSpan span, ArrayBuilder<ClassifiedSpan> result) {
-        AddClassification(trivia.kind, trivia.span, span, result, false);
+        if (trivia.hasStructure) {
+            var structure = trivia.GetStructure();
+            ClassifyNode(structure, span, result);
+        } else {
+            AddClassification(trivia.kind, trivia.span, span, result, false);
+        }
     }
 
     private static void AddClassification(
@@ -109,7 +114,8 @@ public static class Classifier {
                                SyntaxKind.CharacterLiteralToken or
                                SyntaxKind.InterpolatedStringLiteralToken or
                                SyntaxKind.InterpolatedStringStartToken or
-                               SyntaxKind.InterpolatedStringEndToken;
+                               SyntaxKind.InterpolatedStringEndToken or
+                               SyntaxKind.MultilineStringLiteralToken;
         var isComment = kind.IsComment();
 
         if (isTypeName)

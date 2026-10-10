@@ -233,7 +233,7 @@ internal partial class Binder {
 
             if (typedConstantKind == TypedConstantKind.Error) {
                 if (!curArgumentHasErrors) {
-                    // Binder.Error(diagnostics, ErrorCode.ERR_BadAttributeArgument, node.Syntax);
+                    diagnostics.Push(Error.BadAttributeArgument(node.syntax.location));
                     attrHasErrors = true;
                 }
 

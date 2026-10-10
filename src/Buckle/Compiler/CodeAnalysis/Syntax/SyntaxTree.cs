@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.IO;
 using System.Text;
 using Buckle.CodeAnalysis.Syntax.InternalSyntax;
@@ -14,17 +15,24 @@ namespace Buckle.CodeAnalysis.Syntax;
 public partial class SyntaxTree {
     internal static readonly SyntaxTree Dummy = new DummySyntaxTree();
 
-    internal SyntaxTree(SourceText text, SourceCodeKind kind, ParseOptions options) {
+    private DirectiveStack _lazyDirectives;
+
+    internal SyntaxTree(SourceText text, SourceCodeKind kind, ParseOptions options, DirectiveStack directives) {
         this.kind = kind;
         this.text = text;
+        Debug.Assert(options is not null);
         this.options = options;
+        _lazyDirectives = directives;
     }
+
+    internal SyntaxTree(SourceText text, SourceCodeKind kind, ParseOptions options)
+        : this(text, kind, options, default) { }
 
     /// <summary>
     /// Creates a new <see cref="SyntaxTree" /> with the given node as the root.
     /// </summary>
     internal static SyntaxTree Create(SourceText text, BelteSyntaxNode root, ParseOptions options) {
-        return new ParsedSyntaxTree(text, root, true, SourceCodeKind.Regular, options);
+        return new ParsedSyntaxTree(text, root, true, SourceCodeKind.Regular, options, default);
     }
 
     /// <summary>
@@ -32,7 +40,7 @@ public partial class SyntaxTree {
     /// given node's syntax tree.
     /// </summary>
     internal static SyntaxTree CreateWithoutClone(BelteSyntaxNode root, ParseOptions options) {
-        return new ParsedSyntaxTree(null, root, false, SourceCodeKind.Regular, options);
+        return new ParsedSyntaxTree(null, root, false, SourceCodeKind.Regular, options, default);
     }
 
     /// <summary>
@@ -69,7 +77,7 @@ public partial class SyntaxTree {
         SourceCodeKind kind = SourceCodeKind.Regular,
         Encoding encoding = null) {
         var sourceText = SourceText.From(text, encoding);
-        return Parse(sourceText, options, kind);
+        return ParseText(sourceText, options, kind);
     }
 
     public override string ToString() {
@@ -103,9 +111,9 @@ public partial class SyntaxTree {
     /// <param name="text">Content of source file.</param>
     /// <returns>Parsed result as <see cref="SyntaxTree" />.</returns>
     internal static SyntaxTree Load(string fileName, string text, ParseOptions options, Encoding encoding = null) {
+        Debug.Assert(options is not null);
         var sourceText = SourceText.From(text, encoding, fileName);
-
-        return Parse(sourceText, options);
+        return ParseText(sourceText, options);
     }
 
     /// <summary>
@@ -116,8 +124,7 @@ public partial class SyntaxTree {
     internal static SyntaxTree Load(string fileName, ParseOptions options) {
         var text = File.ReadAllText(fileName);
         var sourceText = SourceText.From(text, null, fileName);
-
-        return Parse(sourceText, options);
+        return ParseText(sourceText, options);
     }
 
     /// <summary>
@@ -125,14 +132,16 @@ public partial class SyntaxTree {
     /// </summary>
     /// <param name="text">Text to generate <see cref="SyntaxTree" /> from.</param>
     /// <returns>Parsed result as <see cref="SyntaxTree" />.</returns>
-    internal static SyntaxTree Parse(
+    internal static SyntaxTree ParseText(
         SourceText text,
         ParseOptions options,
         SourceCodeKind kind = SourceCodeKind.Regular) {
-        var lexer = new Lexer(text, options, kind == SourceCodeKind.Regular);
+        options ??= ParseOptions.Default;
+        // TODO Do we want to always allow preprocessor directives?
+        var lexer = new Lexer(text, options, /*kind == SourceCodeKind.Regular*/ true);
         var parser = new LanguageParser(lexer);
         var compilationUnit = (CompilationUnitSyntax)parser.ParseCompilationUnit().CreateRed();
-        var parsedTree = new ParsedSyntaxTree(text, compilationUnit, true, kind, options);
+        var parsedTree = new ParsedSyntaxTree(text, compilationUnit, true, kind, options, parser.directives);
         return parsedTree;
     }
 
@@ -177,6 +186,40 @@ public partial class SyntaxTree {
         return new BelteDiagnosticQueue();
     }
 
+    internal bool IsAnyPreprocessorSymbolDefined(ImmutableArray<string> conditionalSymbols) {
+        var directives = GetDirectives();
+
+        foreach (var conditionalSymbol in conditionalSymbols) {
+            if (IsPreprocessorSymbolDefined(directives, conditionalSymbol))
+                return true;
+        }
+
+        return false;
+    }
+
+    internal DirectiveStack GetDirectives() {
+        if (_lazyDirectives.isNull) {
+            DirectiveStack.InterlockedInitialize(
+                ref _lazyDirectives,
+                GetRoot().bltGreen.ApplyDirectives(DirectiveStack.Empty)
+            );
+        }
+
+        Debug.Assert(!_lazyDirectives.isNull);
+        return _lazyDirectives;
+    }
+
+    private bool IsPreprocessorSymbolDefined(DirectiveStack directives, string symbolName) {
+        switch (directives.IsDefined(symbolName)) {
+            case DefineState.Defined:
+                return true;
+            case DefineState.Undefined:
+                return false;
+            default:
+                return options.preprocessorSymbols.Contains(symbolName);
+        }
+    }
+
     private protected T CloneNodeAsRoot<T>(T node) where T : BelteSyntaxNode {
         return SyntaxNode.CloneNodeAsRoot(node, this);
     }
@@ -199,11 +242,12 @@ public partial class SyntaxTree {
             oldTree = null;
         }
 
-        var lexer = new Lexer(newText, options, kind == SourceCodeKind.Regular);
+        // TODO Do we want to always allow preprocessor directives?
+        var lexer = new Lexer(newText, options, /*kind == SourceCodeKind.Regular*/ true);
         var parser = new LanguageParser(lexer, oldTree?.GetRoot(), workingChanges);
 
         var compilationUnit = (CompilationUnitSyntax)parser.ParseCompilationUnit().CreateRed();
-        var parsedTree = new ParsedSyntaxTree(newText, compilationUnit, true, kind, options);
+        var parsedTree = new ParsedSyntaxTree(newText, compilationUnit, true, kind, options, parser.directives);
         return parsedTree;
     }
 }

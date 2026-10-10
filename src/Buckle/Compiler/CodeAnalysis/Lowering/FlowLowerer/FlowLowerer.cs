@@ -1,7 +1,5 @@
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.Diagnostics;
-using Buckle.Libraries;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
@@ -11,14 +9,17 @@ namespace Buckle.CodeAnalysis.Lowering;
 /// Runs before general lowering to simplify the number of nodes they have to cover.
 /// </summary>
 internal sealed partial class FlowLowerer : SharedFlowLowerer {
-    private FlowLowerer(MethodSymbol method, BoundBlockStatement body, BelteDiagnosticQueue diagnostics)
-        : base(method, body, diagnostics) { }
+    private FlowLowerer(
+        Compilation compilation,
+        MethodSymbol method,
+        BoundBlockStatement body)
+        : base(compilation, method, body) { }
 
     internal new static BoundBlockStatement Lower(
+        Compilation compilation,
         MethodSymbol method,
-        BoundBlockStatement statement,
-        BelteDiagnosticQueue diagnostics) {
-        var lowerer = new FlowLowerer(method, statement, diagnostics);
+        BoundBlockStatement statement) {
+        var lowerer = new FlowLowerer(compilation, method, statement);
         return (BoundBlockStatement)lowerer.Visit(statement);
     }
 
@@ -174,7 +175,8 @@ internal sealed partial class FlowLowerer : SharedFlowLowerer {
         var syntax = statement.syntax;
         var continueLabel = statement.continueLabel;
         var breakLabel = statement.breakLabel;
-        var condition = statement.condition ?? Literal(syntax, true, CorLibrary.GetSpecialType(SpecialType.Bool));
+        var condition = statement.condition
+            ?? Literal(_compilation, syntax, true, _compilation.GetSpecialType(SpecialType.Bool));
 
         BoundStatement whileBlock;
 
@@ -228,10 +230,10 @@ internal sealed partial class FlowLowerer : SharedFlowLowerer {
         var condition = new BoundIsOperator(
             syntax,
             Local(syntax, temp),
-            Literal(syntax, null, temp.type),
+            Literal(_compilation, syntax, null, temp.type),
             true,
             null,
-            CorLibrary.GetSpecialType(SpecialType.Bool)
+            _compilation.GetSpecialType(SpecialType.Bool)
         );
 
         return Visit(
@@ -283,6 +285,6 @@ internal sealed partial class FlowLowerer : SharedFlowLowerer {
     }
 
     internal override BoundNode VisitSwitchStatement(BoundSwitchStatement node) {
-        return SwitchStatementLocalRewriter.Rewrite(this, node);
+        return SwitchStatementLocalRewriter.Rewrite(this, node, _compilation);
     }
 }

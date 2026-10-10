@@ -35,6 +35,25 @@ internal static partial class OpCodeExtensions {
         return push - pop;
     }
 
+    internal static bool PotentiallyAllocates(this OpCode opCode) {
+        // Heap allocations only
+        switch (opCode) {
+            case OpCode.Ldstr:
+            case OpCode.Newarr:
+            case OpCode.Newobj:
+            case OpCode.Box:
+                return true;
+            // These write but do not allocate
+            case OpCode.Initobj:
+            case OpCode.Cpobj:
+            case OpCode.Cpblk:
+            case OpCode.Initblk:
+            // Allocating calls are checked separately
+            default:
+                return false;
+        }
+    }
+
     private static int GetPopCount(StackBehaviour pop) {
         return pop switch {
             StackBehaviour.Pop0 => 0,
@@ -127,5 +146,18 @@ internal static partial class OpCodeExtensions {
             OpCode.Unbox_Any => OperandKind.TypeToken,
             _ => OperandKind.None,
         };
+    }
+
+    internal static bool RequiresValue(this OpCode opCode) {
+        switch (opCode) {
+            case OpCode.Ldc_I8:
+            case OpCode.Ldc_I4:
+            case OpCode.Ldc_R8:
+            case OpCode.Ldc_R4:
+            case OpCode.Ldstr:
+                return true;
+            default:
+                return false;
+        }
     }
 }

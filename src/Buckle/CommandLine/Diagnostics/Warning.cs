@@ -8,6 +8,11 @@ internal static class Warning {
         return new Diagnostic(WarningInfo(DiagnosticCode.WRN_UnableToCopyFile), message);
     }
 
+    internal static Diagnostic R2RFailed() {
+        var message = $"failed to create R2R assembly";
+        return new Diagnostic(WarningInfo(DiagnosticCode.WRN_R2RFailed), message);
+    }
+
     private static DiagnosticInfo WarningInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "CL", DiagnosticSeverity.Warning);
     }

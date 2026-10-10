@@ -8,6 +8,7 @@ internal static class WellKnownMemberExtensions {
         "get_Value",
         "get_HasValue",
         "GetValueOrDefault",
+        "GetValueOrDefault",
 
         "Item1",
 
@@ -66,6 +67,17 @@ internal static class WellKnownMemberExtensions {
         WellKnownMemberNames.InstanceConstructorName,
         "Get",
         "Set",
+
+        "Failure",
+        "get_isSuccess",
+        "get_error",
+        "get_value",
+
+        WellKnownMemberNames.InstanceConstructorName,
+
+        "CreateInstance",
+
+        WellKnownMemberNames.InstanceConstructorName,
     ];
 
     internal static bool IsTupleMember(this WellKnownMember wellKnownMember) {
@@ -73,7 +85,16 @@ internal static class WellKnownMemberExtensions {
                wellKnownMember <= WellKnownMember.ValueTuple_TRest_ctor;
     }
 
+    internal static bool IsArrayMember(this WellKnownMember wellKnownMember) {
+        return wellKnownMember >= WellKnownMember.Array_ctor_1 &&
+               wellKnownMember <= WellKnownMember.Array_Set;
+    }
+
     internal static string GetMetadataName(this WellKnownMember wellKnownMember) {
         return MetadataNames[(int)wellKnownMember - 1];
+    }
+
+    internal static bool LivesInCorLibrary(this WellKnownMember wellKnownMember) {
+        return wellKnownMember <= WellKnownMember.LastCorMember;
     }
 }

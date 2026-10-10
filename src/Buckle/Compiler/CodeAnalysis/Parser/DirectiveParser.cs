@@ -13,13 +13,9 @@ internal sealed class DirectiveParser : SyntaxParser {
     internal BelteSyntaxNode ParseDirective(
         bool isActive,
         bool endIsActive,
-        bool isAfterFirstTokenInFile,
-        bool isAfterNonWhitespaceOnLine) {
+        bool isAfterFirstTokenInFile) {
         var hashPosition = _lexer.position;
         var hash = Match(SyntaxKind.HashToken);
-
-        if (isAfterNonWhitespaceOnLine)
-            hash = AddDiagnostic(hash, Error.InvalidDirectivePlacement());
 
         BelteSyntaxNode result;
         switch (currentToken.contextualKind) {
@@ -41,7 +37,7 @@ internal sealed class DirectiveParser : SyntaxParser {
                     hash,
                     ConvertToKeyword(EatToken()),
                     isActive,
-                    isAfterFirstTokenInFile && !isAfterNonWhitespaceOnLine
+                    isAfterFirstTokenInFile
                 );
 
                 break;
@@ -57,6 +53,12 @@ internal sealed class DirectiveParser : SyntaxParser {
             default:
                 var identifier = Match(SyntaxKind.IdentifierToken);
                 var end = ParseEndOfDirective();
+
+                if (!identifier.isFabricated)
+                    identifier = AddDiagnostic(identifier, Error.PreprocessorDirectiveExpected());
+                else
+                    hash = AddDiagnostic(hash, Error.PreprocessorDirectiveExpected());
+
                 result = SyntaxFactory.BadDirectiveTrivia(hash, identifier, end, isActive);
                 break;
         }
@@ -270,7 +272,7 @@ internal sealed class DirectiveParser : SyntaxParser {
                 return SyntaxFactory.LiteralExpression(EatToken());
             default:
                 return SyntaxFactory.IdentifierName(
-                    WithAdditionalDiagnostics(Match(SyntaxKind.IdentifierToken), Error.InvalidDirectiveExpression())
+                    Match(SyntaxKind.IdentifierToken, error: Error.InvalidDirectiveExpression())
                 );
         }
     }
@@ -308,7 +310,7 @@ internal sealed class DirectiveParser : SyntaxParser {
 
                 break;
             case SyntaxKind.UnaryExpression:
-                if (((UnaryExpressionSyntax)expr).operand.kind == SyntaxKind.ExclamationToken)
+                if (((UnaryExpressionSyntax)expr).operatorToken.kind == SyntaxKind.ExclamationToken)
                     return !EvaluateBool(((UnaryExpressionSyntax)expr).operand);
 
                 break;

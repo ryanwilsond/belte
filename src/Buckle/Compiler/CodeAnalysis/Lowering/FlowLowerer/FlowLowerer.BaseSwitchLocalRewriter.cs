@@ -24,9 +24,10 @@ internal sealed partial class FlowLowerer {
         private protected BaseSwitchLocalRewriter(
             SyntaxNode node,
             FlowLowerer flowLowerer,
+            Compilation compilation,
             ImmutableArray<SyntaxNode> arms,
             bool generateInstrumentation)
-            : base(node, flowLowerer, generateInstrumentation) {
+            : base(node, flowLowerer, compilation, generateInstrumentation) {
             foreach (var arm in arms) {
                 var armBuilder = ArrayBuilder<BoundStatement>.GetInstance();
 

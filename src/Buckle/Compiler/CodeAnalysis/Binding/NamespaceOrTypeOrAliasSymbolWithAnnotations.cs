@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Symbols;
 
 namespace Buckle.CodeAnalysis.Binding;
@@ -12,6 +13,7 @@ internal readonly struct NamespaceOrTypeOrAliasSymbolWithAnnotations {
     private NamespaceOrTypeOrAliasSymbolWithAnnotations(Symbol symbol, bool isNullable) {
         _symbol = symbol;
         this.isNullable = isNullable;
+        Debug.Assert(symbol is not TypeSymbol type || type.IsNullableType() == isNullable);
     }
 
     internal TypeWithAnnotations typeWithAnnotations { get; }

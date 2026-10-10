@@ -10,25 +10,33 @@ using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
+using Buckle.Utilities;
 using Diagnostics;
+using Microsoft.CodeAnalysis.PooledObjects;
 using Shared;
 
 namespace Buckle;
 
 /// <summary>
 /// Handles compiling and handling a single <see cref="CompilerState" />.
-/// Multiple can be created and run asynchronously.
 /// </summary>
 public sealed class Compiler {
     private const int SuccessExitCode = 0;
     private const int ErrorExitCode = 1;
     private const int FatalExitCode = 2;
 
+    // TODO Maybe move this somewhere else
+    internal const int BelteMetadataVersion = 1;
+
     private Compilation _lazyCorLibrary;
     private BelteDiagnosticQueue _lazyCorLibraryDiagnostics;
+    private bool _lazyCorLibraryIsSet;
 
     private CompilationOptions _options => new CompilationOptions(
-        state.buildMode,
+        // From profiling we found:
+        //      1) Interpreter is almost always the slowest option
+        //      2) Evaluator is only better than Executor for trivially simple programs
+        state.buildMode == BuildMode.AutoRun ? BuildMode.Execute : state.buildMode,
         state.projectType,
         state.arguments,
         false,
@@ -40,7 +48,12 @@ public sealed class Compiler {
         state.entryName,
         state.noStdLib,
         state.diagnosticOptions,
-        state.taskDiagnosticOptions
+        state.taskDiagnosticOptions,
+        state.skipTemplateMetadata,
+        state.noTemplateMetadata,
+        evaluatorStrictExceptionMode: true,
+        state.noNtvLib,
+        state.time
     );
 
     /// <summary>
@@ -78,7 +91,12 @@ public sealed class Compiler {
     public int Compile() {
         diagnostics.Clear();
 
-        if (state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute)
+        if (state.noStdLib || state.noBootStrap)
+            // In cases where the build script target has different cor library options than the build script itself,
+            // we need to invalidate the stored cor library in the compiler to force it to rebuild with the new options
+            InvalidateCorLibraryCache();
+
+        if (state.buildMode.RunsImmediately())
             InternalInterpreter();
         else
             InternalCompiler();
@@ -89,14 +107,17 @@ public sealed class Compiler {
     /// <summary>
     /// Gets .NET library paths for a given library level.
     /// </summary>
-    public static string[] ResolveLibraryLevel(int l) {
-        if (l < 0)
+    public static string[] ResolveLibraryLevel(int l, bool noStdLib) {
+        if (l < 0 && noStdLib)
             return [];
 
         var tfm = DotnetReferenceResolver.GetTFM();
         var refPackPath = DotnetReferenceResolver.ResolveNetCoreAppRefPath(tfm, out _);
 
         var references = new List<string>();
+
+        if (!noStdLib)
+            references.Add(Path.Join(AppContext.BaseDirectory, "Belte.Core.dll"));
 
         if (l == 0 || l == 1) {
             references.Add(Path.Join(refPackPath, "System.Runtime.dll"));
@@ -122,6 +143,23 @@ public sealed class Compiler {
         return references.ToArray();
     }
 
+    /// <summary>
+    /// Adds diagnostics from compiling the native libraries to the given queue.
+    /// </summary>
+    public void AddLibraryErrors(BelteDiagnosticQueue libraryDiagnostics) {
+        diagnostics.PushRange(libraryDiagnostics.Errors());
+        diagnostics.Push(Fatal.LibraryError());
+    }
+
+    /// <summary>
+    /// Removes the cached cor library so it is rebuilt on the next compilation.
+    /// </summary>
+    public void InvalidateCorLibraryCache() {
+        _lazyCorLibraryIsSet = false;
+        _lazyCorLibrary = null;
+        _lazyCorLibraryDiagnostics = null;
+    }
+
     private static int CalculateExitCode(BelteDiagnosticQueue diagnostics) {
         var worst = SuccessExitCode;
 
@@ -133,23 +171,29 @@ public sealed class Compiler {
         return worst;
     }
 
-    public void AddLibraryErrors(BelteDiagnosticQueue libraryDiagnostics) {
-        diagnostics.PushRange(libraryDiagnostics.Errors());
-        diagnostics.Push(Fatal.LibraryError());
-    }
-
     private BelteDiagnosticQueue GetCorLibrary(out Compilation compilation) {
-        if (_lazyCorLibrary is null || _lazyCorLibraryDiagnostics is null) {
+        if (!_lazyCorLibraryIsSet) {
+            var options = _options;
             var corLibrary = LibraryHelpers.LoadLibraries(
-                _options.buildMode,
-                _options.concurrentBuild,
-                _options.maxCoreCount,
-                state.noStdLib
+                options.buildMode,
+                options.concurrentBuild,
+                options.maxCoreCount,
+                explicitLibraryLevel: state.l,
+                noStdLib: state.noStdLib || state.noBootStrap,
+                includeAllNativeFiles: state.noBootStrap,
+                parseOptions: CreateParseOptions(options.buildMode, state.debugMode, state.preprocessorSymbols)
             );
 
-            var corLibraryDiagnostics = corLibrary.GetDiagnostics();
-            Interlocked.CompareExchange(ref _lazyCorLibrary, corLibrary, null);
-            Interlocked.CompareExchange(ref _lazyCorLibraryDiagnostics, corLibraryDiagnostics, null);
+            if (corLibrary is null) {
+                Interlocked.Exchange(ref _lazyCorLibraryIsSet, true);
+            } else {
+                var corLibraryDiagnostics = corLibrary.GetDiagnostics();
+
+                if (Interlocked.CompareExchange(ref _lazyCorLibraryIsSet, true, false) == false) {
+                    Interlocked.Exchange(ref _lazyCorLibrary, corLibrary);
+                    Interlocked.Exchange(ref _lazyCorLibraryDiagnostics, corLibraryDiagnostics);
+                }
+            }
         }
 
         compilation = _lazyCorLibrary;
@@ -157,6 +201,7 @@ public sealed class Compiler {
     }
 
     private void ReportAndReturnLibraryErrors() {
+        Debug.Assert(_lazyCorLibrary is not null);
         diagnostics.PushRange(_lazyCorLibraryDiagnostics);
         diagnostics.Push(Fatal.LibraryError());
     }
@@ -173,36 +218,18 @@ public sealed class Compiler {
             }
         }
 
-        // From profiling we found:
-        //      1) Interpreter is almost always the slowest option
-        //      2) Evaluator is only better than Executor for trivially simple programs
-        var buildMode = state.buildMode != BuildMode.AutoRun ? state.buildMode : BuildMode.Execute;
+        var options = _options;
+        var buildMode = options.buildMode;
 
-        var options = new CompilationOptions(
-            buildMode,
-            _options.outputKind,
-            _options.arguments,
-            _options.isScript,
-            _options.enableOutput,
-            _options.references,
-            _options.concurrentBuild,
-            _options.maxCoreCount,
-            _options.optimizationLevel,
-            _options.entryName,
-            _options.noStdLib,
-            _options.globalDiagnosticOptions,
-            _options.localDiagnosticOptions
-        );
-
-        if (buildMode is BuildMode.Evaluate or BuildMode.Execute) {
-            if (GetCorLibrary(out var corLibrary).AnyErrors()) {
+        if (buildMode is BuildMode.Evaluate or BuildMode.Execute or BuildMode.Emulate) {
+            if (GetCorLibrary(out var corLibrary)?.AnyErrors() == true) {
                 ReportAndReturnLibraryErrors();
                 return;
             }
 
             var libTime = LogLibraryLoadTime(timer);
 
-            var syntaxTrees = CreateSyntaxTrees(CompilerStage.Finished);
+            var syntaxTrees = CreateSyntaxTrees(CompilerStage.Finished, buildMode);
             var compilation = Compilation.Create(state.moduleName, options, corLibrary, syntaxTrees);
 
             var parseDiagnostics = compilation.GetParseDiagnostics()
@@ -216,7 +243,14 @@ public sealed class Compiler {
             LogParseTime(timer, libTime, syntaxTrees.Length);
 
             void Wrapper(object parameter) {
-                if (buildMode == BuildMode.Evaluate) {
+                if (buildMode == BuildMode.Execute) {
+                    diagnostics.PushRange(compilation.Execute(
+                        state.verboseMode,
+                        state.time,
+                        state.verbosePath,
+                        state.reducedVerboseMode
+                    ));
+                } else if (buildMode == BuildMode.Evaluate) {
                     var result = compilation.Evaluate(
                         (ValueWrapper<bool>)parameter,
                         state.verboseMode,
@@ -228,7 +262,8 @@ public sealed class Compiler {
                     exceptions = result.exceptions;
                     diagnostics.PushRange(result.diagnostics);
                 } else {
-                    diagnostics.PushRange(compilation.Execute(
+                    Debug.Assert(buildMode == BuildMode.Emulate);
+                    diagnostics.PushRange(compilation.Emulate(
                         state.verboseMode,
                         state.time,
                         state.verbosePath,
@@ -242,9 +277,10 @@ public sealed class Compiler {
             else
                 InternalInterpreterStart(Wrapper);
         } else {
+            Debug.Assert(buildMode == BuildMode.Interpret);
             Debug.Assert(state.tasks.Length == 1, "multiple tasks while in script mode");
 
-            if (GetCorLibrary(out var corLibrary).AnyErrors()) {
+            if (GetCorLibrary(out var corLibrary)?.AnyErrors() == true) {
                 ReportAndReturnLibraryErrors();
                 return;
             }
@@ -253,7 +289,13 @@ public sealed class Compiler {
 
             ref var task = ref state.tasks[0];
             var sourceText = new StringText(task.inputFileName, SourceText.DefaultEncoding, task.fileContent.text);
-            var syntaxTree = new SyntaxTree(sourceText, SourceCodeKind.Regular, CreateParseOptions());
+
+            var syntaxTree = new SyntaxTree(
+                sourceText,
+                SourceCodeKind.Regular,
+                CreateParseOptions(options.buildMode, state.debugMode, state.preprocessorSymbols)
+            );
+
             task.stage = CompilerStage.Finished;
 
             var compilation = Compilation.CreateScript(state.moduleName, options, syntaxTree, corLibrary);
@@ -282,14 +324,14 @@ public sealed class Compiler {
     private void InternalCompiler() {
         var timer = state.time ? Stopwatch.StartNew() : null;
 
-        if (GetCorLibrary(out var corLibrary).AnyErrors()) {
+        if (GetCorLibrary(out var corLibrary)?.AnyErrors() == true) {
             ReportAndReturnLibraryErrors();
             return;
         }
 
         var libTime = LogLibraryLoadTime(timer);
 
-        var syntaxTrees = CreateSyntaxTrees(CompilerStage.Compiled);
+        var syntaxTrees = CreateSyntaxTrees(CompilerStage.Compiled, state.buildMode);
         var compilation = Compilation.Create(state.moduleName, _options, corLibrary, syntaxTrees);
 
         var parseDiagnostics = compilation.GetParseDiagnostics()
@@ -313,12 +355,12 @@ public sealed class Compiler {
         LogCompilationTime(timer);
     }
 
-    private SyntaxTree[] CreateSyntaxTrees(CompilerStage stageToSet) {
+    private SyntaxTree[] CreateSyntaxTrees(CompilerStage stageToSet, BuildMode buildMode) {
         var tasks = state.tasks;
         var length = tasks.Length;
         var builder = new SyntaxTree[length];
 
-        var parseOptions = CreateParseOptions();
+        var parseOptions = CreateParseOptions(buildMode, state.debugMode, state.preprocessorSymbols);
 
         if (state.concurrentBuild) {
             Parallel.For(0, length, new ParallelOptions { MaxDegreeOfParallelism = state.maxCores }, i => {
@@ -403,10 +445,25 @@ public sealed class Compiler {
         wrapperThread.Join();
     }
 
-    private ParseOptions CreateParseOptions() {
-        if (state.debugMode)
-            return new ParseOptions(["DEBUG"]);
-        else
-            return new ParseOptions(["RELEASE"]);
+    internal static ParseOptions CreateParseOptions(BuildMode buildMode, bool debugMode, string[] preprocessorSymbols) {
+        var buildModeSymbol = buildMode switch {
+            BuildMode.Evaluate or BuildMode.Repl => "EVALUATING",
+            BuildMode.Execute => "EXECUTING",
+            BuildMode.CSharpTranspile => "TRANSPILING",
+            BuildMode.Dotnet => "EMITTING",
+            BuildMode.Interpret => "INTERPRETING",
+            BuildMode.Independent => "INDEPENDENT",
+            BuildMode.Emulate => "EMULATING",
+            _ or BuildMode.AutoRun => throw ExceptionUtilities.UnexpectedValue(buildMode)
+        };
+
+        var builder = ArrayBuilder<string>.GetInstance();
+        builder.Add(debugMode ? "DEBUG" : "RELEASE");
+        builder.Add(buildModeSymbol);
+
+        if (preprocessorSymbols is not null)
+            builder.AddRange(preprocessorSymbols);
+
+        return new ParseOptions(builder.ToImmutableAndFree());
     }
 }

@@ -1,13 +1,14 @@
 using System;
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 internal sealed class BoundExpressionOrTypeOrConstant {
     private readonly BoundExpression _expression;
     private readonly TypeOrConstant _typeOrConstant;
+    private readonly Compilation _compilation;
 
     internal BoundExpressionOrTypeOrConstant(BoundExpression expression) {
         syntax = expression.syntax;
@@ -15,21 +16,36 @@ internal sealed class BoundExpressionOrTypeOrConstant {
         isExpression = true;
     }
 
-    internal BoundExpressionOrTypeOrConstant(SyntaxNode syntax, TypeOrConstant typeOrConstant) {
+    internal BoundExpressionOrTypeOrConstant(
+        Compilation compilation,
+        SyntaxNode syntax,
+        TypeOrConstant typeOrConstant) {
         this.syntax = syntax;
         _typeOrConstant = typeOrConstant;
+        _compilation = compilation;
         isTypeOrConstant = true;
     }
 
     internal SyntaxNode syntax { get; }
 
-    internal TypeSymbol type => isExpression
-        ? _expression.Type()
-        : typeOrConstant.isType
-            ? typeOrConstant.type.type
-            : typeOrConstant.constant is null
-                ? null
-                : CorLibrary.GetSpecialType(typeOrConstant.constant.specialType);
+    internal TypeSymbol type {
+        get {
+            if (isExpression)
+                return _expression.Type();
+
+            Debug.Assert(typeOrConstant is not null);
+
+            if (typeOrConstant.isType)
+                return typeOrConstant.type.type;
+
+            if (typeOrConstant.constant is null)
+                return null;
+
+            Debug.Assert(_compilation is not null);
+
+            return _compilation.GetSpecialType(typeOrConstant.constant.specialType);
+        }
+    }
 
     internal bool isExpression { get; }
 

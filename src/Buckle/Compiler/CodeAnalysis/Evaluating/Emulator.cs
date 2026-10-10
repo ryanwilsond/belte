@@ -1,0 +1,29 @@
+using System;
+using Buckle.CodeAnalysis.Emitting;
+using Buckle.Diagnostics;
+
+namespace Buckle.CodeAnalysis.Evaluating;
+
+// TODO Run CIL directly instead of using the Evaluator
+internal sealed class Emulator : ILEmitter {
+    internal Emulator(BoundProgram program, string[] arguments, BelteDiagnosticQueue diagnostics)
+        : base(
+            program,
+            assemblySimpleName: "EmulatingAssembly",
+            assemblyVersion: new Version(0, 0),
+            debugMode: program.compilation.options.optimizationLevel == OptimizationLevel.Debug,
+            noStdLib: program.compilation.options.noStdLib,
+            diagnostics) {
+
+    }
+
+    internal object Emulate(bool verbose, bool logTime, string verbosePath, bool noArtifacts) {
+        EmitInternal();
+
+        var entryPoint = _assemblyDefinition.EntryPoint;
+
+        Console.WriteLine("Emulating");
+
+        return null;
+    }
+}

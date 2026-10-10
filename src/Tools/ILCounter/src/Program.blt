@@ -1,0 +1,1500 @@
+using System.Diagnostics;
+using Mono.Cecil;
+
+void Main(string[] args) {
+    constexpr Path = "../../../bin/release/Compiler.dll";
+
+    Debug.Assert(System.IO.File.Exists(Path));
+
+    var assembly = AssemblyDefinition.ReadAssembly(Path)!;
+
+    var types = assembly.MainModule!.Types!;
+
+    Console.Clear();
+
+    var result = new CountingResult();
+
+    for (var i = 0; i < types.Count; i++) {
+        var type = types.get_Item((int32)i)!;
+
+        Console.Clear();
+        Console.SetCursorPosition(0, 0);
+        Console.Print("Counting ");
+        Console.Print((string)type.FullName!);
+        Console.PrintLine(" ...");
+
+        var methods = type.Methods!;
+
+        for (var j = 0; j < methods.Count; j++) {
+            var method = methods.get_Item((int32)j)!;
+            CountMethod(method, ref result);
+        }
+    }
+
+    var total = result.localAssignments +
+                result.parameterAssignments +
+                result.fieldAssignments +
+                result.arrayAssignments +
+                result.indirectAssignments +
+                result.otherAssignments;
+
+    Console.Clear();
+
+    Console.PrintLine("Assignment Results:");
+    Console.PrintLine(f"\tLocal Assignments: {result.localAssignments}");
+    Console.PrintLine(f"\tParameter Assignments: {result.parameterAssignments}");
+    Console.PrintLine(f"\tField Assignments: {result.fieldAssignments}");
+    Console.PrintLine(f"\tArray Assignments: {result.arrayAssignments}");
+    Console.PrintLine(f"\tIndirect (ref) Assignments: {result.indirectAssignments}");
+    Console.PrintLine(f"\tOther: {result.otherAssignments}");
+    Console.PrintLine();
+    Console.PrintLine(f"\tTotal: {total}");
+
+    WriteResults(ref result);
+}
+
+struct CountingResult {
+    // Assignments
+    int localAssignments;
+    int parameterAssignments;
+    int fieldAssignments;
+    int arrayAssignments;
+    int indirectAssignments;
+    int otherAssignments;
+
+    // Instructions
+    int add;
+    int add_ovf;
+    int add_ovf_un;
+    int and;
+    int arglist;
+    int beq;
+    int beq_s;
+    int bge;
+    int bge_s;
+    int bge_un;
+    int bge_un_s;
+    int bgt;
+    int bgt_s;
+    int bgt_un;
+    int bgt_un_s;
+    int ble;
+    int ble_s;
+    int ble_un;
+    int ble_un_s;
+    int blt;
+    int blt_s;
+    int blt_un;
+    int blt_un_s;
+    int bne_un;
+    int bne_un_s;
+    int box;
+    int br;
+    int br_s;
+    int @break;
+    int brfalse;
+    int brfalse_s;
+    int brinst;
+    int brinst_s;
+    int brnull;
+    int brnull_s;
+    int brtrue;
+    int brtrue_s;
+    int brzero;
+    int brzero_s;
+    int call;
+    int calli;
+    int callvirt;
+    int castclass;
+    int ceq;
+    int cgt;
+    int cgt_un;
+    int clt;
+    int clt_un;
+    int ckfinite;
+    int constrained_;
+    int conv_i;
+    int conv_i1;
+    int conv_i2;
+    int conv_i4;
+    int conv_i8;
+    int conv_ovf_i;
+    int conv_ovf_i_un;
+    int conv_ovf_i1;
+    int conv_ovf_i1_un;
+    int conv_ovf_i2;
+    int conv_ovf_i2_un;
+    int conv_ovf_i4;
+    int conv_ovf_i4_un;
+    int conv_ovf_i8;
+    int conv_ovf_i8_un;
+    int conv_ovf_u;
+    int conv_ovf_u_un;
+    int conv_ovf_u1;
+    int conv_ovf_u1_un;
+    int conv_ovf_u2;
+    int conv_ovf_u2_un;
+    int conv_ovf_u4;
+    int conv_ovf_u4_un;
+    int conv_ovf_u8;
+    int conv_ovf_u8_un;
+    int conv_r_un;
+    int conv_r4;
+    int conv_r8;
+    int conv_u;
+    int conv_u1;
+    int conv_u2;
+    int conv_u4;
+    int conv_u8;
+    int cpblk;
+    int cpobj;
+    int div;
+    int div_un;
+    int dup;
+    int endfault;
+    int endfilter;
+    int endfinally;
+    int initblk;
+    int initobj;
+    int isinst;
+    int jmp;
+    int ldarg;
+    int ldarg_0;
+    int ldarg_1;
+    int ldarg_2;
+    int ldarg_3;
+    int ldarg_s;
+    int ldarga;
+    int ldarga_s;
+    int ldc_i4;
+    int ldc_i4_0;
+    int ldc_i4_1;
+    int ldc_i4_2;
+    int ldc_i4_3;
+    int ldc_i4_4;
+    int ldc_i4_5;
+    int ldc_i4_6;
+    int ldc_i4_7;
+    int ldc_i4_8;
+    int ldc_i4_m1;
+    int ldc_i4_s;
+    int ldc_i8;
+    int ldc_r4;
+    int ldc_r8;
+    int ldelem;
+    int ldelem_any;
+    int ldelem_i;
+    int ldelem_i1;
+    int ldelem_i2;
+    int ldelem_i4;
+    int ldelem_i8;
+    int ldelem_r4;
+    int ldelem_r8;
+    int ldelem_ref;
+    int ldelem_u1;
+    int ldelem_u2;
+    int ldelem_u4;
+    int ldelema;
+    int ldfld;
+    int ldflda;
+    int ldftn;
+    int ldind_i;
+    int ldind_i1;
+    int ldind_i2;
+    int ldind_i4;
+    int ldind_i8;
+    int ldind_r4;
+    int ldind_r8;
+    int ldind_ref;
+    int ldind_u1;
+    int ldind_u2;
+    int ldind_u4;
+    int ldlen;
+    int ldloc;
+    int ldloc_0;
+    int ldloc_1;
+    int ldloc_2;
+    int ldloc_3;
+    int ldloc_s;
+    int ldloca;
+    int ldloca_s;
+    int ldnull;
+    int ldobj;
+    int ldsfld;
+    int ldsflda;
+    int ldstr;
+    int ldtoken;
+    int ldvirtftn;
+    int leave;
+    int leave_s;
+    int localloc;
+    int mkrefany;
+    int mul;
+    int mul_ovf;
+    int mul_ovf_un;
+    int neg;
+    int newarr;
+    int newobj;
+    int no;
+    int nop;
+    int not;
+    int @or;
+    int pop;
+    int readonly;
+    int refanytype;
+    int refanyval;
+    int rem;
+    int rem_un;
+    int ret;
+    int rethrow;
+    int starg;
+    int starg_s;
+    int shl;
+    int shr;
+    int shr_un;
+    int @sizeof;
+    int stelem;
+    int stelem_any;
+    int stelem_i;
+    int stelem_i1;
+    int stelem_i2;
+    int stelem_i4;
+    int stelem_i8;
+    int stelem_r4;
+    int stelem_r8;
+    int stelem_ref;
+    int stfld;
+    int stind_i;
+    int stind_i1;
+    int stind_i2;
+    int stind_i4;
+    int stind_i8;
+    int stind_r4;
+    int stind_r8;
+    int stind_ref;
+    int stloc;
+    int stloc_0;
+    int stloc_1;
+    int stloc_2;
+    int stloc_3;
+    int stloc_s;
+    int stobj;
+    int stsfld;
+    int sub;
+    int sub_ovf;
+    int sub_ovf_un;
+    int @switch;
+    int tail;
+    int @throw;
+    int unaligned;
+    int unbox;
+    int unbox_any;
+    int volatile_;
+    int xor;
+}
+
+void CountMethod(MethodDefinition method, ref CountingResult result) {
+    if (method.get_Body() -> body!) {
+        var instructions = body.get_Instructions()!;
+
+        for (var i = 0; i < instructions.get_Count(); i++) {
+            var instruction = instructions.get_Item((int32)i)!;
+
+            // We only have every instruction here to make sure we didn't miss any we care about
+            switch (instruction.get_OpCode().get_Name()!) {
+                case "add":
+                    result.add++;
+                    break;
+                case "add.ovf":
+                    result.add_ovf++;
+                    break;
+                case "add.ovf.un":
+                    result.add_ovf_un++;
+                    break;
+                case "and":
+                    result.and++;
+                    break;
+                case "arglist":
+                    result.arglist++;
+                    break;
+                case "beq":
+                    result.beq++;
+                    break;
+                case "beq.s":
+                    result.beq_s++;
+                    break;
+                case "bge":
+                    result.bge++;
+                    break;
+                case "bge.s":
+                    result.bge_s++;
+                    break;
+                case "bge.un":
+                    result.bge_un++;
+                    break;
+                case "bge.un.s":
+                    result.bge_un_s++;
+                    break;
+                case "bgt":
+                    result.bgt++;
+                    break;
+                case "bgt.s":
+                    result.bgt_s++;
+                    break;
+                case "bgt.un":
+                    result.bgt_un++;
+                    break;
+                case "bgt.un.s":
+                    result.bgt_un_s++;
+                    break;
+                case "ble":
+                    result.ble++;
+                    break;
+                case "ble.s":
+                    result.ble_s++;
+                    break;
+                case "ble.un":
+                    result.ble_un++;
+                    break;
+                case "ble.un.s":
+                    result.ble_un_s++;
+                    break;
+                case "blt":
+                    result.blt++;
+                    break;
+                case "blt.s":
+                    result.blt_s++;
+                    break;
+                case "blt.un":
+                    result.blt_un++;
+                    break;
+                case "blt.un.s":
+                    result.blt_un_s++;
+                    break;
+                case "bne.un":
+                    result.bne_un++;
+                    break;
+                case "bne.un.s":
+                    result.bne_un_s++;
+                    break;
+                case "box":
+                    result.box++;
+                    break;
+                case "br":
+                    result.br++;
+                    break;
+                case "br.s":
+                    result.br_s++;
+                    break;
+                case "break":
+                    result.@break++;
+                    break;
+                case "brfalse":
+                    result.brfalse++;
+                    break;
+                case "brfalse.s":
+                    result.brfalse_s++;
+                    break;
+                case "brinst":
+                    result.brinst++;
+                    break;
+                case "brinst.s":
+                    result.brinst_s++;
+                    break;
+                case "brnull":
+                    result.brnull++;
+                    break;
+                case "brnull.s":
+                    result.brnull_s++;
+                    break;
+                case "brtrue":
+                    result.brtrue++;
+                    break;
+                case "brtrue.s":
+                    result.brtrue_s++;
+                    break;
+                case "brzero":
+                    result.brzero++;
+                    break;
+                case "brzero.s":
+                    result.brzero_s++;
+                    break;
+                case "call":
+                    result.call++;
+                    break;
+                case "calli":
+                    result.calli++;
+                    break;
+                case "callvirt":
+                    result.callvirt++;
+                    break;
+                case "castclass":
+                    result.castclass++;
+                    break;
+                case "ceq":
+                    result.ceq++;
+                    break;
+                case "cgt":
+                    result.cgt++;
+                    break;
+                case "cgt.un":
+                    result.cgt_un++;
+                    break;
+                case "clt":
+                    result.clt++;
+                    break;
+                case "clt.un":
+                    result.clt_un++;
+                    break;
+                case "ckfinite":
+                    result.ckfinite++;
+                    break;
+                case "constrained.":
+                    result.constrained_++;
+                    break;
+                case "conv.i":
+                    result.conv_i++;
+                    break;
+                case "conv.i1":
+                    result.conv_i1++;
+                    break;
+                case "conv.i2":
+                    result.conv_i2++;
+                    break;
+                case "conv.i4":
+                    result.conv_i4++;
+                    break;
+                case "conv.i8":
+                    result.conv_i8++;
+                    break;
+                case "conv.ovf.i":
+                    result.conv_ovf_i++;
+                    break;
+                case "conv.ovf.i.un":
+                    result.conv_ovf_i_un++;
+                    break;
+                case "conv.ovf.i1":
+                    result.conv_ovf_i1++;
+                    break;
+                case "conv.ovf.i1.un":
+                    result.conv_ovf_i1_un++;
+                    break;
+                case "conv.ovf.i2":
+                    result.conv_ovf_i2++;
+                    break;
+                case "conv.ovf.i2.un":
+                    result.conv_ovf_i2_un++;
+                    break;
+                case "conv.ovf.i4":
+                    result.conv_ovf_i4++;
+                    break;
+                case "conv.ovf.i4.un":
+                    result.conv_ovf_i4_un++;
+                    break;
+                case "conv.ovf.i8":
+                    result.conv_ovf_i8++;
+                    break;
+                case "conv.ovf.i8.un":
+                    result.conv_ovf_i8_un++;
+                    break;
+                case "conv.ovf.u":
+                    result.conv_ovf_u++;
+                    break;
+                case "conv.ovf.u.un":
+                    result.conv_ovf_u_un++;
+                    break;
+                case "conv.ovf.u1":
+                    result.conv_ovf_u1++;
+                    break;
+                case "conv.ovf.u1.un":
+                    result.conv_ovf_u1_un++;
+                    break;
+                case "conv.ovf.u2":
+                    result.conv_ovf_u2++;
+                    break;
+                case "conv.ovf.u2.un":
+                    result.conv_ovf_u2_un++;
+                    break;
+                case "conv.ovf.u4":
+                    result.conv_ovf_u4++;
+                    break;
+                case "conv.ovf.u4.un":
+                    result.conv_ovf_u4_un++;
+                    break;
+                case "conv.ovf.u8":
+                    result.conv_ovf_u8++;
+                    break;
+                case "conv.ovf.u8.un":
+                    result.conv_ovf_u8_un++;
+                    break;
+                case "conv.r.un":
+                    result.conv_r_un++;
+                    break;
+                case "conv.r4":
+                    result.conv_r4++;
+                    break;
+                case "conv.r8":
+                    result.conv_r8++;
+                    break;
+                case "conv.u":
+                    result.conv_u++;
+                    break;
+                case "conv.u1":
+                    result.conv_u1++;
+                    break;
+                case "conv.u2":
+                    result.conv_u2++;
+                    break;
+                case "conv.u4":
+                    result.conv_u4++;
+                    break;
+                case "conv.u8":
+                    result.conv_u8++;
+                    break;
+                case "cpblk":
+                    result.cpblk++;
+                    result.otherAssignments++;
+                    break;
+                case "cpobj":
+                    result.cpobj++;
+                    result.otherAssignments++;
+                    break;
+                case "div":
+                    result.div++;
+                    break;
+                case "div.un":
+                    result.div_un++;
+                    break;
+                case "dup":
+                    result.dup++;
+                    break;
+                case "endfault":
+                    result.endfault++;
+                    break;
+                case "endfilter":
+                    result.endfilter++;
+                    break;
+                case "endfinally":
+                    result.endfinally++;
+                    break;
+                case "initblk":
+                    result.initblk++;
+                    result.otherAssignments++;
+                    break;
+                case "initobj":
+                    result.initobj++;
+                    result.otherAssignments++;
+                    break;
+                case "isinst":
+                    result.isinst++;
+                    break;
+                case "jmp":
+                    result.jmp++;
+                    break;
+                case "ldarg":
+                    result.ldarg++;
+                    break;
+                case "ldarg.0":
+                    result.ldarg_0++;
+                    break;
+                case "ldarg.1":
+                    result.ldarg_1++;
+                    break;
+                case "ldarg.2":
+                    result.ldarg_2++;
+                    break;
+                case "ldarg.3":
+                    result.ldarg_3++;
+                    break;
+                case "ldarg.s":
+                    result.ldarg_s++;
+                    break;
+                case "ldarga":
+                    result.ldarga++;
+                    break;
+                case "ldarga.s":
+                    result.ldarga_s++;
+                    break;
+                case "ldc.i4":
+                    result.ldc_i4++;
+                    break;
+                case "ldc.i4.0":
+                    result.ldc_i4_0++;
+                    break;
+                case "ldc.i4.1":
+                    result.ldc_i4_1++;
+                    break;
+                case "ldc.i4.2":
+                    result.ldc_i4_2++;
+                    break;
+                case "ldc.i4.3":
+                    result.ldc_i4_3++;
+                    break;
+                case "ldc.i4.4":
+                    result.ldc_i4_4++;
+                    break;
+                case "ldc.i4.5":
+                    result.ldc_i4_5++;
+                    break;
+                case "ldc.i4.6":
+                    result.ldc_i4_6++;
+                    break;
+                case "ldc.i4.7":
+                    result.ldc_i4_7++;
+                    break;
+                case "ldc.i4.8":
+                    result.ldc_i4_8++;
+                    break;
+                case "ldc.i4.m1":
+                    result.ldc_i4_m1++;
+                    break;
+                case "ldc.i4.s":
+                    result.ldc_i4_s++;
+                    break;
+                case "ldc.i8":
+                    result.ldc_i8++;
+                    break;
+                case "ldc.r4":
+                    result.ldc_r4++;
+                    break;
+                case "ldc.r8":
+                    result.ldc_r8++;
+                    break;
+                case "ldelem":
+                    result.ldelem++;
+                    break;
+                case "ldelem.any":
+                    result.ldelem_any++;
+                    break;
+                case "ldelem.i":
+                    result.ldelem_i++;
+                    break;
+                case "ldelem.i1":
+                    result.ldelem_i1++;
+                    break;
+                case "ldelem.i2":
+                    result.ldelem_i2++;
+                    break;
+                case "ldelem.i4":
+                    result.ldelem_i4++;
+                    break;
+                case "ldelem.i8":
+                    result.ldelem_i8++;
+                    break;
+                case "ldelem.r4":
+                    result.ldelem_r4++;
+                    break;
+                case "ldelem.r8":
+                    result.ldelem_r8++;
+                    break;
+                case "ldelem.ref":
+                    result.ldelem_ref++;
+                    break;
+                case "ldelem.u1":
+                    result.ldelem_u1++;
+                    break;
+                case "ldelem.u2":
+                    result.ldelem_u2++;
+                    break;
+                case "ldelem.u4":
+                    result.ldelem_u4++;
+                    break;
+                case "ldelema":
+                    result.ldelema++;
+                    break;
+                case "ldfld":
+                    result.ldfld++;
+                    break;
+                case "ldflda":
+                    result.ldflda++;
+                    break;
+                case "ldftn":
+                    result.ldftn++;
+                    break;
+                case "ldind.i":
+                    result.ldind_i++;
+                    break;
+                case "ldind.i1":
+                    result.ldind_i1++;
+                    break;
+                case "ldind.i2":
+                    result.ldind_i2++;
+                    break;
+                case "ldind.i4":
+                    result.ldind_i4++;
+                    break;
+                case "ldind.i8":
+                    result.ldind_i8++;
+                    break;
+                case "ldind.r4":
+                    result.ldind_r4++;
+                    break;
+                case "ldind.r8":
+                    result.ldind_r8++;
+                    break;
+                case "ldind.ref":
+                    result.ldind_ref++;
+                    break;
+                case "ldind.u1":
+                    result.ldind_u1++;
+                    break;
+                case "ldind.u2":
+                    result.ldind_u2++;
+                    break;
+                case "ldind.u4":
+                    result.ldind_u4++;
+                    break;
+                case "ldlen":
+                    result.ldlen++;
+                    break;
+                case "ldloc":
+                    result.ldloc++;
+                    break;
+                case "ldloc.0":
+                    result.ldloc_0++;
+                    break;
+                case "ldloc.1":
+                    result.ldloc_1++;
+                    break;
+                case "ldloc.2":
+                    result.ldloc_2++;
+                    break;
+                case "ldloc.3":
+                    result.ldloc_3++;
+                    break;
+                case "ldloc.s":
+                    result.ldloc_s++;
+                    break;
+                case "ldloca":
+                    result.ldloca++;
+                    break;
+                case "ldloca.s":
+                    result.ldloca_s++;
+                    break;
+                case "ldnull":
+                    result.ldnull++;
+                    break;
+                case "ldobj":
+                    result.ldobj++;
+                    break;
+                case "ldsfld":
+                    result.ldsfld++;
+                    break;
+                case "ldsflda":
+                    result.ldsflda++;
+                    break;
+                case "ldstr":
+                    result.ldstr++;
+                    break;
+                case "ldtoken":
+                    result.ldtoken++;
+                    break;
+                case "ldvirtftn":
+                    result.ldvirtftn++;
+                    break;
+                case "leave":
+                    result.leave++;
+                    break;
+                case "leave.s":
+                    result.leave_s++;
+                    break;
+                case "localloc":
+                    result.localloc++;
+                    break;
+                case "mkrefany":
+                    result.mkrefany++;
+                    break;
+                case "mul":
+                    result.mul++;
+                    break;
+                case "mul.ovf":
+                    result.mul_ovf++;
+                    break;
+                case "mul.ovf.un":
+                    result.mul_ovf_un++;
+                    break;
+                case "neg":
+                    result.neg++;
+                    break;
+                case "newarr":
+                    result.newarr++;
+                    break;
+                case "newobj":
+                    result.newobj++;
+                    break;
+                case "no":
+                    result.no++;
+                    break;
+                case "nop":
+                    result.nop++;
+                    break;
+                case "not":
+                    result.not++;
+                    break;
+                case "or":
+                    result.@or++;
+                    break;
+                case "pop":
+                    result.pop++;
+                    break;
+                case "readonly":
+                    result.readonly++;
+                    break;
+                case "refanytype":
+                    result.refanytype++;
+                    break;
+                case "refanyval":
+                    result.refanyval++;
+                    break;
+                case "rem":
+                    result.rem++;
+                    break;
+                case "rem.un":
+                    result.rem_un++;
+                    break;
+                case "ret":
+                    result.ret++;
+                    break;
+                case "rethrow":
+                    result.rethrow++;
+                    break;
+                case "starg":
+                    result.starg++;
+                    result.parameterAssignments++;
+                    break;
+                case "starg.s":
+                    result.starg_s++;
+                    result.parameterAssignments++;
+                    break;
+                case "shl":
+                    result.shl++;
+                    break;
+                case "shr":
+                    result.shr++;
+                    break;
+                case "shr.un":
+                    result.shr_un++;
+                    break;
+                case "sizeof":
+                    result.@sizeof++;
+                    break;
+                case "stelem":
+                    result.stelem++;
+                    result.arrayAssignments++;
+                    break;
+                case "stelem.any":
+                    result.stelem_any++;
+                    result.arrayAssignments++;
+                    break;
+                case "stelem.i":
+                    result.stelem_i++;
+                    result.arrayAssignments++;
+                    break;
+                case "stelem.i1":
+                    result.stelem_i1++;
+                    result.arrayAssignments++;
+                    break;
+                case "stelem.i2":
+                    result.stelem_i2++;
+                    result.arrayAssignments++;
+                    break;
+                case "stelem.i4":
+                    result.stelem_i4++;
+                    result.arrayAssignments++;
+                    break;
+                case "stelem.i8":
+                    result.stelem_i8++;
+                    result.arrayAssignments++;
+                    break;
+                case "stelem.r4":
+                    result.stelem_r4++;
+                    result.arrayAssignments++;
+                    break;
+                case "stelem.r8":
+                    result.stelem_r8++;
+                    result.arrayAssignments++;
+                    break;
+                case "stelem.ref":
+                    result.stelem_ref++;
+                    result.arrayAssignments++;
+                    break;
+                case "stfld":
+                    result.stfld++;
+                    result.fieldAssignments++;
+                    break;
+                case "stind.i":
+                    result.stind_i++;
+                    result.indirectAssignments++;
+                    break;
+                case "stind.i1":
+                    result.stind_i1++;
+                    result.indirectAssignments++;
+                    break;
+                case "stind.i2":
+                    result.stind_i2++;
+                    result.indirectAssignments++;
+                    break;
+                case "stind.i4":
+                    result.stind_i4++;
+                    result.indirectAssignments++;
+                    break;
+                case "stind.i8":
+                    result.stind_i8++;
+                    result.indirectAssignments++;
+                    break;
+                case "stind.r4":
+                    result.stind_r4++;
+                    result.indirectAssignments++;
+                    break;
+                case "stind.r8":
+                    result.stind_r8++;
+                    result.indirectAssignments++;
+                    break;
+                case "stind.ref":
+                    result.stind_ref++;
+                    result.indirectAssignments++;
+                    break;
+                case "stloc":
+                    result.stloc++;
+                    result.localAssignments++;
+                    break;
+                case "stloc.0":
+                    result.stloc_0++;
+                    result.localAssignments++;
+                    break;
+                case "stloc.1":
+                    result.stloc_1++;
+                    result.localAssignments++;
+                    break;
+                case "stloc.2":
+                    result.stloc_2++;
+                    result.localAssignments++;
+                    break;
+                case "stloc.3":
+                    result.stloc_3++;
+                    result.localAssignments++;
+                    break;
+                case "stloc.s":
+                    result.stloc_s++;
+                    result.localAssignments++;
+                    break;
+                case "stobj":
+                    result.stobj++;
+                    result.indirectAssignments++;
+                    break;
+                case "stsfld":
+                    result.stsfld++;
+                    result.fieldAssignments++;
+                    break;
+                case "sub":
+                    result.sub++;
+                    break;
+                case "sub.ovf":
+                    result.sub_ovf++;
+                    break;
+                case "sub.ovf.un":
+                    result.sub_ovf_un++;
+                    break;
+                case "switch":
+                    result.@switch++;
+                    break;
+                case "tail":
+                    result.tail++;
+                    break;
+                case "throw":
+                    result.@throw++;
+                    break;
+                case "unaligned":
+                    result.unaligned++;
+                    break;
+                case "unbox":
+                    result.unbox++;
+                    break;
+                case "unbox.any":
+                    result.unbox_any++;
+                    break;
+                case "volatile.":
+                    result.volatile_++;
+                    break;
+                case "xor":
+                    result.xor++;
+                    break;
+                default:
+                    throw new System.Exception(f"Unexpected operand name '{instruction.get_OpCode().get_Name()!}'");
+            }
+        }
+    }
+}
+
+void WriteResults(ref CountingResult result) {
+    const Total =
+        result.add +
+        result.add_ovf +
+        result.add_ovf_un +
+        result.and +
+        result.arglist +
+        result.beq +
+        result.beq_s +
+        result.bge +
+        result.bge_s +
+        result.bge_un +
+        result.bge_un_s +
+        result.bgt +
+        result.bgt_s +
+        result.bgt_un +
+        result.bgt_un_s +
+        result.ble +
+        result.ble_s +
+        result.ble_un +
+        result.ble_un_s +
+        result.blt +
+        result.blt_s +
+        result.blt_un +
+        result.blt_un_s +
+        result.bne_un +
+        result.bne_un_s +
+        result.box +
+        result.br +
+        result.br_s +
+        result.@break +
+        result.brfalse +
+        result.brfalse_s +
+        result.brinst +
+        result.brinst_s +
+        result.brnull +
+        result.brnull_s +
+        result.brtrue +
+        result.brtrue_s +
+        result.brzero +
+        result.brzero_s +
+        result.call +
+        result.calli +
+        result.callvirt +
+        result.castclass +
+        result.ceq +
+        result.cgt +
+        result.cgt_un +
+        result.clt +
+        result.clt_un +
+        result.ckfinite +
+        result.constrained_ +
+        result.conv_i +
+        result.conv_i1 +
+        result.conv_i2 +
+        result.conv_i4 +
+        result.conv_i8 +
+        result.conv_ovf_i +
+        result.conv_ovf_i_un +
+        result.conv_ovf_i1 +
+        result.conv_ovf_i1_un +
+        result.conv_ovf_i2 +
+        result.conv_ovf_i2_un +
+        result.conv_ovf_i4 +
+        result.conv_ovf_i4_un +
+        result.conv_ovf_i8 +
+        result.conv_ovf_i8_un +
+        result.conv_ovf_u +
+        result.conv_ovf_u_un +
+        result.conv_ovf_u1 +
+        result.conv_ovf_u1_un +
+        result.conv_ovf_u2 +
+        result.conv_ovf_u2_un +
+        result.conv_ovf_u4 +
+        result.conv_ovf_u4_un +
+        result.conv_ovf_u8 +
+        result.conv_ovf_u8_un +
+        result.conv_r_un +
+        result.conv_r4 +
+        result.conv_r8 +
+        result.conv_u +
+        result.conv_u1 +
+        result.conv_u2 +
+        result.conv_u4 +
+        result.conv_u8 +
+        result.cpblk +
+        result.cpobj +
+        result.div +
+        result.div_un +
+        result.dup +
+        result.endfault +
+        result.endfilter +
+        result.endfinally +
+        result.initblk +
+        result.initobj +
+        result.isinst +
+        result.jmp +
+        result.ldarg +
+        result.ldarg_0 +
+        result.ldarg_1 +
+        result.ldarg_2 +
+        result.ldarg_3 +
+        result.ldarg_s +
+        result.ldarga +
+        result.ldarga_s +
+        result.ldc_i4 +
+        result.ldc_i4_0 +
+        result.ldc_i4_1 +
+        result.ldc_i4_2 +
+        result.ldc_i4_3 +
+        result.ldc_i4_4 +
+        result.ldc_i4_5 +
+        result.ldc_i4_6 +
+        result.ldc_i4_7 +
+        result.ldc_i4_8 +
+        result.ldc_i4_m1 +
+        result.ldc_i4_s +
+        result.ldc_i8 +
+        result.ldc_r4 +
+        result.ldc_r8 +
+        result.ldelem +
+        result.ldelem_any +
+        result.ldelem_i +
+        result.ldelem_i1 +
+        result.ldelem_i2 +
+        result.ldelem_i4 +
+        result.ldelem_i8 +
+        result.ldelem_r4 +
+        result.ldelem_r8 +
+        result.ldelem_ref +
+        result.ldelem_u1 +
+        result.ldelem_u2 +
+        result.ldelem_u4 +
+        result.ldelema +
+        result.ldfld +
+        result.ldflda +
+        result.ldftn +
+        result.ldind_i +
+        result.ldind_i1 +
+        result.ldind_i2 +
+        result.ldind_i4 +
+        result.ldind_i8 +
+        result.ldind_r4 +
+        result.ldind_r8 +
+        result.ldind_ref +
+        result.ldind_u1 +
+        result.ldind_u2 +
+        result.ldind_u4 +
+        result.ldlen +
+        result.ldloc +
+        result.ldloc_0 +
+        result.ldloc_1 +
+        result.ldloc_2 +
+        result.ldloc_3 +
+        result.ldloc_s +
+        result.ldloca +
+        result.ldloca_s +
+        result.ldnull +
+        result.ldobj +
+        result.ldsfld +
+        result.ldsflda +
+        result.ldstr +
+        result.ldtoken +
+        result.ldvirtftn +
+        result.leave +
+        result.leave_s +
+        result.localloc +
+        result.mkrefany +
+        result.mul +
+        result.mul_ovf +
+        result.mul_ovf_un +
+        result.neg +
+        result.newarr +
+        result.newobj +
+        result.no +
+        result.nop +
+        result.not +
+        result.@or +
+        result.pop +
+        result.readonly +
+        result.refanytype +
+        result.refanyval +
+        result.rem +
+        result.rem_un +
+        result.ret +
+        result.rethrow +
+        result.starg +
+        result.starg_s +
+        result.shl +
+        result.shr +
+        result.shr_un +
+        result.@sizeof +
+        result.stelem +
+        result.stelem_any +
+        result.stelem_i +
+        result.stelem_i1 +
+        result.stelem_i2 +
+        result.stelem_i4 +
+        result.stelem_i8 +
+        result.stelem_r4 +
+        result.stelem_r8 +
+        result.stelem_ref +
+        result.stfld +
+        result.stind_i +
+        result.stind_i1 +
+        result.stind_i2 +
+        result.stind_i4 +
+        result.stind_i8 +
+        result.stind_r4 +
+        result.stind_r8 +
+        result.stind_ref +
+        result.stloc +
+        result.stloc_0 +
+        result.stloc_1 +
+        result.stloc_2 +
+        result.stloc_3 +
+        result.stloc_s +
+        result.stobj +
+        result.stsfld +
+        result.sub +
+        result.sub_ovf +
+        result.sub_ovf_un +
+        result.@switch +
+        result.tail +
+        result.@throw +
+        result.unaligned +
+        result.unbox +
+        result.unbox_any +
+        result.volatile_ +
+        result.xor;
+
+    var instructionResults = new System.Text.StringBuilder();
+
+    instructionResults.AppendLine("Instruction Counts:");
+    instructionResults.AppendLine(f"\tadd: {result.add}");
+    instructionResults.AppendLine(f"\tadd.ovf: {result.add_ovf}");
+    instructionResults.AppendLine(f"\tadd.ovf.un: {result.add_ovf_un}");
+    instructionResults.AppendLine(f"\tand: {result.and}");
+    instructionResults.AppendLine(f"\targlist: {result.arglist}");
+    instructionResults.AppendLine(f"\tbeq: {result.beq}");
+    instructionResults.AppendLine(f"\tbeq.s: {result.beq_s}");
+    instructionResults.AppendLine(f"\tbge: {result.bge}");
+    instructionResults.AppendLine(f"\tbge.s: {result.bge_s}");
+    instructionResults.AppendLine(f"\tbge.un: {result.bge_un}");
+    instructionResults.AppendLine(f"\tbge.un.s: {result.bge_un_s}");
+    instructionResults.AppendLine(f"\tbgt: {result.bgt}");
+    instructionResults.AppendLine(f"\tbgt.s: {result.bgt_s}");
+    instructionResults.AppendLine(f"\tbgt.un: {result.bgt_un}");
+    instructionResults.AppendLine(f"\tbgt.un.s: {result.bgt_un_s}");
+    instructionResults.AppendLine(f"\tble: {result.ble}");
+    instructionResults.AppendLine(f"\tble.s: {result.ble_s}");
+    instructionResults.AppendLine(f"\tble.un: {result.ble_un}");
+    instructionResults.AppendLine(f"\tble.un.s: {result.ble_un_s}");
+    instructionResults.AppendLine(f"\tblt: {result.blt}");
+    instructionResults.AppendLine(f"\tblt.s: {result.blt_s}");
+    instructionResults.AppendLine(f"\tblt.un: {result.blt_un}");
+    instructionResults.AppendLine(f"\tblt.un.s: {result.blt_un_s}");
+    instructionResults.AppendLine(f"\tbne.un: {result.bne_un}");
+    instructionResults.AppendLine(f"\tbne.un.s: {result.bne_un_s}");
+    instructionResults.AppendLine(f"\tbox: {result.box}");
+    instructionResults.AppendLine(f"\tbr: {result.br}");
+    instructionResults.AppendLine(f"\tbr.s: {result.br_s}");
+    instructionResults.AppendLine(f"\tbreak: {result.@break}");
+    instructionResults.AppendLine(f"\tbrfalse: {result.brfalse}");
+    instructionResults.AppendLine(f"\tbrfalse.s: {result.brfalse_s}");
+    instructionResults.AppendLine(f"\tbrinst: {result.brinst}");
+    instructionResults.AppendLine(f"\tbrinst.s: {result.brinst_s}");
+    instructionResults.AppendLine(f"\tbrnull: {result.brnull}");
+    instructionResults.AppendLine(f"\tbrnull.s: {result.brnull_s}");
+    instructionResults.AppendLine(f"\tbrtrue: {result.brtrue}");
+    instructionResults.AppendLine(f"\tbrtrue.s: {result.brtrue_s}");
+    instructionResults.AppendLine(f"\tbrzero: {result.brzero}");
+    instructionResults.AppendLine(f"\tbrzero.s: {result.brzero_s}");
+    instructionResults.AppendLine(f"\tcall: {result.call}");
+    instructionResults.AppendLine(f"\tcalli: {result.calli}");
+    instructionResults.AppendLine(f"\tcallvirt: {result.callvirt}");
+    instructionResults.AppendLine(f"\tcastclass: {result.castclass}");
+    instructionResults.AppendLine(f"\tceq: {result.ceq}");
+    instructionResults.AppendLine(f"\tcgt: {result.cgt}");
+    instructionResults.AppendLine(f"\tcgt.un: {result.cgt_un}");
+    instructionResults.AppendLine(f"\tclt: {result.clt}");
+    instructionResults.AppendLine(f"\tclt.un: {result.clt_un}");
+    instructionResults.AppendLine(f"\tckfinite: {result.ckfinite}");
+    instructionResults.AppendLine(f"\tconstrained.: {result.constrained_}");
+    instructionResults.AppendLine(f"\tconv.i: {result.conv_i}");
+    instructionResults.AppendLine(f"\tconv.i1: {result.conv_i1}");
+    instructionResults.AppendLine(f"\tconv.i2: {result.conv_i2}");
+    instructionResults.AppendLine(f"\tconv.i4: {result.conv_i4}");
+    instructionResults.AppendLine(f"\tconv.i8: {result.conv_i8}");
+    instructionResults.AppendLine(f"\tconv.ovf.i: {result.conv_ovf_i}");
+    instructionResults.AppendLine(f"\tconv.ovf.i.un: {result.conv_ovf_i_un}");
+    instructionResults.AppendLine(f"\tconv.ovf.i1: {result.conv_ovf_i1}");
+    instructionResults.AppendLine(f"\tconv.ovf.i1.un: {result.conv_ovf_i1_un}");
+    instructionResults.AppendLine(f"\tconv.ovf.i2: {result.conv_ovf_i2}");
+    instructionResults.AppendLine(f"\tconv.ovf.i2.un: {result.conv_ovf_i2_un}");
+    instructionResults.AppendLine(f"\tconv.ovf.i4: {result.conv_ovf_i4}");
+    instructionResults.AppendLine(f"\tconv.ovf.i4.un: {result.conv_ovf_i4_un}");
+    instructionResults.AppendLine(f"\tconv.ovf.i8: {result.conv_ovf_i8}");
+    instructionResults.AppendLine(f"\tconv.ovf.i8.un: {result.conv_ovf_i8_un}");
+    instructionResults.AppendLine(f"\tconv.ovf.u: {result.conv_ovf_u}");
+    instructionResults.AppendLine(f"\tconv.ovf.u.un: {result.conv_ovf_u_un}");
+    instructionResults.AppendLine(f"\tconv.ovf.u1: {result.conv_ovf_u1}");
+    instructionResults.AppendLine(f"\tconv.ovf.u1.un: {result.conv_ovf_u1_un}");
+    instructionResults.AppendLine(f"\tconv.ovf.u2: {result.conv_ovf_u2}");
+    instructionResults.AppendLine(f"\tconv.ovf.u2.un: {result.conv_ovf_u2_un}");
+    instructionResults.AppendLine(f"\tconv.ovf.u4: {result.conv_ovf_u4}");
+    instructionResults.AppendLine(f"\tconv.ovf.u4.un: {result.conv_ovf_u4_un}");
+    instructionResults.AppendLine(f"\tconv.ovf.u8: {result.conv_ovf_u8}");
+    instructionResults.AppendLine(f"\tconv.ovf.u8.un: {result.conv_ovf_u8_un}");
+    instructionResults.AppendLine(f"\tconv.r.un: {result.conv_r_un}");
+    instructionResults.AppendLine(f"\tconv.r4: {result.conv_r4}");
+    instructionResults.AppendLine(f"\tconv.r8: {result.conv_r8}");
+    instructionResults.AppendLine(f"\tconv.u: {result.conv_u}");
+    instructionResults.AppendLine(f"\tconv.u1: {result.conv_u1}");
+    instructionResults.AppendLine(f"\tconv.u2: {result.conv_u2}");
+    instructionResults.AppendLine(f"\tconv.u4: {result.conv_u4}");
+    instructionResults.AppendLine(f"\tconv.u8: {result.conv_u8}");
+    instructionResults.AppendLine(f"\tcpblk: {result.cpblk}");
+    instructionResults.AppendLine(f"\tcpobj: {result.cpobj}");
+    instructionResults.AppendLine(f"\tdiv: {result.div}");
+    instructionResults.AppendLine(f"\tdiv.un: {result.div_un}");
+    instructionResults.AppendLine(f"\tdup: {result.dup}");
+    instructionResults.AppendLine(f"\tendfault: {result.endfault}");
+    instructionResults.AppendLine(f"\tendfilter: {result.endfilter}");
+    instructionResults.AppendLine(f"\tendfinally: {result.endfinally}");
+    instructionResults.AppendLine(f"\tinitblk: {result.initblk}");
+    instructionResults.AppendLine(f"\tinitobj: {result.initobj}");
+    instructionResults.AppendLine(f"\tisinst: {result.isinst}");
+    instructionResults.AppendLine(f"\tjmp: {result.jmp}");
+    instructionResults.AppendLine(f"\tldarg: {result.ldarg}");
+    instructionResults.AppendLine(f"\tldarg.0: {result.ldarg_0}");
+    instructionResults.AppendLine(f"\tldarg.1: {result.ldarg_1}");
+    instructionResults.AppendLine(f"\tldarg.2: {result.ldarg_2}");
+    instructionResults.AppendLine(f"\tldarg.3: {result.ldarg_3}");
+    instructionResults.AppendLine(f"\tldarg.s: {result.ldarg_s}");
+    instructionResults.AppendLine(f"\tldarga: {result.ldarga}");
+    instructionResults.AppendLine(f"\tldarga.s: {result.ldarga_s}");
+    instructionResults.AppendLine(f"\tldc.i4: {result.ldc_i4}");
+    instructionResults.AppendLine(f"\tldc.i4.0: {result.ldc_i4_0}");
+    instructionResults.AppendLine(f"\tldc.i4.1: {result.ldc_i4_1}");
+    instructionResults.AppendLine(f"\tldc.i4.2: {result.ldc_i4_2}");
+    instructionResults.AppendLine(f"\tldc.i4.3: {result.ldc_i4_3}");
+    instructionResults.AppendLine(f"\tldc.i4.4: {result.ldc_i4_4}");
+    instructionResults.AppendLine(f"\tldc.i4.5: {result.ldc_i4_5}");
+    instructionResults.AppendLine(f"\tldc.i4.6: {result.ldc_i4_6}");
+    instructionResults.AppendLine(f"\tldc.i4.7: {result.ldc_i4_7}");
+    instructionResults.AppendLine(f"\tldc.i4.8: {result.ldc_i4_8}");
+    instructionResults.AppendLine(f"\tldc.i4.m1: {result.ldc_i4_m1}");
+    instructionResults.AppendLine(f"\tldc.i4.s: {result.ldc_i4_s}");
+    instructionResults.AppendLine(f"\tldc.i8: {result.ldc_i8}");
+    instructionResults.AppendLine(f"\tldc.r4: {result.ldc_r4}");
+    instructionResults.AppendLine(f"\tldc.r8: {result.ldc_r8}");
+    instructionResults.AppendLine(f"\tldelem: {result.ldelem}");
+    instructionResults.AppendLine(f"\tldelem.any: {result.ldelem_any}");
+    instructionResults.AppendLine(f"\tldelem.i: {result.ldelem_i}");
+    instructionResults.AppendLine(f"\tldelem.i1: {result.ldelem_i1}");
+    instructionResults.AppendLine(f"\tldelem.i2: {result.ldelem_i2}");
+    instructionResults.AppendLine(f"\tldelem.i4: {result.ldelem_i4}");
+    instructionResults.AppendLine(f"\tldelem.i8: {result.ldelem_i8}");
+    instructionResults.AppendLine(f"\tldelem.r4: {result.ldelem_r4}");
+    instructionResults.AppendLine(f"\tldelem.r8: {result.ldelem_r8}");
+    instructionResults.AppendLine(f"\tldelem.ref: {result.ldelem_ref}");
+    instructionResults.AppendLine(f"\tldelem.u1: {result.ldelem_u1}");
+    instructionResults.AppendLine(f"\tldelem.u2: {result.ldelem_u2}");
+    instructionResults.AppendLine(f"\tldelem.u4: {result.ldelem_u4}");
+    instructionResults.AppendLine(f"\tldelema: {result.ldelema}");
+    instructionResults.AppendLine(f"\tldfld: {result.ldfld}");
+    instructionResults.AppendLine(f"\tldflda: {result.ldflda}");
+    instructionResults.AppendLine(f"\tldftn: {result.ldftn}");
+    instructionResults.AppendLine(f"\tldind.i: {result.ldind_i}");
+    instructionResults.AppendLine(f"\tldind.i1: {result.ldind_i1}");
+    instructionResults.AppendLine(f"\tldind.i2: {result.ldind_i2}");
+    instructionResults.AppendLine(f"\tldind.i4: {result.ldind_i4}");
+    instructionResults.AppendLine(f"\tldind.i8: {result.ldind_i8}");
+    instructionResults.AppendLine(f"\tldind.r4: {result.ldind_r4}");
+    instructionResults.AppendLine(f"\tldind.r8: {result.ldind_r8}");
+    instructionResults.AppendLine(f"\tldind.ref: {result.ldind_ref}");
+    instructionResults.AppendLine(f"\tldind.u1: {result.ldind_u1}");
+    instructionResults.AppendLine(f"\tldind.u2: {result.ldind_u2}");
+    instructionResults.AppendLine(f"\tldind.u4: {result.ldind_u4}");
+    instructionResults.AppendLine(f"\tldlen: {result.ldlen}");
+    instructionResults.AppendLine(f"\tldloc: {result.ldloc}");
+    instructionResults.AppendLine(f"\tldloc.0: {result.ldloc_0}");
+    instructionResults.AppendLine(f"\tldloc.1: {result.ldloc_1}");
+    instructionResults.AppendLine(f"\tldloc.2: {result.ldloc_2}");
+    instructionResults.AppendLine(f"\tldloc.3: {result.ldloc_3}");
+    instructionResults.AppendLine(f"\tldloc.s: {result.ldloc_s}");
+    instructionResults.AppendLine(f"\tldloca: {result.ldloca}");
+    instructionResults.AppendLine(f"\tldloca.s: {result.ldloca_s}");
+    instructionResults.AppendLine(f"\tldnull: {result.ldnull}");
+    instructionResults.AppendLine(f"\tldobj: {result.ldobj}");
+    instructionResults.AppendLine(f"\tldsfld: {result.ldsfld}");
+    instructionResults.AppendLine(f"\tldsflda: {result.ldsflda}");
+    instructionResults.AppendLine(f"\tldstr: {result.ldstr}");
+    instructionResults.AppendLine(f"\tldtoken: {result.ldtoken}");
+    instructionResults.AppendLine(f"\tldvirtftn: {result.ldvirtftn}");
+    instructionResults.AppendLine(f"\tleave: {result.leave}");
+    instructionResults.AppendLine(f"\tleave.s: {result.leave_s}");
+    instructionResults.AppendLine(f"\tlocalloc: {result.localloc}");
+    instructionResults.AppendLine(f"\tmkrefany: {result.mkrefany}");
+    instructionResults.AppendLine(f"\tmul: {result.mul}");
+    instructionResults.AppendLine(f"\tmul.ovf: {result.mul_ovf}");
+    instructionResults.AppendLine(f"\tmul.ovf.un: {result.mul_ovf_un}");
+    instructionResults.AppendLine(f"\tneg: {result.neg}");
+    instructionResults.AppendLine(f"\tnewarr: {result.newarr}");
+    instructionResults.AppendLine(f"\tnewobj: {result.newobj}");
+    instructionResults.AppendLine(f"\tno: {result.no}");
+    instructionResults.AppendLine(f"\tnop: {result.nop}");
+    instructionResults.AppendLine(f"\tnot: {result.not}");
+    instructionResults.AppendLine(f"\tor: {result.@or}");
+    instructionResults.AppendLine(f"\tpop: {result.pop}");
+    instructionResults.AppendLine(f"\treadonly: {result.readonly}");
+    instructionResults.AppendLine(f"\trefanytype: {result.refanytype}");
+    instructionResults.AppendLine(f"\trefanyval: {result.refanyval}");
+    instructionResults.AppendLine(f"\trem: {result.rem}");
+    instructionResults.AppendLine(f"\trem.un: {result.rem_un}");
+    instructionResults.AppendLine(f"\tret: {result.ret}");
+    instructionResults.AppendLine(f"\trethrow: {result.rethrow}");
+    instructionResults.AppendLine(f"\tstarg: {result.starg}");
+    instructionResults.AppendLine(f"\tstarg.s: {result.starg_s}");
+    instructionResults.AppendLine(f"\tshl: {result.shl}");
+    instructionResults.AppendLine(f"\tshr: {result.shr}");
+    instructionResults.AppendLine(f"\tshr.un: {result.shr_un}");
+    instructionResults.AppendLine(f"\tsizeof: {result.@sizeof}");
+    instructionResults.AppendLine(f"\tstelem: {result.stelem}");
+    instructionResults.AppendLine(f"\tstelem.any: {result.stelem_any}");
+    instructionResults.AppendLine(f"\tstelem.i: {result.stelem_i}");
+    instructionResults.AppendLine(f"\tstelem.i1: {result.stelem_i1}");
+    instructionResults.AppendLine(f"\tstelem.i2: {result.stelem_i2}");
+    instructionResults.AppendLine(f"\tstelem.i4: {result.stelem_i4}");
+    instructionResults.AppendLine(f"\tstelem.i8: {result.stelem_i8}");
+    instructionResults.AppendLine(f"\tstelem.r4: {result.stelem_r4}");
+    instructionResults.AppendLine(f"\tstelem.r8: {result.stelem_r8}");
+    instructionResults.AppendLine(f"\tstelem.ref: {result.stelem_ref}");
+    instructionResults.AppendLine(f"\tstfld: {result.stfld}");
+    instructionResults.AppendLine(f"\tstind.i: {result.stind_i}");
+    instructionResults.AppendLine(f"\tstind.i1: {result.stind_i1}");
+    instructionResults.AppendLine(f"\tstind.i2: {result.stind_i2}");
+    instructionResults.AppendLine(f"\tstind.i4: {result.stind_i4}");
+    instructionResults.AppendLine(f"\tstind.i8: {result.stind_i8}");
+    instructionResults.AppendLine(f"\tstind.r4: {result.stind_r4}");
+    instructionResults.AppendLine(f"\tstind.r8: {result.stind_r8}");
+    instructionResults.AppendLine(f"\tstind.ref: {result.stind_ref}");
+    instructionResults.AppendLine(f"\tstloc: {result.stloc}");
+    instructionResults.AppendLine(f"\tstloc.0: {result.stloc_0}");
+    instructionResults.AppendLine(f"\tstloc.1: {result.stloc_1}");
+    instructionResults.AppendLine(f"\tstloc.2: {result.stloc_2}");
+    instructionResults.AppendLine(f"\tstloc.3: {result.stloc_3}");
+    instructionResults.AppendLine(f"\tstloc.s: {result.stloc_s}");
+    instructionResults.AppendLine(f"\tstobj: {result.stobj}");
+    instructionResults.AppendLine(f"\tstsfld: {result.stsfld}");
+    instructionResults.AppendLine(f"\tsub: {result.sub}");
+    instructionResults.AppendLine(f"\tsub.ovf: {result.sub_ovf}");
+    instructionResults.AppendLine(f"\tsub.ovf.un: {result.sub_ovf_un}");
+    instructionResults.AppendLine(f"\tswitch: {result.@switch}");
+    instructionResults.AppendLine(f"\ttail: {result.tail}");
+    instructionResults.AppendLine(f"\tthrow: {result.@throw}");
+    instructionResults.AppendLine(f"\tunaligned: {result.unaligned}");
+    instructionResults.AppendLine(f"\tunbox: {result.unbox}");
+    instructionResults.AppendLine(f"\tunbox.any: {result.unbox_any}");
+    instructionResults.AppendLine(f"\tvolatile.: {result.volatile_}");
+    instructionResults.AppendLine(f"\txor: {result.xor}");
+    instructionResults.AppendLine();
+    instructionResults.AppendLine(f"\tTotal: {Total}");
+
+    string? content = instructionResults.ToString();
+
+    scoped var stream = System.IO.File.Create("Results.txt");
+    scoped var writer = new System.IO.StreamWriter(stream);
+
+    writer.WriteLine(content);
+}

@@ -13,9 +13,9 @@ namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class PENamespaceSymbol : NamespaceSymbol {
     private protected Dictionary<ReadOnlyMemory<char>, PENestedNamespaceSymbol> _lazyNamespaces;
-    private protected Dictionary<ReadOnlyMemory<char>, ImmutableArray<PENamedTypeSymbol>> _lazyTypes;
+    private protected Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> _lazyTypes;
     private Dictionary<string, TypeDefinitionHandle> _lazyNoPiaLocalTypes;
-    private ImmutableArray<PENamedTypeSymbol> _lazyFlattenedTypes;
+    private ImmutableArray<NamedTypeSymbol> _lazyFlattenedTypes;
     private ImmutableArray<Symbol> _lazyFlattenedNamespacesAndTypes;
 
     // TODO Using containing assembly instead of module directly for better interop
@@ -78,7 +78,7 @@ internal abstract class PENamespaceSymbol : NamespaceSymbol {
     internal sealed override ImmutableArray<Symbol> GetMembers(ReadOnlyMemory<char> name) {
         EnsureAllMembersLoaded();
 
-        ImmutableArray<PENamedTypeSymbol> t;
+        ImmutableArray<NamedTypeSymbol> t;
 
         if (_lazyNamespaces.TryGetValue(name, out var ns)) {
             if (_lazyTypes.TryGetValue(name, out t))
@@ -156,7 +156,7 @@ internal abstract class PENamespaceSymbol : NamespaceSymbol {
         if (_lazyTypes is null) {
             var moduleSymbol = containingPEModule;
 
-            var children = ArrayBuilder<PENamedTypeSymbol>.GetInstance();
+            var children = ArrayBuilder<NamedTypeSymbol>.GetInstance();
             var skipCheckForPiaType = !moduleSymbol.module.ContainsNoPiaLocalTypes();
             Dictionary<string, TypeDefinitionHandle> noPiaLocalTypes = null;
 
@@ -177,6 +177,8 @@ internal abstract class PENamespaceSymbol : NamespaceSymbol {
                     }
                 }
             }
+
+            containingAssembly.templateMetadataReader.AppendTemplateTypes(children, this);
 
             var typesDict = children.ToDictionary(c => c.name.AsMemory(), ReadOnlyMemoryOfCharComparer.Instance);
             children.Free();

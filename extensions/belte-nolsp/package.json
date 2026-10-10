@@ -25,7 +25,8 @@
 				],
 				"extensions": [
 					".blt",
-					".belte"
+					".belte",
+                    ".gblt"
 				],
 				"configuration": "./language-configuration.json",
 				"icon": {

@@ -1,11 +1,24 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
+using Buckle.Diagnostics;
+using Buckle.Libraries;
+using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class AssemblySymbol : Symbol {
+    private static readonly ObjectPool<ArrayBuilder<AssemblySymbol>> SymbolPool
+        = new ObjectPool<ArrayBuilder<AssemblySymbol>>(() => []);
+
+    private ImmutableArray<AssemblySymbol> _corAssemblies;
+    private CorLibrary _corLibrary;
+    private TemplateMetadataReader _templateMetadataReader;
+
     public override string name => identity.name;
 
     public sealed override SymbolKind kind => SymbolKind.Assembly;
@@ -17,6 +30,12 @@ internal abstract class AssemblySymbol : Symbol {
     internal sealed override Symbol containingSymbol => null;
 
     internal sealed override AssemblySymbol containingAssembly => null;
+
+    internal ImmutableArray<AssemblySymbol> corAssemblies => _corAssemblies;
+
+    internal CorLibrary corLibrary => _corLibrary;
+
+    internal TemplateMetadataReader templateMetadataReader => _templateMetadataReader;
 
     internal abstract bool isMissing { get; }
 
@@ -51,6 +70,64 @@ internal abstract class AssemblySymbol : Symbol {
     internal abstract ImmutableArray<byte> publicKey { get; }
 
     internal abstract ImmutableArray<ModuleSymbol> modules { get; }
+
+    internal abstract bool isBelteAssembly { get; }
+
+    internal abstract int belteMetadataVersion { get; }
+
+    internal abstract TypeConversions typeConversions { get; }
+
+    internal virtual bool keepLookingForDeclaredSpecialTypes => throw ExceptionUtilities.Unreachable();
+
+    internal NamedTypeSymbol GetSpecialType(SpecialType type) {
+        Debug.Assert(!type.LivesInCorLibrary());
+
+        var candidate = corAssemblies[0].GetDeclaredSpecialType(type, netMode: false);
+
+        if (!candidate.IsErrorType())
+            return candidate;
+
+        var secondCandidate = corAssemblies[1].GetDeclaredSpecialType(type, netMode: true);
+
+        if (!secondCandidate.IsErrorType())
+            return secondCandidate;
+
+        return candidate;
+    }
+
+    internal virtual void RegisterDeclaredSpecialType(NamedTypeSymbol corType) {
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    internal abstract NamedTypeSymbol GetDeclaredSpecialType(SpecialType type, bool netMode = false);
+
+    internal void SetCorAssemblies(ImmutableArray<AssemblySymbol> corAssemblies) {
+        Debug.Assert(corAssemblies.Length == 2);
+        Debug.Assert(_corAssemblies.IsDefault);
+        Debug.Assert(_corLibrary is null);
+        Debug.Assert(_templateMetadataReader is null);
+        Debug.Assert(corAssemblies[0].corLibrary is not null);
+        Debug.Assert(corAssemblies[0].templateMetadataReader is not null);
+        Debug.Assert((object)corAssemblies[0].corAssemblies[0] == corAssemblies[0]);
+
+        _corAssemblies = corAssemblies;
+        _corLibrary = corAssemblies[0].corLibrary;
+        _templateMetadataReader = corAssemblies[0].templateMetadataReader;
+    }
+
+    internal void SetCorLibraryInternal(
+        CorLibrary corLibrary,
+        TemplateMetadataReader templateMetadataReader,
+        ImmutableArray<AssemblySymbol> corAssemblies) {
+        Debug.Assert(corAssemblies.Length == 2);
+        Debug.Assert(_corAssemblies.IsDefault);
+        Debug.Assert(_corLibrary is null);
+        Debug.Assert(_templateMetadataReader is null);
+
+        _corAssemblies = corAssemblies;
+        _corLibrary = corLibrary;
+        _templateMetadataReader = templateMetadataReader;
+    }
 
     internal abstract NamedTypeSymbol LookupDeclaredOrForwardedTopLevelMetadataType(
         ref MetadataTypeName emittedName,
@@ -103,6 +180,163 @@ internal abstract class AssemblySymbol : Symbol {
         // return new MissingMetadataTypeSymbol.TopLevel(modules[0], ref emittedName, null);
     }
 
+    private static readonly char[] NestedTypeNameSeparators = ['+'];
+
+    internal NamedTypeSymbol GetTypeByMetadataName(
+        string metadataName,
+        bool includeReferences,
+        bool isWellKnownType,
+        out (AssemblySymbol, AssemblySymbol) conflicts,
+        bool useCLSCompliantNameArityEncoding = false,
+        BelteDiagnosticQueue warnings = null) {
+        NamedTypeSymbol type;
+        MetadataTypeName mdName;
+
+        if (metadataName.IndexOf('+') >= 0) {
+            var parts = metadataName.Split(NestedTypeNameSeparators);
+            mdName = MetadataTypeName.FromFullName(parts[0], useCLSCompliantNameArityEncoding);
+
+            type = GetTopLevelTypeByMetadataName(
+                ref mdName,
+                assemblyOpt: null,
+                includeReferences: includeReferences,
+                isWellKnownType: isWellKnownType,
+                conflicts: out conflicts,
+                warnings: warnings
+            );
+
+            if (type is null)
+                return null;
+
+            Debug.Assert(!type.IsErrorType());
+
+            for (var i = 1; i < parts.Length; i++) {
+                mdName = MetadataTypeName.FromTypeName(parts[i]);
+                type = type.LookupMetadataType(ref mdName);
+
+                if (type is null)
+                    return null;
+
+                Debug.Assert(!type.IsErrorType());
+
+                if (isWellKnownType && !IsValidWellKnownType(type))
+                    return null;
+            }
+        } else {
+            mdName = MetadataTypeName.FromFullName(metadataName, useCLSCompliantNameArityEncoding);
+
+            type = GetTopLevelTypeByMetadataName(
+                ref mdName,
+                assemblyOpt: null,
+                includeReferences: includeReferences,
+                isWellKnownType: isWellKnownType,
+                conflicts: out conflicts,
+                warnings: warnings
+            );
+        }
+
+        Debug.Assert(type?.IsErrorType() != true);
+
+        return type;
+    }
+
+    private bool IsValidWellKnownType(NamedTypeSymbol? result) {
+        if (result is null || result.typeKind == TypeKind.Error)
+            return false;
+
+        Debug.Assert((object)result.containingType is null || IsValidWellKnownType(result.containingType),
+            "Checking the containing type is the caller's responsibility.");
+
+        return result.declaredAccessibility == Accessibility.Public || IsSymbolAccessible(result, this);
+    }
+
+    internal NamedTypeSymbol GetTopLevelTypeByMetadataName(
+        ref MetadataTypeName metadataName,
+        AssemblyIdentity? assemblyOpt,
+        bool includeReferences,
+        bool isWellKnownType,
+        out (AssemblySymbol, AssemblySymbol) conflicts,
+        BelteDiagnosticQueue warnings = null) {
+        Debug.Assert(warnings is null || isWellKnownType);
+
+        conflicts = default;
+        NamedTypeSymbol result;
+
+        result = GetTopLevelTypeByMetadataName(this, ref metadataName, assemblyOpt);
+        Debug.Assert(result?.IsErrorType() != true);
+
+        if (isWellKnownType && !IsValidWellKnownType(result))
+            result = null;
+
+        if (result is not null || !includeReferences)
+            return result;
+
+        Debug.Assert(this is SourceAssemblySymbol,
+            "Never include references for a non-source assembly, because they don't know about aliases."
+        );
+
+        var assemblies = SymbolPool.Allocate();
+
+        if (assemblyOpt is not null)
+            assemblies.AddRange(declaringCompilation.GetBoundReferenceManager().referencedAssemblies);
+        else
+            declaringCompilation.GetUnaliasedReferencedAssemblies(assemblies);
+
+        foreach (var assembly in assemblies) {
+            Debug.Assert(!(this is SourceAssemblySymbol && assembly.isMissing));
+
+            var candidate = GetTopLevelTypeByMetadataName(assembly, ref metadataName, assemblyOpt);
+            Debug.Assert(candidate?.IsErrorType() != true);
+
+            if (!IsValidCandidate(candidate, isWellKnownType))
+                continue;
+
+            Debug.Assert(!TypeSymbol.Equals(candidate, result, TypeCompareKind.ConsiderEverything));
+
+            if (result is not null) {
+                if (warnings is null) {
+                    conflicts = (result.containingAssembly, candidate.containingAssembly);
+                    result = null;
+                } else {
+                    // TODO Warning
+                    // The predefined type '{0}' is defined in multiple assemblies in the global alias; using definition from '{1}'
+                    // warnings.Add(ErrorCode.WRN_MultiplePredefTypes, NoLocation.Singleton, result, result.ContainingAssembly);
+                }
+
+                break;
+            }
+
+            result = candidate;
+        }
+
+        assemblies.Clear();
+
+        SymbolPool.Free(assemblies);
+
+        Debug.Assert(result?.IsErrorType() != true);
+        return result;
+
+        bool IsValidCandidate(NamedTypeSymbol candidate, bool isWellKnownType) {
+            return candidate is not null
+                && (!isWellKnownType || IsValidWellKnownType(candidate))
+                && !candidate.IsHiddenByCodeAnalysisEmbeddedAttribute();
+        }
+    }
+
+    private static NamedTypeSymbol GetTopLevelTypeByMetadataName(
+        AssemblySymbol assembly,
+        ref MetadataTypeName metadataName,
+        AssemblyIdentity assemblyOpt) {
+        if (assemblyOpt is not null && !assemblyOpt.Equals(assembly.identity))
+            return null;
+
+        var result = assembly.LookupDeclaredTopLevelMetadataType(ref metadataName);
+        Debug.Assert(result?.IsErrorType() != true);
+        Debug.Assert(result is null || ReferenceEquals(result.containingAssembly, assembly));
+
+        return result;
+    }
+
     internal NamespaceSymbol GetAssemblyNamespace(NamespaceSymbol namespaceSymbol) {
         if (namespaceSymbol.isGlobalNamespace)
             return globalNamespace;
@@ -124,6 +358,16 @@ internal abstract class AssemblySymbol : Symbol {
             return null;
 
         return assemblyContainer.GetNestedNamespace(namespaceSymbol.name);
+    }
+
+    internal bool HasInternalAccessTo(AssemblySymbol toAssembly) {
+        if (Equals(this, toAssembly))
+            return true;
+
+        if (AreInternalsVisibleToThisAssembly(toAssembly))
+            return true;
+
+        return false;
     }
 
     internal override void Accept(SymbolVisitor visitor) {
