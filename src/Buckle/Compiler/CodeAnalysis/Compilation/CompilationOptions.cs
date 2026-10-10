@@ -22,7 +22,8 @@ public struct CompilationOptions {
         bool excludeWritingTemplateMetadata = false,
         bool excludeReadingTemplateMetadata = false,
         bool evaluatorStrictExceptionMode = true,
-        bool noNtvLib = false) {
+        bool noNtvLib = false,
+        bool time = false) {
         topLevelBinderFlags = BinderFlags.None;
         this.buildMode = buildMode;
         this.outputKind = outputKind;
@@ -42,6 +43,7 @@ public struct CompilationOptions {
         this.excludeReadingTemplateMetadata = excludeReadingTemplateMetadata;
         this.evaluatorStrictExceptionMode = evaluatorStrictExceptionMode;
         this.noNtvLib = noNtvLib;
+        this.time = time;
     }
 
     /// <summary>
@@ -114,4 +116,6 @@ public struct CompilationOptions {
     /// False if to have the Evaluator try to unwind on an exception and potentially throw multiple times.
     /// </summary>
     internal bool evaluatorStrictExceptionMode { get; }
+
+    internal bool time { get; }
 }

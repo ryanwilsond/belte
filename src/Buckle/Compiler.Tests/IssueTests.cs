@@ -4306,4 +4306,22 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void DefiniteAssignment_DoesntDoubleCountTryBodies() {
+        var text = @"
+            void M() {
+                try {
+                    int a;
+                    int b = [a];
+                } finally { }
+            }
+        ";
+
+        var diagnostics = @"
+            use of unassigned local 'a'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

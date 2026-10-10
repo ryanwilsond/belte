@@ -14,6 +14,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
+using Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis;
@@ -46,6 +47,10 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
 
     private volatile bool _sawCompileTimeExpression;
     private volatile bool _sawNonTypeTemplate;
+
+    private long _millisecondsBinding;
+    private long _millisecondsDiagnosticPass;
+    private long _millisecondsLowering;
 
     private MethodCompiler(
         Compilation compilation,
@@ -154,6 +159,8 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             methodCompiler.CompileNamespace(globalNamespace);
         }
 
+        var timer = compilation.options.time ? Stopwatch.StartNew() : null;
+
         if (!hasDeclarationErrors && !diagnostics.AnyErrors()) {
             if (methodCompiler._sawCompileTimeExpression)
                 methodCompiler.ComputeCompileTimeExpressions();
@@ -178,6 +185,30 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         }
 
         compilation.templateMetadataReader.ForceComplete();
+
+        if (compilation.options.time) {
+            timer.Stop();
+
+            diagnostics.Push(new BelteDiagnostic(
+                DiagnosticSeverity.Debug,
+                $"    Thread-local binding time spent in primary binding: {methodCompiler._millisecondsBinding} ms"
+            ));
+
+            diagnostics.Push(new BelteDiagnostic(
+                DiagnosticSeverity.Debug,
+                $"    Thread-local binding time spent in diagnostics passes: {methodCompiler._millisecondsDiagnosticPass} ms"
+            ));
+
+            diagnostics.Push(new BelteDiagnostic(
+                DiagnosticSeverity.Debug,
+                $"    Thread-local binding time spent in lowering: {methodCompiler._millisecondsLowering} ms"
+            ));
+
+            diagnostics.Push(new BelteDiagnostic(
+                DiagnosticSeverity.Debug,
+                $"    Thread-local binding time spent in post passes: {timer.ElapsedMilliseconds} ms"
+            ));
+        }
 
         return methodCompiler.CreateBoundProgram();
     }
@@ -829,6 +860,8 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
 
         var outInitializers = InitializerRewriter.RewriteOutParameters(method);
 
+        var timer = _compilation.options.time ? Stopwatch.StartNew() : null;
+
         var body = BindMethodBody(
             method,
             state,
@@ -840,6 +873,11 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             out var importChain
         );
 
+        if (_compilation.options.time) {
+            timer.Stop();
+            Interlocked.Add(ref _millisecondsBinding, timer.ElapsedMilliseconds);
+        }
+
         if (body is null || currentDiagnostics.AnyErrors()) {
             _methodBodies.Add(method, body);
             return currentDiagnostics;
@@ -849,6 +887,9 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         state.currentImportChain = importChain;
 
         if (body is not null) {
+            if (_compilation.options.time)
+                timer.Restart();
+
             DiagnosticPass.ReportDiagnostics(
                 _compilation,
                 body,
@@ -856,10 +897,18 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                 currentDiagnostics,
                 _entryPoint?.containingType
             );
+
+            if (_compilation.options.time) {
+                timer.Stop();
+                Interlocked.Add(ref _millisecondsDiagnosticPass, timer.ElapsedMilliseconds);
+            }
         }
 
         if (currentDiagnostics.AnyErrors() || _hasDeclarationErrors || processedInitializers.hasErrors)
             return currentDiagnostics;
+
+        if (_compilation.options.time)
+            timer.Restart();
 
         var loweredBody = LowerBody(
             method,
@@ -961,6 +1010,11 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                         _types.Add(type);
                 }
             }
+        }
+
+        if (_compilation.options.time) {
+            timer.Stop();
+            Interlocked.Add(ref _millisecondsLowering, timer.ElapsedMilliseconds);
         }
 
         state.currentImportChain = oldImportChain;

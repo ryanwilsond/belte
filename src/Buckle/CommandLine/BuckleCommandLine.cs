@@ -397,7 +397,14 @@ public class {name} {{
         );
 
         state = compiler.state;
-        state.arguments = arguments;
+
+        if (arguments.Length != 0) {
+            if (state.arguments.Length == 0)
+                state.arguments = arguments;
+            else
+                state.arguments = [.. state.arguments, .. arguments];
+        }
+
         state.debugMode |= debugMode;
 
         if (state.verboseMode && !state.noOut) {
@@ -672,7 +679,7 @@ public class {name} {{
             outputFilename = outputFilename,
             tasks = tasks.ToArray(),
             noOut = false,
-            arguments = [],
+            arguments = builder.arguments.ToArray(),
             projectType = builder.outputKind,
             verboseMode = verboseMode,
             reducedVerboseMode = builder.verboseMode == VerboseMode.Reduced,
@@ -1356,6 +1363,7 @@ public class {name} {{
         var specifyModule = false;
         var specifyBuildMode = false;
         var specifyWarningLevel = false;
+        var specifySeverity = false;
         var wErrorLevel = 2;
 
         var anyExplicitReferences = false;
@@ -1589,10 +1597,12 @@ public class {name} {{
 
                 var severityString = arg.Substring(11);
 
-                if (Enum.TryParse<DiagnosticSeverity>(severityString, true, out var severityLevel))
+                if (Enum.TryParse<DiagnosticSeverity>(severityString, true, out var severityLevel)) {
+                    specifySeverity = true;
                     state.diagnosticOptions.severity = severityLevel;
-                else
+                } else {
                     diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedSeverity(severityString));
+                }
             } else if (arg.StartsWith("--warnlevel")) {
                 if (arg == "--warnlevel" || arg == "--warnlevel=" || !arg.StartsWith("--warnlevel=")) {
                     diagnostics.Push(Belte.Diagnostics.Error.MissingWarningLevel(arg));
@@ -1845,8 +1855,12 @@ public class {name} {{
         state.outputFilename = state.outputFilename.Trim();
 
         if (state.verboseMode) {
-            state.diagnosticOptions.severity = DiagnosticSeverity.All;
-            state.diagnosticOptions.warningLevel = Math.Max(2, state.diagnosticOptions.warningLevel);
+            if (!specifySeverity)
+                state.diagnosticOptions.severity = DiagnosticSeverity.All;
+
+            if (!specifyWarningLevel)
+                state.diagnosticOptions.warningLevel = Math.Max(2, state.diagnosticOptions.warningLevel);
+
             state.time = true;
         }
 

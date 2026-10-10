@@ -12,6 +12,7 @@ using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using Diagnostics;
+using Microsoft.CodeAnalysis.PooledObjects;
 using Shared;
 
 namespace Buckle;
@@ -32,7 +33,10 @@ public sealed class Compiler {
     private bool _lazyCorLibraryIsSet;
 
     private CompilationOptions _options => new CompilationOptions(
-        state.buildMode,
+        // From profiling we found:
+        //      1) Interpreter is almost always the slowest option
+        //      2) Evaluator is only better than Executor for trivially simple programs
+        state.buildMode == BuildMode.AutoRun ? BuildMode.Execute : state.buildMode,
         state.projectType,
         state.arguments,
         false,
@@ -48,7 +52,8 @@ public sealed class Compiler {
         state.skipTemplateMetadata,
         state.noTemplateMetadata,
         evaluatorStrictExceptionMode: true,
-        state.noNtvLib
+        state.noNtvLib,
+        state.time
     );
 
     /// <summary>
@@ -168,13 +173,15 @@ public sealed class Compiler {
 
     private BelteDiagnosticQueue GetCorLibrary(out Compilation compilation) {
         if (!_lazyCorLibraryIsSet) {
+            var options = _options;
             var corLibrary = LibraryHelpers.LoadLibraries(
-                _options.buildMode,
-                _options.concurrentBuild,
-                _options.maxCoreCount,
+                options.buildMode,
+                options.concurrentBuild,
+                options.maxCoreCount,
                 explicitLibraryLevel: state.l,
                 noStdLib: state.noStdLib || state.noBootStrap,
-                includeAllNativeFiles: state.noBootStrap
+                includeAllNativeFiles: state.noBootStrap,
+                parseOptions: CreateParseOptions(options.buildMode, state.debugMode, state.preprocessorSymbols)
             );
 
             if (corLibrary is null) {
@@ -211,30 +218,8 @@ public sealed class Compiler {
             }
         }
 
-        // From profiling we found:
-        //      1) Interpreter is almost always the slowest option
-        //      2) Evaluator is only better than Executor for trivially simple programs
-        var buildMode = state.buildMode != BuildMode.AutoRun ? state.buildMode : BuildMode.Execute;
-
-        var options = new CompilationOptions(
-            buildMode,
-            _options.outputKind,
-            _options.arguments,
-            _options.isScript,
-            _options.enableOutput,
-            _options.references,
-            _options.concurrentBuild,
-            _options.maxCoreCount,
-            _options.optimizationLevel,
-            _options.entryName,
-            _options.noStdLib,
-            _options.globalDiagnosticOptions,
-            _options.localDiagnosticOptions,
-            _options.excludeWritingTemplateMetadata,
-            _options.excludeReadingTemplateMetadata,
-            _options.evaluatorStrictExceptionMode,
-            _options.noNtvLib
-        );
+        var options = _options;
+        var buildMode = options.buildMode;
 
         if (buildMode is BuildMode.Evaluate or BuildMode.Execute or BuildMode.Emulate) {
             if (GetCorLibrary(out var corLibrary)?.AnyErrors() == true) {
@@ -304,7 +289,13 @@ public sealed class Compiler {
 
             ref var task = ref state.tasks[0];
             var sourceText = new StringText(task.inputFileName, SourceText.DefaultEncoding, task.fileContent.text);
-            var syntaxTree = new SyntaxTree(sourceText, SourceCodeKind.Regular, CreateParseOptions(options.buildMode));
+
+            var syntaxTree = new SyntaxTree(
+                sourceText,
+                SourceCodeKind.Regular,
+                CreateParseOptions(options.buildMode, state.debugMode, state.preprocessorSymbols)
+            );
+
             task.stage = CompilerStage.Finished;
 
             var compilation = Compilation.CreateScript(state.moduleName, options, syntaxTree, corLibrary);
@@ -369,7 +360,7 @@ public sealed class Compiler {
         var length = tasks.Length;
         var builder = new SyntaxTree[length];
 
-        var parseOptions = CreateParseOptions(buildMode);
+        var parseOptions = CreateParseOptions(buildMode, state.debugMode, state.preprocessorSymbols);
 
         if (state.concurrentBuild) {
             Parallel.For(0, length, new ParallelOptions { MaxDegreeOfParallelism = state.maxCores }, i => {
@@ -454,7 +445,7 @@ public sealed class Compiler {
         wrapperThread.Join();
     }
 
-    private ParseOptions CreateParseOptions(BuildMode buildMode) {
+    internal static ParseOptions CreateParseOptions(BuildMode buildMode, bool debugMode, string[] preprocessorSymbols) {
         var buildModeSymbol = buildMode switch {
             BuildMode.Evaluate or BuildMode.Repl => "EVALUATING",
             BuildMode.Execute => "EXECUTING",
@@ -466,9 +457,13 @@ public sealed class Compiler {
             _ or BuildMode.AutoRun => throw ExceptionUtilities.UnexpectedValue(buildMode)
         };
 
-        if (state.debugMode)
-            return new ParseOptions(["DEBUG", buildModeSymbol, .. state.preprocessorSymbols]);
-        else
-            return new ParseOptions(["RELEASE", buildModeSymbol, .. state.preprocessorSymbols]);
+        var builder = ArrayBuilder<string>.GetInstance();
+        builder.Add(debugMode ? "DEBUG" : "RELEASE");
+        builder.Add(buildModeSymbol);
+
+        if (preprocessorSymbols is not null)
+            builder.AddRange(preprocessorSymbols);
+
+        return new ParseOptions(builder.ToImmutableAndFree());
     }
 }

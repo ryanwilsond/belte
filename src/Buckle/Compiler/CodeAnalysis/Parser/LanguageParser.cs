@@ -5099,7 +5099,7 @@ done:
 
                     if (report) {
                         report = false;
-                        expression = tempParser.AddDiagnostic(
+                        expression = AddDiagnostic(
                             tempParser.WithFutureDiagnostics(tempParser.AddTrailingSkippedSyntax(expression, unexpected)),
                             Error.UnexpectedToken(unexpected.kind),
                             unexpected.GetLeadingTriviaWidth(),

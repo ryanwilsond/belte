@@ -20,6 +20,7 @@ public partial class SyntaxTree {
     internal SyntaxTree(SourceText text, SourceCodeKind kind, ParseOptions options, DirectiveStack directives) {
         this.kind = kind;
         this.text = text;
+        Debug.Assert(options is not null);
         this.options = options;
         _lazyDirectives = directives;
     }
@@ -76,7 +77,7 @@ public partial class SyntaxTree {
         SourceCodeKind kind = SourceCodeKind.Regular,
         Encoding encoding = null) {
         var sourceText = SourceText.From(text, encoding);
-        return Parse(sourceText, options, kind);
+        return ParseText(sourceText, options, kind);
     }
 
     public override string ToString() {
@@ -110,9 +111,9 @@ public partial class SyntaxTree {
     /// <param name="text">Content of source file.</param>
     /// <returns>Parsed result as <see cref="SyntaxTree" />.</returns>
     internal static SyntaxTree Load(string fileName, string text, ParseOptions options, Encoding encoding = null) {
+        Debug.Assert(options is not null);
         var sourceText = SourceText.From(text, encoding, fileName);
-
-        return Parse(sourceText, options);
+        return ParseText(sourceText, options);
     }
 
     /// <summary>
@@ -123,8 +124,7 @@ public partial class SyntaxTree {
     internal static SyntaxTree Load(string fileName, ParseOptions options) {
         var text = File.ReadAllText(fileName);
         var sourceText = SourceText.From(text, null, fileName);
-
-        return Parse(sourceText, options);
+        return ParseText(sourceText, options);
     }
 
     /// <summary>
@@ -132,10 +132,11 @@ public partial class SyntaxTree {
     /// </summary>
     /// <param name="text">Text to generate <see cref="SyntaxTree" /> from.</param>
     /// <returns>Parsed result as <see cref="SyntaxTree" />.</returns>
-    internal static SyntaxTree Parse(
+    internal static SyntaxTree ParseText(
         SourceText text,
         ParseOptions options,
         SourceCodeKind kind = SourceCodeKind.Regular) {
+        options ??= ParseOptions.Default;
         var lexer = new Lexer(text, options, kind == SourceCodeKind.Regular);
         var parser = new LanguageParser(lexer);
         var compilationUnit = (CompilationUnitSyntax)parser.ParseCompilationUnit().CreateRed();

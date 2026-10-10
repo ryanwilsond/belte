@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
@@ -10,8 +11,14 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
 internal abstract partial class SyntaxParser : IDisposable {
+    private const int CachedTokenArraySize = 4096;
+
     private static readonly ObjectPool<BlendedNode[]> BlendedNodesPool =
-        new ObjectPool<BlendedNode[]>(() => new BlendedNode[32], 2);
+        new ObjectPool<BlendedNode[]>(() => new BlendedNode[32]);
+
+    // TODO Some sort of pool here could be helpful, but first attempt tanked performance
+    // private static readonly ObjectPool<ArrayElement<SyntaxToken>[]> LexedTokensPool =
+    //     new ObjectPool<ArrayElement<SyntaxToken>[]>(() => new ArrayElement<SyntaxToken>[CachedTokenArraySize]);
 
     private protected readonly Lexer _lexer;
     private protected readonly bool _isIncremental;
@@ -81,10 +88,23 @@ internal abstract partial class SyntaxParser : IDisposable {
 
     internal ParseOptions options => _lexer.options;
 
-    public void Dispose() { }
+    public void Dispose() {
+        var blendedTokens = _blendedTokens;
+
+        if (blendedTokens is not null) {
+            _blendedTokens = null;
+
+            if (blendedTokens.Length < 4096) {
+                Array.Clear(blendedTokens, 0, blendedTokens.Length);
+                BlendedNodesPool.Free(blendedTokens);
+            } else {
+                BlendedNodesPool.ForgetTrackedObject(blendedTokens);
+            }
+        }
+    }
 
     private void PreLex() {
-        var size = Math.Min(4096, Math.Max(32, _lexer.text.length / 2));
+        var size = Math.Min(CachedTokenArraySize, Math.Max(32, _lexer.text.length / 2));
         _lexedTokens = new ArrayElement<SyntaxToken>[size];
 
         for (var i = 0; i < size; i++) {
@@ -160,7 +180,8 @@ internal abstract partial class SyntaxParser : IDisposable {
         return WithAdditionalDiagnostics(node, new SyntaxDiagnostic(diagnostic, offset, width));
     }
 
-    private protected T AddDiagnostic<T>(T node, Diagnostic diagnostic, int offset, int width) where T : BelteSyntaxNode {
+    private protected static T AddDiagnostic<T>(T node, Diagnostic diagnostic, int offset, int width)
+        where T : BelteSyntaxNode {
         return WithAdditionalDiagnostics(node, new SyntaxDiagnostic(diagnostic, offset, width));
     }
 
@@ -177,7 +198,13 @@ internal abstract partial class SyntaxParser : IDisposable {
         return WithAdditionalDiagnostics(node, diagnostics);
     }
 
-    private protected T WithAdditionalDiagnostics<T>(T node, params Diagnostic[] diagnostics) where T : BelteSyntaxNode {
+    private protected static T WithAdditionalDiagnostics<T>(T node, params Diagnostic[] diagnostics)
+        where T : BelteSyntaxNode {
+#if DEBUG
+        foreach (var diagnostic in diagnostics)
+            Debug.Assert(diagnostic is SyntaxDiagnostic);
+#endif
+
         var existingDiagnostics = node.GetDiagnostics();
         var existingLength = existingDiagnostics.Length;
 
@@ -364,7 +391,7 @@ internal abstract partial class SyntaxParser : IDisposable {
 
     private protected SyntaxToken EatTokenWithPrejudice(Diagnostic error) {
         var token = EatToken();
-        token = WithAdditionalDiagnostics(token, error);
+        token = WithAdditionalDiagnostics(token, new SyntaxDiagnostic(error, 0, token.width));
         return token;
     }
 
@@ -451,7 +478,8 @@ internal abstract partial class SyntaxParser : IDisposable {
         SyntaxKind? nextWanted = null,
         SyntaxKind? nextWantedAlternative = null,
         bool report = true,
-        bool contextual = false) {
+        bool contextual = false,
+        Diagnostic error = null) {
         if (contextual && currentToken.contextualKind == kind)
             return ConvertToKeyword(EatToken());
 
@@ -466,7 +494,7 @@ internal abstract partial class SyntaxParser : IDisposable {
 
                 return AddDiagnostic(
                     missing,
-                    Error.ExpectedToken(kind),
+                    error ?? Error.ExpectedToken(kind),
                     offset,
                     width
                 );
@@ -481,7 +509,7 @@ internal abstract partial class SyntaxParser : IDisposable {
             if (report) {
                 return AddDiagnostic(
                     AddLeadingSkippedSyntax(SyntaxFactory.Missing(kind), unexpectedToken),
-                    GetUnexpectedTokenError(unexpectedToken.kind, kind),
+                    error ?? GetUnexpectedTokenError(unexpectedToken.kind, kind),
                     unexpectedToken.GetLeadingTriviaWidth(),
                     unexpectedToken.width
                 );
@@ -495,7 +523,7 @@ internal abstract partial class SyntaxParser : IDisposable {
         if (report) {
             return AddDiagnostic(
                 WithFutureDiagnostics(AddLeadingSkippedSyntax(EatToken(), unexpected)),
-                Error.UnexpectedToken(unexpected.kind),
+                error ?? Error.UnexpectedToken(unexpected.kind),
                 unexpected.GetLeadingTriviaWidth(),
                 unexpected.width
             );

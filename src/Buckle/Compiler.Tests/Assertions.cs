@@ -260,7 +260,8 @@ internal static class Assertions {
         var compilation = LibraryHelpers.LoadLibraries(
             buildMode: BuildMode.Evaluate,
             noStdLib: true,
-            includeAllNativeFiles: true
+            includeAllNativeFiles: true,
+            parseOptions: Compiler.CreateParseOptions(BuildMode.Evaluate, debugMode: false, preprocessorSymbols: [])
         );
 
         _ = compilation.boundProgram;

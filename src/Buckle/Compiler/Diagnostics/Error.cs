@@ -3292,6 +3292,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_FieldInitRefNonStatic, location, message);
     }
 
+    internal static Diagnostic PreprocessorDirectiveExpected() {
+        var message = $"preprocessor directive expected";
+        return CreateError(DiagnosticCode.ERR_PreprocessorDirectiveExpected, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

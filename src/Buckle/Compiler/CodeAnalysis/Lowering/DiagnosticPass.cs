@@ -240,7 +240,8 @@ internal sealed partial class DiagnosticPass : BoundTreeWalkerWithStackGuard {
             if (!local.IsFromCompilation(compilation) ||
                 local.isCompilerGenerated ||
                 local.isGlobal ||
-                local.declarationKind == DataContainerDeclarationKind.ScopedLocal) {
+                local.declarationKind == DataContainerDeclarationKind.ScopedLocal ||
+                local.name.StartsWith('_')) {
                 continue;
             }
 

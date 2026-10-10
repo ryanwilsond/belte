@@ -21,12 +21,14 @@ public static class LibraryHelpers {
         int maxCoreCount = 1,
         bool noStdLib = false,
         int explicitLibraryLevel = 0,
-        bool includeAllNativeFiles = false) {
+        bool includeAllNativeFiles = false,
+        ParseOptions parseOptions = null) {
         if (!buildMode.Evaluating() && !includeAllNativeFiles)
             return null;
 
         var assembly = Assembly.GetExecutingAssembly();
         var syntaxTrees = ArrayBuilder<SyntaxTree>.GetInstance();
+        parseOptions ??= ParseOptions.Default;
 
         foreach (var libraryName in assembly.GetManifestResourceNames()) {
             if (libraryName.StartsWith("Compiler.Resources"))
@@ -39,7 +41,7 @@ public static class LibraryHelpers {
             using var reader = new StreamReader(stream);
             var text = reader.ReadToEnd().TrimEnd();
 
-            var syntaxTree = SyntaxTree.Load(libraryName, text, null);
+            var syntaxTree = SyntaxTree.Load(libraryName, text, parseOptions);
             syntaxTrees.Add(syntaxTree);
         }
 

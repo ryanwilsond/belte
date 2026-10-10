@@ -42,6 +42,7 @@ internal sealed partial class Lexer : IDisposable {
     internal Lexer(SourceText text, ParseOptions parseOptions, bool allowPreprocessorDirectives) {
         this.text = text;
         options = parseOptions;
+        Debug.Assert(options is not null);
         _allowPreprocessorDirectives = allowPreprocessorDirectives;
         _diagnostics = [];
         _directives = DirectiveStack.Empty;
@@ -249,6 +250,7 @@ internal sealed partial class Lexer : IDisposable {
     private void ReadTrivia(bool afterFirstToken, bool isTrailing) {
         var triviaList = isTrailing ? ref _trailingTriviaCache : ref _leadingTriviaCache;
         var done = false;
+        var onlyWhitespaceOnLine = !isTrailing;
 
         while (!done) {
             _start = _position;
@@ -260,12 +262,15 @@ internal sealed partial class Lexer : IDisposable {
                     done = true;
                     break;
                 case '/':
-                    if (_lookahead == '/')
+                    if (_lookahead == '/') {
                         ReadSingeLineComment();
-                    else if (_lookahead == '*')
+                        onlyWhitespaceOnLine = false;
+                    } else if (_lookahead == '*') {
                         ReadMultiLineComment();
-                    else
+                        onlyWhitespaceOnLine = false;
+                    } else {
                         done = true;
+                    }
 
                     break;
                 case '\r':
@@ -277,8 +282,23 @@ internal sealed partial class Lexer : IDisposable {
                     break;
                 case '#':
                     if (_allowPreprocessorDirectives) {
-                        ReadDirective(afterFirstToken, isTrailing, ref triviaList);
-                        _start = _position;
+                        if (isTrailing || !onlyWhitespaceOnLine) {
+                            var savedPosition = _position;
+
+                            var _ = ParseDirective(isActive: false, endIsActive: false, afterFirstToken: false);
+                            Debug.Assert(_start == _position);
+                            var text = this.text.ToString(new TextSpan(savedPosition, _position - savedPosition));
+
+                            var error = new SyntaxDiagnostic(Error.InvalidDirectivePlacement(), 0, 1);
+                            var token = new SyntaxToken(SyntaxKind.BadToken, text.ToString(), null)
+                                .WithDiagnosticsGreen([error]);
+
+                            AddTrivia(SyntaxFactory.SkippedTokensTrivia(token), ref triviaList);
+                        } else {
+                            ReadDirectiveAndExcludedTrivia(afterFirstToken, ref triviaList);
+                        }
+
+                        onlyWhitespaceOnLine = true;
                     } else {
                         done = true;
                     }
@@ -402,6 +422,9 @@ internal sealed partial class Lexer : IDisposable {
 
         switch (_current) {
             case '\0':
+                if (_directives.HasUnfinishedIf())
+                    AddDiagnostic(Error.EndifDirectiveExpected(), _position, 1);
+
                 _kind = SyntaxKind.EndOfFileToken;
                 break;
             case ',':
@@ -1231,8 +1254,17 @@ internal sealed partial class Lexer : IDisposable {
         _kind = SyntaxKind.EndOfLineTrivia;
     }
 
-    private void ReadDirective(bool afterFirstToken, bool afterNonWhitespaceOnLine, ref SyntaxListBuilder triviaList) {
-        var directive = ReadDirective(true, true, afterFirstToken, afterNonWhitespaceOnLine, ref triviaList);
+    private void ReadDirective(bool afterFirstToken, ref SyntaxListBuilder triviaList) {
+        var directive = ReadSingleDirective(true, true, afterFirstToken, ref triviaList);
+
+        if (directive is BranchingDirectiveTriviaSyntax branching && !branching.branchTaken)
+            ReadExcludedDirectivesAndTrivia(true, ref triviaList);
+    }
+
+    private void ReadDirectiveAndExcludedTrivia(
+        bool isFollowingToken,
+        ref SyntaxListBuilder triviaList) {
+        var directive = ReadSingleDirective(true, true, isFollowingToken, ref triviaList);
 
         if (directive is BranchingDirectiveTriviaSyntax branching && !branching.branchTaken)
             ReadExcludedDirectivesAndTrivia(true, ref triviaList);
@@ -1248,7 +1280,7 @@ internal sealed partial class Lexer : IDisposable {
             if (!hasFollowingDirective)
                 break;
 
-            var directive = ReadDirective(false, endIsActive, false, false, ref triviaList);
+            var directive = ReadSingleDirective(false, endIsActive, false, ref triviaList);
             var branching = directive as BranchingDirectiveTriviaSyntax;
 
             if (directive.kind == SyntaxKind.EndIfDirectiveTrivia || (branching is not null && branching.branchTaken))
@@ -1343,26 +1375,26 @@ internal sealed partial class Lexer : IDisposable {
         return builder?.ToStringAndFree();
     }
 
-    private BelteSyntaxNode ReadDirective(
+    private BelteSyntaxNode ReadSingleDirective(
         bool isActive,
         bool endIsActive,
         bool afterFirstToken,
-        bool afterNonWhitespaceOnLine,
         ref SyntaxListBuilder triviaList) {
-        var saveMode = _mode;
-        var directiveParser = new DirectiveParser(this, _directives);
-        var directive = directiveParser.ParseDirective(
-            isActive,
-            endIsActive,
-            afterFirstToken,
-            afterNonWhitespaceOnLine
-        );
+        var directive = ParseDirective(isActive, endIsActive, afterFirstToken);
 
         AddTrivia(directive, ref triviaList);
-
         _directives = directive.ApplyDirectives(_directives);
-        _mode = saveMode;
+        return directive;
+    }
 
+    private BelteSyntaxNode ParseDirective(bool isActive, bool endIsActive, bool afterFirstToken) {
+        var saveMode = _mode;
+
+        // TODO Reusing the directive parser instead of recreating could be good, but directives are rare anyway...
+        var directiveParser = new DirectiveParser(this, _directives);
+        var directive = directiveParser.ParseDirective(isActive, endIsActive, afterFirstToken);
+
+        _mode = saveMode;
         return directive;
     }
 

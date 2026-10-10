@@ -20,18 +20,18 @@ public static class Program {
         var typesPerFile = Int.Parse(args[1])?;
         var methodsPerType = Int.Parse(args[2])?;
         var fanOut = Int.Parse(args[3])?;
-        var dependencyMode = (DependencyMode)Int.Parse(args[4])?;
+        var dependencyMode = (DependencyMode)(Int.Parse(args[4])? >< [0, 2]);
         var rounds = Int.Parse(args[5])?;
         var depth = Int.Parse(args[6])?;
         var outDir = args[7];
 
-        if (!Directory.Exists(outDir)) {
+        if (!System.IO.Directory.Exists(outDir)) {
             Console.PrintLine(f"Output directory '{outDir}' does not exist");
             return;
         }
 
-        Directory.Delete(outDir, true);
-        Directory.CreateDirectory(outDir);
+        System.IO.Directory.Delete(outDir, true);
+        System.IO.Directory.CreateDirectory(outDir);
 
         Console.PrintLine(f"File Count: {fileCount}");
         Console.PrintLine(f"Types Per File: {typesPerFile}");
@@ -63,7 +63,7 @@ public static class Program {
     private static void GenerateEntryPoint(string outDir) {
         constexpr text = "public static class Program { public static void Main() { } }";
 
-        File.WriteAllText(Path.Combine(outDir, "Entry.blt"), text);
+        System.IO.File.WriteAllText(Path.Combine(outDir, "Entry.blt"), text);
     }
 
     private static void GenerateFile(
@@ -81,7 +81,7 @@ public static class Program {
         for (var i = 0; i < typesPerFile; i++)
             GenerateType(sb, fileIndex, fileCount, i, typesPerFile, methodsPerType, fanOut, dependencyMode, rounds, depth);
 
-        File.WriteAllText(Path.Combine(outDir, f"F{fileIndex}.blt"), sb.ToString());
+        System.IO.File.WriteAllText(Path.Combine(outDir, f"F{fileIndex}.blt"), sb.ToString());
     }
 
     private static void GenerateType(
@@ -137,7 +137,7 @@ public static class Program {
         int fileCount,
         int typeCount,
         int methodCount) {
-        builder.Append(f"\t\tvar t{round}_{nestLevel} = ");
+        builder.Append(f"\t\tvar _t{round}_{nestLevel} = ");
         GenerateExpression(builder, nestLevel, fileIndex, typeIndex, methodIndex, fileCount, typeCount, methodCount);
         builder.Append(";\n");
     }

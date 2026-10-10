@@ -151,6 +151,11 @@ internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
         return walker._assignments;
     }
 
+    internal override BoundNode VisitTryStatement(BoundTryStatement node) {
+        // All nested statements are lifted outside of the Try in the CFG, but this node remains for use in tracking exception code flow
+        return null;
+    }
+
     internal override BoundNode VisitLocalDeclarationStatement(BoundLocalDeclarationStatement node) {
         var declaration = node.declaration;
 

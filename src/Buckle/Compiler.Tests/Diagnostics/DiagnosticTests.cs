@@ -4953,74 +4953,72 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // !
-    // TODO Fix diagnostic locations for directives
-    // [Fact]
-    // public void Reports_Error_BU0374_InvalidDirectivePlacement() {
-    //     var text = @"
-    //         int a = 3; [#if]
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0374_InvalidDirectivePlacement() {
+        var text = @"
+            int a = 3; [#]if
+        ";
 
-    //     var diagnostics = @"
-    //         preprocessor directives must appear as the first non-whitespace character on a line
-    //     ";
+        var diagnostics = @"
+            preprocessor directives must appear as the first non-whitespace character on a line
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
-    // [Fact]
-    // public void Reports_Error_BU0375_EndifDirectiveExpected() {
-    //     var text = @"
-    //         #if ASDF[]
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0375_EndifDirectiveExpected() {
+        var text = @"
+            #if ASDF[]
+        ";
 
-    //     var diagnostics = @"
-    //         #endif directive expected
-    //     ";
+        var diagnostics = @"
+            #endif directive expected
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
-    // [Fact]
-    // public void Reports_Error_BU0376_UnexpectedDirective() {
-    //     var text = @"
-    //         [#asdf]
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0376_UnexpectedDirective() {
+        var text = @"
+            [#endif]
+        ";
 
-    //     var diagnostics = @"
-    //         unexpected preprocessor directive
-    //     ";
+        var diagnostics = @"
+            unexpected preprocessor directive
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
-    // [Fact]
-    // public void Reports_Error_BU0377_DirectiveFollowsToken() {
-    //     var text = @"
-    //         int a = 3;
-    //         [#define] ASDF
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0377_DirectiveFollowsToken() {
+        var text = @"
+            int a = 3;
+            #[define] ASDF
+        ";
 
-    //     var diagnostics = @"
-    //         cannot define/undefine preprocessor symbols after first token in file
-    //     ";
+        var diagnostics = @"
+            cannot define/undefine preprocessor symbols after first token in file
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
-    // [Fact]
-    // public void Reports_Error_BU0378_InvalidDirectiveExpression() {
-    //     var text = @"
-    //         #if [3]
-    //         #endif
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0378_InvalidDirectiveExpression() {
+        var text = @"
+            #if [3][]
+        ";
 
-    //     var diagnostics = @"
-    //         invalid preprocessor expression
-    //     ";
+        var diagnostics = @"
+            invalid preprocessor expression
+            #endif directive expected
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0379_InvalidImplicitEnum() {
@@ -10261,6 +10259,19 @@ var text = """"""
 
         var diagnostics = @"
             a field initializer cannot reference non-static member 'A.a'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0678_PreprocessorDirectiveExpected() {
+        var text = @"
+            #[asdf]
+        ";
+
+        var diagnostics = @"
+            preprocessor directive expected
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

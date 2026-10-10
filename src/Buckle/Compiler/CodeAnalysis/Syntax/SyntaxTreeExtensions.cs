@@ -33,6 +33,7 @@ public static class SyntaxTreeExtensions {
         bool includeEOF = false,
         ParseOptions options = null) {
         var tokens = new InternalSyntax.SyntaxListBuilder<InternalSyntax.SyntaxToken>(32);
+        options ??= ParseOptions.Default;
         var lexer = new Lexer(text, options, true);
 
         while (true) {

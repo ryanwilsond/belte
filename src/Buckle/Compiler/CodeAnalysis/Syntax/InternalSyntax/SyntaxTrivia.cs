@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.IO;
 using Buckle.Utilities;
 using Diagnostics;
@@ -7,16 +8,14 @@ namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 /// <summary>
 /// All trivia: comments and whitespace. Text that does not affect compilation.
 /// </summary>
-internal class SyntaxTrivia : BelteSyntaxNode {
+internal sealed class SyntaxTrivia : BelteSyntaxNode {
     /// <summary>
     /// Creates a new <see cref="SyntaxTrivia" />.
     /// </summary>
     /// <param name="text">Text associated with the trivia.</param>
     internal SyntaxTrivia(SyntaxKind kind, string text) : base(kind, text.Length) {
         this.text = text;
-
-        if (kind == SyntaxKind.SkippedTokensTrivia)
-            _flags |= NodeFlags.ContainsSkippedText;
+        Debug.Assert(kind != SyntaxKind.SkippedTokensTrivia);
     }
 
     /// <summary>

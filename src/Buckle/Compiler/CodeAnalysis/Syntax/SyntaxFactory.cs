@@ -314,7 +314,7 @@ public static partial class SyntaxFactory {
     private static Lexer MakeLexer(string text, int offset, ParseOptions options) {
         return new Lexer(
             MakeSourceText(text, offset),
-            options,
+            options ?? ParseOptions.Default,
             false
         );
     }
