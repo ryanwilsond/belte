@@ -293,7 +293,7 @@ internal sealed partial class Lexer : IDisposable {
                             var savedPosition = _position;
 
                             var _ = ParseDirective(isActive: false, endIsActive: false, afterFirstToken: false);
-                            Debug.Assert(_start == _position);
+                            _start = _position;
                             var text = this.text.ToString(new TextSpan(savedPosition, _position - savedPosition));
 
                             var error = new SyntaxDiagnostic(Error.InvalidDirectivePlacement(), 0, 1);
@@ -303,6 +303,7 @@ internal sealed partial class Lexer : IDisposable {
                             AddTrivia(SyntaxFactory.SkippedTokensTrivia(token), ref triviaList);
                         } else {
                             ReadDirectiveAndExcludedTrivia(afterFirstToken, ref triviaList);
+                            _start = _position;
                         }
 
                         onlyWhitespaceOnLine = true;

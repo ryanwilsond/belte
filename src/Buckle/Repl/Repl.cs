@@ -369,6 +369,12 @@ public abstract partial class Repl : IDisposable {
                 case ConsoleKey.RightArrow:
                     HandleControlRightArrow(document, view);
                     break;
+                case ConsoleKey.Home:
+                    HandleControlHome(document, view);
+                    break;
+                case ConsoleKey.End:
+                    HandleControlEnd(document, view);
+                    break;
                 case ConsoleKey.C:
                     HandleControlC(document, view);
                     break;
@@ -789,6 +795,16 @@ public abstract partial class Repl : IDisposable {
     }
 
     private void HandleEnd(ObservableCollection<string> document, SubmissionView view) {
+        view.currentCharacter = document[view.currentLine].Length;
+    }
+
+    private void HandleControlHome(ObservableCollection<string> _, SubmissionView view) {
+        view.currentLine = 0;
+        view.currentCharacter = 0;
+    }
+
+    private void HandleControlEnd(ObservableCollection<string> document, SubmissionView view) {
+        view.currentLine = document.Count - 1;
         view.currentCharacter = document[view.currentLine].Length;
     }
 

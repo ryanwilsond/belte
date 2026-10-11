@@ -493,8 +493,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
             var (explicitInterfaceSpecifier, operatorToken) = ParseOperatorMemberName();
             Reset(operatorResetPoint);
 
-            if (explicitInterfaceSpecifier?.containsDiagnostics == false &&
-                operatorToken?.containsDiagnostics == false) {
+            if (explicitInterfaceSpecifier?.containsDiagnosticsNoDirectives == false &&
+                operatorToken?.containsDiagnosticsNoDirectives == false) {
                 return ParseOperatorDeclaration(attributeLists, modifiers, type);
             }
 
@@ -519,7 +519,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var resetPoint = GetResetPoint();
         var returnType = ParseType();
 
-        if (returnType.kind != SyntaxKind.EmptyName && !returnType.containsDiagnostics) {
+        if (returnType.kind != SyntaxKind.EmptyName && !returnType.containsDiagnosticsNoDirectives) {
             if (currentToken.contextualKind == SyntaxKind.OperatorKeyword)
                 return ParseOperatorDeclaration(attributeLists, modifiers, returnType);
 
@@ -811,7 +811,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             var resetPoint = GetResetPoint();
             var returnType = ParseType();
 
-            if (returnType.kind != SyntaxKind.EmptyName && !returnType.containsDiagnostics) {
+            if (returnType.kind != SyntaxKind.EmptyName && !returnType.containsDiagnosticsNoDirectives) {
                 if (PeekIsPostReturnFunction())
                     return ParseMethodDeclaration(attributeLists, modifiers, returnType);
             }
@@ -2229,7 +2229,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             modifiers ??= ParseModifiers();
             var type = ParseType();
 
-            if (!type.containsDiagnostics) {
+            if (!type.containsDiagnosticsNoDirectives) {
                 if (type.kind != SyntaxKind.EmptyName && PeekIsPostReturnFunction()) {
                     consumedAttributeLists = true;
                     consumedModifiers = true;
@@ -2365,7 +2365,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
             var type = ParseType(allowRef: false, allowNoFollowUp: true);
 
-            if (type.kind != SyntaxKind.EmptyName && !type.containsDiagnostics) {
+            if (type.kind != SyntaxKind.EmptyName && !type.containsDiagnosticsNoDirectives) {
                 symbol = type;
             } else {
                 Reset(resetPoint);
@@ -2917,7 +2917,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var nextDiagnosticCount = currentToken.GetDiagnostics().Length;
         var semicolon = EatToken(SyntaxKind.SemicolonToken);
 
-        if (nextDiagnosticCount > diagnosticCount && semicolon.containsDiagnostics) {
+        if (nextDiagnosticCount > diagnosticCount && semicolon.containsDiagnosticsNoDirectives) {
             var diagnostics = semicolon.GetDiagnostics();
 
             if (!semicolon.isFabricated) {
@@ -3203,7 +3203,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         if (currentToken.kind != SyntaxKind.OpenParenToken) {
             returnType = ParseType();
 
-            if (returnType.containsDiagnostics || currentToken.kind != SyntaxKind.OpenParenToken) {
+            if (returnType.containsDiagnosticsNoDirectives || currentToken.kind != SyntaxKind.OpenParenToken) {
                 Reset(resetPoint);
                 return false;
             }
@@ -3211,7 +3211,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
         var parameterList = ParseParameterList();
 
-        if (!parameterList.containsDiagnostics && currentToken.kind == SyntaxKind.EqualsGreaterThanToken) {
+        if (!parameterList.containsDiagnosticsNoDirectives && currentToken.kind == SyntaxKind.EqualsGreaterThanToken) {
             expression = ParseParenthesizedLambdaExpression(returnType, parameterList);
             return true;
         }
@@ -3296,7 +3296,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
         ExpressionSyntax expression;
 
-        if (type.kind != SyntaxKind.EmptyName && !type.containsDiagnostics &&
+        if (type.kind != SyntaxKind.EmptyName && !type.containsDiagnosticsNoDirectives &&
             currentToken.kind == SyntaxKind.IdentifierToken) {
             var identifier = EatToken();
             expression = SyntaxFactory.DeclarationExpression(type, identifier);
@@ -3966,7 +3966,7 @@ done:
 
         // Reset(resetPoint);
 
-        if (!list.containsDiagnostics) {
+        if (!list.containsDiagnosticsNoDirectives) {
             isDefinitelyTemplateParameterList = true;
             lastTokenOfType = list.GetLastToken();
             return ScanTypeFlags.TemplateTypeOrMethod;
@@ -3992,7 +3992,7 @@ done:
 
         // Reset(resetPoint);
 
-        if (!list.containsDiagnostics) {
+        if (!list.containsDiagnosticsNoDirectives) {
             isDefinitelyTemplateArgumentList = true;
             lastTokenOfType = list.GetLastToken();
             return ScanTypeFlags.TemplateTypeOrMethod;
@@ -4427,7 +4427,7 @@ done:
             var resetPoint = GetResetPoint();
             var tupleType = ParseType();
 
-            if (!tupleType.containsDiagnostics && currentToken.kind == SyntaxKind.OpenParenToken) {
+            if (!tupleType.containsDiagnosticsNoDirectives && currentToken.kind == SyntaxKind.OpenParenToken) {
                 return ParseObjectCreationExpression(keyword, tupleType);
             } else {
                 Reset(resetPoint);
@@ -4635,7 +4635,7 @@ done:
             var resetPoint = GetResetPoint();
             var type = ParseType(allowRef: false);
 
-            if (type.kind != SyntaxKind.EmptyName && !type.containsDiagnostics &&
+            if (type.kind != SyntaxKind.EmptyName && !type.containsDiagnosticsNoDirectives &&
                 currentToken.kind == SyntaxKind.IdentifierToken) {
                 var identifier = EatToken();
                 expression = SyntaxFactory.DeclarationExpression(type, identifier);
@@ -5177,7 +5177,7 @@ done:
             var point = GetResetPoint();
             var templateArgumentList = ParseTemplateArgumentList();
 
-            if (templateArgumentList.containsDiagnostics || !CanFollowTemplateArgumentList(currentToken.kind))
+            if (templateArgumentList.containsDiagnosticsNoDirectives || !CanFollowTemplateArgumentList(currentToken.kind))
                 Reset(point);
             else
                 name = SyntaxFactory.TemplateName(identifierName.identifier, templateArgumentList);

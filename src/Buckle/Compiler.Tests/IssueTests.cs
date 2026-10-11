@@ -4339,4 +4339,20 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void IfDirective_SeesEndif2() {
+        var text = @"
+            #define D
+            #if D
+            int a = [false];
+            #endif
+        ";
+
+        var diagnostics = @"
+            cannot convert from type 'bool!' to 'int!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

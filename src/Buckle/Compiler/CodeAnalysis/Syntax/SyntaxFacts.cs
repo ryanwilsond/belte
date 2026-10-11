@@ -965,6 +965,25 @@ public static class SyntaxFacts {
         return (int)type >= FirstTrivia && (int)type <= LastTrivia;
     }
 
+    internal static bool IsDirective(this SyntaxKind kind) {
+        switch (kind) {
+            case SyntaxKind.BadDirectiveTrivia:
+            case SyntaxKind.IfDirectiveTrivia:
+            case SyntaxKind.ElifDirectiveTrivia:
+            case SyntaxKind.ElseDirectiveTrivia:
+            case SyntaxKind.EndIfDirectiveTrivia:
+            case SyntaxKind.DefineDirectiveTrivia:
+            case SyntaxKind.UndefDirectiveTrivia:
+            case SyntaxKind.DisabledTextTrivia:
+            case SyntaxKind.ShebangDirectiveTrivia:
+            case SyntaxKind.PreprocessingMessageTrivia:
+            case SyntaxKind.HandleDirectiveTrivia:
+                return true;
+            default:
+                return false;
+        }
+    }
+
     /// <summary>
     /// Checks if a <see cref="SyntaxKind" /> is a comment.
     /// </summary>
