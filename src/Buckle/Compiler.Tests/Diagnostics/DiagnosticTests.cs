@@ -10276,4 +10276,19 @@ var text = """"""
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0679_EndOfPreprocessorLineExpected() {
+        var text = @"
+            #if D [']
+            int a = 3;
+            #endif
+        ";
+
+        var diagnostics = @"
+            single-line comment or end-of-line expected
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

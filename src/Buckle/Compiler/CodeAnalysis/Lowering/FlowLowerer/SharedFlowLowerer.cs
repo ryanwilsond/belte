@@ -123,6 +123,8 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
                 null,
                 node.valueLocal.type);
 
+        var stepSyntax = node.expression.syntax;
+
         return Visit(Block(syntax, node.locals, [
             new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                 temp,
@@ -143,7 +145,7 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
                 new BoundNopStatement(syntax),
                 [],
                 condition,
-                new BoundExpressionStatement(syntax, Increment(_compilation, syntax, Local(syntax, index))),
+                new BoundExpressionStatement(stepSyntax, Increment(_compilation, stepSyntax, Local(stepSyntax, index))),
                 node.unroll,
                 Block(syntax,
                     new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
@@ -196,6 +198,8 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
             node.enumeratorInfo.getCurrentMethod
         );
 
+        var stepSyntax = node.expression.syntax;
+
         return Visit(Block(syntax, node.locals, [
             new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                 temp,
@@ -216,7 +220,7 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
                 new BoundNopStatement(syntax),
                 [],
                 condition,
-                new BoundExpressionStatement(syntax, Increment(_compilation, syntax, Local(syntax, index))),
+                new BoundExpressionStatement(stepSyntax, Increment(_compilation, stepSyntax, Local(stepSyntax, index))),
                 node.unroll,
                 Block(syntax,
                     new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
@@ -275,6 +279,8 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
                     _compilation.corLibrary.GetNullableType(SpecialType.Int),
                     Local(syntax, index)));
 
+        var stepSyntax = node.expression.syntax;
+
         return Visit(Block(syntax, node.locals, [
             new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                 temp,
@@ -295,7 +301,7 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
                 new BoundNopStatement(syntax),
                 [],
                 condition,
-                new BoundExpressionStatement(syntax, Increment(_compilation, syntax, Local(syntax, index))),
+                new BoundExpressionStatement(stepSyntax, Increment(_compilation, stepSyntax, Local(stepSyntax, index))),
                 node.unroll,
                 Block(syntax,
                     new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
@@ -346,6 +352,8 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
             Local(syntax, lengthOrIter),
             (MethodSymbol)lengthOrIter.type.GetMembers("Current").Single());
 
+        var stepSyntax = node.expression.syntax;
+
         return Visit(Block(syntax, node.locals, [
             new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
                 temp,
@@ -366,7 +374,7 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
                 new BoundNopStatement(syntax),
                 [],
                 condition,
-                new BoundExpressionStatement(syntax, Increment(_compilation, syntax, Local(syntax, index))),
+                new BoundExpressionStatement(stepSyntax, Increment(_compilation, stepSyntax, Local(stepSyntax, index))),
                 node.unroll,
                 Block(syntax,
                     new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
@@ -423,6 +431,8 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
                 Statement(syntax, InstanceCall(syntax, Local(syntax, iter), enumeratorInfo.disposeMethod))
               );
 
+        var stepSyntax = node.expression.syntax;
+
         return Visit(Block(syntax, node.locals, [
             LocalDeclaration(syntax, temp, node.expression.Type().IsNullableType()
                     ? new BoundNullAssertOperator(syntax, node.expression, true, null, temp.type)
@@ -435,7 +445,7 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
                 new BoundNopStatement(syntax),
                 [],
                 condition,
-                new BoundExpressionStatement(syntax, Increment(_compilation, syntax, Local(syntax, index))),
+                new BoundExpressionStatement(stepSyntax, Increment(_compilation, stepSyntax, Local(stepSyntax, index))),
                 node.unroll,
                 Block(syntax,
                     new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,
@@ -486,13 +496,16 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
             _compilation.GetSpecialType(SpecialType.Bool)
         );
 
+        // Specifically using the syntax of the range expression for the Increment for better unreachable code diagnostic positioning
+        var stepSyntax = node.expression.syntax;
+
         return Visit(Block(syntax, node.locals, [
             new BoundForStatement(syntax,
                 [i],
                 LocalDeclaration(syntax, i, node.enumeratorInfo.start),
                 [],
                 condition,
-                new BoundExpressionStatement(syntax, Increment(_compilation, syntax, Local(syntax, i))),
+                new BoundExpressionStatement(stepSyntax, Increment(_compilation, stepSyntax, Local(stepSyntax, i))),
                 node.unroll,
                 Block(syntax,
                     new BoundLocalDeclarationStatement(syntax, new BoundDataContainerDeclaration(syntax,

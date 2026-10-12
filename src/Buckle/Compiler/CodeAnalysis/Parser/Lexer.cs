@@ -84,7 +84,6 @@ internal sealed partial class Lexer : IDisposable {
     /// <returns>A new <see cref="SyntaxToken" />.</returns>
     internal SyntaxToken LexNext(LexerMode mode) {
         _mode = mode;
-        _badTokensCache.Clear();
         SyntaxToken token;
 
         while (true) {
@@ -105,15 +104,7 @@ internal sealed partial class Lexer : IDisposable {
                 foreach (var badToken in _badTokensCache)
                     leadingTrivia.Add(SyntaxFactory.SkippedTokensTrivia(badToken));
 
-                // TODO Here is the original code here:
-                /* foreach (var badToken in _badTokensCache) {
-                       leadingTrivia.AddRange(badToken.leadingTrivia);
-                       var trivia = SyntaxFactory.SkippedTokensTrivia(badToken);
-                       leadingTrivia.Add(trivia);
-                       leadingTrivia.AddRange(badToken.trailingTrivia);
-                   } */
-                // Perhaps we should bundle the bad tokens into a single skipped tokens trivia?
-                // Or perhaps this LexNext-being-a-loop approach is flawed
+                _badTokensCache.Clear();
 
                 leadingTrivia.AddRange(token.leadingTrivia);
                 token = token.TokenWithLeadingTrivia(leadingTrivia.ToListNode());
@@ -418,7 +409,8 @@ internal sealed partial class Lexer : IDisposable {
                 if (char.IsLetter(_current)) {
                     ReadIdentifierOrKeyword();
                 } else {
-                    AddDiagnostic(Error.BadCharacter(_current), _position, 1);
+                    // Don't need to report bad character because the directive parser will report an error
+                    _kind = SyntaxKind.None;
                     _position++;
                 }
 

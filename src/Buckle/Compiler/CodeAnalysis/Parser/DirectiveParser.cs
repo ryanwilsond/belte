@@ -52,7 +52,7 @@ internal sealed class DirectiveParser : SyntaxParser {
                 break;
             default:
                 var identifier = Match(SyntaxKind.IdentifierToken);
-                var end = ParseEndOfDirective();
+                var end = ParseEndOfDirective(ignoreErrors: true);
 
                 if (!identifier.isFabricated)
                     identifier = AddDiagnostic(identifier, Error.PreprocessorDirectiveExpected());
@@ -97,12 +97,18 @@ internal sealed class DirectiveParser : SyntaxParser {
         );
     }
 
-    private SyntaxToken ParseEndOfDirective() {
+    private SyntaxToken ParseEndOfDirective(bool ignoreErrors = false) {
         var skippedTokens = new SyntaxListBuilder<SyntaxToken>();
 
         if (currentToken.kind != SyntaxKind.EndOfDirectiveToken &&
             currentToken.kind != SyntaxKind.EndOfFileToken) {
             skippedTokens = new SyntaxListBuilder<SyntaxToken>(10);
+
+            if (!ignoreErrors) {
+                skippedTokens.Add(
+                    AddDiagnostic(EatToken().WithoutDiagnosticsGreen(), Error.EndOfPreprocessorLineExpected())
+                );
+            }
 
             while (currentToken.kind != SyntaxKind.EndOfDirectiveToken &&
                    currentToken.kind != SyntaxKind.EndOfFileToken) {
@@ -198,7 +204,7 @@ internal sealed class DirectiveParser : SyntaxParser {
             keyword = AddDiagnostic(keyword, Error.DirectiveFollowsToken());
 
         var name = Match(SyntaxKind.IdentifierToken);
-        var end = ParseEndOfDirective();
+        var end = ParseEndOfDirective(ignoreErrors: name.isFabricated);
 
         if (keyword.kind == SyntaxKind.DefineKeyword)
             return SyntaxFactory.DefineDirectiveTrivia(hash, keyword, name, end, isActive);

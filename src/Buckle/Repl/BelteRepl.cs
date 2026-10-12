@@ -943,7 +943,7 @@ public sealed partial class BelteRepl : Repl {
                 text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
             }
 
-            SymbolDisplay.AppendToDisplayText(text, symbol, SymbolDisplayFormat.QualifiedNameFormat);
+            SymbolDisplay.AppendToDisplayText(text, symbol, SymbolDisplayFormat.NamespaceQualifiedNameFormat);
         }
     }
 
@@ -991,16 +991,16 @@ public sealed partial class BelteRepl : Repl {
             var parts = name.Split('.');
 
             for (var i = 0; i < parts.Length - 1; i++) {
-                var namedTypes = allSymbols
-                    .Where(s => s.name == parts[i] && s is INamedTypeSymbol)
-                    .Select(s => s as INamedTypeSymbol);
+                var namedSymbols = allSymbols
+                    .Where(s => s.name == parts[i] && s is INamespaceOrTypeSymbol)
+                    .Select(s => s as INamespaceOrTypeSymbol);
 
-                if (!namedTypes.Any()) {
+                if (!namedSymbols.Any()) {
                     failed = true;
                     break;
                 }
 
-                var first = namedTypes.First();
+                var first = namedSymbols.First();
                 allSymbols = first.GetMembers();
             }
 

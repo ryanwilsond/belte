@@ -4355,4 +4355,114 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void ForEachRange_ReportsUnreachableStepOnRange() {
+        var text = @"
+            for (i in [0..<10]) return 0;
+            return 0;
+        ";
+
+        var diagnostics = @"
+            unreachable code
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void ForEachArray_ReportsUnreachableStepOnArray() {
+        var text = @"
+            Buffer<int> a = new Buffer<int>(10);
+
+            for (i in [a]) return 0;
+            return 0;
+        ";
+
+        var diagnostics = @"
+            unreachable code
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void ForEachEnumerator_ReportsUnreachableStepOnEnumerator() {
+        var text = @"
+            class MyIter extends Enumerator<int> {
+                private int count = -1;
+                public override void Reset() { count = -1; }
+                public override bool MoveNext() { return count++ < 5;}
+                public override int Current() { return count * 2; }
+            }
+            var t = new MyIter();
+
+            for (i in [t]) return 0;
+            return 0;
+        ";
+
+        var diagnostics = @"
+            unreachable code
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void ForEachLength_ReportsUnreachableStepOnLength() {
+        var text = @"
+            class MyList {
+                public static int operator\[\](MyList _, int index) { return index * 2; }
+                public static int operator length(MyList _) { return 5; }
+            }
+            var a = new MyList();
+
+            for (i in [a]) return 0;
+            return 0;
+        ";
+
+        var diagnostics = @"
+            unreachable code
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void ForEachIter_ReportsUnreachableStepOnIter() {
+        var text = @"
+            class MyList {
+                public static Enumerator<int>! operator iter(MyList _) { return new MyIter(); }
+
+                class MyIter extends Enumerator<int> {
+                    private int count = -1;
+                    public override bool MoveNext() { return count++ < 5;}
+                    public override int Current() { return count * 2; }
+                }
+            }
+            var t = new MyList();
+
+            for (i in [t]) return 0;
+            return 0;
+        ";
+
+        var diagnostics = @"
+            unreachable code
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void BadDirective_DoesntReportBadTokens() {
+        var text = @"
+            #[asdf]'
+        ";
+
+        var diagnostics = @"
+            preprocessor directive expected
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

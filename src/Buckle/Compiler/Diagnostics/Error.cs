@@ -3297,6 +3297,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_PreprocessorDirectiveExpected, message);
     }
 
+    internal static Diagnostic EndOfPreprocessorLineExpected() {
+        var message = $"single-line comment or end-of-line expected";
+        return CreateError(DiagnosticCode.ERR_EndOfPreprocessorLineExpected, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }
