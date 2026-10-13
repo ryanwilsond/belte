@@ -81,6 +81,10 @@ internal class MissingAssemblySymbol : AssemblySymbol {
         return null;
     }
 
+    internal override bool IsCompilerAssembly() {
+        return false;
+    }
+
     internal override bool AreInternalsVisibleToThisAssembly(AssemblySymbol other) {
         return false;
     }

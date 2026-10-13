@@ -88,7 +88,8 @@ public sealed partial class Compilation {
         NamespaceSymbol specialNamespaceOpt = null,
         bool forwardDiagnostics = false,
         StandardLibrary standardLibraryOpt = null,
-        GraphicsLibrary graphicsLibraryOpt = null) {
+        GraphicsLibrary graphicsLibraryOpt = null,
+        ImmutableArray<MetadataReference> externalReferencesOpt = default) {
         this.assemblyName = assemblyName;
         this.options = options;
         this.previous = previous;
@@ -99,7 +100,9 @@ public sealed partial class Compilation {
         if (forwardDiagnostics && previous?.declarationDiagnostics is not null)
             declarationDiagnostics.PushRange(previous.declarationDiagnostics);
 
-        externalReferences = MakeExternalReferences(options.references, declarationDiagnostics);
+        externalReferences = externalReferencesOpt.IsDefault
+            ? MakeExternalReferences(options.references, declarationDiagnostics)
+            : externalReferencesOpt;
 
         _lazyStandardLibrary = standardLibraryOpt;
         _lazyGraphicsLibrary = graphicsLibraryOpt;
@@ -1507,7 +1510,8 @@ public sealed partial class Compilation {
             specialNamespaceOpt: _specialNamespace,
             reuseReferenceManager: true,
             standardLibraryOpt: _lazyStandardLibrary,
-            graphicsLibraryOpt: _lazyGraphicsLibrary
+            graphicsLibraryOpt: _lazyGraphicsLibrary,
+            externalReferencesOpt: externalReferences
         );
 
         if (_lazyDeclarationDiagnostics is not null)

@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.Syntax;
@@ -32,7 +33,14 @@ internal static class Assertions {
     /// </summary>
     /// <param name="text">Belte code.</param>
     /// <param name="expectedValue">Expected result.</param>
-    internal static void AssertValue(string text, object expectedValue, bool evaluator = true, bool executor = true) {
+    internal static void AssertValue(
+        string text,
+        object expectedValue,
+        bool evaluator = true,
+        bool executor = true,
+        string[] references = null) {
+        Debug.Assert(references is null || evaluator == false);
+
         var syntaxTree = SyntaxTree.Parse(text);
 
         object execResult = null;
@@ -40,9 +48,22 @@ internal static class Assertions {
         object computedValue = null;
 
         if (executor) {
+            CompilationOptions options;
+
+            if (references is null) {
+                options = DefaultExecOptions;
+            } else {
+                options = new CompilationOptions(
+                    BuildMode.Execute,
+                    OutputKind.ConsoleApplication,
+                    [],
+                    references: references
+                );
+            }
+
             var execCompilation = Compilation.CreateScript(
                 "Tests",
-                DefaultExecOptions,
+                options,
                 syntaxTree,
                 BaseCompilation
             );
@@ -161,7 +182,8 @@ internal static class Assertions {
         ITestOutputHelper writer,
         DiagnosticSeverity minimumSeverity = DiagnosticSeverity.Error,
         bool script = true,
-        bool checkLocations = true) {
+        bool checkLocations = true,
+        string[] references = null) {
         var annotatedText = AnnotatedText.Parse(text);
         var syntaxTree = SyntaxTree.Parse(annotatedText.text);
 
@@ -171,14 +193,27 @@ internal static class Assertions {
         if (treeDiagnostics.AnyErrors()) {
             tempDiagnostics.Move(treeDiagnostics);
         } else {
+            CompilationOptions options;
+
+            if (references is null) {
+                options = DefaultEvalOptions;
+            } else {
+                options = new CompilationOptions(
+                    BuildMode.Execute,
+                    OutputKind.ConsoleApplication,
+                    [],
+                    references: references
+                );
+            }
+
             var compilation = script
                 ? Compilation.CreateScript(
                     "Tests",
-                    DefaultEvalOptions,
+                    options,
                     syntaxTree,
                     BaseCompilation
                 )
-                : Compilation.Create("Tests", DefaultEvalOptions, BaseCompilation, syntaxTree);
+                : Compilation.Create("Tests", options, BaseCompilation, syntaxTree);
 
             var result = compilation.Evaluate(false);
             tempDiagnostics = result.diagnostics;

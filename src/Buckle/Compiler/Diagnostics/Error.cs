@@ -819,9 +819,8 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic AmbiguousUnaryOperator(TextLocation location, string op, TypeSymbol operandType) {
-        throw ExceptionUtilities.Unreachable();
-        // var message = $"unary operator '{op}' is ambiguous for operands with type '{operandType.ToNullOrString()}'";
-        // return CreateError(DiagnosticCode.ERR_AmbiguousUnaryOperator, location, message);
+        var message = $"unary operator '{op}' is ambiguous for operands with type '{operandType.ToNullOrString()}'";
+        return CreateError(DiagnosticCode.ERR_AmbiguousUnaryOperator, location, message);
     }
 
     internal static BelteDiagnostic RefConditionalNeedsTwoRefs(TextLocation location) {
@@ -3300,6 +3299,11 @@ internal static class Error {
     internal static Diagnostic EndOfPreprocessorLineExpected() {
         var message = $"single-line comment or end-of-line expected";
         return CreateError(DiagnosticCode.ERR_EndOfPreprocessorLineExpected, message);
+    }
+
+    internal static BelteDiagnostic CannotUseOuterByRef(TextLocation location, string name) {
+        var message = $"cannot use captured data container '{name}' by-reference inside of a local function";
+        return CreateError(DiagnosticCode.ERR_CannotUseOuterByRef, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

@@ -830,6 +830,10 @@ internal sealed class SourceAssemblySymbol : MetadataOrSourceAssemblySymbol, IAt
         return false;
     }
 
+    internal override bool IsCompilerAssembly() {
+        return false;
+    }
+
     internal override bool AreInternalsVisibleToThisAssembly(AssemblySymbol potentialGiverOfAccess) {
         if (_lazyStrongNameKeys is null) {
             var assemblyWhoseKeysAreBeingComputed = AssemblyForWhichCurrentThreadIsComputingKeys;

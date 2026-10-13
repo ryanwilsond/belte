@@ -32,6 +32,7 @@ internal sealed partial class Executor : ModuleBuilder {
 
     private const string DynamicAssemblyName = "DynamicBoundTreeAssembly";
 
+    private readonly ExecutorMode _mode;
     private readonly Compilation _compilation;
     private readonly BoundProgram _program;
     private readonly ImmutableArray<NamedTypeSymbol> _topLevelTypes;
@@ -96,7 +97,12 @@ internal sealed partial class Executor : ModuleBuilder {
     internal FieldInfo graphicsHandlerField;
     internal FieldInfo programField;
 
-    internal Executor(BoundProgram program, string[] arguments, BelteDiagnosticQueue diagnostics) {
+    internal Executor(
+        BoundProgram program,
+        string[] arguments,
+        BelteDiagnosticQueue diagnostics,
+        ExecutorMode mode = ExecutorMode.Normal) {
+        _mode = mode;
         _arguments = arguments;
         _program = program;
         _compilation = program.compilation;
@@ -253,6 +259,11 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private void CreateMainWrapperIfApplicable(TypeBuilder typeBuilder) {
+        if (_mode == ExecutorMode.Handle)
+            return;
+
+        Debug.Assert(_entryPoint is not null);
+
         if (_entryPoint.parameterCount != 1 || _entryPoint.GetParameterType(0).specialType == SpecialType.Array)
             return;
 
@@ -291,7 +302,7 @@ internal sealed partial class Executor : ModuleBuilder {
         BoundProgram program,
         BelteDiagnosticQueue diagnostics,
         NamedTypeSymbol type) {
-        var executor = new Executor(program, [], diagnostics) {
+        var executor = new Executor(program, [], diagnostics, ExecutorMode.Handle) {
             _programNamedType = type,
             _logger = new StringWriter()
         };
@@ -301,7 +312,12 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     internal object ExecuteMethod(MethodSymbol method, params object[] arguments) {
-        var methodInv = _programType.GetMethod(method.name, BindingFlags.Public | BindingFlags.Static);
+        var methodInv = _programType.GetMethod(
+            method.name,
+            BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static
+        );
+
+        Debug.Assert(methodInv is not null);
         return methodInv.Invoke(null, arguments);
     }
 

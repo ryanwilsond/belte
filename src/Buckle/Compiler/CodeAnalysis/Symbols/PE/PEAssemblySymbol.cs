@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
+using System.IO;
 using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.Display;
@@ -150,6 +151,24 @@ internal sealed class PEAssemblySymbol : MetadataOrSourceAssemblySymbol {
 
     internal override bool GetGuidString(out string guidString) {
         return assembly.modules[0].HasGuidAttribute(assembly.handle, out guidString);
+    }
+
+    internal override bool IsCompilerAssembly() {
+        // Basically treat any .NET assembly within the compiler's installation directory as a part of the compiler
+        // This is used to give internal access to #handle dynamic assemblies without needing an InternalsVisibleTo attribute
+        // TODO This means libraries used by the compiler will return true here which is not perfect
+        // TODO What we can do is instead emit a custom attribute here in the compiler itself and check for it's presence
+        if (assembly.location is { } location) {
+            var assemblyPath = Path.GetFullPath(Path.GetDirectoryName(location))
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+            var currentPath = Path.GetFullPath(AppContext.BaseDirectory)
+                .TrimEnd(Path.DirectorySeparatorChar, Path.AltDirectorySeparatorChar);
+
+            if (string.Equals(assemblyPath, currentPath, StringComparison.OrdinalIgnoreCase))
+                return true;
+        }
+
+        return false;
     }
 
     internal override bool AreInternalsVisibleToThisAssembly(AssemblySymbol potentialGiverOfAccess) {

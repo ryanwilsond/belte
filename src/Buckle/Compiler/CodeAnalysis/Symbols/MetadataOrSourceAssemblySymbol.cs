@@ -122,6 +122,9 @@ internal abstract class MetadataOrSourceAssemblySymbol : NonMissingAssemblySymbo
         if (_assembliesToWhichInternalAccessHasBeenDetermined.TryGetValue(potentialGiverOfAccess, out var result))
             return result;
 
+        if (potentialGiverOfAccess.IsCompilerAssembly())
+            return IVTConclusion.Match;
+
         result = IVTConclusion.NoRelationshipClaimed;
         var publicKeys = potentialGiverOfAccess.GetInternalsVisibleToPublicKeys(name);
 

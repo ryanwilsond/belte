@@ -153,6 +153,8 @@ internal abstract class AssemblySymbol : Symbol {
 
     internal abstract bool AreInternalsVisibleToThisAssembly(AssemblySymbol other);
 
+    internal abstract bool IsCompilerAssembly();
+
     internal abstract IEnumerable<NamedTypeSymbol> GetAllTopLevelForwardedTypes();
 
     // internal virtual NamedTypeSymbol TryLookupForwardedMetadataTypeWithCycleDetection(

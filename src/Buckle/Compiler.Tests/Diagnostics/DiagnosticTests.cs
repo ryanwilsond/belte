@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using System.Text;
 using Diagnostics;
 using Xunit;
@@ -578,7 +580,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Reports_Error_BU0039_UnableToOpenFile
-    // ? Hard to test
+    // Hard to test
 
     [Fact]
     public void Reports_Error_BU0040_NoInitOnImplicit() {
@@ -738,6 +740,7 @@ public sealed class DiagnosticTests {
     // ! Warning_BU0053_ImpliedReference
     // Unreachable currently
 
+    // TODO Potentially change error reporting around ref to better explain differences between ref const, etc.
     // ! Error_BU0054_ReferenceToConstant
     // Unreachable currently
 
@@ -1378,8 +1381,8 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // !
-    // ? Not enforced currently
+    // ! Error_BU0095_RefReturnGlobal
+    // Not enforced currently
     // [Fact]
     // public void Reports_Error_BU0095_RefReturnGlobal() {
     //     var text = @"
@@ -1740,7 +1743,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0120_EscapeOther
-    // ? Unsure what expression would trigger this
+    // Unsure what expression would trigger this
 
     [Fact]
     public void Reports_Error_BU0121_CannotDerivePrimitive() {
@@ -1843,7 +1846,8 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Hopefully unreachable
+    // ! Error_BU0127_ConstraintWasNull
+    // Hopefully unreachable
     // [Fact]
     // public void Reports_Error_BU0127_ConstraintWasNull() {
     //     var text = @"
@@ -1973,7 +1977,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0136_CallArgMixing
-    // ? Unsure what expression would trigger this
+    // Unsure what expression would trigger this
 
     // ! Error_BU0137_CannotUseBase
     // Taking address of this not forbidden currently
@@ -2438,10 +2442,10 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0168_AmbiguousMember
-    // ? Unsure how to trigger this
+    // Unsure how to trigger this
 
     // ! Error_BU0169_InvalidProtectedAccess
-    // ? Unsure how to trigger this
+    // Unsure how to trigger this
 
     [Fact]
     public void Reports_Error_BU0170_CannotInitializeVarWithStaticClass() {
@@ -2719,11 +2723,32 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0185_AmbiguousUnaryOperator
-    // TODO This should be reachable with a unary operator overload and an implicit int conversion for the same class
+    [Fact]
+    public void Reports_Error_BU0185_AmbiguousUnaryOperator() {
+        var text = @"
+            class A {
+                public static implicit operator float64(A op) {
+                    return 0;
+                }
+
+                public static implicit operator float32(A op) {
+                    return 0;
+                }
+            }
+
+            var a = new A();
+            var b = [-a];
+        ";
+
+        var diagnostics = @"
+            unary operator '-' is ambiguous for operands with type 'A!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     // ! Error_BU0186_RefConditionalNeedsTwoRefs
-    // Ternarys don't support ref expressions yet
+    // Ternaries don't support ref expressions yet
 
     [Fact]
     public void Reports_Error_BU0187_NullAssertAlwaysThrows() {
@@ -3019,7 +3044,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0207_BadSKUnknown
-    // ? Unsure how to trigger this
+    // Unsure how to trigger this
 
     // ! Error_BU0208_RefConstLocal
     // Struct methods not implemented yet
@@ -3236,7 +3261,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0238_NewTemplateWithArguments
-    // ? Unsure how to trigger this
+    // Unsure how to trigger this
 
     [Fact]
     public void Reports_Warning_BU0239_IncorrectBooleanAssignment() {
@@ -4085,7 +4110,7 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // !
+    // ! Error_BU0311_EscapeCall
     // TODO We don't properly handle nested spans that aren't identical
     // [Fact]
     // public void Reports_Error_BU0311_EscapeCall() {
@@ -4129,7 +4154,7 @@ public sealed class DiagnosticTests {
     // }
 
     // ! Error_BU0313_EscapeLocal
-    // ? Unsure how to trigger this
+    // Unsure how to trigger this
 
     [Fact]
     public void Reports_Error_BU0314_RefAssignReturnOnly() {
@@ -4162,7 +4187,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0316_RefAssignValEscapeWider
-    // ? Unsure how to trigger this
+    // Unsure how to trigger this
 
     [Fact]
     public void Reports_Error_BU0317_MissingArraySize() {
@@ -4260,7 +4285,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0324_ConflictingAliasAndMember
-    // ? Unsure how to trigger this
+    // Unsure how to trigger this
 
     [Fact]
     public void Reports_Error_BU0325_UnexpectedUnboundTemplateName() {
@@ -4292,7 +4317,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0327_TemplateNotAllowed
-    // ? Unsure how to trigger this
+    // Unsure how to trigger this
 
     [Fact]
     public void Reports_Error_BU0328_BadTemplateArgument() {
@@ -4391,8 +4416,8 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // !
-    // ? Error not currently enforced
+    // ! Error_BU0335_CannotPassGlobalByRef
+    // Error not currently enforced
     // [Fact]
     // public void Reports_Error_BU0335_CannotPassGlobalByRef() {
     //     var text = @"
@@ -4735,7 +4760,7 @@ public sealed class DiagnosticTests {
     // }
 
     // ! Error_BU0358_FixedNeedsLValue
-    // ? Unsure how to trigger this
+    // Unsure how to trigger this
 
     [Fact]
     public void Reports_Error_BU0359_InvalidCascadeExpression() {
@@ -5412,28 +5437,28 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // !
-    // ? Tests don't reference Compiler.dll so Buckle.CodeAnalysis doesn't exist
-    // [Fact]
-    // public void Reports_Error_BU0405_AmbiguousHandleTarget() {
-    //     var text = @"
-    //         #handle [A]
+    [Fact]
+    public void Reports_Error_BU0405_AmbiguousHandleTarget() {
+        var text = @"
+            #handle [A]
 
-    //         using Buckle.CodeAnalysis;
+            using Buckle.CodeAnalysis;
 
-    //         class A {
-    //             private static void Handler(Message msg, CompilerContext context) { }
-    //             private static void Handler2(Message msg, CompilerContext context) { }
-    //         }
-    //         ;
-    //     ";
+            class A {
+                private static void Handler(Message msg, CompilerContext context) { }
+                private static void Handler2(Message msg, CompilerContext context) { }
+            }
+            ;
+        ";
 
-    //     var diagnostics = @"
-    //         type 'A' contains more than one valid handle method
-    //     ";
+        var diagnostics = @"
+            type 'A' contains more than one valid handle method
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer,
+            references: [Path.Join(AppContext.BaseDirectory, "Compiler.dll")]
+        );
+    }
 
     [Fact]
     public void Reports_Error_BU0406_FunctionCannotContainPointer() {
@@ -5588,7 +5613,8 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
     }
 
-    // ! Currently unreachable?
+    // ! Error_BU0417_TypeInferenceFailedForOut
+    // Currently unreachable?
     // [Fact]
     // public void Reports_Error_BU0417_TypeInferenceFailedForOut() {
     //     var text = @"
@@ -6487,12 +6513,13 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0472_PredefinedTypeNotFound
-    // ? Requires '--nostdlib' command-line argument
+    // Requires '--nostdlib' command-line argument
 
     // ! Error_BU0473_InvalidDeclarationExpression
-    // ? Unreachable currently
+    // Unreachable currently
 
-    // ? Unreachable currently
+    // ! Error_BU0474_DeconstructVariableCannotBeRef
+    // Unreachable currently, parser catches this first
     // [Fact]
     // public void Reports_Error_BU0474_DeconstructVariableCannotBeRef() {
     //     var text = @"
@@ -6535,7 +6562,7 @@ public sealed class DiagnosticTests {
     }
 
     // ! Error_BU0477_DeconstructTooFewElements
-    // ? Unreachable currently
+    // Unreachable currently
 
     [Fact]
     public void Reports_Error_BU0478_InvalidReverseParameter() {
@@ -7279,13 +7306,13 @@ public sealed class DiagnosticTests {
     }
 
     // ! Reports_Error_BU0523_SameFullNameAggAgg
-    // ? Requires references (i.e. command-line args)
+    // Requires references (i.e. command-line args)
 
     // ! Reports_Warning_BU0524_DuplicateReference
-    // ? Requires references (i.e. command-line args)
+    // Requires references (i.e. command-line args)
 
     // ! Reports_Warning_BU0525_DuplicateAssembly
-    // ? Requires references (i.e. command-line args)
+    // Unreachable currently
 
     [Fact]
     public void Reports_Error_BU0526_CannotCreateInterface() {
@@ -7524,8 +7551,10 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // !
-    // ? Not sure how to trigger this
+    // ! Error_BU0541_DuplicateInterfaceWithDifferencesInBaseList
+    // Not sure how to trigger this
+    // On second look, this should be unreachable until we add more TypeCompareKind ignore options, but right now
+    // its only tuples with have a specific diagnostic, and array sizes which never appear in a base list
     // [Fact]
     // public void Reports_Error_BU0541_DuplicateInterfaceWithDifferencesInBaseList() {
     //     var text = @"
@@ -7662,9 +7691,9 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // !
-    // ? Not sure this is reachable right now
-    // ? On second look, I believe this is only reachable in discriminated unions which we don't have an equivalent for
+    // ! Error_BU0548_ExplicitInterfaceImplementationInNonClassOrStruct
+    // Not sure this is reachable right now
+    // On second look, I believe this is only reachable in discriminated unions which we don't have an equivalent for
     // [Fact]
     // public void Reports_Error_BU0548_ExplicitInterfaceImplementationInNonClassOrStruct() {
     //     var text = @"
@@ -7734,8 +7763,8 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // !
-    // ? We don't have non-method interface members
+    // ! Error_BU0552_ExplicitInterfaceMemberTypeMismatch
+    // We don't have non-method interface members
     // [Fact]
     // public void Reports_Error_BU0552_ExplicitInterfaceMemberTypeMismatch() {
     //     var text = @"
@@ -7786,8 +7815,8 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // !
-    // ? Unsure how to trigger this
+    // ! Error_BU0555_ExplicitImplCollisionOnRefOut
+    // Unsure how to trigger this
     // [Fact]
     // public void Reports_Error_BU0555_ExplicitImplCollisionOnRefOut() {
     //     var text = @"
@@ -7855,8 +7884,8 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // !
-    // ? Unsure how to trigger this
+    // ! Error_BU0559_MostSpecificImplementationIsNotFound
+    // Unsure how to trigger this
     // [Fact]
     // public void Reports_Error_BU0559_MostSpecificImplementationIsNotFound() {
     //     var text = @"
@@ -7870,8 +7899,8 @@ public sealed class DiagnosticTests {
     //     AssertDiagnostics(text, diagnostics, _writer);
     // }
 
-    // !
-    // ? Unsure how to trigger this (might require another accessibility like internal)
+    // ! Error_BU0560_ImplicitImplementationOfInaccessibleInterfaceMember
+    // Unsure how to trigger this (might require another accessibility like internal)
     // [Fact]
     // public void Reports_Error_BU0560_ImplicitImplementationOfInaccessibleInterfaceMember() {
     //     var text = @"
@@ -8000,8 +8029,8 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // !
-    // ? Not sure how to trigger this
+    // ! Error_BU0567_CloseUnimplementedInterfaceMemberOperatorMismatch
+    // Not sure how to trigger this
     // [Fact]
     // public void Reports_Error_BU0567_CloseUnimplementedInterfaceMemberOperatorMismatch() {
     //     var text = @"
@@ -8218,8 +8247,8 @@ var text = """"""
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // !
-    // ? We don't support static implemented interface members yet
+    // ! Error_BU0577_BadAbstractStaticMemberAccess
+    // We don't support static implemented interface members yet
     // [Fact]
     // public void Reports_Error_BU0577_BadAbstractStaticMemberAccess() {
     //     var text = @"
@@ -8268,22 +8297,21 @@ var text = """"""
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // TODO Broken location
-    // [Fact]
-    // public void Reports_Error_BU0580_GetOrSetExpected() {
-    //     var text = @"
-    //         class A {
-    //             property int a { [if] }
-    //         }
-    //         ;
-    //     ";
+    [Fact]
+    public void Reports_Error_BU0580_GetOrSetExpected() {
+        var text = @"
+            class A {
+                property int a { [if] }
+            }
+            ;
+        ";
 
-    //     var diagnostics = @"
-    //         a get or set accessor expected
-    //     ";
+        var diagnostics = @"
+            a get or set accessor expected
+        ";
 
-    //     AssertDiagnostics(text, diagnostics, _writer);
-    // }
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     // ? Parser doesn't allow pointer types in this position currently
     // [Fact]
@@ -8508,7 +8536,7 @@ var text = """"""
     }
 
     // ! Reports_Error_BU0593_ModuleEmitFailure
-    // ? Only reported is exceedingly rare cases where depending on another module that has bad types
+    // Only reported is exceedingly rare cases where depending on another module that has bad types
 
     [Fact]
     public void Reports_Error_BU0594_InvalidAttributeParamType() {
@@ -9172,10 +9200,10 @@ var text = """"""
     }
 
     // ! Reports_Warning_BU0612_FailedToEmitMetadataAttribute
-    // ? Requires command-line arguments (--nostdlib)
+    // Requires command-line arguments (--nostdlib)
 
     // ! Reports_Warning_BU0613_FailedToEmitAttribute
-    // ? Requires command-line arguments (--nostdlib)
+    // Requires command-line arguments (--nostdlib)
 
     [Fact]
     public void Reports_Error_BU0614_CompileTimeTemplateMustBeType() {
@@ -9207,7 +9235,7 @@ var text = """"""
     }
 
     // ! Reports_Error_BU0616_CannotTemplateSpecializeType
-    // ? Requires referencing a dummy DLL without template metadata
+    // Requires referencing a dummy DLL without template metadata
 
     [Fact]
     public void Reports_Error_BU0617_BufferNoDefaultValue() {
@@ -9242,8 +9270,8 @@ var text = """"""
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // !
-    // ? The following require references as we don't expose a source definition for Conditional attribute
+    // ! Error_BU0619_ConditionalOnInterfaceMethod
+    // The following require references as we don't expose a source definition for Conditional attribute
     // [Fact]
     // public void Reports_Error_BU0619_ConditionalOnInterfaceMethod() {
     //     var text = @"
@@ -9430,10 +9458,10 @@ var text = """"""
     }
 
     // ! Reports_Error_BU0630_NoTypeDef
-    // ? Requires references
+    // Requires references
 
     // ! Reports_Error_BU0631_NoTypeDefFromModule
-    // ? Requires references
+    // Requires references
 
     [Fact]
     public void Reports_Error_BU0632_PropertyWithNoAccessor() {
@@ -10287,6 +10315,36 @@ var text = """"""
 
         var diagnostics = @"
             single-line comment or end-of-line expected
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0680_CannotUseOuterByRef() {
+        var text = @"
+            int? a = 3; ref int? b = ref a; ref int? F() { return ref [b]; }
+        ";
+
+        var diagnostics = @"
+            cannot use captured data container 'b' by-reference inside of a local function
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0680_CannotUseOuterByRef2() {
+        var text = @"
+            void M(ref int p) {
+                ref int F() {
+                    return ref [p];
+                }
+            }
+        ";
+
+        var diagnostics = @"
+            cannot use captured data container 'p' by-reference inside of a local function
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

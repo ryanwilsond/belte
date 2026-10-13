@@ -4954,8 +4954,7 @@ internal partial class Binder {
 
                     if (IsBadLocalOrParameterCapture(parameter, parameter.type, parameter.refKind)) {
                         isError = true;
-                        // TODO is this a reachable error?
-                        throw ExceptionUtilities.Unreachable();
+                        diagnostics.Push(Error.CannotUseOuterByRef(node.location, parameter.name));
                     }
 
                     return new BoundParameterExpression(
@@ -5638,9 +5637,8 @@ internal partial class Binder {
             type = localSymbol.GetTypeWithAnnotations(node, diagnostics).type;
 
             if (IsBadLocalOrParameterCapture(localSymbol, type, localSymbol.refKind)) {
-                // TODO is this a reachable error?
-                throw ExceptionUtilities.Unreachable();
-                // isError = true;
+                isError = true;
+                diagnostics.Push(Error.CannotUseOuterByRef(node.location, localSymbol.name));
             }
         }
 

@@ -2154,16 +2154,31 @@ internal sealed partial class Evaluator {
 
         switch (operatorKind.Operator()) {
             case UnaryOperatorKind.UnaryMinus:
-                if (operatorKind.OperandTypes() is UnaryOperatorKind.Int32 or UnaryOperatorKind.Int64)
+                Debug.Assert(node.type.specialType != SpecialType.None);
+                operand.kind = ValueKindExtensions.FromSpecialType(node.type.specialType);
+
+                if (operatorKind.OperandTypes().IsIntegral()) {
                     operand.int64 = -operand.int64;
-                else
+                } else if (operatorKind.OperandTypes() == UnaryOperatorKind.Float32) {
+                    operand.single = -operand.single;
+                } else {
+                    Debug.Assert(operatorKind.OperandTypes() == UnaryOperatorKind.Float64);
                     operand.@double = -operand.@double;
+                }
 
                 break;
+            case UnaryOperatorKind.UnaryPlus:
+                Debug.Assert(node.type.specialType != SpecialType.None);
+                operand.kind = ValueKindExtensions.FromSpecialType(node.type.specialType);
+                break;
             case UnaryOperatorKind.LogicalNegation:
+                Debug.Assert(node.type.specialType == SpecialType.Bool);
+                Debug.Assert(operand.kind == ValueKind.Bool);
                 operand.@bool = !operand.@bool;
                 break;
             case UnaryOperatorKind.BitwiseComplement:
+                Debug.Assert(node.type.specialType != SpecialType.None);
+                operand.kind = ValueKindExtensions.FromSpecialType(node.type.specialType);
                 operand.int64 = ~operand.int64;
                 break;
             default:

@@ -1,3 +1,5 @@
+using System;
+using System.IO;
 using Buckle.Diagnostics;
 using Diagnostics;
 using Xunit;
@@ -4464,5 +4466,75 @@ public sealed class IssueTests {
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Handle_InsertsText() {
+        var text = @"
+            using Buckle;
+            using Buckle.CodeAnalysis;
+            using Buckle.CodeAnalysis.Syntax;
+
+            #handle HandleClass
+
+            class HandleClass {
+                private static bool _ran = false;
+
+                private static void Handler(Message msg, CompilerContext context) {
+                    if (_ran || msg.Kind() != .Bound)
+                        return;
+
+                    _ran = true;
+
+                    context.AddSourceText(""""""
+                        class A {
+                            public static int M() {
+                                return 10;
+                            }
+                        }
+                        """"""
+                    );
+                }
+            }
+
+            return A.M();
+        ";
+
+        AssertValue(text, 10, evaluator: false, executor: true,
+            references: [Path.Join(AppContext.BaseDirectory, "Compiler.dll")]
+        );
+    }
+
+    [Fact]
+    public void Unary_EvaluatorEvaluatesUnaryPlus() {
+        var text = @"
+            int a = 3;
+            int b = +a;
+            return b;
+        ";
+
+        AssertValue(text, 3);
+    }
+
+    [Fact]
+    public void Unary_EvaluatorEvaluatesUnaryPlus2() {
+        var text = @"
+            int16 a = 3;
+            int32 b = +a;
+            return b;
+        ";
+
+        AssertValue(text, 3);
+    }
+
+    [Fact]
+    public void Unary_EvaluatorEvaluatesFloat32Minus() {
+        var text = @"
+            float32 a = 3;
+            float32 b = -a;
+            return b;
+        ";
+
+        AssertValue(text, -3.0f);
     }
 }
