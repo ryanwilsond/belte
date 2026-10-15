@@ -12,6 +12,7 @@ using System.Text.Json;
 using System.Threading;
 using Buckle;
 using Buckle.Building;
+using Buckle.CodeAnalysis;
 using Buckle.Diagnostics;
 using Diagnostics;
 using Repl;
@@ -378,7 +379,14 @@ public class {name} {{
         if (buildState.showInfo)
             LogBuildState(buildState);
 
-        err = GetOrCreateBuildScript(processName, buildState, diagnostics, out var compiler, out var builder);
+        err = GetOrCreateBuildScript(
+            processName,
+            buildState,
+            diagnostics,
+            out var compiler,
+            out var builder,
+            out var buildManager
+        );
 
         if (err > 0)
             return err;
@@ -388,9 +396,56 @@ public class {name} {{
         if (err > 0)
             return err;
 
+        var builds = builder.nestedBuilds is null ? [builder] : builder.nestedBuilds.Prepend(builder).ToArray();
+        var results = new List<LocalBuildResult>(builds.Length);
+
+        foreach (var build in builds) {
+            err = RunBuild(
+                processName,
+                out state,
+                out var localBuildResult,
+                diagnostics,
+                arguments,
+                debugMode,
+                startStopDialog,
+                compiler,
+                build
+            );
+
+            results.Add(localBuildResult);
+
+            if (err > 0)
+                break;
+        }
+
+        var buildResult = new BuildResult(
+            succeeded: err == SuccessExitCode,
+            buildState.arguments,
+            arguments,
+            results.ToArray()
+        );
+
+        buildManager.RunPostScript(buildResult);
+
+        return err;
+    }
+
+    private static int RunBuild(
+        string processName,
+        out CompilerState state,
+        out LocalBuildResult result,
+        DiagnosticQueue<Diagnostic> diagnostics,
+        string[] arguments,
+        bool debugMode,
+        bool startStopDialog,
+        Compiler compiler,
+        Builder build) {
+        Debug.Assert(diagnostics.Count == 0);
+        var cumulativeDiagnostics = new DiagnosticQueue<Diagnostic>();
+
         compiler.state = ToCompilerState(
             diagnostics,
-            builder,
+            build,
             out var pendingReferenceCopies,
             out var pendingDependencyCopies,
             out var r2r
@@ -412,20 +467,26 @@ public class {name} {{
             ShowVersionDialog();
         }
 
-        err = ResolveDiagnostics(diagnostics, processName, state);
+        cumulativeDiagnostics.PushRange(diagnostics);
+        var err = ResolveDiagnostics(diagnostics, processName, state);
 
-        if (err > 0)
+        if (err > 0) {
+            result = new LocalBuildResult(succeeded: false, state.arguments, null, cumulativeDiagnostics);
             return err;
+        }
 
         if (!state.noOut)
             CleanOutputFiles(compiler, diagnostics);
 
         ReadInputFiles(compiler, diagnostics);
 
+        cumulativeDiagnostics.PushRange(diagnostics);
         err = ResolveDiagnostics(diagnostics, processName, state);
 
-        if (err > 0)
+        if (err > 0) {
+            result = new LocalBuildResult(succeeded: false, state.arguments, null, cumulativeDiagnostics);
             return err;
+        }
 
         if (state.verboseMode && !state.noOut)
             LogCompilerState(state, pendingReferenceCopies, r2r);
@@ -434,16 +495,22 @@ public class {name} {{
             ShowStartDialog(usingBuildScript: true);
 
         compiler.Compile();
+        var compilation = compiler.GetMostRecentCompilation();
+        Debug.Assert(compilation is not null);
 
+        cumulativeDiagnostics.PushRange(diagnostics);
         err = ResolveDiagnostics(compiler);
 
-        if (err > 0)
+        if (err > 0) {
+            result = new LocalBuildResult(succeeded: false, state.arguments, compilation, cumulativeDiagnostics);
             return err;
+        }
 
         if (compiler.exceptions.Count > 0) {
             foreach (var exception in compiler.exceptions)
                 DiagnosticFormatter.PrettyPrintException(exception);
 
+            result = new LocalBuildResult(succeeded: false, state.arguments, compilation, cumulativeDiagnostics);
             return RuntimeErrorExitCode;
         }
 
@@ -464,6 +531,7 @@ public class {name} {{
         if (startStopDialog)
             ShowStopDialog();
 
+        result = new LocalBuildResult(succeeded: true, state.arguments, compilation, cumulativeDiagnostics);
         return SuccessExitCode;
     }
 
@@ -741,7 +809,8 @@ public class {name} {{
         BuildState state,
         DiagnosticQueue<Diagnostic> diagnostics,
         out Compiler compiler,
-        out Builder builder) {
+        out Builder builder,
+        out BuildManager buildManager) {
         var cacheDirectory = Path.Combine(state.buildDirectory, state.buildHash.ToString());
         var reuse = false;
 
@@ -773,8 +842,7 @@ public class {name} {{
             }
         }
 
-        var buildManager = new BuildManager(processName, state);
-
+        buildManager = new BuildManager(processName, state);
         compiler = buildManager.compiler;
 
         if (!reuse) {

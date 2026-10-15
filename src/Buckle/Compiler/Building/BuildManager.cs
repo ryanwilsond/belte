@@ -100,6 +100,7 @@ public sealed class BuildManager {
         AddCacheEntry(_state.buildDirectory, index, outputFilename, meta);
 
         // TODO Reusing data causes bugs, but if we can get it working it would be more performant
+        // TODO Update: because we no longer use a CorLibrary unless evaluating and build scripts are never evaluated, this should do nothing?
         compiler.InvalidateCorLibraryCache();
     }
 
@@ -131,7 +132,7 @@ public sealed class BuildManager {
     }
 
     public Builder RunBuildScript(DiagnosticQueue<Diagnostic> diagnostics) {
-        var builder = new Builder();
+        var builder = new Builder(isRootBuilder: true);
 
         var assembly = Assembly.LoadFrom(_state.dllPath);
         var buildMethod = assembly.GetTypes()
@@ -165,6 +166,8 @@ public sealed class BuildManager {
             diagnostics.Push(Error.NoBuildMethod());
             // TODO We could hook into the compilation of the script to check for the correct symbols instead of doing this post-hoc
             // But this approach has the benefit of not having to touch the main compiler APIs
+
+            // TODO these should be here
             // File.Delete(_state.dllPath);
             // File.Delete(_state.metaPath);
         } else {
@@ -175,6 +178,20 @@ public sealed class BuildManager {
         }
 
         return builder;
+    }
+
+    public void RunPostScript(BuildResult buildResult) {
+        var assembly = Assembly.LoadFrom(_state.dllPath);
+        var postMethod = assembly.GetTypes()
+            .SelectMany(t => t.GetMethods(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static))
+            .FirstOrDefault(m => (m.Name == "Post" || m.Name.StartsWith("<Main>ss__Post")) &&
+                m.GetParameters().Length == 1 &&
+                typeof(BuildResult).IsAssignableFrom(m.GetParameters()[0].ParameterType));
+
+        if (postMethod is not null && (postMethod.IsGenericMethod || postMethod.ReturnType != typeof(void)))
+            postMethod = null;
+
+        postMethod?.Invoke(null, [buildResult]);
     }
 
     private static Assembly GetOrLoadCoreAssembly() {

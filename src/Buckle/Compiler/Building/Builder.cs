@@ -1,3 +1,4 @@
+using System;
 using System.Collections.Generic;
 using Diagnostics;
 
@@ -9,6 +10,7 @@ namespace Buckle.Building;
 public sealed class Builder {
     private readonly DiagnosticOptions _globalDiagnosticOptions;
     private readonly DiagnosticOptions _currentDiagnosticOptions;
+    private readonly bool _isRootBuilder;
     private DiagnosticFlagMode _diagnosticFlagMode;
 
     /// <summary>
@@ -43,7 +45,8 @@ public sealed class Builder {
     /// </summary>
     public bool publishR2R;
 
-    public Builder() {
+    public Builder(bool isRootBuilder) {
+        _isRootBuilder = isRootBuilder;
         buildMode = BuildMode.Execute;
         outputKind = OutputKind.ConsoleApplication;
         inputs = [];
@@ -61,6 +64,7 @@ public sealed class Builder {
         buildDiagnostics = new DiagnosticQueue<Diagnostic>();
         preprocessorSymbols = [];
         arguments = [];
+        nestedBuilds = isRootBuilder ? [] : null;
     }
 
     public List<(string, InputOptions, DiagnosticOptions)> inputs { get; }
@@ -90,6 +94,18 @@ public sealed class Builder {
     public List<string> preprocessorSymbols { get; }
 
     public List<string> arguments { get; }
+
+    public List<Builder> nestedBuilds { get; }
+
+    [return: Belte.Nullability([1])]
+    public Builder AddBuild() {
+        if (!_isRootBuilder)
+            throw new InvalidOperationException("Only the root builder can add new builds.");
+
+        var nested = new Builder(isRootBuilder: false);
+        nestedBuilds.Add(nested);
+        return nested;
+    }
 
     public void AddInput(string path) {
         if (_diagnosticFlagMode == DiagnosticFlagMode.Global)

@@ -31,6 +31,7 @@ public sealed class Compiler {
     private Compilation _lazyCorLibrary;
     private BelteDiagnosticQueue _lazyCorLibraryDiagnostics;
     private bool _lazyCorLibraryIsSet;
+    private Compilation _compilation;
 
     private CompilationOptions _options => new CompilationOptions(
         // From profiling we found:
@@ -160,6 +161,10 @@ public sealed class Compiler {
         _lazyCorLibraryDiagnostics = null;
     }
 
+    public Compilation GetMostRecentCompilation() {
+        return _compilation;
+    }
+
     private static int CalculateExitCode(BelteDiagnosticQueue diagnostics) {
         var worst = SuccessExitCode;
 
@@ -230,9 +235,9 @@ public sealed class Compiler {
             var libTime = LogLibraryLoadTime(timer);
 
             var syntaxTrees = CreateSyntaxTrees(CompilerStage.Finished, buildMode);
-            var compilation = Compilation.Create(state.moduleName, options, corLibrary, syntaxTrees);
+            _compilation = Compilation.Create(state.moduleName, options, corLibrary, syntaxTrees);
 
-            var parseDiagnostics = compilation.GetParseDiagnostics()
+            var parseDiagnostics = _compilation.GetParseDiagnostics()
                 .ApplyTransformations(state.diagnosticOptions, state.taskDiagnosticOptions);
 
             if (parseDiagnostics.AnyErrors()) {
@@ -244,14 +249,14 @@ public sealed class Compiler {
 
             void Wrapper(object parameter) {
                 if (buildMode == BuildMode.Execute) {
-                    diagnostics.PushRange(compilation.Execute(
+                    diagnostics.PushRange(_compilation.Execute(
                         state.verboseMode,
                         state.time,
                         state.verbosePath,
                         state.reducedVerboseMode
                     ));
                 } else if (buildMode == BuildMode.Evaluate) {
-                    var result = compilation.Evaluate(
+                    var result = _compilation.Evaluate(
                         (ValueWrapper<bool>)parameter,
                         state.verboseMode,
                         state.time,
@@ -263,7 +268,7 @@ public sealed class Compiler {
                     diagnostics.PushRange(result.diagnostics);
                 } else {
                     Debug.Assert(buildMode == BuildMode.Emulate);
-                    diagnostics.PushRange(compilation.Emulate(
+                    diagnostics.PushRange(_compilation.Emulate(
                         state.verboseMode,
                         state.time,
                         state.verbosePath,
@@ -298,20 +303,20 @@ public sealed class Compiler {
 
             task.stage = CompilerStage.Finished;
 
-            var compilation = Compilation.CreateScript(state.moduleName, options, syntaxTree, corLibrary);
+            _compilation = Compilation.CreateScript(state.moduleName, options, syntaxTree, corLibrary);
 
-            var parseDiagnostics = compilation.GetParseDiagnostics()
+            var parseDiagnostics = _compilation.GetParseDiagnostics()
                 .ApplyTransformations(state.diagnosticOptions, state.taskDiagnosticOptions);
 
             if (parseDiagnostics.AnyErrors()) {
-                diagnostics.PushRange(compilation.GetParseDiagnostics());
+                diagnostics.PushRange(_compilation.GetParseDiagnostics());
                 return;
             }
 
             LogParseTime(timer, libTime, 1);
 
             void Wrapper(object parameter) {
-                var result = compilation.Interpret((ValueWrapper<bool>)parameter, state.time);
+                var result = _compilation.Interpret((ValueWrapper<bool>)parameter, state.time);
                 diagnostics.PushRange(result.diagnostics);
             }
 
@@ -332,9 +337,9 @@ public sealed class Compiler {
         var libTime = LogLibraryLoadTime(timer);
 
         var syntaxTrees = CreateSyntaxTrees(CompilerStage.Compiled, state.buildMode);
-        var compilation = Compilation.Create(state.moduleName, _options, corLibrary, syntaxTrees);
+        _compilation = Compilation.Create(state.moduleName, _options, corLibrary, syntaxTrees);
 
-        var parseDiagnostics = compilation.GetParseDiagnostics()
+        var parseDiagnostics = _compilation.GetParseDiagnostics()
             .ApplyTransformations(state.diagnosticOptions, state.taskDiagnosticOptions);
 
         if (parseDiagnostics.AnyErrors()) {
@@ -344,7 +349,7 @@ public sealed class Compiler {
 
         LogParseTime(timer, libTime, syntaxTrees.Length);
 
-        diagnostics.PushRange(compilation.Emit(
+        diagnostics.PushRange(_compilation.Emit(
             state.outputFilename,
             state.time,
             state.verboseMode,
