@@ -17,7 +17,10 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
     private WeakReference<ExecutableCodeBinder> _weakBodyBinder;
     private WeakReference<ExecutableCodeBinder> _weakIgnoreAccessibilityBodyBinder;
 
-    internal SynthesizedEntryPoint(SourceMemberContainerTypeSymbol containingType, SingleTypeDeclaration declaration)
+    internal SynthesizedEntryPoint(
+        SourceMemberContainerTypeSymbol containingType,
+        SingleTypeDeclaration declaration,
+        bool shouldUseIntReturn)
         : base(
             containingType,
             declaration.syntaxReference,
@@ -25,7 +28,9 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
             MakeModifiersAndFlags(containingType, declaration)
         ) {
         _returnType = declaration.hasReturnWithExpression
-            ? containingAssembly.corLibrary.GetNullableType(SpecialType.Any)
+            ? shouldUseIntReturn
+                ? containingAssembly.corLibrary.GetSpecialType(SpecialType.Int32)
+                : containingAssembly.corLibrary.GetNullableType(SpecialType.Any)
             : containingAssembly.corLibrary.GetSpecialType(SpecialType.Void);
 
         _declaration = declaration;
@@ -59,6 +64,10 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
     internal TextLocation firstLocation
         => compilationUnit.elements.First(m => m.kind == SyntaxKind.GlobalStatement).location;
 
+    internal override bool isExplicitInterfaceImplementation => false;
+
+    internal override ImmutableArray<MethodSymbol> explicitInterfaceImplementations => [];
+
     internal ExecutableCodeBinder GetBodyBinder(bool ignoreAccessibility) {
         ref var weakBinder = ref ignoreAccessibility ? ref _weakIgnoreAccessibilityBodyBinder : ref _weakBodyBinder;
 
@@ -77,10 +86,6 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
             }
         }
     }
-
-    internal override bool isExplicitInterfaceImplementation => false;
-
-    internal override ImmutableArray<MethodSymbol> explicitInterfaceImplementations => [];
 
     internal override ImmutableArray<TypeParameterConstraintKinds> GetTypeParameterConstraintKinds() {
         return [];

@@ -435,7 +435,11 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                     else
                         diagnostics.Push(Error.GlobalStatementsInMultipleFiles(singleDecl.nameLocation));
 
-                    builder.Add(new SynthesizedEntryPoint(this, singleDecl));
+                    builder.Add(new SynthesizedEntryPoint(
+                        this,
+                        singleDecl,
+                        shouldUseIntReturn: declaringCompilation.options.buildMode == BuildMode.Dotnet
+                    ));
                 }
             }
 
