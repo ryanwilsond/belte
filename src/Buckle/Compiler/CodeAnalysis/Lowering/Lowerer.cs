@@ -159,6 +159,10 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         );
     }
 
+    internal override BoundNode VisitGotoStatement(BoundGotoStatement node) {
+        return node.Update(node.label, null);
+    }
+
     internal override BoundNode VisitBlockStatement(BoundBlockStatement node) {
         var block = (BoundBlockStatement)base.VisitBlockStatement(node);
 

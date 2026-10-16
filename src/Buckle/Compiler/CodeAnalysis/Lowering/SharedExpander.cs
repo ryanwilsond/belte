@@ -391,6 +391,9 @@ internal class SharedExpander : BoundTreeExpander {
             new BoundLocalDeclarationStatement(syntax, statement.declaration.declaration, false, null)
         );
 
+        // Not actually synthesized, but we need to add it to the enclosing block
+        _synthesizedLocals.Peek().Add(symbol);
+
         var bodyStatements = ExpandStatement(statement.body);
 
         statements.Add(CreateScopedTry(syntax, bodyStatements.ToImmutableArray(), symbol, disposeMethod));
@@ -904,8 +907,10 @@ internal class SharedExpander : BoundTreeExpander {
 
         List<BoundStatement> statements = [];
 
-        if (commitLocal is not null)
+        if (commitLocal is not null) {
             statements.Add(LocalDeclaration(syntax, commitLocal, Literal(_compilation, syntax, false, commitLocal.type)));
+            _synthesizedLocals.Peek().Add(commitLocal);
+        }
 
         statements.AddRange(CreateWithPrologue(syntax, lefts, temps, statement.assignments, out var newLefts));
 

@@ -215,85 +215,85 @@ internal sealed class SourceAttributeData : AttributeData {
                         if (specType != SpecialType.Bool)
                             return false;
 
-                        parameterIndex += 1;
+                        parameterIndex++;
                         break;
                     case (byte)SignatureTypeCode.Char:
                         if (specType != SpecialType.Char)
                             return false;
 
-                        parameterIndex += 1;
+                        parameterIndex++;
                         break;
                     case (byte)SignatureTypeCode.SByte:
                         if (specType != SpecialType.Int8)
                             return false;
 
-                        parameterIndex += 1;
+                        parameterIndex++;
                         break;
                     case (byte)SignatureTypeCode.Byte:
                         if (specType != SpecialType.UInt8)
                             return false;
 
-                        parameterIndex += 1;
+                        parameterIndex++;
                         break;
                     case (byte)SignatureTypeCode.Int16:
                         if (specType != SpecialType.Int16)
                             return false;
 
-                        parameterIndex += 1;
+                        parameterIndex++;
                         break;
                     case (byte)SignatureTypeCode.UInt16:
                         if (specType != SpecialType.UInt16)
                             return false;
 
-                        parameterIndex += 1;
+                        parameterIndex++;
                         break;
                     case (byte)SignatureTypeCode.Int32:
                         if (specType != SpecialType.Int32)
                             return false;
 
-                        parameterIndex += 1;
+                        parameterIndex++;
                         break;
                     case (byte)SignatureTypeCode.UInt32:
                         if (specType != SpecialType.UInt32)
                             return false;
 
-                        parameterIndex += 1;
+                        parameterIndex++;
                         break;
                     case (byte)SignatureTypeCode.Int64:
                         if (specType != SpecialType.Int64)
                             return false;
 
-                        parameterIndex += 1;
+                        parameterIndex++;
                         break;
                     case (byte)SignatureTypeCode.UInt64:
                         if (specType != SpecialType.UInt64)
                             return false;
 
-                        parameterIndex += 1;
+                        parameterIndex++;
                         break;
                     case (byte)SignatureTypeCode.Single:
                         if (specType != SpecialType.Float32)
                             return false;
 
-                        parameterIndex += 1;
+                        parameterIndex++;
                         break;
                     case (byte)SignatureTypeCode.Double:
                         if (specType != SpecialType.Float64)
                             return false;
 
-                        parameterIndex += 1;
+                        parameterIndex++;
                         break;
                     case (byte)SignatureTypeCode.String:
                         if (specType != SpecialType.String)
                             return false;
 
-                        parameterIndex += 1;
+                        parameterIndex++;
                         break;
                     case (byte)SignatureTypeCode.Object:
                         if (specType != SpecialType.Object)
                             return false;
 
-                        parameterIndex += 1;
+                        parameterIndex++;
                         break;
                     case (byte)SerializationTypeCode.Type:
                         // lazySystemType ??= compilation.GetWellKnownType(WellKnownType.Type);
@@ -302,7 +302,7 @@ internal sealed class SourceAttributeData : AttributeData {
                         if (!TypeSymbol.Equals(parameterType, lazySystemType, TypeCompareKind.ConsiderEverything))
                             return false;
 
-                        parameterIndex += 1;
+                        parameterIndex++;
                         break;
                     case (byte)SignatureTypeCode.SZArray:
                         // Skip over and check the next byte

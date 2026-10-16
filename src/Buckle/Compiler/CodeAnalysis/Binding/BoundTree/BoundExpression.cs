@@ -13,12 +13,15 @@ internal abstract partial class BoundExpression : BoundNode {
     internal virtual bool suppressVirtualCalls => false;
 
     internal RefKind GetRefKind() {
+        // TODO Should we just use expressionSymbol here?
         return kind switch {
             BoundKind.DataContainerExpression => ((BoundDataContainerExpression)this).dataContainer.refKind,
             BoundKind.ParameterExpression => ((BoundParameterExpression)this).parameter.refKind,
             BoundKind.FieldAccessExpression => ((BoundFieldAccessExpression)this).field.refKind,
             BoundKind.PropertyAccessExpression => ((BoundPropertyAccessExpression)this).property.refKind,
             BoundKind.CallExpression => ((BoundCallExpression)this).method.refKind,
+            BoundKind.StackSlotExpression => ((BoundStackSlotExpression)this).symbol.GetRefKind(),
+            BoundKind.FieldSlotExpression => ((BoundFieldSlotExpression)this).field.refKind,
             _ => RefKind.None,
         };
     }

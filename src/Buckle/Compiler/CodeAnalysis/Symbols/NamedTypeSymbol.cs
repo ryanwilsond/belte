@@ -541,7 +541,22 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
     }
 
     internal override bool Equals(TypeSymbol other, TypeCompareKind compareKind) {
-        if ((object)other == this)
+        var @this = this;
+
+        if ((compareKind & TypeCompareKind.RuntimeTypeComparison) != 0 &&
+            this.IsNullableType() != other.IsNullableType()) {
+            var strippedThis = isReferenceType ? StrippedType() : this;
+            var strippedOther = other.isReferenceType ? StrippedType() : other;
+
+            if (strippedThis is NamedTypeSymbol namedThis && strippedOther is NamedTypeSymbol namedOther) {
+                @this = namedThis;
+                other = namedOther;
+            } else {
+                return strippedThis.Equals(strippedOther, compareKind);
+            }
+        }
+
+        if ((object)other == @this)
             return true;
 
         if (other is null)
@@ -555,7 +570,7 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
         var thisOriginalDefinition = originalDefinition;
         var otherOriginalDefinition = other.originalDefinition;
 
-        var thisIsOriginalDefinition = (object)this == thisOriginalDefinition;
+        var thisIsOriginalDefinition = (object)@this == thisOriginalDefinition;
         var otherIsOriginalDefinition = (object)other == otherOriginalDefinition;
 
         if (thisIsOriginalDefinition && otherIsOriginalDefinition) {
@@ -568,7 +583,7 @@ internal abstract partial class NamedTypeSymbol : TypeSymbol, INamedTypeSymbol, 
 
         if ((thisIsOriginalDefinition || otherIsOriginalDefinition) &&
             (compareKind & (TypeCompareKind.IgnoreArraySizesAndLowerBounds | TypeCompareKind.IgnoreTupleNames)) == 0 &&
-            this is not PETemplateType && other is not PETemplateType) {
+            @this is not PETemplateType && other is not PETemplateType) {
             return false;
         }
 

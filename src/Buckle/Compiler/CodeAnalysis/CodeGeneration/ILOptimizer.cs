@@ -6,7 +6,6 @@ using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.CodeGeneration;
 
-// TODO
 internal sealed partial class ILOptimizer {
     internal static BoundBlockStatement Optimize(
         BoundBlockStatement src,
@@ -14,7 +13,18 @@ internal sealed partial class ILOptimizer {
         out HashSet<DataContainerSymbol> stackLocals) {
         stackLocals = [];
         var locals = PooledDictionary<DataContainerSymbol, LocalDefUseInfo>.GetInstance();
-        src = (BoundBlockStatement)StackOptimizerPass1.Analyze(src, locals, debugFriendly);
+        var analyzedSrc = (BoundBlockStatement)StackOptimizerPass1.Analyze(
+            src,
+            locals,
+            debugFriendly,
+            out var containsInlineIL
+        );
+
+        if (containsInlineIL) {
+            // If we see inline IL we don't want to potentially ruin it with optimizations
+            stackLocals = null;
+            return src;
+        }
 
         FilterValidStackLocals(locals);
 
@@ -22,10 +32,10 @@ internal sealed partial class ILOptimizer {
 
         if (locals.Count == 0) {
             stackLocals = null;
-            result = src;
+            result = analyzedSrc;
         } else {
             stackLocals = new HashSet<DataContainerSymbol>(locals.Keys);
-            result = StackOptimizerPass2.Rewrite(src, locals);
+            result = StackOptimizerPass2.Rewrite(analyzedSrc, locals);
         }
 
         foreach (var info in locals.Values)

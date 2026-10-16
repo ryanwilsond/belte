@@ -42,7 +42,7 @@ internal abstract class BoundTreeWalkerWithStackGuardWithoutRecursionOnLeftOfBin
 
     private protected virtual void BeforeVisitingSkippedBoundBinaryOperatorChildren(BoundBinaryOperator node) { }
 
-    internal sealed override BoundNode VisitCallExpression(BoundCallExpression node) {
+    internal override BoundNode VisitCallExpression(BoundCallExpression node) {
         if (node.receiver is BoundCallExpression receiver1) {
             var calls = ArrayBuilder<BoundCallExpression>.GetInstance();
 

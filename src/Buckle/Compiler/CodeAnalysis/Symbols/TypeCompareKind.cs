@@ -14,4 +14,6 @@ internal enum TypeCompareKind : byte {
     AllIgnoreOptions = IgnoreTupleNames | IgnoreArraySizesAndLowerBounds,
 
     CLRSignatureCompareOptions = AllIgnoreOptions & ~IgnoreArraySizesAndLowerBounds,
+
+    RuntimeTypeComparison = 1 << 2,
 }

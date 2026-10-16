@@ -143,4 +143,5 @@ internal enum BoundKind : byte {
     SequencePointWithLocation                   = 0x89,
     BindsExpression                             = 0x8A,
     UnconvertedBinaryOperator                   = 0x8B,
+    Dup                                         = 0x8C,
 }

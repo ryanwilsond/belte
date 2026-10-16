@@ -1546,10 +1546,10 @@ internal abstract partial class ConversionsBase {
         var count = 0;
 
         if (!TypeSymbol.Equals(conv.fromType, conv.@operator.GetParameterType(0), TypeCompareKind.ConsiderEverything))
-            count += 1;
+            count++;
 
         if (!TypeSymbol.Equals(conv.toType, conv.@operator.returnType, TypeCompareKind.ConsiderEverything))
-            count += 1;
+            count++;
 
         return count;
     }

@@ -15,6 +15,7 @@ using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
+using Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
 using Mono.Cecil;
 using Mono.Cecil.Cil;
@@ -44,6 +45,7 @@ internal partial class ILEmitter : ModuleBuilder {
     private readonly ImmutableArray<(MethodSymbol, BoundBlockStatement)> _methodBodies;
     private readonly bool _isDll;
     private readonly bool _debugMode;
+    private readonly bool _time;
     private readonly Compilation _compilation;
 
     private readonly Dictionary<SpecialType, TypeReference> _specialTypes = [];
@@ -78,15 +80,18 @@ internal partial class ILEmitter : ModuleBuilder {
         string assemblySimpleName,
         Version assemblyVersion,
         bool debugMode,
+        bool time,
         bool noStdLib,
         BelteDiagnosticQueue diagnostics) {
         _diagnostics = diagnostics;
         _program = program;
         _compilation = program.compilation;
         _debugMode = debugMode;
+        _time = time;
         _isDll = _compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
 
         _tfm = DotnetReferenceResolver.GetTFM();
+        // TODO This method is *brutally* slow for what it does
         var refPackPath = DotnetReferenceResolver.ResolveNetCoreAppRefPath(_tfm, out _version);
 
 #if !DEBUG
@@ -108,6 +113,7 @@ internal partial class ILEmitter : ModuleBuilder {
         ];
 
         // The reference manager *should* pick up System.Runtime and System.Console already
+        // TODO Would could load these lazily. Profiling shows these take <1 ms though
         _backupAssemblies = [
             AssemblyDefinition.ReadAssembly(objectDll),
             AssemblyDefinition.ReadAssembly(consoleDll),
@@ -118,6 +124,10 @@ internal partial class ILEmitter : ModuleBuilder {
 #if !DEBUG
 #pragma warning restore IL3000
 #endif
+
+        // TODO Loading in all these references takes quite a bit of time
+        // Perhaps could be more lazy?
+        // Even better yet, have the Compilation track used references so we know exactly what we need to load
 
         var references = _compilation.GetBoundReferenceManager().explicitReferences
             .Where(e => e is PortableExecutableReference)
@@ -158,7 +168,9 @@ internal partial class ILEmitter : ModuleBuilder {
 
         _assemblyDefinition.MainModule.Resources.Add(belteRuntimeResource);
 
+        // TODO This takes too much time
         ResolveTypes();
+
         ResolveMethods();
         GenerateSTLMap();
 
@@ -203,9 +215,23 @@ internal partial class ILEmitter : ModuleBuilder {
         Version assemblyVersion,
         string outputPath,
         BelteDiagnosticQueue diagnostics) {
-        var debugMode = program.compilation.options.optimizationLevel == OptimizationLevel.Debug;
-        var noStdLib = program.compilation.options.noStdLib;
-        var emitter = new ILEmitter(program, assemblyName, assemblyVersion, debugMode, noStdLib, diagnostics);
+        var options = program.compilation.options;
+        var debugMode = options.optimizationLevel == OptimizationLevel.Debug;
+        var noStdLib = options.noStdLib;
+
+        var time = options.time;
+        var timer = time ? Stopwatch.StartNew() : null;
+
+        var emitter = new ILEmitter(program, assemblyName, assemblyVersion, debugMode, time, noStdLib, diagnostics);
+
+        if (time) {
+            timer.Stop();
+
+            diagnostics.Push(new BelteDiagnostic(
+                DiagnosticSeverity.Debug,
+                $"    Emitting time spent in assembly setup: {timer.ElapsedMilliseconds} ms"
+            ));
+        }
 
         if (SupportedProjectType(program, diagnostics))
             emitter.EmitToFile(outputPath, debugMode, diagnostics);
@@ -217,7 +243,7 @@ internal partial class ILEmitter : ModuleBuilder {
         Version assemblyVersion,
         bool programOnly,
         BelteDiagnosticQueue diagnostics) {
-        var emitter = new ILEmitter(program, assemblyName, assemblyVersion, false, false, diagnostics);
+        var emitter = new ILEmitter(program, assemblyName, assemblyVersion, false, false, false, diagnostics);
 
         if (SupportedProjectType(program, diagnostics))
             return emitter.EmitToString(programOnly);
@@ -238,6 +264,9 @@ internal partial class ILEmitter : ModuleBuilder {
 
     private void EmitToFile(string outputPath, bool debugMode, BelteDiagnosticQueue diagnostics) {
         EmitInternal();
+
+        var timer = _time ? Stopwatch.StartNew() : null;
+
         // This has to be done after main emit phase in case the attribute definition is in this assembly
         EmitMetadataAttribute();
 
@@ -267,6 +296,7 @@ internal partial class ILEmitter : ModuleBuilder {
             if (!wrote)
                 diagnostics.Push(Error.UnableToOpenFile(dllPath));
         } else {
+            // TODO This operation is fairly expensive, anything we can do about it?
             var wrote = IOUtilities.TryIOOperation(() => _assemblyDefinition.Write(dllPath));
 
             if (!wrote)
@@ -275,6 +305,16 @@ internal partial class ILEmitter : ModuleBuilder {
 
         if (!isDll)
             EmitAppHost(Path.ChangeExtension(outputPath, ".exe"), dllPath, diagnostics);
+
+        if (_time) {
+            timer.Stop();
+
+            // This time is nearly 100% occupied by _assemblyDefinition.Write
+            _diagnostics.Push(new BelteDiagnostic(
+                DiagnosticSeverity.Debug,
+                $"    Emitting time spent in assembly creation: {timer.ElapsedMilliseconds} ms"
+            ));
+        }
     }
 
     private void EmitMetadataAttribute() {
@@ -977,6 +1017,9 @@ internal partial class ILEmitter : ModuleBuilder {
     }
 
     private protected void EmitInternal(bool programOnly = false) {
+        var timer = _time ? Stopwatch.StartNew() : null;
+
+        // TODO This takes too much time
         CompleteWellKnownTypes();
 
         foreach (var type in _topLevelTypes)
@@ -992,6 +1035,17 @@ internal partial class ILEmitter : ModuleBuilder {
             var linearTypes = _linearNestedTypes;
             Parallel.For(0, linearTypes.Length, parallelOptions, i => CreateMemberDefinitions(linearTypes[i]));
 
+            if (_time) {
+                timer.Stop();
+
+                _diagnostics.Push(new BelteDiagnostic(
+                    DiagnosticSeverity.Debug,
+                    $"    Emitting time spent in symbol definition creation: {timer.ElapsedMilliseconds} ms"
+                ));
+
+                timer.Restart();
+            }
+
             Parallel.Invoke(parallelOptions,
                 () => Parallel.ForEach(_types, CreateTypeMetadata),
                 () => Parallel.ForEach(_fields, CreateFieldMetadata),
@@ -999,7 +1053,29 @@ internal partial class ILEmitter : ModuleBuilder {
                 () => Parallel.ForEach(_properties, CreatePropertyMetadata)
             );
 
+            if (_time) {
+                timer.Stop();
+
+                _diagnostics.Push(new BelteDiagnostic(
+                    DiagnosticSeverity.Debug,
+                    $"    Emitting time spent in symbol metadata creation: {timer.ElapsedMilliseconds} ms"
+                ));
+
+                timer.Restart();
+            }
+
             Parallel.ForEach(_methods, parallelOptions, method => EmitMethod(method.Key, method.Value));
+
+            if (_time) {
+                timer.Stop();
+
+                _diagnostics.Push(new BelteDiagnostic(
+                    DiagnosticSeverity.Debug,
+                    $"    Emitting time spent in code generation: {timer.ElapsedMilliseconds} ms"
+                ));
+
+                timer.Restart();
+            }
         } else {
             foreach (var type in _topLevelTypes) {
                 if (!programOnly || type.IsFromCompilation(_compilation))
@@ -1009,6 +1085,17 @@ internal partial class ILEmitter : ModuleBuilder {
             foreach (var type in _linearNestedTypes) {
                 if (!programOnly || type.IsFromCompilation(_compilation))
                     CreateMemberDefinitions(type);
+            }
+
+            if (_time) {
+                timer.Stop();
+
+                _diagnostics.Push(new BelteDiagnostic(
+                    DiagnosticSeverity.Debug,
+                    $"    Emitting time spent in symbol definition creation: {timer.ElapsedMilliseconds} ms"
+                ));
+
+                timer.Restart();
             }
 
             {
@@ -1028,11 +1115,35 @@ internal partial class ILEmitter : ModuleBuilder {
                 }
             }
 
+            if (_time) {
+                timer.Stop();
+
+                _diagnostics.Push(new BelteDiagnostic(
+                    DiagnosticSeverity.Debug,
+                    $"    Emitting time spent in symbol metadata creation: {timer.ElapsedMilliseconds} ms"
+                ));
+
+                timer.Restart();
+            }
+
             foreach (var method in _methods) {
                 if (!programOnly || method.Key.IsFromCompilation(_compilation))
                     EmitMethod(method.Key, method.Value);
             }
+
+            if (_time) {
+                timer.Stop();
+
+                _diagnostics.Push(new BelteDiagnostic(
+                    DiagnosticSeverity.Debug,
+                    $"    Emitting time spent in code generation: {timer.ElapsedMilliseconds} ms"
+                ));
+
+                timer.Restart();
+            }
         }
+
+        // Entry point creation consistently takes <1 ms so no use in timing
 
         var entryPoint = _program.entryPoint;
 

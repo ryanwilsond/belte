@@ -83,7 +83,7 @@ internal sealed class PointerTypeSymbol : TypeSymbol {
         TypeSymbol current = this;
 
         while (current.typeKind == TypeKind.Pointer) {
-            indirections += 1;
+            indirections++;
             current = ((PointerTypeSymbol)current).pointedAtType;
         }
 

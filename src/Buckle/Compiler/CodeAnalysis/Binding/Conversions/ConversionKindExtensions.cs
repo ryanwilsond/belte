@@ -69,4 +69,17 @@ internal static class ConversionKindExtensions {
                 return false;
         }
     }
+
+    internal static bool IsPointerConversion(this ConversionKind kind) {
+        switch (kind) {
+            case ConversionKind.ImplicitPointerToVoid:
+            case ConversionKind.ExplicitPointerToPointer:
+            case ConversionKind.ExplicitPointerToInteger:
+            case ConversionKind.ExplicitIntegerToPointer:
+            case ConversionKind.ImplicitNullToPointer:
+                return true;
+            default:
+                return false;
+        }
+    }
 }

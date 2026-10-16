@@ -56,6 +56,8 @@ internal abstract class DataContainerSymbol : Symbol, IDataContainerSymbol {
 
     internal abstract bool isPinned { get; }
 
+    internal virtual bool canScheduleToStack => !isConstExpr && !isPinned;
+
     internal sealed override Accessibility declaredAccessibility => Accessibility.NotApplicable;
 
     internal abstract SyntaxToken identifierToken { get; }

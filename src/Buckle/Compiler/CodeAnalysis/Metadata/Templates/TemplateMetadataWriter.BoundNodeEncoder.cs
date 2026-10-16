@@ -162,6 +162,10 @@ internal sealed partial class TemplateMetadataWriter {
             return base.VisitCastExpression(node);
         }
 
+        internal override BoundNode VisitDup(BoundDup node) {
+            throw ExceptionUtilities.Unreachable();
+        }
+
         internal override BoundNode VisitDataContainerExpression(BoundDataContainerExpression node) {
             _writer.Write((byte)BoundKind.DataContainerExpression);
             var id = _seenLocals[node.dataContainer];

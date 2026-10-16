@@ -359,6 +359,8 @@ public class {name} {{
             concurrentBuild = false,
         };
 
+        var timer = state.time ? Stopwatch.StartNew() : null;
+
         var inputFileName = buildState.buildScript;
 
         if (!File.Exists(inputFileName))
@@ -368,8 +370,10 @@ public class {name} {{
 
         err = ResolveDiagnostics(diagnostics, processName, state);
 
-        if (err > 0)
+        if (err > 0) {
+            timer?.Stop();
             return err;
+        }
 
         buildState.buildDirectory = GetBuildDirectory();
         var hash = HashStrings(GetVersionString(), buildState.buildScriptText);
@@ -388,21 +392,39 @@ public class {name} {{
             out var buildManager
         );
 
-        if (err > 0)
+        if (err > 0) {
+            timer?.Stop();
             return err;
+        }
 
         err = ResolveDiagnostics(diagnostics, processName, state);
 
-        if (err > 0)
+        if (err > 0) {
+            timer?.Stop();
             return err;
+        }
 
         var builds = builder.nestedBuilds is null ? [builder] : builder.nestedBuilds.Prepend(builder).ToArray();
         var results = new List<LocalBuildResult>(builds.Length);
 
+        if (timer is not null) {
+            timer.Stop();
+
+            ResolveDiagnostic(
+                new BelteDiagnostic(
+                    DiagnosticSeverity.Debug,
+                    $"Collected/built build script in {timer.ElapsedMilliseconds} ms"
+                ),
+                processName,
+                state
+            );
+
+            timer.Restart();
+        }
+
         foreach (var build in builds) {
             err = RunBuild(
                 processName,
-                out state,
                 out var localBuildResult,
                 diagnostics,
                 arguments,
@@ -427,12 +449,24 @@ public class {name} {{
 
         buildManager.RunPostScript(buildResult);
 
+        if (timer is not null) {
+            timer.Stop();
+
+            ResolveDiagnostic(
+                new BelteDiagnostic(
+                    DiagnosticSeverity.Debug,
+                    $"Ran all builds in {timer.ElapsedMilliseconds} ms"
+                ),
+                processName,
+                state
+            );
+        }
+
         return err;
     }
 
     private static int RunBuild(
         string processName,
-        out CompilerState state,
         out LocalBuildResult result,
         DiagnosticQueue<Diagnostic> diagnostics,
         string[] arguments,
@@ -451,7 +485,7 @@ public class {name} {{
             out var r2r
         );
 
-        state = compiler.state;
+        var state = compiler.state;
 
         if (arguments.Length != 0) {
             if (state.arguments.Length == 0)
@@ -1361,6 +1395,7 @@ public class {name} {{
             switch (arg) {
                 case "--info":
                     state.showInfo = true;
+                    state.showTime = true;
                     break;
                 case "--infoscript":
                     startStopDialog = true;

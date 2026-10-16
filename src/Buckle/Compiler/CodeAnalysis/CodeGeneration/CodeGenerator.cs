@@ -141,6 +141,9 @@ internal sealed partial class CodeGenerator {
                 return EmitParameterAddress((BoundParameterExpression)expression, addressKind);
             case BoundKind.FieldAccessExpression:
                 return EmitFieldAddress((BoundFieldAccessExpression)expression, addressKind);
+            case BoundKind.Dup:
+                Debug.Assert(((BoundDup)expression).refKind != RefKind.None);
+                return EmitDupAddress((BoundDup)expression, addressKind);
             case BoundKind.ArrayAccessExpression:
                 if (!HasHome(expression, addressKind))
                     goto default;
@@ -207,6 +210,14 @@ internal sealed partial class CodeGenerator {
                 return EmitAddressOfTempClone(expression);
         }
 
+        return null;
+    }
+
+    private VariableDefinition EmitDupAddress(BoundDup dup, AddressKind addressKind) {
+        if (!HasHome(dup, addressKind))
+            return EmitAddressOfTempClone(dup);
+
+        _builder.Emit(OpCode.Dup);
         return null;
     }
 
@@ -661,6 +672,24 @@ internal sealed partial class CodeGenerator {
     #region Statements
 
     private void EmitBlock(BoundBlockStatement block) {
+        foreach (var local in block.locals) {
+            Debug.Assert(local.refKind == RefKind.None || local.synthesizedKind.IsLongLived());
+
+            if (IsStackLocal(local))
+                continue;
+
+            Debug.Assert(!local.type.IsVoidType());
+
+            _builder.DeclareLocal(
+                local.type,
+                local,
+                local.name,
+                local.synthesizedKind,
+                local.isRef ? LocalSlotConstraints.ByRef : LocalSlotConstraints.None,
+                false
+            );
+        }
+
         foreach (var statement in block.statements)
             EmitStatement(statement);
     }
@@ -1361,30 +1390,16 @@ oneMoreTime:
 
     private void EmitLocalDeclarationStatement(BoundLocalDeclarationStatement statement) {
         var declaration = statement.declaration;
-        var local = declaration.dataContainer;
-
-        _builder.DeclareLocal(
-            local.type,
-            local,
-            local.name,
-            local.synthesizedKind,
-            local.isRef ? LocalSlotConstraints.ByRef : LocalSlotConstraints.None,
-            false
-        );
-
-        if (!_evaluatorProxies.Add(local))
-            throw ExceptionUtilities.Unreachable();
 
         if (declaration.initializer is null)
             return;
 
-        // Essentially reporting the slot allocation then assigning
-        // Could move this rewrite to the lowerer, but then we would need a way to keep track of slot allocation
+        var local = declaration.dataContainer;
+
         var assignment = BoundFactory.Assignment(
             null,
             new BoundDataContainerExpression(null, local, null, local.type),
             declaration.initializer,
-            // TODO Should this just be false always:
             local.isRef,
             local.type
         );
@@ -1457,6 +1472,9 @@ oneMoreTime:
                 break;
             case BoundKind.DataContainerExpression:
                 EmitLocalLoad((BoundDataContainerExpression)expression, used);
+                break;
+            case BoundKind.Dup:
+                EmitDupExpression((BoundDup)expression, used);
                 break;
             case BoundKind.ParameterExpression:
                 if (used)
@@ -2017,7 +2035,7 @@ oneMoreTime:
         }
     }
 
-    private static RefKind GetArgumentRefKind(
+    internal static RefKind GetArgumentRefKind(
         ImmutableArray<BoundExpression> arguments,
         ImmutableArray<ParameterSymbol> parameters,
         ImmutableArray<RefKind> argRefKindsOpt,
@@ -2355,7 +2373,7 @@ oneMoreTime:
         return false;
     }
 
-    private static bool IsRef(BoundExpression receiver) {
+    internal static bool IsRef(BoundExpression receiver) {
         switch (receiver.kind) {
             case BoundKind.DataContainerExpression:
                 return ((BoundDataContainerExpression)receiver).dataContainer.refKind != RefKind.None;
@@ -2365,6 +2383,8 @@ oneMoreTime:
                 return ((BoundCallExpression)receiver).method.refKind != RefKind.None;
             case BoundKind.FunctionPointerCallExpression:
                 return ((BoundFunctionPointerCallExpression)receiver).functionPointer.signature.refKind != RefKind.None;
+            case BoundKind.Dup:
+                return ((BoundDup)receiver).refKind != RefKind.None;
         }
 
         return false;
@@ -2383,7 +2403,16 @@ oneMoreTime:
         return containingType.specialType.CanOptimizeBehavior();
     }
 
-    private static bool IsSafeToDereferenceReceiverRefAfterEvaluatingArguments(
+    internal static bool IsPossibleReferenceTypeReceiverOfConstrainedCall(BoundExpression receiver) {
+        var receiverType = receiver.type;
+
+        if (receiverType.IsVerifierReference() || receiverType.IsVerifierValue())
+            return false;
+
+        return !receiverType.isValueType;
+    }
+
+    internal static bool IsSafeToDereferenceReceiverRefAfterEvaluatingArguments(
         ImmutableArray<BoundExpression> arguments) {
         return arguments.All(IsSafeToDereferenceReceiverRefAfterEvaluatingArgument);
 
@@ -3212,8 +3241,6 @@ oneMoreTime:
     }
 
     private void EmitAssignmentOperator(BoundAssignmentOperator expression, UseKind useKind) {
-        EmitLocalDeclarationIfApplicable(expression);
-
         if (TryEmitAssignmentInPlace(expression, useKind != UseKind.Unused))
             return;
 
@@ -3222,26 +3249,6 @@ oneMoreTime:
         var temp = EmitAssignmentDuplication(expression, useKind, lhsUsesStack);
         EmitStore(expression);
         EmitAssignmentPostfix(expression, temp, useKind);
-    }
-
-    private void EmitLocalDeclarationIfApplicable(BoundAssignmentOperator expression) {
-        if (expression.left.kind == BoundKind.StackSlotExpression ||
-            expression.left is BoundDataContainerExpression dataExpr && dataExpr.dataContainer.isGlobal) {
-            var local = expression.left is BoundStackSlotExpression stackSlot
-                ? stackSlot.symbol as DataContainerSymbol
-                : ((BoundDataContainerExpression)expression.left).dataContainer;
-
-            if (local is not null && _evaluatorProxies.Add(local)) {
-                _builder.DeclareLocal(
-                    local.type,
-                    local,
-                    local.name,
-                    local.synthesizedKind,
-                    local.isRef ? LocalSlotConstraints.ByRef : LocalSlotConstraints.None,
-                    false
-                );
-            }
-        }
     }
 
     private void EmitAssignmentPostfix(
@@ -3279,7 +3286,15 @@ oneMoreTime:
 
             var exprTempsAfter = _expressionTemps?.Count ?? 0;
 
-            // TODO We aren't handling long-lived temporaries, but does the compiler create any ever?
+            Debug.Assert(lhs.kind != BoundKind.ParameterExpression || exprTempsAfter <= exprTempsBefore);
+
+            if ((lhs.kind == BoundKind.DataContainerExpression &&
+                ((BoundDataContainerExpression)lhs).dataContainer.synthesizedKind.IsLongLived()) ||
+               (lhs.kind == BoundKind.StackSlotExpression &&
+                ((DataContainerSymbol)((BoundStackSlotExpression)lhs).symbol).synthesizedKind.IsLongLived())) {
+                if (exprTempsAfter > exprTempsBefore)
+                    _expressionTemps.Count = exprTempsBefore;
+            }
         }
     }
 
@@ -3326,6 +3341,10 @@ oneMoreTime:
                     throw ExceptionUtilities.Unreachable();
                 }
 
+                break;
+            case BoundKind.Dup:
+                Debug.Assert(((BoundDup)expression).refKind != RefKind.None);
+                EmitIndirectStore(expression.type);
                 break;
             case BoundKind.ArrayAccessExpression:
                 var array = ((BoundArrayAccessExpression)expression).receiver;
@@ -3575,6 +3594,14 @@ oneMoreTime:
                 }
 
                 break;
+            case BoundKind.Dup: {
+                    var left = (BoundDup)assignmentTarget;
+                    var temp = EmitAddress(left, AddressKind.Writeable);
+                    Debug.Assert(temp is null);
+                    lhsUsesStack = true;
+                }
+
+                break;
             case BoundKind.FunctionPointerCallExpression: {
                     var left = (BoundFunctionPointerCallExpression)assignmentTarget;
                     EmitCalli(left, UseKind.UsedAsAddress);
@@ -3800,9 +3827,8 @@ oneMoreTime:
     }
 
     private VariableDefinition EmitFieldLoadReceiver(BoundExpression receiver) {
-        if (FieldLoadMustUseRef(receiver) || FieldLoadPrefersRef(receiver)) {
+        if (FieldLoadMustUseRef(receiver) || FieldLoadPrefersRef(receiver))
             return EmitFieldLoadReceiverAddress(receiver) ? null : EmitReceiverRef(receiver, AddressKind.ReadOnly);
-        }
 
         EmitExpression(receiver, true);
         return null;
@@ -3948,6 +3974,17 @@ oneMoreTime:
 
         if (isRefLocal) {
             EmitLoadIndirect(local.type);
+            EmitPopIfUnused(used);
+        }
+    }
+
+    private void EmitDupExpression(BoundDup expression, bool used) {
+        if (expression.refKind == RefKind.None) {
+            if (used)
+                _builder.Emit(OpCode.Dup);
+        } else {
+            _builder.Emit(OpCode.Dup);
+            EmitLoadIndirect(expression.type);
             EmitPopIfUnused(used);
         }
     }

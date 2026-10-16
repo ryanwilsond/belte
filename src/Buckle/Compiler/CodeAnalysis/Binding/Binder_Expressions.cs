@@ -740,6 +740,11 @@ internal partial class Binder {
                 return true;
             case BoundKind.ThrowExpression:
                 return true;
+            case BoundKind.Dup:
+                var dupRefKind = ((BoundDup)expression).refKind;
+                return dupRefKind == RefKind.Ref ||
+                    // TODO RefConst == RefReadonly?
+                    (IsAnyReadOnly(addressKind) && dupRefKind == RefKind.RefConst);
             case BoundKind.ParameterExpression:
                 return IsAnyReadOnly(addressKind) ||
                     ((BoundParameterExpression)expression).parameter.refKind is not RefKind.RefConst;
@@ -777,6 +782,20 @@ internal partial class Binder {
 
                 return HasHome(conditional.trueExpression, addressKind, containingSymbol, stackLocals)
                     && HasHome(conditional.falseExpression, addressKind, containingSymbol, stackLocals);
+            case BoundKind.StackSlotExpression:
+                return HasHome(
+                    ((BoundStackSlotExpression)expression).original,
+                    addressKind,
+                    containingSymbol,
+                    stackLocals
+                );
+            case BoundKind.FieldSlotExpression:
+                return HasHome(
+                    ((BoundFieldSlotExpression)expression).original,
+                    addressKind,
+                    containingSymbol,
+                    stackLocals
+                );
             default:
                 return false;
         }

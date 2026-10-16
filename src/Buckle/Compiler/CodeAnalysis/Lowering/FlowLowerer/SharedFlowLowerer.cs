@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
@@ -15,6 +16,9 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
     private const int MaxUnroll = 64;
 
     private readonly List<string> _localNames = [];
+    // TODO Consider using ArrayBuilder instead of List (in BoundTreeExpander as well)
+    private readonly Stack<List<DataContainerSymbol>> _synthesizedLocals = [];
+
     private int _tempCount = 0;
     private int _labelCount;
 
@@ -37,6 +41,14 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
         BoundBlockStatement statement) {
         var lowerer = new SharedFlowLowerer(compilation, method, statement);
         return (BoundBlockStatement)lowerer.Visit(statement);
+    }
+
+    internal override BoundNode VisitBlockStatement(BoundBlockStatement node) {
+        _synthesizedLocals.Push([]);
+        var statements = VisitList(node.statements);
+        var frameLocals = _synthesizedLocals.Pop();
+        frameLocals.AddRange(node.locals);
+        return node.Update(statements, frameLocals.ToImmutableArray(), node.localFunctions);
     }
 
     internal override BoundNode VisitForEachStatement(BoundForEachStatement node) {
@@ -682,11 +694,15 @@ internal partial class SharedFlowLowerer : BoundTreeRewriterWithStackGuard {
             name = $"temp{_tempCount++}";
         } while (_localNames.Contains(name));
 
-        return new SynthesizedDataContainerSymbol(
+        var local = new SynthesizedDataContainerSymbol(
             _container,
             new TypeWithAnnotations(type),
-            SynthesizedLocalKind.ExpanderTemp,
+            SynthesizedLocalKind.FlowLowererTemp,
             name
         );
+
+        _synthesizedLocals.Peek().Add(local);
+
+        return local;
     }
 }

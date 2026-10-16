@@ -75,6 +75,9 @@
     <Field Name="symbols" Type="ImmutableArray&lt;Symbol&gt;"/>
     <Field Name="childBoundNodes" Type="ImmutableArray&lt;BoundExpression&gt;"/>
   </Node>
+  <Node Name="BoundDup" Base="BoundExpression">
+    <Field Name="refKind" Type="RefKind" Null="NotApplicable"/>
+  </Node>
   <AbstractNode Name="VariablePendingInference" Base="BoundExpression">
     <Field Name="symbol" Type="Symbol"/>
     <Field Name="receiver" Type="BoundExpression?"/>

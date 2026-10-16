@@ -718,34 +718,34 @@ public sealed class EvaluatorTests {
     [InlineData("int? result; for (int? i = 0; i <= 10; i++) { result = i; } return result;", 10)]
     [InlineData("int? result = 1; for (int? i = 10; i > 0; i--) { result += i; } return result;", 56)]
     [InlineData(@"
-        int sum = 0;
+        int sum1 = 0;
         for (int i = 0; i < 3; i++) {
             for (int j = 0; j < 3; j++) {
                 if (j == 1)
                     continue;
-                sum++;
+                sum1++;
             }
         }
-        return sum;", 6)]
+        return sum1;", 6)]
     [InlineData(@"
-        int sum = 0;
+        int sum2 = 0;
         for (int i = 0; i < 10; i++) {
             if (i == 5)
                 break;
-            sum += i;
+            sum2 += i;
         }
-        return sum;", 10)]
+        return sum2;", 10)]
     [InlineData(@"
         int[] a = { 1, 2, 3, 4, 5 };
-        int sum = 0;
-        for (i in a) sum += i;
-        return sum;
+        int sum3 = 0;
+        for (i in a) sum3 += i;
+        return sum3;
     ", 15)]
     [InlineData(@"
         int[] a = { 1, 2, 3, 4, 5 };
-        int sum = 0;
-        for (i, idx in a) sum += i + idx;
-        return sum;
+        int sum4 = 0;
+        for (i, idx in a) sum4 += i + idx;
+        return sum4;
     ", 25)]
     [InlineData(@"
         constexpr t = ""test"";
@@ -754,8 +754,8 @@ public sealed class EvaluatorTests {
         return a[1];
     ", 'e')]
     [InlineData(@"
-        class MyList {
-            public static Enumerator<int>! operator iter(MyList _) { return new MyIter(); }
+        class MyList1 {
+            public static Enumerator<int>! operator iter(MyList1 _) { return new MyIter(); }
 
             class MyIter extends Enumerator<int> {
                 private int count = -1;
@@ -763,14 +763,14 @@ public sealed class EvaluatorTests {
                 public override int Current() { return count * 2; }
             }
         }
-        var t = new MyList();
-        int sum = 0;
-        for (i in t) sum += i;
-        return sum;
+        var t = new MyList1();
+        int sum5 = 0;
+        for (i in t) sum5 += i;
+        return sum5;
     ", 30)]
     [InlineData(@"
-        class MyList {
-            public static Enumerator<int>! operator iter(MyList _) { return new MyIter(); }
+        class MyList2 {
+            public static Enumerator<int>! operator iter(MyList2 _) { return new MyIter(); }
 
             class MyIter extends Enumerator<int> {
                 private int count = -1;
@@ -778,10 +778,10 @@ public sealed class EvaluatorTests {
                 public override int Current() { return count * 2; }
             }
         }
-        var t = new MyList();
-        int sum = 0;
-        for (i, idx in t) sum += i + idx;
-        return sum;
+        var t = new MyList2();
+        int sum6 = 0;
+        for (i, idx in t) sum6 += i + idx;
+        return sum6;
     ", 45)]
     [InlineData(@"
         class MyIter extends Enumerator<int> {
@@ -791,9 +791,9 @@ public sealed class EvaluatorTests {
             public override int Current() { return count * 2; }
         }
         var t = new MyIter();
-        int sum = 0;
-        for (i in t) sum += i;
-        return sum;
+        int sum7 = 0;
+        for (i in t) sum7 += i;
+        return sum7;
     ", 30)]
     [InlineData(@"
         class MyIter extends Enumerator<int> {
@@ -803,22 +803,22 @@ public sealed class EvaluatorTests {
             public override int Current() { return count * 2; }
         }
         var t = new MyIter();
-        int sum = 0;
-        for (i, idx in t) sum += i + idx;
-        return sum;
+        int sum8 = 0;
+        for (i, idx in t) sum8 += i + idx;
+        return sum8;
     ", 45)]
     [InlineData(@"
-        class MyList {
-            public static int operator[](MyList _, int index) { return index * 2; }
-            public static int operator length(MyList _) { return 5; }
+        class MyList4 {
+            public static int operator[](MyList4 _, int index) { return index * 2; }
+            public static int operator length(MyList4 _) { return 5; }
         }
-        var a = new MyList();
-        int sum = 0;
-        for (i in a) sum += i;
-        return sum;
+        var a = new MyList4();
+        int sum9 = 0;
+        for (i in a) sum9 += i;
+        return sum9;
     ", 20)]
-    [InlineData(@"int sum = 0; for (i in 0..<10) sum += i; return sum;", 45)]
-    [InlineData(@"int sum = 0; for (i in 0..=10) sum += i; return sum;", 55)]
+    [InlineData(@"int sum10 = 0; for (i in 0..<10) sum10 += i; return sum10;", 45)]
+    [InlineData(@"int sum11 = 0; for (i in 0..=10) sum11 += i; return sum11;", 55)]
     // While statements
     [InlineData("int? i = 0; int? result = 1; while (i <= 10) { result += result; i++; } return result;", 2048)]
     [InlineData("int? i = 0; int? result = 0; while (i < 5) { result++; i++; } return result;", 5)]
@@ -1672,36 +1672,36 @@ public sealed class EvaluatorTests {
         return 20;
     ", 20)]
     [InlineData(@"
-        int sum = 0;
+        int sum12 = 0;
         for (i in 1..<10) {
-            sum += i;
+            sum12 += i;
             var _ = Result<int, int>.Failure(0) or break;
         }
-        return sum;
+        return sum12;
     ", 1)]
     [InlineData(@"
-        int sum = 0;
+        int sum13 = 0;
         for (i in 1..<10) {
-            sum += i;
+            sum13 += i;
             var _ = Result<int, int>.Success(0) or break;
         }
-        return sum;
+        return sum13;
     ", 45)]
     [InlineData(@"
-        int sum = 0;
+        int sum14 = 0;
         for (i in 1..<10) {
-            sum += i;
+            sum14 += i;
             var _ = Result<int, int>.Failure(0) or continue;
         }
-        return sum;
+        return sum14;
     ", 45)]
     [InlineData(@"
-        int sum = 0;
+        int sum15 = 0;
         for (i in 1..<10) {
-            sum += i;
+            sum15 += i;
             var _ = Result<int, int>.Success(0) or continue;
         }
-        return sum;
+        return sum15;
     ", 45)]
     [InlineData(@"
         Result<bool, int> M() {

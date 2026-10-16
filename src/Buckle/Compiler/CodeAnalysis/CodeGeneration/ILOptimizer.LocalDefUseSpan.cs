@@ -34,7 +34,7 @@ internal sealed partial class ILOptimizer {
         }
 
         public override string ToString() {
-            return "[" + start + " ," + end + ")";
+            return "[" + start + ", " + end + ")";
         }
     }
 }

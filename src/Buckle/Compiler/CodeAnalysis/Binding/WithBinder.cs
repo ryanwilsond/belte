@@ -21,7 +21,7 @@ internal sealed class WithBinder : LocalScopeBinder {
         _commitLocal = new SynthesizedDataContainerSymbol(
             containingMember,
             new TypeWithAnnotations(compilation.GetSpecialType(SpecialType.Bool)),
-            SynthesizedLocalKind.ExpanderTemp,
+            SynthesizedLocalKind.CommitLocal,
             "commit"
         );
 

@@ -191,7 +191,7 @@ internal sealed partial class CompileTimeLowerer : BoundTreeExpander {
             dataContainerExpression.type,
             dataContainerExpression.dataContainer,
             dataContainerExpression.dataContainer.name,
-            SynthesizedLocalKind.ExpanderTemp,
+            SynthesizedLocalKind.CompileTimeLowererTemp,
             CodeGeneration.LocalSlotConstraints.None,
             false
         );
@@ -287,7 +287,7 @@ internal sealed partial class CompileTimeLowerer : BoundTreeExpander {
             dataContainerExpression.type,
             dataContainerExpression.dataContainer,
             dataContainerExpression.dataContainer.name,
-            SynthesizedLocalKind.ExpanderTemp,
+            SynthesizedLocalKind.CompileTimeLowererTemp,
             CodeGeneration.LocalSlotConstraints.None,
             false
         );

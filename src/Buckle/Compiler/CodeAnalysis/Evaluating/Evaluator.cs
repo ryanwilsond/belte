@@ -1061,8 +1061,7 @@ internal sealed partial class Evaluator {
         var field = node.field;
 
         if (field.isStatic) {
-            var ptr = GetOrCreateStaticType(field.containingType.originalDefinition, abort);
-            return GetHeapFieldSlotOrStructFieldSlot(ptr, node.slot);
+            return EvaluateStaticFieldAddress(node, abort);
         } else {
             var receiver = node.receiver;
             var fieldType = field.type;
@@ -2791,8 +2790,15 @@ internal sealed partial class Evaluator {
         ValueWrapper<bool> abort) {
         if (!HasHome(node.original, addressKind))
             return EvaluateAddressOfTempClone(node, abort);
+        else if (node.field.isStatic)
+            return EvaluateStaticFieldAddress(node, abort);
         else
             return EvaluateInstanceFieldAddress(node, addressKind, abort);
+    }
+
+    private EvaluatorValue EvaluateStaticFieldAddress(BoundFieldSlotExpression node, ValueWrapper<bool> abort) {
+        var ptr = GetOrCreateStaticType(node.field.containingType.originalDefinition, abort);
+        return GetHeapFieldSlotOrStructFieldSlot(ptr, node.slot);
     }
 
     private EvaluatorValue EvaluateInstanceFieldAddress(
