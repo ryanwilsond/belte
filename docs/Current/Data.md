@@ -433,6 +433,15 @@ Note that all binary operators are left-associative except for the power operato
 `x!` is a null assertion. It converts a nullable `x` into a non-nullable one. `x` must be nullable. The operator's
 result is non-nullable. If `x` is null, a runtime null reference exception is thrown.
 
+If a null assert is an expression statement (i.e. `x!;`), it will make future null assertions unnecessary until the
+operand is modified:
+
+```belte
+int? a = 3;
+a!;
+int b = a; // Explicit conversion made implicit by the null assertion above
+```
+
 #### 3.2.2.2 `x?`
 
 `x?` is a null erasure. If `x` is null, the exception results in the default value of the type of `x`, where the type
@@ -472,11 +481,21 @@ exception is thrown if building in debug mode. If in release mode, no runtime ch
 explicitly, meaning exceptions will raise elsewhere if the value is null. This makes it semantically different than
 [`x!`](#3221-x) beyond performance.
 
-In the case that the operand has a class type, using this operator when the operand is null risks polluting a
-non-nullable context with null.
+In the case that the operand has a reference type, using this operator when the operand is null risks polluting a
+non-nullable context with null. In the case of a value type, the result is the zeroed value for that type if the operand
+is null.
 
 This operator is intended to be used when certain the operand is not null and thus the overhead of checking again is
 unnecessary.
+
+Like a normal null assertion, a silent null assertion as an expression statement (i.e. `x!!;`) will make future null
+assertions unnecessary until the operand is modified:
+
+```belte
+int? a = 3;
+a!!;
+int b = a; // Explicit conversion made implicit by the null assertion above
+```
 
 ### 3.2.3 Is/Isnt/As Operators
 

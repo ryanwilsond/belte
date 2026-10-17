@@ -3709,7 +3709,13 @@ internal sealed partial class Evaluator {
                         return true;
                     }
                 case "Nullable<>_GetValueOrDefault":
-                    result = EvaluateExpression(receiver, true, abort);
+                    var value = EvaluateExpression(receiver, true, abort);
+
+                    if (value.kind == ValueKind.Null && receiver.Type().isValueType)
+                        result = GetDefaultValue(receiver.StrippedType(), null, abort);
+                    else
+                        result = value;
+
                     return true;
                 case "Nullable<>_GetValueOrDefault_T": {
                         var receiverValue = EvaluateExpression(receiver, true, abort);

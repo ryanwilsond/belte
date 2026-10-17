@@ -6040,7 +6040,8 @@ internal partial class Binder {
         if (!isConditional) {
             if (receiverType is not null &&
                 (receiverType.IsNullableType() ||
-                (receiverType is TemplateParameterSymbol p && !p.hasNotNullConstraint))) {
+                (receiverType is TemplateParameterSymbol p && !p.hasNotNullConstraint)) &&
+                !HasNullAssertFactFor(receiver)) {
                 ReportNullableReceiver(syntax, receiver, access, diagnostics);
             }
 
@@ -8047,6 +8048,9 @@ internal partial class Binder {
             identifier = normal.identifier;
             boundArgument = BindArgumentValue(normal, diagnostics, refKind);
             refKind = InferBoundArgumentRefKind(boundArgument, refKind);
+
+            if (refKind == RefKind.Ref)
+                InvalidateNullAssertOperand(boundArgument);
         } else {
             throw ExceptionUtilities.Unreachable();
         }

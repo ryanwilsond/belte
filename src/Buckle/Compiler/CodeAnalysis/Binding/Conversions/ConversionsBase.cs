@@ -992,16 +992,21 @@ internal abstract partial class ConversionsBase {
             return conversion;
 
         if (sourceType is not null) {
-            var fastConversion = FastClassifyConversion(sourceType, target);
+            var fastConversion = ApplyNullFacts(FastClassifyConversion(sourceType, target), sourceExpression);
 
             if (fastConversion.exists) {
                 if (Conversion.CollapseConversion(fastConversion).isImplicit)
                     return fastConversion;
             } else {
-                conversion = ClassifyImplicitBuiltInConversionSlow(sourceType, target);
+                conversion = ApplyNullFacts(
+                    ClassifyImplicitBuiltInConversionSlow(sourceType, target),
+                    sourceExpression
+                );
 
-                if (conversion.exists && Conversion.CollapseConversion(conversion).isImplicit)
-                    return conversion;
+                if (conversion.exists) {
+                    if (Conversion.CollapseConversion(conversion).isImplicit)
+                        return conversion;
+                }
             }
         }
         // TODO Handle function types here?
@@ -1012,6 +1017,10 @@ internal abstract partial class ConversionsBase {
             return conversion;
 
         return Conversion.None;
+    }
+
+    private protected virtual Conversion ApplyNullFacts(Conversion conversion, BoundExpression source) {
+        return conversion;
     }
 
     private Conversion GetImplicitTupleConversion(BoundTupleLiteral tuple, TypeSymbol destination) {

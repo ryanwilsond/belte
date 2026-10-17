@@ -87,6 +87,20 @@ internal sealed class Conversions : ConversionsBase {
         return conversion;
     }
 
+    private protected override Conversion ApplyNullFacts(Conversion conversion, BoundExpression source) {
+        if (conversion.kind == ConversionKind.ExplicitNullable && conversion.underlyingConversions[0].isImplicit) {
+            if (_binder.HasNullAssertFactFor(source)) {
+                return new Conversion(
+                    ConversionKind.ImplicitNullable,
+                    conversion.underlyingConversions,
+                    ConversionKind.ExplicitNullable
+                );
+            }
+        }
+
+        return conversion;
+    }
+
     private static void GetFunctionArguments(
         SyntaxNode syntax,
         AnalyzedArguments analyzedArguments,

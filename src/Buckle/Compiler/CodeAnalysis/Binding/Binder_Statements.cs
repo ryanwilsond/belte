@@ -1728,6 +1728,9 @@ internal partial class Binder {
             }
         }
 
+        if (localSymbol.refKind == RefKind.Ref)
+            InvalidateNullAssertOperand(initializer);
+
         return new BoundLocalDeclarationStatement(
             associatedSyntaxNode,
             new BoundDataContainerDeclaration(
@@ -2067,13 +2070,52 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics) {
         var expression = BindRValueWithoutTargetType(node.expression, diagnostics);
 
+        if (expression is BoundNullAssertOperator nullAssertOperator) {
+            if (nullAssertOperator.operand is
+                BoundDataContainerExpression { dataContainer: { isRef: false } dataContainer }) {
+                AddNullAssertFact(dataContainer);
+            } else if (nullAssertOperator.operand is
+                BoundParameterExpression { parameter: { refKind: RefKind.None } parameter }) {
+                AddNullAssertFact(parameter);
+            }
+        }
+
         if (!compilation.options.isScript) {
             if (IsInvalidExpressionStatement(expression))
                 diagnostics.Push(Error.InvalidExpressionStatement(node.location));
         }
 
         return new BoundExpressionStatement(node, expression);
+    }
 
+    private protected virtual void AddNullAssertFact(Symbol symbol) {
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    private protected virtual void RemoveNullAssertFact(Symbol symbol) {
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    internal virtual bool HasNullAssertFact(Symbol symbol) {
+        return next.HasNullAssertFact(symbol);
+    }
+
+    internal bool HasNullAssertFactFor(BoundExpression operand) {
+        if (operand is BoundDataContainerExpression { dataContainer: { } dataContainer })
+            return HasNullAssertFact(dataContainer);
+        else if (operand is BoundParameterExpression { parameter: { } parameter })
+            return HasNullAssertFact(parameter);
+
+        return false;
+    }
+
+    private void InvalidateNullAssertOperand(BoundExpression operand) {
+        if (nullAssertFacts is not null) {
+            if (operand is BoundDataContainerExpression { dataContainer: { } dataContainer })
+                RemoveNullAssertFact(dataContainer);
+            else if (operand is BoundParameterExpression { parameter: { } parameter })
+                RemoveNullAssertFact(parameter);
+        }
     }
 
     private static bool IsInvalidExpressionStatement(BoundExpression expression) {
@@ -2093,6 +2135,7 @@ internal partial class Binder {
             case BoundKind.CallExpression:
             case BoundKind.CascadeListExpression:
             case BoundKind.ReversibleExpression:
+            case BoundKind.NullAssertOperator:
                 return false;
             case BoundKind.ConditionalAccessExpression:
                 var conditionalAccess = (BoundConditionalAccessExpression)expression;

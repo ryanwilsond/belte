@@ -91,6 +91,8 @@ internal partial class Binder {
 
     internal virtual bool isInsideNameof => next.isInsideNameof;
 
+    internal virtual List<Symbol> nullAssertFacts => null;
+
     internal virtual QuickAttributeChecker quickAttributeChecker => next.quickAttributeChecker;
 
     internal virtual ImportChain importChain => next.importChain;
@@ -4808,12 +4810,18 @@ internal partial class Binder {
         AssignmentExpressionSyntax node,
         BoundExpression left,
         BelteDiagnosticQueue diagnostics) {
+        InvalidateNullAssertOperand(left);
+
         var rhsExpr = node.right.UnwrapRefExpression(out var refKind);
+        Debug.Assert(refKind is RefKind.None or RefKind.Ref);
         var isRef = refKind == RefKind.Ref;
         var lhsKind = isRef ? BindValueKind.RefAssignable : BindValueKind.Assignable;
         var op1 = CheckValue(left, lhsKind, diagnostics);
         var rhsKind = isRef ? GetRequiredRHSValueKindForRefAssignment(op1) : BindValueKind.RValue;
         var op2 = BindPossibleArrayInitializer(rhsExpr, op1.Type(), rhsKind, diagnostics);
+
+        if (isRef)
+            InvalidateNullAssertOperand(op2);
 
         if (op1.kind == BoundKind.DiscardExpression) {
             op2 = BindToNaturalType(op2, diagnostics);
@@ -4850,6 +4858,8 @@ internal partial class Binder {
         AssignmentExpressionSyntax node,
         BoundExpression leftOperand,
         BelteDiagnosticQueue diagnostics) {
+        InvalidateNullAssertOperand(leftOperand);
+
         var rightOperand = BindValue(node.right, diagnostics, BindValueKind.RValue);
         var isPropagation = node.assignmentToken.kind == SyntaxKind.QuestionExclamationEqualsToken;
 
@@ -4960,6 +4970,8 @@ internal partial class Binder {
         AssignmentExpressionSyntax node,
         BoundExpression left,
         BelteDiagnosticQueue diagnostics) {
+        InvalidateNullAssertOperand(left);
+
         var right = BindValue(node.right, diagnostics, BindValueKind.RValue);
         var kind = SyntaxKindToBinaryOperatorKind(node.assignmentToken.kind);
 

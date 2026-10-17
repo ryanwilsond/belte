@@ -1712,8 +1712,11 @@ internal sealed class Expander : SharedExpander {
         {
             List<BoundStatement> statements;
 
-            switch (expression.conversion.kind) {
+            switch (expression.conversion.trueKind) {
                 case ConversionKind.ImplicitNullable:
+                    Debug.Assert(type.IsNullableType());
+                    Debug.Assert(!expression.operand.type.IsNullableType());
+
                     statements = ExpandExpression(Lowerer.CreateNullable(
                         _compilation,
                         syntax,
@@ -1728,6 +1731,9 @@ internal sealed class Expander : SharedExpander {
                     ), out replacement, UseKind.Value);
                     break;
                 case ConversionKind.ExplicitNullable:
+                    Debug.Assert(!type.IsNullableType());
+                    Debug.Assert(expression.operand.type.IsNullableType());
+
                     statements = ExpandExpression(Cast(
                         syntax,
                         type,

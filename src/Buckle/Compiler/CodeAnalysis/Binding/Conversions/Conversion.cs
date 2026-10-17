@@ -54,7 +54,15 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
 
     internal Conversion(ConversionKind castKind, ImmutableArray<Conversion> nestedConversions) {
         kind = castKind;
-        _uncommonData = new NestedUncommonData(nestedConversions);
+        _uncommonData = new NestedUncommonData(nestedConversions, castKind);
+    }
+
+    internal Conversion(
+        ConversionKind castKind,
+        ImmutableArray<Conversion> nestedConversions,
+        ConversionKind trueKind) {
+        kind = castKind;
+        _uncommonData = new NestedUncommonData(nestedConversions, trueKind);
     }
 
     internal Conversion(
@@ -93,6 +101,9 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
     }
 
     internal ConversionKind kind { get; }
+
+    internal ConversionKind trueKind
+        => _uncommonData is NestedUncommonData { trueKind: { } trueKind } ? trueKind : kind;
 
     internal ImmutableArray<Conversion> underlyingConversions
         => _uncommonData is NestedUncommonData { nestedConversions: var conversions } ? conversions : default;

@@ -4537,4 +4537,65 @@ public sealed class IssueTests {
 
         AssertValue(text, -3.0f);
     }
+
+    [Fact]
+    public void NullAssert_CanBeExpressionStatement() {
+        var text = @"
+            int? a = 3;
+            a!;
+            return a!;
+        ";
+
+        AssertValue(text, 3);
+    }
+
+    [Fact]
+    public void NullAssert_CanBeExpressionStatement2() {
+        var text = @"
+            int? a = 3;
+            a!;
+            int b = a;
+            return b;
+        ";
+
+        AssertValue(text, 3);
+    }
+
+    [Fact]
+    public void NullAssert_CanBeExpressionStatement3() {
+        var text = @"
+            class A {
+                public int f = 5;
+            }
+            var? a = new A();
+            a!;
+            return a.f;
+        ";
+
+        AssertValue(text, 5);
+    }
+
+    [Fact]
+    public void NullAssert_CanBeExpressionStatement4() {
+        var text = @"
+            int M(int? a) {
+                a!;
+                return a;
+            }
+
+            return M(3);
+        ";
+
+        AssertValue(text, 3);
+    }
+
+    [Fact]
+    public void NullAssert_EvaluatorGetsDefaultOnSilentAssert() {
+        var text = @"
+            int? a = null;
+            return a!!;
+        ";
+
+        AssertValue(text, 0);
+    }
 }

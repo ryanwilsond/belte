@@ -2695,8 +2695,7 @@ oneMoreTime:
 
     private void EmitNullAssertOperator(BoundNullAssertOperator expression, bool used) {
         if (!expression.throwIfNull) {
-            EmitExpression(expression.operand, true);
-            EmitPopIfUnused(used);
+            EmitExpression(expression.operand, used);
             return;
         }
 

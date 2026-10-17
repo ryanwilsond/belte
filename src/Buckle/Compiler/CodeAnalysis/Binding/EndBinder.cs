@@ -78,6 +78,10 @@ internal sealed class EndBinder : Binder {
         return null;
     }
 
+    internal override bool HasNullAssertFact(Symbol _) {
+        return false;
+    }
+
     internal override BoundStatement BindSwitchStatementCore(
         SwitchStatementSyntax node,
         Binder originalBinder,
