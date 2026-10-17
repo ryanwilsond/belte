@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -65,6 +66,10 @@ internal sealed class PointerTypeSymbol : TypeSymbol {
         return [];
     }
 
+    internal override ImmutableArray<NamedTypeSymbol> Interfaces(ConsList<TypeSymbol> basesBeingResolved = null) {
+        return [];
+    }
+
     internal override void Accept(SymbolVisitor visitor) {
         visitor.VisitPointerType(this);
     }
@@ -78,21 +83,31 @@ internal sealed class PointerTypeSymbol : TypeSymbol {
         TypeSymbol current = this;
 
         while (current.typeKind == TypeKind.Pointer) {
-            indirections += 1;
+            indirections++;
             current = ((PointerTypeSymbol)current).pointedAtType;
         }
 
         return Hash.Combine(current, indirections);
     }
 
+    internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
+        return SpecializedCollections.EmptyEnumerable<(MethodSymbol Body, MethodSymbol Implemented)>();
+    }
+
     internal override bool ApplyNullableTransforms(
         byte defaultTransformFlag,
         ImmutableArray<byte> transforms,
         ref int position,
-        out TypeSymbol result) {
+        out TypeSymbol result,
+        bool isBelteMode) {
         var oldPointedAtType = pointedAtTypeWithAnnotations;
 
-        if (!oldPointedAtType.ApplyNullableTransforms(defaultTransformFlag, transforms, ref position, out var newPointedAtType)) {
+        if (!oldPointedAtType.ApplyNullableTransforms(
+                defaultTransformFlag,
+                transforms,
+                ref position,
+                out var newPointedAtType,
+                isBelteMode)) {
             result = this;
             return false;
         }

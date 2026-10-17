@@ -38,7 +38,9 @@ internal abstract partial class GreenNode {
         this.kind = kind;
 
         if (diagnostics?.Length > 0) {
-            _flags |= NodeFlags.ContainsDiagnostics;
+            _flags |= kind.IsDirective()
+                ? NodeFlags.ContainsDiagnostics
+                : NodeFlags.ContainsDiagnostics | NodeFlags.ContainsDiagnosticsNoDirectives;
             DiagnosticsTable.Add(this, diagnostics);
         }
     }
@@ -59,7 +61,9 @@ internal abstract partial class GreenNode {
         this.fullWidth = fullWidth;
 
         if (diagnostics?.Length > 0) {
-            _flags |= NodeFlags.ContainsDiagnostics;
+            _flags |= kind.IsDirective()
+                ? NodeFlags.ContainsDiagnostics
+                : NodeFlags.ContainsDiagnostics | NodeFlags.ContainsDiagnosticsNoDirectives;
             DiagnosticsTable.Add(this, diagnostics);
         }
     }
@@ -93,9 +97,14 @@ internal abstract partial class GreenNode {
 
     /// <summary>
     /// If any diagnostics have spans that overlap with this node.
-    /// Aka this node produced any diagnostics.
+    /// I.e. this node or any of it's children produced any diagnostics.
     /// </summary>
     internal bool containsDiagnostics => (_flags & NodeFlags.ContainsDiagnostics) != 0;
+
+    /// <summary>
+    /// Same as 'containsDiagnostics' but doesn't include directive trivia children diagnostics
+    /// </summary>
+    internal bool containsDiagnosticsNoDirectives => (_flags & NodeFlags.ContainsDiagnosticsNoDirectives) != 0;
 
     /// <summary>
     /// If this node contains any preprocessor directives.

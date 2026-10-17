@@ -130,6 +130,8 @@ public abstract partial class SyntaxNode {
     /// </summary>
     internal GreenNode green { get; }
 
+    internal InternalSyntax.BelteSyntaxNode bltGreen => (InternalSyntax.BelteSyntaxNode)green;
+
     public override string ToString() {
         return green.ToString();
     }
@@ -379,6 +381,10 @@ public abstract partial class SyntaxNode {
         }
 
         return result;
+    }
+
+    internal InternalSyntax.DirectiveStack ApplyDirectives(InternalSyntax.DirectiveStack stack) {
+        return ((InternalSyntax.BelteSyntaxNode)green).ApplyDirectives(stack);
     }
 
     internal TNode FirstAncestorOrSelf<TNode>(Func<TNode, bool> predicate = null, bool ascendOutOfTrivia = true)

@@ -1,0 +1,10 @@
+using Buckle;
+using Buckle.Building;
+
+void Build(Builder builder) {
+    builder.AddInput("src");
+    builder.buildMode = .Execute;
+    builder.outputKind = .ConsoleApplication;
+    builder.debugBuild = true;
+    builder.AddRef("libs");
+}

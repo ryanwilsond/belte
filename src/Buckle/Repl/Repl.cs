@@ -90,6 +90,9 @@ public abstract partial class Repl : IDisposable {
                 break;
 
             if (_evaluate) {
+                _abortEvaluation = false;
+                broke = false;
+
                 if (!text.Contains(Environment.NewLine) && text.StartsWith('#')) {
                     EvaluateMetaCommand(text);
                 } else {
@@ -98,8 +101,6 @@ public abstract partial class Repl : IDisposable {
                         Name = "Repl.Run.EvaluateSubmissionWrapper"
                     };
 
-                    _abortEvaluation = false;
-                    broke = false;
                     var startTime = DateTime.Now;
                     evaluateSubmissionThread.Start();
                     evaluateSubmissionThread.Join();
@@ -368,6 +369,12 @@ public abstract partial class Repl : IDisposable {
                 case ConsoleKey.RightArrow:
                     HandleControlRightArrow(document, view);
                     break;
+                case ConsoleKey.Home:
+                    HandleControlHome(document, view);
+                    break;
+                case ConsoleKey.End:
+                    HandleControlEnd(document, view);
+                    break;
                 case ConsoleKey.C:
                     HandleControlC(document, view);
                     break;
@@ -605,7 +612,7 @@ public abstract partial class Repl : IDisposable {
             }
 
             return offset;
-        } else if (char.IsPunctuation(current)) {
+        } else if (IsOther(current)) {
             while (GetPos() <= maxLength) {
                 offset++;
 
@@ -614,12 +621,16 @@ public abstract partial class Repl : IDisposable {
 
                 current = GetChar();
 
-                if (!char.IsPunctuation(current))
+                if (!IsOther(current))
                     break;
             }
         }
 
         return offset;
+
+        static bool IsOther(char chr) {
+            return !char.IsWhiteSpace(chr) && !char.IsLetterOrDigit(chr);
+        }
     }
 
     private int GetWordBoundaryBack(ObservableCollection<string> document, SubmissionView view, bool strict = false) {
@@ -701,7 +712,7 @@ public abstract partial class Repl : IDisposable {
             }
 
             return offset;
-        } else if (char.IsPunctuation(current)) {
+        } else if (IsOther(current)) {
             while (GetPos() > 0) {
                 offset++;
 
@@ -710,12 +721,16 @@ public abstract partial class Repl : IDisposable {
 
                 var previous = GetChar(1);
 
-                if (!char.IsPunctuation(previous))
+                if (!IsOther(previous))
                     break;
             }
         }
 
         return offset;
+
+        static bool IsOther(char chr) {
+            return !char.IsWhiteSpace(chr) && !char.IsLetterOrDigit(chr);
+        }
     }
 
     private void HandlePageDown(ObservableCollection<string> document, SubmissionView view) {
@@ -780,6 +795,16 @@ public abstract partial class Repl : IDisposable {
     }
 
     private void HandleEnd(ObservableCollection<string> document, SubmissionView view) {
+        view.currentCharacter = document[view.currentLine].Length;
+    }
+
+    private void HandleControlHome(ObservableCollection<string> _, SubmissionView view) {
+        view.currentLine = 0;
+        view.currentCharacter = 0;
+    }
+
+    private void HandleControlEnd(ObservableCollection<string> document, SubmissionView view) {
+        view.currentLine = document.Count - 1;
         view.currentCharacter = document[view.currentLine].Length;
     }
 

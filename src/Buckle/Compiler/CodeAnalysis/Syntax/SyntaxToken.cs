@@ -175,6 +175,10 @@ public sealed class SyntaxToken {
         return SyntaxNavigator.Instance.GetPreviousToken(this, includeZeroWidth, includeSkipped, includeDirectives);
     }
 
+    internal InternalSyntax.DirectiveStack ApplyDirectives(InternalSyntax.DirectiveStack stack) {
+        return ((InternalSyntax.BelteSyntaxNode)node).ApplyDirectives(stack);
+    }
+
     public override string ToString() {
         return node is not null ? node.ToString() : "";
     }

@@ -37,6 +37,11 @@ internal static class LiteralUtilities {
         TextLocation errorLocation,
         BelteDiagnosticQueue diagnostics,
         out object result) {
+        if (sourceType.IsErrorType() || targetType.IsErrorType()) {
+            result = null;
+            return false;
+        }
+
         try {
             return TryCastCore(value, sourceType, targetType, out result);
         } catch (FormatException) {
@@ -57,8 +62,8 @@ internal static class LiteralUtilities {
         if (targetTypeSymbol.IsEnumType())
             targetTypeSymbol = ((NamedTypeSymbol)targetTypeSymbol.StrippedType()).enumUnderlyingType;
 
-        var sourceType = sourceTypeSymbol.StrippedType().UnderlyingTemplateTypeOrSelf().specialType;
-        var targetType = targetTypeSymbol.StrippedType().UnderlyingTemplateTypeOrSelf().specialType;
+        var sourceType = sourceTypeSymbol.StrippedType().UnderlyingTemplateTypeOrSelf().StrippedType().specialType;
+        var targetType = targetTypeSymbol.StrippedType().UnderlyingTemplateTypeOrSelf().StrippedType().specialType;
 
         return TrySpecialCastCore(value, sourceType, targetType, out result);
     }

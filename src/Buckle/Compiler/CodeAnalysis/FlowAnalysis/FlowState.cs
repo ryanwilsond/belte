@@ -2,5 +2,6 @@
 namespace Buckle.CodeAnalysis.FlowAnalysis;
 
 internal sealed class FlowState {
-    internal BitVector assigned { get; set; }
+    internal BitVector assigned;
+    internal BitVector cleared;
 }

@@ -1,6 +1,5 @@
-using System.Collections.Generic;
 using System.Collections.Immutable;
-using Buckle.CodeAnalysis.Binding;
+using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
@@ -11,23 +10,42 @@ namespace Buckle.CodeAnalysis;
 public sealed class CompilerContext {
     private readonly Compilation _compilation;
 
-    internal CompilerContext(Compilation compilation) {
+    public CompilerContext(Compilation compilation) {
         _compilation = compilation;
     }
 
-    internal void AddSyntaxTree(SyntaxTree tree) {
+    public void AddSyntaxTree(SyntaxTree tree) {
         _compilation.AddLateSyntaxTrees([tree]);
     }
 
-    internal void AddSyntaxTrees(List<SyntaxTree> tree) {
+    public void AddSyntaxTrees(SyntaxTree[] tree) {
         _compilation.AddLateSyntaxTrees(tree);
+    }
+
+    public void AddSourceText(string text) {
+        var tree = SyntaxTree.Parse(text, GetParseOptions());
+        AddSyntaxTree(tree);
+    }
+
+    public ParseOptions GetParseOptions() {
+        var options = _compilation.options;
+        // TODO Expose command-line preprocessor symbols?
+        return Compiler.CreateParseOptions(options.buildMode, options.optimizationLevel == OptimizationLevel.Debug, []);
+    }
+
+    public SyntaxTree[] GetSyntaxTrees() {
+        return _compilation.syntaxTrees.ToArray();
+    }
+
+    public Compilation GetCompilation() {
+        return _compilation;
     }
 
     internal BoundProgram GetBoundProgram() {
         return _compilation.boundProgram;
     }
 
-    internal BelteDiagnosticQueue GetMethodDiagnostics() {
+    public BelteDiagnosticQueue GetMethodDiagnostics() {
         return _compilation.methodDiagnostics;
     }
 
@@ -37,10 +55,6 @@ public sealed class CompilerContext {
 
     internal ImmutableArray<Symbol> GetSymbols(SymbolFilter filter) {
         return _compilation.GetSymbols(filter).ToImmutableArray();
-    }
-
-    internal Compilation GetCompilation() {
-        return _compilation;
     }
 
     internal void ReplaceBoundProgram(BoundProgram program, BelteDiagnosticQueue methodDiagnostics) {

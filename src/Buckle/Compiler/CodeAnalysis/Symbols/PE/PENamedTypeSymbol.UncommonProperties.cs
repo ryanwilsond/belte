@@ -6,8 +6,9 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal abstract partial class PENamedTypeSymbol {
     private sealed class UncommonProperties {
         internal NamedTypeSymbol lazyEnumUnderlyingType;
-        // internal ImmutableArray<AttributeData> lazyCustomAttributes;
-        // internal ImmutableArray<string> lazyConditionalAttributeSymbols;
+        internal ImmutableArray<AttributeData> lazyCustomAttributes;
+        internal ImmutableArray<string> lazyConditionalAttributeSymbols;
+        internal AttributeUsageInfo lazyAttributeUsageInfo = AttributeUsageInfo.Null;
         // internal ThreeState lazyContainsExtensionMethods;
         internal ThreeState lazyIsByRefLike;
         // internal ThreeState lazyIsReadOnly;
@@ -16,6 +17,7 @@ internal abstract partial class PENamedTypeSymbol {
         internal ThreeState lazyHasEmbeddedAttribute = ThreeState.Unknown;
         internal ThreeState lazyHasInterpolatedStringHandlerAttribute = ThreeState.Unknown;
         internal ThreeState lazyHasRequiredMembers = ThreeState.Unknown;
+        internal ThreeState lazyHasEntryTypeAttribute = ThreeState.Unknown;
 
         internal ImmutableArray<byte> lazyFilePathChecksum = default;
     }

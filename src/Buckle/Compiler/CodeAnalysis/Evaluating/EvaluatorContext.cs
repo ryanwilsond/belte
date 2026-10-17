@@ -2,7 +2,6 @@ using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading;
-using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Shared;
 
@@ -64,6 +63,7 @@ public sealed class EvaluatorContext : IDisposable {
         _globals = new Dictionary<DataContainerSymbol, int>(32);
         _staticTypes = new Dictionary<NamedTypeSymbol, int>(32);
         globalSlots = new EvaluatorValue[32];
+        _bumpPointer = 0;
         heap.FreeAll();
     }
 

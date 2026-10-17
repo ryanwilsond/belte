@@ -8,7 +8,6 @@ public enum SpecialType : byte {
     None,
 
     // Cor Types
-    Object,
     Array,
     Enum,
     Any,
@@ -35,9 +34,16 @@ public enum SpecialType : byte {
     Void,
     ValueType,
     TypedReference,
+
+    Object,
     Buffer,
+    ArrayT,
 
     // Superficial special types
     Pointer,
     FunctionPointer,
+
+
+    NextAvailable,
+    LastCorType = TypedReference,
 }

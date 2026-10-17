@@ -1,40 +1,40 @@
 
 public static class LowLevel {
-    public static int! GetHashCode(const Object! object);
+    public static int GetHashCode(const Object object);
 
-    public static string! GetTypeName(const Object! object);
+    public static string GetTypeName(const Object object);
 
-    public static type! GetType(const any! object);
+    public static type GetType(const any object);
 
-    public static int! Length<type TElem>(const Buffer<TElem>! array);
+    public static int Length<type TElem>(const Buffer<TElem> array);
 
-    public static void Sort<type TElem>(Buffer<TElem>! array);
+    public static void Sort<type TElem>(Buffer<TElem> array);
 
-    public static void Fill<type TElem>(Buffer<TElem>! array, TElem value);
+    public static void Fill<type TElem>(Buffer<TElem> array, TElem value);
 
     public static int32 SizeOf<type T>();
 
-    public static TTo! BitCast<type TFrom, type TTo>(TFrom! value);
+    public static TTo BitCast<type TFrom, type TTo>(TFrom value);
 
-    public static uint8* CreateLPCSTR(string! str);
+    public static uint8* CreateLPCSTR(string str);
 
-    public static uint8* CreateLPCSTR_UTF(string! str);
+    public static uint8* CreateLPCSTR_UTF(string str);
 
-    public static char* CreateLPCWSTR(string! str);
+    public static char* CreateLPCWSTR(string str);
 
     public static void FreeLPCSTR(uint8* str);
 
     public static void FreeLPCWSTR(char* str);
 
-    public static string! ReadLPCSTR(uint8* ptr);
+    public static string ReadLPCSTR(uint8* ptr);
 
-    public static string! ReadLPCWSTR(char* ptr);
+    public static string ReadLPCWSTR(char* ptr);
 
-    public static void* GetGCPtr(Object! obj);
+    public static void* GetGCPtr(Object obj);
 
     public static void FreeGCHandle(void* ptr);
 
-    public static Object! GetObject(void* ptr);
+    public static Object GetObject(void* ptr);
 
     public static void ThrowNullConditionException();
 

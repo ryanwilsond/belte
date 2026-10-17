@@ -18,12 +18,14 @@ internal static class ConversionKindExtensions {
             case ConversionKind.ImplicitNullToPointer:
             case ConversionKind.ImplicitNumeric:
             case ConversionKind.ImplicitEnum:
+            case ConversionKind.ImplicitThrow:
             case ConversionKind.MethodGroup:
             case ConversionKind.AnyBoxing:
             case ConversionKind.ObjectCreation:
             case ConversionKind.ConditionalExpression:
             case ConversionKind.ImplicitTupleLiteral:
             case ConversionKind.Deconstruction:
+            case ConversionKind.ListExpression:
                 return true;
             default:
                 return false;
@@ -62,6 +64,19 @@ internal static class ConversionKindExtensions {
         switch (self) {
             case ConversionKind.ImplicitUserDefined:
             case ConversionKind.ExplicitUserDefined:
+                return true;
+            default:
+                return false;
+        }
+    }
+
+    internal static bool IsPointerConversion(this ConversionKind kind) {
+        switch (kind) {
+            case ConversionKind.ImplicitPointerToVoid:
+            case ConversionKind.ExplicitPointerToPointer:
+            case ConversionKind.ExplicitPointerToInteger:
+            case ConversionKind.ExplicitIntegerToPointer:
+            case ConversionKind.ImplicitNullToPointer:
                 return true;
             default:
                 return false;

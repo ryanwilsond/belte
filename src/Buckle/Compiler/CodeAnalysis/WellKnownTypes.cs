@@ -4,17 +4,10 @@ using Buckle.CodeAnalysis.Display;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal static class WellKnownTypes {
+    internal const int PECount = (int)WellKnownType.LastPEType - (int)WellKnownType.FirstPEType + 1;
+
     private static readonly Dictionary<string, WellKnownType> NameToTypeMap = new Dictionary<string, WellKnownType>() {
-        { "global::List`1", WellKnownType.List },
-        { "global::Dictionary`2", WellKnownType.Dictionary },
         { "global::Enumerator`1", WellKnownType.Enumerator },
-        { "global::Exception", WellKnownType.Exception },
-        { "global::Vec2", WellKnownType.Vec2 },
-        { "global::Sprite", WellKnownType.Sprite },
-        { "global::Text", WellKnownType.Text },
-        { "global::Rect", WellKnownType.Rect },
-        { "global::Texture", WellKnownType.Texture },
-        { "global::Sound", WellKnownType.Sound },
         { "global::ValueTuple`1", WellKnownType.ValueTuple_T1 },
         { "global::ValueTuple`2", WellKnownType.ValueTuple_T2 },
         { "global::ValueTuple`3", WellKnownType.ValueTuple_T3 },
@@ -23,12 +16,11 @@ internal static class WellKnownTypes {
         { "global::ValueTuple`6", WellKnownType.ValueTuple_T6 },
         { "global::ValueTuple`7", WellKnownType.ValueTuple_T7 },
         { "global::ValueTuple`8", WellKnownType.ValueTuple_TRest },
-        { "global::Array`1", WellKnownType.Array },
     };
 
     internal static WellKnownType GetTypeFromMetadataName(string metadataName) {
-        if (NameToTypeMap.TryGetValue(metadataName, out var specialType))
-            return specialType;
+        if (NameToTypeMap.TryGetValue(metadataName, out var wellKnownType))
+            return wellKnownType;
 
         return WellKnownType.None;
     }
@@ -39,7 +31,11 @@ internal static class WellKnownTypes {
         if (type.containingSymbol is not null)
             emittedName = type.containingSymbol.ToDisplayString(SymbolDisplayFormat.FullyQualifiedNameFormat);
 
-        emittedName = MetadataHelpers.BuildQualifiedName(emittedName, type.metadataName);
+        var normalizedMetadataName = type.arity == 0 || type.mangleName
+            ? type.metadataName
+            : type.metadataName + "`" + type.arity;
+
+        emittedName = MetadataHelpers.BuildQualifiedName(emittedName, normalizedMetadataName);
 
         return GetTypeFromMetadataName(emittedName);
     }

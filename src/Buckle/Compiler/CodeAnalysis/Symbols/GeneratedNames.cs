@@ -1,5 +1,7 @@
 using System.Collections.Immutable;
 using System.Linq;
+using System.Threading;
+using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Lowering;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -42,6 +44,13 @@ internal static class GeneratedNames {
         return "<" + typeName + ">u__AnonymousUnion";
     }
 
+    // TODO Is there a better way to name anonymous enums?
+    private static int GlobalAnonymousEnumID = 0;
+
+    internal static string MakeAnonymousEnumName(string parentName) {
+        return "<>" + parentName + "__Enum_" + Interlocked.Increment(ref GlobalAnonymousEnumID);
+    }
+
     internal static string MakeFixedFieldImplementationName(string fieldName) {
         return "<" + fieldName + ">e__FixedBuffer";
     }
@@ -52,6 +61,41 @@ internal static class GeneratedNames {
 
     internal static string MakeStateMethodName(string methodName) {
         return "<" + methodName + ">a__Reversible";
+    }
+
+    internal static string MakeBackingFieldName(string propertyName) {
+        return "<" + propertyName + ">k__BackingField";
+    }
+
+    internal static string MakeTemplateTypeOrMethodName(ISymbolWithTemplates symbol) {
+        var result = PooledStringBuilder.GetInstance();
+        var builder = result.Builder;
+        builder.Append(symbol.name);
+        builder.Append('<');
+
+        var first = true;
+
+        for (var i = 0; i < symbol.templateParameters.Length; i++) {
+            var shouldInclude = symbol.templateParameters[i].underlyingType.specialType != SpecialType.Type ||
+                symbol.templateParameters[i].isCompileTimeType ||
+                symbol.templateArguments[i].isTemplateSpecializedType;
+
+            if (shouldInclude) {
+                if (first)
+                    first = false;
+                else
+                    builder.Append(',');
+
+                if (symbol.templateArguments[i].isConstant)
+                    builder.Append(DisplayText.FormatLiteral(symbol.templateArguments[i].constant.value));
+                else
+                    builder.Append(symbol.templateArguments[i].type.ToDisplayString());
+            }
+        }
+
+        builder.Append('>');
+
+        return result.ToStringAndFree();
     }
 
     internal static string MakeClosureName(

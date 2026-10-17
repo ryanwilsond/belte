@@ -7,8 +7,8 @@ using System.Runtime.Versioning;
 
 namespace Buckle.CodeAnalysis.Emitting;
 
-internal static class DotnetReferenceResolver {
-    internal static string GetTFM() {
+public static class DotnetReferenceResolver {
+    public static string GetTFM() {
         var currentAssembly = System.Reflection.Assembly.GetExecutingAssembly();
         var attr = currentAssembly
             .GetCustomAttributes(typeof(TargetFrameworkAttribute), false)
@@ -18,7 +18,7 @@ internal static class DotnetReferenceResolver {
         return attr.FrameworkName.Split('=')[1].Substring(1);
     }
 
-    internal static string ResolveNetCoreAppRefPath(string tfm, out string version) {
+    public static string ResolveNetCoreAppRefPath(string tfm, out string version) {
         var runtimeVersions = GetInstalledRuntimeVersions();
 
         if (runtimeVersions.Count == 0) {

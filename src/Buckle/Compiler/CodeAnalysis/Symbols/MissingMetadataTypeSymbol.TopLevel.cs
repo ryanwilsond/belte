@@ -40,6 +40,9 @@ internal abstract partial class MissingMetadataTypeSymbol {
             : this(module, ref fullName, -1, errorInfo) {
         }
 
+        internal TopLevel(ModuleSymbol module, ref MetadataTypeName fullName, WellKnownType wellKnownType, BelteDiagnostic errorInfo = null)
+            : this(module, ref fullName, (int)wellKnownType, errorInfo) { }
+
         private TopLevel(ModuleSymbol module, ref MetadataTypeName fullName, int typeId, BelteDiagnostic errorInfo)
             : this(
                 module,
@@ -86,6 +89,8 @@ internal abstract partial class MissingMetadataTypeSymbol {
         }
 
         internal string namespaceName => _namespaceName;
+
+        internal override ModuleSymbol containingModule => _containingModule;
 
         internal override AssemblySymbol containingAssembly => _containingModule.containingAssembly;
 
@@ -148,16 +153,27 @@ internal abstract partial class MissingMetadataTypeSymbol {
         internal override BelteDiagnostic error {
             get {
                 if (_lazyErrorInfo is null) {
-                    // TODO error
-                    // var errorInfo = _typeId != (int)SpecialType.None
-                    //     ? new CSDiagnosticInfo(ErrorCode.ERR_PredefinedTypeNotFound, MetadataHelpers.BuildQualifiedName(_namespaceName, MetadataName))
-                    //     : base.ErrorInfo;
-                    throw ExceptionUtilities.Unreachable();
-                    // BelteDiagnostic errorInfo = null;
-                    // Interlocked.CompareExchange(ref _lazyErrorInfo, errorInfo, null);
+                    BelteDiagnostic errorInfo;
+
+                    if (_typeId != (int)SpecialType.None) {
+                        errorInfo = new BelteDiagnostic(Error.PredefinedTypeNotFound(
+                            MetadataHelpers.BuildQualifiedName(_namespaceName, metadataName)
+                        ));
+                    } else {
+                        errorInfo = base.error;
+                    }
+
+                    Interlocked.CompareExchange(ref _lazyErrorInfo, errorInfo, null);
                 }
 
                 return _lazyErrorInfo;
+            }
+        }
+
+        public override SpecialType specialType {
+            get {
+                var typeId = _typeId;
+                return (typeId >= (int)WellKnownType.First) ? SpecialType.None : (SpecialType)typeId;
             }
         }
 

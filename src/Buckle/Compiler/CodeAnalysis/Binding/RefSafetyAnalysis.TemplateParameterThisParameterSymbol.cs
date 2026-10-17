@@ -21,7 +21,10 @@ internal sealed partial class RefSafetyAnalysis {
                 if (_underlyingParameter.refKind is not RefKind.None and var underlyingRefKind)
                     return underlyingRefKind;
 
-                return RefKind.None;
+                if (!_underlyingParameter.containingType.isInterface || _type.isReferenceType)
+                    return RefKind.None;
+
+                return RefKind.Ref;
             }
         }
 

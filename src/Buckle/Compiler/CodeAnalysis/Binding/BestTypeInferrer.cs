@@ -12,17 +12,13 @@ internal static class BestTypeInferrer {
         var candidateTypes = ArrayBuilder<TypeSymbol>.GetInstance();
 
         try {
-            // var conversionsWithoutNullability = conversions.WithNullability(false);
-            // TODO figure this out
-            var conversionsWithoutNullability = conversions;
-
             if (expression1.Type() is { } type1) {
                 if (type1.IsErrorType()) {
                     hadMultipleCandidates = false;
                     return type1;
                 }
 
-                if (conversionsWithoutNullability.ClassifyImplicitConversionFromExpression(expression2, type1).exists)
+                if (conversions.ClassifyImplicitConversionFromExpression(expression2, type1).exists)
                     candidateTypes.Add(type1);
             }
 
@@ -32,7 +28,7 @@ internal static class BestTypeInferrer {
                     return type2;
                 }
 
-                if (conversionsWithoutNullability.ClassifyImplicitConversionFromExpression(expression1, type2).exists)
+                if (conversions.ClassifyImplicitConversionFromExpression(expression1, type2).exists)
                     candidateTypes.Add(type2);
             }
 
@@ -86,7 +82,7 @@ internal static class BestTypeInferrer {
 
             var better = Better(best, type, conversions);
 
-            if (!best.Equals(better, TypeCompareKind.IgnoreNullability))
+            if (!best.Equals(better))
                 return null;
         }
 
@@ -100,14 +96,11 @@ internal static class BestTypeInferrer {
         if (type2 is null || type2.IsErrorType())
             return type1;
 
-        // TODO figure this out
-        // var conversionsWithoutNullability = conversions.WithNullability(false);
-        var conversionsWithoutNullability = conversions;
-        var t1tot2 = conversionsWithoutNullability.ClassifyImplicitConversionFromType(type1, type2).exists;
-        var t2tot1 = conversionsWithoutNullability.ClassifyImplicitConversionFromType(type2, type1).exists;
+        var t1tot2 = conversions.ClassifyImplicitConversionFromType(type1, type2).exists;
+        var t2tot1 = conversions.ClassifyImplicitConversionFromType(type2, type1).exists;
 
         if (t1tot2 && t2tot1) {
-            if (type1.Equals(type2, TypeCompareKind.IgnoreNullability)) {
+            if (type1.Equals(type2, TypeCompareKind.IgnoreTupleNames)) {
                 // TODO confirm this doesn't do anything else we want
                 // return type1.MergeEquivalentTypes(type2, VarianceKind.Out);
                 return type1.IsNullableType() ? type1 : type2;

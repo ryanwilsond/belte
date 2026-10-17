@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
@@ -59,6 +60,14 @@ internal sealed class FunctionTypeSymbol : TypeSymbol {
         );
     }
 
+    internal FunctionTypeSymbol ReplaceTypeSymbol(
+        TypeWithAnnotations replacedReturnType,
+        ImmutableArray<TypeWithAnnotations> replacedParameterTypes) {
+        return new FunctionTypeSymbol(
+            signature.ReplaceParameterSymbols(replacedReturnType, replacedParameterTypes)
+        );
+    }
+
     internal FunctionMethodSymbol signature { get; }
 
     public override bool isReferenceType => true;
@@ -97,16 +106,28 @@ internal sealed class FunctionTypeSymbol : TypeSymbol {
     internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers() => [];
     internal override ImmutableArray<NamedTypeSymbol> GetTypeMembers(ReadOnlyMemory<char> name) => [];
     internal override TResult Accept<TArgument, TResult>(SymbolVisitor<TArgument, TResult> visitor, TArgument a) => visitor.VisitFunctionType(this, a);
+    internal override ImmutableArray<NamedTypeSymbol> Interfaces(ConsList<TypeSymbol> basesBeingResolved = null) => [];
 
     internal override bool ApplyNullableTransforms(
         byte defaultTransformFlag,
         ImmutableArray<byte> transforms,
         ref int position,
-        out TypeSymbol result) {
-        var newSignature = signature.ApplyNullableTransforms(defaultTransformFlag, transforms, ref position);
+        out TypeSymbol result,
+        bool isBelteMode) {
+        var newSignature = signature.ApplyNullableTransforms(
+            defaultTransformFlag,
+            transforms,
+            ref position,
+            isBelteMode
+        );
+
         var madeChanges = (object)signature != newSignature;
         result = madeChanges ? new FunctionTypeSymbol(newSignature) : this;
         return madeChanges;
+    }
+
+    internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
+        return SpecializedCollections.EmptyEnumerable<(MethodSymbol Body, MethodSymbol Implemented)>();
     }
 
     internal override bool Equals(TypeSymbol t2, TypeCompareKind compareKind) {

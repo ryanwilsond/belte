@@ -18,7 +18,7 @@ void Main(string[] args) {
     if (argc > 0) {
         Console.PrintLine("Arguments:");
 
-        for (arg in args)
+        for (const arg in args)
             Console.PrintLine(f"\t{arg}");
     }
 }

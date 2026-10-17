@@ -15,5 +15,7 @@ internal abstract partial class GreenNode {
         ContainsDirectives = 1 << 2,
         ContainsSkippedText = 1 << 3,
         IsMissing = 1 << 4,
+        // TODO The following flags are temporary before updating LanguageParser to scan instead of parse and reset
+        ContainsDiagnosticsNoDirectives = 1 << 5,
     }
 }
