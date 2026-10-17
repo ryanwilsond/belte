@@ -208,9 +208,9 @@ internal class SharedExpander : BoundTreeExpander {
 
             statements.Add(LocalDeclaration(syntax, temp, newCall));
 
-            var tupleField1 = ((FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item1))
+            var tupleField1 = ((FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T2_Item1))
                 .AsMember(tupleType);
-            var tupleField2 = ((FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2))
+            var tupleField2 = ((FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T2_Item2))
                 .AsMember(tupleType);
 
             replacement = new BoundFieldAccessExpression(syntax,
@@ -1051,7 +1051,7 @@ internal class SharedExpander : BoundTreeExpander {
 
                 statements.AddRange(ExpandExpression(call, out var newCall));
 
-                var tupleField = ((FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2))
+                var tupleField = ((FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T2_Item2))
                     .AsMember(tupleType);
 
                 var initializer = new BoundFieldAccessExpression(syntax, newCall, tupleField, null, tupleField.type);
@@ -1080,7 +1080,7 @@ internal class SharedExpander : BoundTreeExpander {
 
                 statements.AddRange(ExpandExpression(call, out var newCall));
 
-                var tupleField = ((FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2))
+                var tupleField = ((FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T2_Item2))
                     .AsMember(tupleType);
 
                 var initializer = cast.Update(

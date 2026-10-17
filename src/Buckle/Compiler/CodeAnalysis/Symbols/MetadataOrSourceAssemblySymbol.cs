@@ -68,8 +68,10 @@ internal abstract class MetadataOrSourceAssemblySymbol : NonMissingAssemblySymbo
         get {
             if (ReferenceEquals(corAssemblies[0], this))
                 return _cachedSpecialTypes < (int)SpecialType.NextAvailable - 1;
-            else
+            else if (this is SourceAssemblySymbol)
                 return true;
+            else
+                return false;
         }
     }
 

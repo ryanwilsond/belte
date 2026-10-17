@@ -20,14 +20,14 @@ internal partial class NamedTypeSymbol {
     private TupleExtraData _lazyTupleData;
 
     private static readonly WellKnownType[] TupleTypes = {
-        WellKnownType.ValueTuple_T1,
-        WellKnownType.ValueTuple_T2,
-        WellKnownType.ValueTuple_T3,
-        WellKnownType.ValueTuple_T4,
-        WellKnownType.ValueTuple_T5,
-        WellKnownType.ValueTuple_T6,
-        WellKnownType.ValueTuple_T7,
-        WellKnownType.ValueTuple_TRest
+        WellKnownType.Belte_ValueTuple_T1,
+        WellKnownType.Belte_ValueTuple_T2,
+        WellKnownType.Belte_ValueTuple_T3,
+        WellKnownType.Belte_ValueTuple_T4,
+        WellKnownType.Belte_ValueTuple_T5,
+        WellKnownType.Belte_ValueTuple_T6,
+        WellKnownType.Belte_ValueTuple_T7,
+        WellKnownType.Belte_ValueTuple_TRest
     };
 
     private static readonly WellKnownMember[][] TupleMembers = [
@@ -168,12 +168,12 @@ internal partial class NamedTypeSymbol {
             var numElements = elementTypes.Length;
             var chainLength = NumberOfValueTuples(numElements, out var remainder);
 
-            var firstTupleType = compilation.corLibrary.TryGetWellKnownType(GetTupleType(remainder), compilation);
+            var firstTupleType = compilation.GetWellKnownType(GetTupleType(remainder));
 
             NamedTypeSymbol chainedTupleType = null;
 
             if (chainLength > 1)
-                chainedTupleType = compilation.corLibrary.GetWellKnownType(GetTupleType(ValueTupleRestPosition));
+                chainedTupleType = compilation.GetWellKnownType(GetTupleType(ValueTupleRestPosition));
 
             return ConstructTupleUnderlyingType(firstTupleType, chainedTupleType, elementTypes);
         }

@@ -396,7 +396,7 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
         }
 
         if (!returnType.originalDefinition
-                .Equals(declaringCompilation.corLibrary.GetWellKnownType(WellKnownType.Enumerator))) {
+                .Equals(declaringCompilation.GetWellKnownType(WellKnownType.Belte_Enumerator))) {
             diagnostics.Push(Error.IterMustReturnEnumerator(location));
         }
     }

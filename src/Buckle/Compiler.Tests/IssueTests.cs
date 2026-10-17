@@ -4598,4 +4598,94 @@ public sealed class IssueTests {
 
         AssertValue(text, 0);
     }
+
+    [Fact]
+    public void CompileTime_ReturnsBuffer() {
+        var text = @"
+            Buffer<int32> CreateBuffer() {
+                return { 1, 2, 3, 4, 5 };
+            }
+
+            var buffer = $CreateBuffer();
+            return buffer[2];
+        ";
+
+        AssertValue(text, 3);
+    }
+
+    [Fact]
+    public void NullAssert_SeesThroughBinary() {
+        var text = @"
+            int? a = 3;
+            int? b = 10;
+
+            if (a isnt null && b isnt null) {
+                int c = a + b;
+                return c;
+            } else {
+                return 0;
+            }
+        ";
+
+        AssertValue(text, 13);
+    }
+
+    [Fact]
+    public void NullAssert_SeesThroughIf() {
+        var text = @"
+            int? a = 3;
+
+            if (a is null)
+                return 0;
+
+            int c = a;
+            return c;
+        ";
+
+        AssertValue(text, 3);
+    }
+
+    [Fact]
+    public void TopLevelReturns_ReportsErrorsInNonScript() {
+        var text = @"
+            int? a = 3;
+
+            if (a is null)
+                [return];
+
+            int c = a;
+            return c;
+        ";
+
+        var diagnostics = @"
+            cannot return without a value in a method returning non-void
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, script: false);
+    }
+
+    [Fact]
+    public void TypesWithSameName_Executes() {
+        var text = @"
+            class A { }
+            class A<type T> { }
+            class A<type T1, type T2> { }
+            return 0;
+        ";
+
+        AssertValue(text, 0);
+    }
+
+    [Fact]
+    public void NullAssert_AddsFactsWhenSubExpression() {
+        var text = @"
+            int? a = 3;
+            int b = a!;
+            int c = a;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

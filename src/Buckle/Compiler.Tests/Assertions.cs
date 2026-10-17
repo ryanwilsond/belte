@@ -187,11 +187,11 @@ internal static class Assertions {
         var annotatedText = AnnotatedText.Parse(text);
         var syntaxTree = SyntaxTree.Parse(annotatedText.text);
 
-        var tempDiagnostics = new BelteDiagnosticQueue();
+        BelteDiagnosticQueue tempDiagnostics;
         var treeDiagnostics = syntaxTree.GetDiagnostics();
 
         if (treeDiagnostics.AnyErrors()) {
-            tempDiagnostics.Move(treeDiagnostics);
+            tempDiagnostics = treeDiagnostics;
         } else {
             CompilationOptions options;
 

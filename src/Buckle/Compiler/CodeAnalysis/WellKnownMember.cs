@@ -10,6 +10,7 @@ internal enum WellKnownMember : byte {
     Nullable_GetValueOrDefault,
     Nullable_GetValueOrDefault_T,
 
+
     ValueTuple_T1_Item1,
 
     ValueTuple_T2_Item1,
@@ -63,7 +64,6 @@ internal enum WellKnownMember : byte {
     ValueTuple_T7_ctor,
     ValueTuple_TRest_ctor,
 
-
     Array_ctor_1,
     Array_ctor_2,
     Array_Get,
@@ -79,6 +79,7 @@ internal enum WellKnownMember : byte {
     System_Activator_CreateInstance,
     System_InvalidOperationException_ctor,
 
-    LastCorMember = ValueTuple_TRest_ctor,
+
+    LastCorMember = Nullable_GetValueOrDefault_T,
     Count = System_InvalidOperationException_ctor,
 }

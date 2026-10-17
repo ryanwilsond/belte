@@ -106,8 +106,7 @@ internal sealed class StateMethodRewriter : BoundTreeExpander {
                 Goto(syntax, _successLabel)
             ];
         } else {
-            var tupleCtor = _compilation.corLibrary.GetWellKnownMethod(WellKnownMember.ValueTuple_T2_ctor)
-                .AsMember(_tupleType);
+            var tupleCtor = _compilation.GetWellKnownMethod(WellKnownMember.ValueTuple_T2_ctor).AsMember(_tupleType);
 
             return [
                 new BoundReturnStatement(syntax,

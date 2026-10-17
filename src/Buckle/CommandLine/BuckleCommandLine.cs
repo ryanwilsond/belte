@@ -145,7 +145,7 @@ public static partial class BuckleCommandLine {
 
         if (hasEarlyExitDialog) {
             diagnostics.Clear();
-            diagnostics.Move(ShowDialogs(dialogs, multipleExplains));
+            ShowDialogs(dialogs, multipleExplains, diagnostics);
             ResolveDiagnostics(diagnostics, processName, state);
 
             ResolveSae(sae);
@@ -153,7 +153,7 @@ public static partial class BuckleCommandLine {
         }
 
         if (state.verboseMode && !state.noOut)
-            ShowDialogs(new ShowDialogs() { machine = true, version = true }, false);
+            ShowDialogs(new ShowDialogs() { machine = true, version = true }, false, null);
 
         // Only mode that does not go through one-time compilation
         if (state.buildMode == BuildMode.Repl) {
@@ -332,10 +332,14 @@ public class {name} {{
     }
 
     private static int ProcessBuildArgs(string processName, string[] args) {
-        return ProcessBuildArgs(processName, args, out _);
+        return ProcessBuildArgs(processName, args, out _, out _);
     }
 
-    private static int ProcessBuildArgs(string processName, string[] args, out CompilerState state) {
+    private static int ProcessBuildArgs(
+        string processName,
+        string[] args,
+        out CompilerState state,
+        out (BuildMode buildMode, string[] arguments, string path)[] runInfo) {
         int err;
 
         var buildState = DecodeBuildOptions(
@@ -372,6 +376,7 @@ public class {name} {{
 
         if (err > 0) {
             timer?.Stop();
+            runInfo = null;
             return err;
         }
 
@@ -394,6 +399,7 @@ public class {name} {{
 
         if (err > 0) {
             timer?.Stop();
+            runInfo = null;
             return err;
         }
 
@@ -401,11 +407,9 @@ public class {name} {{
 
         if (err > 0) {
             timer?.Stop();
+            runInfo = null;
             return err;
         }
-
-        var builds = builder.nestedBuilds is null ? [builder] : builder.nestedBuilds.Prepend(builder).ToArray();
-        var results = new List<LocalBuildResult>(builds.Length);
 
         if (timer is not null) {
             timer.Stop();
@@ -422,10 +426,15 @@ public class {name} {{
             timer.Restart();
         }
 
+        var builds = builder.nestedBuilds is null ? [builder] : builder.nestedBuilds.Prepend(builder).ToArray();
+        var results = new List<LocalBuildResult>(builds.Length);
+        var runInfos = new List<(BuildMode, string[], string)>(builds.Length);
+
         foreach (var build in builds) {
             err = RunBuild(
                 processName,
                 out var localBuildResult,
+                out var localState,
                 diagnostics,
                 arguments,
                 debugMode,
@@ -435,10 +444,13 @@ public class {name} {{
             );
 
             results.Add(localBuildResult);
+            runInfos.Add((localState.buildMode, localState.arguments, localState.outputFilename));
 
             if (err > 0)
                 break;
         }
+
+        runInfo = runInfos.ToArray();
 
         var buildResult = new BuildResult(
             succeeded: err == SuccessExitCode,
@@ -468,6 +480,7 @@ public class {name} {{
     private static int RunBuild(
         string processName,
         out LocalBuildResult result,
+        out CompilerState localState,
         DiagnosticQueue<Diagnostic> diagnostics,
         string[] arguments,
         bool debugMode,
@@ -485,45 +498,45 @@ public class {name} {{
             out var r2r
         );
 
-        var state = compiler.state;
+        localState = compiler.state;
 
         if (arguments.Length != 0) {
-            if (state.arguments.Length == 0)
-                state.arguments = arguments;
+            if (localState.arguments.Length == 0)
+                localState.arguments = arguments;
             else
-                state.arguments = [.. state.arguments, .. arguments];
+                localState.arguments = [.. localState.arguments, .. arguments];
         }
 
-        state.debugMode |= debugMode;
+        localState.debugMode |= debugMode;
 
-        if (state.verboseMode && !state.noOut) {
+        if (localState.verboseMode && !localState.noOut) {
             ShowMachineDialog();
             ShowVersionDialog();
         }
 
         cumulativeDiagnostics.PushRange(diagnostics);
-        var err = ResolveDiagnostics(diagnostics, processName, state);
+        var err = ResolveDiagnostics(diagnostics, processName, localState);
 
         if (err > 0) {
-            result = new LocalBuildResult(succeeded: false, state.arguments, null, cumulativeDiagnostics);
+            result = new LocalBuildResult(succeeded: false, localState.arguments, null, cumulativeDiagnostics);
             return err;
         }
 
-        if (!state.noOut)
+        if (!localState.noOut)
             CleanOutputFiles(compiler, diagnostics);
 
         ReadInputFiles(compiler, diagnostics);
 
         cumulativeDiagnostics.PushRange(diagnostics);
-        err = ResolveDiagnostics(diagnostics, processName, state);
+        err = ResolveDiagnostics(diagnostics, processName, localState);
 
         if (err > 0) {
-            result = new LocalBuildResult(succeeded: false, state.arguments, null, cumulativeDiagnostics);
+            result = new LocalBuildResult(succeeded: false, localState.arguments, null, cumulativeDiagnostics);
             return err;
         }
 
-        if (state.verboseMode && !state.noOut)
-            LogCompilerState(state, pendingReferenceCopies, r2r);
+        if (localState.verboseMode && !localState.noOut)
+            LogCompilerState(localState, pendingReferenceCopies, r2r);
 
         if (startStopDialog)
             ShowStartDialog(usingBuildScript: true);
@@ -536,7 +549,7 @@ public class {name} {{
         err = ResolveDiagnostics(compiler);
 
         if (err > 0) {
-            result = new LocalBuildResult(succeeded: false, state.arguments, compilation, cumulativeDiagnostics);
+            result = new LocalBuildResult(succeeded: false, localState.arguments, compilation, cumulativeDiagnostics);
             return err;
         }
 
@@ -544,59 +557,69 @@ public class {name} {{
             foreach (var exception in compiler.exceptions)
                 DiagnosticFormatter.PrettyPrintException(exception);
 
-            result = new LocalBuildResult(succeeded: false, state.arguments, compilation, cumulativeDiagnostics);
+            result = new LocalBuildResult(succeeded: false, localState.arguments, compilation, cumulativeDiagnostics);
             return RuntimeErrorExitCode;
         }
 
-        if (!state.noOut && !state.buildMode.RunsImmediately()) {
-            ResolveReferenceCopies(state.outputFilename, pendingReferenceCopies, processName, state);
+        if (!localState.noOut && !localState.buildMode.RunsImmediately()) {
+            ResolveReferenceCopies(localState.outputFilename, pendingReferenceCopies, processName, localState);
             ResolveReferenceCopies(
-                state.outputFilename,
+                localState.outputFilename,
                 pendingDependencyCopies.Item1,
                 processName,
-                state,
+                localState,
                 pendingDependencyCopies.Item2
             );
         }
 
         if (r2r)
-            InvokeCrossgen2(processName, state);
+            InvokeCrossgen2(processName, localState);
 
         if (startStopDialog)
             ShowStopDialog();
 
-        result = new LocalBuildResult(succeeded: true, state.arguments, compilation, cumulativeDiagnostics);
+        result = new LocalBuildResult(succeeded: true, localState.arguments, compilation, cumulativeDiagnostics);
         return SuccessExitCode;
     }
 
     private static int ProcessRunArgs(string processName, string[] args) {
         int err;
 
-        err = ProcessBuildArgs(processName, args, out var state);
+        err = ProcessBuildArgs(processName, args, out var state, out var runInfo);
 
         if (err > 0)
             return err;
 
-        switch (state.buildMode) {
-            case BuildMode.CSharpTranspile:
-            case BuildMode.Repl:
-            case BuildMode.None:
-                err = (int)ResolveDiagnostic(Belte.Diagnostics.Error.CannotRunBuildMode(), processName, state);
-                break;
-            case BuildMode.AutoRun:
-            case BuildMode.Evaluate:
-            case BuildMode.Execute:
-            case BuildMode.Interpret:
-            case BuildMode.Emulate:
-                // Already executed from build
-                break;
-            case BuildMode.Dotnet:
-                err = ExecuteRun(processName, state);
-                break;
-            case BuildMode.Independent:
-            default:
-                throw new UnreachableException();
+        var sawNonRunnableMode = false;
+        var sawRunnableMode = false;
+
+        foreach (var (buildMode, arguments, path) in runInfo) {
+            switch (buildMode) {
+                case BuildMode.CSharpTranspile:
+                case BuildMode.Repl:
+                case BuildMode.None:
+                    sawNonRunnableMode = true;
+                    break;
+                case BuildMode.AutoRun:
+                case BuildMode.Evaluate:
+                case BuildMode.Execute:
+                case BuildMode.Interpret:
+                case BuildMode.Emulate:
+                    // Already executed from build
+                    sawRunnableMode = true;
+                    break;
+                case BuildMode.Dotnet:
+                    sawRunnableMode = true;
+                    err = ExecuteRun(processName, state, path, arguments);
+                    break;
+                case BuildMode.Independent:
+                default:
+                    throw new UnreachableException();
+            }
         }
+
+        if (sawNonRunnableMode && !sawRunnableMode)
+            err = (int)ResolveDiagnostic(Belte.Diagnostics.Error.CannotRunBuildMode(), processName, state);
 
         if (err > 0)
             return err;
@@ -604,8 +627,8 @@ public class {name} {{
         return SuccessExitCode;
     }
 
-    private static int ExecuteRun(string processName, CompilerState state) {
-        var outputFilename = Path.ChangeExtension(state.outputFilename, ".exe");
+    private static int ExecuteRun(string processName, CompilerState state, string path, string[] arguments) {
+        var outputFilename = Path.ChangeExtension(path, ".exe");
 
         if (!File.Exists(outputFilename))
             return (int)ResolveDiagnostic(Belte.Diagnostics.Error.UnableToOpenFile(outputFilename), processName, state);
@@ -617,7 +640,7 @@ public class {name} {{
             WindowStyle = ProcessWindowStyle.Hidden
         };
 
-        foreach (var arg in state.arguments)
+        foreach (var arg in arguments)
             startInfo.ArgumentList.Add(arg);
 
         try {
@@ -1008,9 +1031,10 @@ public class {name} {{
         Console.WriteLine("buckle: finished build");
     }
 
-    private static DiagnosticQueue<Diagnostic> ShowDialogs(ShowDialogs dialogs, bool multipleExplains) {
-        var diagnostics = new DiagnosticQueue<Diagnostic>();
-
+    private static void ShowDialogs(
+        ShowDialogs dialogs,
+        bool multipleExplains,
+        DiagnosticQueue<Diagnostic> diagnostics) {
         if (dialogs.machine)
             ShowMachineDialog();
 
@@ -1021,12 +1045,10 @@ public class {name} {{
             ShowHelpDialog();
 
         if (dialogs.error is not null && !multipleExplains)
-            ShowErrorHelp(dialogs.error, out diagnostics);
+            ShowErrorHelp(dialogs.error, diagnostics);
 
         if (dialogs.clearCache)
             ShowClearCacheDialog();
-
-        return diagnostics;
     }
 
     private static void ShowClearSubmissionsDialog() {
@@ -1042,8 +1064,8 @@ public class {name} {{
         Console.ForegroundColor = previous;
     }
 
-    private static void ShowErrorHelp(string _, out DiagnosticQueue<Diagnostic> diagnostics) {
-        diagnostics = new DiagnosticQueue<Diagnostic>();
+    private static void ShowErrorHelp(string _, DiagnosticQueue<Diagnostic> diagnostics) {
+        Debug.Assert(diagnostics is not null);
         diagnostics.Push(new Diagnostic(DiagnosticSeverity.Error, "--explain is not implemented"));
         return;
     }
@@ -1878,7 +1900,7 @@ public class {name} {{
         pendingReferenceCopies = copies.ToArray();
 
         dialogs = tempDialogs;
-        diagnostics.Move(diagnosticsCL);
+        diagnostics.PushRange(diagnosticsCL);
 
         if (dialogs.machine || dialogs.help || dialogs.version || dialogs.error is not null || dialogs.clearCache)
             return state;

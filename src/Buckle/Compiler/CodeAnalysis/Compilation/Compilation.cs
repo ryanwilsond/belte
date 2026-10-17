@@ -36,7 +36,7 @@ public sealed partial class Compilation {
     private static readonly Func<SyntaxTree, SmallConcurrentSetOfInts> CreateSetCallback =
         t => new SmallConcurrentSetOfInts();
     private readonly static Predicate<Symbol> SkipLibrariesFilter
-        = type => type is not SynthesizedFinishedNamedTypeSymbol;
+        = type => type is not SynthesizedFinishedNamedTypeSymbol and not PENamedTypeSymbol;
 
     private static MetadataReferenceResolver GlobalReferenceResolver;
 
@@ -70,6 +70,9 @@ public sealed partial class Compilation {
     private Dictionary<int, bool> _lazyMakeMemberMissingMap; // TODO Perf: use SmallDictionary
     private BuiltInOperators _lazyBuiltInOperators;
     private Conversions _conversions;
+    private bool[] _usedReferences;
+    private ConcurrentSet<AssemblySymbol> _usedAssemblies;
+    private ConcurrentBag<AnonymousEnumType> _anonymousEnumTypes;
 
     // TODO These will be obsoleted soon, just in a transition period where they are instance instead of static
     private CorLibrary _lazyCorLibrary;
@@ -158,8 +161,6 @@ public sealed partial class Compilation {
     }
 
     internal ImmutableArray<SyntaxTree> syntaxTrees => _syntax.state.syntaxTrees;
-
-    internal bool keepLookingForWellKnownTypes => corLibrary.StillLookingForWellKnownTypes();
 
     internal MergedNamespaceDeclaration mergedRootDeclaration => _syntax.state.declarationTable.GetMergedRoot(this);
 
@@ -347,12 +348,6 @@ public sealed partial class Compilation {
             Debug.Assert(_lazyAssembly is not null);
             Debug.Assert(_lazyTemplateMetadataReader is not null);
             Debug.Assert(_lazyCorLibrary is not null);
-
-            if (_referenceManager.belteCoreAssemblyOpt is { } assembly) {
-                // This PE assembly contains WellKnownType definitions that we need
-                var members = assembly.globalNamespace.GetTypeMembers();
-                NamespaceSymbol.RegisterDeclaredWellKnownTypes(this, members);
-            }
         }
 
         return _referenceManager;
@@ -771,6 +766,50 @@ public sealed partial class Compilation {
         Interlocked.Exchange(ref _lazyDeclarationDiagnostics, diagnostics);
     }
 
+    internal bool[] GetUsedReferences() {
+        Debug.Assert(options.buildMode == BuildMode.Dotnet);
+        Debug.Assert(_referenceManager is not null);
+
+        ReferenceManager referenceManager = null;
+
+        if (_usedReferences is null) {
+            referenceManager = GetBoundReferenceManager();
+            _usedReferences = new bool[referenceManager.explicitReferences.Length];
+
+            foreach (var corIndex in referenceManager.coreLibraryIndices) {
+                if (corIndex is not null)
+                    _usedReferences[corIndex.Value] = true;
+            }
+        }
+
+        if (_usedAssemblies is not null) {
+            referenceManager ??= GetBoundReferenceManager();
+
+            foreach (var assembly in _usedAssemblies)
+                _usedReferences[referenceManager.GetAssemblyIndex(assembly)] = true;
+        }
+
+        return _usedReferences;
+    }
+
+    internal void NoteUsedAssemblyFromType(NamedTypeSymbol type) {
+        Debug.Assert(type.containingAssembly is not null || type is PrimitiveTypeSymbol);
+
+        if (options.buildMode == BuildMode.Dotnet && type.containingAssembly is not null) {
+            _usedAssemblies ??= [];
+            _usedAssemblies.Add(type.containingAssembly);
+        }
+    }
+
+    internal void NoteAnonymousEnumType(AnonymousEnumType type) {
+        _anonymousEnumTypes ??= [];
+        _anonymousEnumTypes.Add(type);
+    }
+
+    internal ImmutableArray<AnonymousEnumType> GetAnonymousTypes() {
+        return _anonymousEnumTypes is null ? default : _anonymousEnumTypes.ToImmutableArray();
+    }
+
     internal MethodSymbol GetEntryPoint(BelteDiagnosticQueue diagnostics) {
         if (_lazyEntryPoint is null) {
             var simpleEntryPoint = SynthesizedEntryPoint.GetSimpleProgramEntryPoint(this);
@@ -822,10 +861,6 @@ public sealed partial class Compilation {
             return 0;
 
         return GetSyntaxTreeOrdinal(tree1) - GetSyntaxTreeOrdinal(tree2);
-    }
-
-    internal void RegisterDeclaredWellKnownType(WellKnownType wellKnownType, NamedTypeSymbol type) {
-        corLibrary.RegisterDeclaredWellKnownType(wellKnownType, type);
     }
 
     internal bool CanTemplateSpecialize(TypeSymbol type) {
@@ -1146,24 +1181,17 @@ public sealed partial class Compilation {
         return _lazyWellKnownTypeMembers[(int)member];
     }
 
-    internal NamedTypeSymbol GetAnyWellKnownType(WellKnownType type) {
-        // This gets the well known type regardless of if it's native or PE
-        // TODO Eventually all native well known types should be obsoleted
-
-        if (type > WellKnownType.LastNativeType)
-            return GetWellKnownType(type);
-
-        return corLibrary.GetWellKnownType(type);
-    }
-
     internal NamedTypeSymbol GetWellKnownType(WellKnownType type) {
-        Debug.Assert(type > WellKnownType.LastNativeType, "Native well known types should be accessed through a CorLibrary");
-
-        var index = (int)type - (int)WellKnownType.FirstPEType;
+        var index = (int)type - (int)WellKnownType.First;
 
         if (_lazyWellKnownTypes is null || _lazyWellKnownTypes[index] is null) {
-            if (_lazyWellKnownTypes is null)
-                Interlocked.CompareExchange(ref _lazyWellKnownTypes, new NamedTypeSymbol[WellKnownTypes.PECount], null);
+            if (_lazyWellKnownTypes is null) {
+                Interlocked.CompareExchange(
+                    ref _lazyWellKnownTypes,
+                    new NamedTypeSymbol[WellKnownTypeExtensions.Count],
+                    null
+                );
+            }
 
             var mdName = type.GetMetadataName();
             var warnings = BelteDiagnosticQueue.GetInstance();
@@ -1246,7 +1274,6 @@ public sealed partial class Compilation {
         Debug.Assert(wellKnownType is WellKnownType.System_Attribute or
                                       WellKnownType.System_Exception or
                                       WellKnownType.Belte_Result);
-        Debug.Assert(wellKnownType > WellKnownType.LastNativeType);
 
         if (type.kind != SymbolKind.NamedType)
             return false;
@@ -1709,8 +1736,9 @@ public sealed partial class Compilation {
         if (includeDeclaration)
             assembly.ForceComplete(null);
 
-        // ? We include these on parse to collect early #handle diagnostics
-        if (includeDeclaration || includeParse) {
+        // We previously included these on parse to collect early #handle diagnostics
+        // TODO But perhaps we want handles to use their own queue
+        if (includeDeclaration) {
             builder.PushRange(GetBoundReferenceManager().diagnostics);
             builder.PushRange(declarationDiagnostics);
         }

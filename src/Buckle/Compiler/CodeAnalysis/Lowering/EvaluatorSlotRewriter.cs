@@ -169,18 +169,18 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriterWithStackGuard {
     }
 
     internal override BoundNode VisitCompileTimeExpression(BoundCompileTimeExpression node) {
-        var structStack = new Stack<NamedTypeSymbol>();
+        var tempStack = new Stack<TypeSymbol>();
 
-        if (node.Type().IsStructType())
-            structStack.Push((NamedTypeSymbol)node.Type());
+        if (node.Type().IsStructType() || node.Type().IsArray())
+            tempStack.Push(node.Type());
 
-        while (structStack.Count > 0) {
+        while (tempStack.Count > 0) {
             _lateTempCount++;
-            var structType = structStack.Pop();
+            var type = tempStack.Pop();
 
-            foreach (var member in structType.GetMembers()) {
-                if (member is FieldSymbol f && f.type.IsStructType())
-                    structStack.Push((NamedTypeSymbol)f.type);
+            foreach (var member in type.GetMembers()) {
+                if (member is FieldSymbol f && (f.type.IsStructType() || f.type.IsArray()))
+                    tempStack.Push(f.type);
             }
         }
 

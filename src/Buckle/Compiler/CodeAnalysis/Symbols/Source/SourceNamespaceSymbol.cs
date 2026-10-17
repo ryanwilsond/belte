@@ -276,8 +276,6 @@ done:
             ImmutableArrayExtensions.AddToMultiValueDictionaryBuilder(builder, symbol.name.AsMemory(), symbol);
         }
 
-        RegisterDeclaredWellKnownTypes(declaringCompilation, builder.Values);
-
         var result = new Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamespaceOrTypeSymbol>>(
             builder.Count,
             ReadOnlyMemoryOfCharComparer.Instance

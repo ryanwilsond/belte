@@ -1888,14 +1888,14 @@ oneMoreTime:
             return true;
 
         if (originalDef.containingType.name == NamedTypeSymbol.ValueTupleTypeName &&
-           (originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T1_ctor) ||
-            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_ctor) ||
-            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T3_ctor) ||
-            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_ctor) ||
-            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_ctor) ||
-            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_ctor) ||
-            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_ctor) ||
-            originalDef == _compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_ctor))) {
+           (originalDef == _compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T1_ctor) ||
+            originalDef == _compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T2_ctor) ||
+            originalDef == _compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T3_ctor) ||
+            originalDef == _compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T4_ctor) ||
+            originalDef == _compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T5_ctor) ||
+            originalDef == _compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T6_ctor) ||
+            originalDef == _compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T7_ctor) ||
+            originalDef == _compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_TRest_ctor))) {
             return true;
         }
 

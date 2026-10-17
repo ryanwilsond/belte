@@ -743,7 +743,8 @@ internal sealed class Expander : SharedExpander {
             var position = Math.Min(i + 1, 8);
             i -= 7;
 
-            var field = ((FieldSymbol)_compilation.corLibrary.GetWellKnownMember(
+            // TODO AsMember necessary here?
+            var field = ((FieldSymbol)_compilation.GetWellKnownTypeMember(
                 NamedTypeSymbol.GetTupleTypeMember(namedReceiver.arity, position)
             )).AsMember(namedReceiver);
 
@@ -918,6 +919,9 @@ internal sealed class Expander : SharedExpander {
 
         var leftIsNullable = left.Type().IsNullableType();
         var rightIsNullable = right.Type().IsNullableType();
+
+        // TODO Potential optimization is to check if both left and right refer to the same thing
+        // If so, only one null check is necessary
 
         if (leftIsNullable && rightIsNullable && left.constantValue is null && right.constantValue is null) {
             var statements = ExpandExpression(left, out var newLeft, UseKind.StableValue);

@@ -463,8 +463,6 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 // if (isInterface)
                 //     CheckInterfaceVarianceSafety(diagnostics);
 
-                AddDeclarationDiagnostics(diagnostics);
-
                 if (Interlocked.CompareExchange(
                     ref _lazySynthesizedExplicitImplementations,
                     ComputeInterfaceImplementations(diagnostics),
@@ -1877,8 +1875,10 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
 
         var alreadyKnown = Interlocked.CompareExchange(ref _lazyMembersAndInitializers, membersAndInitializers, null);
 
-        if (alreadyKnown is not null)
+        if (alreadyKnown is not null) {
+            diagnostics.Free();
             return alreadyKnown;
+        }
 
         AddDeclarationDiagnostics(diagnostics);
         diagnostics.Free();
@@ -2049,6 +2049,7 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
             if (Volatile.Read(ref _lazyMembersAndInitializers) is not null)
                 return null;
 
+            var diagnostics = BelteDiagnosticQueue.GetInstance();
             declaredMembersAndInitializers = BuildDeclaredMembersAndInitializers();
 
             var alreadyKnown = Interlocked.CompareExchange(
@@ -2057,10 +2058,14 @@ internal abstract partial class SourceMemberContainerTypeSymbol : NamedTypeSymbo
                 DeclaredMembersAndInitializers.UninitializedSentinel
             );
 
-            if (alreadyKnown != DeclaredMembersAndInitializers.UninitializedSentinel)
+            if (alreadyKnown != DeclaredMembersAndInitializers.UninitializedSentinel) {
+                diagnostics.Free();
                 return alreadyKnown;
+            }
 
             AddDeclarationDiagnostics(diagnostics);
+            diagnostics.Free();
+
             return declaredMembersAndInitializers;
         }
 

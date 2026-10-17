@@ -58,8 +58,8 @@
       - [2.2.3](Current/ControlFlow.md#223-disambiguating-entry-points) Disambiguating Entry Points
         - [2.2.3.1](Current/ControlFlow.md#2231-entrytype-attribute) `EntryType` Attribute
     - [2.3](Current/ControlFlow.md#23-conditionals) Conditionals
-      - [2.3.1](Current/ControlFlow.md#231-null-conditions) Null Conditions
-      - [2.3.2](Current/ControlFlow.md#232-null-binding-contracts) Null-Binding Contracts
+      - [2.3.1](Current/ControlFlow.md#231-null-assert-facts) Null Assert Facts
+      - [2.3.1](Current/ControlFlow.md#232-null-conditions) Null Conditions
     - [2.4](Current/ControlFlow.md#24-loops) Loops
       - [2.4.1](Current/ControlFlow.md#241-while-loops) While Loops
       - [2.4.2](Current/ControlFlow.md#242-do-while-loops) Do-While Loops

@@ -103,7 +103,7 @@ internal sealed partial class DiagnosticPass : BoundTreeWalkerWithStackGuard {
         return false;
     }
 
-    private static BoundExpression StripImplicitCasts(BoundExpression expr) {
+    internal static BoundExpression StripImplicitCasts(BoundExpression expr) {
         var current = expr;
 
         while (true) {

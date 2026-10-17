@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
@@ -14,7 +15,7 @@ namespace Buckle.CodeAnalysis;
 
 internal sealed partial class TemplateMetadataReader {
     private readonly Compilation _compilation;
-    private readonly Dictionary<AssemblyIdentity, TemplateMetadata> _templateMetadata = [];
+    private readonly ConcurrentDictionary<AssemblyIdentity, TemplateMetadata> _templateMetadata = [];
 
     private Dictionary<AssemblyIdentity, byte[]> _rawTemplateMetadata;
 
@@ -38,6 +39,8 @@ internal sealed partial class TemplateMetadataReader {
     }
 
     internal void AppendTemplateTypes(ArrayBuilder<NamedTypeSymbol> builder, PENamespaceSymbol ns) {
+        // TODO This should cache this information and only actually request the metadata when a user uses template instantiation
+
         EnsureTemplateMetadataIsRead();
 
         if (!TryGetTemplateMetadata(ns.containingAssembly.identity, out var templateMetadata))
@@ -138,7 +141,7 @@ internal sealed partial class TemplateMetadataReader {
 
         if (!_templateMetadata.TryGetValue(assemblyIdentity, out var existing)) {
             existing = new TemplateMetadata(_compilation, bytes);
-            _templateMetadata.Add(assemblyIdentity, existing);
+            _templateMetadata.TryAdd(assemblyIdentity, existing);
         }
 
         templateMetadata = existing;

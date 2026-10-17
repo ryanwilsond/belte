@@ -134,15 +134,6 @@ public partial class BelteDiagnosticQueue : DiagnosticQueue<BelteDiagnostic> {
         base.PushRange(diagnostics);
     }
 
-    public virtual void Move(BelteDiagnosticQueue diagnostics) {
-#if DEBUG
-        AssertNotFreed();
-        diagnostics?.AssertNotFreed();
-#endif
-
-        base.Move(diagnostics);
-    }
-
     internal static BelteDiagnosticQueue GetInstance() {
         return Pool.Allocate();
     }

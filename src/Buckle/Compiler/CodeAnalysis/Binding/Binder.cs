@@ -728,24 +728,29 @@ internal partial class Binder {
                 var templateTypeSyntax = (TemplateSpecializedTypeSyntax)syntax;
                 return BindType(templateTypeSyntax.type, diagnostics, basesBeingResolved);
             case SyntaxKind.AnonymousEnumType:
-                return new TypeWithAnnotations(
-                    new AnonymousEnumType(
-                        containingMember.containingNamespace,
-                        (AnonymousEnumTypeSyntax)syntax,
-                        this,
-                        diagnostics
-                    )
+                var anonymousEnum = new AnonymousEnumType(
+                    containingMember.containingNamespace,
+                    (AnonymousEnumTypeSyntax)syntax,
+                    this,
+                    diagnostics
                 );
+
+                // TODO I don't like this being here
+                compilation.NoteAnonymousEnumType(anonymousEnum);
+                return new TypeWithAnnotations(anonymousEnum);
             default:
                 return new TypeWithAnnotations(CreateErrorType());
         }
 
-        if (namespaceOrNonNullableType.isType && rewriteBufferType) {
-            return new TypeWithAnnotations(RewriteAndCheckBufferType(
-                namespaceOrNonNullableType.typeWithAnnotations.type,
-                syntax.location,
-                diagnostics
-            ));
+        if (namespaceOrNonNullableType.isType) {
+            var type = namespaceOrNonNullableType.typeWithAnnotations.type;
+
+            // TODO I don't like this being here
+            if (type.kind == SymbolKind.NamedType && !type.IsFromCompilation(compilation))
+                compilation.NoteUsedAssemblyFromType((NamedTypeSymbol)type);
+
+            if (rewriteBufferType)
+                return new TypeWithAnnotations(RewriteAndCheckBufferType(type, syntax.location, diagnostics));
         }
 
         return namespaceOrNonNullableType;
@@ -3755,6 +3760,9 @@ internal partial class Binder {
 
         if (throwIfNull)
             ReportDiagnosticsIfNoThrowContext(node, diagnostics);
+
+        if (TryGetNullAssertFactOperand(operand, out var symbol))
+            AddNullAssertFact(symbol);
 
         return new BoundNullAssertOperator(node, operand, throwIfNull, constantValue, resultType);
     }

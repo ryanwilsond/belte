@@ -1,8 +1,10 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.CodeGeneration;
+using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -15,6 +17,12 @@ namespace Buckle.CodeAnalysis.Binding;
 
 internal partial class Binder {
     internal BoundStatement BindStatement(StatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        var statement = BindStatementInternal(node, diagnostics);
+        AnalyzeNullAssertFactsFromStatement(statement);
+        return statement;
+    }
+
+    private BoundStatement BindStatementInternal(StatementSyntax node, BelteDiagnosticQueue diagnostics) {
         return node.kind switch {
             SyntaxKind.BlockStatement => BindBlockStatement((BlockStatementSyntax)node, diagnostics),
             SyntaxKind.ReturnStatement => BindReturnStatement((ReturnStatementSyntax)node, diagnostics),
@@ -251,10 +259,33 @@ internal partial class Binder {
 
     private BoundIfStatement BindIfStatement(IfStatementSyntax node, BelteDiagnosticQueue diagnostics) {
         var condition = BindBooleanExpression(node.expression, diagnostics);
+
+        if (ConditionGuaranteesNullIsCaptured(condition, true, out var consequenceSymbols)) {
+            foreach (var symbol in consequenceSymbols)
+                AddNullAssertFact(symbol);
+        }
+
         var consequence = BindPossibleEmbeddedStatement(node.then, diagnostics);
+
+        if (!consequenceSymbols.IsDefault) {
+            foreach (var symbol in consequenceSymbols)
+                RemoveNullAssertFact(symbol);
+        }
+
+        if (ConditionGuaranteesNullIsCaptured(condition, false, out var alternativeSymbols) &&
+            node.elseClause is not null) {
+            foreach (var symbol in alternativeSymbols)
+                AddNullAssertFact(symbol);
+        }
+
         var alternative = (node.elseClause is null)
             ? null
             : BindPossibleEmbeddedStatement(node.elseClause.body, diagnostics);
+
+        if (!alternativeSymbols.IsDefault) {
+            foreach (var symbol in alternativeSymbols)
+                RemoveNullAssertFact(symbol);
+        }
 
         return new BoundIfStatement(node, condition, consequence, alternative);
     }
@@ -377,7 +408,7 @@ internal partial class Binder {
         }
 
         bool TypeIsEnumerator(TypeSymbol type, out NamedTypeSymbol enumeratorType) {
-            var enumerator = compilation.corLibrary.GetWellKnownType(WellKnownType.Enumerator);
+            var enumerator = compilation.GetWellKnownType(WellKnownType.Belte_Enumerator);
             Debug.Assert(enumerator is not null && !enumerator.IsErrorType());
 
             var current = type;
@@ -2031,16 +2062,18 @@ internal partial class Binder {
         if (hasErrors)
             return new BoundReturnStatement(node, refKind, argument, true);
 
+        var ignoreInvalidReturn = containingMember is SynthesizedEntryPoint && compilation.options.isScript;
+
         if (returnType is not null) {
             if (returnType.IsVoidType()) {
-                if (argument is not null && containingMember is not SynthesizedEntryPoint) {
+                if (argument is not null && !ignoreInvalidReturn) {
                     hasErrors = true;
                     diagnostics.Push(Error.UnexpectedReturnValue(node.keyword.location));
                     // TODO confirm this error has enough info, maybe include containingMember?
                 }
             } else {
                 if (argument is null) {
-                    if (containingMember is not SynthesizedEntryPoint) {
+                    if (!ignoreInvalidReturn) {
                         hasErrors = true;
                         diagnostics.Push(Error.MissingReturnValue(node.keyword.location));
                     }
@@ -2070,16 +2103,6 @@ internal partial class Binder {
         BelteDiagnosticQueue diagnostics) {
         var expression = BindRValueWithoutTargetType(node.expression, diagnostics);
 
-        if (expression is BoundNullAssertOperator nullAssertOperator) {
-            if (nullAssertOperator.operand is
-                BoundDataContainerExpression { dataContainer: { isRef: false } dataContainer }) {
-                AddNullAssertFact(dataContainer);
-            } else if (nullAssertOperator.operand is
-                BoundParameterExpression { parameter: { refKind: RefKind.None } parameter }) {
-                AddNullAssertFact(parameter);
-            }
-        }
-
         if (!compilation.options.isScript) {
             if (IsInvalidExpressionStatement(expression))
                 diagnostics.Push(Error.InvalidExpressionStatement(node.location));
@@ -2100,22 +2123,122 @@ internal partial class Binder {
         return next.HasNullAssertFact(symbol);
     }
 
-    internal bool HasNullAssertFactFor(BoundExpression operand) {
-        if (operand is BoundDataContainerExpression { dataContainer: { } dataContainer })
-            return HasNullAssertFact(dataContainer);
-        else if (operand is BoundParameterExpression { parameter: { } parameter })
-            return HasNullAssertFact(parameter);
+    private void AnalyzeNullAssertFactsFromStatement(BoundStatement statement) {
+        if (statement is BoundIfStatement ifStatement && ifStatement.alternative is null) {
+            // Basically if we have 'if (a is null) return', treat 'a' as non-nullable afterwards
+            // This is pretty narrow, but this pattern is very common so it should be worth it to check for it specifically
+            if (ConditionGuaranteesNullIsCaptured(ifStatement.condition, invertCheck: false, out var symbols)) {
+                if (IsGuarenteedExit(ifStatement.consequence)) {
+                    foreach (var symbol in symbols)
+                        AddNullAssertFact(symbol);
+                }
+            }
+        }
 
+        static bool IsGuarenteedExit(BoundStatement statement) {
+            if (statement.kind is BoundKind.ReturnStatement or
+                                  BoundKind.UnreachableStatement or
+                                  BoundKind.ThrowExpression) {
+                return true;
+            } else if (statement is BoundBlockStatement block) {
+                foreach (var nested in block.statements) {
+                    switch (nested.kind) {
+                        case BoundKind.ReturnStatement:
+                        case BoundKind.UnreachableStatement:
+                        case BoundKind.ThrowExpression:
+                            return true;
+                            // TODO Any nodes that ruin this?
+                    }
+                }
+            }
+
+            return false;
+        }
+    }
+
+    private bool ConditionGuaranteesNullIsCaptured(
+        BoundExpression condition,
+        bool invertCheck,
+        out ImmutableArray<Symbol> symbols) {
+        // TODO Instead of running this multiple times (once for if body, once for outer block),
+        // could store this information directly on the if statement nodes
+        // TODO This could be expanded to allow more complex checks
+        // Currently only sees 'expr is null', potentially combined through binary ands
+
+        ArrayBuilder<Symbol> builder = null;
+        symbols = default;
+
+        condition = DiagnosticPass.StripImplicitCasts(condition);
+
+        if (condition.kind != BoundKind.IsOperator && condition.kind != BoundKind.BinaryOperator)
+            return false;
+
+        var stack = new Stack<BoundExpression>(2);
+        stack.Push(condition);
+
+        while (stack.Count > 0) {
+            var current = stack.Pop();
+
+            if (current is BoundIsOperator isOperator) {
+                if (isOperator.isNot == invertCheck && isOperator.right.IsLiteralNull()) {
+                    if (TryGetNullAssertFactOperand(isOperator.left, out var symbol)) {
+                        builder ??= ArrayBuilder<Symbol>.GetInstance();
+                        builder.Add(symbol);
+                    }
+                }
+            } else if (current is BoundBinaryOperator binaryOperator) {
+                if (binaryOperator.operatorKind.Operator() == BinaryOperatorKind.And) {
+                    stack.Push(binaryOperator.left);
+                    stack.Push(binaryOperator.right);
+                }
+            }
+        }
+
+        if (builder is null)
+            return false;
+
+        symbols = builder.ToImmutableAndFree();
+        return true;
+    }
+
+    internal bool HasNullAssertFactFor(BoundExpression operand) {
+        operand = DiagnosticPass.StripImplicitCasts(operand);
+
+        // TODO Increase node coverage
+        switch (operand.kind) {
+            case BoundKind.BinaryOperator:
+                var binary = (BoundBinaryOperator)operand;
+                return HasNullAssertFactFor(binary.left) && HasNullAssertFactFor(binary.right);
+            case BoundKind.UnaryOperator:
+                return HasNullAssertFactFor(((BoundUnaryOperator)operand).operand);
+            case BoundKind.DataContainerExpression:
+            case BoundKind.ParameterExpression:
+                return TryGetNullAssertFactOperand(operand, out var symbol) && HasNullAssertFact(symbol);
+            // Specifically not including this here because having a null assert mid expression creates weird
+            // situations with how binaries are expanded where no exception is thrown
+            // TODO Either need to fix this, or purposely disallow this
+            case BoundKind.NullAssertOperator:
+            default:
+                return false;
+        }
+    }
+
+    private bool TryGetNullAssertFactOperand(BoundExpression operand, out Symbol symbol) {
+        if (operand is BoundDataContainerExpression { dataContainer: { isRef: false } dataContainer }) {
+            symbol = dataContainer;
+            return true;
+        } else if (operand is BoundParameterExpression { parameter: { refKind: RefKind.None } parameter }) {
+            symbol = parameter;
+            return true;
+        }
+
+        symbol = null;
         return false;
     }
 
     private void InvalidateNullAssertOperand(BoundExpression operand) {
-        if (nullAssertFacts is not null) {
-            if (operand is BoundDataContainerExpression { dataContainer: { } dataContainer })
-                RemoveNullAssertFact(dataContainer);
-            else if (operand is BoundParameterExpression { parameter: { } parameter })
-                RemoveNullAssertFact(parameter);
-        }
+        if (nullAssertFacts is not null && TryGetNullAssertFactOperand(operand, out var symbol))
+            RemoveNullAssertFact(symbol);
     }
 
     private static bool IsInvalidExpressionStatement(BoundExpression expression) {

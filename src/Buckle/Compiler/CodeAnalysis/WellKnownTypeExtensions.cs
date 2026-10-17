@@ -1,9 +1,10 @@
-
 using System.Diagnostics;
 
 namespace Buckle.CodeAnalysis;
 
 internal static class WellKnownTypeExtensions {
+    internal static int Count = (int)WellKnownType.NextAvailable - (int)WellKnownType.First;
+
     private static readonly string[] MetadataNames = [
         "Enumerator`1",
         "ValueTuple`1",
@@ -46,39 +47,13 @@ internal static class WellKnownTypeExtensions {
 
 #if DEBUG
     static WellKnownTypeExtensions() {
-        Debug.Assert(MetadataNames.Length == ((int)WellKnownType.NextAvailable - (int)WellKnownType.First));
+        Debug.Assert(MetadataNames.Length == Count);
     }
 #endif
 
     internal static bool IsWellKnownType(this WellKnownType typeId) {
         Debug.Assert(typeId != WellKnownType.ExtSentinel);
-        return typeId >= WellKnownType.First && typeId <= WellKnownType.LastPEType;
-    }
-
-    internal static bool ShouldEmit(this WellKnownType wellKnownType, bool noStdLib, bool includeGraphicsTypes) {
-        switch (wellKnownType) {
-            case WellKnownType.None:
-            case WellKnownType.Enumerator:
-                return true;
-            case WellKnownType.Belte_Graphics_Vec2 when includeGraphicsTypes && noStdLib:
-            case WellKnownType.Belte_Graphics_Sprite when includeGraphicsTypes && noStdLib:
-            case WellKnownType.Belte_Graphics_Text when includeGraphicsTypes && noStdLib:
-            case WellKnownType.Belte_Graphics_Rect when includeGraphicsTypes && noStdLib:
-            case WellKnownType.Belte_Graphics_Texture when includeGraphicsTypes && noStdLib:
-            case WellKnownType.Belte_Graphics_Sound when includeGraphicsTypes && noStdLib:
-                return true;
-            case WellKnownType.ValueTuple_T1 when noStdLib:
-            case WellKnownType.ValueTuple_T2 when noStdLib:
-            case WellKnownType.ValueTuple_T3 when noStdLib:
-            case WellKnownType.ValueTuple_T4 when noStdLib:
-            case WellKnownType.ValueTuple_T5 when noStdLib:
-            case WellKnownType.ValueTuple_T6 when noStdLib:
-            case WellKnownType.ValueTuple_T7 when noStdLib:
-            case WellKnownType.ValueTuple_TRest when noStdLib:
-                return true;
-            default:
-                return false;
-        }
+        return typeId >= WellKnownType.First && typeId < WellKnownType.NextAvailable;
     }
 
     internal static string GetMetadataName(this WellKnownType wellKnownType) {

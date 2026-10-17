@@ -109,10 +109,7 @@ internal sealed partial class Executor : ModuleBuilder {
         _diagnostics = diagnostics;
         _graphicsEnabled = _compilation.options.outputKind == OutputKind.GraphicsApplication;
 
-        _topLevelTypes = program.GetTypesToEmit(
-            noStdLib: _compilation.options.noStdLib,
-            includeGraphicsWellKnownTypes: false
-        );
+        _topLevelTypes = program.GetTypesToEmit(noStdLib: _compilation.options.noStdLib);
 
         var assemblyName = new AssemblyName(DynamicAssemblyName);
         var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
@@ -1066,8 +1063,7 @@ internal sealed partial class Executor : ModuleBuilder {
             Debug.Assert(!type.IsStructType());
 
             if (_bakedTypes.ContainsKey(type)) {
-                Debug.Assert(WellKnownTypes.GetTypeFromMetadataName(type) != WellKnownType.None ||
-                    result.Contains(type) ||
+                Debug.Assert(result.Contains(type) ||
                     // Special case
                     type.metadataName == "Exception"
                 );
@@ -1113,28 +1109,28 @@ internal sealed partial class Executor : ModuleBuilder {
             existingWellKnownTypes.Add(WellKnownType.Belte_Graphics_Sound);
         }
 
-        if (_compilation.corLibrary.HasWellKnownType(WellKnownType.ValueTuple_T1) &&
-            !_topLevelTypes.Contains(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T1))) {
-            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T1), typeof(ValueTuple<>));
-            existingWellKnownTypes.Add(WellKnownType.ValueTuple_T1);
-            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T2), typeof(ValueTuple<,>));
-            existingWellKnownTypes.Add(WellKnownType.ValueTuple_T2);
-            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T3), typeof(ValueTuple<,,>));
-            existingWellKnownTypes.Add(WellKnownType.ValueTuple_T3);
-            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T4), typeof(ValueTuple<,,,>));
-            existingWellKnownTypes.Add(WellKnownType.ValueTuple_T4);
-            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T5), typeof(ValueTuple<,,,,>));
-            existingWellKnownTypes.Add(WellKnownType.ValueTuple_T5);
-            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T6), typeof(ValueTuple<,,,,,>));
-            existingWellKnownTypes.Add(WellKnownType.ValueTuple_T6);
-            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T7), typeof(ValueTuple<,,,,,,>));
-            existingWellKnownTypes.Add(WellKnownType.ValueTuple_T7);
-            _bakedTypes.Add(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_TRest), typeof(ValueTuple<,,,,,,,>));
-            existingWellKnownTypes.Add(WellKnownType.ValueTuple_TRest);
+        if (_compilation.GetWellKnownType(WellKnownType.Belte_ValueTuple_T1) is not MissingMetadataTypeSymbol &&
+            !_topLevelTypes.Contains(_compilation.GetWellKnownType(WellKnownType.Belte_ValueTuple_T1))) {
+            _bakedTypes.Add(_compilation.GetWellKnownType(WellKnownType.Belte_ValueTuple_T1), typeof(ValueTuple<>));
+            existingWellKnownTypes.Add(WellKnownType.Belte_ValueTuple_T1);
+            _bakedTypes.Add(_compilation.GetWellKnownType(WellKnownType.Belte_ValueTuple_T2), typeof(ValueTuple<,>));
+            existingWellKnownTypes.Add(WellKnownType.Belte_ValueTuple_T2);
+            _bakedTypes.Add(_compilation.GetWellKnownType(WellKnownType.Belte_ValueTuple_T3), typeof(ValueTuple<,,>));
+            existingWellKnownTypes.Add(WellKnownType.Belte_ValueTuple_T3);
+            _bakedTypes.Add(_compilation.GetWellKnownType(WellKnownType.Belte_ValueTuple_T4), typeof(ValueTuple<,,,>));
+            existingWellKnownTypes.Add(WellKnownType.Belte_ValueTuple_T4);
+            _bakedTypes.Add(_compilation.GetWellKnownType(WellKnownType.Belte_ValueTuple_T5), typeof(ValueTuple<,,,,>));
+            existingWellKnownTypes.Add(WellKnownType.Belte_ValueTuple_T5);
+            _bakedTypes.Add(_compilation.GetWellKnownType(WellKnownType.Belte_ValueTuple_T6), typeof(ValueTuple<,,,,,>));
+            existingWellKnownTypes.Add(WellKnownType.Belte_ValueTuple_T6);
+            _bakedTypes.Add(_compilation.GetWellKnownType(WellKnownType.Belte_ValueTuple_T7), typeof(ValueTuple<,,,,,,>));
+            existingWellKnownTypes.Add(WellKnownType.Belte_ValueTuple_T7);
+            _bakedTypes.Add(_compilation.GetWellKnownType(WellKnownType.Belte_ValueTuple_TRest), typeof(ValueTuple<,,,,,,,>));
+            existingWellKnownTypes.Add(WellKnownType.Belte_ValueTuple_TRest);
         }
 
         foreach (var type in existingWellKnownTypes) {
-            var typeSymbol = _compilation.GetAnyWellKnownType(type);
+            var typeSymbol = _compilation.GetWellKnownType(type);
             var native = _bakedTypes[typeSymbol];
 
             foreach (var member in typeSymbol.GetMembers()) {
@@ -1303,16 +1299,15 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private string GetTypeName(NamedTypeSymbol type, bool isNested) {
-        // TODO Use metadata name?
-
         if (type.IsFromCompilation(_compilation)) {
             if (isNested || (type.containingNamespace?.isGlobalNamespace ?? true))
-                return type.name;
+                return type.metadataName;
 
-            return $"{type.containingNamespace.name}.{type.name}";
+            Debug.Assert(type.containingNamespace.name == type.containingNamespace.metadataName);
+            return $"{type.containingNamespace.name}.{type.metadataName}";
         }
 
-        return $"Belte.{type.name}";
+        return $"Belte.{type.metadataName}";
     }
 
     internal static TypeAttributes GetTypeAttributes(NamedTypeSymbol type, bool isNested) {

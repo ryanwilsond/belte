@@ -38,25 +38,20 @@ internal sealed partial class MethodCompiler {
         }
 
         internal static bool VisitTypePredicateCollectAndEnqueue(TypeSymbol type, SymbolCollectorArgument arg, bool _) {
-            if (type is NamedTypeSymbol t && t.IsFromCompilation(arg.compiler._compilation)) {
-                if (arg.visited.Add(t)) {
-                    var compiler = arg.compiler;
+            if (type is NamedTypeSymbol t) {
+                if (t.IsFromCompilation(arg.compiler._compilation)) {
+                    if (arg.visited.Add(t)) {
+                        var compiler = arg.compiler;
 
-                    if (!compiler._types.Contains(t) && !PassesFilter(compiler._filter, t)) {
-                        if (compiler._compilation.options.concurrentBuild)
-                            compiler.Enqueue(() => compiler.CompileNamedType(t));
-                        else
-                            compiler.CompileNamedType(t);
+                        if (!compiler._types.Contains(t) && !PassesFilter(compiler._filter, t)) {
+                            if (compiler._compilation.options.concurrentBuild)
+                                compiler.Enqueue(() => compiler.CompileNamedType(t));
+                            else
+                                compiler.CompileNamedType(t);
+                        }
                     }
                 }
             }
-
-            return false;
-        }
-
-        internal static bool VisitTypePredicateJustCollect(TypeSymbol type, SymbolCollectorArgument arg, bool _) {
-            if (type is NamedTypeSymbol t && t.IsFromCompilation(arg.compiler._compilation))
-                arg.visited.Add(t);
 
             return false;
         }

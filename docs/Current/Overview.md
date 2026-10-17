@@ -431,30 +431,32 @@ means any class method can be called or array elements can be modified.
 
 ### 1.4.6 Null-Flow Analysis
 
-Belte does not currently perform automatic null-flow analysis. Instead, explicit null checks and control flow should be
-used.
-
 When a value is needed to be non-null at a certain time, the [`!` operator](Data.md#3221-x) can be used that asserts
 that the value is not null, otherwise a runtime error occurs. For example:
 
 ```belte
 int? a = Func();
-int! b = a!; // If a is null, runtime exception
+int! b = a!; // If 'a' is null, runtime exception
 ```
 
-To conditionally execute code if a value is not null, a
-[null-binding contract](ControlFlow.md#232-null-binding-contracts) can be used:
+Once a null assertion has been performed using the `!` operator, the operand can be used as though it were non-nullable
+until it is modified:
+
+```belte
+int? a = Func();
+a!;
+int! b = a;
+```
+
+If-statement conditions that explicitly check for null also allow operands to be used as though they are non-nullable:
 
 ```belte
 int? a = Func();
 
-if (a -> b!) {
-  // ...
+if (a isnt null) {
+  int! b = a;
 }
 ```
-
-In this example, `b` is declared as a non-nullable local set to the value of `a`, so in this case the type of `b` is
-`int!`. `b` only lives inside of the block.
 
 To use a type's default value in the case of null, the [`?` operator](Data.md#3222-x) can be used. For example:
 

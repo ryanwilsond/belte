@@ -210,10 +210,8 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
         return _declaration.GetAttributeDeclarations();
     }
 
-    internal ImmutableArray<TypeWithAnnotations> GetTypeParameterConstraintTypes(
-        int ordinal,
-        BelteDiagnosticQueue diagnostics) {
-        var constraintTypes = GetTypeParameterConstraintTypes(diagnostics);
+    internal ImmutableArray<TypeWithAnnotations> GetTypeParameterConstraintTypes(int ordinal) {
+        var constraintTypes = GetTypeParameterConstraintTypes();
         return (constraintTypes.Length > 0) ? constraintTypes[ordinal] : [];
     }
 
@@ -434,7 +432,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
     }
 
     private ImmutableArray<BoundExpression> MakeTemplateConstraints(BelteDiagnosticQueue diagnostics) {
-        _ = GetTypeParameterConstraintTypes(diagnostics);
+        _ = GetTypeParameterConstraintTypes();
 
         if (_unboundConstraints.IsDefault || _unboundConstraints.Length == 0)
             return [];
@@ -698,16 +696,19 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
         return (NamedTypeSymbol)type;
     }
 
-    private ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes(
-        BelteDiagnosticQueue diagnostics) {
+    private ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes() {
         if (_templateParameterInfo.lazyTypeParameterConstraintTypes.IsDefault) {
             GetTypeParameterConstraintKinds();
+
+            var diagnostics = BelteDiagnosticQueue.GetInstance();
 
             if (ImmutableInterlocked.InterlockedInitialize(
                 ref _templateParameterInfo.lazyTypeParameterConstraintTypes,
                 MakeTypeParameterConstraintTypes(diagnostics))) {
                 AddDeclarationDiagnostics(diagnostics);
             }
+
+            diagnostics.Free();
         }
 
         return _templateParameterInfo.lazyTypeParameterConstraintTypes;

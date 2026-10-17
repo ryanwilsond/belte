@@ -5,7 +5,6 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using System.Threading;
-using System.Threading.Tasks;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.FlowAnalysis;
@@ -159,6 +158,11 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             methodCompiler.CompileNamespace(globalNamespace);
         }
 
+        var anonymousTypes = compilation.GetAnonymousTypes();
+
+        if (!anonymousTypes.IsDefault)
+            methodCompiler._types.AddRange(anonymousTypes);
+
         var timer = compilation.options.time ? Stopwatch.StartNew() : null;
 
         if (!hasDeclarationErrors && !diagnostics.AnyErrors()) {
@@ -296,10 +300,14 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
     }
 
     private void PerformEntireProgramOptimizationPass(bool shouldInline) {
-        if (_compilation.options.optimizationLevel != OptimizationLevel.Release || !shouldInline)
-            return;
+        return;
 
         // TODO Many optimizations could happen here
+        // TODO Method inlining
+        // TODO Additional constant folding passes, especially on expanded template bodies
+        /*
+        if (_compilation.options.optimizationLevel != OptimizationLevel.Release || !shouldInline)
+            return;
 
         var inlineableMethods = new ConcurrentDictionary<MethodSymbol, CanInlineVisitor.InlineInformation>();
 
@@ -353,13 +361,14 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         void OptimizeBody(KeyValuePair<MethodSymbol, BoundBlockStatement> pair) {
             MethodInliner.Visit(pair.Key, pair.Value, inlineableMethods, _methodBodies);
         }
+        */
     }
 
     private void ComputeCompileTimeExpressions() {
         ImmutableDictionary<MethodSymbol, BoundBlockStatement> newMethodBodies;
         ImmutableDictionary<MethodSymbol, EvaluatorSlotManager> newMethodLayouts;
 
-        if (!_compilation.options.buildMode.Evaluating()) {
+        if (!evaluating) {
             var methodBodiesBuilder = ImmutableDictionary.CreateBuilder<MethodSymbol, BoundBlockStatement>();
             var methodLayoutsBuilder = ImmutableDictionary.CreateBuilder<MethodSymbol, EvaluatorSlotManager>();
 
@@ -694,23 +703,12 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                     if (f.isFixedSizeBuffer)
                         SetFixedImplementationType(f as SourceMemberFieldSymbol);
 
-                    var visited = new HashSet<NamedTypeSymbol>();
-
-                    f.type.VisitType(
-                        _collectSymbols
-                            ? SymbolCollector.VisitTypePredicateCollectAndEnqueue
-                            : SymbolCollector.VisitTypePredicateJustCollect,
-                        new SymbolCollectorArgument() { compiler = this, visited = visited },
-                        true
-                    );
-
-                    foreach (var type in visited) {
-                        if (type is AnonymousEnumType) {
-                            lock (_types) {
-                                if (!_types.Contains(type))
-                                    _types.Add(type);
-                            }
-                        }
+                    if (_collectSymbols) {
+                        f.type.VisitType(
+                            SymbolCollector.VisitTypePredicateCollectAndEnqueue,
+                            new SymbolCollectorArgument() { compiler = this, visited = [] },
+                            true
+                        );
                     }
 
                     break;
@@ -977,39 +975,28 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             ));
         }
 
-        if (!transpiling) {
-            if (!controlFlowGraph.AllPathsReturn())
-                currentDiagnostics.Push(Error.NotAllPathsReturn(method.location));
+        if (!controlFlowGraph.AllPathsReturn())
+            currentDiagnostics.Push(Error.NotAllPathsReturn(method.location));
 
-            if (_compilation.options.buildMode.Evaluating()) {
-                loweredBody = EvaluatorSlotRewriter.Rewrite(
-                    _compilation,
-                    method,
-                    loweredBody,
-                    _typeLayouts,
-                    _compilation.previous?.boundProgram,
-                    out var slotManager
-                );
+        if (evaluating) {
+            loweredBody = EvaluatorSlotRewriter.Rewrite(
+                _compilation,
+                method,
+                loweredBody,
+                _typeLayouts,
+                _compilation.previous?.boundProgram,
+                out var slotManager
+            );
 
-                _methodLayouts.Add(method, slotManager);
-            }
+            _methodLayouts.Add(method, slotManager);
         }
 
-        var visited = SymbolCollector.Collect(
-            this,
-            loweredBody,
-            _collectSymbols
-                ? SymbolCollector.VisitTypePredicateCollectAndEnqueue
-                : SymbolCollector.VisitTypePredicateJustCollect
-        );
-
-        foreach (var type in visited) {
-            if (type is AnonymousEnumType) {
-                lock (_types) {
-                    if (!_types.Contains(type))
-                        _types.Add(type);
-                }
-            }
+        if (_collectSymbols) {
+            var visited = SymbolCollector.Collect(
+                this,
+                loweredBody,
+                SymbolCollector.VisitTypePredicateCollectAndEnqueue
+            );
         }
 
         if (_compilation.options.time) {

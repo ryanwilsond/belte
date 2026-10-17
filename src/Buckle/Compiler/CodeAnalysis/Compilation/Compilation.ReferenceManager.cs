@@ -74,6 +74,11 @@ public sealed partial class Compilation {
             }
         }
 
+        internal int?[] coreLibraryIndices => [
+            belteCoreAssemblyOpt is not null ? GetAssemblyIndex(belteCoreAssemblyOpt) : null,
+            systemPrivateCorelibOpt is not null ? GetAssemblyIndex(systemPrivateCorelibOpt) : null,
+        ];
+
         internal ImmutableArray<PEModule> referencedModules {
             get {
                 AssertBound();
@@ -198,6 +203,18 @@ public sealed partial class Compilation {
         [Conditional("DEBUG")]
         internal void AssertCanReuseForCompilation(Compilation compilation) {
             Debug.Assert(compilation.assemblyName == simpleAssemblyName);
+        }
+
+        internal int GetAssemblyIndex(AssemblySymbol assembly) {
+            Debug.Assert(assembly is not null);
+
+            for (var i = 0; i < referencedAssemblies.Length; i++) {
+                if ((object)referencedAssemblies[i] == assembly) {
+                    return i;
+                }
+            }
+
+            throw ExceptionUtilities.Unreachable();
         }
 
         internal bool DeclarationsAccessibleWithoutAlias(int referencedAssemblyIndex) {
@@ -1357,13 +1374,9 @@ public sealed partial class Compilation {
             for (var i = 1; i < assemblies.Length; i++) {
                 var assembly = assemblies[i];
 
-                if (!assembly.isLinked &&
-                    !assembly.containsNoPiaLocalTypes &&
-                    (!supersedeLowerVersions || !IsSuperseded(assembly.identity, assemblyReferencesBySimpleName))) {
-                    if (MetadataHelpers.IsCorLibraryName(assembly.identity.name)) {
-                        corLibraryCandidates ??= ArrayBuilder<int>.GetInstance();
-                        corLibraryCandidates.Add(i);
-                    }
+                if (MetadataHelpers.IsCorLibraryName(assembly.identity.name)) {
+                    corLibraryCandidates ??= ArrayBuilder<int>.GetInstance();
+                    corLibraryCandidates.Add(i);
                 }
             }
 
@@ -1373,6 +1386,7 @@ public sealed partial class Compilation {
                     corLibraryCandidates.Free();
                     return result;
                 } else {
+                    Debug.Assert(false);
                     corLibraryCandidates.Free();
                 }
             }

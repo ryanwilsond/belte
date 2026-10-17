@@ -120,22 +120,6 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     }
 
     /// <summary>
-    /// Pops all Diagnostics off <see cref="DiagnosticQueue<T>" /> and pushes them onto this.
-    /// </summary>
-    /// <param name="diagnosticQueue"><see cref="DiagnosticQueue<T>" /> to pop and copy from.</param>
-    public void Move(DiagnosticQueue<T> diagnosticQueue) {
-        if (diagnosticQueue is null)
-            return;
-
-        var diagnostic = diagnosticQueue.Pop();
-
-        while (diagnostic is not null) {
-            _diagnostics.Enqueue(diagnostic);
-            diagnostic = diagnosticQueue.Pop();
-        }
-    }
-
-    /// <summary>
     /// Removes first <see cref="Diagnostic" />.
     /// </summary>
     /// <returns>First <see cref="Diagnostic" /> on the <see cref="DiagnosticQueue<T>" />.</returns>

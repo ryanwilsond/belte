@@ -26,9 +26,5 @@ public partial class BelteDiagnosticQueue {
         }
 
         public override void PushRange(IEnumerable<BelteDiagnostic> diagnostics) { }
-
-        public override void Move(BelteDiagnosticQueue diagnostics) {
-            diagnostics.Clear();
-        }
     }
 }

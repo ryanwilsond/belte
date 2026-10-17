@@ -12,6 +12,7 @@ circumstances. This document exists for completeness sake.
   - [10.1.6](#1016---nontvlib) `--nontvlib`
 - [10.2](#102-evaluator-only-string-enums) Evaluator-Only String Enums
 - [10.3](#103-double-verbatim-identifiers) Double Verbatim Identifiers
+- [10.4](#104-null-binding-contracts) Null-Binding Contracts
 
 ## 10.1 CLI Options
 
@@ -63,3 +64,46 @@ Every field must have an explicit value.
 
 The double verbatim specifier `@@` reads all trailing characters as a part of the identifier terminating at whitespace
 or a subsequent `@`. This could be used to directly reference compiler-generated symbols. Here be dragons.
+
+## 10.4 Null-Binding Contracts
+
+> Note: Null-binding contracts have effectively been rendered obsolete now that ordinary
+> [if-statements propagate null assertion facts](ControlFlow.md#231-null-assert-facts).
+> The only remaining benefit is the creation of a non-nullable local meaning implied null assertions are skipped.
+
+A null-binding contract can be used to declare a temporary local within an `if` scope predicated on the fact that the
+local is not null.
+
+```belte
+int? a = 3;
+
+if (a -> x!) {
+  int! b = x;
+}
+```
+
+If the source expression is null, the block does not run. Otherwise, a non-nullable temporary is created for the block.
+
+Similar to an ordinary if statement, an else block can be defined that runs only if the source expression is null.
+
+```belte
+int? a = 3;
+
+if (a -> x!) {
+  int! b = x;
+} else {
+  int? b = a;
+}
+```
+
+By default, the source expression of a null-binding contract must be non-constant. The null-binding local is treated
+as though it is marked [`final`](Data.md#331-modifiers). Optionally, the null-binding local can be marked `const` which
+allows constant source expressions:
+
+```belte
+const MyClass? a = new MyClass();
+
+if (a -> const x!) {
+  // ...
+}
+```

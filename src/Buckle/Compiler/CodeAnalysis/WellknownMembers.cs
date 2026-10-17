@@ -49,223 +49,223 @@ internal static class WellKnownMembers {
 
                 // ValueTuple_T1__Item1
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T1,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T1,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 0,                                                        // Field Signature
 
                 // ValueTuple_T2__Item1
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T2,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T2,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 0,                                                        // Field Signature
 
                 // ValueTuple_T2__Item2
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T2,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T2,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 1,                                                        // Field Signature
 
                 // ValueTuple_T3__Item1
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T3,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T3,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 0,                                                        // Field Signature
 
                 // ValueTuple_T3__Item2
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T3,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T3,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 1,                                                        // Field Signature
 
                 // ValueTuple_T3__Item3
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T3,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T3,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 2,                                                        // Field Signature
 
                 // ValueTuple_T4__Item1
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T4,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T4,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 0,                                                        // Field Signature
 
                 // ValueTuple_T4__Item2
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T4,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T4,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 1,                                                        // Field Signature
 
                 // ValueTuple_T4__Item3
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T4,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T4,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 2,                                                        // Field Signature
 
                 // ValueTuple_T4__Item4
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T4,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T4,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 3,                                                        // Field Signature
 
                 // ValueTuple_T5__Item1
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T5,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T5,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 0,                                                        // Field Signature
 
                 // ValueTuple_T5__Item2
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T5,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T5,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 1,                                                        // Field Signature
 
                 // ValueTuple_T5__Item3
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T5,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T5,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 2,                                                        // Field Signature
 
                 // ValueTuple_T5__Item4
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T5,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T5,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 3,                                                        // Field Signature
 
                 // ValueTuple_T5__Item5
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T5,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T5,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 4,                                                        // Field Signature
 
                 // ValueTuple_T6__Item1
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T6,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T6,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 0,                                                        // Field Signature
 
                 // ValueTuple_T6__Item2
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T6,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T6,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 1,                                                        // Field Signature
 
                 // ValueTuple_T6__Item3
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T6,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T6,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 2,                                                        // Field Signature
 
                 // ValueTuple_T6__Item4
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T6,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T6,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 3,                                                        // Field Signature
 
                 // ValueTuple_T6__Item5
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T6,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T6,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 4,                                                        // Field Signature
 
                 // ValueTuple_T6__Item6
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T6,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T6,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 5,                                                        // Field Signature
 
                 // ValueTuple_T7__Item1
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T7,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T7,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 0,                                                        // Field Signature
 
                 // ValueTuple_T7__Item2
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T7,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T7,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 1,                                                        // Field Signature
 
                 // ValueTuple_T7__Item3
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T7,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T7,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 2,                                                        // Field Signature
 
                 // ValueTuple_T7__Item4
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T7,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T7,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 3,                                                        // Field Signature
 
                 // ValueTuple_T7__Item5
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T7,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T7,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 4,                                                        // Field Signature
 
                 // ValueTuple_T7__Item6
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T7,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T7,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 5,                                                        // Field Signature
 
                 // ValueTuple_T7__Item7
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_T7,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T7,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 6,                                                        // Field Signature
 
                 // ValueTuple_TRest__Item1
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_TRest,                                                                           // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_TRest,                                                                           // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 0,                                                        // Field Signature
 
                 // ValueTuple_TRest__Item2
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_TRest,                                                                           // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_TRest,                                                                           // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 1,                                                        // Field Signature
 
                 // ValueTuple_TRest__Item3
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_TRest,                                                                           // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_TRest,                                                                           // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 2,                                                        // Field Signature
 
                 // ValueTuple_TRest__Item4
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_TRest,                                                                           // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_TRest,                                                                           // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 3,                                                        // Field Signature
 
                 // ValueTuple_TRest__Item5
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_TRest,                                                                           // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_TRest,                                                                           // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 4,                                                        // Field Signature
 
                 // ValueTuple_TRest__Item6
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_TRest,                                                                           // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_TRest,                                                                           // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 5,                                                        // Field Signature
 
                 // ValueTuple_TRest__Item7
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_TRest,                                                                           // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_TRest,                                                                           // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 6,                                                        // Field Signature
 
                 // ValueTuple_TRest__Rest
                 (byte)MemberFlags.Field,                                                                                    // Flags
-                (byte)WellKnownType.ValueTuple_TRest,                                                                           // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_TRest,                                                                           // DeclaringTypeId
                 0,                                                                                                          // Arity
                     (byte)SignatureTypeCode.GenericTypeParameter, 7,                                                        // Field Signature
 
                 // ValueTuple_T1__ctor
                 (byte)MemberFlags.Constructor,                                                                              // Flags
-                (byte)WellKnownType.ValueTuple_T1,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T1,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     1,                                                                                                      // Method Signature
                     (byte)SignatureTypeCode.TypeHandle, (byte)SpecialType.Void, // Return Type
@@ -273,7 +273,7 @@ internal static class WellKnownMembers {
 
                 // ValueTuple_T2__ctor
                 (byte)MemberFlags.Constructor,                                                                              // Flags
-                (byte)WellKnownType.ValueTuple_T2,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T2,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     2,                                                                                                      // Method Signature
                     (byte)SignatureTypeCode.TypeHandle, (byte)SpecialType.Void, // Return Type
@@ -282,7 +282,7 @@ internal static class WellKnownMembers {
 
                 // ValueTuple_T3__ctor
                 (byte)MemberFlags.Constructor,                                                                              // Flags
-                (byte)WellKnownType.ValueTuple_T3,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T3,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     3,                                                                                                      // Method Signature
                     (byte)SignatureTypeCode.TypeHandle, (byte)SpecialType.Void, // Return Type
@@ -292,7 +292,7 @@ internal static class WellKnownMembers {
 
                  // ValueTuple_T4__ctor
                 (byte)MemberFlags.Constructor,                                                                              // Flags
-                (byte)WellKnownType.ValueTuple_T4,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T4,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     4,                                                                                                      // Method Signature
                     (byte)SignatureTypeCode.TypeHandle, (byte)SpecialType.Void, // Return Type
@@ -304,7 +304,7 @@ internal static class WellKnownMembers {
 
                 // ValueTuple_T5__ctor
                 (byte)MemberFlags.Constructor,                                                                              // Flags
-                (byte)WellKnownType.ValueTuple_T5,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T5,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     5,                                                                                                      // Method Signature
                     (byte)SignatureTypeCode.TypeHandle, (byte)SpecialType.Void, // Return Type
@@ -316,7 +316,7 @@ internal static class WellKnownMembers {
 
                 // ValueTuple_T6__ctor
                 (byte)MemberFlags.Constructor,                                                                              // Flags
-                (byte)WellKnownType.ValueTuple_T6,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T6,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     6,                                                                                                      // Method Signature
                     (byte)SignatureTypeCode.TypeHandle, (byte)SpecialType.Void, // Return Type
@@ -329,7 +329,7 @@ internal static class WellKnownMembers {
 
                 // ValueTuple_T7__ctor
                 (byte)MemberFlags.Constructor,                                                                              // Flags
-                (byte)WellKnownType.ValueTuple_T7,                                                                          // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_T7,                                                                          // DeclaringTypeId
                 0,                                                                                                          // Arity
                     7,                                                                                                      // Method Signature
                     (byte)SignatureTypeCode.TypeHandle, (byte)SpecialType.Void, // Return Type
@@ -343,7 +343,7 @@ internal static class WellKnownMembers {
 
                 // ValueTuple_TRest__ctor
                 (byte)MemberFlags.Constructor,                                                                              // Flags
-                (byte)WellKnownType.ValueTuple_TRest,                                                                       // DeclaringTypeId
+                (byte)WellKnownType.Belte_ValueTuple_TRest,                                                                       // DeclaringTypeId
                 0,                                                                                                          // Arity
                     8,                                                                                                      // Method Signature
                     (byte)SignatureTypeCode.TypeHandle, (byte)SpecialType.Void, // Return Type

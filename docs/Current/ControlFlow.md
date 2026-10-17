@@ -16,8 +16,8 @@
   - [2.2.3](#223-disambiguating-entry-points) Disambiguating Entry Points
     - [2.2.3.1](#2231-entrytype-attribute) `EntryType` Attribute
 - [2.3](#23-conditionals) Conditionals
-  - [2.3.1](#231-null-conditions) Null Conditions
-  - [2.3.2](#232-null-binding-contracts) Null-Binding Contracts
+  - [2.3.1](#231-null-assert-facts) Null Assert Facts
+  - [2.3.1](#232-null-conditions) Null Conditions
 - [2.4](#24-loops) Loops
   - [2.4.1](#241-while-loops) While Loops
   - [2.4.2](#242-do-while-loops) Do-While Loops
@@ -519,7 +519,68 @@ if (a > b) {
 }
 ```
 
-### 2.3.1 Null Conditions
+### 2.3.1 Null Assert Facts
+
+Some simple patterns propagate [null assertion facts](Data.md#3221-x):
+
+```belte
+int? a = Something();
+
+if (a isnt null) {
+  int b = a; // 'a' can be used as though it is non-nullable
+}
+```
+
+```belte
+int? a = Something();
+
+if (a is null) {
+  // ...
+} else {
+  int b = a; // 'a' can be used as though it is non-nullable
+}
+```
+
+```belte
+int? a = Something();
+int? b = Something();
+
+if (a isnt null && b isnt null) {
+  int c = a + b; // 'a' and 'b' can both be used as though they were non-nullable
+}
+```
+
+Alternatively, consider using a [null assert expression statement](Data.md#3221-x). The following examples are roughly
+equivalent:
+
+```belte
+int? a = Something();
+// ...
+
+int b = a! + 4;
+int c = a! + 3;
+```
+
+```belte
+int? a = Something();
+// ...
+
+if (a isnt null) {
+  int b = a + 4;
+  int c = a + 3;
+}
+```
+
+```belte
+int? a = Something();
+// ...
+
+a!;
+int b = a + 4;
+int c = a + 3;
+```
+
+### 2.3.2 Null Conditions
 
 The condition type of an `if` statement can be a nullable bool or non-nullable bool. If the condition type is nullable,
 a runtime check is performed to see if the operand is null. If it is, a null condition exception is thrown at the site
@@ -543,45 +604,6 @@ if ((a > 4)?) {
 In this example, the result of `a > 4` is null because `a` is null. Then the null-erasure operator applies and sees null
 as it's operand and results in the default value of the type, which in this case is `false` because the default value
 for bools is `false`. The else block will then execute.
-
-### 2.3.2 Null-Binding Contracts
-
-A null-binding contract can be used to declare a temporary local within an `if` scope predicated on the fact that the
-local is not null.
-
-```belte
-int? a = 3;
-
-if (a -> x!) {
-  int! b = x;
-}
-```
-
-If the source expression is null, the block does not run. Otherwise, a non-nullable temporary is created for the block.
-
-Similar to an ordinary if statement, an else block can be defined that runs only if the source expression is null.
-
-```belte
-int? a = 3;
-
-if (a -> x!) {
-  int! b = x;
-} else {
-  int? b = a;
-}
-```
-
-By default, the source expression of a null-binding contract must be non-constant. The null-binding local is treated
-as though it is marked [`final`](Data.md#331-modifiers). Optionally, the null-binding local can be marked `const` which
-allows constant source expressions:
-
-```belte
-const MyClass? a = new MyClass();
-
-if (a -> const x!) {
-  // ...
-}
-```
 
 ## 2.4 Loops
 

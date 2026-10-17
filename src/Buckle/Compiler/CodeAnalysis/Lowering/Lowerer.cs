@@ -1112,12 +1112,12 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
                 smallestType.arity
             );
 
-            var smallestCtor = _compilation.corLibrary.GetWellKnownMethod(NamedTypeSymbol.GetTupleCtor(smallestType.arity));
+            var smallestCtor = _compilation.GetWellKnownMethod(NamedTypeSymbol.GetTupleCtor(smallestType.arity))
+                .AsMember(smallestType);
 
-            var smallestConstructor = smallestCtor.AsMember(smallestType);
             var currentCreation = new BoundObjectCreationExpression(
                 syntax,
-                smallestConstructor,
+                smallestCtor,
                 smallestCtorArguments,
                 [],
                 [],
@@ -1128,7 +1128,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
 
             if (underlyingTupleTypeChain.Count > 0) {
                 var tuple8Type = underlyingTupleTypeChain.Peek();
-                var tuple8Ctor = _compilation.corLibrary.GetWellKnownMethod(
+                var tuple8Ctor = _compilation.GetWellKnownMethod(
                     NamedTypeSymbol.GetTupleCtor(NamedTypeSymbol.ValueTupleRestPosition)
                 );
 

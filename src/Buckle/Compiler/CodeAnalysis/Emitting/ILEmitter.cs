@@ -38,7 +38,6 @@ internal partial class ILEmitter : ModuleBuilder {
     private protected readonly BelteDiagnosticQueue _diagnostics;
     private protected readonly AssemblyDefinition _assemblyDefinition;
     private readonly List<AssemblyDefinition> _assemblies;
-    private readonly List<AssemblyDefinition> _backupAssemblies;
     private readonly BoundProgram _program;
     private readonly ImmutableArray<NamedTypeSymbol> _topLevelTypes;
     private readonly ImmutableArray<NamedTypeSymbol> _linearNestedTypes;
@@ -57,9 +56,11 @@ internal partial class ILEmitter : ModuleBuilder {
     private readonly ConcurrentDictionary<(TemplateParameterSymbol, Symbol), GenericParameter> _templateParameters = [];
     private readonly ConcurrentDictionary<MethodSymbol, TypeReference[]> _methodTypeParameters = [];
     private readonly string _belteDllName;
-    private readonly string _tfm;
-    private readonly string _version;
 
+    private string _lazyTfm;
+    private string _lazyVersion;
+    private string _lazyRefPackPath;
+    private List<AssemblyDefinition> _backupAssemblies;
     private Dictionary<string, MethodReference> _stlMap;
 
     // <Globals> class members
@@ -90,10 +91,6 @@ internal partial class ILEmitter : ModuleBuilder {
         _time = time;
         _isDll = _compilation.options.outputKind == OutputKind.DynamicallyLinkedLibrary;
 
-        _tfm = DotnetReferenceResolver.GetTFM();
-        // TODO This method is *brutally* slow for what it does
-        var refPackPath = DotnetReferenceResolver.ResolveNetCoreAppRefPath(_tfm, out _version);
-
 #if !DEBUG
 #pragma warning disable IL3000
 #endif
@@ -103,22 +100,8 @@ internal partial class ILEmitter : ModuleBuilder {
         if (string.IsNullOrEmpty(_belteDllName))
             _belteDllName = Path.Join(AppContext.BaseDirectory, "Belte.Runtime.dll");
 
-        var objectDll = Path.Join(refPackPath, "System.Runtime.dll");
-        var consoleDll = Path.Join(refPackPath, "System.Console.dll");
-        var memoryDll = Path.Join(refPackPath, "System.Memory.dll");
-        var interopServices = Path.Join(refPackPath, "System.Runtime.InteropServices.dll");
-
         _assemblies = [
             AssemblyDefinition.ReadAssembly(_belteDllName),
-        ];
-
-        // The reference manager *should* pick up System.Runtime and System.Console already
-        // TODO Would could load these lazily. Profiling shows these take <1 ms though
-        _backupAssemblies = [
-            AssemblyDefinition.ReadAssembly(objectDll),
-            AssemblyDefinition.ReadAssembly(consoleDll),
-            AssemblyDefinition.ReadAssembly(memoryDll),
-            AssemblyDefinition.ReadAssembly(interopServices),
         ];
 
 #if !DEBUG
@@ -129,9 +112,14 @@ internal partial class ILEmitter : ModuleBuilder {
         // Perhaps could be more lazy?
         // Even better yet, have the Compilation track used references so we know exactly what we need to load
 
-        var references = _compilation.GetBoundReferenceManager().explicitReferences
-            .Where(e => e is PortableExecutableReference)
-            .Select(e => ((PortableExecutableReference)e).filePath);
+        var explicitReferences = _compilation.GetBoundReferenceManager().explicitReferences;
+        var usedReferences = _compilation.GetUsedReferences();
+        var references = ArrayBuilder<string>.GetInstance(explicitReferences.Length);
+
+        for (var i = 0; i < explicitReferences.Length; i++) {
+            if (usedReferences[i] && explicitReferences[i] is PortableExecutableReference p)
+                references.Add(p.filePath);
+        }
 
         foreach (var reference in references) {
             try {
@@ -141,6 +129,8 @@ internal partial class ILEmitter : ModuleBuilder {
                 _diagnostics.Push(Error.InvalidReference(reference));
             }
         }
+
+        references.Free();
 
         var assemblyName = new AssemblyNameDefinition(assemblySimpleName, assemblyVersion);
 
@@ -174,7 +164,7 @@ internal partial class ILEmitter : ModuleBuilder {
         ResolveMethods();
         GenerateSTLMap();
 
-        _topLevelTypes = program.GetTypesToEmit(noStdLib, includeGraphicsWellKnownTypes: true);
+        _topLevelTypes = program.GetTypesToEmit(noStdLib);
 
         if (_isDll && !_compilation.options.excludeWritingTemplateMetadata) {
             var templateMetadataStream = new MemoryStream();
@@ -207,6 +197,49 @@ internal partial class ILEmitter : ModuleBuilder {
         _belteCompilerGeneratedAttributeCtor = _assemblyDefinition.MainModule.ImportReferenceThreadSafe(
             Resolve(_belteCompilerGeneratedAttribute).GetConstructors().Single()
         );
+    }
+
+    private string GetTFM() {
+        _lazyTfm ??= DotnetReferenceResolver.GetTFM();
+        return _lazyTfm;
+    }
+
+    private string GetVersion() {
+        if (_lazyVersion is null) {
+            _ = GetRefPackPath();
+            Debug.Assert(_lazyVersion is not null);
+        }
+
+        return _lazyVersion;
+    }
+
+    private string GetRefPackPath() {
+        if (_lazyRefPackPath is null) {
+            Debug.Assert(_lazyVersion is null);
+            _lazyRefPackPath = DotnetReferenceResolver.ResolveNetCoreAppRefPath(GetTFM(), out _lazyVersion);
+        }
+
+        return _lazyRefPackPath;
+    }
+
+    private List<AssemblyDefinition> GetBackupAssemblies() {
+        if (_backupAssemblies is null) {
+            var refPackPath = GetRefPackPath();
+
+            var objectDll = Path.Join(refPackPath, "System.Runtime.dll");
+            var consoleDll = Path.Join(refPackPath, "System.Console.dll");
+            var memoryDll = Path.Join(refPackPath, "System.Memory.dll");
+            var interopServices = Path.Join(refPackPath, "System.Runtime.InteropServices.dll");
+
+            _backupAssemblies = [
+                AssemblyDefinition.ReadAssembly(objectDll),
+                AssemblyDefinition.ReadAssembly(consoleDll),
+                AssemblyDefinition.ReadAssembly(memoryDll),
+                AssemblyDefinition.ReadAssembly(interopServices),
+            ];
+        }
+
+        return _backupAssemblies;
     }
 
     internal static void Emit(
@@ -349,14 +382,14 @@ internal partial class ILEmitter : ModuleBuilder {
         if (File.Exists(runtimeConfigPath))
             File.Delete(runtimeConfigPath);
 
-        var content = $"{{\"runtimeOptions\": {{\"tfm\": \"net{_tfm}\",\"framework\": {{\"name\": \"Microsoft.NETCore.App\",\"version\": \"{_version}\"}}}}}}";
+        var content = $"{{\"runtimeOptions\": {{\"tfm\": \"net{GetTFM()}\",\"framework\": {{\"name\": \"Microsoft.NETCore.App\",\"version\": \"{GetVersion()}\"}}}}}}";
 
         File.WriteAllText(runtimeConfigPath, content);
     }
 
     private void EmitAppHost(string outputPath, string dllPath, BelteDiagnosticQueue diagnostics) {
         var dllName = Path.GetFileName(dllPath);
-        var appHostPath = DotnetReferenceResolver.ResolveAppHostPath(_version);
+        var appHostPath = DotnetReferenceResolver.ResolveAppHostPath(GetVersion());
 
         var wrote = IOUtilities.TryIOOperation(() => Microsoft.NET.HostModel.AppHost.HostWriter.CreateAppHost(appHostPath, outputPath, dllName));
 
@@ -1259,149 +1292,138 @@ internal partial class ILEmitter : ModuleBuilder {
     }
 
     private void CompleteWellKnownTypes() {
-        // We check if the CorLibrary contains them first in the case we are emitting a build script
-        // that is building the CorLibrary, in which case they don't exist yet
-        // We also check that this isn't the CorLibrary because in that case we want to refer to the actual definitions
-        // in this module, not the .NET ones
-
-        // TODO Necessary?
-        // if (_compilation.GetWellKnownType(WellKnownType.System_Exception) is SourceNamedTypeSymbol exception) {
-        //     _types.Add(exception, Resolve(ImportType("System.Exception")));
-        // }
-
-        if (_compilation.corLibrary.HasWellKnownType(WellKnownType.ValueTuple_T1) &&
-            !_topLevelTypes.Contains(_compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T1))) {
+        if (!_topLevelTypes.Contains(_compilation.GetWellKnownType(WellKnownType.Belte_ValueTuple_T1))) {
             _types.Add(
-                _compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T1),
+                _compilation.GetWellKnownType(WellKnownType.Belte_ValueTuple_T1),
                 Resolve(ImportType("System.ValueTuple`1")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T1_Item1),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T1_Item1),
                 Resolve(Resolve(ImportType("System.ValueTuple`1")).Fields.Single(f => f.Name == "Item1")));
             _types.Add(
-                _compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T2),
+                _compilation.GetWellKnownType(WellKnownType.Belte_ValueTuple_T2),
                 Resolve(ImportType("System.ValueTuple`2")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item1),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T2_Item1),
                 Resolve(Resolve(ImportType("System.ValueTuple`2")).Fields.Single(f => f.Name == "Item1")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T2_Item2),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T2_Item2),
                 Resolve(Resolve(ImportType("System.ValueTuple`2")).Fields.Single(f => f.Name == "Item2")));
             _types.Add(
-                _compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T3),
+                _compilation.GetWellKnownType(WellKnownType.Belte_ValueTuple_T3),
                 Resolve(ImportType("System.ValueTuple`3")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T3_Item1),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T3_Item1),
                 Resolve(Resolve(ImportType("System.ValueTuple`3")).Fields.Single(f => f.Name == "Item1")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T3_Item2),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T3_Item2),
                 Resolve(Resolve(ImportType("System.ValueTuple`3")).Fields.Single(f => f.Name == "Item2")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T3_Item3),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T3_Item3),
                 Resolve(Resolve(ImportType("System.ValueTuple`3")).Fields.Single(f => f.Name == "Item3")));
             _types.Add(
-                _compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T4),
+                _compilation.GetWellKnownType(WellKnownType.Belte_ValueTuple_T4),
                 Resolve(ImportType("System.ValueTuple`4")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_Item1),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T4_Item1),
                 Resolve(Resolve(ImportType("System.ValueTuple`4")).Fields.Single(f => f.Name == "Item1")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_Item2),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T4_Item2),
                 Resolve(Resolve(ImportType("System.ValueTuple`4")).Fields.Single(f => f.Name == "Item2")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_Item3),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T4_Item3),
                 Resolve(Resolve(ImportType("System.ValueTuple`4")).Fields.Single(f => f.Name == "Item3")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T4_Item4),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T4_Item4),
                 Resolve(Resolve(ImportType("System.ValueTuple`4")).Fields.Single(f => f.Name == "Item4")));
             _types.Add(
-                _compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T5),
+                _compilation.GetWellKnownType(WellKnownType.Belte_ValueTuple_T5),
                 Resolve(ImportType("System.ValueTuple`5")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_Item1),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T5_Item1),
                 Resolve(Resolve(ImportType("System.ValueTuple`5")).Fields.Single(f => f.Name == "Item1")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_Item2),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T5_Item2),
                 Resolve(Resolve(ImportType("System.ValueTuple`5")).Fields.Single(f => f.Name == "Item2")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_Item3),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T5_Item3),
                 Resolve(Resolve(ImportType("System.ValueTuple`5")).Fields.Single(f => f.Name == "Item3")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_Item4),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T5_Item4),
                 Resolve(Resolve(ImportType("System.ValueTuple`5")).Fields.Single(f => f.Name == "Item4")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T5_Item5),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T5_Item5),
                 Resolve(Resolve(ImportType("System.ValueTuple`5")).Fields.Single(f => f.Name == "Item5")));
             _types.Add(
-                _compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T6),
+                _compilation.GetWellKnownType(WellKnownType.Belte_ValueTuple_T6),
                 Resolve(ImportType("System.ValueTuple`6")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item1),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T6_Item1),
                 Resolve(Resolve(ImportType("System.ValueTuple`6")).Fields.Single(f => f.Name == "Item1")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item2),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T6_Item2),
                 Resolve(Resolve(ImportType("System.ValueTuple`6")).Fields.Single(f => f.Name == "Item2")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item3),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T6_Item3),
                 Resolve(Resolve(ImportType("System.ValueTuple`6")).Fields.Single(f => f.Name == "Item3")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item4),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T6_Item4),
                 Resolve(Resolve(ImportType("System.ValueTuple`6")).Fields.Single(f => f.Name == "Item4")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item5),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T6_Item5),
                 Resolve(Resolve(ImportType("System.ValueTuple`6")).Fields.Single(f => f.Name == "Item5")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T6_Item6),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T6_Item6),
                 Resolve(Resolve(ImportType("System.ValueTuple`6")).Fields.Single(f => f.Name == "Item6")));
             _types.Add(
-                _compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_T7),
+                _compilation.GetWellKnownType(WellKnownType.Belte_ValueTuple_T7),
                 Resolve(ImportType("System.ValueTuple`7")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item1),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T7_Item1),
                 Resolve(Resolve(ImportType("System.ValueTuple`7")).Fields.Single(f => f.Name == "Item1")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item2),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T7_Item2),
                 Resolve(Resolve(ImportType("System.ValueTuple`7")).Fields.Single(f => f.Name == "Item2")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item3),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T7_Item3),
                 Resolve(Resolve(ImportType("System.ValueTuple`7")).Fields.Single(f => f.Name == "Item3")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item4),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T7_Item4),
                 Resolve(Resolve(ImportType("System.ValueTuple`7")).Fields.Single(f => f.Name == "Item4")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item5),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T7_Item5),
                 Resolve(Resolve(ImportType("System.ValueTuple`7")).Fields.Single(f => f.Name == "Item5")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item6),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T7_Item6),
                 Resolve(Resolve(ImportType("System.ValueTuple`7")).Fields.Single(f => f.Name == "Item6")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_T7_Item7),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_T7_Item7),
                 Resolve(Resolve(ImportType("System.ValueTuple`7")).Fields.Single(f => f.Name == "Item7")));
             _types.Add(
-                _compilation.corLibrary.GetWellKnownType(WellKnownType.ValueTuple_TRest),
+                _compilation.GetWellKnownType(WellKnownType.Belte_ValueTuple_TRest),
                 Resolve(ImportType("System.ValueTuple`8")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item1),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_TRest_Item1),
                 Resolve(Resolve(ImportType("System.ValueTuple`8")).Fields.Single(f => f.Name == "Item1")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item2),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_TRest_Item2),
                 Resolve(Resolve(ImportType("System.ValueTuple`8")).Fields.Single(f => f.Name == "Item2")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item3),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_TRest_Item3),
                 Resolve(Resolve(ImportType("System.ValueTuple`8")).Fields.Single(f => f.Name == "Item3")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item4),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_TRest_Item4),
                 Resolve(Resolve(ImportType("System.ValueTuple`8")).Fields.Single(f => f.Name == "Item4")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item5),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_TRest_Item5),
                 Resolve(Resolve(ImportType("System.ValueTuple`8")).Fields.Single(f => f.Name == "Item5")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item6),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_TRest_Item6),
                 Resolve(Resolve(ImportType("System.ValueTuple`8")).Fields.Single(f => f.Name == "Item6")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Item7),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_TRest_Item7),
                 Resolve(Resolve(ImportType("System.ValueTuple`8")).Fields.Single(f => f.Name == "Item7")));
             _fields.Add(
-                (FieldSymbol)_compilation.corLibrary.GetWellKnownMember(WellKnownMember.ValueTuple_TRest_Rest),
+                (FieldSymbol)_compilation.GetWellKnownTypeMember(WellKnownMember.ValueTuple_TRest_Rest),
                 Resolve(Resolve(ImportType("System.ValueTuple`8")).Fields.Single(f => f.Name == "Rest")));
         }
     }
@@ -2464,8 +2486,10 @@ internal partial class ILEmitter : ModuleBuilder {
         }
 
         if (foundTypes.Count == 0) {
-            for (var i = 0; i < _backupAssemblies.Count; i++) {
-                var modules = _backupAssemblies[i].Modules;
+            var backupAssemblies = GetBackupAssemblies();
+
+            for (var i = 0; i < backupAssemblies.Count; i++) {
+                var modules = backupAssemblies[i].Modules;
 
                 for (var j = 0; j < modules.Count; j++) {
                     var types = modules[j].Types;
@@ -2518,7 +2542,7 @@ internal partial class ILEmitter : ModuleBuilder {
             throw new BelteInternalException($"Required method not found: {typeName} {methodName} {parameterTypeNames.Length}");
         }
 
-        var foundType = _backupAssemblies
+        var foundType = GetBackupAssemblies()
             .SelectMany(a => a.Modules)
             .SelectMany(m => m.Types)
             .Where(t => t.FullName == typeName)

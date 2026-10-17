@@ -155,7 +155,7 @@ internal sealed partial class BoundProgram {
         return builder.ToImmutableAndFree();
     }
 
-    internal ImmutableArray<NamedTypeSymbol> GetTypesToEmit(bool noStdLib, bool includeGraphicsWellKnownTypes) {
+    internal ImmutableArray<NamedTypeSymbol> GetTypesToEmit(bool noStdLib) {
         var types = GetAllTypes();
         var length = types.Length;
         var builder = ArrayBuilder<NamedTypeSymbol>.GetInstance(length);
@@ -178,10 +178,7 @@ internal sealed partial class BoundProgram {
             if (!TemplateExpander.ShouldEmit(namedType))
                 continue;
 
-            var wellKnownType = WellKnownTypes.GetTypeFromMetadataName(namedType);
-
-            if (wellKnownType.ShouldEmit(noStdLib, includeGraphicsWellKnownTypes))
-                builder.Add(namedType);
+            builder.Add(namedType);
         }
 
         return builder.ToImmutableAndFree();

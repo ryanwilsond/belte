@@ -211,7 +211,7 @@ internal sealed partial class CompileTimeLowerer : BoundTreeExpander {
         }
 
         var initializer = new BoundArrayCreationExpression(syntax,
-            [BoundFactory.Literal(_compilation, syntax, fieldValues.Length, _compilation.GetSpecialType(SpecialType.Int))],
+            [BoundFactory.Literal(_compilation, syntax, fieldValues.Length, _compilation.GetSpecialType(SpecialType.Int32))],
             new BoundInitializerList(syntax,
                 fieldValues.Select(p => {
                     BoundExpression result;
@@ -410,6 +410,9 @@ internal sealed partial class CompileTimeLowerer : BoundTreeExpander {
 
     private protected override List<BoundStatement> ExpandLocalDeclarationStatement(
         BoundLocalDeclarationStatement statement) {
+        if (statement.declaration.initializer is null)
+            return [statement];
+
         var statements = ExpandExpression(statement.declaration.initializer, out var newInitializer);
         var dataContainer = statement.declaration.dataContainer;
 

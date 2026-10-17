@@ -96,7 +96,7 @@ internal sealed class SourceTemplateParameterSymbol : SourceTemplateParameterSym
     private protected override TypeParameterBounds ResolveBounds(
         ConsList<TemplateParameterSymbol> inProgress,
         BelteDiagnosticQueue diagnostics) {
-        var constraintTypes = _owner.GetTypeParameterConstraintTypes(ordinal, diagnostics);
+        var constraintTypes = _owner.GetTypeParameterConstraintTypes(ordinal);
 
         if (constraintTypes.IsEmpty && GetConstraintKinds() == TypeParameterConstraintKinds.None)
             return null;

@@ -11,22 +11,16 @@ internal enum WellKnownType : byte {
 
     First = SpecialType.NextAvailable,
 
-    // Required
+    Belte_Enumerator = First,
 
-    Enumerator = First,
-
-    // Non-required
-
-    ValueTuple_T1,
-    ValueTuple_T2,
-    ValueTuple_T3,
-    ValueTuple_T4,
-    ValueTuple_T5,
-    ValueTuple_T6,
-    ValueTuple_T7,
-    ValueTuple_TRest,
-
-    // PE
+    Belte_ValueTuple_T1,
+    Belte_ValueTuple_T2,
+    Belte_ValueTuple_T3,
+    Belte_ValueTuple_T4,
+    Belte_ValueTuple_T5,
+    Belte_ValueTuple_T6,
+    Belte_ValueTuple_T7,
+    Belte_ValueTuple_TRest,
 
     System_Exception,
     System_Collections_IEnumerable,
@@ -62,11 +56,6 @@ internal enum WellKnownType : byte {
 
 
     NextAvailable,
-
-    LastNativeType = ValueTuple_TRest,
-    LastNativeRequiredType = Enumerator,
-    FirstPEType = System_Exception,
-    LastPEType = Belte_Graphics_Sound,
 
     ExtSentinel = 255,
 }
