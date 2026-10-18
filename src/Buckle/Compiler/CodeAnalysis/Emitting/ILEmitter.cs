@@ -108,10 +108,6 @@ internal partial class ILEmitter : ModuleBuilder {
 #pragma warning restore IL3000
 #endif
 
-        // TODO Loading in all these references takes quite a bit of time
-        // Perhaps could be more lazy?
-        // Even better yet, have the Compilation track used references so we know exactly what we need to load
-
         var explicitReferences = _compilation.GetBoundReferenceManager().explicitReferences;
         var usedReferences = _compilation.GetUsedReferences();
         var references = ArrayBuilder<string>.GetInstance(explicitReferences.Length);
@@ -1292,7 +1288,8 @@ internal partial class ILEmitter : ModuleBuilder {
     }
 
     private void CompleteWellKnownTypes() {
-        if (!_topLevelTypes.Contains(_compilation.GetWellKnownType(WellKnownType.Belte_ValueTuple_T1))) {
+        if (_compilation.GetWellKnownType(WellKnownType.Belte_ValueTuple_T1) is not MissingMetadataTypeSymbol &&
+            !_topLevelTypes.Contains(_compilation.GetWellKnownType(WellKnownType.Belte_ValueTuple_T1))) {
             _types.Add(
                 _compilation.GetWellKnownType(WellKnownType.Belte_ValueTuple_T1),
                 Resolve(ImportType("System.ValueTuple`1")));

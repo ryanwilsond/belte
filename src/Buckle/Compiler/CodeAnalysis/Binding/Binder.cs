@@ -743,14 +743,10 @@ internal partial class Binder {
         }
 
         if (namespaceOrNonNullableType.isType) {
-            var type = namespaceOrNonNullableType.typeWithAnnotations.type;
-
-            // TODO I don't like this being here
-            if (type.kind == SymbolKind.NamedType && !type.IsFromCompilation(compilation))
-                compilation.NoteUsedAssemblyFromType((NamedTypeSymbol)type);
-
-            if (rewriteBufferType)
+            if (rewriteBufferType) {
+                var type = namespaceOrNonNullableType.typeWithAnnotations.type;
                 return new TypeWithAnnotations(RewriteAndCheckBufferType(type, syntax.location, diagnostics));
+            }
         }
 
         return namespaceOrNonNullableType;

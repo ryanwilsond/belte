@@ -339,7 +339,7 @@ public class {name} {{
         string processName,
         string[] args,
         out CompilerState state,
-        out (BuildMode buildMode, string[] arguments, string path)[] runInfo) {
+        out RunInfo[] runInfo) {
         int err;
 
         var buildState = DecodeBuildOptions(
@@ -428,7 +428,7 @@ public class {name} {{
 
         var builds = builder.nestedBuilds is null ? [builder] : builder.nestedBuilds.Prepend(builder).ToArray();
         var results = new List<LocalBuildResult>(builds.Length);
-        var runInfos = new List<(BuildMode, string[], string)>(builds.Length);
+        var runInfos = new List<RunInfo>(builds.Length);
 
         foreach (var build in builds) {
             err = RunBuild(
@@ -444,7 +444,9 @@ public class {name} {{
             );
 
             results.Add(localBuildResult);
-            runInfos.Add((localState.buildMode, localState.arguments, localState.outputFilename));
+            runInfos.Add(
+                new(localState.buildMode, localState.projectType, localState.arguments, localState.outputFilename)
+            );
 
             if (err > 0)
                 break;
@@ -593,8 +595,8 @@ public class {name} {{
         var sawNonRunnableMode = false;
         var sawRunnableMode = false;
 
-        foreach (var (buildMode, arguments, path) in runInfo) {
-            switch (buildMode) {
+        foreach (var info in runInfo) {
+            switch (info.buildMode) {
                 case BuildMode.CSharpTranspile:
                 case BuildMode.Repl:
                 case BuildMode.None:
@@ -609,8 +611,13 @@ public class {name} {{
                     sawRunnableMode = true;
                     break;
                 case BuildMode.Dotnet:
-                    sawRunnableMode = true;
-                    err = ExecuteRun(processName, state, path, arguments);
+                    if (info.outputKind == OutputKind.DynamicallyLinkedLibrary) {
+                        sawNonRunnableMode = true;
+                    } else {
+                        sawRunnableMode = true;
+                        err = ExecuteRun(processName, state, info.path, info.arguments);
+                    }
+
                     break;
                 case BuildMode.Independent:
                 default:

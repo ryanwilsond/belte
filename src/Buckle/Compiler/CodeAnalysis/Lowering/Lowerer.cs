@@ -110,8 +110,10 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         if (node is null)
             return null;
 
-        if (node is BoundExpression e && e.constantValue is not null)
+        if (node is BoundExpression e && e.constantValue is not null) {
+            _ = VisitType(e.type);
             return VisitConstant(_compilation, e);
+        }
 
         return base.Visit(node);
     }
@@ -130,8 +132,13 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
     }
 
     internal override TypeSymbol VisitType(TypeSymbol type) {
-        if (type is not null && TemplateExpander.ContainsTemplateTypeNeedingExpansion(type))
-            _sawNonTypeTemplate = true;
+        if (type is not null) {
+            if (TemplateExpander.ContainsTemplateTypeNeedingExpansion(type))
+                _sawNonTypeTemplate = true;
+
+            // TODO I don't like this being here
+            type.VisitType(Compilation.VisitTypeNoteUsedAssemblies, _compilation, canDigThroughNullable: true);
+        }
 
         return base.VisitType(type);
     }

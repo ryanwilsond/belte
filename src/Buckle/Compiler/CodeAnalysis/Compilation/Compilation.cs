@@ -792,13 +792,21 @@ public sealed partial class Compilation {
         return _usedReferences;
     }
 
-    internal void NoteUsedAssemblyFromType(NamedTypeSymbol type) {
-        Debug.Assert(type.containingAssembly is not null || type is PrimitiveTypeSymbol);
-
-        if (options.buildMode == BuildMode.Dotnet && type.containingAssembly is not null) {
+    internal void NoteUsedAssemblyFromSymbol(Symbol symbol) {
+        if (options.buildMode == BuildMode.Dotnet && symbol.containingAssembly is not null) {
             _usedAssemblies ??= [];
-            _usedAssemblies.Add(type.containingAssembly);
+            _usedAssemblies.Add(symbol.containingAssembly);
         }
+    }
+
+    internal static bool VisitTypeNoteUsedAssemblies(
+        TypeSymbol type,
+        Compilation argument,
+        bool _) {
+        if (!type.IsFromCompilation(argument))
+            argument.NoteUsedAssemblyFromSymbol(type);
+
+        return false;
     }
 
     internal void NoteAnonymousEnumType(AnonymousEnumType type) {
