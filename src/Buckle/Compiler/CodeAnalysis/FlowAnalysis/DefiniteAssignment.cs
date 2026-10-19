@@ -346,16 +346,17 @@ internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
         }
 
         // TODO Also warn on static constructors?
-        if (_method.methodKind == MethodKind.Constructor && Binder.IsThisInstanceAccess(node.receiver)) {
+        if (_method.methodKind == MethodKind.Constructor && node.receiver?.kind == BoundKind.ThisExpression) {
             Debug.Assert(_fieldsRequiringAssignment is not null && _propertiesRequiringAssignment is not null);
 
             // Technically a method with init fields could leak stuff
+            // But we want this error to be fairly conservative so it isn't annoying
             if (!node.method.IsConstructor() && node.method.initFields.IsDefaultOrEmpty) {
                 foreach (var field in _fieldsRequiringAssignment) {
                     if (!field.isStatic) {
                         if (!_assignments[_slotMap[field]]) {
                             _diagnostics.Push(Warning.PotentialUninitializedObjectLeak(node.syntax.location));
-                            break;
+                            goto Break;
                         }
                     }
                 }
@@ -364,13 +365,14 @@ internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
                     if (!property.isSealed) {
                         if (!_assignments[_slotMap[property]]) {
                             _diagnostics.Push(Warning.PotentialUninitializedObjectLeak(node.syntax.location));
-                            break;
+                            goto Break;
                         }
                     }
                 }
             }
         }
 
+Break:
         return node;
     }
 

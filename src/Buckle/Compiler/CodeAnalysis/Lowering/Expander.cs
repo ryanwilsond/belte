@@ -453,6 +453,61 @@ internal sealed class Expander : SharedExpander {
         return statements;
     }
 
+    private protected override List<BoundStatement> ExpandExpressionList(
+        ImmutableArray<BoundExpression> expressions,
+        out ImmutableArray<BoundExpression> replacement) {
+        var statements = new List<BoundStatement>();
+        var replacementExpressions = ArrayBuilder<BoundExpression>.GetInstance();
+        var spilled = new bool[expressions.Length];
+
+        for (var i = 0; i < expressions.Length; i++) {
+            var expression = expressions[i];
+            var spillCounter = statements.Count;
+            statements.AddRange(ExpandExpression(expression, out var newExpression));
+            replacementExpressions.Add(newExpression);
+            CorrectSpill(statements, replacementExpressions, spilled, i, expression.syntax, spillCounter);
+        }
+
+        replacement = replacementExpressions.ToImmutableAndFree();
+        return statements;
+    }
+
+    private void CorrectSpill(
+        List<BoundStatement> statements,
+        ArrayBuilder<BoundExpression> replacementExpressions,
+        bool[] spilled,
+        int i,
+        SyntaxNode syntax,
+        int spillCounter) {
+        if (statements.Count > spillCounter && i > 0) {
+            // We spilled arguments, so now we need to ensure every argument before this one spills it's value
+            // to ensure correct argument execution order
+            for (var j = i - 1; j >= 0; j--) {
+                if (spilled[j])
+                    continue;
+
+                spilled[j] = true;
+                var replaced = replacementExpressions[j];
+                var tempList = new List<BoundStatement>();
+
+                _ = StabilizeIfNecessary(
+                    syntax,
+                    UseKind.StableValue,
+                    tempList,
+                    replaced,
+                    out replaced
+                );
+
+                replacementExpressions[j] = replaced;
+
+                statements.InsertRange(
+                    spillCounter,
+                    tempList
+                );
+            }
+        }
+    }
+
     private protected override List<BoundStatement> ExpandArgumentList(
         ImmutableArray<ParameterSymbol> parameters,
         ImmutableArray<BoundExpression> arguments,
@@ -477,9 +532,11 @@ internal sealed class Expander : SharedExpander {
         for (var i = 0; i < arguments.Length; i++) {
             var argument = arguments[i];
             var parameter = parameters[i];
-            var needsStableValue = needsStableValueMap[i];
+            var spillCounter = statements.Count;
 
             if (argument is BoundDataContainerExpression d && d.syntax.kind == SyntaxKind.DeclarationExpression) {
+                needsStableValueMap[i] = true;
+
                 statements.Add(LocalDeclaration(
                     d.syntax,
                     d.dataContainer,
@@ -496,6 +553,8 @@ internal sealed class Expander : SharedExpander {
                 var syntax = argument.syntax;
                 var type = argument.type;
                 var temp = GenerateTempLocal(type);
+
+                needsStableValueMap[i] = true;
 
                 statements.Add(LocalDeclaration(syntax,
                     temp,
@@ -515,6 +574,8 @@ internal sealed class Expander : SharedExpander {
                     replacementExpressions
                 );
 
+                var needsStableValue = needsStableValueMap[i];
+
                 statements.AddRange(ExpandExpression(
                     newArgument,
                     out newArgument,
@@ -523,6 +584,8 @@ internal sealed class Expander : SharedExpander {
 
                 replacementExpressions.Add(newArgument);
             } else {
+                var needsStableValue = needsStableValueMap[i];
+
                 statements.AddRange(ExpandExpression(
                     argument,
                     out var newArgument,
@@ -531,6 +594,8 @@ internal sealed class Expander : SharedExpander {
 
                 replacementExpressions.Add(newArgument);
             }
+
+            CorrectSpill(statements, replacementExpressions, needsStableValueMap, i, argument.syntax, spillCounter);
         }
 
         replacement = replacementExpressions.ToImmutableAndFree();

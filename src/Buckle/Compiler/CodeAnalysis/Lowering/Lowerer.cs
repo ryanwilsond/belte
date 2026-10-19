@@ -377,7 +377,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         */
         var syntax = node.syntax;
 
-        if (isLeftOfAssignment) {
+        if (isLeftOfAssignment && node.property.refKind == RefKind.None) {
             // AssignmentOperator will rewrite
             return node;
         } else {
@@ -402,11 +402,15 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
 
         ----> <left> is Array
 
-        <left.Set(<index>, <right>)>
+        <left>.Set(<index>, <right>)
 
         ----> <left> is property
 
-        <left.set_(<right>)>
+        <left>.set_(<right>)
+
+        ----> <left> is ref property
+
+        <left>.get_Property() = <right>
 
         */
         if (expression.left.Type().IsNullableType() &&
@@ -447,17 +451,49 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
 
         if (expression.left.kind == BoundKind.PropertyAccessExpression) {
             var syntax = expression.syntax;
+            var access = (BoundPropertyAccessExpression)expression.left;
 
-            var rewritten = VisitPropertyAccessCore(
-                (BoundPropertyAccessExpression)expression.left,
-                isLeftOfAssignment: true
-            ) as BoundPropertyAccessExpression;
+            var rewritten = (BoundExpression)VisitPropertyAccessCore(access, isLeftOfAssignment: true);
 
-            Debug.Assert(rewritten is not null);
+            if (access.property.refKind == RefKind.None) {
+                var rewrittenAccess = rewritten as BoundPropertyAccessExpression;
+                Debug.Assert(rewrittenAccess is not null);
+                var property = rewrittenAccess.property;
+                var setMethod = property.GetOwnOrInheritedSetMethod();
 
-            var setMethod = rewritten.property.GetOwnOrInheritedSetMethod();
-            Debug.Assert(setMethod.parameterCount == 1);
-            return Visit(InstanceCall(syntax, rewritten.receiver, setMethod, [expression.right]));
+                if (setMethod is null) {
+                    var autoProperty = (SourcePropertySymbolBase)property.originalDefinition;
+                    Debug.Assert(autoProperty.isAutoPropertyOrUsesFieldKeyword);
+                    Debug.Assert(_method.IsConstructor());
+                    Debug.Assert(autoProperty.Equals(property));
+                    Debug.Assert(property.refKind == RefKind.None);
+
+                    var backingField = autoProperty.backingField;
+                    Debug.Assert(backingField.type.Equals(expression.right.type));
+
+                    return Visit(Assignment(syntax,
+                        new BoundFieldAccessExpression(syntax, rewrittenAccess.receiver, backingField, null, backingField.type),
+                        expression.right,
+                        isRef: false,
+                        backingField.type
+                    ));
+                }
+
+                Debug.Assert(setMethod.parameterCount == 1);
+                return Visit(InstanceCall(syntax, rewrittenAccess.receiver, setMethod, [expression.right]));
+            } else {
+#if DEBUG
+                var setMethod = access.property.GetOwnOrInheritedSetMethod();
+                Debug.Assert(setMethod is null);
+#endif
+
+                return Assignment(syntax,
+                    rewritten,
+                    (BoundExpression)Visit(expression.right),
+                    isRef: false,
+                    rewritten.type
+                );
+            }
         }
 
         return base.VisitAssignmentOperator(expression);

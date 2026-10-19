@@ -904,6 +904,9 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private void EmitInternal() {
+        var time = _compilation.options.time;
+        var timer = time ? Stopwatch.StartNew() : null;
+
         GenerateSTLMap();
         CompleteWellKnownTypes();
 
@@ -920,6 +923,17 @@ internal sealed partial class Executor : ModuleBuilder {
             var linearTypes = _linearNestedTypes;
             Parallel.For(0, linearTypes.Length, parallelOptions, i => CreateMemberDefinitions(linearTypes[i]));
 
+            if (time) {
+                timer.Stop();
+
+                _diagnostics.Push(new BelteDiagnostic(
+                    DiagnosticSeverity.Debug,
+                    $"    Emitting time spent in symbol definition creation: {timer.ElapsedMilliseconds} ms"
+                ));
+
+                timer.Restart();
+            }
+
             Parallel.ForEach(_methods, parallelOptions, method => {
                 if (method.Value is MethodBuilder mb)
                     EmitMethod(method.Key, mb);
@@ -929,12 +943,32 @@ internal sealed partial class Executor : ModuleBuilder {
                 if (method.Value is ConstructorBuilder mb)
                     EmitConstructor(mb);
             });
+
+            if (time) {
+                timer.Stop();
+
+                _diagnostics.Push(new BelteDiagnostic(
+                    DiagnosticSeverity.Debug,
+                    $"    Emitting time spent in code generation: {timer.ElapsedMilliseconds} ms"
+                ));
+            }
         } else {
             foreach (var type in _topLevelTypes)
                 CreateMemberDefinitions(type);
 
             foreach (var type in _linearNestedTypes)
                 CreateMemberDefinitions(type);
+
+            if (time) {
+                timer.Stop();
+
+                _diagnostics.Push(new BelteDiagnostic(
+                    DiagnosticSeverity.Debug,
+                    $"    Emitting time spent in symbol definition creation: {timer.ElapsedMilliseconds} ms"
+                ));
+
+                timer.Restart();
+            }
 
             foreach (var method in _methods) {
                 if (method.Value is MethodBuilder mb)
@@ -944,6 +978,15 @@ internal sealed partial class Executor : ModuleBuilder {
             foreach (var method in _constructors) {
                 if (method.Value is ConstructorBuilder cb)
                     EmitConstructor(cb);
+            }
+
+            if (time) {
+                timer.Stop();
+
+                _diagnostics.Push(new BelteDiagnostic(
+                    DiagnosticSeverity.Debug,
+                    $"    Emitting time spent in code generation: {timer.ElapsedMilliseconds} ms"
+                ));
             }
         }
 

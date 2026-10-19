@@ -4688,4 +4688,84 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void ObjectLeak_DoesntReportTwiceOnSameCall() {
+        var text = @"
+            class A {
+                int f;
+                property int a { get => field; }
+                constructor() {
+                    [Call()];
+                    f = 0;
+                    a = 0;
+                }
+
+                void Call() { }
+            }
+        ";
+
+        var diagnostics = @"
+            call potentially leaks uninitialized object state
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, minimumSeverity: DiagnosticSeverity.Warning);
+    }
+
+    [Fact]
+    public void PropertySet_UsesGetIfRefProperty() {
+        var text = @"
+            class A {
+                public int f = 0;
+                public property ref int a { get => ref f; }
+                public constructor() {
+                    a = 5;
+                }
+            }
+
+            var a = new A();
+            return a.a;
+        ";
+
+        AssertValue(text, 5);
+    }
+
+    [Fact]
+    public void ExpressionList_SpillsInCorrectOrder() {
+        var text = @"
+            class A {
+                public int f = 0;
+            }
+
+            int g = 0;
+
+            int Call1() {
+                g = 1;
+                return 0;
+            }
+
+            A? Call2() {
+                g = 2;
+                return new();
+            }
+
+            void Call(int a, int b) { }
+
+            Call(Call1(), Call2()?.f!);
+            return g;
+        ";
+
+        AssertValue(text, 2);
+    }
+
+    [Fact]
+    public void ArrayCreation_ExpandsSizes() {
+        var text = @"
+            int? a = 1;
+            var b = new int[a?];
+            return 0;
+        ";
+
+        AssertValue(text, 0);
+    }
 }

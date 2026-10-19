@@ -267,6 +267,9 @@ public sealed class DisplayText {
             case BoundKind.FieldAccessExpression:
                 DisplayFieldAccessExpression(text, (BoundFieldAccessExpression)node);
                 break;
+            case BoundKind.PropertyAccessExpression:
+                DisplayPropertyAccessExpression(text, (BoundPropertyAccessExpression)node);
+                break;
             case BoundKind.ConditionalAccessExpression:
                 DisplayConditionalAccessExpression(text, (BoundConditionalAccessExpression)node);
                 break;
@@ -435,6 +438,9 @@ public sealed class DisplayText {
                 break;
             case BoundKind.NewT:
                 DisplayNewT(text, (BoundNewT)node);
+                break;
+            case BoundKind.Dup:
+                DisplayDup(text);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
@@ -633,6 +639,11 @@ public sealed class DisplayText {
         SymbolDisplay.AppendToDisplayText(text, node.type, SymbolDisplayFormat.ObjectCreationFormat);
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+    }
+
+    private static void DisplayDup(DisplayText text) {
+        text.Write(CreateKeyword("dup"));
+        text.WriteLine();
     }
 
     private static void DisplayBindsExpression(DisplayText text, BoundBindsExpression node) {
@@ -1184,6 +1195,24 @@ public sealed class DisplayText {
         text.Write(CreateIdentifier(node.field.name));
     }
 
+    private static void DisplayPropertyAccessExpression(
+        DisplayText text,
+        BoundPropertyAccessExpression node,
+        bool conditional = false) {
+        if (node.receiver is not null) {
+            DisplayNode(text, node.receiver);
+        } else {
+            SymbolDisplay.AppendToDisplayText(
+                text,
+                node.property.containingType,
+                SymbolDisplayFormat.QualifiedNameFormat
+            );
+        }
+
+        text.Write(CreatePunctuation(conditional ? SyntaxKind.QuestionPeriodToken : SyntaxKind.PeriodToken));
+        text.Write(CreateIdentifier(node.property.name));
+    }
+
     private static void DisplayArrayAccessExpression(
         DisplayText text,
         BoundArrayAccessExpression node,
@@ -1229,6 +1258,9 @@ public sealed class DisplayText {
                 break;
             case BoundArrayLength l:
                 DisplayArrayLength(text, l, true);
+                break;
+            case BoundPropertyAccessExpression p:
+                DisplayPropertyAccessExpression(text, p, true);
                 break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(accessExpression.kind);

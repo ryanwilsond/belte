@@ -96,7 +96,7 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriterWithStackGuard {
             );
         }
 
-        if (local.isRef && node.declaration.initializer.IsLiteralNull())
+        if (local.isRef && (node.declaration.initializer is null || node.declaration.initializer.IsLiteralNull()))
             _lateTempCount++;
 
         if (node.declaration.initializer is null)

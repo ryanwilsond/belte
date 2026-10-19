@@ -39,7 +39,7 @@ else
 	MKDIR:=mkdir -p
 endif
 
-all: debug
+all: releasemfnolibs
 release: prebuild libs copydlls build postbuild
 releasemf: prebuild libs copylibs copydlls buildmf postbuild
 releasemfnolibs: prebuild copydlls buildmf postbuild

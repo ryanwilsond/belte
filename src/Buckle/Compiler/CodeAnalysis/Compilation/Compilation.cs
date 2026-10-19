@@ -767,6 +767,11 @@ public sealed partial class Compilation {
     }
 
     internal bool[] GetUsedReferences() {
+        if (options.buildMode == BuildMode.Repl) {
+            Debug.Assert(GetBoundReferenceManager().explicitReferences.Length == 0);
+            return [];
+        }
+
         Debug.Assert(options.buildMode == BuildMode.Dotnet);
         Debug.Assert(_referenceManager is not null);
 

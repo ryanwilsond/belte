@@ -1353,10 +1353,9 @@ internal abstract partial class BoundTreeExpander {
         return ExpandExpressionList(arguments, out replacement);
     }
 
-    private protected List<BoundStatement> ExpandExpressionList(
+    private protected virtual List<BoundStatement> ExpandExpressionList(
         ImmutableArray<BoundExpression> expressions,
-        out ImmutableArray<BoundExpression> replacement,
-        UseKind useKind = UseKind.Value) {
+        out ImmutableArray<BoundExpression> replacement) {
         var statements = new List<BoundStatement>();
         var replacementExpressions = ArrayBuilder<BoundExpression>.GetInstance();
 
@@ -1612,13 +1611,15 @@ internal abstract partial class BoundTreeExpander {
         BoundArrayCreationExpression expression,
         out BoundExpression replacement,
         UseKind useKind) {
-        if (expression.initializer is null) {
-            replacement = expression;
-            return [];
-        }
+        var statements = ExpandExpressionList(expression.sizes, out var newSizes);
 
-        var statements = ExpandExpression(expression.initializer, out var newInitializer);
-        replacement = expression.Update(expression.sizes, (BoundInitializerList)newInitializer, expression.type);
+        BoundExpression newInitializer = null;
+
+        if (expression.initializer is not null)
+            statements.AddRange(ExpandExpression(expression.initializer, out newInitializer));
+
+        // TODO Worth checking for updates by iterating sizes?
+        replacement = expression.Update(newSizes, newInitializer as BoundInitializerList, expression.type);
         return statements;
     }
 
