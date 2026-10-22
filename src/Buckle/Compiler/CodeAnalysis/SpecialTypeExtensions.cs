@@ -1,10 +1,13 @@
 using System.Diagnostics;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis;
 
 internal static class SpecialTypeExtensions {
     private static readonly string[] EmittedNames = [
+        null,
         null,
         null,
         null,
@@ -40,6 +43,7 @@ internal static class SpecialTypeExtensions {
     ];
 
     private static readonly string[] NetEmittedNames = [
+        null,
         null,
         null,
         null,
@@ -184,6 +188,7 @@ internal static class SpecialTypeExtensions {
             bool => SpecialType.Bool,
             char => SpecialType.Char,
             TypeSymbol => SpecialType.Type,
+            SyntaxNode => SpecialType.Code,
             _ => SpecialType.None,
         };
     }
@@ -403,6 +408,8 @@ internal static class SpecialTypeExtensions {
             case SpecialType.Nullable:
             default:
                 return false;
+            case SpecialType.Code:
+                throw ExceptionUtilities.UnexpectedValue(type);
         }
     }
 
@@ -439,6 +446,8 @@ internal static class SpecialTypeExtensions {
             case SpecialType.Buffer:
             default:
                 return false;
+            case SpecialType.Code:
+                throw ExceptionUtilities.UnexpectedValue(type);
         }
     }
 
@@ -467,6 +476,8 @@ internal static class SpecialTypeExtensions {
                 return false;
             default:
                 return true;
+            case SpecialType.Code:
+                throw ExceptionUtilities.UnexpectedValue(type);
         }
     }
 }

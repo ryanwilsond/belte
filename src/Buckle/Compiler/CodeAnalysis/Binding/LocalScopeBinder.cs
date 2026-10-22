@@ -21,6 +21,7 @@ internal class LocalScopeBinder : Binder {
     private Dictionary<string, LabelSymbol> _lazyLabelsMap;
     private Dictionary<string, TokenSymbol> _lazyTokensMap;
     private List<Symbol> _nullAssertFacts;
+    private protected List<DataContainerSymbol> _additionalLocals;
 
     internal LocalScopeBinder(Binder next) : this(next, next.flags) { }
 
@@ -158,6 +159,9 @@ internal class LocalScopeBinder : Binder {
 
         foreach (var statement in statements)
             BuildLocals(enclosingBinder, statement, locals);
+
+        if (_additionalLocals is not null)
+            locals.AddRange(_additionalLocals);
 
         return locals.ToImmutableAndFree();
     }
@@ -307,6 +311,13 @@ internal class LocalScopeBinder : Binder {
             kind,
             initializerBinder
         );
+    }
+
+    private protected override void AddLocalToScope(SourceDataContainerSymbol local) {
+        _additionalLocals ??= [];
+        _additionalLocals.Add(local);
+        _locals = default;
+        _lazyLocalsMap = default;
     }
 
     private protected LocalFunctionSymbol MakeLocalFunction(LocalFunctionStatementSyntax declaration) {

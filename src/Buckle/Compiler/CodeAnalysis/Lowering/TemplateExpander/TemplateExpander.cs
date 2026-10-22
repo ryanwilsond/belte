@@ -487,7 +487,7 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
         return base.Visit(node);
     }
 
-    internal override TypeSymbol VisitType(TypeSymbol type) {
+    internal override TypeSymbol VisitType(TypeSymbol type, TextLocation _ = null) {
         if (type is null)
             return null;
 

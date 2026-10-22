@@ -177,6 +177,7 @@ internal sealed class CorLibrary {
         RegisterSpecialType(new PrimitiveTypeSymbol(_compilation, "float64", SpecialType.Float64));
         RegisterSpecialType(new PrimitiveTypeSymbol(_compilation, "intptr", SpecialType.IntPtr));
         RegisterSpecialType(new PrimitiveTypeSymbol(_compilation, "uintptr", SpecialType.UIntPtr));
+        RegisterSpecialType(new PrimitiveTypeSymbol(_compilation, "Code", SpecialType.Code));
     }
 
     private void RegisterNonPrimitiveCorTypes() {

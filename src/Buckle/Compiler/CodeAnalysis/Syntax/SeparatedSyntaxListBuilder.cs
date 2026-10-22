@@ -17,7 +17,7 @@ internal sealed class SeparatedSyntaxListBuilder<T> where T : SyntaxNode {
         return new SeparatedSyntaxListBuilder<T>(8);
     }
 
-    internal bool isNull => _builder is null;
+    internal bool isNullInternal => _builder is null;
 
     internal int count => _builder.count;
 
@@ -29,6 +29,13 @@ internal sealed class SeparatedSyntaxListBuilder<T> where T : SyntaxNode {
         CheckExpectedElement();
         _expectSeparator = true;
         _builder.Add(node);
+        return this;
+    }
+
+    internal SeparatedSyntaxListBuilder<T> AddRange(in SeparatedSyntaxList<T> nodes, int count) {
+        CheckExpectedElement();
+        var list = nodes.GetWithSeparators();
+        _builder.AddRange(list, this.count, Math.Min(count << 1, list.Count));
         return this;
     }
 

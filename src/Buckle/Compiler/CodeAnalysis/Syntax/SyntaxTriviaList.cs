@@ -1,7 +1,9 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using Buckle.CodeAnalysis.Text;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
@@ -9,6 +11,8 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// Represents list of SyntaxTrivias.
 /// </summary>
 public sealed partial class SyntaxTriviaList : IReadOnlyList<SyntaxTrivia> {
+    internal SyntaxTriviaList() { }
+
     /// <summary>
     /// Creates a new <see cref="SyntaxTriviaList" /> from an existing token, an underlying node, a position,
     /// and an optional start index.
@@ -100,6 +104,98 @@ public sealed partial class SyntaxTriviaList : IReadOnlyList<SyntaxTrivia> {
 
     public bool Any() {
         return node is not null;
+    }
+
+    internal int IndexOf(SyntaxTrivia triviaInList) {
+        for (int i = 0, n = Count; i < n; i++) {
+            var trivia = this[i];
+
+            if (trivia == triviaInList)
+                return i;
+        }
+
+        return -1;
+    }
+
+    internal SyntaxTriviaList ReplaceRange(SyntaxTrivia triviaInList, IEnumerable<SyntaxTrivia> newTrivia) {
+        var index = IndexOf(triviaInList);
+
+        if (index >= 0 && index < Count) {
+            var list = this.ToList();
+            list.RemoveAt(index);
+            list.InsertRange(index, newTrivia);
+            return new SyntaxTriviaList(default, GreenNode.CreateList(list, static n => n.green), 0, 0);
+        }
+
+        throw new ArgumentOutOfRangeException(nameof(triviaInList));
+    }
+
+    internal SyntaxTriviaList InsertRange(int index, IEnumerable<SyntaxTrivia> trivia) {
+        var thisCount = Count;
+
+        if (index < 0 || index > thisCount)
+            throw new ArgumentOutOfRangeException(nameof(index));
+
+        ArgumentNullException.ThrowIfNull(trivia);
+
+        if (trivia is ICollection<SyntaxTrivia> triviaCollection && triviaCollection.Count == 0)
+            return this;
+
+        var builder = GetBuilder();
+
+        try {
+            for (var i = 0; i < index; i++)
+                builder.Add(this[i]);
+
+            builder.AddRange(trivia);
+
+            for (var i = index; i < thisCount; i++)
+                builder.Add(this[i]);
+
+            return builder.Count == thisCount ? this : builder.ToList();
+        } finally {
+            ClearAndFreeBuilder(builder);
+        }
+    }
+
+    private static readonly ObjectPool<SyntaxTriviaListBuilder> BuilderPool =
+        new ObjectPool<SyntaxTriviaListBuilder>(() => SyntaxTriviaListBuilder.Create());
+
+    private static SyntaxTriviaListBuilder GetBuilder()
+        => BuilderPool.Allocate();
+
+    private static void ClearAndFreeBuilder(SyntaxTriviaListBuilder builder) {
+        const int MaxBuilderCount = 16;
+
+        if (builder.Count <= MaxBuilderCount) {
+            builder.Clear();
+            BuilderPool.Free(builder);
+        }
+    }
+
+    internal void CopyTo(int offset, SyntaxTrivia[] array, int arrayOffset, int count) {
+        if (offset < 0 || count < 0 || Count < offset + count)
+            throw new IndexOutOfRangeException();
+
+        if (count == 0)
+            return;
+
+        var first = this[offset];
+        array[arrayOffset] = first;
+
+        var position = first.position;
+        var current = first;
+
+        for (var i = 1; i < count; i++) {
+            position += current.fullWidth;
+            current = new SyntaxTrivia(token, GetGreenNodeAt(offset + i), position, index + i);
+
+            array[arrayOffset + i] = current;
+        }
+    }
+
+    private GreenNode GetGreenNodeAt(int i) {
+        return GetGreenNodeAt(node, i);
     }
 
     public Enumerator GetEnumerator() {

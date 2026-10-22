@@ -1399,6 +1399,25 @@
     <Field Name="then" Type="StatementSyntax" Override="true"/>
     <Field Name="elseClause" Type="ElseClauseSyntax" Optional="true" Override="true"/>
   </Node>
+  <Node Name="InsertStatementSyntax" Base="StatementSyntax">
+    <Kind Name="InsertStatement"/>
+    <Field Name="dollar" Type="SyntaxToken">
+      <Kind Name="DollarToken"/>
+    </Field>
+    <Field Name="insertKeyword" Type="SyntaxToken">
+      <Kind Name="InsertKeyword"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="name" Type="NameSyntax"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+    <Field Name="semicolon" Type="SyntaxToken">
+      <Kind Name="SemicolonToken"/>
+    </Field>
+  </Node>
   <Node Name="WithStatementSyntax" Base="StatementSyntax">
     <Kind Name="WithStatement"/>
     <Field Name="keyword" Type="SyntaxToken">
@@ -1602,6 +1621,22 @@
     <Kind Name="PrefixExpression"/>
     <Field Name="operatorToken" Type="SyntaxToken"/>
     <Field Name="operand" Type="ExpressionSyntax"/>
+  </Node>
+  <Node Name="CodeExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="CodeExpression"/>
+    <Field Name="dollar" Type="SyntaxToken">
+      <Kind Name="DollarToken"/>
+    </Field>
+    <Field Name="codeKeyword" Type="SyntaxToken">
+      <Kind Name="CodeKeyword"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="statement" Type="StatementSyntax"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
   </Node>
   <Node Name="UnaryExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="UnaryExpression"/>

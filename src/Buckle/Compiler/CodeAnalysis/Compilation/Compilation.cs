@@ -804,12 +804,15 @@ public sealed partial class Compilation {
         }
     }
 
-    internal static bool VisitTypeNoteUsedAssemblies(
+    internal static bool VisitTypeNoteUsedAssembliesAndReportCode(
         TypeSymbol type,
-        Compilation argument,
+        (Compilation compilation, TextLocation location, BelteDiagnosticQueue diagnostics) argument,
         bool _) {
-        if (!type.IsFromCompilation(argument))
-            argument.NoteUsedAssemblyFromSymbol(type);
+        if (!type.IsFromCompilation(argument.compilation))
+            argument.compilation.NoteUsedAssemblyFromSymbol(type);
+
+        if (type.specialType == SpecialType.Code && argument.location is not null)
+            argument.diagnostics.Push(Error.CannotEmitCodeType(argument.location));
 
         return false;
     }

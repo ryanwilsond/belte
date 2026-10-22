@@ -497,12 +497,20 @@ public sealed class DisplayText {
 
         var specialType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(value);
 
-        if (specialType == SpecialType.String)
-            DisplayStringLiteral(text, value.ToString(), false, true);
-        else if (specialType == SpecialType.Char)
-            DisplayStringLiteral(text, value.ToString(), true, true);
-        else
-            text.Write(CreateLiteral(value.ToString().ToLower()));
+        switch (specialType) {
+            case SpecialType.String:
+                DisplayStringLiteral(text, value.ToString(), false, true);
+                break;
+            case SpecialType.Char:
+                DisplayStringLiteral(text, value.ToString(), true, true);
+                break;
+            case SpecialType.Code:
+                text.Write(CreateLiteral(value.ToString()));
+                break;
+            default:
+                text.Write(CreateLiteral(value.ToString().ToLower()));
+                break;
+        }
     }
 
     private static void DisplayStringLiteral(DisplayText text, string value, bool isCharacter, bool includeQuotes) {

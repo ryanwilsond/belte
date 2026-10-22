@@ -10349,4 +10349,46 @@ var text = """"""
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0681_CannotEmitCodeType() {
+        var text = @"
+            [Code?] MyFunc() { return null; }
+        ";
+
+        var diagnostics = @"
+            cannot emit type 'Code'; it is a compile-time type only
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, references: []);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0682_InsertMustHaveCodeConstant() {
+        var text = @"
+            int a = 3;
+            $insert([a]);
+        ";
+
+        var diagnostics = @"
+            insert statement requires a compile-time constant of type 'Code'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0683_CannotInsertNonExpandParameter() {
+        var text = @"
+            void MyFunc(constexpr Code p) {
+                $insert([p]);
+            }
+        ";
+
+        var diagnostics = @"
+            cannot insert code from parameter 'p' because 'MyFunc(constexpr Code!)' is not marked 'expand'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

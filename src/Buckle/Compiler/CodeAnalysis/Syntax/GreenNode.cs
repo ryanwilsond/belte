@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Runtime.CompilerServices;
 using Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -22,19 +23,24 @@ internal abstract partial class GreenNode {
 
     private static readonly ConditionalWeakTable<GreenNode, Diagnostic[]> DiagnosticsTable =
         new ConditionalWeakTable<GreenNode, Diagnostic[]>();
+    private static readonly ConditionalWeakTable<GreenNode, SyntaxAnnotation[]> AnnotationsTable =
+        new ConditionalWeakTable<GreenNode, SyntaxAnnotation[]>();
     private static readonly Diagnostic[] NoDiagnostics = Array.Empty<Diagnostic>();
+    private static readonly SyntaxAnnotation[] NoAnnotations = Array.Empty<SyntaxAnnotation>();
+    private static readonly IEnumerable<SyntaxAnnotation> NoAnnotationsEnumerable
+        = SpecializedCollections.EmptyEnumerable<SyntaxAnnotation>();
 
     /// <summary>
     /// Creates a new <see cref="GreenNode" />.
     /// </summary>
-    internal GreenNode(SyntaxKind kind) {
+    private protected GreenNode(SyntaxKind kind) {
         this.kind = kind;
     }
 
     /// <summary>
     /// Creates a new <see cref="GreenNode" /> that contains diagnostics.
     /// </summary>
-    internal GreenNode(SyntaxKind kind, Diagnostic[] diagnostics) {
+    private protected GreenNode(SyntaxKind kind, Diagnostic[] diagnostics) {
         this.kind = kind;
 
         if (diagnostics?.Length > 0) {
@@ -45,10 +51,18 @@ internal abstract partial class GreenNode {
         }
     }
 
+    private protected GreenNode(SyntaxKind kind, Diagnostic[] diagnostics, SyntaxAnnotation[] annotations)
+        : this(kind, diagnostics) {
+        if (annotations?.Length > 0) {
+            _flags |= NodeFlags.HasAnnotationsDirectly;
+            AnnotationsTable.Add(this, annotations);
+        }
+    }
+
     /// <summary>
     /// Creates a new <see cref="GreenNode" /> with a preset width.
     /// </summary>
-    internal GreenNode(SyntaxKind kind, int fullWidth) {
+    private protected GreenNode(SyntaxKind kind, int fullWidth) {
         this.kind = kind;
         this.fullWidth = fullWidth;
     }
@@ -56,7 +70,7 @@ internal abstract partial class GreenNode {
     /// <summary>
     /// Creates a new <see cref="GreenNode" /> with a preset width and diagnostics.
     /// </summary>
-    internal GreenNode(SyntaxKind kind, int fullWidth, Diagnostic[] diagnostics) {
+    private protected GreenNode(SyntaxKind kind, int fullWidth, Diagnostic[] diagnostics) {
         this.kind = kind;
         this.fullWidth = fullWidth;
 
@@ -65,6 +79,18 @@ internal abstract partial class GreenNode {
                 ? NodeFlags.ContainsDiagnostics
                 : NodeFlags.ContainsDiagnostics | NodeFlags.ContainsDiagnosticsNoDirectives;
             DiagnosticsTable.Add(this, diagnostics);
+        }
+    }
+
+    private protected GreenNode(
+        SyntaxKind kind,
+        int fullWidth,
+        Diagnostic[] diagnostics,
+        SyntaxAnnotation[] annotations)
+        : this(kind, fullWidth, diagnostics) {
+        if (annotations?.Length > 0) {
+            _flags |= NodeFlags.HasAnnotationsDirectly;
+            AnnotationsTable.Add(this, annotations);
         }
     }
 
@@ -116,6 +142,8 @@ internal abstract partial class GreenNode {
     /// </summary>
     internal bool containsSkippedText => (_flags & NodeFlags.ContainsSkippedText) != 0;
 
+    internal bool hasAnnotationsDirectly => (_flags & NodeFlags.HasAnnotationsDirectly) != 0;
+
     /// <summary>
     /// If this <see cref="GreenNode" /> is any token type.
     /// </summary>
@@ -135,6 +163,18 @@ internal abstract partial class GreenNode {
 
     internal virtual bool isStructuredTrivia => false;
 
+    internal abstract SyntaxToken CreateSeparator(SyntaxNode element);
+
+    internal abstract bool IsTriviaWithEndOfLine();
+
+    internal static GreenNode CreateList<TFrom>(IEnumerable<TFrom> enumerable, Func<TFrom, GreenNode> select)
+        => enumerable switch {
+            null => null,
+            List<TFrom> l => CreateList(l, select),
+            IReadOnlyList<TFrom> l => CreateList(l, select),
+            _ => CreateList(enumerable.ToList(), select)
+        };
+
     public override string ToString() {
         var sb = PooledStringBuilder.GetInstance();
         var writer = new StringWriter(sb.Builder);
@@ -145,6 +185,41 @@ internal abstract partial class GreenNode {
     public void WriteTo(TextWriter writer) {
         WriteTo(writer, leading: true, trailing: true);
     }
+
+    internal SyntaxAnnotation[] GetAnnotations() {
+        if (!hasAnnotationsDirectly)
+            return NoAnnotations;
+
+        var found = AnnotationsTable.TryGetValue(this, out var annotations);
+        Debug.Assert(found);
+        Debug.Assert(annotations is not null);
+        Debug.Assert(annotations != NoAnnotations);
+        Debug.Assert(annotations.Length != 0);
+        return annotations;
+    }
+
+    internal IEnumerable<SyntaxAnnotation> GetAnnotations(string annotationKind) {
+        if (string.IsNullOrWhiteSpace(annotationKind))
+            throw new ArgumentNullException(nameof(annotationKind));
+
+        var annotations = GetAnnotations();
+
+        if (annotations == NoAnnotations)
+            return NoAnnotationsEnumerable;
+
+        return GetAnnotationsSlow(annotations, annotationKind);
+    }
+
+    private static IEnumerable<SyntaxAnnotation> GetAnnotationsSlow(
+        SyntaxAnnotation[] annotations,
+        string annotationKind) {
+        foreach (var annotation in annotations) {
+            if (annotation.kind == annotationKind)
+                yield return annotation;
+        }
+    }
+
+    internal abstract GreenNode SetAnnotations(SyntaxAnnotation[] annotations);
 
     /// <summary>
     /// Returns a child at slot <param name="index" />.
@@ -421,7 +496,7 @@ internal abstract partial class GreenNode {
     }
 
     private protected void AdjustFlagsAndWidth(GreenNode node) {
-        _flags |= node._flags;
+        _flags |= (node._flags & NodeFlags.InheritMask);
         fullWidth += node.fullWidth;
     }
 

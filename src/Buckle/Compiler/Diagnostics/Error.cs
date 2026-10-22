@@ -3306,6 +3306,26 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_CannotUseOuterByRef, location, message);
     }
 
+    internal static BelteDiagnostic CannotEmitCodeType(TextLocation location) {
+        var message = $"cannot emit type 'Code'; it is a compile-time type only";
+        return CreateError(DiagnosticCode.ERR_CannotEmitCodeType, location, message);
+    }
+
+    internal static BelteDiagnostic InsertMustHaveCodeConstant(TextLocation location) {
+        var message = $"insert statement requires a compile-time constant of type 'Code'";
+        return CreateError(DiagnosticCode.ERR_InsertMustHaveCodeConstant, location, message);
+    }
+
+    internal static BelteDiagnostic SecondaryLocation(TextLocation location) {
+        var message = $"diagnostic raised by inserted code";
+        return new BelteDiagnostic(new DiagnosticInfo(DiagnosticSeverity.All), location, message);
+    }
+
+    internal static BelteDiagnostic CannotInsertNonExpandParameter(TextLocation location, string name, Symbol symbol) {
+        var message = $"cannot insert code from parameter '{name}' because '{symbol}' is not marked 'expand'";
+        return CreateError(DiagnosticCode.ERR_CannotInsertNonExpandParameter, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

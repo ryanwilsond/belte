@@ -195,7 +195,9 @@ public enum SyntaxKind : ushort {
     OrKeyword,
     UnrollKeyword,
     BindsKeyword,
-    CheckedKeyword, // SyntaxFacts.LastKeyword
+    CheckedKeyword,
+    CodeKeyword,
+    InsertKeyword, // SyntaxFacts.LastKeyword
 
     // Trivia
     EndOfLineTrivia,
@@ -225,6 +227,7 @@ public enum SyntaxKind : ushort {
     DeclarationExpression,
     WithExpression,
     RangeExpression,
+    CodeExpression,
 
     // Operator expressions
     TernaryExpression,
@@ -283,6 +286,7 @@ public enum SyntaxKind : ushort {
     ReverseDeferStatement,
     LocalDeclarationStatement,
     LocalFunctionStatement,
+    InsertStatement,
 
     // Control flow statements
     BreakStatement,

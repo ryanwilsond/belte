@@ -50,12 +50,46 @@ internal partial class Binder {
             SyntaxKind.ReverseStatement => BindReverseStatement((ReverseStatementSyntax)node, diagnostics),
             SyntaxKind.ReverseDeferStatement => BindReverseDeferStatement((ReverseDeferStatementSyntax)node, diagnostics),
             SyntaxKind.CheckedStatement => BindCheckedStatement((CheckedStatementSyntax)node, diagnostics),
+            SyntaxKind.InsertStatement => BindInsertStatement((InsertStatementSyntax)node, diagnostics),
             _ => throw ExceptionUtilities.UnexpectedValue(node.kind),
         };
     }
 
     private BoundStatement BindCheckedStatement(CheckedStatementSyntax node, BelteDiagnosticQueue diagnostics) {
         return BindBlockStatement(node.body, diagnostics);
+    }
+
+    private BoundStatement BindInsertStatement(InsertStatementSyntax node, BelteDiagnosticQueue diagnostics) {
+        var expression = BindExpression(node.name, diagnostics);
+
+        if (expression.hasErrors)
+            return new BoundErrorStatement(node, [expression], true);
+
+        if (expression.constantValue is null || expression.type?.specialType != SpecialType.Code) {
+            if (expression.type?.specialType == SpecialType.Code &&
+                (expression?.expressionSymbol?.IsConstExpr() ?? false)) {
+                var parameter = (ParameterSymbol)expression.expressionSymbol;
+
+                diagnostics.Push(Error.CannotInsertNonExpandParameter(
+                    node.name.location,
+                    parameter.name,
+                    parameter.containingSymbol
+                ));
+            } else {
+                diagnostics.Push(Error.InsertMustHaveCodeConstant(node.name.location));
+            }
+
+            return new BoundErrorStatement(node, [expression], true);
+        }
+
+        Debug.Assert(expression.constantValue.value is StatementSyntax);
+        var statement = (StatementSyntax)expression.constantValue.value;
+        var rewritten = (StatementSyntax)statement.WithCompoundLocation(node.location);
+        rewritten = (StatementSyntax)rewritten.green.CreateRed(statement.parent, statement.position);
+
+        Debug.Assert(rewritten.location is CompoundTextLocation);
+
+        return BindStatement(rewritten, diagnostics);
     }
 
     private BoundStatement BindReverseStatement(ReverseStatementSyntax node, BelteDiagnosticQueue diagnostics) {
@@ -1442,17 +1476,27 @@ internal partial class Binder {
         TypeSyntax typeSyntax,
         EqualsValueClauseSyntax equalsValue,
         SyntaxTokenList modifiers) {
-        var localSymbol = LookupLocal(identifier) ?? SourceDataContainerSymbol.MakeLocal(
-            containingMember,
-            this,
-            false,
-            typeSyntax,
-            identifier,
-            equalsValue,
-            modifiers
-        );
+        var localSymbol = LookupLocal(identifier);
+
+        if (localSymbol is null) {
+            localSymbol = SourceDataContainerSymbol.MakeLocal(
+                containingMember,
+                this,
+                false,
+                typeSyntax,
+                identifier,
+                equalsValue,
+                modifiers
+            );
+
+            AddLocalToScope(localSymbol);
+        }
 
         return localSymbol;
+    }
+
+    private protected virtual void AddLocalToScope(SourceDataContainerSymbol local) {
+        next.AddLocalToScope(local);
     }
 
     private protected BoundLocalDeclarationStatement BindVariableDeclaration(

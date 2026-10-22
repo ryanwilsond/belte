@@ -126,6 +126,9 @@
     <Field Name="conditional" Type="bool"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
+  <Node Name="BoundCodeExpression" Base="BoundExpression">
+    <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
+  </Node>
   <Node Name="BoundUnconvertedNullptrExpression" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
   </Node>

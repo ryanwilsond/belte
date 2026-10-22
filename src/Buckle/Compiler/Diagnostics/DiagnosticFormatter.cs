@@ -1,4 +1,5 @@
 using System;
+using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
@@ -30,6 +31,12 @@ public static partial class DiagnosticFormatter {
                 default:
                     throw ExceptionUtilities.UnexpectedValue(inner);
             }
+        }
+
+        if (diagnostic.location is CompoundTextLocation compoundTextLocation) {
+            Debug.Assert(compoundTextLocation.secondaryLocation is not null);
+            Console.Write("  ");
+            PrettyPrint(Error.SecondaryLocation(compoundTextLocation.secondaryLocation));
         }
     }
 

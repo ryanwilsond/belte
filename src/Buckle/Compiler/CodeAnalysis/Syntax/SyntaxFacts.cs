@@ -267,12 +267,15 @@ public static class SyntaxFacts {
             "unroll" => SyntaxKind.UnrollKeyword,
             "binds" => SyntaxKind.BindsKeyword,
             "checked" => SyntaxKind.CheckedKeyword,
+            "code" => SyntaxKind.CodeKeyword,
+            "insert" => SyntaxKind.InsertKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
 
     internal static bool IsContextualKeyword(SyntaxKind kind) {
         switch (kind) {
+            case SyntaxKind.CodeKeyword:
             case SyntaxKind.DefineKeyword:
             case SyntaxKind.ElifKeyword:
             case SyntaxKind.EndifKeyword:
@@ -284,6 +287,7 @@ public static class SyntaxFacts {
             case SyntaxKind.HasKeyword:
             case SyntaxKind.ImplicitKeyword:
             case SyntaxKind.InitializesKeyword:
+            case SyntaxKind.InsertKeyword:
             case SyntaxKind.LiteralKeyword:
             case SyntaxKind.MemoizeKeyword:
             case SyntaxKind.NoallocKeyword:
@@ -482,6 +486,8 @@ public static class SyntaxFacts {
             SyntaxKind.UnrollKeyword => "unroll",
             SyntaxKind.BindsKeyword => "binds",
             SyntaxKind.CheckedKeyword => "checked",
+            SyntaxKind.CodeKeyword => "code",
+            SyntaxKind.InsertKeyword => "insert",
             _ => null,
         };
     }
@@ -887,7 +893,7 @@ public static class SyntaxFacts {
     }
 
     private const int FirstKeyword = (int)SyntaxKind.TypeOfKeyword;
-    private const int LastKeyword = (int)SyntaxKind.CheckedKeyword;
+    private const int LastKeyword = (int)SyntaxKind.InsertKeyword;
 
     /// <summary>
     /// Checks if a <see cref="SyntaxKind" /> is a keyword.

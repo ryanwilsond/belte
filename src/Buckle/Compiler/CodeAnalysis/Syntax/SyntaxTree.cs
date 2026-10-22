@@ -32,6 +32,7 @@ public partial class SyntaxTree {
     /// Creates a new <see cref="SyntaxTree" /> with the given node as the root.
     /// </summary>
     internal static SyntaxTree Create(SourceText text, BelteSyntaxNode root, ParseOptions options) {
+        Debug.Assert(options is not null);
         return new ParsedSyntaxTree(text, root, true, SourceCodeKind.Regular, options, default);
     }
 
@@ -40,6 +41,7 @@ public partial class SyntaxTree {
     /// given node's syntax tree.
     /// </summary>
     internal static SyntaxTree CreateWithoutClone(BelteSyntaxNode root, ParseOptions options) {
+        Debug.Assert(options is not null);
         return new ParsedSyntaxTree(null, root, false, SourceCodeKind.Regular, options, default);
     }
 

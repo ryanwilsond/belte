@@ -675,7 +675,7 @@ internal sealed partial class CodeGenerator {
         foreach (var local in block.locals) {
             Debug.Assert(local.refKind == RefKind.None || local.synthesizedKind.IsLongLived());
 
-            if (IsStackLocal(local))
+            if (IsStackLocal(local) || local.isConstExpr)
                 continue;
 
             Debug.Assert(!local.type.IsVoidType());
@@ -1395,6 +1395,9 @@ oneMoreTime:
             return;
 
         var local = declaration.dataContainer;
+
+        if (local.isConstExpr)
+            return;
 
         var assignment = BoundFactory.Assignment(
             null,

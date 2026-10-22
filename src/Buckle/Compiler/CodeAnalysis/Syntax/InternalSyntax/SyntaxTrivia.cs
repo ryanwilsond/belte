@@ -21,8 +21,8 @@ internal sealed class SyntaxTrivia : BelteSyntaxNode {
     /// <summary>
     /// Creates a new <see cref="SyntaxTrivia" /> with text and diagnostics.
     /// </summary>
-    internal SyntaxTrivia(SyntaxKind kind, string text, Diagnostic[] diagnostics)
-        : base(kind, text.Length, diagnostics) {
+    internal SyntaxTrivia(SyntaxKind kind, string text, Diagnostic[] diagnostics, SyntaxAnnotation[] annotations)
+        : base(kind, text.Length, diagnostics, annotations) {
         this.text = text;
         Debug.Assert(kind != SyntaxKind.SkippedTokensTrivia);
 
@@ -52,7 +52,11 @@ internal sealed class SyntaxTrivia : BelteSyntaxNode {
     }
 
     internal override GreenNode SetDiagnostics(Diagnostic[] diagnostics) {
-        return new SyntaxTrivia(kind, text, diagnostics);
+        return new SyntaxTrivia(kind, text, diagnostics, GetAnnotations());
+    }
+
+    internal override GreenNode SetAnnotations(SyntaxAnnotation[] annotations) {
+        return new SyntaxTrivia(kind, text, GetDiagnostics(), annotations);
     }
 
     internal override int GetLeadingTriviaWidth() {

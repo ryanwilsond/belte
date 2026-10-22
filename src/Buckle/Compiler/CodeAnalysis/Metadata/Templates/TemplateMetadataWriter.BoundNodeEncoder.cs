@@ -534,5 +534,9 @@ internal sealed partial class TemplateMetadataWriter {
 
             return null;
         }
+
+        internal override BoundNode VisitCodeExpression(BoundCodeExpression node) {
+            throw ExceptionUtilities.UnexpectedValue(node);
+        }
     }
 }

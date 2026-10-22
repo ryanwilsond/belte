@@ -469,6 +469,8 @@ internal partial class ILEmitter : ModuleBuilder {
         return typeRef;
 
         TypeReference GetTypeCore(TypeSymbol type) {
+            Debug.Assert(type.specialType != SpecialType.Code);
+
             if (type.specialType == SpecialType.Nullable) {
                 var underlyingType = type.GetNullableUnderlyingType();
                 var genericArgumentType = GetType(underlyingType);

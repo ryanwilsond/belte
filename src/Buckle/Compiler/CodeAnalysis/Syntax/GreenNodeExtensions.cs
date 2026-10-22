@@ -1,4 +1,6 @@
+using System.Collections.Generic;
 using Diagnostics;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
@@ -23,5 +25,52 @@ internal static class GreenNodeExtensions {
             return node;
 
         return (T)node.SetDiagnostics(null);
+    }
+
+    internal static T WithAnnotationsGreen<T>(this T node, IEnumerable<SyntaxAnnotation> annotations)
+        where T : GreenNode {
+        var newAnnotations = ArrayBuilder<SyntaxAnnotation>.GetInstance();
+
+        foreach (var candidate in annotations) {
+            if (!newAnnotations.Contains(candidate))
+                newAnnotations.Add(candidate);
+        }
+
+        if (newAnnotations.Count == 0) {
+            newAnnotations.Free();
+            var existingAnnotations = node.GetAnnotations();
+
+            if (existingAnnotations is null || existingAnnotations.Length == 0)
+                return node;
+            else
+                return (T)node.SetAnnotations(null);
+        } else {
+            return (T)node.SetAnnotations(newAnnotations.ToArrayAndFree());
+        }
+    }
+
+    internal static T WithAdditionalAnnotationsGreen<T>(
+        this T node,
+        IEnumerable<SyntaxAnnotation> annotations)
+        where T : GreenNode {
+        var existingAnnotations = node.GetAnnotations();
+
+        if (annotations is null)
+            return node;
+
+        var newAnnotations = ArrayBuilder<SyntaxAnnotation>.GetInstance();
+        newAnnotations.AddRange(existingAnnotations);
+
+        foreach (var candidate in annotations) {
+            if (!newAnnotations.Contains(candidate))
+                newAnnotations.Add(candidate);
+        }
+
+        if (newAnnotations.Count == existingAnnotations.Length) {
+            newAnnotations.Free();
+            return node;
+        } else {
+            return (T)node.SetAnnotations(newAnnotations.ToArrayAndFree());
+        }
     }
 }

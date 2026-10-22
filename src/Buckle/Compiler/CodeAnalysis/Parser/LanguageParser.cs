@@ -2215,6 +2215,11 @@ internal sealed partial class LanguageParser : SyntaxParser {
                         return ParseExpressionStatement();
 
                     return ParseCheckedStatement();
+                case SyntaxKind.DollarToken:
+                    if (Peek(1).contextualKind == SyntaxKind.InsertKeyword)
+                        return ParseInsertStatement();
+
+                    break;
             }
 
             var resetPoint = GetResetPoint();
@@ -2290,6 +2295,16 @@ internal sealed partial class LanguageParser : SyntaxParser {
                 semicolon
             );
         }
+    }
+
+    private StatementSyntax ParseInsertStatement() {
+        var dollar = EatToken();
+        var insertKeyword = ConvertToKeyword(EatToken());
+        var openParen = MatchOpenParen();
+        var name = ParseQualifiedName();
+        var closeParen = MatchCloseParen();
+        var semicolon = EatToken(SyntaxKind.SemicolonToken);
+        return SyntaxFactory.InsertStatement(dollar, insertKeyword, openParen, name, closeParen, semicolon);
     }
 
     private StatementSyntax ParseLocalDeclarationStatement(
@@ -3367,6 +3382,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
             if (operatorToken.kind is SyntaxKind.PlusPlusToken or SyntaxKind.MinusMinusToken) {
                 var operand = ParsePrimaryExpression(unaryPrecedence);
                 left = SyntaxFactory.PrefixExpression(operatorToken, operand);
+            } else if (operatorToken.kind == SyntaxKind.DollarToken) {
+                left = ParseCompileTimeOperator(unaryPrecedence, operatorToken);
             } else {
                 var operand = ParseOperatorExpression(unaryPrecedence);
                 left = SyntaxFactory.UnaryExpression(operatorToken, operand);
@@ -3526,6 +3543,19 @@ internal sealed partial class LanguageParser : SyntaxParser {
             Reset(resetPoint);
             return false;
         }
+    }
+
+    private ExpressionSyntax ParseCompileTimeOperator(int precedence, SyntaxToken operatorToken) {
+        if (currentToken.contextualKind == SyntaxKind.CodeKeyword) {
+            var codeKeyword = ConvertToKeyword(EatToken());
+            var openParen = MatchOpenParen();
+            var statement = ParseStatement();
+            var closeParen = MatchCloseParen();
+            return SyntaxFactory.CodeExpression(operatorToken, codeKeyword, openParen, statement, closeParen);
+        }
+
+        var operand = ParseOperatorExpression(precedence);
+        return SyntaxFactory.UnaryExpression(operatorToken, operand);
     }
 
     private ClampExpressionSyntax ParseClampExpression(

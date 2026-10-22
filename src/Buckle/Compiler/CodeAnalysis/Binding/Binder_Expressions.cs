@@ -2180,6 +2180,8 @@ internal partial class Binder {
                     return BindOrValueExpression((OrValueExpressionSyntax)node, diagnostics);
                 case SyntaxKind.CheckedExpression:
                     return BindCheckedExpression((CheckedExpressionSyntax)node, diagnostics);
+                case SyntaxKind.CodeExpression:
+                    return BindCodeExpression((CodeExpressionSyntax)node);
                 case SyntaxKind.NonNullableType:
                     Debug.Assert(false);
                     return ErrorExpression(node);
@@ -5223,6 +5225,14 @@ internal partial class Binder {
     private BoundExpression BindCheckedExpression(CheckedExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
         var binder = GetBinder(node);
         return binder.BindParenthesizedExpression(node.expression, diagnostics);
+    }
+
+    private BoundExpression BindCodeExpression(CodeExpressionSyntax node) {
+        return new BoundCodeExpression(
+            node,
+            new ConstantValue(node.statement, SpecialType.Code),
+            compilation.GetSpecialType(SpecialType.Code)
+        );
     }
 
     internal BoundExpression BindRangeOrRValue(

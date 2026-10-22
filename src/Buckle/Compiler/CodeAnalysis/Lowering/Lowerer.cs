@@ -7,6 +7,7 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
@@ -111,7 +112,8 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
             return null;
 
         if (node is BoundExpression e && e.constantValue is not null) {
-            _ = VisitType(e.type);
+            // TODO Need to report Code?
+            _ = VisitType(e.type, null);
             return VisitConstant(_compilation, e);
         }
 
@@ -131,13 +133,17 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         return base.VisitErrorStatement(node);
     }
 
-    internal override TypeSymbol VisitType(TypeSymbol type) {
+    internal override TypeSymbol VisitType(TypeSymbol type, TextLocation location) {
         if (type is not null) {
             if (TemplateExpander.ContainsTemplateTypeNeedingExpansion(type))
                 _sawNonTypeTemplate = true;
 
-            // TODO I don't like this being here
-            type.VisitType(Compilation.VisitTypeNoteUsedAssemblies, _compilation, canDigThroughNullable: true);
+            type.VisitType(
+                // TODO VisitTypeNoteUsedAssemblies: I don't like this being here
+                Compilation.VisitTypeNoteUsedAssembliesAndReportCode,
+                (_compilation, location, _diagnostics),
+                canDigThroughNullable: true
+            );
         }
 
         return base.VisitType(type);
@@ -155,6 +161,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
 
     internal override BoundNode VisitLocalFunctionStatement(BoundLocalFunctionStatement node) {
         _sawLocalFunction = true;
+        _ = VisitType(node.symbol.returnType, node.symbol.ExtractReturnTypeSyntax().location);
         return base.VisitLocalFunctionStatement(node);
     }
 
@@ -327,8 +334,13 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         var declaration = statement.declaration;
         var initializer = declaration.initializer;
 
-        // To find templates
-        VisitType(declaration.dataContainer.type);
+        var isConstExpr = declaration.dataContainer.isConstExpr;
+        var typeErrorLocation = isConstExpr
+            ? null
+            : (declaration.dataContainer as SourceDataContainerSymbol)?.typeLocation;
+
+        // To find templates, note used assemblies, and report on Code type
+        VisitType(declaration.dataContainer.type, typeErrorLocation);
 
         // We also rewrite on the case of constant values because them being in constructor form is beneficial for code gen
         // because it can see the constructor and try and do it in place
@@ -985,7 +997,8 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
                 ? null
                 : VisitNonIsolatedList(expression.initializer);
 
-            var type = VisitType(expression.Type());
+            // TODO Need to report Code type?
+            var type = VisitType(expression.Type(), null);
             return expression.Update(sizes, initializer, type);
         }
 

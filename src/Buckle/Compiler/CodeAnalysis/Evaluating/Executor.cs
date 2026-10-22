@@ -386,6 +386,8 @@ internal sealed partial class Executor : ModuleBuilder {
         return typeRef;
 
         Type GetTypeCore(TypeSymbol type) {
+            Debug.Assert(type.specialType != SpecialType.Code);
+
             if (type.specialType == SpecialType.Nullable) {
                 var underlyingType = type.GetNullableUnderlyingType();
                 var genericArgumentType = GetType(underlyingType);

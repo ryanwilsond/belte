@@ -55,12 +55,14 @@ public sealed class LexerTests {
         untestedTokenTypes.Remove(SyntaxKind.InterpolatedStringStartToken);
         untestedTokenTypes.Remove(SyntaxKind.InterpolatedStringEndToken);
         untestedTokenTypes.Remove(SyntaxKind.MultilineStringLiteralToken);
+        untestedTokenTypes.Remove(SyntaxKind.CodeKeyword);
         untestedTokenTypes.Remove(SyntaxKind.DefineKeyword);
         untestedTokenTypes.Remove(SyntaxKind.ElifKeyword);
         untestedTokenTypes.Remove(SyntaxKind.EndifKeyword);
         untestedTokenTypes.Remove(SyntaxKind.ExplicitKeyword);
         untestedTokenTypes.Remove(SyntaxKind.ImplicitKeyword);
         untestedTokenTypes.Remove(SyntaxKind.InitializesKeyword);
+        untestedTokenTypes.Remove(SyntaxKind.InsertKeyword);
         untestedTokenTypes.Remove(SyntaxKind.OperatorKeyword);
         untestedTokenTypes.Remove(SyntaxKind.LiteralKeyword);
         untestedTokenTypes.Remove(SyntaxKind.ExtendedLiteralToken);

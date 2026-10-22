@@ -111,6 +111,8 @@ internal partial class SourceDataContainerSymbol : DataContainerSymbol, IAttribu
         }
     }
 
+    internal TextLocation typeLocation => _typeSyntax?.location;
+
     internal static SourceDataContainerSymbol MakeLocal(
         Symbol containingSymbol,
         Binder scopeBinder,

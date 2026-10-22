@@ -76,7 +76,7 @@ public lowlevel sealed class BitArray {
 
     private static Buffer<uint8> AllocateByteArray(int32 bitLength) {
         const int32 byteLength = GetAlignedByteArrayLength(bitLength);
-        return bitLength != 0 ? new Buffer<uint8>(byteLength) : new Buffer<uint8>(0);
+        return bitLength != 0 ? new Buffer<uint8>(byteLength) : {};
     }
 
     private static int32 GetInt32ArrayLengthFromBitLength(int32 bitLength) {
