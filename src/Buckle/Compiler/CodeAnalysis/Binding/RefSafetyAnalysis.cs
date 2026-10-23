@@ -136,7 +136,7 @@ internal sealed partial class RefSafetyAnalysis : BoundTreeWalkerWithStackGuardW
         base.VisitLocalDeclarationStatement(node);
 
         if (node.declaration.initializer is { } initializer) {
-            var localSymbol = (SourceDataContainerSymbol)node.declaration.dataContainer;
+            var localSymbol = node.declaration.dataContainer;
             var (refEscapeScope, valEscapeScope) = GetLocalScopes(localSymbol);
 
             if (localSymbol.scope != ScopedKind.None) {

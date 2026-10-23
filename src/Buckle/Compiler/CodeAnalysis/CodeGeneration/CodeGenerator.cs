@@ -3243,6 +3243,9 @@ oneMoreTime:
     }
 
     private void EmitAssignmentOperator(BoundAssignmentOperator expression, UseKind useKind) {
+        if (expression.left.expressionSymbol?.IsConstExprSafe() ?? false)
+            return;
+
         if (TryEmitAssignmentInPlace(expression, useKind != UseKind.Unused))
             return;
 

@@ -9,6 +9,7 @@ internal abstract partial class SourceMethodSymbol {
         Pure = 1 << 0,
         Memoize = 1 << 1,
         NoAlloc = 1 << 2,
-        NoThrow = 1 << 3
+        NoThrow = 1 << 3,
+        Expand = 1 << 4,
     }
 }

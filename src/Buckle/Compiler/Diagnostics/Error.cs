@@ -3326,6 +3326,16 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_CannotInsertNonExpandParameter, location, message);
     }
 
+    internal static BelteDiagnostic ExpandRequiresStatic(TextLocation location) {
+        var message = $"methods marked with 'expand' must be static";
+        return CreateError(DiagnosticCode.ERR_ExpandRequiresStatic, location, message);
+    }
+
+    internal static BelteDiagnostic NotAllPathsReturnExpand(TextLocation location) {
+        var message = "not all code paths for expansion method return a value";
+        return CreateError(DiagnosticCode.ERR_NotAllPathsReturnExpand, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

@@ -1232,6 +1232,10 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         return base.VisitExpressionStatement(node);
     }
 
+    internal override BoundNode VisitInsertStatement(BoundInsertStatement node) {
+        throw ExceptionUtilities.Unreachable();
+    }
+
     internal static BoundExpression CreateNullableGetValueCall(
         Compilation compilation,
         SyntaxNode syntax,

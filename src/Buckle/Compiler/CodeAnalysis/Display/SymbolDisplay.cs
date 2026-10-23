@@ -750,7 +750,37 @@ public static class SymbolDisplay {
             text.Write(CreateKeyword(SyntaxKind.ImplicitKeyword));
         }
 
+        if ((format.memberOptions & SymbolDisplayMemberOptions.IncludeModifiers) != 0)
+            DisplaySpecifiers(text, method);
+
         DisplayTemplateConstraints(text, method.templateConstraints, format);
+    }
+
+    private static void DisplaySpecifiers(DisplayText text, MethodSymbol method) {
+        if (method.shouldExpand) {
+            text.Write(CreateSpace());
+            text.Write(CreateKeyword(SyntaxKind.ExpandKeyword));
+        }
+
+        if (method.shouldMemoizeIfPure) {
+            text.Write(CreateSpace());
+            text.Write(CreateKeyword(SyntaxKind.MemoizeKeyword));
+        }
+
+        if (method.isNoAlloc) {
+            text.Write(CreateSpace());
+            text.Write(CreateKeyword(SyntaxKind.NoallocKeyword));
+        }
+
+        if (method.isNoThrow) {
+            text.Write(CreateSpace());
+            text.Write(CreateKeyword(SyntaxKind.NothrowKeyword));
+        }
+
+        if (method.isPure) {
+            text.Write(CreateSpace());
+            text.Write(CreateKeyword(SyntaxKind.PureKeyword));
+        }
     }
 
     private static void DisplayAttributes(DisplayText text, ImmutableArray<AttributeData> attributes) {

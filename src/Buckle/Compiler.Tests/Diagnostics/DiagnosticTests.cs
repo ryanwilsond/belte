@@ -10391,4 +10391,38 @@ var text = """"""
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0684_ExpandRequiresStatic() {
+        var text = @"
+            class A {
+                void MyFunc() [expand] { }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            methods marked with 'expand' must be static
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0685_NotAllPathsReturnExpand() {
+        var text = @"
+            class A {
+                public static int MyFunc() expand {
+                }
+            }
+
+            [A.MyFunc()];
+        ";
+
+        var diagnostics = @"
+            not all code paths for expansion method return a value
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

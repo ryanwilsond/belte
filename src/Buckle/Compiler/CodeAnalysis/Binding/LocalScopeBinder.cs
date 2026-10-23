@@ -313,7 +313,7 @@ internal class LocalScopeBinder : Binder {
         );
     }
 
-    private protected override void AddLocalToScope(SourceDataContainerSymbol local) {
+    private protected override void AddLocalToScope(DataContainerSymbol local) {
         _additionalLocals ??= [];
         _additionalLocals.Add(local);
         _locals = default;

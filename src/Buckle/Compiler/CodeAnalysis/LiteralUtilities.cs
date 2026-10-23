@@ -73,6 +73,9 @@ internal static class LiteralUtilities {
         SpecialType sourceType,
         SpecialType targetType,
         out object result) {
+        if (sourceType == SpecialType.Any)
+            sourceType = SpecialTypeExtensions.SpecialTypeFromLiteralValue(value);
+
         switch (targetType) {
             case SpecialType.Bool:
                 result = Convert.ToBoolean(value);

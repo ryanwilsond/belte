@@ -19,5 +19,7 @@ internal abstract partial class SourceMethodSymbol {
         internal bool isNoAlloc => (_behaviorSpecifiers & BehaviorSpecifiers.NoAlloc) != 0;
 
         internal bool shouldMemoizeIfPure => (_behaviorSpecifiers & BehaviorSpecifiers.Memoize) != 0;
+
+        internal bool shouldExpand => (_behaviorSpecifiers & BehaviorSpecifiers.Expand) != 0;
     }
 }

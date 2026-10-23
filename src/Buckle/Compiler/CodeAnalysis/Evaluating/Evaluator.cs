@@ -682,6 +682,10 @@ internal sealed partial class Evaluator {
 
         // Exception unwinding can create weird states
         if (exceptions.Count == 0) {
+            // We don't evaluate this node so the result won't make sense
+            if (node is BoundAssignmentOperator { left: { } l } && (l.expressionSymbol?.IsConstExprSafe() ?? false))
+                return result;
+
             if (_insideExpressionEvaluation) {
                 CheckResultIsCoherent(node, used, result);
             } else {
@@ -1941,6 +1945,9 @@ internal sealed partial class Evaluator {
         BoundAssignmentOperator node,
         UseKind useKind,
         ValueWrapper<bool> abort) {
+        if (node.left.expressionSymbol?.IsConstExprSafe() ?? false)
+            return EvaluatorValue.None;
+
         var lhs = EvaluateAssignmentPreamble(node, abort);
         var value = EvaluateAssignmentValue(node, abort);
         value = EvaluateAssignmentDuplication(useKind, value);

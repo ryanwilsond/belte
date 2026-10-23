@@ -364,7 +364,6 @@ internal sealed class LocalBinderFactory : SyntaxWalker {
             Visit(statement, blockBinder);
     }
 
-
     internal override void VisitCheckedExpression(CheckedExpressionSyntax node) {
         var binder = _enclosing.WithCheckedRegion();
         AddToMap(node, binder);

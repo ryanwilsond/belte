@@ -371,6 +371,8 @@ internal sealed partial class PEMethodSymbol : MethodSymbol {
         }
     }
 
+    internal override bool shouldExpand => false;
+
     internal override bool TryGetThisParameter(out ParameterSymbol? thisParameter) {
         thisParameter = isStatic/* || this.IsExtensionBlockMember()*/
             ? null

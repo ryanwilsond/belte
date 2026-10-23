@@ -143,6 +143,9 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         );
 
         if (compilation.options.concurrentBuild) {
+            // TODO Make parallel
+            methodCompiler.CompileExpansionMethods(globalNamespace);
+
             methodCompiler._workQueue = new();
             methodCompiler._signal = new(false);
             methodCompiler._workAvailable = new(false);
@@ -155,6 +158,7 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
             methodCompiler._stopping = true;
             methodCompiler._signal.Set();
         } else {
+            methodCompiler.CompileExpansionMethods(globalNamespace);
             methodCompiler.CompileNamespace(globalNamespace);
         }
 
@@ -594,6 +598,89 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         }
     }
 
+    private void CompileExpansionMethods(NamespaceSymbol symbol) {
+        VisitNamespace(symbol);
+
+        void VisitNamespace(NamespaceSymbol symbol) {
+            foreach (var namespaceMember in symbol.GetMembersUnordered()) {
+                if (namespaceMember is NamespaceSymbol nsMember && nsMember is not PENamespaceSymbol)
+                    VisitNamespace(nsMember);
+                else if (namespaceMember is NamedTypeSymbol ntMember && ntMember is not PENamedTypeSymbol)
+                    VisitNamedType(ntMember);
+            }
+        }
+
+        void VisitNamedType(NamedTypeSymbol symbol) {
+            var typeMembers = symbol.GetMembers();
+            TypeCompilationState state = null;
+
+            for (var i = 0; i < typeMembers.Length; i++) {
+                var typeMember = typeMembers[i];
+
+                if (typeMember is NamedTypeSymbol ntMember) {
+                    VisitNamedType(ntMember);
+                } else if (typeMember is MethodSymbol method && method.shouldExpand) {
+                    Debug.Assert(method.methodKind == MethodKind.Ordinary);
+                    state ??= new TypeCompilationState(
+                        symbol,
+                        _compilation,
+                        _typeLayouts,
+                        [],
+                        []
+                    );
+
+                    VisitMethod(method, state);
+                }
+            }
+        }
+
+        void VisitMethod(MethodSymbol symbol, TypeCompilationState state) {
+            var methodDiagnostics = CompileExpansionMethod(symbol, state);
+
+            if (methodDiagnostics is not null)
+                _diagnostics.PushRangeAndFree(methodDiagnostics);
+        }
+
+        BelteDiagnosticQueue CompileExpansionMethod(MethodSymbol method, TypeCompilationState state) {
+            var outInitializers = InitializerRewriter.RewriteOutParameters(method);
+            var currentDiagnostics = BelteDiagnosticQueue.GetInstance();
+
+            MethodSymbol _ = null;
+
+            var body = BindMethodBody(
+                method,
+                state,
+                currentDiagnostics,
+                false,
+                default,
+                outInitializers,
+                // TODO Error if try to modify entry point
+                ref _,
+                out var _
+            );
+
+            if (body is null || currentDiagnostics.AnyErrors())
+                return currentDiagnostics;
+
+            if (body is not null) {
+                DiagnosticPass.ReportDiagnostics(
+                    _compilation,
+                    body,
+                    method,
+                    currentDiagnostics,
+                    _entryPoint?.containingType
+                );
+            }
+
+            if (currentDiagnostics.AnyErrors() || _hasDeclarationErrors)
+                return currentDiagnostics;
+
+            body = (BoundBlockStatement)body.statements.Single();
+            _compilation.AddExpansionMethod(method, body);
+            return currentDiagnostics;
+        }
+    }
+
     private void CompileNamespace(NamespaceSymbol symbol) {
         foreach (var member in symbol.GetMembersUnordered())
             member.Accept(this, null);
@@ -807,8 +894,11 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         int methodOrdinal,
         ref Binder.ProcessedFieldInitializers processedInitializers,
         TypeCompilationState state) {
-        if (method.isAbstract || method.originalDefinition is PEMethodSymbol or SourceStateMethodSymbol)
+        if (method.isAbstract ||
+            method.originalDefinition is PEMethodSymbol or SourceStateMethodSymbol ||
+            method.shouldExpand) {
             return;
+        }
 
         if (method.containingType.originalDefinition is PENamedTypeSymbol &&
             method is SynthesizedInstanceConstructorSymbol) {

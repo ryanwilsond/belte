@@ -194,9 +194,11 @@ These keywords are reserved names and cannot be used as identifiers.
 
 These keywords only act as keywords inside specific contexts. As such they can be used as identifiers in most places.
 
+- [code](Data.md#373-code-and-insert)
 - [define](Preprocessor.md#71-defineundef)
 - [elif](Preprocessor.md#72-control)
 - [endif](Preprocessor.md#72-control)
+- [expand](ClassesAndObjects.md#4223-behavior-specifiers)
 - [explicit](ClassesAndObjects.md#4232-casts)
 - [field](ClassesAndObjects.md#424-properties)
 - [flags](ClassesAndObjects.md#461-flags)
@@ -206,6 +208,7 @@ These keywords only act as keywords inside specific contexts. As such they can b
 - [implicit](ClassesAndObjects.md#4232-casts) (user-defined conversions)
 - [implicit](ControlFlow.md#217-argument-coercion) (argument coercion)
 - [initializes](ClassesAndObjects.md#4211-definite-assignment)
+- [insert](Data.md#373-code-and-insert)
 - [literal](ClassesAndObjects.md#4233-user-defined-literals)
 - [memoize](ClassesAndObjects.md#4223-behavior-specifiers)
 - [noalloc](ClassesAndObjects.md#4223-behavior-specifiers)

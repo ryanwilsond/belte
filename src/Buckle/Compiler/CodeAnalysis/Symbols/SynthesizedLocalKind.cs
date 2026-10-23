@@ -2,6 +2,7 @@
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal enum SynthesizedLocalKind : sbyte {
+    ExpansionTemp = -6,
     CompileTimeLowererTemp = -5,
     FlowLowererTemp = -4,
     ExpanderTemp = -3,

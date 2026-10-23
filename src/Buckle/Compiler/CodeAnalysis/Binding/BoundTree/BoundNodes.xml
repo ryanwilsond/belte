@@ -676,6 +676,9 @@
     <Field Name="value" Type="ConstantValue" Null="disallow"/>
   </Node>
   <Node Name="BoundDiscardPattern" Base="BoundPattern"/>
+  <Node Name="BoundInsertStatement" Base="BoundStatement">
+    <Field Name="parameter" Type="ParameterSymbol"/>
+  </Node>
   <Node Name="BoundIfStatement" Base="BoundStatement">
     <Field Name="condition" Type="BoundExpression"/>
     <Field Name="consequence" Type="BoundStatement"/>

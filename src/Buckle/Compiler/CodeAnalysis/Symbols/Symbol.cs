@@ -324,6 +324,15 @@ internal abstract class Symbol : ISymbol {
         };
     }
 
+    internal bool IsConstExprSafe() {
+        return kind switch {
+            SymbolKind.Field => ((FieldSymbol)this).isConstExpr,
+            SymbolKind.Local => ((DataContainerSymbol)this).isConstExpr,
+            SymbolKind.Parameter => ((ParameterSymbol)this).isConstExpr,
+            _ => false
+        };
+    }
+
     internal virtual bool IsAccessor() {
         return kind == SymbolKind.Method && ((MethodSymbol)this).IsAccessor();
     }

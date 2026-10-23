@@ -89,12 +89,17 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.UnreachableStatement => ExpandUnreachableStatement((BoundUnreachableStatement)statement),
             BoundKind.ReverseStatement => ExpandReverseStatement((BoundReverseStatement)statement),
             BoundKind.ReverseDeferStatement => ExpandReverseDeferStatement((BoundReverseDeferStatement)statement),
+            BoundKind.InsertStatement => ExpandInsertStatement((BoundInsertStatement)statement),
             _ => throw ExceptionUtilities.UnexpectedValue(statement.kind),
         };
     }
 
     private protected virtual List<BoundStatement> ExpandErrorStatement(BoundErrorStatement statement) {
         // Even though there is potential for expanding the childBoundNodes, it will be an error anyways so why bother
+        return [statement];
+    }
+
+    private protected virtual List<BoundStatement> ExpandInsertStatement(BoundInsertStatement statement) {
         return [statement];
     }
 

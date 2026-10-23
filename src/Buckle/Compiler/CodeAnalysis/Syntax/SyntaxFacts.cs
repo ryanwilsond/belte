@@ -269,6 +269,7 @@ public static class SyntaxFacts {
             "checked" => SyntaxKind.CheckedKeyword,
             "code" => SyntaxKind.CodeKeyword,
             "insert" => SyntaxKind.InsertKeyword,
+            "expand" => SyntaxKind.ExpandKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -279,6 +280,7 @@ public static class SyntaxFacts {
             case SyntaxKind.DefineKeyword:
             case SyntaxKind.ElifKeyword:
             case SyntaxKind.EndifKeyword:
+            case SyntaxKind.ExpandKeyword:
             case SyntaxKind.ExplicitKeyword:
             case SyntaxKind.FieldKeyword:
             case SyntaxKind.FlagsKeyword:
@@ -488,6 +490,7 @@ public static class SyntaxFacts {
             SyntaxKind.CheckedKeyword => "checked",
             SyntaxKind.CodeKeyword => "code",
             SyntaxKind.InsertKeyword => "insert",
+            SyntaxKind.ExpandKeyword => "expand",
             _ => null,
         };
     }
@@ -893,7 +896,7 @@ public static class SyntaxFacts {
     }
 
     private const int FirstKeyword = (int)SyntaxKind.TypeOfKeyword;
-    private const int LastKeyword = (int)SyntaxKind.InsertKeyword;
+    private const int LastKeyword = (int)SyntaxKind.ExpandKeyword;
 
     /// <summary>
     /// Checks if a <see cref="SyntaxKind" /> is a keyword.
@@ -1018,7 +1021,7 @@ public static class SyntaxFacts {
 
     internal static bool HasReturnWithExpression(SyntaxNode node) {
         return node is not null &&
-               node.DescendantNodesAndSelf(child => !IsNestedFunction(child) && node is not ExpressionSyntax)
+               node.DescendantNodesAndSelf(child => !IsNestedFunction(child) && child is not ExpressionSyntax)
                     .Any(n => n is ReturnStatementSyntax { expression: { } });
     }
 

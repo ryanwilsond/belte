@@ -263,6 +263,8 @@ internal sealed partial class PETemplateType {
             }
         }
 
+        internal override bool shouldExpand => false;
+
         internal BoundBlockStatement TryDecodeMethodBody() {
             if (!_lazyMethodBodyIsPopulated) {
                 var body = _decoder.DecodeMethodBody(this);

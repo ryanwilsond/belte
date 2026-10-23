@@ -6847,6 +6847,10 @@ internal partial class Binder {
         }
 
         analyzedArguments.Free();
+
+        if (result.expressionSymbol is MethodSymbol m && m.shouldExpand)
+            return InsertExpansionMethod(result, diagnostics);
+
         return result;
 
         static bool ReceiverIsInvocation(CallExpressionSyntax node, out CallExpressionSyntax nested) {

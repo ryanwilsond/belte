@@ -4768,4 +4768,20 @@ public sealed class IssueTests {
 
         AssertValue(text, 0);
     }
+
+    [Fact]
+    public void InsertStatement_ReplacesParameterWithArgument() {
+        var text = @"
+            class A {
+                public static int MyFunc(constexpr Code p, int a) expand {
+                    a += 2;
+                    $insert(p);
+                }
+            }
+
+            return A.MyFunc($code(return a + 5;), 10);
+        ";
+
+        AssertValue(text, 17);
+    }
 }

@@ -1603,6 +1603,8 @@ internal sealed partial class Executor : ModuleBuilder {
     }
 
     private void CreateMethodDefinition(MethodSymbol method, BoundBlockStatement body, TypeBuilder typeBuilder) {
+        Debug.Assert(!method.shouldExpand);
+
         if (method.methodKind is MethodKind.Constructor or MethodKind.StaticConstructor) {
             CreateConstructorDefinition(method, body, typeBuilder);
         } else if (method.GetDllImportData() is { } dllImportData) {

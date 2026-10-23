@@ -197,7 +197,8 @@ public enum SyntaxKind : ushort {
     BindsKeyword,
     CheckedKeyword,
     CodeKeyword,
-    InsertKeyword, // SyntaxFacts.LastKeyword
+    InsertKeyword,
+    ExpandKeyword, // SyntaxFacts.LastKeyword
 
     // Trivia
     EndOfLineTrivia,

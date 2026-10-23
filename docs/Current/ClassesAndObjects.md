@@ -454,6 +454,7 @@ The following is a list of all the behavior specifiers. Some may be composed wit
 | `noalloc` | Heap allocations are not allowed (i.e. no `new` expressions) | Can be used with any other specifiers |
 | `nothrow` | Exceptions cannot be thrown (i.e. no uncaught `throw` expressions) | Can be used with any other specifiers |
 | `pure` | Method is a pure function (i.e. method has no side effects) | Can be used with any other specifiers |
+| `expand` | Method is always inlined | Can be used with any other specifiers |
 
 One example of an optimization that may take place is the caching of pure function calls to avoid performing duplicate
 work. Consider the following method definition:
@@ -484,6 +485,7 @@ what behavior specifiers they allow:
 | `noalloc` | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✓ | ✓ | ✗ | ✗ |
 | `nothrow` | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ |
 | `pure` | ✓ | ✓ | ✓ | ✓ | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ |
+| `expand` | ✓ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ | ✗ |
 
 Note that `memoize` is purely an optimization suggestion and does not guarantee the compiler will cache calls to that
 function. Note additional restrictions apply, for example, memoization will not occur if the function signature contains
@@ -498,6 +500,8 @@ Note that `pure` can read from instance data but cannot write to it. As such `pu
 [method modifier `const`](#434-const). This means mutations to the underlying object can change the results of the
 `pure` call as the object can be treated as though it was implicitly passed as an argument. To avoid stale cache hits,
 `memoize` cannot be specified on non-static methods.
+
+Note that `expand` is used to enable [inserting code from constant-expression parameters](Data.md#373-code-and-insert).
 
 ### 4.2.3 Operators
 

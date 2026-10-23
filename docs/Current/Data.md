@@ -37,6 +37,7 @@
 - [3.7](#37-compile-time-expressions) Compile-Time Expressions
   - [3.7.1](#371-examples) Examples
   - [3.7.2](#372-conditional-compile-time-expressions) Conditional Compile-Time Expressions
+  - [3.7.3](#373-code-and-insert) `$code` and `$insert`
 - [3.8](#38-binds-expressions) Binds Expressions
 
 ## 3.1 Data Types
@@ -1092,6 +1093,32 @@ The result is that if you compile and then run this program, the file write will
 
 The compiler cannot verify whether or not an expression has side effects, so the usage of the compile-time expression
 operator is not restricted to prevent them from happening.
+
+### 3.7.3 `$code` and `$insert`
+
+A `$code(<statement>)` expression creates a compile-time constant where the value is a piece of source code. That
+constant can then be inserted into the program using `$insert(<name>);` statements.
+
+For example:
+
+```belte
+constexpr Code a = $code(Console.PrintLine(10););
+$insert(a); // 10
+```
+
+Code constants can be passed to [`constexpr` parameters](ControlFlow.md#218-constant-expression-parameters) of methods
+marked [`expand`]():
+
+```belte
+void MyFunc(constexpr Code p) expand {
+  int a = 3;
+  $insert(p);
+}
+
+MyFunc($code(Console.PrintLine(a);));
+```
+
+Code constants use the enclosing context of where they are inserted, meaning they can access locals, parameters, etc.
 
 ## 3.8 Binds Expressions
 

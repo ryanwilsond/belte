@@ -74,7 +74,7 @@ internal sealed class EndBinder : Binder {
         throw ExceptionUtilities.Unreachable();
     }
 
-    private protected override void AddLocalToScope(SourceDataContainerSymbol local) {
+    private protected override void AddLocalToScope(DataContainerSymbol local) {
         throw ExceptionUtilities.Unreachable();
     }
 

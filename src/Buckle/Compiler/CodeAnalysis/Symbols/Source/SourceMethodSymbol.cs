@@ -101,6 +101,21 @@ internal abstract partial class SourceMethodSymbol : MethodSymbol, IAttributeTar
         }
     }
 
+    internal override bool shouldExpand {
+        get {
+            if (_lazySpecifierInfo is null) {
+                var diagnostics = BelteDiagnosticQueue.GetInstance();
+
+                if (Interlocked.CompareExchange(ref _lazySpecifierInfo, MakeSpecifierInfo(diagnostics), null) is null) {
+                    AddDeclarationDiagnostics(diagnostics);
+                    diagnostics.Free();
+                }
+            }
+
+            return _lazySpecifierInfo.shouldExpand;
+        }
+    }
+
     internal BelteSyntaxNode syntaxNode => (BelteSyntaxNode)syntaxReference.node;
 
     internal SyntaxTree syntaxTree => syntaxReference.syntaxTree;
@@ -161,6 +176,13 @@ internal abstract partial class SourceMethodSymbol : MethodSymbol, IAttributeTar
                         diagnostics.Push(Error.InvalidBehaviorSpecifier(specifierToken.location, specifierToken));
 
                     break;
+                case BehaviorSpecifiers.Expand:
+                    if (methodKind != MethodKind.Ordinary)
+                        diagnostics.Push(Error.InvalidBehaviorSpecifier(specifierToken.location, specifierToken));
+                    else if (!isStatic)
+                        diagnostics.Push(Error.ExpandRequiresStatic(specifierToken.location));
+
+                    break;
             }
 
             seenSpecifiers |= specifier;
@@ -177,6 +199,7 @@ internal abstract partial class SourceMethodSymbol : MethodSymbol, IAttributeTar
                 SyntaxKind.NoallocKeyword => BehaviorSpecifiers.NoAlloc,
                 SyntaxKind.NothrowKeyword => BehaviorSpecifiers.NoThrow,
                 SyntaxKind.MemoizeKeyword => BehaviorSpecifiers.Memoize,
+                SyntaxKind.ExpandKeyword => BehaviorSpecifiers.Expand,
                 _ => throw ExceptionUtilities.Unreachable()
             };
         }

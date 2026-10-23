@@ -263,8 +263,14 @@ internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
                 if (!_assignments[_slotMap[symbol] + 1])
                     _diagnostics.Push(Error.UseOfUnassignedLocal(node.syntax.location, symbol));
             } else {
-                if (!_assignments[_slotMap[symbol]])
-                    _diagnostics.Push(Error.UseOfUnassignedLocal(node.syntax.location, symbol));
+                if (!_assignments[_slotMap[symbol]]) {
+                    if (symbol.synthesizedKind == SynthesizedLocalKind.ExpansionTemp) {
+                        Debug.Assert(symbol.name.StartsWith("<return_local>"));
+                        _diagnostics.Push(Error.NotAllPathsReturnExpand(node.syntax.location));
+                    } else {
+                        _diagnostics.Push(Error.UseOfUnassignedLocal(node.syntax.location, symbol));
+                    }
+                }
             }
         }
 

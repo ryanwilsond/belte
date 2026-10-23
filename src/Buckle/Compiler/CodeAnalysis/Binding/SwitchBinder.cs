@@ -465,6 +465,7 @@ internal class SwitchBinder : LocalScopeBinder {
 
         foreach (var statement in node.statements) {
             var boundStatement = sectionBinder.BindStatement(statement, diagnostics);
+            AddSynthesizedStatements(boundStatementsBuilder);
 
             // TODO Using error
 

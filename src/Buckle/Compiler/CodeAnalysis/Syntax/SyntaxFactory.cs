@@ -33,7 +33,7 @@ public static partial class SyntaxFactory {
     /// Creates a <see cref="SyntaxToken" /> with kind <see cref="SyntaxKind.IdentifierToken"/>.
     /// </summary>
     public static SyntaxToken Identifier(string text) {
-        return Token(SyntaxKind.IdentifierToken, text);
+        return Token(SyntaxKind.IdentifierToken, text, text);
     }
 
     /// <summary>

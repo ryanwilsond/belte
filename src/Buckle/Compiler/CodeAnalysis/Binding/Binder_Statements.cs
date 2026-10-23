@@ -65,16 +65,24 @@ internal partial class Binder {
         if (expression.hasErrors)
             return new BoundErrorStatement(node, [expression], true);
 
-        if (expression.constantValue is null || expression.type?.specialType != SpecialType.Code) {
-            if (expression.type?.specialType == SpecialType.Code &&
-                (expression?.expressionSymbol?.IsConstExpr() ?? false)) {
+        if (expression.type?.specialType != SpecialType.Code) {
+            diagnostics.Push(Error.InsertMustHaveCodeConstant(node.name.location));
+            return new BoundErrorStatement(node, [expression], true);
+        }
+
+        if (expression.constantValue is null) {
+            if (expression?.expressionSymbol?.IsConstExpr() ?? false) {
                 var parameter = (ParameterSymbol)expression.expressionSymbol;
 
-                diagnostics.Push(Error.CannotInsertNonExpandParameter(
-                    node.name.location,
-                    parameter.name,
-                    parameter.containingSymbol
-                ));
+                if (containingMember is MethodSymbol m && m.shouldExpand) {
+                    return new BoundInsertStatement(node, parameter);
+                } else {
+                    diagnostics.Push(Error.CannotInsertNonExpandParameter(
+                        node.name.location,
+                        parameter.name,
+                        parameter.containingSymbol
+                    ));
+                }
             } else {
                 diagnostics.Push(Error.InsertMustHaveCodeConstant(node.name.location));
             }
@@ -82,14 +90,49 @@ internal partial class Binder {
             return new BoundErrorStatement(node, [expression], true);
         }
 
-        Debug.Assert(expression.constantValue.value is StatementSyntax);
-        var statement = (StatementSyntax)expression.constantValue.value;
+        return BindInsertStatementContinued(node, diagnostics, expression.constantValue);
+    }
+
+    private BoundStatement BindInsertStatementContinued(
+        SyntaxNode node,
+        BelteDiagnosticQueue diagnostics,
+        ConstantValue constantValue) {
+        Debug.Assert(constantValue.value is StatementSyntax);
+        var statement = (StatementSyntax)constantValue.value;
         var rewritten = (StatementSyntax)statement.WithCompoundLocation(node.location);
         rewritten = (StatementSyntax)rewritten.green.CreateRed(statement.parent, statement.position);
 
         Debug.Assert(rewritten.location is CompoundTextLocation);
 
         return BindStatement(rewritten, diagnostics);
+    }
+
+    private BoundExpression InsertExpansionMethod(BoundExpression expression, BelteDiagnosticQueue diagnostics) {
+        var call = (BoundCallExpression)expression;
+        Debug.Assert(call.method.shouldExpand);
+        var body = compilation.GetExpansionBody(call.method);
+
+        // Body has errors
+        if (body is null)
+            return call;
+
+        var bodyBinder = ((SourceMemberMethodSymbol)call.method).TryGetBodyBinder();
+        var returnType = call.method.returnType;
+        var statements = ExpansionBodyRewriter.Rewrite(
+            this,
+            bodyBinder,
+            call.method,
+            call.arguments,
+            body,
+            diagnostics,
+            out var returnLocal
+        );
+
+        _synthesizedStatements ??= ArrayBuilder<BoundStatement>.GetInstance();
+        _synthesizedStatements.AddRange(statements);
+
+        Debug.Assert(returnLocal is null || returnLocal.type.Equals(returnType));
+        return new BoundDataContainerExpression(expression.syntax, returnLocal, null, returnType);
     }
 
     private BoundStatement BindReverseStatement(ReverseStatementSyntax node, BelteDiagnosticQueue diagnostics) {
@@ -1495,7 +1538,7 @@ internal partial class Binder {
         return localSymbol;
     }
 
-    private protected virtual void AddLocalToScope(SourceDataContainerSymbol local) {
+    private protected virtual void AddLocalToScope(DataContainerSymbol local) {
         next.AddLocalToScope(local);
     }
 
@@ -2046,10 +2089,19 @@ internal partial class Binder {
 
         for (var i = 0; i < nStatements; i++) {
             var boundStatement = BindStatement(syntaxStatements[i], diagnostics);
+            AddSynthesizedStatements(boundStatements);
             boundStatements.Add(boundStatement);
         }
 
         return FinishBindBlockParts(node, boundStatements.ToImmutableAndFree());
+    }
+
+    private protected void AddSynthesizedStatements(ArrayBuilder<BoundStatement> builder) {
+        if (_synthesizedStatements is not null) {
+            builder.AddRange(_synthesizedStatements);
+            _synthesizedStatements.Free();
+            _synthesizedStatements = null;
+        }
     }
 
     private BoundBlockStatement FinishBindBlockParts(
@@ -2485,6 +2537,7 @@ internal partial class Binder {
                 }
 
                 var boundStatement = BindStatement(topLevelStatement.statement, diagnostics);
+                AddSynthesizedStatements(boundStatements);
                 boundStatements.Add(boundStatement);
             }
         }

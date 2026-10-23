@@ -146,6 +146,9 @@ internal sealed partial class BoundProgram {
             if (method.containingType.originalDefinition is PENamedTypeSymbol)
                 continue;
 
+            if (method.shouldExpand)
+                continue;
+
             if (!TemplateExpander.ShouldEmit(method))
                 continue;
 

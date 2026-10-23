@@ -28,6 +28,8 @@ internal sealed class ForLoopBinder : LoopBinder {
 
     private BoundForStatement BindForParts(ForStatementSyntax node, Binder originalBinder, BelteDiagnosticQueue diagnostics) {
         var initializer = originalBinder.BindStatement(node.initializer, diagnostics);
+        var synthesizedBuilder = ArrayBuilder<BoundStatement>.GetInstance();
+        AddSynthesizedStatements(synthesizedBuilder);
         BoundExpression condition = null;
         var innerLocals = ImmutableArray<DataContainerSymbol>.Empty;
         var conditionSyntax = node.condition;
@@ -53,6 +55,11 @@ internal sealed class ForLoopBinder : LoopBinder {
 
         var body = originalBinder.BindPossibleEmbeddedStatement(node.body, diagnostics);
         Debug.Assert(node.unrollKeyword is null);
+
+        if (synthesizedBuilder.Any())
+            body = new BoundBlockStatement(body.syntax, [.. synthesizedBuilder, body], [], []);
+
+        synthesizedBuilder.Free();
 
         return new BoundForStatement(
             node,

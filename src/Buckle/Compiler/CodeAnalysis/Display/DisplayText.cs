@@ -442,6 +442,9 @@ public sealed class DisplayText {
             case BoundKind.Dup:
                 DisplayDup(text);
                 break;
+            case BoundKind.InsertStatement:
+                DisplayInsertStatement(text, (BoundInsertStatement)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -652,6 +655,13 @@ public sealed class DisplayText {
     private static void DisplayDup(DisplayText text) {
         text.Write(CreateKeyword("dup"));
         text.WriteLine();
+    }
+
+    private static void DisplayInsertStatement(DisplayText text, BoundInsertStatement node) {
+        text.Write(CreateKeyword("$insert"));
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        text.Write(CreateIdentifier(node.parameter.name));
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
     }
 
     private static void DisplayBindsExpression(DisplayText text, BoundBindsExpression node) {

@@ -1807,6 +1807,8 @@ internal partial class ILEmitter : ModuleBuilder {
         MethodSymbol method,
         BoundBlockStatement body,
         TypeDefinition containingType) {
+        Debug.Assert(!method.shouldExpand);
+
         if (method.GetDllImportData() is { } dllImportData) {
             Debug.Assert(method.isExtern);
             return CreatePInvokeMethodDefinition(method, containingType, dllImportData);

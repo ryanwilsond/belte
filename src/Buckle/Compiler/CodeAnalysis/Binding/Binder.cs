@@ -29,6 +29,7 @@ internal partial class Binder {
 
     private protected OverloadResolution _lazyOverloadResolution;
     private protected Conversions _lazyConversions;
+    private protected ArrayBuilder<BoundStatement> _synthesizedStatements;
 
     internal Binder(Compilation compilation) {
         flags = compilation.options.topLevelBinderFlags;

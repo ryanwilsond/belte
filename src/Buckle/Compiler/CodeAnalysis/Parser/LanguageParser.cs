@@ -1223,6 +1223,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.NothrowKeyword:
             case SyntaxKind.MemoizeKeyword:
             case SyntaxKind.PureKeyword:
+            case SyntaxKind.ExpandKeyword:
                 return true;
             default:
                 return false;

@@ -1754,6 +1754,8 @@ public sealed class EvaluatorTests {
     [InlineData("return ((enum { A })0).ToString();", "A")]
     [InlineData("enum flags { A, B } a = .A | .B; return (int)a;", 3)]
     [InlineData("enum flags { A, B, C } a = .A | .B | .C; return (int)a;", 7)]
+    // $code and $insert
+    [InlineData("constexpr a = $code(return 3;); $insert(a); return 0;", 3)]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue, evaluator: true, executor: true);
     }

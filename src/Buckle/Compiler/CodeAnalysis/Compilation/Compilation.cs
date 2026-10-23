@@ -63,6 +63,7 @@ public sealed partial class Compilation {
     private AssemblySymbol _lazyAssembly;
     private HandleManager _lazyHandleManager;
     private ConcurrentSet<AssemblySymbol> _lazyUsedAssemblyReferences;
+    private ConcurrentDictionary<MethodSymbol, BoundBlockStatement> _lazyExpansionMethods;
     private ConcurrentDictionary<ImportInfo, ImmutableArray<AssemblySymbol>> _lazyImportInfos;
     private NamedTypeSymbol[] _lazyWellKnownTypes;
     private Symbol[] _lazyWellKnownTypeMembers;
@@ -951,9 +952,24 @@ public sealed partial class Compilation {
             return false;
 
         if (_lazyUsedAssemblyReferences is null)
-            Interlocked.CompareExchange(ref _lazyUsedAssemblyReferences, new ConcurrentSet<AssemblySymbol>(), null);
+            Interlocked.CompareExchange(ref _lazyUsedAssemblyReferences, [], null);
 
         return _lazyUsedAssemblyReferences.Add(assembly);
+    }
+
+    internal void AddExpansionMethod(MethodSymbol method, BoundBlockStatement body) {
+        // TODO Optimization: transform body here instead of at each call site
+        if (_lazyExpansionMethods is null)
+            Interlocked.CompareExchange(ref _lazyExpansionMethods, [], null);
+
+        _lazyExpansionMethods.Add(method, body);
+    }
+
+    internal BoundBlockStatement GetExpansionBody(MethodSymbol method) {
+        if (_lazyExpansionMethods is null || !_lazyExpansionMethods.TryGetValue(method, out var body))
+            return null;
+
+        return body;
     }
 
     private static ImmutableArray<MetadataReference> MakeExternalReferences(
