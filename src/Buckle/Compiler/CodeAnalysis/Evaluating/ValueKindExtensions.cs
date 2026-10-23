@@ -1,4 +1,3 @@
-using Buckle.CodeAnalysis.Symbols;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Evaluating;
@@ -23,6 +22,25 @@ internal static class ValueKindExtensions {
             SpecialType.String => ValueKind.String,
             SpecialType.Char => ValueKind.Char,
             _ => def ?? throw ExceptionUtilities.UnexpectedValue(specialType),
+        };
+    }
+
+    internal static SpecialType ToSpecialType(ValueKind valueKind) {
+        return valueKind switch {
+            ValueKind.Int8 => SpecialType.Int8,
+            ValueKind.Int16 => SpecialType.Int16,
+            ValueKind.Int32 => SpecialType.Int32,
+            ValueKind.Int64 => SpecialType.Int64,
+            ValueKind.UInt8 => SpecialType.UInt8,
+            ValueKind.UInt16 => SpecialType.UInt16,
+            ValueKind.UInt32 => SpecialType.UInt32,
+            ValueKind.UInt64 => SpecialType.UInt64,
+            ValueKind.Float32 => SpecialType.Float32,
+            ValueKind.Float64 => SpecialType.Float64,
+            ValueKind.Bool => SpecialType.Bool,
+            ValueKind.String => SpecialType.String,
+            ValueKind.Char => SpecialType.Char,
+            _ => throw ExceptionUtilities.UnexpectedValue(valueKind),
         };
     }
 }

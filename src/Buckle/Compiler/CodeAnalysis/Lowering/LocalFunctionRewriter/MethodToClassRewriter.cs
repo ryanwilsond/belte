@@ -4,6 +4,7 @@ using System.Linq;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
@@ -96,6 +97,7 @@ internal abstract partial class MethodToClassRewriter : BoundTreeRewriterWithSta
             newInnerLocals,
             condition,
             increment,
+            node.unroll,
             body,
             node.breakLabel,
             node.continueLabel
@@ -139,10 +141,9 @@ internal abstract partial class MethodToClassRewriter : BoundTreeRewriterWithSta
     //     return node.Update(declaration, body);
     // }
 
-    internal sealed override TypeSymbol VisitType(TypeSymbol type) {
+    internal sealed override TypeSymbol VisitType(TypeSymbol type, TextLocation _ = null) {
         return _templateMap.SubstituteType(type)?.type?.type;
     }
-
 
     internal override BoundNode VisitCallExpression(BoundCallExpression node) {
         var rewrittenMethodSymbol = VisitMethodSymbol(node.method);
@@ -195,6 +196,7 @@ internal abstract partial class MethodToClassRewriter : BoundTreeRewriterWithSta
         return node.Update(
             (BoundExpression)Visit(node.operand),
             conversion,
+            node.isChecked,
             node.constantValue,
             VisitType(node.Type())
         );

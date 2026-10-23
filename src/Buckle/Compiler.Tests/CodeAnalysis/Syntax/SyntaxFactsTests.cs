@@ -32,7 +32,9 @@ public sealed class SyntaxFactTests {
                          and not SyntaxKind.HashToken
                          and not SyntaxKind.AsteriskAsteriskToken
                          and not SyntaxKind.GreaterThanLessThanToken
-                         and not SyntaxKind.GreaterThanLessThanEqualsToken)
+                         and not SyntaxKind.GreaterThanLessThanEqualsToken
+                         and not SyntaxKind.PeriodPeriodEqualsToken
+                         and not SyntaxKind.PeriodPeriodLessThanToken)
             .ToArray();
 
         foreach (var type in types)

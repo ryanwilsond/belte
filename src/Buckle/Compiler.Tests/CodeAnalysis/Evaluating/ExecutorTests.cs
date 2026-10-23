@@ -9,6 +9,7 @@ namespace Buckle.Tests.CodeAnalysis.Evaluating;
 /// </summary>
 public sealed class ExecutorTests {
     [Theory]
+    // Pointers
     [InlineData(@"
         static int Func1(int a, int b) { return a + b; }
         static int Func2(int a, int b) { return a - b; }
@@ -41,6 +42,16 @@ public sealed class ExecutorTests {
         (*ptr) = 4;
         return a;
     ", 4)]
+    [InlineData(@"
+        class A {
+            public static int Test<int a, int b>() {
+                return a + b;
+            }
+        }
+        int()* test = &A.Test<3, 5>;
+        return test();
+    ", 8)]
+    // Inline IL
     [InlineData(@"
         int32 a = 3;
 
@@ -93,6 +104,7 @@ public sealed class ExecutorTests {
 
         return Func(5, 10);
     ", 15)]
+    // C-Strings
     [InlineData(@"
         var myNum = 10;
         var text = cf""num is {myNum}"";
@@ -105,6 +117,15 @@ public sealed class ExecutorTests {
         var str = LowLevel.ReadLPCWSTR(text);
         return str;
     ", "num is 10")]
+    [InlineData(@"
+        var myNum = 10;
+        var text = wf""""""
+            num is
+                {myNum}
+            """""";
+        var str = LowLevel.ReadLPCWSTR(text);
+        return str;
+    ", "num is\r\n    10")]
     public void Executor_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue, evaluator: false, executor: true);
     }

@@ -10,6 +10,9 @@ internal readonly partial struct Blender {
         private ImmutableStack<TextChangeRange> _changes;
         private int _newPosition;
         private int _changeDelta;
+        private DirectiveStack _newDirectives;
+        private DirectiveStack _oldDirectives;
+        private LexerMode _newLexerDrivenMode;
 
         internal Reader(Blender blender) {
             _lexer = blender._lexer;
@@ -17,17 +20,20 @@ internal readonly partial struct Blender {
             _changes = blender._changes;
             _newPosition = blender._newPosition;
             _changeDelta = blender._changeDelta;
+            _newDirectives = blender._newDirectives;
+            _oldDirectives = blender._oldDirectives;
+            _newLexerDrivenMode = blender._newLexerDrivenMode;
         }
 
-        internal BlendedNode ReadNodeOrToken(bool asToken) {
+        internal BlendedNode ReadNodeOrToken(LexerMode mode, bool asToken) {
             while (true) {
                 if (_oldTreeCursor.isFinished)
-                    return ReadNewToken();
+                    return ReadNewToken(mode);
 
                 if (_changeDelta < 0) {
                     SkipOldToken();
                 } else if (_changeDelta > 0) {
-                    return ReadNewToken();
+                    return ReadNewToken(mode);
                 } else {
                     if (TryTakeOldNodeOrToken(asToken, out var blendedNode))
                         return blendedNode;
@@ -45,8 +51,7 @@ internal readonly partial struct Blender {
             var node = _oldTreeCursor.currentNodeOrToken;
 
             _changeDelta += node.fullWidth;
-            // TODO Directives (repl doesn't care but future lsp will)
-            // _oldTreeCursor = node.ApplyDirectives(_oldDirectives);
+            _oldDirectives = node.ApplyDirectives(_oldDirectives);
             _oldTreeCursor = Cursor.MoveToNextSibling(_oldTreeCursor);
 
             SkipPastChanges();
@@ -62,8 +67,8 @@ internal readonly partial struct Blender {
             }
         }
 
-        private BlendedNode ReadNewToken() {
-            var token = LexNewToken();
+        private BlendedNode ReadNewToken(LexerMode mode) {
+            var token = LexNewToken(mode);
             var width = token.fullWidth;
             _newPosition += width;
             _changeDelta -= width;
@@ -73,13 +78,13 @@ internal readonly partial struct Blender {
             return CreateBlendedNode(null, token);
         }
 
-        private SyntaxToken LexNewToken() {
+        private SyntaxToken LexNewToken(LexerMode mode) {
             if (_lexer.position != _newPosition)
-                _lexer.Move(_newPosition);
+                _lexer.Reset(_newPosition, _newDirectives);
 
-            var token = _lexer.LexNext(LexerMode.Syntax);
-            // TODO directives
-
+            var token = _lexer.LexNext(ref mode);
+            _newDirectives = _lexer.directives;
+            _newLexerDrivenMode = 0;
             return token;
         }
 
@@ -97,7 +102,8 @@ internal readonly partial struct Blender {
             _newPosition += currentNodeOrToken.fullWidth;
             _oldTreeCursor = Cursor.MoveToNextSibling(_oldTreeCursor);
 
-            // TODO directives
+            _newDirectives = currentNodeOrToken.ApplyDirectives(_newDirectives);
+            _oldDirectives = currentNodeOrToken.ApplyDirectives(_oldDirectives);
 
             blendedNode = CreateBlendedNode(
                 currentNodeOrToken.AsNode(),
@@ -133,9 +139,10 @@ internal readonly partial struct Blender {
                 return false;
             }
 
-            // TODO directives?
+            if (!nodeOrToken.containsDirectives)
+                return true;
 
-            return true;
+            return _newDirectives.IncrementallyEquivalent(_oldDirectives);
         }
 
         private static bool IsIncomplete(SyntaxNode node) {
@@ -162,17 +169,28 @@ internal readonly partial struct Blender {
                 case SyntaxKind.AsteriskAsteriskToken:
                 case SyntaxKind.GreaterThanLessThanToken:
                 case SyntaxKind.GreaterThanLessThanEqualsToken:
+                case SyntaxKind.PeriodPeriodLessThanToken:
+                case SyntaxKind.PeriodPeriodEqualsToken:
                     return true;
                 default:
                     return SyntaxFacts.IsContextualKeyword(kind);
             }
         }
 
-        private BlendedNode CreateBlendedNode(SyntaxNode node, SyntaxToken token) {
+        private readonly BlendedNode CreateBlendedNode(SyntaxNode node, SyntaxToken token) {
             return new BlendedNode(
                 node,
                 token,
-                new Blender(_lexer, _oldTreeCursor, _changes, _newPosition, _changeDelta)
+                new Blender(
+                    _lexer,
+                    _oldTreeCursor,
+                    _changes,
+                    _newPosition,
+                    _changeDelta,
+                    _newDirectives,
+                    _oldDirectives,
+                    _newLexerDrivenMode
+                )
             );
         }
     }

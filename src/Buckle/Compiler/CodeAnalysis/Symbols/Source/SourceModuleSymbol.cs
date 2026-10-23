@@ -14,6 +14,7 @@ internal sealed class SourceModuleSymbol : NonMissingModuleSymbol, IAttributeTar
     private CustomAttributesBag<AttributeData> _lazyAttributesBag;
     private ImmutableArray<TextLocation> _locations;
     private NamespaceSymbol _lazyGlobalNamespace;
+    private bool _hasBadAttributes;
 
     internal SourceModuleSymbol(SourceAssemblySymbol assembly, DeclarationTable declarationTable, string name) {
         containingAssembly = assembly;
@@ -48,6 +49,8 @@ internal sealed class SourceModuleSymbol : NonMissingModuleSymbol, IAttributeTar
     internal override bool areLocalsZeroed => true;
 
     internal override bool useUpdatedEscapeRules => false;
+
+    internal bool hasBadAttributes => _hasBadAttributes;
 
     internal override ImmutableArray<TextLocation> locations {
         get {
@@ -93,6 +96,10 @@ internal sealed class SourceModuleSymbol : NonMissingModuleSymbol, IAttributeTar
 
     internal override ModuleMetadata GetMetadata() {
         return null;
+    }
+
+    internal void RecordPresenceOfBadAttributes() {
+        _hasBadAttributes = true;
     }
 
     internal override bool HasComplete(CompletionParts part) {

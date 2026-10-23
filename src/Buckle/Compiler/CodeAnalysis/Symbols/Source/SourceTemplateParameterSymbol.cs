@@ -34,17 +34,17 @@ internal sealed class SourceTemplateParameterSymbol : SourceTemplateParameterSym
         }
     }
 
-    internal override bool hasPrimitiveTypeConstraint {
+    internal override bool hasValueTypeConstraint {
         get {
             var constraints = GetConstraintKinds();
-            return (constraints & TypeParameterConstraintKinds.Primitive) != 0;
+            return (constraints & TypeParameterConstraintKinds.ValueType) != 0;
         }
     }
 
-    internal override bool hasObjectTypeConstraint {
+    internal override bool hasReferenceTypeConstraint {
         get {
             var constraints = GetConstraintKinds();
-            return (constraints & TypeParameterConstraintKinds.Object) != 0;
+            return (constraints & TypeParameterConstraintKinds.ReferenceType) != 0;
         }
     }
 
@@ -65,14 +65,14 @@ internal sealed class SourceTemplateParameterSymbol : SourceTemplateParameterSym
     internal override bool isValueTypeFromConstraintTypes {
         get {
             var constraints = GetConstraintKinds();
-            return (constraints & TypeParameterConstraintKinds.Primitive) != 0;
+            return (constraints & TypeParameterConstraintKinds.ValueType) != 0;
         }
     }
 
     internal override bool isReferenceTypeFromConstraintTypes {
         get {
             var constraints = GetConstraintKinds();
-            return (constraints & TypeParameterConstraintKinds.Object) != 0;
+            return (constraints & TypeParameterConstraintKinds.ReferenceType) != 0;
         }
     }
 
@@ -96,12 +96,13 @@ internal sealed class SourceTemplateParameterSymbol : SourceTemplateParameterSym
     private protected override TypeParameterBounds ResolveBounds(
         ConsList<TemplateParameterSymbol> inProgress,
         BelteDiagnosticQueue diagnostics) {
-        var constraintTypes = _owner.GetTypeParameterConstraintTypes(ordinal, diagnostics);
+        var constraintTypes = _owner.GetTypeParameterConstraintTypes(ordinal);
 
         if (constraintTypes.IsEmpty && GetConstraintKinds() == TypeParameterConstraintKinds.None)
             return null;
 
         return this.ResolveBounds(
+            containingAssembly.corLibrary,
             inProgress.Prepend(this),
             constraintTypes,
             false,

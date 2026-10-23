@@ -29,3 +29,4 @@ The Belte public interface for the String class can be found
 | `string! TrimStart(string!, Buffer<char!>!)` | Returns a copy of the string with leading instances of any characters in the given array whitespace omitted. |
 | `string! TrimEnd(string!)` | Returns a copy of the string with trailing whitespace omitted. |
 | `string! TrimEnd(string!, Buffer<char!>!)` | Returns a copy of the string with trailing instances of any characters in the given array omitted. |
+| `bool! Contains(string!, string!)` | Returns true if the first string contains the second, otherwise false. |

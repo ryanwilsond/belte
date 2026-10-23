@@ -39,6 +39,8 @@ internal sealed class SynthesizedSimpleOrdinaryMethodSymbol : MethodSymbol {
 
     public override int arity => 0;
 
+    public override Symbol associatedSymbol => null;
+
     internal override TypeWithAnnotations returnTypeWithAnnotations { get; }
 
     internal override ImmutableArray<ParameterSymbol> parameters => throw new InvalidOperationException();
@@ -71,7 +73,13 @@ internal sealed class SynthesizedSimpleOrdinaryMethodSymbol : MethodSymbol {
 
     internal override CallingConvention callingConvention => CallingConvention.Default;
 
+    internal override bool hasMustUseReturnValueAttribute => false;
+
     internal override bool hasUnscopedRefAttribute => false;
+
+    internal override bool isExplicitInterfaceImplementation => false;
+
+    internal override ImmutableArray<MethodSymbol> explicitInterfaceImplementations => [];
 
     internal override bool IsMetadataVirtual(bool forceComplete = false) => false;
 
@@ -85,5 +93,9 @@ internal sealed class SynthesizedSimpleOrdinaryMethodSymbol : MethodSymbol {
 
     internal override UnmanagedCallersOnlyAttributeData GetUnmanagedCallersOnlyAttributeData(bool forceComplete) {
         return null;
+    }
+
+    internal override ImmutableArray<string> GetAppliedConditionalSymbols() {
+        return [];
     }
 }

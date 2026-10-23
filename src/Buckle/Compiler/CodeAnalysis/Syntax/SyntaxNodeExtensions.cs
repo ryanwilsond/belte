@@ -1,5 +1,7 @@
 using System;
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -39,12 +41,16 @@ internal static class SyntaxNodeExtensions {
                     stack.Push(arrayTypeSyntax.elementType);
                     break;
                 case SyntaxKind.NonNullableType:
-                    var nullableTypeSyntax = (NonNullableTypeSyntax)type;
-                    stack.Push(nullableTypeSyntax.type);
+                    var nonNullableTypeSyntax = (NonNullableTypeSyntax)type;
+                    stack.Push(nonNullableTypeSyntax.type);
                     break;
                 case SyntaxKind.NullableType:
-                    var underlyingTypeSyntax = (NullableTypeSyntax)type;
-                    stack.Push(underlyingTypeSyntax.type);
+                    var nullableTypeSyntax = (NullableTypeSyntax)type;
+                    stack.Push(nullableTypeSyntax.type);
+                    break;
+                case SyntaxKind.TemplateSpecializedType:
+                    var templateTypeSyntax = (TemplateSpecializedTypeSyntax)type;
+                    stack.Push(templateTypeSyntax.type);
                     break;
                 case SyntaxKind.PointerType:
                     var pointerTypeSyntax = (PointerTypeSyntax)type;
@@ -59,6 +65,13 @@ internal static class SyntaxNodeExtensions {
 
                     for (var i = tupleTypeSyntax.elements.Count - 1; i >= 0; i--)
                         stack.Push(tupleTypeSyntax.elements[i].type);
+
+                    break;
+                case SyntaxKind.AnonymousEnumType:
+                    var enumTypeSyntax = (AnonymousEnumTypeSyntax)type;
+
+                    if (enumTypeSyntax.baseType is { } baseType)
+                        stack.Push(baseType);
 
                     break;
                 case SyntaxKind.FunctionPointerType:
@@ -148,6 +161,26 @@ internal static class SyntaxNodeExtensions {
         return syntax;
     }
 
+    internal static TypeSyntax SkipNullable(this TypeSyntax syntax) {
+        switch (syntax) {
+            case NullableTypeSyntax n:
+                Debug.Assert(n.type.kind is not SyntaxKind.NullableType and not SyntaxKind.NonNullableType);
+                return n.type;
+            case NonNullableTypeSyntax nn:
+                Debug.Assert(nn.type.kind is not SyntaxKind.NullableType and not SyntaxKind.NonNullableType);
+                return nn.type;
+            default:
+                return syntax;
+        }
+    }
+
+    internal static SyntaxNode SkipExtern(this SyntaxNode node) {
+        if (node.kind == SyntaxKind.ExternBlockDeclaration)
+            return SkipExtern(node.parent);
+
+        return node;
+    }
+
     internal static RefKind GetRefKind(this TypeSyntax syntax) {
         syntax.SkipRef(out var refKind);
         return refKind;
@@ -172,6 +205,10 @@ internal static class SyntaxNodeExtensions {
         return syntax;
     }
 
+    internal static bool IsVerbatimIdentifier(this SyntaxToken token) {
+        return token.kind == SyntaxKind.IdentifierToken && token.text.Length > 0 && token.text[0] == '@';
+    }
+
     internal static bool IsOutVarDeclaration(this DeclarationExpressionSyntax p) {
         return p.parent?.kind == SyntaxKind.Argument
             && ((ArgumentSyntax)p.parent).refKindKeyword.kind == SyntaxKind.OutKeyword;
@@ -193,5 +230,42 @@ internal static class SyntaxNodeExtensions {
         }
 
         throw ExceptionUtilities.Unreachable();
+    }
+
+    internal static TNode WithAnnotations<TNode>(
+        this TNode node,
+        params SyntaxAnnotation[] annotations)
+        where TNode : BelteSyntaxNode {
+        return (TNode)node.green.SetAnnotations(annotations).CreateRed();
+    }
+
+    internal static SyntaxNode WithCompoundLocation(this SyntaxNode node, TextLocation secondaryLocation) {
+        return SyntaxReplacer.Replace(
+            node,
+            nodes: node.DescendantNodesAndSelf(),
+            computeReplacementNode: (_, r)
+                => r.WithAdditionalAnnotationsInternal(
+                    [new SyntaxAnnotation(
+                        "Location",
+                        secondaryLocation
+                    )]
+                ),
+            tokens: node.DescendantTokens(),
+            computeReplacementToken: (_, r)
+                => r.WithAdditionalAnnotations(
+                    new SyntaxAnnotation(
+                        "Location",
+                        secondaryLocation
+                    )
+                ),
+            trivia: node.DescendantTrivia(),
+            computeReplacementTrivia: (_, r)
+                => r.WithAdditionalAnnotations(
+                    new SyntaxAnnotation(
+                        "Location",
+                        secondaryLocation
+                    )
+                )
+        );
     }
 }

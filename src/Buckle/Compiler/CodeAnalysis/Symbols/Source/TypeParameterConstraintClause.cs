@@ -39,38 +39,37 @@ internal sealed class TypeParameterConstraintClause {
     internal readonly ImmutableArray<TypeWithAnnotations> constraintTypes;
     internal readonly ExpressionSyntax expression;
 
-    internal static Dictionary<TemplateParameterSymbol, bool> BuildIsPrimitiveTypeMap(
+    internal static Dictionary<TemplateParameterSymbol, bool> BuildIsValueTypeFromConstraintTypesMap(
         ImmutableArray<TemplateParameterSymbol> typeParameters,
         ImmutableArray<TypeParameterConstraintClause> constraintClauses) {
-
-        var isPrimitiveTypeMap = new Dictionary<TemplateParameterSymbol, bool>(ReferenceEqualityComparer.Instance);
+        var isValueTypeMap = new Dictionary<TemplateParameterSymbol, bool>(ReferenceEqualityComparer.Instance);
 
         foreach (var typeParameter in typeParameters) {
-            IsPrimitiveType(
+            IsValueType(
                 typeParameter,
                 constraintClauses,
-                isPrimitiveTypeMap,
+                isValueTypeMap,
                 ConsList<TemplateParameterSymbol>.Empty
             );
         }
 
-        return isPrimitiveTypeMap;
+        return isValueTypeMap;
 
-        static bool IsPrimitiveType(
+        static bool IsValueType(
             TemplateParameterSymbol thisTypeParameter,
             ImmutableArray<TypeParameterConstraintClause> constraintClauses,
-            Dictionary<TemplateParameterSymbol, bool> isPrimitiveTypeMap,
+            Dictionary<TemplateParameterSymbol, bool> isValueTypeMap,
             ConsList<TemplateParameterSymbol> inProgress) {
             if (inProgress.ContainsReference(thisTypeParameter))
                 return false;
 
-            if (isPrimitiveTypeMap.TryGetValue(thisTypeParameter, out var knownIsPrimitiveType))
-                return knownIsPrimitiveType;
+            if (isValueTypeMap.TryGetValue(thisTypeParameter, out var knownIsValueType))
+                return knownIsValueType;
 
             var constraintClause = constraintClauses[thisTypeParameter.ordinal];
             var result = false;
 
-            if ((constraintClause.constraints & TypeParameterConstraintKinds.Primitive) != 0) {
+            if ((constraintClause.constraints & TypeParameterConstraintKinds.ValueType) != 0) {
                 result = true;
             } else {
                 var container = thisTypeParameter.containingSymbol;
@@ -79,8 +78,9 @@ internal sealed class TypeParameterConstraintClause {
                 foreach (var constraintType in constraintClause.constraintTypes) {
                     var type = constraintType.type;
 
-                    if (type is TemplateParameterSymbol typeParameter && (object)typeParameter.containingSymbol == container) {
-                        if (IsPrimitiveType(typeParameter, constraintClauses, isPrimitiveTypeMap, inProgress)) {
+                    if (type is TemplateParameterSymbol typeParameter &&
+                        (object)typeParameter.containingSymbol == container) {
+                        if (IsValueType(typeParameter, constraintClauses, isValueTypeMap, inProgress)) {
                             result = true;
                             break;
                         }
@@ -91,32 +91,37 @@ internal sealed class TypeParameterConstraintClause {
                 }
             }
 
-            isPrimitiveTypeMap.Add(thisTypeParameter, result);
+            isValueTypeMap.Add(thisTypeParameter, result);
             return result;
         }
     }
 
-    internal static Dictionary<TemplateParameterSymbol, bool> BuildIsObjectTypeFromConstraintTypesMap(
+    internal static Dictionary<TemplateParameterSymbol, bool> BuildIsReferenceTypeFromConstraintTypesMap(
         ImmutableArray<TemplateParameterSymbol> typeParameters,
         ImmutableArray<TypeParameterConstraintClause> constraintClauses) {
-        var isObjectTypeFromConstraintTypesMap = new Dictionary<TemplateParameterSymbol, bool>(ReferenceEqualityComparer.Instance);
+        var isReferenceTypeMap = new Dictionary<TemplateParameterSymbol, bool>(ReferenceEqualityComparer.Instance);
 
-        foreach (var typeParameter in typeParameters)
-            IsObjectTypeFromConstraintTypes(typeParameter, constraintClauses, isObjectTypeFromConstraintTypesMap, ConsList<TemplateParameterSymbol>.Empty);
+        foreach (var typeParameter in typeParameters) {
+            IsReferenceType(
+                typeParameter,
+                constraintClauses,
+                isReferenceTypeMap,
+                ConsList<TemplateParameterSymbol>.Empty
+            );
+        }
 
-        return isObjectTypeFromConstraintTypesMap;
+        return isReferenceTypeMap;
 
-        static bool IsObjectTypeFromConstraintTypes(
+        static bool IsReferenceType(
             TemplateParameterSymbol thisTypeParameter,
             ImmutableArray<TypeParameterConstraintClause> constraintClauses,
-            Dictionary<TemplateParameterSymbol, bool> isObjectTypeFromConstraintTypesMap,
+            Dictionary<TemplateParameterSymbol, bool> isReferenceTypeMap,
             ConsList<TemplateParameterSymbol> inProgress) {
-            if (inProgress.ContainsReference(thisTypeParameter)) {
+            if (inProgress.ContainsReference(thisTypeParameter))
                 return false;
-            }
 
-            if (isObjectTypeFromConstraintTypesMap.TryGetValue(thisTypeParameter, out var knownIsObjectTypeFromConstraintTypes))
-                return knownIsObjectTypeFromConstraintTypes;
+            if (isReferenceTypeMap.TryGetValue(thisTypeParameter, out var knownIsReferenceType))
+                return knownIsReferenceType;
 
             var constraintClause = constraintClauses[thisTypeParameter.ordinal];
             var result = false;
@@ -129,7 +134,7 @@ internal sealed class TypeParameterConstraintClause {
 
                 if (type is TemplateParameterSymbol typeParameter) {
                     if ((object)typeParameter.containingSymbol == container) {
-                        if (IsObjectTypeFromConstraintTypes(typeParameter, constraintClauses, isObjectTypeFromConstraintTypesMap, inProgress)) {
+                        if (IsReferenceType(typeParameter, constraintClauses, isReferenceTypeMap, inProgress)) {
                             result = true;
                             break;
                         }
@@ -137,13 +142,13 @@ internal sealed class TypeParameterConstraintClause {
                         result = true;
                         break;
                     }
-                } else if (TemplateParameterSymbol.NonTypeParameterConstraintImpliesObjectType(type)) {
+                } else if (TemplateParameterSymbol.NonTypeParameterConstraintImpliesReferenceType(type)) {
                     result = true;
                     break;
                 }
             }
 
-            isObjectTypeFromConstraintTypesMap.Add(thisTypeParameter, result);
+            isReferenceTypeMap.Add(thisTypeParameter, result);
             return result;
         }
     }

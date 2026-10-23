@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Evaluating;
@@ -9,6 +10,7 @@ internal class Heap {
     private int _bumpPointer;
     private int _gcThreshold;
     private HeapObject[] _data;
+    private int _suppressCount = 0;
 
     internal Heap(int initialCapacity = 64) {
         _data = new HeapObject[initialCapacity];
@@ -34,6 +36,15 @@ internal class Heap {
     internal int capacity => _data.Length;
 
     internal int usedCount => _bumpPointer - _freedIndices.Count;
+
+    internal void SuppressGC() {
+        _suppressCount++;
+    }
+
+    internal void UnsuppressGC() {
+        Debug.Assert(_suppressCount > 0);
+        _suppressCount--;
+    }
 
     internal void CleanHeap(Stack<StackFrame> stack, EvaluatorContext context) {
         foreach (var frame in stack)
@@ -89,8 +100,10 @@ internal class Heap {
 
     internal int Allocate(HeapObject item, Stack<StackFrame> stack, EvaluatorContext context) {
         if (_bumpPointer - _freedIndices.Count > _gcThreshold) {
-            CleanHeap(stack, context);
-            _gcThreshold = Math.Max(usedCount * 2, 64);
+            if (_suppressCount == 0) {
+                CleanHeap(stack, context);
+                _gcThreshold = Math.Max(usedCount * 2, 64);
+            }
         }
 
         int index;

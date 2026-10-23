@@ -1,20 +1,20 @@
 
 public static class Decimal {
-    public static bool! IsNaN(float32! num);
-    public static bool! IsNaN(float64! num);
+    public static bool IsNaN(float32 num);
+    public static bool IsNaN(float64 num);
 
-    public static bool! IsPosInfinity(float32! num);
-    public static bool! IsPosInfinity(float64! num);
+    public static bool IsPosInfinity(float32 num);
+    public static bool IsPosInfinity(float64 num);
 
-    public static bool! IsNegInfinity(float32! num);
-    public static bool! IsNegInfinity(float64! num);
+    public static bool IsNegInfinity(float32 num);
+    public static bool IsNegInfinity(float64 num);
 
-    public static bool! IsInfinity(float32! num);
-    public static bool! IsInfinity(float64! num);
+    public static bool IsInfinity(float32 num);
+    public static bool IsInfinity(float64 num);
 
     public static decimal? Parse(string? text);
 
-    public static string? ToString(decimal! num, string! format);
+    public static string? ToString(decimal num, string format);
 }
 
 public static class Float64 {

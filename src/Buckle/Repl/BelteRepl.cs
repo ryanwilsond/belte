@@ -25,10 +25,15 @@ namespace Repl;
 /// Uses framework from <see cref="Repl" /> and adds syntax highlighting and evaluation.
 /// </summary>
 public sealed partial class BelteRepl : Repl {
-    private static readonly CompilationOptions DefaultOptions =
-        new CompilationOptions(BuildMode.Repl, OutputKind.GraphicsApplication, [], true);
-    // TODO Any benefit to generating numbered assembly names so they are unique?
-    private static readonly Compilation EmptyCompilation = Compilation.CreateScript("ReplSubmission", DefaultOptions);
+    private static readonly CompilationOptions DefaultOptions = new CompilationOptions(
+        BuildMode.Repl,
+        OutputKind.GraphicsApplication,
+        arguments: [],
+        isScript: true,
+        evaluatorStrictExceptionMode: false
+    );
+
+    private static readonly Compilation EmptyCompilation = Compilation.CreateScript("EmptyReplSubmission", DefaultOptions);
     private static readonly ImmutableArray<(string name, string contributor, ColorTheme theme)> InUse =
         [
             ("Dark", "", new DarkTheme()),
@@ -39,7 +44,7 @@ public sealed partial class BelteRepl : Repl {
         ];
 
     private List<TextChange> _changes = new List<TextChange>();
-
+    private int _submissionCounter;
     private DiagnosticHandle _diagnosticHandle;
 
     /// <summary>
@@ -51,6 +56,7 @@ public sealed partial class BelteRepl : Repl {
     /// <param name="errorHandle">Callback to handle Diagnostics.</param>
     public BelteRepl(Compiler handle, DiagnosticHandle errorHandle) : base(handle) {
         handle.state.diagnosticOptions.warningLevel = 2;
+        handle.state.diagnosticOptions.severity = DiagnosticSeverity.All;
 
         state = new BelteReplState();
         _diagnosticHandle = errorHandle;
@@ -310,13 +316,19 @@ public sealed partial class BelteRepl : Repl {
     }
 
     private BelteDiagnosticQueue LoadLibraries() {
-        var compilation = LibraryHelpers.LoadLibraries(BuildMode.Repl);
+        var compilation = LibraryHelpers.LoadLibraries(BuildMode.Repl, explicitLibraryLevel: -1);
         state.baseCompilation = compilation;
         return compilation.GetDiagnostics();
     }
 
     private void EvaluateSubmissionInternal(SyntaxTree syntaxTree) {
-        var compilation = Compilation.CreateScript("ReplSubmission", DefaultOptions, syntaxTree, state.previous);
+        var compilation = Compilation.CreateScript(
+            $"ReplSubmission{_submissionCounter++}",
+            DefaultOptions,
+            syntaxTree,
+            state.previous
+        );
+
         var displayText = new DisplayText();
 
         if (state.showTokens) {
@@ -549,6 +561,8 @@ public sealed partial class BelteRepl : Repl {
         return EvaluatorValue.Format(evaluatorValue, state.context);
     }
 
+    #region Commands
+
     [MetaCommand("showTree", "Toggle display of the parse tree")]
     private void EvaluateShowTree() {
         state.showTree = !state.showTree;
@@ -597,7 +611,31 @@ public sealed partial class BelteRepl : Repl {
             return;
         }
 
-        var text = File.ReadAllText(path);
+        var opened = false;
+        string text = null;
+
+        for (var j = 1; j < 4; j++) {
+            try {
+                text = File.ReadAllText(path);
+                opened = true;
+                break;
+            } catch (IOException) {
+                if (j < 3)
+                    Thread.Sleep(j * 10);
+            }
+        }
+
+        if (!opened) {
+            handle.diagnostics.Push(new BelteDiagnostic(Diagnostics.Error.UnableToOpenFile(path)));
+
+            if (_hasDiagnosticHandle)
+                _diagnosticHandle(handle, "repl", state.colorTheme.textDefault);
+            else
+                handle.diagnostics.Clear();
+
+            return;
+        }
+
         EvaluateSubmission(text);
     }
 
@@ -905,7 +943,7 @@ public sealed partial class BelteRepl : Repl {
                 text.Write(CreatePunctuation(SyntaxKind.PeriodToken));
             }
 
-            SymbolDisplay.AppendToDisplayText(text, symbol, SymbolDisplayFormat.QualifiedNameFormat);
+            SymbolDisplay.AppendToDisplayText(text, symbol, SymbolDisplayFormat.NamespaceQualifiedNameFormat);
         }
     }
 
@@ -953,16 +991,16 @@ public sealed partial class BelteRepl : Repl {
             var parts = name.Split('.');
 
             for (var i = 0; i < parts.Length - 1; i++) {
-                var namedTypes = allSymbols
-                    .Where(s => s.name == parts[i] && s is INamedTypeSymbol)
-                    .Select(s => s as INamedTypeSymbol);
+                var namedSymbols = allSymbols
+                    .Where(s => s.name == parts[i] && s is INamespaceOrTypeSymbol)
+                    .Select(s => s as INamespaceOrTypeSymbol);
 
-                if (!namedTypes.Any()) {
+                if (!namedSymbols.Any()) {
                     failed = true;
                     break;
                 }
 
-                var first = namedTypes.First();
+                var first = namedSymbols.First();
                 allSymbols = first.GetMembers();
             }
 
@@ -971,14 +1009,13 @@ public sealed partial class BelteRepl : Repl {
             } else {
                 symbols = (signature == name
                     ? allSymbols.Where(s => s.name == parts[^1])
-                    : allSymbols.Where(s => s is IMethodSymbol i &&
-                        i.ToString() == (parts[^1] + string.Join('(', signature.Split('(')[1..]))))
-                    .ToArray();
+                    : allSymbols.Where(s => s.name == parts[^1] && s.ToString().Replace(" ", "") == signature))
+                        .ToArray();
             }
         } else {
             symbols = (signature == name
                 ? allSymbols.Where(s => s.name == name)
-                : allSymbols.Where(s => s.name == name).Where(f => f.ToString() == signature))
+                : allSymbols.Where(s => s.name == name && s.ToString().Replace(" ", "") == signature))
                     .ToArray();
         }
 
@@ -1179,4 +1216,6 @@ public sealed partial class BelteRepl : Repl {
         state.showCS = !state.showCS;
         writer.WriteLine(state.showCS ? "C# visible" : "C# hidden");
     }
+
+    #endregion
 }

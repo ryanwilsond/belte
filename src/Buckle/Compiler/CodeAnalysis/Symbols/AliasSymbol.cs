@@ -78,9 +78,12 @@ internal abstract class AliasSymbol : Symbol, IAliasSymbol {
 
     internal void CheckConstraints(BelteDiagnosticQueue diagnostics) {
         var target = this.target as TypeSymbol;
+        var impliedConstraints = GetEnclosingTemplateConstraints();
 
-        if (target is not null && _locations.Length > 0)
-            target.CheckAllConstraints(location, diagnostics);
+        if (target is not null && _locations.Length > 0) {
+            var conversions = containingAssembly.corAssemblies[0].typeConversions;
+            target.CheckAllConstraints(conversions, location, impliedConstraints, diagnostics);
+        }
     }
 
     internal override bool Equals(Symbol obj, TypeCompareKind compareKind) {

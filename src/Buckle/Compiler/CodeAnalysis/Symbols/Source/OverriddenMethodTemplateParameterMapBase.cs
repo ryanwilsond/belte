@@ -6,11 +6,11 @@ internal abstract class OverriddenMethodTemplateParameterMapBase {
     private TemplateMap _lazyTemplateMap;
     private MethodSymbol _lazyOverriddenMethod = ErrorMethodSymbol.UnknownMethod;
 
-    private protected OverriddenMethodTemplateParameterMapBase(SourceOrdinaryMethodSymbol overridingMethod) {
+    private protected OverriddenMethodTemplateParameterMapBase(SourceOrdinaryMethodOrUserDefinedOperatorSymbol overridingMethod) {
         this.overridingMethod = overridingMethod;
     }
 
-    internal SourceOrdinaryMethodSymbol overridingMethod { get; }
+    internal SourceOrdinaryMethodOrUserDefinedOperatorSymbol overridingMethod { get; }
 
     internal TemplateMap templateMap {
         get {
@@ -49,5 +49,5 @@ internal abstract class OverriddenMethodTemplateParameterMapBase {
         return overridingMethod?.templateParameters[ordinal];
     }
 
-    private protected abstract MethodSymbol GetOverriddenMethod(SourceOrdinaryMethodSymbol overridingMethod);
+    private protected abstract MethodSymbol GetOverriddenMethod(SourceOrdinaryMethodOrUserDefinedOperatorSymbol overridingMethod);
 }

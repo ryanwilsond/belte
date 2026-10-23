@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -19,10 +20,38 @@ internal class LocalScopeBinder : Binder {
     private Dictionary<string, LocalFunctionSymbol> _lazyLocalFunctionsMap;
     private Dictionary<string, LabelSymbol> _lazyLabelsMap;
     private Dictionary<string, TokenSymbol> _lazyTokensMap;
+    private List<Symbol> _nullAssertFacts;
+    private protected List<DataContainerSymbol> _additionalLocals;
 
     internal LocalScopeBinder(Binder next) : this(next, next.flags) { }
 
     internal LocalScopeBinder(Binder next, BinderFlags flags) : base(next, flags) { }
+
+    internal override List<Symbol> nullAssertFacts => _nullAssertFacts;
+
+    private protected override void AddNullAssertFact(Symbol symbol) {
+        // TODO Not supported yet to track refs
+        Debug.Assert(symbol.GetRefKind() == RefKind.None);
+
+        _nullAssertFacts ??= [];
+        _nullAssertFacts.Add(symbol);
+    }
+
+    private protected override void RemoveNullAssertFact(Symbol symbol) {
+        if (_nullAssertFacts is null)
+            return;
+
+        _nullAssertFacts.Remove(symbol);
+    }
+
+    internal override bool HasNullAssertFact(Symbol symbol) {
+        if (_nullAssertFacts is not null) {
+            if (_nullAssertFacts.Contains(symbol))
+                return true;
+        }
+
+        return next.HasNullAssertFact(symbol);
+    }
 
     internal sealed override ImmutableArray<DataContainerSymbol> locals {
         get {
@@ -127,8 +156,12 @@ internal class LocalScopeBinder : Binder {
         SyntaxList<StatementSyntax> statements,
         Binder enclosingBinder) {
         var locals = ArrayBuilder<DataContainerSymbol>.GetInstance(DefaultLocalSymbolArrayCapacity);
+
         foreach (var statement in statements)
             BuildLocals(enclosingBinder, statement, locals);
+
+        if (_additionalLocals is not null)
+            locals.AddRange(_additionalLocals);
 
         return locals.ToImmutableAndFree();
     }
@@ -148,7 +181,13 @@ internal class LocalScopeBinder : Binder {
                         FindExpressionVariablesInRankSpecifier(rankSpecifier.size, args);
                     }, (localScopeBinder: this, locals, localDeclarationBinder));
 
-                    var localSymbol = MakeLocal(decl.declaration, decl.modifiers, localDeclarationBinder);
+                    var localSymbol = MakeLocal(
+                        decl.declaration,
+                        decl.modifiers,
+                        decl.scopedKeyword is null ? null : DataContainerDeclarationKind.ScopedLocal,
+                        localDeclarationBinder
+                    );
+
                     locals.Add(localSymbol);
 
                     ExpressionVariableFinder.FindExpressionVariables(
@@ -158,6 +197,7 @@ internal class LocalScopeBinder : Binder {
                         localDeclarationBinder
                     );
                 }
+
                 break;
             case SyntaxKind.LocalFunctionStatement: {
                     var localFunctionDeclarationBinder = enclosingBinder.GetBinder(innerStatement) ?? enclosingBinder;
@@ -171,16 +211,29 @@ internal class LocalScopeBinder : Binder {
 
                     if (decl.constraintClauseList is not null) {
                         foreach (var constraintClause in decl.constraintClauseList.constraintClauses) {
-                            constraintClause.extendConstraint?.type.VisitRankSpecifiers((rankSpecifier, args) => {
+                            constraintClause.extendsConstraint?.type.VisitRankSpecifiers((rankSpecifier, args) => {
                                 FindExpressionVariablesInRankSpecifier(rankSpecifier.size, args);
                             }, (
                                 localScopeBinder: this,
                                 locals,
                                 localDeclarationBinder: localFunctionDeclarationBinder
                             ));
+
+                            if (constraintClause.implementsConstraint is not null) {
+                                foreach (var typeConstraint in constraintClause.implementsConstraint.types) {
+                                    typeConstraint.VisitRankSpecifiers((rankSpecifier, args) => {
+                                        FindExpressionVariablesInRankSpecifier(rankSpecifier.size, args);
+                                    }, (
+                                        localScopeBinder: this,
+                                        locals,
+                                        localDeclarationBinder: localFunctionDeclarationBinder
+                                    ));
+                                }
+                            }
                         }
                     }
                 }
+
                 break;
             case SyntaxKind.ExpressionStatement:
             case SyntaxKind.IfStatement:
@@ -245,6 +298,7 @@ internal class LocalScopeBinder : Binder {
     private protected SourceDataContainerSymbol MakeLocal(
         VariableDeclarationSyntax declaration,
         SyntaxTokenList modifiers,
+        DataContainerDeclarationKind? kind = null,
         Binder initializerBinder = null) {
         return SourceDataContainerSymbol.MakeLocal(
             containingMember,
@@ -254,8 +308,16 @@ internal class LocalScopeBinder : Binder {
             declaration.identifier,
             declaration.initializer,
             modifiers,
+            kind,
             initializerBinder
         );
+    }
+
+    private protected override void AddLocalToScope(DataContainerSymbol local) {
+        _additionalLocals ??= [];
+        _additionalLocals.Add(local);
+        _locals = default;
+        _lazyLocalsMap = default;
     }
 
     private protected LocalFunctionSymbol MakeLocalFunction(LocalFunctionStatementSyntax declaration) {
@@ -315,13 +377,25 @@ internal class LocalScopeBinder : Binder {
 
                     if (decl.constraintClauseList is not null) {
                         foreach (var constraintClause in decl.constraintClauseList.constraintClauses) {
-                            constraintClause.extendConstraint?.type.VisitRankSpecifiers((rankSpecifier, args) => {
+                            constraintClause.extendsConstraint?.type.VisitRankSpecifiers((rankSpecifier, args) => {
                                 FindTokensInRankSpecifier(rankSpecifier.size, args);
                             }, (
                                 localScopeBinder: this,
                                 tokens,
                                 localDeclarationBinder: localFunctionDeclarationBinder
                             ));
+
+                            if (constraintClause.implementsConstraint is not null) {
+                                foreach (var typeConstraint in constraintClause.implementsConstraint.types) {
+                                    typeConstraint.VisitRankSpecifiers((rankSpecifier, args) => {
+                                        FindTokensInRankSpecifier(rankSpecifier.size, args);
+                                    }, (
+                                        localScopeBinder: this,
+                                        tokens,
+                                        localDeclarationBinder: localFunctionDeclarationBinder
+                                    ));
+                                }
+                            }
                         }
                     }
 

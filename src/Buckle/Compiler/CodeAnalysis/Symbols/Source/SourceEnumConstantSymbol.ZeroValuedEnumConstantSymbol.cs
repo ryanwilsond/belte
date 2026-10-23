@@ -9,7 +9,7 @@ internal abstract partial class SourceEnumConstantSymbol {
         private readonly bool _isFlagsEnum;
 
         internal ZeroValuedEnumConstantSymbol(
-            SourceMemberContainerTypeSymbol containingEnum,
+            NamedTypeSymbol containingEnum,
             EnumMemberDeclarationSyntax syntax,
             bool isFlagsEnum,
             BelteDiagnosticQueue diagnostics)

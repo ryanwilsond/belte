@@ -18,7 +18,6 @@ internal static partial class MetadataHelpers {
 
     internal const string DotDelimiterString = ".";
     internal const string SystemString = "System";
-    internal const string CorLibraryString = "CorLibrary";
     internal const char GenericTypeNameManglingChar = '`';
     internal const char DotDelimiter = '.';
     internal const char CommaDelimiter = ',';
@@ -312,5 +311,14 @@ DoneWithSequence:
             return emittedTypeName[..suffixStartsAt];
 
         return emittedTypeName;
+    }
+
+    internal static bool IsCorLibraryName(string name) {
+        // TODO Is this the way we want to handle this?
+        // Source-defined CorLibrary will be "CorLibrary"
+        // PE CorLibrary will be "Belte.Core"
+        // I would rather the dll assembly name be the latter as it is more descriptive
+        // TODO Do we expect "Belte.Core" or "Belte.Core.dll"? Not both
+        return name == "CorLibrary" || name == "Belte.Core" || name == "Belte.Core.dll";
     }
 }

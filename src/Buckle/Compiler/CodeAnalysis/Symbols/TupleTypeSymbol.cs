@@ -6,7 +6,6 @@ using System.Threading;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -21,14 +20,14 @@ internal partial class NamedTypeSymbol {
     private TupleExtraData _lazyTupleData;
 
     private static readonly WellKnownType[] TupleTypes = {
-        WellKnownType.ValueTuple_T1,
-        WellKnownType.ValueTuple_T2,
-        WellKnownType.ValueTuple_T3,
-        WellKnownType.ValueTuple_T4,
-        WellKnownType.ValueTuple_T5,
-        WellKnownType.ValueTuple_T6,
-        WellKnownType.ValueTuple_T7,
-        WellKnownType.ValueTuple_TRest
+        WellKnownType.Belte_ValueTuple_T1,
+        WellKnownType.Belte_ValueTuple_T2,
+        WellKnownType.Belte_ValueTuple_T3,
+        WellKnownType.Belte_ValueTuple_T4,
+        WellKnownType.Belte_ValueTuple_T5,
+        WellKnownType.Belte_ValueTuple_T6,
+        WellKnownType.Belte_ValueTuple_T7,
+        WellKnownType.Belte_ValueTuple_TRest
     };
 
     private static readonly WellKnownMember[][] TupleMembers = [
@@ -169,12 +168,12 @@ internal partial class NamedTypeSymbol {
             var numElements = elementTypes.Length;
             var chainLength = NumberOfValueTuples(numElements, out var remainder);
 
-            var firstTupleType = CorLibrary.TryGetWellKnownType(GetTupleType(remainder), compilation);
+            var firstTupleType = compilation.GetWellKnownType(GetTupleType(remainder));
 
             NamedTypeSymbol chainedTupleType = null;
 
             if (chainLength > 1)
-                chainedTupleType = CorLibrary.GetWellKnownType(GetTupleType(ValueTupleRestPosition));
+                chainedTupleType = compilation.GetWellKnownType(GetTupleType(ValueTupleRestPosition));
 
             return ConstructTupleUnderlyingType(firstTupleType, chainedTupleType, elementTypes);
         }
@@ -245,9 +244,17 @@ internal partial class NamedTypeSymbol {
     }
 
     internal bool IsTupleTypeOfCardinality(out int tupleCardinality) {
-        if (!isUnboundTemplateType &&
-            originalDefinition.containingAssembly?.name == MetadataHelpers.CorLibraryString &&
-            name == ValueTupleTypeName) {
+        var isNativeTuple = !isUnboundTemplateType &&
+            MetadataHelpers.IsCorLibraryName(originalDefinition.containingAssembly?.name) &&
+            name == ValueTupleTypeName;
+
+        var isSystemTuple = !isUnboundTemplateType &&
+            containingSymbol?.kind == SymbolKind.Namespace &&
+            containingNamespace.containingNamespace?.isGlobalNamespace == true &&
+            name == ValueTupleTypeName &&
+            containingNamespace.name == MetadataHelpers.SystemString;
+
+        if (isNativeTuple || isSystemTuple) {
             var arity = this.arity;
 
             if (arity >= 0 && arity < ValueTupleRestPosition) {
@@ -445,6 +452,7 @@ internal partial class NamedTypeSymbol {
                         break;
                     case SymbolKind.NamedType:
                     case SymbolKind.Method:
+                    case SymbolKind.Property:
                         break;
                     default:
                         if (currentNestingLevel == 0)
@@ -535,14 +543,14 @@ internal partial class NamedTypeSymbol {
         }
 
         static Symbol GetWellKnownMemberInType(ImmutableArray<Symbol> members, WellKnownMember relativeMember) {
-            var wellKnownMember = CorLibrary.GetWellKnownMember(relativeMember);
+            var relativeDescriptor = WellKnownMembers.GetDescriptor(relativeMember);
 
-            foreach (var member in members) {
-                if (member.originalDefinition == wellKnownMember)
-                    return member;
-            }
-
-            throw ExceptionUtilities.Unreachable();
+            return Compilation.GetRuntimeMember(
+                members,
+                relativeDescriptor,
+                Compilation.SpecialMembersSignatureComparer.Instance,
+                accessWithinOpt: null
+            );
         }
 
         static ImmutableArray<Symbol> GetOriginalFields(ImmutableArray<Symbol> members) {

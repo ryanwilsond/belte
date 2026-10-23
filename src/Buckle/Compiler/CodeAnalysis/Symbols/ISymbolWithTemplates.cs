@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Syntax;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -14,4 +15,8 @@ internal interface ISymbolWithTemplates : ISymbol {
     abstract ImmutableArray<TypeOrConstant> templateArguments { get; }
 
     abstract TemplateMap templateSubstitution { get; }
+
+    int arity { get; }
+
+    bool TryGetConstraintsSyntax(out TemplateConstraintClauseListSyntax syntax);
 }

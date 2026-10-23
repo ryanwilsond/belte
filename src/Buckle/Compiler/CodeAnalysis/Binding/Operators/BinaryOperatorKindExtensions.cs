@@ -28,6 +28,64 @@ internal static class BinaryOperatorKindExtensions {
         return (kind & BinaryOperatorKind.TypeMask) == BinaryOperatorKind.UserDefined;
     }
 
+    internal static bool IsChecked(this BinaryOperatorKind kind) {
+        return 0 != (kind & BinaryOperatorKind.Checked);
+    }
+
+    internal static BinaryOperatorKind WithOverflowChecksIfApplicable(this BinaryOperatorKind kind, bool enabled) {
+        if (enabled) {
+            if (kind.IsIntegral()) {
+                switch (kind.Operator()) {
+                    case BinaryOperatorKind.Addition:
+                    case BinaryOperatorKind.Subtraction:
+                    case BinaryOperatorKind.Multiplication:
+                    case BinaryOperatorKind.Division:
+                        return kind | BinaryOperatorKind.Checked;
+                }
+            }
+
+            return kind;
+        } else {
+            return kind & ~BinaryOperatorKind.Checked;
+        }
+    }
+
+    internal static bool IsIntegral(this BinaryOperatorKind kind) {
+        switch (kind.OperandTypes()) {
+            case BinaryOperatorKind.Int8:
+            case BinaryOperatorKind.Int16:
+            case BinaryOperatorKind.UInt8:
+            case BinaryOperatorKind.UInt16:
+                throw ExceptionUtilities.UnexpectedValue(kind);
+            case BinaryOperatorKind.Int32:
+            case BinaryOperatorKind.Int64:
+            case BinaryOperatorKind.UInt32:
+            case BinaryOperatorKind.UInt64:
+            case BinaryOperatorKind.Char:
+            case BinaryOperatorKind.Enum:
+            case BinaryOperatorKind.EnumAndUnderlying:
+            case BinaryOperatorKind.UnderlyingAndEnum:
+            case BinaryOperatorKind.Pointer:
+                return true;
+        }
+
+        return false;
+    }
+
+    internal static bool EmitsAsCheckedInstruction(this BinaryOperatorKind kind) {
+        if (!kind.IsChecked())
+            return false;
+
+        switch (kind.Operator()) {
+            case BinaryOperatorKind.Addition:
+            case BinaryOperatorKind.Subtraction:
+            case BinaryOperatorKind.Multiplication:
+                return true;
+        }
+
+        return false;
+    }
+
     internal static bool IsShift(this BinaryOperatorKind kind) {
         var type = kind.Operator();
         return type == BinaryOperatorKind.LeftShift ||

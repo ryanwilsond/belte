@@ -1,6 +1,8 @@
 using System;
+using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
 
@@ -115,7 +117,25 @@ public sealed class SyntaxToken {
     /// The absolute location of this token in the
     /// <see cref="SyntaxTree.text" /> of the <see cref="SyntaxTree" /> that contains this token.
     /// </summary>
-    public TextLocation location => syntaxTree is not null ? new TextLocation(syntaxTree.text, span, syntaxTree) : null;
+    public TextLocation location {
+        get {
+            if (syntaxTree is null)
+                return null;
+
+            var primaryLocation = new TextLocation(syntaxTree.text, span, syntaxTree);
+
+            if (node.hasAnnotationsDirectly) {
+                var locationAnnotations = GetAnnotations("Location");
+
+                if (locationAnnotations.Any()) {
+                    var annotation = locationAnnotations.Single();
+                    return new CompoundTextLocation(primaryLocation, (TextLocation)annotation.data);
+                }
+            }
+
+            return primaryLocation;
+        }
+    }
 
     /// <summary>
     /// Determines whether this token has any leading trivia.
@@ -175,6 +195,33 @@ public sealed class SyntaxToken {
         return SyntaxNavigator.Instance.GetPreviousToken(this, includeZeroWidth, includeSkipped, includeDirectives);
     }
 
+    internal InternalSyntax.DirectiveStack ApplyDirectives(InternalSyntax.DirectiveStack stack) {
+        return ((InternalSyntax.BelteSyntaxNode)node).ApplyDirectives(stack);
+    }
+
+    internal IEnumerable<SyntaxAnnotation> GetAnnotations(string annotationKind) {
+        return node?.GetAnnotations(annotationKind) ?? SpecializedCollections.EmptyEnumerable<SyntaxAnnotation>();
+    }
+
+    internal SyntaxToken WithAdditionalAnnotations(params SyntaxAnnotation[] annotations) {
+        return WithAdditionalAnnotations((IEnumerable<SyntaxAnnotation>)annotations);
+    }
+
+    internal SyntaxToken WithAdditionalAnnotations(IEnumerable<SyntaxAnnotation> annotations) {
+        ArgumentNullException.ThrowIfNull(annotations);
+
+        if (node is not null) {
+            return new SyntaxToken(
+                parent: null,
+                token: node.WithAdditionalAnnotationsGreen(annotations),
+                position: 0,
+                index: 0
+            );
+        }
+
+        return default;
+    }
+
     public override string ToString() {
         return node is not null ? node.ToString() : "";
     }
@@ -211,5 +258,39 @@ public sealed class SyntaxToken {
 
     private string GetDebuggerDisplay() {
         return GetType().Name + " " + (node is not null ? node.kind : "None") + " " + ToString();
+    }
+
+    internal SyntaxToken WithLeadingTrivia(SyntaxTriviaList trivia) {
+        return WithLeadingTrivia((IEnumerable<SyntaxTrivia>)trivia);
+    }
+
+    internal SyntaxToken WithLeadingTrivia(IEnumerable<SyntaxTrivia> trivia) {
+        return node is not null
+            ? new SyntaxToken(
+                null,
+                node.WithLeadingTrivia(GreenNode.CreateList(trivia, static t => t.green)),
+                position: 0,
+                index: 0
+              )
+            : default;
+    }
+
+    internal SyntaxToken WithTrailingTrivia(SyntaxTriviaList trivia) {
+        return WithTrailingTrivia((IEnumerable<SyntaxTrivia>)trivia);
+    }
+
+    internal SyntaxToken WithTrailingTrivia(IEnumerable<SyntaxTrivia>? trivia) {
+        return node is not null
+            ? new SyntaxToken(
+                null,
+                node.WithTrailingTrivia(GreenNode.CreateList(trivia, static t => t.green)),
+                position: 0,
+                index: 0
+              )
+            : default;
+    }
+
+    internal bool IsPartOfStructuredTrivia() {
+        return parent?.IsPartOfStructuredTrivia() ?? false;
     }
 }

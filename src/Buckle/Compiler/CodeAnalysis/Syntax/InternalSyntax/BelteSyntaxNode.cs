@@ -24,13 +24,14 @@ internal abstract class BelteSyntaxNode : GreenNode {
     /// <summary>
     /// Creates a new <see cref="BelteSyntaxNode" /> with diagnostics.
     /// </summary>
-    internal BelteSyntaxNode(SyntaxKind kind, Diagnostic[] diagnostics) : base(kind, diagnostics) { }
+    internal BelteSyntaxNode(SyntaxKind kind, Diagnostic[] diagnostics, SyntaxAnnotation[] annotations)
+        : base(kind, diagnostics, annotations) { }
 
     /// <summary>
     /// Creates a new <see cref="BelteSyntaxNode" /> with a predefined full width and diagnostics.
     /// </summary>
-    internal BelteSyntaxNode(SyntaxKind kind, int fullWidth, Diagnostic[] diagnostics)
-        : base(kind, fullWidth, diagnostics) { }
+    internal BelteSyntaxNode(SyntaxKind kind, int fullWidth, Diagnostic[] diagnostics, SyntaxAnnotation[] annotations)
+        : base(kind, fullWidth, diagnostics, annotations) { }
 
     /// <summary>
     /// Gets the first token this <see cref="BelteSyntaxNode" /> contains.
@@ -71,6 +72,14 @@ internal abstract class BelteSyntaxNode : GreenNode {
         }
 
         return stack;
+    }
+
+    internal override bool IsTriviaWithEndOfLine() {
+        return kind is SyntaxKind.EndOfLineTrivia or SyntaxKind.SingleLineCommentTrivia;
+    }
+
+    internal sealed override Syntax.SyntaxToken CreateSeparator(SyntaxNode element) {
+        return Syntax.SyntaxFactory.Token(SyntaxKind.CommaToken);
     }
 
     internal static DirectiveStack ApplyDirectivesToListOrNode(GreenNode listOrNode, DirectiveStack stack) {

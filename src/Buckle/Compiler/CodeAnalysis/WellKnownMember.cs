@@ -8,6 +8,8 @@ internal enum WellKnownMember : byte {
     Nullable_getValue,
     Nullable_getHasValue,
     Nullable_GetValueOrDefault,
+    Nullable_GetValueOrDefault_T,
+
 
     ValueTuple_T1_Item1,
 
@@ -66,4 +68,18 @@ internal enum WellKnownMember : byte {
     Array_ctor_2,
     Array_Get,
     Array_Set,
+
+    Result_Failure,
+    Result_getIsSuccess,
+    Result_getError,
+    Result_getValue,
+
+    WrappedErrorException_ctor,
+
+    System_Activator_CreateInstance,
+    System_InvalidOperationException_ctor,
+
+
+    LastCorMember = Nullable_GetValueOrDefault_T,
+    Count = System_InvalidOperationException_ctor,
 }

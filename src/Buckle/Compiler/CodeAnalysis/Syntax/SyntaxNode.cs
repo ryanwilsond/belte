@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
+using System.Linq;
 using System.Threading;
 using Buckle.CodeAnalysis.Text;
 
@@ -12,6 +13,7 @@ namespace Buckle.CodeAnalysis.Syntax;
 /// </summary>
 [DebuggerDisplay("{GetDebuggerDisplay(), nq}")]
 public abstract partial class SyntaxNode {
+    private SyntaxNode _parent;
     private protected SyntaxTree _syntaxTree;
 
     /// <summary>
@@ -29,7 +31,7 @@ public abstract partial class SyntaxNode {
     internal SyntaxNode(SyntaxNode parent, GreenNode node, int position) {
         green = node;
         this.position = position;
-        this.parent = parent;
+        _parent = parent;
     }
 
     internal SyntaxNode(GreenNode node, int position, SyntaxTree syntaxTree) : this(null, node, position) {
@@ -44,7 +46,7 @@ public abstract partial class SyntaxNode {
     /// <summary>
     /// The parent of this node. The parent's children are this node's siblings.
     /// </summary>
-    public SyntaxNode parent { get; }
+    public SyntaxNode parent => _parent;
 
     /// <summary>
     /// <see cref="SyntaxTree" /> this <see cref="SyntaxNode" /> resides in.
@@ -104,7 +106,25 @@ public abstract partial class SyntaxNode {
     /// <summary>
     /// Location of where the <see cref="SyntaxNode" /> is in the <see cref="SourceText" />.
     /// </summary>
-    public TextLocation location => syntaxTree is null ? null : new TextLocation(syntaxTree.text, span, syntaxTree);
+    public TextLocation location {
+        get {
+            if (syntaxTree is null)
+                return null;
+
+            var primaryLocation = new TextLocation(syntaxTree.text, span, syntaxTree);
+
+            if (green.hasAnnotationsDirectly) {
+                var locationAnnotations = GetAnnotations("Location");
+
+                if (locationAnnotations.Any()) {
+                    var annotation = locationAnnotations.Single();
+                    return new CompoundTextLocation(primaryLocation, (TextLocation)annotation.data);
+                }
+            }
+
+            return primaryLocation;
+        }
+    }
 
     /// <summary>
     /// If any diagnostics have spans that overlap with this node.
@@ -130,6 +150,8 @@ public abstract partial class SyntaxNode {
     /// </summary>
     internal GreenNode green { get; }
 
+    internal InternalSyntax.BelteSyntaxNode bltGreen => (InternalSyntax.BelteSyntaxNode)green;
+
     public override string ToString() {
         return green.ToString();
     }
@@ -138,11 +160,37 @@ public abstract partial class SyntaxNode {
         green.WriteTo(writer, true, true);
     }
 
+    internal SyntaxAnnotation[] GetAnnotations() {
+        return green.GetAnnotations();
+    }
+
+    internal IEnumerable<SyntaxAnnotation> GetAnnotations(string annotationKind) {
+        return green.GetAnnotations(annotationKind);
+    }
+
+    internal SyntaxNode WithAdditionalAnnotationsInternal(IEnumerable<SyntaxAnnotation> annotations) {
+        return green.WithAdditionalAnnotationsGreen(annotations).CreateRed();
+    }
+
     /// <summary>
     /// All child nodes and tokens of this node.
     /// </summary>
     public ChildSyntaxList ChildNodesAndTokens() {
         return new ChildSyntaxList(this);
+    }
+
+    public IEnumerable<SyntaxToken> ChildTokens() {
+        foreach (var nodeOrToken in ChildNodesAndTokens()) {
+            if (nodeOrToken.isToken)
+                yield return nodeOrToken.AsToken();
+        }
+    }
+
+    public IEnumerable<SyntaxNode> ChildNodes() {
+        foreach (var nodeOrToken in ChildNodesAndTokens()) {
+            if (nodeOrToken.AsNode(out var node))
+                yield return node;
+        }
     }
 
     /// <summary>
@@ -379,6 +427,10 @@ public abstract partial class SyntaxNode {
         }
 
         return result;
+    }
+
+    internal InternalSyntax.DirectiveStack ApplyDirectives(InternalSyntax.DirectiveStack stack) {
+        return ((InternalSyntax.BelteSyntaxNode)green).ApplyDirectives(stack);
     }
 
     internal TNode FirstAncestorOrSelf<TNode>(Func<TNode, bool> predicate = null, bool ascendOutOfTrivia = true)

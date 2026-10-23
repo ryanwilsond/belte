@@ -9,31 +9,53 @@ namespace Buckle.CodeAnalysis;
 internal enum WellKnownType : byte {
     None,
 
-    // Required
+    First = SpecialType.NextAvailable,
 
-    Enumerator,
-    Exception,
+    Belte_Enumerator = First,
 
-    // Non-required
+    Belte_ValueTuple_T1,
+    Belte_ValueTuple_T2,
+    Belte_ValueTuple_T3,
+    Belte_ValueTuple_T4,
+    Belte_ValueTuple_T5,
+    Belte_ValueTuple_T6,
+    Belte_ValueTuple_T7,
+    Belte_ValueTuple_TRest,
 
-    List,
-    Dictionary,
+    System_Exception,
+    System_Collections_IEnumerable,
+    System_Collections_Generic_IEnumerable_T,
+    System_Collections_IEnumerator,
+    System_Collections_Generic_IEnumerator_T,
+    System_Attribute,
+    System_AttributeUsageAttribute,
+    System_String,
+    System_Activator,
+    System_InvalidOperationException,
 
-    ValueTuple_T1,
-    ValueTuple_T2,
-    ValueTuple_T3,
-    ValueTuple_T4,
-    ValueTuple_T5,
-    ValueTuple_T6,
-    ValueTuple_T7,
-    ValueTuple_TRest,
+    Belte_NoAllocAttribute,
+    Belte_NoThrowAttribute,
+    Belte_PureAttribute,
+    Belte_CompilerServices_BelteMetadataAttribute,
+    Belte_NullabilityAttribute,
+    Belte_ConstMethodAttribute,
+    Belte_ConstParamAttribute,
+    Belte_ConstExprParamAttribute,
 
-    Vec2,
-    Sprite,
-    Text,
-    Rect,
-    Texture,
-    Sound,
+    Belte_List,
+    Belte_Dictionary,
+    Belte_Result,
+    Belte_WrappedErrorException,
 
-    Array,
+    Belte_Graphics_Vec2,
+    Belte_Graphics_Sprite,
+    Belte_Graphics_Text,
+    Belte_Graphics_Rect,
+    Belte_Graphics_Texture,
+    Belte_Graphics_Sound,
+
+
+    NextAvailable,
+
+    ExtSentinel = 255,
 }
