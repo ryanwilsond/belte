@@ -434,9 +434,8 @@ internal sealed class SourcePropertySymbol : SourcePropertySymbolBase {
 
     private Binder CreateBinderForTypeAndParameters() {
         var compilation = declaringCompilation;
-        var syntaxTree = this.syntaxTree;
         var syntax = belteSyntaxNode;
-        var binderFactory = compilation.GetBinderFactory(syntaxTree);
+        var binderFactory = compilation.GetBinderFactory(syntaxReference.GetPrimarySyntaxTree());
         var binder = binderFactory.GetBinder(syntax, syntax, this);
         var modifiers = GetModifierTokensSyntax(syntax);
 

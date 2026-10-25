@@ -593,6 +593,11 @@ internal sealed partial class CodeGenerator {
                 }
 
                 break;
+            case SpecialType.Type:
+                var typeOfType = (TypeSymbol)constant.value;
+                _builder.EmitWithSymbolToken(OpCode.Ldtoken, typeOfType);
+                _builder.EmitGetTypeFromHandle(typeOfType);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(discriminator);
         }

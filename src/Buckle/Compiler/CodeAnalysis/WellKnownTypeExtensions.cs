@@ -25,6 +25,7 @@ internal static class WellKnownTypeExtensions {
         "System.String",
         "System.Activator",
         "System.InvalidOperationException",
+        "System.Type",
         "Belte.NoAllocAttribute",
         "Belte.NoThrowAttribute",
         "Belte.PureAttribute",
@@ -43,6 +44,7 @@ internal static class WellKnownTypeExtensions {
         "Belte.Graphics.Rect",
         "Belte.Graphics.Texture",
         "Belte.Graphics.Sound",
+        "Buckle.CodeAnalysis.Text.TextLocation",
     ];
 
 #if DEBUG

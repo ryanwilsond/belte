@@ -10351,13 +10351,26 @@ var text = """"""
     }
 
     [Fact]
-    public void Reports_Error_BU0681_CannotEmitCodeType() {
+    public void Reports_Error_BU0681_CannotEmitCompileTimeType() {
         var text = @"
             [Code?] MyFunc() { return null; }
         ";
 
         var diagnostics = @"
             cannot emit type 'Code'; it is a compile-time type only
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, references: []);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0681_CannotEmitCompileTimeType2() {
+        var text = @"
+            [Location?] MyFunc() { return null; }
+        ";
+
+        var diagnostics = @"
+            cannot emit type 'Location'; it is a compile-time type only
         ";
 
         AssertDiagnostics(text, diagnostics, _writer, references: []);
@@ -10421,6 +10434,108 @@ var text = """"""
 
         var diagnostics = @"
             not all code paths for expansion method return a value
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0686_CodeStringMustBeStatement() {
+        var text = @"
+            $codestr([""return 3; return 5;""]);
+        ";
+
+        var diagnostics = @"
+            code string must represent a single statement
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0687_ExecExpressionMustBeCall() {
+        var text = @"
+            _ = $exec([3]);
+        ";
+
+        var diagnostics = @"
+            exec expression must be an ordinary static non-template method call with compile-time constant arguments
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0688_InvalidExecType() {
+        var text = @"
+            class A {
+                public static A M() { return new A(); }
+            }
+
+            _ = [$exec(A.M())];
+        ";
+
+        var diagnostics = @"
+            exec expression must result in a primitive type
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0689_TypeStringMustBeTypeDecl() {
+        var text = @"
+            _ = $type([""3;""]);
+        ";
+
+        var diagnostics = @"
+            type string must represent a single type declaration
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0690_ExecExpressionFailed() {
+        var text = @"
+            public static class Program {
+                public static void Main() {
+                    [$exec(A.SomeFunc())];
+                }
+            }
+
+            public static class A {
+                public static void SomeFunc() {
+                    int a = [true];
+                }
+            }
+        ";
+
+        var diagnostics = @"
+            exec expression failed to execute due to errors in method 'A.SomeFunc()'
+            cannot convert from type 'bool!' to 'int!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0691_CycleInExec() {
+        var text = @"
+            public static class Program {
+                public static void Main() {
+                    [$exec(SomeFunc())];
+                }
+
+                public static void SomeFunc() {
+                    int a = [true];
+                }
+            }
+        ";
+
+        var diagnostics = @"
+            cycle in exec expression; exec expression depends on 'Program' which it is contained in
+            cannot convert from type 'bool!' to 'int!'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

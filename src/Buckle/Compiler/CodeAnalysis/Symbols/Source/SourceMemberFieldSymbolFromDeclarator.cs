@@ -109,7 +109,7 @@ internal partial class SourceMemberFieldSymbolFromDeclarator : SourceMemberField
         var diagnostics = BelteDiagnosticQueue.GetInstance();
         TypeWithAnnotations type;
 
-        var binderFactory = compilation.GetBinderFactory(syntaxTree);
+        var binderFactory = compilation.GetBinderFactory(syntaxReference.GetPrimarySyntaxTree());
         var binder = binderFactory.GetBinder(typeSyntax);
         binder = binder.WithAdditionalFlagsAndContainingMember(BinderFlags.SuppressConstraintChecks, this);
 

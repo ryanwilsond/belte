@@ -332,7 +332,7 @@ internal class SourcePropertyAccessorSymbol : SourceMemberMethodSymbol {
     private Binder GetBinder() {
         var syntax = GetSyntax();
         var compilation = declaringCompilation;
-        var binderFactory = compilation.GetBinderFactory(syntax.syntaxTree);
+        var binderFactory = compilation.GetBinderFactory(syntax.GetPrimarySyntaxTree());
         return binderFactory.GetBinder(syntax);
     }
 

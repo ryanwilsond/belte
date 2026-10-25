@@ -73,4 +73,47 @@ internal static class GreenNodeExtensions {
             return (T)node.SetAnnotations(newAnnotations.ToArrayAndFree());
         }
     }
+
+    internal static T WithoutAnnotationsGreen<T>(this T node, string annotationKind) where T : GreenNode {
+        var existingAnnotations = node.GetAnnotations();
+
+        if (annotationKind is null || existingAnnotations.Length == 0)
+            return node;
+
+        var newAnnotations = ArrayBuilder<SyntaxAnnotation>.GetInstance();
+
+        foreach (var candidate in existingAnnotations) {
+            if (candidate.kind != annotationKind)
+                newAnnotations.Add(candidate);
+        }
+
+        return (T)node.SetAnnotations(newAnnotations.ToArrayAndFree());
+    }
+
+    internal static T WithoutAnnotationsGreen<T>(this T node, IEnumerable<SyntaxAnnotation> annotations)
+        where T : GreenNode {
+        var existingAnnotations = node.GetAnnotations();
+
+        if (annotations is null || existingAnnotations.Length == 0)
+            return node;
+
+        var removalAnnotations = ArrayBuilder<SyntaxAnnotation>.GetInstance();
+        removalAnnotations.AddRange(annotations);
+
+        try {
+            if (removalAnnotations.Count == 0)
+                return node;
+
+            var newAnnotations = ArrayBuilder<SyntaxAnnotation>.GetInstance();
+
+            foreach (var candidate in existingAnnotations) {
+                if (!removalAnnotations.Contains(candidate))
+                    newAnnotations.Add(candidate);
+            }
+
+            return (T)node.SetAnnotations(newAnnotations.ToArrayAndFree());
+        } finally {
+            removalAnnotations.Free();
+        }
+    }
 }

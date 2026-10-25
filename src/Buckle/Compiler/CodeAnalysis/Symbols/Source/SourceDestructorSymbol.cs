@@ -54,7 +54,7 @@ internal sealed class SourceDestructorSymbol : SourceMemberMethodSymbol {
 
     private protected override void MethodChecks(BelteDiagnosticQueue diagnostics) {
         var syntax = GetSyntax();
-        var bodyBinder = declaringCompilation.GetBinderFactory(syntaxReference.syntaxTree)
+        var bodyBinder = declaringCompilation.GetBinderFactory(syntaxReference.GetPrimarySyntaxTree())
             .GetBinder(syntax, syntax, this);
 
         _lazyReturnType = new TypeWithAnnotations(bodyBinder.compilation.GetSpecialType(SpecialType.Void));

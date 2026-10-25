@@ -4,6 +4,8 @@ using System.Collections.Immutable;
 using System.Diagnostics;
 using System.Linq;
 using Buckle.CodeAnalysis.CodeGeneration;
+using Buckle.CodeAnalysis.Evaluating;
+using Buckle.CodeAnalysis.Lowering;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -333,6 +335,8 @@ internal partial class Binder {
             diagnostics,
             BindValueKind.RValue
         );
+
+        valueBeforeConversion = TargetTypeAsConstexpr(valueBeforeConversion);
 
         var isTemplate = parameter is TemplateParameterSymbol;
 
@@ -2181,7 +2185,15 @@ internal partial class Binder {
                 case SyntaxKind.CheckedExpression:
                     return BindCheckedExpression((CheckedExpressionSyntax)node, diagnostics);
                 case SyntaxKind.CodeExpression:
-                    return BindCodeExpression((CodeExpressionSyntax)node);
+                    return BindCodeExpression((CodeExpressionSyntax)node, diagnostics);
+                case SyntaxKind.CodeStrExpression:
+                    return BindCodeStrExpression((CodeStrExpressionSyntax)node, diagnostics);
+                case SyntaxKind.ExecExpression:
+                    return BindExecExpression((ExecExpressionSyntax)node, diagnostics);
+                case SyntaxKind.TypeExpression:
+                    return BindTypeExpression((TypeExpressionSyntax)node, diagnostics);
+                case SyntaxKind.LocationExpression:
+                    return BindLocationExpression((LocationExpressionSyntax)node);
                 case SyntaxKind.NonNullableType:
                     Debug.Assert(false);
                     return ErrorExpression(node);
@@ -3027,7 +3039,7 @@ internal partial class Binder {
         }
 
         var boundType = new BoundTypeExpression(typeSyntax, typeWithAnnotations, null, type, type.IsErrorType());
-        return new BoundTypeOfExpression(node, boundType, compilation.GetSpecialType(SpecialType.Type), hasError);
+        return new BoundTypeOfExpression(node, boundType, null, compilation.GetSpecialType(SpecialType.Type), hasError);
     }
 
     private BoundExpression BindBindsExpression(BindsExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
@@ -5227,11 +5239,355 @@ internal partial class Binder {
         return binder.BindParenthesizedExpression(node.expression, diagnostics);
     }
 
-    private BoundExpression BindCodeExpression(CodeExpressionSyntax node) {
-        return new BoundCodeExpression(
+    private BoundExpression BindCodeExpression(CodeExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        return new BoundLiteralExpression(
             node,
             new ConstantValue(node.statement, SpecialType.Code),
             compilation.GetSpecialType(SpecialType.Code)
+        );
+    }
+
+    private BoundExpression BindCodeStrExpression(CodeStrExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var expression = BindExpression(node.expression, diagnostics);
+        var stringType = compilation.GetSpecialType(SpecialType.String);
+        var conversion = conversions.ClassifyImplicitConversionFromExpression(expression, stringType);
+
+        if (!conversion.exists) {
+            GenerateImplicitConversionError(diagnostics, node.expression, conversion, expression, stringType);
+            return ErrorExpression(node, expression);
+        } else {
+            expression = CreateConversion(expression, conversion, stringType, diagnostics);
+        }
+
+        if (expression.constantValue is null) {
+            diagnostics.Push(Error.ConstantExpected(node.expression.location));
+            return ErrorExpression(node, expression);
+        }
+
+        var text = (string)expression.constantValue.value;
+        var compilationUnit = ParseInsertedCode(text, node);
+
+        var unitDiagnostics = compilationUnit.syntaxTree.GetDiagnostics(compilationUnit);
+        var hasError = false;
+
+        foreach (var diagnostic in unitDiagnostics) {
+            if (diagnostic.info.severity >= DiagnosticSeverity.Error)
+                hasError = true;
+
+            var withLocation = BelteDiagnostic.AddLocation(
+                diagnostic,
+                new CompoundTextLocation(diagnostic.location, node)
+            );
+
+            diagnostics.Push(withLocation);
+        }
+
+        if (hasError)
+            return ErrorExpression(node, expression);
+
+        if (compilationUnit.elements.Count != 1 || compilationUnit.elements[0].kind != SyntaxKind.GlobalStatement) {
+            diagnostics.Push(Error.CodeStringMustBeStatement(node.expression.location));
+            return ErrorExpression(node, expression);
+        }
+
+        var globalStatement = (GlobalStatementSyntax)compilationUnit.elements[0];
+
+        if (globalStatement.attributeLists?.Count > 0)
+            diagnostics.Push(Error.InvalidAttributes(globalStatement.attributeLists[0].location));
+
+        if (globalStatement.modifiers?.Count > 0) {
+            foreach (var modifier in globalStatement.modifiers)
+                diagnostics.Push(Error.InvalidModifier(modifier.location, SyntaxFacts.GetText(modifier.kind)));
+        }
+
+        return new BoundLiteralExpression(
+            node,
+            new ConstantValue(globalStatement.statement, SpecialType.Code),
+            compilation.GetSpecialType(SpecialType.Code)
+        );
+    }
+
+    private CompilationUnitSyntax ParseInsertedCode(string text, SyntaxNode node) {
+        var compilationUnit = (CompilationUnitSyntax)SyntaxFactory.ParseCompilationUnit(text)
+            .WithCompoundLocation(node);
+        var syntaxTree = SyntaxTree.Create(SourceText.From(text), compilationUnit, ParseOptions.Default);
+        return syntaxTree.GetCompilationUnitRoot();
+    }
+
+    private BoundExpression BindExecExpression(ExecExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var operand = BindExpression(node.expression, diagnostics);
+
+        if (!compilation.TryAddExecNode(node)) {
+            var error = Error.CycleInExec(node.location, containingType);
+            compilation.AddExecDiagnostic(node, error);
+            // We add this error here to prevent lowering, but this diagnostic will be discarded
+            diagnostics.Push(error);
+            return ErrorExpression(node, operand);
+        }
+
+        var nodeType = operand.StrippedType();
+
+        // TODO Allow non-calls, but requiring a call gives us a stable starting point for the method compiler
+
+        if (nodeType is not null && !IsValidExecType(nodeType)) {
+            if (!operand.hasErrors)
+                diagnostics.Push(Error.InvalidExecType(node.location));
+
+            return operand;
+        } else if (operand.kind != BoundKind.CallExpression) {
+            diagnostics.Push(Error.ExecExpressionMustBeCall(node.expression.location));
+            return operand;
+        }
+
+        var call = (BoundCallExpression)operand;
+        var method = call.method;
+
+        if (!method.isStatic ||
+            method.methodKind != MethodKind.Ordinary ||
+            method.arity != 0) {
+            diagnostics.Push(Error.ExecExpressionMustBeCall(node.expression.location));
+            return operand;
+        }
+
+        var argumentsBuilder = ArrayBuilder<object>.GetInstance(call.arguments.Length);
+        var lateTypeofArgs = new bool[call.arguments.Length];
+        ArrayBuilder<NamedTypeSymbol> typesToCollect = null;
+
+        for (var i = 0; i < call.arguments.Length; i++) {
+            var argument = call.arguments[i];
+
+            if (argument.constantValue is not null) {
+                argumentsBuilder.Add(argument.constantValue.value);
+                continue;
+            } else if (DiagnosticPass.StripImplicitCasts(argument) is BoundInitializerList initializerList) {
+                if (TryBuildArray(argument.type, initializerList, out var array)) {
+                    argumentsBuilder.Add(array);
+                    continue;
+                }
+            } else if (DiagnosticPass.StripImplicitCasts(argument) is BoundTypeOfExpression typeOfExpression) {
+                var symbol = TargetTypeAsConstexpr(typeOfExpression).constantValue?.value as NamedTypeSymbol;
+
+                if (symbol is not null) {
+                    typesToCollect ??= ArrayBuilder<NamedTypeSymbol>.GetInstance();
+                    typesToCollect.Add(symbol.originalDefinition);
+                    lateTypeofArgs[i] = true;
+                    argumentsBuilder.Add(null);
+                    continue;
+                }
+            }
+
+            diagnostics.Push(Error.ExecExpressionMustBeCall(node.expression.location));
+            argumentsBuilder.Free();
+            return operand;
+        }
+
+        var compilerDiagnostics = BelteDiagnosticQueue.GetInstance();
+
+        // TODO This is very expensive so reusing method compiler/executor could be worth it
+        // Would be hard to reuse stuff because the program context is necessarily different as different symbols
+        // are collected
+
+        var program = MethodCompiler.CompileMethodBodies(
+            compilation,
+            compilerDiagnostics,
+            s => {
+                if (s is not NamespaceOrTypeSymbol n)
+                    return true;
+
+                var current = n;
+
+                if (typesToCollect is not null && typesToCollect.Contains(n.originalDefinition))
+                    return true;
+
+                while (current is not null) {
+                    if ((object)current.originalDefinition == method.containingType.originalDefinition)
+                        return true;
+
+                    current = current.containingType;
+                }
+
+                return false;
+            },
+            hasDeclarationErrors: false,
+            skipEntryPoint: true,
+            collectSymbols: true
+        );
+
+        var execDiagnostics = compilation.RemoveExecNode(node);
+
+        if (execDiagnostics.AnyErrors()) {
+            compilerDiagnostics.Free();
+            argumentsBuilder.Free();
+
+            diagnostics.PushRangeAndFree(execDiagnostics);
+
+            return ErrorExpression(node, operand);
+        } else if (compilerDiagnostics.AnyErrors()) {
+            // Errors will be found during main binding and reported
+            // However, we need to add a new error here to prevent lowering
+            compilerDiagnostics.Free();
+            argumentsBuilder.Free();
+
+            diagnostics.PushRangeAndFree(execDiagnostics);
+            diagnostics.Push(Error.ExecExpressionFailed(node.location, method));
+
+            return ErrorExpression(node, operand);
+        }
+
+        compilerDiagnostics.Free();
+        execDiagnostics.Free();
+
+        var executor = Executor.CreateForHandler(program, diagnostics, method.containingType);
+
+        if (typesToCollect is not null) {
+            for (var i = 0; i < call.arguments.Length; i++) {
+                if (!lateTypeofArgs[i])
+                    continue;
+
+                var typeArg = executor.GetType(typesToCollect[i]);
+                argumentsBuilder[i] = typeArg;
+            }
+        }
+
+        var result = executor.ExecuteMethod(
+            method,
+            argumentsBuilder.ToArrayAndFree(),
+            node.location,
+            diagnostics,
+            out var threw
+        );
+
+        if (threw)
+            return ErrorExpression(node, operand);
+
+#if DEBUG
+        var specialType = result is null
+            ? nodeType.specialType
+            : SpecialTypeExtensions.SpecialTypeFromLiteralValue(result);
+
+        Debug.Assert(specialType == nodeType.specialType);
+#endif
+
+        return new BoundLiteralExpression(node, new ConstantValue(result, nodeType.specialType), operand.type);
+
+        static bool IsValidExecType(TypeSymbol type) {
+            // Needs to be restricted to things that can be stored within a ConstantValue
+            switch (type.specialType) {
+                case SpecialType.Int8:
+                case SpecialType.UInt8:
+                case SpecialType.Int16:
+                case SpecialType.UInt16:
+                case SpecialType.Int32:
+                case SpecialType.UInt32:
+                case SpecialType.Int64:
+                case SpecialType.Int:
+                case SpecialType.UInt64:
+                case SpecialType.Float32:
+                case SpecialType.Float64:
+                case SpecialType.Decimal:
+                case SpecialType.String:
+                case SpecialType.Bool:
+                case SpecialType.Char:
+                case SpecialType.Void:
+                    return true;
+                default:
+                    return false;
+            }
+        }
+
+        static bool TryBuildArray(TypeSymbol type, BoundInitializerList initializerList, out object result) {
+            if (type is not ArrayTypeSymbol arrayType || !IsValidExecType(arrayType.elementType)) {
+                result = null;
+                return false;
+            }
+
+            var length = initializerList.items.Length;
+            var array = Array.CreateInstance(Executor.GetSimpleType(arrayType.elementType), length);
+
+            for (var i = 0; i < length; i++) {
+                var item = initializerList.items[i];
+
+                if (item.constantValue is null) {
+                    result = null;
+                    return false;
+                }
+
+                array.SetValue(item.constantValue.value, i);
+            }
+
+            result = array;
+            return true;
+        }
+    }
+
+    private BoundExpression BindTypeExpression(TypeExpressionSyntax node, BelteDiagnosticQueue diagnostics) {
+        var expression = BindExpression(node.expression, diagnostics);
+        var stringType = compilation.GetSpecialType(SpecialType.String);
+        var conversion = conversions.ClassifyImplicitConversionFromExpression(expression, stringType);
+
+        if (!conversion.exists) {
+            GenerateImplicitConversionError(diagnostics, node.expression, conversion, expression, stringType);
+            return ErrorExpression(node, expression);
+        } else {
+            expression = CreateConversion(expression, conversion, stringType, diagnostics);
+        }
+
+        if (expression.constantValue is null) {
+            if (!expression.hasErrors)
+                diagnostics.Push(Error.ConstantExpected(node.expression.location));
+
+            return ErrorExpression(node, expression);
+        }
+
+        var text = (string)expression.constantValue.value;
+        var compilationUnit = ParseInsertedCode(text, node);
+
+        var unitDiagnostics = compilationUnit.syntaxTree.GetDiagnostics(compilationUnit);
+        var hasError = false;
+
+        foreach (var diagnostic in unitDiagnostics) {
+            if (diagnostic.info.severity >= DiagnosticSeverity.Error)
+                hasError = true;
+
+            var withLocation = BelteDiagnostic.AddLocation(
+                diagnostic,
+                new CompoundTextLocation(diagnostic.location, node)
+            );
+
+            diagnostics.Push(withLocation);
+        }
+
+        if (hasError)
+            return ErrorExpression(node, expression);
+
+        if (compilationUnit.elements.Count != 1 || compilationUnit.elements[0] is not TypeDeclarationSyntax) {
+            diagnostics.Push(Error.TypeStringMustBeTypeDecl(node.expression.location));
+            return ErrorExpression(node, expression);
+        }
+
+        var typeDeclaration = (TypeDeclarationSyntax)compilationUnit.elements[0];
+
+        var singleDeclaration = (SingleTypeDeclaration)DeclarationTreeBuilder.ForNode(typeDeclaration);
+        var mergedDeclaration = new MergedTypeDeclaration([singleDeclaration]);
+
+        var type = new SourceNamedTypeSymbol(containingType, mergedDeclaration, diagnostics);
+        compilation.NoteSynthesizedType(type, typeDeclaration);
+        compilation.NoteSynthesizedCode(node, text);
+
+        type.ForceComplete(node.expression.location);
+
+        return new BoundLiteralExpression(
+            node,
+            new ConstantValue(type, SpecialType.Type),
+            compilation.GetSpecialType(SpecialType.Type)
+        );
+    }
+
+    private BoundExpression BindLocationExpression(LocationExpressionSyntax node) {
+        return new BoundLiteralExpression(
+            node,
+            new ConstantValue(node.location, SpecialType.Location),
+            compilation.GetSpecialType(SpecialType.Location)
         );
     }
 
@@ -5679,10 +6035,14 @@ internal partial class Binder {
 
             var declaration = localSymbol.GetDeclarationSyntax();
 
-            if (node.span.start >= declaration.span.start)
+            var useLocation = node.location is CompoundTextLocation compound
+                ? compound.secondaryLocation
+                : node.location;
+
+            if (useLocation.span.start >= declaration.span.start)
                 return false;
 
-            return node.syntaxTree == declaration.syntaxTree;
+            return useLocation.tree == declaration.syntaxTree;
         }
     }
 

@@ -1410,7 +1410,7 @@
     <Field Name="openParenthesis" Type="SyntaxToken">
       <Kind Name="OpenParenToken"/>
     </Field>
-    <Field Name="name" Type="NameSyntax"/>
+    <Field Name="expression" Type="ExpressionSyntax"/>
     <Field Name="closeParenthesis" Type="SyntaxToken">
       <Kind Name="CloseParenToken"/>
     </Field>
@@ -1636,6 +1636,63 @@
     <Field Name="statement" Type="StatementSyntax"/>
     <Field Name="closeParenthesis" Type="SyntaxToken">
       <Kind Name="CloseParenToken"/>
+    </Field>
+  </Node>
+  <Node Name="CodeStrExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="CodeStrExpression"/>
+    <Field Name="dollar" Type="SyntaxToken">
+      <Kind Name="DollarToken"/>
+    </Field>
+    <Field Name="codestrKeyword" Type="SyntaxToken">
+      <Kind Name="CodestrKeyword"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="expression" Type="ExpressionSyntax"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+  </Node>
+  <Node Name="ExecExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="ExecExpression"/>
+    <Field Name="dollar" Type="SyntaxToken">
+      <Kind Name="DollarToken"/>
+    </Field>
+    <Field Name="execKeyword" Type="SyntaxToken">
+      <Kind Name="ExecKeyword"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="expression" Type="ExpressionSyntax"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+  </Node>
+  <Node Name="TypeExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="TypeExpression"/>
+    <Field Name="dollar" Type="SyntaxToken">
+      <Kind Name="DollarToken"/>
+    </Field>
+    <Field Name="typeKeyword" Type="SyntaxToken">
+      <Kind Name="TypeKeyword"/>
+    </Field>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="expression" Type="ExpressionSyntax"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+  </Node>
+  <Node Name="LocationExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="LocationExpression"/>
+    <Field Name="dollar" Type="SyntaxToken">
+      <Kind Name="DollarToken"/>
+    </Field>
+    <Field Name="locationKeyword" Type="SyntaxToken">
+      <Kind Name="LocationKeyword"/>
     </Field>
   </Node>
   <Node Name="UnaryExpressionSyntax" Base="ExpressionSyntax">

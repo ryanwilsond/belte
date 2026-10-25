@@ -37,6 +37,8 @@ internal abstract partial class ConversionsBase {
         BoundUnconvertedArrayLength length,
         TypeSymbol destination);
 
+    private protected abstract bool HasImplicitWellKnownTypeConversion(TypeSymbol source, TypeSymbol destination);
+
     internal bool HasTopLevelNullabilityImplicitConversion(TypeWithAnnotations source, TypeWithAnnotations destination) {
         // if (!includeNullability) {
         //     return true;
@@ -159,9 +161,11 @@ internal abstract partial class ConversionsBase {
                 return HasImplicitConversionFromArray(source, destination);
         }
 
+        if (HasImplicitWellKnownTypeConversion(source, destination))
+            return true;
+
         return false;
     }
-
 
     private bool HasImplicitConversionFromArray(TypeSymbol source, TypeSymbol destination) {
         if (source is not ArrayTypeSymbol s)

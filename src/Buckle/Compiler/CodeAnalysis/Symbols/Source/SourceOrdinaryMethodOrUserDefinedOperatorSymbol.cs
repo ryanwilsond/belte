@@ -255,7 +255,7 @@ internal abstract class SourceOrdinaryMethodOrUserDefinedOperatorSymbol : Source
 
             var diagnostics = BelteDiagnosticQueue.GetInstance();
             var withTemplateParametersBinder = declaringCompilation
-                .GetBinderFactory(syntax.syntaxTree)
+                .GetBinderFactory(syntax.GetPrimarySyntaxTree())
                 .GetBinder(returnTypeSyntax, syntax, this);
 
             var allConstraints = this.MakeTypeParameterConstraintTypes(
@@ -319,7 +319,7 @@ internal abstract class SourceOrdinaryMethodOrUserDefinedOperatorSymbol : Source
             }
 
             var withTemplateParametersBinder = declaringCompilation
-                .GetBinderFactory(syntax.syntaxTree)
+                .GetBinderFactory(syntax.GetPrimarySyntaxTree())
                 .GetBinder(returnTypeSyntax, syntax, this);
 
             var constraints = this.MakeTypeParameterConstraintKinds(

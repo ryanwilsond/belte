@@ -101,6 +101,38 @@ internal sealed class Conversions : ConversionsBase {
         return conversion;
     }
 
+    private protected override bool HasImplicitWellKnownTypeConversion(TypeSymbol source, TypeSymbol destination) {
+        if (source.specialType == SpecialType.Type || destination.specialType == SpecialType.Type) {
+            var systemType = _binder.compilation.GetWellKnownType(WellKnownType.System_Type);
+
+            if (systemType is MissingMetadataTypeSymbol)
+                return false;
+
+            if (source.specialType == SpecialType.Type && destination.Equals(systemType))
+                return true;
+
+            if (destination.specialType == SpecialType.Type && source.Equals(systemType))
+                return true;
+        }
+
+        if (source.specialType == SpecialType.Location || destination.specialType == SpecialType.Location) {
+            var textLocationType = _binder.compilation.GetWellKnownType(
+                WellKnownType.Buckle_CodeAnalysis_Text_TextLocation
+            );
+
+            if (textLocationType is MissingMetadataTypeSymbol)
+                return false;
+
+            if (source.specialType == SpecialType.Location && destination.Equals(textLocationType))
+                return true;
+
+            if (destination.specialType == SpecialType.Location && source.Equals(textLocationType))
+                return true;
+        }
+
+        return false;
+    }
+
     private static void GetFunctionArguments(
         SyntaxNode syntax,
         AnalyzedArguments analyzedArguments,

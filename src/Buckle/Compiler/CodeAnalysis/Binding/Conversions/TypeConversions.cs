@@ -38,4 +38,8 @@ internal sealed class TypeConversions : ConversionsBase {
         TypeSymbol destination) {
         throw ExceptionUtilities.Unreachable();
     }
+
+    private protected override bool HasImplicitWellKnownTypeConversion(TypeSymbol source, TypeSymbol destination) {
+        return false;
+    }
 }

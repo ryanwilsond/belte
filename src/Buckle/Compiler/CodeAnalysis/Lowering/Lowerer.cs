@@ -112,7 +112,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
             return null;
 
         if (node is BoundExpression e && e.constantValue is not null) {
-            // TODO Need to report Code?
+            // TODO Need to report Code type?
             _ = VisitType(e.type, null);
             return VisitConstant(_compilation, e);
         }

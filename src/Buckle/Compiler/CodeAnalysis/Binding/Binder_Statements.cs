@@ -60,13 +60,13 @@ internal partial class Binder {
     }
 
     private BoundStatement BindInsertStatement(InsertStatementSyntax node, BelteDiagnosticQueue diagnostics) {
-        var expression = BindExpression(node.name, diagnostics);
+        var expression = BindExpression(node.expression, diagnostics);
 
         if (expression.hasErrors)
             return new BoundErrorStatement(node, [expression], true);
 
         if (expression.type?.specialType != SpecialType.Code) {
-            diagnostics.Push(Error.InsertMustHaveCodeConstant(node.name.location));
+            diagnostics.Push(Error.InsertMustHaveCodeConstant(node.expression.location));
             return new BoundErrorStatement(node, [expression], true);
         }
 
@@ -78,13 +78,13 @@ internal partial class Binder {
                     return new BoundInsertStatement(node, parameter);
                 } else {
                     diagnostics.Push(Error.CannotInsertNonExpandParameter(
-                        node.name.location,
+                        node.expression.location,
                         parameter.name,
                         parameter.containingSymbol
                     ));
                 }
             } else {
-                diagnostics.Push(Error.InsertMustHaveCodeConstant(node.name.location));
+                diagnostics.Push(Error.InsertMustHaveCodeConstant(node.expression.location));
             }
 
             return new BoundErrorStatement(node, [expression], true);
@@ -99,10 +99,12 @@ internal partial class Binder {
         ConstantValue constantValue) {
         Debug.Assert(constantValue.value is StatementSyntax);
         var statement = (StatementSyntax)constantValue.value;
-        var rewritten = (StatementSyntax)statement.WithCompoundLocation(node.location);
+        var rewritten = (StatementSyntax)statement.WithCompoundLocation(node);
         rewritten = (StatementSyntax)rewritten.green.CreateRed(statement.parent, statement.position);
 
         Debug.Assert(rewritten.location is CompoundTextLocation);
+
+        compilation.NoteSynthesizedCode(node, statement.syntaxTree.text.ToString(statement.fullSpan));
 
         return BindStatement(rewritten, diagnostics);
     }
@@ -1860,6 +1862,20 @@ internal partial class Binder {
             disposeMethod,
             hasErrors | nameConflict
         );
+    }
+
+    internal static BoundExpression TargetTypeAsConstexpr(BoundExpression expression) {
+        if (expression is BoundTypeOfExpression typeOfExpression) {
+            return new BoundTypeOfExpression(
+                typeOfExpression.syntax,
+                typeOfExpression.sourceType,
+                new ConstantValue(typeOfExpression.sourceType.type, SpecialType.Type),
+                typeOfExpression.type,
+                typeOfExpression.hasErrors
+            );
+        }
+
+        return expression;
     }
 
     internal static BoundExpression ReduceNumericIfApplicable(

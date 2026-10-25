@@ -29,7 +29,7 @@ public sealed class SymbolDisplayFormat {
     public static readonly SymbolDisplayFormat BoundDisplayFormat = new SymbolDisplayFormat(
         qualificationStyle: SymbolDisplayQualificationStyle.IncludeContainingTypes,
         templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters | SymbolDisplayTemplateOptions.IncludeTemplateConstraints,
-        memberOptions: SymbolDisplayMemberOptions.Everything,
+        memberOptions: SymbolDisplayMemberOptions.Everything & ~SymbolDisplayMemberOptions.IncludeAttributes,
         parameterOptions: SymbolDisplayParameterOptions.Everything,
         miscellaneousOptions:
             SymbolDisplayMiscellaneousOptions.IncludePropertyBody |
@@ -39,7 +39,7 @@ public sealed class SymbolDisplayFormat {
     public static readonly SymbolDisplayFormat CompactBoundDisplayFormat = new SymbolDisplayFormat(
         qualificationStyle: SymbolDisplayQualificationStyle.IncludeContainingTypes,
         templateOptions: SymbolDisplayTemplateOptions.IncludeTemplateParameters,
-        memberOptions: SymbolDisplayMemberOptions.Everything & ~SymbolDisplayMemberOptions.IncludeContainingType,
+        memberOptions: SymbolDisplayMemberOptions.Everything & ~(SymbolDisplayMemberOptions.IncludeContainingType | SymbolDisplayMemberOptions.IncludeAttributes),
         parameterOptions: SymbolDisplayParameterOptions.Everything,
         miscellaneousOptions: SymbolDisplayMiscellaneousOptions.IncludePropertyKeyword
     );

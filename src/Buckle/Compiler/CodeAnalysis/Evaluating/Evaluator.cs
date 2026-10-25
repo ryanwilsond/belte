@@ -663,7 +663,7 @@ internal sealed partial class Evaluator {
             throw new BelteThreadException();
 
         if (node.constantValue is not null)
-            return EvaluatorValue.Literal(node.constantValue.value, node.constantValue.specialType);
+            return EvaluateConstant(node.constantValue);
 
         _recursionDepth++;
 
@@ -708,6 +708,13 @@ internal sealed partial class Evaluator {
         } catch (InsufficientExecutionStackException ex) {
             throw new BoundTreeVisitor.CancelledByStackGuardException(ex, node);
         }
+    }
+
+    private EvaluatorValue EvaluateConstant(ConstantValue constantValue) {
+        if (constantValue.specialType == SpecialType.Type)
+            return EvaluateTypeOfCore((TypeSymbol)constantValue.value);
+
+        return EvaluatorValue.Literal(constantValue.value, constantValue.specialType);
     }
 
     private EvaluatorValue EvaluateExpressionCore(BoundExpression node, bool used, ValueWrapper<bool> abort) {
@@ -895,8 +902,10 @@ internal sealed partial class Evaluator {
         if (!used)
             return EvaluatorValue.None;
 
-        var type = node.sourceType.type;
+        return EvaluateTypeOfCore(node.sourceType.type);
+    }
 
+    private EvaluatorValue EvaluateTypeOfCore(TypeSymbol type) {
         if (type.StrippedType() is TemplateParameterSymbol t) {
             var substituted = SubstituteTemplateParameterType(t);
 

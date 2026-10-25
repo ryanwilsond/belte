@@ -1,7 +1,6 @@
 using System;
 using System.Diagnostics;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -239,12 +238,12 @@ internal static class SyntaxNodeExtensions {
         return (TNode)node.green.SetAnnotations(annotations).CreateRed();
     }
 
-    internal static SyntaxNode WithCompoundLocation(this SyntaxNode node, TextLocation secondaryLocation) {
+    internal static SyntaxNode WithCompoundLocation(this SyntaxNode node, SyntaxNode secondaryLocation) {
         return SyntaxReplacer.Replace(
             node,
             nodes: node.DescendantNodesAndSelf(),
             computeReplacementNode: (_, r)
-                => r.WithAdditionalAnnotationsInternal(
+                => r.WithoutAnnotations("Location").WithAdditionalAnnotationsInternal(
                     [new SyntaxAnnotation(
                         "Location",
                         secondaryLocation
@@ -252,7 +251,7 @@ internal static class SyntaxNodeExtensions {
                 ),
             tokens: node.DescendantTokens(),
             computeReplacementToken: (_, r)
-                => r.WithAdditionalAnnotations(
+                => r.WithoutAnnotations("Location").WithAdditionalAnnotations(
                     new SyntaxAnnotation(
                         "Location",
                         secondaryLocation
@@ -260,7 +259,7 @@ internal static class SyntaxNodeExtensions {
                 ),
             trivia: node.DescendantTrivia(),
             computeReplacementTrivia: (_, r)
-                => r.WithAdditionalAnnotations(
+                => r.WithoutAnnotations("Location").WithAdditionalAnnotations(
                     new SyntaxAnnotation(
                         "Location",
                         secondaryLocation

@@ -4,9 +4,9 @@ namespace Buckle.CodeAnalysis.Text;
 
 internal sealed class CompoundTextLocation : TextLocation {
     private readonly TextLocation _primary;
-    private readonly TextLocation _secondary;
+    private readonly SyntaxNode _secondary;
 
-    internal CompoundTextLocation(TextLocation primaryLocation, TextLocation secondaryLocation) {
+    internal CompoundTextLocation(TextLocation primaryLocation, SyntaxNode secondaryLocation) {
         _primary = primaryLocation;
         _secondary = secondaryLocation;
     }
@@ -17,5 +17,7 @@ internal sealed class CompoundTextLocation : TextLocation {
 
     public override SyntaxTree tree => _primary.tree;
 
-    internal TextLocation secondaryLocation => _secondary;
+    internal TextLocation secondaryLocation => _secondary.location;
+
+    internal SyntaxNode sourceNode => _secondary;
 }

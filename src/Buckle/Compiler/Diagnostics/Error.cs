@@ -3306,9 +3306,9 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_CannotUseOuterByRef, location, message);
     }
 
-    internal static BelteDiagnostic CannotEmitCodeType(TextLocation location) {
-        var message = $"cannot emit type 'Code'; it is a compile-time type only";
-        return CreateError(DiagnosticCode.ERR_CannotEmitCodeType, location, message);
+    internal static BelteDiagnostic CannotEmitCompileTimeType(TextLocation location, TypeSymbol type) {
+        var message = $"cannot emit type '{type.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}'; it is a compile-time type only";
+        return CreateError(DiagnosticCode.ERR_CannotEmitCompileTimeType, location, message);
     }
 
     internal static BelteDiagnostic InsertMustHaveCodeConstant(TextLocation location) {
@@ -3334,6 +3334,36 @@ internal static class Error {
     internal static BelteDiagnostic NotAllPathsReturnExpand(TextLocation location) {
         var message = "not all code paths for expansion method return a value";
         return CreateError(DiagnosticCode.ERR_NotAllPathsReturnExpand, location, message);
+    }
+
+    internal static BelteDiagnostic CodeStringMustBeStatement(TextLocation location) {
+        var message = "code string must represent a single statement";
+        return CreateError(DiagnosticCode.ERR_CodeStringMustBeStatement, location, message);
+    }
+
+    internal static BelteDiagnostic ExecExpressionMustBeCall(TextLocation location) {
+        var message = "exec expression must be an ordinary static non-template method call with compile-time constant arguments";
+        return CreateError(DiagnosticCode.ERR_ExecExpressionMustBeCall, location, message);
+    }
+
+    internal static BelteDiagnostic InvalidExecType(TextLocation location) {
+        var message = "exec expression must result in a primitive type";
+        return CreateError(DiagnosticCode.ERR_InvalidExecType, location, message);
+    }
+
+    internal static BelteDiagnostic TypeStringMustBeTypeDecl(TextLocation location) {
+        var message = "type string must represent a single type declaration";
+        return CreateError(DiagnosticCode.ERR_TypeStringMustBeTypeDecl, location, message);
+    }
+
+    internal static BelteDiagnostic ExecExpressionFailed(TextLocation location, Symbol symbol) {
+        var message = $"exec expression failed to execute due to errors in method '{symbol}'";
+        return CreateError(DiagnosticCode.ERR_ExecExpressionFailed, location, message);
+    }
+
+    internal static BelteDiagnostic CycleInExec(TextLocation location, Symbol symbol) {
+        var message = $"cycle in exec expression; exec expression depends on '{symbol.ToDisplayString(SymbolDisplayFormat.QualifiedNameFormat)}' which it is contained in";
+        return CreateError(DiagnosticCode.ERR_CycleInExec, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

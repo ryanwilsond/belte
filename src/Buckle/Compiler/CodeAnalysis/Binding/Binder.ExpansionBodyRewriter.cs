@@ -29,7 +29,7 @@ internal partial class Binder {
             _parameterMap = [];
 
             if (!method.returnType.IsVoidType()) {
-                _returnLocal = CreateTempLocal("<return_local>", out var tempCount);
+                _returnLocal = CreateTempLocal("<return_local>", method.returnType, method.refKind, out var tempCount);
                 _binder.AddLocalToScope(_returnLocal);
                 _successLabel = new SynthesizedLabelSymbol($"<ReturnLabel>{tempCount - 1}");
             }
@@ -38,12 +38,12 @@ internal partial class Binder {
                 if (parameter.isConstExpr)
                     continue;
 
-                var parameterLocal = CreateTempLocal($"<{parameter.name}>", out _);
+                var parameterLocal = CreateTempLocal($"<{parameter.name}>", parameter.type, parameter.refKind, out _);
                 _parameterMap.Add(parameter, parameterLocal);
                 _binder.AddLocalToScope(parameterLocal);
             }
 
-            DataContainerSymbol CreateTempLocal(string prefix, out int tempCount) {
+            DataContainerSymbol CreateTempLocal(string prefix, TypeSymbol type, RefKind refKind, out int tempCount) {
                 string name;
                 tempCount = 0;
 
@@ -53,9 +53,10 @@ internal partial class Binder {
 
                 return new SynthesizedDataContainerSymbol(
                     binder.containingMember,
-                    new TypeWithAnnotations(method.returnType),
+                    new TypeWithAnnotations(type),
                     SynthesizedLocalKind.ExpansionTemp,
-                    name
+                    name,
+                    refKind
                 );
             }
         }
@@ -115,8 +116,7 @@ internal partial class Binder {
                 statement.syntax,
                 _diagnostics,
                 newExpression,
-                // TODO Ref kind support
-                RefKind.None,
+                _returnLocal.refKind,
                 _returnLocal.type
             );
 

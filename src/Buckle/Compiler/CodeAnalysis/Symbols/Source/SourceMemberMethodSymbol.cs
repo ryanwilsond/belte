@@ -337,6 +337,7 @@ done:
         if (contextNode is null)
             return null;
 
-        return (binderFactory ?? declaringCompilation.GetBinderFactory(contextNode.syntaxTree)).GetBinder(contextNode);
+        return (binderFactory ?? declaringCompilation.GetBinderFactory(contextNode.GetPrimarySyntaxTree()))
+            .GetBinder(contextNode);
     }
 }

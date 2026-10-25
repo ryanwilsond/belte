@@ -197,8 +197,12 @@ public enum SyntaxKind : ushort {
     BindsKeyword,
     CheckedKeyword,
     CodeKeyword,
+    CodestrKeyword,
     InsertKeyword,
-    ExpandKeyword, // SyntaxFacts.LastKeyword
+    ExpandKeyword,
+    ExecKeyword,
+    TypeKeyword,
+    LocationKeyword, // SyntaxFacts.LastKeyword
 
     // Trivia
     EndOfLineTrivia,
@@ -229,6 +233,10 @@ public enum SyntaxKind : ushort {
     WithExpression,
     RangeExpression,
     CodeExpression,
+    CodeStrExpression,
+    ExecExpression,
+    TypeExpression,
+    LocationExpression,
 
     // Operator expressions
     TernaryExpression,

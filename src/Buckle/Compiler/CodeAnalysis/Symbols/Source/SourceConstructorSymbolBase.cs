@@ -85,7 +85,7 @@ internal abstract class SourceConstructorSymbolBase : SourceMemberMethodSymbol {
         _ = isPure;
 
         var syntax = (BelteSyntaxNode)syntaxReference.node;
-        var binderFactory = declaringCompilation.GetBinderFactory(syntax.syntaxTree);
+        var binderFactory = declaringCompilation.GetBinderFactory(syntax.GetPrimarySyntaxTree());
         var parameterList = GetParameterList();
 
         var bodyBinder = binderFactory.GetBinder(parameterList, syntax, this).WithContainingMember(this);

@@ -270,6 +270,10 @@ public static class SyntaxFacts {
             "code" => SyntaxKind.CodeKeyword,
             "insert" => SyntaxKind.InsertKeyword,
             "expand" => SyntaxKind.ExpandKeyword,
+            "exec" => SyntaxKind.ExecKeyword,
+            "codestr" => SyntaxKind.CodestrKeyword,
+            "type" => SyntaxKind.TypeKeyword,
+            "location" => SyntaxKind.LocationKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -277,9 +281,11 @@ public static class SyntaxFacts {
     internal static bool IsContextualKeyword(SyntaxKind kind) {
         switch (kind) {
             case SyntaxKind.CodeKeyword:
+            case SyntaxKind.CodestrKeyword:
             case SyntaxKind.DefineKeyword:
             case SyntaxKind.ElifKeyword:
             case SyntaxKind.EndifKeyword:
+            case SyntaxKind.ExecKeyword:
             case SyntaxKind.ExpandKeyword:
             case SyntaxKind.ExplicitKeyword:
             case SyntaxKind.FieldKeyword:
@@ -291,6 +297,7 @@ public static class SyntaxFacts {
             case SyntaxKind.InitializesKeyword:
             case SyntaxKind.InsertKeyword:
             case SyntaxKind.LiteralKeyword:
+            case SyntaxKind.LocationKeyword:
             case SyntaxKind.MemoizeKeyword:
             case SyntaxKind.NoallocKeyword:
             case SyntaxKind.NothrowKeyword:
@@ -303,6 +310,7 @@ public static class SyntaxFacts {
             case SyntaxKind.SetKeyword:
             case SyntaxKind.StateKeyword:
             case SyntaxKind.TemplateKeyword:
+            case SyntaxKind.TypeKeyword:
             case SyntaxKind.UndefKeyword:
             case SyntaxKind.UnrollKeyword:
                 return true;
@@ -491,6 +499,10 @@ public static class SyntaxFacts {
             SyntaxKind.CodeKeyword => "code",
             SyntaxKind.InsertKeyword => "insert",
             SyntaxKind.ExpandKeyword => "expand",
+            SyntaxKind.ExecKeyword => "exec",
+            SyntaxKind.CodestrKeyword => "codestr",
+            SyntaxKind.TypeKeyword => "type",
+            SyntaxKind.LocationKeyword => "location",
             _ => null,
         };
     }
@@ -896,7 +908,7 @@ public static class SyntaxFacts {
     }
 
     private const int FirstKeyword = (int)SyntaxKind.TypeOfKeyword;
-    private const int LastKeyword = (int)SyntaxKind.ExpandKeyword;
+    private const int LastKeyword = (int)SyntaxKind.TypeKeyword;
 
     /// <summary>
     /// Checks if a <see cref="SyntaxKind" /> is a keyword.

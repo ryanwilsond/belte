@@ -129,7 +129,7 @@ public sealed class SyntaxToken {
 
                 if (locationAnnotations.Any()) {
                     var annotation = locationAnnotations.Single();
-                    return new CompoundTextLocation(primaryLocation, (TextLocation)annotation.data);
+                    return new CompoundTextLocation(primaryLocation, (SyntaxNode)annotation.data);
                 }
             }
 
@@ -178,6 +178,13 @@ public sealed class SyntaxToken {
         }
     }
 
+    internal SyntaxTree GetPrimarySyntaxTree() {
+        if (location is CompoundTextLocation compound)
+            return compound.secondaryLocation.tree;
+
+        return syntaxTree;
+    }
+
     public SyntaxToken GetNextToken(bool includeZeroWidth = false, bool includeSkipped = false) {
         if (node is null)
             return default;
@@ -222,6 +229,34 @@ public sealed class SyntaxToken {
         return default;
     }
 
+    internal SyntaxToken WithoutAnnotations(string annotationKind) {
+        ArgumentNullException.ThrowIfNull(annotationKind);
+
+        if (HasAnnotations(annotationKind))
+            return WithoutAnnotations(GetAnnotations(annotationKind));
+
+        return this;
+    }
+
+    internal SyntaxToken WithoutAnnotations(IEnumerable<SyntaxAnnotation> annotations) {
+        ArgumentNullException.ThrowIfNull(annotations);
+
+        if (node is not null) {
+            return new SyntaxToken(
+                parent: null,
+                token: node.WithoutAnnotationsGreen(annotations),
+                position: 0,
+                index: 0
+            );
+        }
+
+        return default;
+    }
+
+    internal bool HasAnnotations(string annotationKind) {
+        return node?.HasAnnotations(annotationKind) ?? false;
+    }
+
     public override string ToString() {
         return node is not null ? node.ToString() : "";
     }
@@ -231,6 +266,9 @@ public sealed class SyntaxToken {
     }
 
     public static bool operator ==(SyntaxToken left, SyntaxToken right) {
+        if (left is null || right is null)
+            return false;
+
         return left.Equals(right);
     }
 

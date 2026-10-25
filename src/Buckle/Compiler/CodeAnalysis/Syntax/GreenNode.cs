@@ -221,6 +221,20 @@ internal abstract partial class GreenNode {
 
     internal abstract GreenNode SetAnnotations(SyntaxAnnotation[] annotations);
 
+    internal bool HasAnnotations(string annotationKind) {
+        var annotations = GetAnnotations();
+
+        if (annotations == NoAnnotations)
+            return false;
+
+        foreach (var a in annotations) {
+            if (a.kind == annotationKind)
+                return true;
+        }
+
+        return false;
+    }
+
     /// <summary>
     /// Returns a child at slot <param name="index" />.
     /// </summary>

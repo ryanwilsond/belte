@@ -508,6 +508,8 @@ public sealed class DisplayText {
                 DisplayStringLiteral(text, value.ToString(), true, true);
                 break;
             case SpecialType.Code:
+            case SpecialType.Location:
+            case SpecialType.Type:
                 text.Write(CreateLiteral(value.ToString()));
                 break;
             default:

@@ -35,6 +35,7 @@ public enum SpecialType : byte {
     ValueType,
     TypedReference,
     Code,
+    Location,
 
     Object,
     Buffer,
@@ -46,5 +47,5 @@ public enum SpecialType : byte {
 
 
     NextAvailable,
-    LastCorType = Code,
+    LastCorType = Location,
 }

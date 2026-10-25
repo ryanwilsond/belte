@@ -32,6 +32,7 @@ internal enum WellKnownType : byte {
     System_String,
     System_Activator,
     System_InvalidOperationException,
+    System_Type,
 
     Belte_NoAllocAttribute,
     Belte_NoThrowAttribute,
@@ -53,6 +54,8 @@ internal enum WellKnownType : byte {
     Belte_Graphics_Rect,
     Belte_Graphics_Texture,
     Belte_Graphics_Sound,
+
+    Buckle_CodeAnalysis_Text_TextLocation,
 
 
     NextAvailable,

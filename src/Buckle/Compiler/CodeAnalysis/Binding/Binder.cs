@@ -736,8 +736,7 @@ internal partial class Binder {
                     diagnostics
                 );
 
-                // TODO I don't like this being here
-                compilation.NoteAnonymousEnumType(anonymousEnum);
+                compilation.NoteAnonymousType(anonymousEnum);
                 return new TypeWithAnnotations(anonymousEnum);
             default:
                 return new TypeWithAnnotations(CreateErrorType());
@@ -7066,6 +7065,17 @@ symIsHidden:;
         }
     }
 
+    private static Symbol UnwrapConstexprTypeIfApplicable(Symbol symbol) {
+        if (symbol.IsConstExprSafe()) {
+            var constant = symbol.TryGetConstantValue();
+
+            if (ConstantValue.IsNotNull(constant) && constant.specialType == SpecialType.Type)
+                symbol = (TypeSymbol)constant.value;
+        }
+
+        return symbol;
+    }
+
     internal SingleLookupResult CheckViability(
         Symbol symbol,
         int arity,
@@ -7074,6 +7084,11 @@ symIsHidden:;
         bool diagnose,
         TextLocation errorLocation,
         ConsList<TypeSymbol> basesBeingResolved = null) {
+        if ((options & LookupOptions.NamespacesOrTypesOnly) != 0 &&
+            symbol is not NamespaceOrTypeSymbol) {
+            symbol = UnwrapConstexprTypeIfApplicable(symbol);
+        }
+
         var unwrappedSymbol = symbol.kind == SymbolKind.Alias
             ? ((AliasSymbol)symbol).GetAliasTarget(basesBeingResolved)
             : symbol;
@@ -7432,7 +7447,7 @@ symIsHidden:;
 
                     switch (syntaxRef.node) {
                         case EqualsValueClauseSyntax initializerNode:
-                            binderFactory ??= compilation.GetBinderFactory(syntaxRef.syntaxTree);
+                            binderFactory ??= compilation.GetBinderFactory(syntaxRef.GetPrimarySyntaxTree());
                             var parentBinder = binderFactory.GetBinder(initializerNode);
                             parentBinder = parentBinder.GetFieldInitializerBinder(fieldSymbol);
 
@@ -7552,10 +7567,10 @@ symIsHidden:;
             if (containerNode is CompilationUnitSyntax)
                 containerNode = containingType.syntaxReference.node as TypeDeclarationSyntax;
 
-            var binderFactory = compilation.GetBinderFactory(containerNode.syntaxTree);
+            var binderFactory = compilation.GetBinderFactory(containerNode.GetPrimarySyntaxTree());
             outerBinder = binderFactory.GetInTypeBodyBinder((TypeDeclarationSyntax)containerNode);
         } else {
-            var binderFactory = compilation.GetBinderFactory(sourceConstructor.syntaxTree);
+            var binderFactory = compilation.GetBinderFactory(sourceConstructor.syntaxReference.GetPrimarySyntaxTree());
 
             outerBinder = sourceConstructor.syntaxNode switch {
                 ConstructorDeclarationSyntax ctorDecl => binderFactory.GetBinder(ctorDecl.parameterList),

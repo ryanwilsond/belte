@@ -118,7 +118,7 @@ public abstract partial class SyntaxNode {
 
                 if (locationAnnotations.Any()) {
                     var annotation = locationAnnotations.Single();
-                    return new CompoundTextLocation(primaryLocation, (TextLocation)annotation.data);
+                    return new CompoundTextLocation(primaryLocation, (SyntaxNode)annotation.data);
                 }
             }
 
@@ -152,6 +152,13 @@ public abstract partial class SyntaxNode {
 
     internal InternalSyntax.BelteSyntaxNode bltGreen => (InternalSyntax.BelteSyntaxNode)green;
 
+    internal SyntaxTree GetPrimarySyntaxTree() {
+        if (location is CompoundTextLocation compound)
+            return compound.secondaryLocation.tree;
+
+        return syntaxTree;
+    }
+
     public override string ToString() {
         return green.ToString();
     }
@@ -170,6 +177,10 @@ public abstract partial class SyntaxNode {
 
     internal SyntaxNode WithAdditionalAnnotationsInternal(IEnumerable<SyntaxAnnotation> annotations) {
         return green.WithAdditionalAnnotationsGreen(annotations).CreateRed();
+    }
+
+    internal SyntaxNode WithoutAnnotations(string annotationKind) {
+        return green.WithoutAnnotationsGreen(annotationKind).CreateRed();
     }
 
     /// <summary>

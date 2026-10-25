@@ -93,7 +93,7 @@ internal sealed class SourceStateMethodSymbol : SourceMemberMethodSymbol {
             // This is purely a placeholder
             t1 = new TypeWithAnnotations(declaringCompilation.GetSpecialType(SpecialType.Int32));
 
-        var binderFactory = declaringCompilation.GetBinderFactory(_syntax.syntaxTree);
+        var binderFactory = declaringCompilation.GetBinderFactory(_syntax.GetPrimarySyntaxTree());
 
         var bodyBinder = binderFactory.GetBinder(_syntax, _syntax, this).WithContainingMember(this);
         var signatureBinder = bodyBinder

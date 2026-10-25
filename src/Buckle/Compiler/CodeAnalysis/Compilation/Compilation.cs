@@ -23,6 +23,7 @@ using Buckle.Utilities;
 using Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
 using Shared;
+using SharpFont.Cache;
 
 namespace Buckle.CodeAnalysis;
 
@@ -73,7 +74,11 @@ public sealed partial class Compilation {
     private Conversions _conversions;
     private bool[] _usedReferences;
     private ConcurrentSet<AssemblySymbol> _usedAssemblies;
-    private ConcurrentBag<AnonymousEnumType> _anonymousEnumTypes;
+    private ConcurrentBag<NamedTypeSymbol> _anonymousTypes;
+    private ConcurrentBag<NamedTypeSymbol> _synthesizedTypes;
+    private ConcurrentDictionary<TypeDeclarationSyntax, NamedTypeSymbol> _synthesizedTypesMap;
+    private ConcurrentDictionary<SyntaxNode, BelteDiagnosticQueue> _currentExecNodes;
+    private ConcurrentSet<(SyntaxNode, string)> _synthesizedCode;
 
     // TODO These will be obsoleted soon, just in a transition period where they are instance instead of static
     private CorLibrary _lazyCorLibrary;
@@ -812,19 +817,57 @@ public sealed partial class Compilation {
         if (!type.IsFromCompilation(argument.compilation))
             argument.compilation.NoteUsedAssemblyFromSymbol(type);
 
-        if (type.specialType == SpecialType.Code && argument.location is not null)
-            argument.diagnostics.Push(Error.CannotEmitCodeType(argument.location));
+        if (type.specialType is SpecialType.Code or SpecialType.Location && argument.location is not null)
+            argument.diagnostics.Push(Error.CannotEmitCompileTimeType(argument.location, type));
 
         return false;
     }
 
-    internal void NoteAnonymousEnumType(AnonymousEnumType type) {
-        _anonymousEnumTypes ??= [];
-        _anonymousEnumTypes.Add(type);
+    internal void NoteAnonymousType(NamedTypeSymbol type) {
+        _anonymousTypes ??= [];
+        _anonymousTypes.Add(type);
     }
 
-    internal ImmutableArray<AnonymousEnumType> GetAnonymousTypes() {
-        return _anonymousEnumTypes is null ? default : _anonymousEnumTypes.ToImmutableArray();
+    internal void NoteSynthesizedType(NamedTypeSymbol type, TypeDeclarationSyntax node) {
+        _synthesizedTypes ??= [];
+        _synthesizedTypes.Add(type);
+
+        if (node is not null) {
+            _synthesizedTypesMap ??= [];
+            _synthesizedTypesMap.Add(node, type);
+        }
+    }
+
+    internal NamedTypeSymbol GetSynthesizedTypeFromSyntax(TypeDeclarationSyntax type) {
+        return _synthesizedTypesMap[type];
+    }
+
+    internal ImmutableArray<NamedTypeSymbol> GetAnonymousTypes() {
+        return _anonymousTypes is null ? default : _anonymousTypes.ToImmutableArray();
+    }
+
+    internal ImmutableArray<NamedTypeSymbol> GetSynthesizedTypes() {
+        return _synthesizedTypes is null ? default : _synthesizedTypes.ToImmutableArray();
+    }
+
+    internal bool TryAddExecNode(SyntaxNode node) {
+        _currentExecNodes ??= [];
+        return _currentExecNodes.TryAdd(node, BelteDiagnosticQueue.GetInstance());
+    }
+
+    internal void AddExecDiagnostic(SyntaxNode node, BelteDiagnostic diagnostic) {
+        _currentExecNodes[node].Push(diagnostic);
+    }
+
+    internal BelteDiagnosticQueue RemoveExecNode(SyntaxNode node) {
+        var _ = _currentExecNodes.TryRemove(node, out var nodeDiagnostics);
+        Debug.Assert(_);
+        return nodeDiagnostics;
+    }
+
+    internal void NoteSynthesizedCode(SyntaxNode node, string text) {
+        _synthesizedCode ??= [];
+        _synthesizedCode.Add((node, text));
     }
 
     internal MethodSymbol GetEntryPoint(BelteDiagnosticQueue diagnostics) {
@@ -900,7 +943,7 @@ public sealed partial class Compilation {
     }
 
     internal Binder GetBinder(BelteSyntaxNode syntax) {
-        return GetBinderFactory(syntax.syntaxTree).GetBinder(syntax);
+        return GetBinderFactory(syntax.GetPrimarySyntaxTree()).GetBinder(syntax);
     }
 
     internal BinderFactory GetBinderFactory(SyntaxTree syntaxTree, bool ignoreAccessibility = false) {
@@ -967,7 +1010,7 @@ public sealed partial class Compilation {
 
     internal BoundBlockStatement GetExpansionBody(MethodSymbol method) {
         if (_lazyExpansionMethods is null || !_lazyExpansionMethods.TryGetValue(method, out var body))
-            return null;
+            return previous?.GetExpansionBody(method);
 
         return body;
     }
@@ -1855,6 +1898,7 @@ public sealed partial class Compilation {
         EmitCFG(verbosePath);
         EmitBoundProgram(verbosePath);
         EmitTypeInfo(verbosePath);
+        EmitSynthesizedCode(verbosePath);
     }
 
     [Conditional("DEBUG")]
@@ -1959,6 +2003,39 @@ public sealed partial class Compilation {
 
         foreach (var (_, display) in allTypeSizes)
             streamWriter.WriteLine(display);
+
+        streamWriter.Close();
+    }
+
+    private void EmitSynthesizedCode(string path) {
+        if (_synthesizedCode is null)
+            return;
+
+        const string SynthesizedCodeName = "SynthesizedCode.blt";
+        var synthesizedCodePath = path is null ? SynthesizedCodeName : Path.Combine(path, SynthesizedCodeName);
+
+        using var streamWriter = new StreamWriter(synthesizedCodePath);
+        streamWriter.WriteLine();
+
+        foreach (var note in _synthesizedCode) {
+            var location = DiagnosticFormatter.PrettyPrintLocation(note.Item1.location);
+            streamWriter.WriteLine("//");
+
+            switch (note.Item1.kind) {
+                case SyntaxKind.InsertStatement:
+                    streamWriter.WriteLine($"// $insert text generated from {location}.");
+                    break;
+                case SyntaxKind.TypeExpression:
+                    streamWriter.WriteLine($"// $type text generated from {location}.");
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(note.Item1.kind);
+            }
+
+            streamWriter.WriteLine("//");
+
+            streamWriter.WriteLine(note.Item2);
+        }
 
         streamWriter.Close();
     }

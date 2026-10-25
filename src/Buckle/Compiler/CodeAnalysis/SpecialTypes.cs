@@ -30,6 +30,7 @@ internal static class SpecialTypes {
         { "global::Buffer`1", SpecialType.Buffer },
         { "global::Array`1", SpecialType.ArrayT },
         { "global::Code", SpecialType.Code },
+        { "global::Location", SpecialType.Location },
 
         // Names as they would appear in .NET libraries
         { "System.Object", SpecialType.Object },

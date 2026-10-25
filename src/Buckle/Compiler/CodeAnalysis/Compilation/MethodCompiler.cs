@@ -167,6 +167,18 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         if (!anonymousTypes.IsDefault)
             methodCompiler._types.AddRange(anonymousTypes);
 
+        // TODO Make parallel?
+        var synthesizedTypes = compilation.GetSynthesizedTypes();
+
+        if (!synthesizedTypes.IsDefault) {
+            foreach (var type in synthesizedTypes) {
+                EvaluatorTypeLayoutVisitor.CreateTypeLayouts(methodCompiler._typeLayouts, type);
+                methodCompiler.CompileNamedType(type);
+                Debug.Assert(type.containingType is not null);
+                methodCompiler._synthesizedNestedTypes.Add(type.containingType, type);
+            }
+        }
+
         var timer = compilation.options.time ? Stopwatch.StartNew() : null;
 
         if (!hasDeclarationErrors && !diagnostics.AnyErrors()) {
@@ -602,6 +614,9 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         VisitNamespace(symbol);
 
         void VisitNamespace(NamespaceSymbol symbol) {
+            if (!PassesFilter(_filter, symbol))
+                return;
+
             foreach (var namespaceMember in symbol.GetMembersUnordered()) {
                 if (namespaceMember is NamespaceSymbol nsMember && nsMember is not PENamespaceSymbol)
                     VisitNamespace(nsMember);
@@ -611,6 +626,9 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         }
 
         void VisitNamedType(NamedTypeSymbol symbol) {
+            if (!PassesFilter(_filter, symbol))
+                return;
+
             var typeMembers = symbol.GetMembers();
             TypeCompilationState state = null;
 
@@ -635,6 +653,9 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         }
 
         void VisitMethod(MethodSymbol symbol, TypeCompilationState state) {
+            if (!PassesFilter(_filter, symbol))
+                return;
+
             var methodDiagnostics = CompileExpansionMethod(symbol, state);
 
             if (methodDiagnostics is not null)

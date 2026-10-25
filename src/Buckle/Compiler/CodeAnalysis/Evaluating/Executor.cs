@@ -13,11 +13,13 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Display;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
+using Shared;
 
 namespace Buckle.CodeAnalysis.Evaluating;
 
@@ -76,6 +78,7 @@ internal sealed partial class Executor : ModuleBuilder {
     private readonly ConcurrentDictionary<MethodSymbol, ConstructorInfo> _constructors = [];
     private readonly ConcurrentDictionary<ConstructorBuilder, (MethodSymbol, BoundBlockStatement)> _constructorBodies = [];
     private readonly ConcurrentDictionary<FieldSymbol, FieldInfo> _fields = [];
+    private readonly ConcurrentDictionary<PropertySymbol, PropertyBuilder> _properties = [];
 
     private readonly System.Reflection.Emit.ModuleBuilder _moduleBuilder;
     private readonly bool _graphicsEnabled;
@@ -109,7 +112,10 @@ internal sealed partial class Executor : ModuleBuilder {
         _diagnostics = diagnostics;
         _graphicsEnabled = _compilation.options.outputKind == OutputKind.GraphicsApplication;
 
-        _topLevelTypes = program.GetTypesToEmit(noStdLib: _compilation.options.noStdLib);
+        _topLevelTypes = program.GetTypesToEmit(
+            noStdLib: _compilation.options.noStdLib,
+            includePrevious: mode == ExecutorMode.Normal
+        );
 
         var assemblyName = new AssemblyName(DynamicAssemblyName);
         var assemblyBuilder = AssemblyBuilder.DefineDynamicAssembly(assemblyName, AssemblyBuilderAccess.Run);
@@ -308,14 +314,29 @@ internal sealed partial class Executor : ModuleBuilder {
         return executor;
     }
 
-    internal object ExecuteMethod(MethodSymbol method, params object[] arguments) {
+    internal object ExecuteMethod(
+        MethodSymbol method,
+        object[] arguments,
+        TextLocation location,
+        BelteDiagnosticQueue diagnostics,
+        out bool threw) {
         var methodInv = _programType.GetMethod(
             method.name,
             BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Static
         );
 
         Debug.Assert(methodInv is not null);
-        return methodInv.Invoke(null, arguments);
+
+        try {
+            var result = methodInv.Invoke(null, arguments);
+            threw = false;
+            return result;
+        } catch (TargetInvocationException e) {
+            threw = true;
+            // TODO Consider displaying e.InnerException.TargetSite in the diagnostic
+            diagnostics.Push(Error.CompileTimeExpressionThrew(location, e.InnerException));
+            return null;
+        }
     }
 
     internal static Type GetSimpleType(TypeSymbol type) {
@@ -377,6 +398,36 @@ internal sealed partial class Executor : ModuleBuilder {
         throw ExceptionUtilities.UnexpectedValue(type);
     }
 
+    private bool TypeNeedsNullabilityAttribute(TypeSymbol type, TextLocation errorLocation) {
+        if (type.specialType.CanSkipNullabilityAttributeCheck())
+            return false;
+
+        if (!type.isReferenceType && (type is not NamedTypeSymbol namedType || namedType.arity == 0))
+            return false;
+
+        ValueWrapper<bool> sawNonNullableReferenceType = false;
+
+        type.VisitType(VisitTypePredicate, sawNonNullableReferenceType, canDigThroughNullable: false);
+
+        if ((bool)sawNonNullableReferenceType) {
+            var nullabilityAttribute = _compilation.GetWellKnownType(WellKnownType.Belte_NullabilityAttribute);
+            var val = nullabilityAttribute.IsErrorType() ? (int)ThreeState.True : (int)ThreeState.False;
+            // TODO Failure to emit diagnostic?
+            return val != (int)ThreeState.True;
+        }
+
+        return false;
+
+        static bool VisitTypePredicate(TypeSymbol type, ValueWrapper<bool> arg, bool canDigThroughNullable = false) {
+            if (type.isReferenceType && !type.IsNullableType()) {
+                arg.Value = true;
+                return true;
+            }
+
+            return false;
+        }
+    }
+
     internal Type GetType(TypeSymbol type, bool byRef = false) {
         var typeRef = GetTypeCore(type);
 
@@ -386,7 +437,7 @@ internal sealed partial class Executor : ModuleBuilder {
         return typeRef;
 
         Type GetTypeCore(TypeSymbol type) {
-            Debug.Assert(type.specialType != SpecialType.Code);
+            Debug.Assert(type.specialType is not SpecialType.Code and not SpecialType.Location);
 
             if (type.specialType == SpecialType.Nullable) {
                 var underlyingType = type.GetNullableUnderlyingType();
@@ -925,6 +976,13 @@ internal sealed partial class Executor : ModuleBuilder {
             var linearTypes = _linearNestedTypes;
             Parallel.For(0, linearTypes.Length, parallelOptions, i => CreateMemberDefinitions(linearTypes[i]));
 
+            Parallel.Invoke(parallelOptions,
+                () => Parallel.ForEach(_types, CreateTypeMetadata),
+                () => Parallel.ForEach(_fields, CreateFieldMetadata),
+                () => Parallel.ForEach(_methods, CreateMethodMetadata),
+                () => Parallel.ForEach(_properties, CreatePropertyMetadata)
+            );
+
             if (time) {
                 timer.Stop();
 
@@ -961,6 +1019,20 @@ internal sealed partial class Executor : ModuleBuilder {
             foreach (var type in _linearNestedTypes)
                 CreateMemberDefinitions(type);
 
+            {
+                foreach (var pair in _types)
+                    CreateTypeMetadata(pair);
+
+                foreach (var pair in _fields)
+                    CreateFieldMetadata(pair);
+
+                foreach (var pair in _methods)
+                    CreateMethodMetadata(pair);
+
+                foreach (var pair in _properties)
+                    CreatePropertyMetadata(pair);
+            }
+
             if (time) {
                 timer.Stop();
 
@@ -993,6 +1065,80 @@ internal sealed partial class Executor : ModuleBuilder {
         }
 
         BakeTypes();
+    }
+
+    // TODO These only exist to apply nullable attributes, eventually we want to emit all attributes for reflection purposes
+    private void CreateTypeMetadata(KeyValuePair<TypeSymbol, TypeBuilder> pair) { }
+
+    private void CreateMethodMetadata(KeyValuePair<MethodSymbol, MethodInfo> pair) {
+        if (pair.Value is not MethodBuilder methodBuilder)
+            return;
+
+        var method = pair.Key;
+
+        if (TypeNeedsNullabilityAttribute(method.returnType, method.location)) {
+            methodBuilder.DefineParameter(0, ParameterAttributes.None, null)
+                .SetCustomAttribute(CreateNullabilityAttribute(method.returnType));
+        }
+
+        for (var i = 0; i < method.parameterCount; i++) {
+            var parameter = method.parameters[i];
+
+            if (TypeNeedsNullabilityAttribute(parameter.type, parameter.location)) {
+                methodBuilder.DefineParameter(i + 1, ParameterAttributes.None, null)
+                    .SetCustomAttribute(CreateNullabilityAttribute(parameter.type));
+            }
+        }
+    }
+
+    private void CreateFieldMetadata(KeyValuePair<FieldSymbol, FieldInfo> pair) {
+        if (pair.Value is not FieldBuilder fieldBuilder)
+            return;
+
+        var field = pair.Key;
+
+        if (TypeNeedsNullabilityAttribute(field.type, field.location))
+            fieldBuilder.SetCustomAttribute(CreateNullabilityAttribute(field.type));
+    }
+
+    private void CreatePropertyMetadata(KeyValuePair<PropertySymbol, PropertyBuilder> pair) {
+        var property = pair.Key;
+        var propertyBuilder = pair.Value;
+
+        if (TypeNeedsNullabilityAttribute(property.type, property.location))
+            propertyBuilder.SetCustomAttribute(CreateNullabilityAttribute(property.type));
+
+        if (property.getMethod is not null)
+            propertyBuilder.SetGetMethod((MethodBuilder)_methods[property.getMethod]);
+
+        if (property.setMethod is not null)
+            propertyBuilder.SetSetMethod((MethodBuilder)_methods[property.setMethod]);
+    }
+
+    private CustomAttributeBuilder CreateNullabilityAttribute(TypeSymbol type) {
+        var nullabilityAttribute = _compilation.GetWellKnownType(WellKnownType.Belte_NullabilityAttribute);
+
+        Debug.Assert(!nullabilityAttribute.IsErrorType());
+
+        var attributeType = GetType(nullabilityAttribute);
+        var attributeCtor = attributeType.GetConstructors().Single(c => c.GetParameters().Length == 1);
+        return new CustomAttributeBuilder(attributeCtor, [EncodeNullability(type)]);
+
+        byte[] EncodeNullability(TypeSymbol type) {
+            var builder = ArrayBuilder<byte>.GetInstance(2);
+            type.VisitType(EncodePredicate, builder, canDigThroughNullable: true);
+            Debug.Assert(builder.Contains(1));
+            return builder.ToArrayAndFree();
+        }
+
+        static bool EncodePredicate(TypeSymbol type, ArrayBuilder<byte> arg, bool canDigThroughNullable = true) {
+            if (type.isReferenceType && !type.IsNullableType())
+                arg.Add(1);
+            else
+                arg.Add(0);
+
+            return false;
+        }
     }
 
     private void BakeTypes() {
@@ -1535,6 +1681,15 @@ internal sealed partial class Executor : ModuleBuilder {
                 CreateMemberDefinitions(t);
             } else if (member is MethodSymbol m && m.isAbstract) {
                 CreateMethodDefinition(m, null, typeBuilder);
+            } else if (member is PropertySymbol p) {
+                var propertyDefinition = typeBuilder.DefineProperty(
+                    p.name,
+                    GetPropertyAttributes(p),
+                    GetType(p.type, p.refKind != RefKind.None),
+                    null
+                );
+
+                _properties.Add(p, propertyDefinition);
             }
         }
 

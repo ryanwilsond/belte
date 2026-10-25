@@ -98,7 +98,7 @@ public class SyntaxTrivia {
 
                 if (locationAnnotations.Any()) {
                     var annotation = locationAnnotations.Single();
-                    return new CompoundTextLocation(primaryLocation, (TextLocation)annotation.data);
+                    return new CompoundTextLocation(primaryLocation, (SyntaxNode)annotation.data);
                 }
             }
 
@@ -146,6 +146,34 @@ public class SyntaxTrivia {
         }
 
         return default;
+    }
+
+    internal SyntaxTrivia WithoutAnnotations(string annotationKind) {
+        ArgumentNullException.ThrowIfNull(annotationKind);
+
+        if (HasAnnotations(annotationKind))
+            return WithoutAnnotations(GetAnnotations(annotationKind));
+
+        return this;
+    }
+
+    internal SyntaxTrivia WithoutAnnotations(IEnumerable<SyntaxAnnotation> annotations) {
+        ArgumentNullException.ThrowIfNull(annotations);
+
+        if (green is not null) {
+            return new SyntaxTrivia(
+                token: default,
+                trivia: green.WithoutAnnotationsGreen(annotations),
+                position: 0,
+                index: 0
+            );
+        }
+
+        return default;
+    }
+
+    internal bool HasAnnotations(string annotationKind) {
+        return green?.HasAnnotations(annotationKind) ?? false;
     }
 
     private string GetDebuggerDisplay() {

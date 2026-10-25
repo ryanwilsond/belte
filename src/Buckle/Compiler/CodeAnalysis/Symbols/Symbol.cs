@@ -333,6 +333,15 @@ internal abstract class Symbol : ISymbol {
         };
     }
 
+    internal ConstantValue TryGetConstantValue() {
+        return kind switch {
+            SymbolKind.Field => ((FieldSymbol)this).GetConstantValue(ConstantFieldsInProgress.Empty),
+            SymbolKind.Local => ((DataContainerSymbol)this).GetConstantValue(null, null, null),
+            SymbolKind.Parameter => ((ParameterSymbol)this).explicitDefaultConstantValue,
+            _ => null
+        };
+    }
+
     internal virtual bool IsAccessor() {
         return kind == SymbolKind.Method && ((MethodSymbol)this).IsAccessor();
     }
@@ -931,7 +940,7 @@ internal abstract class Symbol : ISymbol {
         SyntaxList<AttributeListSyntax> attributeDeclarationSyntaxList,
         Compilation compilation,
         Binder rootBinder = null) {
-        var binder = rootBinder ?? compilation.GetBinderFactory(attributeDeclarationSyntaxList.node.syntaxTree)
+        var binder = rootBinder ?? compilation.GetBinderFactory(attributeDeclarationSyntaxList.node.GetPrimarySyntaxTree())
             .GetBinder(attributeDeclarationSyntaxList.node);
 
         binder = new ContextualAttributeBinder(binder, this);

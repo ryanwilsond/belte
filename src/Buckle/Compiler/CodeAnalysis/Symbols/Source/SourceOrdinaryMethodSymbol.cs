@@ -325,7 +325,7 @@ internal abstract partial class SourceOrdinaryMethodSymbol : SourceOrdinaryMetho
         var syntax = (MethodDeclarationSyntax)syntaxNode;
         var returnTypeSyntax = syntax.returnType;
         var withTemplateParametersBinder = declaringCompilation
-            .GetBinderFactory(syntax.syntaxTree)
+            .GetBinderFactory(syntax.GetPrimarySyntaxTree())
             .GetBinder(returnTypeSyntax, syntax, this);
 
         var signatureFlags = BinderFlags.SuppressConstraintChecks;

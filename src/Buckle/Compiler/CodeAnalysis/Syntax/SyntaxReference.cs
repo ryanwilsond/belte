@@ -16,4 +16,11 @@ internal class SyntaxReference {
     internal virtual TextSpan span => node.span;
 
     internal TextLocation location => node.location;
+
+    internal SyntaxTree GetPrimarySyntaxTree() {
+        if (location is CompoundTextLocation compound)
+            return compound.secondaryLocation.tree;
+
+        return syntaxTree;
+    }
 }

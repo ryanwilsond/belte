@@ -33,7 +33,7 @@ internal class SourceFixedFieldSymbol : SourceMemberFieldSymbolFromDeclarator {
 
                 var sizeExpression = ((ArgumentSyntax)arguments[0]).expression;
 
-                var binderFactory = declaringCompilation.GetBinderFactory(syntaxTree);
+                var binderFactory = declaringCompilation.GetBinderFactory(syntaxReference.GetPrimarySyntaxTree());
                 var binder = binderFactory.GetBinder(sizeExpression);
                 binder = new ExecutableCodeBinder(sizeExpression, binder.containingMember, binder).GetBinder(sizeExpression);
 

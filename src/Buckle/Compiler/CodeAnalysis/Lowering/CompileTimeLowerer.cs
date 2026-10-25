@@ -221,7 +221,7 @@ internal sealed partial class CompileTimeLowerer : BoundTreeExpander {
                     } else if (arrayType.elementType.IsArray()) {
                         statements.AddRange(BuildArray(isEvaluating, syntax, _context.heap[p.ptr], out result));
                     } else if (arrayType.elementType.StrippedType().IsPrimitiveType()) {
-                        result = (BoundExpression)Lowerer.VisitConstant(
+                        result = Lowerer.VisitConstant(
                             _compilation,
                             BoundFactory.Literal(_compilation, syntax, EvaluatorValue.Format(p, _context), arrayType.elementType)
                         );
@@ -366,7 +366,7 @@ internal sealed partial class CompileTimeLowerer : BoundTreeExpander {
             } else if (field.type.IsArray()) {
                 statements.AddRange(BuildArray(isEvaluating, syntax, _context.heap[fieldValue.ptr], out right));
             } else if (field.type.StrippedType().IsPrimitiveType()) {
-                right = (BoundExpression)Lowerer.VisitConstant(
+                right = Lowerer.VisitConstant(
                     _compilation,
                     BoundFactory.Literal(_compilation, syntax, EvaluatorValue.Format(fieldValue, _context), field.type)
                 );

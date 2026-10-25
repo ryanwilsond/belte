@@ -776,6 +776,7 @@ internal sealed partial class TemplateMetadataReader {
             return new BoundTypeOfExpression(
                 null,
                 new BoundTypeExpression(null, null, null, type),
+                null,
                 _metadata.corLibrary.GetSpecialType(SpecialType.Type)
             );
         }

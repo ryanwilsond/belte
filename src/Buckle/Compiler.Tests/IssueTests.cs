@@ -4784,4 +4784,41 @@ public sealed class IssueTests {
 
         AssertValue(text, 17);
     }
+
+    [Fact]
+    public void InsertStatement_SeesCorrectPosition() {
+        var text = @"
+            constexpr Add = $code(return a + b;);
+
+            int a = 3;
+            int b = 5;
+            $insert(Add);
+            return 0;
+        ";
+
+        AssertValue(text, 8);
+    }
+
+    [Fact]
+    public void ExecExpression_ReportsUncaughtExceptions() {
+        var text = @"
+            public static class Program {
+                public static void Main() {
+                    constexpr T = $type([$exec(A.Func())]);
+                }
+            }
+
+            public static class A {
+                public static string Func() {
+                    throw new System.Exception(""some error message"");
+                }
+            }
+        ";
+
+        var diagnostics = @"
+            expression threw an uncaught exception when evaluating at compile time
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer, references: []);
+    }
 }

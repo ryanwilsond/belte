@@ -126,9 +126,6 @@
     <Field Name="conditional" Type="bool"/>
     <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
-  <Node Name="BoundCodeExpression" Base="BoundExpression">
-    <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
-  </Node>
   <Node Name="BoundUnconvertedNullptrExpression" Base="BoundExpression">
     <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
   </Node>
@@ -161,6 +158,7 @@
   <Node Name="BoundThisExpression" Base="BoundExpression"/>
   <Node Name="BoundTypeOfExpression" Base="BoundExpression">
     <Field Name="sourceType" Type="BoundTypeExpression"/>
+    <Field Name="constantValue" Type="ConstantValue?" PropertyOverrides="true"/>
   </Node>
   <Node Name="BoundBindsExpression" Base="BoundExpression">
     <Field Name="node" Type="ExpressionSyntax"/>

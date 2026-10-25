@@ -126,7 +126,7 @@ internal sealed class SourceReverseMethodSymbol : SourceMemberMethodSymbol {
 
                 _lazyParameters = [parameter];
             } else {
-                var binderFactory = declaringCompilation.GetBinderFactory(_syntax.syntaxTree);
+                var binderFactory = declaringCompilation.GetBinderFactory(_syntax.GetPrimarySyntaxTree());
 
                 var bodyBinder = binderFactory.GetBinder(_syntax, _syntax, this).WithContainingMember(this);
                 var signatureBinder = bodyBinder

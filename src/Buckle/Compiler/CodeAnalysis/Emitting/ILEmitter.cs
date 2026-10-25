@@ -469,7 +469,7 @@ internal partial class ILEmitter : ModuleBuilder {
         return typeRef;
 
         TypeReference GetTypeCore(TypeSymbol type) {
-            Debug.Assert(type.specialType != SpecialType.Code);
+            Debug.Assert(type.specialType is not SpecialType.Code and not SpecialType.Code);
 
             if (type.specialType == SpecialType.Nullable) {
                 var underlyingType = type.GetNullableUnderlyingType();
@@ -1143,6 +1143,11 @@ internal partial class ILEmitter : ModuleBuilder {
                 foreach (var pair in _methods) {
                     if (!programOnly || pair.Key.IsFromCompilation(_compilation))
                         CreateMethodMetadata(pair);
+                }
+
+                foreach (var pair in _properties) {
+                    if (!programOnly || pair.Key.IsFromCompilation(_compilation))
+                        CreatePropertyMetadata(pair);
                 }
             }
 

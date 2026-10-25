@@ -437,7 +437,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
         if (_unboundConstraints.IsDefault || _unboundConstraints.Length == 0)
             return [];
 
-        var binderFactory = declaringCompilation.GetBinderFactory(syntaxReference.syntaxTree);
+        var binderFactory = declaringCompilation.GetBinderFactory(syntaxReference.GetPrimarySyntaxTree());
         var binder = binderFactory.GetBinder(_unboundConstraints[0]);
         binder = binder.WithAdditionalFlagsAndContainingMember(
             BinderFlags.TemplateConstraintsClause | BinderFlags.SuppressConstraintChecks,
@@ -738,7 +738,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
             if (!skipPartialDeclarationsWithoutConstraintClauses ||
                 (constraintClauses is not null && constraintClauses.Count != 0)) {
-                var binderFactory = declaringCompilation.GetBinderFactory(syntaxReference.syntaxTree);
+                var binderFactory = declaringCompilation.GetBinderFactory(syntaxReference.GetPrimarySyntaxTree());
                 Binder binder;
                 ImmutableArray<TypeParameterConstraintClause> constraints;
 
@@ -800,7 +800,7 @@ internal sealed class SourceNamedTypeSymbol : SourceMemberContainerTypeSymbol, I
 
             if (!skipPartialDeclarationsWithoutConstraintClauses ||
                 (constraintClauses is not null && constraintClauses.Count != 0)) {
-                var binderFactory = declaringCompilation.GetBinderFactory(syntaxReference.syntaxTree);
+                var binderFactory = declaringCompilation.GetBinderFactory(syntaxReference.GetPrimarySyntaxTree());
                 Binder binder;
                 ImmutableArray<TypeParameterConstraintClause> constraints;
 

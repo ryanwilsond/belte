@@ -75,7 +75,7 @@ implemented.
 > endpoint for full parity with normal execution
 
 - Evaluator: the internal interpreter endpoint. Used for the [REPL](../Repl.md), `--evaluate` builds, and [compile-time expressions](Data.md#37-compile-time-expressions).
-- Executor: the endpoint for emitting to an in-memory delegate to execute immediately. This is the default endpoint and is used for `--execute` builds and [compile-time handles](LowLevelFeatures.md#613-compiler-handle).
+- Executor: the endpoint for emitting to an in-memory delegate to execute immediately. This is the default endpoint and is used for `--execute` builds, [compile-time handles](LowLevelFeatures.md#613-compiler-handle), and [`$exec` expressions](Data.md#375-exec).
 - IL Emitter: the endpoint for emitting to an executable which relies on .NET. Used for `--dotnet` builds and [build scripts](../Build.md).
 
 | Feature | Evaluator | Executor | IL Emitter | Notes |
@@ -195,9 +195,11 @@ These keywords are reserved names and cannot be used as identifiers.
 These keywords only act as keywords inside specific contexts. As such they can be used as identifiers in most places.
 
 - [code](Data.md#373-code-and-insert)
+- [codestr](Data.md#374-codestr)
 - [define](Preprocessor.md#71-defineundef)
 - [elif](Preprocessor.md#72-control)
 - [endif](Preprocessor.md#72-control)
+- [exec](Data.md#375-exec)
 - [expand](ClassesAndObjects.md#4223-behavior-specifiers)
 - [explicit](ClassesAndObjects.md#4232-casts)
 - [field](ClassesAndObjects.md#424-properties)
@@ -210,6 +212,7 @@ These keywords only act as keywords inside specific contexts. As such they can b
 - [initializes](ClassesAndObjects.md#4211-definite-assignment)
 - [insert](Data.md#373-code-and-insert)
 - [literal](ClassesAndObjects.md#4233-user-defined-literals)
+- [location](Data.md#377-location)
 - [memoize](ClassesAndObjects.md#4223-behavior-specifiers)
 - [noalloc](ClassesAndObjects.md#4223-behavior-specifiers)
 - [nothrow](ClassesAndObjects.md#4223-behavior-specifiers)
@@ -223,6 +226,7 @@ These keywords only act as keywords inside specific contexts. As such they can b
 - [set](ClassesAndObjects.md#424-properties)
 - [state](ClassesAndObjects.md#4222-state-and-reverse-clauses)
 - [template](ClassesAndObjects.md#452-compile-time-type-template-parameters)
+- [type](Data.md#376-type)
 - [undef](Preprocessor.md#71-defineundef)
 - [unroll](LowLevelFeatures.md#617-loop-unrolling)
 
@@ -610,8 +614,10 @@ To summarize the main differences:
 ### 1.5.3 Metaprogramming
 
 - [Compile-time expressions](Data.md#37-compile-time-expressions)
-- [Optional build scripts instead of project files](../Build.md)
-- [Experimental: flexible meta-programming](LowLevelFeatures.md#613-compiler-handle)
+- [Code as data](Data.md#373-code-and-insert)
+- [Programmatic type creation](Data.md#376-type)
+- [(Optional) build scripts instead of project files](../Build.md)
+- [Compiler handles](LowLevelFeatures.md#613-compiler-handle)
 
 ### 1.5.4 Low-Level Programming & Interop
 

@@ -677,7 +677,7 @@ internal sealed class CSharpEmitter : SymbolVisitor<IndentedTextWriter, object> 
         };
     }
 
-    private void GenerateSpecialTypesMap(ImmutableArray<TypeSymbol> types) {
+    private void GenerateSpecialTypesMap(ImmutableArray<NamedTypeSymbol> types) {
         _specialTypes = new Dictionary<SpecialType, string>{
             { SpecialType.Object, "global::System.Object" },
             { SpecialType.Any, "global::System.Object" },

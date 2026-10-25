@@ -482,7 +482,7 @@ internal abstract class SourceUserDefinedOperatorSymbolBase : SourceOrdinaryMeth
         TypeWithAnnotations returnType;
         ImmutableArray<ParameterSymbol> parameters;
 
-        var binder = declaringCompilation.GetBinderFactory(declarationSyntax.syntaxTree)
+        var binder = declaringCompilation.GetBinderFactory(declarationSyntax.GetPrimarySyntaxTree())
             .GetBinder(returnTypeSyntax, declarationSyntax, this);
 
         var signatureFlags = BinderFlags.SuppressConstraintChecks;

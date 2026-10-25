@@ -689,11 +689,17 @@ public enum DiagnosticCode : ushort {
     ERR_PreprocessorDirectiveExpected = 678,
     ERR_EndOfPreprocessorLineExpected = 679,
     ERR_CannotUseOuterByRef = 680,
-    ERR_CannotEmitCodeType = 681,
+    ERR_CannotEmitCompileTimeType = 681,
     ERR_InsertMustHaveCodeConstant = 682,
     ERR_CannotInsertNonExpandParameter = 683,
     ERR_ExpandRequiresStatic = 684,
     ERR_NotAllPathsReturnExpand = 685,
+    ERR_CodeStringMustBeStatement = 686,
+    ERR_ExecExpressionMustBeCall = 687,
+    ERR_InvalidExecType = 688,
+    ERR_TypeStringMustBeTypeDecl = 689,
+    ERR_ExecExpressionFailed = 690,
+    ERR_CycleInExec = 691,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

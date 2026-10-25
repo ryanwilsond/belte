@@ -50,6 +50,10 @@
                 {
                     "name": "keyword.preprocessor.other.belte",
                     "match": "^\\s*#\\w+\\b"
+                },
+                {
+                    "name": "keyword.comptime.belte",
+                    "match": "\\s*(\\$\\s*(exec|code|insert|codestr|type|location))\\b"
                 }
             ]
         },

@@ -2302,10 +2302,10 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var dollar = EatToken();
         var insertKeyword = ConvertToKeyword(EatToken());
         var openParen = MatchOpenParen();
-        var name = ParseQualifiedName();
+        var expression = ParseExpression();
         var closeParen = MatchCloseParen();
         var semicolon = EatToken(SyntaxKind.SemicolonToken);
-        return SyntaxFactory.InsertStatement(dollar, insertKeyword, openParen, name, closeParen, semicolon);
+        return SyntaxFactory.InsertStatement(dollar, insertKeyword, openParen, expression, closeParen, semicolon);
     }
 
     private StatementSyntax ParseLocalDeclarationStatement(
@@ -3547,16 +3547,43 @@ internal sealed partial class LanguageParser : SyntaxParser {
     }
 
     private ExpressionSyntax ParseCompileTimeOperator(int precedence, SyntaxToken operatorToken) {
-        if (currentToken.contextualKind == SyntaxKind.CodeKeyword) {
-            var codeKeyword = ConvertToKeyword(EatToken());
-            var openParen = MatchOpenParen();
-            var statement = ParseStatement();
-            var closeParen = MatchCloseParen();
-            return SyntaxFactory.CodeExpression(operatorToken, codeKeyword, openParen, statement, closeParen);
+        switch (currentToken.contextualKind) {
+            case SyntaxKind.CodeKeyword: {
+                    var codeKeyword = ConvertToKeyword(EatToken());
+                    var openParen = MatchOpenParen();
+                    var statement = ParseStatement();
+                    var closeParen = MatchCloseParen();
+                    return SyntaxFactory.CodeExpression(operatorToken, codeKeyword, openParen, statement, closeParen);
+                }
+            case SyntaxKind.CodestrKeyword: {
+                    var codeKeyword = ConvertToKeyword(EatToken());
+                    var openParen = MatchOpenParen();
+                    var expression = ParseExpression();
+                    var closeParen = MatchCloseParen();
+                    return SyntaxFactory.CodeStrExpression(operatorToken, codeKeyword, openParen, expression, closeParen);
+                }
+            case SyntaxKind.ExecKeyword: {
+                    var execKeyword = ConvertToKeyword(EatToken());
+                    var openParen = MatchOpenParen();
+                    var expression = ParseExpression();
+                    var closeParen = MatchCloseParen();
+                    return SyntaxFactory.ExecExpression(operatorToken, execKeyword, openParen, expression, closeParen);
+                }
+            case SyntaxKind.TypeKeyword: {
+                    var typeKeyword = ConvertToKeyword(EatToken());
+                    var openParen = MatchOpenParen();
+                    var expression = ParseExpression();
+                    var closeParen = MatchCloseParen();
+                    return SyntaxFactory.TypeExpression(operatorToken, typeKeyword, openParen, expression, closeParen);
+                }
+            case SyntaxKind.LocationKeyword: {
+                    var locationKeyword = ConvertToKeyword(EatToken());
+                    return SyntaxFactory.LocationExpression(operatorToken, locationKeyword);
+                }
+            default:
+                var operand = ParseOperatorExpression(precedence);
+                return SyntaxFactory.UnaryExpression(operatorToken, operand);
         }
-
-        var operand = ParseOperatorExpression(precedence);
-        return SyntaxFactory.UnaryExpression(operatorToken, operand);
     }
 
     private ClampExpressionSyntax ParseClampExpression(

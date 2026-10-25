@@ -312,7 +312,7 @@ internal abstract class SourceTemplateParameterSymbolBase : TemplateParameterSym
         var binder = _withTemplateParametersBinder;
 
         if (binder is null) {
-            var binderFactory = declaringCompilation.GetBinderFactory(syntax.syntaxTree);
+            var binderFactory = declaringCompilation.GetBinderFactory(syntax.GetPrimarySyntaxTree());
             binder = binderFactory.GetBinder(syntax);
         }
 

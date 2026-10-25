@@ -37,6 +37,16 @@ internal sealed class DeclarationTreeBuilder : SyntaxVisitor<SingleNamespaceOrTy
         return (RootSingleNamespaceDeclaration)builder.Visit(syntaxTree.GetRoot());
     }
 
+    internal static SingleNamespaceOrTypeDeclaration ForNode(
+        BelteSyntaxNode node,
+        OneOrMany<WeakReference<BoxedMemberNames>>? previousMemberNames = null) {
+        var builder = new DeclarationTreeBuilder(
+            previousMemberNames ?? OneOrMany<WeakReference<BoxedMemberNames>>.Empty
+        );
+
+        return builder.Visit(node);
+    }
+
     internal static bool CachesComputedMemberNames(SingleTypeDeclaration typeDeclaration) {
         return typeDeclaration.kind switch {
             DeclarationKind.Namespace => throw ExceptionUtilities.Unreachable(),

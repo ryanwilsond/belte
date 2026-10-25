@@ -302,10 +302,15 @@ internal sealed partial class BinderFactory {
             var key = CreateBinderCacheKey(node, nodeUsage);
 
             if (!_binderCache.TryGetValue(key, out var resultBinder)) {
-                resultBinder = VisitCore(node.parent);
+                resultBinder = VisitAsParent(node.parent);
 
                 if (nodeUsage != NodeUsage.Normal) {
-                    var typeSymbol = ((NamespaceOrTypeSymbol)resultBinder.containingMember).GetSourceTypeMember(node);
+                    NamedTypeSymbol typeSymbol;
+
+                    if (resultBinder.containingMember is NamespaceOrTypeSymbol symbol)
+                        typeSymbol = symbol.GetSourceTypeMember(node);
+                    else
+                        typeSymbol = _compilation.GetSynthesizedTypeFromSyntax(node);
 
                     if (nodeUsage == NodeUsage.NamedTypeBase) {
                         resultBinder = new WithClassTemplateParametersBinder(typeSymbol, resultBinder);
@@ -324,6 +329,18 @@ internal sealed partial class BinderFactory {
             }
 
             return resultBinder;
+        }
+
+        private Binder VisitAsParent(SyntaxNode node) {
+            if (node.location is CompoundTextLocation compound) {
+                var previous = _position;
+                _position = compound.sourceNode.position;
+                var binder = VisitCore(compound.sourceNode);
+                _position = previous;
+                return binder;
+            }
+
+            return VisitCore(node);
         }
 
         internal override Binder VisitExternBlockDeclaration(ExternBlockDeclarationSyntax node) {
@@ -638,9 +655,9 @@ internal sealed partial class BinderFactory {
             var syntaxReference = sym.syntaxReference;
 
             if (kind is SymbolKind.Method or SymbolKind.Property) {
-                if (InSpan(syntaxReference?.location, syntaxReference?.syntaxTree, _syntaxTree, memberSpan))
+                if (InSpan(syntaxReference?.location, syntaxReference?.GetPrimarySyntaxTree(), _syntaxTree, memberSpan))
                     return true;
-            } else if (InSpan(syntaxReference?.location, syntaxReference?.syntaxTree, _syntaxTree, memberSpan)) {
+            } else if (InSpan(syntaxReference?.location, syntaxReference?.GetPrimarySyntaxTree(), _syntaxTree, memberSpan)) {
                 return true;
             }
 

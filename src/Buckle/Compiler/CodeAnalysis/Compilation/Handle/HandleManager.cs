@@ -162,7 +162,7 @@ internal sealed class HandleManager {
 
     private void DispatchMessage(Message message) {
         foreach (var handler in _handlesInPriorityOrder)
-            handler?.DispatchMessage(message, _context);
+            handler?.DispatchMessage(message, _context, _compilation.declarationDiagnostics);
     }
 
     private bool HasHandlerSignature(MethodSymbol method) {

@@ -866,6 +866,7 @@ public sealed class EvaluatorTests {
     [InlineData("return typeof(int32) == typeof(int64);", false)]
     [InlineData("return typeof(decimal) == typeof(float64);", true)]
     [InlineData("return typeof(float32) == typeof(float64);", false)]
+    [InlineData("constexpr type T = typeof(int); T a = 3; return a;", 3)]
     // SizeOf expressions
     [InlineData("return sizeof(int8);", 1)]
     [InlineData("return sizeof(int16);", 2)]
@@ -1754,8 +1755,26 @@ public sealed class EvaluatorTests {
     [InlineData("return ((enum { A })0).ToString();", "A")]
     [InlineData("enum flags { A, B } a = .A | .B; return (int)a;", 3)]
     [InlineData("enum flags { A, B, C } a = .A | .B | .C; return (int)a;", 7)]
-    // $code and $insert
+    // $code, $insert, $codestr
     [InlineData("constexpr a = $code(return 3;); $insert(a); return 0;", 3)]
+    [InlineData("constexpr a = $codestr(\"return 3;\"); $insert(a); return 0;", 3)]
+    [InlineData("class A { public static int M() { return 3; } } return $exec(A.M());", 3)]
+    [InlineData(@"
+        class A {
+            public static string M() { return ""return 10;""; }
+        }
+
+        constexpr Code a = $codestr($exec(A.M()));
+        $insert(a);
+        return 0;
+    ", 10)]
+    [InlineData(@"
+        constexpr type t = $type(""""""
+            class A { public int M() { return 10; } }
+            """""");
+        var a = new t();
+        return a.M();
+    ", 10)]
     public void Evaluator_Computes_CorrectValues(string text, object? expectedValue) {
         AssertValue(text, expectedValue, evaluator: true, executor: true);
     }

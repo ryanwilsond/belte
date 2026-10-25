@@ -17,7 +17,7 @@ internal sealed class Handle {
         _executor = Executor.CreateForHandler(handlerProgram, diagnostics, handlerType);
     }
 
-    internal void DispatchMessage(Message message, CompilerContext context) {
-        _ = _executor.ExecuteMethod(_method, [message, context]);
+    internal void DispatchMessage(Message message, CompilerContext context, BelteDiagnosticQueue diagnostics) {
+        _ = _executor.ExecuteMethod(_method, [message, context], _method.location, diagnostics, out _);
     }
 }

@@ -127,6 +127,10 @@
       - [3.7.1](Current/Data.md#371-examples) Examples
       - [3.7.2](Current/Data.md#372-conditional-compile-time-expressions) Conditional Compile-Time Expressions
       - [3.7.3](Current/Data.md#373-code-and-insert) `$code` and `$insert`
+      - [3.7.4](Current/Data.md#374-codestr) `$codestr`
+      - [3.7.5](Current/Data.md#375-exec) `$exec`
+      - [3.7.6](Current/Data.md#376-type) `$type`
+      - [3.7.7](Current/Data.md#377-location) `$location`
     - [3.8](Current/Data.md#38-binds-expressions) Binds Expressions
   - [4](Current/ClassesAndObjects.md) Namespaces, Classes, and Objects
     - [4.1](Current/ClassesAndObjects.md#41-classes) Classes

@@ -144,6 +144,5 @@ internal enum BoundKind : byte {
     BindsExpression                             = 0x8A,
     UnconvertedBinaryOperator                   = 0x8B,
     Dup                                         = 0x8C,
-    CodeExpression                              = 0x8D,
-    InsertStatement                             = 0x8E,
+    InsertStatement                             = 0x8D,
 }

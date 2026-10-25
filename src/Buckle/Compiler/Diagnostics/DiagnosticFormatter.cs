@@ -69,6 +69,22 @@ public static partial class DiagnosticFormatter {
         return displayParts;
     }
 
+    internal static string PrettyPrintLocation(TextLocation location) {
+        var span = location.span;
+        var text = location.text;
+
+        var lineNumber = text.GetLineIndex(span.start);
+        var line = text.GetLine(lineNumber);
+        var column = span.start - line.start + 1;
+
+        var fileName = location.fileName;
+
+        if (!string.IsNullOrEmpty(fileName))
+            return $"{fileName}:{lineNumber + 1}:{column}";
+        else
+            return $"{lineNumber + 1}:{column}";
+    }
+
     private static void AddLocationToDisplayParts(
         DisplayParts displayParts,
         TextLocation location,

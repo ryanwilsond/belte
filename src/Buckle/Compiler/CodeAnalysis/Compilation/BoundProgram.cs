@@ -117,8 +117,8 @@ internal sealed partial class BoundProgram {
         return false;
     }
 
-    internal ImmutableArray<TypeSymbol> GetAllTypes() {
-        var builder = ArrayBuilder<TypeSymbol>.GetInstance();
+    internal ImmutableArray<NamedTypeSymbol> GetAllTypes() {
+        var builder = ArrayBuilder<NamedTypeSymbol>.GetInstance();
 
         for (var current = this; current is not null; current = current.previous)
             builder.AddRange(current.types);
@@ -158,8 +158,8 @@ internal sealed partial class BoundProgram {
         return builder.ToImmutableAndFree();
     }
 
-    internal ImmutableArray<NamedTypeSymbol> GetTypesToEmit(bool noStdLib) {
-        var types = GetAllTypes();
+    internal ImmutableArray<NamedTypeSymbol> GetTypesToEmit(bool noStdLib, bool includePrevious = true) {
+        var types = includePrevious ? GetAllTypes() : this.types;
         var length = types.Length;
         var builder = ArrayBuilder<NamedTypeSymbol>.GetInstance(length);
 

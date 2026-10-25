@@ -38,6 +38,10 @@
   - [3.7.1](#371-examples) Examples
   - [3.7.2](#372-conditional-compile-time-expressions) Conditional Compile-Time Expressions
   - [3.7.3](#373-code-and-insert) `$code` and `$insert`
+  - [3.7.4](#374-codestr) `$codestr`
+  - [3.7.5](#375-exec) `$exec`
+  - [3.7.6](#376-type) `$type`
+  - [3.7.7](#377-location) `$location`
 - [3.8](#38-binds-expressions) Binds Expressions
 
 ## 3.1 Data Types
@@ -743,6 +747,13 @@ constexpr int a = 3; // OK
 constexpr int b = MyFunc(); // Invalid, value is not known at compile-time
 ```
 
+One interesting interaction is that locals marked `constexpr` of type `type` can be used as a type. For example:
+
+```belte
+constexpr type t = typeof(int);
+t a = 3; // 'a' has type 'int'
+```
+
 ### 3.3.2 Implicit Typing
 
 Instead of using type-names to declare, implicit keywords `var`, `const`, `final`, and `constexpr` can be used if the
@@ -989,6 +1000,11 @@ function pointer, the compiler does not attempt to evaluate the expression.
 For more complex compile-time execution/meta-programming consider using
 [compiler handles](LowLevelFeatures.md#613-compiler-handle).
 
+Note that compile-time expressions run after main compilation, meaning their results cannot be used in some other
+compile-time constructs such as templates or [`$codestr` expressions](#374-codestr). For cases where the result of the
+expression is needed "sooner", consider using an [`$exec` expression](#375-exec). The tradeoff is that `$exec` is
+typically more expensive than ordinary compile-time expressions.
+
 ### 3.7.1 Examples
 
 For example:
@@ -1107,7 +1123,7 @@ $insert(a); // 10
 ```
 
 Code constants can be passed to [`constexpr` parameters](ControlFlow.md#218-constant-expression-parameters) of methods
-marked [`expand`]():
+marked [`expand`](ClassesAndObjects.md#4223-behavior-specifiers):
 
 ```belte
 void MyFunc(constexpr Code p) expand {
@@ -1119,6 +1135,120 @@ MyFunc($code(Console.PrintLine(a);));
 ```
 
 Code constants use the enclosing context of where they are inserted, meaning they can access locals, parameters, etc.
+
+### 3.7.4 `$codestr`
+
+A `$codestr(<expression>)` expression does the same thing as `$code` except it takes in a string that is parsed as a
+statement instead of a statement directly. The following are equivalent:
+
+```belte
+$code(return 3;);
+$codestr("return 3;");
+```
+
+The expression must be a compile-time constant. `$codestr` should be used instead of `$code` if the the code data needs
+to be created programmatically, such as by using an [`$exec`](#375-exec) expression:
+
+```belte
+Code myCode = $codestr($exec(CreateCode()));
+```
+
+### 3.7.5 `$exec`
+
+An `$exec(<expression>)` expression invokes a method at compile time. Unlike a normal
+[compile-time expression](#37-compile-time-expressions), this emits the code and runs it in place. This means the result
+of the expression is available immediately for things such as templates and [`$codestr`](#374-codestr) expressions.
+
+For example:
+
+```belte
+Code myCode = $codestr($exec(CreateCode()));
+```
+
+`$exec` expressions execute the same way [compiler handles](LowLevelFeatures.md#613-compiler-handle) do, where all code
+touched by the call is compiled ahead of time to run.
+
+Note that uncaught exceptions thrown in code that is run with `$exec` will be converted into compiler diagnostics that
+are reported as errors.
+
+### 3.7.6 `$type`
+
+A `$type(<expression>)` expression parses a string into a type declaration and adds that type to the compilation.
+
+For example:
+
+```belte
+constexpr type MyType = $type("""
+  class MyType { public int M() { return 10; } }
+""");
+
+var a = new MyType();
+return a.M(); // 10
+```
+
+To create types programmatically, the expression could be the result of an [`$exec` expression](#375-exec).
+
+For example:
+
+```belte
+constexpr type MyType = $type($exec(CreateType()));
+
+static string CreateType() {
+  // ...
+}
+```
+
+Here is an example of a program that creates subset structs. This could be used to prevent accessing unused fields (if
+only partially fetching an entry from a database, for example):
+
+```belte
+using System;
+
+struct User {
+  string? name;
+  int age;
+}
+
+public static class Program {
+  public static void Main() {
+    constexpr Source = $exec(QueryHelper.BuildQuery(typeof(User), "UserWithName", { "name" }));
+    constexpr UserWithName = $type(Source);
+
+    // Can now use the type
+    UserWithName myUser = new();
+  }
+}
+
+public static class QueryHelper {
+  public static lowlevel string BuildQuery(Type type, string name, Buffer<string> fields) {
+    var builder = new System.Text.StringBuilder(f"struct {name} {{\n");
+
+    for (field in fields) {
+      var found = false;
+
+      for (member in type.GetFields()) {
+        member!;
+
+        if (member.Name == field) {
+          found = true;
+          builder.Append(f"    {Buckle.SourceHelpers.TypeToSourceString(member)} {field};");
+        }
+      }
+
+      if (!found)
+        throw new Exception(f"field '{field}' not found in type '{type}'");
+    }
+
+    builder.Append("\n}");
+    return builder.ToString()!;
+  }
+}
+```
+
+### 3.7.7 `$location`
+
+A `$location` expression inserts the text location of the node into the program. This can be used to give better
+diagnostic locations for code ran with `$exec`.
 
 ## 3.8 Binds Expressions
 
