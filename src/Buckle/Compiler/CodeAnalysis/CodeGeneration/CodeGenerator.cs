@@ -598,6 +598,18 @@ internal sealed partial class CodeGenerator {
                 _builder.EmitWithSymbolToken(OpCode.Ldtoken, typeOfType);
                 _builder.EmitGetTypeFromHandle(typeOfType);
                 break;
+            case SpecialType.Location:
+                var simpleLocation = (SimpleTextLocation)constant.value;
+                EmitIntConstant(simpleLocation.syntaxTreeOrdinal);
+                EmitIntConstant(simpleLocation.spanStart);
+                EmitIntConstant(simpleLocation.spanLength);
+
+                _builder.EmitWithSymbolToken(
+                    OpCode.Newobj,
+                    _compilation.GetWellKnownMethod(WellKnownMember.Buckle_SimpleTextLocation_ctor)
+                );
+
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(discriminator);
         }
@@ -4054,6 +4066,7 @@ oneMoreTime:
         switch (cast.conversion.kind) {
             case ConversionKind.MethodGroup:
             case ConversionKind.ImplicitThrow:
+            case ConversionKind.ImplicitWellKnown:
                 throw ExceptionUtilities.UnexpectedValue(cast.conversion.kind);
             case ConversionKind.Identity:
                 break;

@@ -19,6 +19,7 @@ internal static class ConversionKindExtensions {
             case ConversionKind.ImplicitNumeric:
             case ConversionKind.ImplicitEnum:
             case ConversionKind.ImplicitThrow:
+            case ConversionKind.ImplicitWellKnown:
             case ConversionKind.MethodGroup:
             case ConversionKind.AnyBoxing:
             case ConversionKind.ObjectCreation:

@@ -1186,7 +1186,7 @@ public sealed partial class Compilation {
     }
 
     internal void MakeMemberMissing(WellKnownMember member) {
-        MakeMemberMissing((int)member);
+        MakeMemberMissing((int)member - 1);
     }
 
     private void MakeMemberMissing(int member) {
@@ -1195,7 +1195,7 @@ public sealed partial class Compilation {
     }
 
     private bool IsMemberMissing(WellKnownMember member) {
-        return IsMemberMissing((int)member);
+        return IsMemberMissing((int)member - 1);
     }
 
     private bool IsMemberMissing(int member) {
@@ -1214,13 +1214,13 @@ public sealed partial class Compilation {
     }
 
     internal Symbol GetWellKnownTypeMember(WellKnownMember member) {
-        Debug.Assert(member >= 0 && member < WellKnownMember.Count);
+        Debug.Assert(member >= 0 && member <= WellKnownMember.Count);
 
         if (IsMemberMissing(member))
             return null;
 
         if (_lazyWellKnownTypeMembers is null ||
-            ReferenceEquals(_lazyWellKnownTypeMembers[(int)member], ErrorTypeSymbol.UnknownResultType)) {
+            ReferenceEquals(_lazyWellKnownTypeMembers[(int)member - 1], ErrorTypeSymbol.UnknownResultType)) {
             if (_lazyWellKnownTypeMembers is null) {
                 var wellKnownTypeMembers = new Symbol[(int)WellKnownMember.Count];
 
@@ -1247,13 +1247,13 @@ public sealed partial class Compilation {
             }
 
             Interlocked.CompareExchange(
-                ref _lazyWellKnownTypeMembers[(int)member],
+                ref _lazyWellKnownTypeMembers[(int)member - 1],
                 result,
                 ErrorTypeSymbol.UnknownResultType
             );
         }
 
-        return _lazyWellKnownTypeMembers[(int)member];
+        return _lazyWellKnownTypeMembers[(int)member - 1];
     }
 
     internal NamedTypeSymbol GetWellKnownType(WellKnownType type) {

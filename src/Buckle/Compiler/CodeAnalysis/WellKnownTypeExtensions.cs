@@ -44,7 +44,7 @@ internal static class WellKnownTypeExtensions {
         "Belte.Graphics.Rect",
         "Belte.Graphics.Texture",
         "Belte.Graphics.Sound",
-        "Buckle.CodeAnalysis.Text.TextLocation",
+        "Buckle.SimpleTextLocation",
     ];
 
 #if DEBUG

@@ -5453,6 +5453,7 @@ internal partial class Binder {
             method,
             argumentsBuilder.ToArrayAndFree(),
             node.location,
+            compilation,
             diagnostics,
             out var threw
         );
@@ -5584,9 +5585,16 @@ internal partial class Binder {
     }
 
     private BoundExpression BindLocationExpression(LocationExpressionSyntax node) {
+        var location = node.location;
+        var simpleLocation = new SimpleTextLocation(
+            compilation.GetSyntaxTreeOrdinal(location.tree),
+            location.span.start,
+            location.span.length
+        );
+
         return new BoundLiteralExpression(
             node,
-            new ConstantValue(node.location, SpecialType.Location),
+            new ConstantValue(simpleLocation, SpecialType.Location),
             compilation.GetSpecialType(SpecialType.Location)
         );
     }

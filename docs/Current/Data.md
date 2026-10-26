@@ -1250,6 +1250,21 @@ public static class QueryHelper {
 A `$location` expression inserts the text location of the node into the program. This can be used to give better
 diagnostic locations for code ran with `$exec`.
 
+For example:
+
+```belte
+$exec(SomeFunc());
+
+static void SomeFunc() {
+  // ...
+  throw Buckle.SourceHelpers.WithLocation(new System.Exception("some exception"), $location);
+}
+```
+
+When this code is compiled, a diagnostic with two locations will be reported saying the execution of `SomeFunc()` threw
+an uncaught exception. The two locations are the call-site (`$exec(SomeFunc())`) and the location of the `$location`
+expression.
+
 ## 3.8 Binds Expressions
 
 A `binds(<expression>)` can be used to check if an expression binds without error. Binding includes type checking,

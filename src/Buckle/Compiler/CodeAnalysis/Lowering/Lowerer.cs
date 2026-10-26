@@ -1329,6 +1329,7 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
                 return node;
             case ConversionKind.ObjectCreation:
             case ConversionKind.ConditionalExpression:
+            case ConversionKind.ImplicitWellKnown:
                 return Visit(node.operand);
             case ConversionKind.ImplicitThrow:
                 var operand = (BoundThrowExpression)node.operand;

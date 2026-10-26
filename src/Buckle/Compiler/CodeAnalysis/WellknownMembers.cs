@@ -441,6 +441,16 @@ internal static class WellKnownMembers {
                     0,                                                                                                      // Method Signature
                     (byte)SignatureTypeCode.TypeHandle, (byte)SpecialType.Void, // Return Type
 
+                // Buckle_SimpleTextLocation_ctor
+                (byte)MemberFlags.Constructor,                                                                              // Flags
+                (byte)WellKnownType.Buckle_SimpleTextLocation,                                                              // DeclaringTypeId
+                0,                                                                                                          // Arity
+                    3,                                                                                                      // Method Signature
+                    (byte)SignatureTypeCode.TypeHandle, (byte)SpecialType.Void, // Return Type
+                    (byte)SignatureTypeCode.TypeHandle, (byte)SpecialType.Int32,
+                    (byte)SignatureTypeCode.TypeHandle, (byte)SpecialType.Int32,
+                    (byte)SignatureTypeCode.TypeHandle, (byte)SpecialType.Int32,
+
         };
 
         var allNames = new string[(int)WellKnownMember.Count] {
@@ -504,6 +514,7 @@ internal static class WellKnownMembers {
             ".ctor",                    // WrappedErrorException_ctor
             "CreateInstance",           // System_Activator_CreateInstance
             ".ctor",                    // System_InvalidOperationException_ctor
+            ".ctor",                    // Buckle_SimpleTextLocation_ctor
         };
 
         Descriptors = MemberDescriptor.InitializeFromStream(

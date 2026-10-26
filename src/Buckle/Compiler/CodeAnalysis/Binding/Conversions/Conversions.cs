@@ -101,7 +101,9 @@ internal sealed class Conversions : ConversionsBase {
         return conversion;
     }
 
-    private protected override bool HasImplicitWellKnownTypeConversion(TypeSymbol source, TypeSymbol destination) {
+    private protected override bool HasImplicitWellKnownReferenceTypeConversion(
+        TypeSymbol source,
+        TypeSymbol destination) {
         if (source.specialType == SpecialType.Type || destination.specialType == SpecialType.Type) {
             var systemType = _binder.compilation.GetWellKnownType(WellKnownType.System_Type);
 
@@ -115,10 +117,14 @@ internal sealed class Conversions : ConversionsBase {
                 return true;
         }
 
+        return false;
+    }
+
+    private protected override bool HasImplicitWellKnownValueTypeConversion(
+        TypeSymbol source,
+        TypeSymbol destination) {
         if (source.specialType == SpecialType.Location || destination.specialType == SpecialType.Location) {
-            var textLocationType = _binder.compilation.GetWellKnownType(
-                WellKnownType.Buckle_CodeAnalysis_Text_TextLocation
-            );
+            var textLocationType = _binder.compilation.GetWellKnownType(WellKnownType.Buckle_SimpleTextLocation);
 
             if (textLocationType is MissingMetadataTypeSymbol)
                 return false;

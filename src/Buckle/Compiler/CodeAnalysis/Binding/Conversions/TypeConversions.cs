@@ -39,7 +39,11 @@ internal sealed class TypeConversions : ConversionsBase {
         throw ExceptionUtilities.Unreachable();
     }
 
-    private protected override bool HasImplicitWellKnownTypeConversion(TypeSymbol source, TypeSymbol destination) {
+    private protected override bool HasImplicitWellKnownReferenceTypeConversion(TypeSymbol _, TypeSymbol _2) {
+        return false;
+    }
+
+    private protected override bool HasImplicitWellKnownValueTypeConversion(TypeSymbol _, TypeSymbol _2) {
         return false;
     }
 }

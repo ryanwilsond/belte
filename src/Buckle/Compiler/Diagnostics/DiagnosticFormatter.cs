@@ -49,22 +49,30 @@ public static partial class DiagnosticFormatter {
     }
 
     private static DisplayParts ToDisplayParts(Exception exception, ConsoleColor? foregroundColor = null) {
+        var inner = exception is TransformedExecException e ? e.InnerException : exception;
+
         var displayParts = new DisplayParts();
         var initialColor = foregroundColor ?? Console.ForegroundColor;
         var highlightColor = ConsoleColor.Red;
 
-        displayParts.Add($"Unhandled exception. {exception.GetType()}: ", highlightColor);
-        displayParts.Add($"{exception.Message}\n", initialColor);
+        displayParts.Add($"Unhandled exception. {inner.GetType()}: ", highlightColor);
+        displayParts.Add($"{inner.Message}\n", initialColor);
 
-        if (exception is not BelteEvaluatorException belteException || belteException.location is null)
+        var location = exception switch {
+            TransformedExecException t => t.location,
+            BelteEvaluatorException b => b.location,
+            _ => null
+        };
+
+        if (location is null)
             return displayParts;
 
         displayParts.Add("    at ", initialColor);
-        AddLocationToDisplayParts(displayParts, belteException.location, initialColor);
+        AddLocationToDisplayParts(displayParts, location, initialColor);
 
         displayParts.Add("\n", initialColor);
 
-        AddTextAtLocation(displayParts, belteException.location, [], initialColor, highlightColor);
+        AddTextAtLocation(displayParts, location, [], initialColor, highlightColor);
 
         return displayParts;
     }

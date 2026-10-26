@@ -37,7 +37,9 @@ internal abstract partial class ConversionsBase {
         BoundUnconvertedArrayLength length,
         TypeSymbol destination);
 
-    private protected abstract bool HasImplicitWellKnownTypeConversion(TypeSymbol source, TypeSymbol destination);
+    private protected abstract bool HasImplicitWellKnownReferenceTypeConversion(TypeSymbol source, TypeSymbol destination);
+
+    private protected abstract bool HasImplicitWellKnownValueTypeConversion(TypeSymbol source, TypeSymbol destination);
 
     internal bool HasTopLevelNullabilityImplicitConversion(TypeWithAnnotations source, TypeWithAnnotations destination) {
         // if (!includeNullability) {
@@ -147,6 +149,9 @@ internal abstract partial class ConversionsBase {
         if (destination.specialType == SpecialType.Object)
             return true;
 
+        if (HasImplicitWellKnownReferenceTypeConversion(source, destination))
+            return true;
+
         switch (source.typeKind) {
             case TypeKind.Class:
                 if (destination.IsClassType() && Conversion.IsBaseClass(source, destination))
@@ -160,9 +165,6 @@ internal abstract partial class ConversionsBase {
             case TypeKind.Array:
                 return HasImplicitConversionFromArray(source, destination);
         }
-
-        if (HasImplicitWellKnownTypeConversion(source, destination))
-            return true;
 
         return false;
     }
@@ -629,6 +631,9 @@ internal abstract partial class ConversionsBase {
 
         if (HasImplicitReferenceConversion(source, target))
             return Conversion.ImplicitReference;
+
+        if (HasImplicitWellKnownValueTypeConversion(source, target))
+            return Conversion.ImplicitWellKnown;
 
         if (HasBoxingConversion(source, target))
             return Conversion.AnyBoxing;
@@ -1675,6 +1680,7 @@ internal abstract partial class ConversionsBase {
             case ConversionKind.NullLiteral:
             case ConversionKind.DefaultLiteral:
             case ConversionKind.ImplicitThrow:
+            case ConversionKind.ImplicitWellKnown:
                 return true;
             // TODO Should remove Implicit as a conversion kind because its vague
             case ConversionKind.Implicit:

@@ -318,6 +318,7 @@ internal sealed partial class Executor : ModuleBuilder {
         MethodSymbol method,
         object[] arguments,
         TextLocation location,
+        Compilation compilation,
         BelteDiagnosticQueue diagnostics,
         out bool threw) {
         var methodInv = _programType.GetMethod(
@@ -332,9 +333,23 @@ internal sealed partial class Executor : ModuleBuilder {
             threw = false;
             return result;
         } catch (TargetInvocationException e) {
+            var exception = e.InnerException;
+
+            if (exception is ExecException ee) {
+                var simpleLocation = ee.location;
+                var syntaxTree = compilation.syntaxTrees[simpleLocation.syntaxTreeOrdinal];
+
+                var fullLocation = new TextLocation(
+                    syntaxTree.text,
+                    new TextSpan(simpleLocation.spanStart, simpleLocation.spanLength),
+                    syntaxTree
+                );
+
+                exception = new TransformedExecException(ee.InnerException, fullLocation);
+            }
+
             threw = true;
-            // TODO Consider displaying e.InnerException.TargetSite in the diagnostic
-            diagnostics.Push(Error.CompileTimeExpressionThrew(location, e.InnerException));
+            diagnostics.Push(Error.CompileTimeExpressionThrew(location, exception));
             return null;
         }
     }

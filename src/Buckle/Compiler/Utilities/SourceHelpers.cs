@@ -52,6 +52,31 @@ public static class SourceHelpers {
         return builder.ToString();
     }
 
+    [return: Belte.Nullability([1])]
+    public static string FieldToSourceString(FieldInfo fieldInfo) {
+        var builder = new StringBuilder();
+        var nullableTransformFlags = GetNullableTransformFlags(fieldInfo.GetCustomAttributesData());
+        TypeToSourceStringCore(builder, fieldInfo.FieldType, 0, nullableTransformFlags);
+        builder.Append(' ');
+        builder.Append(fieldInfo.Name);
+        return builder.ToString();
+    }
+
+    [return: Belte.Nullability([1])]
+    public static string ParameterToSourceString(ParameterInfo parameterInfo) {
+        var builder = new StringBuilder();
+        var nullableTransformFlags = GetNullableTransformFlags(parameterInfo.GetCustomAttributesData());
+        TypeToSourceStringCore(builder, parameterInfo.ParameterType, 0, nullableTransformFlags);
+        builder.Append(' ');
+        builder.Append(parameterInfo.Name);
+        return builder.ToString();
+    }
+
+    [return: Belte.Nullability([1])]
+    public static Exception WithLocation([Belte.Nullability([1])] Exception exception, SimpleTextLocation location) {
+        return new Diagnostics.ExecException(exception, location);
+    }
+
     private static byte[] GetNullableTransformFlags(IEnumerable<CustomAttributeData> customAttributes) {
         byte[] nullableTransformFlags = null;
 
@@ -72,6 +97,7 @@ public static class SourceHelpers {
         return nullableTransformFlags;
     }
 
+    // TODO This needs to be ref int position or else it won't advance properly if an element needs to move the position more than 1
     private static void TypeToSourceStringCore(
         StringBuilder builder,
         Type type,

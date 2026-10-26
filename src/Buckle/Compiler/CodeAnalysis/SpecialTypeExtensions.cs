@@ -1,7 +1,6 @@
 using System.Diagnostics;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis;
@@ -192,7 +191,7 @@ internal static class SpecialTypeExtensions {
             char => SpecialType.Char,
             TypeSymbol => SpecialType.Type,
             SyntaxNode => SpecialType.Code,
-            TextLocation => SpecialType.Location,
+            SimpleTextLocation => SpecialType.Location,
             _ => SpecialType.None,
         };
     }

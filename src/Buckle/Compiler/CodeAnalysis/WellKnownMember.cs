@@ -79,7 +79,9 @@ internal enum WellKnownMember : byte {
     System_Activator_CreateInstance,
     System_InvalidOperationException_ctor,
 
+    Buckle_SimpleTextLocation_ctor,
+
 
     LastCorMember = Nullable_GetValueOrDefault_T,
-    Count = System_InvalidOperationException_ctor,
+    Count = Buckle_SimpleTextLocation_ctor,
 }
