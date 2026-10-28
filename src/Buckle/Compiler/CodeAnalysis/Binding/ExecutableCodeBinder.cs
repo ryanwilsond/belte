@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using System.Threading;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
+using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -44,7 +45,33 @@ internal sealed class ExecutableCodeBinder : Binder {
     }
 
     internal override Binder GetBinder(SyntaxNode node) {
-        return _binderMap.TryGetValue(node, out var binder) ? binder : next.GetBinder(node);
+        return TryGetBinder(node, out var binder) ? binder : next.GetBinder(node);
+    }
+
+    private bool TryGetBinder(SyntaxNode node, out Binder binder) {
+        if (_binderMap.TryGetValue(node, out binder)) {
+            return true;
+        } else if (node.location is CompoundTextLocation compound) {
+            var current = compound.sourceNode;
+
+            while (current is not null) {
+                if (_binderMap.TryGetValue(current, out var nextBinder)) {
+                    var insertedMap = LocalBinderFactory.BuildMap(
+                        _memberSymbol,
+                        node,
+                        nextBinder,
+                        _binderUpdatedHandler
+                    );
+
+                    return insertedMap.TryGetValue(node, out binder);
+                }
+
+                current = current.parent;
+            }
+        }
+
+        binder = null;
+        return false;
     }
 
     private void ComputeBinderMap() {

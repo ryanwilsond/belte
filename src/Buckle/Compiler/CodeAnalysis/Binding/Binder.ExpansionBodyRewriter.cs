@@ -1,5 +1,6 @@
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Diagnostics;
@@ -15,11 +16,16 @@ internal partial class Binder {
         private readonly BelteDiagnosticQueue _diagnostics;
         private readonly ImmutableArray<BoundExpression> _arguments;
         private readonly Dictionary<ParameterSymbol, DataContainerSymbol> _parameterMap;
+        private readonly Dictionary<DataContainerSymbol, DataContainerSymbol> _localMap;
+
+        private readonly Stack<Binder> _binderStack;
+        private Binder _currentBodyBinder;
 
         private ExpansionBodyRewriter(
             Binder binder,
             Binder inMethodBinder,
             MethodSymbol method,
+            ImmutableArray<DataContainerSymbol> locals,
             ImmutableArray<BoundExpression> arguments,
             BelteDiagnosticQueue diagnostics) {
             _binder = binder;
@@ -27,6 +33,7 @@ internal partial class Binder {
             _diagnostics = diagnostics;
             _arguments = arguments;
             _parameterMap = [];
+            _localMap = [];
 
             if (!method.returnType.IsVoidType()) {
                 _returnLocal = CreateTempLocal("<return_local>", method.returnType, method.refKind, out var tempCount);
@@ -43,13 +50,25 @@ internal partial class Binder {
                 _binder.AddLocalToScope(parameterLocal);
             }
 
+            foreach (var local in locals) {
+                if (local.isConstExpr)
+                    continue;
+
+                var newLocal = CreateTempLocal(local.name, local.type, local.refKind, out _);
+                _localMap.Add(local, newLocal);
+                _binder.AddLocalToScope(newLocal);
+            }
+
+            _binderStack = new Stack<Binder>();
+            _binderStack.Push(_inMethodBinder);
+            _currentBodyBinder = _inMethodBinder;
+
             DataContainerSymbol CreateTempLocal(string prefix, TypeSymbol type, RefKind refKind, out int tempCount) {
-                string name;
+                var name = prefix;
                 tempCount = 0;
 
-                do {
+                while (binder.LookupLocal(SyntaxFactory.Identifier(name)) is not null)
                     name = $"{prefix}{tempCount++}";
-                } while (binder.LookupLocal(SyntaxFactory.Identifier(name)) is not null);
 
                 return new SynthesizedDataContainerSymbol(
                     binder.containingMember,
@@ -71,7 +90,15 @@ internal partial class Binder {
             BoundBlockStatement body,
             BelteDiagnosticQueue diagnostics,
             out DataContainerSymbol returnLocal) {
-            var rewriter = new ExpansionBodyRewriter(binder, inMethodBinder, method, arguments, diagnostics);
+            var rewriter = new ExpansionBodyRewriter(
+                binder,
+                inMethodBinder,
+                method,
+                body.locals,
+                arguments,
+                diagnostics
+            );
+
             var rewritten = new List<BoundStatement>();
 
             if (rewriter._returnLocal is not null)
@@ -80,13 +107,31 @@ internal partial class Binder {
             foreach (var (parameter, local) in rewriter._parameterMap)
                 rewritten.Add(BoundFactory.LocalDeclaration(body.syntax, local, arguments[parameter.ordinal]));
 
-            rewritten.AddRange(((BoundBlockStatement)rewriter.ExpandBlockStatement(body)[0]).statements);
+            rewritten.AddRange(((BoundBlockStatement)rewriter.ExpandStatement(body)[0]).statements);
 
             if (rewriter._returnLocal is not null)
                 rewritten.Add(BoundFactory.Label(body.syntax, rewriter._successLabel));
 
             returnLocal = rewriter._returnLocal;
             return rewritten;
+        }
+
+        private protected override List<BoundStatement> ExpandStatement(BoundStatement statement) {
+            var statementBinder = _currentBodyBinder.GetBinder(statement.syntax);
+
+            if (statementBinder is not null) {
+                _currentBodyBinder = statementBinder;
+                _binderStack.Push(statementBinder);
+            }
+
+            var result = base.ExpandStatement(statement);
+
+            if (statementBinder is not null) {
+                _binderStack.Pop();
+                _currentBodyBinder = _binderStack.Peek();
+            }
+
+            return result;
         }
 
         private protected override List<BoundStatement> ExpandReturnStatement(
@@ -134,7 +179,7 @@ internal partial class Binder {
         }
 
         private protected override List<BoundStatement> ExpandInsertStatement(BoundInsertStatement statement) {
-            var inserted = _inMethodBinder.BindInsertStatementContinued(
+            var inserted = _currentBodyBinder.BindInsertStatementContinued(
                 statement.syntax,
                 _diagnostics,
                 _arguments[statement.parameter.ordinal].constantValue
@@ -147,12 +192,40 @@ internal partial class Binder {
             BoundParameterExpression expression,
             out BoundExpression replacement,
             UseKind _) {
-            if (_parameterMap.TryGetValue(expression.parameter, out var local))
+            if (_parameterMap.TryGetValue(expression.parameter, out var local)) {
                 replacement = BoundFactory.Local(expression.syntax, local);
-            else
+            } else {
+                Debug.Assert(expression.parameter.isConstExpr);
                 replacement = expression;
+            }
 
             return [];
+        }
+
+        private protected override List<BoundStatement> ExpandDataContainerExpression(
+            BoundDataContainerExpression expression,
+            out BoundExpression replacement,
+            UseKind _) {
+            if (_localMap.TryGetValue(expression.dataContainer, out var local)) {
+                replacement = BoundFactory.Local(expression.syntax, local);
+            } else {
+                Debug.Assert(expression.dataContainer.isConstExpr);
+                replacement = expression;
+            }
+
+            return [];
+        }
+
+        private protected override List<BoundStatement> ExpandLocalDeclarationStatement(
+            BoundLocalDeclarationStatement statement) {
+            if (_localMap.TryGetValue(statement.declaration.dataContainer, out var local)) {
+                return base.ExpandLocalDeclarationStatement(
+                    BoundFactory.LocalDeclaration(statement.syntax, local, statement.declaration.initializer)
+                );
+            } else {
+                Debug.Assert(statement.declaration.dataContainer.isConstExpr);
+                return [statement];
+            }
         }
     }
 }

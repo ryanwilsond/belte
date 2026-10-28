@@ -314,10 +314,14 @@ internal class LocalScopeBinder : Binder {
     }
 
     private protected override void AddLocalToScope(DataContainerSymbol local) {
-        _additionalLocals ??= [];
-        _additionalLocals.Add(local);
-        _locals = default;
-        _lazyLocalsMap = default;
+        if (_locals.IsDefault) {
+            Debug.Assert(_lazyLocalsMap is null);
+            _additionalLocals ??= [];
+            _additionalLocals.Add(local);
+        } else {
+            _locals = [.. _locals, local];
+            _lazyLocalsMap?.Add(local.name, local);
+        }
     }
 
     private protected LocalFunctionSymbol MakeLocalFunction(LocalFunctionStatementSyntax declaration) {

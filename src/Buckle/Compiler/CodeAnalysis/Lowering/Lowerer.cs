@@ -1226,8 +1226,10 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
     }
 
     internal override BoundNode VisitExpressionStatement(BoundExpressionStatement node) {
-        if (node.expression is BoundCallExpression call && call.method.CallsAreOmitted(call.syntax?.syntaxTree))
+        if (node.expression is BoundCallExpression call &&
+            (call.method.CallsAreOmitted(call.syntax?.syntaxTree) || call.method.shouldExpand)) {
             return null;
+        }
 
         return base.VisitExpressionStatement(node);
     }

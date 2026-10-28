@@ -134,7 +134,11 @@ internal partial class Binder {
         _synthesizedStatements.AddRange(statements);
 
         Debug.Assert(returnLocal is null || returnLocal.type.Equals(returnType));
-        return new BoundDataContainerExpression(expression.syntax, returnLocal, null, returnType);
+
+        if (returnLocal is not null)
+            return new BoundDataContainerExpression(expression.syntax, returnLocal, null, returnType);
+        else
+            return expression;
     }
 
     private BoundStatement BindReverseStatement(ReverseStatementSyntax node, BelteDiagnosticQueue diagnostics) {

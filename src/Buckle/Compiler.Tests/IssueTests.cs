@@ -4821,4 +4821,55 @@ public sealed class IssueTests {
 
         AssertDiagnostics(text, diagnostics, _writer, references: []);
     }
+
+    [Fact]
+    public void InsertStatement_AllowsBlocks() {
+        var text = @"
+            constexpr Code a = $code({
+                Console.PrintLine(10);
+                Console.PrintLine(15);
+            });
+
+            $insert(a);
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void InsertStatement_AllowsBlocks2() {
+        var text = @"
+            constexpr Code a = $code({
+                int b = 10;
+                return b;
+            });
+
+            $insert(a);
+            return 0;
+        ";
+
+        AssertValue(text, 10);
+    }
+
+    [Fact]
+    public void Expand_SeesCodeDefinedLocal() {
+        var text = @"
+            static class Program;
+
+            int32 Main() {
+                var result = Expand(10, 5, $code(cond = a > 5;));
+                return result ? (int32)10 : (int32)5;
+            }
+
+            bool Expand(int a, int b, constexpr Code condition) expand {
+                bool cond = false;
+                $insert(condition);
+                return a > b && cond;
+            }
+        ";
+
+        AssertValue(text, 10);
+    }
 }

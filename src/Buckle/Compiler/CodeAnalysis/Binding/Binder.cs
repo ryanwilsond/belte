@@ -32,12 +32,14 @@ internal partial class Binder {
     private protected ArrayBuilder<BoundStatement> _synthesizedStatements;
 
     internal Binder(Compilation compilation) {
+        AssignId();
         flags = compilation.options.topLevelBinderFlags;
         this.compilation = compilation;
         Debug.Assert(this.compilation is not null);
     }
 
     internal Binder(Binder next) {
+        AssignId();
         this.next = next;
         flags = next.flags;
         compilation = next.compilation;
@@ -46,6 +48,7 @@ internal partial class Binder {
     }
 
     private protected Binder(Binder next, BinderFlags flags) {
+        AssignId();
         this.next = next;
         this.flags = flags;
         compilation = next.compilation;
@@ -9187,4 +9190,16 @@ symIsHidden:;
     }
 
     #endregion
+
+#if DEBUG
+    private static int _binderIds = 0;
+    private int _id;
+#endif
+
+    [Conditional("DEBUG")]
+    private void AssignId() {
+#if DEBUG
+        _id = Interlocked.Increment(ref _binderIds);
+#endif
+    }
 }
