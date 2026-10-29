@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Utilities;
@@ -32,6 +33,8 @@ internal sealed class FunctionParameterSymbol : ParameterSymbol {
     public override int ordinal { get; }
 
     internal override bool isConst { get; }
+
+    internal override bool isConstExpr => false;
 
     internal override Symbol containingSymbol => _containingSymbol;
 
@@ -86,4 +89,6 @@ internal sealed class FunctionParameterSymbol : ParameterSymbol {
     internal override ConstantValue explicitDefaultConstantValue => null;
 
     internal override ConstantValue outDefaultValue => null;
+
+    internal override BoundExpression expressionDefaultValue => null;
 }

@@ -13,7 +13,7 @@ internal static class ConstantValueHelpers {
         HashSet<SourceFieldSymbolWithSyntaxReference> dependencies,
         BelteDiagnosticQueue diagnostics) {
         var compilation = symbol.declaringCompilation;
-        var binderFactory = compilation.GetBinderFactory(equalsValueClause.syntaxTree);
+        var binderFactory = compilation.GetBinderFactory(equalsValueClause.GetPrimarySyntaxTree());
         var binder = binderFactory.GetBinder(equalsValueClause);
 
         var inProgressBinder = new ConstantFieldsInProgressBinder(new ConstantFieldsInProgress(symbol, dependencies), binder);
@@ -37,6 +37,7 @@ internal static class ConstantValueHelpers {
         SyntaxNode initValueNode,
         BelteDiagnosticQueue diagnostics) {
         ConstantValue value = null;
+        boundValue = Binder.TargetTypeAsConstexpr(boundValue);
 
         if (boundValue is not BoundErrorExpression) {
             if (typeSymbol.typeKind == TypeKind.TemplateParameter) {
@@ -56,7 +57,7 @@ internal static class ConstantValueHelpers {
 
                 if (constantValue is not null)
                     value = constantValue;
-                else
+                else if (!Binder.EnsureExpressionIsCompileTime(boundValue))
                     diagnostics.Push(Error.ConstantExpected(initValueNode.location));
             }
         }

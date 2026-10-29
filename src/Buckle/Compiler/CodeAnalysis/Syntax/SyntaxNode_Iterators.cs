@@ -186,4 +186,17 @@ public abstract partial class SyntaxNode {
             }
         }
     }
+
+    internal IEnumerable<SyntaxToken> DescendantTokens(
+        Func<SyntaxNode, bool> descendIntoChildren = null,
+        bool descendIntoTrivia = false) {
+        return DescendantNodesAndTokens(descendIntoChildren, descendIntoTrivia)
+            .Where(sn => sn.isToken).Select(sn => sn.AsToken());
+    }
+
+    internal IEnumerable<SyntaxNodeOrToken> DescendantNodesAndTokens(
+        Func<SyntaxNode, bool> descendIntoChildren = null,
+        bool descendIntoTrivia = false) {
+        return DescendantNodesAndTokensImpl(fullSpan, descendIntoChildren, descendIntoTrivia, includeSelf: false);
+    }
 }

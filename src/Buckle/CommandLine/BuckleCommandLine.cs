@@ -12,6 +12,7 @@ using System.Text.Json;
 using System.Threading;
 using Buckle;
 using Buckle.Building;
+using Buckle.CodeAnalysis;
 using Buckle.Diagnostics;
 using Diagnostics;
 using Repl;
@@ -30,6 +31,7 @@ public static partial class BuckleCommandLine {
     private const long MaxBuildCacheSize = 3 * 1_000_000_000L;
 
     private static readonly DiagnosticInfo[] WarningLevel1 = [
+        new DiagnosticInfo(0051, "CL"),
         new DiagnosticInfo(0001, "BU"),
         new DiagnosticInfo(0026, "BU"),
         new DiagnosticInfo(0133, "BU"),
@@ -59,6 +61,16 @@ public static partial class BuckleCommandLine {
         new DiagnosticInfo(0509, "BU"),
         new DiagnosticInfo(0512, "BU"),
         new DiagnosticInfo(0514, "BU"),
+        new DiagnosticInfo(0524, "BU"),
+        new DiagnosticInfo(0525, "BU"),
+        new DiagnosticInfo(0528, "BU"),
+        new DiagnosticInfo(0573, "BU"),
+        new DiagnosticInfo(0583, "BU"),
+        new DiagnosticInfo(0607, "BU"),
+        new DiagnosticInfo(0611, "BU"),
+        new DiagnosticInfo(0612, "BU"),
+        new DiagnosticInfo(0613, "BU"),
+        new DiagnosticInfo(0615, "BU"),
     ];
 
     private static readonly DiagnosticInfo[] WarningLevel2 = [
@@ -72,6 +84,14 @@ public static partial class BuckleCommandLine {
         new DiagnosticInfo(0447, "BU"),
         new DiagnosticInfo(0467, "BU"),
         new DiagnosticInfo(0471, "BU"),
+        new DiagnosticInfo(0527, "BU"),
+        new DiagnosticInfo(0609, "BU"),
+        new DiagnosticInfo(0660, "BU"),
+        new DiagnosticInfo(0661, "BU"),
+        new DiagnosticInfo(0662, "BU"),
+        new DiagnosticInfo(0663, "BU"),
+        new DiagnosticInfo(0664, "BU"),
+        new DiagnosticInfo(0665, "BU"),
     ];
 
     private static readonly DiagnosticInfo[] WarningLevel3 = [];
@@ -103,18 +123,19 @@ public static partial class BuckleCommandLine {
             out var dialogs,
             out var multipleExplains,
             out var sae,
-            out var pendingReferenceCopies
+            out var pendingReferenceCopies,
+            out var r2r
         );
 
         var compiler = new Compiler(state) {
             me = processName
         };
 
-        var hasDialog = dialogs.machine ||
-                        dialogs.version ||
-                        dialogs.help ||
-                        dialogs.error is not null ||
-                        dialogs.clearCache;
+        var hasEarlyExitDialog = dialogs.machine ||
+                                 dialogs.version ||
+                                 dialogs.help ||
+                                 dialogs.error is not null ||
+                                 dialogs.clearCache;
 
         if (multipleExplains)
             ResolveDiagnostic(Belte.Diagnostics.Error.MultipleExplains(), processName, state);
@@ -122,9 +143,9 @@ public static partial class BuckleCommandLine {
         if (dialogs.clearSubmissions)
             ShowClearSubmissionsDialog();
 
-        if (hasDialog) {
+        if (hasEarlyExitDialog) {
             diagnostics.Clear();
-            diagnostics.Move(ShowDialogs(dialogs, multipleExplains));
+            ShowDialogs(dialogs, multipleExplains, diagnostics);
             ResolveDiagnostics(diagnostics, processName, state);
 
             ResolveSae(sae);
@@ -132,7 +153,7 @@ public static partial class BuckleCommandLine {
         }
 
         if (state.verboseMode && !state.noOut)
-            ShowDialogs(new ShowDialogs() { machine = true, version = true }, false);
+            ShowDialogs(new ShowDialogs() { machine = true, version = true }, false, null);
 
         // Only mode that does not go through one-time compilation
         if (state.buildMode == BuildMode.Repl) {
@@ -172,7 +193,10 @@ public static partial class BuckleCommandLine {
         }
 
         if (state.verboseMode && !state.noOut)
-            LogCompilerState(state, pendingReferenceCopies);
+            LogCompilerState(state, pendingReferenceCopies, r2r);
+
+        if (dialogs.startStop)
+            ShowStartDialog(usingBuildScript: false);
 
         compiler.Compile();
 
@@ -192,6 +216,12 @@ public static partial class BuckleCommandLine {
         }
 
         ResolveReferenceCopies(state.outputFilename, pendingReferenceCopies, processName, state);
+
+        if (r2r)
+            InvokeCrossgen2(processName, state);
+
+        if (dialogs.startStop)
+            ShowStopDialog();
 
         ResolveSae(sae);
         return SuccessExitCode;
@@ -247,9 +277,10 @@ void Build(Builder builder) {{
                 programContent =
 @$"
 namespace {name};
+
 static class Program;
 
-void Main(string[]! args) {{
+void Main(string[] args) {{
     Console.PrintLine(""Hello, world!"");
 }}
 ";
@@ -259,9 +290,10 @@ void Main(string[]! args) {{
                 programContent =
 @$"
 namespace {name};
+
 class Program;
 
-void Main(string[]! args) {{
+void Main(string[] args) {{
     Graphics.Initialize(""{name}"", 1280, 720, false);
 }}
 
@@ -300,13 +332,24 @@ public class {name} {{
     }
 
     private static int ProcessBuildArgs(string processName, string[] args) {
-        return ProcessBuildArgs(processName, args, out _);
+        return ProcessBuildArgs(processName, args, out _, out _);
     }
 
-    private static int ProcessBuildArgs(string processName, string[] args, out CompilerState state) {
+    private static int ProcessBuildArgs(
+        string processName,
+        string[] args,
+        out CompilerState state,
+        out RunInfo[] runInfo) {
         int err;
 
-        var buildState = DecodeBuildOptions(args, out var diagnostics, out var arguments, out var debugMode);
+        var buildState = DecodeBuildOptions(
+            args,
+            out var diagnostics,
+            out var arguments,
+            out var debugMode,
+            out var startStopDialog
+        );
+
         state = new CompilerState {
             noOut = false,
             diagnosticOptions = new TaskDiagnosticOptions() {
@@ -320,32 +363,22 @@ public class {name} {{
             concurrentBuild = false,
         };
 
+        var timer = state.time ? Stopwatch.StartNew() : null;
+
         var inputFileName = buildState.buildScript;
 
-        if (!File.Exists(inputFileName)) {
+        if (!File.Exists(inputFileName))
             diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(inputFileName));
-        } else {
-            var opened = false;
-
-            for (var j = 1; j < 4; j++) {
-                try {
-                    buildState.buildScriptText = File.ReadAllText(inputFileName);
-                    opened = true;
-                    break;
-                } catch (IOException) {
-                    if (j < 3)
-                        Thread.Sleep(j * 10);
-                }
-            }
-
-            if (!opened)
-                diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(inputFileName));
-        }
+        else
+            buildState.buildScriptText = ReadAllTextOrDiagnose(inputFileName, diagnostics);
 
         err = ResolveDiagnostics(diagnostics, processName, state);
 
-        if (err > 0)
+        if (err > 0) {
+            timer?.Stop();
+            runInfo = null;
             return err;
+        }
 
         buildState.buildDirectory = GetBuildDirectory();
         var hash = HashStrings(GetVersionString(), buildState.buildScriptText);
@@ -355,103 +388,245 @@ public class {name} {{
         if (buildState.showInfo)
             LogBuildState(buildState);
 
-        err = GetOrCreateBuildScript(processName, buildState, diagnostics, out var compiler, out var builder);
-
-        if (err > 0)
-            return err;
-
-        err = ResolveDiagnostics(diagnostics, processName, state);
-
-        if (err > 0)
-            return err;
-
-        compiler.state = ToCompilerState(
+        err = GetOrCreateBuildScript(
+            processName,
+            buildState,
             diagnostics,
-            builder,
-            out var pendingReferenceCopies,
-            out var pendingDependencyCopies
+            out var compiler,
+            out var builder,
+            out var buildManager
         );
 
-        state = compiler.state;
-        state.arguments = arguments;
-        state.debugMode |= debugMode;
-
-        if (state.verboseMode && !state.noOut) {
-            ShowMachineDialog();
-            ShowVersionDialog();
+        if (err > 0) {
+            timer?.Stop();
+            runInfo = null;
+            return err;
         }
 
         err = ResolveDiagnostics(diagnostics, processName, state);
 
-        if (err > 0)
+        if (err > 0) {
+            timer?.Stop();
+            runInfo = null;
             return err;
+        }
 
-        if (!state.noOut)
+        if (timer is not null) {
+            timer.Stop();
+
+            ResolveDiagnostic(
+                new BelteDiagnostic(
+                    DiagnosticSeverity.Debug,
+                    $"Collected/built build script in {timer.ElapsedMilliseconds} ms"
+                ),
+                processName,
+                state
+            );
+
+            timer.Restart();
+        }
+
+        var builds = builder.nestedBuilds is null ? [builder] : builder.nestedBuilds.Prepend(builder).ToArray();
+        var results = new List<LocalBuildResult>(builds.Length);
+        var runInfos = new List<RunInfo>(builds.Length);
+
+        foreach (var build in builds) {
+            err = RunBuild(
+                processName,
+                out var localBuildResult,
+                out var localState,
+                diagnostics,
+                arguments,
+                debugMode,
+                startStopDialog,
+                compiler,
+                build
+            );
+
+            results.Add(localBuildResult);
+            runInfos.Add(
+                new(localState.buildMode, localState.projectType, localState.arguments, localState.outputFilename)
+            );
+
+            if (err > 0)
+                break;
+        }
+
+        runInfo = runInfos.ToArray();
+
+        var buildResult = new BuildResult(
+            succeeded: err == SuccessExitCode,
+            buildState.arguments,
+            arguments,
+            results.ToArray()
+        );
+
+        buildManager.RunPostScript(buildResult);
+
+        if (timer is not null) {
+            timer.Stop();
+
+            ResolveDiagnostic(
+                new BelteDiagnostic(
+                    DiagnosticSeverity.Debug,
+                    $"Ran all builds in {timer.ElapsedMilliseconds} ms"
+                ),
+                processName,
+                state
+            );
+        }
+
+        return err;
+    }
+
+    private static int RunBuild(
+        string processName,
+        out LocalBuildResult result,
+        out CompilerState localState,
+        DiagnosticQueue<Diagnostic> diagnostics,
+        string[] arguments,
+        bool debugMode,
+        bool startStopDialog,
+        Compiler compiler,
+        Builder build) {
+        Debug.Assert(diagnostics.Count == 0);
+        var cumulativeDiagnostics = new DiagnosticQueue<Diagnostic>();
+
+        compiler.state = ToCompilerState(
+            diagnostics,
+            build,
+            out var pendingReferenceCopies,
+            out var pendingDependencyCopies,
+            out var r2r
+        );
+
+        localState = compiler.state;
+
+        if (arguments.Length != 0) {
+            if (localState.arguments.Length == 0)
+                localState.arguments = arguments;
+            else
+                localState.arguments = [.. localState.arguments, .. arguments];
+        }
+
+        localState.debugMode |= debugMode;
+
+        if (localState.verboseMode && !localState.noOut) {
+            ShowMachineDialog();
+            ShowVersionDialog();
+        }
+
+        cumulativeDiagnostics.PushRange(diagnostics);
+        var err = ResolveDiagnostics(diagnostics, processName, localState);
+
+        if (err > 0) {
+            result = new LocalBuildResult(succeeded: false, localState.arguments, null, cumulativeDiagnostics);
+            return err;
+        }
+
+        if (!localState.noOut)
             CleanOutputFiles(compiler, diagnostics);
 
         ReadInputFiles(compiler, diagnostics);
 
-        err = ResolveDiagnostics(diagnostics, processName, state);
+        cumulativeDiagnostics.PushRange(diagnostics);
+        err = ResolveDiagnostics(diagnostics, processName, localState);
 
-        if (err > 0)
+        if (err > 0) {
+            result = new LocalBuildResult(succeeded: false, localState.arguments, null, cumulativeDiagnostics);
             return err;
+        }
 
-        if (state.verboseMode && !state.noOut)
-            LogCompilerState(state, pendingReferenceCopies);
+        if (localState.verboseMode && !localState.noOut)
+            LogCompilerState(localState, pendingReferenceCopies, r2r);
+
+        if (startStopDialog)
+            ShowStartDialog(usingBuildScript: true);
 
         compiler.Compile();
+        var compilation = compiler.GetMostRecentCompilation();
+        Debug.Assert(compilation is not null);
 
+        cumulativeDiagnostics.PushRange(diagnostics);
         err = ResolveDiagnostics(compiler);
 
-        if (err > 0)
+        if (err > 0) {
+            result = new LocalBuildResult(succeeded: false, localState.arguments, compilation, cumulativeDiagnostics);
             return err;
+        }
 
         if (compiler.exceptions.Count > 0) {
             foreach (var exception in compiler.exceptions)
                 DiagnosticFormatter.PrettyPrintException(exception);
 
+            result = new LocalBuildResult(succeeded: false, localState.arguments, compilation, cumulativeDiagnostics);
             return RuntimeErrorExitCode;
         }
 
-        ResolveReferenceCopies(state.outputFilename, pendingReferenceCopies, processName, state);
-        ResolveReferenceCopies(
-            state.outputFilename,
-            pendingDependencyCopies.Item1,
-            processName,
-            state,
-            pendingDependencyCopies.Item2
-        );
+        if (!localState.noOut && !localState.buildMode.RunsImmediately()) {
+            ResolveReferenceCopies(localState.outputFilename, pendingReferenceCopies, processName, localState);
+            ResolveReferenceCopies(
+                localState.outputFilename,
+                pendingDependencyCopies.Item1,
+                processName,
+                localState,
+                pendingDependencyCopies.Item2
+            );
+        }
 
+        if (r2r)
+            InvokeCrossgen2(processName, localState);
+
+        if (startStopDialog)
+            ShowStopDialog();
+
+        result = new LocalBuildResult(succeeded: true, localState.arguments, compilation, cumulativeDiagnostics);
         return SuccessExitCode;
     }
 
     private static int ProcessRunArgs(string processName, string[] args) {
         int err;
 
-        err = ProcessBuildArgs(processName, args, out var state);
+        err = ProcessBuildArgs(processName, args, out var state, out var runInfo);
 
         if (err > 0)
             return err;
 
-        switch (state.buildMode) {
-            case BuildMode.CSharpTranspile:
-            case BuildMode.Repl:
-            case BuildMode.None:
-                err = (int)ResolveDiagnostic(Belte.Diagnostics.Error.CannotRunBuildMode(), processName, state);
-                break;
-            case BuildMode.AutoRun:
-            case BuildMode.Evaluate:
-            case BuildMode.Execute:
-            case BuildMode.Interpret:
-                // Already executed from build
-                break;
-            case BuildMode.Dotnet:
-                err = ExecuteRun(processName, state);
-                break;
-            case BuildMode.Independent:
-            default:
-                throw new UnreachableException();
+        var sawNonRunnableMode = false;
+        var sawRunnableMode = false;
+
+        foreach (var info in runInfo) {
+            switch (info.buildMode) {
+                case BuildMode.CSharpTranspile:
+                case BuildMode.Repl:
+                case BuildMode.None:
+                    sawNonRunnableMode = true;
+                    break;
+                case BuildMode.AutoRun:
+                case BuildMode.Evaluate:
+                case BuildMode.Execute:
+                case BuildMode.Interpret:
+                case BuildMode.Emulate:
+                    // Already executed from build
+                    sawRunnableMode = true;
+                    break;
+                case BuildMode.Dotnet:
+                    if (info.outputKind == OutputKind.DynamicallyLinkedLibrary) {
+                        sawNonRunnableMode = true;
+                    } else {
+                        sawRunnableMode = true;
+                        err = ExecuteRun(processName, state, info.path, info.arguments);
+                    }
+
+                    break;
+                case BuildMode.Independent:
+                default:
+                    throw new UnreachableException();
+            }
         }
+
+        if (sawNonRunnableMode && !sawRunnableMode)
+            err = (int)ResolveDiagnostic(Belte.Diagnostics.Error.CannotRunBuildMode(), processName, state);
 
         if (err > 0)
             return err;
@@ -459,8 +634,8 @@ public class {name} {{
         return SuccessExitCode;
     }
 
-    private static int ExecuteRun(string processName, CompilerState state) {
-        var outputFilename = Path.ChangeExtension(state.outputFilename, ".exe");
+    private static int ExecuteRun(string processName, CompilerState state, string path, string[] arguments) {
+        var outputFilename = Path.ChangeExtension(path, ".exe");
 
         if (!File.Exists(outputFilename))
             return (int)ResolveDiagnostic(Belte.Diagnostics.Error.UnableToOpenFile(outputFilename), processName, state);
@@ -472,7 +647,7 @@ public class {name} {{
             WindowStyle = ProcessWindowStyle.Hidden
         };
 
-        foreach (var arg in state.arguments)
+        foreach (var arg in arguments)
             startInfo.ArgumentList.Add(arg);
 
         try {
@@ -524,14 +699,17 @@ public class {name} {{
         DiagnosticQueue<Diagnostic> diagnostics,
         Builder builder,
         out string[] pendingReferenceCopies,
-        out (string[], string[]) pendingDependencyCopies) {
+        out (string[], string[]) pendingDependencyCopies,
+        out bool r2r) {
         var references = new List<string>();
         var copies = new List<string>();
 
         foreach (var (reference, options) in builder.refs) {
-            if (Directory.Exists(reference)) {
+            var foundPath = SearchPathFileOrDir(reference);
+
+            if (Directory.Exists(foundPath)) {
                 var files = Directory.GetFiles(
-                    reference,
+                    foundPath,
                     "*.dll",
                     ((options & RefOptions.Flat) != 0) ? SearchOption.TopDirectoryOnly : SearchOption.AllDirectories
                 );
@@ -540,13 +718,13 @@ public class {name} {{
 
                 if ((options & RefOptions.Copy) != 0)
                     copies.AddRange(files);
-            } else if (File.Exists(reference)) {
-                references.Add(reference);
+            } else if (File.Exists(foundPath)) {
+                references.Add(foundPath);
 
                 if ((options & RefOptions.Copy) != 0)
-                    copies.Add(reference);
+                    copies.Add(foundPath);
             } else {
-                diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(reference));
+                diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(foundPath));
             }
         }
 
@@ -556,9 +734,11 @@ public class {name} {{
         var depsDest = new List<string>();
 
         foreach (var (path, filter, options) in builder.deps) {
-            if (Directory.Exists(path)) {
+            var foundPath = SearchPathFileOrDir(path);
+
+            if (Directory.Exists(foundPath)) {
                 var searchOption = options.flatSearch ? SearchOption.TopDirectoryOnly : SearchOption.AllDirectories;
-                var files = Directory.GetFiles(path, filter ?? "*", searchOption);
+                var files = Directory.GetFiles(foundPath, filter ?? "*", searchOption);
 
                 foreach (var file in files) {
                     depsSource.Add(file);
@@ -567,26 +747,29 @@ public class {name} {{
 
                     if (options.preserveStructure) {
                         dest = dest is null
-                            ? Path.GetRelativePath(path, Path.GetDirectoryName(file))
-                            : Path.Join(dest, Path.GetRelativePath(path, Path.GetDirectoryName(file)));
+                            ? Path.GetRelativePath(foundPath, Path.GetDirectoryName(file))
+                            : Path.Join(dest, Path.GetRelativePath(foundPath, Path.GetDirectoryName(file)));
                     }
 
                     depsDest.Add(dest);
                 }
-            } else if (File.Exists(path)) {
-                depsSource.Add(path);
+            } else if (File.Exists(foundPath)) {
+                depsSource.Add(foundPath);
                 depsDest.Add(options.outSubDir);
             } else {
-                diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(path));
+                diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(foundPath));
             }
         }
 
         pendingDependencyCopies = (depsSource.ToArray(), depsDest.ToArray());
 
-        references.AddRange(Compiler.ResolveLibraryLevel(builder.l));
+        references.AddRange(Compiler.ResolveLibraryLevel(
+            builder.l,
+            noStdLib: !builder.includeStdLib || builder.buildMode == BuildMode.Evaluate
+        ));
 
         var outputFilename = builder.output ?? "a.exe";
-        var moduleName = Path.GetFileNameWithoutExtension(outputFilename);
+        var moduleName = builder.assemblyName ?? Path.GetFileNameWithoutExtension(outputFilename);
 
         var tasks = new List<FileState>();
         var taskDiagnosticOptions = new Dictionary<string, TaskDiagnosticOptions>();
@@ -614,6 +797,10 @@ public class {name} {{
         var maxCores = builder.maxCores > 0 ? builder.maxCores : Environment.ProcessorCount - 2;
         var concurrentBuild = maxCores > 1;
 
+        r2r = builder.publishR2R;
+
+        diagnostics.PushRange(builder.buildDiagnostics);
+
         return new CompilerState() {
             buildMode = builder.buildMode,
             moduleName = moduleName,
@@ -624,7 +811,7 @@ public class {name} {{
             outputFilename = outputFilename,
             tasks = tasks.ToArray(),
             noOut = false,
-            arguments = [],
+            arguments = builder.arguments.ToArray(),
             projectType = builder.outputKind,
             verboseMode = verboseMode,
             reducedVerboseMode = builder.verboseMode == VerboseMode.Reduced,
@@ -634,8 +821,29 @@ public class {name} {{
             maxCores = maxCores,
             entryName = builder.entryName,
             noStdLib = !builder.includeStdLib,
-            taskDiagnosticOptions = taskDiagnosticOptions
+            taskDiagnosticOptions = taskDiagnosticOptions,
+            noBootStrap = false,
+            skipTemplateMetadata = builder.excludeTemplateMetadata,
+            noTemplateMetadata = builder.excludeTemplateMetadata,
+            l = builder.l,
         };
+    }
+
+    private static string SearchPathFileOrDir(string path) {
+        if (Directory.Exists(path) || File.Exists(path))
+            return path;
+
+        var pathEnv = Environment.GetEnvironmentVariable("PATH");
+
+        if (string.IsNullOrEmpty(pathEnv))
+            return path;
+
+        var directories = pathEnv.Split(Path.PathSeparator);
+
+        return directories
+            .Select(dir => Path.Combine(dir.Trim(), path))
+            .FirstOrDefault(File.Exists)
+            ?? path;
     }
 
     private static TaskDiagnosticOptions TranslateDiagnosticOptions(
@@ -665,7 +873,8 @@ public class {name} {{
         BuildState state,
         DiagnosticQueue<Diagnostic> diagnostics,
         out Compiler compiler,
-        out Builder builder) {
+        out Builder builder,
+        out BuildManager buildManager) {
         var cacheDirectory = Path.Combine(state.buildDirectory, state.buildHash.ToString());
         var reuse = false;
 
@@ -682,7 +891,7 @@ public class {name} {{
                 if (state.showInfo)
                     Console.WriteLine("    Existing cache data is malformed: clearing and recreating");
 
-                Directory.Delete(cacheDirectory);
+                Directory.Delete(cacheDirectory, true);
                 reuse = false;
             } else {
                 UpdateLastAccess(
@@ -697,8 +906,7 @@ public class {name} {{
             }
         }
 
-        var buildManager = new BuildManager(processName, state);
-
+        buildManager = new BuildManager(processName, state);
         compiler = buildManager.compiler;
 
         if (!reuse) {
@@ -819,9 +1027,21 @@ public class {name} {{
         }
     }
 
-    private static DiagnosticQueue<Diagnostic> ShowDialogs(ShowDialogs dialogs, bool multipleExplains) {
-        var diagnostics = new DiagnosticQueue<Diagnostic>();
+    private static void ShowStartDialog(bool usingBuildScript) {
+        if (usingBuildScript)
+            Console.WriteLine("buckle: starting build using build script");
+        else
+            Console.WriteLine("buckle: starting build using command-line options");
+    }
 
+    private static void ShowStopDialog() {
+        Console.WriteLine("buckle: finished build");
+    }
+
+    private static void ShowDialogs(
+        ShowDialogs dialogs,
+        bool multipleExplains,
+        DiagnosticQueue<Diagnostic> diagnostics) {
         if (dialogs.machine)
             ShowMachineDialog();
 
@@ -832,12 +1052,10 @@ public class {name} {{
             ShowHelpDialog();
 
         if (dialogs.error is not null && !multipleExplains)
-            ShowErrorHelp(dialogs.error, out diagnostics);
+            ShowErrorHelp(dialogs.error, diagnostics);
 
         if (dialogs.clearCache)
             ShowClearCacheDialog();
-
-        return diagnostics;
     }
 
     private static void ShowClearSubmissionsDialog() {
@@ -853,8 +1071,8 @@ public class {name} {{
         Console.ForegroundColor = previous;
     }
 
-    private static void ShowErrorHelp(string _, out DiagnosticQueue<Diagnostic> diagnostics) {
-        diagnostics = new DiagnosticQueue<Diagnostic>();
+    private static void ShowErrorHelp(string _, DiagnosticQueue<Diagnostic> diagnostics) {
+        Debug.Assert(diagnostics is not null);
         diagnostics.Push(new Diagnostic(DiagnosticSeverity.Error, "--explain is not implemented"));
         return;
     }
@@ -890,6 +1108,7 @@ public class {name} {{
 
     private static void ShowVersionDialog() {
         Console.WriteLine($"Version: Buckle {GetVersionString()}");
+        Console.WriteLine($"Installed Dir: {AppContext.BaseDirectory}");
     }
 
     private static string GetVersionString() {
@@ -928,11 +1147,11 @@ public class {name} {{
         ignoreDiagnostic |= WarningExcluded(info, diagnosticOptions.excludeWarnings);
 
         if (!ignoreDiagnostic) {
-            if (info.module != "BU") {
+            if (info.module != "BU" || diagnostic is not BelteDiagnostic belteDiagnostic) {
                 Console.Write($"{me}: ");
                 DiagnosticFormatter.PrettyPrint(diagnostic, textColor);
             } else {
-                DiagnosticFormatter.PrettyPrint(diagnostic as BelteDiagnostic, textColor);
+                DiagnosticFormatter.PrettyPrint(belteDiagnostic, textColor);
             }
         }
 
@@ -1048,41 +1267,14 @@ public class {name} {{
     private static void ReadInputFiles(Compiler compiler, DiagnosticQueue<Diagnostic> diagnostics) {
         for (var i = 0; i < compiler.state.tasks.Length; i++) {
             ref var task = ref compiler.state.tasks[i];
-            var opened = false;
 
             switch (task.stage) {
                 case CompilerStage.Raw:
                 case CompilerStage.Compiled:
-                    for (var j = 1; j < 4; j++) {
-                        try {
-                            task.fileContent.text = File.ReadAllText(task.inputFileName);
-                            opened = true;
-                            break;
-                        } catch (IOException) {
-                            if (j < 3)
-                                Thread.Sleep(j * 10);
-                        }
-                    }
-
-                    if (!opened)
-                        diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(task.inputFileName));
-
+                    task.fileContent.text = ReadAllTextOrDiagnose(task.inputFileName, diagnostics);
                     break;
                 case CompilerStage.Assembled:
-                    for (var j = 1; j < 4; j++) {
-                        try {
-                            task.fileContent.bytes = File.ReadAllBytes(task.inputFileName).ToList();
-                            opened = true;
-                            break;
-                        } catch (IOException) {
-                            if (j < 3)
-                                Thread.Sleep(j * 10);
-                        }
-                    }
-
-                    if (!opened)
-                        diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(task.inputFileName));
-
+                    task.fileContent.bytes = ReadAllBytesOrDiagnose(task.inputFileName, diagnostics);
                     break;
                 case CompilerStage.Finished:
                     diagnostics.Push(Belte.Diagnostics.Info.IgnoringCompiledFile(task.inputFileName));
@@ -1101,7 +1293,7 @@ public class {name} {{
         Console.WriteLine();
     }
 
-    private static void LogCompilerState(CompilerState state, string[] pendingReferenceCopies) {
+    private static void LogCompilerState(CompilerState state, string[] pendingReferenceCopies, bool r2r) {
         Console.WriteLine();
         Console.WriteLine($"Diagnostic reporting level: {Enum.GetName(state.diagnosticOptions.severity)}");
         Console.WriteLine($"Warning reporting level: {state.diagnosticOptions.warningLevel}");
@@ -1114,6 +1306,7 @@ public class {name} {{
         Console.WriteLine($"Project type: {Enum.GetName(state.projectType)}");
         Console.WriteLine($"Build mode: {Enum.GetName(state.buildMode)}");
         Console.WriteLine($"Debug mode: {state.debugMode}");
+        Console.WriteLine($"R2R: {r2r}");
         Console.WriteLine();
         Console.WriteLine($"Concurrent build: {state.concurrentBuild}");
         Console.WriteLine($"Max parallelism: {state.maxCores}");
@@ -1189,16 +1382,23 @@ public class {name} {{
         string[] args,
         out DiagnosticQueue<Diagnostic> diagnostics,
         out string[] arguments,
-        out bool debugMode) {
+        out bool debugMode,
+        out bool startStopDialog) {
         var state = new BuildState {
             showTime = false,
             showInfo = false,
-            buildScript = "Build.blt"
+            buildScript = "Build.blt",
+            noStdLib = false,
+            noNtvLib = false,
         };
 
         diagnostics = new DiagnosticQueue<Diagnostic>();
         arguments = Array.Empty<string>();
         debugMode = false;
+        startStopDialog = false;
+
+        List<string> preprocessorSymbolsBuilder = null;
+        List<string> buildArgumentsBuilder = null;
 
         for (var i = 1; i < args.Length; i++) {
             var arg = args[i];
@@ -1210,9 +1410,24 @@ public class {name} {{
                 break;
             }
 
+            if (arg.StartsWith("-p")) {
+                if (arg == "-p" || arg == "-p:" || !arg.StartsWith("-p:")) {
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingPreprocessorSymbol(arg));
+                    continue;
+                }
+
+                var symbolString = arg.Substring(3);
+                preprocessorSymbolsBuilder ??= [];
+                preprocessorSymbolsBuilder.Add(symbolString);
+            }
+
             switch (arg) {
                 case "--info":
                     state.showInfo = true;
+                    state.showTime = true;
+                    break;
+                case "--infoscript":
+                    startStopDialog = true;
                     break;
                 case "--time":
                     state.showTime = true;
@@ -1220,15 +1435,36 @@ public class {name} {{
                 case "--debug":
                     debugMode = true;
                     break;
-                default:
-                    if (i == 1 && !arg.StartsWith('-'))
-                        state.buildScript = arg;
+                case "--nostdlib":
+                    state.noStdLib = true;
+                    break;
+                case "--nontvlib":
+                    state.noNtvLib = true;
+                    break;
+                case "-f":
+                case "--file":
+                    if (i < args.Length - 1)
+                        state.buildScript = args[++i];
                     else
+                        diagnostics.Push(Belte.Diagnostics.Error.MissingFilenameF(arg));
+
+                    break;
+                default:
+                    if (!arg.StartsWith('-')) {
+                        buildArgumentsBuilder ??= [];
+                        buildArgumentsBuilder.Add(arg);
+                    } else {
                         diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedOption(arg));
+                    }
 
                     break;
             }
         }
+
+        state.arguments = buildArgumentsBuilder is null ? Array.Empty<string>() : buildArgumentsBuilder.ToArray();
+        state.preprocessorSymbols = preprocessorSymbolsBuilder is null
+            ? Array.Empty<string>()
+            : preprocessorSymbolsBuilder.ToArray();
 
         return state;
     }
@@ -1239,7 +1475,8 @@ public class {name} {{
         out ShowDialogs dialogs,
         out bool multipleExplains,
         out bool saExit,
-        out string[] pendingReferenceCopies) {
+        out string[] pendingReferenceCopies,
+        out bool r2r) {
         var state = new CompilerState();
         var tasks = new List<FileState>();
         var references = new List<string>();
@@ -1247,6 +1484,7 @@ public class {name} {{
         var diagnosticsCL = new DiagnosticQueue<Diagnostic>();
         diagnostics = new DiagnosticQueue<Diagnostic>();
         var arguments = Array.Empty<string>();
+        var preprocessorSymbols = new List<string>();
         var includeWarnings = new List<DiagnosticInfo>();
         var excludeWarnings = new List<DiagnosticInfo>();
         var includeWarningsAsErrors = new List<DiagnosticInfo>();
@@ -1257,9 +1495,10 @@ public class {name} {{
         var specifyModule = false;
         var specifyBuildMode = false;
         var specifyWarningLevel = false;
+        var specifySeverity = false;
         var wErrorLevel = 2;
 
-        var l = -1;
+        var anyExplicitReferences = false;
         var sae = false;
 
         string currentFileAssociation = null;
@@ -1271,6 +1510,7 @@ public class {name} {{
             clearSubmissions = false,
             clearCache = false,
             error = null,
+            startStop = false,
         };
 
         multipleExplains = false;
@@ -1292,6 +1532,12 @@ public class {name} {{
         state.debugMode = false;
         state.concurrentBuild = true;
         state.maxCores = Environment.ProcessorCount - 2;
+        state.noBootStrap = false;
+        state.skipTemplateMetadata = false;
+        state.noTemplateMetadata = false;
+        state.l = 2;
+
+        var r2rl = false;
 
         void DecodeSimpleOption(string arg) {
             switch (arg) {
@@ -1327,6 +1573,10 @@ public class {name} {{
                 case "--execute":
                     specifyBuildMode = true;
                     state.buildMode = BuildMode.Execute;
+                    break;
+                case "--emulate":
+                    specifyBuildMode = true;
+                    state.buildMode = BuildMode.Emulate;
                     break;
                 case "-t":
                 case "--transpile":
@@ -1367,23 +1617,41 @@ public class {name} {{
                     state.verboseMode = true;
                     state.reducedVerboseMode = true;
                     break;
+                case "--infoscript":
+                    tempDialogs.startStop = true;
+                    break;
                 case "--time":
                     state.time = true;
                     break;
                 case "-l0":
-                    l = 0;
+                    state.l = 0;
                     break;
                 case "-l1":
-                    l = 1;
+                    state.l = 1;
                     break;
                 case "-lall":
-                    l = 2;
+                    state.l = 2;
                     break;
                 case "--sae":
                     sae = true;
                     break;
                 case "--nostdlib":
                     state.noStdLib = true;
+                    break;
+                case "--nontvlib":
+                    state.noNtvLib = true;
+                    break;
+                case "--nobootstrap":
+                    state.noBootStrap = true;
+                    break;
+                case "--skiptm":
+                    state.skipTemplateMetadata = true;
+                    break;
+                case "--notm":
+                    state.noTemplateMetadata = true;
+                    break;
+                case "--r2r":
+                    r2rl = true;
                     break;
                 default:
                     diagnosticsCL.Push(Belte.Diagnostics.Error.UnrecognizedOption(arg));
@@ -1439,12 +1707,17 @@ public class {name} {{
             } else if (arg.StartsWith("--ref")) {
                 bool err;
 
+                var previousCount = references.Count;
+
                 if (arg != "--reference" && arg != "--reference=" && arg.StartsWith("--reference"))
                     err = ResolveInputRefs(arg.Substring(11), references, copies, diagnostics);
                 else if (arg != "--ref" && arg != "--ref=")
                     err = ResolveInputRefs(arg.Substring(5), references, copies, diagnostics);
                 else
                     err = true;
+
+                if (references.Count > previousCount)
+                    anyExplicitReferences = true;
 
                 if (err)
                     diagnostics.Push(Belte.Diagnostics.Error.MissingReference(arg));
@@ -1456,10 +1729,12 @@ public class {name} {{
 
                 var severityString = arg.Substring(11);
 
-                if (Enum.TryParse<DiagnosticSeverity>(severityString, true, out var severityLevel))
+                if (Enum.TryParse<DiagnosticSeverity>(severityString, true, out var severityLevel)) {
+                    specifySeverity = true;
                     state.diagnosticOptions.severity = severityLevel;
-                else
+                } else {
                     diagnostics.Push(Belte.Diagnostics.Error.UnrecognizedSeverity(severityString));
+                }
             } else if (arg.StartsWith("--warnlevel")) {
                 if (arg == "--warnlevel" || arg == "--warnlevel=" || !arg.StartsWith("--warnlevel=")) {
                     diagnostics.Push(Belte.Diagnostics.Error.MissingWarningLevel(arg));
@@ -1595,6 +1870,14 @@ public class {name} {{
                     ResolveInputFileOrDir(args[++i], tasks, currentFileAssociation, diagnostics, false);
                 else
                     diagnostics.Push(Belte.Diagnostics.Error.MissingPathFlat());
+            } else if (arg.StartsWith("-p")) {
+                if (arg == "-p" || arg == "-p:" || !arg.StartsWith("-p:")) {
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingPreprocessorSymbol(arg));
+                    continue;
+                }
+
+                var symbolString = arg.Substring(3);
+                preprocessorSymbols.Add(symbolString);
             } else if (arg == "--") {
                 if (args.Length > i + 1)
                     arguments = args[(i + 1)..];
@@ -1605,6 +1888,7 @@ public class {name} {{
             }
         }
 
+        r2r = r2rl;
         saExit = sae;
 
         if (sae) {
@@ -1615,11 +1899,15 @@ public class {name} {{
         if (state.maxCores == 1)
             state.concurrentBuild = false;
 
-        references.AddRange(Compiler.ResolveLibraryLevel(l));
+        references.AddRange(Compiler.ResolveLibraryLevel(
+            state.l,
+            state.noStdLib || state.noBootStrap || state.buildMode == BuildMode.Evaluate
+        ));
+
         pendingReferenceCopies = copies.ToArray();
 
         dialogs = tempDialogs;
-        diagnostics.Move(diagnosticsCL);
+        diagnostics.PushRange(diagnosticsCL);
 
         if (dialogs.machine || dialogs.help || dialogs.version || dialogs.error is not null || dialogs.clearCache)
             return state;
@@ -1629,6 +1917,7 @@ public class {name} {{
         state.arguments = arguments;
         state.diagnosticOptions.includeWarnings = includeWarnings.ToArray();
         state.diagnosticOptions.excludeWarnings = excludeWarnings.ToArray();
+        state.preprocessorSymbols = preprocessorSymbols.ToArray();
 
         if (state.diagnosticOptions.warningsAsErrors)
             AddDefaultExcludeWarningsAsErrors(excludeWarningsAsErrors, wErrorLevel);
@@ -1647,10 +1936,8 @@ public class {name} {{
                 state.outputFilename = "a.dll";
         }
 
-        if (!specifyWarningLevel &&
-            state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute) {
+        if (!specifyWarningLevel && state.buildMode.RunsImmediately())
             state.diagnosticOptions.warningLevel = 0;
-        }
 
         if (!specifyOut && state.buildMode == BuildMode.CSharpTranspile)
             state.outputFilename = "a.cs";
@@ -1664,10 +1951,8 @@ public class {name} {{
         if (specifyOut && specifyStage && state.tasks.Length > 1 && state.buildMode != BuildMode.Dotnet)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyWithMultipleFiles());
 
-        if ((specifyStage || specifyOut) &&
-            state.buildMode is BuildMode.AutoRun or BuildMode.Interpret or BuildMode.Evaluate or BuildMode.Execute) {
+        if ((specifyStage || specifyOut) && state.buildMode.RunsImmediately())
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyWithInterpreter());
-        }
 
         if (state.tasks.Length > 1 && state.buildMode == BuildMode.Interpret)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotInterpretWithMultipleFiles());
@@ -1677,11 +1962,11 @@ public class {name} {{
         if (specifyModule && state.buildMode != BuildMode.Dotnet)
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyModuleNameWithoutDotnet());
 
-        if (references.Count > 0 && state.buildMode is not BuildMode.Dotnet and not
-                                                           BuildMode.AutoRun and not
-                                                           BuildMode.Execute) {
+        if (anyExplicitReferences && !state.buildMode.SupportsDotnetReferences())
             diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyReferencesWithoutDotnet());
-        }
+
+        if (r2r && state.buildMode != BuildMode.Dotnet)
+            diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyR2RWithoutDotnet());
 
         foreach (var reference in references) {
             if (!File.Exists(reference))
@@ -1695,13 +1980,19 @@ public class {name} {{
                 state.outputFilename = state.moduleName + ".dll";
             else if (!specifyModule)
                 state.moduleName = Path.GetFileNameWithoutExtension(state.outputFilename);
+        } else if (state.skipTemplateMetadata) {
+            diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifySkipTemplateMetadataWithoutDll());
         }
 
         state.outputFilename = state.outputFilename.Trim();
 
         if (state.verboseMode) {
-            state.diagnosticOptions.severity = DiagnosticSeverity.All;
-            state.diagnosticOptions.warningLevel = Math.Max(2, state.diagnosticOptions.warningLevel);
+            if (!specifySeverity)
+                state.diagnosticOptions.severity = DiagnosticSeverity.All;
+
+            if (!specifyWarningLevel)
+                state.diagnosticOptions.warningLevel = Math.Max(2, state.diagnosticOptions.warningLevel);
+
             state.time = true;
         }
 
@@ -1805,7 +2096,7 @@ public class {name} {{
             var destination = Path.Join(destDir, Path.GetFileName(reference));
             var opened = false;
 
-            if (!Directory.Exists(Path.GetDirectoryName(destDir)))
+            if (destDir != "" && !Directory.Exists(Path.GetDirectoryName(destDir)))
                 Directory.CreateDirectory(destDir);
 
             for (var j = 1; j < 4; j++) {
@@ -1980,5 +2271,150 @@ public class {name} {{
         }
 
         return fileStates.ToArray();
+    }
+
+    private static string ReadAllTextOrDiagnose(string path, DiagnosticQueue<Diagnostic> diagnostics) {
+        for (var j = 1; j < 4; j++) {
+            try {
+                return File.ReadAllText(path);
+            } catch (IOException) {
+                if (j < 3)
+                    Thread.Sleep(j * 10);
+            }
+        }
+
+        diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(path));
+        return null;
+    }
+
+    private static List<byte> ReadAllBytesOrDiagnose(string path, DiagnosticQueue<Diagnostic> diagnostics) {
+        for (var j = 1; j < 4; j++) {
+            try {
+                return File.ReadAllBytes(path).ToList();
+            } catch (IOException) {
+                if (j < 3)
+                    Thread.Sleep(j * 10);
+            }
+        }
+
+        diagnostics.Push(Belte.Diagnostics.Error.UnableToOpenFile(path));
+        return null;
+    }
+
+    private static void InvokeCrossgen2(string processName, CompilerState state) {
+        if (!TryInvokeCrossgen2(processName, state))
+            ResolveDiagnostic(Belte.Diagnostics.Warning.R2RFailed(), processName, state);
+    }
+
+    private static bool TryInvokeCrossgen2(string processName, CompilerState state) {
+        var nugetRoot = Environment.GetEnvironmentVariable("NUGET_PACKAGES");
+
+        if (string.IsNullOrEmpty(nugetRoot)) {
+            var userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+            nugetRoot = Path.Combine(userProfile, ".nuget", "packages");
+        }
+
+        if (!Directory.Exists(nugetRoot))
+            return false;
+
+        var tfm = Buckle.CodeAnalysis.Emitting.DotnetReferenceResolver.GetTFM();
+        _ = Buckle.CodeAnalysis.Emitting.DotnetReferenceResolver.ResolveNetCoreAppRefPath(tfm, out var version);
+
+        var crossgen2Path = Path.Combine(
+            nugetRoot,
+            "microsoft.netcore.app.crossgen2.win-x64",
+            version,
+            "tools",
+            "crossgen2.exe"
+        );
+
+        if (!File.Exists(crossgen2Path))
+            return false;
+
+        var compiledDllPath = Path.GetFullPath(Path.ChangeExtension(state.outputFilename, "dll"));
+
+        if (!File.Exists(compiledDllPath))
+            return false;
+
+        var outputDirectory = Path.Combine(Path.GetDirectoryName(state.outputFilename), "R2R");
+
+        if (!Directory.Exists(outputDirectory))
+            Directory.CreateDirectory(outputDirectory);
+
+        var outputPath = Path.GetFullPath(Path.Combine(outputDirectory, Path.GetFileName(compiledDllPath)));
+
+        var runtimePackRoot = Path.Combine(
+            nugetRoot,
+            "microsoft.netcore.app.runtime.win-x64",
+            version,
+            "runtimes",
+            "win-x64",
+            "lib",
+            $"net{tfm}"
+        );
+
+        var startInfo = new ProcessStartInfo() {
+            CreateNoWindow = !state.verboseMode,
+            UseShellExecute = false,
+            FileName = crossgen2Path,
+            WindowStyle = ProcessWindowStyle.Hidden
+        };
+
+        startInfo.ArgumentList.Add("--targetos:windows");
+        startInfo.ArgumentList.Add("--targetarch:x64");
+        startInfo.ArgumentList.Add("-O");
+        startInfo.ArgumentList.Add($"-r:{compiledDllPath}");
+
+        foreach (var file in Directory.GetFiles(runtimePackRoot, "*.dll"))
+            startInfo.ArgumentList.Add($"-r:{file}");
+
+        foreach (var reference in state.references) {
+            if (!ReferenceAlreadyAdded(reference, runtimePackRoot))
+                startInfo.ArgumentList.Add($"-r:{reference}");
+        }
+
+        startInfo.ArgumentList.Add($"--out:{outputPath}");
+        startInfo.ArgumentList.Add(compiledDllPath);
+
+        if (state.verboseMode && !state.noOut) {
+            Console.WriteLine();
+            Console.WriteLine("Invoking Crossgen2 with the following arguments:");
+            Console.WriteLine($"    {crossgen2Path}");
+
+            foreach (var argument in startInfo.ArgumentList)
+                Console.WriteLine($"    {argument}");
+
+            Console.WriteLine();
+        }
+
+        if (state.noOut)
+            return true;
+
+        try {
+            var process = Process.Start(startInfo);
+            process.WaitForExit();
+
+            if (process.ExitCode != 0)
+                return false;
+        } catch (Win32Exception e) {
+            ResolveDiagnostic(Belte.Diagnostics.Error.UnableToRun(e.Message), processName, state);
+            return false;
+        }
+
+        if (!File.Exists(outputPath))
+            return false;
+
+        var backupName = Path.ChangeExtension(compiledDllPath, "non-r2r.dll");
+        File.Replace(outputPath, compiledDllPath, backupName);
+        return true;
+    }
+
+    private static bool ReferenceAlreadyAdded(string reference, string root) {
+        var newReference = Path.Combine(root, Path.GetFileName(reference));
+
+        if (File.Exists(newReference))
+            return true;
+
+        return false;
     }
 }

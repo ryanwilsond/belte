@@ -117,11 +117,10 @@ internal partial class GraphicsHandler : Game {
         return SoundEffect.FromStream(fileStream);
     }
 
-    internal void PlaySound(SoundEffect soundEffect, double? volume, bool? loop) {
-        var volumeF = (float)(volume ?? 1);
-        var loopB = loop ?? false;
+    internal void PlaySound(SoundEffect soundEffect, double volume, bool loop) {
+        var volumeF = (float)volume;
 
-        if (loopB) {
+        if (loop) {
             var instance = soundEffect.CreateInstance();
             instance.Volume = volumeF;
             instance.IsLooped = true;

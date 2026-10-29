@@ -9,6 +9,8 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal abstract class SubstitutedNamedTypeSymbol : WrappedNamedTypeSymbol {
+    private static readonly Func<Symbol, NamedTypeSymbol, Symbol> SymbolAsMemberFunc = SymbolExtensions.SymbolAsMember;
+
     private readonly TemplateMap _inputMap;
 
     private int _hashCode;
@@ -152,7 +154,8 @@ internal abstract class SubstitutedNamedTypeSymbol : WrappedNamedTypeSymbol {
     }
 
     internal sealed override ImmutableArray<Symbol> GetMembers(string name) {
-        if (isUnboundTemplateType) return StaticCast<Symbol>.From(GetTypeMembers(name));
+        if (isUnboundTemplateType)
+            return StaticCast<Symbol>.From(GetTypeMembers(name));
 
         var cache = _lazyMembersByNameCache;
 
@@ -160,6 +163,38 @@ internal abstract class SubstitutedNamedTypeSymbol : WrappedNamedTypeSymbol {
             return result;
 
         return GetMembersWorker(name);
+    }
+
+    internal sealed override ImmutableArray<NamedTypeSymbol> GetDeclaredInterfaces(
+        ConsList<TypeSymbol> basesBeingResolved) {
+        return isUnboundTemplateType
+            ? []
+            : templateSubstitution.SubstituteNamedTypes(originalDefinition.GetDeclaredInterfaces(basesBeingResolved));
+    }
+
+    internal sealed override ImmutableArray<NamedTypeSymbol> Interfaces(ConsList<TypeSymbol> basesBeingResolved) {
+        return isUnboundTemplateType
+            ? []
+            : templateSubstitution.SubstituteNamedTypes(originalDefinition.Interfaces(basesBeingResolved));
+    }
+
+    internal sealed override IEnumerable<(MethodSymbol Body, MethodSymbol Implemented)> SynthesizedInterfaceMethodImpls() {
+        if (isUnboundTemplateType)
+            yield break;
+
+        foreach ((var body, var implemented) in originalDefinition.SynthesizedInterfaceMethodImpls()) {
+            var newBody = ExplicitInterfaceHelpers.SubstituteExplicitInterfaceImplementation(
+                body,
+                templateSubstitution
+            );
+
+            var newImplemented = ExplicitInterfaceHelpers.SubstituteExplicitInterfaceImplementation(
+                implemented,
+                templateSubstitution
+            );
+
+            yield return (newBody, newImplemented);
+        }
     }
 
     public override int GetHashCode() {
@@ -226,5 +261,23 @@ internal abstract class SubstitutedNamedTypeSymbol : WrappedNamedTypeSymbol {
         }
 
         return builder;
+    }
+
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers() {
+        return isUnboundTemplateType
+            ? GetMembers()
+            : originalDefinition.GetEarlyAttributeDecodingMembers().SelectAsArray(SymbolAsMemberFunc, this);
+    }
+
+    internal override ImmutableArray<Symbol> GetEarlyAttributeDecodingMembers(string name) {
+        if (isUnboundTemplateType)
+            return GetMembers(name);
+
+        var builder = ArrayBuilder<Symbol>.GetInstance();
+
+        foreach (var t in originalDefinition.GetEarlyAttributeDecodingMembers(name))
+            builder.Add(t.SymbolAsMember(this));
+
+        return builder.ToImmutableAndFree();
     }
 }

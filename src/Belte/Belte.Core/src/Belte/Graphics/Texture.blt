@@ -1,0 +1,14 @@
+
+namespace Belte.Graphics;
+
+public class Texture {
+    private const intptr ptr;
+    public const int width;
+    public const int height;
+
+    private constructor(intptr ptr, int width, int height) {
+        this.ptr = ptr;
+        this.width = width;
+        this.height = height;
+    }
+}

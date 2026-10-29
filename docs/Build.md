@@ -6,8 +6,10 @@
 - [References](#references)
 - [Dependencies](#dependencies)
 - [Concurrent Builds](#concurrent-builds)
+- [Chaining Builds](#chaining-builds)
 - [Diagnostics](#diagnostics)
 - [Logging](#logging)
+- [Arguments](#arguments)
 - [Examples](#examples)
 
 ## Introduction
@@ -82,6 +84,16 @@ void Build(Builder builder) {
 
 Refer to the [*--entry* CLI option](Buckle.md#--entryname) for more information.
 
+Preprocessor symbols can be defined with `Builder.DefinePreprocessorSymbols(symbols)`:
+
+```belte
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.DefinePreprocessorSymbols({ "SYMBOL1", "SYMBOL2" });
+}
+```
+
 ## Build Mode & Output Kind
 
 The field `Builder.buildMode` can be assigned to to specify a build mode.
@@ -141,6 +153,37 @@ void Build(Builder builder) {
 }
 ```
 
+If building to a DLL, the `excludeTemplateMetadata` flag can be set to skip emitting template metadata. This does the
+same thing as the [*--skiptm*](Buckle.md#--skiptm) and [*--notm*](Buckle.md#--notm) options combined.
+
+For example:
+
+```belte
+using Buckle;
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.outputKind = .DynamicallyLinkedLibrary;
+  builder.buildMode = .Dotnet;
+  builder.excludeTemplateMetadata = true;
+}
+```
+
+To publish ReadyToRun using Crossgen2, the `publishR2R` flag can be set.
+
+For example:
+
+```belte
+using Buckle;
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.outputKind = .Console;
+  builder.buildMode = .Dotnet;
+  builder.publishR2R = true;
+}
+```
+
 ## References
 
 DLL references can be added with `Builder.AddRef(path, options)`. By default, directories search for `*.dll` files
@@ -158,7 +201,8 @@ void Build(Builder builder) {
 }
 ```
 
-`Builder.IncludeNETSDK()` can be used to reference all installed core .NET SDK libraries automatically.
+`Builder.SetLibraryLevel(level)` can be used to explicitly not reference installed core .NET SDK libraries. The default
+level is 2/all and matches the [CLI `-l*` options](Buckle.md#-l0--l1--lall)
 
 For example:
 
@@ -166,19 +210,7 @@ For example:
 using Buckle.Building;
 
 void Build(Builder builder) {
-  builder.IncludeNETSDK();
-}
-```
-
-To disable building with the native Belte Standard Library, set the `Builder.includeStdLib` field to `false`.
-
-For example:
-
-```belte
-using Buckle.Building;
-
-void Build(Builder builder) {
-  builder.includeStdLib = false;
+  builder.SetLibraryLevel(0);
 }
 ```
 
@@ -243,6 +275,59 @@ void Build(Builder builder) {
   builder.SetMaxCores(1);
 }
 ```
+
+## Chaining Builds
+
+The root `Builder` can create new builders with `Builder.AddBuild()`. Only the root builder passed into the `Build`
+function can create new builds. All builds are run sequentially in the order in which they were added, starting with the
+root build.
+
+For example, a build script that first builds a library and then builds a project using that library:
+
+```belte
+using Buckle;
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder
+    ..AddInput("MyLib")
+    ..SetOutput("lib/MyLib.dll")
+    ..buildMode = .Dotnet
+    ..outputKind = .DynamicallyLinkedLibrary;
+
+  builder.AddBuild()
+    ..AddInput("MyProject")
+    ..SetOutput("bin/MyProject.exe")
+    ..AddRef("lib")
+    ..buildMode = .Dotnet
+    ..outputKind = .Console;
+}
+```
+
+If any build fails, the remaining builds will not start.
+
+### Post Build
+
+To run code after the builds are finished (succeeding or not), a `Post` function can be defined accepting a single
+`BuildResult` argument:
+
+```belte
+using Buckle;
+using Buckle.Building;
+
+void Build(Builder builder) {
+  // ...
+}
+
+void Post(BuildResult result) {
+  Console.PrintLine(result.succeeded ? "success" : "failure");
+}
+```
+
+`BuildResult.succeeded` is true only if every build succeeds. Additionally, the build result contains a
+[buffer](Current/LowLevelFeatures.md#63-arrays-and-buffers) of `LocalBuildResult`s for each build (this buffer always
+contains exactly one element if no `Builder.AddBuild()` calls are made). The `LocalBuildResult` contains the diagnostics
+associated with that build.
 
 ## Diagnostics
 
@@ -365,6 +450,20 @@ void Build(Builder builder) {
 }
 ```
 
+### Build Diagnostics
+
+To add diagnostics to the build itself that will be displayed, `Builder.AddDiagnostic(severity, message)` can be used:
+
+```belte
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.AddDiagnostic(.Error, "Build failed");
+}
+```
+
+If any errors are added to the build's diagnostics, it will fail and will not attempt to compile the project.
+
 ## Logging
 
 To enable verbose logging, `Builder.SetVerboseMode(mode)` can be used.
@@ -400,6 +499,20 @@ void Build(Builder builder) {
 }
 ```
 
+## Arguments
+
+Build scripts can optionally accept command-line arguments from the [`build` or `run` commands](Buckle.md#build).
+
+These arguments can be accessed by adding an arguments parameter to the build function:
+
+```belte
+using Buckle.Building;
+
+void Build(Builder builder, string[] args) { }
+```
+
+Like normal entry points, the arguments can either be an array or buffer.
+
 ## Examples
 
 Consider this setup:
@@ -422,11 +535,14 @@ RayLib. The accompanying `raylib.dll` is the native library (not managed .NET).
 This build script uses strict warning settings for the main code but minimal reporting for library code. It puts the
 main outputs into `bin/` including copying `raylib.dll` which is found with `builder.AddDep`.
 
+Additionally this script optionally enables verbose settings if the build command passed a `verbose` argument such as in
+`buckle build verbose`.
+
 ```belte
 using Buckle;
 using Buckle.Building;
 
-void Build(Builder builder) {
+void Build(Builder builder, string[] args) {
   builder.SetDiagnosticFlagMode(.Positional);
   builder.SetDiagnosticSeverity(.Warning);
   builder.SetWarningLevel(2);
@@ -443,8 +559,10 @@ void Build(Builder builder) {
 
   builder.AddDep("lib", "*.dll");
 
-  builder.SetVerboseMode(.Normal);
-  builder.SetVerboseArtifactPath("artifacts");
+  if (args.Length() > 0 && args[0] == "verbose") {
+    builder.SetVerboseMode(.Normal);
+    builder.SetVerboseArtifactPath("artifacts");
+  }
 }
 ```
 

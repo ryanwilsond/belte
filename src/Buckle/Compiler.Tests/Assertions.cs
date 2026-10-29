@@ -1,10 +1,12 @@
 using System;
+using System.Diagnostics;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Evaluating;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 using Buckle.Libraries;
+using Diagnostics;
 using Shared.Tests;
 using Xunit;
 using Xunit.Abstractions;
@@ -23,9 +25,7 @@ internal static class Assertions {
     private readonly static Compilation BaseCompilation;
 
     static Assertions() {
-        var compilation = LibraryHelpers.LoadLibraries();
-        _ = compilation.boundProgram;
-        BaseCompilation = compilation;
+        BaseCompilation = GetBaseCompilation();
     }
 
     /// <summary>
@@ -33,7 +33,14 @@ internal static class Assertions {
     /// </summary>
     /// <param name="text">Belte code.</param>
     /// <param name="expectedValue">Expected result.</param>
-    internal static void AssertValue(string text, object expectedValue, bool evaluator = true, bool executor = true) {
+    internal static void AssertValue(
+        string text,
+        object expectedValue,
+        bool evaluator = true,
+        bool executor = true,
+        string[] references = null) {
+        Debug.Assert(references is null || evaluator == false);
+
         var syntaxTree = SyntaxTree.Parse(text);
 
         object execResult = null;
@@ -41,9 +48,22 @@ internal static class Assertions {
         object computedValue = null;
 
         if (executor) {
+            CompilationOptions options;
+
+            if (references is null) {
+                options = DefaultExecOptions;
+            } else {
+                options = new CompilationOptions(
+                    BuildMode.Execute,
+                    OutputKind.ConsoleApplication,
+                    [],
+                    references: references
+                );
+            }
+
             var execCompilation = Compilation.CreateScript(
                 "Tests",
-                DefaultExecOptions,
+                options,
                 syntaxTree,
                 BaseCompilation
             );
@@ -122,6 +142,32 @@ internal static class Assertions {
             Assert.Equal(exceptions[i].GetType(), result.exceptions[i].GetType());
     }
 
+    internal static void AssertExceptions(string text, ITestOutputHelper writer, string exceptionsText) {
+        var syntaxTree = SyntaxTree.Parse(text);
+        var compilation = Compilation.CreateScript(
+            "Tests",
+            DefaultEvalOptions,
+            syntaxTree,
+            BaseCompilation
+        );
+
+        var result = compilation.Evaluate(false);
+
+        var expectedExceptions = AnnotatedText.UnindentLines(exceptionsText);
+
+        if (expectedExceptions.Length != result.exceptions.Count) {
+            writer.WriteLine($"Input: {text}");
+
+            foreach (var exception in result.exceptions)
+                writer.WriteLine($"Exception ({exception}): {exception.Message}");
+        }
+
+        Assert.Equal(expectedExceptions.Length, result.exceptions.Count);
+
+        for (var i = 0; i < expectedExceptions.Length; i++)
+            Assert.Equal(expectedExceptions[i], result.exceptions[i].Message);
+    }
+
     /// <summary>
     /// Asserts that a piece of Belte code will produce a diagnostic when compiling.
     /// </summary>
@@ -134,25 +180,40 @@ internal static class Assertions {
         string text,
         string diagnosticText,
         ITestOutputHelper writer,
-        bool assertWarnings = false,
-        bool script = true) {
+        DiagnosticSeverity minimumSeverity = DiagnosticSeverity.Error,
+        bool script = true,
+        bool checkLocations = true,
+        string[] references = null) {
         var annotatedText = AnnotatedText.Parse(text);
         var syntaxTree = SyntaxTree.Parse(annotatedText.text);
 
-        var tempDiagnostics = new BelteDiagnosticQueue();
+        BelteDiagnosticQueue tempDiagnostics;
         var treeDiagnostics = syntaxTree.GetDiagnostics();
 
         if (treeDiagnostics.AnyErrors()) {
-            tempDiagnostics.Move(treeDiagnostics);
+            tempDiagnostics = treeDiagnostics;
         } else {
+            CompilationOptions options;
+
+            if (references is null) {
+                options = DefaultEvalOptions;
+            } else {
+                options = new CompilationOptions(
+                    BuildMode.Execute,
+                    OutputKind.ConsoleApplication,
+                    [],
+                    references: references
+                );
+            }
+
             var compilation = script
                 ? Compilation.CreateScript(
                     "Tests",
-                    DefaultEvalOptions,
+                    options,
                     syntaxTree,
                     BaseCompilation
                 )
-                : Compilation.Create("Tests", DefaultEvalOptions, BaseCompilation, syntaxTree);
+                : Compilation.Create("Tests", options, BaseCompilation, syntaxTree);
 
             var result = compilation.Evaluate(false);
             tempDiagnostics = result.diagnostics;
@@ -160,18 +221,24 @@ internal static class Assertions {
 
         var expectedDiagnostics = AnnotatedText.UnindentLines(diagnosticText);
 
-        if (annotatedText.spans.Length != expectedDiagnostics.Length)
+        if (checkLocations && annotatedText.spans.Length != expectedDiagnostics.Length)
             throw new Exception("must mark as many spans as there are diagnostics");
 
-        var diagnostics = assertWarnings
-            ? tempDiagnostics
-            : tempDiagnostics.Errors();
+        var diagnostics = tempDiagnostics.FilterAbove(minimumSeverity);
 
         if (expectedDiagnostics.Length != diagnostics.Count) {
             writer.WriteLine($"Input: {annotatedText.text}");
+            var list = diagnostics.ToList();
 
-            foreach (var diagnostic in diagnostics.ToList())
+            for (var i = 0; i < list.Count; i++) {
+                var diagnostic = list[i];
                 writer.WriteLine($"Diagnostic ({diagnostic.info.severity}): {diagnostic.message}");
+
+                if (i > 10) {
+                    writer.WriteLine($"... ({list.Count - i} more)");
+                    break;
+                }
+            }
         }
 
         Assert.Equal(expectedDiagnostics.Length, diagnostics.Count);
@@ -185,6 +252,9 @@ internal static class Assertions {
             var expectedMessage = expectedDiagnostics[i];
             var actualMessage = diagnostic.message;
             Assert.Equal(expectedMessage, actualMessage);
+
+            if (!checkLocations)
+                continue;
 
             var expectedSpan = annotatedText.spans[i];
             var actualSpan = diagnostic.location?.span
@@ -219,5 +289,17 @@ internal static class Assertions {
 
         Assert.Empty(diagnostics.Errors().ToArray());
         Assert.Equal(expectedText, result);
+    }
+
+    private static Compilation GetBaseCompilation() {
+        var compilation = LibraryHelpers.LoadLibraries(
+            buildMode: BuildMode.Evaluate,
+            noStdLib: true,
+            includeAllNativeFiles: true,
+            parseOptions: Compiler.CreateParseOptions(BuildMode.Evaluate, debugMode: false, preprocessorSymbols: [])
+        );
+
+        _ = compilation.boundProgram;
+        return compilation;
     }
 }

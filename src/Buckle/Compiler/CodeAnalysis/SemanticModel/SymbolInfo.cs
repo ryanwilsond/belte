@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Immutable;
-using System.Linq;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.Utilities;
 

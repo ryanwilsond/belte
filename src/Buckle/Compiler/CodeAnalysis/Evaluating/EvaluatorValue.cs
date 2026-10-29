@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Runtime.InteropServices;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Display;
@@ -98,6 +99,8 @@ public struct EvaluatorValue {
     }
 
     internal static EvaluatorValue Literal(object value, SpecialType specialType) {
+        Debug.Assert(value is not ConstantValue and not TypeOrConstant and not EvaluatorValue);
+
         if (value is null)
             return Null;
 

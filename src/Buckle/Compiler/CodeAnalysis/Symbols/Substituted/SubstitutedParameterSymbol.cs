@@ -8,6 +8,9 @@ internal sealed class SubstitutedParameterSymbol : WrappedParameterSymbol {
     internal SubstitutedParameterSymbol(MethodSymbol containingSymbol, TemplateMap map, ParameterSymbol originalParameter)
         : this((Symbol)containingSymbol, map, originalParameter) { }
 
+    internal SubstitutedParameterSymbol(PropertySymbol containingSymbol, TemplateMap map, ParameterSymbol originalParameter)
+        : this((Symbol)containingSymbol, map, originalParameter) { }
+
     private SubstitutedParameterSymbol(Symbol containingSymbol, TemplateMap map, ParameterSymbol originalParameter)
         : base(originalParameter) {
         this.containingSymbol = containingSymbol;

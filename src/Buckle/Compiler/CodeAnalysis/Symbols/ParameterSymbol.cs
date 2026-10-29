@@ -1,4 +1,5 @@
 using System;
+using Buckle.CodeAnalysis.Binding;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -6,6 +7,8 @@ namespace Buckle.CodeAnalysis.Symbols;
 /// Represents a parameter of a method.
 /// </summary>
 internal abstract class ParameterSymbol : Symbol, IParameterSymbol {
+    internal const string ValueParameterName = "value";
+
     internal ParameterSymbol() { }
 
     public override SymbolKind kind => SymbolKind.Parameter;
@@ -47,6 +50,8 @@ internal abstract class ParameterSymbol : Symbol, IParameterSymbol {
 
     internal abstract bool isConst { get; }
 
+    internal abstract bool isConstExpr { get; }
+
     internal abstract bool hasUnscopedRefAttribute { get; }
 
     internal abstract ScopedKind effectiveScope { get; }
@@ -60,6 +65,10 @@ internal abstract class ParameterSymbol : Symbol, IParameterSymbol {
     internal bool hasOutDefaultValue => outDefaultValue is not null;
 
     internal abstract ConstantValue outDefaultValue { get; }
+
+    internal bool hasExpressionDefaultValue => expressionDefaultValue is not null;
+
+    internal abstract BoundExpression expressionDefaultValue { get; }
 
     internal bool isOptional => refKind == RefKind.None && isMetadataOptional;
 

@@ -16,7 +16,8 @@ internal partial class SyntaxList : GreenNode {
     /// <summary>
     /// Creates an empty <see cref="SyntaxList" /> with diagnostics.
     /// </summary>
-    internal SyntaxList(Diagnostic[] diagnostics) : base(ListKind, diagnostics) { }
+    internal SyntaxList(Diagnostic[] diagnostics, SyntaxAnnotation[] annotations)
+        : base(ListKind, diagnostics, annotations) { }
 
     /// <summary>
     /// Creates a new <see cref="SyntaxList" /> with children.
@@ -29,7 +30,8 @@ internal partial class SyntaxList : GreenNode {
     /// <summary>
     /// Creates a new <see cref="SyntaxList" /> with children and diagnostics.
     /// </summary>
-    internal SyntaxList(ArrayElement<GreenNode>[] children, Diagnostic[] diagnostics) : this(diagnostics) {
+    internal SyntaxList(ArrayElement<GreenNode>[] children, Diagnostic[] diagnostics, SyntaxAnnotation[] annotations)
+        : this(diagnostics, annotations) {
         this.children = children;
         InitializeChildren();
     }
@@ -113,6 +115,14 @@ internal partial class SyntaxList : GreenNode {
         }
     }
 
+    internal sealed override bool IsTriviaWithEndOfLine() {
+        return false;
+    }
+
+    internal sealed override Syntax.SyntaxToken CreateSeparator(SyntaxNode element) {
+        throw ExceptionUtilities.Unreachable();
+    }
+
     internal override GreenNode GetSlot(int index) {
         return children[index];
     }
@@ -126,7 +136,11 @@ internal partial class SyntaxList : GreenNode {
     }
 
     internal override GreenNode SetDiagnostics(Diagnostic[] diagnostics) {
-        return new SyntaxList(children, diagnostics);
+        return new SyntaxList(children, diagnostics, GetAnnotations());
+    }
+
+    internal override GreenNode SetAnnotations(SyntaxAnnotation[] annotations) {
+        return new SyntaxList(children, GetDiagnostics(), annotations);
     }
 
     internal virtual void CopyTo(ArrayElement<GreenNode>[] array, int offset) {

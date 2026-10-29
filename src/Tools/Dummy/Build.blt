@@ -1,0 +1,17 @@
+using Buckle;
+using Buckle.Building;
+
+void Build(Builder builder, string[] args) {
+    builder.buildMode = .Execute;
+    builder.outputKind = .ConsoleApplication;
+
+    if (args.Length() == 0 || args[0] != "time") {
+        Console.PrintLine("Generating dummy project");
+        builder.AddInput("src");
+        builder.AddArguments({ "5", "20", "500", "0", "0", "5", "3", ".gen" });
+    } else {
+        Console.PrintLine("Timing dummy project");
+        builder.AddInput(".gen");
+        builder.SetVerboseMode(.TimeOnly);
+    }
+}

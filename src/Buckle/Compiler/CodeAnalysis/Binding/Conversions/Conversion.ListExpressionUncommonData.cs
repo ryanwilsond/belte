@@ -9,7 +9,7 @@ internal readonly partial struct Conversion {
             ListExpressionTypeKind listExpressionTypeKind,
             TypeSymbol elementType,
             ImmutableArray<Conversion> elementConversions)
-            : base(elementConversions) {
+            : base(elementConversions, null) {
             this.listExpressionTypeKind = listExpressionTypeKind;
             this.elementType = elementType;
         }

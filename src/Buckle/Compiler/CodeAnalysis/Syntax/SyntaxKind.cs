@@ -37,6 +37,7 @@ public enum SyntaxKind : ushort {
     PeriodToken,
     HashToken,
     DollarToken,
+    GraveToken,
 
     // Compound punctuation
     PipePipeToken,
@@ -81,6 +82,8 @@ public enum SyntaxKind : ushort {
     GreaterThanLessThanToken,
     GreaterThanLessThanEqualsToken,
     EqualsGreaterThanToken,
+    PeriodPeriodLessThanToken,
+    PeriodPeriodEqualsToken,
 
     // Tokens with text
     BadToken,
@@ -92,6 +95,7 @@ public enum SyntaxKind : ushort {
     CharacterLiteralToken,
     ExtendedLiteralToken,
     InterpolatedStringLiteralToken,
+    MultilineStringLiteralToken,
 
     // Keywords
     TypeOfKeyword,
@@ -140,7 +144,6 @@ public enum SyntaxKind : ushort {
     AsKeyword,
     WhereKeyword,
     ThrowKeyword,
-    PrimitiveKeyword,
     NotnullKeyword,
     UsingKeyword,
     NamespaceKeyword,
@@ -177,7 +180,30 @@ public enum SyntaxKind : ushort {
     HasKeyword,
     InitializesKeyword,
     CommitKeyword,
+    ImplementsKeyword,
+    InterfaceKeyword,
+    PropertyKeyword,
+    SetKeyword,
+    GetKeyword,
     HandleKeyword,
+    FieldKeyword,
+    NothrowKeyword,
+    NoallocKeyword,
+    PureKeyword,
+    MemoizeKeyword,
+    TemplateKeyword,
+    InternalKeyword,
+    OrKeyword,
+    UnrollKeyword,
+    BindsKeyword,
+    CheckedKeyword,
+    CodeKeyword,
+    CodestrKeyword,
+    InsertKeyword,
+    ExpandKeyword,
+    ExecKeyword,
+    TypeKeyword,
+    LocationKeyword, // SyntaxFacts.LastKeyword
 
     // Trivia
     EndOfLineTrivia,
@@ -206,6 +232,13 @@ public enum SyntaxKind : ushort {
     ThrowExpression,
     DeclarationExpression,
     WithExpression,
+    RangeExpression,
+    CodeExpression,
+    CodeStrExpression,
+    ExecExpression,
+    TypeExpression,
+    LocationExpression,
+    LateIdentifierName,
 
     // Operator expressions
     TernaryExpression,
@@ -226,7 +259,9 @@ public enum SyntaxKind : ushort {
     ExtendedLiteralExpression,
     TypeOfExpression,
     NameOfExpression,
+    BindsExpression,
     SizeOfExpression,
+    CheckedExpression,
     CallExpression,
     ReversibleExpression,
     ReferenceExpression,
@@ -241,6 +276,9 @@ public enum SyntaxKind : ushort {
     ParenthesizedLambdaExpression,
     SimpleLambdaExpression,
     TupleExpression,
+    FieldExpression,
+    OrJumpExpression,
+    OrValueExpression, // SyntaxFacts.LastExpression
     InterpolatedStringText,
     Interpolation,
     InterpolatedStringStartToken,
@@ -252,12 +290,14 @@ public enum SyntaxKind : ushort {
     InlineILStatement,
     ExpressionStatement,
     ScopedStatement,
+    CheckedStatement,
     WithStatement,
     CommitStatement,
     ReverseStatement,
     ReverseDeferStatement,
     LocalDeclarationStatement,
     LocalFunctionStatement,
+    InsertStatement,
 
     // Control flow statements
     BreakStatement,
@@ -273,7 +313,7 @@ public enum SyntaxKind : ushort {
     GotoStatement,
     DeferStatement,
     UnreachableStatement,
-    NullBindingStatement,
+    NullBindingStatement, // SyntaxFacts.LastStatement
 
     // Statement Parts
     ILInstruction,
@@ -291,6 +331,7 @@ public enum SyntaxKind : ushort {
     // Declarations
     CompilationUnit,
     GlobalStatement,
+    IncompleteMember,
     NamespaceDeclaration,
     FileScopedNamespaceDeclaration,
     VariableDeclaration,
@@ -299,10 +340,17 @@ public enum SyntaxKind : ushort {
     PackedArgument,
     ClassDeclaration,
     FileScopedClassDeclaration,
+    ExternBlockDeclaration,
+    InterfaceDeclaration,
     UnionDeclaration,
     EnumDeclaration,
     EnumMemberDeclaration,
     FieldDeclaration,
+    PropertyDeclaration,
+    ArrowExpressionClause,
+    AccessorList,
+    AccessorDeclaration,
+    ExplicitInterfaceSpecifier,
     MethodDeclaration,
     ReverseClause,
     StateClause,
@@ -324,13 +372,16 @@ public enum SyntaxKind : ushort {
     ArrayType,
     NonNullableType,
     NullableType,
+    TemplateSpecializedType,
     PointerType,
     FunctionPointerType,
     FunctionType,
     ReferenceType,
     TupleType,
     TupleElement,
+    AnonymousEnumType,
     BaseType,
+    InterfaceList,
     NameEquals,
 
     // Lists
@@ -350,6 +401,7 @@ public enum SyntaxKind : ushort {
     AttributeList,
     TemplateConstraintClause,
     TemplateExtendsConstraintClause,
+    TemplateImplementsConstraintClause,
     TemplateIsConstraintClause,
     TemplateHasConstraintClause,
     TemplateConstraintClauseList,

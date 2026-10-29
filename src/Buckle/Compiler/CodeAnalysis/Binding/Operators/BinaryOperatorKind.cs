@@ -56,6 +56,7 @@ internal enum BinaryOperatorKind : int {
 
     Conditional = UnaryOperatorKind._Conditional,
     Lifted = UnaryOperatorKind.Lifted,
+    Checked = UnaryOperatorKind.Checked,
 
     Int32Multiplication = Int32 | Multiplication,
     Int64Multiplication = Int64 | Multiplication,

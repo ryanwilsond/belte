@@ -96,8 +96,8 @@ internal sealed partial class OverloadResolution {
         if (easyOut == UnaryOperatorKind.Error)
             return;
 
-        var signature = OperatorFacts.GetSignature(easyOut);
-        var conversion = Conversions.FastClassifyConversion(operandType, signature.operandType);
+        var signature = compilation.builtInOperators.GetSignature(easyOut);
+        var conversion = ConversionsBase.FastClassifyConversion(operandType, signature.operandType);
 
         result.results.Add(UnaryOperatorAnalysisResult.Applicable(signature, conversion));
     }

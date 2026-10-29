@@ -14,8 +14,12 @@ internal partial class SyntaxToken : BelteSyntaxNode {
         }
 
         internal MissingToken(
-            SyntaxKind kind, GreenNode leadingTrivia, GreenNode trailingTrivia, Diagnostic[] diagnostics)
-            : base(kind, leadingTrivia, trailingTrivia, diagnostics) {
+            SyntaxKind kind,
+            GreenNode leadingTrivia,
+            GreenNode trailingTrivia,
+            Diagnostic[] diagnostics,
+            SyntaxAnnotation[] annotations)
+            : base(kind, leadingTrivia, trailingTrivia, diagnostics, annotations) {
             _flags |= NodeFlags.IsMissing;
         }
 
@@ -24,15 +28,19 @@ internal partial class SyntaxToken : BelteSyntaxNode {
         internal override object value => null;
 
         internal override GreenNode SetDiagnostics(Diagnostic[] diagnostics) {
-            return new MissingToken(kind, _leading, _trailing, diagnostics);
+            return new MissingToken(kind, _leading, _trailing, diagnostics, GetAnnotations());
+        }
+
+        internal override GreenNode SetAnnotations(SyntaxAnnotation[] annotations) {
+            return new MissingToken(kind, _leading, _trailing, GetDiagnostics(), annotations);
         }
 
         internal override SyntaxToken TokenWithLeadingTrivia(GreenNode trivia) {
-            return new MissingToken(kind, trivia, GetTrailingTrivia(), GetDiagnostics());
+            return new MissingToken(kind, trivia, GetTrailingTrivia(), GetDiagnostics(), GetAnnotations());
         }
 
         internal override SyntaxToken TokenWithTrailingTrivia(GreenNode trivia) {
-            return new MissingToken(kind, GetLeadingTrivia(), trivia, GetDiagnostics());
+            return new MissingToken(kind, GetLeadingTrivia(), trivia, GetDiagnostics(), GetAnnotations());
         }
     }
 }

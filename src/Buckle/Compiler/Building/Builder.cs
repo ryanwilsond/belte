@@ -1,31 +1,70 @@
+using System;
 using System.Collections.Generic;
 using Diagnostics;
 
 namespace Buckle.Building;
 
+/// <summary>
+/// Builds information used to create a compilation.
+/// </summary>
 public sealed class Builder {
     private readonly DiagnosticOptions _globalDiagnosticOptions;
     private readonly DiagnosticOptions _currentDiagnosticOptions;
+    private readonly bool _isRootBuilder;
     private DiagnosticFlagMode _diagnosticFlagMode;
 
+    /// <summary>
+    /// Build mode of the compilation (default <see cref="BuildMode.Execute" />)
+    /// </summary>
     public BuildMode buildMode;
+
+    /// <summary>
+    /// Output kind of the compilation (default <see cref="OutputKind.ConsoleApplication" />)
+    /// </summary>
     public OutputKind outputKind;
+
+    /// <summary>
+    /// If to produce debug symbols and not perform certain optimizations (default false)
+    /// </summary>
     public bool debugBuild;
+
+    /// <summary>
+    /// If to reference core Belte libraries (default true)
+    /// Should only be false if building the Belte core library itself
+    /// </summary>
     public bool includeStdLib;
 
-    public Builder() {
+    /// <summary>
+    /// If to exclude emitting template metadata when building a DLL.
+    /// If not building a DLL this does nothing.
+    /// </summary>
+    public bool excludeTemplateMetadata;
+
+    /// <summary>
+    /// If to invoke Crossgen2 after building.
+    /// </summary>
+    public bool publishR2R;
+
+    public Builder(bool isRootBuilder) {
+        _isRootBuilder = isRootBuilder;
         buildMode = BuildMode.Execute;
         outputKind = OutputKind.ConsoleApplication;
         inputs = [];
         refs = [];
         deps = [];
-        l = 0;
+        l = 2;
         maxCores = 0;
         debugBuild = false;
         includeStdLib = true;
+        excludeTemplateMetadata = false;
+        publishR2R = false;
         _diagnosticFlagMode = DiagnosticFlagMode.Global;
         _globalDiagnosticOptions = new();
         _currentDiagnosticOptions = new();
+        buildDiagnostics = new DiagnosticQueue<Diagnostic>();
+        preprocessorSymbols = [];
+        arguments = [];
+        nestedBuilds = isRootBuilder ? [] : null;
     }
 
     public List<(string, InputOptions, DiagnosticOptions)> inputs { get; }
@@ -46,7 +85,27 @@ public sealed class Builder {
 
     public string entryName { get; private set; }
 
+    public string assemblyName { get; private set; }
+
+    public DiagnosticQueue<Diagnostic> buildDiagnostics { get; private set; }
+
     public DiagnosticOptions diagnosticOptions => _globalDiagnosticOptions;
+
+    public List<string> preprocessorSymbols { get; }
+
+    public List<string> arguments { get; }
+
+    public List<Builder> nestedBuilds { get; }
+
+    [return: Belte.Nullability([1])]
+    public Builder AddBuild() {
+        if (!_isRootBuilder)
+            throw new InvalidOperationException("Only the root builder can add new builds.");
+
+        var nested = new Builder(isRootBuilder: false);
+        nestedBuilds.Add(nested);
+        return nested;
+    }
 
     public void AddInput(string path) {
         if (_diagnosticFlagMode == DiagnosticFlagMode.Global)
@@ -62,8 +121,12 @@ public sealed class Builder {
             inputs.Add((path, options, _currentDiagnosticOptions.Copy()));
     }
 
-    public void IncludeNETSDK() {
-        l = 2;
+    public void SetLibraryLevel(int level) {
+        l = level;
+    }
+
+    public void ExplicitAssemblyName(string assemblyName) {
+        this.assemblyName = assemblyName;
     }
 
     public void SetOutput(string path) {
@@ -152,5 +215,17 @@ public sealed class Builder {
 
     public void SetDiagnosticFlagMode(DiagnosticFlagMode mode) {
         _diagnosticFlagMode = mode;
+    }
+
+    public void AddDiagnostic(DiagnosticSeverity severity, string message) {
+        buildDiagnostics.Push(new Diagnostic(severity, message));
+    }
+
+    public void DefinePreprocessorSymbols(string[] symbols) {
+        preprocessorSymbols.AddRange(symbols);
+    }
+
+    public void AddArguments(string[] args) {
+        arguments.AddRange(args);
     }
 }

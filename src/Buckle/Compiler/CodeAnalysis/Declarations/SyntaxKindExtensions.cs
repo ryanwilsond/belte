@@ -17,6 +17,8 @@ internal static class SyntaxKindExtensions {
                 return DeclarationKind.Namespace;
             case SyntaxKind.EnumDeclaration:
                 return DeclarationKind.Enum;
+            case SyntaxKind.InterfaceDeclaration:
+                return DeclarationKind.Interface;
             default:
                 throw ExceptionUtilities.UnexpectedValue(syntaxKind);
         }

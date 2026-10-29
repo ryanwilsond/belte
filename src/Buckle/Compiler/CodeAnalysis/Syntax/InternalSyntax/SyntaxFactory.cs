@@ -38,7 +38,12 @@ internal static partial class SyntaxFactory {
     /// Creates a <see cref="SyntaxToken" /> with a predefined full width, text, a value, and trivia.
     /// </summary>
     internal static SyntaxToken Token(
-        SyntaxKind kind, int fullWidth, string text, object value, GreenNode leading, GreenNode trailing) {
+        SyntaxKind kind,
+        int fullWidth,
+        string text,
+        object value,
+        GreenNode leading,
+        GreenNode trailing) {
         return new SyntaxToken(kind, fullWidth, text, value, leading, trailing);
     }
 
@@ -46,37 +51,53 @@ internal static partial class SyntaxFactory {
     /// Creates a <see cref="SyntaxToken" /> with a text, a value, trivia, and diagnostics.
     /// </summary>
     internal static SyntaxToken Token(
-        SyntaxKind kind, string text, object value,
-        GreenNode leading, GreenNode trailing, Diagnostic[] diagnostics) {
-        return new SyntaxToken(kind, text, value, leading, trailing, diagnostics);
+        SyntaxKind kind,
+        string text,
+        object value,
+        GreenNode leading,
+        GreenNode trailing,
+        Diagnostic[] diagnostics) {
+        return new SyntaxToken(kind, text, value, leading, trailing, diagnostics, null);
     }
 
     /// <summary>
     /// Creates a <see cref="SyntaxToken" /> with a text, a value, and trivia.
     /// </summary>
     internal static SyntaxToken Token(
-        SyntaxKind kind, string text, object value,
-        GreenNode leading, GreenNode trailing) {
+        SyntaxKind kind,
+        string text,
+        object value,
+        GreenNode leading,
+        GreenNode trailing) {
         return new SyntaxToken(kind, text, value, leading, trailing);
     }
 
     internal static SyntaxToken Contextual(
-        SyntaxKind kind, string text, object value,
-        GreenNode leading, GreenNode trailing, Diagnostic[] diagnostics) {
-        return new SyntaxToken.SyntaxIdentifierExtended(kind, text, value, leading, trailing, diagnostics);
+        SyntaxKind kind,
+        string text,
+        object value,
+        GreenNode leading,
+        GreenNode trailing,
+        Diagnostic[] diagnostics) {
+        return new SyntaxToken.SyntaxIdentifierExtended(kind, text, value, leading, trailing, diagnostics, null);
     }
 
     internal static SyntaxToken Extended(
-        SyntaxKind kind, string text, string suffix, object value,
-        GreenNode leading, GreenNode trailing, Diagnostic[] diagnostics) {
-        return new SyntaxToken.SyntaxLiteralExtended(kind, text, suffix, value, leading, trailing, diagnostics);
+        SyntaxKind kind,
+        string text,
+        string suffix,
+        object value,
+        GreenNode leading,
+        GreenNode trailing,
+        Diagnostic[] diagnostics) {
+        return new SyntaxToken.SyntaxLiteralExtended(kind, text, suffix, value, leading, trailing, diagnostics, null);
     }
 
     /// <summary>
     /// Creates a <see cref="SyntaxTrivia" /> with text and diagnostics.
     /// </summary>
     internal static SyntaxTrivia Trivia(SyntaxKind kind, string text, Diagnostic[] diagnostics) {
-        return new SyntaxTrivia(kind, text, diagnostics);
+        return new SyntaxTrivia(kind, text, diagnostics, null);
     }
 
     /// <summary>

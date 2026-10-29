@@ -46,7 +46,7 @@ public class DiagnosticQueue<T> where T : Diagnostic {
     /// Gets an enumerator for the <see cref="DiagnosticQueue<T>" /> collection (sidestepping the queue structure).
     /// </summary>
     /// <returns>The enumerator for the <see cref="DiagnosticQueue<T>" /> as if it were a list.</returns>
-    public IEnumerator GetEnumerator() => _diagnostics.GetEnumerator();
+    public IEnumerator<T> GetEnumerator() => _diagnostics.GetEnumerator();
 
     /// <summary>
     /// Converts the <see cref="DiagnosticQueue<T>" /> into an array (ordered from oldest -> newest item added to
@@ -117,22 +117,6 @@ public class DiagnosticQueue<T> where T : Diagnostic {
 
         foreach (var diagnostic in diagnostics._diagnostics)
             _diagnostics.Enqueue(diagnostic);
-    }
-
-    /// <summary>
-    /// Pops all Diagnostics off <see cref="DiagnosticQueue<T>" /> and pushes them onto this.
-    /// </summary>
-    /// <param name="diagnosticQueue"><see cref="DiagnosticQueue<T>" /> to pop and copy from.</param>
-    public void Move(DiagnosticQueue<T> diagnosticQueue) {
-        if (diagnosticQueue is null)
-            return;
-
-        var diagnostic = diagnosticQueue.Pop();
-
-        while (diagnostic is not null) {
-            _diagnostics.Enqueue(diagnostic);
-            diagnostic = diagnosticQueue.Pop();
-        }
     }
 
     /// <summary>

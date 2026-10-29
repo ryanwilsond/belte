@@ -9,6 +9,9 @@
   - [8.2.1](#821-properties) Properties
   - [8.2.2](#822-arrays) Arrays
   - [8.2.3](#823-nullability) Nullability
+- [8.3](#83-language-feature-compatibility) Language Feature Compatibility
+  - [8.3.1](#831-exceptions) Exceptions
+  - [8.3.2](#832-for-each-loops) For Each Loops
 
 ## 8.1 Referencing .NET DLLs
 
@@ -78,4 +81,33 @@ and from `Buffer<T>`, so either type can be used when interacting with .NET libr
 .NET's nullability guarantees are weaker than Belte's, so any reference type `R` will be treated as `R?` in Belte.
 However, `R!` can be passed to `R?` implicitly so it is recommended to still constrain nullability wherever possible.
 
-When it comes to value types `V` and `V?`, they are equivalent in Belte.
+When it comes to value types `V` and `V?`, they are equivalent to `V!` and `V?` in Belte.
+
+## 8.3 Language Feature Compatibility
+
+Certain language features have specific interop compatibility if referencing core .NET libraries.
+
+### 8.3.1 Exceptions
+
+All [throw expressions](ControlFlow.md#26-exceptions-and-handling) must take an expression that derives from Belte's
+`Exception` type. If referencing `System.Runtime.dll`, the expression can alternatively derive from `System.Exception`.
+
+```belte
+throw new System.Exception();
+```
+
+### 8.3.2 For Each Loops
+
+[For "each" loops](ControlFlow.md#244-for-each-loops) normally require a collection expression of an array/buffer type,
+string type, `Enumerator` type, or a type that implements the `iter` operator, or a type that implements both the
+`length` and `[]` operators. If referencing `System.Collections.dll`, for-each loops can also iterate on expressions of
+types that implement `IEnumerable<T>`, such as the .NET collection types:
+
+```belte
+var list = new System.Collections.Generic.List<int>();
+// ...
+
+for (item in list) {
+  System.Console.WriteLine(item);
+}
+```

@@ -12,13 +12,17 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.Libraries;
 
 internal sealed class SynthesizedBelteNamespaceSymbol : NamespaceSymbol {
-    private readonly bool _reduced;
+    private readonly bool _noStdLib;
+    private readonly bool _noNtvLib;
+    private readonly Compilation _compilation;
 
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> _nameToMembersMap;
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<NamedTypeSymbol>> _nameToTypeMembersMap;
 
-    internal SynthesizedBelteNamespaceSymbol(string name, bool reduced) {
-        _reduced = reduced;
+    internal SynthesizedBelteNamespaceSymbol(Compilation compilation, string name, bool noStdLib, bool noNtvLib) {
+        _compilation = compilation;
+        _noStdLib = noStdLib;
+        _noNtvLib = noNtvLib;
         this.name = name;
     }
 
@@ -77,10 +81,14 @@ internal sealed class SynthesizedBelteNamespaceSymbol : NamespaceSymbol {
 
     private Dictionary<ReadOnlyMemory<char>, ImmutableArray<Symbol>> MakeNameToMembersMap() {
         var allMembers = ArrayBuilder<Symbol>.GetInstance();
-        allMembers.AddRange(StandardLibrary.GetTypes(_reduced));
 
-        if (!_reduced)
-            allMembers.AddRange(GraphicsLibrary.GetTypes());
+        if (!_noNtvLib) {
+            // TODO Reduced is not the same as noStdLib, we currently never build in a reduced state
+            allMembers.AddRange(_compilation.standardLibrary.GetTypes(reduced: false));
+
+            if (!_noStdLib)
+                allMembers.AddRange(_compilation.graphicsLibrary.GetTypes());
+        }
 
         var builder = NameToObjectPool.Allocate();
 
