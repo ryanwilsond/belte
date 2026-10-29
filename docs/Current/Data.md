@@ -1136,6 +1136,34 @@ MyFunc($code(Console.PrintLine(a);));
 
 Code constants use the enclosing context of where they are inserted, meaning they can access locals, parameters, etc.
 
+To allow the method marked `expand` to reference locals defined in passed code (or locals defined in the caller's
+scope), a "late-bound identifier name" can be used which is a regular identifier preceded by `\``.
+
+For example, referencing a local defined in inserted code:
+
+```belte
+int MyFunc(constexpr Code p) expand {
+  $insert(p);
+  return (int)`a + 5;
+}
+
+MyFunc($code(int a = 5;));
+```
+
+For example, referencing a local defined in the caller's scope:
+
+```belte
+int MyFunc() expand {
+  return (int)`a + 5;
+}
+
+int a = 5;
+MyFunc();
+```
+
+Note that if it cannot be definitely inferred from context, the late-bound identifier may need to be target-typed by
+preceded it with a cast.
+
 ### 3.7.4 `$codestr`
 
 A `$codestr(<expression>)` expression does the same thing as `$code` except it takes in a string that is parsed as a

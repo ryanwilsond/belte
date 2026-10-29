@@ -69,11 +69,11 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0005_BadCharacter() {
         var text = @"
-            [`];
+            [€];
         ";
 
         var diagnostics = @"
-            unexpected character '`'
+            unexpected character '€'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);
@@ -10536,6 +10536,102 @@ var text = """"""
         var diagnostics = @"
             cycle in exec expression; exec expression depends on 'Program' which it is contained in
             cannot convert from type 'bool!' to 'int!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0692_LateIdentifierMustBeInExpand() {
+        var text = @"
+            int a = [`b];
+        ";
+
+        var diagnostics = @"
+            late-bound identifier names can only appear within methods marked 'expand'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0693_LateIdentifierNoTargetType() {
+        var text = @"
+            public class A {
+                public static void M() expand {
+                    var a = [`b];
+                }
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            there is no target type for the late-bound identifier name
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0694_LateIdentifierMustBeLocalOrParameter() {
+        var text = @"
+            public class A {
+                public static void M() expand {
+                    int a = [`b];
+                }
+            }
+            void b() {
+                A.M();
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            late-bound identifier name must refer to a parameter or local; 'b' is a method
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0695_LateIdentifierMustBeMatchType() {
+        var text = @"
+            public class A {
+                public static void M() expand {
+                    int a = [`b];
+                }
+            }
+            void F() {
+                bool b = true;
+                A.M();
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            late-bound identifier name must refer to a parameter or local with the target type 'int!'; late-bound identifier name refers to a symbol with type 'bool!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0696_LateIdentifierMustBeNonRefAndVariable() {
+        var text = @"
+            public class A {
+                public static void M() expand {
+                    int a = [`b];
+                }
+            }
+            void F() {
+                final int b = 3;
+                A.M();
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            late-bound identifier name must refer to a by-value variable
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

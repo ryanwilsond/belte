@@ -3366,6 +3366,31 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_CycleInExec, location, message);
     }
 
+    internal static BelteDiagnostic LateIdentifierMustBeInExpand(TextLocation location) {
+        var message = $"late-bound identifier names can only appear within methods marked 'expand'";
+        return CreateError(DiagnosticCode.ERR_LateIdentifierMustBeInExpand, location, message);
+    }
+
+    internal static BelteDiagnostic LateIdentifierNoTargetType(TextLocation location) {
+        var message = $"there is no target type for the late-bound identifier name";
+        return CreateError(DiagnosticCode.ERR_LateIdentifierNoTargetType, location, message);
+    }
+
+    internal static BelteDiagnostic LateIdentifierMustBeLocalOrParameter(TextLocation location, string name, string kind) {
+        var message = $"late-bound identifier name must refer to a parameter or local; '{name}' is a {kind}";
+        return CreateError(DiagnosticCode.ERR_LateIdentifierMustBeLocalOrParameter, location, message);
+    }
+
+    internal static BelteDiagnostic LateIdentifierMustBeMatchType(TextLocation location, TypeSymbol target, TypeSymbol given) {
+        var message = $"late-bound identifier name must refer to a parameter or local with the target type '{target}'; late-bound identifier name refers to a symbol with type '{given}'";
+        return CreateError(DiagnosticCode.ERR_LateIdentifierMustBeMatchType, location, message);
+    }
+
+    internal static BelteDiagnostic LateIdentifierMustBeNonRefAndVariable(TextLocation location) {
+        var message = $"late-bound identifier name must refer to a by-value variable";
+        return CreateError(DiagnosticCode.ERR_LateIdentifierMustBeNonRefAndVariable, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

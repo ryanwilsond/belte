@@ -1238,6 +1238,14 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
         throw ExceptionUtilities.Unreachable();
     }
 
+    internal override BoundNode VisitUnconvertedLateIdentifierName(BoundUnconvertedLateIdentifierName node) {
+        throw ExceptionUtilities.Unreachable();
+    }
+
+    internal override BoundNode VisitLateIdentifierName(BoundLateIdentifierName node) {
+        throw ExceptionUtilities.Unreachable();
+    }
+
     internal static BoundExpression CreateNullableGetValueCall(
         Compilation compilation,
         SyntaxNode syntax,

@@ -481,6 +481,8 @@ internal abstract partial class BoundTreeExpander {
             BoundKind.OrValueExpression => ExpandOrValueExpression((BoundOrValueExpression)expression, out replacement, useKind),
             BoundKind.BindsExpression => ExpandBindsExpression((BoundBindsExpression)expression, out replacement, useKind),
             BoundKind.NewT => ExpandNewT((BoundNewT)expression, out replacement, useKind),
+            BoundKind.UnconvertedLateIdentifierName => ExpandUnconvertedLateIdentifierName((BoundUnconvertedLateIdentifierName)expression, out replacement, useKind),
+            BoundKind.LateIdentifierName => ExpandLateIdentifierName((BoundLateIdentifierName)expression, out replacement, useKind),
             _ => throw ExceptionUtilities.UnexpectedValue(expression.kind),
         };
     }
@@ -801,6 +803,22 @@ internal abstract partial class BoundTreeExpander {
 
     private protected virtual List<BoundStatement> ExpandUnconvertedNullptrExpression(
         BoundUnconvertedNullptrExpression expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandUnconvertedLateIdentifierName(
+        BoundUnconvertedLateIdentifierName expression,
+        out BoundExpression replacement,
+        UseKind useKind) {
+        replacement = expression;
+        return [];
+    }
+
+    private protected virtual List<BoundStatement> ExpandLateIdentifierName(
+        BoundLateIdentifierName expression,
         out BoundExpression replacement,
         UseKind useKind) {
         replacement = expression;

@@ -4833,6 +4833,9 @@ internal partial class Binder {
         if (op1.kind == BoundKind.DiscardExpression) {
             op2 = BindToNaturalType(op2, diagnostics);
             op1 = InferTypeForDiscardAssignment((BoundDiscardExpression)op1, op2, diagnostics);
+        } else if (op1.kind == BoundKind.UnconvertedLateIdentifierName) {
+            op2 = BindToNaturalType(op2, diagnostics);
+            op1 = InferTypeForLateIdentifierAssignment((BoundUnconvertedLateIdentifierName)op1, op2, diagnostics);
         } else {
             op2 = ReduceNumericIfApplicable(op1.Type(), op2, compilation.corLibrary);
         }
@@ -4845,6 +4848,7 @@ internal partial class Binder {
         BoundExpression op2,
         BelteDiagnosticQueue diagnostics) {
         var inferredType = op2.type;
+
         if (inferredType is null)
             return op1.FailInference(this, diagnostics);
 
@@ -4852,6 +4856,23 @@ internal partial class Binder {
             diagnostics.Push(Error.VoidAssignment(op1.syntax.location));
 
         return op1.SetInferredTypeWithAnnotations(new TypeWithAnnotations(inferredType));
+    }
+
+    private BoundExpression InferTypeForLateIdentifierAssignment(
+        BoundUnconvertedLateIdentifierName op1,
+        BoundExpression op2,
+        BelteDiagnosticQueue diagnostics) {
+        var inferredType = op2.type;
+
+        if (inferredType is null) {
+            diagnostics.Push(Error.LateIdentifierNoTargetType(op1.syntax.location));
+            return new BoundLateIdentifierName(op1.syntax, CreateErrorType("var"));
+        }
+
+        if (inferredType.IsVoidType())
+            diagnostics.Push(Error.VoidAssignment(op1.syntax.location));
+
+        return new BoundLateIdentifierName(op1.syntax, inferredType);
     }
 
     private BoundExpression BindNullCoalescingCompoundAssignment(
@@ -8169,6 +8190,9 @@ symIsHidden:;
                     return CreateArrayLengthConversion(node, access, conversion, destination, diagnostics);
 
                 break;
+            case BoundKind.UnconvertedLateIdentifierName:
+                Debug.Assert(conversion.isIdentity);
+                return new BoundLateIdentifierName(source.syntax, destination);
         }
 
         if (conversion.kind == ConversionKind.ObjectCreation) {

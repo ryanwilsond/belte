@@ -37,6 +37,7 @@ public enum SyntaxKind : ushort {
     PeriodToken,
     HashToken,
     DollarToken,
+    GraveToken,
 
     // Compound punctuation
     PipePipeToken,
@@ -237,6 +238,7 @@ public enum SyntaxKind : ushort {
     ExecExpression,
     TypeExpression,
     LocationExpression,
+    LateIdentifierName,
 
     // Operator expressions
     TernaryExpression,

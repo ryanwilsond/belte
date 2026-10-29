@@ -1562,6 +1562,13 @@
   </Node>
   <!-- Expressions -->
   <AbstractNode Name="ExpressionSyntax" Base="SyntaxNode"/>
+  <Node Name="LateIdentifierName" Base="ExpressionSyntax">
+    <Kind Name="LateIdentifierName"/>
+    <Field Name="grave" Type="SyntaxToken">
+      <Kind Name="GraveToken"/>
+    </Field>
+    <Field Name="name" Type="NameSyntax"/>
+  </Node>
   <Node Name="FieldExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="FieldExpression"/>
     <Field Name="keyword" Type="SyntaxToken">

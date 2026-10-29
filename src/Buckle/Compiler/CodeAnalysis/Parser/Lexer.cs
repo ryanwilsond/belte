@@ -466,6 +466,10 @@ internal sealed partial class Lexer : IDisposable {
                 _position++;
                 _kind = SyntaxKind.TildeToken;
                 break;
+            case '`':
+                _position++;
+                _kind = SyntaxKind.GraveToken;
+                break;
             case '.':
                 _position++;
                 if (AdvanceIfMatches('.')) _kind = SyntaxKind.PeriodPeriodToken;

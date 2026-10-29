@@ -121,6 +121,7 @@ internal partial class Binder {
         var bodyBinder = ((SourceMemberMethodSymbol)call.method).TryGetBodyBinder();
         var returnType = call.method.returnType;
         var statements = ExpansionBodyRewriter.Rewrite(
+            call.syntax,
             this,
             bodyBinder,
             call.method,

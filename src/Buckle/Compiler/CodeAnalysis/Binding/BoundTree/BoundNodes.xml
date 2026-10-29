@@ -139,6 +139,10 @@
     <Field Name="right" Type="BoundExpression"/>
     <Field Name="operatorKind" Type="BinaryOperatorKind"/>
   </Node>
+  <Node Name="BoundUnconvertedLateIdentifierName" Base="BoundExpression">
+    <Field Name="type" Type="TypeSymbol?" Override="true" Null="always"/>
+  </Node>
+  <Node Name="BoundLateIdentifierName" Base="BoundExpression"/>
   <Node Name="BoundArrayCreationExpression" Base="BoundExpression">
     <Field Name="sizes" Type="ImmutableArray&lt;BoundExpression&gt;"/>
     <Field Name="initializer" Type="BoundInitializerList?"/>

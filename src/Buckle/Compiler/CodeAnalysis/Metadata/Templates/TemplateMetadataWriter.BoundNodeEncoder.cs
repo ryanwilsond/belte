@@ -538,5 +538,13 @@ internal sealed partial class TemplateMetadataWriter {
         internal override BoundNode VisitInsertStatement(BoundInsertStatement node) {
             throw ExceptionUtilities.UnexpectedValue(node);
         }
+
+        internal override BoundNode VisitUnconvertedLateIdentifierName(BoundUnconvertedLateIdentifierName node) {
+            throw ExceptionUtilities.UnexpectedValue(node);
+        }
+
+        internal override BoundNode VisitLateIdentifierName(BoundLateIdentifierName node) {
+            throw ExceptionUtilities.UnexpectedValue(node);
+        }
     }
 }

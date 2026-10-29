@@ -4872,4 +4872,23 @@ public sealed class IssueTests {
 
         AssertValue(text, 10);
     }
+
+    [Fact]
+    public void Expand_SeesCodeDefinedLocal2() {
+        var text = @"
+            static class Program;
+
+            int32 Main() {
+                var result = Expand(10, 5, $code(bool cond = a > 5;));
+                return result ? (int32)10 : (int32)5;
+            }
+
+            bool Expand(int a, int b, constexpr Code condition) expand {
+                $insert(condition);
+                return a > b && (bool)`cond;
+            }
+        ";
+
+        AssertValue(text, 10);
+    }
 }

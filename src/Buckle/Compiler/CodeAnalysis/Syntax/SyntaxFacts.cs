@@ -341,6 +341,7 @@ public static class SyntaxFacts {
             SyntaxKind.CaretToken => "^",
             SyntaxKind.AmpersandToken => "&",
             SyntaxKind.PipeToken => "|",
+            SyntaxKind.GraveToken => "`",
             SyntaxKind.LessThanLessThanToken => "<<",
             SyntaxKind.GreaterThanGreaterThanToken => ">>",
             SyntaxKind.GreaterThanGreaterThanGreaterThanToken => ">>>",

@@ -3100,6 +3100,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
 
         switch (kind) {
             case SyntaxKind.OpenParenToken:
+            case SyntaxKind.GraveToken:
             case SyntaxKind.TrueKeyword:
             case SyntaxKind.FalseKeyword:
             case SyntaxKind.LowlevelKeyword:
@@ -3622,6 +3623,8 @@ internal sealed partial class LanguageParser : SyntaxParser {
         switch (currentToken.kind) {
             case SyntaxKind.OpenParenToken:
                 return ParseCastOrParenthesizedOrTupleExpression();
+            case SyntaxKind.GraveToken:
+                return ParseLateIdentifierName();
             case SyntaxKind.TrueKeyword:
             case SyntaxKind.FalseKeyword:
                 return ParseBooleanLiteral();
@@ -5202,6 +5205,12 @@ done:
         var closeBracket = Match(SyntaxKind.CloseBracketToken);
 
         return SyntaxFactory.ArrayRankSpecifier(openBracket, size, closeBracket);
+    }
+
+    private ExpressionSyntax ParseLateIdentifierName() {
+        var grave = EatToken();
+        var name = ParseQualifiedName();
+        return SyntaxFactory.LateIdentifierName(grave, name);
     }
 
     private ExpressionSyntax ParseFieldExpressionOrLastCaseName() {

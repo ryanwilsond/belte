@@ -174,6 +174,12 @@ internal partial class Binder {
                 }
 
                 goto default;
+            case BoundUnconvertedLateIdentifierName:
+                if (reportNoTargetType && !expression.hasAnyErrors)
+                    diagnostics.Push(Error.LateIdentifierNoTargetType(expression.syntax.location));
+
+                result = ErrorExpression(expression.syntax, expression);
+                break;
             default:
                 result = expression;
                 break;
@@ -1169,6 +1175,9 @@ internal partial class Binder {
             case BoundKind.DataContainerExpression:
                 var local = (BoundDataContainerExpression)expression;
                 return CheckLocalValueKind(node, local, valueKind, checkingReceiver, diagnostics);
+            case BoundKind.UnconvertedLateIdentifierName:
+            case BoundKind.LateIdentifierName:
+                return true;
             case BoundKind.UnconvertedAddressOfOperator:
                 var unconvertedAddressOf = (BoundUnconvertedAddressOfOperator)expression;
                 diagnostics.Push(GetMethodGroupOrFunctionPointerLvalueError(
@@ -2194,6 +2203,8 @@ internal partial class Binder {
                     return BindTypeExpression((TypeExpressionSyntax)node, diagnostics);
                 case SyntaxKind.LocationExpression:
                     return BindLocationExpression((LocationExpressionSyntax)node);
+                case SyntaxKind.LateIdentifierName:
+                    return BindLateIdentifierName((LateIdentifierName)node, diagnostics);
                 case SyntaxKind.NonNullableType:
                     Debug.Assert(false);
                     return ErrorExpression(node);
@@ -5597,6 +5608,15 @@ internal partial class Binder {
             new ConstantValue(simpleLocation, SpecialType.Location),
             compilation.GetSpecialType(SpecialType.Location)
         );
+    }
+
+    private BoundExpression BindLateIdentifierName(LateIdentifierName node, BelteDiagnosticQueue diagnostics) {
+        if (containingMember is not MethodSymbol m || !m.shouldExpand) {
+            diagnostics.Push(Error.LateIdentifierMustBeInExpand(node.location));
+            return ErrorExpression(node);
+        }
+
+        return new BoundUnconvertedLateIdentifierName(node);
     }
 
     internal BoundExpression BindRangeOrRValue(

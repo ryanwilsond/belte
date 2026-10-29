@@ -700,6 +700,11 @@ public enum DiagnosticCode : ushort {
     ERR_TypeStringMustBeTypeDecl = 689,
     ERR_ExecExpressionFailed = 690,
     ERR_CycleInExec = 691,
+    ERR_LateIdentifierMustBeInExpand = 692,
+    ERR_LateIdentifierNoTargetType = 693,
+    ERR_LateIdentifierMustBeLocalOrParameter = 694,
+    ERR_LateIdentifierMustBeMatchType = 695,
+    ERR_LateIdentifierMustBeNonRefAndVariable = 696,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

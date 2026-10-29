@@ -361,6 +361,10 @@ internal abstract partial class ConversionsBase {
         return type1.Equals(type2, TypeCompareKind.AllIgnoreOptions);
     }
 
+    private Conversion GetLateIdentifierConversion(BoundUnconvertedLateIdentifierName name, TypeSymbol destination) {
+        return Conversion.Identity;
+    }
+
     private Conversion GetImplicitNullptrExpressionConversion(
         BoundUnconvertedNullptrExpression ptrExpression,
         TypeSymbol destination) {
@@ -974,6 +978,8 @@ internal abstract partial class ConversionsBase {
                 return GetImplicitArrayLengthConversion(length, target);
             case BoundThrowExpression:
                 return Conversion.ImplicitThrow;
+            case BoundUnconvertedLateIdentifierName name:
+                return GetLateIdentifierConversion(name, target);
         }
 
         if (sourceExpression.IsLiteralNull()) {

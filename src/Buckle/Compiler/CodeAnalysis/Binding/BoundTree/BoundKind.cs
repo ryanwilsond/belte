@@ -145,4 +145,6 @@ internal enum BoundKind : byte {
     UnconvertedBinaryOperator                   = 0x8B,
     Dup                                         = 0x8C,
     InsertStatement                             = 0x8D,
+    UnconvertedLateIdentifierName               = 0x8E,
+    LateIdentifierName                          = 0x8F,
 }
