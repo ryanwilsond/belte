@@ -23,7 +23,6 @@ using Buckle.Utilities;
 using Diagnostics;
 using Microsoft.CodeAnalysis.PooledObjects;
 using Shared;
-using SharpFont.Cache;
 
 namespace Buckle.CodeAnalysis;
 
@@ -78,7 +77,8 @@ public sealed partial class Compilation {
     private ConcurrentBag<NamedTypeSymbol> _synthesizedTypes;
     private ConcurrentDictionary<TypeDeclarationSyntax, NamedTypeSymbol> _synthesizedTypesMap;
     private ConcurrentDictionary<SyntaxNode, BelteDiagnosticQueue> _currentExecNodes;
-    private ConcurrentSet<(SyntaxNode, string)> _synthesizedCode;
+    private List<(SyntaxNode, string, int)> _synthesizedCode;
+    private string _lazySynthesizedCodePath;
 
     // TODO These will be obsoleted soon, just in a transition period where they are instance instead of static
     private CorLibrary _lazyCorLibrary;
@@ -554,8 +554,13 @@ public sealed partial class Compilation {
 
         handleManager.SendBeforeEmitMessage();
 
-        if (verbose && options.enableOutput && !noArtifacts)
-            EmitArtifacts(verbosePath);
+        if (options.enableOutput && !noArtifacts) {
+            if (verbose)
+                EmitArtifacts(verbosePath);
+
+            if (options.generateSynthesizedCodeFile)
+                EmitSynthesizedCode();
+        }
 
         object evalResult;
 
@@ -625,8 +630,13 @@ public sealed partial class Compilation {
 
         handleManager.SendBeforeEmitMessage();
 
-        if (verbose && options.enableOutput && !noArtifacts)
-            EmitArtifacts(verbosePath);
+        if (options.enableOutput && !noArtifacts) {
+            if (verbose)
+                EmitArtifacts(verbosePath);
+
+            if (options.generateSynthesizedCodeFile)
+                EmitSynthesizedCode();
+        }
 
         if (options.buildMode == BuildMode.Dotnet)
             ILEmitter.Emit(program, assemblyName, assembly.identity.version, outputPath, diagnostics);
@@ -671,8 +681,13 @@ public sealed partial class Compilation {
 
         handleManager.SendBeforeEmitMessage();
 
-        if (verbose && options.enableOutput && !noArtifacts)
-            EmitArtifacts(verbosePath);
+        if (options.enableOutput && !noArtifacts) {
+            if (verbose)
+                EmitArtifacts(verbosePath);
+
+            if (options.generateSynthesizedCodeFile)
+                EmitSynthesizedCode();
+        }
 
         var executor = new Executor(program, options.arguments, diagnostics);
         result = executor.Execute(verbose, logTime, verbosePath, noArtifacts);
@@ -739,8 +754,13 @@ public sealed partial class Compilation {
 
         handleManager.SendBeforeEmitMessage();
 
-        if (verbose && options.enableOutput && !noArtifacts)
-            EmitArtifacts(verbosePath);
+        if (options.enableOutput && !noArtifacts) {
+            if (verbose)
+                EmitArtifacts(verbosePath);
+
+            if (options.generateSynthesizedCodeFile)
+                EmitSynthesizedCode();
+        }
 
         var emulator = new Emulator(program, options.arguments, diagnostics);
         result = emulator.Emulate(verbose, logTime, verbosePath, noArtifacts);
@@ -866,8 +886,20 @@ public sealed partial class Compilation {
     }
 
     internal void NoteSynthesizedCode(SyntaxNode node, string text) {
-        _synthesizedCode ??= [];
-        _synthesizedCode.Add((node, text));
+        if (_synthesizedCode is null)
+            Interlocked.CompareExchange(ref _synthesizedCode, [], null);
+
+        lock (_synthesizedCode) {
+            const int HeaderLineCount = 4;
+
+            if (_synthesizedCode.Count == 0) {
+                _synthesizedCode.Add((node, text, HeaderLineCount));
+            } else {
+                var (_, previousText, previousOffset) = _synthesizedCode[^1];
+                var lineCount = MemoryExtensions.Count(previousText.AsSpan(), Environment.NewLine) + 1;
+                _synthesizedCode.Add((node, text, previousOffset + HeaderLineCount + lineCount));
+            }
+        }
     }
 
     internal MethodSymbol GetEntryPoint(BelteDiagnosticQueue diagnostics) {
@@ -1894,11 +1926,24 @@ public sealed partial class Compilation {
         handleManager.SendBoundMessage();
     }
 
+    internal bool TryGetSynthesizedCodeDocument(out string filePath) {
+        if (_synthesizedCode is null || !options.enableOutput || !options.generateSynthesizedCodeFile) {
+            filePath = null;
+            return false;
+        }
+
+        filePath = GetSynthesizedCodePath();
+        return true;
+    }
+
+    internal int GetSynthesizedCodeLineOffset(SyntaxNode node) {
+        return _synthesizedCode.Single(t => t.Item1 == node).Item3;
+    }
+
     private void EmitArtifacts(string verbosePath) {
         EmitCFG(verbosePath);
         EmitBoundProgram(verbosePath);
         EmitTypeInfo(verbosePath);
-        EmitSynthesizedCode(verbosePath);
     }
 
     [Conditional("DEBUG")]
@@ -2007,18 +2052,33 @@ public sealed partial class Compilation {
         streamWriter.Close();
     }
 
-    private void EmitSynthesizedCode(string path) {
+    private string GetSynthesizedCodePath() {
+        Debug.Assert(options.generateSynthesizedCodeFile);
+
+        if (_lazySynthesizedCodePath is null) {
+            const string SynthesizedCodeName = "SynthesizedCode.blt";
+
+            var synthesizedCodePath = options.synthesizedCodePath is null
+                ? SynthesizedCodeName
+                : Path.Combine(options.synthesizedCodePath, SynthesizedCodeName);
+
+            Interlocked.CompareExchange(ref _lazySynthesizedCodePath, synthesizedCodePath, null);
+        }
+
+        return _lazySynthesizedCodePath;
+    }
+
+    private void EmitSynthesizedCode() {
+        Debug.Assert(options.generateSynthesizedCodeFile);
+
         if (_synthesizedCode is null)
             return;
 
-        const string SynthesizedCodeName = "SynthesizedCode.blt";
-        var synthesizedCodePath = path is null ? SynthesizedCodeName : Path.Combine(path, SynthesizedCodeName);
-
-        using var streamWriter = new StreamWriter(synthesizedCodePath);
-        streamWriter.WriteLine();
+        using var streamWriter = new StreamWriter(GetSynthesizedCodePath());
 
         foreach (var note in _synthesizedCode) {
             var location = DiagnosticFormatter.PrettyPrintLocation(note.Item1.location);
+            streamWriter.WriteLine();
             streamWriter.WriteLine("//");
 
             switch (note.Item1.kind) {

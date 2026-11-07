@@ -23,7 +23,9 @@ public struct CompilationOptions {
         bool excludeReadingTemplateMetadata = false,
         bool evaluatorStrictExceptionMode = true,
         bool noNtvLib = false,
-        bool time = false) {
+        bool time = false,
+        bool generateSynthesizedCodeFile = false,
+        string synthesizedCodePath = null) {
         topLevelBinderFlags = BinderFlags.None;
         this.buildMode = buildMode;
         this.outputKind = outputKind;
@@ -44,6 +46,8 @@ public struct CompilationOptions {
         this.evaluatorStrictExceptionMode = evaluatorStrictExceptionMode;
         this.noNtvLib = noNtvLib;
         this.time = time;
+        this.generateSynthesizedCodeFile = generateSynthesizedCodeFile;
+        this.synthesizedCodePath = synthesizedCodePath;
     }
 
     /// <summary>
@@ -118,4 +122,8 @@ public struct CompilationOptions {
     internal bool evaluatorStrictExceptionMode { get; }
 
     internal bool time { get; }
+
+    internal bool generateSynthesizedCodeFile { get; }
+
+    internal string synthesizedCodePath { get; }
 }

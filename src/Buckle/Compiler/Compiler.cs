@@ -37,24 +37,26 @@ public sealed class Compiler {
         // From profiling we found:
         //      1) Interpreter is almost always the slowest option
         //      2) Evaluator is only better than Executor for trivially simple programs
-        state.buildMode == BuildMode.AutoRun ? BuildMode.Execute : state.buildMode,
-        state.projectType,
-        state.arguments,
-        false,
-        !state.noOut,
-        state.references,
-        state.concurrentBuild,
-        state.maxCores,
-        state.debugMode ? OptimizationLevel.Debug : OptimizationLevel.Release,
-        state.entryName,
-        state.noStdLib,
-        state.diagnosticOptions,
-        state.taskDiagnosticOptions,
-        state.skipTemplateMetadata,
-        state.noTemplateMetadata,
+        buildMode: state.buildMode == BuildMode.AutoRun ? BuildMode.Execute : state.buildMode,
+        outputKind: state.projectType,
+        arguments: state.arguments,
+        isScript: false,
+        enableOutput: !state.noOut,
+        references: state.references,
+        concurrentBuild: state.concurrentBuild,
+        maxCoreCount: state.maxCores,
+        optimizationLevel: state.debugMode ? OptimizationLevel.Debug : OptimizationLevel.Release,
+        entryName: state.entryName,
+        noStdLib: state.noStdLib,
+        globalDiagnosticOptions: state.diagnosticOptions,
+        localDiagnosticOptions: state.taskDiagnosticOptions,
+        excludeWritingTemplateMetadata: state.skipTemplateMetadata,
+        excludeReadingTemplateMetadata: state.noTemplateMetadata,
         evaluatorStrictExceptionMode: true,
-        state.noNtvLib,
-        state.time
+        noNtvLib: state.noNtvLib,
+        time: state.time,
+        generateSynthesizedCodeFile: state.verboseMode,
+        synthesizedCodePath: state.verbosePath
     );
 
     /// <summary>

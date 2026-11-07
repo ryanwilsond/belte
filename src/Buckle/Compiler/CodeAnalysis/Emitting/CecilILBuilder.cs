@@ -1,6 +1,5 @@
 using System;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using Buckle.CodeAnalysis.Binding;
@@ -26,6 +25,8 @@ internal sealed partial class CecilILBuilder : ILBuilder {
     private readonly MethodDefinition _definition;
     private readonly Stack<TryFrame> _tryStack;
     private readonly Dictionary<StringText, Document> _documents;
+
+    private Document _synthesizedCodeDocument;
 
     private SyntaxTree _lastSeqPointTree;
     private int _initialHiddenSequencePointMarker = -1;
@@ -170,11 +171,32 @@ internal sealed partial class CecilILBuilder : ILBuilder {
         if (syntaxTree.text is not StringText t)
             return;
 
+        string synthesizedCodePath = null;
+
+        if (syntaxTree.GetRoot().location is CompoundTextLocation &&
+            !_compilation.TryGetSynthesizedCodeDocument(out synthesizedCodePath)) {
+            return;
+        }
+
         _lastSeqPointTree = syntaxTree;
 
         var instruction = iLProcessor.Body.Instructions[instructionIndex];
 
-        if (!_documents.TryGetValue(t, out var document)) {
+        Document document;
+        var lineOffset = 0;
+
+        if (synthesizedCodePath is not null) {
+            if (_synthesizedCodeDocument is null) {
+                var fullPath = Path.GetFullPath(synthesizedCodePath);
+                _synthesizedCodeDocument = new Document(fullPath);
+            }
+
+            document = _synthesizedCodeDocument;
+            var node = ((CompoundTextLocation)syntaxTree.GetRoot().location).sourceNode.parent;
+            // CodeGenerator.EmitSequencePoint checks for compound location and adds a preceding nop for us
+            DefineSequencePoint(node.syntaxTree, node.location, instructionIndex - 1);
+            lineOffset = _compilation.GetSynthesizedCodeLineOffset(node);
+        } else if (!_documents.TryGetValue(t, out document)) {
             var fullPath = Path.GetFullPath(t.fileName);
             document = new Document(fullPath);
             _documents.Add(t, document);
@@ -193,8 +215,8 @@ internal sealed partial class CecilILBuilder : ILBuilder {
         }
 
         var sequencePoint = new SequencePoint(instruction, document) {
-            StartLine = startLine + 1,
-            EndLine = endLine + 1,
+            StartLine = startLine + 1 + lineOffset,
+            EndLine = endLine + 1 + lineOffset,
             StartColumn = startChar + 1,
             EndColumn = endChar + 1,
         };

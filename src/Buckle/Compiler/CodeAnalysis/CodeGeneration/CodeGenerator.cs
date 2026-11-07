@@ -1307,10 +1307,16 @@ oneMoreTime:
             _builder.Emit(OpCode.Nop);
 
         if (_emitPdbSequencePoints) {
-            if (syntax is null)
+            if (syntax is null) {
                 EmitHiddenSequencePoint(index);
-            else
+            } else {
+                if (syntax.location is CompoundTextLocation) {
+                    _builder.Emit(OpCode.Nop);
+                    index++;
+                }
+
                 EmitSequencePoint(syntax, index);
+            }
         }
     }
 
