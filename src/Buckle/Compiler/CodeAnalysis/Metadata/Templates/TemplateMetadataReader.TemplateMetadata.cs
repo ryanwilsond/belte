@@ -649,7 +649,12 @@ internal sealed partial class TemplateMetadataReader {
 
             if (entry.isNested) {
                 var containingType = ResolveType(entry.containingTypeIndex);
-                var nestedTypes = containingType.GetTypeMembers(entry.name);
+
+                var unmangledName = entry.arity != 0
+                    ? MetadataHelpers.UnmangleMetadataNameForArity(entry.name, entry.arity)
+                    : entry.name;
+
+                var nestedTypes = containingType.GetTypeMembers(unmangledName);
                 NamedTypeSymbol foundType = null;
 
                 foreach (var candidate in nestedTypes) {
@@ -780,6 +785,19 @@ internal sealed partial class TemplateMetadataReader {
 
             Debug.Assert(false);
             return null;
+        }
+
+        internal ImmutableArray<NamedTypeSymbol> GetNestedTypesForType(uint typeIndex) {
+            var builder = ArrayBuilder<NamedTypeSymbol>.GetInstance();
+
+            for (uint i = 0; i < _typeTable.Length; i++) {
+                var typeEntry = _typeTable[i];
+
+                if (typeEntry.isNested && typeEntry.containingTypeIndex == typeIndex)
+                    builder.Add((NamedTypeSymbol)ResolveType(i));
+            }
+
+            return builder.ToImmutableAndFree();
         }
 
         private void ResolveTypeTable() {

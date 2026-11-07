@@ -1973,7 +1973,7 @@ public class {name} {{
                 diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(reference));
         }
 
-        if (state.projectType == OutputKind.DynamicallyLinkedLibrary) {
+        if (state.projectType == OutputKind.DynamicallyLinkedLibrary || state.buildMode == BuildMode.Dotnet) {
             if (specifyOut && specifyModule)
                 diagnostics.Push(Belte.Diagnostics.Fatal.CannotSpecifyOutAndModuleWithDll());
             else if (!specifyOut)

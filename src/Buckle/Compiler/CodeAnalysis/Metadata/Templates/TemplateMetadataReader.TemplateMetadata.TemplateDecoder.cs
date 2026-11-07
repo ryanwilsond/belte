@@ -3,6 +3,7 @@ using System.IO;
 using System.Text;
 using Buckle.CodeAnalysis.Symbols;
 using Microsoft.CodeAnalysis.PooledObjects;
+using ComplexTemplateParameterKind = Buckle.CodeAnalysis.TemplateMetadataWriter.ComplexTemplateParameterKind;
 
 namespace Buckle.CodeAnalysis;
 
@@ -55,38 +56,79 @@ internal sealed partial class TemplateMetadataReader {
                             return new PointerTypeSymbol(new TypeWithAnnotations(elementType));
                         }
                     case 4: {
-                            var templateParameterKind = (TemplateParameterKind)reader.ReadByte();
+                            var templateParameterKind = (ComplexTemplateParameterKind)reader.ReadByte();
+
                             var ordinal = reader.ReadUInt16();
 
                             Debug.Assert(_enclosingContext is not null);
 
                             switch (templateParameterKind) {
-                                case TemplateParameterKind.Method: {
+                                case ComplexTemplateParameterKind.Method: {
                                         if (_enclosingContext is not MethodSymbol method
                                             || method.GetArity() <= ordinal) {
+                                            Debug.Assert(false);
                                             return null;
                                         }
 
                                         return method.templateParameters[ordinal];
                                     }
-                                case TemplateParameterKind.Type: {
+                                case ComplexTemplateParameterKind.Type: {
                                         if (_enclosingContext is MethodSymbol method) {
                                             var enclosing = method.containingType;
 
-                                            if (enclosing.arity <= ordinal)
+                                            if (enclosing.arity <= ordinal) {
+                                                Debug.Assert(false);
                                                 return null;
+                                            }
 
                                             return enclosing.templateParameters[ordinal];
                                         } else {
-                                            var enclosing = (NamedTypeSymbol)_enclosingContext;
+                                            var current = (NamedTypeSymbol)_enclosingContext;
 
-                                            if (enclosing.arity <= ordinal)
+                                            while (current.containingType is not null)
+                                                current = current.containingType;
+
+                                            if (current.arity <= ordinal) {
+                                                Debug.Assert(false);
                                                 return null;
+                                            }
+
+                                            return current.templateParameters[ordinal];
+                                        }
+                                    }
+                                case ComplexTemplateParameterKind.NestedType: {
+                                        if (_enclosingContext is MethodSymbol method) {
+                                            Debug.Assert(false);
+                                            var enclosing = method.containingType;
+
+                                            if (enclosing.arity <= ordinal) {
+                                                Debug.Assert(false);
+                                                return null;
+                                            }
 
                                             return enclosing.templateParameters[ordinal];
+                                        } else {
+                                            var typeId = reader.ReadUInt32();
+                                            var targetType = _metadata.ResolveType(typeId);
+                                            var current = (NamedTypeSymbol)_enclosingContext;
+
+                                            while (current.containingType is not null) {
+                                                if (targetType.originalDefinition.Equals(current.originalDefinition))
+                                                    break;
+
+                                                current = current.containingType;
+                                            }
+
+                                            if (current.arity <= ordinal) {
+                                                Debug.Assert(false);
+                                                return null;
+                                            }
+
+                                            return current.templateParameters[ordinal];
                                         }
                                     }
                                 default:
+                                    Debug.Assert(false);
                                     return null;
                             }
                         }
@@ -133,8 +175,10 @@ internal sealed partial class TemplateMetadataReader {
                             var typeEntryIndex = reader.ReadUInt32();
                             var typeSymbol = _metadata.ResolveType(typeEntryIndex);
 
-                            if (typeSymbol is not NamedTypeSymbol namedTypeSymbol)
+                            if (typeSymbol is not NamedTypeSymbol namedTypeSymbol) {
+                                Debug.Assert(false);
                                 return null;
+                            }
 
                             var arity = namedTypeSymbol.arity;
                             var builder = ArrayBuilder<TypeOrConstant>.GetInstance(arity);
@@ -143,8 +187,10 @@ internal sealed partial class TemplateMetadataReader {
                                 var expectedType = namedTypeSymbol.templateParameters[i].underlyingType;
                                 var typeOrConstant = ReadTypeOrConstant(expectedType.type, reader);
 
-                                if (typeOrConstant is null)
+                                if (typeOrConstant is null) {
+                                    Debug.Assert(false);
                                     return null;
+                                }
 
                                 builder.Add(typeOrConstant);
                             }
@@ -154,6 +200,39 @@ internal sealed partial class TemplateMetadataReader {
                     case 8: {
                             var typeEntryIndex = reader.ReadUInt32();
                             return _metadata.ResolveType(typeEntryIndex);
+                        }
+                    case 9: {
+                            var typeEntryIndex = reader.ReadUInt32();
+                            var typeSymbol = _metadata.ResolveType(typeEntryIndex);
+
+                            if (typeSymbol is not NamedTypeSymbol current) {
+                                Debug.Assert(false);
+                                return null;
+                            }
+
+                            while (current is not null) {
+                                var arity = current.arity;
+
+
+
+                                var builder = ArrayBuilder<TypeOrConstant>.GetInstance(arity);
+
+                                for (var i = 0; i < arity; i++) {
+                                    var expectedType = current.templateParameters[i].underlyingType;
+                                    var typeOrConstant = ReadTypeOrConstant(expectedType.type, reader);
+
+                                    if (typeOrConstant is null) {
+                                        Debug.Assert(false);
+                                        return null;
+                                    }
+
+                                    builder.Add(typeOrConstant);
+                                }
+
+                                return current.Construct(builder.ToImmutableAndFree());
+                            }
+
+                            return null;
                         }
                     default:
                         Debug.Assert(false);

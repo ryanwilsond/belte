@@ -985,11 +985,24 @@ internal sealed partial class Evaluator {
             var thisParameter = _stack.Peek().values[0];
             var heapObject = GetHeapObjectFromPointer(thisParameter);
 
-            if (!_program.TryGetTypeLayoutIncludingParents((NamedTypeSymbol)heapObject.type, out var layout))
-                throw new BelteInternalException($"Failed to get type layout ({heapObject.type}).");
+            if (node.type.containingType.originalDefinition.Equals(heapObject.type.originalDefinition)) {
+                if (!_program.TryGetTypeLayoutIncludingParents((NamedTypeSymbol)heapObject.type, out var layout))
+                    throw new BelteInternalException($"Failed to get type layout ({heapObject.type}).");
 
-            var field = layout.GetLocal(node.type);
-            return heapObject.fields[field.slot];
+                var field = layout.GetLocal(node.type);
+                return heapObject.fields[field.slot];
+            } else {
+                // TODO This really begs the question of why bother with the above strategy at all if we can just look at the constructed type
+                var typeOrConstant = ((NamedTypeSymbol)heapObject.type).templateSubstitution
+                    .SubstituteTemplateParameter(template);
+
+                Debug.Assert(typeOrConstant.isConstant || !typeOrConstant.type.type.IsTemplateParameter());
+
+                if (typeOrConstant.isType)
+                    return EvaluatorValue.Type(typeOrConstant.type.type);
+                else
+                    return EvaluatorValue.Literal(typeOrConstant.constant.value, typeOrConstant.constant.specialType);
+            }
         }
 
         return EvaluatorValue.None;

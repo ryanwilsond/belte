@@ -4891,4 +4891,21 @@ public sealed class IssueTests {
 
         AssertValue(text, 10);
     }
+
+    [Fact]
+    public void NestedTemplateTypes_CanSpecialize() {
+        var text = @"
+            public class A<int T> {
+                public class B<int T2> {
+                    public int M() {
+                        return T + T2;
+                    }
+                }
+            }
+            var a = new A<10>.B<20>();
+            return a.M();
+        ";
+
+        AssertValue(text, 30);
+    }
 }

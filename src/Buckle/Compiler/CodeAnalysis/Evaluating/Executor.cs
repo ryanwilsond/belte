@@ -212,6 +212,16 @@ internal sealed partial class Executor : ModuleBuilder {
         if (!_compilation.options.enableOutput)
             return null;
 
+        System.Runtime.Loader.AssemblyLoadContext.Default.Resolving += (context, assemblyName) => {
+            var path = Path.Combine(
+                AppContext.BaseDirectory,
+                assemblyName.Name + ".dll");
+
+            return File.Exists(path)
+                ? context.LoadFromAssemblyPath(path)
+                : null;
+        };
+
         object result;
 
         if (_graphicsEnabled && _graphicsInitialized) {
@@ -642,8 +652,7 @@ internal sealed partial class Executor : ModuleBuilder {
                 ? BindingFlags.Public
                 : BindingFlags.NonPublic;
 
-            // TODO Use metadata name?
-            currentFoundType = currentFoundType.GetNestedType(nestedType.name, flags);
+            currentFoundType = currentFoundType.GetNestedType(nestedType.metadataName, flags);
         }
 
         return currentFoundType;
@@ -1160,16 +1169,21 @@ internal sealed partial class Executor : ModuleBuilder {
         // Topologically sorts struct types tracking dependencies (field types) so that when the struct is created it's
         // layout is fully known
         // Bakes non-structs by first baking their bases
-        // TODO Could both of these passes be combined? I.e. track class bases in the structs dependency graph?
+        // Also tracks interface implementations and class base types
 
         var deps = new Dictionary<NamedTypeSymbol, List<NamedTypeSymbol>>();
 
         foreach (var type in _types.Keys) {
-            if (!type.IsStructType())
-                continue;
-
             var namedType = (NamedTypeSymbol)type;
             var list = new List<NamedTypeSymbol>();
+
+            AddTypeDeclarationDependencies([], list, namedType);
+            list.Remove(namedType);
+
+            if (!type.IsStructType()) {
+                deps[namedType.originalDefinition] = list;
+                continue;
+            }
 
             foreach (var member in type.GetMembers()) {
                 if (member is FieldSymbol f) {
@@ -1197,10 +1211,9 @@ internal sealed partial class Executor : ModuleBuilder {
         }
 
         var result = new List<NamedTypeSymbol>();
-        var visited = new List<NamedTypeSymbol>();
 
         void Visit(NamedTypeSymbol t) {
-            if (visited.Contains(t))
+            if (result.Contains(t))
                 return;
 
             if (deps.TryGetValue(t, out var children)) {
@@ -1208,14 +1221,11 @@ internal sealed partial class Executor : ModuleBuilder {
                     Visit(dep);
             }
 
-            visited.Add(t);
             result.Add(t);
         }
 
-        foreach (var type in _types.Keys) {
-            if (type.IsStructType())
-                Visit((NamedTypeSymbol)type.originalDefinition);
-        }
+        foreach (var type in _types.Keys)
+            Visit((NamedTypeSymbol)type.originalDefinition);
 
         foreach (var type in result) {
             var tb = _types[type];
@@ -1229,41 +1239,10 @@ internal sealed partial class Executor : ModuleBuilder {
             }
         }
 
-        var seenBases = new HashSet<NamedTypeSymbol>();
-
-        foreach (var (type, _) in _types) {
-            if (!type.IsStructType()) {
-                var namedType = (NamedTypeSymbol)type;
-
-                var baseStack = new Stack<NamedTypeSymbol>();
-                var current = namedType;
-
-                while (current is not null) {
-                    if (current.specialType is SpecialType.Object or SpecialType.Enum or SpecialType.ValueType)
-                        break;
-
-                    baseStack.Push(current);
-                    current = current.baseType;
-                }
-
-                while (baseStack.Count > 0) {
-                    var baseType = baseStack.Pop().originalDefinition;
-
-                    if (!_types.ContainsKey(baseType))
-                        continue;
-
-                    if (baseType is PENamedTypeSymbol)
-                        continue;
-
-                    if (!seenBases.Add(baseType))
-                        continue;
-
-                    BakeNonStructType(baseType, _types[baseType]);
-                }
-            } else {
-                Debug.Assert(_bakedTypes.ContainsKey((NamedTypeSymbol)type));
-            }
-        }
+#if DEBUG
+        foreach (var (type, _) in _types)
+            Debug.Assert(result.Contains(type));
+#endif
 
         void BakeNonStructType(NamedTypeSymbol type, TypeBuilder typeBuilder) {
             Debug.Assert(!type.IsStructType());
@@ -1289,6 +1268,73 @@ internal sealed partial class Executor : ModuleBuilder {
             var baked = typeBuilder.CreateType();
             _bakedTypes.Add(type, baked);
         }
+    }
+
+    private void AddTypeDeclarationDependencies(
+        HashSet<NamedTypeSymbol> visited,
+        List<NamedTypeSymbol> list,
+        NamedTypeSymbol type) {
+        if (!visited.Add(type)) {
+            // Due to struct layout needing to be known ahead of time, they should never be included in cycles
+            // I.e. never skipped
+            Debug.Assert(!type.IsStructType());
+            return;
+        }
+
+        foreach (var @interface in type.Interfaces()) {
+            AddTypeDeclarationDependencies(visited, list, @interface);
+
+            if (ShouldSkipTypeInDependencyGraph(@interface))
+                continue;
+
+            list.Add(@interface.originalDefinition);
+        }
+
+        if (type is ConstructedNamedTypeSymbol c) {
+            foreach (var argument in c.templateArguments) {
+                if (argument.isType && argument.type.type is NamedTypeSymbol namedArgument) {
+                    AddTypeDeclarationDependencies(visited, list, namedArgument);
+
+                    if (ShouldSkipTypeInDependencyGraph(namedArgument))
+                        continue;
+
+                    list.Add(namedArgument.originalDefinition);
+                }
+            }
+        }
+
+        if (!type.IsStructType()) {
+            var baseStack = new Stack<NamedTypeSymbol>();
+            var current = type.baseType;
+
+            while (current is not null) {
+                if (current.specialType is SpecialType.Object or SpecialType.Enum or SpecialType.ValueType)
+                    break;
+
+                baseStack.Push(current);
+                current = current.baseType;
+            }
+
+            while (baseStack.Count > 0) {
+                var baseType = baseStack.Pop();
+                AddTypeDeclarationDependencies(visited, list, baseType);
+
+                if (ShouldSkipTypeInDependencyGraph(baseType))
+                    continue;
+
+                list.Add(baseType.originalDefinition);
+            }
+        }
+    }
+
+    private bool ShouldSkipTypeInDependencyGraph(NamedTypeSymbol type) {
+        if (!_types.ContainsKey(type.originalDefinition))
+            return true;
+
+        if (type.originalDefinition is PENamedTypeSymbol)
+            return true;
+
+        return false;
     }
 
     private void CompleteWellKnownTypes() {
@@ -1412,8 +1458,6 @@ internal sealed partial class Executor : ModuleBuilder {
         if (!type.isInterface)
             typeBuilder.SetParent(GetBaseType(type));
 
-        AddInterfaceImplementations(type, typeBuilder);
-
         string[] workingParams = [];
 
         if (type.arity > 0) {
@@ -1498,7 +1542,6 @@ internal sealed partial class Executor : ModuleBuilder {
                 if (!nestedType.isInterface)
                     nestedBuilder.SetParent(GetBaseType(nestedType));
 
-                AddInterfaceImplementations(nestedType, nestedBuilder);
                 CreateNestedTypes(nestedType, nestedBuilder, workingParams);
             }
         }

@@ -290,6 +290,11 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         if (!allowNonTypeTemplates && _lazyExpandedTemplateTypes is not null && _lazyExpandedTemplateTypes.Any()) {
             _types.AddRange(_lazyExpandedTemplateTypes.Cast<NamedTypeSymbol>());
             types = _types.ToImmutableAndFree();
+
+            foreach (var templateType in _lazyExpandedTemplateTypes) {
+                if (templateType.containingType is not null)
+                    _synthesizedNestedTypes.Add(templateType.containingType, templateType);
+            }
         } else {
             types = _types.ToImmutableAndFree();
         }
@@ -316,6 +321,29 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
     }
 
     private void PerformEntireProgramOptimizationPass(bool shouldInline) {
+        if (_compilation.options.optimizationLevel != OptimizationLevel.Release)
+            return;
+
+        if (_lazyExpandedTemplateMethods is not null && _lazyExpandedTemplateMethods.Any()) {
+            var emptyMap = new Dictionary<Symbol, ConstantValue>();
+            // Modifying the immutable dictionary builder invalidates the enumerator
+            var templateMethods = _lazyExpandedTemplateMethods.ToImmutable();
+
+            foreach (var (method, body) in templateMethods) {
+                if (body is not null) {
+                    var foldedBody = ConstantFoldingPass.Fold(
+                        method,
+                        body,
+                        emptyMap,
+                        out _,
+                        _diagnostics
+                    );
+
+                    _lazyExpandedTemplateMethods[method] = foldedBody;
+                }
+            }
+        }
+
         return;
 
         // TODO Many optimizations could happen here

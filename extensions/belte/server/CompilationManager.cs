@@ -1,8 +1,9 @@
 using System.Collections.Generic;
+using System.Threading;
+using Buckle;
 using Buckle.CodeAnalysis;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
-using Buckle.Libraries;
 using Microsoft.Extensions.Logging;
 using OmniSharp.Extensions.LanguageServer.Protocol;
 using OmniSharp.Extensions.LanguageServer.Protocol.Server;
@@ -12,24 +13,21 @@ namespace BelteLspServer;
 internal sealed class CompilationManager {
     private const string CompilationName = "Lsp Compilation";
     private static readonly CompilationOptions Options
-        = new CompilationOptions(Buckle.BuildMode.None, enableOutput: false);
+        = new CompilationOptions(BuildMode.None, enableOutput: false, references: Compiler.ResolveLibraryLevel(2, false));
 
     private readonly ILogger<CompilationManager> _logger;
     private readonly Dictionary<DocumentUri, (IScopedConfiguration, SyntaxTree)> _documents = [];
-    private readonly object _lock = new();
-    private readonly Compilation _corLibrary;
+    private readonly Lock _lock = new();
 
-    public CompilationManager(ILogger<CompilationManager> logger) {
+    internal CompilationManager(ILogger<CompilationManager> logger) {
         _logger = logger;
-        _corLibrary = LibraryHelpers.LoadLibraries();
-        _logger.Log(LogLevel.Debug, $"Created CorLibrary: {_corLibrary}");
     }
 
     internal Compilation compilation { get; private set; }
 
     internal void NewDocument(DocumentUri uri, IScopedConfiguration config, SyntaxTree tree) {
         lock (_lock) {
-            compilation = Compilation.Create(CompilationName, Options, compilation ?? _corLibrary, tree);
+            compilation = Compilation.Create(CompilationName, Options, compilation, tree);
             _documents[uri] = (config, tree);
         }
     }
@@ -40,13 +38,13 @@ internal sealed class CompilationManager {
             var newTree = pair.Item2;
 
             foreach (var change in textChanges) {
-                _logger.Log(LogLevel.Debug, $"Translated change: '{pair.Item2.text.ToString(change.span)}' -> '{change.newText}'");
+                // _logger.Log(LogLevel.Debug, $"Translated change: '{pair.Item2.text.ToString(change.span)}' -> '{change.newText}'");
                 newTree = newTree.WithChanges(change);
             }
 
             _documents[uri] = (pair.Item1, newTree);
-            _logger.Log(LogLevel.Debug, $"Full text: ```{newTree.text}");
-            compilation = Compilation.Create(CompilationName, Options, compilation ?? _corLibrary, newTree);
+            // _logger.Log(LogLevel.Debug, $"Full text: ```{newTree.text}");
+            compilation = Compilation.Create(CompilationName, Options, compilation, newTree);
         }
     }
 

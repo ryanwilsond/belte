@@ -289,6 +289,10 @@ internal sealed partial class TemplateMetadataReader {
                 return _properties;
             }
 
+            internal ImmutableArray<NamedTypeSymbol> GetNestedTypes() {
+                return _metadata.GetNestedTypesForType(_typeEntryIndex);
+            }
+
             private void DecodeTemplateParameters() {
                 if (_readTemplateParameters)
                     return;

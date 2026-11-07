@@ -1608,14 +1608,16 @@ internal partial class ILEmitter : ModuleBuilder {
         void CreateNestedType(NamedTypeSymbol nestedType, (TemplateParameterSymbol, GenericParameter)[] workingParams) {
             var nestedDefinition = CreateNamedTypeDefinition(nestedType, isNested: true);
 
+            Debug.Assert(nestedDefinition.GenericParameters.Count == nestedType.arity);
+
+            foreach (var generic in workingParams) {
+                _templateParameters.Add((generic.Item1, nestedType), generic.Item2);
+                nestedDefinition.GenericParameters.Add(new GenericParameter(generic.Item2.Name, nestedDefinition));
+            }
+
             workingParams = workingParams.Concat(
                 nestedType.templateParameters.Select(t => (t, new GenericParameter(t.name, nestedDefinition))))
                     .ToArray();
-
-            foreach (var generic in workingParams) {
-                nestedDefinition.GenericParameters.Add(new GenericParameter(generic.Item2.Name, nestedDefinition));
-                _templateParameters.Add((generic.Item1, nestedType), generic.Item2);
-            }
 
             CreateNestedTypes(nestedType, nestedDefinition, workingParams);
             typeDefinition.NestedTypes.Add(nestedDefinition);

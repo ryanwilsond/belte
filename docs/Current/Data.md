@@ -1137,7 +1137,7 @@ MyFunc($code(Console.PrintLine(a);));
 Code constants use the enclosing context of where they are inserted, meaning they can access locals, parameters, etc.
 
 To allow the method marked `expand` to reference locals defined in passed code (or locals defined in the caller's
-scope), a "late-bound identifier name" can be used which is a regular identifier preceded by `\``.
+scope), a "late-bound identifier name" can be used which is a regular identifier preceded by `` ` ``.
 
 For example, referencing a local defined in inserted code:
 

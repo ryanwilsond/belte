@@ -136,7 +136,7 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
             if (template is SynthesizedTemplateMethod templateMethod)
                 ResolveTemplateMethod(templateMethod, methodBodies);
             else if (template is SynthesizedTemplateType templateType)
-                ResolveTemplateType(templateType, methodBodies);
+                ResolveTemplateType(templateType, instantiation.location, methodBodies);
             else
                 throw ExceptionUtilities.Unreachable();
         }
@@ -159,19 +159,27 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
 
     private void ResolveTemplateType(
         SynthesizedTemplateType templateType,
+        TextLocation location,
         ImmutableDictionary<MethodSymbol, BoundBlockStatement> methodBodies) {
         Debug.Assert(_inResolutionStage);
         var originalDefinition = templateType.unexpandedSymbol.originalDefinition;
+        var reported = false;
 
         if (_templateMetadataMethodBodiesCache.TryGetValue(originalDefinition, out var found)) {
             methodBodies = found;
         } else if (_compilation.HasTemplateMetadataForType(originalDefinition)) {
             methodBodies = _compilation.GetTemplateMethodMetadataForType(originalDefinition);
             _templateMetadataMethodBodiesCache.Add(originalDefinition, methodBodies);
+        } else if (!originalDefinition.IsFromCompilation(_compilation)) {
+            reported = true;
+            _diagnostics.Push(Error.CannotTemplateSpecializeType(location, originalDefinition));
+
         }
 
         foreach (var (method, body) in methodBodies) {
             if (method.containingType.originalDefinition.Equals(originalDefinition)) {
+                Debug.Assert(!reported);
+
                 if (!_typeMethodsMap.TryGetValue((templateType, method.originalDefinition), out var newMethod)) {
                     newMethod = new SynthesizedTemplateTypeMethod(this, templateType, method);
                     _typeMethodsMap.Add((templateType, method.originalDefinition), newMethod);
@@ -253,11 +261,17 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
         ISynthesizedTemplate newOwner,
         Symbol cause,
         TextLocation location) {
-        type = TemplateTypeReplacer<TemplateParameterSymbol, TemplateParameterSymbol, TemplateParameterSymbol>
+        var replaced = TemplateTypeReplacer<TemplateParameterSymbol, TemplateParameterSymbol, TemplateParameterSymbol>
             .Replace(type, newOwner.replacementTemplateParameters);
-        type = type.SubstituteType((newOwner as ISymbolWithTemplates).templateSubstitution).type;
-        type = new TypeWithAnnotations(VisitTypeCore(type.type, cause, location));
-        return type;
+        var substituted = replaced.SubstituteType((newOwner as ISymbolWithTemplates).templateSubstitution).type;
+
+        if (substituted is null) {
+            Debug.Assert(replaced.type is TemplateParameterSymbol t && t.underlyingType.specialType != SpecialType.Type);
+            return replaced;
+        }
+
+        substituted = new TypeWithAnnotations(VisitTypeCore(substituted.type, cause, location));
+        return substituted;
     }
 
     private static bool IsGenericOnly(ISymbolWithTemplates symbol) {
@@ -309,6 +323,10 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
         var containingSymbol = constructed.containingSymbol is TypeSymbol containingType
             ? VisitType(containingType)
             : constructed.containingSymbol;
+
+        // Visiting the parent might population child types
+        if (_typesMap.ContainsKey(constructed))
+            return true;
 
         var synthesizedType = new SynthesizedTemplateType(this, containingSymbol, constructed);
         _typesMap.Add(constructed, synthesizedType);
@@ -463,7 +481,7 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
         if (_localMap.TryGetValue(local, out newLocal))
             return true;
 
-        var newType = VisitType(local.type);
+        var newType = VisitType(local.type, local.location);
 
         if (TypeSymbol.Equals(newType, local.type, TypeCompareKind.ConsiderEverything) && _replacementMethod is null) {
             newLocal = local;
@@ -487,7 +505,7 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
         return base.Visit(node);
     }
 
-    internal override TypeSymbol VisitType(TypeSymbol type, TextLocation _ = null) {
+    internal override TypeSymbol VisitType(TypeSymbol type, TextLocation location = null) {
         if (type is null)
             return null;
 
@@ -499,7 +517,7 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
                 _currentLocation
             ).type;
         } else {
-            return VisitTypeCore(type, null, _currentLocation);
+            return VisitTypeCore(type, null, _currentLocation ?? location);
         }
     }
 
@@ -742,10 +760,19 @@ internal sealed partial class TemplateExpander : BoundTreeRewriterWithStackGuard
     }
 
     internal override BoundNode VisitTypeExpression(BoundTypeExpression node) {
-        if (node.type is TemplateParameterSymbol templateParameter && _currentInstantiation is not null &&
-            templateParameter.containingSymbol.Equals(
-                ((Symbol)_currentInstantiation.template.unexpandedSymbol
-            ).originalDefinition)) {
+        if (node.type is TemplateParameterSymbol templateParameter && _currentInstantiation is not null) {
+            var targetInstantiation = _currentInstantiation;
+
+            while (targetInstantiation is not null) {
+                if (templateParameter.containingSymbol.Equals(
+                        ((Symbol)targetInstantiation.template.unexpandedSymbol).originalDefinition)) {
+                    break;
+                }
+
+                targetInstantiation = targetInstantiation.parent;
+            }
+
+            Debug.Assert(targetInstantiation is not null);
             Debug.Assert(_inResolutionStage);
 
             var template = _currentInstantiation.template;

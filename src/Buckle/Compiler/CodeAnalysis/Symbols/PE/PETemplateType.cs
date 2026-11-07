@@ -524,9 +524,8 @@ internal sealed partial class PETemplateType : NamedTypeSymbol {
         return symbols.ToDictionary(s => s.name.AsMemory(), ReadOnlyMemoryOfCharComparer.Instance);
     }
 
-    private IEnumerable<NamedTypeSymbol> CreateNestedTypes() {
-        // TODO
-        return [];
+    private ImmutableArray<NamedTypeSymbol> CreateNestedTypes() {
+        return _decoder.GetNestedTypes();
     }
 
     private void CreateFields(ArrayBuilder<FieldSymbol> fieldMembers) {

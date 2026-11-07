@@ -27,7 +27,7 @@ internal sealed class TextDocumentHandler : TextDocumentSyncHandlerBase {
         }
     );
 
-    public TextDocumentHandler(
+    internal TextDocumentHandler(
         ILogger<TextDocumentHandler> logger,
         ILanguageServerFacade server,
         ILanguageServerConfiguration configuration,
@@ -78,7 +78,7 @@ internal sealed class TextDocumentHandler : TextDocumentSyncHandlerBase {
 
         foreach (var change in changes) {
             var start = text.GetLine(change.Range.Start.Line).start + change.Range.Start.Character;
-            _logger.Log(LogLevel.Debug, $"Raw change: ({start}, len {change.RangeLength}) -> '{change.Text}'");
+            // _logger.Log(LogLevel.Debug, $"Raw change: ({start}, len {change.RangeLength}) -> '{change.Text}'");
             builder.Add(
                 new TextChange(
                     new TextSpan(start, change.RangeLength),
@@ -123,7 +123,7 @@ internal sealed class TextDocumentHandler : TextDocumentSyncHandlerBase {
             });
         }
 
-        _logger.Log(LogLevel.Debug, $"Sending {diagnostics.Count} diagnostics");
+        // _logger.Log(LogLevel.Debug, $"Sending {diagnostics.Count} diagnostics");
 
         _server.TextDocument.PublishDiagnostics(new PublishDiagnosticsParams {
             Uri = uri,

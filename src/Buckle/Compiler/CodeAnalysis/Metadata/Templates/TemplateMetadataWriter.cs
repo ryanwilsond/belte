@@ -718,8 +718,7 @@ Bound Table
             writer.Write(CreateTypeKindAndInfo(pointerType.pointedAtType));
         } else if (type is TemplateParameterSymbol templateParameter) {
             writer.Write((byte)4);
-            writer.Write((byte)templateParameter.templateParameterKind);
-            writer.Write((ushort)templateParameter.ordinal);
+            writer.Write(CreateTemplateParameterKindAndInfo(templateParameter));
         } else if (type is FunctionPointerTypeSymbol functionPointerType) {
             writer.Write((byte)5);
             writer.Write((ushort)functionPointerType.signature.parameterCount + 1);
@@ -736,6 +735,25 @@ Bound Table
                 writer.Write(CreateTypeKindAndInfo(parameterType.type));
 
             writer.Write(CreateTypeKindAndInfo(functionType.signature.returnType));
+        } else if (TypeHasParentTemplates(type)) {
+            writer.Write((byte)9);
+            LogTypeEntryForType(type.originalDefinition);
+            writer.Write(_typeTableIndexes[type.originalDefinition]);
+
+            var current = type;
+
+            while (current is not null) {
+                if (current is ConstructedNamedTypeSymbol constructedType) {
+                    foreach (var templateArgument in constructedType.templateArguments) {
+                        if (templateArgument.isType)
+                            writer.Write(CreateTypeKindAndInfo(templateArgument.type.type));
+                        else
+                            WriteConstantValueValue(writer, templateArgument.constant);
+                    }
+                }
+
+                current = current.containingType;
+            }
         } else if (type is ConstructedNamedTypeSymbol constructedType) {
             writer.Write((byte)7);
             LogTypeEntryForType(constructedType.constructedFrom);
@@ -753,6 +771,49 @@ Bound Table
             writer.Write((byte)8);
             writer.Write(_typeTableIndexes[type]);
         }
+
+        return stream.ToArray();
+
+        static bool TypeHasParentTemplates(TypeSymbol type) {
+            var current = type.containingType;
+
+            while (current is not null) {
+                if (current is ConstructedNamedTypeSymbol)
+                    return true;
+
+                current = current.containingType;
+            }
+
+            return false;
+        }
+    }
+
+    private byte[] CreateTemplateParameterKindAndInfo(TemplateParameterSymbol templateParameter) {
+        var stream = new MemoryStream();
+        using var writer = new BinaryWriter(stream, Encoding.UTF8);
+
+        if (templateParameter.templateParameterKind == TemplateParameterKind.Method) {
+            writer.Write((byte)ComplexTemplateParameterKind.Method);
+            writer.Write((ushort)templateParameter.ordinal);
+            return stream.ToArray();
+        }
+
+        if (templateParameter.containingType.containingSymbol is null) {
+            writer.Write((byte)templateParameter.templateParameterKind);
+            writer.Write((ushort)templateParameter.ordinal);
+            return stream.ToArray();
+        }
+
+        if (templateParameter.containingType.containingSymbol.kind != SymbolKind.NamedType) {
+            writer.Write((byte)ComplexTemplateParameterKind.Type);
+            writer.Write((ushort)templateParameter.ordinal);
+            return stream.ToArray();
+        }
+
+        writer.Write((byte)ComplexTemplateParameterKind.NestedType);
+        writer.Write((ushort)templateParameter.ordinal);
+        LogTypeEntryForType(templateParameter.containingType);
+        writer.Write(_typeTableIndexes[templateParameter.containingType.originalDefinition]);
 
         return stream.ToArray();
     }
