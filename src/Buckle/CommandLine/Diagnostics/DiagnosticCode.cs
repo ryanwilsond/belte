@@ -61,4 +61,5 @@ public enum DiagnosticCode : ushort {
     FTL_CannotSpecifyR2RWithoutDotnet = 50,
     WRN_R2RFailed = 51,
     ERR_MissingPreprocessorSymbol = 52,
+    ERR_MissingSynthesizedCodePath = 53,
 }

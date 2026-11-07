@@ -1234,6 +1234,23 @@ public sealed partial class Compilation {
         return _lazyMakeMemberMissingMap is not null && _lazyMakeMemberMissingMap.ContainsKey(member);
     }
 
+    internal bool TryGetSystemPrimitiveDefinition(SpecialType specialType, out NamedTypeSymbol typeSymbol) {
+        Debug.Assert(specialType != SpecialType.None);
+        var wellKnownType = WellKnownTypeExtensions.FromSpecialType(specialType);
+
+        if (wellKnownType != WellKnownType.None) {
+            var candidate = GetWellKnownType(wellKnownType);
+
+            if (candidate is not null && !candidate.IsErrorType()) {
+                typeSymbol = candidate;
+                return true;
+            }
+        }
+
+        typeSymbol = null;
+        return false;
+    }
+
     internal MethodSymbol GetAnyWellKnownMethod(WellKnownMember member) {
         if (member.LivesInCorLibrary())
             return corLibrary.GetWellKnownMethod(member);

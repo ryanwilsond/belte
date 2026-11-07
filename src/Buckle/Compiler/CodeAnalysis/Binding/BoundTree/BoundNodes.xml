@@ -376,6 +376,7 @@
     <Field Name="lookupSymbol" Type="Symbol?"/>
     <Field Name="lookupError" Type="BelteDiagnostic?"/>
     <Field Name="flags" Type="BoundMethodGroupFlags?"/>
+    <Field Name="functionType" Type="FunctionTypeSymbol?" Null="allow"/>
   </Node>
   <Node Name="BoundPropertyGroup" Base="BoundMethodOrPropertyGroup">
     <Field Name="properties" Type="ImmutableArray&lt;PropertySymbol&gt;"/>

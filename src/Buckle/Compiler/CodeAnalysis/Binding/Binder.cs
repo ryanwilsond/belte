@@ -6273,6 +6273,11 @@ internal partial class Binder {
                 result.Clear();
                 break;
             case TypeKind.Primitive:
+                if (compilation.TryGetSystemPrimitiveDefinition(type.specialType, out var systemType)) {
+                    type = systemType;
+                    goto case TypeKind.Struct;
+                }
+
                 result.MergeEqual(LookupResult.NotTypeOrNamespace(type, Error.PrimitivesDoNotHaveMembers(null)));
                 break;
             default:
@@ -8233,6 +8238,9 @@ symIsHidden:;
             );
         }
 
+        if (conversion.kind == ConversionKind.FunctionType)
+            return CreateFunctionTypeConversion(node, source, conversion, isCast, destination, diagnostics);
+
         if (conversion.kind == ConversionKind.ImplicitTupleLiteral) {
             return CreateTupleLiteralConversion(
                 node,
@@ -8292,6 +8300,25 @@ symIsHidden:;
             destination,
             hasErrors
         );
+    }
+
+    private BoundExpression CreateFunctionTypeConversion(
+        SyntaxNode syntax,
+        BoundExpression source,
+        Conversion conversion,
+        bool isCast,
+        TypeSymbol destination,
+        BelteDiagnosticQueue diagnostics) {
+        Debug.Assert(destination.specialType is SpecialType.Any or SpecialType.Object);
+        Debug.Assert(conversion.exists);
+        Debug.Assert(conversion.isImplicit);
+
+        var methodGroup = (BoundMethodGroup)source;
+        Debug.Assert(methodGroup.methods.Length == 1);
+
+        var methodGroupConversion = new Conversion(ConversionKind.MethodGroup, methodGroup.methods[0]);
+
+        return CreateConversion(syntax, source, methodGroupConversion, isCast, destination, diagnostics);
     }
 
     private void ReportDefaultExpressionErrors(

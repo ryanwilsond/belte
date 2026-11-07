@@ -4085,8 +4085,13 @@ done:
         }
 
         if (Peek(parenOffset).kind is not SyntaxKind.AsteriskToken) {
-            lastTokenOfType = null;
-            return ScanTypeFlags.NotType;
+            while (parenOffset > 0) {
+                EatToken();
+                parenOffset--;
+            }
+
+            lastTokenOfType = currentToken;
+            return ScanTypeFlags.FunctionTypeOrCall;
         } else {
             while (parenOffset > 0) {
                 EatToken();
@@ -4181,6 +4186,8 @@ done:
             case ScanTypeFlags.AliasQualifiedName:
             case ScanTypeFlags.AnonymousEnumType:
                 return true;
+            case ScanTypeFlags.FunctionTypeOrCall:
+                return CanFollowCast(currentToken.kind);
             case ScanTypeFlags.TemplateTypeOrMethod:
             case ScanTypeFlags.TupleType:
                 return currentToken.kind == SyntaxKind.OpenBracketToken || CanFollowCast(currentToken.kind);

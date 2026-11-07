@@ -154,6 +154,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_CannotConvert, location, message);
     }
 
+    internal static BelteDiagnostic CannotConvert(TextLocation location, string from, TypeSymbol to) {
+        var message = $"cannot convert from type '{from}' to '{to.ToNullOrString()}'";
+        return CreateError(DiagnosticCode.ERR_CannotConvert, location, message);
+    }
+
     internal static BelteDiagnostic CannotConvertArgument(TextLocation location, TypeSymbol from, TypeSymbol to, int argument) {
         var message = $"argument {argument}: cannot convert from type '{from.ToNullOrString()}' to '{to.ToNullOrString()}'";
         return CreateError(DiagnosticCode.ERR_CannotConvertArgument, location, message);

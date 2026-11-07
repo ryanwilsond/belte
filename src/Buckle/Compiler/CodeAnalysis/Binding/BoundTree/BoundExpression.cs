@@ -122,4 +122,11 @@ internal abstract partial class BoundExpression : BoundNode {
                 break;
         }
     }
+
+    internal FunctionTypeSymbol GetFunctionType() {
+        return this switch {
+            BoundMethodGroup methodGroup => methodGroup.functionType,
+            _ => null
+        };
+    }
 }

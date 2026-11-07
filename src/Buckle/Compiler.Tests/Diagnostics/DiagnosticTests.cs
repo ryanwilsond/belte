@@ -1166,8 +1166,8 @@ public sealed class DiagnosticTests {
     [Fact]
     public void Reports_Error_BU0080_PrimitivesDoNotHaveMembers() {
         var text = @"
-            int? myInt = 3;
-            [myInt.b];
+            winbool a = true;
+            [a.b];
         ";
 
         var diagnostics = @"

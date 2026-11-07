@@ -181,6 +181,11 @@ internal static class Error {
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingPreprocessorSymbol), message);
     }
 
+    internal static Diagnostic MissingSynthesizedCodePath(string arg) {
+        var message = $"missing path after '{arg}' (usage: '--scpath=<path>')";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingSynthesizedCodePath), message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "CL", DiagnosticSeverity.Error);
     }

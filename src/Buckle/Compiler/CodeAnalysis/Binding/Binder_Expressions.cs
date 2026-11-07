@@ -3817,6 +3817,10 @@ internal partial class Binder {
         }
 
         switch (operand.kind) {
+            // TODO A few other node types to check for here
+            case BoundKind.MethodGroup:
+                diagnostics.Push(Error.CannotConvert(syntax.location, MessageID.IDS_SK_METHOD.Localize(), targetType));
+                return;
             case BoundKind.UnconvertedInitializerList:
                 GenerateImplicitConversionErrorForList(
                     (BoundUnconvertedInitializerList)operand,
@@ -6583,6 +6587,7 @@ internal partial class Binder {
                 methods.Length == 1 ? methods[0] : null,
                 BelteDiagnostic.AddLocation(lookupError, node.location),
                 BoundMethodGroupFlags.None,
+                functionType: null,
                 boundLeft,
                 lookupKind,
                 true

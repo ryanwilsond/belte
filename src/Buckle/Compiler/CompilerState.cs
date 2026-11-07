@@ -130,4 +130,8 @@ public class CompilerState {
     public int l;
 
     public string[] preprocessorSymbols;
+
+    public bool includeSynthesizedCodeFile;
+
+    public string synthesizedCodePath;
 }

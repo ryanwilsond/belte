@@ -153,6 +153,19 @@ void Build(Builder builder) {
 }
 ```
 
+To specify a path for the synthesized code file, `Builder.SetSynthesizedCodePath(string)` can be used. This is
+equivalent to specifying the [*--sc*](Buckle.md#--sc) and [*--scpath=\<path>*](Buckle.md#--scpathpath) CLI options:
+
+For example:
+
+```belte
+using Buckle.Building;
+
+void Build(Builder builder) {
+  builder.SetSynthesizedCodePath("out");
+}
+```
+
 If building to a DLL, the `excludeTemplateMetadata` flag can be set to skip emitting template metadata. This does the
 same thing as the [*--skiptm*](Buckle.md#--skiptm) and [*--notm*](Buckle.md#--notm) options combined.
 

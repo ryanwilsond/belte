@@ -14,5 +14,6 @@ internal sealed partial class LanguageParser {
         PointerOrMultiplication,
         TupleType,
         AnonymousEnumType,
+        FunctionTypeOrCall,
     }
 }

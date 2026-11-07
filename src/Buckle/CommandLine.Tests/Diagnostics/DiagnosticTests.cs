@@ -554,4 +554,15 @@ public sealed class DiagnosticTests {
 
         AssertDiagnostics(args, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_CL0053_MissingSynthesizedCodePath() {
+        var args = new string[] { "--scpath" };
+
+        var diagnostics = @"
+            missing path after '--scpath' (usage: '--scpath=<path>')
+        ";
+
+        AssertDiagnostics(args, diagnostics, _writer);
+    }
 }

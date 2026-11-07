@@ -55,8 +55,8 @@ public sealed class Compiler {
         evaluatorStrictExceptionMode: true,
         noNtvLib: state.noNtvLib,
         time: state.time,
-        generateSynthesizedCodeFile: state.verboseMode,
-        synthesizedCodePath: state.verbosePath
+        generateSynthesizedCodeFile: state.includeSynthesizedCodeFile || state.verboseMode,
+        synthesizedCodePath: state.synthesizedCodePath ?? state.verbosePath
     );
 
     /// <summary>

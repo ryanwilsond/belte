@@ -4908,4 +4908,54 @@ public sealed class IssueTests {
 
         AssertValue(text, 30);
     }
+
+    [Fact]
+    public void MethodConversion_BetterDiagnostic() {
+        var text = @"
+            static void M() { }
+            var a = [(int)M];
+        ";
+
+        var diagnostics = @"
+            cannot convert from type 'method' to 'int!'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void MethodConversion_ConvertsToAny() {
+        var text = @"
+            static void M() { }
+            var a = (any)M;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Cast_AllowsCastToFunctionType() {
+        var text = @"
+            static void M() { }
+            var a = (void())M;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void FunctionLoad_PreservedAcrossCast() {
+        var text = @"
+            static int M() { return 1; }
+            var a = (any)M;
+            var m = (int())a;
+            return m();
+        ";
+
+        AssertValue(text, 1);
+    }
 }

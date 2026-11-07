@@ -261,6 +261,17 @@ Specify to not read template metadata from referenced DLLs. See [*--skiptm*](#--
 
 Specify to try to invoke Crossgen2 on the outputted assemblies.
 
+### *--sc*
+
+Specify to emit a synthesized code file containing result code from
+[compile-time code creation](Current/Data.md#373-code-and-insert). Note that [*--verbose*](#--verbose) implies this
+option.
+
+### *--scpath=\<path>*
+
+Specifies the directory where [*--sc*](#--sc) will dump the synthesized code file. If this is not specified but either
+[*--sc*](#--sc) or [*--verbose*](#--verbose) is, then the synthesized code file will fallback to the verbose path.
+
 ### *--time*
 
 Displays how much time each stage of compilation took.

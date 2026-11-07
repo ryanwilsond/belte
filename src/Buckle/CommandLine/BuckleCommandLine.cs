@@ -826,6 +826,8 @@ public class {name} {{
             skipTemplateMetadata = builder.excludeTemplateMetadata,
             noTemplateMetadata = builder.excludeTemplateMetadata,
             l = builder.l,
+            includeSynthesizedCodeFile = builder.scPath is not null || builder.verboseMode == VerboseMode.Normal,
+            synthesizedCodePath = builder.scPath ?? builder.vPath,
         };
     }
 
@@ -1536,6 +1538,7 @@ public class {name} {{
         state.skipTemplateMetadata = false;
         state.noTemplateMetadata = false;
         state.l = 2;
+        state.includeSynthesizedCodeFile = false;
 
         var r2rl = false;
 
@@ -1652,6 +1655,9 @@ public class {name} {{
                     break;
                 case "--r2r":
                     r2rl = true;
+                    break;
+                case "--sc":
+                    state.includeSynthesizedCodeFile = true;
                     break;
                 default:
                     diagnosticsCL.Push(Belte.Diagnostics.Error.UnrecognizedOption(arg));
@@ -1878,6 +1884,20 @@ public class {name} {{
 
                 var symbolString = arg.Substring(3);
                 preprocessorSymbols.Add(symbolString);
+            } else if (arg.StartsWith("--scpath")) {
+                if (arg == "--scpath" || arg == "--scpath=" || !arg.StartsWith("--scpath=")) {
+                    diagnostics.Push(Belte.Diagnostics.Error.MissingSynthesizedCodePath(arg));
+                    continue;
+                }
+
+                var path = arg.Substring(9);
+
+                if (!Directory.Exists(path)) {
+                    diagnostics.Push(Belte.Diagnostics.Error.NoSuchFileOrDirectory(path));
+                    continue;
+                }
+
+                state.synthesizedCodePath = path;
             } else if (arg == "--") {
                 if (args.Length > i + 1)
                     arguments = args[(i + 1)..];

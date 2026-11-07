@@ -81,6 +81,8 @@ public sealed class Builder {
 
     public string vPath { get; private set; }
 
+    public string scPath { get; private set; }
+
     public int maxCores { get; private set; }
 
     public string entryName { get; private set; }
@@ -151,6 +153,10 @@ public sealed class Builder {
 
     public void SetVerboseArtifactPath(string path) {
         vPath = path;
+    }
+
+    public void SetSynthesizedCodePath(string path) {
+        scPath = path;
     }
 
     public void SetEntryTypeName(string name) {

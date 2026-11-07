@@ -39,6 +39,8 @@ Options:
   --skiptm                    Do not emit template metadata.
   --notm                      Do not use template metadata.
   --r2r                       Invoke Crossgen2 on the resulting assemblies.
+  --sc                        Emit synthesized code file.
+  --scpath=<path>             Path to dump synthesized code file.
 
   --type=[console|graphics|dll]           Specify the type of Belte project (default console).
   --entry=<name>              Specify a type name to search for the entry point in.

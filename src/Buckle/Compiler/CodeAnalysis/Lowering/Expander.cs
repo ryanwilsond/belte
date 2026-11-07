@@ -1718,8 +1718,28 @@ internal sealed class Expander : SharedExpander {
                 ? new BoundTypeExpression(syntax, null, null, method.containingType)
                 : ((BoundMethodGroup)operand).receiver;
 
-            replacement = new BoundFunctionLoad(syntax, receiver, expression.conversion.method, expression.type);
-            return [];
+            if (expression.type is FunctionTypeSymbol) {
+                replacement = new BoundFunctionLoad(syntax, receiver, expression.conversion.method, expression.type);
+                return [];
+            } else {
+                var functionLoad = new BoundFunctionLoad(
+                    syntax,
+                    receiver,
+                    expression.conversion.method,
+                    expression.operand.GetFunctionType()
+                );
+
+                replacement = new BoundCastExpression(
+                    syntax,
+                    functionLoad,
+                    Conversion.ImplicitReference,
+                    false,
+                    null,
+                    expression.type
+                );
+
+                return [];
+            }
         }
 
         if (expression.conversion.kind == ConversionKind.DefaultLiteral) {

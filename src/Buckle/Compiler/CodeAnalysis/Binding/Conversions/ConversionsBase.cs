@@ -1023,8 +1023,10 @@ internal abstract partial class ConversionsBase {
                         return conversion;
                 }
             }
+        } else if (sourceExpression.GetFunctionType() is FunctionTypeSymbol functionType) {
+            if (HasImplicitFunctionTypeConversion(functionType, target))
+                return Conversion.FunctionType;
         }
-        // TODO Handle function types here?
 
         conversion = GetImplicitUserDefinedConversion(sourceExpression, sourceExpression.Type(), target);
 
@@ -1032,6 +1034,15 @@ internal abstract partial class ConversionsBase {
             return conversion;
 
         return Conversion.None;
+    }
+
+    private bool HasImplicitFunctionTypeConversion(FunctionTypeSymbol source, TypeSymbol target) {
+        if (target is FunctionTypeSymbol destinationFunctionType) {
+            // TODO Implicit function conversions
+            // return HasImplicitFunctionTypeToFunctionTypeConversion(source, destinationFunctionType);
+        }
+
+        return target.specialType is SpecialType.Any or SpecialType.Object;
     }
 
     private protected virtual Conversion ApplyNullFacts(Conversion conversion, BoundExpression source) {
