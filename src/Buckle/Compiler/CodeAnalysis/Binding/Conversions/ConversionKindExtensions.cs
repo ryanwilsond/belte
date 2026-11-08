@@ -28,6 +28,7 @@ internal static class ConversionKindExtensions {
             case ConversionKind.Deconstruction:
             case ConversionKind.ListExpression:
             case ConversionKind.FunctionType:
+            case ConversionKind.DelegateCreation:
                 return true;
             default:
                 return false;

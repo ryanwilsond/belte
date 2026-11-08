@@ -159,8 +159,8 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_CannotConvert, location, message);
     }
 
-    internal static BelteDiagnostic CannotConvertArgument(TextLocation location, TypeSymbol from, TypeSymbol to, int argument) {
-        var message = $"argument {argument}: cannot convert from type '{from.ToNullOrString()}' to '{to.ToNullOrString()}'";
+    internal static BelteDiagnostic CannotConvertArgument(TextLocation location, object from, TypeSymbol to, int argument) {
+        var message = $"argument {argument}: cannot convert from type '{ToNullOrString(from)}' to '{to.ToNullOrString()}'";
         return CreateError(DiagnosticCode.ERR_CannotConvertArgument, location, message);
     }
 
@@ -1623,7 +1623,7 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic IncompatibleEntryPointReturn(TextLocation location, Symbol symbol) {
-        var message = $"entry point '{symbol}' must return `void` or `int32!`";
+        var message = $"entry point '{symbol}' must return 'void' or 'int32!'";
         return CreateError(DiagnosticCode.ERR_IncompatibleEntryPointReturn, location, message);
     }
 
@@ -3452,5 +3452,12 @@ internal static class Error {
         } else {
             return type.ToString().ToLower();
         }
+    }
+
+    private static string ToNullOrString(object obj) {
+        if (obj is null)
+            return "<null>";
+
+        return obj.ToString();
     }
 }

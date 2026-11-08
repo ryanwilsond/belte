@@ -1686,6 +1686,10 @@ internal sealed class Expander : SharedExpander {
 
         Func(&<operand>)
 
+        ----> <type> is a delegate type
+
+        new <type>(null, &<operand>)
+
         ----> <op> has a method attached
 
         <method>(<operand>)
@@ -1739,6 +1743,57 @@ internal sealed class Expander : SharedExpander {
                 );
 
                 return [];
+            }
+        }
+
+        if (expression.conversion.kind == ConversionKind.DelegateCreation) {
+            if (operand.kind == BoundKind.MethodGroup) {
+                Debug.Assert(method is null);
+
+                var targetedMethod = expression.conversion.underlyingConversions[1].method;
+                var constructor = expression.conversion.underlyingConversions[0].method;
+
+                var receiver = (!targetedMethod.RequiresInstanceReceiver() &&
+                        !targetedMethod.isAbstract &&
+                        !targetedMethod.isVirtual)
+                    ? Literal(_compilation, syntax, null, constructor.parameters[0].type)
+                    : ((BoundMethodGroup)operand).receiver;
+
+                var functionPointerType = Binder.CreateFunctionPointerTypeForMethod(targetedMethod);
+                var pointer = new BoundFunctionPointerLoad(
+                    syntax,
+                    targetedMethod,
+                    null,
+                    functionPointerType
+                );
+
+                var castedPointer = new BoundCastExpression(
+                    syntax,
+                    pointer,
+                    Conversion.ExplicitPointerToInteger,
+                    false,
+                    null,
+                    _compilation.GetSpecialType(SpecialType.IntPtr)
+                );
+
+                replacement = new BoundObjectCreationExpression(
+                    syntax,
+                    constructor,
+                    [receiver, castedPointer],
+                    default,
+                    default,
+                    default,
+                    false,
+                    expression.type
+                );
+
+                return [];
+            } else {
+                Debug.Assert(method is not null);
+                Debug.Assert(method.methodKind == MethodKind.Constructor);
+                Debug.Assert(operand.type is FunctionTypeSymbol);
+                // TODO Allow converting arbitrary function types to delegates
+                throw ExceptionUtilities.Unreachable();
             }
         }
 

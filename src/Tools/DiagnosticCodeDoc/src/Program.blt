@@ -1,0 +1,193 @@
+using System;
+using System.IO;
+using System.Collections.Generic;
+using System.Text;
+
+constexpr OutPath = "DiagnosticCodes.md";
+
+scoped var stream = File.Create(OutPath);
+scoped var writer = new StreamWriter(stream);
+
+writer.WriteLine("# Diagnostic Codes\n");
+writer.WriteLine("- [Compiler Diagnostics](#compiler-diagnostics)");
+writer.WriteLine("- [Command Line Diagnostics](#command-line-diagnostics)");
+writer.WriteLine("- [Repl Diagnostics](#repl-diagnostics)");
+
+WriteDiagnosticTable(
+    writer,
+    {
+        "../../../src/Buckle/Compiler/Diagnostics/Error.cs",
+        "../../../src/Buckle/Compiler/Diagnostics/Warning.cs",
+        "../../../src/Buckle/Compiler/Diagnostics/Fatal.cs",
+        "../../../src/Buckle/Compiler/Diagnostics/Info.cs"
+    },
+    "Compiler",
+    "../../../src/Buckle/Compiler/Diagnostics/DiagnosticCode.cs",
+    "BU"
+);
+
+WriteDiagnosticTable(
+    writer,
+    {
+        "../../../src/Buckle/CommandLine/Diagnostics/Error.cs",
+        "../../../src/Buckle/CommandLine/Diagnostics/Warning.cs",
+        "../../../src/Buckle/CommandLine/Diagnostics/Fatal.cs",
+        "../../../src/Buckle/CommandLine/Diagnostics/Info.cs"
+    },
+    "Command Line",
+    "../../../src/Buckle/CommandLine/Diagnostics/DiagnosticCode.cs",
+    "CL"
+);
+
+WriteDiagnosticTable(
+    writer,
+    {
+        "../../../src/Buckle/Repl/Diagnostics/Error.cs"
+    },
+    "Repl",
+    "../../../src/Buckle/Repl/Diagnostics/DiagnosticCode.cs",
+    "RE"
+);
+
+static void WriteDiagnosticTable(
+    StreamWriter writer,
+    string[] filePaths,
+    string headerName,
+    string codesPath,
+    string codePrefix) {
+    var diagnostics = new List<(string, string, int16)>();
+
+    for (filePath in filePaths) {
+        var text = File.ReadAllText(filePath)!;
+        var segments = text.Split({ "var message = $\"", "var message = \"" }, .None)!;
+
+        for (segment in segments) {
+            var endPosition = segment!.IndexOf("\";");
+
+            if (endPosition <= 0)
+                continue;
+
+            var message = segment!.Substring(0, endPosition)!;
+            message = FormatMessage(message);
+            var diagnosticCode = FindDiagnosticCode(segment!, out var severity);
+
+            if (String.IsNullOrEmpty(diagnosticCode))
+                continue;
+
+            var codeNumber = GetDiagnosticCodeFromId(diagnosticCode, codesPath);
+
+            diagnostics.Add((severity, message, codeNumber));
+        }
+    }
+
+    writer.WriteLine(f"\n## {headerName} Diagnostics\n");
+    writer.WriteLine("| Code | Severity | Message |");
+    writer.WriteLine("| - | - | - |");
+
+    diagnostics.Sort(DiagnosticSort);
+
+    for (d in diagnostics)
+        writer.WriteLine(f"| {codePrefix}{d.Item3.ToString()!.PadLeft(4, '0')} | {d.Item1} | {d.Item2} |");
+}
+
+static int16 GetDiagnosticCodeFromId(string id, string codesPath) {
+    var text = File.ReadAllText(codesPath)!;
+    var index = text.IndexOf(id);
+    var builder = new StringBuilder();
+
+    for (var i = index + id.Length + 1; i < text.Length; i++) {
+        if (text[i] == '\n')
+            break;
+
+        if (Char.IsDigit(text[i]))
+            builder.Append(text[i]);
+    }
+
+    return Convert.ToInt16(builder.ToString()!);
+}
+
+static int32 DiagnosticSort((string, string, int16) a, (string, string, int16) b) {
+    return a.Item3.CompareTo(b.Item3);
+}
+
+static string FindDiagnosticCode(string input, out string severity = "") {
+    var result = new StringBuilder();
+    var index = 0;
+
+    for (var i = 0; i < input.Length - 3; i++) {
+        var startScan = false;
+
+        if (input[i] == 'E' && input[i + 1] == 'R' && input[i + 2] == 'R' && input[i + 3] == '_') {
+            severity = "Error";
+            startScan = true;
+        } else if (input[i] == 'W' && input[i + 1] == 'R' && input[i + 2] == 'N' && input[i + 3] == '_') {
+            severity = "Warning";
+            startScan = true;
+        } else if (input[i] == 'F' && input[i + 1] == 'T' && input[i + 2] == 'L' && input[i + 3] == '_') {
+            severity = "Fatal";
+            startScan = true;
+        } else if (input[i] == 'U' && input[i + 1] == 'N' && input[i + 2] == 'S' && input[i + 3] == '_') {
+            severity = "Unsupported";
+            startScan = true;
+        } else if (input[i] == 'I' && input[i + 1] == 'N' && input[i + 2] == 'F' && input[i + 3] == '_') {
+            severity = "Info";
+            startScan = true;
+        }
+
+        if (startScan) {
+            for (int j = i; j < input.Length; j++) {
+                if (input[j] == ',' || input[j] == ')')
+                    break;
+
+                result.Append(input[j]);
+            }
+
+            break;
+        }
+    }
+
+    return result.ToString()!;
+}
+
+static string FormatMessage(string input) {
+    var result = new StringBuilder();
+    var index = 0;
+
+    for (var i = 0; i < input.Length; i++) {
+        if (input[i] == '\\' && i < input.Length - 1 ) {
+            if (input[i + 1] == '"') {
+                result.Append('"');
+                i++;
+                continue;
+            }
+
+            if (input[i + 1] == 't') {
+                result.Append('\t');
+                i++;
+                continue;
+            }
+        }
+
+        if (input[i] == '|') {
+            result.Append("\\|");
+            continue;
+        } else if (input[i] == '<') {
+            result.Append("\\<");
+            continue;
+        }
+
+        if (input[i] == '{') {
+            var end = input.IndexOf('}', (int32)(i + 1));
+
+            if (end != -1) {
+                result.Append('{')!.Append(index++)!.Append('}');
+                i = end;
+                continue;
+            }
+        }
+
+        result.Append(input[i]);
+    }
+
+    return result.ToString()!;
+}

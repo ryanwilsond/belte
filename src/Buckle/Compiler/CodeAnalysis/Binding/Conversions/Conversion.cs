@@ -219,7 +219,6 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
             case ConversionKind.ImplicitTupleLiteral:
             case ConversionKind.AnyBoxing:
             case ConversionKind.ImplicitWellKnown:
-            case ConversionKind.FunctionType:
                 return false;
             case ConversionKind.Explicit:
             case ConversionKind.ExplicitNullable:
@@ -234,6 +233,8 @@ internal readonly partial struct Conversion : IEquatable<Conversion> {
             case ConversionKind.ConditionalExpression:
             case ConversionKind.Deconstruction:
             case ConversionKind.ImplicitThrow:
+            case ConversionKind.DelegateCreation:
+            case ConversionKind.FunctionType:
                 return true;
             case ConversionKind.ExplicitPointerToPointer:
             case ConversionKind.ExplicitIntegerToPointer:

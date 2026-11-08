@@ -75,7 +75,7 @@ internal sealed class Conversions : ConversionsBase {
 
     internal override Conversion GetMethodGroupConversion(BoundMethodGroup source, TypeSymbol destination) {
         if (destination.StrippedType().typeKind != TypeKind.Function)
-            return Conversion.None;
+            return GetMethodGroupDelegateConversion(source, destination);
 
         var methodSymbol = (destination.StrippedType() as FunctionTypeSymbol).signature;
         var resolution = ResolveMethodGroup(_binder, source, methodSymbol);
@@ -85,6 +85,68 @@ internal sealed class Conversions : ConversionsBase {
 
         resolution.Free();
         return conversion;
+    }
+
+    private Conversion GetMethodGroupDelegateConversion(BoundMethodGroup source, TypeSymbol destination) {
+        if (!TryGetDelegateMethods(destination, out var constructor, out var invoke))
+            return Conversion.None;
+
+        var resolution = ResolveMethodGroup(_binder, source, invoke);
+        var conversion = (resolution.isEmpty || resolution.hasAnyErrors ||
+                !resolution.overloadResolutionResult.succeeded)
+            ? Conversion.None
+            : new Conversion(
+                ConversionKind.DelegateCreation,
+                [
+                    new Conversion(ConversionKind.None, constructor),
+                    new Conversion(ConversionKind.None, resolution.overloadResolutionResult.bestResult.member)
+                ]
+            );
+
+        resolution.Free();
+        return conversion;
+    }
+
+    private bool TryGetDelegateMethods(TypeSymbol destination, out MethodSymbol constructor, out MethodSymbol invoke) {
+        var target = destination.StrippedType();
+
+        // Belte does not have delegates, so we manually check for the delegate base type and valid constructor
+        if (!IsBaseClass(
+                target.originalDefinition,
+                _binder.compilation.GetWellKnownType(WellKnownType.System_Delegate))) {
+            constructor = null;
+            invoke = null;
+            return false;
+        }
+
+        var constructors = ((NamedTypeSymbol)target).instanceConstructors;
+        MethodSymbol candidate = null;
+
+        foreach (var ctor in constructors) {
+            if (ctor.parameterCount == 2 &&
+                ctor.parameters[0].type.StrippedType().specialType == SpecialType.Object &&
+                ctor.parameters[1].type.specialType == SpecialType.IntPtr) {
+                if (candidate is null) {
+                    candidate = ctor;
+                } else {
+                    constructor = null;
+                    invoke = null;
+                    return false;
+                }
+            }
+        }
+
+        constructor = candidate;
+        // Delegate signature is stored in the Invoke method
+        var members = target.GetMembers(WellKnownMemberNames.DelegateInvoke);
+
+        if (members.Length != 1 || members[0] is not MethodSymbol) {
+            invoke = null;
+            return false;
+        }
+
+        invoke = (MethodSymbol)members[0];
+        return true;
     }
 
     private protected override Conversion ApplyNullFacts(Conversion conversion, BoundExpression source) {
@@ -137,6 +199,29 @@ internal sealed class Conversions : ConversionsBase {
         }
 
         return false;
+    }
+
+    private protected override bool HasImplicitDelegateCreationConversion(
+        FunctionTypeSymbol source,
+        TypeSymbol target,
+        out MethodSymbol constructor) {
+        if (!TryGetDelegateMethods(target, out constructor, out var signature))
+            return false;
+
+        if (!signature.returnType.Equals(source.signature.returnType))
+            return false;
+
+        var parameterCount = signature.parameterCount;
+
+        if (parameterCount != source.signature.parameterCount)
+            return false;
+
+        for (var i = 0; i < parameterCount; i++) {
+            if (!signature.parameters[i].type.Equals(source.signature.parameters[i].type))
+                return false;
+        }
+
+        return true;
     }
 
     private static void GetFunctionArguments(

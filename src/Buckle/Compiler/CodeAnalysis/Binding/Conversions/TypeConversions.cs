@@ -46,4 +46,12 @@ internal sealed class TypeConversions : ConversionsBase {
     private protected override bool HasImplicitWellKnownValueTypeConversion(TypeSymbol _, TypeSymbol _2) {
         return false;
     }
+
+    private protected override bool HasImplicitDelegateCreationConversion(
+        FunctionTypeSymbol _,
+        TypeSymbol _2,
+        out MethodSymbol constructor) {
+        constructor = null;
+        return false;
+    }
 }

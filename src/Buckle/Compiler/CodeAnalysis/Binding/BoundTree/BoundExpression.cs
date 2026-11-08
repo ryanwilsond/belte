@@ -12,6 +12,8 @@ internal abstract partial class BoundExpression : BoundNode {
 
     internal virtual bool suppressVirtualCalls => false;
 
+    internal virtual object display => type;
+
     internal RefKind GetRefKind() {
         // TODO Should we just use expressionSymbol here?
         return kind switch {

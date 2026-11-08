@@ -3566,24 +3566,7 @@ internal partial class Binder {
         if (operand is BoundMethodGroup group) {
             // TODO Error checking
             var method = group.methods.FirstOrDefault().ConstructIfTemplate(group.templateArguments);
-            var paramRefKinds = method.parameterRefKinds.IsDefault
-                ? method.parameterTypesWithAnnotations.Select(p => RefKind.None).ToImmutableArray()
-                : method.parameterRefKinds;
-
-            // TODO propagate unmanaged calling convention from attribute data
-            var unmanagedAttribute = method.GetUnmanagedCallersOnlyAttributeData(true);
-            var callingConvention = (unmanagedAttribute is null ||
-                unmanagedAttribute == UnmanagedCallersOnlyAttributeData.Uninitialized)
-                    ? CallingConvention.Winapi
-                    : CallingConvention.Unmanaged;
-
-            var functionPointerType = FunctionPointerTypeSymbol.CreateFromParts(
-                callingConvention,
-                method.returnTypeWithAnnotations,
-                method.refKind,
-                method.parameterTypesWithAnnotations,
-                paramRefKinds
-            );
+            var functionPointerType = CreateFunctionPointerTypeForMethod(method);
 
             if (!method.isStatic)
                 diagnostics.Push(Error.CannotTakeFunctionPointerOfNonStatic(node.operand.location, method));
@@ -3600,6 +3583,29 @@ internal partial class Binder {
         var operandType = operand.Type();
         var pointerType = new PointerTypeSymbol(new TypeWithAnnotations(operandType));
         return new BoundAddressOfOperator(node, operand, false, pointerType, operand.hasErrors);
+    }
+
+    internal static FunctionPointerTypeSymbol CreateFunctionPointerTypeForMethod(MethodSymbol method) {
+        var paramRefKinds = method.parameterRefKinds.IsDefault
+                        ? method.parameterTypesWithAnnotations.Select(p => RefKind.None).ToImmutableArray()
+                        : method.parameterRefKinds;
+
+        // TODO propagate unmanaged calling convention from attribute data
+        var unmanagedAttribute = method.GetUnmanagedCallersOnlyAttributeData(true);
+        var callingConvention = (unmanagedAttribute is null ||
+            unmanagedAttribute == UnmanagedCallersOnlyAttributeData.Uninitialized)
+                ? CallingConvention.Winapi
+                : CallingConvention.Unmanaged;
+
+        var functionPointerType = FunctionPointerTypeSymbol.CreateFromParts(
+            callingConvention,
+            method.returnTypeWithAnnotations,
+            method.refKind,
+            method.parameterTypesWithAnnotations,
+            paramRefKinds
+        );
+
+        return functionPointerType;
     }
 
     private BoundExpression BindPointerIndirectionExpression(UnaryExpressionSyntax node, BelteDiagnosticQueue diagnostics) {

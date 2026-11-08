@@ -38,6 +38,7 @@ internal static class WellKnownTypeExtensions {
         "System.Single",
         "System.Double",
         "System.Boolean",
+        "System.Delegate",
         "Belte.NoAllocAttribute",
         "Belte.NoThrowAttribute",
         "Belte.PureAttribute",

@@ -45,6 +45,7 @@ internal enum WellKnownType : byte {
     System_Single,
     System_Double,
     System_Boolean,
+    System_Delegate,
 
     Belte_NoAllocAttribute,
     Belte_NoThrowAttribute,

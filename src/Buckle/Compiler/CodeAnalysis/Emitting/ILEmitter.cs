@@ -460,11 +460,14 @@ internal partial class ILEmitter : ModuleBuilder {
 
             if (import)
                 return _assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeRef);
+            else
+                return typeRef;
         }
 
         if (import && !typeRef.IsGenericParameter)
             typeRef = _assemblyDefinition.MainModule.ImportReferenceThreadSafe(typeRef);
 
+        Debug.Assert(byRef);
         typeRef = typeRef.MakeByReferenceType();
         return typeRef;
 
@@ -473,7 +476,7 @@ internal partial class ILEmitter : ModuleBuilder {
 
             if (type.specialType == SpecialType.Nullable) {
                 var underlyingType = type.GetNullableUnderlyingType();
-                var genericArgumentType = GetType(underlyingType);
+                var genericArgumentType = GetType(underlyingType, import: import);
 
                 if (!underlyingType.isValueType)
                     return genericArgumentType;
@@ -484,7 +487,7 @@ internal partial class ILEmitter : ModuleBuilder {
             }
 
             if (type is ArrayTypeSymbol array) {
-                var elementType = GetType(array.elementType);
+                var elementType = GetType(array.elementType, import: import);
 
                 if (array.rank == 1)
                     return elementType.MakeArrayType();
@@ -493,7 +496,7 @@ internal partial class ILEmitter : ModuleBuilder {
             }
 
             if (type is PointerTypeSymbol pointer) {
-                var elementType = GetType(pointer.pointedAtType);
+                var elementType = GetType(pointer.pointedAtType, import: import);
                 return elementType.MakePointerType();
             }
 
@@ -645,9 +648,7 @@ internal partial class ILEmitter : ModuleBuilder {
                 (PENamedTypeSymbol)m.containingType,
                 m.metadataName,
                 m.GetParameters()
-                    .Select(p => p.type.ContainsTemplateParameter()
-                        ? null
-                        : GetType(p.type, p.refKind != RefKind.None).ToString())
+                    .Select(p => GetType(p.type, p.refKind != RefKind.None, import: false).ToString())
                     .ToArray()
             );
 
@@ -2571,6 +2572,7 @@ internal partial class ILEmitter : ModuleBuilder {
         out MethodReference methodDefinition) {
         var foundType = foundTypes[0];
         var methods = foundType.Methods.Where(m => m.Name == methodName);
+        methodDefinition = null;
 
         foreach (var method in methods) {
             if (method.Parameters.Count != parameterTypeNames.Length)
@@ -2592,12 +2594,13 @@ internal partial class ILEmitter : ModuleBuilder {
             if (!allParametersMatch)
                 continue;
 
-            methodDefinition = _assemblyDefinition.MainModule.ImportReferenceThreadSafe(method);
-            return true;
+            if (methodDefinition is null)
+                methodDefinition = _assemblyDefinition.MainModule.ImportReferenceThreadSafe(method);
+            else
+                throw ExceptionUtilities.Unreachable();
         }
 
-        methodDefinition = null;
-        return false;
+        return methodDefinition is not null;
     }
 
     private void ResolveTypes() {

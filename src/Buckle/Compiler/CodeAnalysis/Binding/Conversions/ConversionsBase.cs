@@ -37,6 +37,11 @@ internal abstract partial class ConversionsBase {
         BoundUnconvertedArrayLength length,
         TypeSymbol destination);
 
+    private protected abstract bool HasImplicitDelegateCreationConversion(
+        FunctionTypeSymbol source,
+        TypeSymbol target,
+        out MethodSymbol constructor);
+
     private protected abstract bool HasImplicitWellKnownReferenceTypeConversion(TypeSymbol source, TypeSymbol destination);
 
     private protected abstract bool HasImplicitWellKnownValueTypeConversion(TypeSymbol source, TypeSymbol destination);
@@ -641,6 +646,12 @@ internal abstract partial class ConversionsBase {
 
         if (HasBoxingConversion(source, target))
             return Conversion.AnyBoxing;
+
+        // TODO See expander todo about this
+        // if (source is FunctionTypeSymbol functionType &&
+        //     HasImplicitDelegateCreationConversion(functionType, target, out var constructor)) {
+        //     return new Conversion(ConversionKind.DelegateCreation, constructor);
+        // }
 
         return Conversion.None;
     }

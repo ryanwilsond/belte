@@ -68,6 +68,7 @@ internal static class WellKnownMemberNames {
     internal const string CurrentMethodName = "Current";
     internal const string ResetMethodName = "Reset";
     internal const string CurrentPropertyName = "get_Current";
+    internal const string DelegateInvoke = "Invoke";
 
     internal static string GetLiteralOperatorName(string suffix) {
         return $"op_Literal_{suffix}";

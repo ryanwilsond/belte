@@ -45,6 +45,8 @@ internal sealed partial class BoundMethodGroup {
         }
     }
 
+    internal override object display => MessageID.IDS_SK_METHOD.Localize();
+
     private static FunctionTypeSymbol GetFunctionType(ImmutableArray<MethodSymbol> methods) {
         if (methods.Length == 1) {
             var method = methods[0];
