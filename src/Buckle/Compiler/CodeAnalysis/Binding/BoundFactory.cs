@@ -180,7 +180,7 @@ internal static class BoundFactory {
         bool isRef,
         TypeSymbol type) {
         Debug.Assert(left.type.Equals(type));
-        Debug.Assert(right.type.StrippedType().EnumUnderlyingTypeOrSelf().Equals(left.type.StrippedType().EnumUnderlyingTypeOrSelf()));
+        Debug.Assert(right.type.StrippedType().EnumUnderlyingTypeOrSelf().Equals(left.type.StrippedType().EnumUnderlyingTypeOrSelf(), TypeCompareKind.RuntimeTypeComparison));
         return new BoundAssignmentOperator(syntax, left, right, isRef, type);
     }
 

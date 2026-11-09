@@ -990,6 +990,9 @@ internal sealed partial class Executor : ModuleBuilder {
         foreach (var type in _topLevelTypes)
             CreateTypeBuilderAndBases(type);
 
+        foreach (var type in _linearNestedTypes)
+            CreateTypeBuilderAndBases(type);
+
         if (_compilation.options.concurrentBuild) {
             var maxParallels = _compilation.options.maxCoreCount;
             var parallelOptions = new ParallelOptions { MaxDegreeOfParallelism = maxParallels };

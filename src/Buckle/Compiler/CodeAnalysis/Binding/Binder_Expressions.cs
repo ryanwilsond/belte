@@ -7442,13 +7442,13 @@ internal partial class Binder {
         AnalyzedArguments analyzedArguments,
         RefKind returnRefKind = default,
         TypeSymbol returnType = null,
-        bool isMethodGroupConversion = false) {
+        OverloadResolution.Options options = OverloadResolution.Options.None) {
         var methodResolution = ResolveDefaultMethodGroup(
             node,
             analyzedArguments,
             returnRefKind,
             returnType,
-            isMethodGroupConversion
+            options
         );
 
         if (methodResolution.isEmpty && !methodResolution.hasAnyErrors) {
@@ -7482,7 +7482,7 @@ internal partial class Binder {
         AnalyzedArguments analyzedArguments,
         RefKind returnRefKind = default,
         TypeSymbol returnType = null,
-        bool isMethodGroupConversion = false) {
+        OverloadResolution.Options options = OverloadResolution.Options.None) {
         var methods = node.methods;
 
         if (methods.Length == 0) {
@@ -7524,7 +7524,7 @@ internal partial class Binder {
                 analyzedArguments,
                 result,
                 callErrorLocation: node.syntax.location,
-                isMethodGroupConversion,
+                options,
                 returnRefKind,
                 returnType
             );
@@ -7767,7 +7767,7 @@ internal partial class Binder {
             conversions,
             node.location,
             GetEnclosingTemplateConstraints(),
-            arguments.arguments.ToImmutable(),
+            arguments?.arguments?.ToImmutable() ?? default,
             diagnostics
         );
     }

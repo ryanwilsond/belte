@@ -91,7 +91,7 @@ internal sealed class Conversions : ConversionsBase {
         if (!TryGetDelegateMethods(destination, out var constructor, out var invoke))
             return Conversion.None;
 
-        var resolution = ResolveMethodGroup(_binder, source, invoke);
+        var resolution = ResolveMethodGroup(_binder, source, invoke, isDelegateConversion: true);
         var conversion = (resolution.isEmpty || resolution.hasAnyErrors ||
                 !resolution.overloadResolutionResult.succeeded)
             ? Conversion.None
@@ -240,16 +240,23 @@ internal sealed class Conversions : ConversionsBase {
     private static MethodGroupResolution ResolveMethodGroup(
         Binder binder,
         BoundMethodGroup source,
-        MethodSymbol functionMethod) {
+        MethodSymbol functionMethod,
+        bool isDelegateConversion = false) {
         if (functionMethod is not null) {
             var analyzedArguments = AnalyzedArguments.GetInstance();
             GetFunctionArguments(source.syntax, analyzedArguments, functionMethod.parameters);
+
+            var options = OverloadResolution.Options.IsMethodGroupConversion;
+
+            if (isDelegateConversion)
+                options |= OverloadResolution.Options.IsDelegateConversion;
+
             var resolution = binder.ResolveMethodGroup(
                 source,
                 analyzedArguments,
                 functionMethod.refKind,
                 functionMethod.returnType,
-                true
+                options
             );
 
             analyzedArguments.Free();

@@ -27,7 +27,7 @@ internal sealed partial class CompileTimeLowerer : BoundTreeExpander {
         Compilation compilation,
         Dictionary<Symbol, ConstantValue> constantMap) {
         _diagnostics = diagnostics;
-        _evaluator = new Evaluator(program, context, []);
+        _evaluator = new Evaluator(program, context, [], diagnostics);
         _context = context;
         _container = containingMethod;
         _program = program;

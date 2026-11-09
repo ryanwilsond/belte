@@ -4958,4 +4958,30 @@ public sealed class IssueTests {
 
         AssertValue(text, 1);
     }
+
+    [Fact]
+    public void FunctionType_ChecksRuntimeVariance() {
+        var text = @"
+            static void M(Object a) { }
+            var a = (void(Object?))M;
+        ";
+
+        var diagnostics = @"";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void FunctionType_ChecksRuntimeVariance2() {
+        var text = @"
+            static void M(Object? a) { }
+            var a = [(void(Object))M];
+        ";
+
+        var diagnostics = @"
+            no overload for 'M' matches function 'void(Object!)'
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

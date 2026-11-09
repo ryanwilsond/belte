@@ -1499,6 +1499,7 @@ public class {name} {{
         var specifyWarningLevel = false;
         var specifySeverity = false;
         var wErrorLevel = 2;
+        var specifyL = false;
 
         var anyExplicitReferences = false;
         var sae = false;
@@ -1627,12 +1628,15 @@ public class {name} {{
                     state.time = true;
                     break;
                 case "-l0":
+                    specifyL = true;
                     state.l = 0;
                     break;
                 case "-l1":
+                    specifyL = true;
                     state.l = 1;
                     break;
                 case "-lall":
+                    specifyL = true;
                     state.l = 2;
                     break;
                 case "--sae":
@@ -1918,6 +1922,9 @@ public class {name} {{
 
         if (state.maxCores == 1)
             state.concurrentBuild = false;
+
+        if (state.buildMode == BuildMode.Evaluate && !specifyL)
+            state.l = 0;
 
         references.AddRange(Compiler.ResolveLibraryLevel(
             state.l,

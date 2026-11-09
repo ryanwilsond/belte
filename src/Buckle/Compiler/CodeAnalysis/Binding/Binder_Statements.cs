@@ -1950,7 +1950,7 @@ internal partial class Binder {
 
         var value = BindValue(initializer, diagnostics, valueKind);
         var expression = value.kind == BoundKind.MethodGroup
-            ? BindToInferredDelegateType(value, diagnostics)
+            ? BindToInferredFunctionType(value, diagnostics)
             : BindToNaturalType(value, diagnostics);
 
         if (!expression.hasAnyErrors && !expression.HasExpressionType() && !compilation.options.isScript)
@@ -1959,7 +1959,7 @@ internal partial class Binder {
         return expression;
     }
 
-    private BoundExpression BindToInferredDelegateType(BoundExpression expression, BelteDiagnosticQueue diagnostics) {
+    private BoundExpression BindToInferredFunctionType(BoundExpression expression, BelteDiagnosticQueue diagnostics) {
         if (compilation.options.isScript)
             return BindToNaturalType(expression, diagnostics);
 

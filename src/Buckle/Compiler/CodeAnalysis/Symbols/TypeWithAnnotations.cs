@@ -216,7 +216,10 @@ internal sealed partial class TypeWithAnnotations {
             return false;
         }
 
-        return isNullable == other.isNullable;
+        if ((compareKind & TypeCompareKind.RuntimeTypeComparison) == 0)
+            return isNullable == other.isNullable;
+        else
+            return true;
     }
 
     public override int GetHashCode() {

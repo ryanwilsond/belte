@@ -7961,10 +7961,13 @@ symIsHidden:;
 
         void ReportMethodGroupDiagnostics(BoundMethodGroup operand) {
             if (!Conversions.ReportMethodGroupDiagnostics(this, operand, targetType, diagnostics)) {
-                if (targetType.StrippedType().typeKind == TypeKind.Function)
-                    diagnostics.Push(Error.MethodFunctionMismatch(syntax.location, (BoundMethodGroup)operand, targetType));
-                else
+                if (targetType.StrippedType().typeKind == TypeKind.Function) {
+                    diagnostics.Push(
+                        Error.MethodFunctionMismatch(syntax.location, ((BoundMethodGroup)operand).name, targetType)
+                    );
+                } else {
                     diagnostics.Push(Error.MethodGroupCannotBeUsedAsValue(syntax.location, (BoundMethodGroup)operand));
+                }
             }
         }
     }
@@ -8244,6 +8247,9 @@ symIsHidden:;
             );
         }
 
+        if (conversion.kind == ConversionKind.MethodGroup)
+            return CreateMethodGroupConversion(node, source, conversion, isCast, destination, diagnostics);
+
         if (conversion.kind == ConversionKind.FunctionType)
             return CreateFunctionTypeConversion(node, source, conversion, isCast, destination, diagnostics);
 
@@ -8291,7 +8297,7 @@ symIsHidden:;
             );
         }
 
-        if (conversion.method is not null && conversion.kind != ConversionKind.MethodGroup) {
+        if (conversion.method is not null) {
             var targetType = conversion.method.GetParameterTypes()[0].type;
             var argumentConversion = conversions.ClassifyConversionFromExpression(source, targetType, checkOverflow);
             source = CreateConversion(source, argumentConversion, targetType, diagnostics);
@@ -8308,6 +8314,162 @@ symIsHidden:;
         );
     }
 
+    private BoundExpression CreateMethodGroupConversion(
+        SyntaxNode syntax,
+        BoundExpression source,
+        Conversion conversion,
+        bool isCast,
+        TypeSymbol destination,
+        BelteDiagnosticQueue diagnostics) {
+        var (originalGroup, isAddressOf) = source switch {
+            BoundMethodGroup m => (m, false),
+            BoundUnconvertedAddressOfOperator { operand: { } m } => (m, true),
+            _ => throw ExceptionUtilities.UnexpectedValue(source),
+        };
+
+        // TODO
+        // BoundMethodGroup group = FixMethodGroupWithTypeOrValue(originalGroup, conversion, diagnostics);
+        var group = originalGroup;
+
+        var hasErrors = false;
+
+        if (MethodGroupConversionHasErrors(
+            syntax,
+            conversion,
+            ((BoundMethodGroup)source).receiver,
+            isAddressOf,
+            destination,
+            diagnostics)) {
+            hasErrors = true;
+        }
+
+        return new BoundCastExpression(
+            syntax,
+            BindToNaturalType(source, diagnostics),
+            conversion,
+            checkOverflow,
+            null,
+            destination,
+            hasErrors
+        );
+    }
+
+    private bool MethodGroupConversionHasErrors(
+        SyntaxNode syntax,
+        Conversion conversion,
+        BoundExpression receiver,
+        bool isAddressOf,
+        TypeSymbol type,
+        BelteDiagnosticQueue diagnostics) {
+        var selectedMethod = conversion.method;
+
+        if (type.IsFunctionOrFunctionPointer()) {
+            if (!MethodIsCompatibleWithFunctionOrFunctionPointer(
+                    receiver,
+                    selectedMethod,
+                    type,
+                    syntax.location,
+                    diagnostics) ||
+                MemberGroupFinalValidation(receiver, selectedMethod, syntax, arguments: null, diagnostics)) {
+                return true;
+            }
+        }
+
+        if (!isAddressOf)
+            ReportDiagnosticsIfUnmanagedCallersOnly(diagnostics, selectedMethod, syntax);
+
+        ReportDiagnosticsIfNoAllocContextMethod(diagnostics, selectedMethod, syntax);
+        ReportDiagnosticsIfNoThrowContextMethod(diagnostics, selectedMethod, syntax);
+        ReportDiagnosticsIfPureContext(diagnostics, selectedMethod, syntax);
+
+        return false;
+    }
+
+    internal bool MethodIsCompatibleWithFunctionOrFunctionPointer(
+        BoundExpression receiver,
+        MethodSymbol method,
+        TypeSymbol type,
+        TextLocation errorLocation,
+        BelteDiagnosticQueue diagnostics) {
+        // TODO Handle function pointer types
+        Debug.Assert(type is FunctionTypeSymbol);
+
+        var functionType = (FunctionTypeSymbol)type;
+        Debug.Assert(functionType.signature.parameterCount == method.parameterCount);
+
+        for (var i = 0; i < method.parameterCount; i++) {
+            var functionParameter = functionType.signature.parameters[i];
+            var methodParameter = method.parameters[i];
+
+            if (!HasConversion(
+                    conversions,
+                    source: functionParameter.type,
+                    destination: methodParameter.type,
+                    sourceRefKind: functionParameter.refKind,
+                    destinationRefKind: methodParameter.refKind,
+                    checkingReturns: false)) {
+                diagnostics.Push(Error.MethodFunctionMismatch(errorLocation, method.name, functionType));
+                return false;
+            }
+        }
+
+        if (functionType.signature.refKind != method.refKind) {
+            diagnostics.Push(Error.FunctionRefMismatch(errorLocation, method, functionType));
+            return false;
+        }
+
+        var methodReturnType = method.returnType;
+        var functionReturnType = functionType.signature.returnType;
+        var returnsMatch = functionType.signature switch {
+            { refKind: RefKind.None, returnsVoid: true } => method.returnsVoid,
+            { refKind: var destinationRefKind } => HasConversion(
+                conversions,
+                source: methodReturnType,
+                destination: functionReturnType,
+                sourceRefKind: method.refKind,
+                destinationRefKind: destinationRefKind,
+                checkingReturns: true
+            ),
+        };
+
+        if (!returnsMatch) {
+            diagnostics.Push(Error.BadReturnType(errorLocation, method, method.returnType, functionReturnType));
+            return false;
+        }
+
+        // TODO function pointer handling
+
+        return true;
+
+        static bool HasConversion(
+            Conversions conversions,
+            TypeSymbol source,
+            TypeSymbol destination,
+            RefKind sourceRefKind,
+            RefKind destinationRefKind,
+            bool checkingReturns) {
+            if (checkingReturns
+                ? sourceRefKind != destinationRefKind
+                : sourceRefKind == RefKind.None != (destinationRefKind == RefKind.None)) {
+                return false;
+            }
+
+            if (sourceRefKind != RefKind.None)
+                return ConversionsBase.HasIdentityConversion(source, destination);
+
+            if (conversions.HasIdentityOrImplicitReferenceConversion(
+                    source,
+                    destination,
+                    allowRuntimeVariance: RuntimeVarianceKind.ToMoreConstrained)) {
+                return true;
+            }
+
+            // TODO function pointer handling
+
+            return false;
+        }
+    }
+
     private BoundExpression CreateFunctionTypeConversion(
         SyntaxNode syntax,
         BoundExpression source,
@@ -8315,7 +8477,6 @@ symIsHidden:;
         bool isCast,
         TypeSymbol destination,
         BelteDiagnosticQueue diagnostics) {
-        Debug.Assert(destination.specialType is SpecialType.Any or SpecialType.Object);
         Debug.Assert(conversion.exists);
         Debug.Assert(conversion.isImplicit);
 
@@ -8324,7 +8485,12 @@ symIsHidden:;
 
         var methodGroupConversion = new Conversion(ConversionKind.MethodGroup, methodGroup.methods[0]);
 
-        return CreateConversion(syntax, source, methodGroupConversion, isCast, destination, diagnostics);
+        if (destination.specialType is SpecialType.Any or SpecialType.Object) {
+            return CreateConversion(syntax, source, methodGroupConversion, isCast, destination, diagnostics);
+        } else {
+            Debug.Assert(destination is FunctionTypeSymbol);
+            return new BoundCastExpression(syntax, source, methodGroupConversion, false, null, destination);
+        }
     }
 
     private void ReportDefaultExpressionErrors(

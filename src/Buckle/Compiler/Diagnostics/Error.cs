@@ -783,8 +783,8 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_MethodGroupCannotBeUsedAsValue, location, message);
     }
 
-    internal static BelteDiagnostic MethodFunctionMismatch(TextLocation location, BoundMethodGroup methodGroup, TypeSymbol type) {
-        var message = $"no overload for '{methodGroup.name}' matches function '{type}'";
+    internal static BelteDiagnostic MethodFunctionMismatch(TextLocation location, string name, TypeSymbol type) {
+        var message = $"no overload for '{name}' matches function '{type}'";
         return CreateError(DiagnosticCode.ERR_MethodFunctionMismatch, location, message);
     }
 

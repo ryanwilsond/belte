@@ -6,6 +6,7 @@ using Buckle.CodeAnalysis.Symbols;
 using Buckle.Libraries;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
+using Shared;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -74,10 +75,9 @@ internal abstract partial class ConversionsBase {
             return ClassifyImplicitConversionFromType(source, destination);
 
         if (sourceFunctionType is { } && destinationFunctionType is { }) {
-            return Conversion.None;
-            // return HasImplicitFunctionTypeToFunctionTypeConversion(sourceFunctionType, destinationFunctionType)
-            //     ? Conversion.FUnc
-            //     : Conversion.None;
+            return HasImplicitFunctionTypeToFunctionTypeConversion(sourceFunctionType, destinationFunctionType)
+                ? Conversion.FunctionType
+                : Conversion.None;
         }
 
         Debug.Assert(false);
@@ -140,8 +140,11 @@ internal abstract partial class ConversionsBase {
         return false;
     }
 
-    internal bool HasIdentityOrImplicitReferenceConversion(TypeSymbol source, TypeSymbol destination) {
-        if (HasIdentityConversionInternal(source, destination))
+    internal bool HasIdentityOrImplicitReferenceConversion(
+        TypeSymbol source,
+        TypeSymbol destination,
+        RuntimeVarianceKind allowRuntimeVariance = RuntimeVarianceKind.None) {
+        if (HasIdentityConversionInternal(source, destination, allowRuntimeVariance))
             return true;
 
         return HasImplicitReferenceConversion(source, destination);
@@ -362,8 +365,18 @@ internal abstract partial class ConversionsBase {
         return ThreeState.Unknown;
     }
 
-    private static bool HasIdentityConversionInternal(TypeSymbol type1, TypeSymbol type2) {
-        return type1.Equals(type2, TypeCompareKind.AllIgnoreOptions);
+    private static bool HasIdentityConversionInternal(
+        TypeSymbol type1,
+        TypeSymbol type2,
+        RuntimeVarianceKind allowRuntimeVariance = RuntimeVarianceKind.None) {
+        if (type1.Equals(type2, TypeCompareKind.AllIgnoreOptions))
+            return true;
+
+        if (allowRuntimeVariance == RuntimeVarianceKind.None)
+            return false;
+
+        var varianceKind = GetRuntimeVarianceConversion(type1, type2);
+        return (varianceKind & allowRuntimeVariance) != 0;
     }
 
     private Conversion GetLateIdentifierConversion(BoundUnconvertedLateIdentifierName name, TypeSymbol destination) {
@@ -501,8 +514,9 @@ internal abstract partial class ConversionsBase {
     internal Conversion ClassifyConversionFromExpression(
         BoundExpression sourceExpression,
         TypeSymbol target,
-        bool isChecked) {
-        var result = ClassifyImplicitConversionFromExpression(sourceExpression, target);
+        bool isChecked,
+        RuntimeVarianceKind allowRuntimeVariance = RuntimeVarianceKind.None) {
+        var result = ClassifyImplicitConversionFromExpression(sourceExpression, target, allowRuntimeVariance);
 
         if (result.exists || sourceExpression.IsLiteralNull() ||
             sourceExpression is BoundUnconvertedInitializerList or
@@ -1005,11 +1019,14 @@ internal abstract partial class ConversionsBase {
         return Conversion.None;
     }
 
-    internal Conversion ClassifyImplicitConversionFromExpression(BoundExpression sourceExpression, TypeSymbol target) {
+    internal Conversion ClassifyImplicitConversionFromExpression(
+        BoundExpression sourceExpression,
+        TypeSymbol target,
+        RuntimeVarianceKind allowRuntimeVariance = RuntimeVarianceKind.None) {
         sourceExpression = Binder.ReduceNumericIfApplicable(target, sourceExpression, _corLibrary);
         var sourceType = sourceExpression.Type();
 
-        if (sourceType is not null && HasIdentityConversionInternal(sourceType, target))
+        if (sourceType is not null && HasIdentityConversionInternal(sourceType, target, allowRuntimeVariance))
             return Conversion.Identity;
 
         var conversion = ClassifyImplicitBuiltInConversionFromExpression(sourceExpression, sourceType, target);
@@ -1048,12 +1065,45 @@ internal abstract partial class ConversionsBase {
     }
 
     private bool HasImplicitFunctionTypeConversion(FunctionTypeSymbol source, TypeSymbol target) {
-        if (target is FunctionTypeSymbol destinationFunctionType) {
-            // TODO Implicit function conversions
-            // return HasImplicitFunctionTypeToFunctionTypeConversion(source, destinationFunctionType);
-        }
+        if (target is FunctionTypeSymbol destinationFunctionType)
+            return HasImplicitFunctionTypeToFunctionTypeConversion(source, destinationFunctionType);
 
         return target.specialType is SpecialType.Any or SpecialType.Object;
+    }
+
+    private bool HasImplicitFunctionTypeToFunctionTypeConversion(FunctionTypeSymbol source, FunctionTypeSymbol target) {
+        Debug.Assert(!source.Equals(target, TypeCompareKind.ConsiderEverything));
+
+        var varianceKind = GetRuntimeVarianceConversion(source, target);
+        return varianceKind == RuntimeVarianceKind.ToLessConstrained;
+    }
+
+    internal static RuntimeVarianceKind GetRuntimeVarianceConversion(TypeSymbol source, TypeSymbol target) {
+        if (!source.Equals(target, TypeCompareKind.RuntimeTypeComparison))
+            return RuntimeVarianceKind.None;
+
+        // TODO For this to be best we need to create a exhaustive comparer that keeps track of nullability differences
+        // For now we do this rudimentary null count check
+
+        var sourceCount = new ValueWrapper<int>();
+        var targetCount = new ValueWrapper<int>();
+        source.VisitType(CountRuntimeVariants, sourceCount);
+        target.VisitType(CountRuntimeVariants, targetCount);
+
+        if (sourceCount.Value == targetCount.Value)
+            return RuntimeVarianceKind.None;
+        else if (sourceCount.Value < targetCount.Value)
+            return RuntimeVarianceKind.ToLessConstrained;
+        else
+            return RuntimeVarianceKind.ToMoreConstrained;
+
+        static bool CountRuntimeVariants(TypeSymbol type, ValueWrapper<int> arg, bool _) {
+            if (type.IsNullableType() && type.isReferenceType)
+                arg.Value++;
+
+            return false;
+        }
+
     }
 
     private protected virtual Conversion ApplyNullFacts(Conversion conversion, BoundExpression source) {

@@ -316,10 +316,10 @@ internal sealed partial class OverloadResolution {
         AnalyzedArguments arguments,
         OverloadResolutionResult<T> result,
         TextLocation callErrorLocation,
-        bool isMethodGroupConversion = false,
+        Options options = Options.None,
         RefKind returnRefKind = default,
         TypeSymbol returnType = null)
-        where T : Symbol {
+            where T : Symbol {
         var results = result.resultsBuilder;
 
         var checkOverriddenOrHidden = !members.All(
@@ -334,7 +334,7 @@ internal sealed partial class OverloadResolution {
             arguments,
             callErrorLocation,
             completeResults: false,
-            isMethodGroupConversion,
+            options,
             returnRefKind,
             returnType,
             checkOverriddenOrHidden: checkOverriddenOrHidden
@@ -351,7 +351,7 @@ internal sealed partial class OverloadResolution {
                 arguments,
                 callErrorLocation,
                 completeResults: true,
-                isMethodGroupConversion,
+                options,
                 returnRefKind,
                 returnType,
                 checkOverriddenOrHidden: checkOverriddenOrHidden
@@ -1218,7 +1218,8 @@ internal sealed partial class OverloadResolution {
             arguments,
             argumentAnalysis.argsToParams,
             hasAnyRefOmittedArgument: false,
-            completeResults: completeResults
+            completeResults: completeResults,
+            options: Options.None
         );
     }
 
@@ -1381,7 +1382,7 @@ internal sealed partial class OverloadResolution {
         AnalyzedArguments arguments,
         TextLocation callErrorLocation,
         bool completeResults,
-        bool isMethodGroupConversion,
+        Options options,
         RefKind returnRefKind,
         TypeSymbol returnType,
         bool checkOverriddenOrHidden)
@@ -1400,7 +1401,8 @@ internal sealed partial class OverloadResolution {
                 arguments,
                 completeResults,
                 containingTypeMap,
-                checkOverriddenOrHidden: checkOverriddenOrHidden
+                checkOverriddenOrHidden,
+                options
             );
         }
 
@@ -1413,7 +1415,7 @@ internal sealed partial class OverloadResolution {
         RemoveStaticInstanceMismatches(results, arguments, receiver);
         RemoveConstraintViolations(results, arguments, callErrorLocation);
 
-        if (isMethodGroupConversion)
+        if ((options & Options.IsMethodGroupConversion) != 0)
             RemoveFunctionConversionsWithWrongReturnType(results, returnRefKind, returnType);
 
         if (!AnyValidResult(results))
@@ -1550,8 +1552,9 @@ internal sealed partial class OverloadResolution {
         AnalyzedArguments arguments,
         bool completeResults,
         Dictionary<NamedTypeSymbol, ArrayBuilder<TMember>> containingTypeMap,
-        bool checkOverriddenOrHidden = true)
-        where TMember : Symbol {
+        bool checkOverriddenOrHidden = true,
+        Options options = Options.None)
+            where TMember : Symbol {
         if (checkOverriddenOrHidden) {
             if (members.Count < 2) {
             } else if (containingTypeMap is null) {
@@ -1587,7 +1590,8 @@ internal sealed partial class OverloadResolution {
             leastOverriddenMember,
             templateArguments,
             arguments,
-            completeResults: completeResults
+            completeResults,
+            options
         );
 
         if (result.result.isValid || completeResults)
@@ -2348,6 +2352,24 @@ internal sealed partial class OverloadResolution {
     }
 
     private BetterResult BetterConversionTargetCore(
+        TypeSymbol type1,
+        TypeSymbol type2,
+        int betterConversionTargetRecursionLimit) {
+        if (betterConversionTargetRecursionLimit < 0)
+            return BetterResult.Neither;
+
+        return BetterConversionTargetCore(
+            null,
+            type1,
+            default,
+            type2,
+            default,
+            out _,
+            betterConversionTargetRecursionLimit - 1
+        );
+    }
+
+    private BetterResult BetterConversionTargetCore(
         BoundNode node,
         TypeSymbol type1,
         Conversion conv1,
@@ -2386,6 +2408,36 @@ internal sealed partial class OverloadResolution {
             return BetterResult.Right;
         }
 
+        if (type1 is FunctionTypeSymbol functionType1 && type2 is FunctionTypeSymbol functionType2) {
+            var r1 = functionType1.signature.returnType;
+            var r2 = functionType2.signature.returnType;
+            var functionResult = BetterResult.Neither;
+
+            if (!r1.IsVoidType()) {
+                if (r2.IsVoidType())
+                    functionResult = BetterResult.Left;
+            } else if (!r2.IsVoidType()) {
+                functionResult = BetterResult.Right;
+            }
+
+            if (functionResult == BetterResult.Neither)
+                functionResult = BetterConversionTargetCore(r1, r2, betterConversionTargetRecursionLimit);
+
+            if (node?.kind == BoundKind.MethodGroup) {
+                var group = (BoundMethodGroup)node;
+
+                if (functionResult == BetterResult.Left) {
+                    if (IsMethodGroupConversionIncompatibleWithFunction(group, functionType1, conv1))
+                        return BetterResult.Neither;
+                } else if (functionResult == BetterResult.Right &&
+                    IsMethodGroupConversionIncompatibleWithFunction(group, functionType2, conv2)) {
+                    return BetterResult.Neither;
+                }
+            }
+
+            return functionResult;
+        }
+
         if (IsSignedIntegralType(type1)) {
             if (IsUnsignedIntegralType(type2))
                 return BetterResult.Left;
@@ -2394,6 +2446,25 @@ internal sealed partial class OverloadResolution {
         }
 
         return BetterResult.Neither;
+    }
+
+    private bool IsMethodGroupConversionIncompatibleWithFunction(
+        BoundMethodGroup node,
+        FunctionTypeSymbol functionType,
+        Conversion conv) {
+        if (conv.kind == ConversionKind.MethodGroup) {
+            var result = !_binder.MethodIsCompatibleWithFunctionOrFunctionPointer(
+                node.receiver,
+                conv.method,
+                functionType,
+                null,
+                BelteDiagnosticQueue.Discarded
+            );
+
+            return result;
+        }
+
+        return false;
     }
 
     private bool IsSignedIntegralType(TypeSymbol type) {
@@ -2554,12 +2625,13 @@ internal sealed partial class OverloadResolution {
         TMember leastOverriddenMember,
         ArrayBuilder<TypeOrConstant> templateArguments,
         AnalyzedArguments arguments,
-        bool completeResults)
-        where TMember : Symbol {
+        bool completeResults,
+        Options options)
+            where TMember : Symbol {
         var argumentAnalysis = AnalyzeArguments(
             member.GetParameters().ToImmutableArray<Symbol>(),
             arguments,
-            isMethodGroupConversion: false,
+            isMethodGroupConversion: (options & Options.IsMethodGroupConversion) != 0,
             expanded: false
         );
 
@@ -2600,7 +2672,8 @@ internal sealed partial class OverloadResolution {
             constructedFromEffectiveParameters,
             argumentAnalysis.argsToParams,
             hasAnyRefOmittedArgument: hasAnyRefOmittedArgument,
-            completeResults: completeResults
+            completeResults: completeResults,
+            options
         );
 
         if (completeResults && !argumentAnalysis.isValid) {
@@ -2712,8 +2785,9 @@ internal sealed partial class OverloadResolution {
         EffectiveParameters constructedFromEffectiveParameters,
         ImmutableArray<int> argsToParamsMap,
         bool hasAnyRefOmittedArgument,
-        bool completeResults)
-        where TMember : Symbol {
+        bool completeResults,
+        Options options)
+            where TMember : Symbol {
         MethodSymbol method;
         EffectiveParameters constructedEffectiveParameters;
         var hasTypeArgumentsInferredFromFunctionType = false;
@@ -2788,7 +2862,8 @@ internal sealed partial class OverloadResolution {
             arguments,
             argsToParamsMap,
             hasAnyRefOmittedArgument: hasAnyRefOmittedArgument,
-            completeResults: completeResults
+            completeResults: completeResults,
+            options
         );
 
         return new MemberResolutionResult<TMember>(
@@ -2874,7 +2949,8 @@ internal sealed partial class OverloadResolution {
         AnalyzedArguments arguments,
         ImmutableArray<int> argsToParameters,
         bool hasAnyRefOmittedArgument,
-        bool completeResults) {
+        bool completeResults,
+        Options options) {
         var paramCount = parameters.parameterTypes.Length;
 
         if (arguments.arguments.Count < paramCount)
@@ -2915,7 +2991,8 @@ internal sealed partial class OverloadResolution {
                 parameters.parameterTypes[argumentPosition].type,
                 parameterRefKind,
                 parameterConstness,
-                parameterIsConstExpr
+                parameterIsConstExpr,
+                options
             );
 
             if (!conversion.exists) {
@@ -2962,7 +3039,8 @@ internal sealed partial class OverloadResolution {
         TypeSymbol parameterType,
         RefKind parRefKind,
         bool parConstness,
-        bool parConstExpr) {
+        bool parConstExpr,
+        Options options) {
         if (argRefKind != parRefKind)
             return Conversion.None;
 
@@ -2980,10 +3058,25 @@ internal sealed partial class OverloadResolution {
         }
 
         if (argRefKind == RefKind.None) {
+            var allowRuntimeVariance = (options & Options.IsDelegateConversion) != 0
+                ? RuntimeVarianceKind.ToMoreConstrained
+                : RuntimeVarianceKind.None;
+
             argument = Binder.ReduceNumericIfApplicable(parameterType, argument, compilation.corLibrary);
+
             var conversion = (candidate is MethodSymbol m && m.coerceArguments)
-                ? conversions.ClassifyConversionFromExpression(argument, parameterType, isChecked: false)
-                : conversions.ClassifyImplicitConversionFromExpression(argument, parameterType);
+                ? conversions.ClassifyConversionFromExpression(
+                    argument,
+                    parameterType,
+                    isChecked: false,
+                    allowRuntimeVariance: allowRuntimeVariance
+                )
+                : conversions.ClassifyImplicitConversionFromExpression(
+                    argument,
+                    parameterType,
+                    allowRuntimeVariance: allowRuntimeVariance
+                );
+
             return conversion;
         }
 

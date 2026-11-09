@@ -33,6 +33,7 @@ namespace Buckle.CodeAnalysis.Evaluating;
 internal sealed partial class Evaluator {
     private readonly Compilation _compilation;
     private readonly BoundProgram _program;
+    private readonly BelteDiagnosticQueue _diagnostics;
     private readonly EvaluatorContext _context;
     private readonly Stack<StackFrame> _stack;
     private readonly string[] _args;
@@ -59,7 +60,11 @@ internal sealed partial class Evaluator {
     /// <summary>
     /// Creates an <see cref="Evaluator" /> that can evaluate a <see cref="BoundProgram" /> (provided globals).
     /// </summary>
-    internal Evaluator(BoundProgram program, EvaluatorContext context, string[] arguments) {
+    internal Evaluator(
+        BoundProgram program,
+        EvaluatorContext context,
+        string[] arguments,
+        BelteDiagnosticQueue diagnostics) {
         _context = context;
         _context.program = program;
         _program = program;
@@ -68,6 +73,7 @@ internal sealed partial class Evaluator {
         _stack = [];
         exceptions = [];
         _isScript = _context.options.isScript;
+        _diagnostics = diagnostics;
     }
 
     /// <summary>
@@ -3927,8 +3933,11 @@ internal sealed partial class Evaluator {
         out object result) {
         result = null;
 
-        if (_compilation.options.outputKind != OutputKind.GraphicsApplication)
-            throw new InvalidOperationException("Cannot make Graphics calls when the output kind is not graphics");
+        if (_compilation.options.outputKind != OutputKind.GraphicsApplication) {
+            _diagnostics.Push(Error.Unsupported.GraphicsCall());
+            abort.Value = true;
+            return true;
+        }
 
         var mapKey = LibraryHelpers.BuildMapKey(method);
 

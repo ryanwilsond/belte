@@ -23,7 +23,7 @@ void Main() {
     Console.SetCursorPosition(0, 0);
 
 #if !EVALUATING
-    System.Console.add_CancelKeyPress(new System.ConsoleCancelEventHandler(null, (intptr)(&OnCancelHandler)));
+    System.Console.add_CancelKeyPress(OnCancelHandler);
 
     static void OnCancelHandler(Object sender, System.ConsoleCancelEventArgs args) {
         Console.SetCursorVisibility(true);

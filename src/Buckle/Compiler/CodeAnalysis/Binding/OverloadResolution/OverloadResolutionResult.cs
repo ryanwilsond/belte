@@ -220,6 +220,7 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
                         return;
                 }
             }
+            // TODO calling convention
             // else if (firstSupported.result.kind == MemberResolutionKind.WrongCallingConvention) {
             //     ReportWrongCallingConvention(location, diagnostics, symbols, firstSupported, ((FunctionPointerTypeSymbol)delegateOrFunctionPointerType).Signature);
             //     return;
