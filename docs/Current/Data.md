@@ -1249,7 +1249,8 @@ public static class Program {
 
 public static class QueryHelper {
   public static lowlevel string BuildQuery(Type type, string name, Buffer<string> fields) {
-    var builder = new System.Text.StringBuilder(f"struct {name} {{\n");
+    var builder = new System.Text.StringBuilder(f"struct {name}");
+    builder.Append(" {\n");
 
     for (field in fields) {
       var found = false;
