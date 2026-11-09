@@ -95,9 +95,8 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
             return;
         }
 
-        // if (HadConstraintFailure(location, diagnostics)) {
-        //     return;
-        // }
+        if (HadConstraintFailure(location, diagnostics))
+            return;
 
         if (HadBadArguments(
             diagnostics,
@@ -112,9 +111,14 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
             return;
         }
 
-        // if (HadConstructedParameterFailedConstraintCheck(binder.Conversions, binder.Compilation, diagnostics, location)) {
-        //     return;
-        // }
+        if (HadConstructedParameterFailedConstraintCheck(
+            binder.conversions,
+            binder,
+            arguments,
+            diagnostics,
+            location)) {
+            return;
+        }
 
         // if (InaccessibleTypeArgument(diagnostics, symbols, location)) {
         //     return;
@@ -216,6 +220,7 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
                         return;
                 }
             }
+            // TODO calling convention
             // else if (firstSupported.result.kind == MemberResolutionKind.WrongCallingConvention) {
             //     ReportWrongCallingConvention(location, diagnostics, symbols, firstSupported, ((FunctionPointerTypeSymbol)delegateOrFunctionPointerType).Signature);
             //     return;
@@ -224,6 +229,51 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
 
         if (!isMethodGroupConversion)
             ReportBadParameterCount(diagnostics, name, arguments, symbols, location, typeContainingConstructor);
+    }
+
+
+    private bool HadConstructedParameterFailedConstraintCheck(
+        ConversionsBase conversions,
+        Binder binder,
+        AnalyzedArguments arguments,
+        BelteDiagnosticQueue diagnostics,
+        TextLocation location) {
+        var result = GetFirstMemberKind(MemberResolutionKind.ConstructedParameterFailedConstraintCheck);
+
+        if (result.isNull)
+            return false;
+
+        var method = (MethodSymbol)(Symbol)result.member;
+
+        if (!method.CheckConstraints(
+                conversions,
+                location,
+                method.GetEnclosingTemplateConstraints(),
+                arguments.arguments.ToImmutable(),
+                diagnostics)) {
+            return true;
+        }
+
+        var formalParameterType = method.GetParameterType(result.result.badParameter);
+
+        formalParameterType.CheckAllConstraints(
+            conversions,
+            location,
+            method.parameters[result.result.badParameter].GetEnclosingTemplateConstraints(),
+            diagnostics
+        );
+
+        return true;
+    }
+
+    private bool HadConstraintFailure(TextLocation location, BelteDiagnosticQueue diagnostics) {
+        var constraintFailure = GetFirstMemberKind(MemberResolutionKind.ConstraintFailure);
+
+        if (constraintFailure.isNull)
+            return false;
+
+        diagnostics.PushRangeAndFree(constraintFailure.result.constraintFailureDiagnostics);
+        return true;
     }
 
     private bool HadReturnMismatch(
@@ -385,10 +435,13 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
         var refParameter = parameter.refKind;
 
         if (!argument.expression.HasExpressionType()) {
-            if (arguments.syntaxes[arg].kind == SyntaxKind.OmittedArgument)
+            if (arguments.syntaxes[arg].kind == SyntaxKind.OmittedArgument) {
                 diagnostics.Push(Error.CannotImplyNull(sourceLocation, arg + 1, parameter.type));
-            else
-                diagnostics.Push(Error.CannotConvertArgument(sourceLocation, argument.type, parameter.type, arg + 1));
+            } else {
+                diagnostics.Push(
+                    Error.CannotConvertArgument(sourceLocation, argument.expression.display, parameter.type, arg + 1)
+                );
+            }
         } else if (refArg != refParameter &&
               !(refParameter is RefKind.RefConst or RefKind.RefFinal && refArg is RefKind.None or RefKind.Ref)) {
             if (refParameter is RefKind.None or RefKind.RefConst or RefKind.RefFinal)
@@ -401,10 +454,11 @@ internal sealed class OverloadResolutionResult<TMember> where TMember : Symbol {
             if (arguments.types[arg] is { } argType) {
                 if (!parameter.isConst &&
                     argument.isExpression &&
-                    argument.expression.IsConst() &&
-                    argument.type.isReferenceType &&
-                    !argument.type.IsKnownToBeImmutable()) {
+                    argument.expression.IsEffectivelyConst()) {
                     diagnostics.Push(Error.ArgumentWrongConst(sourceLocation, arg + 1));
+                } else if (parameter.isConstExpr && argument.isExpression &&
+                    !Binder.EnsureExpressionIsCompileTime(argument.expression)) {
+                    diagnostics.Push(Error.ArgumentWrongConstExpr(sourceLocation, arg + 1));
                 } else {
                     diagnostics.Push(Error.CannotConvertArgument(sourceLocation, argType, parameter.type, arg + 1));
                 }

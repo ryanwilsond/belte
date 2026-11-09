@@ -12,7 +12,7 @@ internal abstract partial class SourceEnumConstantSymbol {
         private readonly bool _isFlagsEnum;
 
         internal ImplicitValuedEnumConstantSymbol(
-            SourceMemberContainerTypeSymbol containingEnum,
+            NamedTypeSymbol containingEnum,
             EnumMemberDeclarationSyntax syntax,
             SourceEnumConstantSymbol otherConstant,
             uint otherConstantOffset,

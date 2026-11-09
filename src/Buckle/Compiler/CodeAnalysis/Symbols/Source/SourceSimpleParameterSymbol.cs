@@ -1,3 +1,4 @@
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 
@@ -10,11 +11,13 @@ internal sealed class SourceSimpleParameterSymbol : SourceParameterSymbol {
         int ordinal,
         RefKind refKind,
         bool isConst,
+        bool isConstExpr,
         string name,
         SyntaxReference syntaxReference,
         TextLocation location)
-        : base(owner, ordinal, refKind, isConst, ScopedKind.None, name, syntaxReference, location) {
+        : base(owner, ordinal, refKind, isConst, isConstExpr, ScopedKind.None, name, syntaxReference, location) {
         typeWithAnnotations = type;
+        AfterTypeChecks();
     }
 
     internal override TypeWithAnnotations typeWithAnnotations { get; }
@@ -22,6 +25,8 @@ internal sealed class SourceSimpleParameterSymbol : SourceParameterSymbol {
     internal override ConstantValue explicitDefaultConstantValue => null;
 
     internal override ConstantValue outDefaultValue => null;
+
+    internal override BoundExpression expressionDefaultValue => null;
 
     internal override bool isMetadataOptional => false;
 

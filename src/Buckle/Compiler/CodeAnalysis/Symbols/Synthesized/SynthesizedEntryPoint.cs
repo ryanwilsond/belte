@@ -7,7 +7,6 @@ using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
-using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Symbols;
 
@@ -18,11 +17,21 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
     private WeakReference<ExecutableCodeBinder> _weakBodyBinder;
     private WeakReference<ExecutableCodeBinder> _weakIgnoreAccessibilityBodyBinder;
 
-    internal SynthesizedEntryPoint(SourceMemberContainerTypeSymbol containingType, SingleTypeDeclaration declaration)
-        : base(containingType, declaration.syntaxReference, MakeModifiersAndFlags(containingType, declaration)) {
+    internal SynthesizedEntryPoint(
+        SourceMemberContainerTypeSymbol containingType,
+        SingleTypeDeclaration declaration,
+        bool shouldUseIntReturn)
+        : base(
+            containingType,
+            declaration.syntaxReference,
+            declaration.syntaxReference.location,
+            MakeModifiersAndFlags(containingType, declaration)
+        ) {
         _returnType = declaration.hasReturnWithExpression
-            ? CorLibrary.GetNullableType(SpecialType.Any)
-            : CorLibrary.GetSpecialType(SpecialType.Void);
+            ? shouldUseIntReturn
+                ? containingAssembly.corLibrary.GetSpecialType(SpecialType.Int32)
+                : containingAssembly.corLibrary.GetNullableType(SpecialType.Any)
+            : containingAssembly.corLibrary.GetSpecialType(SpecialType.Void);
 
         _declaration = declaration;
     }
@@ -35,13 +44,13 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
 
     public override bool returnsVoid => returnType.IsVoidType();
 
+    public override Symbol associatedSymbol => null;
+
     internal override TypeWithAnnotations returnTypeWithAnnotations => new TypeWithAnnotations(_returnType);
 
     internal override ImmutableArray<ParameterSymbol> parameters => [];
 
     internal override int parameterCount => 0;
-
-    internal override TextLocation location => _declaration.syntaxReference.location;
 
     internal CompilationUnitSyntax compilationUnit => (CompilationUnitSyntax)syntaxNode;
 
@@ -54,6 +63,10 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
 
     internal TextLocation firstLocation
         => compilationUnit.elements.First(m => m.kind == SyntaxKind.GlobalStatement).location;
+
+    internal override bool isExplicitInterfaceImplementation => false;
+
+    internal override ImmutableArray<MethodSymbol> explicitInterfaceImplementations => [];
 
     internal ExecutableCodeBinder GetBodyBinder(bool ignoreAccessibility) {
         ref var weakBinder = ref ignoreAccessibility ? ref _weakIgnoreAccessibilityBodyBinder : ref _weakBodyBinder;
@@ -79,6 +92,10 @@ internal sealed class SynthesizedEntryPoint : SourceMemberMethodSymbol {
     }
 
     internal override ImmutableArray<ImmutableArray<TypeWithAnnotations>> GetTypeParameterConstraintTypes() {
+        return [];
+    }
+
+    internal override ImmutableArray<BoundExpression> GetTemplateConstraints() {
         return [];
     }
 

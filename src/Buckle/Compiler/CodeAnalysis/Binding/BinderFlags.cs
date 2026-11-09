@@ -20,6 +20,7 @@ internal enum BinderFlags : uint {
     ConstContext = 1 << 9,
     InWithTryBody = 1 << 10,
     InDeferBody = 1 << 11,
+    CheckedRegion = 1 << 23,
 
     InCatchBlock = 1 << 12,
     InFinallyBlock = 1 << 13,
@@ -29,6 +30,12 @@ internal enum BinderFlags : uint {
     InContextualAttributeBinder = 1 << 16,
     AttributeArgument = 1 << 17,
     EarlyAttributeBinding = 1 << 18,
+
+    TemplateArgument = 1 << 19,
+
+    PureContext = 1 << 20,
+    NoAllocContext = 1 << 21,
+    NoThrowContext = 1 << 22,
 
     AllClearedAtExecutableCodeBoundary = InCatchBlock | InFinallyBlock | InTryBlockOfTryCatch | InNestedFinallyBlock,
 }

@@ -7,18 +7,36 @@ using System.Runtime.Versioning;
 
 namespace Buckle.CodeAnalysis.Emitting;
 
-internal static class DotnetReferenceResolver {
-    internal static string GetTFM() {
-        var currentAssembly = System.Reflection.Assembly.GetExecutingAssembly();
-        var attr = currentAssembly
-            .GetCustomAttributes(typeof(TargetFrameworkAttribute), false)
-            .OfType<TargetFrameworkAttribute>()
-            .FirstOrDefault();
+public static class DotnetReferenceResolver {
+    private static string _lazyTFM;
+    private static string _lazyCoreAppRefPath;
+    private static string _lazyVersion;
 
-        return attr.FrameworkName.Split('=')[1].Substring(1);
+    public static string GetTFM() {
+        if (_lazyTFM is null) {
+            var currentAssembly = System.Reflection.Assembly.GetExecutingAssembly();
+            var attr = currentAssembly
+                .GetCustomAttributes(typeof(TargetFrameworkAttribute), false)
+                .OfType<TargetFrameworkAttribute>()
+                .FirstOrDefault();
+
+            _lazyTFM = attr.FrameworkName.Split('=')[1].Substring(1);
+        }
+
+        return _lazyTFM;
     }
 
-    internal static string ResolveNetCoreAppRefPath(string tfm, out string version) {
+    public static string ResolveNetCoreAppRefPath(string tfm, out string version) {
+        if (_lazyTFM is not null && tfm == _lazyTFM) {
+            _lazyCoreAppRefPath ??= ResolveNetCoreAppRefPathInternal(tfm, out _lazyVersion);
+            version = _lazyVersion;
+            return _lazyCoreAppRefPath;
+        }
+
+        return ResolveNetCoreAppRefPathInternal(tfm, out version);
+    }
+
+    private static string ResolveNetCoreAppRefPathInternal(string tfm, out string version) {
         var runtimeVersions = GetInstalledRuntimeVersions();
 
         if (runtimeVersions.Count == 0) {

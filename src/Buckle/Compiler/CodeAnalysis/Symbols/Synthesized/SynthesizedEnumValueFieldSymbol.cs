@@ -2,7 +2,7 @@
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class SynthesizedEnumValueFieldSymbol : SynthesizedFieldSymbolBase {
-    internal SynthesizedEnumValueFieldSymbol(SourceNamedTypeSymbol containingEnum)
+    internal SynthesizedEnumValueFieldSymbol(NamedTypeSymbol containingEnum)
         : base(
             containingEnum,
             WellKnownMemberNames.EnumBackingFieldName,
@@ -15,6 +15,6 @@ internal sealed class SynthesizedEnumValueFieldSymbol : SynthesizedFieldSymbolBa
     public override RefKind refKind => RefKind.None;
 
     internal override TypeWithAnnotations GetFieldType(ConsList<FieldSymbol> fieldsBeingBound) {
-        return new TypeWithAnnotations(((SourceNamedTypeSymbol)containingType).enumUnderlyingType);
+        return new TypeWithAnnotations(containingType.enumUnderlyingType);
     }
 }

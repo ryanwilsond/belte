@@ -22,6 +22,38 @@ internal sealed class SyntaxListBuilder {
         _nodes[count++].value = item.green;
     }
 
+    internal void AddRange<TNode>(SyntaxList<TNode> list, int offset, int count) where TNode : SyntaxNode {
+        AddRange(new SyntaxList<SyntaxNode>(list.node), offset, count);
+    }
+
+    internal void AddRange(SyntaxList<SyntaxNode> list, int offset, int count) {
+        if (this.count + count > _nodes.Length)
+            Grow(this.count + count);
+
+        var dst = this.count;
+
+        for (int i = offset, limit = offset + count; i < limit; i++) {
+            _nodes[dst].value = list.ItemInternal(i).green;
+            dst++;
+        }
+
+        this.count += count;
+    }
+
+    internal void AddRange(SyntaxNodeOrTokenList list, int offset, int count) {
+        if (this.count + count > _nodes.Length)
+            Grow(this.count + count);
+
+        var dst = this.count;
+
+        for (int i = offset, limit = offset + count; i < limit; i++) {
+            _nodes[dst].value = list[i].underlyingNode;
+            dst++;
+        }
+
+        this.count += count;
+    }
+
     internal void AddInternal(GreenNode item) {
         if (count >= _nodes.Length)
             Grow(count == 0 ? 8 : _nodes.Length * 2);

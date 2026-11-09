@@ -6,11 +6,7 @@ namespace Buckle.Diagnostics;
 /// Belte exception meant to be used for critical errors in the compiler when using Diagnostics is not an option.
 /// </summary>
 internal sealed class BelteInternalException : BelteException {
-    public BelteInternalException() { }
-
-    public BelteInternalException(string message) : base(CreateMessage(message)) { }
-
-    public BelteInternalException(string message, Exception inner) : base(CreateMessage(message), inner) { }
+    internal BelteInternalException(string message) : base(CreateMessage(message)) { }
 
     private static string CreateMessage(string message) {
         var title = Uri.EscapeDataString(message);

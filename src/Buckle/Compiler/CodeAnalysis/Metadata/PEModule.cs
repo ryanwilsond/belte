@@ -2,6 +2,7 @@ using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Linq;
 using System.Reflection;
 using System.Reflection.Metadata;
@@ -9,7 +10,6 @@ using System.Reflection.Metadata.Ecma335;
 using System.Reflection.PortableExecutable;
 using System.Threading;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.Diagnostics;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 using TypeAttributes = System.Reflection.TypeAttributes;
@@ -51,6 +51,7 @@ internal sealed partial class PEModule : IDisposable {
     private static readonly AttributeValueExtractor<StringAndInt> AttributeStringAndIntValueExtractor = CrackStringAndIntInAttributeValue;
     private static readonly AttributeValueExtractor<byte> AttributeByteValueExtractor = CrackByteInAttributeValue;
     private static readonly AttributeValueExtractor<ImmutableArray<byte>> AttributeByteArrayValueExtractor = CrackByteArrayInAttributeValue;
+    private static readonly AttributeValueExtractor<ImmutableArray<string>> AttributeStringArrayValueExtractor = CrackStringArrayInAttributeValue;
 
     internal PEModule(
         ModuleMetadata owner,
@@ -130,6 +131,21 @@ internal sealed partial class PEModule : IDisposable {
 
     internal bool IsNoPiaLocalType(TypeDefinitionHandle typeDef) {
         return IsNoPiaLocalType(typeDef, out _);
+    }
+
+    internal bool HasTupleElementNamesAttribute(EntityHandle token, out ImmutableArray<string> tupleElementNames) {
+        var info = FindTargetAttribute(token, AttributeDescription.TupleElementNamesAttribute);
+
+        if (!info.hasValue) {
+            tupleElementNames = default;
+            return false;
+        }
+
+        return TryExtractStringArrayValueFromAttribute(info.handle, out tupleElementNames);
+    }
+
+    private bool TryExtractStringArrayValueFromAttribute(CustomAttributeHandle handle, out ImmutableArray<string?> value) {
+        return TryExtractValueFromAttribute(handle, out value, AttributeStringArrayValueExtractor);
     }
 
     internal IEnumerable<IGrouping<string, TypeDefinitionHandle>> GroupTypesByNamespaceOrThrow(
@@ -464,6 +480,13 @@ internal sealed partial class PEModule : IDisposable {
         return name;
     }
 
+    internal bool GetTypeAndConstructor(
+        CustomAttributeHandle customAttribute,
+        out EntityHandle ctorType,
+        out EntityHandle attributeCtor) {
+        return GetTypeAndConstructor(metadataReader, customAttribute, out ctorType, out attributeCtor);
+    }
+
     internal bool IsNestedTypeDefOrThrow(TypeDefinitionHandle typeDef) {
         return IsNestedTypeDefOrThrow(metadataReader, typeDef);
     }
@@ -606,6 +629,32 @@ internal sealed partial class PEModule : IDisposable {
                 value = byteArrayBuilder.ToImmutableAndFree();
                 return true;
             }
+        }
+
+        value = default;
+        return false;
+    }
+
+    internal static bool CrackStringArrayInAttributeValue(out ImmutableArray<string> value, ref BlobReader sig) {
+        if (sig.RemainingBytes >= 4) {
+            var arrayLen = sig.ReadUInt32();
+
+            if (IsArrayNull(arrayLen)) {
+                value = default;
+                return false;
+            }
+
+            var stringArray = new string[arrayLen];
+
+            for (var i = 0; i < arrayLen; i++) {
+                if (!CrackStringInAttributeValue(out stringArray[i], ref sig)) {
+                    value = stringArray.AsImmutableOrNull();
+                    return false;
+                }
+            }
+
+            value = stringArray.AsImmutableOrNull();
+            return true;
         }
 
         value = default;
@@ -854,6 +903,10 @@ internal sealed partial class PEModule : IDisposable {
         return metadataReader.GetMemberReference(memberRef).Signature;
     }
 
+    internal BlobHandle GetSignatureOrThrow(MemberReferenceHandle memberRef) {
+        return GetSignatureOrThrow(metadataReader, memberRef);
+    }
+
     internal bool ContainsNoPiaLocalTypes() {
         if (_lazyContainsNoPiaLocalTypes == ThreeState.Unknown) {
             try {
@@ -1019,6 +1072,27 @@ internal sealed partial class PEModule : IDisposable {
         flags = fieldRow.Attributes;
     }
 
+    internal BlobHandle GetPropertySignatureOrThrow(PropertyDefinitionHandle propertyDef) {
+        return metadataReader.GetPropertyDefinition(propertyDef).Signature;
+    }
+
+    internal void GetPropertyDefPropsOrThrow(
+        PropertyDefinitionHandle propertyDef,
+        out string name,
+        out PropertyAttributes flags) {
+        var property = metadataReader.GetPropertyDefinition(propertyDef);
+        name = metadataReader.GetString(property.Name);
+        flags = property.Attributes;
+    }
+
+    internal PropertyDefinitionHandleCollection GetPropertiesOfTypeOrThrow(TypeDefinitionHandle typeDef) {
+        return metadataReader.GetTypeDefinition(typeDef).GetProperties();
+    }
+
+    internal PropertyAccessors GetPropertyMethodsOrThrow(PropertyDefinitionHandle propertyDef) {
+        return metadataReader.GetPropertyDefinition(propertyDef).GetAccessors();
+    }
+
     internal bool HasFixedBufferAttribute(EntityHandle token, out string elementTypeName, out int bufferSize) {
         return HasStringAndIntValuedAttribute(token, AttributeDescription.FixedBufferAttribute, out elementTypeName, out bufferSize);
     }
@@ -1056,6 +1130,12 @@ internal sealed partial class PEModule : IDisposable {
         } catch (BadImageFormatException) {
             return null;
         }
+    }
+
+    internal ImmutableArray<string> GetConditionalAttributeValues(EntityHandle token) {
+        var attrInfos = FindTargetAttributes(token, AttributeDescription.ConditionalAttribute);
+        var result = ExtractStringValuesFromAttributes(attrInfos);
+        return result?.ToImmutableAndFree() ?? [];
     }
 
     private ConstantValue GetConstantValueOrThrow(ConstantHandle handle) {
@@ -1144,6 +1224,10 @@ internal sealed partial class PEModule : IDisposable {
 
     internal MethodImplementationHandleCollection GetMethodImplementationsOrThrow(TypeDefinitionHandle typeDef) {
         return metadataReader.GetTypeDefinition(typeDef).GetMethodImplementations();
+    }
+
+    internal InterfaceImplementationHandleCollection GetInterfaceImplementationsOrThrow(TypeDefinitionHandle typeDef) {
+        return metadataReader.GetTypeDefinition(typeDef).GetInterfaceImplementations();
     }
 
     internal string GetFieldDefNameOrThrow(FieldDefinitionHandle fieldDef) {
@@ -1269,6 +1353,17 @@ internal sealed partial class PEModule : IDisposable {
         return TryExtractByteArrayValueFromAttribute(info.handle, out nullableTransforms);
     }
 
+    internal bool HasNullabilityAttribute(EntityHandle token, out ImmutableArray<byte> nullableTransforms) {
+        var info = FindTargetAttribute(token, AttributeDescription.NullabilityAttribute);
+
+        nullableTransforms = default;
+
+        if (!info.hasValue)
+            return false;
+
+        return TryExtractByteArrayValueFromAttribute(info.handle, out nullableTransforms);
+    }
+
     private bool TryExtractByteArrayValueFromAttribute(CustomAttributeHandle handle, out ImmutableArray<byte> value) {
         return TryExtractValueFromAttribute(handle, out value, AttributeByteArrayValueExtractor);
     }
@@ -1304,6 +1399,18 @@ internal sealed partial class PEModule : IDisposable {
         return metadataReader.GetTypeDefinition(typeDef).GetDeclaringType();
     }
 
+    internal EntityHandle GetContainingTypeOrThrow(MemberReferenceHandle memberRef) {
+        return metadataReader.GetMemberReference(memberRef).Parent;
+    }
+
+    internal string GetMemberRefNameOrThrow(MemberReferenceHandle memberRef) {
+        return GetMemberRefNameOrThrow(metadataReader, memberRef);
+    }
+
+    private static string GetMemberRefNameOrThrow(MetadataReader metadataReader, MemberReferenceHandle memberRef) {
+        return metadataReader.GetString(metadataReader.GetMemberReference(memberRef).Name);
+    }
+
     internal string GetTypeDefNamespaceOrThrow(TypeDefinitionHandle typeDef) {
         return metadataReader.GetString(metadataReader.GetTypeDefinition(typeDef).Namespace);
     }
@@ -1313,9 +1420,7 @@ internal sealed partial class PEModule : IDisposable {
     }
 
     internal bool IsInterfaceOrThrow(TypeDefinitionHandle typeDef) {
-        // TODO interfaces
-        // return metadataReader.GetTypeDefinition(typeDef).Attributes.IsInterface();
-        return false;
+        return (metadataReader.GetTypeDefinition(typeDef).Attributes & TypeAttributes.Interface) != 0;
     }
 
     internal bool IsNoPiaLocalType(
@@ -1423,5 +1528,71 @@ internal sealed partial class PEModule : IDisposable {
 
     internal int GetParameterSequenceNumberOrThrow(ParameterHandle param) {
         return metadataReader.GetParameter(param).SequenceNumber;
+    }
+
+    internal bool HasAttributeUsageAttribute(
+        EntityHandle token,
+        MetadataDecoder attributeNamedArgumentDecoder,
+        out AttributeUsageInfo usageInfo) {
+        var info = FindTargetAttribute(token, AttributeDescription.AttributeUsageAttribute);
+
+        if (info.hasValue) {
+            Debug.Assert(info.signatureIndex == 0);
+
+            if (TryGetAttributeReader(info.handle, out var sigReader) &&
+                CrackIntInAttributeValue(out var validOn, ref sigReader)) {
+                var allowMultiple = false;
+                var inherited = true;
+
+                if (sigReader.RemainingBytes >= 2) {
+                    try {
+                        var numNamedArgs = sigReader.ReadUInt16();
+
+                        for (uint i = 0; i < numNamedArgs; i++) {
+                            var namedArgValues = attributeNamedArgumentDecoder.DecodeCustomAttributeNamedArgumentOrThrow(
+                                ref sigReader
+                            );
+
+                            if (namedArgValues is (_, isProperty: true, typeCode: SerializationTypeCode.Boolean, _)) {
+                                switch (namedArgValues.nameValuePair.Key) {
+                                    case "AllowMultiple":
+                                        allowMultiple = (bool)namedArgValues.nameValuePair.Value.valueInternal;
+                                        break;
+                                    case "Inherited":
+                                        inherited = (bool)namedArgValues.nameValuePair.Value.valueInternal;
+                                        break;
+                                }
+                            }
+                        }
+                    } catch (Exception e) when (e is UnsupportedSignatureContent or BadImageFormatException) { }
+                }
+
+                usageInfo = new AttributeUsageInfo((AttributeTargets)validOn, allowMultiple, inherited);
+                return true;
+            }
+        }
+
+        usageInfo = default;
+        return false;
+    }
+
+    private bool TryGetAttributeReader(CustomAttributeHandle handle, out BlobReader blobReader) {
+        Debug.Assert(!handle.IsNil);
+
+        try {
+            var valueBlob = GetCustomAttributeValueOrThrow(handle);
+
+            if (!valueBlob.IsNil) {
+                blobReader = metadataReader.GetBlobReader(valueBlob);
+
+                if (blobReader.Length >= 4) {
+                    if (blobReader.ReadInt16() == 1)
+                        return true;
+                }
+            }
+        } catch (BadImageFormatException) { }
+
+        blobReader = default;
+        return false;
     }
 }

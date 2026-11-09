@@ -14,7 +14,7 @@ internal sealed class SyntaxListBuilder<T> where T : SyntaxNode {
         return new SyntaxListBuilder<T>(8);
     }
 
-    internal bool isNull => _builder is null;
+    internal bool isNullInternal => _builder is null;
 
     internal int count => _builder.count;
 
@@ -25,6 +25,10 @@ internal sealed class SyntaxListBuilder<T> where T : SyntaxNode {
     internal SyntaxListBuilder<T> Add(T node) {
         _builder.Add(node);
         return this;
+    }
+
+    internal void AddRange(SyntaxList<T> nodes, int offset, int length) {
+        _builder.AddRange(nodes, offset, length);
     }
 
     internal SyntaxList<T> ToList() {

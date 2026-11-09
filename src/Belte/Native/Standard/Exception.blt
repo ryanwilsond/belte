@@ -1,0 +1,12 @@
+
+namespace System;
+
+public class Exception {
+    public constructor() : this("Exception thrown") { }
+
+    public constructor(string? message) {
+        this.message = message;
+    }
+
+    public string? message;
+}

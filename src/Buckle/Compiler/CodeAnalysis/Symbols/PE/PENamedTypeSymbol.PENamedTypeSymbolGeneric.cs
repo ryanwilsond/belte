@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using System.Reflection.Metadata;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
@@ -11,6 +12,7 @@ internal abstract partial class PENamedTypeSymbol {
         private readonly ushort _arity;
         private readonly bool _mangleName;
         private ImmutableArray<TemplateParameterSymbol> _lazyTemplateParameters;
+        private ImmutableArray<BoundExpression> _lazyTemplateConstraints;
 
         internal PENamedTypeSymbolGeneric(
             PEModuleSymbol moduleSymbol,
@@ -35,6 +37,13 @@ internal abstract partial class PENamedTypeSymbol {
         }
 
         public override int arity => _arity;
+
+        public override ImmutableArray<BoundExpression> templateConstraints {
+            get {
+                EnsureTemplateConstraintsAreLoaded();
+                return _lazyTemplateConstraints;
+            }
+        }
 
         public override ImmutableArray<TypeOrConstant> templateArguments => GetTemplateParametersAsTemplateArguments();
 
@@ -73,13 +82,28 @@ internal abstract partial class PENamedTypeSymbol {
             }
         }
 
+        private void EnsureTemplateConstraintsAreLoaded() {
+            if (_lazyTemplateConstraints.IsDefault) {
+                if (containingModule.containingAssembly.templateMetadataReader.GetLinkedSymbol(this)
+                        is not ISymbolWithTemplates linkedSymbol) {
+                    ImmutableInterlocked.InterlockedInitialize(ref _lazyTemplateConstraints, []);
+                    return;
+                }
+
+                ImmutableInterlocked.InterlockedInitialize(
+                    ref _lazyTemplateConstraints,
+                    linkedSymbol.templateConstraints
+                );
+            }
+        }
+
         private bool MatchesContainingTypeParameters() {
             var container = containingType;
 
             if (container is null)
                 return true;
 
-            var containingTypeParameters = container.GetAllTypeParameters();
+            var containingTypeParameters = container.GetAllTemplateParameters();
             var n = containingTypeParameters.Length;
 
             if (n == 0)

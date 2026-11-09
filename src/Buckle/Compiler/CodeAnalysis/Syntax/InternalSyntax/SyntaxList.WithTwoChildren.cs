@@ -17,7 +17,12 @@ internal partial class SyntaxList {
             _child1 = child1;
         }
 
-        internal WithTwoChildren(GreenNode child0, GreenNode child1, Diagnostic[] diagnostics) : base(diagnostics) {
+        internal WithTwoChildren(
+            GreenNode child0,
+            GreenNode child1,
+            Diagnostic[] diagnostics,
+            SyntaxAnnotation[] annotations)
+            : base(diagnostics, annotations) {
             AdjustFlagsAndWidth(child0);
             _child0 = child0;
             AdjustFlagsAndWidth(child1);
@@ -44,7 +49,11 @@ internal partial class SyntaxList {
         }
 
         internal override GreenNode SetDiagnostics(Diagnostic[] diagnostics) {
-            return new WithTwoChildren(_child0, _child1, diagnostics);
+            return new WithTwoChildren(_child0, _child1, diagnostics, GetAnnotations());
+        }
+
+        internal override GreenNode SetAnnotations(SyntaxAnnotation[] annotations) {
+            return new WithTwoChildren(_child0, _child1, GetDiagnostics(), annotations);
         }
     }
 }

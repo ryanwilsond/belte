@@ -11,13 +11,13 @@
 // for either a `void Main()` or `int Main()` method to treat as the entry point.
 // There can only be 1 Main method, and it can be contained in any class
 void Main() {
-    var max = 100;
+    constexpr max = 100;
 
     // The functions `StartGame`, `AskForHints`, and `RunGame` are defined in "./Game.blt"
     // The compiler finds them automatically, no importing of any kind necessary
-    var magicNumber = StartGame(max);
-    var hintsWanted = AskForHints();
-    var guesses = RunGame(magicNumber, max, hintsWanted);
+    const magicNumber = StartGame(max);
+    const hintsWanted = AskForHints();
+    const guesses = RunGame(magicNumber, max, hintsWanted);
 
     // If statements don't require curly braces if they only contain a single statement.
     if (guesses < 0)
@@ -30,7 +30,7 @@ void Main() {
 
 int StartGame(int max) {
     // Use the `RandInt` built-in method to generate a random number from 0 to `max`, inclusive.
-    var magicNumber = Random.RandInt(max);
+    const magicNumber = Random.RandInt(max);
     Console.PrintLine("I thought of a number between 1 and " + ((string)max) + ".");
 
     return magicNumber;
@@ -40,7 +40,7 @@ bool AskForHints() {
     while (true) {
         Console.Print("Do you want hints? ");
         // Use the `Input` built-in method to get input from the user; standard in (the terminal).
-        var wantsHints = Console.Input();
+        const wantsHints = Console.Input();
 
         if (wantsHints == "yes" || wantsHints == "y")
             return true;
@@ -73,7 +73,7 @@ int RunGame(int magicNumber, int max, bool hintsWanted) {
                 return -1;
         }
 
-        var guess = (int)guessText;
+        const guess = (int)guessText;
 
         if (guess > magicNumber) {
             Console.PrintLine("The number is lower");

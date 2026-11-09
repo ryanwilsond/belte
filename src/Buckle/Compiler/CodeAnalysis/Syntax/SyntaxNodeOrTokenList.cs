@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Syntax;
@@ -113,7 +114,78 @@ public sealed partial class SyntaxNodeOrTokenList : IReadOnlyCollection<SyntaxNo
             array[arrayOffset + i] = this[i + offset].underlyingNode;
     }
 
-    internal Enumerator GetEnumerator() {
+    internal int IndexOf(SyntaxNodeOrToken nodeOrToken) {
+        var i = 0;
+
+        foreach (var child in this) {
+            if (child == nodeOrToken)
+                return i;
+
+            i++;
+        }
+
+        return -1;
+    }
+
+    internal SyntaxNodeOrTokenList Replace(SyntaxNodeOrToken nodeOrTokenInList, SyntaxNodeOrToken newNodeOrToken) {
+        ArgumentOutOfRangeException.ThrowIfEqual(newNodeOrToken, default);
+        return ReplaceRange(nodeOrTokenInList, new[] { newNodeOrToken });
+    }
+
+    internal SyntaxNodeOrTokenList ReplaceRange(
+        SyntaxNodeOrToken nodeOrTokenInList,
+        IEnumerable<SyntaxNodeOrToken> newNodesAndTokens) {
+        var index = IndexOf(nodeOrTokenInList);
+
+        if (index >= 0 && index < Count) {
+            var nodes = this.ToList();
+            nodes.RemoveAt(index);
+            nodes.InsertRange(index, newNodesAndTokens);
+            return CreateList(nodes);
+        }
+
+        throw new ArgumentOutOfRangeException(nameof(nodeOrTokenInList));
+    }
+
+    private static SyntaxNodeOrTokenList CreateList(List<SyntaxNodeOrToken> items) {
+        if (items.Count == 0)
+            return default;
+
+        var newGreen = GreenNode.CreateList(items, static n => n.underlyingNode);
+
+        if (newGreen.isToken) {
+            newGreen = InternalSyntax.SyntaxList.List(
+                [new ArrayElement<GreenNode> { value = newGreen }]
+            );
+        }
+
+        return new SyntaxNodeOrTokenList(newGreen.CreateRed(), 0);
+    }
+
+    internal SyntaxNodeOrTokenList RemoveAt(int index) {
+        if (index < 0 || index >= Count)
+            throw new ArgumentOutOfRangeException(nameof(index));
+
+        var nodes = this.ToList();
+        nodes.RemoveAt(index);
+        return CreateList(nodes);
+    }
+
+    internal SyntaxNodeOrTokenList InsertRange(int index, IEnumerable<SyntaxNodeOrToken> nodesAndTokens) {
+        if (index < 0 || index > Count)
+            throw new ArgumentOutOfRangeException(nameof(index));
+
+        ArgumentNullException.ThrowIfNull(nodesAndTokens);
+
+        if (nodesAndTokens.IsEmpty())
+            return this;
+
+        var nodes = this.ToList();
+        nodes.InsertRange(index, nodesAndTokens);
+        return CreateList(nodes);
+    }
+
+    public Enumerator GetEnumerator() {
         return new Enumerator(this);
     }
 

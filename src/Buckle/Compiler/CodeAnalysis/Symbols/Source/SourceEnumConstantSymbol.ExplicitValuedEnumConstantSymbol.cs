@@ -7,7 +7,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal abstract partial class SourceEnumConstantSymbol {
     private sealed class ExplicitValuedEnumConstantSymbol : SourceEnumConstantSymbol {
         internal ExplicitValuedEnumConstantSymbol(
-            SourceMemberContainerTypeSymbol containingEnum,
+            NamedTypeSymbol containingEnum,
             EnumMemberDeclarationSyntax syntax,
             BelteDiagnosticQueue diagnostics)
             : base(containingEnum, syntax, diagnostics) { }

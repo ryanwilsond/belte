@@ -4,5 +4,5 @@ namespace Buckle.Diagnostics;
 
 internal class BelteInvalidPointerIndirection : BelteEvaluatorException {
     internal BelteInvalidPointerIndirection(TextLocation location)
-        : base("Attempted to read protected memory.", location) { }
+        : base("Attempted to read protected memory.", location, failCompileTimeExpressions: false) { }
 }

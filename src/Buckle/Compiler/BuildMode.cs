@@ -17,6 +17,8 @@ public enum BuildMode : byte {
     Evaluate,
     /// Runs the program after compilation by executing.
     Execute,
+    /// Runs the program after compilation by emulating.
+    Emulate,
     /// Compiles the program into a native executable.
     Independent,
     /// Transpiles the program into C# source.

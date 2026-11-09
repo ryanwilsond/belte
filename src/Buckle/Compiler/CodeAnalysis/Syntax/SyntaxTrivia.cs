@@ -1,4 +1,7 @@
+using System;
+using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Syntax;
@@ -83,7 +86,25 @@ public class SyntaxTrivia {
     /// The location of this trivia in the <see cref="SourceText" /> that contains it.
     /// </summary>
     /// <returns></returns>
-    public TextLocation location => new TextLocation(syntaxTree.text, span, syntaxTree);
+    public TextLocation location {
+        get {
+            if (syntaxTree is null)
+                return null;
+
+            var primaryLocation = new TextLocation(syntaxTree.text, span, syntaxTree);
+
+            if (green.hasAnnotationsDirectly) {
+                var locationAnnotations = GetAnnotations("Location");
+
+                if (locationAnnotations.Any()) {
+                    var annotation = locationAnnotations.Single();
+                    return new CompoundTextLocation(primaryLocation, (SyntaxNode)annotation.data);
+                }
+            }
+
+            return primaryLocation;
+        }
+    }
 
     internal bool isDirective => green?.isDirective ?? false;
 
@@ -96,6 +117,63 @@ public class SyntaxTrivia {
     internal bool TryGetStructure(out SyntaxNode structure) {
         structure = GetStructure();
         return structure is not null;
+    }
+
+    internal bool IsPartOfStructuredTrivia() {
+        return token.parent?.IsPartOfStructuredTrivia() ?? false;
+    }
+
+    internal IEnumerable<SyntaxAnnotation> GetAnnotations(string annotationKind) {
+        return green is not null
+            ? green.GetAnnotations(annotationKind)
+            : SpecializedCollections.EmptyEnumerable<SyntaxAnnotation>();
+    }
+
+    internal SyntaxTrivia WithAdditionalAnnotations(params SyntaxAnnotation[] annotations) {
+        return WithAdditionalAnnotations((IEnumerable<SyntaxAnnotation>)annotations);
+    }
+
+    internal SyntaxTrivia WithAdditionalAnnotations(IEnumerable<SyntaxAnnotation> annotations) {
+        ArgumentNullException.ThrowIfNull(annotations);
+
+        if (green is not null) {
+            return new SyntaxTrivia(
+                token: default,
+                trivia: green.WithAdditionalAnnotationsGreen(annotations),
+                position: 0,
+                index: 0
+            );
+        }
+
+        return default;
+    }
+
+    internal SyntaxTrivia WithoutAnnotations(string annotationKind) {
+        ArgumentNullException.ThrowIfNull(annotationKind);
+
+        if (HasAnnotations(annotationKind))
+            return WithoutAnnotations(GetAnnotations(annotationKind));
+
+        return this;
+    }
+
+    internal SyntaxTrivia WithoutAnnotations(IEnumerable<SyntaxAnnotation> annotations) {
+        ArgumentNullException.ThrowIfNull(annotations);
+
+        if (green is not null) {
+            return new SyntaxTrivia(
+                token: default,
+                trivia: green.WithoutAnnotationsGreen(annotations),
+                position: 0,
+                index: 0
+            );
+        }
+
+        return default;
+    }
+
+    internal bool HasAnnotations(string annotationKind) {
+        return green?.HasAnnotations(annotationKind) ?? false;
     }
 
     private string GetDebuggerDisplay() {

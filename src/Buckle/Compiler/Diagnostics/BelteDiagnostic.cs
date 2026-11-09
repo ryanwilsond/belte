@@ -17,8 +17,17 @@ public sealed class BelteDiagnostic : Diagnostic {
     /// <param name="message">Message/info on the <see cref="BelteDiagnostic" />.</param>
     /// <param name="suggestions">Possible solution(s) to the problem.</param>
     public BelteDiagnostic(DiagnosticInfo info, TextLocation location, string message, string[] suggestions)
+        : this(info, location, message, suggestions, null) { }
+
+    public BelteDiagnostic(
+        DiagnosticInfo info,
+        TextLocation location,
+        string message,
+        string[] suggestions,
+        object inner)
         : base(info, message, suggestions) {
         this.location = location;
+        this.inner = inner;
     }
 
     /// <summary>
@@ -29,16 +38,6 @@ public sealed class BelteDiagnostic : Diagnostic {
     /// <param name="message">Message/info on the <see cref="BelteDiagnostic" />.</param>
     public BelteDiagnostic(DiagnosticInfo info, TextLocation location, string message)
         : this(info, location, message, []) { }
-
-    /// <summary>
-    /// Creates a <see cref="BelteDiagnostic" /> using a severity instead of <see cref="DiagnosticInfo" />,
-    /// no suggestion.
-    /// </summary>
-    /// <param name="type">Severity of <see cref="BelteDiagnostic" />.</param>
-    /// <param name="location">Location of the <see cref="BelteDiagnostic" />.</param>
-    /// <param name="message">Message/info on the <see cref="BelteDiagnostic" />.</param>
-    public BelteDiagnostic(DiagnosticSeverity type, TextLocation location, string message)
-        : this(new DiagnosticInfo(type), location, message, []) { }
 
     /// <summary>
     /// Creates a <see cref="BelteDiagnostic" /> using a severity instead of <see cref="DiagnosticInfo" />,
@@ -76,6 +75,8 @@ public sealed class BelteDiagnostic : Diagnostic {
     /// <see cref="BelteDiagnostic" />).
     /// </summary>
     public TextLocation location { get; }
+
+    public object inner { get; }
 
     public static BelteDiagnostic AddLocation(Diagnostic diagnostic, TextLocation location) {
         if (diagnostic is null)

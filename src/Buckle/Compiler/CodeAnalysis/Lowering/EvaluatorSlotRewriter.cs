@@ -3,13 +3,13 @@ using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.CodeGeneration;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.Libraries;
 using Buckle.Utilities;
 using static Buckle.CodeAnalysis.Binding.BoundFactory;
 
 namespace Buckle.CodeAnalysis.Lowering;
 
-internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
+internal sealed class EvaluatorSlotRewriter : BoundTreeRewriterWithStackGuard {
+    private readonly Compilation _compilation;
     private readonly ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder _typeLayouts;
     private readonly BoundProgram _previous;
 
@@ -18,21 +18,24 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
     internal readonly EvaluatorSlotManager localSlotManager;
 
     private EvaluatorSlotRewriter(
+        Compilation compilation,
         MethodSymbol method,
         ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder typeLayouts,
         BoundProgram previous) {
+        _compilation = compilation;
         _typeLayouts = typeLayouts;
         _previous = previous;
         localSlotManager = new EvaluatorSlotManager(method);
     }
 
     internal static BoundBlockStatement Rewrite(
+        Compilation compilation,
         MethodSymbol method,
         BoundStatement statement,
         ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder typeLayouts,
         BoundProgram previous,
         out EvaluatorSlotManager slotManager) {
-        var rewriter = new EvaluatorSlotRewriter(method, typeLayouts, previous);
+        var rewriter = new EvaluatorSlotRewriter(compilation, method, typeLayouts, previous);
         rewriter.AssignParameterSlots(method);
         var rewrittenBlock = (BoundBlockStatement)rewriter.Visit(statement);
 
@@ -93,7 +96,7 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
             );
         }
 
-        if (local.isRef && node.declaration.initializer.IsLiteralNull())
+        if (local.isRef && (node.declaration.initializer is null || node.declaration.initializer.IsLiteralNull()))
             _lateTempCount++;
 
         if (node.declaration.initializer is null)
@@ -145,6 +148,11 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
         return base.VisitObjectCreationExpression(node);
     }
 
+    internal override BoundNode VisitNewT(BoundNewT node) {
+        _lateTempCount++;
+        return base.VisitNewT(node);
+    }
+
     internal override BoundNode VisitArrayCreationExpression(BoundArrayCreationExpression node) {
         _lateTempCount++;
         return base.VisitArrayCreationExpression(node);
@@ -155,19 +163,24 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
         return base.VisitSwitchDispatch(node);
     }
 
+    internal override BoundNode VisitValuePlaceholder(BoundValuePlaceholder node) {
+        _lateTempCount++;
+        return base.VisitValuePlaceholder(node);
+    }
+
     internal override BoundNode VisitCompileTimeExpression(BoundCompileTimeExpression node) {
-        var structStack = new Stack<NamedTypeSymbol>();
+        var tempStack = new Stack<TypeSymbol>();
 
-        if (node.Type().IsStructType())
-            structStack.Push((NamedTypeSymbol)node.Type());
+        if (node.Type().IsStructType() || node.Type().IsArray())
+            tempStack.Push(node.Type());
 
-        while (structStack.Count > 0) {
+        while (tempStack.Count > 0) {
             _lateTempCount++;
-            var structType = structStack.Pop();
+            var type = tempStack.Pop();
 
-            foreach (var member in structType.GetMembers()) {
-                if (member is FieldSymbol f && f.type.IsStructType())
-                    structStack.Push((NamedTypeSymbol)f.type);
+            foreach (var member in type.GetMembers()) {
+                if (member is FieldSymbol f && (f.type.IsStructType() || f.type.IsArray()))
+                    tempStack.Push(f.type);
             }
         }
 
@@ -178,13 +191,15 @@ internal sealed class EvaluatorSlotRewriter : BoundTreeRewriter {
         var method = node.method;
 
         if (!localSlotManager.symbol.declaringCompilation.options.noStdLib) {
-            if (method.containingType?.Equals(GraphicsLibrary.Graphics) == true &&
-                GraphicsLibrary.MethodProducesTemp(method)) {
+            if (method.containingType?.Equals(_compilation.graphicsLibrary.Graphics) == true &&
+                _compilation.graphicsLibrary.MethodProducesTemp(method)) {
                 _lateTempCount++;
             }
         }
 
-        if (node.receiver is not null && node.receiver.type.StrippedType().IsStructType())
+        if (node.receiver is not null && node.receiver.type.isValueType)
+            _lateTempCount++;
+        else if (node.method.returnType.isValueType)
             _lateTempCount++;
 
         return base.VisitCallExpression(node);

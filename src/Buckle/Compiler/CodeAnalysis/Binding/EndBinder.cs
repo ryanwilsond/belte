@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
@@ -9,6 +10,7 @@ namespace Buckle.CodeAnalysis.Binding;
 
 internal sealed class EndBinder : Binder {
     internal EndBinder(Compilation compilation, SourceText associatedText) : base(compilation) {
+        Debug.Assert(compilation is not null);
         this.associatedText = associatedText;
     }
 
@@ -72,8 +74,16 @@ internal sealed class EndBinder : Binder {
         throw ExceptionUtilities.Unreachable();
     }
 
+    private protected override void AddLocalToScope(DataContainerSymbol local) {
+        throw ExceptionUtilities.Unreachable();
+    }
+
     private protected override SynthesizedDataContainerSymbol BuildWithCommit() {
         return null;
+    }
+
+    internal override bool HasNullAssertFact(Symbol _) {
+        return false;
     }
 
     internal override BoundStatement BindSwitchStatementCore(
@@ -88,7 +98,7 @@ internal sealed class EndBinder : Binder {
         TypeSymbol accessThroughType,
         out bool failedThroughTypeCheck) {
         failedThroughTypeCheck = false;
-        return IsSymbolAccessibleConditional(symbol, compilation.globalNamespaceInternal);
+        return IsSymbolAccessibleConditional(symbol, compilation.assembly);
     }
 
     private protected override bool IsUnboundTypeAllowed(TemplateNameSyntax syntax) {

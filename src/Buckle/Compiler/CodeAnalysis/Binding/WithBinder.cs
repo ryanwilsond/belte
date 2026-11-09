@@ -1,6 +1,5 @@
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
-using Buckle.Libraries;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -21,8 +20,8 @@ internal sealed class WithBinder : LocalScopeBinder {
     private protected override SynthesizedDataContainerSymbol BuildWithCommit() {
         _commitLocal = new SynthesizedDataContainerSymbol(
             containingMember,
-            new TypeWithAnnotations(CorLibrary.GetSpecialType(SpecialType.Bool)),
-            SynthesizedLocalKind.ExpanderTemp,
+            new TypeWithAnnotations(compilation.GetSpecialType(SpecialType.Bool)),
+            SynthesizedLocalKind.CommitLocal,
             "commit"
         );
 

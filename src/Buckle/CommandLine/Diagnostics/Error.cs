@@ -71,8 +71,7 @@ internal static class Error {
     }
 
     internal static Diagnostic InvalidErrorCode(string error) {
-        var message = $"'{error}' is not a valid diagnostic code; must be in the format: [BU|CL|RE]<code>" +
-            $"{Environment.NewLine}\texamples: BU0001, CL0001, BU54, CL012, RE0001, RE6";
+        var message = $"'{error}' is not a valid diagnostic code; must be in the format: [BU|CL|RE]<code>{Environment.NewLine}\texamples: BU0001, CL0001, BU54, CL012, RE0001, RE6";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_InvalidErrorCode), message);
     }
 
@@ -169,6 +168,21 @@ internal static class Error {
     internal static Diagnostic UnableToRun(string msg) {
         var message = $"failed to start process: {msg}";
         return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_UnableToRun), message);
+    }
+
+    internal static Diagnostic MissingFilenameF(string arg) {
+        var message = $"missing filename after '{arg}'";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingFilenameF), message);
+    }
+
+    internal static Diagnostic MissingPreprocessorSymbol(string arg) {
+        var message = $"missing preprocessor symbol after '{arg}'";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingPreprocessorSymbol), message);
+    }
+
+    internal static Diagnostic MissingSynthesizedCodePath(string arg) {
+        var message = $"missing path after '{arg}' (usage: '--scpath=<path>')";
+        return new Diagnostic(ErrorInfo(DiagnosticCode.ERR_MissingSynthesizedCodePath), message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

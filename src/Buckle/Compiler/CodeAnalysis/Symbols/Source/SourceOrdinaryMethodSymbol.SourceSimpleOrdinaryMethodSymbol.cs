@@ -26,5 +26,16 @@ internal abstract partial class SourceOrdinaryMethodSymbol {
         internal sealed override ImmutableArray<TypeParameterConstraintKinds> GetTypeParameterConstraintKinds() {
             return [];
         }
+
+        internal sealed override ImmutableArray<BoundExpression> GetTemplateConstraints() {
+            return [];
+        }
+
+        private protected sealed override TypeSymbol _explicitInterfaceType => null;
+
+        private protected sealed override MethodSymbol FindExplicitlyImplementedMethod(
+            BelteDiagnosticQueue diagnostics) {
+            return null;
+        }
     }
 }

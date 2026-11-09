@@ -5,7 +5,14 @@ namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 internal abstract class StructuredTriviaSyntax : BelteSyntaxNode {
     internal sealed override bool isStructuredTrivia => true;
 
-    internal StructuredTriviaSyntax(SyntaxKind kind, Diagnostic[] diagnostics = null) : base(kind, diagnostics) {
+    internal StructuredTriviaSyntax(
+        SyntaxKind kind,
+        Diagnostic[] diagnostics = null,
+        SyntaxAnnotation[] annotations = null)
+        : base(kind, diagnostics, annotations) {
         _flags |= NodeFlags.ContainsStructuredTrivia;
+
+        if (kind == SyntaxKind.SkippedTokensTrivia)
+            _flags |= NodeFlags.ContainsSkippedText;
     }
 }

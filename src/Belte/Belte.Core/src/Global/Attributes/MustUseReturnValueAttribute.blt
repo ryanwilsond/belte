@@ -1,0 +1,5 @@
+
+[System.AttributeUsage(System.AttributeTargets.Method)]
+public sealed class MustUseReturnValueAttribute extends System.Attribute {
+    public constructor() { }
+}

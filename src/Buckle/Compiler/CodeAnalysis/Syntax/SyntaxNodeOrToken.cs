@@ -79,6 +79,8 @@ public readonly struct SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
     /// </summary>
     public bool containsDiagnostics => _token?.containsDiagnostics ?? _nodeOrParent?.containsDiagnostics ?? false;
 
+    public bool containsDirectives => _token?.containsDiagnostics ?? _nodeOrParent?.containsDiagnostics ?? false;
+
     /// <summary>
     /// The <see cref="SyntaxTree" /> of the underlying node.
     /// </summary>
@@ -237,6 +239,16 @@ public readonly struct SyntaxNodeOrToken : IEquatable<SyntaxNodeOrToken> {
         where TDirective : SyntaxNode {
         GetDirectives(this, filter, out var directives);
         return directives;
+    }
+
+    internal InternalSyntax.DirectiveStack ApplyDirectives(InternalSyntax.DirectiveStack stack) {
+        if (isToken)
+            return AsToken().ApplyDirectives(stack);
+
+        if (AsNode(out var node))
+            return node.ApplyDirectives(stack);
+
+        return stack;
     }
 
     private static void GetDirectives<TDirective>(

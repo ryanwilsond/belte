@@ -70,7 +70,11 @@ internal sealed class SequencePointInjector : BoundTreeRewriter {
                         var end = ctorDecl.body.openBrace.span.end;
                         location = FromBounds(syntax, start, end);
                     } else {
-                        location = CreateLocation(ctorDecl.modifiers, ctorDecl.constructorKeyword, ctorDecl.parameterList.closeParenthesis);
+                        location = CreateLocation(
+                            ctorDecl.modifiers,
+                            ctorDecl.constructorKeyword,
+                            ctorDecl.parameterList.closeParenthesis
+                        );
                     }
 
                     return new BoundSequencePointWithLocation(ctorDecl, node, location);
@@ -78,7 +82,11 @@ internal sealed class SequencePointInjector : BoundTreeRewriter {
                     return new BoundSequencePointWithLocation(
                         ctorInit,
                         node,
-                        FromBounds(syntax, ctorInit.thisOrBaseKeyword.span.start, ctorInit.argumentList.closeParenthesis.span.end)
+                        FromBounds(
+                            syntax,
+                            ctorInit.thisOrBaseKeyword.span.start,
+                            ctorInit.argumentList.closeParenthesis.span.end
+                        )
                     );
                 case TypeDeclarationSyntax typeDecl:
                     return new BoundSequencePointWithLocation(

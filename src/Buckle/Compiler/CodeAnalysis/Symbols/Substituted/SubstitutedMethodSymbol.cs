@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
@@ -15,8 +16,9 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
     private MethodSymbol _lazyReverseMethod;
     private MethodSymbol _lazyStateMethod;
     private TemplateMap _lazyMap;
+    private ImmutableArray<BoundExpression> _lazyTemplateConstraints;
     private ImmutableArray<TemplateParameterSymbol> _lazyTemplateParameters;
-
+    private ImmutableArray<MethodSymbol> _lazyExplicitInterfaceImplementations;
     private OverriddenOrHiddenMembersResult _lazyOverriddenOrHiddenMembers;
 
     private int _hashCode;
@@ -30,6 +32,8 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
         MethodSymbol originalDefinition,
         MethodSymbol constructedFrom)
         : base(originalDefinition) {
+        Debug.Assert(originalDefinition is not null);
+        Debug.Assert(containingType is not null);
         this.containingType = containingType;
         _inputMap = map;
 
@@ -56,10 +60,21 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
         }
     }
 
-    // TODO this should be something
-    public sealed override ImmutableArray<BoundExpression> templateConstraints => [];
+    public sealed override ImmutableArray<BoundExpression> templateConstraints {
+        get {
+            EnsureMapAndTemplateParameters();
+            return _lazyTemplateConstraints;
+        }
+    }
 
     public override ImmutableArray<TypeOrConstant> templateArguments => GetTemplateParametersAsTemplateArguments();
+
+    public sealed override Symbol associatedSymbol {
+        get {
+            var underlying = originalDefinition.associatedSymbol;
+            return underlying?.SymbolAsMember(containingType);
+        }
+    }
 
     internal sealed override MethodSymbol originalDefinition => underlyingMethod;
 
@@ -86,6 +101,29 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
                 ImmutableInterlocked.InterlockedInitialize(ref _lazyParameters, SubstituteParameters());
 
             return _lazyParameters;
+        }
+    }
+
+    internal sealed override bool isExplicitInterfaceImplementation
+        => originalDefinition.isExplicitInterfaceImplementation;
+
+    internal sealed override ImmutableArray<MethodSymbol> explicitInterfaceImplementations {
+        get {
+            if (!ReferenceEquals(constructedFrom, this))
+                return [];
+
+            if (_lazyExplicitInterfaceImplementations.IsDefault) {
+                ImmutableInterlocked.InterlockedCompareExchange(
+                    ref _lazyExplicitInterfaceImplementations,
+                    ExplicitInterfaceHelpers.SubstituteExplicitInterfaceImplementations(
+                        originalDefinition.explicitInterfaceImplementations,
+                        templateSubstitution
+                    ),
+                    default
+                );
+            }
+
+            return _lazyExplicitInterfaceImplementations;
         }
     }
 
@@ -167,6 +205,13 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
             typeParameters = previousMap.SubstituteTemplateParameters(originalDefinition.templateParameters);
 
         ImmutableInterlocked.InterlockedCompareExchange(ref _lazyTemplateParameters, typeParameters, default);
+
+        // TODO Need to substitute at all?
+        ImmutableInterlocked.InterlockedCompareExchange(
+            ref _lazyTemplateConstraints,
+            originalDefinition.templateConstraints,
+            default
+        );
     }
 
     private ImmutableArray<ParameterSymbol> SubstituteParameters() {
@@ -218,6 +263,9 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
             var templateParameters = method.originalDefinition.templateParameters;
 
             for (var i = 0; i < templateArguments.Length; i++) {
+                if (templateArguments[i].isConstant)
+                    return false;
+
                 if (!templateParameters[i].Equals(
                         templateArguments[i].type.type,
                         TypeCompareKind.ConsiderEverything)) {
@@ -266,5 +314,9 @@ internal class SubstitutedMethodSymbol : WrappedMethodSymbol {
         }
 
         return code;
+    }
+
+    internal sealed override bool CallsAreOmitted(SyntaxTree syntaxTree) {
+        return originalDefinition.CallsAreOmitted(syntaxTree);
     }
 }

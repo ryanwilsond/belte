@@ -19,4 +19,8 @@ internal static class SyntaxListBuilderExtensions {
 
         return new SeparatedSyntaxList<T>(new SyntaxNodeOrTokenList(listNode.CreateRed(), 0));
     }
+
+    internal static bool IsNull<T>(this SyntaxListBuilder<T> builder) where T : SyntaxNode {
+        return builder is null || builder.isNullInternal;
+    }
 }

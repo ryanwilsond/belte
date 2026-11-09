@@ -32,6 +32,8 @@ internal class TupleElementFieldSymbol : WrappedFieldSymbol {
         _correspondingDefaultField = correspondingDefaultFieldOpt ?? this;
     }
 
+    public sealed override Symbol associatedSymbol => null;
+
     internal sealed override int tupleElementIndex => _tupleElementIndex >> 1;
 
     internal sealed override bool isDefaultTupleElement => (_tupleElementIndex & 1) == 0;

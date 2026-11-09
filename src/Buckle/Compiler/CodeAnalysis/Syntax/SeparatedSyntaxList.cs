@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Syntax;
@@ -57,6 +58,12 @@ public sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T : 
     /// Number of non-separator SyntaxNodes in collection.
     /// </summary>
     public int Count { get; }
+
+    public int SeparatorCount {
+        get {
+            return _separatorCount;
+        }
+    }
 
     /// <summary>
     /// The underlying node.
@@ -123,6 +130,115 @@ public sealed partial class SeparatedSyntaxList<T> : IReadOnlyList<T> where T : 
         }
 
         return -1;
+    }
+
+    internal int IndexOf(T node) {
+        for (int i = 0, n = Count; i < n; i++) {
+            if (Equals(this[i], node))
+                return i;
+        }
+
+        return -1;
+    }
+
+    internal SeparatedSyntaxList<T> ReplaceRange(T nodeInList, IEnumerable<T> newNodes) {
+        ArgumentNullException.ThrowIfNull(newNodes);
+
+        var index = IndexOf(nodeInList);
+
+        if (index >= 0 && index < Count) {
+            var newNodeList = newNodes.ToList();
+
+            if (newNodeList.Count == 0)
+                return Remove(nodeInList);
+
+            var listWithFirstReplaced = Replace(nodeInList, newNodeList[0]);
+
+            if (newNodeList.Count > 1) {
+                newNodeList.RemoveAt(0);
+                return listWithFirstReplaced.InsertRange(index + 1, newNodeList);
+            }
+
+            return listWithFirstReplaced;
+        }
+
+        throw new ArgumentOutOfRangeException(nameof(nodeInList));
+    }
+
+    internal SeparatedSyntaxList<T> Replace(T nodeInList, T newNode) {
+        ArgumentNullException.ThrowIfNull(newNode);
+
+        var index = IndexOf(nodeInList);
+
+        if (index >= 0 && index < Count)
+            return new SeparatedSyntaxList<T>(GetWithSeparators().Replace(nodeInList, newNode));
+
+        throw new ArgumentOutOfRangeException(nameof(nodeInList));
+    }
+
+    internal SeparatedSyntaxList<T> Remove(T node) {
+        var nodesAndSeparators = GetWithSeparators();
+        var index = nodesAndSeparators.IndexOf(node);
+
+        if (index >= 0 && index <= nodesAndSeparators.Count) {
+            nodesAndSeparators = nodesAndSeparators.RemoveAt(index);
+
+            if (index < nodesAndSeparators.Count && nodesAndSeparators[index].isToken)
+                nodesAndSeparators = nodesAndSeparators.RemoveAt(index);
+            else if (index > 0 && nodesAndSeparators[index - 1].isToken)
+                nodesAndSeparators = nodesAndSeparators.RemoveAt(index - 1);
+
+            return new SeparatedSyntaxList<T>(nodesAndSeparators);
+        }
+
+        return this;
+    }
+
+    internal SeparatedSyntaxList<T> InsertRange(int index, IEnumerable<T> nodes) {
+        ArgumentNullException.ThrowIfNull(nodes);
+
+        if (index < 0 || index > Count)
+            throw new ArgumentOutOfRangeException(nameof(index));
+
+        var nodesAndSeparators = GetWithSeparators();
+        var insertionIndex = index < Count ? nodesAndSeparators.IndexOf(this[index]) : nodesAndSeparators.Count;
+
+        if (insertionIndex > 0 && insertionIndex < nodesAndSeparators.Count) {
+            var previous = nodesAndSeparators[insertionIndex - 1];
+
+            if (previous.isToken && !KeepSeparatorWithPreviousNode(previous.AsToken()))
+                insertionIndex--;
+        }
+
+        var nodesToInsertWithSeparators = new List<SyntaxNodeOrToken>();
+
+        foreach (var item in nodes) {
+            if (item is not null) {
+                if (nodesToInsertWithSeparators.Count > 0 ||
+                    (insertionIndex > 0 && nodesAndSeparators[insertionIndex - 1].isNode)) {
+                    nodesToInsertWithSeparators.Add(item.green.CreateSeparator(item));
+                }
+
+                nodesToInsertWithSeparators.Add(item);
+            }
+        }
+
+        if (insertionIndex < nodesAndSeparators.Count && nodesAndSeparators[insertionIndex]
+                is { isNode: true } nodeOrToken) {
+            var node = nodesAndSeparators[insertionIndex].AsNode();
+            nodesToInsertWithSeparators.Add(node.green.CreateSeparator(node));
+        }
+
+        return new SeparatedSyntaxList<T>(nodesAndSeparators.InsertRange(insertionIndex, nodesToInsertWithSeparators));
+    }
+
+    private static bool KeepSeparatorWithPreviousNode(in SyntaxToken separator) {
+        foreach (var tr in separator.trailingTrivia) {
+            if (tr.green.IsTriviaWithEndOfLine())
+                return true;
+        }
+
+        return false;
     }
 
     public Enumerator GetEnumerator() {

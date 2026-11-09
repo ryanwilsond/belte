@@ -15,4 +15,7 @@ public enum MethodKind : byte {
     AnonymousFunction,
     Lambda,
     Literal,
+    ExplicitInterfaceImplementation,
+    PropertyGet,
+    PropertySet,
 }

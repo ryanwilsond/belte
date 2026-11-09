@@ -9,7 +9,11 @@ internal sealed partial class BinderFactory {
         MethodBody = 1 << 1,
 
         ConstructorBodyOrInitializer = 1 << 0,
-        OperatorBody = 1 << 0,
+
+        AccessorBody = 1 << 0,
+
+        OperatorTemplateParameters = 1 << 0,
+        OperatorBody = 1 << 1,
 
         NamespaceBody = 1 << 0,
         NamespaceUsings = 1 << 1,

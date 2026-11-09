@@ -32,6 +32,8 @@ internal abstract class SynthesizedFieldSymbolBase : FieldSymbol {
 
     public override bool isConstExpr => (_modifiers & DeclarationModifiers.ConstExpr) != 0;
 
+    public override Symbol associatedSymbol => null;
+
     internal override Symbol containingSymbol => containingType;
 
     internal override NamedTypeSymbol containingType { get; }

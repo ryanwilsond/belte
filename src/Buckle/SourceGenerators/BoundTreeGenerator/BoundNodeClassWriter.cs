@@ -52,7 +52,7 @@ internal sealed partial class BoundNodeClassWriter {
         WriteLine("namespace Buckle.CodeAnalysis.Binding;");
         WriteLine();
 
-        WriteBoundKindEnum();
+        // WriteBoundKindEnum();
         WriteNodes();
         WriteVisitor();
         WriteWalker();

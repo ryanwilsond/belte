@@ -27,11 +27,13 @@ public sealed class EvaluationResult {
         this.type = type;
         this.hasValue = hasValue;
         this.diagnostics = new BelteDiagnosticQueue();
-        this.diagnostics.Move(diagnostics);
         this.exceptions = exceptions is null ? [] : exceptions;
         this.lastOutputWasPrint = lastOutputWasPrint;
         this.containsIO = containsIO;
         this.heap = heap;
+
+        if (diagnostics is not null)
+            this.diagnostics.PushRange(diagnostics);
     }
 
     /// <summary>

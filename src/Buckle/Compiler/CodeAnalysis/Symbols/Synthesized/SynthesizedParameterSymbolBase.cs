@@ -1,3 +1,4 @@
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 
@@ -43,11 +44,15 @@ internal abstract class SynthesizedParameterSymbolBase : ParameterSymbol {
 
     internal override ConstantValue outDefaultValue => null;
 
+    internal override BoundExpression expressionDefaultValue => null;
+
     internal sealed override ScopedKind effectiveScope { get; }
 
     internal override bool isImplicitlyDeclared => true;
 
     internal override bool isConst { get; }
+
+    internal override bool isConstExpr => false;
 
     // TODO Once actually added, complex/simple implement this separately
     internal override bool hasUnscopedRefAttribute => false;

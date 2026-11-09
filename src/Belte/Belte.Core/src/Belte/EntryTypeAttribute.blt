@@ -1,0 +1,8 @@
+using System;
+
+namespace Belte;
+
+[AttributeUsage(AttributeTargets.Class)]
+public sealed class EntryTypeAttribute extends Attribute {
+    public constructor() { }
+}

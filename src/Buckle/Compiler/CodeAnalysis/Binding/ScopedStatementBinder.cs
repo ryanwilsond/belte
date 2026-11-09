@@ -23,7 +23,7 @@ internal sealed class ScopedStatementBinder : LocalScopeBinder {
             ExpressionVariableFinder.FindExpressionVariables(args.binder, args.locals, rankSpecifier.size);
         }, (binder: this, locals: locals));
 
-        locals.Add(MakeLocal(declarationSyntax, null));
+        locals.Add(MakeLocal(declarationSyntax, null, DataContainerDeclarationKind.ScopedLocal));
         ExpressionVariableFinder.FindExpressionVariables(this, locals, declarationSyntax);
 
         return locals.ToImmutableAndFree();

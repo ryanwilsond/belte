@@ -36,7 +36,7 @@ internal partial class SourceDataContainerSymbol {
             return null;
         }
 
-        private protected override TypeWithAnnotations InferTypeOfImplicit() {
+        private protected override TypeWithAnnotations InferTypeOfImplicit(BelteDiagnosticQueue diagnostics) {
             switch (_nodeToBind.kind) {
                 case SyntaxKind.ConstructorInitializer:
                     var initializer = (ConstructorInitializerSyntax)_nodeToBind;
@@ -61,7 +61,8 @@ internal partial class SourceDataContainerSymbol {
 
             if (_type is null) {
                 SetTypeWithAnnotations(
-                    new TypeWithAnnotations(declaringCompilation.implicitlyTypedVariableInferenceFailedType)
+                    new TypeWithAnnotations(declaringCompilation.implicitlyTypedVariableInferenceFailedType),
+                    diagnostics
                 );
             }
 

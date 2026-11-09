@@ -16,6 +16,8 @@ internal enum ConversionKind : byte {
     ImplicitEnum,
     ImplicitNumeric,
     ImplicitTupleLiteral,
+    ImplicitThrow,
+    ImplicitWellKnown,
     AnyBoxing,
     Explicit,
     ExplicitNullable,
@@ -32,4 +34,6 @@ internal enum ConversionKind : byte {
     ObjectCreation,
     ConditionalExpression,
     Deconstruction,
+    FunctionType,
+    DelegateCreation,
 }

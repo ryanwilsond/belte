@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Syntax;
@@ -126,7 +127,7 @@ public sealed partial class SyntaxTokenList : IReadOnlyList<SyntaxToken> {
         return node.isList ? node.GetSlot(i) : node;
     }
 
-    public int IndexOf(SyntaxToken tokenInList) {
+    internal int IndexOf(SyntaxToken tokenInList) {
         for (int i = 0, n = Count; i < n; i++) {
             var token = this[i];
 
@@ -144,6 +145,39 @@ public sealed partial class SyntaxTokenList : IReadOnlyList<SyntaxToken> {
         }
 
         return -1;
+    }
+
+    internal SyntaxTokenList ReplaceRange(SyntaxToken tokenInList, IEnumerable<SyntaxToken> newTokens) {
+        var index = IndexOf(tokenInList);
+
+        if (index >= 0 && index <= Count) {
+            var list = this.ToList();
+            list.RemoveAt(index);
+            list.InsertRange(index, newTokens);
+            return new SyntaxTokenList(null, GreenNode.CreateList(list, static n => n.node), 0, 0);
+        }
+
+        throw new ArgumentOutOfRangeException(nameof(tokenInList));
+    }
+
+    internal SyntaxTokenList InsertRange(int index, IEnumerable<SyntaxToken> tokens) {
+        if (index < 0 || index > Count)
+            throw new ArgumentOutOfRangeException(nameof(index));
+
+        ArgumentNullException.ThrowIfNull(tokens);
+
+        var items = tokens.ToList();
+
+        if (items.Count == 0)
+            return this;
+
+        var list = this.ToList();
+        list.InsertRange(index, tokens);
+
+        if (list.Count == 0)
+            return this;
+
+        return new SyntaxTokenList(null, GreenNode.CreateList(list, static n => n.node), 0, 0);
     }
 
     public Enumerator GetEnumerator() {

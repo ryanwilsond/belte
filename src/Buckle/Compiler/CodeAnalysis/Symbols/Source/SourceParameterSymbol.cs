@@ -13,6 +13,7 @@ internal abstract class SourceParameterSymbol : SourceParameterSymbolBase {
         int ordinal,
         RefKind refKind,
         bool isConst,
+        bool isConstExpr,
         ScopedKind scope,
         string name,
         SyntaxReference syntaxReference,
@@ -22,6 +23,7 @@ internal abstract class SourceParameterSymbol : SourceParameterSymbolBase {
         effectiveScope = scope;
         this.name = name;
         this.isConst = isConst;
+        this.isConstExpr = isConstExpr;
         this.syntaxReference = syntaxReference;
         this.location = location;
     }
@@ -46,6 +48,8 @@ internal abstract class SourceParameterSymbol : SourceParameterSymbolBase {
 
     internal override bool isConst { get; }
 
+    internal override bool isConstExpr { get; }
+
     internal abstract SyntaxList<AttributeListSyntax> attributeDeclarationList { get; }
 
     internal static SourceParameterSymbol Create(
@@ -54,6 +58,7 @@ internal abstract class SourceParameterSymbol : SourceParameterSymbolBase {
         ParameterSyntax syntax,
         RefKind refKind,
         bool isConst,
+        bool isConstExpr,
         string name,
         int ordinal,
         ScopedKind scope) {
@@ -64,6 +69,7 @@ internal abstract class SourceParameterSymbol : SourceParameterSymbolBase {
                 ordinal,
                 refKind,
                 isConst,
+                isConstExpr,
                 name,
                 new SyntaxReference(syntax),
                 syntax.identifier.location
@@ -76,6 +82,7 @@ internal abstract class SourceParameterSymbol : SourceParameterSymbolBase {
             parameterType,
             refKind,
             isConst,
+            isConstExpr,
             name,
             syntax,
             scope
@@ -92,9 +99,10 @@ internal abstract class SourceParameterSymbol : SourceParameterSymbolBase {
         return new SourceSimpleParameterSymbol(
             owner,
             parameterType,
-            0,
+            ordinal: 0,
             refKind,
-            false,
+            isConst: false,
+            isConstExpr: false,
             name,
             new SyntaxReference(syntax),
             location
@@ -133,5 +141,14 @@ internal abstract class SourceParameterSymbol : SourceParameterSymbolBase {
 
         // return declaredScope;
         return ScopedKind.None;
+    }
+
+    private protected void AfterTypeChecks() {
+        if (isConst && type.IsPointerOrFunctionPointer()) {
+            var diagnostics = BelteDiagnosticQueue.GetInstance();
+            diagnostics.Push(Error.PointerCannotBeConstParameter(location, name));
+            AddDeclarationDiagnostics(diagnostics);
+            diagnostics.Free();
+        }
     }
 }

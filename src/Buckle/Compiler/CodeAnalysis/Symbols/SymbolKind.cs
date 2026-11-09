@@ -23,4 +23,5 @@ public enum SymbolKind : byte {
     Module,
     Preprocessing,
     Token,
+    Property,
 }

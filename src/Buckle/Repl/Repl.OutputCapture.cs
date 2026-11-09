@@ -42,6 +42,8 @@ public abstract partial class Repl {
         /// <param name="left">Column position (left (0) -> right).</param>
         /// <param name="top">Row position (top (0) -> down).</param>
         public void SetCursorPosition(int left, int top) {
+            left = Math.Clamp(left, 0, Console.BufferWidth - 1);
+            top = Math.Clamp(top, 0, Console.BufferHeight - 1);
             Console.SetCursorPosition(left, top);
         }
     }

@@ -1,38 +1,40 @@
 
 public static class String {
-    public static int? Ascii(string! chr);
+    public static int? Ascii(string chr);
 
-    public static string! Char(int! ascii);
+    public static string Char(int ascii);
 
-    public static bool! IsDigit(char? chr);
+    public static bool IsDigit(char? chr);
 
-    public static bool! IsNullOrWhiteSpace(string? str);
+    public static bool IsNullOrWhiteSpace(string? str);
 
-    public static bool! IsNullOrWhiteSpace(char? str);
+    public static bool IsNullOrWhiteSpace(char? str);
 
-    public static int! Length(string! str);
+    public static int Length(string str);
 
-    public static int! IndexOf(string! text, char! chr);
+    public static int IndexOf(string text, char chr);
 
-    public static Buffer<string!>! Split(string! text, string! separator);
+    public static Buffer<string> Split(string text, string separator);
 
-    public static string! Substring(string! text, int? start, int? length);
+    public static string Substring(string text, int? start, int? length);
 
-    public static string! PadLeft(string! text, char! padding, int! totalWidth);
+    public static string PadLeft(string text, char padding, int totalWidth);
 
-    public static string! PadRight(string! text, char! padding, int! totalWidth);
+    public static string PadRight(string text, char padding, int totalWidth);
 
-    public static string! Replace(string! text, string! search, string! replacement);
+    public static string Replace(string text, string search, string replacement);
 
-    public static string! Trim(string! text);
+    public static string Trim(string text);
 
-    public static string! Trim(string! text, const Buffer<char!>! trimCharacters);
+    public static string Trim(string text, const Buffer<char> trimCharacters);
 
-    public static string! TrimStart(string! text);
+    public static string TrimStart(string text);
 
-    public static string! TrimStart(string! text, const Buffer<char!>! trimCharacters);
+    public static string TrimStart(string text, const Buffer<char> trimCharacters);
 
-    public static string! TrimEnd(string! text);
+    public static string TrimEnd(string text);
 
-    public static string! TrimEnd(string! text, const Buffer<char!>! trimCharacters);
+    public static string TrimEnd(string text, const Buffer<char> trimCharacters);
+
+    public static bool Contains(string text, string substring);
 }

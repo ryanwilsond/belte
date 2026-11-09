@@ -8,6 +8,8 @@ internal enum DataContainerDeclarationKind : byte {
     Final,
     ConstantExpression,
     ForEachLocal,
+    ConstantForEachLocal,
+    ConstantNullBindingLocal,
     NullBindingLocal,
     ScopedLocal,
     PatternLocal,

@@ -5,7 +5,7 @@ public partial class SyntaxTree {
     internal sealed class DummySyntaxTree : SyntaxTree {
         private readonly CompilationUnitSyntax _node;
 
-        internal DummySyntaxTree() : base(null, SourceCodeKind.Regular, null) {
+        internal DummySyntaxTree() : base(null, SourceCodeKind.Regular, ParseOptions.Default) {
             _node = CloneNodeAsRoot(SyntaxFactory.ParseCompilationUnit(""));
         }
 

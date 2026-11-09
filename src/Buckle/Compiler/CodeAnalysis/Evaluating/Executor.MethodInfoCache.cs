@@ -14,6 +14,7 @@ internal sealed partial class Executor {
         internal static MethodInfo Nullable_get_Value = typeof(Nullable<>).GetMethod("get_Value");
         internal static MethodInfo Nullable_get_HasValue = typeof(Nullable<>).GetMethod("get_HasValue");
         internal static MethodInfo Nullable_GetValueOrDefault = typeof(Nullable<>).GetMethod("GetValueOrDefault", Type.EmptyTypes);
+        internal static MethodInfo Nullable_GetValueOrDefault_T = typeof(Nullable<>).GetMethods().Single(m => m.Name == "GetValueOrDefault" && m.GetParameters().Length == 1);
         internal static ConstructorInfo Exception_ctor = typeof(Exception).GetConstructor(Type.EmptyTypes);
         internal static ConstructorInfo Exception_ctor_S = typeof(Exception).GetConstructor([typeof(string)]);
         internal static MethodInfo Object_ToString = typeof(object).GetMethod("ToString", InstFlags, Type.EmptyTypes);
@@ -22,7 +23,8 @@ internal sealed partial class Executor {
         internal static MethodInfo String_Equality_SS = typeof(string).GetMethod("op_Equality", DefaultFlags, [typeof(string), typeof(string)]);
         internal static MethodInfo String_get_Chars_I = typeof(string).GetMethod("get_Chars", InstFlags, [typeof(int)]);
         internal static ConstructorInfo NullConditionException_ctor = typeof(NullConditionException).GetConstructor(Type.EmptyTypes);
-        internal static ConstructorInfo UnreachableException_ctor = typeof(System.Diagnostics.UnreachableException).GetConstructor(Type.EmptyTypes);
+        internal static MethodInfo GetUnreachableException = typeof(Belte.Runtime.ThrowHelper).GetMethod("GetUnreachableException");
+        internal static MethodInfo GetUnexpectedValueException = typeof(Belte.Runtime.ThrowHelper).GetMethod("GetUnexpectedValueException");
         internal static MethodInfo Type_GetTypeFromHandle = typeof(Type).GetMethod("GetTypeFromHandle", DefaultFlags, [typeof(RuntimeTypeHandle)]);
         internal static ConstructorInfo ValueTuple_T1_ctor = typeof(ValueTuple<>).GetConstructors().Single();
         internal static ConstructorInfo ValueTuple_T2_ctor = typeof(ValueTuple<,>).GetConstructors().Single();

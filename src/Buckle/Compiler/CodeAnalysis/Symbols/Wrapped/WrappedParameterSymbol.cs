@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.CodeAnalysis.Text;
 
@@ -28,6 +29,8 @@ internal abstract class WrappedParameterSymbol : ParameterSymbol {
 
     internal sealed override ConstantValue outDefaultValue => underlyingParameter.outDefaultValue;
 
+    internal sealed override BoundExpression expressionDefaultValue => underlyingParameter.expressionDefaultValue;
+
     internal sealed override ScopedKind effectiveScope => underlyingParameter.effectiveScope;
 
     internal override TypeWithAnnotations typeWithAnnotations => underlyingParameter.typeWithAnnotations;
@@ -37,6 +40,8 @@ internal abstract class WrappedParameterSymbol : ParameterSymbol {
     internal override bool isImplicitlyDeclared => underlyingParameter.isImplicitlyDeclared;
 
     internal override bool isConst => underlyingParameter.isConst;
+
+    internal override bool isConstExpr => underlyingParameter.isConstExpr;
 
     internal sealed override bool hasUnscopedRefAttribute => underlyingParameter.hasUnscopedRefAttribute;
 

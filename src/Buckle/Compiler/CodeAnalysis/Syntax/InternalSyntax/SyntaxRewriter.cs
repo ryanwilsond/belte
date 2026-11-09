@@ -1,9 +1,8 @@
-
 using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Syntax.InternalSyntax;
 
-internal partial class SyntaxRewriter : SyntaxVisitor<BelteSyntaxNode> {
+internal abstract partial class SyntaxRewriter : SyntaxVisitor<BelteSyntaxNode> {
     private protected readonly bool _visitIntoTrivia;
 
     internal SyntaxRewriter(bool visitIntoTrivia = false) {

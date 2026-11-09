@@ -37,7 +37,8 @@ internal sealed class WithMethodTemplateParametersBinder : WithTemplateParameter
         }
     }
 
-    private protected override LookupOptions _lookupMask => LookupOptions.MustNotBeMethodTemplateParameter;
+    private protected override LookupOptions _lookupMask
+        => LookupOptions.NamespaceAliasesOnly | LookupOptions.MustNotBeMethodTemplateParameter;
 
     internal override void AddLookupSymbolsInfoInSingleBinder(
         LookupSymbolsInfo result,

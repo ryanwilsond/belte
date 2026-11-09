@@ -1,0 +1,43 @@
+using Microsoft.CodeAnalysis;
+using Microsoft.CodeAnalysis.CSharp.Syntax;
+using Microsoft.CodeAnalysis.MSBuild;
+
+constexpr ProjectPath = "../../../src/Buckle/Compiler/Compiler.csproj";
+
+Console.PrintLine("Loading workspace...");
+
+var workspace = MSBuildWorkspace.Create()!;
+var project = workspace.OpenProjectAsync(ProjectPath)!.Result!;
+
+var documents = project.Documents!;
+
+Console.PrintLine("Processing documents...");
+
+for (document, index in documents) {
+    var root = document!.GetSyntaxRootAsync()!.Result!;
+    var model = document!.GetSemanticModelAsync()!.Result!;
+
+    if (root is CompilationUnitSyntax compilationUnit) {
+        var diagnostics = model.GetDiagnostics();
+
+        for (diagnostic in diagnostics) {
+            if (diagnostic!.Id! == "CS8019") {
+                var span = diagnostic!.Location!.SourceSpan;
+
+                UsingDirectiveSyntax? usingDirective = null;
+
+                for (usingSyntax in compilationUnit.Usings) {
+                    if (usingSyntax!.Span.IntersectsWith(span)) {
+                        usingDirective = usingSyntax;
+                        break;
+                    }
+                }
+
+                if (usingDirective isnt null)
+                    Console.PrintLine(f"Found using: {document!.FilePath}: {usingDirective}");
+            }
+        }
+    }
+}
+
+Console.PrintLine("Done");

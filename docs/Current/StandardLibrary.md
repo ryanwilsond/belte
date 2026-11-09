@@ -1,8 +1,10 @@
 # 5 The Standard Library
 
 The Standard Library is a collection of classes that are implicitly included in all Belte compilations (i.e. they do not
-need importing). Though they are technically inside of the `Belte` namespace, all members of the `Belte` namespace do
-not require using the namespace qualifier to reference.
+need importing).
+
+Because the Standard Library is currently very limited, it is highly encouraged to make full use of broader
+[.NET assemblies](Interop.md#8-net-dll-references).
 
 - [5.1](StandardLibrary/Console.md) Console
   - [5.1.1](StandardLibrary/Console.md#511-methods) Methods

@@ -110,8 +110,9 @@ again:
             }
 
             tryRegion.tryEnd = _currentBlock;
+            // TODO This seems unnecessary, why was this here in the first place? :
             // Needs to be somewhere between the end of the finally and the end of the program if the finally is the last statement
-            _statements.Add(new BoundNopStatement(node.syntax));
+            // _statements.Add(new BoundNopStatement(node.syntax));
 
             StartBlock();
 

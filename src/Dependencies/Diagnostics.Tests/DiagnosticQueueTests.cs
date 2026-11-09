@@ -72,18 +72,6 @@ public sealed class DiagnosticQueueTests {
     }
 
     [Fact]
-    public void DiagnosticQueue_Move_MovesQueue() {
-        var diagnosticQueue1 = new DiagnosticQueue<Diagnostic>();
-        var diagnosticQueue2 = new DiagnosticQueue<Diagnostic>();
-        diagnosticQueue1.Push(new Diagnostic(DiagnosticSeverity.Error, ""));
-        diagnosticQueue2.Push(new Diagnostic(DiagnosticSeverity.Error, ""));
-        diagnosticQueue1.Move(diagnosticQueue2);
-
-        Assert.Equal(2, diagnosticQueue1.Count);
-        Assert.Empty(diagnosticQueue2.ToArray());
-    }
-
-    [Fact]
     public void DiagnosticQueue_Pop_PopsFirst() {
         var diagnosticQueue = new DiagnosticQueue<Diagnostic>();
         diagnosticQueue.Push(new Diagnostic(DiagnosticSeverity.Error, ""));

@@ -25,4 +25,8 @@ internal static class RefKindExtensions {
                 throw ExceptionUtilities.UnexpectedValue(refKind);
         }
     }
+
+    internal static bool IsManagedReference(this RefKind refKind) {
+        return refKind != RefKind.None;
+    }
 }

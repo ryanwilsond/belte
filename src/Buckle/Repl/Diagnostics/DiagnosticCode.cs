@@ -18,4 +18,5 @@ public enum DiagnosticCode : ushort {
     ERR_AmbiguousSignature = 7,
     ERR_FailedILGeneration = 8,
     ERR_InvalidOption = 9,
+    ERR_UnableToOpenFile = 10,
 }

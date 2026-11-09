@@ -1,6 +1,7 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using Buckle.CodeAnalysis.Text;
 
 namespace Buckle.CodeAnalysis.Syntax;
@@ -80,6 +81,58 @@ public sealed partial class SyntaxList<T> : IReadOnlyList<T> where T : SyntaxNod
 
     internal bool Any() {
         return node is not null;
+    }
+
+    internal int IndexOf(T node) {
+        var index = 0;
+
+        foreach (var child in this) {
+            if (Equals(child, node))
+                return index;
+
+            index++;
+        }
+
+        return -1;
+    }
+
+    internal SyntaxList<T> ReplaceRange(T nodeInList, IEnumerable<T> newNodes) {
+        ArgumentNullException.ThrowIfNull(nodeInList);
+        ArgumentNullException.ThrowIfNull(newNodes);
+
+        var index = IndexOf(nodeInList);
+
+        if (index >= 0 && index < Count) {
+            var list = this.ToList();
+            list.RemoveAt(index);
+            list.InsertRange(index, newNodes);
+            return CreateList(list);
+        } else {
+            throw new ArgumentException(null, nameof(nodeInList));
+        }
+    }
+
+    internal SyntaxList<T> InsertRange(int index, IEnumerable<T> nodes) {
+        if (index < 0 || index > Count)
+            throw new ArgumentOutOfRangeException(nameof(index));
+
+        ArgumentNullException.ThrowIfNull(nodes);
+
+        var list = this.ToList();
+        list.InsertRange(index, nodes);
+
+        if (list.Count == 0)
+            return this;
+        else
+            return CreateList(list);
+    }
+
+    private static SyntaxList<T> CreateList(List<T> items) {
+        if (items.Count == 0)
+            return default;
+
+        var newGreen = GreenNode.CreateList(items, static n => n.green);
+        return new SyntaxList<T>(newGreen.CreateRed());
     }
 
     private static SyntaxNode CreateNode(IEnumerable<T> nodes) {

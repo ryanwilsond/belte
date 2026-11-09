@@ -12,12 +12,18 @@ internal abstract partial class BoundExpression : BoundNode {
 
     internal virtual bool suppressVirtualCalls => false;
 
+    internal virtual object display => type;
+
     internal RefKind GetRefKind() {
+        // TODO Should we just use expressionSymbol here?
         return kind switch {
             BoundKind.DataContainerExpression => ((BoundDataContainerExpression)this).dataContainer.refKind,
             BoundKind.ParameterExpression => ((BoundParameterExpression)this).parameter.refKind,
             BoundKind.FieldAccessExpression => ((BoundFieldAccessExpression)this).field.refKind,
+            BoundKind.PropertyAccessExpression => ((BoundPropertyAccessExpression)this).property.refKind,
             BoundKind.CallExpression => ((BoundCallExpression)this).method.refKind,
+            BoundKind.StackSlotExpression => ((BoundStackSlotExpression)this).symbol.GetRefKind(),
+            BoundKind.FieldSlotExpression => ((BoundFieldSlotExpression)this).field.refKind,
             _ => RefKind.None,
         };
     }
@@ -36,6 +42,14 @@ internal abstract partial class BoundExpression : BoundNode {
             default:
                 return false;
         }
+    }
+
+    internal bool IsEffectivelyConst() {
+        if (type is null)
+            return IsConst();
+
+        // Value types are copied anyway so const doesn't really mean anything
+        return IsConst() && type.isReferenceType && !type.IsKnownToBeImmutable();
     }
 
     internal TypeSymbol Type() {
@@ -77,6 +91,10 @@ internal abstract partial class BoundExpression : BoundNode {
             case BoundKind.UnconvertedObjectCreationExpression:
             case BoundKind.UnconvertedConditionalOperator:
             case BoundKind.UnconvertedExtendedLiteralExpression:
+            case BoundKind.UnconvertedArrayLength:
+            case BoundKind.ConditionalAccessExpression:
+            case BoundKind.UnconvertedBinaryOperator:
+            case BoundKind.UnconvertedLateIdentifierName:
                 return true;
             default:
                 return false;
@@ -105,5 +123,12 @@ internal abstract partial class BoundExpression : BoundNode {
 
                 break;
         }
+    }
+
+    internal FunctionTypeSymbol GetFunctionType() {
+        return this switch {
+            BoundMethodGroup methodGroup => methodGroup.functionType,
+            _ => null
+        };
     }
 }

@@ -4,7 +4,7 @@ namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed partial class PEMethodSymbol {
     private sealed class UncommonFields {
-        // internal ParameterSymbol _lazyThisParameter;
+        internal ParameterSymbol _lazyThisParameter;
         internal OverriddenOrHiddenMembersResult _lazyOverriddenOrHiddenMembersResult;
         internal ImmutableArray<AttributeData> _lazyCustomAttributes;
         internal ImmutableArray<string> _lazyConditionalAttributeSymbols;

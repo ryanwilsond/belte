@@ -23,6 +23,8 @@ internal sealed class LookupResult {
 
     internal bool isMultiViable => kind == LookupResultKind.Viable;
 
+    internal bool isSingleViable => kind == LookupResultKind.Viable && symbols.Count == 1;
+
     internal BelteDiagnostic error { get; private set; }
 
     internal bool isClear => kind == LookupResultKind.Empty && error is null && symbols.Count == 0;
@@ -57,6 +59,10 @@ internal sealed class LookupResult {
 
     internal static SingleLookupResult Inaccessible(Symbol symbol, BelteDiagnostic error) {
         return new SingleLookupResult(LookupResultKind.Inaccessible, symbol, error);
+    }
+
+    internal static SingleLookupResult NotAnAttributeType(Symbol symbol, BelteDiagnostic error) {
+        return new SingleLookupResult(LookupResultKind.NotAnAttributeType, symbol, error);
     }
 
     internal static SingleLookupResult NotInvocable(

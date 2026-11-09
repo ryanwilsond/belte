@@ -29,13 +29,13 @@ internal struct LexicalSortKey {
         : this(tree is null ? -1 : compilation.GetSyntaxTreeOrdinal(tree), position) { }
 
     internal LexicalSortKey(SyntaxReference syntaxRef, Compilation compilation)
-        : this(syntaxRef.syntaxTree, syntaxRef.span.start, compilation) { }
+        : this(syntaxRef.GetPrimarySyntaxTree(), syntaxRef.span.start, compilation) { }
 
     internal LexicalSortKey(BelteSyntaxNode node, Compilation compilation)
-        : this(node.syntaxTree, node.span.start, compilation) { }
+        : this(node.GetPrimarySyntaxTree(), node.span.start, compilation) { }
 
     internal LexicalSortKey(SyntaxToken token, Compilation compilation)
-        : this(token.syntaxTree, token.span.start, compilation) { }
+        : this(token.GetPrimarySyntaxTree(), token.span.start, compilation) { }
 
     internal LexicalSortKey(SyntaxTree tree, TextLocation location, Compilation compilation)
         : this(tree, location.span.start, compilation) { }

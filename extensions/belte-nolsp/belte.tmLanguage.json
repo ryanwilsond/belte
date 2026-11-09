@@ -6,6 +6,20 @@
             "include": "#keywords"
         },
         {
+            "begin": "\\bimplements\\b",
+            "beginCaptures": {
+                "0": {
+                    "name": "keyword.other.belte"
+                }
+            },
+            "end": "(?=\\{|;)",
+            "patterns": [
+                {
+                    "include": "#interface-list"
+                }
+            ]
+        },
+        {
             "include": "#strings"
         },
         {
@@ -29,11 +43,11 @@
             "patterns": [
                 {
                     "name": "keyword.control.belte",
-                    "match": "\\b(if|else|while|for|return|break|continue|do|try|catch|finally|throw|switch|goto|default|case|with|defer|unreachable|scoped|reverse|reversible|state|commit)\\b"
+                    "match": "\\b(if|else|while|for|return|break|continue|do|try|catch|finally|throw|switch|goto|default|case|with|defer|unreachable|scoped|reverse|reversible|state|commit|or)\\b"
                 },
                 {
                     "name": "keyword.other.belte",
-                    "match": "\\b(this|base|var|ref|new|operator|lowlevel|implicit|explicit|nameof|typeof|sizeof|stackalloc|primitive|notnull|is|isnt|as|global|il|noverify|out|union|literal|has|initializes)\\b"
+                    "match": "\\b(this|base|var|ref|new|operator|lowlevel|implicit|explicit|nameof|typeof|sizeof|stackalloc|primitive|notnull|is|in|isnt|as|global|il|noverify|out|union|literal|has|initializes|property|get|set|noalloc|nothrow|pure|memoize|template|unroll|binds|checked|expand)\\b"
                 },
                 {
                     "name": "keyword.operator.arithmetic.belte",
@@ -50,6 +64,10 @@
                 {
                     "name": "keyword.preprocessor.other.belte",
                     "match": "^\\s*#\\w+\\b"
+                },
+                {
+                    "name": "keyword.comptime.belte",
+                    "match": "\\s*(\\$\\s*(exec|code|insert|codestr|type|location))\\b"
                 }
             ]
         },
@@ -95,7 +113,7 @@
                 },
                 {
                     "name": "storage.type.class.belte",
-                    "match": "\\b(class|struct|constructor|extends|where|namespace|using|enum|flags|destructor|finalizer|packed)\\b"
+                    "match": "\\b(class|struct|constructor|extends|where|namespace|using|enum|flags|destructor|finalizer|packed|implements|interface)\\b"
                 },
                 {
                     "name": "storage.type.number.belte",
@@ -103,7 +121,7 @@
                 },
                 {
                     "name": "storage.modifier.belte",
-                    "match": "\\b(public|private|abstract|virtual|override|sealed|static|const|constexpr|new|protected|extern|pinned|final)\\b"
+                    "match": "\\b(public|private|abstract|virtual|override|sealed|static|const|constexpr|new|protected|extern|pinned|final|internal)\\b"
                 },
                 {
                     "name": "storage.type.doxygen.belte",
@@ -138,24 +156,44 @@
         "entity": {
             "patterns": [
                 {
+                    "name": "entity.name.attribute.belte",
+                    "match": "\\b(?<![a-zA-Z][a-zA-Z0-9_]*\\s*\\[\\s*)(?<=\\[\\s*)[a-zA-Z][a-zA-Z0-9_]*\\b"
+                },
+                {
+                    "name": "entity.name.new-object.belte",
+                    "match": "\\b(?<=new\\s*)[a-zA-Z][a-zA-Z0-9_]*\\b"
+                },
+                {
                     "name": "entity.name.function.belte",
-                    "match": "\\b([a-zA-Z_]+\\w*)(?=\\()\\b"
+                    "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*\\w*)(?=\\()\\b"
                 },
                 {
                     "name": "entity.name.class.belte",
-                    "match": "\\b((?<=class\\s+)|(?<=extends\\s*))([a-zA-Z_]+\\w*)\\b"
+                    "match": "\\b(?<=class\\s+)([a-zA-Z_][a-zA-Z0-9_]*\\w*)\\b"
                 },
                 {
                     "name": "entity.name.struct.belte",
-                    "match": "\\b((?<=struct\\s+)|(?<=extends\\s*))([a-zA-Z_]+\\w*)\\b"
+                    "match": "\\b(?<=struct\\s+)([a-zA-Z_][a-zA-Z0-9_]*\\w*)\\b"
                 },
                 {
                     "name": "entity.name.enum.belte",
-                    "match": "\\b((?<=enum\\s+(?:flags\\s+)?)|(?<=extends\\s*))(?!flags\\b)([a-zA-Z_]\\w*)\\b"
+                    "match": "\\b(?<=enum\\s+(?:flags\\s+)?)(?!flags\\b)([a-zA-Z_][a-zA-Z0-9_]\\w*)\\b"
+                },
+                {
+                    "name": "entity.name.union.belte",
+                    "match": "\\b(?<=union\\s+)([a-zA-Z_][a-zA-Z0-9_]*\\w*)\\b"
+                },
+                {
+                    "name": "entity.name.interface.belte",
+                    "match": "\\b(?<=interface\\s+)([a-zA-Z_][a-zA-Z0-9_]*\\w*)\\b"
+                },
+                {
+                    "name": "entity.name.base.belte",
+                    "match": "\\b(?<=extends\\s*)([a-zA-Z_][a-zA-Z0-9_]*\\w*)\\b"
                 },
                 {
                     "name": "entity.name.namespace.belte",
-                    "match": "(?<=\\bnamespace\\b[\\s\\S]*?)\\b((?<=namespace\\s+)|(?<=\\.\\s*))([a-zA-Z_]\\w*)\\b"
+                    "match": "(?<=\\bnamespace\\b[\\s\\S]*?)\\b((?<=namespace\\s+)|(?<=\\.\\s*))([a-zA-Z_][a-zA-Z0-9_]\\w*)\\b"
                 },
                 {
                     "name": "entity.name.operator.belte",
@@ -163,15 +201,15 @@
                 },
                 {
                     "name": "entity.name.type.belte",
-                    "match": "(?<!\\S)\\b([a-zA-Z_]+\\w*)\\s*((?=\\s+[a-zA-Z_]+\\w*)|(?=\\[\\]\\s+[a-zA-Z_]+\\w*))\\b"
+                    "match": "(?<!\\S)\\b([a-zA-Z_][a-zA-Z0-9_]*\\w*)\\s*((?=\\??!?\\*?\\s+[a-zA-Z_][a-zA-Z0-9_]*\\w*)|(?=(?:\\??!?\\*?\\[\\])*\\??!?\\*?\\s+[a-zA-Z_][a-zA-Z0-9_]*\\w*))\\b"
                 },
                 {
                     "name": "entity.name.type.parameter.belte",
-                    "match": "\\b(?<=\\()\\s*([a-zA-Z_]+\\w*)\\s+((?=[a-zA-Z_]+\\w*)(?!(is|isnt|as)))\\b"
+                    "match": "\\b(?<=\\()\\s*([a-zA-Z_][a-zA-Z0-9_]*\\w*)\\s*((?=\\??!?\\*?\\s+[a-zA-Z_][a-zA-Z0-9_]*\\w*)|(?=(?:\\??!?\\*?\\[\\])*\\??!?\\*?\\s+[a-zA-Z_][a-zA-Z0-9_]*\\w*))\\b"
                 },
                 {
                     "name": "entity.name.type.specifier.belte",
-                    "match": "\\b(?<=\\<[a-zA-Z_]+[\\w\\,\\s\\=]+)(?<!\\>)\\s+([a-zA-Z_]+\\w*)\\b"
+                    "match": "\\b(?<=\\<[a-zA-Z_][a-zA-Z0-9_]*[\\w\\,\\s\\=]+)(?<!\\>)\\s+([a-zA-Z_][a-zA-Z0-9_]*\\w*)\\b"
                 },
                 {
                     "name": "entity.name.function.preprocessor.belte",
@@ -183,15 +221,19 @@
                 }
             ]
         },
+        "interface-list": {
+            "patterns": [
+                {
+                    "match": "\\b[a-zA-Z_][a-zA-Z0-9_]*\\b",
+                    "name": "entity.name.base-interface.belte"
+                }
+            ]
+        },
         "variable": {
             "patterns": [
                 {
                     "name": "variable.belte",
-                    "match": "\\b([a-zA-Z_]+\\w*)\\b"
-                },
-                {
-                    "name": "variable.parameter.belte",
-                    "match": "\\b(?<=\\(\\s*[a-zA-Z_]+\\w*)\\s+([a-zA-Z_]+\\w*)\\b"
+                    "match": "\\b([a-zA-Z_][a-zA-Z0-9_]*\\w*)\\b"
                 }
             ]
         },

@@ -20,12 +20,12 @@ internal sealed partial class WeakList<T> where T : class {
             _current = null;
         }
 
-        internal T Current => _current;
+        public T Current => _current;
 
-        internal bool MoveNext() {
+        public bool MoveNext() {
             while (_nextIndex < _count) {
                 var currentIndex = _nextIndex;
-                _nextIndex += 1;
+                _nextIndex++;
 
                 if (_weakList._items[currentIndex].TryGetTarget(out var item)) {
                     _current = item;

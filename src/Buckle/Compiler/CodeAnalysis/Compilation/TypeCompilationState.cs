@@ -28,15 +28,23 @@ internal sealed class TypeCompilationState {
     internal TypeCompilationState(
         NamedTypeSymbol type,
         Compilation compilation,
-        ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder typeLayouts) {
+        ImmutableDictionary<NamedTypeSymbol, EvaluatorSlotManager>.Builder typeLayouts,
+        ArrayBuilder<FieldSymbol> fieldsRequiringAssignment,
+        ArrayBuilder<PropertySymbol> propertiesRequiringAssignment) {
         this.type = type;
         this.compilation = compilation;
         this.typeLayouts = typeLayouts;
+        this.fieldsRequiringAssignment = fieldsRequiringAssignment;
+        this.propertiesRequiringAssignment = propertiesRequiringAssignment;
     }
 
     internal Compilation compilation { get; }
 
     internal NamedTypeSymbol type { get; }
+
+    internal ArrayBuilder<FieldSymbol> fieldsRequiringAssignment { get; }
+
+    internal ArrayBuilder<PropertySymbol> propertiesRequiringAssignment { get; }
 
     internal int nextWrapperMethodIndex => _wrappers is null ? 0 : _wrappers.Count;
 
@@ -104,7 +112,10 @@ internal sealed class TypeCompilationState {
         }
     }
 
-    internal void ReportFieldsRequiringAssignment(ArrayBuilder<FieldSymbol> fields, BelteDiagnosticQueue diagnostics) {
+    internal void ReportSymbolsRequiringAssignment(
+        ArrayBuilder<FieldSymbol> fields,
+        ArrayBuilder<PropertySymbol> properties,
+        BelteDiagnosticQueue diagnostics) {
         foreach (var field in fields) {
             if (field.isStatic) {
                 if (_staticDefiniteAssignments is null || !_staticDefiniteAssignments.Contains(field))
@@ -112,6 +123,16 @@ internal sealed class TypeCompilationState {
             } else {
                 if (_instanceDefiniteAssignments is null || !_instanceDefiniteAssignments.Contains(field))
                     diagnostics.Push(field.definiteAssignmentError);
+            }
+        }
+
+        foreach (var property in properties) {
+            if (property.isStatic) {
+                if (_staticDefiniteAssignments is null || !_staticDefiniteAssignments.Contains(property))
+                    diagnostics.Push(property.definiteAssignmentError);
+            } else {
+                if (_instanceDefiniteAssignments is null || !_instanceDefiniteAssignments.Contains(property))
+                    diagnostics.Push(property.definiteAssignmentError);
             }
         }
     }

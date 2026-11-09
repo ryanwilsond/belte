@@ -17,4 +17,12 @@ public struct BuildState {
     public string dllPath;
 
     public string metaPath;
+
+    public string[] arguments;
+
+    public bool noStdLib;
+
+    public bool noNtvLib;
+
+    public string[] preprocessorSymbols;
 }

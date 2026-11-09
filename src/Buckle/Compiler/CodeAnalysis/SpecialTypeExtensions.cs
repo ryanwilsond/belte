@@ -1,8 +1,91 @@
+using System.Diagnostics;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Syntax;
+using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis;
 
 internal static class SpecialTypeExtensions {
+    private static readonly string[] EmittedNames = [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "Object",
+        "Buffer`1",
+        "Array`1",
+        null,
+        null,
+    ];
+
+    private static readonly string[] NetEmittedNames = [
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        "System.Object",
+        null,
+        null,
+        null,
+        null,
+    ];
+
+#if DEBUG
+    static SpecialTypeExtensions() {
+        Debug.Assert(EmittedNames.Length == (int)SpecialType.NextAvailable);
+    }
+#endif
+
     internal static bool IsKnownToBeImmutable(this SpecialType specialType) {
         // This is only caring about reference types
         switch (specialType) {
@@ -107,6 +190,8 @@ internal static class SpecialTypeExtensions {
             bool => SpecialType.Bool,
             char => SpecialType.Char,
             TypeSymbol => SpecialType.Type,
+            SyntaxNode => SpecialType.Code,
+            SimpleTextLocation => SpecialType.Location,
             _ => SpecialType.None,
         };
     }
@@ -251,8 +336,7 @@ internal static class SpecialTypeExtensions {
             case SpecialType.UInt64:
             case SpecialType.IntPtr:
             case SpecialType.UIntPtr:
-            // TODO
-            // case SpecialType.TypedReference:
+            case SpecialType.TypedReference:
             case SpecialType.Float32:
             case SpecialType.Float64:
                 return true;
@@ -290,6 +374,116 @@ internal static class SpecialTypeExtensions {
                 return true;
             default:
                 return false;
+        }
+    }
+
+    internal static bool CanSkipNullabilityAttributeCheck(this SpecialType type) {
+        switch (type) {
+            case SpecialType.Enum:
+            case SpecialType.Bool:
+            case SpecialType.WinBool:
+            case SpecialType.Char:
+            case SpecialType.Int:
+            case SpecialType.Decimal:
+            case SpecialType.Int8:
+            case SpecialType.UInt8:
+            case SpecialType.Int16:
+            case SpecialType.UInt16:
+            case SpecialType.Int32:
+            case SpecialType.UInt32:
+            case SpecialType.Int64:
+            case SpecialType.UInt64:
+            case SpecialType.Float32:
+            case SpecialType.Float64:
+            case SpecialType.IntPtr:
+            case SpecialType.UIntPtr:
+            case SpecialType.Void:
+            case SpecialType.ValueType:
+                return true;
+            case SpecialType.None:
+            case SpecialType.TypedReference:
+            case SpecialType.Buffer:
+            case SpecialType.Object:
+            case SpecialType.Array:
+            case SpecialType.Any:
+            case SpecialType.String:
+            case SpecialType.Type:
+            case SpecialType.Nullable:
+            default:
+                return false;
+            case SpecialType.Code:
+            case SpecialType.Location:
+                throw ExceptionUtilities.UnexpectedValue(type);
+        }
+    }
+
+    internal static bool CanEncodeToTemplateMetadata(this SpecialType type) {
+        switch (type) {
+            case SpecialType.Object:
+            case SpecialType.Any:
+            case SpecialType.String:
+            case SpecialType.Bool:
+            case SpecialType.WinBool:
+            case SpecialType.Char:
+            case SpecialType.Int:
+            case SpecialType.Decimal:
+            case SpecialType.Int8:
+            case SpecialType.UInt8:
+            case SpecialType.Int16:
+            case SpecialType.UInt16:
+            case SpecialType.Int32:
+            case SpecialType.UInt32:
+            case SpecialType.Int64:
+            case SpecialType.UInt64:
+            case SpecialType.Float32:
+            case SpecialType.Float64:
+            case SpecialType.IntPtr:
+            case SpecialType.UIntPtr:
+            case SpecialType.Type:
+            case SpecialType.Void:
+            case SpecialType.ValueType:
+                return true;
+            case SpecialType.Array:
+            case SpecialType.Enum:
+            case SpecialType.Nullable:
+            case SpecialType.TypedReference:
+            case SpecialType.Buffer:
+            default:
+                return false;
+            case SpecialType.Code:
+            case SpecialType.Location:
+                throw ExceptionUtilities.UnexpectedValue(type);
+        }
+    }
+
+    internal static bool LivesInCorLibrary(this SpecialType type) {
+        return type <= SpecialType.LastCorType;
+    }
+
+    internal static string GetMetadataName(this SpecialType type, bool netMode) {
+        if (netMode) {
+            var metadataName = NetEmittedNames[(int)type];
+            Debug.Assert(metadataName is not null);
+            return metadataName;
+        } else {
+            var metadataName = EmittedNames[(int)type];
+            Debug.Assert(metadataName is not null);
+            return metadataName;
+        }
+    }
+
+    internal static bool ShouldSkipEmit(this SpecialType type, bool noStdLib) {
+        switch (type) {
+            case SpecialType.None:
+            case SpecialType.ArrayT:
+            case SpecialType.Buffer when noStdLib:
+            case SpecialType.Object when noStdLib:
+                return false;
+            default:
+                return true;
+            case SpecialType.Code:
+            case SpecialType.Location:
+                throw ExceptionUtilities.UnexpectedValue(type);
         }
     }
 }

@@ -226,7 +226,11 @@ internal class SwitchBinder : LocalScopeBinder {
         var hasErrors = false;
 
         if (isGotoCaseExpr) {
-            var conversion = conversions.ClassifyConversionFromExpression(caseExpression, switchGoverningType);
+            var conversion = conversions.ClassifyConversionFromExpression(
+                caseExpression,
+                switchGoverningType,
+                checkOverflow
+            );
 
             if (!conversion.isImplicit) {
                 GenerateImplicitConversionError(diagnostics, node, conversion, caseExpression, switchGoverningType);
@@ -403,6 +407,7 @@ internal class SwitchBinder : LocalScopeBinder {
         var functions = GetDeclaredLocalFunctionsForScope(node);
 
         var decisionDag = DecisionDagBuilder.CreateDecisionDagForSwitchStatement(
+            compilation,
             syntax: node,
             switchGoverningExpression: boundSwitchGoverningExpression,
             switchSections: switchSections,
@@ -460,6 +465,7 @@ internal class SwitchBinder : LocalScopeBinder {
 
         foreach (var statement in node.statements) {
             var boundStatement = sectionBinder.BindStatement(statement, diagnostics);
+            AddSynthesizedStatements(boundStatementsBuilder);
 
             // TODO Using error
 

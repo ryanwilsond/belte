@@ -1,6 +1,8 @@
 using System;
+using System.Diagnostics;
 using System.Text.RegularExpressions;
 using Buckle.CodeAnalysis.Text;
+using Buckle.Utilities;
 using Diagnostics;
 
 namespace Buckle.Diagnostics;
@@ -12,6 +14,30 @@ public static partial class DiagnosticFormatter {
 
     public static void PrettyPrint(BelteDiagnostic diagnostic, ConsoleColor? foregroundColor = null) {
         ToDisplayParts(diagnostic, diagnostic.location, foregroundColor).Write();
+
+        if (diagnostic.inner is { } inner) {
+            Console.Write("  ");
+
+            switch (inner) {
+                case BelteDiagnostic innerDiagnostic:
+                    PrettyPrint(innerDiagnostic, foregroundColor);
+                    break;
+                case Diagnostic innerDiagnostic:
+                    PrettyPrint(innerDiagnostic, foregroundColor);
+                    break;
+                case Exception exception:
+                    PrettyPrintException(exception, foregroundColor);
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(inner);
+            }
+        }
+
+        if (diagnostic.location is CompoundTextLocation compoundTextLocation) {
+            Debug.Assert(compoundTextLocation.secondaryLocation is not null);
+            Console.Write("  ");
+            PrettyPrint(Error.SecondaryLocation(compoundTextLocation.secondaryLocation));
+        }
     }
 
     public static void PrettyPrint(Diagnostic diagnostic, ConsoleColor? foregroundColor = null) {
@@ -23,24 +49,48 @@ public static partial class DiagnosticFormatter {
     }
 
     private static DisplayParts ToDisplayParts(Exception exception, ConsoleColor? foregroundColor = null) {
+        var inner = exception is TransformedExecException e ? e.InnerException : exception;
+
         var displayParts = new DisplayParts();
         var initialColor = foregroundColor ?? Console.ForegroundColor;
         var highlightColor = ConsoleColor.Red;
 
-        displayParts.Add($"Unhandled exception. {exception.GetType()}: ", highlightColor);
-        displayParts.Add($"{exception.Message}\n", initialColor);
+        displayParts.Add($"Unhandled exception. {inner.GetType()}: ", highlightColor);
+        displayParts.Add($"{inner.Message}\n", initialColor);
 
-        if (exception is not BelteEvaluatorException belteException || belteException.location is null)
+        var location = exception switch {
+            TransformedExecException t => t.location,
+            BelteEvaluatorException b => b.location,
+            _ => null
+        };
+
+        if (location is null)
             return displayParts;
 
         displayParts.Add("    at ", initialColor);
-        AddLocationToDisplayParts(displayParts, belteException.location, initialColor);
+        AddLocationToDisplayParts(displayParts, location, initialColor);
 
         displayParts.Add("\n", initialColor);
 
-        AddTextAtLocation(displayParts, belteException.location, [], initialColor, highlightColor);
+        AddTextAtLocation(displayParts, location, [], initialColor, highlightColor);
 
         return displayParts;
+    }
+
+    internal static string PrettyPrintLocation(TextLocation location) {
+        var span = location.span;
+        var text = location.text;
+
+        var lineNumber = text.GetLineIndex(span.start);
+        var line = text.GetLine(lineNumber);
+        var column = span.start - line.start + 1;
+
+        var fileName = location.fileName;
+
+        if (!string.IsNullOrEmpty(fileName))
+            return $"{fileName}:{lineNumber + 1}:{column}";
+        else
+            return $"{lineNumber + 1}:{column}";
     }
 
     private static void AddLocationToDisplayParts(
@@ -96,6 +146,9 @@ public static partial class DiagnosticFormatter {
                 highlightColor = ConsoleColor.Red;
                 displayParts.Add("fatal", highlightColor);
                 break;
+            case DiagnosticSeverity.All:
+                // Treated as no severity
+                goto skipColon;
         }
 
         if (diagnostic.info.code is not null && diagnostic.info.code > 0)
@@ -103,6 +156,7 @@ public static partial class DiagnosticFormatter {
         else
             displayParts.Add(": ", highlightColor);
 
+skipColon:
         displayParts.Add($"{diagnostic.message}\n", initialColor);
 
         if (location?.span is not null)

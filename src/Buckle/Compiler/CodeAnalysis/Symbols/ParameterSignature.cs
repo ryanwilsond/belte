@@ -5,19 +5,22 @@ using Microsoft.CodeAnalysis.PooledObjects;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal class ParameterSignature {
-    internal static readonly ParameterSignature NoParams = new ParameterSignature([], default, default);
+    internal static readonly ParameterSignature NoParams = new ParameterSignature([], default, default, default);
 
     internal readonly ImmutableArray<TypeWithAnnotations> parameterTypesWithAnnotations;
     internal readonly ImmutableArray<RefKind> parameterRefKinds;
     internal readonly ImmutableArray<bool> parameterConstnesses;
+    internal readonly ImmutableArray<bool> parameterConstExprnesses;
 
     private ParameterSignature(
         ImmutableArray<TypeWithAnnotations> parameterTypesWithAnnotations,
         ImmutableArray<RefKind> parameterRefKinds,
-        ImmutableArray<bool> parameterConstnesses) {
+        ImmutableArray<bool> parameterConstnesses,
+        ImmutableArray<bool> parameterConstExprnesses) {
         this.parameterTypesWithAnnotations = parameterTypesWithAnnotations;
         this.parameterRefKinds = parameterRefKinds;
         this.parameterConstnesses = parameterConstnesses;
+        this.parameterConstExprnesses = parameterConstExprnesses;
     }
 
     private static ParameterSignature MakeParamTypesAndRefKinds(ImmutableArray<ParameterSymbol> parameters) {
@@ -27,6 +30,7 @@ internal class ParameterSignature {
         var types = ArrayBuilder<TypeWithAnnotations>.GetInstance();
         ArrayBuilder<RefKind> refs = null;
         ArrayBuilder<bool> consts = null;
+        ArrayBuilder<bool> constexprs = null;
 
         for (var param = 0; param < parameters.Length; param++) {
             var parameter = parameters[param];
@@ -53,11 +57,23 @@ internal class ParameterSignature {
             } else {
                 consts.Add(constness);
             }
+
+            var constexprness = parameter.isConstExpr;
+
+            if (constexprs is null) {
+                if (constexprness) {
+                    constexprs = ArrayBuilder<bool>.GetInstance(param, false);
+                    constexprs.Add(constexprness);
+                }
+            } else {
+                constexprs.Add(constexprness);
+            }
         }
 
         var refKinds = refs is not null ? refs.ToImmutableAndFree() : default;
         var constnesses = consts is not null ? consts.ToImmutableAndFree() : default;
-        return new ParameterSignature(types.ToImmutableAndFree(), refKinds, constnesses);
+        var constexprnesses = constexprs is not null ? constexprs.ToImmutableAndFree() : default;
+        return new ParameterSignature(types.ToImmutableAndFree(), refKinds, constnesses, constexprnesses);
     }
 
     internal static void PopulateParameterSignature(

@@ -20,8 +20,13 @@ internal partial class SyntaxToken : BelteSyntaxNode {
     /// <param name="value">Value related to <see cref="SyntaxToken" /> (if applicable).</param>
     /// <param name="leadingTrivia"><see cref="SyntaxTrivia" /> before <see cref="SyntaxToken" /> (anything).</param>
     /// <param name="trailingTrivia"><see cref="SyntaxTrivia" /> after <see cref="SyntaxToken" /> (same line).</param>
-    internal SyntaxToken(SyntaxKind kind, int fullWidth, string text, object value,
-        GreenNode leadingTrivia, GreenNode trailingTrivia)
+    internal SyntaxToken(
+        SyntaxKind kind,
+        int fullWidth,
+        string text,
+        object value,
+        GreenNode leadingTrivia,
+        GreenNode trailingTrivia)
         : base(kind, fullWidth) {
         _text = text;
         this.value = value;
@@ -33,9 +38,16 @@ internal partial class SyntaxToken : BelteSyntaxNode {
     /// Creates a new <see cref="SyntaxToken" /> with a predefined full width, text, a value, trivia, and diagnostics.
     /// </summary>
     // Because this constructor is called possibly thousands of times, the duplicate code is warranted for efficiency
-    internal SyntaxToken(SyntaxKind kind, int fullWidth, string text, object value,
-        GreenNode leadingTrivia, GreenNode trailingTrivia, Diagnostic[] diagnostics)
-        : base(kind, fullWidth, diagnostics) {
+    internal SyntaxToken(
+        SyntaxKind kind,
+        int fullWidth,
+        string text,
+        object value,
+        GreenNode leadingTrivia,
+        GreenNode trailingTrivia,
+        Diagnostic[] diagnostics,
+        SyntaxAnnotation[] annotations)
+        : base(kind, fullWidth, diagnostics, annotations) {
         _text = text;
         this.value = value;
         _leading = leadingTrivia;
@@ -61,8 +73,13 @@ internal partial class SyntaxToken : BelteSyntaxNode {
     /// <summary>
     /// Creates a new <see cref="SyntaxToken" /> with trivia and diagnostics.
     /// </summary>
-    internal SyntaxToken(SyntaxKind kind, GreenNode leadingTrivia, GreenNode trailingTrivia, Diagnostic[] diagnostics)
-        : base(kind, diagnostics) {
+    internal SyntaxToken(
+        SyntaxKind kind,
+        GreenNode leadingTrivia,
+        GreenNode trailingTrivia,
+        Diagnostic[] diagnostics,
+        SyntaxAnnotation[] annotations)
+        : base(kind, diagnostics, annotations) {
         if (leadingTrivia is not null) {
             AdjustFlagsAndWidth(leadingTrivia);
             _leading = leadingTrivia;
@@ -98,9 +115,14 @@ internal partial class SyntaxToken : BelteSyntaxNode {
     /// Creates a new <see cref="SyntaxToken" /> with text, a value, trivia, and diagnostics.
     /// </summary>
     internal SyntaxToken(
-        SyntaxKind kind, string text, object value, GreenNode leadingTrivia,
-        GreenNode trailingTrivia, Diagnostic[] diagnostics)
-        : base(kind, diagnostics) {
+        SyntaxKind kind,
+        string text,
+        object value,
+        GreenNode leadingTrivia,
+        GreenNode trailingTrivia,
+        Diagnostic[] diagnostics,
+        SyntaxAnnotation[] annotations)
+        : base(kind, diagnostics, annotations) {
         this.value = value;
         _text = text;
         fullWidth = this.text.Length;
@@ -207,7 +229,29 @@ internal partial class SyntaxToken : BelteSyntaxNode {
     }
 
     internal override GreenNode SetDiagnostics(Diagnostic[] diagnostics) {
-        return new SyntaxToken(kind, fullWidth, text, value, GetLeadingTrivia(), GetTrailingTrivia(), diagnostics);
+        return new SyntaxToken(
+            kind,
+            fullWidth,
+            text,
+            value,
+            GetLeadingTrivia(),
+            GetTrailingTrivia(),
+            diagnostics,
+            GetAnnotations()
+        );
+    }
+
+    internal override GreenNode SetAnnotations(SyntaxAnnotation[] annotations) {
+        return new SyntaxToken(
+            kind,
+            fullWidth,
+            text,
+            value,
+            GetLeadingTrivia(),
+            GetTrailingTrivia(),
+            GetDiagnostics(),
+            annotations
+        );
     }
 
     internal override TResult Accept<TResult>(SyntaxVisitor<TResult> visitor) {
@@ -238,14 +282,14 @@ internal partial class SyntaxToken : BelteSyntaxNode {
     /// Returns a new <see cref="SyntaxToken" /> identical to this one, with new leading trivia.
     /// </summary>
     internal virtual SyntaxToken TokenWithLeadingTrivia(GreenNode trivia) {
-        return new SyntaxToken(kind, text, value, trivia, GetTrailingTrivia(), GetDiagnostics());
+        return new SyntaxToken(kind, text, value, trivia, GetTrailingTrivia(), GetDiagnostics(), GetAnnotations());
     }
 
     /// <summary>
     /// Returns a new <see cref="SyntaxToken" /> identical to this one, with new trailing trivia.
     /// </summary>
     internal virtual SyntaxToken TokenWithTrailingTrivia(GreenNode trivia) {
-        return new SyntaxToken(kind, text, value, GetLeadingTrivia(), trivia, GetDiagnostics());
+        return new SyntaxToken(kind, text, value, GetLeadingTrivia(), trivia, GetDiagnostics(), GetAnnotations());
     }
 
     private protected override void WriteTokenTo(TextWriter writer, bool leading, bool trailing) {

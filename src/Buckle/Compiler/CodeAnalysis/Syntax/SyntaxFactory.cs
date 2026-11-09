@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using Buckle.CodeAnalysis.Syntax.InternalSyntax;
 using Buckle.CodeAnalysis.Text;
-using Buckle.Utilities;
 
 namespace Buckle.CodeAnalysis.Syntax;
 
@@ -34,24 +33,7 @@ public static partial class SyntaxFactory {
     /// Creates a <see cref="SyntaxToken" /> with kind <see cref="SyntaxKind.IdentifierToken"/>.
     /// </summary>
     public static SyntaxToken Identifier(string text) {
-        return Token(SyntaxKind.IdentifierToken, text);
-    }
-
-    /// <summary>
-    /// Creates a <see cref="LiteralExpressionSyntax"/>.
-    /// </summary>
-    public static LiteralExpressionSyntax Literal(object value) {
-        if (value is long or double) {
-            return LiteralExpression(Token(SyntaxKind.NumericLiteralToken, value.ToString(), value));
-        } else if (value is bool b) {
-            return LiteralExpression(
-                Token(b ? SyntaxKind.TrueKeyword : SyntaxKind.FalseKeyword, b ? "true" : "false", b)
-            );
-        } else if (value is string s) {
-            return LiteralExpression(Token(SyntaxKind.StringLiteralToken, s, s));
-        } else {
-            throw ExceptionUtilities.Unreachable();
-        }
+        return Token(SyntaxKind.IdentifierToken, text, text);
     }
 
     /// <summary>
@@ -332,7 +314,7 @@ public static partial class SyntaxFactory {
     private static Lexer MakeLexer(string text, int offset, ParseOptions options) {
         return new Lexer(
             MakeSourceText(text, offset),
-            options,
+            options ?? ParseOptions.Default,
             false
         );
     }

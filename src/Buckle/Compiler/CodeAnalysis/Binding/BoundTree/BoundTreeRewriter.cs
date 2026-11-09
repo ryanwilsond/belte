@@ -1,11 +1,12 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
+using Buckle.CodeAnalysis.Text;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Binding;
 
 internal abstract partial class BoundTreeRewriter : BoundTreeVisitor {
-    internal virtual TypeSymbol VisitType(TypeSymbol? type) {
+    internal virtual TypeSymbol VisitType(TypeSymbol? type, TextLocation location = null) {
         return type;
     }
 

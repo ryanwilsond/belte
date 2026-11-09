@@ -52,6 +52,9 @@ internal sealed class SimpleProgramBinder : LocalScopeBinder {
                 BuildLocals(this, topLevelStatement.statement, localsBuilder);
         }
 
+        if (_additionalLocals is not null)
+            localsBuilder.AddRange(_additionalLocals);
+
         locals.AddAll(localsBuilder);
         localsBuilder.Free();
 
