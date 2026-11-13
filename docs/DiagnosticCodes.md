@@ -790,3 +790,7 @@
 | RE0008 | Error | failed to generate IL: cannot reference locals or globals from previous submissions with the '#showIL' toggle on |
 | RE0009 | Error | invalid argument '{0}'; expected {1} |
 | RE0010 | Error | failed to open file '{0}'; most likely due to the file being used by another process |
+
+---
+
+*<small>Generated from https://github.com/ryanwilsond/belte/tree/main/src/Tools/DiagnosticCodeDoc</small>*

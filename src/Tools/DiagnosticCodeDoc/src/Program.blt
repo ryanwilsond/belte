@@ -49,6 +49,9 @@ WriteDiagnosticTable(
     "RE"
 );
 
+writer.WriteLine("\n---\n");
+writer.WriteLine("*<small>Generated from https://github.com/ryanwilsond/belte/tree/main/src/Tools/DiagnosticCodeDoc</small>*");
+
 static void WriteDiagnosticTable(
     StreamWriter writer,
     string[] filePaths,
