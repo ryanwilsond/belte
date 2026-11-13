@@ -1,7 +1,6 @@
 using System.Collections.Generic;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Symbols;
-using Buckle.Utilities;
 using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.FlowAnalysis;
@@ -60,13 +59,5 @@ internal sealed class SlotCounter : BoundTreeWalker {
     internal override BoundNode VisitParameterExpression(BoundParameterExpression node) {
         GetOrAddSlot(node.parameter);
         return base.VisitParameterExpression(node);
-    }
-
-    internal override BoundNode VisitStackSlotExpression(BoundStackSlotExpression node) {
-        throw ExceptionUtilities.Unreachable();
-    }
-
-    internal override BoundNode VisitFieldSlotExpression(BoundFieldSlotExpression node) {
-        throw ExceptionUtilities.Unreachable();
     }
 }

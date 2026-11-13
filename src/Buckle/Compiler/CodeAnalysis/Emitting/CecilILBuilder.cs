@@ -75,9 +75,33 @@ internal sealed partial class CecilILBuilder : ILBuilder {
             Emit(CodeGeneration.OpCode.Ret);
         }
 
+        // TODO This performs some basic optimizations around useless gotos (should be expanded to handle more cases)
+        // Because the RefIL builder uses Reflection.Emit's builtin label resolution, it cannot perform these optimizations
         foreach (var (instructionIndex, target) in _unhandledGotos) {
             var targetLabel = target;
             var targetInstructionIndex = ((CecilLabelInfo)_labels[targetLabel]).targetInstructionIndex;
+
+            if (instructionIndex + 1 == targetInstructionIndex) {
+                /*
+
+                br label
+                label:
+
+                ---->
+
+                nop
+
+                */
+                // Already created a nop earlier so just reuse it
+                // Probably not significantly different for performance than recreating it
+                // TODO unfortunately this leaves a NOP in the body, but dealing with the instruction index offsets
+                // seems annoying, especially for the _unhandledSwitches
+                iLProcessor.Body.Instructions[instructionIndex] = (Instruction)iLProcessor.Body
+                    .Instructions[instructionIndex].Operand;
+
+                continue;
+            }
+
             var targetInstruction = iLProcessor.Body.Instructions[targetInstructionIndex];
             var instructionFix = iLProcessor.Body.Instructions[instructionIndex];
             instructionFix.Operand = targetInstruction;

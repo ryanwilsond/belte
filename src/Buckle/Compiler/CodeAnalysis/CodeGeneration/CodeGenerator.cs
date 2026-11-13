@@ -703,12 +703,22 @@ internal sealed partial class CodeGenerator {
                 local.name,
                 local.synthesizedKind,
                 local.isRef ? LocalSlotConstraints.ByRef : LocalSlotConstraints.None,
-                false
+                isSlotReusable: local.synthesizedKind.IsSlotReusable(_ilEmitStyle != ILEmitStyle.Release)
             );
         }
 
         foreach (var statement in block.statements)
             EmitStatement(statement);
+    }
+
+    private bool IsSlotReusable(DataContainerSymbol local) {
+        return local.synthesizedKind.IsSlotReusable(_ilEmitStyle != ILEmitStyle.Release);
+    }
+
+    // TODO Implement freeing
+    private void FreeLocal(DataContainerSymbol local) {
+        if (IsSlotReusable(local) && !IsStackLocal(local))
+            _builder.localSlotManager.FreeLocal(local);
     }
 
     private void EmitStatement(BoundStatement statement) {

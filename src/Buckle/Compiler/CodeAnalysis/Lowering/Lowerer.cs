@@ -70,9 +70,10 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
 
         if (optimize) {
             rewrittenStatement = (BoundBlockStatement)Optimizer.Optimize(
+                compilation,
                 rewrittenStatement,
                 out var createdCompileTimeExpression,
-                isFirstPass: true
+                performPureMethodInlining: true
             );
 
             sawCompileTimeExpression |= createdCompileTimeExpression;
@@ -91,9 +92,10 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
 
         if (optimize) {
             rewrittenStatement = (BoundBlockStatement)Optimizer.Optimize(
+                compilation,
                 rewrittenStatement,
                 out var createdCompileTimeExpression,
-                isFirstPass: false
+                performPureMethodInlining: false
             );
 
             sawCompileTimeExpression |= createdCompileTimeExpression;

@@ -114,7 +114,7 @@ internal sealed partial class DiagnosticPass : BoundTreeWalkerWithStackGuard {
         }
     }
 
-    private static bool IsSameLocalOrField(BoundExpression expr1, BoundExpression expr2) {
+    internal static bool IsSameLocalOrField(BoundExpression expr1, BoundExpression expr2) {
         if (expr1 is null && expr2 is null)
             return true;
 
