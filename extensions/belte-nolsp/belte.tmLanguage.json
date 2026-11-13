@@ -67,7 +67,7 @@
                 },
                 {
                     "name": "keyword.comptime.belte",
-                    "match": "\\s*(\\$\\s*(exec|code|insert|codestr|type|location))\\b"
+                    "match": "\\s*(\\$\\s*(exec|code|insert|codestr|type|location|warning|error|info))\\b"
                 }
             ]
         },

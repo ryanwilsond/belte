@@ -1,5 +1,6 @@
 using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Binding;
+using Buckle.CodeAnalysis.Text;
 using Buckle.Diagnostics;
 
 namespace Buckle.CodeAnalysis.Symbols;
@@ -10,14 +11,17 @@ internal static partial class ConstraintsHelpers {
         internal ImmutableArray<BoundExpressionOrTypeOrConstant> arguments;
         internal BelteDiagnosticQueue diagnostics;
         internal bool failedToSubstituteTemplateParameter;
+        internal TextLocation errorLocation;
 
         internal EvaluationArgs(
             TemplateMap substitution,
             ImmutableArray<BoundExpressionOrTypeOrConstant> arguments,
-            BelteDiagnosticQueue diagnostics) {
+            BelteDiagnosticQueue diagnostics,
+            TextLocation errorLocation) {
             this.substitution = substitution;
             this.arguments = arguments;
             this.diagnostics = diagnostics;
+            this.errorLocation = errorLocation;
         }
     }
 }

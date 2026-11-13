@@ -414,6 +414,29 @@ internal sealed partial class TemplateMetadataWriter {
             return base.VisitArrayLength(node);
         }
 
+        internal override BoundNode VisitBindsExpression(BoundBindsExpression node) {
+            /*
+
+            binds(<expression>)
+
+            ---->
+
+            $warning(...) false
+
+            */
+            _writer.Write((byte)BoundKind.DiagnosticExpression);
+            _writer.Write((byte)global::Diagnostics.DiagnosticSeverity.Warning);
+            // TODO Consider moving the diagnostic string to somewhere else
+            _writer.Write("'binds' constraints can only be resolved from within the declaring type's assembly");
+            _writer.Write((byte)BoundKind.LiteralExpression);
+            Debug.Assert(node.type.specialType == SpecialType.Bool);
+            _writer.Write(_metadataWriter.CreateTypeKindAndInfo(node.type));
+            _writer.Write((byte)SpecialType.Bool);
+            _writer.Write(false);
+            WriteConstantValueValue(_writer, new ConstantValue(false, SpecialType.Bool));
+            return null;
+        }
+
         internal override BoundNode VisitNopStatement(BoundNopStatement node) {
             return null;
         }

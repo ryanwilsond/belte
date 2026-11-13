@@ -203,7 +203,10 @@ public enum SyntaxKind : ushort {
     ExpandKeyword,
     ExecKeyword,
     TypeKeyword,
-    LocationKeyword, // SyntaxFacts.LastKeyword
+    LocationKeyword,
+    ErrorKeyword,
+    WarningKeyword,
+    InfoKeyword, // SyntaxFacts.LastKeyword
 
     // Trivia
     EndOfLineTrivia,
@@ -239,6 +242,7 @@ public enum SyntaxKind : ushort {
     TypeExpression,
     LocationExpression,
     LateIdentifierName,
+    DiagnosticExpression,
 
     // Operator expressions
     TernaryExpression,

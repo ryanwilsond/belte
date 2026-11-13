@@ -485,6 +485,8 @@ internal sealed partial class TemplateMetadataReader {
                     return ReadArrayLength();
                 case (byte)BoundKind.TypeExpression:
                     return ReadTypeExpression();
+                case (byte)BoundKind.DiagnosticExpression:
+                    return ReadDiagnosticExpression();
                 default:
                     if (backtrackIfNotExpression) {
                         _reader.BaseStream.Seek(-1, SeekOrigin.Current);
@@ -784,6 +786,13 @@ internal sealed partial class TemplateMetadataReader {
         private BoundTypeExpression ReadTypeExpression() {
             var type = ReadType();
             return new BoundTypeExpression(null, null, null, type);
+        }
+
+        private BoundDiagnosticExpression ReadDiagnosticExpression() {
+            var severity = (global::Diagnostics.DiagnosticSeverity)_reader.ReadByte();
+            var message = _reader.ReadString();
+            var prefixTarget = ReadExpression();
+            return new BoundDiagnosticExpression(null, severity, message, prefixTarget, prefixTarget.type);
         }
 
         private BoundSizeOfOperator ReadSizeOfOperator() {

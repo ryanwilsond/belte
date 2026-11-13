@@ -664,7 +664,7 @@ hasRelatedInterfaces:
         ImmutableArray<BoundExpression> impliedConstraints,
         ImmutableArray<BoundExpressionOrTypeOrConstant> arguments,
         BelteDiagnosticQueue diagnostics) {
-        var args = new EvaluationArgs(substitution, arguments, diagnostics);
+        var args = new EvaluationArgs(substitution, arguments, diagnostics, location);
         var result = EvaluateConstraintCore(constraint, args, ConsList<TemplateParameterSymbol>.Empty);
 
         if (result is null) {
@@ -828,6 +828,17 @@ hasRelatedInterfaces:
                     tempDiagnostics.Free();
 
                     return new ConstantValue(!anyErrors, SpecialType.Bool);
+                case BoundKind.DiagnosticExpression:
+                    var diagnosticExpression = (BoundDiagnosticExpression)expression;
+
+                    args.diagnostics.Push(new BelteDiagnostic(
+                        new global::Diagnostics.DiagnosticInfo(diagnosticExpression.severity),
+                        args.errorLocation,
+                        diagnosticExpression.message
+                    ));
+
+                    Debug.Assert(diagnosticExpression.prefixTarget is not null);
+                    return EvaluateConstraintCore(diagnosticExpression.prefixTarget, args, templateConstantsInProgress);
                 case BoundKind.CompileTimeExpression:
                     // TODO Unfortunately we can't resolve this because we need the result now and can't run the Evaluator
                     // Any compromise?

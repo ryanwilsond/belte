@@ -2203,6 +2203,8 @@ internal partial class Binder {
                     return BindTypeExpression((TypeExpressionSyntax)node, diagnostics);
                 case SyntaxKind.LocationExpression:
                     return BindLocationExpression((LocationExpressionSyntax)node);
+                case SyntaxKind.DiagnosticExpression:
+                    return BindDiagnosticExpression((DiagnosticExpressionSyntax)node, diagnostics);
                 case SyntaxKind.LateIdentifierName:
                     return BindLateIdentifierName((LateIdentifierName)node, diagnostics);
                 case SyntaxKind.NonNullableType:
@@ -5612,6 +5614,51 @@ internal partial class Binder {
             new ConstantValue(simpleLocation, SpecialType.Location),
             compilation.GetSpecialType(SpecialType.Location)
         );
+    }
+
+    private BoundExpression BindDiagnosticExpression(
+        DiagnosticExpressionSyntax node,
+        BelteDiagnosticQueue diagnostics) {
+        var severity = node.severityKeyword.kind switch {
+            SyntaxKind.ErrorKeyword => DiagnosticSeverity.Error,
+            SyntaxKind.WarningKeyword => DiagnosticSeverity.Warning,
+            SyntaxKind.InfoKeyword => DiagnosticSeverity.Info,
+            _ => throw ExceptionUtilities.UnexpectedValue(node.severityKeyword.kind)
+        };
+
+        var expression = BindExpression(node.expression, diagnostics);
+        var stringType = compilation.GetSpecialType(SpecialType.String);
+        var conversion = conversions.ClassifyImplicitConversionFromExpression(expression, stringType);
+
+        if (!conversion.exists) {
+            GenerateImplicitConversionError(diagnostics, node.expression, conversion, expression, stringType);
+            return ErrorExpression(node, expression);
+        } else {
+            expression = CreateConversion(expression, conversion, stringType, diagnostics);
+        }
+
+        if (expression.constantValue is null) {
+            if (!expression.hasErrors)
+                diagnostics.Push(Error.ConstantExpected(node.expression.location));
+
+            return ErrorExpression(node, expression);
+        }
+
+        diagnostics.Push(
+            new BelteDiagnostic(new DiagnosticInfo(severity), node.location, (string)expression.constantValue.value)
+        );
+
+        if (node.prefixTarget is null) {
+            if (node.parent.kind != SyntaxKind.ExpressionStatement) {
+                diagnostics.Push(Error.DiagnosticExpressionRequiresTarget(node.location));
+                return ErrorExpression(node);
+            } else {
+                // Just some sentinel that BindExpressionStatement checks for for this specific case
+                return new BoundValuePlaceholder(node, null);
+            }
+        }
+
+        return BindExpression(node.prefixTarget, diagnostics);
     }
 
     private BoundExpression BindLateIdentifierName(LateIdentifierName node, BelteDiagnosticQueue diagnostics) {

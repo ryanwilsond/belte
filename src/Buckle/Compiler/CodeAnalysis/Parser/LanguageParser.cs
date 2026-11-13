@@ -3561,7 +3561,14 @@ internal sealed partial class LanguageParser : SyntaxParser {
                     var openParen = MatchOpenParen();
                     var expression = ParseExpression();
                     var closeParen = MatchCloseParen();
-                    return SyntaxFactory.CodeStrExpression(operatorToken, codeKeyword, openParen, expression, closeParen);
+
+                    return SyntaxFactory.CodeStrExpression(
+                        operatorToken,
+                        codeKeyword,
+                        openParen,
+                        expression,
+                        closeParen
+                    );
                 }
             case SyntaxKind.ExecKeyword: {
                     var execKeyword = ConvertToKeyword(EatToken());
@@ -3580,6 +3587,24 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.LocationKeyword: {
                     var locationKeyword = ConvertToKeyword(EatToken());
                     return SyntaxFactory.LocationExpression(operatorToken, locationKeyword);
+                }
+            case SyntaxKind.ErrorKeyword:
+            case SyntaxKind.WarningKeyword:
+            case SyntaxKind.InfoKeyword: {
+                    var severityKeyword = ConvertToKeyword(EatToken());
+                    var openParen = MatchOpenParen();
+                    var expression = ParseExpression();
+                    var closeParen = MatchCloseParen();
+                    var prefixTarget = IsPossibleExpression(allowBinaryAndAssignment: true) ? ParseExpression() : null;
+
+                    return SyntaxFactory.DiagnosticExpression(
+                        operatorToken,
+                        severityKeyword,
+                        openParen,
+                        expression,
+                        closeParen,
+                        prefixTarget
+                    );
                 }
             default:
                 var operand = ParseOperatorExpression(precedence);

@@ -3396,6 +3396,11 @@ internal static class Error {
         return CreateError(DiagnosticCode.ERR_LateIdentifierMustBeNonRefAndVariable, location, message);
     }
 
+    internal static BelteDiagnostic DiagnosticExpressionRequiresTarget(TextLocation location) {
+        var message = $"non-isolated diagnostic expression must be followed by an expression";
+        return CreateError(DiagnosticCode.ERR_DiagnosticExpressionRequiresTarget, location, message);
+    }
+
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {
         return new DiagnosticInfo((int)code, "BU", DiagnosticSeverity.Error);
     }

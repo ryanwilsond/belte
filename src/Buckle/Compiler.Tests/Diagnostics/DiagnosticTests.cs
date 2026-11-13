@@ -10636,4 +10636,17 @@ var text = """"""
 
         AssertDiagnostics(text, diagnostics, _writer);
     }
+
+    [Fact]
+    public void Reports_Error_BU0697_DiagnosticExpressionRequiresTarget() {
+        var text = @"
+            var a = [$warning(""test"")];
+        ";
+
+        var diagnostics = @"
+            non-isolated diagnostic expression must be followed by an expression
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 }

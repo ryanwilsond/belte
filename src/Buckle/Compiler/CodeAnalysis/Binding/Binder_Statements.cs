@@ -2215,10 +2215,15 @@ internal partial class Binder {
         );
     }
 
-    private BoundExpressionStatement BindExpressionStatement(
+    private BoundStatement BindExpressionStatement(
         ExpressionStatementSyntax node,
         BelteDiagnosticQueue diagnostics) {
         var expression = BindRValueWithoutTargetType(node.expression, diagnostics);
+
+        if (expression.syntax.kind == SyntaxKind.DiagnosticExpression &&
+            expression is BoundValuePlaceholder { type: null }) {
+            return new BoundNopStatement(node);
+        }
 
         if (!compilation.options.isScript) {
             if (IsInvalidExpressionStatement(expression))

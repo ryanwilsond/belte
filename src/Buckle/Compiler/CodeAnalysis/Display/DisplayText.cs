@@ -445,6 +445,15 @@ public sealed class DisplayText {
             case BoundKind.InsertStatement:
                 DisplayInsertStatement(text, (BoundInsertStatement)node);
                 break;
+            case BoundKind.DiagnosticExpression:
+                DisplayDiagnosticExpression(text, (BoundDiagnosticExpression)node);
+                break;
+            case BoundKind.UnconvertedLateIdentifierName:
+                DisplayUnconvertedLateIdentifierName(text, (BoundUnconvertedLateIdentifierName)node);
+                break;
+            case BoundKind.LateIdentifierName:
+                DisplayLateIdentifierName(text, (BoundLateIdentifierName)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -664,6 +673,35 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
         text.Write(CreateIdentifier(node.parameter.name));
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+    }
+
+    private static void DisplayDiagnosticExpression(DisplayText text, BoundDiagnosticExpression node) {
+        text.Write(CreateKeyword($"${node.severity switch {
+            global::Diagnostics.DiagnosticSeverity.Error => "error",
+            global::Diagnostics.DiagnosticSeverity.Warning => "warning",
+            global::Diagnostics.DiagnosticSeverity.Info => "info",
+            _ => throw ExceptionUtilities.UnexpectedValue(node.severity)
+        }}"));
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        DisplayStringLiteral(text, node.message, isCharacter: false, includeQuotes: true);
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+
+        if (node.prefixTarget is not null) {
+            text.Write(CreateSpace());
+            DisplayNode(text, node.prefixTarget);
+        }
+    }
+
+    private static void DisplayUnconvertedLateIdentifierName(
+        DisplayText text,
+        BoundUnconvertedLateIdentifierName node) {
+        text.Write(CreatePunctuation(SyntaxKind.GraveToken));
+        text.Write(CreateIdentifier(((LateIdentifierName)node.syntax).name.ErrorDisplayName()));
+    }
+
+    private static void DisplayLateIdentifierName(DisplayText text, BoundLateIdentifierName node) {
+        text.Write(CreatePunctuation(SyntaxKind.GraveToken));
+        text.Write(CreateIdentifier(((LateIdentifierName)node.syntax).name.ErrorDisplayName()));
     }
 
     private static void DisplayBindsExpression(DisplayText text, BoundBindsExpression node) {

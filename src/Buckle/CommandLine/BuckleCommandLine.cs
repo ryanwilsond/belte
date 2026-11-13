@@ -1149,7 +1149,7 @@ public class {name} {{
         ignoreDiagnostic |= WarningExcluded(info, diagnosticOptions.excludeWarnings);
 
         if (!ignoreDiagnostic) {
-            if (info.module != "BU" || diagnostic is not BelteDiagnostic belteDiagnostic) {
+            if ((info.module is not null && info.module != "BU") || diagnostic is not BelteDiagnostic belteDiagnostic) {
                 Console.Write($"{me}: ");
                 DiagnosticFormatter.PrettyPrint(diagnostic, textColor);
             } else {
@@ -1169,12 +1169,12 @@ public class {name} {{
     }
 
     private static bool CheckWarningLevel(DiagnosticInfo info, int warningLevel) {
-        if (info.severity != DiagnosticSeverity.Warning)
+        if (info.severity != DiagnosticSeverity.Warning || info.code is null)
             return false;
 
         if (warningLevel == 0)
             return true;
-        else if (warningLevel == 1)
+        if (warningLevel == 1)
             return !WarningInWarningList(WarningLevel1, info);
         else if (warningLevel == 2)
             return !(WarningInWarningList(WarningLevel2, info) || WarningInWarningList(WarningLevel1, info));
