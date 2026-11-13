@@ -2203,6 +2203,7 @@ internal sealed class Expander : SharedExpander {
         } else {
             var conversion = BoundNode.GetConversion(expression.operandConversion, expression.operandPlaceholder);
 
+            // TODO Care about trueKind here?
             if (conversion.isImplicit) {
                 statements = ApplyConversion(
                     expression.operandConversion,

@@ -124,7 +124,8 @@ public static partial class BuckleCommandLine {
             out var multipleExplains,
             out var sae,
             out var pendingReferenceCopies,
-            out var r2r
+            out var r2r,
+            out var noSubmissions
         );
 
         var compiler = new Compiler(state) {
@@ -160,7 +161,7 @@ public static partial class BuckleCommandLine {
             ResolveDiagnostics(diagnostics, processName, state);
 
             if (!state.noOut) {
-                using var repl = new BelteRepl(compiler, ResolveDiagnostics);
+                using var repl = new BelteRepl(compiler, ResolveDiagnostics, loadSubmissions: !noSubmissions);
                 repl.Run();
             }
 
@@ -1478,7 +1479,8 @@ public class {name} {{
         out bool multipleExplains,
         out bool saExit,
         out string[] pendingReferenceCopies,
-        out bool r2r) {
+        out bool r2r,
+        out bool noSubmissions) {
         var state = new CompilerState();
         var tasks = new List<FileState>();
         var references = new List<string>();
@@ -1542,6 +1544,7 @@ public class {name} {{
         state.includeSynthesizedCodeFile = false;
 
         var r2rl = false;
+        var noSubmissionsL = false;
 
         void DecodeSimpleOption(string arg) {
             switch (arg) {
@@ -1607,6 +1610,9 @@ public class {name} {{
                     break;
                 case "--clearsubmissions":
                     tempDialogs.clearSubmissions = true;
+                    break;
+                case "--nosubmissions":
+                    noSubmissionsL = true;
                     break;
                 case "--clearcache":
                     tempDialogs.clearCache = true;
@@ -1913,6 +1919,7 @@ public class {name} {{
         }
 
         r2r = r2rl;
+        noSubmissions = noSubmissionsL;
         saExit = sae;
 
         if (sae) {

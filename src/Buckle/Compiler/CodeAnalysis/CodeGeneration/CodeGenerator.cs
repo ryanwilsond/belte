@@ -2644,7 +2644,7 @@ oneMoreTime:
                 var conversion = (BoundCastExpression)expr;
                 var conversionKind = conversion.conversion.kind;
 
-                if (conversionKind.IsImplicitCast() &&
+                if (conversion.conversion.trueKind.IsImplicitCast() &&
                     conversionKind != ConversionKind.MethodGroup &&
                     conversionKind != ConversionKind.NullLiteral &&
                     conversionKind != ConversionKind.DefaultLiteral) {

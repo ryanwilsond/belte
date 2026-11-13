@@ -107,7 +107,7 @@ internal sealed partial class DiagnosticPass : BoundTreeWalkerWithStackGuard {
         var current = expr;
 
         while (true) {
-            if (current is not BoundCastExpression conversion || !conversion.conversion.kind.IsImplicitCast())
+            if (current is not BoundCastExpression conversion || !conversion.conversion.trueKind.IsImplicitCast())
                 return current;
 
             current = conversion.operand;
