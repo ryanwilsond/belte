@@ -80,7 +80,7 @@ public static class SymbolDisplay {
                 DisplayToken(text, (TokenSymbol)symbol, format);
                 break;
             case SymbolKind.Alias:
-                DisplayAlias(text, (AliasSymbol)symbol);
+                DisplayAlias(text, (AliasSymbol)symbol, format);
                 break;
             case SymbolKind.Assembly:
                 DisplayAssembly(text, (AssemblySymbol)symbol);
@@ -390,16 +390,20 @@ public static class SymbolDisplay {
         text.Write(CreateIdentifier(module.name));
     }
 
-    private static void DisplayAlias(DisplayText text, AliasSymbol alias) {
-        text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
-        text.Write(CreateSpace());
-        text.Write(CreateIdentifier(alias.name));
-        text.Write(CreateSpace());
-        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
-        AppendToDisplayText(text, alias.target);
-        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
-        text.Write(CreateSpace());
-        text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
+    private static void DisplayAlias(DisplayText text, AliasSymbol alias, SymbolDisplayFormat format) {
+        if ((format.miscellaneousOptions & SymbolDisplayMiscellaneousOptions.UnwrapAliases) != 0) {
+            text.Write(CreatePunctuation(SyntaxKind.OpenBracketToken));
+            text.Write(CreateSpace());
+            text.Write(CreateIdentifier(alias.name));
+            text.Write(CreateSpace());
+            text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+            AppendToDisplayText(text, alias.target);
+            text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+            text.Write(CreateSpace());
+            text.Write(CreatePunctuation(SyntaxKind.CloseBracketToken));
+        } else {
+            text.Write(CreateIdentifier(alias.name));
+        }
     }
 
     private static void DisplayPreprocessingSymbol(DisplayText text, PreprocessingSymbol symbol) {

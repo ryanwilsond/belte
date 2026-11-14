@@ -115,6 +115,41 @@ internal sealed partial class ILOptimizer {
             );
         }
 
+        internal override BoundNode VisitCatchBlockStatement(BoundCatchBlockStatement node) {
+            var exceptionSource = node.exceptionSource;
+            var type = node.exceptionType;
+            var body = node.body;
+
+            if (exceptionSource is not null) {
+                _nodeCounter++;
+
+                if (exceptionSource.kind == BoundKind.DataContainerExpression) {
+                    var sourceLocal = ((BoundDataContainerExpression)exceptionSource).dataContainer;
+
+                    if (_info.TryGetValue(sourceLocal, out var locInfo) &&
+                        IsLastAccess(locInfo, _nodeCounter)) {
+                        exceptionSource = null;
+                    }
+                } else if (exceptionSource.kind == BoundKind.StackSlotExpression) {
+                    var sourceLocal = (DataContainerSymbol)((BoundStackSlotExpression)exceptionSource).symbol;
+
+                    if (_info.TryGetValue(sourceLocal, out var locInfo) &&
+                        IsLastAccess(locInfo, _nodeCounter)) {
+                        exceptionSource = null;
+                    }
+                } else {
+                    exceptionSource = (BoundExpression)Visit(exceptionSource);
+                }
+
+                _nodeCounter++;
+            }
+
+            body = (BoundBlockStatement)Visit(body);
+            type = VisitType(type);
+
+            return node.Update(node.locals, exceptionSource, type, body);
+        }
+
         internal override BoundNode VisitLocalDeclarationStatement(BoundLocalDeclarationStatement node) {
             if (node.declaration.initializer is not null) {
                 var local = node.declaration.dataContainer;

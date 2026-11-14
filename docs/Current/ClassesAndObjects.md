@@ -1555,7 +1555,7 @@ namespace A {
 
 ### 4.8.1 Aliasing
 
-An alias can be defined to allow referencing a type or namespace with another name, typically for brevity or clarity:
+An alias can be defined to allow referencing a symbol with another name, typically for brevity or clarity:
 
 ```belte
 using D = A.B.C.D;
@@ -1586,6 +1586,42 @@ using Num = int?;
 Num num1 = 0;
 // type is 'int!'
 Num! num2 = 0;
+```
+
+In addition to namespaces and types, aliases can be methods. Method aliases represent the entire method group:
+
+```belte
+using M = A.M;
+
+public static class A {
+  public static void M() { }
+  public static void M(int a) { }
+}
+
+M();
+M(10);
+```
+
+The alias method group can be constructed or unconstructed:
+
+```belte
+using M = A.M<int>;
+
+public static class A {
+  public static void M<type T>() { }
+}
+
+M();
+```
+
+```belte
+using M = A.M;
+
+public static class A {
+  public static void M<type T>() { }
+}
+
+M<int>();
 ```
 
 ### 4.8.3 Global Using Directive

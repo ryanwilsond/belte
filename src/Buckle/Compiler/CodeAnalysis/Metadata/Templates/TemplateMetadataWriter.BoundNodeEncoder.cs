@@ -414,6 +414,29 @@ internal sealed partial class TemplateMetadataWriter {
             return base.VisitArrayLength(node);
         }
 
+        internal override BoundNode VisitBindsExpression(BoundBindsExpression node) {
+            /*
+
+            binds(<expression>)
+
+            ---->
+
+            $warning(...) false
+
+            */
+            _writer.Write((byte)BoundKind.DiagnosticExpression);
+            _writer.Write((byte)global::Diagnostics.DiagnosticSeverity.Warning);
+            // TODO Consider moving the diagnostic string to somewhere else
+            _writer.Write("'binds' constraints can only be resolved from within the declaring type's assembly");
+            _writer.Write((byte)BoundKind.LiteralExpression);
+            Debug.Assert(node.type.specialType == SpecialType.Bool);
+            _writer.Write(_metadataWriter.CreateTypeKindAndInfo(node.type));
+            _writer.Write((byte)SpecialType.Bool);
+            _writer.Write(false);
+            WriteConstantValueValue(_writer, new ConstantValue(false, SpecialType.Bool));
+            return null;
+        }
+
         internal override BoundNode VisitNopStatement(BoundNopStatement node) {
             return null;
         }
@@ -511,6 +534,40 @@ internal sealed partial class TemplateMetadataWriter {
             );
 
             return base.VisitTryStatement(node);
+        }
+
+        internal override BoundNode VisitCatchBlockStatement(BoundCatchBlockStatement node) {
+            _writer.Write((byte)BoundKind.CatchBlockStatement);
+
+            var countPosition = _writer.BaseStream.Position;
+            _writer.Write((ushort)0);
+
+            ushort localCount = 0;
+
+            foreach (var local in node.locals) {
+                var _ = WriteLocal(local);
+                localCount++;
+                Debug.Assert(_);
+            }
+
+            var endPosition = _writer.BaseStream.Position;
+
+            _writer.Seek((int)countPosition, SeekOrigin.Begin);
+            _writer.Write(localCount);
+
+            _writer.Seek((int)endPosition, SeekOrigin.Begin);
+
+            if (node.exceptionSource is not null) {
+                _writer.Write(true);
+                Visit(node.exceptionSource);
+                _writer.Write(_metadataWriter.CreateTypeKindAndInfo(node.exceptionType));
+            } else {
+                _writer.Write(false);
+            }
+
+            VisitBlockStatement(node.body);
+
+            return null;
         }
 
         internal override BoundNode VisitSwitchDispatch(BoundSwitchDispatch node) {

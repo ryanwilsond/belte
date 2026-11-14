@@ -688,27 +688,40 @@ internal sealed partial class CodeGenerator {
 
     #region Statements
 
+    private void DeclareLocal(DataContainerSymbol local) {
+        Debug.Assert(local.refKind == RefKind.None || local.synthesizedKind.IsLongLived());
+
+        if (IsStackLocal(local) || local.isConstExpr)
+            return;
+
+        Debug.Assert(!local.type.IsVoidType());
+
+        _builder.DeclareLocal(
+            local.type,
+            local,
+            local.name,
+            local.synthesizedKind,
+            local.isRef ? LocalSlotConstraints.ByRef : LocalSlotConstraints.None,
+            isSlotReusable: local.synthesizedKind.IsSlotReusable(_ilEmitStyle != ILEmitStyle.Release)
+        );
+    }
+
     private void EmitBlock(BoundBlockStatement block) {
-        foreach (var local in block.locals) {
-            Debug.Assert(local.refKind == RefKind.None || local.synthesizedKind.IsLongLived());
-
-            if (IsStackLocal(local) || local.isConstExpr)
-                continue;
-
-            Debug.Assert(!local.type.IsVoidType());
-
-            _builder.DeclareLocal(
-                local.type,
-                local,
-                local.name,
-                local.synthesizedKind,
-                local.isRef ? LocalSlotConstraints.ByRef : LocalSlotConstraints.None,
-                false
-            );
-        }
+        foreach (var local in block.locals)
+            DeclareLocal(local);
 
         foreach (var statement in block.statements)
             EmitStatement(statement);
+    }
+
+    private bool IsSlotReusable(DataContainerSymbol local) {
+        return local.synthesizedKind.IsSlotReusable(_ilEmitStyle != ILEmitStyle.Release);
+    }
+
+    // TODO Implement freeing
+    private void FreeLocal(DataContainerSymbol local) {
+        if (IsSlotReusable(local) && !IsStackLocal(local))
+            _builder.localSlotManager.FreeLocal(local);
     }
 
     private void EmitStatement(BoundStatement statement) {
@@ -1280,9 +1293,7 @@ oneMoreTime:
 
         if (hasCatch) {
             _builder.BeginCatch();
-            // TODO Currently accessing the exception is not possible, so we pop it always
-            _builder.Emit(OpCode.Pop);
-            EmitBlock(statement.catchBody);
+            EmitCatchBlock(statement.catchBody);
         }
 
         if (hasFinally) {
@@ -1291,6 +1302,68 @@ oneMoreTime:
         }
 
         _builder.EndTry(hasFinally);
+    }
+
+    private void EmitCatchBlock(BoundCatchBlockStatement statement) {
+        if (_emitPdbSequencePoints) {
+            var syntax = statement.syntax as CatchClauseSyntax;
+
+            if (syntax is not null) {
+                TextSpan spSpan;
+                var declaration = syntax.declaration;
+
+                if (declaration is null)
+                    spSpan = syntax.keyword.span;
+                else
+                    spSpan = TextSpan.FromBounds(syntax.span.start, syntax.declaration.span.end);
+
+                var tree = statement.syntax.syntaxTree;
+
+                EmitSequencePoint(tree, new TextLocation(tree.text, spSpan, tree), _builder.instructionsEmitted);
+            }
+        }
+
+        foreach (var local in statement.locals)
+            DeclareLocal(local);
+
+        var exceptionSourceOpt = statement.exceptionSource;
+
+        if (exceptionSourceOpt is not null) {
+            if (!exceptionSourceOpt.type.IsVerifierReference()) {
+                Debug.Assert(exceptionSourceOpt.type.IsTemplateParameter());
+                _builder.EmitWithSymbolToken(OpCode.Unbox_Any, exceptionSourceOpt.type);
+            }
+
+            var exceptionSource = exceptionSourceOpt;
+
+            switch (exceptionSource.kind) {
+                case BoundKind.StackSlotExpression: {
+                        var exceptionSourceLocal = (BoundStackSlotExpression)exceptionSource;
+                        Debug.Assert(exceptionSourceLocal.symbol.GetRefKind() == RefKind.None);
+                        var local = (DataContainerSymbol)exceptionSourceLocal.symbol;
+
+                        if (!IsStackLocal(local))
+                            _builder.EmitLocalStore(local);
+                    }
+
+                    break;
+                case BoundKind.DataContainerExpression: {
+                        var exceptionSourceLocal = (BoundDataContainerExpression)exceptionSource;
+                        Debug.Assert(exceptionSourceLocal.dataContainer.refKind == RefKind.None);
+
+                        if (!IsStackLocal(exceptionSourceLocal.dataContainer))
+                            _builder.EmitLocalStore(exceptionSourceLocal.dataContainer);
+                    }
+
+                    break;
+                default:
+                    throw ExceptionUtilities.UnexpectedValue(exceptionSource.kind);
+            }
+        } else {
+            _builder.Emit(OpCode.Pop);
+        }
+
+        EmitBlock(statement.body);
     }
 
     private void EmitSequencePoint(BoundSequencePoint node) {
@@ -2634,7 +2707,7 @@ oneMoreTime:
                 var conversion = (BoundCastExpression)expr;
                 var conversionKind = conversion.conversion.kind;
 
-                if (conversionKind.IsImplicitCast() &&
+                if (conversion.conversion.trueKind.IsImplicitCast() &&
                     conversionKind != ConversionKind.MethodGroup &&
                     conversionKind != ConversionKind.NullLiteral &&
                     conversionKind != ConversionKind.DefaultLiteral) {

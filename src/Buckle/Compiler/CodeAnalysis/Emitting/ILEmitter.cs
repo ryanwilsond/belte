@@ -76,6 +76,9 @@ internal partial class ILEmitter : ModuleBuilder {
 
     private int _nullabilityAttributeFailedToEmit;
 
+    internal Document synthesizedCodeDocument;
+    internal readonly ConcurrentDictionary<StringText, Document> documents = [];
+
     private protected ILEmitter(
         BoundProgram program,
         string assemblySimpleName,

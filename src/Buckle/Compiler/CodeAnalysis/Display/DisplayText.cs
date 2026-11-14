@@ -159,6 +159,9 @@ public sealed class DisplayText {
             case BoundKind.TryStatement:
                 DisplayTryStatement(text, (BoundTryStatement)node);
                 break;
+            case BoundKind.CatchBlockStatement:
+                DisplayCatchBlockStatement(text, (BoundCatchBlockStatement)node);
+                break;
             case BoundKind.InlineILStatement:
                 DisplayInlineILStatement(text, (BoundInlineILStatement)node);
                 break;
@@ -445,6 +448,15 @@ public sealed class DisplayText {
             case BoundKind.InsertStatement:
                 DisplayInsertStatement(text, (BoundInsertStatement)node);
                 break;
+            case BoundKind.DiagnosticExpression:
+                DisplayDiagnosticExpression(text, (BoundDiagnosticExpression)node);
+                break;
+            case BoundKind.UnconvertedLateIdentifierName:
+                DisplayUnconvertedLateIdentifierName(text, (BoundUnconvertedLateIdentifierName)node);
+                break;
+            case BoundKind.LateIdentifierName:
+                DisplayLateIdentifierName(text, (BoundLateIdentifierName)node);
+                break;
             default:
                 throw ExceptionUtilities.UnexpectedValue(node.kind);
         }
@@ -664,6 +676,35 @@ public sealed class DisplayText {
         text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
         text.Write(CreateIdentifier(node.parameter.name));
         text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+    }
+
+    private static void DisplayDiagnosticExpression(DisplayText text, BoundDiagnosticExpression node) {
+        text.Write(CreateKeyword($"${node.severity switch {
+            global::Diagnostics.DiagnosticSeverity.Error => "error",
+            global::Diagnostics.DiagnosticSeverity.Warning => "warning",
+            global::Diagnostics.DiagnosticSeverity.Info => "info",
+            _ => throw ExceptionUtilities.UnexpectedValue(node.severity)
+        }}"));
+        text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+        DisplayStringLiteral(text, node.message, isCharacter: false, includeQuotes: true);
+        text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+
+        if (node.prefixTarget is not null) {
+            text.Write(CreateSpace());
+            DisplayNode(text, node.prefixTarget);
+        }
+    }
+
+    private static void DisplayUnconvertedLateIdentifierName(
+        DisplayText text,
+        BoundUnconvertedLateIdentifierName node) {
+        text.Write(CreatePunctuation(SyntaxKind.GraveToken));
+        text.Write(CreateIdentifier(((LateIdentifierName)node.syntax).name.ErrorDisplayName()));
+    }
+
+    private static void DisplayLateIdentifierName(DisplayText text, BoundLateIdentifierName node) {
+        text.Write(CreatePunctuation(SyntaxKind.GraveToken));
+        text.Write(CreateIdentifier(((LateIdentifierName)node.syntax).name.ErrorDisplayName()));
     }
 
     private static void DisplayBindsExpression(DisplayText text, BoundBindsExpression node) {
@@ -906,9 +947,7 @@ public sealed class DisplayText {
 
         if (node.catchBody is not null) {
             text.Write(CreateSpace());
-            text.Write(CreateKeyword(SyntaxKind.CatchKeyword));
-            text.Write(CreateSpace());
-            DisplayBlockStatement(text, node.catchBody, false);
+            DisplayCatchBlockStatement(text, node.catchBody);
         }
 
         if (node.finallyBody is not null) {
@@ -919,6 +958,22 @@ public sealed class DisplayText {
         }
 
         text.WriteLine();
+    }
+
+    private static void DisplayCatchBlockStatement(DisplayText text, BoundCatchBlockStatement node) {
+        text.Write(CreateKeyword(SyntaxKind.CatchKeyword));
+
+        if (node.exceptionSource is not null) {
+            text.Write(CreateSpace());
+            text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+            SymbolDisplay.AppendToDisplayText(text, node.exceptionType);
+            text.Write(CreateSpace());
+            DisplayNode(node.exceptionSource);
+            text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+        }
+
+        text.Write(CreateSpace());
+        DisplayBlockStatement(text, node.body, false);
     }
 
     private static void DisplayInlineILStatement(DisplayText text, BoundInlineILStatement node) {

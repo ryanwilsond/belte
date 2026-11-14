@@ -256,7 +256,9 @@ internal sealed class DefiniteAssignment : BoundTreeWalkerWithStackGuard {
 
         var shouldReport = symbol.IsFromCompilation(_compilation) &&
             (_method is SynthesizedMethodSymbolBase m ? m.baseMethod : _method.originalDefinition)
-                .Equals(symbol.containingSymbol);
+                .Equals(symbol.containingSymbol) &&
+            // Implicitly assigned by the catch block
+            symbol.declarationKind != DataContainerDeclarationKind.CatchVariable;
 
         if (shouldReport) {
             if (symbol.declarationKind == DataContainerDeclarationKind.PatternLocal) {

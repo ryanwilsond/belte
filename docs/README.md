@@ -131,6 +131,7 @@
       - [3.7.5](Current/Data.md#375-exec) `$exec`
       - [3.7.6](Current/Data.md#376-type) `$type`
       - [3.7.7](Current/Data.md#377-location) `$location`
+      - [3.7.8](Current/Data.md#378-diagnostic-expressions) Diagnostic Expressions
     - [3.8](Current/Data.md#38-binds-expressions) Binds Expressions
   - [4](Current/ClassesAndObjects.md) Namespaces, Classes, and Objects
     - [4.1](Current/ClassesAndObjects.md#41-classes) Classes

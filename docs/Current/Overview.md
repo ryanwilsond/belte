@@ -199,6 +199,7 @@ These keywords only act as keywords inside specific contexts. As such they can b
 - [define](Preprocessor.md#71-defineundef)
 - [elif](Preprocessor.md#72-control)
 - [endif](Preprocessor.md#72-control)
+- [error](Data.md#378-diagnostic-expressions)
 - [exec](Data.md#375-exec)
 - [expand](ClassesAndObjects.md#4223-behavior-specifiers)
 - [explicit](ClassesAndObjects.md#4232-casts)
@@ -209,6 +210,7 @@ These keywords only act as keywords inside specific contexts. As such they can b
 - [has](ClassesAndObjects.md#4512-special-constraints)
 - [implicit](ClassesAndObjects.md#4232-casts) (user-defined conversions)
 - [implicit](ControlFlow.md#217-argument-coercion) (argument coercion)
+- [info](Data.md#378-diagnostic-expressions)
 - [initializes](ClassesAndObjects.md#4211-definite-assignment)
 - [insert](Data.md#373-code-and-insert)
 - [literal](ClassesAndObjects.md#4233-user-defined-literals)
@@ -229,6 +231,7 @@ These keywords only act as keywords inside specific contexts. As such they can b
 - [type](Data.md#376-type)
 - [undef](Preprocessor.md#71-defineundef)
 - [unroll](LowLevelFeatures.md#617-loop-unrolling)
+- [warning](Data.md#378-diagnostic-expressions)
 
 ## 1.4 Nullability and Types
 

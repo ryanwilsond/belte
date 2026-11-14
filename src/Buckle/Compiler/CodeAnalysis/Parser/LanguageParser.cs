@@ -2440,9 +2440,18 @@ internal sealed partial class LanguageParser : SyntaxParser {
             return null;
 
         var keyword = EatToken();
+        var declaration = currentToken.kind == SyntaxKind.OpenParenToken ? ParseCatchClauseDeclaration() : null;
         var body = ParseBlockStatement();
 
-        return SyntaxFactory.CatchClause(keyword, (BlockStatementSyntax)body);
+        return SyntaxFactory.CatchClause(keyword, declaration, body);
+    }
+
+    private CatchClauseDeclarationSyntax ParseCatchClauseDeclaration() {
+        var openParen = MatchOpenParen();
+        var type = ParseType(allowRef: false);
+        var identifier = EatIfMatch(SyntaxKind.IdentifierToken);
+        var closeParen = MatchCloseParen();
+        return SyntaxFactory.CatchClauseDeclaration(openParen, type, identifier, closeParen);
     }
 
     private FinallyClauseSyntax ParseFinallyClause() {
@@ -2452,7 +2461,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var keyword = EatToken();
         var body = ParseBlockStatement();
 
-        return SyntaxFactory.FinallyClause(keyword, (BlockStatementSyntax)body);
+        return SyntaxFactory.FinallyClause(keyword, body);
     }
 
     private StatementSyntax ParseReturnStatement() {
@@ -3561,7 +3570,14 @@ internal sealed partial class LanguageParser : SyntaxParser {
                     var openParen = MatchOpenParen();
                     var expression = ParseExpression();
                     var closeParen = MatchCloseParen();
-                    return SyntaxFactory.CodeStrExpression(operatorToken, codeKeyword, openParen, expression, closeParen);
+
+                    return SyntaxFactory.CodeStrExpression(
+                        operatorToken,
+                        codeKeyword,
+                        openParen,
+                        expression,
+                        closeParen
+                    );
                 }
             case SyntaxKind.ExecKeyword: {
                     var execKeyword = ConvertToKeyword(EatToken());
@@ -3580,6 +3596,24 @@ internal sealed partial class LanguageParser : SyntaxParser {
             case SyntaxKind.LocationKeyword: {
                     var locationKeyword = ConvertToKeyword(EatToken());
                     return SyntaxFactory.LocationExpression(operatorToken, locationKeyword);
+                }
+            case SyntaxKind.ErrorKeyword:
+            case SyntaxKind.WarningKeyword:
+            case SyntaxKind.InfoKeyword: {
+                    var severityKeyword = ConvertToKeyword(EatToken());
+                    var openParen = MatchOpenParen();
+                    var expression = ParseExpression();
+                    var closeParen = MatchCloseParen();
+                    var prefixTarget = IsPossibleExpression(allowBinaryAndAssignment: true) ? ParseExpression() : null;
+
+                    return SyntaxFactory.DiagnosticExpression(
+                        operatorToken,
+                        severityKeyword,
+                        openParen,
+                        expression,
+                        closeParen,
+                        prefixTarget
+                    );
                 }
             default:
                 var operand = ParseOperatorExpression(precedence);
@@ -5027,7 +5061,7 @@ done:
         var shouldTreatAsMultiline = false;
         var leadingWhitespace = 0;
 
-        if (hasCloseQuote && groups.Length > 1) {
+        if (isMultiline && hasCloseQuote && groups.Length > 1) {
             var lastGroups = groups[^1];
 
             if (lastGroups.Length == 1 && lastGroups[0].kind == SyntaxKind.StringLiteralToken) {

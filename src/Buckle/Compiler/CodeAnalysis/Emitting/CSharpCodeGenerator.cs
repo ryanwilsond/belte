@@ -552,7 +552,7 @@ internal sealed class CSharpCodeGenerator {
     }
 
     private string EmitCastExpression(BoundCastExpression node) {
-        if (node.conversion.isImplicit)
+        if (node.conversion.trueKind.IsImplicitCast())
             return EmitExpression(node.operand);
 
         if (node.conversion.kind is ConversionKind.ImplicitNullToPointer)

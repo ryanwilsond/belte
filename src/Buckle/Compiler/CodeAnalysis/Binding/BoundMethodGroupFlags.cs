@@ -6,4 +6,5 @@ namespace Buckle.CodeAnalysis.Binding;
 internal enum BoundMethodGroupFlags : byte {
     None = 0,
     HasImplicitReceiver = 1 << 0,
+    FromAlias = 1 << 1,
 }

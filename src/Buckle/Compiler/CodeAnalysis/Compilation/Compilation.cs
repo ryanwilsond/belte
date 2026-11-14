@@ -62,6 +62,7 @@ public sealed partial class Compilation {
     private AliasSymbol _lazyGlobalNamespaceAlias;
     private AssemblySymbol _lazyAssembly;
     private HandleManager _lazyHandleManager;
+    private bool[] _usedReferences;
     private ConcurrentSet<AssemblySymbol> _lazyUsedAssemblyReferences;
     private ConcurrentDictionary<MethodSymbol, BoundBlockStatement> _lazyExpansionMethods;
     private ConcurrentDictionary<ImportInfo, ImmutableArray<AssemblySymbol>> _lazyImportInfos;
@@ -71,8 +72,6 @@ public sealed partial class Compilation {
     private Dictionary<int, bool> _lazyMakeMemberMissingMap; // TODO Perf: use SmallDictionary
     private BuiltInOperators _lazyBuiltInOperators;
     private Conversions _conversions;
-    private bool[] _usedReferences;
-    private ConcurrentSet<AssemblySymbol> _usedAssemblies;
     private ConcurrentBag<NamedTypeSymbol> _anonymousTypes;
     private ConcurrentBag<NamedTypeSymbol> _synthesizedTypes;
     private ConcurrentDictionary<TypeDeclarationSyntax, NamedTypeSymbol> _synthesizedTypesMap;
@@ -813,10 +812,10 @@ public sealed partial class Compilation {
             }
         }
 
-        if (_usedAssemblies is not null) {
+        if (_lazyUsedAssemblyReferences is not null) {
             referenceManager ??= GetBoundReferenceManager();
 
-            foreach (var assembly in _usedAssemblies)
+            foreach (var assembly in _lazyUsedAssemblyReferences)
                 _usedReferences[referenceManager.GetAssemblyIndex(assembly)] = true;
         }
 
@@ -825,8 +824,8 @@ public sealed partial class Compilation {
 
     internal void NoteUsedAssemblyFromSymbol(Symbol symbol) {
         if (options.buildMode == BuildMode.Dotnet && symbol.containingAssembly is not null) {
-            _usedAssemblies ??= [];
-            _usedAssemblies.Add(symbol.containingAssembly);
+            _lazyUsedAssemblyReferences ??= [];
+            _lazyUsedAssemblyReferences.Add(symbol.containingAssembly);
         }
     }
 
@@ -1969,6 +1968,8 @@ public sealed partial class Compilation {
 
         var program = boundProgram;
         var cfgPath = path is null ? GetProjectPath(CFGName) : Path.Combine(path, CFGName);
+        Console.WriteLine($"Dumping cfg to \"{cfgPath}\"");
+
         var cfgStatement = program.entryPoint is null ? null : program.methodBodies[program.entryPoint];
 
         if (cfgStatement is not null) {
@@ -1982,9 +1983,9 @@ public sealed partial class Compilation {
     private void EmitBoundProgram(string path) {
         const string BoundProgramName = "BoundProgram.gblt";
         var boundProgramPath = path is null ? BoundProgramName : Path.Combine(path, BoundProgramName);
+        Console.WriteLine($"Dumping bound program to \"{boundProgramPath}\"");
 
         var program = boundProgram;
-        Console.WriteLine($"Dumping bound program to \"{boundProgramPath}\"");
 
         var displayText = new DisplayText();
 
@@ -2014,10 +2015,14 @@ public sealed partial class Compilation {
     }
 
     private void EmitTypeInfo(string path) {
+        var program = boundProgram;
+
+        if (!program.types.Any(t => t.typeKind == TypeKind.Struct))
+            return;
+
         const string TypeInfoName = "TypeInfo.txt";
         var typeInfoPath = path is null ? TypeInfoName : Path.Combine(path, TypeInfoName);
-
-        var program = boundProgram;
+        Console.WriteLine($"Dumping type info to \"{typeInfoPath}\"");
 
         using var streamWriter = new StreamWriter(typeInfoPath);
         var typeSizes = new List<(int, string)>();

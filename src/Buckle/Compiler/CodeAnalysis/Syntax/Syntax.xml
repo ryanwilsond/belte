@@ -1466,7 +1466,21 @@
     <Field Name="keyword" Type="SyntaxToken">
       <Kind Name="CatchKeyword"/>
     </Field>
+    <Field Name="declaration" Type="CatchClauseDeclarationSyntax" Optional="true"/>
     <Field Name="body" Type="BlockStatementSyntax"/>
+  </Node>
+  <Node Name="CatchClauseDeclarationSyntax" Base="SyntaxNode">
+    <Kind Name="CatchClauseDeclaration"/>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="type" Type="TypeSyntax"/>
+    <Field Name="identifier" Type="SyntaxToken" Optional="true">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
   </Node>
   <Node Name="FinallyClauseSyntax" Base="SyntaxNode">
     <Kind Name="FinallyClause"/>
@@ -1701,6 +1715,21 @@
     <Field Name="locationKeyword" Type="SyntaxToken">
       <Kind Name="LocationKeyword"/>
     </Field>
+  </Node>
+  <Node Name="DiagnosticExpressionSyntax" Base="ExpressionSyntax">
+    <Kind Name="DiagnosticExpression"/>
+    <Field Name="dollar" Type="SyntaxToken">
+      <Kind Name="DollarToken"/>
+    </Field>
+    <Field Name="severityKeyword" Type="SyntaxToken"/>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="expression" Type="ExpressionSyntax"/>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
+    <Field Name="prefixTarget" Type="ExpressionSyntax" Optional="true"/>
   </Node>
   <Node Name="UnaryExpressionSyntax" Base="ExpressionSyntax">
     <Kind Name="UnaryExpression"/>

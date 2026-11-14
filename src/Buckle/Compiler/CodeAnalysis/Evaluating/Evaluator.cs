@@ -478,11 +478,22 @@ internal sealed partial class Evaluator {
 
                         try {
                             _lastValue = EvaluateStatement(method, node.body, abort, out returned, out innerLeave);
-                        } catch (BelteException) {
+                        } catch (BelteException e) {
                             if (node.catchBody is null)
                                 throw;
 
-                            _lastValue = EvaluateStatement(method, node.catchBody, abort, out returned, out innerLeave);
+                            var catchBlock = node.catchBody;
+
+                            if (catchBlock.exceptionSource is not null)
+                                AssignException(e, catchBlock.exceptionSource, catchBlock.exceptionType, abort);
+
+                            _lastValue = EvaluateStatement(
+                                method,
+                                catchBlock.body,
+                                abort,
+                                out returned,
+                                out innerLeave
+                            );
                         } finally {
                             _insideTry = previousInsideTry;
 
@@ -658,6 +669,40 @@ internal sealed partial class Evaluator {
 
         if (expression.syntax.kind != SyntaxKind.LocalDeclarationStatement)
             _lastValue = value;
+    }
+
+    private void AssignException(
+        Exception exception,
+        BoundExpression exceptionSource,
+        TypeSymbol exceptionType,
+        ValueWrapper<bool> abort) {
+        var namedType = (NamedTypeSymbol)exceptionType;
+        // TODO This is fairly narrow, we need a more general mechanism
+        var constructor = namedType.instanceConstructors
+            .Single(c => c.parameterCount == 1);
+
+        var pointer = CreateInstance(
+            namedType,
+            constructor,
+            [BoundFactory.Literal(
+                _compilation,
+                null,
+                exception.Message,
+                _compilation.GetSpecialType(SpecialType.String)
+            )],
+            [RefKind.None],
+            used: true,
+            abort
+        );
+
+        if (exceptionSource is BoundStackSlotExpression stackSlotExpression) {
+            _stack.Peek().values[stackSlotExpression.slot] = pointer;
+        } else if (exceptionSource is BoundDataContainerExpression dataContainerExpression) {
+            var slot = _context.GetSlotOfGlobalOrAllocate(dataContainerExpression.dataContainer);
+            _context.globalSlots[slot] = pointer;
+        } else {
+            throw ExceptionUtilities.UnexpectedValue(exceptionSource.kind);
+        }
     }
 
     #endregion

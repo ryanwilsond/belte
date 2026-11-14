@@ -144,7 +144,13 @@ internal partial class SourceNamespaceSymbol {
                         };
                     }
                 } else {
-                    result = BuildUsings(usingDirectives, declaringSymbol, declarationSyntax, applyIsGlobalFilter, basesBeingResolved);
+                    result = BuildUsings(
+                        usingDirectives,
+                        declaringSymbol,
+                        declarationSyntax,
+                        applyIsGlobalFilter,
+                        basesBeingResolved
+                    );
                 }
 
                 Interlocked.CompareExchange(ref usings, result, null);
@@ -474,6 +480,9 @@ internal partial class SourceNamespaceSymbol {
                     if (alias.alias is AliasSymbolFromSyntax aliasFromSyntax)
                         diagnostics.PushRange(aliasFromSyntax.aliasTargetDiagnostics);
 
+                    if (target is MethodSymbol m && m.requiresInstanceReceiver)
+                        diagnostics.Push(Error.AliasMethodMustBeStatic(alias.usingDirectiveReference.location, m));
+
                     alias.alias.CheckConstraints(diagnostics);
 
                     semanticDiagnostics.PushRange(diagnostics);
@@ -509,7 +518,7 @@ internal partial class SourceNamespaceSymbol {
 
             diagnostics.Free();
 
-            void RecordImportDependencies(UsingDirectiveSyntax usingDirective, NamespaceOrTypeSymbol target) {
+            void RecordImportDependencies(UsingDirectiveSyntax usingDirective, Symbol target) {
                 // TODO doc comments
                 // if (Compilation.ReportUnusedImportsInTree(usingDirective.syntaxTree)) {
                 //     compilation.RecordImportDependencies(
@@ -517,8 +526,8 @@ internal partial class SourceNamespaceSymbol {
                 //         diagnostics.dependenciesBag.ToImmutableArray()
                 //     );
                 // } else {
-                if (target.isNamespace)
-                    diagnostics.AddAssembliesUsedByNamespaceReference((NamespaceSymbol)target);
+                if (target is NamespaceSymbol namespaceSymbol)
+                    diagnostics.AddAssembliesUsedByNamespaceReference(namespaceSymbol);
 
                 compilation.AddUsedAssemblies(diagnostics.dependenciesBag);
                 // }

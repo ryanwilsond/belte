@@ -43,7 +43,7 @@ internal abstract class AliasSymbol : Symbol, IAliasSymbol {
 
     public override SymbolKind kind => SymbolKind.Alias;
 
-    public abstract NamespaceOrTypeSymbol target { get; }
+    public abstract Symbol target { get; }
 
     internal override TextLocation location => _locations[0];
 
@@ -66,6 +66,8 @@ internal abstract class AliasSymbol : Symbol, IAliasSymbol {
 
     internal sealed override Symbol containingSymbol { get; }
 
+    internal virtual ImmutableArray<TypeOrConstant> templateArguments => default;
+
     internal override void Accept(SymbolVisitor visitor) {
         visitor.VisitAlias(this);
     }
@@ -74,7 +76,7 @@ internal abstract class AliasSymbol : Symbol, IAliasSymbol {
         return visitor.VisitAlias(this, a);
     }
 
-    internal abstract NamespaceOrTypeSymbol GetAliasTarget(ConsList<TypeSymbol> basesBeingResolved);
+    internal abstract Symbol GetAliasTarget(ConsList<TypeSymbol> basesBeingResolved);
 
     internal void CheckConstraints(BelteDiagnosticQueue diagnostics) {
         var target = this.target as TypeSymbol;
@@ -104,5 +106,5 @@ internal abstract class AliasSymbol : Symbol, IAliasSymbol {
 
     internal abstract override bool requiresCompletion { get; }
 
-    INamespaceOrTypeSymbol IAliasSymbol.target => target;
+    ISymbol IAliasSymbol.target => target;
 }

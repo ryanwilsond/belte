@@ -1,5 +1,12 @@
 using Buckle.Building;
 
-void Build(Builder builder) {
+void Build(Builder builder, string[] args) {
     builder.AddInput("src");
+
+    if (args.Length() == 1 && args[0] == "debug") {
+        builder.buildMode = .Dotnet;
+        builder.debugBuild = true;
+        builder.SetOutput("bin/Program");
+        builder.SetMaxCores(1);
+    }
 }

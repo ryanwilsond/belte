@@ -59,6 +59,7 @@ static void WriteDiagnosticTable(
     string codesPath,
     string codePrefix) {
     var diagnostics = new List<(string, string, int16)>();
+    var seenCodes = new HashSet<int16>();
 
     for (filePath in filePaths) {
         var text = File.ReadAllText(filePath)!;
@@ -79,7 +80,8 @@ static void WriteDiagnosticTable(
 
             var codeNumber = GetDiagnosticCodeFromId(diagnosticCode, codesPath);
 
-            diagnostics.Add((severity, message, codeNumber));
+            if (seenCodes.Add(codeNumber))
+                diagnostics.Add((severity, message, codeNumber));
         }
     }
 
@@ -95,15 +97,17 @@ static void WriteDiagnosticTable(
 
 static int16 GetDiagnosticCodeFromId(string id, string codesPath) {
     var text = File.ReadAllText(codesPath)!;
-    var index = text.IndexOf(id);
+    var index = text.IndexOf(f"{id} ");
     var builder = new StringBuilder();
 
     for (var i = index + id.Length + 1; i < text.Length; i++) {
-        if (text[i] == '\n')
+        var current = text[i];
+
+        if (current == '\n')
             break;
 
-        if (Char.IsDigit(text[i]))
-            builder.Append(text[i]);
+        if (Char.IsDigit(current))
+            builder.Append(current);
     }
 
     return Convert.ToInt16(builder.ToString()!);

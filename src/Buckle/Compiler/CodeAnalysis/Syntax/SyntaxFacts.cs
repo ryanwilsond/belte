@@ -274,6 +274,9 @@ public static class SyntaxFacts {
             "codestr" => SyntaxKind.CodestrKeyword,
             "type" => SyntaxKind.TypeKeyword,
             "location" => SyntaxKind.LocationKeyword,
+            "error" => SyntaxKind.ErrorKeyword,
+            "warning" => SyntaxKind.WarningKeyword,
+            "info" => SyntaxKind.InfoKeyword,
             _ => SyntaxKind.IdentifierToken,
         };
     }
@@ -285,6 +288,7 @@ public static class SyntaxFacts {
             case SyntaxKind.DefineKeyword:
             case SyntaxKind.ElifKeyword:
             case SyntaxKind.EndifKeyword:
+            case SyntaxKind.ErrorKeyword:
             case SyntaxKind.ExecKeyword:
             case SyntaxKind.ExpandKeyword:
             case SyntaxKind.ExplicitKeyword:
@@ -294,6 +298,7 @@ public static class SyntaxFacts {
             case SyntaxKind.HandleKeyword:
             case SyntaxKind.HasKeyword:
             case SyntaxKind.ImplicitKeyword:
+            case SyntaxKind.InfoKeyword:
             case SyntaxKind.InitializesKeyword:
             case SyntaxKind.InsertKeyword:
             case SyntaxKind.LiteralKeyword:
@@ -313,6 +318,7 @@ public static class SyntaxFacts {
             case SyntaxKind.TypeKeyword:
             case SyntaxKind.UndefKeyword:
             case SyntaxKind.UnrollKeyword:
+            case SyntaxKind.WarningKeyword:
                 return true;
             default:
                 return false;
@@ -504,6 +510,9 @@ public static class SyntaxFacts {
             SyntaxKind.CodestrKeyword => "codestr",
             SyntaxKind.TypeKeyword => "type",
             SyntaxKind.LocationKeyword => "location",
+            SyntaxKind.ErrorKeyword => "error",
+            SyntaxKind.WarningKeyword => "warning",
+            SyntaxKind.InfoKeyword => "info",
             _ => null,
         };
     }
@@ -909,7 +918,7 @@ public static class SyntaxFacts {
     }
 
     private const int FirstKeyword = (int)SyntaxKind.TypeOfKeyword;
-    private const int LastKeyword = (int)SyntaxKind.TypeKeyword;
+    private const int LastKeyword = (int)SyntaxKind.InfoKeyword;
 
     /// <summary>
     /// Checks if a <see cref="SyntaxKind" /> is a keyword.

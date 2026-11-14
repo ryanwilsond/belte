@@ -331,13 +331,32 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
 
             foreach (var (method, body) in templateMethods) {
                 if (body is not null) {
+                    // TODO Need to consider combining the constant folding pass into the optimizer pass
+                    // This would reduce tree traversals, but could actually end up being more expensive
+                    // because during the constant folding loop in compile-time-expression expansion,
+                    // the optimizer checks are unnecessary
                     var foldedBody = ConstantFoldingPass.Fold(
-                        method,
                         body,
                         emptyMap,
                         out _,
                         _diagnostics
                     );
+
+                    foldedBody = (BoundBlockStatement)Optimizer.Optimize(
+                        _compilation,
+                        foldedBody,
+                        out var _1,
+                        performPureMethodInlining: false
+                    );
+
+                    foldedBody = Optimizer.RemoveDeadCode(
+                        _compilation,
+                        method,
+                        foldedBody,
+                        BelteDiagnosticQueue.Discarded
+                    );
+
+                    Debug.Assert(!_1);
 
                     _lazyExpandedTemplateMethods[method] = foldedBody;
                 }
@@ -502,7 +521,6 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
                     var cctor = staticConstructors[i];
 
                     var foldedBody = ConstantFoldingPass.Fold(
-                        cctor,
                         _methodBodies[cctor],
                         constantMap,
                         out var madeProgress,
@@ -529,7 +547,6 @@ internal sealed partial class MethodCompiler : SymbolVisitor<TypeCompilationStat
         foreach (var (method, body) in _methodBodies) {
             if (body is not null) {
                 var foldedBody = ConstantFoldingPass.Fold(
-                    method,
                     body,
                     constantMap,
                     out _,
