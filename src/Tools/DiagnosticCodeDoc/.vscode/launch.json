@@ -10,7 +10,7 @@
             "args": [],
             "cwd": "${workspaceFolder}",
             "console": "externalTerminal",
-            "stopAtEntry": true,
+            "stopAtEntry": false,
         },
         {
             "name": ".NET Core Attach",

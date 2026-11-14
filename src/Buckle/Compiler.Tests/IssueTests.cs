@@ -5090,4 +5090,15 @@ public sealed class IssueTests {
 
         AssertValue(text, 7);
     }
+
+    [Fact]
+    public void Interpolation_NotTreatedAsMultiline() {
+        var text = @"
+            var id = 10;
+            var a = f""{id} "";
+            return a;
+        ";
+
+        AssertValue(text, "10 ");
+    }
 }

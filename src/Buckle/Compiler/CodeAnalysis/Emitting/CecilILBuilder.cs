@@ -267,6 +267,13 @@ internal sealed partial class CecilILBuilder : ILBuilder {
             _initialHiddenSequencePointMarker = -1;
         }
 
+        if (endLine != startLine) {
+            // TODO This ensures sequence point spans aren't overlapping
+            // Is this the best way to handle this? Perhaps we should be more careful with syntax assignment during lowering
+            endLine = startLine;
+            endChar = t.GetLine(startLine + lineOffset).length;
+        }
+
         var sequencePoint = new SequencePoint(instruction, document) {
             StartLine = startLine + 1 + lineOffset,
             EndLine = endLine + 1 + lineOffset,

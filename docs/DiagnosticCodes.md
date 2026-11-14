@@ -27,6 +27,7 @@
 | BU0017 | Error | undefined symbol '{0}' |
 | BU0018 | Error | cannot use alias '{0}' with '::' since the alias references a type; use '.' instead |
 | BU0019 | Error | not all code paths return a value |
+| BU0020 | Error | cannot convert from type '{0}' to '{1}' |
 | BU0021 | Error | the namespace '{0}' already contains a definition for '{1}' |
 | BU0022 | Error | the using alias '{0}' appeared previously in this namespace |
 | BU0023 | Error | ambiguous which statement this else-clause belongs to; use curly braces |
@@ -62,6 +63,7 @@
 | BU0053 | Warning | implicit types infer reference types making the 'ref' keyword not necessary in this context |
 | BU0054 | Error | cannot assign a reference to a constant to a by-reference data container expecting a reference to a data container |
 | BU0055 | Error | cannot use void as a type |
+| BU0056 | Error | expected {0} |
 | BU0057 | Error | no overload for method '{0}' takes {1} arguments |
 | BU0059 | Error | unexpected {0}, expected {1} or {2} |
 | BU0060 | Error | expected {0} or {1} at end of input |
@@ -82,7 +84,7 @@
 | BU0075 | Error | cannot use a reference type in this context |
 | BU0076 | Error | cannot divide by zero |
 | BU0077 | Error | expected overloadable arithmetic, equality, or comparison operator |
-| BU0078 | Error | cannot return a parameter by reference '{0}' because it is scoped to the current method |
+| BU0078 | Error | cannot return by reference a member of parameter '{0}' because it is scoped to the current method |
 | BU0079 | Error | unrecognized escape sequence '\\{0}' |
 | BU0080 | Error | primitive types do not contain any members |
 | BU0081 | Error | invalid object creation; cannot construct primitive |
@@ -100,7 +102,7 @@
 | BU0093 | Error | attributes are not valid in this context |
 | BU0094 | Error | non-indexing operators cannot return by reference |
 | BU0095 | Error | cannot return a global by reference |
-| BU0096 | Error | cannot return a parameter by reference '{0}' through a ref parameter; it can only be returned in a return statement |
+| BU0096 | Error | cannot return by reference a member of parameter '{0}' through a ref parameter; it can only be returned in a return statement |
 | BU0097 | Error | the type name '{0}' does not exist in the type '{1}' |
 | BU0098 | Error | static constructors must be parameterless |
 | BU0099 | Error | cannot declare a field or data container with a static type |
@@ -115,22 +117,27 @@
 | BU0108 | Error | overloaded binary operator '{0}' takes 2 parameters |
 | BU0109 | Error | user-defined operator '{0}' must be declared public and static |
 | BU0110 | Error | static classes cannot contain operators |
-| BU0111 | Error | cannot return a parameter by reference '{0}' because it is not a ref parameter |
+| BU0111 | Error | cannot return by reference a member of parameter '{0}' because is not a ref parameter |
+| BU0112 | Error | cannot return a parameter by reference '{0}' because it is scoped to the current method |
+| BU0113 | Error | cannot return a parameter by reference '{0}' through a ref parameter; it can only be returned in a return statement |
 | BU0114 | Error | cannot initialize type '{0}' with an initializer list because the type does not define a conversion from 'T[]' or 'Buffer\<T>' |
 | BU0115 | Error | character literal cannot be empty |
 | BU0116 | Error | character literal cannot be more than one character |
 | BU0117 | Error | use of unassigned local '{0}' |
 | BU0118 | Error | '{0}': virtual or abstract methods cannot be private |
+| BU0119 | Error | cannot return a parameter by reference '{0}' because it is not a ref parameter |
 | BU0120 | Error | expression cannot be used in this context because it may indirectly expose variables outside of their declaration scope |
 | BU0121 | Error | cannot derive from primitive type '{0}' |
 | BU0122 | Error | symbol '{0}' has no such template parameter '{1}' |
 | BU0123 | Error | template '{0}' is not a type; cannot extension check a non-type |
 | BU0124 | Error | template constraint is not a compile-time constant |
-| BU0125 | Error | cannot return local '{0}' by reference because it was initialized to a value that cannot be returned by reference |
+| BU0125 | Error | a member of '{0}' is returned by reference but was initialized to a value that cannot be returned by reference |
 | BU0126 | Error | the type '{0}' must be or derive from '{1}' in order to use it as parameter '{2}' in the template type or method '{3}' |
 | BU0127 | Error | template constraint on '{0}' fails: constraint results in null ('{1}') |
 | BU0128 | Error | template constraint on '{0}' fails ('{1}') |
-| BU0130 | Error | cannot return local '{0}' by reference because it is not a ref local |
+| BU0129 | Error | cannot return local '{0}' by reference because it was initialized to a value that cannot be returned by reference |
+| BU0130 | Error | cannot return a member of local '{0}' by reference because it is not a ref local |
+| BU0131 | Error | cannot return local '{0}' by reference because it is not a ref local |
 | BU0132 | Error | '{0}': a member marked as override cannot be marked as new or virtual |
 | BU0133 | Error | branches of a ref conditional operator cannot refer to variables with incompatible declaration scopes |
 | BU0134 | Error | cannot derive from sealed type '{0}' |
@@ -163,6 +170,7 @@
 | BU0161 | Error | no suitable entry point found |
 | BU0162 | Error | array elements cannot be of static type '{0}' |
 | BU0163 | Error | cannot use local '{0}' before it is declared; '{1}' hides the field '{2}' |
+| BU0164 | Error | cannot use local '{0}' before it is declared |
 | BU0165 | Error | cannot use 'this' in a static method |
 | BU0166 | Error | cannot use 'base' in a static method |
 | BU0167 | Error | '{0}' is an ambiguous reference between '{1}' and '{2}' |
@@ -246,6 +254,7 @@
 | BU0245 | Error | the expression must be of type '{0}' to match the alternative ref value |
 | BU0246 | Error | duplicate template parameter '{0}' |
 | BU0247 | Warning | template parameter '{0}' has the same name as the template parameter from outer method '{1}' |
+| BU0248 | Warning | template parameter '{0}' has the same name as the template parameter from outer type '{1}' |
 | BU0249 | Error | a ref parameter cannot have a default value |
 | BU0250 | Error | a value of type '{0}' cannot be used as a default parameter because there are no casts to type '{1}' |
 | BU0251 | Error | parameter '{0}' is of type '{1}'; a default parameter value of a reference type can only be initialized with 'null' |
@@ -370,6 +379,7 @@
 | BU0370 | Error | inline IL block does not have a balanced stack |
 | BU0371 | Error | unknown IL instruction '{0}' |
 | BU0372 | Error | IL instruction '{0}' expects an operand of type '{1}' |
+| BU0373 | Error | IL instruction '{0}' does not expect an operand |
 | BU0374 | Error | preprocessor directives must appear as the first non-whitespace character on a line |
 | BU0375 | Error | #endif directive expected |
 | BU0376 | Error | unexpected preprocessor directive |
@@ -450,6 +460,7 @@
 | BU0451 | Error | argument {0}: cannot pass a reference to a constant to a parameter expecting a reference to a variable |
 | BU0452 | Error | tuple must contain at least 2 elements |
 | BU0453 | Error | tuple element name '{0}' is disallowed |
+| BU0454 | Error | tuple element name '{0}' is only allowed at position {1} |
 | BU0455 | Error | '{0}': tuple element names must be unique |
 | BU0456 | Error | 'new' cannot be used with tuple types; use a tuple literal instead |
 | BU0457 | Error | invalid token '{0}' in a member declaration |
@@ -580,6 +591,7 @@
 | BU0583 | Warning | compile-time expression is unnecessary as the target expression is already a compile-time constant |
 | BU0584 | Error | overloaded compound assignment operator '{0}' takes 1 parameter |
 | BU0585 | Error | the return type for assignment operators must be void |
+| BU0586 | Error | user-defined operator '{0}' must be declared public |
 | BU0587 | Error | user-defined operator '{0}' cannot have template parameters |
 | BU0588 | Error | the typeof operator cannot be used on a nullable reference type |
 | BU0589 | Error | enum methods cannot have a reverse clause |
@@ -629,6 +641,7 @@
 | BU0633 | Error | auto-implemented properties cannot return by reference |
 | BU0634 | Error | properties which return by reference must have a get accessor |
 | BU0635 | Error | properties which return by reference cannot have set accessors |
+| BU0636 | Error | a non ref-returning property may not be used as an out or ref value |
 | BU0637 | Error | property '{0}' cannot be assigned to |
 | BU0638 | Error | the property '{0}' cannot be used in this context because the set accessor is inaccessible |
 | BU0639 | Error | the property '{0}' cannot be used in this context because it lacks the get accessor |

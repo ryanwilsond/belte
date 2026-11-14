@@ -5061,7 +5061,7 @@ done:
         var shouldTreatAsMultiline = false;
         var leadingWhitespace = 0;
 
-        if (hasCloseQuote && groups.Length > 1) {
+        if (isMultiline && hasCloseQuote && groups.Length > 1) {
             var lastGroups = groups[^1];
 
             if (lastGroups.Length == 1 && lastGroups[0].kind == SyntaxKind.StringLiteralToken) {
