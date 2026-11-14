@@ -4,10 +4,10 @@ using Buckle.CodeAnalysis.Text;
 namespace Buckle.CodeAnalysis.Symbols;
 
 internal sealed class AliasSymbolFromResolvedTarget : AliasSymbol {
-    private readonly NamespaceOrTypeSymbol _aliasTarget;
+    private readonly Symbol _aliasTarget;
 
     internal AliasSymbolFromResolvedTarget(
-        NamespaceOrTypeSymbol target,
+        Symbol target,
         string aliasName,
         Symbol containingSymbol,
         ImmutableArray<TextLocation> locations,
@@ -16,11 +16,11 @@ internal sealed class AliasSymbolFromResolvedTarget : AliasSymbol {
         _aliasTarget = target;
     }
 
-    public override NamespaceOrTypeSymbol target => _aliasTarget;
+    public override Symbol target => _aliasTarget;
 
     internal override bool requiresCompletion => false;
 
-    internal override NamespaceOrTypeSymbol GetAliasTarget(ConsList<TypeSymbol>? basesBeingResolved) {
+    internal override Symbol GetAliasTarget(ConsList<TypeSymbol> basesBeingResolved) {
         return _aliasTarget;
     }
 }

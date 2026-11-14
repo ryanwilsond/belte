@@ -1523,7 +1523,14 @@ internal sealed class Lowerer : BoundTreeRewriterWithStackGuard {
 
                 statementsBuilder.Add(tryStatement.Update(
                     FlattenBlock(method, tryStatement.body, false),
-                    hasCatch ? FlattenBlock(method, tryStatement.catchBody, false) : null,
+                    hasCatch
+                        ? tryStatement.catchBody.Update(
+                            tryStatement.catchBody.locals,
+                            tryStatement.catchBody.exceptionSource,
+                            tryStatement.catchBody.exceptionType,
+                            FlattenBlock(method, tryStatement.catchBody.body, false)
+                         )
+                        : null,
                     hasFinally ? FlattenBlock(method, tryStatement.finallyBody, false) : null
                 ));
             } else {

@@ -159,6 +159,9 @@ public sealed class DisplayText {
             case BoundKind.TryStatement:
                 DisplayTryStatement(text, (BoundTryStatement)node);
                 break;
+            case BoundKind.CatchBlockStatement:
+                DisplayCatchBlockStatement(text, (BoundCatchBlockStatement)node);
+                break;
             case BoundKind.InlineILStatement:
                 DisplayInlineILStatement(text, (BoundInlineILStatement)node);
                 break;
@@ -944,9 +947,7 @@ public sealed class DisplayText {
 
         if (node.catchBody is not null) {
             text.Write(CreateSpace());
-            text.Write(CreateKeyword(SyntaxKind.CatchKeyword));
-            text.Write(CreateSpace());
-            DisplayBlockStatement(text, node.catchBody, false);
+            DisplayCatchBlockStatement(text, node.catchBody);
         }
 
         if (node.finallyBody is not null) {
@@ -957,6 +958,22 @@ public sealed class DisplayText {
         }
 
         text.WriteLine();
+    }
+
+    private static void DisplayCatchBlockStatement(DisplayText text, BoundCatchBlockStatement node) {
+        text.Write(CreateKeyword(SyntaxKind.CatchKeyword));
+
+        if (node.exceptionSource is not null) {
+            text.Write(CreateSpace());
+            text.Write(CreatePunctuation(SyntaxKind.OpenParenToken));
+            SymbolDisplay.AppendToDisplayText(text, node.exceptionType);
+            text.Write(CreateSpace());
+            DisplayNode(node.exceptionSource);
+            text.Write(CreatePunctuation(SyntaxKind.CloseParenToken));
+        }
+
+        text.Write(CreateSpace());
+        DisplayBlockStatement(text, node.body, false);
     }
 
     private static void DisplayInlineILStatement(DisplayText text, BoundInlineILStatement node) {

@@ -1,0 +1,37 @@
+using System;
+using System.IO;
+using System.Reflection.Metadata;
+using System.Reflection.Metadata.Ecma335;
+
+void Main(string[] args) {
+    const path = args[0];
+
+    scoped var stream = File.OpenRead(path);
+    scoped var provider = MetadataReaderProvider.FromPortablePdbStream(stream)!;
+
+    final reader = provider.GetMetadataReader()!;
+
+    Console.WriteLine(f"Documents: {reader.Documents.Count}");
+    Console.WriteLine(f"Methods: {reader.MethodDebugInformation.Count}");
+    Console.WriteLine(f"Local scopes: {reader.LocalScopes.Count}");
+    Console.WriteLine(f"Header: {Convert.ToHexString(System.Linq.ImmutableArrayExtensions.ToArray(reader.DebugMetadataHeader!.Id))}");
+
+    for (int32 i = 1; i <= reader.MethodDebugInformation.Count; i++) {
+        final handle = MetadataTokens.MethodDebugInformationHandle(i);
+        final info = reader.GetMethodDebugInformation(handle);
+        final blobHandle = info.SequencePointsBlob;
+        final blobReader = reader.GetBlobReader(blobHandle);
+
+        Console.WriteLine(f"Blob: {Convert.ToHexString(blobReader.ReadBytes(blobReader.Length))}");
+        Console.WriteLine(f"Default document row: {MetadataTokens.GetRowNumber(info.Document)}");
+
+        try {
+            for (point in info.GetSequencePoints()) {
+                Console.WriteLine(f"Method 0x{(0x06000000 | i).ToString("X8")}: IL_{point.Offset.ToString("X4")}, Document={point.Document}");
+                Console.WriteLine(f"    {point.StartLine}:{point.StartColumn} - {point.EndLine}:{point.EndColumn}, hidden={point.IsHidden}");
+            }
+        } catch(Exception ex) {
+            Console.WriteLine(f"Invalid sequence points in method row {i}: {ex}");
+        }
+    }
+}

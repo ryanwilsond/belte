@@ -835,7 +835,7 @@ internal sealed partial class ILOptimizer {
         internal override BoundNode VisitTryStatement(BoundTryStatement node) {
             EnsureOnlyEvalStack();
             var tryBlock = (BoundBlockStatement)Visit(node.body);
-            var catchBody = (BoundBlockStatement)Visit(node.catchBody);
+            var catchBody = (BoundCatchBlockStatement)Visit(node.catchBody);
 
             EnsureOnlyEvalStack();
             var finallyBlock = (BoundBlockStatement)Visit(node.finallyBody);
@@ -843,6 +843,34 @@ internal sealed partial class ILOptimizer {
             EnsureOnlyEvalStack();
 
             return node.Update(tryBlock, catchBody, finallyBlock);
+        }
+
+        internal override BoundNode VisitCatchBlockStatement(BoundCatchBlockStatement node) {
+            EnsureOnlyEvalStack();
+
+            var exceptionSourceOpt = node.exceptionSource;
+            DeclareLocals(node.locals, stack: 0);
+
+            if (exceptionSourceOpt is not null) {
+                PushEvalStack(null, ExprContext.None);
+                _counter++;
+
+                if (exceptionSourceOpt.kind == BoundKind.DataContainerExpression) {
+                    RecordVarWrite(((BoundDataContainerExpression)exceptionSourceOpt).dataContainer);
+                    var prevStack = StackDepth();
+                    exceptionSourceOpt = VisitExpression(exceptionSourceOpt, ExprContext.AssignmentTarget);
+                    _assignmentLocal = null;
+                    SetStackDepth(prevStack);
+                }
+
+                PopEvalStack();
+                _counter++;
+            }
+
+            var boundBlock = (BoundBlockStatement)Visit(node.body);
+            var exceptionTypeOpt = VisitType(node.exceptionType);
+
+            return node.Update(node.locals, exceptionSourceOpt, exceptionTypeOpt, boundBlock);
         }
 
         internal override BoundNode VisitConvertedStackAllocExpression(BoundConvertedStackAllocExpression node) {

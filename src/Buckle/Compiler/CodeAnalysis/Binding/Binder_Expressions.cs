@@ -4837,9 +4837,21 @@ internal partial class Binder {
                     );
                 }
 
-                expression = BindNonMethod(node, symbol, diagnostics, lookupResult.kind, indexed, isError);
+                expression = BindNonMethodOrMethodAlias(node, symbol, diagnostics, lookupResult.kind, indexed, isError);
 
-                if (!isNamedType && (hasTemplateArguments || node.kind == SyntaxKind.TemplateName)) {
+                if (expression is BoundMethodGroup methodGroup &&
+                    (methodGroup.flags & BoundMethodGroupFlags.FromAlias) != 0) {
+                    // Alias only stores the first method but we actually want the entire group
+                    expression = PopulateMethodGroupFromAlias(
+                        node,
+                        methodGroup,
+                        called,
+                        indexed,
+                        templateArguments,
+                        isError,
+                        diagnostics
+                    );
+                } else if (!isNamedType && (hasTemplateArguments || node.kind == SyntaxKind.TemplateName)) {
                     expression = new BoundErrorExpression(
                         node,
                         LookupResultKind.WrongTemplate,
@@ -4875,6 +4887,46 @@ internal partial class Binder {
 
         lookupResult.Free();
         return expression;
+    }
+
+    private BoundMethodGroup PopulateMethodGroupFromAlias(
+        SyntaxNode node,
+        BoundMethodGroup methodGroup,
+        bool called,
+        bool indexed,
+        AnalyzedArguments templateArguments,
+        bool isError,
+        BelteDiagnosticQueue diagnostics) {
+        Debug.Assert(methodGroup.methods.Length == 1 && methodGroup.methods[0].isStatic);
+        var left = new BoundTypeExpression(node, null, null, methodGroup.methods[0].containingType);
+
+        var populated = (BoundMethodGroup)BindMemberAccessWithBoundLeft(
+            node,
+            left,
+            SyntaxFactory.IdentifierName(methodGroup.name),
+            operatorToken: SyntaxFactory.Token(SyntaxKind.PeriodToken),
+            called,
+            indexed,
+            diagnostics
+        );
+
+        Debug.Assert(isError || templateArguments is null || methodGroup.templateArguments.Length == 0);
+
+        return new BoundMethodGroup(
+            methodGroup.syntax,
+            methodGroup.name,
+            populated.methods,
+            templateArguments is null || (isError && !methodGroup.templateArguments.IsDefaultOrEmpty)
+                ? methodGroup.templateArguments
+                : templateArguments.arguments.Select(a => a.typeOrConstant).ToImmutableArray(),
+            methodGroup.lookupSymbol,
+            methodGroup.lookupError,
+            methodGroup.flags & ~BoundMethodGroupFlags.FromAlias,
+            methodGroup.functionType,
+            methodGroup.receiver,
+            methodGroup.resultKind,
+            isError
+        );
     }
 
     private static bool FallBackOnDiscard(IdentifierNameSyntax node) {
@@ -4968,7 +5020,7 @@ internal partial class Binder {
         return null;
     }
 
-    private BoundExpression BindNonMethod(
+    private BoundExpression BindNonMethodOrMethodAlias(
         SimpleNameSyntax node,
         Symbol symbol,
         BelteDiagnosticQueue diagnostics,
@@ -5021,7 +5073,23 @@ internal partial class Binder {
                     var alias = (AliasSymbol)symbol;
                     return alias.target switch {
                         TypeSymbol typeSymbol => new BoundTypeExpression(node, null, alias, typeSymbol, isError),
-                        NamespaceSymbol namespaceSymbol => new BoundNamespaceExpression(node, namespaceSymbol, alias, isError),
+                        NamespaceSymbol namespaceSymbol => new BoundNamespaceExpression(
+                            node,
+                            namespaceSymbol,
+                            alias,
+                            isError
+                        ),
+                        MethodSymbol method => new BoundMethodGroup(
+                            node,
+                            method.name,
+                            [method],
+                            alias.templateArguments,
+                            lookupSymbol: null,
+                            lookupError: null,
+                            flags: BoundMethodGroupFlags.FromAlias,
+                            receiver: null,
+                            resultKind: LookupResultKind.Viable
+                        ),
                         _ => throw ExceptionUtilities.UnexpectedValue(alias.target.kind),
                     };
                 }
@@ -6126,7 +6194,7 @@ internal partial class Binder {
     }
 
     private BoundExpression BindMemberAccessWithBoundLeft(
-        ExpressionSyntax node,
+        SyntaxNode node,
         BoundExpression boundLeft,
         SimpleNameSyntax right,
         SyntaxToken operatorToken,
@@ -7282,7 +7350,13 @@ internal partial class Binder {
 
             invocations.Free();
         } else {
-            var boundExpression = BindMethodGroup(node.expression, true, false, diagnostics);
+            var boundExpression = BindMethodGroup(
+                node.expression,
+                called: true,
+                indexed: false,
+                diagnostics
+            );
+
             result = BindArgumentsAndInvocation(node, boundExpression, analyzedArguments, diagnostics);
         }
 

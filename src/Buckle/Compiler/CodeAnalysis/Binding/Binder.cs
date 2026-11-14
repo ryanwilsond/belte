@@ -569,6 +569,50 @@ internal partial class Binder {
         return UnwrapAlias(result, diagnostics, syntax, basesBeingResolved);
     }
 
+    internal Symbol BindNamespaceOrTypeOrMethodSymbol(
+        ExpressionSyntax syntax,
+        BelteDiagnosticQueue diagnostics,
+        out ImmutableArray<TypeOrConstant> templateArguments,
+        ConsList<TypeSymbol> basesBeingResolved = null) {
+        var tempDiagnostics = BelteDiagnosticQueue.GetInstance();
+        var tentativeResult = BindNamespaceOrTypeSymbol(syntax, tempDiagnostics, basesBeingResolved);
+
+        if (!tentativeResult.namespaceOrTypeSymbol.IsErrorSymbol() || syntax is not QualifiedNameSyntax qualifiedName) {
+            diagnostics.PushRangeAndFree(tempDiagnostics);
+            templateArguments = default;
+            return tentativeResult.namespaceOrTypeSymbol;
+        }
+
+        var tempDiagnostics2 = BelteDiagnosticQueue.GetInstance();
+
+        var left = CreateBoundNamespaceOrTypeExpression(
+            syntax,
+            BindNamespaceOrTypeSymbol(qualifiedName.left, diagnostics, basesBeingResolved).namespaceOrTypeSymbol
+        );
+
+        var result = BindMemberAccessWithBoundLeft(
+            syntax,
+            left,
+            qualifiedName.right,
+            qualifiedName.period,
+            called: false,
+            indexed: false,
+            tempDiagnostics2
+        );
+
+        if (result is not BoundMethodGroup methodGroup) {
+            tempDiagnostics2.Free();
+            diagnostics.PushRangeAndFree(tempDiagnostics);
+            templateArguments = default;
+            return tentativeResult.namespaceOrTypeSymbol;
+        }
+
+        tempDiagnostics.Free();
+        diagnostics.PushRangeAndFree(tempDiagnostics2);
+        templateArguments = methodGroup.templateArguments;
+        return methodGroup.methods[0];
+    }
+
     internal TypeWithAnnotations BindType(
         ExpressionSyntax syntax,
         BelteDiagnosticQueue diagnostics,
@@ -803,14 +847,14 @@ internal partial class Binder {
 
                 return new TypeWithAnnotations(
                     new ExtendedErrorTypeSymbol(
-                        left,
+                        (NamespaceOrTypeSymbol)left,
                         LookupResultKind.NotATypeOrNamespace,
                         error
                     )
                 );
             }
 
-            return BindSimpleNamespaceOrTypeOrAliasSymbol(node.name, diagnostics, basesBeingResolved, left);
+            return BindSimpleNamespaceOrTypeOrAliasSymbol(node.name, diagnostics, basesBeingResolved, (NamespaceOrTypeSymbol)left);
         }
     }
 
@@ -7140,7 +7184,7 @@ symIsHidden:;
             (unwrappedSymbol is not TypeSymbol && IsInstance(unwrappedSymbol) ||
             !(unwrappedSymbol.isAbstract || unwrappedSymbol.isVirtual))) {
             return LookupResult.Empty();
-        } else if (WrongArity(symbol, arity, diagnose, options, errorLocation, out var error)) {
+        } else if (WrongArity(symbol, arity, diagnose, options, errorLocation, unwrappedSymbol, out var error)) {
             return LookupResult.WrongArity(symbol, error);
         } else if ((options & LookupOptions.NamespacesOrTypesOnly) != 0 &&
             unwrappedSymbol is not NamespaceOrTypeSymbol) {
@@ -7189,6 +7233,7 @@ symIsHidden:;
         bool diagnose,
         LookupOptions options,
         TextLocation errorLocation,
+        Symbol aliasTarget,
         out BelteDiagnostic error) {
         switch (symbol.kind) {
             case SymbolKind.NamedType:
@@ -7260,6 +7305,19 @@ symIsHidden:;
                             }
                         }
 
+                        return true;
+                    }
+                }
+
+                break;
+            case SymbolKind.Alias: {
+                    if (aliasTarget.kind != SymbolKind.Method)
+                        goto default;
+
+                    var alias = (AliasSymbol)symbol;
+
+                    if (!alias.templateArguments.IsDefaultOrEmpty && arity != 0) {
+                        error = diagnose ? Error.TemplateNotAllowedAlias(errorLocation, symbol) : null;
                         return true;
                     }
                 }

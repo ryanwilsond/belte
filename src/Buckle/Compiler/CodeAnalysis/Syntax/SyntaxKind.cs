@@ -326,6 +326,7 @@ public enum SyntaxKind : ushort {
     DefaultSwitchLabel,
     MultiCaseSwitchLabel,
     CatchClause,
+    CatchClauseDeclaration,
     FinallyClause,
     ElseClause,
 

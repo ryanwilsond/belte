@@ -373,9 +373,47 @@ internal sealed partial class TemplateMetadataReader {
         private BoundTryStatement ReadTryStatement() {
             var mode = _reader.ReadByte();
             var tryBody = ReadStatement() as BoundBlockStatement;
-            var catchBody = mode == 2 || mode == 1 ? ReadStatement() as BoundBlockStatement : null;
+            var catchBody = mode == 2 || mode == 1 ? ReadCatchBlockStatement() : null;
             var finallyBody = mode == 2 || mode == 0 ? ReadStatement() as BoundBlockStatement : null;
             return new BoundTryStatement(null, tryBody, catchBody, finallyBody);
+        }
+
+        private BoundCatchBlockStatement ReadCatchBlockStatement() {
+            var kind = _reader.ReadByte();
+            Debug.Assert(kind == (byte)BoundKind.CatchBlockStatement);
+
+            var localCount = _reader.ReadUInt16();
+
+            var locals = ArrayBuilder<DataContainerSymbol>.GetInstance(localCount);
+
+            for (var i = 0; i < localCount; i++) {
+                var id = _reader.ReadUInt16();
+                var typeKind = _reader.ReadByte();
+                var type = _templateDecoder.ReadTypeSymbol(typeKind, _reader);
+                var flags = (TemplateMetadataWriter.LocalFlags)_reader.ReadByte();
+
+                locals.Add(new SynthesizedDataContainerSymbol(
+                    _containingSymbol,
+                    type,
+                    $"local{id}",
+                    (flags & TemplateMetadataWriter.LocalFlags.ByRef) != 0 ? RefKind.Ref : RefKind.None,
+                    (flags & TemplateMetadataWriter.LocalFlags.IsPinned) != 0
+                ));
+            }
+
+            var immutableLocals = locals.ToImmutableAndFree();
+
+#if DEBUG
+            var startSize = _enclosingBlocks.Count;
+#endif
+
+            _enclosingBlocks.Push((immutableLocals, []));
+
+            var hasExceptionSource = _reader.ReadBoolean();
+            var exceptionSource = hasExceptionSource ? ReadExpression() : null;
+            var exceptionType = ReadType();
+            var body = (BoundBlockStatement)ReadStatement();
+            return new BoundCatchBlockStatement(null, immutableLocals, exceptionSource, exceptionType, body);
         }
 
         private BoundExpressionStatement ReadExpressionStatement() {

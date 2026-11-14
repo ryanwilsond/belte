@@ -4316,8 +4316,20 @@ public sealed class DiagnosticTests {
         AssertDiagnostics(text, diagnostics, _writer);
     }
 
-    // ! Error_BU0327_TemplateNotAllowed
-    // Unsure how to trigger this
+    [Fact]
+    public void Reports_Error_BU0327_TemplateNotAllowed() {
+        var text = @"
+            using M = A<int>;
+            class A<type T> {}
+            var a = new [M<int>]();
+        ";
+
+        var diagnostics = @"
+            the alias 'M' cannot be used with template arguments
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
 
     [Fact]
     public void Reports_Error_BU0328_BadTemplateArgument() {
@@ -10645,6 +10657,59 @@ var text = """"""
 
         var diagnostics = @"
             non-isolated diagnostic expression must be followed by an expression
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0698_AliasMethodMustBeStatic() {
+        var text = @"
+            [using M = A.M;]
+
+            public class A {
+                public void M() {}
+            }
+            ;
+        ";
+
+        var diagnostics = @"
+            cannot alias method 'A.M()' because it is not static
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0699_TemplateNotAllowedAlias() {
+        var text = @"
+            using M = A.M<int>;
+
+            public class A {
+                public static void M<type T>() {}
+            }
+
+            [M<int>]();
+        ";
+
+        var diagnostics = @"
+            the alias 'M' cannot be used with template arguments because it targets an already constructed method group
+        ";
+
+        AssertDiagnostics(text, diagnostics, _writer);
+    }
+
+    [Fact]
+    public void Reports_Error_BU0700_BadExceptionType() {
+        var text = @"
+            try {
+
+            } catch ([int] a) {
+            }
+        ";
+
+        var diagnostics = @"
+            the type caught must be derived from 'System.Exception'
         ";
 
         AssertDiagnostics(text, diagnostics, _writer);

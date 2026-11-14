@@ -536,6 +536,40 @@ internal sealed partial class TemplateMetadataWriter {
             return base.VisitTryStatement(node);
         }
 
+        internal override BoundNode VisitCatchBlockStatement(BoundCatchBlockStatement node) {
+            _writer.Write((byte)BoundKind.CatchBlockStatement);
+
+            var countPosition = _writer.BaseStream.Position;
+            _writer.Write((ushort)0);
+
+            ushort localCount = 0;
+
+            foreach (var local in node.locals) {
+                var _ = WriteLocal(local);
+                localCount++;
+                Debug.Assert(_);
+            }
+
+            var endPosition = _writer.BaseStream.Position;
+
+            _writer.Seek((int)countPosition, SeekOrigin.Begin);
+            _writer.Write(localCount);
+
+            _writer.Seek((int)endPosition, SeekOrigin.Begin);
+
+            if (node.exceptionSource is not null) {
+                _writer.Write(true);
+                Visit(node.exceptionSource);
+                _writer.Write(_metadataWriter.CreateTypeKindAndInfo(node.exceptionType));
+            } else {
+                _writer.Write(false);
+            }
+
+            VisitBlockStatement(node.body);
+
+            return null;
+        }
+
         internal override BoundNode VisitSwitchDispatch(BoundSwitchDispatch node) {
             _writer.Write((byte)BoundKind.SwitchDispatch);
             Visit(node.expression);

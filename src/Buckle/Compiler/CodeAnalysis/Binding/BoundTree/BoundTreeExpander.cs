@@ -361,14 +361,24 @@ internal abstract partial class BoundTreeExpander {
             new BoundTryStatement(
                 syntax,
                 Simplify(syntax, ExpandBlockStatement(statement.body)) as BoundBlockStatement,
-                statement.catchBody is not null ?
-                    Simplify(syntax, ExpandBlockStatement(statement.catchBody)) as BoundBlockStatement
+                statement.catchBody is not null
+                    ? (BoundCatchBlockStatement)Simplify(syntax, ExpandCatchBlockStatement(statement.catchBody))
                     : null,
-                statement.finallyBody is not null ?
-                    Simplify(syntax, ExpandBlockStatement(statement.finallyBody)) as BoundBlockStatement
+                statement.finallyBody is not null
+                    ? Simplify(syntax, ExpandBlockStatement(statement.finallyBody)) as BoundBlockStatement
                     : null
             )
         ];
+    }
+
+    private protected virtual List<BoundStatement> ExpandCatchBlockStatement(BoundCatchBlockStatement statement) {
+        return [statement.Update(
+            statement.locals,
+            // TODO We aren't expanding exceptionSource, but I don't think we should
+            statement.exceptionSource,
+            statement.exceptionType,
+            (BoundBlockStatement)Simplify(statement.body.syntax, ExpandBlockStatement(statement.body))
+        )];
     }
 
     private protected virtual List<BoundStatement> ExpandBreakStatement(BoundBreakStatement statement) {

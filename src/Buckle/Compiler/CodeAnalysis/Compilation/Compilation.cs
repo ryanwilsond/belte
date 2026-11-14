@@ -62,6 +62,7 @@ public sealed partial class Compilation {
     private AliasSymbol _lazyGlobalNamespaceAlias;
     private AssemblySymbol _lazyAssembly;
     private HandleManager _lazyHandleManager;
+    private bool[] _usedReferences;
     private ConcurrentSet<AssemblySymbol> _lazyUsedAssemblyReferences;
     private ConcurrentDictionary<MethodSymbol, BoundBlockStatement> _lazyExpansionMethods;
     private ConcurrentDictionary<ImportInfo, ImmutableArray<AssemblySymbol>> _lazyImportInfos;
@@ -71,8 +72,6 @@ public sealed partial class Compilation {
     private Dictionary<int, bool> _lazyMakeMemberMissingMap; // TODO Perf: use SmallDictionary
     private BuiltInOperators _lazyBuiltInOperators;
     private Conversions _conversions;
-    private bool[] _usedReferences;
-    private ConcurrentSet<AssemblySymbol> _usedAssemblies;
     private ConcurrentBag<NamedTypeSymbol> _anonymousTypes;
     private ConcurrentBag<NamedTypeSymbol> _synthesizedTypes;
     private ConcurrentDictionary<TypeDeclarationSyntax, NamedTypeSymbol> _synthesizedTypesMap;
@@ -813,10 +812,10 @@ public sealed partial class Compilation {
             }
         }
 
-        if (_usedAssemblies is not null) {
+        if (_lazyUsedAssemblyReferences is not null) {
             referenceManager ??= GetBoundReferenceManager();
 
-            foreach (var assembly in _usedAssemblies)
+            foreach (var assembly in _lazyUsedAssemblyReferences)
                 _usedReferences[referenceManager.GetAssemblyIndex(assembly)] = true;
         }
 
@@ -825,8 +824,8 @@ public sealed partial class Compilation {
 
     internal void NoteUsedAssemblyFromSymbol(Symbol symbol) {
         if (options.buildMode == BuildMode.Dotnet && symbol.containingAssembly is not null) {
-            _usedAssemblies ??= [];
-            _usedAssemblies.Add(symbol.containingAssembly);
+            _lazyUsedAssemblyReferences ??= [];
+            _lazyUsedAssemblyReferences.Add(symbol.containingAssembly);
         }
     }
 

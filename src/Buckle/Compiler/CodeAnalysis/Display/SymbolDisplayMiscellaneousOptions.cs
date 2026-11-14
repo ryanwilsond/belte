@@ -3,7 +3,7 @@ using System;
 namespace Buckle.CodeAnalysis.Display;
 
 [Flags]
-internal enum SymbolDisplayMiscellaneousOptions : byte {
+internal enum SymbolDisplayMiscellaneousOptions : ushort {
     None = 0,
     IncludeKeywords = 1 << 0,
     SimplifyNullable = 1 << 1,
@@ -13,4 +13,5 @@ internal enum SymbolDisplayMiscellaneousOptions : byte {
     SimplifyTuple = 1 << 5,
     IncludePropertyBody = 1 << 6,
     IncludePropertyKeyword = 1 << 7,
+    UnwrapAliases = 1 << 8,
 }

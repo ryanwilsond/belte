@@ -712,8 +712,14 @@
   </Node>
   <Node Name="BoundTryStatement" Base="BoundStatement">
     <Field Name="body" Type="BoundBlockStatement"/>
-    <Field Name="catchBody" Type="BoundBlockStatement?"/>
+    <Field Name="catchBody" Type="BoundCatchBlockStatement?"/>
     <Field Name="finallyBody" Type="BoundBlockStatement?"/>
+  </Node>
+  <Node Name="BoundCatchBlockStatement" Base="BoundStatement">
+    <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>
+    <Field Name="exceptionSource" Type="BoundExpression?"/>
+    <Field Name="exceptionType" Type="TypeSymbol?"/>
+    <Field Name="body" Type="BoundBlockStatement"/>
   </Node>
   <Node Name="BoundWhileStatement" Base="BoundLoopStatement">
     <Field Name="locals" Type="ImmutableArray&lt;DataContainerSymbol&gt;"/>

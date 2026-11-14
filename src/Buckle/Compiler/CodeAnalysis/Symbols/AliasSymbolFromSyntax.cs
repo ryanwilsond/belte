@@ -1,3 +1,4 @@
+using System.Collections.Immutable;
 using System.Threading;
 using Buckle.CodeAnalysis.Binding;
 using Buckle.CodeAnalysis.Syntax;
@@ -8,8 +9,9 @@ namespace Buckle.CodeAnalysis.Symbols;
 internal sealed class AliasSymbolFromSyntax : AliasSymbol {
     private readonly SyntaxReference _directive;
     private SymbolCompletionState _state;
-    private NamespaceOrTypeSymbol _aliasTarget;
+    private Symbol _aliasTarget;
     private BelteDiagnosticQueue _aliasTargetDiagnostics;
+    private ImmutableArray<TypeOrConstant> _templateArguments;
 
     internal AliasSymbolFromSyntax(SourceNamespaceSymbol containingSymbol, UsingDirectiveSyntax syntax)
         : base(
@@ -21,11 +23,13 @@ internal sealed class AliasSymbolFromSyntax : AliasSymbol {
         _directive = new SyntaxReference(syntax);
     }
 
-    public override NamespaceOrTypeSymbol target => GetAliasTarget(basesBeingResolved: null);
+    public override Symbol target => GetAliasTarget(basesBeingResolved: null);
 
     internal override bool requiresCompletion => true;
 
-    internal override NamespaceOrTypeSymbol GetAliasTarget(ConsList<TypeSymbol>? basesBeingResolved) {
+    internal override ImmutableArray<TypeOrConstant> templateArguments => _templateArguments;
+
+    internal override Symbol GetAliasTarget(ConsList<TypeSymbol> basesBeingResolved) {
         if (!_state.HasComplete(CompletionParts.AliasTarget)) {
             var newDiagnostics = BelteDiagnosticQueue.GetInstance();
 
@@ -50,10 +54,10 @@ internal sealed class AliasSymbolFromSyntax : AliasSymbol {
         }
     }
 
-    private NamespaceOrTypeSymbol ResolveAliasTarget(
+    private Symbol ResolveAliasTarget(
         UsingDirectiveSyntax usingDirective,
         BelteDiagnosticQueue diagnostics,
-        ConsList<TypeSymbol>? basesBeingResolved) {
+        ConsList<TypeSymbol> basesBeingResolved) {
         var syntax = usingDirective.namespaceOrType;
         var flags = BinderFlags.SuppressConstraintChecks;
 
@@ -62,12 +66,14 @@ internal sealed class AliasSymbolFromSyntax : AliasSymbol {
             .GetBinder(syntax)
             .WithAdditionalFlags(flags);
 
-        var annotatedNamespaceOrType = declarationBinder.BindNamespaceOrTypeSymbol(
+        var symbol = declarationBinder.BindNamespaceOrTypeOrMethodSymbol(
             syntax,
             diagnostics,
+            out var templateArguments,
             basesBeingResolved
         );
 
-        return annotatedNamespaceOrType.namespaceOrTypeSymbol;
+        _templateArguments = templateArguments;
+        return symbol;
     }
 }

@@ -1694,9 +1694,8 @@ internal static class Error {
     }
 
     internal static BelteDiagnostic TemplateNotAllowed(TextLocation location, Symbol symbol, string text) {
-        throw ExceptionUtilities.Unreachable();
-        // var message = $"the {text} '{symbol}' cannot be used with template arguments";
-        // return CreateError(DiagnosticCode.ERR_HasNoTemplate, location, message);
+        var message = $"the {text} '{symbol}' cannot be used with template arguments";
+        return CreateError(DiagnosticCode.ERR_TemplateNotAllowed, location, message);
     }
 
     internal static BelteDiagnostic BadTemplateArgument(TextLocation location, Symbol symbol) {
@@ -3399,6 +3398,21 @@ internal static class Error {
     internal static BelteDiagnostic DiagnosticExpressionRequiresTarget(TextLocation location) {
         var message = $"non-isolated diagnostic expression must be followed by an expression";
         return CreateError(DiagnosticCode.ERR_DiagnosticExpressionRequiresTarget, location, message);
+    }
+
+    internal static BelteDiagnostic AliasMethodMustBeStatic(TextLocation location, MethodSymbol method) {
+        var message = $"cannot alias method '{method}' because it is not static";
+        return CreateError(DiagnosticCode.ERR_AliasMethodMustBeStatic, location, message);
+    }
+
+    internal static BelteDiagnostic TemplateNotAllowedAlias(TextLocation location, Symbol symbol) {
+        var message = $"the alias '{symbol}' cannot be used with template arguments because it targets an already constructed method group";
+        return CreateError(DiagnosticCode.ERR_TemplateNotAllowedAlias, location, message);
+    }
+
+    internal static BelteDiagnostic BadExceptionType(TextLocation location) {
+        var message = $"the type caught must be derived from 'System.Exception'";
+        return CreateError(DiagnosticCode.ERR_BadExceptionType, location, message);
     }
 
     private static DiagnosticInfo ErrorInfo(DiagnosticCode code) {

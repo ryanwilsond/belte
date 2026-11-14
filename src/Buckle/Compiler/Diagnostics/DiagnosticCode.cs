@@ -706,6 +706,9 @@ public enum DiagnosticCode : ushort {
     ERR_LateIdentifierMustBeMatchType = 695,
     ERR_LateIdentifierMustBeNonRefAndVariable = 696,
     ERR_DiagnosticExpressionRequiresTarget = 697,
+    ERR_AliasMethodMustBeStatic = 698,
+    ERR_TemplateNotAllowedAlias = 699,
+    ERR_BadExceptionType = 700,
 
     // Carving out >=9000 for unsupported errors
     UNS_IndependentCompilation = 9000,

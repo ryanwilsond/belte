@@ -14,9 +14,6 @@
 | BU0004 | Error | integral constant '{0}' is too large |
 | BU0005 | Error | unexpected character '{0}' |
 | BU0006 | Error | unexpected {0} |
-| BU0006 | Error | unexpected {0} |
-| BU0007 | Error | cannot convert from type '{0}' to '{1}' |
-| BU0007 | Error | cannot convert from type '{0}' to '{1}' |
 | BU0007 | Error | cannot convert from type '{0}' to '{1}' implicitly; an explicit conversion exists (are you missing a cast?) |
 | BU0008 | Error | unary operator '{0}' is not defined for type '{1}' |
 | BU0009 | Error | cannot infer array type from initializer list; try using a new expression instead |
@@ -24,7 +21,6 @@
 | BU0011 | Error | binary operator '{0}' is not defined for operands of types '{1}' and '{2}' |
 | BU0012 | Error | multiple files with global statements creates ambiguous entry point |
 | BU0013 | Error | members defined in a namespace cannot be explicitly declared as private or protected |
-| BU0014 | Error | unexpected use of an aliased name |
 | BU0014 | Error | unexpected use of an aliased name |
 | BU0015 | Error | the best overload for '{0}' does not have a parameter named '{1}' |
 | BU0016 | Error | declaring a main method and using global statements creates ambiguous entry point |
@@ -63,14 +59,12 @@
 | BU0050 | Error | cannot initialize a by-value data container with a reference |
 | BU0051 | Error | unexpected {0}, expected {1} |
 | BU0052 | Error | expected {0} at end of input |
-| BU0052 | Error | expected {0} |
 | BU0053 | Warning | implicit types infer reference types making the 'ref' keyword not necessary in this context |
 | BU0054 | Error | cannot assign a reference to a constant to a by-reference data container expecting a reference to a data container |
 | BU0055 | Error | cannot use void as a type |
 | BU0057 | Error | no overload for method '{0}' takes {1} arguments |
 | BU0059 | Error | unexpected {0}, expected {1} or {2} |
 | BU0060 | Error | expected {0} or {1} at end of input |
-| BU0061 | Error | '{0}' contains no such member '{1}' |
 | BU0061 | Error | '{0}' contains no such member '{1}' |
 | BU0062 | Error | left side of assignment operation must be a variable, parameter, field, or indexer |
 | BU0063 | Error | cannot use a nullability annotation in object or array creation |
@@ -88,7 +82,6 @@
 | BU0075 | Error | cannot use a reference type in this context |
 | BU0076 | Error | cannot divide by zero |
 | BU0077 | Error | expected overloadable arithmetic, equality, or comparison operator |
-| BU0078 | Error | cannot return by reference a member of parameter '{0}' because it is scoped to the current method |
 | BU0078 | Error | cannot return a parameter by reference '{0}' because it is scoped to the current method |
 | BU0079 | Error | unrecognized escape sequence '\\{0}' |
 | BU0080 | Error | primitive types do not contain any members |
@@ -107,7 +100,6 @@
 | BU0093 | Error | attributes are not valid in this context |
 | BU0094 | Error | non-indexing operators cannot return by reference |
 | BU0095 | Error | cannot return a global by reference |
-| BU0096 | Error | cannot return by reference a member of parameter '{0}' through a ref parameter; it can only be returned in a return statement |
 | BU0096 | Error | cannot return a parameter by reference '{0}' through a ref parameter; it can only be returned in a return statement |
 | BU0097 | Error | the type name '{0}' does not exist in the type '{1}' |
 | BU0098 | Error | static constructors must be parameterless |
@@ -121,11 +113,9 @@
 | BU0106 | Error | expected a compile-time constant value |
 | BU0107 | Error | '{0}': static types cannot be used as return types |
 | BU0108 | Error | overloaded binary operator '{0}' takes 2 parameters |
-| BU0109 | Error | user-defined operator '{0}' must be declared public |
 | BU0109 | Error | user-defined operator '{0}' must be declared public and static |
 | BU0110 | Error | static classes cannot contain operators |
 | BU0111 | Error | cannot return a parameter by reference '{0}' because it is not a ref parameter |
-| BU0111 | Error | cannot return by reference a member of parameter '{0}' because is not a ref parameter |
 | BU0114 | Error | cannot initialize type '{0}' with an initializer list because the type does not define a conversion from 'T[]' or 'Buffer\<T>' |
 | BU0115 | Error | character literal cannot be empty |
 | BU0116 | Error | character literal cannot be more than one character |
@@ -136,12 +126,10 @@
 | BU0122 | Error | symbol '{0}' has no such template parameter '{1}' |
 | BU0123 | Error | template '{0}' is not a type; cannot extension check a non-type |
 | BU0124 | Error | template constraint is not a compile-time constant |
-| BU0125 | Error | a member of '{0}' is returned by reference but was initialized to a value that cannot be returned by reference |
 | BU0125 | Error | cannot return local '{0}' by reference because it was initialized to a value that cannot be returned by reference |
 | BU0126 | Error | the type '{0}' must be or derive from '{1}' in order to use it as parameter '{2}' in the template type or method '{3}' |
 | BU0127 | Error | template constraint on '{0}' fails: constraint results in null ('{1}') |
 | BU0128 | Error | template constraint on '{0}' fails ('{1}') |
-| BU0130 | Error | cannot return a member of local '{0}' by reference because it is not a ref local |
 | BU0130 | Error | cannot return local '{0}' by reference because it is not a ref local |
 | BU0132 | Error | '{0}': a member marked as override cannot be marked as new or virtual |
 | BU0133 | Error | branches of a ref conditional operator cannot refer to variables with incompatible declaration scopes |
@@ -175,9 +163,7 @@
 | BU0161 | Error | no suitable entry point found |
 | BU0162 | Error | array elements cannot be of static type '{0}' |
 | BU0163 | Error | cannot use local '{0}' before it is declared; '{1}' hides the field '{2}' |
-| BU0163 | Error | cannot use local '{0}' before it is declared |
 | BU0165 | Error | cannot use 'this' in a static method |
-| BU0166 | Error | cannot use the 'base' keyword; '{0}' has no base class |
 | BU0166 | Error | cannot use 'base' in a static method |
 | BU0167 | Error | '{0}' is an ambiguous reference between '{1}' and '{2}' |
 | BU0168 | Error | Ambiguity between '{0}' and '{1}' |
@@ -217,8 +203,6 @@
 | BU0202 | Error | ref value must be an assignable variable, field, parameter, or indexer |
 | BU0203 | Error | an expression cannot be used in this context because it may not be passed or returned by reference |
 | BU0204 | Error | internal non-fatal compiler error |
-| BU0205 | Error | '{0}' is a {1} but is used like a {2} |
-| BU0205 | Error | '{0}' is a {1} but is used like a {2} |
 | BU0205 | Error | '{0}' is a {1} but is used like a {2} |
 | BU0206 | Error | non-invocable member '{0}' cannot be used like a method |
 | BU0207 | Error | '{0}' is a {1}, which is not valid in the given context |
@@ -262,7 +246,6 @@
 | BU0245 | Error | the expression must be of type '{0}' to match the alternative ref value |
 | BU0246 | Error | duplicate template parameter '{0}' |
 | BU0247 | Warning | template parameter '{0}' has the same name as the template parameter from outer method '{1}' |
-| BU0247 | Warning | template parameter '{0}' has the same name as the template parameter from outer type '{1}' |
 | BU0249 | Error | a ref parameter cannot have a default value |
 | BU0250 | Error | a value of type '{0}' cannot be used as a default parameter because there are no casts to type '{1}' |
 | BU0251 | Error | parameter '{0}' is of type '{1}'; a default parameter value of a reference type can only be initialized with 'null' |
@@ -340,8 +323,8 @@
 | BU0323 | Error | the type or namespace name '{0}' does not exist in the namespace '{1}' |
 | BU0324 | Error | namespace '{0}' contains a definition conflicting with alias '{1}' |
 | BU0325 | Error | unexpected use of an unbound template name |
-| BU0326 | Error | the {0} '{1}' cannot be used with template arguments |
 | BU0326 | Error | the non-template {0} '{1}' cannot be used with template arguments |
+| BU0327 | Error | the {0} '{1}' cannot be used with template arguments |
 | BU0328 | Error | the type '{0}' may not be used as a type argument |
 | BU0329 | Error | '{0}': static types cannot be used as type arguments |
 | BU0330 | Error | the type '{0}' must be a reference type in order to use it as parameter '{1}' in the template type or method '{2}' |
@@ -387,7 +370,6 @@
 | BU0370 | Error | inline IL block does not have a balanced stack |
 | BU0371 | Error | unknown IL instruction '{0}' |
 | BU0372 | Error | IL instruction '{0}' expects an operand of type '{1}' |
-| BU0372 | Error | IL instruction '{0}' does not expect an operand |
 | BU0374 | Error | preprocessor directives must appear as the first non-whitespace character on a line |
 | BU0375 | Error | #endif directive expected |
 | BU0376 | Error | unexpected preprocessor directive |
@@ -467,7 +449,6 @@
 | BU0450 | Error | static classes cannot contain finalizers |
 | BU0451 | Error | argument {0}: cannot pass a reference to a constant to a parameter expecting a reference to a variable |
 | BU0452 | Error | tuple must contain at least 2 elements |
-| BU0453 | Error | tuple element name '{0}' is only allowed at position {1} |
 | BU0453 | Error | tuple element name '{0}' is disallowed |
 | BU0455 | Error | '{0}': tuple element names must be unique |
 | BU0456 | Error | 'new' cannot be used with tuple types; use a tuple literal instead |
@@ -500,7 +481,6 @@
 | BU0483 | Error | use of unassigned field '{0}' |
 | BU0484 | Error | cannot declare a class field without an initializer or definite constructor assignment with type '{0}' because it is non-nullable |
 | BU0485 | Error | cannot use a lowlevel default literal outside of a lowlevel context |
-| BU0486 | Error | cannot create an instance of the type '{0}' because it does not have the constructor constraint |
 | BU0486 | Error | non-nullable globals and const or final locals must have an initializer |
 | BU0488 | Error | cannot declare a struct field without definite constructor assignment with type '{0}' because it has no default value |
 | BU0489 | Error | cannot declare a lowlevel field inside of a non-lowlevel type |
@@ -589,7 +569,6 @@
 | BU0572 | Error | the type '{0}' must have a default value in order to use it as parameter '{1}' in the template type or method '{2}' |
 | BU0573 | Warning | assignment made to same variable; did you mean to assign something else? |
 | BU0574 | Error | expression is too long or complex to compile |
-| BU0574 | Error | expression is too long or complex to compile |
 | BU0575 | Error | template parameter underlying type must be 'type' or a primitive |
 | BU0576 | Error | template constraint on '{0}' fails to evaluate ('{1}') |
 | BU0577 | Error | a static virtual or abstract interface member can be accessed only on a type template parameter |
@@ -649,7 +628,6 @@
 | BU0632 | Error | '{0}': property must have at least one accessor |
 | BU0633 | Error | auto-implemented properties cannot return by reference |
 | BU0634 | Error | properties which return by reference must have a get accessor |
-| BU0634 | Error | a non ref-returning property may not be used as an out or ref value |
 | BU0635 | Error | properties which return by reference cannot have set accessors |
 | BU0637 | Error | property '{0}' cannot be assigned to |
 | BU0638 | Error | the property '{0}' cannot be used in this context because the set accessor is inaccessible |
@@ -679,7 +657,6 @@
 | BU0662 | Warning | local '{0}' is unused |
 | BU0663 | Warning | local '{0}' could be marked 'const' |
 | BU0664 | Warning | local '{0}' could be marked 'final' |
-| BU0664 | Warning | local '{0}' could be marked 'constexpr' |
 | BU0666 | Error | null-binding target must be marked as constant if the source expression is constant |
 | BU0667 | Error | cannot mark a data container as both final and variable |
 | BU0668 | Error | cannot mark a data container as both constant expression and variable |
@@ -711,6 +688,10 @@
 | BU0694 | Error | late-bound identifier name must refer to a parameter or local; '{0}' is a {1} |
 | BU0695 | Error | late-bound identifier name must refer to a parameter or local with the target type '{0}'; late-bound identifier name refers to a symbol with type '{1}' |
 | BU0696 | Error | late-bound identifier name must refer to a by-value variable |
+| BU0697 | Error | non-isolated diagnostic expression must be followed by an expression |
+| BU0698 | Error | cannot alias method '{0}' because it is not static |
+| BU0699 | Error | the alias '{0}' cannot be used with template arguments because it targets an already constructed method group |
+| BU0700 | Error | the type caught must be derived from 'System.Exception' |
 | BU9000 | Unsupported | unsupported: cannot compile independently currently; must specify '-i' or '-r' |
 | BU9001 | Unsupported | unsupported: cannot declare a non-type template local function |
 | BU9002 | Unsupported | unsupported: inline IL instruction '{0}' not supported |

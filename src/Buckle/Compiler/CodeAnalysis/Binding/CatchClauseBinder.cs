@@ -2,6 +2,7 @@ using System.Collections.Immutable;
 using Buckle.CodeAnalysis.Symbols;
 using Buckle.CodeAnalysis.Syntax;
 using Buckle.Utilities;
+using Microsoft.CodeAnalysis.PooledObjects;
 
 namespace Buckle.CodeAnalysis.Binding;
 
@@ -35,7 +36,23 @@ internal sealed class CatchClauseBinder : LocalScopeBinder {
     }
 
     private protected override ImmutableArray<DataContainerSymbol> BuildLocals() {
-        // TODO Eventually this will create a filter local (e.g. `catch (SomeException as e)`)
-        return [];
+        var locals = ArrayBuilder<DataContainerSymbol>.GetInstance();
+
+        var declarationOpt = _syntax.declaration;
+
+        if (declarationOpt is not null && declarationOpt.identifier is not null) {
+            locals.Add(SourceDataContainerSymbol.MakeLocal(
+                containingMember,
+                this,
+                allowRefKind: false,
+                declarationOpt.type,
+                declarationOpt.identifier,
+                null,
+                SyntaxTokenList.Empty,
+                DataContainerDeclarationKind.CatchVariable
+            ));
+        }
+
+        return locals.ToImmutableAndFree();
     }
 }

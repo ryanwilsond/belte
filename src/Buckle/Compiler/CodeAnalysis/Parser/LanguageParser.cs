@@ -2440,9 +2440,18 @@ internal sealed partial class LanguageParser : SyntaxParser {
             return null;
 
         var keyword = EatToken();
+        var declaration = currentToken.kind == SyntaxKind.OpenParenToken ? ParseCatchClauseDeclaration() : null;
         var body = ParseBlockStatement();
 
-        return SyntaxFactory.CatchClause(keyword, (BlockStatementSyntax)body);
+        return SyntaxFactory.CatchClause(keyword, declaration, body);
+    }
+
+    private CatchClauseDeclarationSyntax ParseCatchClauseDeclaration() {
+        var openParen = MatchOpenParen();
+        var type = ParseType(allowRef: false);
+        var identifier = EatIfMatch(SyntaxKind.IdentifierToken);
+        var closeParen = MatchCloseParen();
+        return SyntaxFactory.CatchClauseDeclaration(openParen, type, identifier, closeParen);
     }
 
     private FinallyClauseSyntax ParseFinallyClause() {
@@ -2452,7 +2461,7 @@ internal sealed partial class LanguageParser : SyntaxParser {
         var keyword = EatToken();
         var body = ParseBlockStatement();
 
-        return SyntaxFactory.FinallyClause(keyword, (BlockStatementSyntax)body);
+        return SyntaxFactory.FinallyClause(keyword, body);
     }
 
     private StatementSyntax ParseReturnStatement() {

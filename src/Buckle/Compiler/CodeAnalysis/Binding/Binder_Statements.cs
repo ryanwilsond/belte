@@ -1386,7 +1386,7 @@ internal partial class Binder {
         var tryBlock = BindBlockStatement(node.body, diagnostics);
 
         var catchBlock = (node.catchClause is not null)
-            ? BindBlockStatement(node.catchClause.body, diagnostics)
+            ? BindCatchBlock(node.catchClause, diagnostics)
             : null;
 
         var finallyBlock = (node.finallyClause is not null)
@@ -1394,6 +1394,48 @@ internal partial class Binder {
             : null;
 
         return new BoundTryStatement(node, tryBlock, catchBlock, finallyBlock);
+    }
+
+    private BoundCatchBlockStatement BindCatchBlock(CatchClauseSyntax node, BelteDiagnosticQueue diagnostics) {
+        var hasError = false;
+        TypeSymbol type = null;
+        var declaration = node.declaration;
+
+        if (declaration is not null) {
+            type = BindType(declaration.type, diagnostics).type;
+            Debug.Assert(type is not null);
+
+            if (type.IsErrorType()) {
+                hasError = true;
+            } else {
+                var effectiveType = type.EffectiveType();
+
+                if (!compilation.IsEqualOrDerivedFromWellKnownClass(effectiveType, WellKnownType.System_Exception)) {
+                    diagnostics.Push(Error.BadExceptionType(declaration.type.location));
+                    hasError = true;
+                }
+            }
+        }
+
+        var binder = GetBinder(node);
+        Debug.Assert(binder is not null);
+
+        var locals = binder.GetDeclaredLocalsForScope(node);
+        BoundExpression exceptionSource = null;
+        var local = locals.FirstOrDefault();
+
+        if (local?.declarationKind == DataContainerDeclarationKind.CatchVariable) {
+            Debug.Assert(local.type.IsErrorType() || TypeSymbol.Equals(local.type, type, TypeCompareKind.ConsiderEverything));
+
+            // TODO
+            // ReportFieldContextualKeywordConflictIfAny(local, declaration, declaration.identifier, diagnostics);
+
+            hasError |= ValidateDeclarationNameConflictsInScope(local, diagnostics);
+            exceptionSource = new BoundDataContainerExpression(declaration, local, null, local.type);
+        }
+
+        var block = BindBlockStatement(node.body, diagnostics);
+        return new BoundCatchBlockStatement(node, locals, exceptionSource, type, block, hasError);
     }
 
     private BoundStatement BindLocalFunctionStatement(

@@ -1466,7 +1466,21 @@
     <Field Name="keyword" Type="SyntaxToken">
       <Kind Name="CatchKeyword"/>
     </Field>
+    <Field Name="declaration" Type="CatchClauseDeclarationSyntax" Optional="true"/>
     <Field Name="body" Type="BlockStatementSyntax"/>
+  </Node>
+  <Node Name="CatchClauseDeclarationSyntax" Base="SyntaxNode">
+    <Kind Name="CatchClauseDeclaration"/>
+    <Field Name="openParenthesis" Type="SyntaxToken">
+      <Kind Name="OpenParenToken"/>
+    </Field>
+    <Field Name="type" Type="TypeSyntax"/>
+    <Field Name="identifier" Type="SyntaxToken" Optional="true">
+      <Kind Name="IdentifierToken"/>
+    </Field>
+    <Field Name="closeParenthesis" Type="SyntaxToken">
+      <Kind Name="CloseParenToken"/>
+    </Field>
   </Node>
   <Node Name="FinallyClauseSyntax" Base="SyntaxNode">
     <Kind Name="FinallyClause"/>
